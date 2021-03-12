@@ -17,7 +17,12 @@
 /* Don't display 'Trait' if traits aren't available */
 #define HIDE_UNAVAILABLE_TRAIT
 
-int animate_lightning = 0, animate_lightning_vol = 100, animate_lightning_type = SFX_TYPE_AMBIENT;
+#ifdef USE_SOUND_2010
+int animate_lightning_type = SFX_TYPE_AMBIENT;
+#else /* sigh - todo: decouple lightning animation from actually using sound */
+int animate_lightning_type = 0;
+#endif
+int animate_lightning = 0, animate_lightning_vol = 100;
 short int animate_lightning_icky = 0;
 
 /*
@@ -3673,7 +3678,7 @@ void do_weather(bool no_weather) {
 #endif
 				if (use_sound) {
 #ifndef USE_SOUND_2010
-					Term_xtra(TERM_XTRA_SOUND, s1);
+					//Term_xtra(TERM_XTRA_SOUND, ..some-sound..);
 #else
 					sound(thunder_sound_idx, animate_lightning_type, animate_lightning_vol, 0);
 #endif
@@ -3697,9 +3702,7 @@ void do_weather(bool no_weather) {
 
 	/* continue animating current weather (if any) */
 	if (!weather_type && !weather_elements) {
-#ifdef USE_SOUND_2010
 		weather_particles_seen = 0;
-#endif
 		return;
 	}
 
@@ -3917,9 +3920,7 @@ void do_weather(bool no_weather) {
 
 /* move weather elements --------------------------------------------------- */
 
-#ifdef USE_SOUND_2010
 	weather_particles_seen = 0;
-#endif
 
 	/* display and advance currently existing weather elements */
 	if (screen_icky) Term_switch(0);
@@ -3948,14 +3949,13 @@ void do_weather(bool no_weather) {
 			}
 		}
 
-#ifdef USE_SOUND_2010
- #ifdef BIGMAP_MINDLINK_HACK
+#ifdef BIGMAP_MINDLINK_HACK
 		/* big_map mindlink visuals hack */
 		if (last_line_y <= SCREEN_HGT &&
 		    weather_element_y[i] >= weather_panel_y + SCREEN_HGT)
 			;
 		else
- #endif
+#endif
 		/* register weather element, if it is currently supposed to be visible on screen */
 		if (weather_element_type[i] != 0 &&
 		    (weather_element_x[i] >= weather_panel_x &&
@@ -3963,7 +3963,6 @@ void do_weather(bool no_weather) {
 		    weather_element_y[i] >= weather_panel_y &&
 		    weather_element_y[i] < weather_panel_y + screen_hgt))
 			weather_particles_seen++;
-#endif
 
 		/* advance raindrops */
 		if (weather_element_type[i] == 1) {

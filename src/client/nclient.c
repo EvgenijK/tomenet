@@ -3634,6 +3634,7 @@ int Receive_sound(void) {
 		s1 = s;
 	}
 
+#ifdef USE_SOUND_2010 /* Unfortunately thunder_sound_idx won't be defined, so no lightning animation :/ */
 	/* Hack for thunderstorm weather sfx - delay it and cast a lightning lighting effect first.
 	   We want to check this even if use_sound is FALSE, because we still can see the visual effect.
 	   Also allow the lightning visual effect when thunder sfx is not a weather-type.
@@ -3656,14 +3657,14 @@ int Receive_sound(void) {
 			break;
 		}
 	}
+#endif
 
 	/* Make a sound (if allowed) */
 	if (use_sound) {
-		if (t == SFX_TYPE_WEATHER && (noweather_mode || c_cfg.no_weather)) return 1;
-
 #ifndef USE_SOUND_2010
 		Term_xtra(TERM_XTRA_SOUND, s1);
 #else
+		if (t == SFX_TYPE_WEATHER && (noweather_mode || c_cfg.no_weather)) return 1;
 		if (!sound(s1, t, v, id)) sound(s2, t, v, id);
 #endif
 	}
@@ -4567,10 +4568,13 @@ int Receive_palette(void) {
 int Receive_idle(void) {
 	int	n;
 	char 	ch, idle;
+#ifdef USE_SOUND_2010
 	static bool idle_muted_music = TRUE, idle_muted_weather = TRUE;
+#endif
 
 	if ((n = Packet_scanf(&rbuf, "%c%c", &ch, &idle)) <= 0) return n;
 
+#ifdef USE_SOUND_2010
 	if (idle) {
 		if (cfg_audio_music) {
 			toggle_music(TRUE);
@@ -4584,6 +4588,7 @@ int Receive_idle(void) {
 		if (!cfg_audio_music && idle_muted_music) toggle_music(TRUE);
 		if (!cfg_audio_weather && idle_muted_weather) toggle_weather();
 	}
+#endif
 	return 1;
 }
 

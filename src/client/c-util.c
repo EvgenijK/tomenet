@@ -6188,24 +6188,26 @@ Chain_Macro:
 						break;
 
 					case mw_common:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please choose one of these common commands and functions:");
-						Term_putstr(15, 12, -1, TERM_L_GREEN, "a) reply to last incoming whisper                 :+:");
-						Term_putstr(15, 13, -1, TERM_L_GREEN, "b) repeat previous chat command or message        :^P\\r");
-						Term_putstr(15, 14, -1, TERM_L_GREEN, "c) toggle AFK state                               :/afk\\r");
-						Term_putstr(15, 15, -1, TERM_L_GREEN, "d) word-of-recall (item must be inscribed '@R')   :/rec\\r");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "e) cough (reduces sleep of monsters nearby)       :/cough\\r");
-						Term_putstr(15, 17, -1, TERM_L_GREEN, "f) shout (breaks sleep of monsters nearby)        :/sleep\\r");
-						Term_putstr(15, 18, -1, TERM_L_GREEN, "g) display some extra information                 :/ex\\r");
-						Term_putstr(15, 19, -1, TERM_L_GREEN, "h) display in-game time (daylight is 6am-10pm)    :/time\\r");
-						Term_putstr(15, 20, -1, TERM_L_GREEN, "i) prompt for a guide quick search                :/? ");
+						l = 9;
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please choose one of these common commands and functions:");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "a) reply to last incoming whisper                 :+:");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "b) repeat previous chat command or message        :^P\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "c) toggle AFK state                               :/afk\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "d) word-of-recall (item must be inscribed '@R')   :/rec\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "e) cough (reduces sleep of monsters nearby)       :/cough\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "f) shout (breaks sleep of monsters nearby)        :/shout\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "g) quick-toggle option 'easy_disarm_montraps'     :/edmt\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "h) display some extra information                 :/ex\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "i) display in-game time (daylight is 6am-10pm)    :/time\\r");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "j) prompt for a guide quick search                :/? ");
 						if (c_cfg.rogue_like_commands) {
-							Term_putstr(15, 21, -1, TERM_L_GREEN, "j) swap-item #1 (inscribe two items '@x0')        \\e)S0");
-							Term_putstr(15, 22, -1, TERM_L_GREEN, "k) swap-item #2 (inscribe two items '@x1')        \\e)S1");
-							Term_putstr(15, 23, -1, TERM_L_GREEN, "l) swap-item #3 (inscribe two items '@x2')        \\e)S2");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "k) swap-item #1 (inscribe two items '@x0')        \\e)S0");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "l) swap-item #2 (inscribe two items '@x1')        \\e)S1");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "m) swap-item #3 (inscribe two items '@x2')        \\e)S2");
 						} else {
-							Term_putstr(15, 21, -1, TERM_L_GREEN, "j) swap-item #1 (inscribe two items '@x0')        \\e)x0");
-							Term_putstr(15, 22, -1, TERM_L_GREEN, "k) swap-item #2 (inscribe two items '@x1')        \\e)x1");
-							Term_putstr(15, 23, -1, TERM_L_GREEN, "l) swap-item #3 (inscribe two items '@x2')        \\e)x2");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "k) swap-item #1 (inscribe two items '@x0')        \\e)x0");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "l) swap-item #2 (inscribe two items '@x1')        \\e)x1");
+							Term_putstr(15, l++, -1, TERM_L_GREEN, "m) swap-item #3 (inscribe two items '@x2')        \\e)x2");
 						}
 
 						while (TRUE) {
@@ -6239,18 +6241,19 @@ Chain_Macro:
 						case 'd': strcpy(buf2, ":/rec\\r"); break;
 						case 'e': strcpy(buf2, ":/cough\\r"); break;
 						case 'f': strcpy(buf2, ":/shout\\r"); break;
-						case 'g': strcpy(buf2, ":/ex\\r"); break;
-						case 'h': strcpy(buf2, ":/time\\r"); break;
-						case 'i': strcpy(buf2, ":/? "); break;
-						case 'j':
+						case 'g': strcpy(buf2, ":/edmt\\r"); break;
+						case 'h': strcpy(buf2, ":/ex\\r"); break;
+						case 'i': strcpy(buf2, ":/time\\r"); break;
+						case 'j': strcpy(buf2, ":/? "); break;
+						case 'k':
 							if (c_cfg.rogue_like_commands) strcpy(buf2, "\\e)S0");
 							else strcpy(buf2, "\\e)x0");
 							break;
-						case 'k':
+						case 'l':
 							if (c_cfg.rogue_like_commands) strcpy(buf2, "\\e)S1");
 							else strcpy(buf2, "\\e)x1");
 							break;
-						case 'l':
+						case 'm':
 							if (c_cfg.rogue_like_commands) strcpy(buf2, "\\e)S2");
 							else strcpy(buf2, "\\e)x2");
 							break;
@@ -7926,16 +7929,18 @@ static void do_cmd_options_fonts(void) {
  #endif /* WINDOWS || USE_X11 */
 #endif /* ENABLE_SUBWINDOW_MENU */
 
+#ifdef USE_SOUND_2010
 static void do_cmd_options_sfx(void) {
-#if SOUND_SDL
+ #if SOUND_SDL
 	do_cmd_options_sfx_sdl();
-#endif
+ #endif
 }
 static void do_cmd_options_mus(void) {
-#if SOUND_SDL
+ #if SOUND_SDL
 	do_cmd_options_mus_sdl();
-#endif
+ #endif
 }
+#endif
 
 errr options_dump(cptr fname) {
 	int i, j;
@@ -8725,12 +8730,14 @@ void do_cmd_options(void) {
 		Term_putstr(3, 10, -1, TERM_L_DARK, "----------------------------------------------------------------------------");
 
 		Term_putstr(3, 12, -1, TERM_SLATE, "The following options are mostly saved automatically on quitting via CTRL+Q:");
+#ifdef USE_SOUND_2010
 		if (c_cfg.rogue_like_commands)
 			Term_putstr(3, 14, -1, TERM_WHITE, "(\377yx\377w/\377yX\377w) Audio mixer (also accessible via CTRL+F hotkey) / Audio pack selector");
 		else
 			Term_putstr(3, 14, -1, TERM_WHITE, "(\377yx\377w/\377yX\377w) Audio mixer (also accessible via CTRL+U hotkey) / Audio pack selector");
 
 		Term_putstr(3, 15, -1, TERM_WHITE, "(\377yn\377w/\377yN\377w) Disable/reenable specific sound effects/music");
+#endif
 
 #if defined(WINDOWS) || defined(USE_X11)
 		/* Font (and window) settings aren't available in command-line mode */
@@ -8825,16 +8832,15 @@ void do_cmd_options(void) {
 		else if (k == 'F') change_font(-1);
 #endif
 
+#ifdef USE_SOUND_2010
 		/* Access audio mixer */
 		else if (k == 'x') interact_audio();
-
 		else if (k == 'X') audio_pack_selector();
-
-		else if (k == 'I') do_cmd_options_install_audio_packs();
-
 		/* Toggle single sfx/song from a list of all */
 		else if (k == 'n') do_cmd_options_sfx();
 		else if (k == 'N') do_cmd_options_mus();
+#endif
+		else if (k == 'I') do_cmd_options_install_audio_packs();
 
 		else if (k == 'c') do_cmd_options_colourblindness();
 
@@ -9583,6 +9589,7 @@ void toggle_weather(void) {
 }
 #endif
 
+#ifdef USE_SOUND_2010
 /* Select folders for music/sound pack to load, from a selection of all eligible folders within lib/xtra */
 #define MAX_PACKS 100
 #define PACKS_SCREEN 10
@@ -9892,6 +9899,7 @@ void audio_pack_selector(void) {
 	//No longer true (for SDL, our only sound sytem at this point basically):
 	//c_message_add("\377RAfter changing audio packs, a game client restart is required!");
 }
+#endif
 
 /* For pasting monster lore into chat, also usable for item-pasting. - C. Blue
    Important feature: Replaces first ':' by '::' if sending to normal chat. */
@@ -10016,12 +10024,14 @@ void check_immediate_options(int i, bool yes, bool playing) {
 		if (screen_icky) Term_switch(0);
 	}
 
+#ifdef USE_SOUND_2010
 	/* Refresh music when shuffle_music is toggled */
 	if (option_info[i].o_var == &c_cfg.shuffle_music) {
 		/* ..but only if we're not already in the process of changing music! */
 		if (music_next == -1)
 			music(-3); //refresh!
 	}
+#endif
 }
 
 /* Helper functions for DONT_CLEAR_TOPLINE_IF_AVOIDABLE - C. Blue */

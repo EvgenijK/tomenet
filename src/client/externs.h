@@ -981,14 +981,13 @@ extern void weather_handle_fading(void);
 extern void ambient_handle_fading(void);
 extern void mixer_fadeall(void);
 extern int music_cur, music_cur_song, music_next, music_next_song, weather_channel, weather_current, weather_current_vol, weather_channel_volume, ambient_channel, ambient_current, ambient_channel_volume;
-extern int weather_particles_seen, weather_sound_change, weather_fading, ambient_fading;
-extern bool wind_noticable;
+extern int weather_sound_change, weather_fading, ambient_fading;
 extern int cfg_audio_rate, cfg_max_channels, cfg_audio_buffer;
 extern bool cfg_audio_master, cfg_audio_music, cfg_audio_sound, cfg_audio_weather, no_cache_audio, weather_resume, ambient_resume;
 extern int cfg_audio_master_volume, cfg_audio_music_volume, cfg_audio_sound_volume, cfg_audio_weather_volume;
-#if 1 /* WEATHER_VOL_PARTICLES */
-extern int weather_vol_smooth, weather_vol_smooth_anti_oscill, weather_smooth_avg[20];
-#endif
+ #if 1 /* WEATHER_VOL_PARTICLES */
+ extern int weather_vol_smooth, weather_vol_smooth_anti_oscill, weather_smooth_avg[20];
+ #endif
 extern int grid_weather_volume, grid_ambient_volume, grid_weather_volume_goal, grid_ambient_volume_goal, grid_weather_volume_step, grid_ambient_volume_step;
 extern bool sound_hint;
 
@@ -1006,6 +1005,8 @@ extern int re_init_sound();
 //z-files.h:
 //extern bool my_fexists(const char *fname);
 #endif
+extern bool wind_noticable;
+extern int weather_particles_seen;
 
 extern char monster_list_name[MAX_R_IDX][80], monster_list_symbol[MAX_R_IDX][2];
 extern int monster_list_code[MAX_R_IDX], monster_list_idx, monster_list_level[MAX_R_IDX];
