@@ -3200,40 +3200,60 @@ void refresh_palette(void) {
 /* Get list of available misc fonts, e.g. "5x8", "6x9", "6x13" or "6x13bold". */
 int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length) {
 	regex_t re;
-	int status = 0;
-	status = regcomp(&re, "^[0-9]+x[0-9]+(bold)?$", REG_EXTENDED|REG_NOSUB);
+	char **list;
+	int fonts_found = 0, fonts_match = 0, i, j;
+	bool is_duplicate;
+	int status = -999;
+
+	char tmp[1024];
+	FILE *fff;
+
+
+	path_build(tmp, 1024, ANGBAND_DIR_XTRA, "fonts-x11-menuscan.txt");
+	fff = fopen(tmp, "r");
+	if (fff) {
+		while (fgets(tmp, 256, fff)) {
+			if (strncmp(tmp, "REGEXP=", 7)) continue;
+			tmp[strlen(tmp) - 1] = 0; //remove trailing \n
+			status = regcomp(&re, tmp + 7, REG_EXTENDED|REG_NOSUB|REG_ICASE);
+			break;
+		}
+		fclose(fff);
+	}
+	if (status == -999) status = regcomp(&re, "^[0-9]+x[0-9]+[a-z]?[a-z]?(bold)?$", REG_EXTENDED|REG_NOSUB|REG_ICASE);
+
 	if (status != 0) {
 		fprintf(stderr, "regcomp returned %d\n", status);
 		return 0;
 	}
-	int fonts_found = 0;
+
 	/* Get list of all fonts with 'x' in the name */
-	char **list = XListFonts(Metadpy->dpy, "*x*", 16 * 1024, &fonts_found);
+	list = XListFonts(Metadpy->dpy, "*x*", 16 * 1024, &fonts_found);
 	if (!list) {
 		regfree(&re);
 		return 0;
 	}
-	int fonts_match = 0;
-	for (int i = 0; i < fonts_found && fonts_match < max_fonts; i++) {
+	for (i = 0; i < fonts_found && fonts_match < max_fonts; i++) {
 		status = regexec(&re, list[i], 0, NULL, 0);
-		if (status == 0) {
-			if (strlen(list[i]) < max_font_name_length) {
-				int is_duplicate = 0;
-				for (int j = i - 1; j >= 0; j--) {
-					if (strcmp(list[i], list[j]) == 0) {
-						is_duplicate = 1;
-						break;
-					}
-				}
-				if (!is_duplicate) {
-					strcpy(&output_list[fonts_match * max_font_name_length], list[i]);
-					fonts_match++;
-				}
+		if (status) continue;
+		if (strlen(list[i]) >= max_font_name_length) continue;
+
+		is_duplicate = FALSE;
+		for (j = i - 1; j >= 0; j--) {
+			if (strcmp(list[i], list[j]) == 0) {
+				is_duplicate = TRUE;
+				break;
 			}
+		}
+		if (!is_duplicate) {
+			strcpy(&output_list[fonts_match * max_font_name_length], list[i]);
+			fonts_match++;
 		}
 	}
 	regfree(&re);
 	XFreeFontNames(list);
+
+	/* done */
 	return fonts_match;
 }
 

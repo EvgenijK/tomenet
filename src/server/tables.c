@@ -1410,6 +1410,14 @@ s32b player_exp[PY_MAX_LEVEL + 1] = {
  *    class-choices
  *    mana %  (<- obsolete)
  */
+
+/* Note about skill boni/mali wording in the guide:
+   'slight':  +/- 0.05       (5%)
+   -:         +/- 0.1        (10%)
+   'large':   +/- 0.15..0.2  (15-20%)
+   'huge':     anything differing even more
+*/
+
 player_race race_info[MAX_RACE] = {
 	{ "Human",
 		{  0,  0,  0,  0,  0,  0 },
@@ -1991,6 +1999,9 @@ player_race race_info[MAX_RACE] = {
 			'+', 0, },
 #ifdef ENABLE_DRACONIAN_TRAITS
 		{ SKILL_BREATH,
+			'+', 1000,
+			'+', 0, },
+		{ SKILL_PICK_BREATH,
 			'+', 1000,
 			'+', 0, },
 #endif
@@ -3889,7 +3900,7 @@ player_class class_info[MAX_CLASS] = {
 			'+', 900, },
 		{ SKILL_CRITS,
 			'+', 0,
-			'+', 400, },
+			'+', 600, },
 		{ SKILL_AXE,
 			'+', 0,
 			'+', 800, },
@@ -4811,14 +4822,14 @@ cptr player_title[MAX_CLASS][11][4] = {
 		{"Rock Collector", "Rock Collector", "R.Collector", "R.Collector", },
 		//{"Rock Painter", "Rock Painter", "Rock Painter", "Rock Painter", },
 		{"Fire Starter", "Fire Starter", "Fire Starter", "Fire Starter", },
-		{"Treasure Hunter", "Treasure Hunter", "T.Hunter", "T.Hunter", },
+		{"Treasure Hunter", "Treasure Hunter", "Tr.Hunter", "Tr.Hunter", },
 		//{"Archaeologist", "Archaeologist", "Professor", "Professor," }, //too cool for 12 letters? ^^
 		{"Archaeologist", "Archaeologist", "Archaelgst.", "Archaelgst.", },
 		{"Earth Guard", "Earth Guard", "Earth Guard", "Earth Guard", },
 		{"Rune Knight", "Rune Knight", "Rune Knight", "Rune Knight", },
 		{"Rune Keeper", "Rune Keeper", "Rune Keeper", "Rune Keeper", },
 		{"Runemaster", "Runemistress", "Runemaster", "Runemistress", },
-		{"Grand Runemaster", "Grand Runemistress", "G-Runemaster", "G-Runemstrss", },
+		{"Grand Runemaster", "Grand Runemistress", "GrRunemaster", "GrRunemstrss", },
 	},
 
 	/* Mindcrafter */
@@ -4837,7 +4848,7 @@ cptr player_title[MAX_CLASS][11][4] = {
 		{"Telepath", "Telepath", "Telepath", "Telepath", },
 		{"Manipulator", "Manipulator", "Manipulator", "Manipulator", },
 		{"Controller", "Controller", "Controller", "Controller", },
-		{"Master Mindcrafter", "Master Mindcrafter", "M-Mindcrftr.", "M-Mindcrftr.", },
+		{"Master Mindcrafter", "Master Mindcrafter", "Master Mdcr.", "Master Mdcr.", },
 	},
 
 #ifdef ENABLE_DEATHKNIGHT
@@ -4851,8 +4862,8 @@ cptr player_title[MAX_CLASS][11][4] = {
 		{"Unhallowed", "Unhallowed", "Unhallowed", "Unhallowed", },
 		{"Dark Adept", "Dark Adept", "Dark Adept", "Dark Adept", },
 		{"Crypt Keeper", "Crypt Keeper", "Crypt Keeper", "Crypt Keeper", },
-		{"Fallen Champion", "Fallen Champion", "F.Champion", "F.Champion", },
-		{"Antipaladin", "Antipaladin", "A.Paladin", "A.Paladin", },
+		{"Fallen Champion", "Fallen Champion", "Fal.Champion", "Fal.Champion", },
+		{"Antipaladin", "Antipaladin", "Antipaladin", "Antipaladin", },
 		{"Death Knight", "Death Knight", "Death Knight", "Death Knight", },
 	},
 #endif
@@ -4871,8 +4882,8 @@ cptr player_title[MAX_CLASS][11][4] = {
 		//{"Sacrificer", "Sacrificer", "Sacricifer", "Sacrificer", },
 		{"Chosen", "Chosen", "Chosen", "Chosen", },
 		//{"Corruptor", "Corruptor", "Corruptor", "Corruptor", },
-		{"Unholy Zealot", "Unholy Zealot", "U.Zealot", "U.Zealot", },
-		{"Antipaladin", "Antipaladin", "A.Paladin", "A.Paladin", },
+		{"Unholy Zealot", "Unholy Zealot", "Unh.Zealot", "Unh.Zealot", },
+		{"Antipaladin", "Antipaladin", "Antipaladin", "Antipaladin", },
 		{"Hell Knight", "Hell Knight", "Hell Knight", "Hell Knight", },
  #else /* re-use up to the first four titles */
 		{"Traitor", "Traitor", "Traitor", "Traitor", },
@@ -4880,7 +4891,7 @@ cptr player_title[MAX_CLASS][11][4] = {
 		{"Cultist", "Cultist", "Cultist", "Cultist", },
 		{"Heretic", "Heretic", "Heretic", "Heretic", },
 		{"Chosen", "Chosen", "Chosen", "Chosen", },
-		{"Unholy Zealot", "Unholy Zealot", "U.Zealot", "U.Zealot", },
+		{"Unholy Zealot", "Unholy Zealot", "Unh.Zealot", "Unh.Zealot", },
 		{"Hell Knight", "Hell Knight", "Hell Knight", "Hell Knight", },
  #endif
 	},
@@ -4961,8 +4972,9 @@ cptr player_title_special[MAX_CLASS][5][4] = {
 		{"Nightmare", "Nightmare", "Nightmare", "Nightmare", },
 		{"Terror", "Terror", "Terror", "Terror" },
 		//{"Mythical Assassin", "Mythical Assassin", "Myt.Assassin", "Myt.Assassin", },
-		{"Death Fate", "Death Fate", "Death Fate", "Death Fate", },
-		/* yeah it's fitting, but let's not make the game JOKEBAND anyway */
+		//{"Death Fate", "Death Fate", "Death Fate", "Death Fate", },
+		{"Death's Hand", "Death's Hand", "Death's Hand", "Death's Hand", },
+		/* it's fitting, but let's not make the game too JOKEBANDish anyway^^ */
 		//{"RNG", "RNG", }, //LOL! Perfect, do you not think so? :) -adam
 	},
 
@@ -5062,7 +5074,7 @@ cptr player_title_special[MAX_CLASS][5][4] = {
 		{"Herald of Ruin", "Herald of Ruin", "Herald o.R.", "Herald o.R.", },
 		{"Dark Legate", "Dark Legate", "Dark Legate", "Dark Legate", },
 		{"Unholy King", "Unholy Queen", "Unholy King", "Unholy Queen", },
-		{"Death's Hand", "Death's Hand", "Death's Hand", "Death's Hand", },
+		{"Nemesis", "Nemesis", "Nemesis", "Nemesis", },
 	},
 #endif
 #ifdef ENABLE_HELLKNIGHT

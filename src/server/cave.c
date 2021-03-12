@@ -746,7 +746,9 @@ void check_Morgoth(int Ind) {
 							/* Player on Morgy depth? */
 							if (inarea(&Players[i]->wpos, &p_ptr->wpos)) {
 								msg_print(i, msg);
+#ifdef USE_SOUND_2010
 								handle_music(i); /* :-o */
+#endif
 							}
 						}
 						s_printf("Morgoth left level (inserting Sauron) due to %s\n", p_ptr->name);
@@ -3333,6 +3335,11 @@ void map_info(int Ind, int y, int x, byte *ap, char *cp, bool palanim) {
 
 				/* Hack -- always l.blue if underwater */
 				if (feat == FEAT_DEEP_WATER || feat == FEAT_SHAL_WATER) (*ap) = TERM_L_BLUE;
+
+#ifdef ENABLE_DEMOLITIONIST
+				/* Hack -- thrown aka non-planted, armed demolition charges flicker as the fuse is lit */
+				if (o_list[c_ptr->o_idx].tval == TV_CHARGE && o_list[c_ptr->o_idx].timeout) *ap = TERM_FIRE;
+#endif
 
 				/* Hack -- hallucination */
 				if (p_ptr->image) image_object(ap, cp);
@@ -7693,7 +7700,6 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 
 	/* Change the feature */
 	c_ptr->feat = feat;
-	__GRID_DEBUG(0, wpos, feat, "cave_set_feat()", 0);
 	if (f_info[feat].flags2 & FF2_GLOW) c_ptr->info |= CAVE_GLOW;
 	aquatic_terrain_hack(zcave, x, y);
 
@@ -7983,7 +7989,6 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	/* Change the feature */
 	if (c_ptr->feat != feat) c_ptr->info &= ~(CAVE_NEST_PIT | CAVE_ENCASED); /* clear teleport protection for nest grid if it gets changed; clear treasure vein remote-flag too */
 	c_ptr->feat = feat;
-	__GRID_DEBUG(0, wpos, feat, "cave_set_feat_live()", 0);
 	if (f_info[feat].flags2 & FF2_GLOW) c_ptr->info |= CAVE_GLOW;
 
 	/* Area of view for a player might have changed, among other consequences.. */

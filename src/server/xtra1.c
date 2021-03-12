@@ -240,7 +240,9 @@ static void prt_gold(int Ind) {
 static void prt_ac(int Ind) {
 	player_type *p_ptr = Players[Ind];
 
-	if (p_ptr->to_a_tmp && is_atleast(&p_ptr->version, 4, 7, 3, 0, 0, 0))
+	if (p_ptr->to_a_tmp && is_atleast(&p_ptr->version, 4, 7, 3, 1, 0, 0))
+		Send_ac(Ind, p_ptr->dis_ac + 10000, p_ptr->dis_to_a);
+	else if (p_ptr->to_a_tmp && is_atleast(&p_ptr->version, 4, 7, 3, 0, 0, 0))
 		Send_ac(Ind, p_ptr->dis_ac | 0x1000, p_ptr->dis_to_a);
 	else
 		Send_ac(Ind, p_ptr->dis_ac, p_ptr->dis_to_a);
@@ -547,7 +549,7 @@ static void prt_plusses(int Ind) {
 	int show_todam_m = p_ptr->to_d_melee;
 */
 	int show_tohit_r = p_ptr->dis_to_h + p_ptr->to_h_ranged;
-	int show_todam_r = p_ptr->to_d_ranged;
+	int show_todam_r = p_ptr->to_d_ranged; //generic +dam never affects ranged
 
 	/* well, about dual-wield.. we can only display the boni of one weapon or their average until we add another line
 	   to squeeze info about the secondary weapon there too. so for now let's just stick with this. - C. Blue */
@@ -583,6 +585,15 @@ static void prt_plusses(int Ind) {
 	}
 	show_tohit_m += bmh;
 	show_todam_m += bmd;
+
+	if (is_atleast(&p_ptr->version, 4, 7, 3, 1, 0, 0)) {
+		if (p_ptr->to_h_tmp) { show_tohit_m += 10000; show_tohit_r += 10000; }
+		if (p_ptr->to_h_melee_tmp) show_tohit_m += 10000;
+		if (p_ptr->to_h_ranged_tmp) show_tohit_r += 10000;
+		if (p_ptr->to_d_tmp) { show_todam_m += 10000; } //generic +dam never affects ranged +dam (note: remove redundant to_d_ranged_tmp)
+		if (p_ptr->to_d_melee_tmp) show_todam_m += 10000;
+		if (p_ptr->to_d_ranged_tmp) show_todam_r += 10000;
+	}
 
 //	Send_plusses(Ind, show_tohit_m, show_todam_m, show_tohit_r, show_todam_r, p_ptr->to_h_melee, p_ptr->to_d_melee);
 	Send_plusses(Ind, 0, 0, show_tohit_r, show_todam_r, show_tohit_m, show_todam_m);
@@ -684,6 +695,42 @@ static void prt_extra_status(int Ind) {
 	Send_extra_status(Ind, status);
 }
 
+static void prt_indicators(int Ind) {
+	player_type *p_ptr = Players[Ind];
+	u32b indicators =  0x0;
+
+	if (p_ptr->oppose_fire) {
+	   indicators |= IND_RES_FIRE;
+	}
+
+	if (p_ptr->oppose_cold) {
+		indicators |= IND_RES_COLD;
+	}
+
+	if (p_ptr->oppose_elec) {
+		indicators |= IND_RES_ELEC;
+	}
+
+	if (p_ptr->oppose_acid) {
+		indicators |= IND_RES_ACID;
+	}
+
+	if (p_ptr->oppose_pois) {
+		indicators |= IND_RES_POIS;
+	}
+
+	if (p_ptr->divine_xtra_res) {
+		indicators |= IND_RES_DIVINE;
+	}
+
+	if (p_ptr->tim_esp) {
+		indicators |= IND_ESP;
+	}
+
+	if (is_atleast(&p_ptr->version, 4, 7, 3, 1, 0, 0)) {
+		Send_indicators(Ind, indicators);
+	}
+}
 
 /*
  * Redraw the "monster health bar"	-DRS-
@@ -907,6 +954,9 @@ static void prt_frame_basic(int Ind) {
 
 	/* Special */
 	health_redraw(Ind);
+
+	/* Temporary stuff: resistances and ESP  */
+	prt_indicators(Ind);
 }
 
 
@@ -2308,10 +2358,10 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 		p_ptr->resist_blind = TRUE; csheet_boni->cb[1] |= CB2_RBLND;
 		p_ptr->no_cut = TRUE; csheet_boni->cb[12] |= CB13_XNCUT;
 		if (!p_ptr->reduce_insanity) { p_ptr->reduce_insanity = 1; csheet_boni->cb[3] |= CB4_RMIND; }
-		p_ptr->see_infra += 1; csheet_boni->infr += 1;
+		p_ptr->see_infra += 2; csheet_boni->infr += 2;
 
 		if (strchr("GWLV", r_ptr->d_char)) {
-			p_ptr->see_infra += 4; csheet_boni->infr += 4;
+			p_ptr->see_infra += 5; csheet_boni->infr += 3;
 		}
 	}
 
@@ -2694,18 +2744,18 @@ int get_archery_skill(player_type *p_ptr) {
 	if (o_ptr->tval == TV_BOOMERANG) return SKILL_BOOMERANG;
 
 	switch (o_ptr->sval / 10) {
-		case 0:
-			if ((!skill) || (skill == SKILL_SLING)) skill = SKILL_SLING;
-			else skill = -1;
-			break;
-		case 1:
-			if ((!skill) || (skill == SKILL_BOW)) skill = SKILL_BOW;
-			else skill = -1;
-			break;
-		case 2:
-			if ((!skill) || (skill == SKILL_XBOW)) skill = SKILL_XBOW;
-			else skill = -1;
-			break;
+	case 0:
+		if ((!skill) || (skill == SKILL_SLING)) skill = SKILL_SLING;
+		else skill = -1;
+		break;
+	case 1:
+		if ((!skill) || (skill == SKILL_BOW)) skill = SKILL_BOW;
+		else skill = -1;
+		break;
+	case 2:
+		if ((!skill) || (skill == SKILL_XBOW)) skill = SKILL_XBOW;
+		else skill = -1;
+		break;
 	}
 
 	/* Everything is ok */
@@ -3094,10 +3144,9 @@ void calc_boni(int Ind) {
 
 	/* Clear the Displayed/Real armor class */
 	p_ptr->dis_ac = p_ptr->ac = 0;
-
 	/* Clear the Displayed/Real Bonuses */
-	p_ptr->dis_to_h = p_ptr->to_h = p_ptr->to_h_melee = p_ptr->to_h_ranged = 0;
-	p_ptr->dis_to_d = p_ptr->to_d = p_ptr->to_d_melee = p_ptr->to_d_ranged = 0;
+	p_ptr->dis_to_h = p_ptr->to_h = p_ptr->to_h_melee = p_ptr->to_h_ranged = p_ptr->to_h_tmp = p_ptr->to_h_melee_tmp = p_ptr->to_h_ranged_tmp = 0;
+	p_ptr->dis_to_d = p_ptr->to_d = p_ptr->to_d_melee = p_ptr->to_d_ranged = p_ptr->to_d_tmp = p_ptr->to_d_melee_tmp = p_ptr->to_d_ranged_tmp = 0;
 	p_ptr->dis_to_a = p_ptr->to_a = p_ptr->to_a_tmp = 0;
 
 
@@ -3592,6 +3641,7 @@ void calc_boni(int Ind) {
 		p_ptr->suscep_cold = TRUE; csheet_boni[14].cb[0] |= CB1_SCOLD;
 		if (p_ptr->lev < 25) { p_ptr->resist_fire = TRUE; csheet_boni[14].cb[0] |= CB1_RFIRE; }
 		else { p_ptr->immune_fire = TRUE; csheet_boni[14].cb[0] |= CB1_IFIRE; }
+		p_ptr->regenerate = TRUE; csheet_boni[14].cb[5] |= CB6_RRGHP;
 		break;
 	case TRAIT_BLACK: /* Draconic Black */
 		if (p_ptr->lev < 25) { p_ptr->resist_acid = TRUE; csheet_boni[14].cb[1] |= CB2_RACID; }
@@ -3703,7 +3753,7 @@ void calc_boni(int Ind) {
 		/* p_ptr->resist_neth = TRUE;
 		p_ptr->hold_life = TRUE; */
 		p_ptr->free_act = TRUE; csheet_boni[14].cb[4] |= CB5_RPARA;
-		p_ptr->see_infra += 3; csheet_boni[14].infr += 3;
+		p_ptr->see_infra += 5; csheet_boni[14].infr += 5;
 		p_ptr->resist_dark = TRUE; csheet_boni[14].cb[2] |= CB3_RDARK;
 		p_ptr->resist_blind = TRUE; csheet_boni[14].cb[1] |= CB2_RBLND;
 		p_ptr->immune_poison = TRUE; csheet_boni[14].cb[1] |= CB2_IPOIS;
@@ -3769,9 +3819,11 @@ void calc_boni(int Ind) {
 #if 0 /* focus _shot_ = ranged only (old way) */
 	p_ptr->to_h_ranged += p_ptr->focus_val;
 	p_ptr->dis_to_h_ranged += p_ptr->focus_val;
+	p_ptr->to_h_ranged_tmp += p_ptr->focus_val;
 #else /* focus: apply to both, melee and ranged */
 	p_ptr->to_h += p_ptr->focus_val;
 	p_ptr->dis_to_h += p_ptr->focus_val;
+	p_ptr->to_h_tmp += p_ptr->focus_val;
 #endif
 
 	/* Scan the usable inventory */
@@ -3893,7 +3945,7 @@ void calc_boni(int Ind) {
 		/* another bad hack, for when Morgoth's crown gets its pval
 		   reduced experimentally, to keep massive +IV (for Q-quests^^): */
 		if (o_ptr->name1 == ART_MORGOTH)
-			p_ptr->see_infra += 50;
+			p_ptr->see_infra = MAX_SIGHT;
 #endif
 
 		/* Hack -- first add any "base bonuses" of the item.  A new
@@ -4442,7 +4494,6 @@ void calc_boni(int Ind) {
 		/* Apply the mental bonuses tp hit/damage, if known */
 		if (object_known_p(Ind, o_ptr)) p_ptr->dis_to_h += o_ptr->to_h;
 		if (object_known_p(Ind, o_ptr)) p_ptr->dis_to_d += o_ptr->to_d;
-
 	}
 
 	p_ptr->antimagic += am_bonus;
@@ -4549,9 +4600,11 @@ void calc_boni(int Ind) {
 		p_ptr->stat_tmp[A_DEX] += (i + 1) / 2;
 		p_ptr->to_h += 12;
 		p_ptr->dis_to_h += 12;
+		p_ptr->to_h_tmp += 12;
 		if (p_ptr->adrenaline & 1) {
 			p_ptr->to_d += 8;
 			p_ptr->dis_to_d += 8;
+			p_ptr->to_d_tmp += 8;
 		}
 		if (p_ptr->adrenaline & 2) {
 			extra_blows_tmp++;
@@ -4599,6 +4652,7 @@ void calc_boni(int Ind) {
 	if (p_ptr->hero || (p_ptr->mindboost && p_ptr->mindboost_power >= 5)) {
 		p_ptr->to_h += 12;
 		p_ptr->dis_to_h += 12;
+		p_ptr->to_h_tmp += 12;
 	}
 
 	/* Temporary "Berserk"/"Berserk Strength" */
@@ -4616,6 +4670,7 @@ void calc_boni(int Ind) {
 		p_ptr->dis_to_h -= 10;
 		p_ptr->to_d += 10;
 		p_ptr->dis_to_d += 10;
+		p_ptr->to_d_tmp += 10;
 		p_ptr->pspeed += 5;
 		p_ptr->to_a -= 20;
 		p_ptr->dis_to_a -= 20;
@@ -5125,6 +5180,7 @@ void calc_boni(int Ind) {
 		p_ptr->to_a_tmp += p_ptr->blessed_power;
 		p_ptr->to_h += p_ptr->blessed_power / 2;
 		p_ptr->dis_to_h += p_ptr->blessed_power / 2;
+		p_ptr->to_h_tmp += p_ptr->blessed_power / 2;
 	}
 
 	/* Temporary shield */
@@ -5247,6 +5303,14 @@ void calc_boni(int Ind) {
 
 				/* Boomerang-mastery directly increases damage! - C. Blue */
 				p_ptr->to_d_ranged += get_skill_scale(p_ptr, archery, 20);
+
+				/* Give continuous damage scale-up of total damage, depending on mastery!
+				   We abuse xmight: It denominates xmight/10 x (total damage output).
+				   (Side note that we do = instead of += and thereby override any previously set XTRA_MIGHT -
+				   which currently doesn't exist in the game anyway because it'd be for example gloves-induced.) */
+				p_ptr->xtra_might = get_skill_scale(p_ptr, archery, 10); // x10/10.. x20/10 - so x1 at 0.000 skill -> x2 total damage at 50.000 skill
+				csheet_boni[14].migh = get_skill_scale(p_ptr, archery, 10); // basically display the +10% steps we attain, so it fits into the Chh column
+
 				break;
 			}
 			if (archery != SKILL_BOOMERANG) {
@@ -5777,10 +5841,10 @@ void calc_boni(int Ind) {
 	if (i > 50) i = 50; /* reached at 470.0 lb */
 	p_ptr->to_h_ranged -= i;
 
-	/* also: shield and ranged weapon = less accuracy for ranged weapon! */
+	/* also: shield and shooting weapon (not boomerang) = less accuracy for ranged weapon! */
 	/* dual-wield currently does not affect shooting (!) */
-	if (p_ptr->inventory[INVEN_BOW].k_idx && p_ptr->inventory[INVEN_ARM].k_idx
-	    && p_ptr->inventory[INVEN_ARM].tval == TV_SHIELD) {
+	if (p_ptr->inventory[INVEN_BOW].k_idx && p_ptr->inventory[INVEN_BOW].tval != TV_BOOMERANG
+	    && p_ptr->inventory[INVEN_ARM].k_idx && p_ptr->inventory[INVEN_ARM].tval == TV_SHIELD) {
 		/* can't aim well while carrying a shield on the arm! */
 
 		/* the following part punishes all +hit/+dam for ranged weapons;
@@ -5885,77 +5949,80 @@ void calc_boni(int Ind) {
 	   shield_deflect nor to_h/to_d are affected. Might need fixing/adjusting later. - C. Blue */
 #ifdef ENABLE_STANCES
  #ifdef USE_BLOCKING /* need blocking to make use of defensive stance */
-		if ((p_ptr->combat_stance == 1) &&
-		    (p_ptr->inventory[INVEN_ARM].tval == TV_SHIELD)) switch (p_ptr->combat_stance_power) {
-			/* note that defensive stance also increases chance to actually prefer shield over parrying in melee.c */
-			case 0: p_ptr->shield_deflect += 9;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 1: p_ptr->shield_deflect += 11;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 2: p_ptr->shield_deflect += 13;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 3: p_ptr->shield_deflect += 15;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 8) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 8) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 8) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
+	if ((p_ptr->combat_stance == 1) &&
+	    (p_ptr->inventory[INVEN_ARM].tval == TV_SHIELD))
+		switch (p_ptr->combat_stance_power) {
+		/* note that defensive stance also increases chance to actually prefer shield over parrying in melee.c */
+		case 0: p_ptr->shield_deflect += 9;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 1: p_ptr->shield_deflect += 11;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 2: p_ptr->shield_deflect += 13;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 3: p_ptr->shield_deflect += 15;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 8) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 8) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 8) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
 		}
  #endif
  #ifdef USE_PARRYING /* need parrying to make use of offensive stance */
-		if (p_ptr->combat_stance == 2) switch (p_ptr->combat_stance_power) {
-			case 0: p_ptr->weapon_parry = (p_ptr->weapon_parry * 0) / 10;
-				p_ptr->dodge_level = (p_ptr->dodge_level * 0) / 10;
-				break;
-			case 1: p_ptr->weapon_parry = (p_ptr->weapon_parry * 1) / 10;
-				p_ptr->dodge_level = (p_ptr->dodge_level * 1) / 10;
-				break;
-			case 2: p_ptr->weapon_parry = (p_ptr->weapon_parry * 2) / 10;
-				p_ptr->dodge_level = (p_ptr->dodge_level * 2) / 10;
-				break;
-			case 3: p_ptr->weapon_parry = (p_ptr->weapon_parry * 3) / 10;
-				p_ptr->dodge_level = (p_ptr->dodge_level * 3) / 10;
-				break;
+	if (p_ptr->combat_stance == 2)
+		switch (p_ptr->combat_stance_power) {
+		case 0: p_ptr->weapon_parry = (p_ptr->weapon_parry * 0) / 10;
+			p_ptr->dodge_level = (p_ptr->dodge_level * 0) / 10;
+			break;
+		case 1: p_ptr->weapon_parry = (p_ptr->weapon_parry * 1) / 10;
+			p_ptr->dodge_level = (p_ptr->dodge_level * 1) / 10;
+			break;
+		case 2: p_ptr->weapon_parry = (p_ptr->weapon_parry * 2) / 10;
+			p_ptr->dodge_level = (p_ptr->dodge_level * 2) / 10;
+			break;
+		case 3: p_ptr->weapon_parry = (p_ptr->weapon_parry * 3) / 10;
+			p_ptr->dodge_level = (p_ptr->dodge_level * 3) / 10;
+			break;
 		}
   #ifdef ALLOW_SHIELDLESS_DEFENSIVE_STANCE
-		else if ((p_ptr->combat_stance == 1) &&
-		    (p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD)) switch (p_ptr->combat_stance_power) {
-			case 0: p_ptr->weapon_parry = (p_ptr->weapon_parry * 13) / 10;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 6) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 6) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 6) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 1: p_ptr->weapon_parry = (p_ptr->weapon_parry * 13) / 10;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 2: p_ptr->weapon_parry = (p_ptr->weapon_parry * 14) / 10;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
-			case 3: p_ptr->weapon_parry = (p_ptr->weapon_parry * 15) / 10;
-				p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
-				p_ptr->to_d = (p_ptr->to_d * 7) / 10;
-				p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
-				p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
-				break;
+	else if ((p_ptr->combat_stance == 1) &&
+	    (p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD))
+		switch (p_ptr->combat_stance_power) {
+		case 0: p_ptr->weapon_parry = (p_ptr->weapon_parry * 13) / 10;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 6) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 6) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 6) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 1: p_ptr->weapon_parry = (p_ptr->weapon_parry * 13) / 10;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 2: p_ptr->weapon_parry = (p_ptr->weapon_parry * 14) / 10;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
+		case 3: p_ptr->weapon_parry = (p_ptr->weapon_parry * 15) / 10;
+			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
+			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
+			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+			break;
 		}
   #endif
  #endif
@@ -6003,34 +6070,45 @@ void calc_boni(int Ind) {
 
 	/* Affect Skill -- disarming (Level, by Class) */
 	//p_ptr->skill_dis += (p_ptr->cp_ptr->x_dis * get_skill(p_ptr, SKILL_DISARM)) / 10;
-	p_ptr->skill_dis += (p_ptr->cp_ptr->x_dis * get_skill(p_ptr, SKILL_TRAPPING)) / 10;
+	//p_ptr->skill_dis += (p_ptr->cp_ptr->x_dis * get_skill(p_ptr, SKILL_TRAPPING)) / 10;
+	p_ptr->skill_dis += (10 * get_skill(p_ptr, SKILL_TRAPPING)) / 10;
 
 	/* Affect Skill -- magic devices (Level, by Class) */
-	p_ptr->skill_dev += (p_ptr->cp_ptr->x_dev * get_skill(p_ptr, SKILL_DEVICE)) / 10;
+	//p_ptr->skill_dev += (p_ptr->cp_ptr->x_dev * get_skill(p_ptr, SKILL_DEVICE)) / 10;
+	//p_ptr->skill_dev += adj_int_dev[p_ptr->stat_ind[A_INT]];
+	p_ptr->skill_dev += (10 * get_skill(p_ptr, SKILL_DEVICE)) / 10;
 	p_ptr->skill_dev += adj_int_dev[p_ptr->stat_ind[A_INT]];
 
 	/* Affect Skill -- saving throw (Level, by Class) */
-	p_ptr->skill_sav += (p_ptr->cp_ptr->x_sav * p_ptr->lev) / 10;
+	//p_ptr->skill_sav += (p_ptr->cp_ptr->x_sav * p_ptr->lev) / 10;
+	//p_ptr->skill_sav += (10 * p_ptr->lev) / 10;  --actually why should lvlup give saving throw? let's try with this commented out!
 
 	/* Affect Skill -- stealth (Level, by Class) */
-	p_ptr->skill_stl += get_skill_scale(p_ptr, SKILL_STEALTH, p_ptr->cp_ptr->x_stl * 5) + get_skill_scale(p_ptr, SKILL_STEALTH, 25);
-	csheet_boni[14].slth += get_skill_scale(p_ptr, SKILL_STEALTH, p_ptr->cp_ptr->x_stl * 5) + get_skill_scale(p_ptr, SKILL_STEALTH, 25);
+	//p_ptr->skill_stl += get_skill_scale(p_ptr, SKILL_STEALTH, p_ptr->cp_ptr->x_stl * 5) + get_skill_scale(p_ptr, SKILL_STEALTH, 25);
+	//csheet_boni[14].slth += get_skill_scale(p_ptr, SKILL_STEALTH, p_ptr->cp_ptr->x_stl * 5) + get_skill_scale(p_ptr, SKILL_STEALTH, 25);
+	p_ptr->skill_stl += get_skill_scale(p_ptr, SKILL_STEALTH, 25);
+	csheet_boni[14].slth += get_skill_scale(p_ptr, SKILL_STEALTH, 25);
 
 	/* Affect Skill -- search ability (Level, by Class) */
-	p_ptr->skill_srh += get_skill_scale(p_ptr, SKILL_SNEAKINESS, p_ptr->cp_ptr->x_srh) + get_skill_scale(p_ptr, SKILL_TRAPPING, 30);
+	//p_ptr->skill_srh += get_skill_scale(p_ptr, SKILL_SNEAKINESS, p_ptr->cp_ptr->x_srh) + get_skill_scale(p_ptr, SKILL_TRAPPING, 30);
+	p_ptr->skill_srh += get_skill_scale(p_ptr, SKILL_SNEAKINESS, 10) + get_skill_scale(p_ptr, SKILL_TRAPPING, 30);
 
 	/* Affect Skill -- search frequency (Level, by Class) */
-	p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, p_ptr->cp_ptr->x_fos);
+	//p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, p_ptr->cp_ptr->x_fos);
+	p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, 5);
 
 	/* Affect Skill -- combat (normal) (Level, by Class) */
-        p_ptr->skill_thn += p_ptr->cp_ptr->x_thn * ((2 * get_skill(p_ptr, SKILL_MASTERY)) + (1 * get_skill(p_ptr, SKILL_COMBAT))) / 100;
+	//p_ptr->skill_thn += p_ptr->cp_ptr->x_thn * ((2 * get_skill(p_ptr, SKILL_MASTERY)) + (1 * get_skill(p_ptr, SKILL_COMBAT))) / 100;
+	p_ptr->skill_thn += 40 * ((2 * get_skill(p_ptr, SKILL_MASTERY)) + (1 * get_skill(p_ptr, SKILL_COMBAT))) / 100;
 
 	/* Affect Skill -- combat (shooting) (Level, by Class) */
 	//p_ptr->skill_thb += (p_ptr->cp_ptr->x_thb * (((2 * get_skill(p_ptr, SKILL_ARCHERY)) + (1 * get_skill(p_ptr, SKILL_COMBAT))) / 10) / 10);
-	p_ptr->skill_thb += (p_ptr->cp_ptr->x_thb * (get_skill(p_ptr, SKILL_ARCHERY) + get_skill(p_ptr, get_archery_skill(p_ptr)) + get_skill_scale(p_ptr, SKILL_COMBAT, 30))) / 100;
+	//p_ptr->skill_thb += (p_ptr->cp_ptr->x_thb * (get_skill(p_ptr, SKILL_ARCHERY) + get_skill(p_ptr, get_archery_skill(p_ptr)) + get_skill_scale(p_ptr, SKILL_COMBAT, 25))) / 125;
+	p_ptr->skill_thb += (40 * (get_skill(p_ptr, SKILL_ARCHERY) + get_skill(p_ptr, get_archery_skill(p_ptr)) + get_skill_scale(p_ptr, SKILL_COMBAT, 25))) / 125;
 
 	/* Affect Skill -- combat (throwing) (Level, by Class) */
-	p_ptr->skill_tht += (p_ptr->cp_ptr->x_thb * (get_skill_scale(p_ptr, SKILL_COMBAT, 10) + get_skill_scale(p_ptr, SKILL_BOOMERANG, 35))) / 30;
+	//p_ptr->skill_tht += (p_ptr->cp_ptr->x_thb * (get_skill_scale(p_ptr, SKILL_COMBAT, 10) + get_skill_scale(p_ptr, SKILL_BOOMERANG, 35))) / 30;
+	p_ptr->skill_tht += (40 * (get_skill_scale(p_ptr, SKILL_COMBAT, 10) + get_skill_scale(p_ptr, SKILL_BOOMERANG, 35))) / 30;
 
 
 
@@ -6079,6 +6157,11 @@ void calc_boni(int Ind) {
 #ifdef ENABLE_OCCULT /* Occult */
 	/* Should Occult schools really give boni? */
 	if (get_skill(p_ptr, SKILL_OSPIRIT) >= 40) { p_ptr->slay |= TR1_SLAY_UNDEAD; csheet_boni[14].cb[9] |= CB10_SUNDD; }
+	/* Infra-vision bonus: */
+	if (get_skill(p_ptr, SKILL_OSHADOW) >= 10) {
+		p_ptr->see_infra += get_skill(p_ptr, SKILL_OSHADOW) / 10;
+		csheet_boni[14].infr += get_skill(p_ptr, SKILL_OSHADOW) / 10;
+	}
 	if (get_skill(p_ptr, SKILL_OSHADOW) >= 30) {
 		p_ptr->resist_dark = TRUE; csheet_boni[14].cb[2] |= CB3_RDARK;
 		/* Stealth bonus: */
@@ -6483,6 +6566,13 @@ void calc_boni(int Ind) {
 	}
 #endif
 
+	/* Infra-vision can go > 127 thanks to +125 on Morgoth crown,
+	   which would mess up 'boosted' display in 4.7.3a+ (tim_infra indicator).
+	   Since MAX_SIGHT is just 20 anyway, having more IV than that is effectless,
+	   so we can just cap it. */
+	if (p_ptr->see_infra > MAX_SIGHT) p_ptr->see_infra = MAX_SIGHT;
+
+
 
 
 	/* Determine colour of our light radius */
@@ -6785,8 +6875,8 @@ void calc_boni(int Ind) {
 								if (k_ptr->flags1 & TR1_BLOWS) csheet_boni[i].blow += o_ptr->bpval;
 							}
 							if (k_ptr->flags5 & TR5_PVAL_MASK) {
-								if (f5 & TR5_LUCK) csheet_boni[i].luck += o_ptr->bpval;
-								if (f5 & TR5_CRIT) csheet_boni[i].crit += o_ptr->bpval;
+								if (k_ptr->flags5 & TR5_LUCK) csheet_boni[i].luck += o_ptr->bpval;
+								if (k_ptr->flags5 & TR5_CRIT) csheet_boni[i].crit += o_ptr->bpval;
 							}
 						}
 						
@@ -7321,11 +7411,19 @@ void redraw2_stuff(int Ind) {
 	if (p_ptr->redraw2 & PR2_MAP_FWD) {
 		p_ptr->redraw2 &= ~(PR2_MAP_FWD);
 		prt_map_forward(Ind);
+		/* Hack: Receiving the title will cause a big_map client to erase the unused
+		   part of the map for visual clarity if linked target isn't using big_map */
+		prt_title(Ind);
 	}
 
 	if (p_ptr->redraw2 & PR2_MAP_SCR) {
 		p_ptr->redraw2 &= ~(PR2_MAP_SCR);
 		prt_map(Ind, TRUE);
+	}
+
+	if (p_ptr->redraw2 & PR2_INDICATORS) {
+		p_ptr->redraw2 &= ~(PR2_INDICATORS);
+		prt_indicators(Ind);
 	}
 }
 
@@ -8329,7 +8427,9 @@ static void process_global_event(int ge_id) {
 					n++;
 					j = i;
 					if (!Players[i]->wpos.wz) k++;
+#ifdef USE_SOUND_2010
 					handle_music(i);
+#endif
 				}
 
 			if (!n) ge->state[0] = 255; /* double kill or something? ew. */
@@ -8399,7 +8499,9 @@ static void process_global_event(int ge_id) {
 
 				p_ptr->global_event_progress[ge_id][0] = 4; /* now before deathmatch */
 				msg_print(i, "\377fThe bloodshed begins!");
+#ifdef USE_SOUND_2010
 				handle_music(i);
+#endif
 			}
 
 			ge->state[0] = 4;
@@ -8941,7 +9043,9 @@ static void process_global_event(int ge_id) {
 
 					/* make sure they stop running (not really needed though..) */
 					disturb(i, 0, 0);
+#ifdef USE_SOUND_2010
 					handle_music(i);
+#endif
 				}
 			}
 
@@ -8962,11 +9066,13 @@ static void process_global_event(int ge_id) {
 			/* timeout not yet reached? proceed normally */
 			if (elapsed - ge->announcement_time < 300) break;//start after 300s
 
+#ifdef USE_SOUND_2010
 			sector00music = 65;
 			sector00musicalt = 47; /* death match music */
 			for (i = 1; i <= NumPlayers; i++)
 				if (!Players[i]->admin_dm && in_sector00(&Players[i]->wpos))
 					handle_music(i);
+#endif
 
 			ge->state[0] = 2;
 			break;
@@ -9273,8 +9379,17 @@ void handle_request_return_str(int Ind, int id, char *str) {
 
 		/* Cancel an ongoing order? */
 		if (!strcasecmp(str, "cancel")) {
-			p_ptr->item_order_store = 0;
-			msg_print(Ind, "Alright, your order has been cancelled.");
+			if (p_ptr->item_order_store) {
+				if (p_ptr->item_order_store - 1 != p_ptr->store_num || p_ptr->item_order_town != gettown(Ind)) {
+					msg_print(Ind, "Sorry, your active order is not from my store, look elsewhere.");
+					return;
+				}
+				p_ptr->item_order_store = 0;
+#ifdef USE_SOUND_2010
+				sound(Ind, "store_cancel", NULL, SFX_TYPE_MISC, FALSE);
+#endif
+				msg_print(Ind, "Alright, your order has been cancelled.");
+			} else msg_print(Ind, "You do not have a pending order.");
 			return;
 		}
 

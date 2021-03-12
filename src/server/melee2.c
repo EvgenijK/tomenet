@@ -37,6 +37,18 @@
 					/* ..stops algorithm if we don't get closer; makes heavy use of distance() */
 #define ANTI_SEVEN_EXPLOIT_VAR2		/* stops algorithm if we get LOS to from where the projecting player actually cast his projection */
 
+/* Anti-stuck-spam method.
+   If this is defined, the method will be simple:
+       A monster which gets stuck by terrain or other monsters will expend its energy and hence be on cooldown for a turn.
+       Disadvantage: The monster probably won't be able to move right away when a hole opens up again.
+       Advantage: None - except the code is simpler.
+   If this is not defined, the method will be sophisticated:
+       A monster which gets stuck by terrain or other monsters will keep its energy so it can move again as soon as there's an opportunity.
+       However, it cannot cast a spell for a turn's worth of energy, same as if it had actually made a move and expended its energy on it.
+       *** This is the recommended method. ***
+*/
+//#define SIMPLE_ANTISTUCK
+
 /*
  * STUPID_MONSTERS flag is left for compatibility, but not recommended.
  * if you think the AI codes are slow (or hard), try the following:
@@ -207,7 +219,7 @@
  */
 //#define		STUPID_Q
 
-#ifdef USE_SOUND_2010
+//#ifdef USE_SOUND_2010 -- actually always define these because they are now a parameter of the bolt() function
  /* For bolt() sfx */
  #define SFX_BOLT_MAGIC 0
  #define SFX_BOLT_SHOT 1
@@ -220,7 +232,7 @@
     0: Play it for the targetted player only, at max volume
     1: Play it for everyone nearby, decreasing volume with distance to monster */
  #define MONSTER_SFX_WAY 1
-#endif
+//#endif
 
 /* Hack to make monsters that can summon high uniques do so more often instead of using other summoning spells they may have (Chance: 1 in n, [4]) */
 #define PRIORITY_S_HI_UNIQUE 4
@@ -1845,7 +1857,7 @@ static int near_hit(int m_idx, int *yp, int *xp, int rad)
 		if (blind) msg_format(Ind, "%^s mumbles.", m_name); \
 		if (count) { \
 			m_ptr->clone_summoning = clone_summoning; \
-			if (blind) msg_print(Ind, "%s", HEAR); \
+			if (blind) msg_format(Ind, "%s", HEAR); \
 			else msg_format(Ind, "%^s magically summons %s!", m_name, SEE); \
 		} else msg_format(Ind, "%^s tries to cast a spell, but fails.", m_name);
 #endif
@@ -9016,6 +9028,9 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 		/* Still sleeping */
 		if (m_ptr->csleep) {
 			m_ptr->energy -= level_speed(&m_ptr->wpos);
+#ifndef SIMPLE_ANTISTUCK
+			m_ptr->stuck = 0; //clear, since we deduced normal energy
+#endif
 			return;
 		}
 	}
@@ -9066,6 +9081,9 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 		/* Still stunned */
 		if (m_ptr->stunned > 100) {
 			m_ptr->energy -= level_speed(&m_ptr->wpos);
+#ifndef SIMPLE_ANTISTUCK
+			m_ptr->stuck = 0; //clear, since we deduced normal energy
+#endif
 			return;
 		}
 	}
@@ -9208,7 +9226,9 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 
 						/* Multiplying takes energy */
 						m_ptr->energy -= level_speed(&m_ptr->wpos);
-
+#ifndef SIMPLE_ANTISTUCK
+						m_ptr->stuck = 0; //clear, since we deduced normal energy
+#endif
 						return;
 					}
 				}
@@ -9242,9 +9262,18 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 
 
 	/* Attempt to cast a spell */
-	if (!inv && !force_random_movement && (m_ptr->r_idx == RI_MIRROR ? make_attack_spell_mirror(Ind, m_idx) : make_attack_spell(Ind, m_idx))) {
-		m_ptr->energy -= level_speed(&m_ptr->wpos);
-		return;
+	if (!inv && !force_random_movement) {
+#ifndef SIMPLE_ANTISTUCK
+		/* Fix stuck monsters getting cast attempts every frame (1/cfg.fps) */
+		if (!m_ptr->stuck) {
+#endif
+			if (m_ptr->r_idx == RI_MIRROR ? make_attack_spell_mirror(Ind, m_idx) : make_attack_spell(Ind, m_idx)) {
+				m_ptr->energy -= level_speed(&m_ptr->wpos);
+				return;
+			}
+#ifndef SIMPLE_ANTISTUCK
+		}
+#endif
 	}
 
 
@@ -9333,6 +9362,9 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 			/* TRUE result can only come from get_moves_astar() and means we decided to use a movement spell.
 			   In that case we're done now. */
 			m_ptr->energy -= level_speed(&m_ptr->wpos);
+#ifndef SIMPLE_ANTISTUCK
+			m_ptr->stuck = 0; //clear, since we deduced normal energy
+#endif
 			return;
 		}
 	}
@@ -9885,15 +9917,19 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 			    !magik(MONSTER_CROSS_IMPOSSIBLE_CHANCE)) {
 				/* Assume no move allowed */
 				do_move = FALSE;
+
+				/* finally: 'stuck' monsters no longer retain full energy to retry casting in each frame. */
+#ifndef SIMPLE_ANTISTUCK
+				m_ptr->stuck = level_speed(&m_ptr->wpos);
+#else
+				do_turn = TRUE;
+#endif
 			}
 		}
 
 		/* A monster is in the way */
 		if (do_move && c_ptr->m_idx > 0) {
 			monster_race *z_ptr = race_inf(y_ptr);
-
-			/* Assume no movement */
-			do_move = FALSE;
 
 			/* Kill weaker monsters */
 			if ((r_ptr->flags2 & RF2_KILL_BODY) &&
@@ -9906,8 +9942,6 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 				/* Monster ate another monster */
 				did_kill_body = TRUE;
 #endif
-
-				/* XXX XXX XXX Message */
 
 				/* Kill the monster */
 				delete_monster(wpos, ny, nx, TRUE);
@@ -9950,6 +9984,16 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 				did_move_body = TRUE;
 #endif
 				/* XXX XXX XXX Message */
+			/* Monster wants to move but is blocked by another monster */
+			} else {
+				do_move = FALSE;
+
+				/* finally: 'stuck' monsters no longer retain full energy to retry casting in each frame. */
+#ifndef SIMPLE_ANTISTUCK
+				m_ptr->stuck = level_speed(&m_ptr->wpos);
+#else
+				do_turn = TRUE;
+#endif
 			}
 		}
 
@@ -11354,7 +11398,13 @@ void process_monsters(void) {
 
 		/* Give this monster some energy */
 		m_ptr->energy += e * MONSTER_TURNS;
-
+#ifndef SIMPLE_ANTISTUCK
+		/* Handle hack for spell-casting energy while monster is stuck physically (blocked by terrain or other monsters) */
+		if (m_ptr->stuck) {
+			m_ptr->stuck -= e * MONSTER_TURNS;
+			if (m_ptr->stuck < 0) m_ptr->stuck = 0;
+		}
+#endif
 		tmp = level_speed(&m_ptr->wpos);
 
 		/* Added for Valinor; also used by target dummy - C. Blue */
@@ -11471,6 +11521,12 @@ void process_monsters(void) {
 							/* Remember our previous seat */
 							m_ptr->extra = d + 1;
 							d = 4;
+							/* While at it, randomly get drunk or sober up :-s */
+							if (m_ptr->ego != RE_DRUNK) {
+								if (!rand_int(3)) m_ptr->ego = RE_DRUNK;
+							} else {
+								if (!rand_int(3)) m_ptr->ego = RE_NONE;
+							}
 							break;
 						}
 					}

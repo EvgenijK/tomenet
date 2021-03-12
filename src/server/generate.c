@@ -1404,6 +1404,16 @@ static void build_streamer(struct worldpos *wpos, int feat, int chance, bool pie
 	cave_type **zcave;
 	int dun_type;
 
+#ifdef ENABLE_DEMOLITIONIST
+	/* Kurzel - Replace some quartz with sandwall at mostly shallow depths? */
+	if (feat == FEAT_QUARTZ) {
+		int dun_level = getlevel(wpos);
+
+		if (magik((dun_level >= 25) ? 0 : (25 - dun_level))) // (0..25)% chance!
+			feat = FEAT_SANDWALL;
+	}
+#endif
+
 #ifdef IRONDEEPDIVE_MIXED_TYPES
 	if (in_irondeepdive(wpos)) dun_type = iddc[ABS(wpos->wz)].type;
 	else
@@ -1493,8 +1503,6 @@ static void build_streamer(struct worldpos *wpos, int feat, int chance, bool pie
 			if (chance && rand_int(chance) == 0)
 				/* turn into FEAT_SANDWALL_K / FEAT_MAGMA_K / FEAT_QUARTZ_K: */
 				c_ptr->feat += (c_ptr->feat == FEAT_SANDWALL ? 0x2 : 0x4);
-
-			__GRID_DEBUG(0, wpos, c_ptr->feat, "build_streamer()", 0);
 		}
 
 #if 0
@@ -4972,7 +4980,6 @@ static void store_height(worldpos *wpos, int x, int y, int x0, int y0, byte val,
 	/* Meant to be temporary, hence no cave_set_feat */
 	zcave[y + y0 - yhsize][x + x0 - xhsize].temp = val;
 
-	__GRID_DEBUG(0, wpos, zcave[y + y0 - yhsize][x + x0 - xhsize].feat, "store_height()", 0);
 	return;
 }
 
@@ -6538,7 +6545,6 @@ static void add_outer_wall(worldpos *wpos, int x, int y, int light, int x1, int 
 	/* Set bounding walls */
 	else if (zcave[y][x].feat == FEAT_WALL_EXTRA) {
 		zcave[y][x].feat = feat_wall_outer;
-		__GRID_DEBUG(0, wpos, feat_wall_outer, "add_outer_wall()", 0);
 		if (light == TRUE) zcave[y][x].info |= CAVE_GLOW;
 	}
 	/* Set bounding walls */
@@ -7158,7 +7164,6 @@ static void duplicate_door(worldpos *wpos, int y, int x, int y2, int x2) {
 
 	/* Place the same type of door */
 	zcave[y2][x2].feat = zcave[y][x].feat;
-	__GRID_DEBUG(0, wpos, zcave[y][x].feat, "duplicate_door()", 0);
 
 	/* let's trap this too ;) */
 	if ((tmp = getlevel(wpos)) <= COMFORT_PASSAGE_DEPTH ||
@@ -7545,7 +7550,6 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 #ifdef WIDE_CORRIDORS
 			/* Place the same type of door */
 			zcave[y2][x2].feat = zcave[y][x].feat;
-			__GRID_DEBUG(0, wpos, zcave[y2][x2].feat, "build_tunnel()", 0);
 
 			/* let's trap this too ;) */
 			if ((tmp = getlevel(wpos)) <= COMFORT_PASSAGE_DEPTH ||
@@ -9279,7 +9283,6 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		}
 	}
 
-	__GRID_DEBUG(0, wpos, feat_boundary, "cave_gen()", 0);
 #if 1
 	/* XXX the walls here should 'mimic' the surroundings,
 	 * however I omitted it to spare 522 c_special	- Jir */
@@ -9389,64 +9392,6 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				if (rand_int(3) == 0) add_river(wpos, FEAT_DEEP_LAVA, FEAT_SHAL_LAVA);
 			}
 		}
-
-		for (x = 0; x < dun->l_ptr->wid; x++)
-			for (y = 0; y < dun->l_ptr->hgt; y++) {
-				/* check treasure veins for being remotely encased, making them more valuable to dig up, hah! - C. Blue */
-				switch (zcave[y][x].feat) {
-				case FEAT_MAGMA_K:
-				case FEAT_MAGMA_H:
-				case FEAT_QUARTZ_K:
-				case FEAT_QUARTZ_H:
-				case FEAT_SANDWALL_K:
-				case FEAT_SANDWALL_H:
-					k = 0;
-					for (i = 7; i >= 0; i--)
-						if (cave_floor_bold(zcave, y + ddy_ddd[i], x + ddx_ddd[i])) k++;
-					if (!k) zcave[y][x].info |= CAVE_ENCASED;
-					break;
-#ifdef VOLCANIC_FLOOR /* experimental - add volcanic floor around lava rivers - C. Blue */
-				case FEAT_SHAL_LAVA:
-				case FEAT_DEEP_LAVA:
-					for (i = 0; i < 4; i++) {
-						k = zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat;
-						switch (k) {
-						case FEAT_WEB:
-						case FEAT_CROP:
-						case FEAT_FLOWER:
-						case FEAT_IVY:
-						case FEAT_GRASS:
-							/* never persist */
-							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_ASH;
-							continue;
-						case FEAT_SNOW:
-						case FEAT_SHAL_WATER:
-						case FEAT_DARK_PIT:
-						case FEAT_ICE:
-						case FEAT_MUD:
-						case FEAT_ICE_WALL:
-							/* never persist */
-							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_VOLCANIC;
-							continue;
-						case FEAT_TREE:
-						case FEAT_BUSH://mh
-							/* never persist */
-							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_DEAD_TREE;
-							continue;
-						case FEAT_SAND:
-						case FEAT_FLOOR:
-						case FEAT_LOOSE_DIRT:
-						case FEAT_DIRT:
-							/* rarely persist */
-							if (!rand_int(7)) continue;
-							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_VOLCANIC;
-						default:
-							continue;
-						}
-					}
-#endif
-				}
-			}
 
 		/* Destroy the level if necessary */
 		if (destroyed) destroy_level(wpos);
@@ -9613,6 +9558,67 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				}
 			}
 		}
+	}
+
+	/* Do this now, after all streamers have been completed. */
+	if (!maze) {
+		for (x = 0; x < dun->l_ptr->wid; x++)
+			for (y = 0; y < dun->l_ptr->hgt; y++) {
+				/* check treasure veins for being remotely encased, making them more valuable to dig up, hah! - C. Blue */
+				switch (zcave[y][x].feat) {
+				case FEAT_MAGMA_K:
+				case FEAT_MAGMA_H:
+				case FEAT_QUARTZ_K:
+				case FEAT_QUARTZ_H:
+				case FEAT_SANDWALL_K:
+				case FEAT_SANDWALL_H:
+					k = 0;
+					for (i = 7; i >= 0; i--)
+						if (cave_floor_bold(zcave, y + ddy_ddd[i], x + ddx_ddd[i])) k++;
+					if (!k) zcave[y][x].info |= CAVE_ENCASED;
+					break;
+#ifdef VOLCANIC_FLOOR /* experimental - add volcanic floor around lava rivers - C. Blue */
+				case FEAT_SHAL_LAVA:
+				case FEAT_DEEP_LAVA:
+					for (i = 0; i < 4; i++) {
+						k = zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat;
+						switch (k) {
+						case FEAT_WEB:
+						case FEAT_CROP:
+						case FEAT_FLOWER:
+						case FEAT_IVY:
+						case FEAT_GRASS:
+							/* never persist */
+							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_ASH;
+							continue;
+						case FEAT_SNOW:
+						case FEAT_SHAL_WATER:
+						case FEAT_DARK_PIT:
+						case FEAT_ICE:
+						case FEAT_MUD:
+						case FEAT_ICE_WALL:
+							/* never persist */
+							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_VOLCANIC;
+							continue;
+						case FEAT_TREE:
+						case FEAT_BUSH://mh
+							/* never persist */
+							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_DEAD_TREE;
+							continue;
+						case FEAT_SAND:
+						case FEAT_FLOOR:
+						case FEAT_LOOSE_DIRT:
+						case FEAT_DIRT:
+							/* rarely persist */
+							if (!rand_int(7)) continue;
+							zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat = FEAT_VOLCANIC;
+						default:
+							continue;
+						}
+					}
+#endif
+				}
+			}
 	}
 
 	/* ugly hack to fix the buggy extra bottom line that gets added to non-maxed levels sometimes:

@@ -1456,6 +1456,7 @@ struct monster_type {
 	byte questor_target;		/* can get targetted by monsters and stuff..? */
 
 	bool no_esp_phase;		/* for WEIRD_MIND esp flickering */
+	s16b stuck;			/* energy to track spellcasting possibility after monster was just stuck in terrain or between other monsters */
 };
 
 typedef struct monster_ego monster_ego;
@@ -2122,6 +2123,7 @@ struct house_type {
 
 	byte colour;		/* house colour for custom house painting (HOUSE_PAINTING) */
 	byte xtra;		/* unused; maybe for player stores if required */
+	char tag[20];		/* allow tagging houses, will be displayed in ~ 9 for easy overview */
 };
 
 struct dna_type{
@@ -2399,7 +2401,7 @@ struct player_type {
 	u16b deaths, soft_deaths;	/* Times this character died so far / safely-died (no real death) so far */
 	s16b ghost;			/* Are we a ghost */
 	s16b fruit_bat;			/* Are we a fruit bat */
-	byte lives;			/* number of times we have ressurected */
+	char lives;			/* number of times we have ressurected */
 	byte houses_owned;		/* number of simultaneously owned houses */
 	byte castles_owned;		/* number of owned castles */
 
@@ -2623,6 +2625,7 @@ struct player_type {
 	/* TomeNET additions -- consider using macro or bitfield */
 	bool easy_open;
 	bool easy_disarm;
+	bool easy_disarm_montraps;
 	bool easy_tunnel;
 	//bool auto_destroy;
 	bool clear_inscr;
@@ -2687,7 +2690,8 @@ struct player_type {
 	cave_view_type ovl_info_guard_after[MAX_WINDOW_WID+1]; /* overflow protection */
 
 	s32b mimic_seed;		/* seed for random mimic immunities etc. */
-	char mimic_immunity;		/* preferred immunity when mimicking (overrides mimic_seed) */
+	char mimic_immunity;		/* preferred immunity when mimicking (overrides mimic_seed); hack in 4.7.3a: use remaining bits for chosen breath element */
+	char breath_element;		/* Draconian chosen breath when having multiple available elements (multi-hued lineage) */
 
 	char died_from[MAX_CHARS];	/* What off-ed him */
 	char really_died_from[MAX_CHARS]; /* What off-ed him */
@@ -3019,7 +3023,7 @@ struct player_type {
 	byte xtra_might;		/* Extra might bow */
 	bool impact;			/* Earthquake blows */
         bool auto_id;			/* Pickup = Id */
-	bool reduce_insanity;		/* For mimic forms with weird/empty mind */
+	char reduce_insanity;		/* For mimic forms with weird/empty mind */
 
 	s16b invis;			/* Invisibility */
 
@@ -3030,14 +3034,21 @@ struct player_type {
 	s16b dis_to_a;			/* Known bonus to ac */
 	s16b dis_ac;			/* Known base ac */
 
-	s16b to_h_ranged;		/* Bonus to hit */
-	s16b to_d_ranged;		/* Bonus to dam */
-	s16b to_h_melee;		/* Bonus to hit */
-	s16b to_d_melee;		/* Bonus to dam */
 	s16b to_h;			/* Bonus to hit */
 	s16b to_d;			/* Bonus to dam */
+	s16b to_h_melee;		/* Bonus to hit */
+	s16b to_d_melee;		/* Bonus to dam */
+	s16b to_h_ranged;		/* Bonus to hit */
+	s16b to_d_ranged;		/* Bonus to dam */
 	s16b to_a;			/* Bonus to ac */
-	s16b to_a_tmp;			/* Just to track temporary AC boosts for colourising indicator on client-side */
+
+	s16b to_h_tmp;			/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_d_tmp;			/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_h_melee_tmp;		/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_d_melee_tmp;		/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_h_ranged_tmp;		/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_d_ranged_tmp;		/* Just to track temporary boosts for colourising indicator on client-side */
+	s16b to_a_tmp;			/* Just to track temporary boosts for colourising indicator on client-side */
 
 	s16b ac;			/* Base ac */
 
@@ -3112,6 +3123,7 @@ struct player_type {
 	struct remote_ignore *w_ignore;	/* List of players whose chat we wish to ignore */
 	long int idle;			/* player is idling for <idle> seconds.. */
 	long int idle_char;		/* character is idling for <idle_char> seconds (player still might be chatting etc) */
+	long int idle_attack;		/* character is idling and not even attacking passively (auto-retaliator) */
 	bool afk;			/* player is afk */
 	char afk_msg[MAX_CHARS];	/* afk reason */
 	char info_msg[MAX_CHARS];	/* public info message (display gets overridden by an afk reason, if specified) */
@@ -3388,7 +3400,7 @@ struct player_type {
 	bool admin_invuln, admin_invinc; /* Amulets of Invulnerability/Invincibility */
 	char admin_parm[MAX_CHARS];	/* optional special admin command parameter (hacky o_O) */
 
-	u32b test_count, test_dam, test_heal, test_turn;
+	u32b test_count, test_dam, test_heal, test_turn, test_turn_idle;
 #ifdef TEST_SERVER
 	u32b test_attacks;
 #endif
@@ -3412,12 +3424,14 @@ struct player_type {
 	char warning_fountain, warning_voidjumpgate, warning_staircase, warning_worldmap, warning_dungeon, warning_staircase_oneway;
 	/* For the 4.4.8.1.0.0 lua update crash bug */
 	char warning_lua_update, warning_lua_count;
-	char warning_tunnel, warning_tunnel2, warning_tunnel3, warning_trap, warning_tele, warning_fracexp;
+	char warning_tunnel, warning_tunnel2, warning_tunnel3, warning_tunnel4, warning_trap, warning_tele, warning_fracexp;
 	char warning_death;
 	char warning_drained, warning_boomerang, warning_bash, warning_inspect;
 	/* 4.7.1b+ additions */
 	char warning_repair, warning_partyexp, warning_wor2, warning_depth; //repair weapon/armour, no xp sharing, wor INTO dun (display at -50 BD when char is hilev), low/no exp on grey/yellow
+	char warning_blastcharge, warning_status_blindness, warning_status_confusion, warning_status_stun;
 	//not for now, unnecessary spam: , warning_xpdrained, 10% gain while drained
+	char warning_sellunid;
 
 #ifdef USE_SOUND_2010
 	int music_current, musicalt_current, music_monster; //background music currently playing for him/her; an overriding monster music
@@ -3957,6 +3971,8 @@ struct client_opts {
 	bool macros_in_stores;
 	bool item_error_beep;
 	bool keep_bottle;
+
+	bool easy_disarm_montraps;
 };
 
 /*

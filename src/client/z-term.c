@@ -701,7 +701,7 @@ byte flick_colour(byte attr) {
 	case TERM_MANA:
 		return (randint(5) != 1 ? TERM_VIOLET : TERM_L_BLUE);
 	case TERM_WATE:
-		return (randint(4) == 1 ? TERM_L_BLUE : TERM_BLUE);
+		return (randint(20) == 1 ? TERM_L_BLUE : TERM_BLUE);//was randint(4)==1, but for rain this looks better!
 	case TERM_ICE:
 		return (randint(4) == 1 ? TERM_L_BLUE : TERM_WHITE);
 	case TERM_PLAS:
@@ -1640,7 +1640,8 @@ errr Term_fresh(void) {
 		Term_xtra(TERM_XTRA_CLEAR, 0);
 
 		/* Hack -- clear all "cursor" data XXX XXX XXX */
-		old->cv = old->cu = old->cx = old->cy = 0;
+		old->cv = old->cu = FALSE;
+		old->cx = old->cy = 0;
 
 		/* Wipe the content arrays */
 		memset(old->va, a, w * h);

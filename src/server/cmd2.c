@@ -45,6 +45,37 @@
 
 
 
+/* 4.7.3a: Boomerangs may get VORPAL flag, need all the melee formulas here too now
+   ---- TODO: Maybe implement some of this stuff, but maybe we just don't need it! ... */
+
+/* Inverse chance to get a vorpal cut (1 in n) [4] */
+#define R_VORPAL_CHANCE 4
+
+/* Better hits of one override worse hits of the other,
+   instead of completely stacking for silly amounts. Recommended: V [off].
+   Note: Crit already makes Vorpal not so useful, so probably just keep R_CRIT_VS_VORPAL off anyway. */
+//#define R_CRIT_VS_VORPAL
+
+/* Crit multiplier should affect unbranded dice+todam instead of branded dice+todam? [off]
+   Advantage: Reduce huge gap between not so top 2h dice and top 2h dice weapons.
+   Big disadvantage: A +10 crit weapon wouldn't get more than ~4% damage increase even from a KILL mod.
+   NOTE: Currently only applies to melee. */
+//#define CRIT_UNBRANDED
+
+/* VORPAL being affected by brands? (+15 to-d & 2xbranded:
+   +5% for crit weapons, +9% for non-crit weapons,
+   crit +21% MoD over ZH, non-crit +13% MoD over ZH;)
+   Recommended state is inverse of R_CRIT_VS_VORPAL (reduces vorpal efficiency in brand/kill flag scenario)
+    or off (keeps vorpal efficiency in brand/kill scenario)
+    or use R_VORPAL_LOWBRANDED to compromise (recommended). */
+#ifndef R_CRIT_VS_VORPAL
+ //#define R_VORPAL_UNBRANDED
+ //#define R_VORPAL_LOWBRANDED  -- actually too weak for boomerangs, let's try full branding!
+#endif
+
+
+
+
 #ifdef USE_SOUND_2010
 static void staircase_sfx(int Ind) {
 	int b = Players[Ind]->body_monster;
@@ -3165,7 +3196,6 @@ bool twall(int Ind, int y, int x, byte feat) {
  * accomplished by strong players using heavy weapons.
  */
 /* XXX possibly wrong */
-/* Reveal a secret door if tunnelling triggered a trap on it? */
 /* New Digging features: Uncover features or find objects - (C. Blue)
    -Only possible when digging by hand/tool, not via any magic.
    -Rubble: Staircase, Fountain, Lava/Water,
@@ -3182,10 +3212,15 @@ bool twall(int Ind, int y, int x, byte feat) {
     of digging skill.
     For obvious treasure or just hard walls, the chance to find a rune depends
     (as finding any other special thing) only on digging skill.
+
+    NOTE: Ivy is listed but currently counts as FLOOR, so it has no effect/isn't tunneable.
 */
+/* Reveal a secret door if tunnelling triggered a trap on it? */
 #define TRAP_REVEALS_DOOR
 /* Chance to find a rune when having proficiency in runes */
 #define RUNE_CHANCE 1000
+/* Actually give special message to indicate when we have zero chance to tunnel through a specific material */
+#define INDICATE_IMPOSSIBLE "You cannot seem to make a dent in the"
 void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	player_type *p_ptr = Players[Ind];
 	object_type *o_ptr = &p_ptr->inventory[INVEN_TOOL];
@@ -3232,6 +3267,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	if (CANNOT_OPERATE_SPECTRAL && !is_admin(p_ptr)) {
 		/* Message */
 		msg_print(Ind, "You cannot tunnel without a material body.");
+		p_ptr->energy -= level_speed(&p_ptr->wpos) / 3;
 		return;
 	}
 
@@ -3358,12 +3394,14 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Check the floor-hood */
 	old_floor = cave_floor_bold(zcave, y, x);
 
-	/* No tunnelling through emptiness */
+
+	/* No tunnelling through empty air, but allow 'tunneling' the floor we're standing on to cause quakes */
 	if ((cave_floor_bold(zcave, y, x)) || (cfeat == FEAT_PERM_CLEAR)) {
 		/* Hack: Allow causing earthquakes with appropriate weapons (!) or diggers or p_ptr->impact (unavailable atm) by hitting the empty floor */
 		if (dir == 5 && cfeat != FEAT_PERM_CLEAR && !quiet_borer) {
 			if (istownarea(&p_ptr->wpos, MAX_TOWNAREA)) {
 				msg_print(Ind, "The floor around the town area seems very solid.");
+				p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
 				return;
 			}
 
@@ -3395,16 +3433,21 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			/* Take our best pick and calculate if we succeed.. */
 			if (impact_power) {
 				msg_print(Ind, "You strike the ground.");
+#ifdef USE_SOUND_2010
 				sound(Ind, "hit", "", SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
 				if (magik(impact_power)) impact = TRUE;
 			} else if (impact_power_tool) {
 				object_desc(0, o_name, o_ptr, TRUE, 256);
 				msg_format(Ind, "You strike the ground with your %s.", o_name);
+#ifdef USE_SOUND_2010
 				sound(Ind, "hit_floor", "hit_blunt", SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
 				if (magik(impact_power_tool)) impact = TRUE;
 			} else if (impact_power_weapon) {
 				object_desc(0, o_name, o23_ptr, TRUE, 256);
 				msg_format(Ind, "You strike the ground with your %s.", o_name);
+#ifdef USE_SOUND_2010
 				switch(o23_ptr->tval) {
 				case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 				case TV_BLUNT:	if (o_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE);
@@ -3414,6 +3457,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 				case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 				case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 				}
+#endif
 				if (magik(impact_power_weapon)) impact = TRUE;
 			} else {
 				/* Futile attempt as we don't have any earthquake powers at all -
@@ -3421,10 +3465,13 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 				if (o_ptr->k_idx && o_ptr->tval == TV_DIGGING) {
 					object_desc(0, o_name, o_ptr, TRUE, 256);
 					msg_format(Ind, "You strike the ground with your %s.", o_name);
+#ifdef USE_SOUND_2010
 					sound(Ind, "hit_floor", "hit_blunt", SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
 				} else if (o2_ptr->k_idx) {
 					object_desc(0, o_name, o2_ptr, TRUE, 256);
 					msg_format(Ind, "You strike the ground with your %s.", o_name);
+#ifdef USE_SOUND_2010
 					switch(o2_ptr->tval) {
 					case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					case TV_BLUNT:	if (o2_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE);
@@ -3434,9 +3481,11 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					}
+#endif
 				} else if (o3_ptr->k_idx && is_weapon(o3_ptr->tval)) {
 					object_desc(0, o_name, o3_ptr, TRUE, 256);
 					msg_format(Ind, "You strike the ground with your %s.", o_name);
+#ifdef USE_SOUND_2010
 					switch(o3_ptr->tval) {
 					case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					case TV_BLUNT:	if (o3_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE);
@@ -3446,9 +3495,12 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_NO_OVERLAP, TRUE); break;
 					}
+#endif
 				} else {
 					msg_print(Ind, "You strike the ground.");
+#ifdef USE_SOUND_2010
 					sound(Ind, "hit", "", SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
 				}
 			}
 
@@ -3457,12 +3509,12 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 				//sound(Ind, NULL, NULL, SFX_TYPE_STOP, TRUE); /* Stop "hit_floor"/"tunnel_rock" sfx */
 				earthquake(&p_ptr->wpos, p_ptr->py, p_ptr->px, 7);
 			}
-			__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 4);
 			return;
 		}
 
 		msg_print(Ind, "You see nothing there to tunnel through.");
 		disturb(Ind, 0, 0);
+		p_ptr->energy -= level_speed(&p_ptr->wpos) / 3;
 		return;
 	}
 
@@ -3473,6 +3525,24 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		return;
 	}
 
+	/* Check that the material is actually tunnelable at all */
+	//do_cmd_tunnel_test(int y, int x, FALSE)
+	if (!(f_ptr->flags1 & FF1_TUNNELABLE) ||
+	    (f_ptr->flags1 & FF1_PERMANENT)) {
+		/* Message */
+		msg_print(Ind, f_text + f_ptr->tunnel);
+		/* Nope */
+		p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+		return;
+	}
+
+	/* No destroying of town layouts */
+	else if (!allow_terraforming(wpos, FEAT_TREE)) {
+		msg_print(Ind, "You may not tunnel in this area.");
+		p_ptr->energy -= level_speed(&p_ptr->wpos) / 3;
+		return;
+	}
+
 	/* A monster is in the way */
 	if (c_ptr->m_idx > 0) {
 		/* Take a turn */
@@ -3480,11 +3550,10 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		msg_print(Ind, "There is a monster in the way!");
 		/* Attack */
 		py_attack(Ind, y, x, TRUE);
-		__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 5);
 		return;
 	}
 
-	/* Okay, try digging */
+	/* Okay, prepare to try digging */
 	un_afk_idle(Ind);
 	break_cloaking(Ind, 0);
 	break_shadow_running(Ind);
@@ -3496,7 +3565,9 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Take a turn */
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 
-	/* not in monster KILL_WALL form or via magic; not on world surface: wpos->wz == 0 ! */
+
+	/* Discover special features or objects when mining.
+	   Note: Not in monster KILL_WALL form or via magic; not on world surface: wpos->wz == 0 ! */
 	if (l_ptr && !quiet_borer) {
 		/* prepare to discover a special feature */
 		if ((rand_int(5000) <= mining + 5) && can_go_up(wpos, 0x1)) dug_feat = FEAT_WAY_LESS;
@@ -3561,26 +3632,12 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		if (rand_int(500) < ((l_ptr->flags1 & LF1_NO_LAVA) ? 0 : ((l_ptr->flags1 & LF1_LAVA) ? 50 : 3))) dug_feat = FEAT_SHAL_LAVA;
 		else if (rand_int(500) < ((l_ptr->flags1 & LF1_NO_WATER) ? 0 : ((l_ptr->flags1 & LF1_WATER) ? 50 : 8))) dug_feat = FEAT_SHAL_WATER;
 	}
-
+	/* Never discover special features or objects on stale floors */
 	if (p_ptr->IDDC_logscum) {
 		if (dug_feat == FEAT_FOUNTAIN) dug_feat = FEAT_NONE;
 		special_k_idx = tval = 0;
 	}
 
-	//do_cmd_tunnel_test(int y, int x, FALSE)
-	/* Must be tunnelable */
-	if (!(f_ptr->flags1 & FF1_TUNNELABLE) ||
-	    (f_ptr->flags1 & FF1_PERMANENT)) {
-		/* Message */
-		msg_print(Ind, f_text + f_ptr->tunnel);
-		/* Nope */
-		return;
-	}
-	/* No destroying of town layouts */
-	else if (!allow_terraforming(wpos, FEAT_TREE)) {
-		msg_print(Ind, "You may not tunnel in this area.");
-		return;
-	}
 
 	/* Ok, we may finally tunnel.. */
 	if (p_ptr->taciturn_messages) suppress_message = TRUE;
@@ -3715,7 +3772,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			    in_iddc &&
  #endif
 			    /* Note: Increased rarity from 5 to 20 because pieces of wood and other items containing wood can now be ground to chips simply */
-			    (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST) && !rand_int(20) && !p_ptr->IDDC_logscum) {
+			    (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST) && !rand_int(3) && !p_ptr->IDDC_logscum) {
 				object_type forge;
 
 				invcopy(&forge, lookup_kind(TV_CHEMICAL, SV_WOOD_CHIPS));
@@ -3755,6 +3812,29 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 				msg_print(Ind, "You have a bad feeling about it.");
 #ifdef USE_SOUND_2010
 			if (!quiet_borer) sound(Ind, "tunnel_tree", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
+
+#ifdef ENABLE_DEMOLITIONIST
+			if (
+ #ifdef DEMOLITIONIST_IDDC_ONLY
+			    in_iddc &&
+ #endif
+			    /* Note: Increased rarity from 5 to 20 because pieces of wood and other items containing wood can now be ground to chips simply */
+			    (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST) && !rand_int(7) && !p_ptr->IDDC_logscum) {
+				object_type forge;
+
+				invcopy(&forge, lookup_kind(TV_CHEMICAL, SV_WOOD_CHIPS));
+				s_printf("CHEMICAL: %s found wood chips.\n", p_ptr->name);
+				forge.owner = p_ptr->id;
+				forge.mode = p_ptr->mode;
+				forge.iron_trade = p_ptr->iron_trade;
+				forge.iron_turn = turn;
+				forge.level = 0;
+				forge.number = 1;
+				forge.weight = k_info[forge.k_idx].weight;
+				forge.marked2 = ITEM_REMOVAL_NORMAL;
+				drop_near(0, &forge, -1, wpos, y, x);
+			}
 #endif
 
 			/* Notice */
@@ -3805,6 +3885,29 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			if (!quiet_borer) sound(Ind, "tunnel_tree", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
 #endif
 
+#ifdef ENABLE_DEMOLITIONIST
+			if (
+ #ifdef DEMOLITIONIST_IDDC_ONLY
+			    in_iddc &&
+ #endif
+			    /* Note: Increased rarity from 5 to 20 because pieces of wood and other items containing wood can now be ground to chips simply */
+			    (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST) && !rand_int(7) && !p_ptr->IDDC_logscum) {
+				object_type forge;
+
+				invcopy(&forge, lookup_kind(TV_CHEMICAL, SV_WOOD_CHIPS));
+				s_printf("CHEMICAL: %s found wood chips.\n", p_ptr->name);
+				forge.owner = p_ptr->id;
+				forge.mode = p_ptr->mode;
+				forge.iron_trade = p_ptr->iron_trade;
+				forge.iron_turn = turn;
+				forge.level = 0;
+				forge.number = 1;
+				forge.weight = k_info[forge.k_idx].weight;
+				forge.marked2 = ITEM_REMOVAL_NORMAL;
+				drop_near(0, &forge, -1, wpos, y, x);
+			}
+#endif
+
 			/* Notice */
 			note_spot_depth(wpos, y, x);
 
@@ -3823,7 +3926,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	else if (((cfeat >= FEAT_MAGMA) && (cfeat <= FEAT_QUARTZ_K)) ||
 	    ((cfeat >= FEAT_SANDWALL) && (cfeat <= FEAT_SANDWALL_K))) {
 		bool okay = FALSE, gold = FALSE, hard = FALSE, soft = FALSE;
-		bool nonobvious = (cinfo & CAVE_ENCASED); //treasure veins that aren't generated out in the open, but enclosed in streamers
+		bool nonobvious = (cinfo & CAVE_ENCASED) != 0; //treasure veins that aren't generated out in the open, but enclosed in streamers
 
 		/* Found gold? Non-obvious vein even for increased value? */
 		switch (cfeat) {
@@ -3853,10 +3956,27 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			break;
 		}
 
+#ifdef INDICATE_IMPOSSIBLE
+		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
+		if (hard) {
+			/* quartz */
+			if (power <= 20) {
+				msg_format(Ind, "%s quartz vein.", INDICATE_IMPOSSIBLE);
+				return;
+			}
+		} else if (!soft) {
+			/* magma */
+			if (power <= 10) {
+				msg_format(Ind, "%s magma intrusion.", INDICATE_IMPOSSIBLE);
+				return;
+			}
+		}
+#endif
+
 		/* Quartz */
 		if (hard) okay = (power > 20 + rand_int(800)); /* 800 */
 		/* Sandwall */
-		else if (soft) okay = (power > 5 + rand_int(250));
+		else if (soft) okay = (power > rand_int(300));
 		/* Magma */
 		else okay = (power > 10 + rand_int(400)); /* 400 */
 
@@ -3886,7 +4006,13 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 
 		/* Success */
 		if (okay && twall(Ind, y, x, soft ? FEAT_SAND : FEAT_FLOOR)) {
-			msg_format(Ind, "You have finished the tunnel in the %s.", soft ? "sandwall" : (hard ? "quartz vein" : "magma vein"));
+			if (!p_ptr->warning_tunnel4 && o_ptr->k_idx && o_ptr->tval == TV_DIGGING) {
+				/* Don't display hint if digging tool is already so highly enchanted that it was probably done manually -> player seems to know */
+				if (o_ptr->to_h < 8 || o_ptr->to_d < 8) msg_print(Ind, "\374\377yHINT: Further strengthen your digging tool by enchanting it to-hit and to-dam!");
+				p_ptr->warning_tunnel4 = 1;
+			}
+
+			msg_format(Ind, "You have finished the tunnel in the %s.", soft ? "sandwall" : (hard ? "quartz vein" : "magma intrusion"));
 #ifdef USE_SOUND_2010
 			if (!quiet_borer) sound(Ind, "tunnel_rock", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
 #endif
@@ -3906,9 +4032,12 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 					/* abuse tval: reward the special effort at lower character levels..
 					   and add a basic x3 bonus for gold from veins in general. */
 					tval = 3 + rand_int(mining / 5) + (nonobvious ? (((rand_int(40) > object_level) ? randint(3) : 0) + rand_int(1 + mining / 25)) : 0);
-					if (nonobvious) s_printf("DIGGING: %s digs nonobvious (x%d).\n", p_ptr->name, tval);
 					place_gold(Ind, wpos, y, x, tval, 0);
 					object_level = old_object_level;
+					if (nonobvious) s_printf("DIGGING: %s (F%d,S%d) digs nonobvious (x%d=%dAu).\n", p_ptr->name, find_level_base, get_skill(p_ptr, SKILL_DIG),
+					    tval, !c_ptr->o_idx ? 0 : (o_list[c_ptr->o_idx].tval != TV_GOLD ? 0 : o_list[c_ptr->o_idx].pval));
+					else s_printf("DIGGING: %s (F%d,S%d) digs obvious (x%d=%dAu).\n", p_ptr->name, find_level_base, get_skill(p_ptr, SKILL_DIG),
+					    tval, !c_ptr->o_idx ? 0 : (o_list[c_ptr->o_idx].tval != TV_GOLD ? 0 : o_list[c_ptr->o_idx].pval));
 				}
 				note_spot_depth(wpos, y, x);
 				everyone_lite_spot(wpos, y, x);
@@ -4028,7 +4157,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		/* Failure (magma) */
 		else {
 			/* Message, continue digging */
-			msg_print(Ind, "You tunnel into the magma vein.");
+			msg_print(Ind, "You tunnel into the magma intrusion.");
 			more = TRUE;
 #ifdef USE_SOUND_2010
 			if (!quiet_borer) sound(Ind, "tunnel_rock", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
@@ -4039,7 +4168,8 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Default to secret doors */
 	else if (cfeat == FEAT_SECRET) {
 		struct c_special *cs_ptr;
-		int featm = cfeat; /* just to kill compiler warning */
+		int featm = cfeat, diff, diff_plus = 0; /* cfeat: just to kill compiler warning */
+
 		if ((cs_ptr = GetCS(c_ptr, CS_MIMIC)))
 			featm = cs_ptr->sc.omni;
 		else /* Apply "mimic" field */
@@ -4050,7 +4180,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		    (f_info[featm].flags1 & FF1_PERMANENT)) {
 			/* Message */
 			msg_print(Ind, f_text + f_info[featm].tunnel);
-			__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 3);
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
 			return;
 		}
 
@@ -4059,9 +4189,73 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 		no_quake = TRUE;
 #endif
 
-		/* hack: 'successful' tunnelling reveals the secret door */
-		if (power > 40 + rand_int(1600)) { /* just assume 1600 as for Granite Wall */
+		/* To allow for INDICATE_IMPOSSIBLE, we need to distinguish between mimicked features that would affect it. */
+		switch (featm) {
+		case FEAT_WEB:
+			if (power < fibre_power) power = fibre_power;
+			diff = 100;
+			break;
+		case FEAT_RUBBLE:
+			diff = 200;
+			break;
+		case FEAT_IVY:
+			if (power < fibre_power) power = fibre_power;
+			diff = 200;
+			break;
+		case FEAT_BUSH:
+			if (power < wood_power) power = wood_power;
+			diff = 300;
+			break;
+		case FEAT_DEAD_TREE:
+			if (power < wood_power) power = wood_power;
+			diff = 300;
+			break;
+		case FEAT_TREE:
+			if (power < wood_power) power = wood_power;
+			diff = 400;
+			break;
+		case FEAT_MAGMA:
+		case FEAT_MAGMA_H:
+		case FEAT_MAGMA_K:
+			diff = 400;
+			diff_plus = 10;
+			break;
+		case FEAT_QUARTZ:
+		case FEAT_QUARTZ_H:
+		case FEAT_QUARTZ_K:
+			diff = 800;
+			diff_plus = 20;
+			break;
+		default:
+			/* granite wall, ice wall, misc walls.. */
+			if (featm >= FEAT_WALL_EXTRA) {
+				diff = 1600;
+				diff_plus = 40;
+			}
+			/* nothing left actually! - arbitrary paranoia values (see below, keep consistent anyway) */
+			else {
+				diff = 1200;
+				diff_plus = 30;
+			}
+			break;
+		}
+
+#ifdef INDICATE_IMPOSSIBLE
+		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
+		if (power <= diff_plus) {
+			msg_format(Ind, "%s %s.", INDICATE_IMPOSSIBLE, f_name + f_info[featm].name);
+			return;
+		}
+#endif
+
+#ifdef INDICATE_IMPOSSIBLE
+		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
+#endif
+
+		/* hack: 'successful' tunnelling reveals the secret door. */
+		if (power > rand_int(diff) + diff_plus) {
 			struct c_special *cs_ptr;
+
 			msg_print(Ind, "You have found a secret door!");
 			/* un-hide the true feat (a door!) */
 			c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
@@ -4070,7 +4264,6 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 
 			note_spot_depth(wpos, y, x);
 			everyone_lite_spot(wpos, y, x);
-			__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 0);
 		} else {
 			msg_print(Ind, f_text + f_info[featm].tunnel);
 			more = TRUE;
@@ -4103,7 +4296,6 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			/* Redraw */
 			everyone_lite_spot(wpos, y, x);
 #endif
-			__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 1);
 		}
 
 		/* Hack -- Search */
@@ -4111,6 +4303,14 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	}
 	/* Granite + misc (Ice..) */
 	else if (cfeat >= FEAT_WALL_EXTRA) {
+#ifdef INDICATE_IMPOSSIBLE
+		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
+		if (power <= 40) {
+			msg_format(Ind, "%s %s.", INDICATE_IMPOSSIBLE, f_name + f_info[cfeat].name);
+			return;
+		}
+#endif
+
 		/* Tunnel */
 		if ((power > 40 + rand_int(1600)) && twall(Ind, y, x, cfeat == FEAT_ICE_WALL ? FEAT_ICE : FEAT_FLOOR)) { /* 1600 */
 			msg_format(Ind, "You have finished the tunnel in the %s.", f_name + f_info[cfeat].name);
@@ -4165,7 +4365,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 
 		/* Tunnel - hack: swords/axes help similarly as for trees/bushes/ivy */
 		if ((((power > fibre_power) ? power : fibre_power) > rand_int(100)) && twall(Ind, y, x, FEAT_DIRT)) {
-			msg_print(Ind, "You have cleared the web.");
+			msg_print(Ind, "You have cleared the spider web.");
 #ifdef USE_SOUND_2010
 			if (!quiet_borer) sound(Ind, "tunnel_rubble", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
 #endif
@@ -4183,9 +4383,17 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Other stuff - Note: There is none left, actually.
 	   Ice walls are treated as 'Granite Wall' above already! */
 	else {
+#ifdef INDICATE_IMPOSSIBLE
+		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
+		if (power <= 30) {
+			msg_format(Ind, "%s %s.", INDICATE_IMPOSSIBLE, f_name + f_info[cfeat].name);
+			return;
+		}
+#endif
+
 		/* Tunnel */
-		if ((power > 30 + rand_int(1200)) && twall(Ind, y, x, FEAT_FLOOR)) {
-			msg_format(Ind, "You have finished the tunnel in the %s", f_name + f_info[cfeat].name);
+		if ((power > 30 + rand_int(1200)) && twall(Ind, y, x, FEAT_FLOOR)) { /* some random, arbitrary hardness between granite and next-softer materials.. unused anyway */
+			msg_format(Ind, "You have finished the tunnel in the %s.", f_name + f_info[cfeat].name);
 #ifdef USE_SOUND_2010
 			if (!quiet_borer) sound(Ind, "tunnel_rubble", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
 #endif
@@ -4235,7 +4443,6 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 			more = FALSE;
 		}
 	}
-	__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_tunnel()", 2);
 
 	/* Cancel repetition unless we can continue */
 	if (!more) disturb(Ind, 0, 0);
@@ -4341,7 +4548,11 @@ void do_cmd_disarm(int Ind, int dir) {
 
 		if ((!t_idx || !cs_ptr->sc.trap.found) &&
 		    (o_ptr->tval != TV_CHEST) &&
-		    !(cs_ptr = GetCS(c_ptr, CS_MON_TRAP))) {
+		    !(cs_ptr = GetCS(c_ptr, CS_MON_TRAP))
+#ifdef ENABLE_DEMOLITIONIST
+		    && !(o_ptr->tval == TV_CHARGE && o_ptr->timeout)
+#endif
+		    ) {
 			/* Message */
 			msg_print(Ind, "You see nothing there to disarm.");
 			done = TRUE;
@@ -4360,6 +4571,21 @@ void do_cmd_disarm(int Ind, int dir) {
 
 			done = TRUE;
 		}
+
+#ifdef ENABLE_DEMOLITIONIST
+		else if (o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
+			if (!magik(100 + k_info[o_ptr->k_idx].level - 80)) {
+				msg_print(Ind, "You extinguish the fuse!");
+				o_ptr->timeout = 0;
+				everyone_lite_spot(wpos, y, x);
+ #ifdef USE_SOUND_2010
+				sound_near_site(p_ptr->py, p_ptr->px, wpos, 0, "item_rune", NULL, SFX_TYPE_MISC, FALSE);
+ #endif
+			} else msg_print(Ind, "\377yYou fail to extinguish the fuse!");
+			disturb(Ind, 0, 0);
+			return;
+		}
+#endif
 
 		/* Normal disarm */
 		else if (o_ptr->tval == TV_CHEST) {
@@ -5068,8 +5294,6 @@ void do_cmd_spike(int Ind, int dir) {
 			/* Add one spike to the door */
 			if (c_ptr->feat < FEAT_DOOR_TAIL) c_ptr->feat++;
 
-			__GRID_DEBUG(Ind, wpos, c_ptr->feat, "do_cmd_spike()", 0);
-
 			/* Use up, and describe, a single spike, from the bottom */
 			inven_item_increase(Ind, item, -1);
 			inven_item_describe(Ind, item);
@@ -5115,6 +5339,7 @@ void do_cmd_walk(int Ind, int dir, int pickup) {
 		/* Handle the cfg.door_bump_open option */
 		if (cfg.door_bump_open) {
 			struct c_special *cs_ptr;
+
 			/* Get requested grid */
 			c_ptr = &zcave[p_ptr->py+ddy[dir]][p_ptr->px+ddx[dir]];
 
@@ -5124,6 +5349,7 @@ void do_cmd_walk(int Ind, int dir, int pickup) {
 			    (cs_ptr = GetCS(c_ptr, CS_TRAPS)) &&
 			    cs_ptr->sc.trap.found &&
 			    !c_ptr->o_idx &&
+			    !c_ptr->m_idx &&
 			    !UNAWARENESS(p_ptr) &&
 			    !no_lite(Ind) )
 			{
@@ -5139,8 +5365,7 @@ void do_cmd_walk(int Ind, int dir, int pickup) {
 				do_cmd_open(Ind, dir);
 				return;
 			}
-			else
-			if (cfg.door_bump_open & BUMP_OPEN_DOOR &&
+			else if (cfg.door_bump_open & BUMP_OPEN_DOOR &&
 			    p_ptr->easy_open &&
 			    (c_ptr->feat == FEAT_HOME_HEAD) &&
 			    !CANNOT_OPERATE_SPECTRAL && !CANNOT_OPERATE_FORM) { /* players in WRAITHFORM can't open doors - mikaelh */
@@ -5154,6 +5379,21 @@ void do_cmd_walk(int Ind, int dir, int pickup) {
 				}
 			}
 		}
+
+		if (p_ptr->easy_disarm_montraps) {
+			/* Get requested grid */
+			c_ptr = &zcave[p_ptr->py+ddy[dir]][p_ptr->px+ddx[dir]];
+
+			if (!c_ptr->m_idx) {
+			    //&& !c_ptr->o_idx
+				/* This should be cfg.trap_bump_disarm? */
+				if (GetCS(c_ptr, CS_MON_TRAP)) {
+					do_cmd_disarm(Ind, dir);
+					return;
+				}
+			}
+		}
+
 		/* Actually move the character */
 		move_player(Ind, dir, pickup, &consume_full_energy);
 		p_ptr->warning_autoret_ok = 0;
@@ -5394,6 +5634,11 @@ int breakage_chance(object_type *o_ptr) {
 		if (o_ptr->sval >= SV_GOLEM_ATTACK) return 25; /* scroll */
 		return 10; /* arm/leg */
 
+#ifdef ENABLE_DEMOLITIONIST
+	case TV_CHARGE:
+		return 5;
+#endif
+
 	/* for throwing weapons: Weapons in general are meant to be used for hitting, so should be ok */
 	case TV_SWORD:
 	case TV_AXE:
@@ -5562,7 +5807,7 @@ void do_cmd_fire(int Ind, int dir) {
 #ifdef PY_FIRE_ON_WALL
 	int prev_x, prev_y; /* for flare missile being able to light up a room under projectable_wall() conditions */
 #endif
-	int tdam, tdis, thits, tmul;
+	int tdam, tdis, thits, tmul, vorpal_cut = 0;
 	int bonus, chance, tries = 100;
 	int cur_dis, visible, real_dis;
 	int breakage = 0, num_ricochet = 0, ricochet_chance = 0;
@@ -5591,8 +5836,10 @@ void do_cmd_fire(int Ind, int dir) {
 	bool ranged_double_real = FALSE, ranged_flare_body = FALSE;
 
 	int		break_chance;
+#ifdef USE_SOUND_2010
 	int		sfx = 0;
-	u32b f1, f1a, fx, esp;
+#endif
+	u32b f1, f1a, f5, fx, esp;
 
 	char o_name[ONAME_LEN];
 	bool returning = FALSE, magic = FALSE, boomerang = FALSE, ethereal = FALSE;
@@ -5678,7 +5925,7 @@ void do_cmd_fire(int Ind, int dir) {
 	}
 
 	/* Extract the item flags */
-	object_flags(j_ptr, &f1, &fx, &fx, &fx, &fx, &fx, &esp);
+	object_flags(j_ptr, &f1, &fx, &fx, &fx, &f5, &fx, &esp);
 
 	if (j_ptr->tval == TV_BOOMERANG) {
 		boomerang = TRUE;
@@ -5771,12 +6018,12 @@ void do_cmd_fire(int Ind, int dir) {
 	}
 
 	/* Get extra "power" from "extra might" */
-	//if (p_ptr->xtra_might) tmul++;
 	if (!boomerang) tmul += p_ptr->xtra_might;
-
 	/* Base range */
 	tdis = 9 + 3 * tmul;
 	if (boomerang) tdis = 15;
+	/* Boomerangs use hacked xmight to apply a global damage scaling by skill - but not affecting throwing range */
+	if (boomerang) tmul = 10 + p_ptr->xtra_might;
 
 	/* Play fairly */
 #ifdef ARROW_DIST_LIMIT
@@ -5996,21 +6243,26 @@ void do_cmd_fire(int Ind, int dir) {
 	if (p_ptr->taciturn_messages) suppress_message = TRUE;
 
 	/* Ricochets ? */
-#if 0 // DG - no
-	if (get_skill(p_ptr, SKILL_RICOCHET) && !magic && !boomerang && !p_ptr->ranged_barrage)
-	{
-		num_ricochet = get_skill_scale(p_ptr, SKILL_RICOCHET, 6);
-		num_ricochet = (num_ricochet < 0) ? 0 : num_ricochet;
-		ricochet_chance = 45 + get_skill_scale(p_ptr, SKILL_RICOCHET, 50);
+	/* Some players do not want ricocheting shots as to not wake up other
+	 * monsters. How about we remove ricocheting shots for slingers, but
+	 * instead, adds a chance to do a double damage (than normal and/or crit)
+	 * shots (i.e., seperate than crit and stackable bonus)?  - the_sandman */
+	if (!check_guard_inscription(p_ptr->inventory[INVEN_AMMO].note, 'R') &&
+	    !check_guard_inscription(p_ptr->inventory[INVEN_BOW].note, 'R')) {
+		/* Sling mastery yields bullet ricochets */
+		if (archery == SKILL_SLING && !boomerang && !magic && !ethereal && !p_ptr->ranged_barrage) {
+			num_ricochet = randint(get_skill_scale_fine(p_ptr, SKILL_SLING, 3));
+			num_ricochet = (num_ricochet < 0) ? 0 : num_ricochet;
+			ricochet_chance = 33 + get_skill_scale(p_ptr, SKILL_SLING, 42);
+		}
+		/* Boomerangs can leave a trail of decimation among weaker critters */
+		else if (archery == SKILL_BOOMERANG) {
+			num_ricochet = randint(get_skill_scale_fine(p_ptr, SKILL_BOOMERANG, 5));
+			num_ricochet = (num_ricochet < 0) ? 0 : num_ricochet;
+			ricochet_chance = 33 + get_skill_scale(p_ptr, SKILL_BOOMERANG, 42);
+		}
 	}
-#else	// 0
-	/* Sling mastery yields bullet ricochets */
-	if (archery == SKILL_SLING && !boomerang && !magic && !ethereal && !p_ptr->ranged_barrage) {
-		num_ricochet = randint(get_skill_scale_fine(p_ptr, SKILL_SLING, 3));//6
-		num_ricochet = (num_ricochet < 0) ? 0 : num_ricochet;
-		ricochet_chance = 33 + get_skill_scale(p_ptr, SKILL_SLING, 42);//45+(50)
-	}
-#endif
+
 	/* Create a "local missile object" */
 	throw_obj = *o_ptr;
 	throw_obj.number = p_ptr->ranged_barrage ? 6 : 1; /* doesn't work anyway for boomerangs since it tested for 6 items */
@@ -6063,7 +6315,7 @@ void do_cmd_fire(int Ind, int dir) {
 			if (cursed_p(o_ptr) ? TRUE : magik(break_chance * (p_ptr->ranged_barrage ? 3 : 1))) {
 				if (item >= 0) {
 					inven_item_increase(Ind, item, -1);
-//					inven_item_describe(Ind, item);
+					//inven_item_describe(Ind, item);
 					msg_format(Ind, "\377wThe %s fades away.", o_name);
 					inven_item_optimize(Ind, item);
 				} else {
@@ -6237,7 +6489,7 @@ void do_cmd_fire(int Ind, int dir) {
 					Send_char(i, dispx, dispy, missile_attr, missile_char);
 
 					/* Flush and wait */
-					if (cur_dis % (boomerang?2:tmul)) Send_flush(i);
+					if (cur_dis % (boomerang ? 2 : tmul)) Send_flush(i);
 
 					/* Restore */
 					lite_spot(i, y, x);
@@ -6358,15 +6610,15 @@ void do_cmd_fire(int Ind, int dir) {
 									default:
 										msg_format(0 - c_ptr->m_idx, "\377%cYou block %s's attack!", COLOUR_BLOCK_GOOD, p_ptr->name);
 									}
-#ifdef USE_SOUND_2010
+ #ifdef USE_SOUND_2010
 									if (sfx == 0 && p_ptr->sfx_defense) sound(Ind, "block_shield_projectile", NULL, SFX_TYPE_ATTACK, FALSE);
-#endif
+ #endif
 									continue;
 								}
 							}
 #endif
 #if 0 /* disable for now? */
-#ifdef USE_PARRYING
+ #ifdef USE_PARRYING
 							if (q_ptr->weapon_parry) {
 								// && !p_ptr->ranged_barrage etc, any prepared bow stance?
 								if (magik(apply_parry_chance(q_ptr, q_ptr->weapon_parry + 5))) { /* boost for PvP! */
@@ -6378,13 +6630,13 @@ void do_cmd_fire(int Ind, int dir) {
 									default:
 										msg_format(0 - c_ptr->m_idx, "\377%cYou parry %s's attack!", COLOUR_PARRY_GOOD, p_ptr->name);
 									}
-#ifdef USE_SOUND_2010
+  #ifdef USE_SOUND_2010
 									if (sfx == 0 && p_ptr->sfx_defense) sound(Ind, "parry_weapon", "parry", SFX_TYPE_ATTACK, FALSE);
-#endif
+  #endif
 									continue;
 								}
 							}
-#endif
+ #endif
 #endif
 
 							if (!dodged) {	// 'goto' would be cleaner
@@ -6396,20 +6648,49 @@ void do_cmd_fire(int Ind, int dir) {
 									if (p_ptr->ammo_brand) tdam += p_ptr->ammo_brand_d;
 									tdam += o_ptr->to_d;
 									tdam += j_ptr->to_d + p_ptr->to_d_ranged;
+
+									/* Boost the damage */
+									tdam *= tmul;
 								} else {
 									 /* Base damage from thrown object */
 									tdam = damroll(o_ptr->dd, o_ptr->ds);
+#if defined(R_VORPAL_UNBRANDED) || defined(R_VORPAL_LOWBRANDED)
+									if ((f5 & TR5_VORPAL) && !(q_ptr->no_cut) && !rand_int(R_VORPAL_CHANCE)) vorpal_cut = tdam; /* save unbranded dice */
+									else vorpal_cut = FALSE;
+#endif
 									tdam = tot_dam_aux_player(Ind, o_ptr, tdam, q_ptr, FALSE);
-									tdam += o_ptr->to_d;
+									tdam += o_ptr->to_d; //moved this here, or vorpal dam-addon will be too low
+#ifdef R_VORPAL_LOWBRANDED
+									if (vorpal_cut) vorpal_cut = (vorpal_cut + tdam) / 2;
+#else
+ #ifndef R_VORPAL_UNBRANDED
+									if ((f5 & TR5_VORPAL) && !q_ptr->no_cut && !rand_int(R_VORPAL_CHANCE)) vorpal_cut = tdam; /* save branded dice */
+									else vorpal_cut = FALSE;
+ #endif
+#endif
 									tdam += p_ptr->to_d_ranged;
+
+									/* Boost the damage */
+									tdam = (tdam * tmul) / 10;
 								}
 								ranged_flare_body = TRUE;
 
-								/* Boost the damage */
-								tdam *= tmul;
-
 								/* Apply special damage XXX XXX XXX */
 								if (!p_ptr->ranged_precision) tdam = critical_shot(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_ranged, tdam, FALSE, !boomerang);
+
+								/* Vorpal bonus - multi-dice!
+								   (currently +31.25% more branded dice damage on total average, just for the records) */
+								if (vorpal_cut) {
+									msg_format(Ind, "Your weapon cuts deep into %s!", q_ptr->name);
+#ifdef R_CRIT_VS_VORPAL
+    xxx disabled xxx
+									k2 += (magik(25) ? 2 : 1) * (vorpal_cut + 5); /* exempts critical strike */
+									/* either critical hit or vorpal, not both */
+									if (k2 > k) k = k2;
+#else
+									tdam += (magik(25) ? 2 : 1) * (vorpal_cut + 5); /* exempts critical strike */
+#endif
+								}
 
 								/* factor in AC */
 								tdam -= (tdam * (((q_ptr->ac + q_ptr->to_a) < AC_CAP) ? (q_ptr->ac + q_ptr->to_a) : AC_CAP) / AC_CAP_DIV);
@@ -6563,6 +6844,7 @@ void do_cmd_fire(int Ind, int dir) {
 					    && !rand_int(24 - r_ptr->level / 10)) { /* small chance to block arrows */
 						if (visible) {
 							char hit_desc[MAX_CHARS + 12];
+
 							sprintf(hit_desc, "\377%c%s blocks.", COLOUR_BLOCK_MON, m_name);
 							hit_desc[2] = toupper(hit_desc[2]);
 							msg_print(Ind, hit_desc);
@@ -6599,22 +6881,53 @@ void do_cmd_fire(int Ind, int dir) {
 						if (p_ptr->ammo_brand) tdam += p_ptr->ammo_brand_d;
 						tdam += o_ptr->to_d;
 						tdam += j_ptr->to_d + p_ptr->to_d_ranged;
+
+						/* Boost the damage */
+						tdam *= tmul;
 					} else {
 						 /* Base damage from thrown object */
 						tdam = damroll(o_ptr->dd, o_ptr->ds);
+#if defined(R_VORPAL_UNBRANDED) || defined(R_VORPAL_LOWBRANDED)
+						if ((f5 & TR5_VORPAL) && !(r_ptr->flags8 & RF8_NO_CUT) && !rand_int(R_VORPAL_CHANCE)) vorpal_cut = tdam; /* save unbranded dice */
+						else vorpal_cut = FALSE;
+#endif
 						tdam = tot_dam_aux(Ind, o_ptr, tdam, m_ptr, FALSE);
-						tdam += o_ptr->to_d;
+						tdam += o_ptr->to_d; //moved this here, or vorpal dam-addon will be too low
+#ifdef R_VORPAL_LOWBRANDED
+						if (vorpal_cut) vorpal_cut = (vorpal_cut + tdam) / 2;
+#else
+ #ifndef R_VORPAL_UNBRANDED
+						if ((f5 & TR5_VORPAL) && !(r_ptr->flags8 & RF8_NO_CUT) && !rand_int(R_VORPAL_CHANCE)) vorpal_cut = tdam; /* save branded dice */
+						else vorpal_cut = FALSE;
+ #endif
+#endif
 						tdam += p_ptr->to_d_ranged;
+
+						/* Boost the damage */
+						tdam = (tdam * tmul) / 10;
 					}
 					ranged_flare_body = TRUE;
-
-					/* Boost the damage */
-					tdam *= tmul;
 
 					/* Apply special damage XXX XXX XXX */
 					if (!p_ptr->ranged_precision) tdam = critical_shot(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_ranged, tdam, FALSE, !boomerang);
 
-					/* Maybe in the future: apply monster AC for damage reduction here */
+					/* Vorpal bonus - multi-dice!
+					   (currently +31.25% more branded dice damage on total average, just for the records) */
+					if (vorpal_cut) {
+						msg_format(Ind, "Your boomerang cuts deep into %s!", m_name);
+#ifdef R_CRIT_VS_VORPAL
+    xxx disabled xxx
+						k2 += (magik(25) ? 2 : 1) * (vorpal_cut + 5); /* exempts critical strike */
+						/* either critical hit or vorpal, not both */
+						if (k2 > k) k = k2;
+#else
+						tdam += (magik(25) ? 2 : 1) * (vorpal_cut + 5); /* exempts critical strike */
+#endif
+					}
+
+
+					/* < --- TODO? Maybe in the future: apply monster AC for damage reduction here --- > */
+
 
 					if (ranged_double_real) tdam = (tdam * 35) / 100;
 
@@ -6770,47 +7083,44 @@ void do_cmd_fire(int Ind, int dir) {
 				}
 			}
 
-		    /* server crashed further below when ny was 66, dir was 10 but then became 3, odd stuff.. */
-		    if (in_bounds_array(ny, nx))
+			/* server crashed further below when ny was 66, dir was 10 but then became 3, odd stuff.. */
+			if (in_bounds_array(ny, nx))
 #ifdef DOUBLE_LOS_SAFETY
-		    /* skip checks if we already used projectable..() routines to test. */
-		    if (dir != 5) {
+			/* skip checks if we already used projectable..() routines to test. */
+			if (dir != 5) {
 #endif
 #ifdef PY_FIRE_ON_WALL
-			/* Stopped by walls/doors */
-			if (!cave_contact(zcave, ny, nx)) break;
+				/* Stopped by walls/doors */
+				if (!cave_contact(zcave, ny, nx)) break;
 #endif
 #ifdef DOUBLE_LOS_SAFETY
-		    }
+			}
 #endif
 		}
 
-	    /* Extra (exploding) hack: */
+		/* Extra (exploding) hack: */
 #ifdef DOUBLE_LOS_SAFETY
-	    /* skip checks if we already used projectable..() routines to test. */
-	    if (dir != 5) {
+		/* skip checks if we already used projectable..() routines to test. */
+		if (dir != 5) {
 #endif
-		/* server crashed here when ny was 66, dir was 10 but then became 3, odd stuff.. */
-		if (in_bounds_array(ny, nx) &&
-		    !boomerang && !magic && o_ptr->pval) {
-			if (!cave_contact(zcave, ny, nx)) /* Stopped by walls/doors ?*/
+			/* server crashed here when ny was 66, dir was 10 but then became 3, odd stuff.. */
+			if (in_bounds_array(ny, nx) &&
+			    !boomerang && !magic && o_ptr->pval) {
+				if (!cave_contact(zcave, ny, nx)) /* Stopped by walls/doors ?*/
 #ifndef PY_FIRE_ON_WALL
-				do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
+					do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
 #else
-				/* important: explode BEFORE wall, or we could target a wall grid and hit stuff beyond it */
-				do_arrow_explode(Ind, o_ptr, wpos, prev_y, prev_x, tmul);
+					/* important: explode BEFORE wall, or we could target a wall grid and hit stuff beyond it */
+					do_arrow_explode(Ind, o_ptr, wpos, prev_y, prev_x, tmul);
 #endif
-			else if (dir == 5 && !target_ok) /* fired 'at oneself'? */
-				do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
-		}
-#ifdef DOUBLE_LOS_SAFETY
-	    } else {
-		if (!target_ok) { /* fired 'at oneself'? */
-			if (!boomerang && !magic && o_ptr->pval) {
-				do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
+				else if (dir == 5 && !target_ok) /* fired 'at oneself'? */
+					do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
 			}
+#ifdef DOUBLE_LOS_SAFETY
+		} else if (!target_ok /* fired 'at oneself'? */
+		    && !boomerang && !magic && o_ptr->pval) {
+			do_arrow_explode(Ind, o_ptr, wpos, y, x, tmul);
 		}
-	    }
 #endif
 
 		/*todo: even if not hit_body, boomerangs should have chance to drop to the ground.. */
@@ -6827,7 +7137,7 @@ void do_cmd_fire(int Ind, int dir) {
 			j = (j * (100 - get_skill_scale(p_ptr, archery, 90))) / 100;
 		}
 
-		/* Break ? */
+		/* Break or drop? */
 		if ((((o_ptr->pval != 0) && !boomerang) || (rand_int(10000) < j))
 		    && !magic && !ethereal && !artifact_p(o_ptr)) {
 			breakage = 100;
@@ -6874,19 +7184,7 @@ void do_cmd_fire(int Ind, int dir) {
 		}
 
 		/* If no break and if Archer, the ammo can ricochet */
-		//if ((num_ricochet) && (hit_body) && (magik(45 + p_ptr->lev)))
-		//if ((num_ricochet) && (hit_body) && (magik(50 + p_ptr->lev)) && magik(95))
 		if ((num_ricochet) && (hit_body) && (magik(ricochet_chance)) && !p_ptr->ranged_barrage) {
-			/* Some players do not want ricocheting shots as to not wake up other
-			 * monsters. How about we remove ricocheting shots for slingers, but
-			 * instead, adds a chance to do a double damage (than normal and/or crit)
-			 * shots (i.e., seperate than crit and stackable bonus)?  - the_sandman */
-			if (check_guard_inscription(p_ptr->inventory[INVEN_AMMO].note, 'R') ||
-			    check_guard_inscription(p_ptr->inventory[INVEN_BOW].note, 'R')) {
-				num_ricochet = 0;
-				break;
-			}
-
 			byte d = 5;
 
 			/* New target location */
@@ -6920,6 +7218,10 @@ void do_cmd_fire(int Ind, int dir) {
 		/* Save the old "player pointer" */
 		q_ptr = p_ptr;
 
+		/* For boomerang-ricocheting: tx/ty are far-distance targets (99 * ddx/ddy), reset them to the actual position! */
+		tx = x;
+		ty = y;
+
 		for (cur_dis = 0; cur_dis <= tdis; ) {
 			/* Hack -- Stop at the target */
 			if ((y == q_ptr->py) && (x == q_ptr->px)) break;
@@ -6930,15 +7232,15 @@ void do_cmd_fire(int Ind, int dir) {
 			//mmove2(&ny, &nx, p_ptr->py, p_ptr->px, ty, tx);
 			mmove2(&ny, &nx, ty, tx, q_ptr->py, q_ptr->px);
 
-#ifdef DOUBLE_LOS_SAFETY
-		    /* skip checks if we already used projectable..() routines to test. */
-		    if (dir != 5) {
-#endif
-			/* Stopped by walls/doors */
-			if (!cave_contact(zcave, ny, nx)) break;
-#ifdef DOUBLE_LOS_SAFETY
-		    }
-#endif
+ #ifdef DOUBLE_LOS_SAFETY
+			/* skip checks if we already used projectable..() routines to test. */
+			if (dir != 5) {
+ #endif
+				/* Stopped by walls/doors */
+				if (!cave_contact(zcave, ny, nx)) break;
+ #ifdef DOUBLE_LOS_SAFETY
+			}
+ #endif
 
 			/* Advance the distance */
 			cur_dis++;
@@ -6974,7 +7276,7 @@ void do_cmd_fire(int Ind, int dir) {
 					Send_char(i, dispx, dispy, missile_attr, missile_char);
 
 					/* Flush and wait */
-					if (cur_dis % (boomerang?2:tmul)) Send_flush(i);
+					if (cur_dis % (boomerang ? 2 : tmul)) Send_flush(i);
 
 					/* Restore */
 					lite_spot(i, y, x);
@@ -7391,14 +7693,17 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 
 	/* Handle rugby ball */
 	if (o_ptr->tval == TV_GAME && o_ptr->sval == SV_GAME_BALL && !bashing) {
-		msg_print(Ind, "\377yYou pass the ball");
-		msg_format_near(Ind, "\377y%s passes the ball", p_ptr->name);
+		msg_print(Ind, "\377yYou pass the ball.");
+		msg_format_near(Ind, "\377y%s passes the ball.", p_ptr->name);
 	}
 
 	/* Handle snowball */
 	if (o_ptr->tval == TV_GAME && o_ptr->sval == SV_SNOWBALL) {
 		/* Bashing will destroy it */
-		if (bashing) return;
+		if (bashing) {
+			msg_print(Ind, "The snowball is pulverized.");
+			return;
+		}
 	}
 
 
@@ -7421,6 +7726,11 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 	if (o_ptr->tval == TV_GAME && o_ptr->sval == SV_GAME_BALL) {
 		if (tdis < 5) tdis = 5;
 	}
+
+#ifdef ENABLE_DEMOLITIONIST
+	/* Hack - Blast charges cannot be thrown thaaaat far (let's assume high airflow resistance =p) */
+	if (o_ptr->tval == TV_CHARGE) tdis = (tdis * 7) / 10;
+#endif
 
 	/* Max distance of 10 for not effectively throwable weapons */
 	if (is_throwing_weapon(o_ptr)) {
@@ -7472,28 +7782,33 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 		mmove2(&ny, &nx, p_ptr->py, p_ptr->px, ty, tx);
 
 #ifdef DOUBLE_LOS_SAFETY
-	    /* skip checks if we already used projectable..() routines to
-	       determine that it's fine, so it'd be redundant and also require
-	       additional code to comply with DOUBLE_LOS_SAFETY. */
-	    if (dir != 5) {
+		/* skip checks if we already used projectable..() routines to
+		   determine that it's fine, so it'd be redundant and also require
+		   additional code to comply with DOUBLE_LOS_SAFETY. */
+		if (dir != 5) {
 #endif
-		/* Stopped by protected grids (Inn doors, also stopping monsters' ranged attacks!) */
-		if (f_info[zcave[ny][nx].feat].flags1 & (FF1_BLOCK_LOS | FF1_BLOCK_CONTACT)) break;
+			/* Stopped by protected grids (Inn doors, also stopping monsters' ranged attacks!) */
+			if (f_info[zcave[ny][nx].feat].flags1 & (FF1_BLOCK_LOS | FF1_BLOCK_CONTACT)) break;
 
-		/* Stopped by walls/doors */
-		if (!cave_los(zcave, ny, nx)) {
-			hit_wall = TRUE;
-			break;
-		}
+			/* Stopped by walls/doors */
+			if (!cave_los(zcave, ny, nx)) {
+				hit_wall = TRUE;
+#if 1
+				/* Hacky exception: If it's a snowball, allow him to actually hit a player on this wall grid! */
+				if (o_ptr->tval != TV_GAME || o_ptr->sval != SV_SNOWBALL || zcave[ny][nx].m_idx >= 0)
 
-		/* stopped by open house doors! -
-		   added this to prevent items landing ON an open door of a list house,
-		   making it impossible to pick up the item again because the character
-		   would enter the house when trying to step onto the grid with the item. - C. Blue */
-		if (zcave[ny][nx].feat == FEAT_HOME_OPEN) break;
+#endif
+				break;
+			}
+
+			/* stopped by open house doors! -
+			   added this to prevent items landing ON an open door of a list house,
+			   making it impossible to pick up the item again because the character
+			   would enter the house when trying to step onto the grid with the item. - C. Blue */
+			if (zcave[ny][nx].feat == FEAT_HOME_OPEN) break;
 
 #ifdef DOUBLE_LOS_SAFETY
-	    }
+		}
 #endif
 
 		/* Advance the distance */
@@ -7517,12 +7832,10 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 			p_ptr = Players[i];
 
 			/* If he's not playing, skip him */
-			if (p_ptr->conn == NOT_CONNECTED)
-				continue;
+			if (p_ptr->conn == NOT_CONNECTED) continue;
 
 			/* If he's not here, skip him */
-			if(!inarea(wpos, &p_ptr->wpos))
-				continue;
+			if (!inarea(wpos, &p_ptr->wpos)) continue;
 
 			/* The player can see the (on screen) missile */
 			if (panel_contains(y, x) && player_can_see_bold(i, y, x)) {
@@ -7873,8 +8186,7 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 				continue;
 
 			/* The player can see the (on screen) missile */
-			if (panel_contains(ny, nx) && player_can_see_bold(i, ny, nx))
-			{
+			if (panel_contains(ny, nx) && player_can_see_bold(i, ny, nx)) {
 				int dispx, dispy;
 
 				/* Draw */
@@ -7932,25 +8244,24 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 			sound_near_site(y, x, wpos, 0, "shatter_potion", NULL, SFX_TYPE_MISC, FALSE);
 #endif
 
-//			if (potion_smash_effect(0, wpos, y, x, o_ptr->sval))
+			//if (potion_smash_effect(0, wpos, y, x, o_ptr->sval))
 			if (k_info[o_ptr->k_idx].tval == TV_POTION) {
 				if (potion_smash_effect(0 - Ind, wpos, y, x, o_ptr->sval))
-//				if (potion_smash_effect(PROJECTOR_POTION, wpos, y, x, o_ptr->sval))
+				//if (potion_smash_effect(PROJECTOR_POTION, wpos, y, x, o_ptr->sval))
 				{
 #if 0
 					if (cave[y][x].m_idx) {
 						char m_name[MNAME_LEN];
 						monster_desc(m_name, &m_list[cave[y][x].m_idx], 0);
-						switch (is_friend(&m_list[cave[y][x].m_idx]))
-						{
-							case 1:
-								msg_format("%^s gets angry!", m_name);
-								change_side(&m_list[cave[y][x].m_idx]);
-								break;
-							case 0:
-								msg_format("%^s gets angry!", m_name);
-								m_list[cave[y][x].m_idx].status = MSTATUS_NEUTRAL_M;
-								break;
+						switch (is_friend(&m_list[cave[y][x].m_idx])) {
+						case 1:
+							msg_format("%^s gets angry!", m_name);
+							change_side(&m_list[cave[y][x].m_idx]);
+							break;
+						case 0:
+							msg_format("%^s gets angry!", m_name);
+							m_list[cave[y][x].m_idx].status = MSTATUS_NEUTRAL_M;
+							break;
 						}
 					}
 #endif	// 0
@@ -7959,10 +8270,47 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 			else if (k_info[o_ptr->k_idx].tval == TV_FLASK) (void) potion_smash_effect(0 - Ind, wpos, y, x, o_ptr->sval + 200);
 
 			return;
-		} else {
-			j = 0;
+		} else j = 0;
+	}
+
+#ifdef ENABLE_DEMOLITIONIST
+	/* Hack: If we're throwing a demolition charge, auto-arm it if allowed! */
+	if (o_ptr->tval == TV_CHARGE) {
+		if (arm_charge_conditions(Ind, o_ptr, TRUE)) {
+			/* We use throwing direction as trap-effect direction, makes sense sort of.
+			   However, if our dir is targetted, aka '5', we have to approxmiate.. */
+			if (dir == 5) {
+				int cdir;
+
+				if (p_ptr->px < p_ptr->target_col) {
+					if (p_ptr->py < p_ptr->target_row) cdir = 3;
+					else if (p_ptr->py > p_ptr->target_row) cdir = 9;
+					else cdir = 6;
+				} else if (p_ptr->px > p_ptr->target_col) {
+					if (p_ptr->py < p_ptr->target_row) cdir = 1;
+					else if (p_ptr->py > p_ptr->target_row) cdir = 7;
+					else cdir = 4;
+				} else {
+					if (p_ptr->py < p_ptr->target_row) cdir = 2;
+					else if (p_ptr->py > p_ptr->target_row) cdir = 8;
+					else {
+						//doesn't make much sense to throw at self, but just use random direction in that case
+						cdir = randint(8);
+						if (cdir >= 5) cdir++;
+					}
+				}
+				arm_charge_dir_and_fuse(o_ptr, cdir);
+			} else arm_charge_dir_and_fuse(o_ptr, dir);
+ #if 0
+			/* throwing can affect the fuse burning sometimes */
+			if (o_ptr->timeout) {
+				o_ptr->timeout = o_ptr->timeout - rand_int(4);
+				if (!o_ptr->timeout) o_ptr->timeout = 1;
+			}
+ #endif
 		}
 	}
+#endif
 
 	/* Drop (or break) near that location */
 
@@ -8048,18 +8396,22 @@ void house_admin(int Ind, int dir, char *args) {
 				dna = cs_ptr->sc.ptr;
 				if (access_door(Ind, dna, FALSE) || admin_p(Ind)) {
 					switch (args[0]) {
-						case 'O':
-							success = chown_door(Ind, dna, args, x, y);
-							break;
-						case 'M':
-							success = chmod_door(Ind, dna, args);
-							break;
-						case 'K':
-							destroy_house(Ind, dna);
-							return;
-						case 'P':
-							paint_house(Ind, x, y, atoi(&args[1]));
-							return;
+					case 'O':
+						success = chown_door(Ind, dna, args, x, y);
+						break;
+					case 'M':
+						success = chmod_door(Ind, dna, args);
+						break;
+					case 'K':
+						destroy_house(Ind, dna);
+						return;
+					case 'P':
+						paint_house(Ind, x, y, atoi(&args[1]));
+						return;
+					case 'T':
+						args[20] = 0;//ensure max of 20 - 1 characters, starting at #1
+						tag_house(Ind, x, y, &args[1]);
+						return;
 					}
 
 					if (success) {

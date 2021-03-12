@@ -1832,6 +1832,13 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 			if (!is_admin(p_ptr)) return;
 		}
 
+#ifdef ENABLE_DEMOLITIONIST
+		if (o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
+			msg_print(Ind, "\377yYou must disarm the charge before picking it up!");
+			if (!is_admin(p_ptr)) return;
+		}
+#endif
+
 /* the_sandman: item lvl restrictions are disabled in rpg */
 #ifndef RPG_SERVER
 		if ((o_ptr->owner) && (o_ptr->owner != p_ptr->id) &&
@@ -3113,7 +3120,7 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 				//    (150 / (1 + k - o_ptr->dd) < 23 - (2 / o_ptr->dd))) do_quake = TRUE;
 
 #if defined(VORPAL_UNBRANDED) || defined(VORPAL_LOWBRANDED)
-				if ((f5 & TR5_VORPAL) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save unbranded dice */
+				if ((f5 & TR5_VORPAL) && !q_ptr->no_cut && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save unbranded dice */
 				else vorpal_cut = FALSE;
 #endif
 #ifdef CRIT_UNBRANDED
@@ -3127,7 +3134,7 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 				if (vorpal_cut) vorpal_cut = (vorpal_cut + k) / 2;
 #else
  #ifndef VORPAL_UNBRANDED
-				if ((f5 & TR5_VORPAL) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save branded dice */
+				if ((f5 & TR5_VORPAL) && !q_ptr->no_cut && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save branded dice */
 				else vorpal_cut = FALSE;
  #endif
 #endif
@@ -4244,7 +4251,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				//    (150 / (1 + k - o_ptr->dd) < 23 - (2 / o_ptr->dd))) do_quake = TRUE;
 
 #if defined(VORPAL_UNBRANDED) || defined(VORPAL_LOWBRANDED)
-				if ((f5 & TR5_VORPAL) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save unbranded dice */
+				if ((f5 & TR5_VORPAL) && !(r_ptr->flags8 & RF8_NO_CUT) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save unbranded dice */
 				else vorpal_cut = FALSE;
 #endif
 #ifdef CRIT_UNBRANDED
@@ -4258,7 +4265,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				if (vorpal_cut) vorpal_cut = (vorpal_cut + k) / 2;
 #else
  #ifndef VORPAL_UNBRANDED
-				if ((f5 & TR5_VORPAL) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save branded dice */
+				if ((f5 & TR5_VORPAL) && !(r_ptr->flags8 & RF8_NO_CUT) && !rand_int(VORPAL_CHANCE)) vorpal_cut = k; /* save branded dice */
 				else vorpal_cut = FALSE;
  #endif
 #endif
@@ -6356,6 +6363,10 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 				if (!wraith_access_virtual(Ind, y, x)) {
 					msg_print(Ind, "The wall blocks your movement.");
 					disturb(Ind, 0, 0);
+
+					/* Hack -- refund some energy */
+					p_ptr->energy += level_speed(&p_ptr->wpos) / 2;
+
 					return;
 				}
 				msg_print(Ind, "\377GYou pass through the house wall.");
@@ -6451,7 +6462,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 					msg_print(Ind, "You feel a wall blocking your way.");
 					//msg_format(Ind, "You feel %s.", f_text + f_info[c_ptr->feat].block);
 
-				*w_ptr |= CAVE_MARK;
+					*w_ptr |= CAVE_MARK;
 					everyone_lite_spot(wpos, y, x);
 				}
 			}
@@ -6523,6 +6534,10 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 					}
 				}
 			}
+
+			/* Hack -- refund some energy */
+			p_ptr->energy += level_speed(&p_ptr->wpos) / 2;
+
 			return;
 		}
 	}
@@ -6532,6 +6547,10 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		msg_print(Ind, "You can't cross the chasm.");
 
 		disturb(Ind, 0, 0);
+
+		/* Hack -- refund some energy */
+		p_ptr->energy += level_speed(&p_ptr->wpos) / 2;
+
 		return;
 	}
 

@@ -3811,6 +3811,7 @@ void object_absorb(int Ind, object_type *o_ptr, object_type *j_ptr) {
 #ifndef NEW_MDEV_STACKING
 	int onum = o_ptr->number, jnum = j_ptr->number;
 #endif
+	const char *c;
 
 	/* Prepare ammo for possible combining */
 	//int o_to_h, o_to_d;
@@ -3833,6 +3834,16 @@ void object_absorb(int Ind, object_type *o_ptr, object_type *j_ptr) {
 
 	/* Add together the item counts */
 	o_ptr->number = ((total < MAX_STACK_SIZE) ? total : (MAX_STACK_SIZE - 1));
+
+	/* QoL hack for amassing empty bottles, mainly via keep_bottle option.. */
+	if (o_ptr->tval == TV_BOTTLE && o_ptr->sval == SV_EMPTY_BOTTLE
+	    && (c = strstr(quark_str(o_ptr->note), "!M"))) {
+		int i = atoi(c + 2);
+
+		/* Sanity checks, and apply! */
+		if (i > 99) i = 99;
+		if (i > 0 && o_ptr->number > i) o_ptr->number = i;
+	}
 
 	/* NEVER clone gold!!! - mikaelh
 	 * o_ptr->number > 1 gold could be seperated by eg. bashing
@@ -4327,6 +4338,9 @@ static bool make_artifact(struct worldpos *wpos, object_type *o_ptr, u32b resf) 
 
 			/* Cannot make an artifact twice */
 			if (a_ptr->cur_num) continue;
+			/* Special hack: Narsil and Anduril cannot coexist */
+			if (i == ART_NARSIL && a_info[ART_ANDURIL].cur_num) continue;
+			if (i == ART_ANDURIL && a_info[ART_NARSIL].cur_num) continue;
 
 			/* Cannot generate special ones */
 			if (a_ptr->flags3 & TR3_INSTA_ART) continue;
@@ -4342,10 +4356,6 @@ static bool make_artifact(struct worldpos *wpos, object_type *o_ptr, u32b resf) 
 			/* Must have the correct fields */
 			if (a_ptr->tval != o_ptr->tval) continue;
 			if (a_ptr->sval != o_ptr->sval) continue;
-
-			/* Special hack: Narsil and Anduril cannot coexist */
-			if (i == ART_NARSIL && a_info[ART_ANDURIL].cur_num) continue;
-			if (i == ART_ANDURIL && a_info[ART_NARSIL].cur_num) continue;
 
 			/* We must make the "rarity roll" */
 #ifdef IDDC_EASY_TRUE_ARTIFACTS
@@ -6645,7 +6655,9 @@ void determine_level_req(int level, object_type *o_ptr) {
 	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_GLASS_SHARD) o_ptr->level = 0;
 #ifdef ENABLE_DEMOLITIONIST
 // #ifdef DEMOLITIONIST_IDDC_ONLY --actually always level 0, since it can be dropped by monsters too
+ #if 0
 	if (o_ptr->tval == TV_TOOL && o_ptr->sval == SV_TOOL_GRINDER) o_ptr->level = 0;
+ #endif
 // #endif
 #endif
 	if ((o_ptr->tval == TV_SCROLL) && (o_ptr->sval == SV_SCROLL_TRAP_CREATION) && (o_ptr->level < 20)) o_ptr->level = 20;
@@ -7904,6 +7916,13 @@ void place_object(int Ind, struct worldpos *wpos, int y, int x, bool good, bool 
 	   Distinguishing criterion: Sauron can never spawn on the world surface unless admin-summoned. */
 	if ((resf & RESF_SAURON) && !wpos->wz) forge.no_soloist = TRUE;
 
+#if 0
+	/* debugging/testing: log certain items when they drop */
+	if (forge.tval == TV_BOLT && forge.sval == SV_AMMO_HEAVY) s_printf("DROP: %d Seeker Bolts\n", forge.number);
+	if (forge.tval == TV_ARROW && forge.sval == SV_AMMO_HEAVY) s_printf("DROP: %d Seeker Arrows\n", forge.number);
+	if (forge.tval == TV_SHOT && forge.sval == SV_AMMO_HEAVY) s_printf("DROP: %d Mithril Shots\n", forge.number);
+#endif
+
 	forge.marked2 = removal_marker;
 	forge.discount = object_discount; /* usually 0, except for creation from stolen acquirement scrolls */
 	drop_near(0, &forge, -1, wpos, y, x);
@@ -8294,7 +8313,7 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 	bool mha, rha; /* monk heavy armor, rogue heavy armor */
 	bool go_heavy = TRUE; /* new special thingy: don't pick super light cloth armour if we're not specifically light-armour oriented */
 	bool caster = FALSE;
-	bool antimagic = p_ptr->s_info[SKILL_ANTIMAGIC].value;
+	bool antimagic = (p_ptr->s_info[SKILL_ANTIMAGIC].value != 0);
 	object_type forge_fallback;
 
 	/* for analysis functions and afterwards for determining concrete reward */
@@ -10013,7 +10032,11 @@ int drop_near(int Ind, object_type *o_ptr, int chance, struct worldpos *wpos, in
 		if (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_FIREWORK) {
 			cast_fireworks(wpos, nx, ny, o_ptr->xtra1 * FIREWORK_COLOURS + o_ptr->xtra2); //size, colour
 #ifdef USE_SOUND_2010
-			sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #if 0
+			if (seen && Ind) sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #else
+			sound_near_site_vol(ny, nx, wpos, 0, "fireworks_launch", "", SFX_TYPE_MISC, FALSE, 50);
+ #endif
 #endif
 		}
 
@@ -10452,11 +10475,12 @@ void inven_item_charges(int Ind, int item) {
  */
 void inven_item_describe(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
-	object_type	*o_ptr = &p_ptr->inventory[item];
-	char	o_name[ONAME_LEN];
+	object_type *o_ptr = &p_ptr->inventory[item];
+	char o_name[ONAME_LEN];
 
 	/* Hack -- suppress msg */
 	if (p_ptr->taciturn_messages) return;
+	if (check_guard_inscription(o_ptr->note, 'Q')) return;
 
 	/* Get a description */
 	object_desc(Ind, o_name, o_ptr, TRUE, 3);
@@ -10611,6 +10635,10 @@ void floor_item_charges(int item) {
  * Describe an item in the inventory.
  */
 void floor_item_describe(int item) {
+	/* Hack -- suppress msg */
+	/* if (p_ptr->taciturn_messages) return;
+	if (check_guard_inscription(o_ptr->note, 'Q')) return; */
+
 	/* Get a description */
 	/*object_desc(o_name, o_ptr, TRUE, 3);*/
 
@@ -10906,7 +10934,14 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 
 	/* Hack -- pre-reorder the pack */
 	if (i < INVEN_PACK) {
-		s64b		o_value, j_value;
+		s64b o_value, j_value;
+		u16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
+
+#ifdef ENABLE_DEMOLITIONIST
+		/* Hack so they don't end up too close to orange amulets sometimes */
+		if (o_tv == TV_CHARGE) o_tv = 9;
+		if (o_tv == TV_CHEMICAL) o_tv = 10;
+#endif
 
 		/* Get the "value" of the item */
 		o_value = object_value(Ind, o_ptr);
@@ -10918,9 +10953,18 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 			/* Use empty slots */
 			if (!j_ptr->k_idx) break;
 
+			j_tv = j_ptr->tval;
+			j_sv = j_ptr->sval;
+
+#ifdef ENABLE_DEMOLITIONIST
+			/* Hack so they don't end up too close to orange amulets sometimes */
+			if (j_tv == TV_CHARGE) j_tv = 9;
+			if (j_tv == TV_CHEMICAL) j_tv = 10;
+#endif
+
 			/* Objects sort by decreasing type */
-			if (o_ptr->tval > j_ptr->tval) break;
-			if (o_ptr->tval < j_ptr->tval) continue;
+			if (o_tv > j_tv) break;
+			if (o_tv < j_tv) continue;
 
 			/* Hack: Don't sort ammo any further, to allow players
 			   a custom order of usage for !L inscription - C. Blue */
@@ -10931,8 +10975,8 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 			if (!object_aware_p(Ind, j_ptr)) break;
 
 			/* Objects sort by increasing sval */
-			if (o_ptr->sval < j_ptr->sval) break;
-			if (o_ptr->sval > j_ptr->sval) continue;
+			if (o_sv < j_sv) break;
+			if (o_sv > j_sv) continue;
 
 			/* Level 0 items owned by the player come first */
 			if (o_ptr->level == 0 && o_ptr->owner == p_ptr->id && j_ptr->level != 0) break;
@@ -11190,6 +11234,8 @@ void reorder_pack(int Ind) {
 
 	bool	flag = FALSE;
 
+	s16b o_tv, o_sv, j_tv, j_sv;
+
 
 	/* Re-order the pack (forwards) */
 	for (i = 0; i < INVEN_PACK; i++) {
@@ -11202,6 +11248,15 @@ void reorder_pack(int Ind) {
 		/* Skip empty slots */
 		if (!o_ptr->k_idx) continue;
 
+		o_tv = o_ptr->tval;
+		o_sv = o_ptr->sval;
+
+#ifdef ENABLE_DEMOLITIONIST
+		/* Hack so they don't end up too close to orange amulets sometimes */
+		if (o_tv == TV_CHARGE) o_tv = 9;
+		if (o_tv == TV_CHEMICAL) o_tv = 10;
+#endif
+
 		/* Get the "value" of the item */
 		o_value = object_value(Ind, o_ptr);
 
@@ -11213,9 +11268,18 @@ void reorder_pack(int Ind) {
 			/* Use empty slots */
 			if (!j_ptr->k_idx) break;
 
+			j_tv = j_ptr->tval;
+			j_sv = j_ptr->sval;
+
+#ifdef ENABLE_DEMOLITIONIST
+			/* Hack so they don't end up too close to orange amulets sometimes */
+			if (j_tv == TV_CHARGE) j_tv = 9;
+			if (j_tv == TV_CHEMICAL) j_tv = 10;
+#endif
+
 			/* Objects sort by decreasing type */
-			if (o_ptr->tval > j_ptr->tval) break;
-			if (o_ptr->tval < j_ptr->tval) continue;
+			if (o_tv > j_tv) break;
+			if (o_tv < j_tv) continue;
 
 			/* Hack: Don't sort ammo any further, to allow players
 			   a custom order of usage for !L inscription - C. Blue */
@@ -11226,8 +11290,8 @@ void reorder_pack(int Ind) {
 			if (!object_aware_p(Ind, j_ptr)) break;
 
 			/* Objects sort by increasing sval */
-			if (o_ptr->sval < j_ptr->sval) break;
-			if (o_ptr->sval > j_ptr->sval) continue;
+			if (o_sv < j_sv) break;
+			if (o_sv > j_sv) continue;
 
 			/* Level 0 items owned by the player come first */
 			if (o_ptr->level == 0 && o_ptr->owner == p_ptr->id && j_ptr->level != 0) break;
@@ -11315,6 +11379,17 @@ void process_objects(void) {
 			continue;
 		}
 
+#ifdef ENABLE_DEMOLITIONIST
+		/* specialty: process these 1/s instead of 1/dungeonturn */
+		if (!(turn % cfg.fps) && o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
+			o_ptr->timeout--;
+			if (!o_ptr->timeout) {
+				detonate_charge(i); //also calls destroy_object_idx() on it
+				continue;
+			}
+		}
+#endif
+
 		/* timing fix - see description in dungeon() */
 		if (turn % (level_speed(&o_ptr->wpos) / 120)) continue;
 
@@ -11364,16 +11439,6 @@ void process_objects(void) {
 #endif
 			continue;
 		}
-#ifdef ENABLE_DEMOLITIONIST
-		if (o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
-			o_ptr->timeout--;
-			if (!o_ptr->timeout) {
-				detonate_charge(o_ptr);
-				delete_object_idx(i, TRUE);
-				continue;
-			}
-		}
-#endif
 	}
 
 #if 1 /* experimental: also process items in list houses */

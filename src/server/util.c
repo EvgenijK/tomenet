@@ -4757,7 +4757,7 @@ static void player_talk_aux(int Ind, char *message) {
 	char tmessage_u[MSG_LEN];
 #endif
 	int censor_punish = 0;
-	bool censor;
+	bool censor, reached;
 
 
 	if (!Ind) {
@@ -5461,8 +5461,9 @@ static void player_talk_aux(int Ind, char *message) {
 		else if (p_ptr->ghost) c_n = 'r';
 		else if (p_ptr->mode & MODE_EVERLASTING) c_n = 'B';
 		else if (p_ptr->mode & MODE_PVP) c_n = COLOUR_MODE_PVP;
+		else if (p_ptr->mode & MODE_SOLO) c_n = 's';
 		else if (p_ptr->mode & MODE_NO_GHOST) c_n = 'D';
-		else if (p_ptr->mode & MODE_HARD) c_n = 's';
+		else if (p_ptr->mode & MODE_HARD) c_n = 's';//deprecated
 		else c_n = 'W'; /* normal mode */
 		
 		/* Color the brackets of some players... (Enabled for PK) */
@@ -5532,12 +5533,15 @@ static void player_talk_aux(int Ind, char *message) {
 	if (!(!cfg.worldd_privchat && len && target != 0)) {
 		if (broadcast && cfg.worldd_broadcast) {
 			world_chat(0, tmessage); /* can't ignore */
-		} else if (!broadcast && cfg.worldd_pubchat) {
+		} else if (!broadcast && cfg.worldd_pubchat
+		    && !p_ptr->limit_chat) { /* Actually never forward chat from players that have limit_chat on, because people on IRC or other servers might try to reply but the player cannot see it. */
 			world_chat(p_ptr->id, tmessage);
 		}
 	}
 
-	for(i = 1; i <= NumPlayers; i++) {
+	/* Send to everyone */
+	reached = FALSE;
+	for (i = 1; i <= NumPlayers; i++) {
 		q_ptr = Players[i];
 
 		if (!admin) {
@@ -5546,10 +5550,15 @@ static void player_talk_aux(int Ind, char *message) {
 			if (!broadcast && (p_ptr->limit_chat || q_ptr->limit_chat) &&
 			    !inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 		}
+		reached = TRUE;
 		msg_print(i, q_ptr->censor_swearing ? tmessage : tmessage_u);
 	}
-#else
+	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =2 .)");
+
+#else /* in case TOMENET_WORLDS is not defined: */
+
 	/* Send to everyone */
+	reached = FALSE;
 	for (i = 1; i <= NumPlayers; i++) {
 		q_ptr = Players[i];
 
@@ -5561,6 +5570,7 @@ static void player_talk_aux(int Ind, char *message) {
 		}
 
 		/* Send message */
+		reached = TRUE;
 		if (broadcast) {
 			/* prevent buffer overflow */
 			message[MSG_LEN - 1 - strlen(sender) - 12 + 11] = 0;
@@ -5585,6 +5595,7 @@ static void player_talk_aux(int Ind, char *message) {
 			else msg_format(i, "%s %s", sender, q_ptr->censor_swearing ? message + 4 : message_u + 4);
 		}
 	}
+	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =2 .)");
 #endif
 
 	p_ptr->warning_chat = 1;
@@ -8542,19 +8553,21 @@ void grid_affects_player(int Ind, int ox, int oy) {
 	int x = p_ptr->px, y = p_ptr->py;
 	cave_type **zcave;
 	cave_type *c_ptr;
+#ifdef USE_SOUND_2010
 	bool inn = FALSE, music = FALSE;
+#endif
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return;
 	c_ptr = &zcave[p_ptr->py][p_ptr->px];
-
-	__GRID_DEBUG(Ind, &p_ptr->wpos, c_ptr->feat, "grid_affects_player()", 0);
 
 	if (c_ptr->feat == FEAT_FAKE_WALL) {
 		p_ptr->auto_transport = AT_PARTY;
 		return;
 	}
 
+#ifdef USE_SOUND_2010
 	inn = inside_inn(p_ptr, c_ptr);
+#endif
 
 	if (!p_ptr->wpos.wz && !night_surface && !(c_ptr->info & CAVE_PROT) &&
 	    !(f_info[c_ptr->feat].flags1 & FF1_PROTECTED) &&
@@ -8672,8 +8685,10 @@ void grid_affects_player(int Ind, int ox, int oy) {
 	}
 #endif
 
+#ifdef USE_SOUND_2010
 	/* Renew music too? */
 	if (!music && ox == -1) handle_music(Ind);
+#endif
 
 	/* quests - check if he has arrived at a designated exact x,y target location */
 	if (p_ptr->quest_any_deliver_xy_within_target) quest_check_goal_deliver(Ind);

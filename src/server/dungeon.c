@@ -28,6 +28,11 @@
 /* How fast HP/MP regenerate when 'resting'. [3] */
 #define RESTING_RATE	(cfg.resting_rate)
 
+/* Half-Trolls and especially Trolls regenerate extraordinarily quickly (both players and monsters) */
+#define TROLL_REGENERATION
+/* Hydras regenerate extraordinarily quickly aka regrowing their heads (both players and monsters) */
+#define HYDRA_REGENERATION
+
 /* Chance of items damaged when drowning, in % [3] */
 #define WATER_ITEM_DAMAGE_CHANCE	3
 
@@ -1759,13 +1764,18 @@ static void regen_monsters(void) {
 			/* Hack -- Minimal regeneration rate */
 			if (!frac) frac = 1;
 
+#ifdef TROLL_REGENERATION
+			/* Experimental - Trolls are super-regenerators (hard-coded) */
+			if (m_ptr->r_idx == RI_HALF_TROLL) frac *= 3;
+			else if (r_ptr->d_char == 'T') frac *= 4;
+			else
+#endif
+#ifdef HYDRA_REGENERATION
+			if (r_ptr->d_char == 'M') frac *= 4;
+			else
+#endif
 			/* Hack -- Some monsters regenerate quickly */
 			if (r_ptr->flags2 & RF2_REGENERATE) frac *= 2;
-
-#if 1
-			/* Experimental - Trolls are super-regenerators (hard-coded) */
-			if (r_ptr->d_char == 'T') frac *= 2;
-#endif
 
 			/* Hack -- Regenerate */
 			m_ptr->hp += frac;
@@ -1784,9 +1794,19 @@ static void regen_monsters(void) {
 /* update a particular player's view to daylight, assuming he's on world surface */
 bool player_day(int Ind) {
 	player_type *p_ptr = Players[Ind];
+	cave_type **zcave = getcave(&p_ptr->wpos);
 	int x, y;
 	struct dun_level *l_ptr = getfloor(&p_ptr->wpos);
 	bool ret = FALSE;
+
+
+	/* Weather effect colouring may differ depending on daytime */
+	Send_weather_colouring(Ind, TERM_WATE, TERM_WHITE);
+
+
+	/* Shade map and darken/forget features */
+
+	if (!zcave) return FALSE; /* paranoia */
 
 	if (outdoor_affects(&p_ptr->wpos)) {
 		p_ptr->redraw |= (PR_MAP); /* For Cloud Planes shading */
@@ -1819,18 +1839,14 @@ bool player_day(int Ind) {
 	/* Window stuff */
 	p_ptr->window |= (PW_OVERHEAD);
 
+
+	/* Lastly, handle music */
+
 #ifdef USE_SOUND_2010
 	if (p_ptr->is_day) return FALSE;
 	p_ptr->is_day = TRUE;
 	handle_music(Ind);
-	{
-		cave_type **zcave;
-		if (!(zcave = getcave(&p_ptr->wpos))) {
-			s_printf("DEBUG_DAY: Ind %d, wpos %d,%d,%d\n", Ind, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
-			return FALSE; /* paranoia */
-		}
-		handle_ambient_sfx(Ind, &zcave[p_ptr->py][p_ptr->px], &p_ptr->wpos, TRUE);
-	}
+	handle_ambient_sfx(Ind, &zcave[p_ptr->py][p_ptr->px], &p_ptr->wpos, TRUE);
 #endif
 
 	return TRUE;
@@ -1842,6 +1858,13 @@ bool player_night(int Ind) {
 	int x, y;
 	struct dun_level *l_ptr = getfloor(&p_ptr->wpos);
 	bool ret = FALSE;
+
+
+	/* Weather effect colouring may differ depending on daytime */
+	Send_weather_colouring(Ind, TERM_BLUE, TERM_WHITE);
+
+
+	/* Shade map and darken/forget features */
 
 	if (!zcave) return FALSE; /* paranoia */
 
@@ -1881,22 +1904,14 @@ bool player_night(int Ind) {
 	/* Window stuff */
 	p_ptr->window |= (PW_OVERHEAD);
 
+
+	/* Lastly, handle music */
+
 #ifdef USE_SOUND_2010
 	if (!p_ptr->is_day) return FALSE;
 	p_ptr->is_day = FALSE;
 	handle_music(Ind);
- #if 0 /*done above already*/
-	{
-		cave_type **zcave;
-		if (!(zcave = getcave(&p_ptr->wpos))) {
-			s_printf("DEBUG_NIGHT: Ind %d, wpos %d,%d,%d\n", Ind, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
-			return FALSE; /* paranoia */
-		}
-		handle_ambient_sfx(Ind, &zcave[p_ptr->py][p_ptr->px], &p_ptr->wpos, TRUE);
-	}
- #else
 	handle_ambient_sfx(Ind, &zcave[p_ptr->py][p_ptr->px], &p_ptr->wpos, TRUE);
- #endif
 #endif
 
 	return TRUE;
@@ -2977,8 +2992,6 @@ static bool retaliate_item(int Ind, int item, cptr inscription, bool fallback) {
 	case TV_ARROW:
 	case TV_BOLT:
 	case TV_BOW:
-	//case TV_BOOMERANG:
-	//case TV_INSTRUMENT:
 		if (item == INVEN_BOW || item == INVEN_AMMO) {
 			if (!p_ptr->inventory[INVEN_AMMO].k_idx ||
 			    !p_ptr->inventory[INVEN_AMMO].number)
@@ -2991,6 +3004,7 @@ static bool retaliate_item(int Ind, int item, cptr inscription, bool fallback) {
 		}
 		break;
 
+	//case TV_INSTRUMENT:
 	case TV_BOOMERANG:
 		if (item == INVEN_BOW) {
 			retaliating_cmd = TRUE;
@@ -4932,7 +4946,18 @@ static bool process_player_end_aux(int Ind) {
 	}
 
 	/* Regeneration ability */
-	if (p_ptr->regenerate) regen_amount = regen_amount * 2;
+#ifdef TROLL_REGENERATION
+	/* Experimental - Trolls are super-regenerators (hard-coded) */
+	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'T' && p_ptr->body_monster != RI_HALF_TROLL) regen_amount *= 4;
+	else if (p_ptr->prace == RACE_HALF_TROLL || p_ptr->body_monster == RI_HALF_TROLL) regen_amount *= 3;
+	else
+#endif
+#ifdef HYDRA_REGENERATION
+	/* Experimental - Hydras are super-regenerators aka regrowing heads */
+	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M') regen_amount *= 4;
+	else
+#endif
+	if (p_ptr->regenerate) regen_amount *= 2;
 
 	/* Health skill improves regeneration by up to 50% */
 	if (minus_health) regen_amount = (regen_amount * (4 + minus_health)) / 6;
@@ -5671,10 +5696,11 @@ static bool process_player_end_aux(int Ind) {
 	//if (p_ptr->drain_exp && magik(p_ptr->wpos.wz != 0 ? 50 : 0) && magik(30 - (60 / (p_ptr->drain_exp + 2))))
 	//if (p_ptr->drain_exp && magik(p_ptr->wpos.wz != 0 ? 50 : (istown(&p_ptr->wpos) ? 0 : 25)) && magik(30 - (60 / (p_ptr->drain_exp + 2))))
 	/* changing above line to use istownarea() so you can sort your houses without drain */
-	if (p_ptr->drain_exp && magik((
-	    p_ptr->wpos.wz != 0 ? (isdungeontown(&p_ptr->wpos) ? 0 : 50) :
-	    (istownarea(&p_ptr->wpos, MAX_TOWNAREA) ? 0 : 25)) / (p_ptr->prace == RACE_VAMPIRE ? 2 : 1)
-	    ) && magik(30 - (60 / (p_ptr->drain_exp + 2))))
+	if (p_ptr->drain_exp
+	    && magik((p_ptr->wpos.wz != 0 ? (isdungeontown(&p_ptr->wpos) ? 0 : 50) :
+	     (istownarea(&p_ptr->wpos, MAX_TOWNAREA) ? 0 : 25)) / (p_ptr->prace == RACE_VAMPIRE ? 2 : 1))
+	    && magik(100 - p_ptr->antimagic / 2)
+	    && magik(30 - (60 / (p_ptr->drain_exp + 2))))
 		//take_xp_hit(Ind, 1 + p_ptr->lev / 5 + p_ptr->max_exp / 50000L, "Draining", TRUE, FALSE, FALSE, 0);
 		/* Moltor is right, exp drain was too weak for up to quite high levels. Need to make a new formula.. */
 	{
@@ -5729,7 +5755,7 @@ static bool process_player_end_aux(int Ind) {
 		}
 	}
 	/* and DG_CURSE randomly summons a monster (non-unique) */
-	if (p_ptr->dg_curse && (rand_int(300) == 0) && !istown(&p_ptr->wpos) && !isdungeontown(&p_ptr->wpos) &&
+	if (p_ptr->dg_curse && (rand_int(300) == 0) && !istownarea(&p_ptr->wpos, MAX_TOWNAREA) && !isdungeontown(&p_ptr->wpos) &&
 	    (get_skill(p_ptr, SKILL_HSUPPORT) < 40)) {
 		int anti_Ind = world_check_antimagic(Ind);
 
@@ -7970,7 +7996,10 @@ void process_player_change_wpos(int Ind) {
 	dun_level *l_ptr;
 	int d, j, x, y, startx = 0, starty = 0, m_idx, my, mx, tries, emergency_x, emergency_y, dlv = getlevel(wpos);
 	char o_name_short[ONAME_LEN];
-	bool smooth_ambient = FALSE, travel_ambient = FALSE;
+	bool smooth_ambient = FALSE; //also used for flickering!
+#ifdef USE_SOUND_2010
+	bool travel_ambient = FALSE;
+#endif
 
 	/* Prevent exploiting /undoskills by invoking it right before each level-up:
 	   Discard the possibility to undoskills when we venture into a dungeon again. */
@@ -8133,9 +8162,13 @@ void process_player_change_wpos(int Ind) {
 		/* Generate a dungeon level there */
 		generate_cave(wpos, p_ptr);
 
+#ifdef USE_SOUND_2010
 		/* allow non-normal (interval-timed) ambient sfx, but depend on our own fast-travel-induced rythm */
 		travel_ambient = TRUE;
 	} else if (players_on_depth(wpos) == 1) travel_ambient = TRUE; /* exception - if we're the only one here we won't mess up someone else's ambient sfx rythm, so it's ok */
+#else
+	}
+#endif
 
 #ifdef USE_SOUND_2010
 	if (travel_ambient) {
@@ -9121,11 +9154,13 @@ void dungeon(void) {
 				if (!Players[i]->mutedtemp) msg_print(i, "You are no longer muted.");
 			}
 
+#ifdef USE_SOUND_2010
 			/* Arbitrary max number, just to prevent integer overflow.
 			   Should just be higher than the longest interval of any ambient sfx type. */
 			if (!Players[i]->wpos.wz && /* <- redundant check sort of, caught in process_player_change_wpos() anyway */
 			    Players[i]->ambient_sfx_timer < 200)
 				Players[i]->ambient_sfx_timer++;
+#endif
 
 #ifdef ENABLE_GO_GAME
 			/* Kifu email spam control */
@@ -9183,6 +9218,15 @@ void dungeon(void) {
 		p_ptr = Players[i];
 		if (p_ptr->conn == NOT_CONNECTED)
 			continue;
+
+		if (p_ptr->test_turn_idle && p_ptr->test_turn) {
+			p_ptr->idle_attack++;
+			if (p_ptr->idle_attack >= p_ptr->test_turn_idle) {
+				p_ptr->test_turn = p_ptr->test_turn + p_ptr->test_turn_idle;
+				tym_evaluate(i);
+				p_ptr->test_turn = p_ptr->test_turn_idle = 0;
+			}
+		}
 
 		/* Print queued log messages (anti-spam feature) - C. Blue */
 		if (p_ptr->last_gold_drop && turn - p_ptr->last_gold_drop_timer >= cfg.fps * 2) {
@@ -9834,8 +9878,10 @@ void shutdown_server(void) {
 		else if (p_ptr->turns_idle >= cfg.fps * AUTO_AFK_TIMER) Send_beep(1);
 #endif
 #if 1 /* send a warning sound (usually same as page beep) */
+#ifdef USE_SOUND_2010
 		//sound(1, "warning", "page", SFX_TYPE_NO_OVERLAP, FALSE);
 		sound(1, "page", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 #endif
 		Net_output1(1);
 
@@ -10410,13 +10456,14 @@ static void process_wild_weather() {
 		else if (clouds < max_clouds_seasonal) {
 #ifdef TEST_SERVER /* hack: fixed location for easier live testing? */
 			//around Bree
-			cloud_create(i, 32 * MAX_HGT, 32 * MAX_WID);
+			cloud_create(i, 32 * MAX_HGT, 32 * MAX_WID, FALSE);
 			cloud_state[i] = 1;
 #else
 			/* create cloud at random starting x, y world _grid_ coords (!) */
 			cloud_create(i,
 			    rand_int(MAX_WILD_X * MAX_WID),
-			    rand_int(MAX_WILD_Y * MAX_HGT));
+			    rand_int(MAX_WILD_Y * MAX_HGT),
+			    FALSE);
 #endif
 		}
 	}
@@ -10831,8 +10878,9 @@ static void cloud_erase(int i) {
 }
 
 /* Create a new cloud with given index and worldmap _grid_ coords of its center
-   This does not check whether there will be too many clouds! */
-void cloud_create(int i, int cx, int cy) {
+   This does not check whether there will be too many clouds!
+   (forced is for administrative cloud-testing.) */
+void cloud_create(int i, int cx, int cy, bool forced) {
 	/* cloud dimensions: */
 	int sx, sy, dx, dy, dsum;
 	/* worldmap coords: */
@@ -10851,6 +10899,7 @@ void cloud_create(int i, int cx, int cy) {
 	yd = CLOUD_YD(sx, sy, dx, dy, dsum);
 
 	/* hack: not many clouds over deserts */
+	if (!forced)
 	for (x = xs - 1; x <= xd + 1; x++) {
 		for (y = ys - 1; y <= yd + 1; y++) {
 			if (in_bounds_wild(y, x) &&
@@ -10892,7 +10941,11 @@ void local_weather_update(void) {
 	/* HACK part 1: play random thunderclaps if player is receiving harsh weather.
 	   Note: this is synched to all players in the same worldmap sector,
 	   for consistency. :) */
-	int thunderstorm, thunderclap = 999, vol = rand_int(86);
+	int thunderstorm, thunderclap = 999;
+#ifdef USE_SOUND_2010
+	int vol = rand_int(86);
+#endif
+
 	thunderstorm = (turn / (cfg.fps * 3600)) % 6; /* n out of every 6 world map sector clusters have thunderstorms going */
 	if (!(turn % (cfg.fps * 10))) thunderclap = rand_int(5); /* every 10s there is a 1 in 5 chance of thunderclap (in a thunderstorm area) */
 
@@ -10916,7 +10969,9 @@ void local_weather_update(void) {
 		    wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_type == 1 && /* no blizzards for now, just rainstorms */
 		    //wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_wind &&
 		    ((Players[i]->wpos.wy + Players[i]->wpos.wx) / 5) % 6 == thunderstorm) {
+#ifdef USE_SOUND_2010
 			sound_vol(i, "thunder", NULL, SFX_TYPE_WEATHER, FALSE, 15 + (vol + Players[i]->wpos.wy + Players[i]->wpos.wx) % 86); //weather: screen flashing implied
+#endif
 		}
 
 		/* no change in local situation? nothing to do then */

@@ -155,8 +155,7 @@ cptr window_flag_desc[32] =
 	NULL
 };
 #else
-cptr window_flag_desc[8] =
-{
+cptr window_flag_desc[9] = {
 	"Display inven/equip",
 	"Display equip/inven",
 	"Display character",
@@ -165,6 +164,7 @@ cptr window_flag_desc[8] =
 	"Display chat messages",
 	"Display mini-map",
 	"Display lag-o-meter",
+	"Display player list",
 };
 #endif
 
@@ -243,7 +243,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "alert_mana",		"Beep/message about critically low mana pool" },
 	{ &c_cfg.alert_afk_dam,		FALSE,	1,	0, 19, TRUE,
 	    "alert_afk_dam",		"Beep when taking damage while AFK" },
-	{ &c_cfg.alert_offpanel_dam,	FALSE,	1,	0, 20, TRUE,
+	{ &c_cfg.alert_offpanel_dam,	TRUE,	1,	0, 20, TRUE,
 	    "alert_offpanel_dam",	"Beep when taking damage while looking elsewhere" },
 
 	{ &c_cfg.exp_bar,		TRUE,	6,	9, 21, TRUE, //moved to page 3 in 4.7.2 to make room for alert_starvation
@@ -537,12 +537,15 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "quiet_os",			"Don't play beep/alert/page beeps through OS" },
 	{ &c_cfg.disable_lightning,	FALSE,	7,	9, 132, TRUE,
 	    "disable_lightning",	"Disable visual screen flash effect for lightning" },
-	{ &c_cfg.macros_in_stores,	FALSE,	3,	0, 133, TRUE,
+	{ &c_cfg.macros_in_stores,	FALSE,	2,	0, 133, TRUE,
 	    "macros_in_stores",		"Don't disable macros while inside a store" },
 	{ &c_cfg.item_error_beep,	TRUE,	3,	0, 134, TRUE,
 	    "item_error_beep",		"Beep when an item selection fails" },
 	{ &c_cfg.keep_bottle,		FALSE,	3,	0, 135, TRUE,
 	    "keep_bottle",		"Keep the empty bottle when you quaff a potion" },
+
+	{ &c_cfg.easy_disarm_montraps,	FALSE,	3,	9, 136, TRUE,
+	    "easy_disarm_montraps",	"Automatically disarm monster traps ('/edtm')" },
 
 #if 0 /* todo this maybe. (Page 3 has space left for exactly one more option atm) */
     /* 4.7.3 */

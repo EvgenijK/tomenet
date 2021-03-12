@@ -28,7 +28,7 @@ void do_cmd_messages(void) {
 	char finder[80] = "";
 
 	cptr message_recall[MESSAGE_MAX] = {0};
-	cptr msg = "", msg2;
+	cptr msg = "", msg2, msg_raw = NULL, msg3;
 
 	/* Display messages in different colors -Zz */
 
@@ -60,7 +60,6 @@ void do_cmd_messages(void) {
 		nn++;
 	}
 
-
 	/* Start on first message */
 	i = 0;
 
@@ -79,6 +78,7 @@ void do_cmd_messages(void) {
 		r = 0;	/* how many times the message is Repeated */
 		s = 0;	/* how many lines Saved */
 		k = 0;	/* end of buffer flag */
+		msg = NULL;
 
 		/* Dump up to 20 lines of messages */
 		for (j = 0; (j < 20 + HGT_PLUS) && (i + j + s < n); j++) {
@@ -86,8 +86,10 @@ void do_cmd_messages(void) {
 
 			msg2 = msg;
 			msg = message_recall[i + j + s];
+			if (!j) msg_raw = msg;
 
-			/* Handle repeated messages */
+			/* Handle repeated messages
+			   (Minor glitch note: if the first msgs after joining the server are repeated 'searching' msgs, the first one will not combine) */
 			if (msg == msg2) {
 				r++;
 				j--;
@@ -102,27 +104,26 @@ void do_cmd_messages(void) {
 			}
 
 			/* Apply horizontal scroll */
-			msg2 = msg;
-			msg = ((int) strlen(msg) >= q) ? (msg + q) : "";
+			msg3 = ((int) strlen(msg) >= q) ? (msg + q) : "";
 
 			/* For horizontal scrolling: Parse correct colour code that we might have skipped */
 			if (q) {
 				for (p = 0; p < q; p++) {
-					if (msg2[p] != '\377') continue;
-					if (msg2[p + 1] == '.') a = ap;
-					else if (isalpha(msg2[p + 1]) || isdigit(msg2[p + 1])) {
+					if (msg[p] != '\377') continue;
+					if (msg[p + 1] == '.') a = ap;
+					else if (isalpha(msg[p + 1]) || isdigit(msg[p + 1])) {
 						ap = ab;
-						a = ab = color_char_to_attr(msg2[p + 1]);
+						a = ab = color_char_to_attr(msg[p + 1]);
 					}
 				}
-			}
+			} else msg3 = msg;
 
 			/* Handle "shower" */
-			if (shower[0] && strstr(msg, shower)) a = TERM_YELLOW;
+			if (shower[0] && strstr(msg3, shower)) a = TERM_YELLOW;
 
 			/* Dump the messages, bottom to top */
-			Term_putstr(0, 21 + HGT_PLUS-j, -1, a, (char*)msg);
-			t = strlen(msg);
+			Term_putstr(0, 21 + HGT_PLUS-j, -1, a, (char*)msg3);
+			t = strlen(msg3);
 		}
 
 		/* Display header XXX XXX XXX */
@@ -130,7 +131,7 @@ void do_cmd_messages(void) {
 		    i, i + j - 1, n, q), 0, 0);
 
 		/* Display prompt (not very informative) */
-		prt("[Press 'p' for older, 'n' for newer, 'f' for filedump, ..., or ESCAPE]", 23 + HGT_PLUS, 0);
+		prt("['p' older, 'n' newer, 'f' for filedump, CTRL+K to copy last line, ESC to exit]", 23 + HGT_PLUS, 0);
 
 		/* Get a command */
 		k = inkey();
@@ -290,6 +291,12 @@ void do_cmd_messages(void) {
 			}
 		}
 
+		/* Copy to clipboard o_o */
+		if (k == KTRL('K') && msg != NULL) {
+			(void)copy_to_clipboard((char*)msg_raw);
+			continue;
+		}
+
 		if (k == KTRL('T')) {
 			/* Take a screenshot */
 			xhtml_screenshot("screenshot????");
@@ -315,24 +322,21 @@ void do_cmd_messages(void) {
 }
 
 
-/* Show buffer of "important events" only via the CTRL-O command -Zz
-   Note that nowadays the name 'chatonly' is slightly misleading:
-   It simply is a buffer of 'very important' messages, as already
-   stated above by Zz ;) - C. Blue */
-void do_cmd_messages_chatonly(void) {
+/* Show buffer of "important events" only via the CTRL-O command -Zz */
+void do_cmd_messages_important(void) {
 	int i, j, k, n, nn, q, p;
 	byte a, ab, ap;
 
 	char shower[80] = "";
 	char finder[80] = "";
 
-	cptr msg, msg2;
+	cptr msg, msg2, msg_raw = NULL;
 
 	/* Create array to store message buffer for important messags  */
 	/* (This is an expensive hit, move to c-init.c?  But this only */
 	/* occurs when user hits CTRL-O which is usally in safe place  */
 	/* or after AFK) 					       */
-	cptr message_chat[MESSAGE_MAX] = {0};
+	cptr message_important[MESSAGE_MAX] = {0};
 
 	/* Display messages in different colors */
 
@@ -341,7 +345,7 @@ void do_cmd_messages_chatonly(void) {
 	n = message_num();
 	nn = 0;  /* number of new messages */
 
-	/* Filter message buffer for "important messages" add to message_chat*/
+	/* Filter message buffer for "important messages" add to message_important*/
 //	for (i = 0; i < n; i++)
 	for (i = n - 1; i >= 0; i--) { /* traverse from oldest to newest message */
 		msg = message_str(i);
@@ -349,7 +353,7 @@ void do_cmd_messages_chatonly(void) {
 		if (msg[0] == '\376') {
 			/* strip control code */
 			if (msg[0] == '\376') msg++;
-			message_chat[nn] = msg;
+			message_important[nn] = msg;
 			nn++;
 		}
 	}
@@ -358,10 +362,10 @@ void do_cmd_messages_chatonly(void) {
 	n = message_num_impscroll();
 	nn = 0;  /* number of new messages */
 
-	/* Filter message buffer for "important messages" add to message_chat*/
+	/* Filter message buffer for "important messages" add to message_important*/
 //	for (i = 0; i < n; i++)
 	for (i = n - 1; i >= 0; i--) { /* traverse from oldest to newest message */
-		message_chat[nn] = message_str_impscroll(i);
+		message_important[nn] = message_str_impscroll(i);
 		nn++;
 	}
 #endif
@@ -381,13 +385,14 @@ void do_cmd_messages_chatonly(void) {
 		/* Clear screen */
 		Term_clear();
 
-		/* Use last element in message_chat as  message_num() */
+		/* Use last element in message_important as  message_num() */
 		n = nn;
 
 		/* Dump up to 20 lines of messages */
 		for (j = 0; (j < 20 + HGT_PLUS) && (i + j < n); j++) {
-			msg = message_chat[nn - 1 - (i + j)]; /* because of inverted traversal direction, see further above */
-			//cptr msg = message_chat[i + j];
+			msg = message_important[nn - 1 - (i + j)]; /* because of inverted traversal direction, see further above */
+			if (!j) msg_raw = msg;
+			//cptr msg = message_important[i + j];
 			a = ab = ap = TERM_WHITE;
 
 			/* Apply horizontal scroll */
@@ -414,11 +419,11 @@ void do_cmd_messages_chatonly(void) {
 		}
 
 		/* Display header XXX XXX XXX */
-		prt(format("Message Recall (%d-%d of %d), Offset %d",
+		prt(format("Important-Message Recall (%d-%d of %d), Offset %d",
 		    i, i + j - 1, n, q), 0, 0);
 
 		/* Display prompt (not very informative) */
-		prt("[Press 'p' for older, 'n' for newer, 'f' for filedump, ..., or ESCAPE]", 23 + HGT_PLUS, 0);
+		prt("['p' older, 'n' newer, 'f' for filedump, CTRL+K to copy last line, ESC to exit]", 23 + HGT_PLUS, 0);
 
 		/* Get a command */
 		k = inkey();
@@ -575,13 +580,19 @@ void do_cmd_messages_chatonly(void) {
 		/* Dump */
 		if ((k == 'f') || (k == 'F')) {
 			char tmp[80];
-			strnfmt(tmp, 79, "%s-chat.txt", cname);
+			strnfmt(tmp, 79, "%s-important.txt", cname);
 			if (get_string("Filename: ", tmp, 79)) {
 				if (tmp[0] && (tmp[0] != ' ')) {
 					dump_messages(tmp, MESSAGE_MAX, 1);
 					continue;
 				}
 			}
+		}
+
+		/* Copy to clipboard o_o */
+		if (k == KTRL('K') && msg_raw != NULL) {
+			(void)copy_to_clipboard((char*)msg_raw);
+			continue;
 		}
 
 		if (k == KTRL('T')) {
@@ -614,7 +625,7 @@ void do_cmd_messages_chatonly(void) {
  * XXX The beginning of dump can be corrupted. FIXME
  */
 /* FIXME: result can be garbled if contains '%' */
-/* chatonly if mode != 0 */
+/* important if mode != 0 */
 void dump_messages_aux(FILE *fff, int lines, int mode, bool ignore_color) {
 	int i, j, k, n, nn, q, r, s, t = 0;
 
@@ -643,7 +654,7 @@ void dump_messages_aux(FILE *fff, int lines, int mode, bool ignore_color) {
 		if (strstr(msg, nomsg_target) || strstr(msg, nomsg_map))
 			continue;
 
-		if (mode) { /* chatonly, ie 'important messages' only? */
+		if (mode) { /* important, ie 'important messages' only? */
 			if (msg[0] == '\376') {
 				/* strip control code */
 				msg++;

@@ -9805,7 +9805,7 @@ F:ONLY_ITEM | DROP_1D2 | REFLECTING | RES_MANA | RES_TELE | CAN_CLIMB |
 F:OPEN_DOOR | BASH_DOOR | POWERFUL | MOVE_BODY | RES_SOUND
 F:IM_ACID | IM_FIRE | IM_COLD | IM_ELEC | IM_POIS | RES_LITE | IM_PSI |
 F:NO_CONF | NO_SLEEP | BASEANGBAND | HAS_LITE | NO_STUN
-S:1_IN_11 |
+S:1_IN_3 |
 S:HEAL | HASTE | TELE_AWAY | CONF | BO_MANA | BO_PLAS |
 S:S_MONSTERS | S_ANGEL
 D:It is an angel, fast and strong. You are stunned by its extreme holiness
@@ -17221,7 +17221,7 @@ D:A small, apparently unassuming orb which spawns death and destruction.
 N:976:Bronze dragon worm
 G:w:U
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -17242,7 +17242,7 @@ D:a multitude of perplexing and distracting ways.
 N:977:Gold dragon worm
 G:w:y
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18147,7 +18147,7 @@ D:waving and poppy-crowned."
 N:1023:Blue dragon worm
 G:w:B
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18167,7 +18167,7 @@ D:breath, and the fiery eyes, of a real Dragon. Sparks fly from its jaws.
 N:1024:White dragon worm
 G:w:W
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18187,7 +18187,7 @@ D:breath, and the fiery eyes, of a real Dragon. Its breath condenses in the air.
 N:1025:Green dragon worm
 G:w:G
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18208,7 +18208,7 @@ D:on its breath.
 N:1026:Black dragon worm
 G:w:D
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18228,7 +18228,7 @@ D:breath, and the fiery eyes, of a real Dragon. Acidic drool drips from its jaws
 N:1027:Red dragon worm
 G:w:R
 I:100:10d15:20:40:80
-W:20:3:4500:12
+W:20:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -18248,7 +18248,7 @@ D:breath, and the fiery eyes, of a real Dragon. Smoke comes from its mouth.
 N:1028:Multi-hued dragon worm
 G:w:v
 I:100:10d20:20:40:80
-W:23:3:4500:12
+W:23:3:3500:12
 E:0:0:0:0:1:0
 O:0:0:0:0
 B:CLAW:HURT:3d3
@@ -19641,7 +19641,7 @@ W:50:0:500:0
 E:1:1:2:0:1:0
 O:0:0:0:0
 F:BLUEBAND | NEVER_ACT | NO_DEATH | NONLIVING | EMPTY_MIND | COLD_BLOOD |
-F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
+$TEST_SERVER!F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
 F:RES_TELE | RES_NEXU | IM_TELE | RES_LITE | RES_DARK | RES_SOUND
 #IM_LITE
 F:ALLOW_RUNNING | GENO_PERSIST | GENO_NO_THIN
@@ -20028,7 +20028,7 @@ W:50:0:500:0
 E:1:1:2:0:1:0
 O:0:0:0:0
 F:BLUEBAND | NEVER_ACT | NO_DEATH | NONLIVING | EMPTY_MIND | COLD_BLOOD |
-F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
+$TEST_SERVER!F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
 F:RES_TELE | RES_NEXU | IM_TELE | RES_LITE | RES_DARK | RES_SOUND
 F:ALLOW_RUNNING | GENO_PERSIST | GENO_NO_THIN
 #IM_LITE
@@ -20283,12 +20283,12 @@ D:A whirling anomaly of nether mists that will drain your life force.
 # note: there's a snowed up version 1126 for SEASON_WINTER.
 N:1144:Armoured target dummy
 G:p:D
-I:110:10d2:0:170:0
+I:110:10d2:0:200:0
 W:50:0:500:0
 E:1:1:2:0:1:0
 O:0:0:0:0
 F:BLUEBAND | NEVER_ACT | NO_DEATH | NONLIVING | EMPTY_MIND | COLD_BLOOD |
-F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
+$TEST_SERVER!F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
 F:RES_TELE | RES_NEXU | IM_TELE | RES_LITE | RES_DARK | RES_SOUND
 #IM_LITE
 F:ALLOW_RUNNING | GENO_PERSIST | GENO_NO_THIN
@@ -20298,12 +20298,12 @@ D:assisting you without complaining in assessing your combat prowess.
 #a snowed up version for new SEASON_WINTER (1101 is normal version)
 N:1145:Snow-covered armoured target dummy
 G:p:W
-I:110:10d2:0:170:0
+I:110:10d2:0:200:0
 W:50:0:500:0
 E:1:1:2:0:1:0
 O:0:0:0:0
 F:BLUEBAND | NEVER_ACT | NO_DEATH | NONLIVING | EMPTY_MIND | COLD_BLOOD |
-F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
+$TEST_SERVER!F:NO_CONF | NO_SLEEP | NO_STUN | NO_FEAR | NO_CUT | IM_COLD | IM_ELEC | IM_POIS
 F:RES_TELE | RES_NEXU | IM_TELE | RES_LITE | RES_DARK | RES_SOUND
 F:ALLOW_RUNNING | GENO_PERSIST | GENO_NO_THIN
 #IM_LITE

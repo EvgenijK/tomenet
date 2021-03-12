@@ -73,6 +73,9 @@ extern s32b get_school_spell(cptr do_what, int *item_book);
 extern int get_spell(s32b *sn, cptr prompt, int book);
 extern void show_browse(object_type *o_ptr);
 extern void browse_school_spell(int item, int book, int pval);
+#ifdef ENABLE_SUBINVEN
+extern void browse_subinven(int subinven_sval);
+#endif
 extern void do_study(int book);
 extern void do_cast(int book);
 extern void do_pray(int book);
@@ -85,6 +88,7 @@ extern void do_ranged_technique(void);
 extern bool get_item_hook_find_spell(int *item, int mode);
 extern void do_runecraft();
 extern void do_breath(void);
+extern void do_pick_breath(void);
 
 /* tables.c */
 extern byte adj_mag_stat[];
@@ -97,7 +101,7 @@ extern option_type option_info[];
 extern cptr stat_names[6];
 extern cptr stat_names_reduced[6];
 extern char ang_term_name[ANGBAND_TERM_MAX][40];
-extern cptr window_flag_desc[8];
+extern cptr window_flag_desc[9];
 extern monster_spell_type monster_spells4[32];
 extern monster_spell_type monster_spells5[32];
 extern monster_spell_type monster_spells6[32];
@@ -135,6 +139,14 @@ extern char inventory_name[INVEN_TOTAL][ONAME_LEN];
 extern int inventory_inscription[INVEN_TOTAL];
 extern int inventory_inscription_len[INVEN_TOTAL];
 extern int item_newest;
+#ifdef ENABLE_SUBINVEN
+extern int item_newest_subinven;
+
+extern object_type subinventory[MAX_SUBINVEN][INVEN_TOTAL];
+extern char subinventory_name[MAX_SUBINVEN][INVEN_TOTAL][ONAME_LEN];
+extern int subinventory_inscription[MAX_SUBINVEN][INVEN_TOTAL];
+extern int subinventory_inscription_len[MAX_SUBINVEN][INVEN_TOTAL];
+#endif
 
 extern store_type store;
 extern c_store_extra c_store;
@@ -597,7 +609,7 @@ extern void toggle_weather(void);
 extern bool sound_bell(void);
 extern bool sound_page(void);
 extern bool sound_warning(void);
-extern int bell_sound_idx, page_sound_idx, warning_sound_idx, rain1_sound_idx, rain2_sound_idx, snow1_sound_idx, snow2_sound_idx, browse_sound_idx, browsebook_sound_idx, thunder_sound_idx;
+extern int bell_sound_idx, page_sound_idx, warning_sound_idx, rain1_sound_idx, rain2_sound_idx, snow1_sound_idx, snow2_sound_idx, browse_sound_idx, browsebook_sound_idx, thunder_sound_idx, browseinven_sound_idx;
 #endif
 extern errr options_dump(cptr fname);
 extern bool parse_macro;
@@ -615,6 +627,8 @@ extern void handle_process_font_file(void);
 extern void sync_sleep(int milliseconds);
 extern char original_commands(char command);
 extern char roguelike_commands(char command);
+extern void copy_to_clipboard(char *buf);
+extern bool paste_from_clipboard(char *buf);
 
 /* c-store.c */
 extern bool leave_store;
@@ -642,7 +656,7 @@ extern void prt_hunger(int food);
 extern void prt_blind(bool blind);
 extern void prt_confused(bool confused);
 extern void prt_afraid(bool fear);
-extern void prt_poisoned(bool poisoned);
+extern void prt_poisoned(char poisoned);
 extern void prt_state(bool paralyzed, bool searching, bool resting);
 extern void prt_speed(int speed);
 extern void prt_study(bool study);
@@ -652,6 +666,9 @@ extern void prt_stun(int stun);
 extern void prt_basic(void);
 extern void health_redraw(int num, byte attr);
 extern void show_inven(void);
+#ifdef ENABLE_SUBINVEN
+extern void show_subinven(int subinven_sval);
+#endif
 extern void show_equip(void);
 extern void display_player(int hist);
 extern void window_stuff(void);
@@ -666,6 +683,15 @@ extern void display_lagometer(bool display_commands);
 extern void update_lagometer(void);
 extern void prt_lagometer(int lag);
 
+extern void prt_indicators(u32b indicators);
+extern void prt_res_fire(bool is_resisted);
+extern void prt_res_cold(bool is_resisted);
+extern void prt_res_elec(bool is_resisted);
+extern void prt_res_acid(bool is_resisted);
+extern void prt_res_pois(bool is_resisted);
+extern void prt_res_divine(bool is_resisted);
+extern void prt_esp(bool is_full_esp);
+
 extern int p_speed;
 extern bool no_tele_grid;
 extern void do_weather(bool no_weather);
@@ -678,9 +704,11 @@ extern char panel_map_c[MAX_SCREEN_WID][MAX_SCREEN_HGT];
 extern int cloud_x1[10], cloud_y1[10], cloud_x2[10], cloud_y2[10], cloud_dsum[10];
 extern int cloud_xm100[10], cloud_ym100[10], cloud_xfrac[10], cloud_yfrac[10];
 
+extern void fix_playerlist(void);
+
 /* c-xtra2.c */
 extern void do_cmd_messages(void);
-extern void do_cmd_messages_chatonly(void);
+extern void do_cmd_messages_important(void);
 extern errr dump_messages(cptr name, int lines, int mode);
 extern void dump_messages_aux(FILE *fff, int lines, int mode, bool ignore_color);
 
@@ -866,7 +894,9 @@ extern int color_char_to_attr(char c);
 extern byte mh_attr(int max);
 extern char *my_strcasestr(const char *big, const char *little);
 extern char *my_strcasestr_skipcol(const char *big, const char *little, byte strict);
+extern char *my_strstr_skipcol(const char *big, const char *little, byte strict);
 extern char *roman_suffix(char* cname);
+extern bool wearable_p(object_type *o_ptr);
 
 /* common/files.c */
 extern int local_file_init(int ind, unsigned short fnum, char *fname);
@@ -984,6 +1014,7 @@ extern bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX];
 extern char artifact_list_name[MAX_A_IDX][80];
 extern int artifact_list_code[MAX_A_IDX], artifact_list_rarity[MAX_A_IDX], artifact_list_idx;
 extern bool artifact_list_specialgene[MAX_A_IDX];
+extern char artifact_list_activation[MAX_A_IDX][80];
 
 extern char kind_list_name[MAX_K_IDX][80];
 extern int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx;
@@ -1070,3 +1101,9 @@ extern bool st_bar;
 
 extern char cfg_soundpackfolder[1024];
 extern char cfg_musicpackfolder[1024];
+
+extern int NumPlayers;
+extern char playerlist[1000][MAX_CHARS_WIDE * 2];
+
+extern byte col_raindrop, col_snowflake;
+extern bool custom_font_warning;

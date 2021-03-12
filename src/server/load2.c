@@ -153,44 +153,6 @@ static bool q_older_than(byte x, byte y, byte z) {
 }
 
 /*
- * Hack -- determine if an item is "wearable" (or a missile)
- */
-bool wearable_p(object_type *o_ptr) {
-	/* Valid "tval" codes */
-	switch (o_ptr->tval) {
-	case TV_SHOT:
-	case TV_ARROW:
-	case TV_BOLT:
-	case TV_BOW:
-	case TV_BOOMERANG:
-	case TV_DIGGING:
-	case TV_BLUNT:
-	case TV_POLEARM:
-	case TV_SWORD:
-	case TV_BOOTS:
-	case TV_GLOVES:
-	case TV_HELM:
-	case TV_CROWN:
-	case TV_SHIELD:
-	case TV_CLOAK:
-	case TV_SOFT_ARMOR:
-	case TV_HARD_ARMOR:
-	case TV_DRAG_ARMOR:
-	case TV_LITE:
-	case TV_AMULET:
-	case TV_RING:
-	case TV_AXE:
-	case TV_MSTAFF:
-	case TV_TOOL:
-		return (TRUE);
-	}
-
-	/* Nope */
-	return (FALSE);
-}
-
-
-/*
  * The following functions are used to load the basic building blocks
  * of savefiles.  They also maintain the "checksum" info for 2.7.0+
  */
@@ -1557,6 +1519,9 @@ static void rd_house(int n) {
 		rd_byte(&house_ptr->xtra);
 	}
 
+	if (!s_older_than(4, 7, 11)) rd_string(house_ptr->tag, 20);
+	else house_ptr->tag[0] = 0;
+
 #ifndef USE_MANG_HOUSE_ONLY
 	rd_s16b(&house_ptr->stock_num);
 	rd_s16b(&house_ptr->stock_size);
@@ -1847,7 +1812,9 @@ static bool rd_extra(int Ind) {
 	rd_s16b(&p_ptr->fruit_bat);
 
 	/* Read the flags */
-	rd_byte(&p_ptr->lives);
+	rd_byte(&tmp8u);
+	p_ptr->lives = tmp8u;
+
 	/* hack, if save file was from an older version we need to convert it: */
  	if (cfg.lifes && !p_ptr->lives) p_ptr->lives = cfg.lifes+1;
 	/* If the server's life amount was reduced, apply it to players */
@@ -1863,7 +1830,13 @@ static bool rd_extra(int Ind) {
 		}
 	}
 
-	rd_byte(&tmp8u); //HOLE
+	if (!older_than(4, 7, 12)) {
+		rd_byte(&tmp8u);
+		p_ptr->breath_element = tmp8u;
+	} else {
+		rd_byte(&tmp8u);
+		p_ptr->breath_element = 0; //random
+	}
 
 	rd_s16b(&p_ptr->blind);
 	rd_s16b(&p_ptr->paralyzed);
@@ -2289,6 +2262,7 @@ if (p_ptr->updated_savegame == 0) {
 		if (tmp16u & 0x01) p_ptr->warning_technique_melee = 1;
 		if (tmp16u & 0x02) p_ptr->warning_technique_ranged = 1;
 		if (tmp16u & 0x04) p_ptr->warning_drained = 1;
+		if (tmp16u & 0x08) p_ptr->warning_blastcharge = 1;
 	} else {
 		/* auto-enable for now (MAX_AURAS) */
 		if (get_skill(p_ptr, SKILL_AURA_FEAR)) p_ptr->aura[0] = TRUE;

@@ -110,7 +110,7 @@ bool potion_smash_effect(int who, worldpos *wpos, int y, int x, int o_sval) {
 #ifdef ENABLE_DEMOLITIONIST
 		case SV_FLASK_ACID:
 			radius = 1;
-			dam = damroll(5, 5);
+			dam = damroll(4, 5);
 			dt = GF_ACID_BLIND;
 			ident = TRUE;
 			angry = TRUE;
@@ -1023,12 +1023,12 @@ bool teleport_player(int Ind, int dis, bool ignore_pvp) {
 	else if (org_dis > 20) {
 		sound(Ind, "teleport", NULL, SFX_TYPE_COMMAND, TRUE);
  #ifdef TELEPORT_SURPRISES
-		p_ptr->teleported = 3;
+		p_ptr->teleported = TELEPORT_SURPRISES;
  #endif
 	}
 #else
  #ifdef TELEPORT_SURPRISES
-	if (org_dis > 20) p_ptr->teleported = 3;
+	if (org_dis > 20) p_ptr->teleported = TELEPORT_SURPRISES;
  #endif
 #endif
 
@@ -1835,6 +1835,16 @@ void take_hit(int Ind, int damage, cptr hit_from, int Ind_attacker) {
 	int old_num, new_num;
 
 
+	/* Note: We ignore admin_invuln and also invuln here */
+	if (IS_PLAYER(Ind_attacker)) {
+		player_type *q_ptr = Players[Ind_attacker];
+
+		if (!q_ptr->test_turn) q_ptr->test_turn = turn - 1; /* Start counting damage now */
+		q_ptr->test_count++;
+		q_ptr->test_dam += damage;
+		q_ptr->idle_attack = 0;
+	}
+
 	/* Amulet of Immortality */
 	if (p_ptr->admin_invuln) return;
 
@@ -1960,11 +1970,6 @@ void take_hit(int Ind, int damage, cptr hit_from, int Ind_attacker) {
 
 		/* Otherwise damage is reduced by the shield */
 		damage = (damage + 1) / 2;
-	}
-
-	if (IS_PLAYER(Ind_attacker)) {
-		Players[Ind_attacker]->test_count++;
-		Players[Ind_attacker]->test_dam += damage;
 	}
 
 	/* Re allowed by evileye for power */
@@ -2467,6 +2472,14 @@ static bool hates_acid(object_type *o_ptr) {
 	case TV_GAME:
 		if (o_ptr->sval == SV_SNOWBALL) return TRUE;
 		break;
+
+#ifdef ENABLE_DEMOLITIONIST
+	case TV_CHARGE:
+		return TRUE;
+	case TV_CHEMICAL:
+		if (o_ptr->sval == SV_RUST || o_ptr->sval == SV_MIXTURE) break; /* Mixture is safely contained in a bottle */
+		return TRUE;
+#endif
 	}
 
 	return (FALSE);
@@ -2515,6 +2528,7 @@ bool hates_fire(object_type *o_ptr) {
 		return FALSE;
 	case TV_BOOMERANG:
 		if (o_ptr->sval == SV_BOOM_S_METAL || o_ptr->sval == SV_BOOM_METAL) return(FALSE);
+		if (o_ptr->sval == SV_BOOM_S_RAZOR || o_ptr->sval == SV_BOOM_RAZOR) return(FALSE);
 		return (TRUE);
 
 	/* Chests */
@@ -2547,6 +2561,14 @@ bool hates_fire(object_type *o_ptr) {
 	case TV_GAME:
 		if (o_ptr->sval == SV_SNOWBALL) return TRUE;
 		break;
+
+#ifdef ENABLE_DEMOLITIONIST
+	case TV_CHARGE:
+		return TRUE;
+	case TV_CHEMICAL:
+		if (o_ptr->sval == SV_CHARCOAL || o_ptr->sval == SV_RUST) return TRUE; /* note: metal powder burns up too */
+		break;
+#endif
 	}
 
 	return (FALSE);
@@ -2597,6 +2619,11 @@ bool hates_water(object_type *o_ptr) {
 	case TV_GAME:
 		if (o_ptr->sval == SV_SNOWBALL) return TRUE;
 		break;
+#ifdef ENABLE_DEMOLITIONIST
+	case TV_CHEMICAL:
+		if (o_ptr->sval == SV_CHARCOAL || o_ptr->sval == SV_RUST || o_ptr->sval == SV_WOOD_CHIPS || o_ptr->sval == SV_MIXTURE) break;
+		return TRUE;
+#endif
 	}
 
 	return (FALSE);
@@ -2635,6 +2662,13 @@ static bool can_rust(object_type *o_ptr) {
 /* Specialties just for grinding tool application */
 bool contains_significant_reactive_metal(object_type *o_ptr) {
 	switch (o_ptr->tval) {
+	case TV_BOOMERANG:
+		switch (o_ptr->sval) {
+		case SV_BOOM_WOOD:
+		case SV_BOOM_S_WOOD:
+			return FALSE;
+		}
+		return TRUE;
 	case TV_ROD: /* Note: Omit "-plated" varieties */
 		if (streq(rod_adj[o_ptr->sval], "Aluminium") ||
 		    streq(rod_adj[o_ptr->sval], "Cast Iron") ||
@@ -2684,6 +2718,13 @@ bool contains_significant_reactive_metal(object_type *o_ptr) {
 }
 bool contains_significant_wood(object_type *o_ptr) {
 	switch (o_ptr->tval) {
+	case TV_BOOMERANG:
+		switch (o_ptr->sval) {
+		case SV_BOOM_WOOD:
+		case SV_BOOM_S_WOOD:
+			return TRUE;
+		}
+		return FALSE;
 	case TV_ARROW:
 		if (o_ptr->sval != SV_AMMO_NORMAL) return FALSE;
 		//fall through
@@ -2928,7 +2969,7 @@ int inven_damage(int Ind, inven_func typ, int perc) {
 
 				/* Potions smash open */
 				if (typ != set_water_destroy)	/* MEGAHACK */ //&& typ != set_cold_destroy)
-					switch (k_info[o_ptr->k_idx].tval) {
+					switch (o_ptr->tval) {
 					case TV_POTION:
 						//(void)potion_smash_effect(0, &p_ptr->wpos, p_ptr->py, p_ptr->px, o_ptr->sval);
 						bypass_invuln = TRUE;
@@ -2940,6 +2981,29 @@ int inven_damage(int Ind, inven_func typ, int perc) {
 						(void)potion_smash_effect(PROJECTOR_POTION, &p_ptr->wpos, p_ptr->py, p_ptr->px, 200 + o_ptr->sval);
 						bypass_invuln = FALSE;
 						break;
+					}
+
+				/* Fireworks and blast charges blow up -- todo: implement */
+				if (typ == set_fire_destroy)
+					switch (o_ptr->tval) {
+					case TV_SCROLL:
+						if (o_ptr->sval != SV_SCROLL_FIREWORK) break;
+						cast_fireworks(&p_ptr->wpos, p_ptr->px, p_ptr->py, o_ptr->xtra1 * FIREWORK_COLOURS + o_ptr->xtra2); //size, colour
+#ifdef USE_SOUND_2010
+						sound_near_site_vol(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "fireworks_launch", "", SFX_TYPE_MISC, FALSE, 50);
+#endif
+						break;
+#ifdef ENABLE_DEMOLITIONIST
+					case TV_CHARGE:
+						bypass_invuln = TRUE;
+						/* TODO? Blow up. Note that detonate_charge() won't work cause it requires a cs_ptr, ie armed charge in the ground.
+						   However, this seems like overkill. We can just assume that blast charges have a protective outer shell and don't
+						   just blow up randomly, except when explicitely lit by a fuse.
+						   So for now: -- Blast charges are safe! --
+						*/
+						bypass_invuln = FALSE;
+						break;
+#endif
 					}
 
 				/* Destroy "amt" items */
@@ -4390,7 +4454,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 				forge.weight = k_info[forge.k_idx].weight;
 				forge.marked2 = ITEM_REMOVAL_NORMAL;
 				drop_near(0, &forge, -1, wpos, y, x);
-				s_printf("CHEMICAL: %s found charcoal.\n", p_ptr->name);
+				//spammy- s_printf("CHEMICAL: %s found charcoal (feat).\n", p_ptr->name);
 			}
 #endif
 		}
@@ -5502,12 +5566,23 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 					msg_format(Ind, "\377oThe %s%s", o_name, note_kill);
 
 				/* Hack: Launch firework from scrolls */
-				if (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_FIREWORK) {
+				if (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_FIREWORK
+				    && strstr(note_kill, " burn")) {
 					cast_fireworks(wpos, x, y, o_ptr->xtra1 * FIREWORK_COLOURS + o_ptr->xtra2); //size, colour
 #ifdef USE_SOUND_2010
-					sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #if 0
+					if (IS_PLAYER(Ind)) sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #else
+					sound_near_site_vol(y, x, wpos, 0, "fireworks_launch", "", SFX_TYPE_MISC, FALSE, 50);
+ #endif
 #endif
 				}
+
+#ifdef ENABLE_DEMOLITIONIST
+				/* Detonate blast charges */
+				/* --todo first: add a type of detonate_charge() that works on non-armed charges! This function assumes a cs_ptr instead!
+				if (o_ptr->tval == TV_CHARGE && strstr(note_kill, " burn")) detonate_charge(o_ptr); */
+#endif
 
 				/* Delete the object */
 				//delete_object(wpos, y, x);
@@ -12526,7 +12601,7 @@ bool project(int who, int rad, struct worldpos *wpos_tmp, int y, int x, int dam,
 	if (flg & PROJECT_STAY) {
 		/* For waves and walls, the initial imprint mustn't cause any damage or it will hit
 		   enemies twice. For other effects (clouds) it's up to preference. */
-		bool no_initial_damage = project_time_effect & (EFF_WAVE | EFF_THINWAVE | EFF_WALL);
+		bool no_initial_damage = (project_time_effect & (EFF_WAVE | EFF_THINWAVE | EFF_WALL)) != 0;
 
 		/* Since we apply damage one more time, ie on initial grid imprint,
 		   remove the final tick to keep correct amount of damage applications. */

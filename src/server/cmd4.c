@@ -19,6 +19,11 @@
 /* use character class titles more often when describing a character? */
 #define ABUNDANT_TITLES
 
+/* show "(Soloist)" in @ list for soloists.
+   This is now disabled since soloists are marked by slate colour
+   distinguishing them from unworldly characters, making this redundant. */
+//#SHOW_SOLOIST_TAG
+
 #if 0 /* replaced by client-side options: \
     -- + -- = nothing \
     o1 + -- = COMPACT_PLAYERLIST+COMPACT_ALT \
@@ -76,7 +81,7 @@ void do_cmd_check_artifacts(int Ind, int line) {
 	FILE *fff;
 	char file_name[MAX_PATH_LENGTH];
 	char base_name[ONAME_LEN];
-	bool okay[MAX_A_IDX];
+	bool okay[MAX_A_IDX], carrier_online[MAX_A_IDX];
 
 	player_type *p_ptr = Players[Ind], *q_ptr;
 	bool admin = is_admin(p_ptr);
@@ -106,7 +111,7 @@ void do_cmd_check_artifacts(int Ind, int line) {
 		forge.name1 = k;
 
 		/* Default */
-		okay[k] = FALSE;
+		okay[k] = carrier_online[k] = FALSE;
 
 		/* Skip "empty" artifacts */
 		if (!a_ptr->name) continue;
@@ -132,7 +137,7 @@ void do_cmd_check_artifacts(int Ind, int line) {
 		q_ptr = Players[i];
 
 		/* Check this guy's */
-		for (j = 0; j < INVEN_PACK; j++) {
+		for (j = 0; j < INVEN_TOTAL; j++) {
 			o_ptr = &q_ptr->inventory[j];
 
 			/* Ignore non-objects */
@@ -140,6 +145,8 @@ void do_cmd_check_artifacts(int Ind, int line) {
 
 			/* Ignore non-artifacts */
 			if (!true_artifact_p(o_ptr)) continue;
+
+			carrier_online[o_ptr->name1] = TRUE;
 
 			/* Ignore known items */
 			if (object_known_p(Ind, o_ptr) || admin) continue;
@@ -232,7 +239,7 @@ void do_cmd_check_artifacts(int Ind, int line) {
 					c = 'D';
 #endif
 				fprintf(fff, "\377%c", c);
-				fprintf(fff, "%3d/%d %s\377%c", i, a_ptr->cur_num, timeleft, c);
+				fprintf(fff, "%3d/%d%s%s\377%c", i, a_ptr->cur_num, carrier_online[i] ? "\377G*" : " ", timeleft, c);
 			}
 #ifndef COLOURED_ARTS
 			else fprintf(fff, "\377%c", (!multiple_artifact_p(&forge) && a_ptr->carrier == p_ptr->id) ? 'U' : 'w');
@@ -254,8 +261,9 @@ void do_cmd_check_artifacts(int Ind, int line) {
 					if (tmpm & MODE_EVERLASTING) strcpy(cs, "\377B");
 					else if (tmpm & MODE_PVP) strcpy(cs, format("\377%c", COLOUR_MODE_PVP));
 					else if ((tmpm & MODE_NO_GHOST) && (tmpm & MODE_HARD)) strcpy(cs, "\377r");
+					else if (tmpm & MODE_SOLO) strcpy(cs, "\377s");//visually differ a bit from NO_GHOST
 					else if (tmpm & MODE_NO_GHOST) strcpy(cs, "\377D");
-					else if (tmpm & MODE_HARD) strcpy(cs, "\377s");
+					else if (tmpm & MODE_HARD) strcpy(cs, "\377s");//deprecated
 					else strcpy(cs, "\377W");
 
 					lev = lookup_player_level(a_ptr->carrier);
@@ -763,6 +771,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			fprintf(fff, "r");
 			break;
 		case MODE_HARD:
+			fprintf(fff, "s");//deprecated
+			break;
+		case (MODE_SOLO | MODE_NO_GHOST):
 			fprintf(fff, "s");
 			break;
 		case MODE_NO_GHOST:
@@ -790,7 +801,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
 			    parties[q_ptr->party].name);
 	}
+  #ifdef SHOW_SOLOIST_TAG
 	if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+  #endif
  } else { /* COMPACT_ALT */
 	/* Print a message */
 	fprintf(fff," ");
@@ -899,6 +912,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			fprintf(fff, "r");
 			break;
 		case MODE_HARD:
+			fprintf(fff, "s");//deprecated
+			break;
+		case (MODE_SOLO | MODE_NO_GHOST):
 			fprintf(fff, "s");
 			break;
 		case MODE_NO_GHOST:
@@ -923,7 +939,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
 			    parties[q_ptr->party].name);
 	}
+  #ifdef SHOW_SOLOIST_TAG
 	if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+  #endif
  }
 
 } else { /* COMPACT_PLAYERLIST */
@@ -1073,6 +1091,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			fprintf(fff, "r");
 			break;
 		case MODE_HARD:
+			fprintf(fff, "s");//deprecated
+			break;
+		case (MODE_SOLO | MODE_NO_GHOST):
 			fprintf(fff, "s");
 			break;
 		case MODE_NO_GHOST:
@@ -1119,7 +1140,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 				}
 			}
 		} else fprintf(fff, "  \377U(%s\377U)", q_ptr->info_msg);
+   #ifdef SHOW_SOLOIST_TAG
 		if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+   #endif
 	} else fprintf(fff, "  \377u(%s\377u)", q_ptr->afk_msg);
 
  } else { //#else
@@ -1146,7 +1169,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			    ((q_ptr->male)?"Male, ":"Female, "),
 			q_ptr->fruit_bat ? "Fruit bat, " : "",
 			q_ptr->lev, parties[q_ptr->party].name);
+   #ifdef SHOW_SOLOIST_TAG
 	//---todo---if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+   #endif
   #else	// 0
    #ifndef ABUNDANT_TITLES
 	fprintf(fff, "  %s the ", q_ptr->name);
@@ -1159,7 +1184,10 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			case MODE_NORMAL:
 				break;
 			case MODE_HARD:
-				fprintf(fff, "purgatorial ");
+				fprintf(fff, "purgatorial ");//deprecated
+				break;
+			case (MODE_SOLO | MODE_NO_GHOST):
+				fprintf(fff, "soloist ");
 				break;
 			case MODE_NO_GHOST:
 				fprintf(fff, "unworldly ");
@@ -1197,10 +1225,13 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 		case MODE_NORMAL:
 			break;
 		case MODE_HARD:
-			fprintf(fff, "\377s");
+			fprintf(fff, "\377s");//deprecated
 			break;
 		case MODE_NO_GHOST:
 			fprintf(fff, "\377D");
+			break;
+		case (MODE_SOLO | MODE_NO_GHOST):
+			fprintf(fff, "\377s");
 			break;
 		case MODE_EVERLASTING:
 			fprintf(fff, "\377B");
@@ -1302,8 +1333,11 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 		case (MODE_HARD | MODE_NO_GHOST):
 			fprintf(fff, "\n\377r  *%s\377U ", info_chars);
 			break;
-		case MODE_HARD:
+		case (MODE_SOLO | MODE_NO_GHOST):
 			fprintf(fff, "\n\377s  *%s\377U ", info_chars);
+			break;
+		case MODE_HARD:
+			fprintf(fff, "\n\377s  *%s\377U ", info_chars);//deprecated
 			break;
 		case MODE_NO_GHOST:
 			fprintf(fff, "\n\377D  *%s\377U ", info_chars);
@@ -1348,7 +1382,9 @@ if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 			    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
 			    parties[q_ptr->party].name);
 	}
+   #ifdef SHOW_SOLOIST_TAG
 	if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+   #endif
   #endif // 0
  } //#endif	/* ULTRA_COMPACT_PLAYERLIST */
 }//#endif /* COMPACT_PLAYERLIST */
@@ -1445,14 +1481,18 @@ if (compaction == 1 || compaction == 2) { //#ifdef COMPACT_PLAYERLIST
   #if 1
 			if (admin)
 #ifdef ADMIN_EXTRA_STATISTICS
+ #ifdef USE_SOUND_2010
 				fprintf(fff, "%s [%d,%d] (%s)%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col, q_ptr->hostname,
 				    !q_ptr->exp_bar ?
- #if 0
+  #if 0
 				    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
 				    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
- #else
+  #else
 				    (q_ptr->audio_mus ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
 				    (q_ptr->audio_mus ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
+  #endif
+ #else
+				fprintf(fff, "%s [%d,%d] (%s)%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col, q_ptr->hostname
  #endif
  #if 0
 				    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1541,14 +1581,18 @@ if (compaction == 1 || compaction == 2) { //#ifdef COMPACT_PLAYERLIST
 		    ) {
 			if (admin)
 #ifdef ADMIN_EXTRA_STATISTICS
+ #ifdef USE_SOUND_2010
 				fprintf(fff, "%s [%d,%d]%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col,
 				    !q_ptr->exp_bar ?
- #if 0
+  #if 0
 				    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
 				    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
- #else
+  #else
 				    (q_ptr->audio_mus > 0 ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
 				    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
+  #endif
+ #else
+				fprintf(fff, "%s [%d,%d]%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col
  #endif
  #if 0
 				    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1599,14 +1643,18 @@ if (compaction == 1 || compaction == 2) { //#ifdef COMPACT_PLAYERLIST
 
 		do_write_others_attributes(Ind, fff, q_ptr, attr, is_admin(p_ptr));
 #ifdef ADMIN_EXTRA_STATISTICS
+ #ifdef USE_SOUND_2010
 		if (admin) fprintf(fff, "%s%s%s",
 		    !q_ptr->exp_bar ?
- #if 0
+  #if 0
 		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
 		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
- #else
+  #else
 		    (q_ptr->audio_mus > 0 ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
 		    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
+  #endif
+ #else
+		if (admin) fprintf(fff, "%s%s"
  #endif
  #if 0
 		    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1691,14 +1739,18 @@ if (compaction == 1 || compaction == 2) { //#ifdef COMPACT_PLAYERLIST
 
 			fprintf(fff, " [%d,%d]", q_ptr->panel_row, q_ptr->panel_col);
 #ifdef ADMIN_EXTRA_STATISTICS
+ #ifdef USE_SOUND_2010
 			if (admin) fprintf(fff, "%s%s%s",
 			    !q_ptr->exp_bar ?
- #if 0
+  #if 0
 			    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
 			    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
- #else
+  #else
 			    (q_ptr->audio_mus > 0 ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
 			    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
+  #endif
+ #else
+			if (admin) fprintf(fff, "%s%s"
  #endif
  #if 0
 			    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1776,6 +1828,347 @@ if ((compaction == 1 || compaction == 2) /*#ifdef COMPACT_PLAYERLIST*/
 	fd_kill(file_name);
 }
 
+void write_player_info(int Ind, char *pinfo) {
+#if 0 /* wip */
+
+	player_type *p_ptr = Players[Ind], *q_ptr;
+	int k;
+
+	bool admin = is_admin(p_ptr);
+	char flag_str[12];
+	bool iddc;
+	bool big_map = (p_ptr->screen_hgt != SCREEN_HGT); //BIG_MAP is currently turned on for this player?
+
+	/* Scan the player races */
+	for (k = 1; k <= NumPlayers; k++) {
+		q_ptr = Players[k];
+		flag_str[0] = '\0';
+		byte attr = 'w';
+
+		/* Only print connected players */
+		if (q_ptr->conn == NOT_CONNECTED)
+			continue;
+
+		/* don't display the dungeon master if the secret_dungeon_master
+		 * option is set
+		 */
+		if (q_ptr->admin_dm &&
+		   (cfg.secret_dungeon_master) && !admin) continue;
+
+		iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
+
+
+
+
+		/*** Determine color ***/
+		/* Print self in green */
+		if (Ind == k) attr = 'G';
+		/* Print other PvP-mode chars in orange */
+		else if ((p_ptr->mode & MODE_PVP) && (q_ptr->mode & MODE_PVP)) attr = COLOUR_MODE_PVP;
+		/* Print party members in blue */
+		else if (p_ptr->party && p_ptr->party == q_ptr->party) attr = 'B';
+		/* Print hostile players in red */
+		else if (check_hostile(Ind, k)) attr = 'r';
+#ifdef IDDC_CHAR_COLOUR_INDICATOR
+		if (attr == 'w' && iddc) attr = 's';
+#endif
+
+
+
+
+//	     do_write_others_attributes(Ind, fff, q_ptr, attr, is_admin(p_ptr));   ---> :
+
+	player_type *p_ptr = Players[Ind];
+	int modify_number = 0, compaction = (p_ptr->player_list ? 2 : 0) + (p_ptr->player_list2 ? 1 : 0);
+	cptr p = "";
+	char info_chars[4];
+	bool text_pk = FALSE, text_silent = FALSE, text_afk = FALSE, text_ignoring_chat = FALSE, text_allow_dm_chat = FALSE;
+	bool iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
+	bool iddc0 = in_irondeepdive(&p_ptr->wpos) || (p_ptr->mode & MODE_DED_IDDC);
+	bool cant_iddc = !iddc && q_ptr->max_exp;
+	bool cant_iddc0 = !iddc0 && p_ptr->max_exp;
+	char attr_p[3];
+
+	bool wont_get_exp;
+#ifdef ANTI_MAXPLV_EXPLOIT
+ #ifdef ANTI_MAXPLV_EXPLOIT_SOFTLEV
+	int diff = (q_ptr->max_lev + q_ptr->max_plv - p_ptr->max_lev - p_ptr->max_plv) / 2 - ((MAX_PARTY_LEVEL_DIFF + 1) * 3) / 2;
+ #else
+  #ifndef ANTI_MAXPLV_EXPLOIT_SOFTEXP
+	int diff = (q_ptr->max_lev + q_ptr->max_plv - p_ptr->max_lev - p_ptr->max_plv) / 2 - (MAX_PARTY_LEVEL_DIFF + 1);
+  #endif
+ #endif
+#endif
+
+	/* NOTE: This won't work well with ANTI_MAXPLV_EXPLOIT_SOFTEXP code.
+	   NOTE2: Some of these rules might produce asymmetrical colouring,
+		  because they ask 'will _I_ get exp from _his_ kills'. */
+	wont_get_exp =
+	    ((p_ptr->total_winner && !(q_ptr->total_winner || q_ptr->once_winner)) ||
+	    (q_ptr->total_winner && !(p_ptr->total_winner || p_ptr->once_winner)) ||
+#ifdef ANTI_MAXPLV_EXPLOIT
+ #if defined(ANTI_MAXPLV_EXPLOIT_SOFTLEV) || !defined(ANTI_MAXPLV_EXPLOIT_SOFTEXP)
+	    (!p_ptr->total_winner && diff > 0) ||
+ #endif
+#endif
+	    (p_ptr->total_winner && ABS(p_ptr->max_lev - q_ptr->max_lev) > MAX_KING_PARTY_LEVEL_DIFF) ||
+	    (!p_ptr->total_winner && ABS(p_ptr->max_lev - q_ptr->max_lev) > MAX_PARTY_LEVEL_DIFF));
+
+#ifdef KING_PARTY_FREE_THRESHOLD
+	if (KING_PARTY_FREE_THRESHOLD && p_ptr->total_winner && q_ptr->total_winner && p_ptr->max_lev >= KING_PARTY_FREE_THRESHOLD && q_ptr->max_lev >= KING_PARTY_FREE_THRESHOLD) wont_get_exp = FALSE;
+#endif
+
+	attr_p[0] = 0;
+	if (attr == 'w') {
+		/* display level in light blue for partyable players */
+		if (!wont_get_exp &&
+		    !compat_pmode(Ind, q_ptr->Ind, FALSE) &&
+		    !((iddc && cant_iddc0) || (iddc0 && cant_iddc))) /* if one of them is in iddc and the other cant go there, we cant party */
+			strcpy(attr_p, "\377B");
+#ifdef IDDC_CHAR_COLOUR_INDICATOR
+		if (iddc) attr = 's';
+#endif
+	} else if (attr == 'B') {
+		/* display level in grey for party members out of our exp-sharing range. */
+		if (wont_get_exp) strcpy(attr_p, "\377s");
+	}
+
+	/* Prepare title at this point already */
+	p = get_ptitle(q_ptr, FALSE);
+
+	char flag_str[12];
+
+	/* Print a message */
+	fprintf(fff," ");
+	if (is_admin(q_ptr)) fprintf(fff,"\377b");
+	else if (q_ptr->mode & MODE_PVP) fprintf(fff, "\377%c", COLOUR_MODE_PVP);
+	else if (q_ptr->ghost) fprintf(fff, "\377r");
+	else if (q_ptr->total_winner) fprintf(fff, "\377v");
+	else fprintf(fff, "\377%c", attr);
+
+  #ifdef COMPACT_GENDER
+	fprintf(fff, "%s,\377%c %c.%sL%d\377%c ", q_ptr->name, attr, q_ptr->male ? 'm' : 'f', attr_p, q_ptr->lev, attr);
+  #else
+	fprintf(fff, "%s, %sL%d\377%c ", q_ptr->name, attr_p, q_ptr->lev, attr);
+  #endif
+
+	fprintf(fff, "%s", get_prace2(q_ptr));
+	fprintf(fff, "%s", class_info[q_ptr->pclass].title);
+
+	/* location */
+	if (attr == 'G' || attr == 'B' || admin
+#ifdef IDDC_CHAR_POSITION_INDICATOR
+	    || iddc
+#endif
+	    ) {
+		// BAD HACK: just replacing 'Ind' by number constants..
+  #if 0 /* 'The Sacred Land of Mountains' <- too long for this ultra compact scheme! */
+		if (admin) fprintf(fff, ", %s", wpos_format(1, &q_ptr->wpos));
+		else fprintf(fff, ", %s", wpos_format(-1, &q_ptr->wpos));
+  #else /* ..so give everyone exact wpos, like otherwise only admins get */
+#if 0 /* normal */
+		fprintf(fff, ", %s", wpos_format_compact(Ind, &q_ptr->wpos));
+#else /* hack: admins see coloured depth, colour indicating how close to game bosses [Sauron/Morgoth/Tik and beyond] they are */
+		char col = '\0';
+
+		if (admin && attr != 'G' && q_ptr->wpos.wz && !isdungeontown(&q_ptr->wpos)) {
+			int lv = getlevel(&q_ptr->wpos);
+			struct dungeon_type *d_ptr = getdungeon(&q_ptr->wpos);
+
+			if (lv >= 126 || d_ptr->type == DI_MT_DOOM || (lv >= 98 && !q_ptr->total_winner && q_ptr->r_killed[RI_SAURON] == 1)) col = 'R';
+			/* extended hack: see orange colour for 'engaged' characters, ie not in town and not afk */
+			else if (!q_ptr->afk) col = 'o';
+		}
+		if (col) fprintf(fff, ", %s%c%s%s", "\377", col, wpos_format_compact(Ind, &q_ptr->wpos), "\377-");
+		else fprintf(fff, ", %s", wpos_format_compact(Ind, &q_ptr->wpos));
+#endif
+  #endif
+
+		fprintf(fff, " [%d,%d]", q_ptr->panel_row, q_ptr->panel_col);
+
+		/* Quest flag */
+		//fprintf(fff, " %c", (q_ptr->xorder_id ? 'X' : ' '));
+	}
+
+	/* PK */
+	if (cfg.use_pk_rules == PK_RULES_DECLARE) {
+		text_pk = TRUE;
+#ifdef KURZEL_PK
+		if (q_ptr->pkill & PKILL_SET) fprintf(fff, "\377R (PK");
+		else text_pk = FALSE;
+#else
+		if(q_ptr->pkill & (PKILL_SET | PKILL_KILLER))
+			fprintf(fff, " (PK");
+		else if(!(q_ptr->pkill & PKILL_KILLABLE))
+			fprintf(fff, " (SAFE");
+		else if(!(q_ptr->tim_pkill))
+			fprintf(fff, q_ptr->lev < 5 ? " (New" : " (Kill");
+		else
+			text_pk = FALSE;
+#endif
+	}
+	if (q_ptr->limit_chat) {
+		text_silent = TRUE;
+		if (text_pk)
+			fprintf(fff, ", Silent");
+		else
+			fprintf(fff, " (Silent");
+	}
+
+	/* AFK */
+	if (q_ptr->afk) {
+		text_afk = TRUE;
+		if (text_pk || text_silent) {
+				fprintf(fff, ", AFK");
+		} else {
+				fprintf(fff, " (AFK");
+		}
+	}
+	/* Ignoring normal chat (sees only private & party messages) */
+	if (q_ptr->ignoring_chat) {
+		text_ignoring_chat = TRUE;
+		if (text_pk || text_silent || text_afk) {
+			fprintf(fff, ", %s", q_ptr->ignoring_chat == 1 ? "Private" : "*Private*");
+		} else {
+			fprintf(fff, " (%s", q_ptr->ignoring_chat == 1 ? "Private" : "*Private*");
+		}
+	}
+	if (q_ptr->admin_dm_chat) {
+		text_allow_dm_chat = TRUE;
+		if (text_pk || text_silent || text_afk || text_ignoring_chat) {
+			fprintf(fff, ", Chat");
+		} else {
+			fprintf(fff, " (Chat");
+		}
+	}
+	if (text_pk || text_silent || text_afk || text_ignoring_chat || text_allow_dm_chat) fprintf(fff, ")");
+
+
+	/* 2nd line */
+	if (q_ptr->inval) {
+		if (q_ptr->v_unknown && admin) strcpy(flag_str, "\377yI\377rU");
+		else if (q_ptr->v_test_latest && admin) strcpy(flag_str, "\377yI\377oT");
+		else if (q_ptr->v_test && admin) strcpy(flag_str, "\377yI\377ot");
+		else if (q_ptr->v_outdated) strcpy(flag_str, "\377yI\377DO");
+		else if (!q_ptr->v_latest && admin) strcpy(flag_str, "\377yI\377sL");
+		else strcpy(flag_str, "\377yI ");
+	} else {
+		if (q_ptr->v_unknown && admin) strcpy(flag_str, "\377rU ");
+		else if (q_ptr->v_test_latest && admin) strcpy(flag_str, "\377oT ");
+		else if (q_ptr->v_test && admin) strcpy(flag_str, "\377ot ");
+		else if (q_ptr->v_outdated) strcpy(flag_str, "\377DO ");
+		else if (!q_ptr->v_latest && admin) strcpy(flag_str, "\377sL ");
+		else strcpy(flag_str, "  ");
+	}
+	fprintf(fff, "\n %s\377", flag_str);
+
+
+	if (q_ptr->fruit_bat == 1)
+		strcpy(info_chars, format("\377%cb", color_attr_to_char(q_ptr->cp_ptr->color)));
+	else
+		strcpy(info_chars, format("\377%c@", color_attr_to_char(q_ptr->cp_ptr->color)));
+
+	switch (q_ptr->mode & MODE_MASK) { // TODO: give better modifiers
+		default:
+		case MODE_NORMAL:
+			fprintf(fff, "W");
+			break;
+		case MODE_EVERLASTING:
+			fprintf(fff, "B");
+			break;
+		case MODE_PVP:
+			fprintf(fff, "%c", COLOUR_MODE_PVP);
+			break;
+		case (MODE_HARD | MODE_NO_GHOST):
+			fprintf(fff, "r");
+			break;
+		case (MODE_SOLO | MODE_NO_GHOST):
+			fprintf(fff, "s");
+			break;
+		case MODE_HARD:
+			fprintf(fff, "s");//deprecated
+			break;
+		case MODE_NO_GHOST:
+			fprintf(fff, "D");
+			break;
+	}
+
+	fprintf(fff, "*%s\377U", info_chars);
+	//fprintf(fff, " (%s@%s)", q_ptr->accountname, q_ptr->hostname);
+	fprintf(fff, " (%s@%s)", q_ptr->accountname, q_ptr->hostname);
+
+  #ifndef COMPACT_GENDER
+	fprintf(fff, ", %s", q_ptr->male ? "Male" : "Female");
+  #endif
+
+	/* overlapping AFK msg with guild/party names */
+	if ((!q_ptr->afk) || !strlen(q_ptr->afk_msg)) {
+		if (!q_ptr->info_msg[0]) {
+			if (q_ptr->guild)
+				fprintf(fff, ", \377y[\377%c%s\377y]\377U", COLOUR_CHAT_GUILD, guilds[q_ptr->guild].name);
+			if (q_ptr->party) {
+				if (!q_ptr->guild) fprintf(fff, ", Party:");
+				if (admin) { /* colourize (non-iron) party names for admins, for easy visual overview */
+					char pcol[3];
+					pcol[0] = '\377'; pcol[2] = 0;
+					pcol[1] = color_attr_to_char(parties[q_ptr->party].attr);
+					if (parties[q_ptr->party].mode & PA_IRONTEAM_CLOSED)
+						fprintf(fff, " \377D<%s%s\377D>\377U",
+						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : pcol,
+						    parties[q_ptr->party].name);
+					else
+						fprintf(fff, " '%s%s\377U'",
+						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : pcol,
+						    parties[q_ptr->party].name);
+				} else {
+					if (parties[q_ptr->party].mode & PA_IRONTEAM_CLOSED)
+						fprintf(fff, " \377D<%s%s\377D>\377U",
+						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
+						    parties[q_ptr->party].name);
+					else
+						fprintf(fff, " '%s%s\377U'",
+						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
+						    parties[q_ptr->party].name);
+				}
+			}
+		} else fprintf(fff, "  \377U(%s\377U)", q_ptr->info_msg);
+  #ifdef SHOW_SOLOIST_TAG
+		if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
+  #endif
+	} else fprintf(fff, "  \377u(%s\377u)", q_ptr->afk_msg);
+
+
+
+
+
+
+
+#ifdef ADMIN_EXTRA_STATISTICS
+ #ifdef USE_SOUND_2010
+		if (admin) fprintf(fff, "%s%s%s",
+		    !q_ptr->exp_bar ?
+  #if 0
+		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
+		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
+  #else
+		    (q_ptr->audio_mus > 0 ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
+		    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
+  #endif
+ #else
+		if (admin) fprintf(fff, "%s%s"
+ #endif
+ #if 0
+		    , q_ptr->custom_font ? "\377wf\377-" : "", ""
+ #else /* combine custom font and OS type O_o */
+				    , q_ptr->custom_font ? "\377w" : "\377D"
+				    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OS
+ #endif
+		    );
+#endif
+
+#endif /* wip */
+}
+
  /*
  * Check the equipments of other player.
  */
@@ -1828,7 +2221,7 @@ void do_cmd_check_player_equip(int Ind, int line) {
 		/* else continue; */
 
 		/* Only party member or those on the same dungeon level */
-		//                              if ((attr != 'B') && (p_ptr->dun_depth != q_ptr->dun_depth)) continue;
+		//if ((attr != 'B') && (p_ptr->dun_depth != q_ptr->dun_depth)) continue;
 		if ((attr != 'B') && (attr != 'w') && !admin) {
 			/* Make sure this player is at this depth */
 			if(!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
@@ -2986,17 +3379,31 @@ void do_cmd_show_houses(int Ind, bool local, bool own, s32b id) {
 		a = access_door_colour(Ind, h_ptr->dna);
 		fprintf(fff, "\377%c", color_attr_to_char(a));
 
+#if 1 /* compress even more, for non-admins, or they have too wide a line for house tag */
+		fprintf(fff, "%3d) [%d,%d] (%d,%d)", total,
+		    h_ptr->dy * 5 / MAX_HGT, h_ptr->dx * 5 / MAX_WID,
+		    h_ptr->wpos.wx, h_ptr->wpos.wy);
+		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+#elif 0 /* compress a bit, too wide line for house tag otherwise */
+		fprintf(fff, "%3d) [%d,%d] %s", total,
+		    h_ptr->dy * 5 / MAX_HGT, h_ptr->dx * 5 / MAX_WID,
+		    wpos_format_compact(Ind, &h_ptr->wpos));
+		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+#else
 		fprintf(fff, "%3d)   [%d,%d] in %s", total,
 		    h_ptr->dy * 5 / MAX_HGT, h_ptr->dx * 5 / MAX_WID,
-		    wpos_format(Ind, &h_ptr->wpos));
+		    wpos_format_compact(Ind, &h_ptr->wpos));
 		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+#endif
 
 		if (dna->creator == p_ptr->dna) {
 			s32b price = house_price_player(dna->price, p_ptr->stat_ind[A_CHR]);
-			fprintf(fff, "  %dau", price);
+			if (admin) fprintf(fff, " %9d ", price); //compress a bit, too wide line for house tag otherwise
+			else fprintf(fff, " %9d Au", price);
 		}
 
 		if (admin) {
+			/* note: 16 = CHARACTERNAME_LEN */
 #if 0
 			name = lookup_player_name(houses[i].dna->creator);
 			if (name) fprintf(fff, "  Creator:%s", name);
@@ -3004,45 +3411,51 @@ void do_cmd_show_houses(int Ind, bool local, bool own, s32b id) {
 #endif	// 0
 			if (dna->owner_type == OT_PLAYER) {
 				name = lookup_player_name(houses[i].dna->owner);
-				if (name) fprintf(fff, "  ID: %d  Owner: %s", dna->owner, name);
-				else fprintf(fff, "  ID: %d", dna->owner);
+				/*                       ID  Owner/Master  Tag                           */
+				if (name) fprintf(fff, " %5d %-16s   %s", dna->owner, name, h_ptr->tag);
+				else fprintf(fff,      " %5d                    %s", dna->owner,       h_ptr->tag);
 			} else if (dna->owner_type == OT_GUILD) {
 				name = lookup_player_name(guilds[houses[i].dna->owner].master);
-				if (name) fprintf(fff, "  ID: %d  Master: %s", dna->owner, name);
-				else fprintf(fff, "  ID: %d", dna->owner);
+				if (name) fprintf(fff, " %5d %-16s", dna->owner, name); //Note: Guild Halls cannot have a tag
+				else fprintf(fff,      " %5d", dna->owner);
 			} else { /* paranoia */
-				fprintf(fff, "  ID: %d", dna->owner);
+				fprintf(fff,           " %5d", dna->owner);
 			}
+		/* Other characters' of our own account's houses */
 		} else if (a == TERM_GREEN && dna->owner_type == OT_PLAYER) {
 			name = lookup_player_name(houses[i].dna->owner);
-			if (name) fprintf(fff, "  owned by %s", name);
+			if (name) fprintf(fff,   " owner %-16s  %s", name, h_ptr->tag);
+		/* Houses we have access to (our very own character's houses and otherwise mainly party-access houses) */
+		} else if (dna->owner_type == OT_PLAYER) {
+			fprintf(fff, "                         %s", h_ptr->tag);
 		}
 
+		/* Houses of special owner types asides from OT_PLAYER or OT_GUILD (currently not used) */
 #if 1
 		switch(dna->owner_type) {
 		case OT_PLAYER:
-#if 0
+ #if 0
 			if (dna->owner == dna->creator) break;
 			name = lookup_player_name(dna->owner);
 			if (name) fprintf(fff, "  Legal owner:%s", name);
-#endif	// 0
-#if 0	// nothig so far.
+ #endif	// 0
+ #if 0	// nothig so far.
 			else {
 				s_printf("Found old player houses. ID: %d\n", houses[i].dna->owner);
 				kill_houses(houses[i].dna->owner, OT_PLAYER);
 			}
-#endif	// 0
+ #endif	// 0
 			break;
 
 		case OT_PARTY:
 			name = parties[dna->owner].name;
 			if (strlen(name)) fprintf(fff, " of party '%s'", name);
-#if 0	// nothig so far.
+ #if 0	// nothig so far.
 			else {
 				s_printf("Found old party houses. ID: %d\n", houses[i].dna->owner);
 				kill_houses(houses[i].dna->owner, OT_PARTY);
 			}
-#endif	// 0
+ #endif	// 0
 			break;
 		case OT_CLASS:
 			name = class_info[dna->owner].title;
@@ -3912,6 +4325,12 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 		alim = (86400 - (turn % (cfg.fps * 86400)) / cfg.fps) / 60; //abuse alim by reuse
 		if (alim < 60) msg_format(Ind, "Next 24h maintenance cycle in %d minutes.", alim);
 		else msg_format(Ind, "Next 24h maintenance cycle in %d hours %d minutes.", alim / 60, alim % 60);
+	}
+
+	/* Active store order? */
+	if (p_ptr->item_order_store) {
+		msg_format(Ind, "\377yYou still have an order open at the %s in %s.",
+		    st_name + st_info[p_ptr->item_order_store - 1].name, town_profile[town[p_ptr->item_order_town].type].name);
 	}
 
 	msg_print(Ind, " ");

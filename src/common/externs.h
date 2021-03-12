@@ -668,7 +668,6 @@ extern s16b get_quantity(cptr prompt, int max);
 extern void pause_line(int row);
 extern void request_command(bool shopping);
 extern bool is_a_vowel(int ch);
-extern bool is_same_as(version_type *version, int major, int minor, int patch, int extra, int branch, int build);
 
 /* xtra1.c */
 extern void cnv_stat(int val, char *out_val);
@@ -735,6 +734,7 @@ extern int find_realm(int book);
 extern void version_build(void);
 extern char *my_strcasestr(const char *big, const char *little);
 extern char *my_strcasestr_skipcol(const char *big, const char *little, byte strict);
+extern char *my_strstr_skipcol(const char *big, const char *little, byte strict);
 extern bool is_newer_than(version_type *version, int major, int minor, int patch, int extra, int branch, int build);
 extern bool is_older_than(version_type *version, int major, int minor, int patch, int extra, int branch, int build);
 extern bool is_same_as(version_type *version, int major, int minor, int patch, int extra, int branch, int build);

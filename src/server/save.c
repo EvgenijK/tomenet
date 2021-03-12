@@ -658,6 +658,7 @@ static void wr_house(house_type *house) {
 
 	wr_byte(house->colour);
 	wr_byte(house->xtra);
+	wr_string(house->tag);
 
 #ifndef USE_MANG_HOUSE_ONLY
 	wr_s16b(house->stock_num);
@@ -831,8 +832,7 @@ static void wr_extra(int Ind) {
 	wr_byte(p_ptr->lives);		/* old "rest" */
 	wr_byte(p_ptr->houses_owned);
 
-	wr_byte(0); //HOLE
-
+	wr_byte(p_ptr->breath_element);
 	wr_s16b(p_ptr->blind);
 	wr_s16b(p_ptr->paralyzed);
 	wr_s16b(p_ptr->confused);
@@ -1043,6 +1043,7 @@ static void wr_extra(int Ind) {
 	if (p_ptr->warning_technique_melee == 1) tmp16u |= 0x01;
 	if (p_ptr->warning_technique_ranged == 1) tmp16u |= 0x02;
 	if (p_ptr->warning_drained == 1) tmp16u |= 0x04;
+	if (p_ptr->warning_blastcharge == 1) tmp16u |= 0x08;
 	wr_u16b(tmp16u);
 
 	wr_string(p_ptr->info_msg);

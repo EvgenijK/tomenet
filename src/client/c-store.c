@@ -16,7 +16,7 @@ int store_top = 0;
 void display_store_action() {
 	int i;
 	/* BIG_MAP leads to big shops */
-	int spacer = (screen_hgt > SCREEN_HGT) ? 14 : 0;
+	int spacer = (screen_hgt == MAX_SCREEN_HGT) ? 14 : 0;
 
 	for (i = 0; i < 6; i++) {
 		if (!c_store.actions[i]) continue;
@@ -113,7 +113,7 @@ void display_inventory(void) {
 	int i, k, entries = 12;
 
 	/* BIG_MAP leads to big shops */
-	if (screen_hgt > SCREEN_HGT) entries = 26; /* we don't have 34 letters in the alphabet =p */
+	if (screen_hgt == MAX_SCREEN_HGT) entries = 26; /* we don't have 34 letters in the alphabet =p */
 
 	for (k = 0; k < entries; k++) {
 		/* Do not display "dead" items */
@@ -132,7 +132,7 @@ void display_inventory(void) {
 	/* Visual reminder of "more items" */
 	if (store.stock_num > entries) {
 		/* Show "more" reminder (after the last item) */
-		prt("-more-", k + 6, 3);
+		prt("-more (SPACE to flip page)-", k + 6, 3);
 
 		/* Indicate the "current page" */
 		put_str(format("(Page %d of %d)%s%s",
@@ -204,7 +204,7 @@ static void store_examine(void) {
 	char            out_val[160];
 
 	/* BIG_MAP leads to big shops */
-	int entries = (screen_hgt > SCREEN_HGT) ? 26 : 12;
+	int entries = (screen_hgt == MAX_SCREEN_HGT) ? 26 : 12;
 
 
 	/* Empty? */
@@ -253,7 +253,7 @@ static void store_purchase(bool one) {
 	char out_val[160];
 
 	/* BIG_MAP leads to big shops */
-	int entries = (screen_hgt > SCREEN_HGT) ? 26 : 12;
+	int entries = (screen_hgt == MAX_SCREEN_HGT) ? 26 : 12;
 
 
 	/* Empty? */
@@ -370,7 +370,7 @@ static void store_chat(void) {
 	char	where[17];
 
 	/* BIG_MAP leads to big shops */
-	int entries = (screen_hgt > SCREEN_HGT) ? 26 : 12;
+	int entries = (screen_hgt == MAX_SCREEN_HGT) ? 26 : 12;
 
 
 	/* Empty? */
@@ -452,10 +452,9 @@ static void store_do_command(int num, bool one) {
 	int                     item, item2;
 	u16b action = c_store.actions[num];
 	u16b bact = c_store.bact[num];
-	/* BIG_MAP leads to big shops */
-	int entries = (screen_hgt > SCREEN_HGT) ? 26 : 12;
-
 	char            out_val[160];
+	/* BIG_MAP leads to big shops */
+	int entries = (screen_hgt == MAX_SCREEN_HGT) ? 26 : 12;
 
 	i = amt = gold = item = item2 = 0;
 
@@ -527,7 +526,7 @@ static void store_process_command(int cmd) {
 	bool allow_w_t = TRUE, allow_k = TRUE;
 
 	/* BIG_MAP leads to big shops */
-	int entries = (screen_hgt > SCREEN_HGT) ? 26 : 12;
+	int entries = (screen_hgt == MAX_SCREEN_HGT) ? 26 : 12;
 
 	for (i = 0; i < 6; i++) {
 		if (!c_store.actions[i]) continue;
@@ -772,7 +771,7 @@ static void store_process_command(int cmd) {
 void c_store_prt_gold(void) {
 	char out_val[64];
 	/* BIG_MAP leads to big shops */
-	int spacer = (screen_hgt > SCREEN_HGT) ? 14 : 0;
+	int spacer = (screen_hgt == MAX_SCREEN_HGT) ? 14 : 0;
 
 	prt("Gold Remaining: ", 19 + spacer, 53);
 
@@ -814,7 +813,7 @@ void display_store(void) {
 	int i;
 	char buf[1024];
 	/* BIG_MAP leads to big shops */
-	int spacer = (screen_hgt > SCREEN_HGT) ? 14 : 0;
+	int spacer = (screen_hgt == MAX_SCREEN_HGT) ? 14 : 0;
 
 	/* Save the term */
 	Term_save();
@@ -902,11 +901,18 @@ void display_store(void) {
 		/* Browse if necessary */
 		if (store.stock_num > 12 + spacer) prt(" SPACE) Next page", 23 + spacer, 0);
 #else /* new: also show 1..n for jumping directly to a page */
-		prt("ESC)   Exit store", 21 + spacer, 0);
+ #if 0
+		prt("ESC) Exit store", 21 + spacer, 0);
 		if (store.stock_num > 12 + spacer) {
 			prt("SPACE) Next page", 22 + spacer, 0);
 			prt(format("1-%d)%s  Go to page", (store.stock_num - 1) / (12 + spacer) + 1, (store.stock_num - 1) / (12 + spacer) + 1 >= 10 ? "" : " "), 23 + spacer, 0);
 		}
+ #else /* display 'c' key */
+		prt(" ESC) Exit store", 21 + spacer, 0);
+		if (store.stock_num) prt("   c) Paste to chat", 22 + spacer, 0);
+		if (store.stock_num > 12 + spacer)
+			prt(format("%s1-%d) Go to page", (store.stock_num - 1) / (12 + spacer) + 1 >= 10 ? "" : " ", (store.stock_num - 1) / (12 + spacer) + 1), 23 + spacer, 0);
+ #endif
 #endif
 
 #if 0
@@ -956,7 +962,7 @@ void display_store_special(void) {
 	int i;
 	char buf[1024];
 	/* BIG_MAP leads to big shops */
-	int spacer = (screen_hgt > SCREEN_HGT) ? 14 : 0;
+	int spacer = (screen_hgt == MAX_SCREEN_HGT) ? 14 : 0;
 
 	/* Save the term */
 	Term_save();

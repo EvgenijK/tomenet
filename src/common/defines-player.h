@@ -25,7 +25,9 @@
  * Total number of inventory slots (hard-coded).
  */
 #define INVEN_TOTAL	38	/* since they start at 0, max slot index is INVEN_TOTAL - 1 (!) */
-
+#ifdef ENABLE_SUBINVEN
+ #define MAX_SUBINVEN 0
+#endif
 
 /*
  * Indexes of the various "stats" (hard-coded by savefiles, etc).
@@ -251,5 +253,6 @@
 
 /* For Draconians */
 #define SKILL_BREATH		110
+#define SKILL_PICK_BREATH	111
 
 #define MAX_SKILLS		128

@@ -1472,7 +1472,7 @@ static errr term_force_font(term_data *td, cptr name) {
 	if (!used) {
 		/* Load the new font or quit */
 		if (!AddFontResource(buf))
-			quit_fmt("Font file corrupted:\n%s", buf);
+			quit_fmt("Font file corrupted:\n%s\nTry running TomeNET in privileged/admin mode!", buf);
 	}
 
 	/* Notify other applications that a new font is available  XXX */
@@ -4452,7 +4452,7 @@ void set_palette(byte c, byte r, byte g, byte b) {
 
 	/* Need complex color mode for palette animation */
 	if (colors16) {
-		c_message_add("Palette animation failed! Disable it in = 3 'palette_animation'!");
+		c_msg_print("\377yPalette animation failed! Disable it in = 3 'palette_animation'!");
 		return;
 	}
 

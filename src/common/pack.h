@@ -252,7 +252,9 @@
 #define PKT_AUDIO		195	/* Audio capabilities */
 
 #define PKT_GUIDE		196	/* Server issues Guide-invocation on client-side */
-
+#define PKT_INDICATORS		197
+#define PKT_PLAYERLIST		198
+#define PKT_WEATHERCOL		199
 
 /*
  * Possible error codes returned

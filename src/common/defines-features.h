@@ -372,11 +372,13 @@
 
  #define OPTIMIZED_ANIMATIONS	/* testing */
 
- #define TELEPORT_SURPRISES	/* monsters are surprised for a short moment if a player long-range teleported next to them */
+ #define TELEPORT_SURPRISES 5	/* monsters are surprised for a short moment (0.1s * n) if a player long-range teleported next to them */
 
  #define LIMIT_SPELLS		/* Allow player to limit the level of spells he casts */
 
  #define DEATH_FATE_SPECIAL	/* Death Fate special */
+
+ //#define ENABLE_SUBINVEN	/* Alchemy Satchels as inventory extension */
 #endif
 
 /* Specific settings for Arcade server only */
@@ -421,6 +423,14 @@
  #define BUFFER_GUIDE
  #ifdef BUFFER_GUIDE
   #define GUIDE_LINES_MAX 25000 //note: the guide is currently 20038 lines long
+ #endif
+
+ /* Use regex.h to offer regexp in-game guide searching */
+ #define REGEX_SEARCH
+
+ /* Alchemy Satchels as inventory extension */
+ #ifdef TEST_CLIENT
+  //#define ENABLE_SUBINVEN
  #endif
 #endif
 

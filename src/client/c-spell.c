@@ -1876,8 +1876,243 @@ void do_runecraft() {
 	return;
 }
 
+static void print_breaths() {
+	int col = 20, j = 2;
+
+	/* Title the list */
+	prt("", 1, col);
+	put_str("Breath's Element", 1, col + 4);
+
+	prt("", j, col);
+	put_str(" a) Random (default)", j++, col);
+
+	prt("", j, col);
+	put_str(" b) Lightning", j++, col);
+
+	prt("", j, col);
+	put_str(" c) Frost", j++, col);
+
+	prt("", j, col);
+	put_str(" d) Fire", j++, col);
+
+	prt("", j, col);
+	put_str(" e) Acid", j++, col);
+
+	prt("", j, col);
+	put_str(" f) Poison", j++, col);
+
+	if (p_ptr->ptrait == TRAIT_POWER) {
+		prt("", j, col);
+		put_str(" g) Confusion", j++, col);
+
+		prt("", j, col);
+		put_str(" h) Inertia", j++, col);
+
+		prt("", j, col);
+		put_str(" i) Sound", j++, col);
+
+		prt("", j, col);
+		put_str(" j) Shards", j++, col);
+
+		prt("", j, col);
+		put_str(" k) Chaos", j++, col);
+
+		prt("", j, col);
+		put_str(" l) Disenchantment", j++, col);
+	}
+
+	/* Clear the bottom line */
+	prt("", j++, col);
+
+	screen_line_icky = j;
+	screen_column_icky = 20 - 1;
+}
+
+static int get_breath(int *br) {
+	int		i = 0, num = 6; /* number of pre-defined breath elements here in this function */
+	bool		flag, redraw;
+	char		choice;
+	char		out_val[160];
+	int             corresp[5];
+
+	if (p_ptr->ptrait == TRAIT_POWER) num = 12;
+
+	for (i = 0; i < num; i++) corresp[i] = i;
+
+	/* Assume cancelled */
+	(*br) = -1;
+	/* Nothing chosen yet */
+	flag = FALSE;
+	/* No redraw yet */
+	redraw = FALSE;
+
+	/* Build a prompt (accept all stances) */
+	strnfmt(out_val, 78, "(Breath types %c-%c, *=List, ESC=exit) switch to wich element? ",
+		I2A(0), I2A(num - 1));
+
+	if (c_cfg.always_show_lists) {
+		/* Show list */
+		redraw = TRUE;
+		/* Save the screen */
+		Term_save();
+		/* Display a list of stances */
+		print_breaths();
+	}
+
+	/* Get a stance from the user */
+	while (!flag && get_com(out_val, &choice)) {
+		/* Request redraw */
+		if ((choice == ' ') || (choice == '*') || (choice == '?')) {
+			/* Show the list */
+			if (!redraw) {
+				/* Show list */
+				redraw = TRUE;
+				/* Save the screen */
+				Term_save();
+				/* Display a list of stances */
+				print_breaths();
+			}
+
+			/* Hide the list */
+			else {
+				/* Hide list */
+				redraw = FALSE;
+				/* Restore the screen */
+				Term_load();
+				/* Flush any events */
+				Flush_queue();
+			}
+
+			/* Ask again */
+			continue;
+		}
+
+		/* extract request */
+		i = (islower(choice) ? A2I(choice) : -1);
+		if (i >= num) i = -1;
+
+		/* Totally Illegal */
+		if (i < 0) {
+			bell();
+			continue;
+		}
+
+		/* Stop the loop */
+		flag = TRUE;
+	}
+
+	screen_line_icky = -1;
+	screen_column_icky = -1;
+
+	/* Restore the screen */
+	if (redraw) {
+		Term_load();
+		/* Flush any events */
+		Flush_queue();
+	}
+
+	/* Abort if needed */
+	if (!flag) return (FALSE);
+
+	/* Save the choice */
+	(*br) = corresp[i];
+	/* Success */
+	return (TRUE);
+}
+
+void do_pick_breath() {
+	int br;
+
+	if (p_ptr->ptrait != TRAIT_MULTI && p_ptr->ptrait != TRAIT_POWER) {
+		c_message_add("In your lineage you cannot switch breath elements.");
+		return;
+	}
+
+	/* Ask for the breath element */
+	if (!get_breath(&br)) return;
+	Send_activate_skill(MKEY_PICK_BREATH, br, 0, 0, 0, 0);
+}
+
 void do_breath() {
 	int dir = 0;
 	if (!get_dir(&dir)) return;
 	Send_activate_skill(MKEY_BREATH, 0, 0, dir, 0, 0);
 }
+
+#ifdef ENABLE_SUBINVEN
+ #ifdef NO_RUST_NO_HYDROXIDE
+  #define SI_SATCHEL_SIZE 9
+ #else
+  #define SI_SATCHEL_SIZE 11
+ #endif
+/* This doesn't belong into c-spell.c, it's just here cause it's created based on browse_school_spell() sorta */
+void browse_subinven(int subinven_sval) {
+	int i;
+	int num = 0, where = 1;
+	int ask;
+	char choice;
+	char out_val[160], out_val2[160];
+
+	/* paranoia */
+	if (subinven_sval > MAX_SUBINVEN) return;
+
+#ifdef USE_SOUND_2010
+	sound(browseinven_sound_idx, SFX_TYPE_COMMAND, 100, 0);
+#endif
+
+	for (i = 0; i < INVEN_TOTAL; i++) {
+		if (!subinventory[subinven_sval][i].tval) break;
+		num++;
+	}
+
+	/* Build a prompt (accept all spells) */
+	if (num)
+		strnfmt(out_val2, 78, "(Contents %c-%c, ESC=exit) which spell? ", I2A(0), I2A(num - 1));
+	else
+		strnfmt(out_val2, 78, "Your satchel is empty - ESC=exit");
+
+	/* Save the screen */
+	Term_save();
+
+	/* Display a list of spells */
+
+	/* Allow rest of the screen starting at this line to keep getting updated instead of staying frozen */
+	screen_line_icky = where;
+
+	/* Get a spell from the user */
+	while (get_com(out_val2, &choice)) {
+		/* Restore the screen (ie Term_load() without 'popping' it) */
+		Term_restore();
+
+		show_subinven(subinven_sval);
+
+		/* Note verify */
+		ask = (isupper(choice));
+
+		/* Lowercase */
+		if (ask) choice = tolower(choice);
+
+		/* Extract request */
+		i = (islower(choice) ? A2I(choice) : -1);
+
+		/* Totally Illegal */
+		if ((i < 0) || (i >= num)) {
+			bell();
+			continue;
+		}
+
+		/* Restore the screen */
+		/* Term_load(); */
+
+		show_subinven(subinven_sval);
+
+		/* Allow rest of the screen starting at this line to keep getting updated instead of staying frozen */
+		screen_line_icky = where;
+	}
+	screen_line_icky = -1;
+	screen_column_icky = -1;
+
+	/* Restore the screen */
+	Term_load();
+}
+#endif

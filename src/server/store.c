@@ -894,6 +894,9 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_FIRESTONE:
 		/* ok finally */
 		case TV_BOTTLE:
+#ifdef ENABLE_DEMOLITIONIST
+		case TV_CHEMICAL:
+#endif
 			break;
 		default:
 			return (FALSE);
@@ -922,6 +925,11 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_RUNE:
 #endif
 			break;
+#ifdef ENABLE_DEMOLITIONIST
+		case TV_CHEMICAL:
+			/* Just because of novice mages dropping this... */
+			if (o_ptr->sval != SV_SALTPETRE) return FALSE; else break;
+#endif
 		default:
 			return (FALSE);
 		}
@@ -986,7 +994,11 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_DIGGING:
 		case TV_LITE:
-		case TV_FLASK: break;
+		case TV_FLASK:
+#ifdef ENABLE_DEMOLITIONIST
+		case TV_CHARGE:
+#endif
+			break;
 		case TV_WAND: if (o_ptr->sval != SV_WAND_STONE_TO_MUD) return(FALSE); else break;
 		case TV_POTION: if (o_ptr->sval != SV_POTION_DETONATIONS) return(FALSE); else break;
 		default:
@@ -1184,6 +1196,13 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	int		i, slot;
 	s64b	value, j_value;
 	object_type	*j_ptr;
+	s16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
+
+#ifdef ENABLE_DEMOLITIONIST
+	/* Hack so they don't end up too close to orange amulets sometimes */
+	if (o_tv == TV_CHARGE) o_tv = 9;
+	if (o_tv == TV_CHEMICAL) o_tv = 10;
+#endif
 
 	/* Evaluate the object */
 	value = object_value(0, o_ptr);
@@ -1255,18 +1274,27 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 			/* Get that item */
 			j_ptr = &st_ptr->stock[slot];
 
+			j_tv = j_ptr->tval;
+			j_sv = j_ptr->sval;
+
+#ifdef ENABLE_DEMOLITIONIST
+			/* Hack so they don't end up too close to orange amulets sometimes */
+			if (j_tv == TV_CHARGE) j_tv = 9;
+			if (j_tv == TV_CHEMICAL) j_tv = 10;
+#endif
+
 #ifdef PLAYER_STORES
 			/* Always skip store signs, since they are usually 'titles', aka above objects they describe */
 			if (st_ptr->player_owner && j_ptr->tval == TV_JUNK && j_ptr->sval == SV_WOOD_PIECE && j_ptr->note && strstr(quark_str(j_ptr->note), "@S:")) continue;
 #endif
 
 			/* Objects sort by decreasing type */
-			if (o_ptr->tval > j_ptr->tval) break;
-			if (o_ptr->tval < j_ptr->tval) continue;
+			if (o_tv > j_tv) break;
+			if (o_tv < j_tv) continue;
 
 			/* Objects sort by increasing sval */
-			if (o_ptr->sval < j_ptr->sval) break;
-			if (o_ptr->sval > j_ptr->sval) continue;
+			if (o_sv < j_sv) break;
+			if (o_sv > j_sv) continue;
 
 			/* (experimental) for libaries/book stores: sort [spell scrolls] by school? */
 			if (j_ptr->tval == TV_BOOK && j_ptr->sval == SV_SPELLBOOK) {
@@ -1382,8 +1410,13 @@ static bool black_market_crap(object_type *o_ptr, int st_idx) {
 	/* No magic ammos either =) the_sandman */
 	if (is_ammo(o_ptr->tval) && o_ptr->sval == SV_AMMO_MAGIC) return (TRUE);
 
+#if 0
 	/* No runes at all, actually... */
 	if (o_ptr->tval == TV_RUNE) return (TRUE);
+#else
+	/* No runes except for lots of Au */
+	if (o_ptr->tval == TV_RUNE && st_idx != STORE_BLACKS) return (TRUE);
+#endif
 
 #if 0 /* Relieve players from endlessly scumming BM for these? */
 	/* No super-high amulets in IDDC BMs */
@@ -1622,7 +1655,7 @@ static void store_create(store_type *st_ptr) {
 	bool good, great;
 	u32b resf = RESF_STORE;
 	obj_theme theme;
-	bool black_market = (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM);
+	bool black_market = (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) != 0;
 	//bool town_bm = (st_ptr->st_idx == 6);
 
 	/* Paranoia -- no room left */
@@ -2021,7 +2054,7 @@ static void store_create(store_type *st_ptr) {
 			continue;
 		if ((st_info[st_ptr->st_idx].flags1 & SF1_PRICY_ITEMS3) && (object_value(0, o_ptr) < 15000))//PRICY_ITEMS2
 			continue;
-		if ((st_info[st_ptr->st_idx].flags1 & SF1_PRICY_ITEMS4) && (object_value(0, o_ptr) < 25000))//20000
+		if ((st_info[st_ptr->st_idx].flags1 & SF1_PRICY_ITEMS4) && object_value(0, o_ptr) < 25000 && (o_ptr->tval != TV_RUNE || rand_int(3)))//20000; TV_RUNE hack for when rune repositories were removed!
 			continue;
 
 		if ((st_info[st_ptr->st_idx].flags1 & SF1_FLAT_BASE)) {
@@ -4073,6 +4106,10 @@ void store_confirm(int Ind) {
 			object_desc(0, o_name, o_ptr, TRUE, 3);
 			s_printf("SOLD_UNID_EGO: '%s' (%d) sold '%s'\n", p_ptr->name, p_ptr->max_lev, o_name);
 		}
+		if (!p_ptr->warning_sellunid && (o_ptr->tval == TV_WAND || o_ptr->tval == TV_STAFF)) {
+			msg_print(Ind, "\377yHint: Identify wands and staves before selling because their known number of charges increases their value!");
+			p_ptr->warning_sellunid = 1;
+		}
 	}
 
 	/* Know the item fully */
@@ -4427,7 +4464,12 @@ void do_cmd_store(int Ind) {
 		if (p_ptr->chp < p_ptr->mhp / 2) hp_player_quiet(Ind, p_ptr->mhp / 3, TRUE);
 		if (p_ptr->cut) set_cut(Ind, 0, 0);
 
-		if (p_ptr->blind || p_ptr->confused || p_ptr->poisoned) msg_print(Ind, "A temple priest speaks a prayer of curing.");
+		if (p_ptr->blind || p_ptr->confused || p_ptr->poisoned) {
+			msg_print(Ind, "A temple priest speaks a prayer of curing.");
+#ifdef USE_SOUND_2010
+			sound(Ind, "store_prayer", NULL, SFX_TYPE_MISC, FALSE);
+#endif
+		}
 		if (p_ptr->blind) set_blind(Ind, 0);
 		if (p_ptr->confused) set_confused(Ind, 0);
 		if (p_ptr->poisoned) set_poisoned(Ind, 0, 0);
@@ -4436,9 +4478,15 @@ void do_cmd_store(int Ind) {
 			if (p_ptr->prace == RACE_ENT) {
 				msg_print(Ind, "A temple priest hands you a bowl of water.");
 				set_food(Ind, (PY_FOOD_FULL - PY_FOOD_ALERT) / 2);
+#ifdef USE_SOUND_2010
+				sound(Ind, "quaff_potion", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 			} else {
 				msg_print(Ind, "A temple priest hands you a slice of bread.");
 				set_food(Ind, (PY_FOOD_FULL - PY_FOOD_ALERT) / 2);
+#ifdef USE_SOUND_2010
+				sound(Ind, "eat", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 			}
 		}
 	}
@@ -5494,6 +5542,13 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 	s64b value, j_value;
 	int i;
 	object_type *j_ptr;
+	s16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
+
+#ifdef ENABLE_DEMOLITIONIST
+	/* Hack so they don't end up too close to orange amulets sometimes */
+	if (o_tv == TV_CHARGE) o_tv = 9;
+	if (o_tv == TV_CHEMICAL) o_tv = 10;
+#endif
 
 
 	/* Check each existing item (try to combine) */
@@ -5528,6 +5583,15 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 			/* Get that item */
 			j_ptr = &h_ptr->stock[slot];
 
+			j_tv = j_ptr->tval;
+			j_sv = j_ptr->sval;
+
+#ifdef ENABLE_DEMOLITIONIST
+			/* Hack so they don't end up too close to orange amulets sometimes */
+			if (j_tv == TV_CHARGE) j_tv = 9;
+			if (j_tv == TV_CHEMICAL) j_tv = 10;
+#endif
+
 #ifdef PLAYER_STORES
 			/* Always skip store signs, since they are usually 'titles', aka above objects they describe */
 			if (j_ptr->tval == TV_JUNK && j_ptr->sval == SV_WOOD_PIECE && j_ptr->note && strstr(quark_str(j_ptr->note), "@S:")) continue;
@@ -5542,16 +5606,16 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 #endif	// 0
 
 			/* Objects sort by decreasing type */
-			if (o_ptr->tval > j_ptr->tval) break;
-			if (o_ptr->tval < j_ptr->tval) continue;
+			if (o_tv > j_tv) break;
+			if (o_tv < j_tv) continue;
 
 			/* Can happen in the home */
 			if (!object_aware_p(Ind, o_ptr)) continue;
 			if (!object_aware_p(Ind, j_ptr)) break;
 
 			/* Objects sort by increasing sval */
-			if (o_ptr->sval < j_ptr->sval) break;
-			if (o_ptr->sval > j_ptr->sval) continue;
+			if (o_sv < j_sv) break;
+			if (o_sv > j_sv) continue;
 
 			/* (experimental) for libaries/book stores: sort [spell scrolls] by school? */
 			if (j_ptr->tval == TV_BOOK && j_ptr->sval == SV_SPELLBOOK) {
@@ -6217,6 +6281,9 @@ void home_extend(int Ind) {
 	h_ptr->dna->price += cost;
 
 	msg_format(Ind, "You extend your house for %dau.", cost);
+#ifdef USE_SOUND_2010
+	sound(Ind, "home_extend", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 
 	display_trad_house(Ind, h_ptr);
 
@@ -6416,6 +6483,9 @@ void view_cheeze_list(int Ind) {
 
 	path_build(path, MAX_PATH_LENGTH, ANGBAND_DIR_DATA, "cheeze-pub.log");
 	do_cmd_check_other_prepare(Ind, path, "Top Guilty Cheezers");
+#ifdef USE_SOUND_2010
+	sound(Ind, "store_paperwork", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 }
 
 void view_exploration_records(int Ind) {
@@ -6468,6 +6538,9 @@ void view_exploration_records(int Ind) {
 	}
 
 	if (none) fprintf(fff, "\n\377u    There haven't been reports of any dungeon explorations for a long time!\n");
+#ifdef USE_SOUND_2010
+	else sound(Ind, "store_paperwork", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 
 	my_fclose(fff);
 	/* Display the file contents */
@@ -6561,6 +6634,9 @@ void view_exploration_history(int Ind) {
 	}
 
 	if (none) fprintf(fff, "\n\377u    Nobody has ever discovered a dungeon in this town's history!\n");
+#ifdef USE_SOUND_2010
+	else sound(Ind, "store_paperwork", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 
 	my_fclose(fff);
 	/* Display the file contents */
@@ -6641,6 +6717,10 @@ void reward_deed_item(int Ind, int item) {
 		return;
 	}
 
+#ifdef USE_SOUND_2010
+	sound(Ind, "store_redeem", NULL, SFX_TYPE_MISC, FALSE);
+#endif
+
 	/* Take the item from the player, describe the result */
 	inven_item_increase(Ind, item, -1);
 	inven_item_describe(Ind, item);
@@ -6710,6 +6790,10 @@ void reward_deed_blessing(int Ind, int item) {
 		msg_print(Ind, "\377oappropriate rewards. With a sorry gesture, he returns the deed to you.");
 		return;
 	}
+
+#ifdef USE_SOUND_2010
+	sound(Ind, "store_redeem", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 
 	/* Take the item from the player, describe the result */
 	inven_item_increase(Ind, item, -1);
@@ -7518,6 +7602,7 @@ void handle_store_leave(int Ind) {
 	/* We're no longer busy with anything */
 	p_ptr->store_action = 0;
 
+#ifdef USE_SOUND_2010
 	/* For possible store-specific music */
 	handle_music(Ind);
 	/* For possible store-specific ambient sfx */
@@ -7525,6 +7610,7 @@ void handle_store_leave(int Ind) {
 	/* Restore correct weather volume */
 	p_ptr->grid_house = FALSE; //just assume we did not get kicked out 'into' an inn.. (shouldn't happen)
 	if (p_ptr->sfx_house_quiet || !p_ptr->sfx_house) Send_sfx_volume(Ind, 100, 100);
+#endif
 
 	/* Do nothing if pointer is not valid - mikaelh */
 	if (!st_ptr) return;

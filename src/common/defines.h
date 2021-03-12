@@ -41,7 +41,7 @@
 #define VERSION_MAJOR		4
 #define VERSION_MINOR		7
 #define VERSION_PATCH		3
-#define VERSION_EXTRA		0
+#define VERSION_EXTRA		1
 #define VERSION_BRANCH		0
 #define VERSION_BUILD		0
 
@@ -66,15 +66,15 @@
 
 /* Server release version tag (such as "a", "b" etc):
    Minimum client version tag required to "play 100%". */
-#define SERVER_VERSION_TAG	""
+#define SERVER_VERSION_TAG	"a"
 
 /* Client-side only: Client release version tag
    (such as "a", "b" etc) used in window title and file dumps */
-#define CLIENT_TAG		""
+#define CLIENT_TAG		"a"
 #ifndef TEST_CLIENT
  #define CLIENT_VERSION_TAG	CLIENT_TAG
 #else
- #define CLIENT_VERSION_TAG	CLIENT_TAG"Test"
+ #define CLIENT_VERSION_TAG	CLIENT_TAG"-Test"
 #endif
 
 /* Minimum client version required to be allowed to log in */
@@ -93,7 +93,7 @@
 /* For savefile purpose only */
 #define SF_VERSION_MAJOR	4
 #define SF_VERSION_MINOR	7
-#define SF_VERSION_PATCH	10
+#define SF_VERSION_PATCH	11
 #define SF_VERSION_EXTRA	0 /* <- not used in version checks! */
 
 /* For quests savefile purpose only */
@@ -1351,10 +1351,13 @@
    taunt_monsters(), calc_body_bonus(), fountain_guard(), and mimic form handling:
    (mimic_shaman_E, mimic_druid, mimic_vampire, check_experience(), do_cmd_check_extra_info()).) */
 #define RI_LEPER		13
+#define RI_NOVICE_MAGE		46
+#define RI_NOVICE_MAGE_F	93
 #define RI_UFTHAK		260
 #define RI_DOOR_MIMIC		311
 #define RI_VAMPIRIC_MIST	365
 #define RI_VAMPIRE_BAT		391
+#define RI_HALF_TROLL		491	/* TROLL_REGENERATION */
 #define RI_BLOODLETTER		523
 #define RI_SANTA1		733	/* terror santa from hell */
 #ifdef ENABLE_OHERETICISM
@@ -1396,6 +1399,8 @@
 #define RI_ARCADE_END		1124	/* last arcade-specific monster; TODO: add ARCADE flag instead */
 
 /* Monster ego power indices */
+#define RE_NONE			0
+#define RE_DRUNK		15
 #define RE_MASTER_THIEF		33	/* CHAR_CLEAR+ATTR_CLEAR */
 #define RE_SHADOWED		45	/* CHAR_CLEAR+ATTR_CLEAR */
 
@@ -1882,6 +1887,9 @@
 #define INVEN_TOTAL	38	/* since they start at 0, max slot index is INVEN_TOTAL - 1 (!) */
 /* Number of equipment slots, INVEN_TOTAL ... INVEN_TOTAL + INVEN_EQ - 1 */
 #define INVEN_EQ	(INVEN_TOTAL - INVEN_WIELD)
+#ifdef ENABLE_SUBINVEN
+ #define MAX_SUBINVEN 0
+#endif
 
 
 /*
@@ -2205,6 +2213,33 @@
 
 #define ROW_LAG			8
 #define COL_LAG			0       /* mini lag-o-meter */
+
+/* Note: The following extra diplay info may begin at line 23 instead of 24, but will
+   still only be visible in big_map mode because otherwise it'd overwrite other
+   indicators that use that line (these are pushed to the bottom of the screen while
+   in big_map mode, thereby freeing up line 23 for these new extra display info): */
+
+#define ROW_RESIST_FIRE		23
+#define COL_RESIST_FIRE		1
+
+#define ROW_RESIST_COLD		23
+#define COL_RESIST_COLD		2
+
+#define ROW_RESIST_ELEC		23
+#define COL_RESIST_ELEC		3
+
+#define ROW_RESIST_ACID		23
+#define COL_RESIST_ACID		4
+
+#define ROW_RESIST_POIS		23
+#define COL_RESIST_POIS		5
+
+#define ROW_RESIST_MANA		23
+#define COL_RESIST_MANA		6
+
+#define ROW_TEMP_ESP		25
+#define COL_TEMP_ESP		1
+
 
 /*** Terrain Feature Indexes (see "lib/edit/f_info.txt") ***/
 
@@ -2747,7 +2782,7 @@
 #define ART_EOWYN		275
 #define ART_SMASHER		276
 #define ART_LAMFADA		277
-#define ART_FISTS		278
+#define ART_FIST		278
 #define ART_ENDOFDAYS		279
 #define ART_WARPSPEAR		280
 #define ART_UTUMNO		281
@@ -3048,6 +3083,11 @@
 #else
  #define TV_CHEMICAL	48	/* Just for building the client anyway */
 #endif
+
+/* pernM ones (resurrected) */
+#define TV_KEY		51      /* Keys (';') */
+#define TV_GOLEM        52       /* Golem parts */
+
 #define TV_TOTEM	54      /* Summoner totems */
 #define TV_STAFF	55
 #define TV_WAND		65
@@ -3058,29 +3098,8 @@
 #define TV_POTION2	72      /* Second set of potion */
 #define TV_FLASK	77
 #define TV_FOOD		80
-#define TV_HYPNOS	99      /* To wield monsters !:) */
-#define TV_GOLD		100     /* Gold can only be picked up by players(?) */
-#define TV_RANDART	102     /* Random Artifacts -- unused */
 
-/* Runecraft */
-#define TV_RUNE		107
-
-//gemstones
-#define TV_GEM		106
-
-
-#define TV_BOOK		111
-#if 0   /* (reserved) we'll use TomeNET books :) */
-#define TV_SYMBIOTIC_BOOK	112
-#define TV_MUSIC_BOOK	113
-#define TV_DRUID_BOOK	114
-#define TV_DAEMON_BOOK	115
-#endif  /* 0 */
-
-/* pernM ones (resurrected) */
-#define TV_KEY		51      /* Keys (';') */
-#define TV_GOLEM        52       /* Golem parts */
-
+/* unused */
 #define TV_PSI_BOOK	89
 #define TV_MAGIC_BOOK	90
 #define TV_PRAYER_BOOK	91
@@ -3094,6 +3113,24 @@
 /* unused */
 #define is_realm_book(o_ptr) \
 	(89 <= (o_ptr)->tval && (o_ptr)->tval <= 95)
+
+#define TV_HYPNOS	99      /* unused -- To wield monsters !:) */
+#define TV_GOLD		100     /* Gold can only be picked up by players(?) */
+#define TV_RANDART	102     /* Random Artifacts -- unused */
+
+#define TV_GEM		106	//gemstones
+#define TV_RUNE		107	/* Runecraft */
+
+#define TV_BOOK		111
+
+#if 0   /* (reserved) we'll use TomeNET books :) */
+#define TV_SYMBIOTIC_BOOK	112
+#define TV_MUSIC_BOOK	113
+#define TV_DRUID_BOOK	114
+#define TV_DAEMON_BOOK	115
+#endif  /* 0 */
+
+#define TV_SUBINVEN	126
 
 /* special items */
 #define TV_SPECIAL	127
@@ -3369,10 +3406,12 @@
 #define SV_TRAPKIT_DEVICE		6	/* 'Device Trap Kit' */
 
 /* The "sval" codes for TV_BOOMERANG */
-#define SV_BOOM_S_WOOD			1	/* 1d4  */
-#define SV_BOOM_WOOD			2	/* 1d9  */
-#define SV_BOOM_S_METAL			3	/* 1d8  */
-#define SV_BOOM_METAL			4	/* 2d4  */
+#define SV_BOOM_S_WOOD			1	/* 2d3  */
+#define SV_BOOM_WOOD			2	/* 2d5  */
+#define SV_BOOM_S_METAL			3	/* 3d4  */
+#define SV_BOOM_METAL			4	/* 3d6  */
+#define SV_BOOM_S_RAZOR			5	/* 4d5  */
+#define SV_BOOM_RAZOR			6	/* 4d7  */
 
 /* The "sval" codes for TV_BOW (note information in "sval") */
 #define SV_SLING			2	/* (x2) */
@@ -4229,8 +4268,8 @@
    ..rust: metal powder + (salt) water. Or use some kind of 'grinding tool' on rusty armour or on normal metal items to obtain (not 'reactive' though) metal powder first.
     */
 /* Optionally enable simplifications of ingredients and formulas: */
-#define NO_RUST_NO_HYDROXIDE		/* Note: Rusty items can still be ground and will just turn into normal metal powder instead, assuming the item was only partially rusted ^^. */
-#define NO_OIL_ACID			/* We don't need lamp oil to create acid, as heating is implied by our fire-type light souce (which is needed though!) */
+ #define NO_RUST_NO_HYDROXIDE		/* Note: Rusty items can still be ground and will just turn into normal metal powder instead, assuming the item was only partially rusted ^^. */
+ #define NO_OIL_ACID			/* We don't need lamp oil to create acid, as heating is implied by our fire-type light souce (which is needed though!) */
 /* TV_CHARGE svals */
  #define SV_CHARGE_BLAST		1	/* Charges can be thrown for immediate detonation or activated to detonate after a few seconds or put into trap kits? */
  #define SV_CHARGE_XBLAST		2
@@ -4291,6 +4330,9 @@
  #define CF_SW		0x1000
  #define CF_AC		0x2000
 #endif
+
+/* svals for TV_SUBINVEN */
+#define SV_SI_SATCHEL			0
 
 /* svals for TV_SPECIAL */
 #define SV_SEAL				0	/* for invalid items */
@@ -4536,8 +4578,21 @@
 /*
  * Bit flags for the "p_ptr->redraw2" variable
  */
-#define PR2_MAP_FWD	0x00000001L	/* Redraw the map just for a mind-linking player */
+#define PR2_MAP_FWD	0x00000001L	/* Redraw the map just for a mind-linking player. (Also triggers visual title-bigmap-hack.) */
 #define PR2_MAP_SCR	0x00000002L	/* Redraw just the scr map, not the ovl one */
+
+#define PR2_INDICATORS 0x00000004L /* Redraw indicators for timed properties */
+
+/*
+ * Bit flags for the "prt_indicators" function
+ */
+#define IND_RES_FIRE    0x00000001L /* Active timed resistance to fire */
+#define IND_RES_COLD    0x00000002L /* Active timed resistance to cold */
+#define IND_RES_ELEC    0x00000004L /* Active timed resistance to electricity */
+#define IND_RES_ACID    0x00000008L /* Active timed resistance to acid */
+#define IND_RES_POIS    0x00000010L /* Active timed resistance to poison */
+#define IND_RES_DIVINE  0x00000020L /* Active timed divine resistances (currently it's only mana res) */
+#define IND_ESP         0x00000040L /* Active timed full ESP */
 
 /*
  * Bit flags for the "p_ptr->window" variable (etc)
@@ -4552,6 +4607,7 @@
 #define PW_CHAT		0x00000020L	/* Display chat messages */
 #define PW_MINIMAP	0x00000040L	/* Display minimap */
 #define PW_LAGOMETER	0x00000080L	/* Display the lag-o-meter */
+#define PW_PLAYERLIST	0x00000100L	/* Display player list */
 /* flags currently not used by the client */
 #define PW_OVERHEAD	0x00001000L	/* Display overhead view */
 #define PW_MONSTER	0x00002000L	/* Display monster recall */
@@ -5326,7 +5382,7 @@
 #define RESF_NOTRUEART		0x00000002	/* prevent true artifacts */
 #define RESF_NORANDART		0x00000004	/* prevent random artifacts */
 #define RESF_NODOUBLEEGO	0x00000008	/* prevent double ego items */
-#define RESF_NOHIDSM		0x00000010	/* prevent generation of high dragon scale mails */
+#define RESF_NOHIDSM		0x00000010	/* prevent generation of high dragon scale mails: Only base elements + poison, metallics and pseudo. */
 #define RESF_LOWSPEED		0x00000020	/* not more than +4 speed */
 #define RESF_NOHISPEED		0x00000040	/* not more than +6 speed */
 #define RESF_LOWVALUE		0x00000080	/* no items worth more than 35000 Au */
@@ -7520,7 +7576,7 @@ extern int PlayerUID;
 #define MODE_DED_IDDC_OK	0x0400
 #define MODE_DED_PVP_OK		0x0800
 
-#define MODE_MASK		(MODE_HARD | MODE_NO_GHOST | MODE_EVERLASTING | MODE_PVP)       /* "real" character modes, rather than 'softer modifiers' */
+#define MODE_MASK		(MODE_SOLO | MODE_HARD | MODE_NO_GHOST | MODE_EVERLASTING | MODE_PVP)       /* "real" character modes, rather than 'softer modifiers' */
 
 
 
@@ -8093,6 +8149,7 @@ extern int PlayerUID;
 #define MKEY_AURA_DEATH		17
 
 #define MKEY_BREATH		18
+#define MKEY_PICK_BREATH	19
 
 #define MAX_AURAS 		3
 
@@ -8269,6 +8326,7 @@ extern int PlayerUID;
 
 /* For Draconians */
 #define SKILL_BREATH		110
+#define SKILL_PICK_BREATH	111
 
 #define MAX_SKILLS              128
 
@@ -8745,7 +8803,7 @@ extern int PlayerUID;
 
 
 /* Client-side auto inscriptions */
-#define MAX_AUTO_INSCRIPTIONS	20
+#define MAX_AUTO_INSCRIPTIONS	100
 
 /* Maximum amount of ping reception times logged for each player */
 #define MAX_PING_RECVS_LOGGED	10
@@ -9040,5 +9098,5 @@ extern int PlayerUID;
 #define M_STATUS_FRIENDLY	1
 
 
-/* For debugging. */
-#define __GRID_DEBUG(Ind, wpos, feat, location, info)	if ((feat) == FEAT_HIGHLY_PROTECTED && !in_trainingtower(wpos)) s_printf("__GRID_DEBUG: %s, %d - (%d) '%s' (%d,%d,%d)\n", location, info, Ind, (Ind) > 0 ? Players[Ind]->name : "-", (wpos)->wx, (wpos)->wy, (wpos)->wz);
+/* For debugging - fixed */
+//#define __GRID_DEBUG(Ind, wpos, feat, location, info)	if ((feat) == FEAT_HIGHLY_PROTECTED && !in_trainingtower(wpos)) s_printf("__GRID_DEBUG: %s, %d - (%d) '%s' (%d,%d,%d)\n", location, info, Ind, (Ind) > 0 ? Players[Ind]->name : "-", (wpos)->wx, (wpos)->wy, (wpos)->wz);

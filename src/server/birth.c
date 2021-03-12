@@ -1339,7 +1339,7 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		{ TV_SOFT_ARMOR, SV_SOFT_LEATHER_ARMOR, 0 },
 		{ TV_STAFF, SV_STAFF_DETECT_GOLD, 18 },
 		{ TV_DIGGING, SV_PICK, 0 },
-		{ TV_BOOMERANG, SV_BOOM_S_METAL, 0 },
+		{ TV_BOOMERANG, SV_BOOM_S_WOOD, 0 },
 	},
 	{
 		/* Mindcrafter */
@@ -2946,9 +2946,7 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_staircase_oneway = 1;
 		p_ptr->warning_worldmap = 1;
 		p_ptr->warning_dungeon = 1;
-		p_ptr->warning_tunnel = 1;
-		p_ptr->warning_tunnel2 = 1;
-		p_ptr->warning_tunnel3 = 1;
+		p_ptr->warning_tunnel = p_ptr->warning_tunnel2 = p_ptr->warning_tunnel3 = p_ptr->warning_tunnel4 = 1;
 		p_ptr->warning_trap = 1;
 		p_ptr->warning_tele = 1;
 		p_ptr->warning_fracexp = 1;
@@ -2960,6 +2958,9 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_repair = 1;
 		p_ptr->warning_depth = 2;
 		p_ptr->warning_partyexp = 1;
+		//p_ptr->warning_blastcharge = 1; //actually let's not disable this for now. We save/load it though!
+		p_ptr->warning_status_blindness = p_ptr->warning_status_confusion = p_ptr->warning_status_stun = 1;
+		p_ptr->warning_sellunid = 1;
 		return;
 	}
 
@@ -3122,9 +3123,6 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_run_lite = 10;
 		p_ptr->warning_ranged_autoret = 1;
 		p_ptr->warning_mimic = 1;
-		p_ptr->warning_tunnel = 1;
-		p_ptr->warning_tunnel2 = 1;
-		p_ptr->warning_tunnel3 = 1;
 		p_ptr->warning_bash = 1;
 	}
 	if (p_ptr->max_plv > 15) {
@@ -3134,6 +3132,7 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_macros = 1;
 		p_ptr->warning_boomerang = 1;
 		p_ptr->warning_inspect = 1;
+		p_ptr->warning_tunnel = p_ptr->warning_tunnel2 = p_ptr->warning_tunnel3 = p_ptr->warning_tunnel4 = 1;
 	}
 	if (p_ptr->max_plv > 20) {
 		p_ptr->warning_ghost = 1;
@@ -3142,6 +3141,7 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_lite_refill = 1;
 		p_ptr->warning_staircase_oneway = 1;
 		p_ptr->warning_repair = 1;
+		//p_ptr->warning_blastcharge = 1; //instead, we save/load it!
 	}
 	if (p_ptr->max_plv >= 25) {
 		p_ptr->warning_ai_annoy = 1; /* mimics, as the latest learners, learn sprint at 15 and taunt at 20 */
@@ -3152,6 +3152,11 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_drained = 1;
 		p_ptr->warning_depth = 1;
 		p_ptr->warning_partyexp = 1;
+		p_ptr->warning_status_blindness = p_ptr->warning_status_confusion = 1;
+	}
+	if (p_ptr->max_plv > 40) {
+		p_ptr->warning_status_stun = 1;
+		//p_ptr->warning_sellunid = 1;
 	}
 }
 
@@ -3254,6 +3259,10 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	/* Clear old information */
 	player_wipe(Ind);
 
+	/* Init only the most basic info */
+	p_ptr->Ind = Ind;
+	p_ptr->version = connp->version;
+
 	/* Receive info found in PKT_SCREEN_DIM otherwise */
 	p_ptr->screen_wid = connp->Client_setup.screen_wid;
 	p_ptr->screen_hgt = connp->Client_setup.screen_hgt;
@@ -3323,8 +3332,8 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 		clockin(Ind, 0);	/* Timestamp the player */
 		clockin(Ind, 1);	/* Set player level */
 		clockin(Ind, 2);	/* Set player party */
-		if (p_ptr->xorder_id){
-			for (i = 0; i < MAX_XORDERS; i++){
+		if (p_ptr->xorder_id) {
+			for (i = 0; i < MAX_XORDERS; i++) {
 				if (xorders[i].active && xorders[i].id == p_ptr->xorder_id) break;
 			}
 			if (i == MAX_XORDERS) p_ptr->xorder_id = 0;
@@ -3343,6 +3352,14 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 
 		p_ptr->newbie_hints = TRUE;
 		disable_specific_warnings(p_ptr);
+
+		/* Fix old draconians that have a lineage with a multi-breath element and don't have the switch-skill yet */
+		if (p_ptr->prace == RACE_DRACONIAN && p_ptr->s_info[SKILL_PICK_BREATH].value == 0 &&
+		    (p_ptr->ptrait == TRAIT_MULTI || p_ptr->ptrait == TRAIT_POWER)) {
+			/* fix old chars: add the skill */
+			p_ptr->s_info[SKILL_PICK_BREATH].value = 1000;
+			Send_skill_info(Ind, SKILL_PICK_BREATH, TRUE);
+		}
 
 		return TRUE;
 	}
@@ -3584,76 +3601,15 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	}
 
 #if 0
-	/* Adjust birth trait based skills (only draconians currently) - Kurzel */
-	switch (p_ptr->ptrait) {
-		case TRAIT_BLUE: {
-			do_trait_skill(Ind, SKILL_R_LITE, 105);
-			do_trait_skill(Ind, SKILL_R_NETH, 105);
-		break; }
-		case TRAIT_WHITE: {
-			do_trait_skill(Ind, SKILL_R_LITE,  97);
-			do_trait_skill(Ind, SKILL_R_DARK, 108);
-			do_trait_skill(Ind, SKILL_R_NETH, 108);
-			do_trait_skill(Ind, SKILL_R_CHAO,  97);
-		break; }
-		case TRAIT_RED: {
-			do_trait_skill(Ind, SKILL_R_LITE, 108);
-			do_trait_skill(Ind, SKILL_R_DARK,  97);
-			do_trait_skill(Ind, SKILL_R_NETH,  97);
-			do_trait_skill(Ind, SKILL_R_CHAO, 108);
-		break; }
-		case TRAIT_BLACK: {
-			do_trait_skill(Ind, SKILL_R_DARK, 105);
-			do_trait_skill(Ind, SKILL_R_CHAO, 105);
-		break; }
-		case TRAIT_GREEN: {
-			do_trait_skill(Ind, SKILL_R_DARK, 105);
-			do_trait_skill(Ind, SKILL_R_MANA, 105);
-		break; }
-		case TRAIT_MULTI: {
-			do_trait_skill(Ind, SKILL_R_LITE, 103);
-			do_trait_skill(Ind, SKILL_R_DARK, 103);
-			do_trait_skill(Ind, SKILL_R_NETH, 103);
-			do_trait_skill(Ind, SKILL_R_CHAO, 103);
-		break; }
-		case TRAIT_BRONZE: {
-			do_trait_skill(Ind, SKILL_R_LITE, 105);
-			do_trait_skill(Ind, SKILL_R_DARK, 105);
-		break; }
-		case TRAIT_SILVER: {
-			do_trait_skill(Ind, SKILL_R_LITE, 105);
-			do_trait_skill(Ind, SKILL_R_NEXU, 105);
-		break; }
-		case TRAIT_GOLD: {
-			do_trait_skill(Ind, SKILL_R_NEXU, 105);
-			do_trait_skill(Ind, SKILL_R_CHAO, 105);
-		break; }
-		case TRAIT_LAW: {
-			do_trait_skill(Ind, SKILL_R_NEXU, 105);
-			do_trait_skill(Ind, SKILL_R_CHAO, 103);
-			do_trait_skill(Ind, SKILL_R_MANA, 103);
-		break; }
-		case TRAIT_CHAOS: {
-			do_trait_skill(Ind, SKILL_R_NETH, 103);
-			do_trait_skill(Ind, SKILL_R_CHAO, 108);
-		break; }
-		case TRAIT_BALANCE: {
-			do_trait_skill(Ind, SKILL_R_NEXU, 103);
-			do_trait_skill(Ind, SKILL_R_NETH, 103);
-			do_trait_skill(Ind, SKILL_R_CHAO, 103);
-			do_trait_skill(Ind, SKILL_R_MANA, 103);
-		break; }
-		default:
-		break;
-	}
+	/* Bards receive really random skills */
+	if (p_ptr->pclass == CLASS_BARD) do_bard_skill(Ind);
 #endif
 
-	/* Bards receive really random skills */
-#if 0
-	if (p_ptr->pclass == CLASS_BARD) {
-		do_bard_skill(Ind);
+	/* Draconians that have a lineage with a single breath element cannot switch */
+	if (p_ptr->prace == RACE_DRACONIAN && p_ptr->ptrait != TRAIT_MULTI && p_ptr->ptrait != TRAIT_POWER) {
+		p_ptr->s_info[SKILL_PICK_BREATH].value = 0;
+		Send_skill_info(Ind, SKILL_PICK_BREATH, TRUE);
 	}
-#endif
 
 	/* Fruit bats get some skills nulled that they cannot put to use anyway,
 	   just to clean up and avoid newbies accidentally putting points into them. */

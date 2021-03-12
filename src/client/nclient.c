@@ -177,6 +177,9 @@ static void Receive_init(void) {
 	receive_tbl[PKT_POWERS_INFO]	= Receive_powers_info;
 
 	receive_tbl[PKT_GUIDE]		= Receive_Guide;
+	receive_tbl[PKT_INDICATORS]	= Receive_indicators;
+	receive_tbl[PKT_PLAYERLIST]	= Receive_playerlist;
+	receive_tbl[PKT_WEATHERCOL]	= Receive_weather_colouring;
 }
 
 
@@ -1818,7 +1821,12 @@ int Receive_ac(void) {
 
 	if (screen_icky) Term_switch(0);
 
-	prt_ac((base & ~0x1000) + plus, (base & 0x1000) != 0);
+	if (is_atleast(&server_version, 4, 7, 3, 1, 0, 0))
+		prt_ac((base > 5000 ? base - 10000 : base) + plus, (base > 5000));
+	else if (is_atleast(&server_version, 4, 7, 3, 0, 0, 0))
+		prt_ac((base & ~0x1000) + plus, (base & 0x1000) != 0);
+	else
+		prt_ac(base + plus, FALSE);
 
 	if (screen_icky) Term_switch(0);
 
@@ -2649,10 +2657,15 @@ int Receive_title(void) {
 	   hack explanation: mindlinking sends both PR_MAP and PR_TITLE, and title is sent
 	   _after_ map, so we can track the amount of map lines we received in Receive_line_info()
 	   first and then do the final check and visuals here. */
-	if (last_line_y <= SCREEN_HGT && !screen_icky) {
+	//if (last_line_y <= SCREEN_HGT && screen_hgt == MAX_SCREEN_HGT && !screen_icky) {
+	if (last_line_y <= SCREEN_HGT && screen_hgt == MAX_SCREEN_HGT) {
+		if (screen_icky) Term_switch(0);
 		/* black out the unused part for better visual quality */
 		for (n = 1 + SCREEN_HGT; n < 1 + SCREEN_HGT * 2; n++)
 			Term_erase(SCREEN_PAD_LEFT, n, 255);
+		/* Minor visual hack in case hilite_player was enabled */
+		Term_set_cursor(0);
+		if (screen_icky) Term_switch(0);
 	}
 #endif
 
@@ -4106,10 +4119,14 @@ int Receive_skills(void) {
 	p_ptr->skill_srh = tmp[5];
 	p_ptr->skill_dis = tmp[6];
 	p_ptr->skill_dev = tmp[7];
-	p_ptr->num_blow = tmp[8];
+	p_ptr->num_blow = tmp[8] & 0x1F; p_ptr->extra_blows = (tmp[8] & 0xE0) >> 5;
 	p_ptr->num_fire = tmp[9];
 	p_ptr->num_spell = tmp[10];
-	p_ptr->see_infra = tmp[11];
+	if (is_atleast(&server_version, 4, 7, 3, 1, 0, 0)) {
+		p_ptr->see_infra = tmp[11] & 0x3F;
+		p_ptr->tim_infra = (tmp[11] & 0x80) ? 0x1 : 0; //'boosted' marker
+		p_ptr->tim_infra |= ((tmp[11] & 0x40) ? 0x2 : 0); //hack: abuse for 'maxed out' marker :) (MAX_SIGHT)
+	} else p_ptr->see_infra = tmp[11]; //..and leave tim_infra at 0
 
 	/* Window stuff */
 	p_ptr->window |= (PW_PLAYER);
@@ -4492,14 +4509,14 @@ int Receive_weather(void) {
 				/* only for elements within visible panel screen area */
 				if (weather_element_x[i] >= weather_panel_x &&
 				    weather_element_x[i] < weather_panel_x + screen_wid &&
-			    	    weather_element_y[i] >= weather_panel_y &&
-			            weather_element_y[i] < weather_panel_y + screen_hgt) {
+				    weather_element_y[i] >= weather_panel_y &&
+				    weather_element_y[i] < weather_panel_y + screen_hgt) {
 					/* restore original grid content */
-	                                Term_draw(PANEL_X + weather_element_x[i] - weather_panel_x,
-        	                            PANEL_Y + weather_element_y[i] - weather_panel_y,
-                                            panel_map_a[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y],
-                                            panel_map_c[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y]);
-                                }
+					Term_draw(PANEL_X + weather_element_x[i] - weather_panel_x,
+					    PANEL_Y + weather_element_y[i] - weather_panel_y,
+					    panel_map_a[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y],
+					    panel_map_c[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y]);
+				}
 			}
 			if (screen_icky) Term_switch(0);
 		}
@@ -4840,6 +4857,39 @@ int Receive_Guide(void) {
 	return 1;
 }
 
+int Receive_indicators(void) {
+	int n;
+	char ch;
+	u32b indicators;
+
+	if ((n = Packet_scanf(&rbuf, "%c%d", &ch, &indicators)) <= 0) return n;
+
+	if (screen_icky) Term_switch(0);
+	prt_indicators(indicators);
+	if (screen_icky) Term_switch(0);
+
+	return 1;
+}
+
+int Receive_playerlist(void) {
+	int i, n;
+	char ch;
+
+	if ((n = Packet_scanf(&rbuf, "%c%d", &ch, &NumPlayers)) <= 0) return n;
+	for (i = 0; i < NumPlayers; i++) Packet_scanf(&rbuf, "%s", playerlist[i]);
+
+	fix_playerlist();
+
+	return 1;
+}
+
+int Receive_weather_colouring(void) {
+	int n;
+	char ch;
+
+	if ((n = Packet_scanf(&rbuf, "%c%c%c", &ch, &col_raindrop, &col_snowflake)) <= 0) return n;
+	return 1;
+}
 
 
 

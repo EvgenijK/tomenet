@@ -11,7 +11,7 @@ $#include "angband.h"
 
 typedef char* cptr;
 typedef int errr;
-typedef unsigned char bool;
+typedef unsigned char bool; /* TODO: Comment this out, to enable C99 _Bool */
 typedef unsigned char byte;
 typedef signed short s16b;
 typedef unsigned short u16b;
@@ -258,6 +258,7 @@ struct player_type {
 	/* TomeNET additions -- consider using macro or bitfield */
 	bool easy_open;
 	bool easy_disarm;
+	bool easy_disarm_montraps;
 	bool easy_tunnel;
 	//bool auto_destroy;
 	bool clear_inscr;

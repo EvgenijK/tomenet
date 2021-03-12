@@ -1,8 +1,8 @@
 .=========================+==--.
 |      TomeNET Guide      |
 +=========================+-
-| Latest update: 8. November 2020 - written by C. Blue (c_blue@gmx.net)
-| for TomeNET version v4.7.3 - official websites are:
+| Latest update: 11. March 2021 - written by C. Blue (c_blue@gmx.net)
+| for TomeNET version v4.7.3a - official websites are:
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
 | Runes & Runemastery sections by Kurzel (kurzel.tomenet@gmail.com)
@@ -154,6 +154,7 @@ Contents
     (6.1)   Attributes
     (6.2)   Skills, opposed skills
     (6.2a)  Maiar initiation effects
+    (6.2b)  Demolition charges
     (6.3)   Abilities
     (6.4)   Races
     (6.5)   Classes/professions
@@ -164,7 +165,7 @@ Contents
     (6.7)   Mimicry details
     (6.7a)  Polymorph rings
     (6.7b)  Useful low-level humanoid forms for weapon-using mimics
-    (6.7c)  Druid form details
+    (6.7c)  Druid forms
     (6.8)   Spells and prayers
     (6.8a)  Mimic powers
     (6.8b)  Runes & Runemastery
@@ -182,6 +183,7 @@ Contents
     (7.1)   Preparing the inventory for diving into the dungeon
     (7.2)   Preparing the equipment for diving into the dungeon
     (7.3)   Surviving critical situations
+    (7.3a)  When you are stuck
     (7.4)   Spoiler files
     (7.5)   Monster tactics
     (7.6)   Town/dungeon related hints
@@ -200,6 +202,9 @@ Contents
 
 (0) Quickstart
 ==============
+This chapter is basically the heavily compressed version of chapters (2) which
+are about installing and chapters (3) which are about logging on and creating a
+character. If you like to read in more detail, maybe switch to (2) now instead.
 
 (0.1) Start & play, character validation
 ----------------------------------------
@@ -212,14 +217,44 @@ compile the game under '(2.1) Installing/updating TomeNET'.
  If you're on Microsoft Windows, it is recommended to get the installer package
  instead of the zip archives.
 
--Either double-click 'TomeNET-direct.bat' to directly connect to official main
- server (recommended), or run TomeNET.exe and choose a server manually, for
- example enter 37.187.75.24 to connect to the official main server.
- NOTE: The official main server's hostname is "europe.tomenet.eu".
- (The Bat-file will always work properly, even if there are DNS problems which
- cause the server list not to show up properly.)
+ Note that the Nullsoft Installer framework (NSIS) TomeNET uses is an open
+ source project (https://sourceforge.net/projects/nsis/), yet annoyingly there
+ are a few badly maintained virus scanners that may give a wrong positive
+ warnings for NSIS. In the past Avira was notorious for it but it seems they
+ fixed it, nowadays it seems to be Acronis instead, at least at the time of
+ writing these lines. Anyway, you can safely ignore those *ahem*.
+ A fun fact: The TomeNET Winwdows version has never seen an actual Windows
+ system but was created purely on Linux.
 
--Create a character, Half-Troll warrior is good for beginners.
+-If you used the installer you will have a TomeNET icon on your desktop to
+ start the game (and another icon for the TomeNET Updater).
+
+ If you used the ZIP archive instead of the installer, you can run TomeNET
+ from the unzipped folder by either double-clicking 'TomeNET.exe' or (this is a
+ safe-fail in case your internet provider ever has DNS problems and you cannot
+ connect to the server) by double-clicking 'TomeNET-direct.bat' to directly
+ connect to official main server's IP address (37.187.75.24).
+
+ NOTE: The official main server's hostname is "europe.tomenet.eu".
+
+-You should now see a list of available TomeNET servers (except if you used
+ TomeNET-direct.bat, which will always connect you directly to the first main
+ server).
+ Pick the first official server by pressing 'a' key.
+ Now you are prompted to enter your account information: Name and password.
+ Since you are a new player, you don't have these yet. There is no separate
+ 'registration' process, just type in a name and a password of your choice!
+ Make sure you remember your password and enter it carefully so you don't
+ make a typo. The TomeNET client will, however, automatically store these
+ crecedentials so next time you log in you can just hit ENTER key to confirm
+ the saved name and password which will be automatically filled in for you.
+
+-Now you are presented with the account overview screen. It's just the list of
+ all your existing characters. Since you don't have any yet, it's empty.
+ Press 'N' (shift+n) to create a new character.
+
+-In this example we create a Half-Troll warrior, as it is easy for beginners:
+ It can take a lot of punishment and at the same time dish out a lot of it too!
  The server should now allow you to manually choose your stats.
  In case you chose a (Half-Troll) warrior, try this:
   STR _at least_ 18/30 (to get a high number of attacks per round - the game
@@ -261,14 +296,14 @@ compile the game under '(2.1) Installing/updating TomeNET'.
 
  ---- PLEASE NOTE: ----
  If you are new to the game, it is NOT recommended to choose one of these:
- Istar, Priest, Shaman, Adventurer, Runemaster.
+  Istar, Priest, Shaman, Adventurer, Runemaster.
  The reason is that these classes are hard to play in the beginning -
- compare introductory explanation in (6.5)!
+  compare introductory explanation in (6.5)!
  Recommended for new players are:
- Warrior, Rogue, Paladin, Druid and maybe Archer.
+  Warrior, Rogue, Paladin, Druid and maybe Archer.
 
 
--Make sure you DO NOT chose 'PvP' mode. It's a restricted special thing that
+-Make sure you DO NOT chose PvP mode. It's a restricted special thing that
  has nothing to do with the normal gameplay at all! (See (6.13) for info).
 
 -It's strongly recommended to not choose 'fruit bat' body either :).
@@ -397,6 +432,10 @@ a name will indicate an 'invalid' account.
 You could continue reading at (3.2) now, which explains the user interface,
 or glance at (7.1), (7.2) or (7.3) first which explain some basic strategy.
 
+If you ever get stuck in a problematic situation where you feel you either
+cannot defeat a certain monster or you cannot advance your character the way
+you'd like to, check out (7.3a)!
+
 
 (0.1a)  Colours and colour blindness
 ------------------------------------
@@ -520,8 +559,14 @@ x       S       swap an item. This is basically like both "wear/wield" and
                 When the item is currently in the inventory, it will be
                 equipped. If it already is equipped though, then it will be
                 taken off.
+                Note for rogue-like keymap:
+                Although the key is 'S', the actual item inscriptions must
+                still use 'x', eg '@x0' when the macro is 'S0'!
 
 q       q       quaff a potion.
+                If you enable the 'keep_bottle' option (it's in =7 at the time
+                of writing this) your character will retain an empty bottle
+                which you can fill at a fountain.
 
 r       r       read a scroll.
 
@@ -933,8 +978,10 @@ CTRL+P  view previous messages.
         Note: You can also press this when in chat prompt, to cycle backward
         through lines that you previously typed (also see CTRL+N, which cycles
         forwards).
+        Press CTRL+K in here to copy the bottom-most line to the OS clipboard.
 
 CTRL+O  view previous chat messages.
+        Press CTRL+K in here to copy the bottom-most line to the OS clipboard.
 
 CTRL+Q  save your character & quit the game. (You should do this in town!)
         This also automatically saves some settings, like window layout (the
@@ -1000,6 +1047,13 @@ CTRL+D      Delete character under the cursor.
 CTRL+C      Search history of chat messages you typed. Press CTRL+C again for
             next match. Press ENTER to choose or ESC to cancel.
 
+CTRL+K      Copies currently typed chat line to clipboard.
+            Note that CTRL+K can also be used inside message recall screen,
+            which is invoked by CTRL+O/P (important/all messages). There it
+            will copy the bottom-most displayed line to the clipboard.
+CTRL+L      Pastes current clipboard as chat line, erasing any existing text
+            you were just typing.
+
 
 (0.2b) Slash commands
 ---------------------
@@ -1055,6 +1109,7 @@ They all start with a slash '/' hence they're called slash commands:
             Parameters are:
              t: town-only? (optional)
              and then mandatory: rune, rune, mode, type
+            For more info and examples see (6.8b), paragraph Auto-Retaliation.
 
 /bbs <text>
             Add a line of text to the in-game bulletin board system. Players
@@ -1075,7 +1130,7 @@ They all start with a slash '/' hence they're called slash commands:
 /bug        Report a bug to the admin(s).
 
 /convertexclusive    Attempts to convert your current character into a
-                     slot-exclusive character (either PvP-mode or IDDC aka
+                     slot-exclusive character (either PvP mode or IDDC aka
                      Ironman Deep Dive Challenge). Warning: This process is NOT
                      REVERSIBLE! To attempt to convert your character, type:
                      /convertexclusive <your-character-name>
@@ -1144,6 +1199,19 @@ They all start with a slash '/' hence they're called slash commands:
             As another specialty, /dis (without parameters) will skip dragon
             scale mails, leaving them intact.
 
+            Tip: If you want to keep {good} items too, press '&' to open the
+            auto-inscriptions menu and add a new auto-inscription there:
+            For search string, enter:   !good
+            and for inscription, enter: -good-
+            What this does is to look for any item that is inscribed {good} and
+            immediately inscribe it {-good-} instead. Thanks to the slight
+            modification (adding the two dashes around the 'good') the /dis
+            command will no longer recognize it as {good} pseudo-inscription
+            and therefore not attempt to destroy this item.
+            The exclamation mark in '!good' was needed to force re-inscribing
+            an already inscribed item, without it the inscription would only
+            be applied to items that do not carry an inscription yet.
+
 /dis a      DESTROYS items like '/dis', and additionally destroys all items
             that have no inscription at all or just a price discount tag
             (discount tags don't count as real inscriptions).
@@ -1184,6 +1252,15 @@ They all start with a slash '/' hence they're called slash commands:
             Opposite of /bed.
 
 /dun        Displays the name of the dungeon you're currently in.
+
+/edmt       This toggles the client option 'easy_disarm_montraps' manually.
+            (Note that this will not change the option in =7, if you enter that
+            menu, the option state will be reset to what it is in there.)
+            This will toggle the characters behaviour when walking into a
+            monster trap: Whether it will automatically attempt to disarm it or
+            not. Use it as a trapper for convenience to disarm all remaining
+            traps on the field faster after a battle has ended, instead of
+            having to press the disarm-key for every trap.
 
 /empty <inventory slot>
             Empty a potion from your inventory, leaving an empty bottle.
@@ -1247,6 +1324,8 @@ They all start with a slash '/' hence they're called slash commands:
               automatically receive 1 experience point (to limit the amount
               of cash you can pick up before participating in certain events,
               such as Highlander Tournament or Ironman Deep Dive Challenge).
+            - whether you still have an active item oder and in which store in
+              which town.
 
 /exit
 /leave
@@ -1293,10 +1372,13 @@ They all start with a slash '/' hence they're called slash commands:
 
 /guildmembers   Displays a list of all members of your guild.
 
-/help
+/help [topic]
 /he
-/?          View a list of all command keys (same as pressing '?' key).
-            Also lists a few most commonly used slash commands.
+/?          Without 'topic' parameter, this shows a list of all command keys
+            (same as pressing '?' key) and additionally lists a few most
+            commonly used slash commands.
+            Optionally, a topic can be specified - in this case a guide search
+            will be conducted on that topic. For example enter:   /? ac
 
 /house
 /hou        Displays your houses, same as ~9, but offers two optional
@@ -1431,7 +1513,7 @@ They all start with a slash '/' hence they're called slash commands:
             his house, which will preset you with the store screen.
             (See (4.10a) for more information about player stores.)
 
-/pvp        Carries you into/out of the PvP arena. Only usable by pvp-mode
+/pvp        Carries you into/out of the PvP arena. Only usable by PvP mode
             chars. See (6.13) for details about PvP mode.
 
 /quest
@@ -1476,6 +1558,7 @@ They all start with a slash '/' hence they're called slash commands:
             instead of sending your message to everyone on the server.
 
 /shout <text>
+            Shout <text> loudly, will wake up monsters. (Same as "/yell".)
 
 /scream <text>
             Same as /shout, but also aggravates monsters in your current
@@ -1548,9 +1631,16 @@ They all start with a slash '/' hence they're called slash commands:
             to your current character position.
 
 /testyourmight <show|rs>
-/tym <show|rs>
+/tym <show|rs[w|x]>
             '/tym show' will display your damage/healing output so far and
             '/tym rs' will reset the damage/healing counters.
+            '/tym rsw' will reset the damage/healing counters but wait with
+                       counting until you perform your first attack.
+            '/tym rsx' will reset the damage/healing counters but wait with
+                       counting until you perform your first attack.
+                       If you don't attack for 5 seconds afterwards, it will
+                       automatically stop recording and evaluate the result.
+                       This is the recommended way for stress-free testing.
 
             Displays damage and healing stats for your character, totals and
             averages over number of attacks and over time (# of seconds
@@ -1637,7 +1727,7 @@ They all start with a slash '/' hence they're called slash commands:
             mayor's office in Bree to receive an extermination order.
 
 /yell <text>
-            Shout <text> loudly, will wake up monsters.
+            Shout <text> loudly, will wake up monsters. (Same as "/shout".)
 
 Aside from slash commands there are also item-paste shortcuts, which can be
 incorporated into any text you type in chat:
@@ -1772,6 +1862,10 @@ Other !-inscriptions:
                 anyway.
     !U          This item will be displayed in dark grey colour in your
                 inventory. Can be useful for sorting loot.
+Mainly for consumable items:
+    !Q          will not print a message how many you have left after consuming
+                one (like if 'taciturn_messages' were enabled). For example use
+                on ID scrolls in combination:  !XQ
 
 The # inscription:
     This one makes all following inscription be appended directly behind the
@@ -1825,7 +1919,7 @@ Ammunition:
                 order for reloading by dropping it/picking it up again!
                 The !L inscription also works for boomerangs.
 
-Sling ammunition:
+Sling ammunition and boomerangs:
     !R          Prevents ricochetting.
 
 Scrolls/spell books of Identify (except for bag-ID), Rods/Staves of Perception:
@@ -1839,6 +1933,12 @@ Scrolls/spell books of Identify (except for bag-ID), Rods/Staves of Perception:
                 such as spells or magic devices, and you do fail, there will be
                 no automatic retry, you will have to ID it manually.
                 See (5.7) for more information about identification.
+
+Empty bottles:
+    !Mn         Will auto-destroy any further empty bottles you acquire beyond
+                the amount of n bottles. Example:  !M10
+                This is mainly useful for when 'keep_bottle' option is enabled,
+                to prevent uncontrolled amassment of empty bottles.
 
 An item that can be activated:
     @A1         Pressing the keys 'A' and then '1' will activate that item.
@@ -2036,6 +2136,9 @@ Auto-ID     A special ability of some items. If you equip an item that grants
             highly sought after. Randart helmets or gloves sometimes have it.
             See (5.7) for more information about identification.
 
+BD          Barrow-Downs. The main starter dungeon in the town of Bree, located
+            to the far left of the town.
+
 BM          Black Market (Store '7').
 
 BpR/SpR     Blows per round, shots per round. The number of attacks you get
@@ -2143,6 +2246,27 @@ Iron Team   A special type of party which can only be formed with newly
             The owner can decide to 'close' an iron team in the party menu,
             which will permanently disallow addition of any further members.
 
+Ironman     This typically describes a gameplay scenario where you cannot
+            resurrect so death is permanent and often also where you cannot
+            turn back and return to town either.
+            There are basically 3 types of 'Ironman' in TomeNET:
+            1) The Ironman server in the server list. You can return to towns
+               here though. For details about its special ruleset see (8.6).
+            2) The normal TomeNET server has a few Ironman dungeons too, which
+               are just dubbed 'Wilderness' in the dungeon list when found.
+               These dungeons can only be traversed one-way. To leave them you
+               must reach the final floor and then use word-of-recall there.
+               There is one 'named' Ironman dungeon: 'The Halls of Mandos',
+               which goes from level 1 to 100 and as a specialy (no other
+               dungeon has this restriction) has no unique monsters in it.
+            3) The IDDC dungeon (both, normal server and Ironman server
+               actually have one of these each): 'Ironman Deep Dive Challenge'.
+               In this dungeon, death is permanent and you cannot leave except
+               under a few specific exceptions. Special trade rules apply too.
+               This dungeon is recommended if you want to have an epic Ironman
+               diving experience, be it solo or in a party.
+               For details about its ruleset see (4.13).
+
 kinging     The process of beating Morgoth, the game boss, and thereby
             acquiring a royal title (king/queen/emperor/empress).
             Such player characters are also referred to as 'winners'.
@@ -2234,6 +2358,10 @@ Nest        Originally also just called 'pits', nests only differ from pits in
 non-EL      Not Everlasting. This refers to the character mode that the player
             chooses during character creation. For details see (3.1).
 
+OC          The Orc Caves. A very commonly sought dungeon which is usually
+            entered soon after having roamed Barrow-Downs a bit, or by some
+            more daring adventurers even right away as their first dungeon.
+
 olevel      see klevel.
 
 OoD         Out-of-depth. Means a monster or an item encounter that happened at
@@ -2271,11 +2399,18 @@ Pseudo-ID   If a player keeps an unidentified item for a longer time he might
             It does not matter whether the player is acting, afk or idle.
             See (5.7) for more information about identification.
 
+PvE         Player vs environment. This is the main game style of TomeNET:
+            You fight against the computer-controlled environment, usually not
+            against any fellow players. Instead, cooperative gameplay is very
+            rewarding.
+
 PvP         Player vs player. Describes the act of player characters fighting
             each other. If you want to fight other players to death, create a
-            new 'pvp-mode' character. It's an option during the character
+            new 'PvP mode' character. It's an option during the character
             creation process, much like 'everlasting mode' or 'normal mode'.
             For more information about pvp mode, see (6.13).
+            Any player characters can have a friendly pvp-duel without any
+            consequences by utilizing scrolls of blood bond (see (5.9)).
 
 Randart     Randomly generated artifact. As opposed to 'Truearts' which are
  Randy      also called 'Static arts' from the file a_info.txt (you can search
@@ -2344,7 +2479,11 @@ Stair GoI   Stair-GoI is a very short-lasting globe of semi-invulnerability
             When an attack is deflected, you get a message saying:
             "The attack is fully deflected by a magic shield."
 
-True Art    See 'Art' at the top of this section.
+True Art    See 'Art' at the top of this section. Synonymous with 'Static Art'.
+
+TT          The Training Tower. The easiest (but also smallest and least
+            rewarding) dungeon in the game, located right in Bree, along the
+            south-eastern path away from the Inn.
 
 Unique      A monster that is named and exists only once. Although it can
             respawn for another player who hasn't defeated it yet, each player
@@ -2423,6 +2562,8 @@ Wormy       Wormtongue, Agent of Saruman. He drops great items.
  a while. So don't use the town or the wilderniss to 'store' loot.
  If you don't own any houses, you can use public houses that are accessible to
  everyone. Risk is of course that someone takes your items.
+ True artifacts dropped outside of towns will usually vanish instantly the
+ moment you leave the sector!
 
 -If you press CTRL+Q to save&exit the game, you should do that in a safe town.
  Dungeons might change while you are logged off, and the next time you log on
@@ -2826,13 +2967,24 @@ redownload it.)
 
 Windows:
 --------
-To extract the TomeNET zip package you downloaded, 7-zip is recommended.
-It's a free and open source zip-tool of outstanding performance that works on
-all platforms. Grab it from https://www.7-zip.org/ .
+It is recommended to get the installer package instead of the zip archives.
+You can safely install TomeNET over an already existing installation (just
+make sure to quit the game first!), the installer will not reset/delete your
+existing macros, settings or custom audio packs (it will only overwrite things
+in 'lib/xtra/music' and 'lib/xtra/sound' ie the official audio packs).
 
-After extracting, you're good to go. If you're already tired of reading, just
-double-click TomeNET.exe, pick the first official server in the list, make up
-an account and character and start to play.
+The Nullsoft Installer framework (NSIS) the Windows installer uses is an open
+source project (https://sourceforge.net/projects/nsis/), yet annoyingly there
+are a few badly maintained virus scanners that may give a wrong positive
+warnings for NSIS. In the past Avira was notorious for it but it seems they
+fixed it, nowadays it seems to be Acronis instead, at least at the time of
+writing these lines. Anyway, you can safely ignore those *ahem*.
+A fun fact: The TomeNET Winwdows version has never seen an actual Windows
+system but was created purely on Linux.
+
+If you used the ZIP archive instead of the installer, 7-zip is recommended for
+extracting it. It's a free and open source zip-tool of outstanding performance
+that works on all platforms. Grab it from https://www.7-zip.org/ .
 
 There is also a manual in your TomeNET folder, the file is called
 "TomeNET-Guide.txt". Double-click to read it. It is recommended to not open it
@@ -2840,17 +2992,16 @@ in Wordpad, but either in Notepad or in any web browser of your choice, because
 Wordpad tends to warp the layout badly.
 Alternatively you can find the latest version of the manual online for browsing
 and easy searching, on the TomeNET homepage (https://www.tomenet.eu/).
+The guide can even be accessed inside the game by pressing ? twice or ~g.
 
 If you're tech savvy, you could decide to edit the game configuration manually,
 but that is not really required. Continue reading below if you want to do that.
 
-Otherwise, you could skip forward to (2.1a) now, where you find an explanation
-on how to install the music pack.
+If you are using Valve's Steam and are interested on how to integrate TomeNET
+into it, check out (2.1d) :D.
 
-When you're done with everything, you can continue reading at (2.1d) if you are
-using Valve's Steam, and then at (2.2) to find how how to actually connect to
-the TomeNET game server, create an account, create a character, and play the
-game!
+On how to run the game, connect to the game server and start playing, continue
+reading at (2.2)!
 
 
 Windows - Manually editing the configuration file (if you're tech savvy):
@@ -2882,7 +3033,7 @@ Last but not least, you may use the following command-line options:
 -x                      Don't save chat/message log on exit (don't prompt)
 <ip address>            for example 37.187.75.24
 
-(Skip down to (2.1a) to continue reading.)
+(Skip down to (2.2) to continue reading.)
 
 
 Windows (cross-compiling from Linux):
@@ -2893,6 +3044,9 @@ For the crosscompiling part, install mingw32 and take note of the folder prefix
 it installs to, in most cases it will be 'i686-w64-mingw32', so it will install
 to /usr/i686-w64-mingw32/...  with notable subfolders include/, lib/ and bin/.
 Edit the makefile.mingw to have MINGW_TARGET reflect the prefix.
+
+For regexp search (only used for the guide-search in c-cmd.c) you will probably
+need a regexp lib, mingw-libgnurx should work fine.
 
 Next, for sound support you will have to download at least SDL v1.2.15 and
 SDL-mixer v1.2.12. Optionally you can get SMPEG for MP3-support or MikMod for
@@ -3036,7 +3190,7 @@ Example:
         ./tomenet -p18348 -lIron\ Man geheimer 37.187.75.24
 ..if your account name is 'Iron Man'.
 
-(Skip down to (2.1a) to continue reading.)
+(Skip down to (2.2) to continue reading.)
 
 
 Mac OS X (using pre-compiled binary; tested with Snow Leopard 10.6.6):
@@ -3052,7 +3206,7 @@ should now launch correctly with a GUI, ie various game windows.
 If you're tech savvy and want to manually edit the TomeNET configuration file,
 see "Configure TomeNET on Linux" further above.
 
-Otherwise skip down to (2.1a) to continue reading.
+Otherwise skip down to (2.2) to continue reading.
 
 
 Mac OS X (compiling from source; tested with Snow Leopard 10.6.6):
@@ -3422,39 +3576,50 @@ and if you do so then your Steam status will show that you are playing TomeNET!
 
 (2.2) Starting TomeNET and getting to play on an internet server
 ----------------------------------------------------------------
-To start the TomeNET client, run 'TomeNET.exe' or 'TomeNET-direct.bat'.
-(If you run the '.bat' file, the meta-server steps will be skipped and you
-will be directly connected to the official main server instead.)
-Now TomeNET tries to connect to a meta-server which contains a list of all
-available TomeNET internet servers.
-After the meta-server has been queried, the list of available servers will
-appear in the main window. Choose a server that is near to your location to
-avoid high latency.
-(This step is reported to sometimes cause problems on Windows OS. If you don't
-see that list, or if other problems occur, see (8.8) for possible solutions.)
+If you used the installer you will have a TomeNET icon on your desktop to
+start the game (and another icon for the TomeNET Updater).
 
-Now you will be prompted to enter your account name and password. You can
-choose these freely, the server will save that information and use it to
-remember which characters belonged to you the next time you log on.
-IMPORTANT: If you get kicked out with an error message after entering account
-and password, it's likely because that account name is already in use by
-someone else so your password was recognized as 'incorrect' since it was most
-likely different from that user's password. Just try a different account name.
-A player usually has exactly one account that can hold up to 8 characters.
+If you used the ZIP file, you can run TomeNET from the unzipped folder by
+either double-clicking 'TomeNET.exe' or (this is a safe-fail in case your
+internet provider ever has DNS problems and you cannot connect to the server)
+by double-clicking 'TomeNET-direct.bat' to directly connect to official main
+server's IP address.
+
+On OSX you run the 'TomeNET.command' file, on Linux the 'tomenet' binary.
+
+(Side note: The official main server's hostname is "europe.tomenet.eu" and its
+IP address is 37.187.75.24.)
+
+You should now see a list of available TomeNET servers (except if you used
+TomeNET-direct.bat, which will always connect you directly to the first main
+server) starting with the official main server under 'a)'.
+(This list of servers is called the 'meta-server'.)
+Pick the first server by pressing the 'a' key.
+On some Windows configurations in the past the window would stay empty. If
+this happens or if other problems occur, see (8.8) for possible solutions.
+
+Now you are prompted to enter your account information: Name and password.
+Since you are a new player, you don't have these yet. There is no separate
+'registration' process, just type in a name and a password of your choice!
+Make sure you remember your password and enter it carefully so you don't
+make a typo. The TomeNET client will, however, automatically store these
+crecedentials so next time you log in you can just hit ENTER key to confirm
+the saved name and password which will be automatically filled in for you.
+
 In most cases newly created accounts have to be "validated" by a server
 administrator to enable you to use the whole functionality of TomeNET. For
 example it is common not to allow unvalidated players to drop items or money
 to the ground. This is done to prevent certain cases of abuse.
 If you accidentally chose an account name or character name which was already
-taken by another player, you will be disconnected with an error message. In
-that case, try again with different names.
+taken by another player, you will see a message telling you to try a different
+name.
 
-Now that you have logged in you can create a new player character which will
-represent you in the virtual world of Middle Earth!
-To do so, press 'N' key in your character overview screen (showing you empty
-character slots, since you haven't created any characters yet) and then enter
-a name for your character. You may use the same name as your account name, if
-you like.
+Now that you have logged in you are presented with the account overview screen.
+It's just the list of all your existing characters. Since you don't have any
+yet, it's empty. Press 'N' (shift+n) to create a new character which will
+represent you in the virtual world of Middle Earth and then enter a name for
+your character. You may use the same name as your account name, if you like.
+
 Players logged on to the game are identified by 3 names:
 -Nickname (character's name)
 -Realname (account name)
@@ -3472,10 +3637,11 @@ certain level.
 You will need an admin to 'validate' your account.
 Usually, all you have to do is to keep playing/stay online for a bit until an
 admin logs in, notices that you are new, and validates your account.
-If that doesn't seem to happen, ask an admin directly, when you see one
-chatting (Admin's names are displayed in dark blue in the chat).
-If the server's intro screen mentions to send an email to an admin, try that
-and specify your account name in it.
+If that doesn't seem to happen, just ask in chat (press : key to chat) or ask
+an admin directly, when you see one chatting (Admin's names are displayed in
+dark blue in the chat).
+If the server's intro screen mentions an email address you could also send an
+email there if you still haven't been validated.
 
 You may continue reading at (3.1), which explains details of the character
 creation progress.
@@ -3776,20 +3942,31 @@ client. Again press = f and then use + and - keys to switch the main window
 font. These two keys allow you to switch through all fonts available in the
 lib/xtra/font folder.
 
-
 For the Linux/OS X client, the game doesn't use the lib/xtra/font folder but
 instead assumes that some standard fonts are provided by your system and tries
 to select those when cycling with 'c' key in the fonts menu.
 You can also set fonts manually with = f if you want to choose specific fonts
 available in your Linux/OS X installation.
+To manually install your own fonts, see the instructions for Linux two
+paragraphs below in (2.5a), it should be in pcf format.
 
 
 (2.5a) Custom fonts
 -------------------
-For the Windows client it is possible to create your own custom fonts for the
-game. You can use "Fony" for example: http://hukka.ncn.fi/?fony
+It is possible to create your own custom fonts for the game.
+For the Windows client which uses .FON files you can use "Fony" for example:
+http://hukka.ncn.fi/?fony
 (Up to client 4.6.1a it was not possible to use characters of numbers 128-255
 but this has been addressed, so the full range of characters is available now.)
+
+For the Linux client you'll need to convert the font to pcf format,
+place it into a registered fonts folder (check 'xset -q'), usually that can be
+/usr/share/fonts/misc, let fontconfig rescan it with 'fc-cache' (optionally
+with -f to force rescan) and also have X rescan it with 'xset fp rehash' and
+then run 'sudo mkfontdir' in /usr/share/fonts/misc (if that's the folder where
+you placed the fonts) to add them to fonts.dir file. You can verify that all is
+fine by doing 'fc-list' and 'xlsfonts'. TomeNET doesn't use fontconfig but it's
+probably a good idea to register the fonts in both, fontconfig and X11.
 
 Since you might need/want to use mapping files to remap terrain features to the
 characters in your font, you can create font-preference files that contain
@@ -4112,6 +4289,8 @@ More information about 'PvP' mode is given in (6.13).
 
 Unworldly characters will receive 25% bonus on their high score.
 Hellish characters receive 50% bonus on their high score.
+The highscore numbers are just for bragging and have no actual influence on
+game-play or anything.
 
 
 Last you can choose a body modification. It's strongly recommended for
@@ -4140,6 +4319,10 @@ Creation of your character is now finished and you are asked to press a key to
 start the actual game. Do so and take a minute to read the text that will
 appear. It is called news or motd (message of the day) and often contains
 important server-specific information or announcements to the players.
+
+If you ever get stuck in a problematic situation where you feel you either
+cannot defeat a certain monster or you cannot advance your character the way
+you'd like to, check out (7.3a)!
 
 
 (3.1a) Character names, collisions and reservations
@@ -4441,7 +4624,7 @@ indicating character modes:
   White           Normal mode player.
   Light blue      Everlasting mode player.
   Dark grey       No-ghost / hellish mode player.
-  Yellow          Player is a PvP-mode character.
+  Yellow          Player is a PvP mode character.
 indicating special character status:
   Violet          Player character is king / queen.
   Dark blue       Player is admin.
@@ -4779,6 +4962,9 @@ So to prepare for hunting in the dungeon, buy:
 And if you still have spare money (this one costs a lot) a
 -Scroll of Word of Recall. (See "(0.3) Important inscriptions, Word of Recall"
  for more info.)
+
+If you are interested in more tips about preparing inventory and equipment, you
+could check out chapter (7) Tactics & Strategy.
 
 
 
@@ -5847,8 +6033,8 @@ Everlasting characters may also use the 'Instant Resurrection' feature offered
 by town temples, see (4.5a), which will avoid turning into a ghost.
 
 Ghosts are very fragile, but can pass solid walls, float up and down freely
-using the < and > keys, their melee attacks can cause fear and they gain +3
-infra-vision.
+using the < and > keys, their melee attacks can cause fear and they gain a few
+special abilities listed further below under 'Ghosts' (such as infra-vision).
 
 If a player ultimatively dies on a dungeon or tower floor, ie he didn't turn
 into a resurrectable ghost but got completely erased, then that particular
@@ -5941,8 +6127,9 @@ Ghosts have some special abilities, these are
 -they can see invisible creatures
 -life force can hardly be drained from them
 -they cannot be paralyzed
--they spot warm-blooded creatures easily
--they resist darkness effects, poison, cold, blindness, fear and confusion
+-they spot warm-blooded creatures easily (aka +5 to infra-vision)
+-they resist darkness effects, cold, blindness, fear and confusion
+-they are immune to poison and don't suffer from continuous disease
 -they cannot be cut since they don't bleed
 -they resist insanity attacks
 -they can pass solid walls and mountains
@@ -6272,6 +6459,7 @@ staircase colours (also visible on the world map):
  back to town! They still lose about 20% experience (and gold) though.
  They will not lose their winner (King/Queen/Emperor/Empress) state though.
  No-death dungeons/towers are marked by a green < or > symbol.
+ NOTE: The NO_DEATH flag has no effect on PvP mode characters, they will die.
 
 -Dungeons that allow neither recalling out, nor floating or providing stairs!
  There is usually only one such dungeon and that is the 'Death Fate'.
@@ -6532,16 +6720,17 @@ Dungeon towns behave like normal towns in these regards.
 
 (4.5a) Shops and their services
 -------------------------------
-Each town has several shops, displayed as numbers 1..9 and some '+'.
-The 1..9 are standard shops, namely..
-1       General Store   Sells food, lanterns, ammunition, cloaks and shrooms.
-2       Armoury         Offers various basic armour. Rarely excellent pieces.
+Each town has several shops, displayed as numbers '1'..'9' and some '+'.
+(There are some special variations of these shops too, located in dungeons.)
+The 1-9 standard shops that recur in every town are..
+General Store   1       Sells food, lanterns, ammunition, cloaks and shrooms.
+Armoury         2       Offers various basic armour. Rarely excellent pieces.
                         Also offers to repair damaged armour (which is cheaper
                         than enchanting it).
-3       Weapon Shop     Offers various basic weapons. Rarely excellent pieces.
+Weapon Shop     3       Offers various basic weapons. Rarely excellent pieces.
                         Also offers to repair damaged weapons (which is cheaper
                         than enchanting it).
-4       Temple          Player ghosts will be revived here, and receive some
+Temple          4       Player ghosts will be revived here, and receive some
                         money. The temple also sells a selection of blunt
                         weaponry, scrolls and potions.
                         The temple priest will also attempt to cure, heal or
@@ -6568,24 +6757,30 @@ The 1..9 are standard shops, namely..
                         Instant resurrection does not work in no-ghost dungeons
                         (ie ironman or hellish) and dungeon levels (ie floors
                         where Morgoth is) or in the Nether Realm.
-5       Alchemist       Sells various scrolls and potions.
-6       Magic Shop      Sells wands, staves, rings and amulets.
-7       Black Market    Sells many different items, mostly very good ones.
+Alchemist       5       Sells various scrolls and potions.
+Magic Shop      6       Sells wands, staves, rings and amulets.
+Black Market    7       Sells many different items, mostly very good ones.
                         This shop is very expensive and buys for very little
                         in return. Better not sell your items to this shop,
                         as long as a regular store will pay you better.
                         Some items cannot be sold elsewhere though.
-8       The Inn         In Bree it's The Prancing Pony. Inside the inn,
+The Inn         8       In Bree it's The Prancing Pony. Inside the inn,
                         players are relatively safe from monsters.
-9       Book Store      Sells books for istari, priests and all other (hybrid)
-                        magic users. Book stores in higher-level towns on
-                        average also tend to sell higher-level spells.
-+       These are different everywhere. Some examples are mainly..
-        The Inn         Eg The Prancing Pony in Bree. While the '8' is just the
+Bookstore       9       Sells books for istari, priests and all other (hybrid)
+                        magic users. Bookstores in higher-level towns on
+                        average also tend to sell higher-level spells (this is
+                        a bookstore-specific specialty, other town shops do not
+                        differ in this way).
+                        The 'o'rder command you can use in town stores is
+                        especially useful in bookstores as it allows you to
+                        order specific spells and prayers you are looking for.
+
+Then there are various shops that just use a normal door '+' symbol, these are
+different everywhere. Some examples are mainly..
+The Inn                 Eg The Prancing Pony in Bree. While the '8' is just the
                         entrance into the tavern, the + is the actual bar where
                         you can order things from the innkeeper.
-        Mayor's Office (in Bree)
-                        Allows you to turn in deed parchments you won in
+Mayor's Office (Bree)   Allows you to turn in deed parchments you won in
                         tournaments or on other occasions for a reward.
                         Also, you can receive an extermination order here
                         (see (4.13) about those).
@@ -6593,8 +6788,7 @@ The 1..9 are standard shops, namely..
                         noteworthy occurances that may happened lately.
                         There are other major buildings in different cities
                         that will provide extermination orders.
-        The Merchants Guild
-                        An NPC run guild that offers two services,
+The Merchants Guild     An NPC run guild that offers two services,
                         a bank account to deposit your money in so you won't
                         lose it accidentally on a dungeon trip,
                         and a mail service that allows you to send money or an
@@ -6632,30 +6826,31 @@ The 1..9 are standard shops, namely..
                         If the mail gets returned to the sender for any reason
                         but the sender character no longer exists, the mail
                         will also get erased irrevocably.
-        Rune Repository (This shop might not exist in newer game verions!)
+Rune Repository         (This shop might not exist or only exist in very
+                        specific locations in certain game verions.)
                         Sells and buys runes used by Runemasters.
-        Casino          Minas Anor has a casino. Go and try your luck!
+Casino                  Minas Anor has a casino. Go and try your luck!
                         (There are various gambling opportunities, and also
                         the ancient board game 'Go' which can be played on a
                         9x9 board for a one-time fee on each difficulty level.
                         Get your Go game records emailed to you via "/kifu".)
                         For details about the gambling rules of the casino, see
                         subsequent (4.5a2) paragraph.
-        Minstrels Haven Mass Identify Service (Identify Possessions):
+Minstrels Haven         Mass Identify Service (Identify Possessions):
                         Will identify all items you currently carry for a fee.
                         See (5.7) for more information about identification.
-        Library         *Identify* Service, will *identify* an item for a fee.
+Library                 *Identify* Service, will *identify* an item for a fee.
                         See (5.7) for more information about ID, *ID*, shops!
-        Earth-Dome      Herbal Healing Service.
+Earth-Dome              Herbal Healing Service.
                         Will cure black breath for a high fee. (See (1.3a) for
                         more information about Black Breath.)
-        Sea-Dome        Morph Restoration Service.
+Sea-Dome                Morph Restoration Service.
                         Restores your form to normal in case you were
                         polymorphed (for example by a potion of Chauve-Souris).
-        Star-Dome       Offers service to identify all your items at once.
+Star-Dome               Offers service to identify all your items at once.
                         Also offers a recharging service for magic devices.
-        Valarin Temple  Restores all drained attributes and experience.
-        Enchant Services (found in various stores, for different item types):
+Valarin Temple          Restores all drained attributes and experience.
+Enchant Services (found in various stores, for different item types):
                         These will enchant weapons, arrows, or armour you have
                         equipped.
                         For weapons, this will attempt to enchant a main-hand
@@ -6680,11 +6875,10 @@ The 1..9 are standard shops, namely..
                         Ammunition can never be enchanted above (+15,+15).
 
                         Note that enchant services will not break curses.
-        Mining Supply Store
-                        In the hazardous city of Khazad-Dum is a store that
+Mining Supply Store     In the hazardous city of Khazad-Dum is a store that
                         offers some goods found to be useful by the miners
                         in the mountain depths.
-        The Mirror      Donate gold and pray to the gods.
+The Mirror              Donate gold and pray to the gods.
                         (EXPERIMENTAL: allows a fallen winner to solo-reking.)
                         This is a special option which allows fallen kings and
                         queens to get their fate changed by the gods:
@@ -6738,10 +6932,12 @@ The 1..9 are standard shops, namely..
                         c) pay 2M, wait for about a week, gain 2.5M raw exp,
                            pay 3M more.
                         d) gain 4M raw exp, pay 6M gold.
-        The Soothsayer  Presage fate. Will tell you a random rumour.
+The Soothsayer          Presage fate. Will tell you a random rumour.
+                        Also tends to sell potions of restore mana, albeit not
+                        cheaply at all.
 
-        ..and various miscellaneous store services, of which some currently may
-        not have an actual effect.
+..and various miscellaneous store services, of which some currently may
+not have an actual effect.
 
 
 Price limits:
@@ -6792,6 +6988,12 @@ It is possible that the item arrives earlier than expected, as part of the
 store's regular stock. In that case the shop owner will inform you and hand you
 out as many of those items as possible (if you have ordered a pile of them),
 that amount will then automatically be deduced from your outstanding order.
+
+To cancel an order, visit the store where you ordered it, press 'o' againand
+type "cancel". You will lose your deposited money though!
+
+The '/ex' slash command shows if you still have an active order and at which
+store in which town exactly.
 
 
 Shop scumming:
@@ -6986,12 +7188,14 @@ Town        |Depth/Level|   Local dungeons    | Depth/Level      |Required
             |of the town|                     | of the local     |player level
             |itself     |                     | dungeon          |for entering
 ------------+-----------+---------------------+------------------+------------
-Bree        |   0 ft/  0|The Training Tower   | +50..+100/ 1..2  |    1
+Bree        |   0 ft/  0|The Training Tower(*)| +50..+100/ 1..2  |    1
             |           |Barrow-Downs         |  50..1750/ 1..35 |    1
 Gondolin    |1000 ft/ 20|Mordor               |1700..3300/34..66 |   15
 Minas Anor  |2000 ft/ 40|The Paths of the Dead|2000..3500/40..70 |   20
 Lothlorien  |3000 ft/ 60|Angband              |3350..6350/67..127|   30
 Khazad-dum  |4000 ft/ 80|Angband              |3350..6350/67..127|   30
+
+(*) In the Training Tower, you cannot die for real (except for PvP mode chars).
 
 To enter a dungeon your character must have the displayed minimum level.
 Otherwise you'll get a message like this "Suddenly you're grasped by an
@@ -7163,20 +7367,20 @@ Here is a list of all dungeon bosses and the artifacts they are guarding:
 
 Dungeon, sorted by depth     |          Boss         |       Artifact
 -----------------------------+-----------------------+-------------------------
-The Training Tower           |  -                    | -
+The Training Tower    (1)    |  -                    | -
 Barrow-Downs                 |  Wight-King           | Stone of Lore
 Mordor                       |  -                    | -
 The Paths of the Dead        |  Feagwath             | Doomcaller
-Angband                      |  - (*)                | -
+Angband                      |  -  (2)               | -
 ------Non-town dungeons------+-----------------------+-------------------------
 Death Fate                   |  -                    | -
-The Halls of Mandos (****)   |  -                    | -
+The Halls of Mandos   (3)    |  -                    | -
 The Orc Cave                 |  Azog                 | -
 Mirkwood                     |  Saenathra            | -
 The Old Forest               |  Old Man Willow       | Boomerang of Beor
 The Helcaraxe                |  White Balrog         | Pike 'Til-i-arc'
 The Sandworm lair            |  Sandworm Queen       | Armour of the Sandworm
-The Heart of the Earth       |  Golgarach            | Space-time Anchor (**)
+The Heart of the Earth       |  Golgarach            | Space-time Anchor  (4)
 The Maze                     |  Minotaur             | Helm of Hammerhand
 Cirith Ungol                 |  Shelob               | Smallsword 'Sting'
 The Land Of Rhun             |  Ulfang the Black     | Sabre 'Careth Asdriag'
@@ -7186,12 +7390,14 @@ Submerged Ruins              |  Ar-Pharazon          | Amulet 'Toris Mejistos'
 The Illusory Castle          |  King in Yellow       | Helm of Knowledge
 The Sacred Land Of Mountains |  T'ron  (level 72!)   | Coat of T'ron
 Erebor                       |  Smaug                | Arkenstone of Thrain
-Dol Guldur            (***)  |  Shadow of Dol Guldur | Ring of Durin
-Mount Doom            (***)  |  Sauron, the Sorceror | -
+Dol Guldur            (5)    |  Shadow of Dol Guldur | Ring of Durin
+Mount Doom            (5)    |  Sauron, the Sorceror | -
 The Cloud Planes             |  The Living Lightning | -
-Nether Realm                 |  Zu-Aon (*****)       | Ring of Phasing
+Nether Realm                 |  Zu-Aon  (6)          | Ring of Phasing
 
-(*) Angband does not have a designated final boss, but the unique monster
+(1) In the Training Tower, you cannot die for real (except for PvP mode chars).
+
+(2) Angband does not have a designated final boss, but the unique monster
 Tik'srvzllat does not appear before depth 127. Since Angband ends at depth 127,
 you can find him on the final floor (if he actually spawns).
 In this light, Tik'srvzllat could be seen as Angband's final boss.
@@ -7199,11 +7405,13 @@ In this light, Tik'srvzllat could be seen as Angband's final boss.
 Also, Morgoth, the Lord of Darkness is encountered in Angband at -1700 ft or
 deeper. See (1.3), (1.3a) and (1.3b) for more information.
 
-(**) The space-time anchor is a special light source that can be activated to
+(3) The Halls of Mandos are barred to ANY unique monsters!
+
+(4) The space-time anchor is a special light source that can be activated to
 create a temporary anti-teleportation field of radius 12 that will prevent all
 teleportation from and to, and stall all Word of Recall attempts within.
 
-(***) While Sauron, the Sorceror, boss of Mount Doom, does not drop any
+(5) While Sauron, the Sorceror, boss of Mount Doom, does not drop any
 specific artifact, he is still a required kill before you are able to encounter
 Morgoth, the Lord of Darkness (compare (1.3), (1.3a) and (1.3b)).
 When you kill Sauron, you will be able to recall out from that dungeon level!
@@ -7213,12 +7421,10 @@ Shadow of Dol Guldur, meaning that the Shadow won't spawn for you anymore if
 you didn't kill it before killing Sauron.
 Also, you cannot find The One Ring anymore if you already killed Sauron.
 
-(****) The Halls of Mandos are barred to ANY unique monsters!
-
-(*****) Zu-Aon's teleport-to attack has special transdimensional power and
+(6) Zu-Aon's teleport-to attack has special transdimensional power and
 actually defeats anti-teleportation, space-time anchors and cannot be mitigated
 by saving throw or teleportation resistance either.
-It can however be defeated regularly by holy martyr or by antimagic fields
+It can however be defeated regularly by holy martyr or by anti-magic fields
 which -as usual- can prevent the spell from coming into existance in the first
 place.
 
@@ -7730,6 +7936,9 @@ setting restrictions. The door will always be displayed light green to him.
 
 Special gimmick: You can press 'h' or use the /paint command to paint your
 house, see the "/paint" command in (0.2b) for more information.
+
+Starting in 4.7.3a, you can add a custom tag to houses which will be displayed
+in the houses list, to help you keep your houses organized. Press h 5 to tag.
 
 WARNING:
 Items on the floor within a house don't form piles! If you drop too many
@@ -8316,8 +8525,9 @@ Highlander Tournament (pvp, only one can win, 2+ participants)
     Sword-mastery then _if_ you receive a weapon it will actually be a sword.
     See (8.5) for details!
     Highlander Tournament rewards can theoretically end up with a higher item
-    value in gold than rewards from other events. Reward items cannot be sold
-    to stores though.
+    value in gold than rewards from other events. A crown of telepathy for
+    example is not obtainable from Dungeon Keeper, but can be obtained here.
+    Reward items cannot be sold to stores though.
 
 Arena Monster Challenge (no losses or gains, for testing your abilities)
     The wizards of Arena Monster Challenge (tm) have prepared a spectacular
@@ -8334,7 +8544,7 @@ Arena Monster Challenge (no losses or gains, for testing your abilities)
     the /scream command while it's in your line of sight.
     Inventory and equipment cannot be damaged/destroyed or disenchanted in this
     event, and you cannot get disarmed either.
-    NOTE: PvP-mode characters are exempt from safety and can die for real!
+    NOTE: PvP mode characters are exempt from safety and can die for real!
 
 Dungeon Keeper (everyone can win, 1+ participants)
     (You should enable 'easy_open' option in  = 6  for this event, which is
@@ -8342,7 +8552,7 @@ Dungeon Keeper (everyone can win, 1+ participants)
 
     Characters who want to participate must not be of higher level than 14.
     A character can participate only once in this event.
-    PvP-mode characters are not eligible to join.
+    PvP mode characters are not eligible to join.
     If you die in this event, your character will get erased, even if it was
     an everlasting-mode character.
     Running, phasing, teleporting, magic mappping, detection and ESP are
@@ -8512,7 +8722,7 @@ Ironman Deep Dive Challenge (IDDC)
     special shops that are not found elsehwere.
 
     Starting at dungeon level 8, a hidden library may appear randomly (that's
-    a book store with a red '9' as an entrance), allowing you to purchase
+    a bookstore with a red '9' as an entrance), allowing you to purchase
     magic spells you might be missing. It also offers a special service to
     identify all items you are carrying.
     On very deep floors after Nargothrond, a seasoned alchemist store may
@@ -8985,7 +9195,7 @@ In general for all teleportation attempts, these are:
 -Teleport spells cast onto others (teleport other, teleport-to) may get
  resisted by the target depending on its saving throw, level or status.
 -Trying to teleport while engaged in pvp with a pvp-character. There will be
- a cooldown of maybe half a minute after a pvp-mode fight till you can use
+ a cooldown of maybe half a minute after a PvP mode fight till you can use
  teleportation again. If you try to flee by teleportation, you will receive a
  yellow message: "There's no easy way out of this fight!" >:)
 -Certain special floors ('Dungeon Keeper' event or an experimental no-teleport
@@ -9453,11 +9663,11 @@ See (5.3) to get an easy overview.
 You cannot use special moves while stunned or confused.
 
 Here is a list of Martial Arts special moves:
-A move is picked randomly, then used if random(1..MA_Skill)>chance.
-If the chance fails, another move is picked.
-There are MA_Skill / 7 tries to find a move, otherwise you will hit
-without a special move. There is always at least 1 try to pick a
-move.
+A move is picked randomly, then kept in mind if random(1..MA_Skill)>chance.
+There are MA_Skill / 7 such tries to find moves, for each attack you perform.
+The highest level move of those passing this random check will then be used.
+If no eligible move was found in all tries, you will just hit without using a
+special move. There is always at least 1 try to pick a move.
 
 Move             |   Min.level   |   Chance  |   Damage dice |   Effects
 ---------------------------------------------------------------------------
@@ -9654,10 +9864,11 @@ IMPORTANT: If you get the above flexibility warning message, that means your
 Armour weight (concerning ranged weapons)
 -----------------------------------------
 If you wear a shield on your arm, no matter its weight and your strength, your
-hit chance with ranged weapons will be reduced by this encumberment. You will
+hit chance with shooting weapons will be reduced by this encumberment. You will
 get an orange message saying
 "You find it hard to aim while carrying your shield."
 and a yellow '}' icon will appear in the encumberment bar.
+Note that boomerangs are one-handed ranged weapons and not affected by shields.
 
 Also, the greater your total equipped armour weight is, the more your ranged
 to-hit bonus is reduced. This is a fluent, continuous process, and therefore
@@ -10632,8 +10843,7 @@ ANTIMAGIC ('Anti-magic field')
         prevents nearby monsters and other players from casting spells (but
         not from using magic devices). You can still use scrolls and potions
         though.
-        The field has less influence on _party members_ who try to cast.
-        Usage of magic devices by party members is not hindered.
+        The field has no adverse effect on party members.
         The radius is approximately the field power / 9, and is cumulative
         to the 'Anti-magic' skill. The field power is the chance of
         suppressing a spell. It caps at 75% and is cumulative to the
@@ -11022,7 +11232,7 @@ Cheques         These are automatically generated in player stores when someone
                 For more information see (4.10a).
 Deeds           Some of the parchments are deeds, which are used as rewards
                 for various purpose, such as events (see (4.13)) and
-                PvP fights of PvP-mode-characters (see(6.13)).
+                pvp fights of PvP mode-characters (see(6.13)).
                 Press 'r' to read a deed, which will usually tell you what to
                 do with it. In most cases, you have to turn it in at the
                 mayor's office in Bree (one of the '+' doors in town).
@@ -11341,9 +11551,9 @@ Mattock/Pick/Shovel Diggers, improving your digging capabilities.
                     Main factor is the (+diggingpower) mod though. (Equip it!)
                     If you lack any of these valuable digging tools, axes and
                     swords can help you hacking down trees or bushes. For
-                    hacking away webs or ivy, certain polearms used for
-                    slashing (scythes and sickles) may help too, just as much
-                    as swords or axes. (see 'Digging' skill in (6.2) and (5.20)
+                    hacking away spider webs certain polearms used for slashing
+                    (scythes and sickles) may help too, at least as well as
+                    swords or axes. (see 'Digging' skill in (6.2) and (5.20)
                     for more information about digging).
 Money Belt          When equipped, prevents thieves from stealing your money.
 Mushrooms of paranoia/cure paranoia
@@ -11388,7 +11598,7 @@ Codex, Spellbook, Grimoire
                     and it's up to the player to add spells of his choice to
                     them.
                     To do so, he needs to find or buy spell scrolls in the
-                    book store (orange '9' in town), then press 'A' to activate
+                    bookstore (orange '9' in town), then press 'A' to activate
                     the Codex, Spellbook or Grimoire, then choose the spell
                     scroll he wants to transcribe into the book. The scroll
                     will vanish and the spell will be permanently and
@@ -11909,7 +12119,7 @@ NO_DEATH        This entity can never die.
 NO_AUTORET      You won't use auto-retaliation against this entity.
 
 REFLECTING      The monster can deflect shots, arrows and bolts, physical and
-                magical projectiles, prolonging the fight.
+                magical projectiles, prolonging the fight (flat 50% chance).
                 Boomerangs cannot be deflected. For thrown items it depends on
                 their weight, only very light items can be deflected reasonably
                 well, and already middle-light items become undeflectable,
@@ -12020,7 +12230,7 @@ If a monster tries to shoot you, the following happens:
 2) any shielding magic around you is evaluated and may prevent the attack.
    (Note: Disruption shield is currently evaluated later on.)
    If this doesn't succeed..
-3) if you have REFLECTION you will try to reflect the shot.
+3) if you have REFLECT (see (5.8)) you will try to reflect the shot.
    If this doesn't succeed..
 4) your character may try to block the shot with a shield.
    If this doesn't succeed..
@@ -12033,8 +12243,8 @@ If a monster casts a spell at you, the following happens:
 2) any shielding magic around you is evaluated and may prevent the attack.
    (Note: Disruption shield is currently evaluated later on.)
    If this doesn't succeed..
-3) if you have REFLECTION and if the spell is a bolt spell, you will try to
-   reflect it. If this doesn't succeed..
+3) if you have REFLECT (see (5.8)) and if the spell is a bolt spell, you will
+   try to reflect it. If this doesn't succeed..
 4) if it's a bolt spell, your character may try to block it with a shield.
    If it isn't then your character may still try to cover behind a shield.
    If this doesn't succeed..
@@ -12352,7 +12562,7 @@ TY_CURSE        Randomly drains stats sometimes, even if the item is uncursed.
 DG_CURSE        Rarely summons a random monster on you, even if uncursed.
                 (DG_CURSE will stay, even if the 'normal' curse is broken!)
                 Greatly lowers the items value by 25000 Au.
-                This curse will be on hold while you're in a town.
+                This curse will be on hold while you're in a town area.
                 Note that an anti-magic field has a chance to suppress it.
                 Having 'Holy Support' skill at 40.000 or better will completely
                 negate TY_CURSE effects.
@@ -12554,7 +12764,7 @@ If another player is invisible and not of higher level than you..
 Invisibility (on players) overrides ESP. So it does help in a (blood bond)
 duel even if the opponent has ESP.
 
-The effect of invisibility is greatly reduced in PvP (you cannot become
+The effect of invisibility is greatly reduced in pvp (you cannot become
 completely invisible even if your level is higher than the other player) but
 still gives a slight edge.
 
@@ -12711,15 +12921,19 @@ that have a +0 difficulty (see table below).
 To successfully dig through certain features, your digging power must be
 greater than the result of a random number roll "random(0..x-1) + y":
 ---------------------------------------------------------------------
-Rubble      200 +  0
-Ivy         200 +  0
-Bushes      300 +  0
-Dead trees  300 +  0
-Trees       400 +  0
-Sandwalls   250 +  5
-Magma       400 + 10
-Quartz      800 + 20
-Granite    1600 + 40
+Spider web           100 +  0
+Rubble               200 +  0
+Bush                 300 +  0
+Dead tree            300 +  0
+Tree                 400 +  0
+Sandwall             300 +  0
+Magma intrusion      400 + 10
+Quartz vein          800 + 20
+Granite wall        1600 + 40
+Tunneling any other wall types, such as ice walls, and also unknown secret
+doors (as long as they're not embedded in permanent wall types) has the same
+difficulty as granite walls.
+
 The +y is a fixed value that gets added to the random roll of (0..x-1), the
 sum of this is what you have to overcome with your digging power value.
 For example you cannot successfully tunnel through quartz if you don't
@@ -12747,8 +12961,6 @@ Without a digging tool..
  below 18/100.
 -You cannot tunnel through magma without a digging tool if your STRength is
  below 18/60.
--You cannot tunnel through sand walls without a digging tool if your STRength
- is below 18/20.
 
 With a digging tool..
 -You can tunnel through all materials other than granite walls with just a
@@ -12776,8 +12988,13 @@ Or higher level diggers such as gnomish, orcish or dwarven diggers or mattocks,
 which have a higher base digging bonus than just (+1).
 
 Tunnelling into walls that are actually secret doors will be treated as if
-you were 'searching' instead of tunnelling. You cannot find secret doors in
-permanent (aka non-tunneable) walls this way though, such as mountains.
+you were tunneling into granite wall, but on success you won't "remove" the
+door but actually "find" it. You cannot find secret doors in permanent (aka
+non-tunneable) walls this way though, such as mountains. Additionally, each
+time you try to tunnel the game will roll an additional 'searching' attempt,
+so your chance to discover it increases further. Last but not least if the door
+is actually trapped and you trigger the trap you will instantly uncover it.
+
 Tunnelling into known doors will just try to open them instead.
 If a door is stuck, you will want to 'B'ash it instead of tunnelling, since
 you cannot just open stuck doors the normal way.
@@ -12790,9 +13007,9 @@ Also see (3.4a) for more information on digging tool mods.
 
 If you haven't got a digging tool equipped, or if it's just a basic shovel (+1)
 then wielding a sword or especially an axe can work as pseudo-digger when you
-want to hack down organic material such as trees, bushes, ivy or spider webs.
+want to hack down organic material such as trees, bushes or spider webs.
 Certain polearms that have a slashing effect (scythes and sickles) can help
-just as well as swords or axes against spider webs or ivy.
+at least as well as swords or axes against spider webs.
 (Dual-wielding does not help, so two weapons can't dig better than just one.
 Wielding a 1.5-handed weapon in only 1 hand will decrease your digging chance
 though, so take off your shield for best results.)
@@ -13538,6 +13755,7 @@ stated.
                                 multiple times, hitting multiple enemies.
                                 Note that magic and ethereal ammo fades away
                                 the moment it hits, and never ricochets.
+                                To disablo ricocheting inscribe the ammo !R .
 
         .Bow-mastery            At 12.5, 25, 37.5, 50 you will get +1 extra
                                 shot per round each.
@@ -13553,13 +13771,15 @@ stated.
                                 Also increases 'Bows/Throw' ability somewhat,
                                 which in turn further increases hit chance.
 
+                                Like sling ammo, boomerangs can ricochet.
+                                You can apply !R inscription to disable it.
+
                                 Increases ranged to-damage bonus when wielding
                                 a boomerang by +1 for every 2.500 increase.
 
-                                Reduces the chance of a boomerang to break or
-                                to fall to the ground instead of returning.
-
-                                Artifact boomerangs never break or fall down.
+                                Reduces the chance of a boomerang to land on
+                                the ground instead of returning.
+                                Artifact boomerangs always return reliably.
 
                                 (Note that your 'Combat' skill determines your
                                 ability to pseudo-id Boomerangs.)
@@ -13841,11 +14061,9 @@ stated.
                                 (6.7) for details about DISBELIEVE flag.)
 
                                 It's capped at 75% chance of interrupting
-                                enemy spells. The capped chance is further
-                                quartered for party members, so they are hardly
-                                affected by your anti-magic field. Usage of
-                                magic devices by party members is not hindered.
-                                Note: While ball andbolt attacks are spells,
+                                enemy spells. Party members are not affected
+                                adversely.
+                                Note: While ball and bolt attacks are spells,
                                 breathing is not and is therefore not hindered.
 
                                 The radius of your anti-magic field is approx.
@@ -13886,6 +14104,9 @@ stated.
                                 invisibilty, haste, slowness, resistances,
                                 invulnerability obtained from a potion,
                                 deflection, shield.
+                                On the other hand, it will also reduce the
+                                frequency of you suffering from continuous
+                                experience-draining effects (eg Nazgul rings).
 
                                 Regarding spell suppression, Anti-magic fields
                                 combine with interception in a special way:
@@ -14249,14 +14470,14 @@ stated.
                                 axes will help a lot and swords somewhat, in
                                 case you have no good digging tool at hand.
                                 2-handed weapons even more than 1-handed.
-                                For hacking away webs or ivy, certain polearms
+                                For hacking away spider webs, certain polearms
                                 used for slashing (scythes and sickles) may
-                                help too, just as well as swords or axes.
+                                help too, at least as well as swords or axes.
                                 See (3.4a) for more information on digging
                                 tools and (5.20) for technical details on
                                 digging.
 
-                                EXPERIMENTAL:
+                                Demolitionist perk (EXPERIMENTAL):
                                 Shortly before 4.7.3 a new experimental perk
                                 was added to the Digging skill: Demolitionist.
                                 This just means that if you train Digging to at
@@ -14277,44 +14498,13 @@ stated.
                                 of wood into wood chips.
                                 Some recipes might even use basic lamp oil
                                 which you could just by from the general store.
-
-                                You can mix all these ingredients together, but
-                                not more than 3 portions of the same ingredient
-                                per mixture and at most 4 different types of
-                                ingredients. The order in which any mixing is
-                                done is not important.
-                                If a mixture contains more than 4 different
-                                types of ingredients it will become "Bubbling"
-                                to indicate that it is ruined and you can just
-                                destroy it as it serves no further purpose.
-
-                                The actual mixing is done by 'A'ctivating an
-                                ingredient or resulting mixture with another.
-                                When you have finished the desired mixture, you
-                                may attempt to convert it into the finished
-                                blast charge by activating it again with itself
-                                (think of this as some kind of drying process).
-
-                                You then activate a blast charge to place and
-                                arm it. Its fuse will take 2 to 10 seconds to
-                                run depending on the charge type, so you might
-                                want to hurry up and get away.
-                                You can customize the fuse to anything from 1
-                                to 15 seconds by inscribing the charge "!Fnn"
-                                before planting it, where nn is the amount of
-                                seconds ie the fuse length. Example:  !F12
-                                ..which will result in a 12-seconds fuse.
-                                If you change your mind, you can try to disarm
-                                an armed charge before it goes boom, take care.
-
-                                Examples to start you off:
-                                <1 Charcoal + 1 Sulfur + 2 Saltpetre> or
-                                <3 Ammonia Salt + 1 Flask of Oil> will both
-                                result in a basic blast charge.
-                                Further recipes can be uncovered by simply
-                                trying out various combinations, or by reading
-                                scrolls of rumor, which actually have a small
-                                chance to give hints about mixture recipes.
+                                Note that some ingredients might need higher
+                                skill to find:
+                                Vitriol at 15.000, ammonia salt, saltpetre and
+                                sulfur at 10.000, reactive metal powder at
+                                10.000 (when found, not when created by using a
+                                grinding tool, so it can be acquired at 5.000).
+                                For information on crafting charges see (6.2b).
 
 The abilities Swimming, Digging and Climbing are also granted by items you
 can find. Those are for example items that grants you levitation, so you may
@@ -14429,11 +14619,112 @@ Corrupted:
     Axe-mastery and Martial Arts skill ratios x 1.3.
     Fire, Air, Conveyance school ratios x 1.7, Udun x 2.0,
     Shadow and Unlife x 1.7, Hereticism x 2.1,
-    Darkness and Nether rune ratios x 1.7,
+    Darkness and Chaos rune ratios x 1.7,
     all Blood Magic ratios x 3.0.
 
 Note: After a skill's gain ratio has been boosted as stated above, it will be
       capped against a maximum value of 2.000, which can never be exceeded.
+
+
+(6.2b) Demolition charges
+-------------------------
+At 5.000 Digging skill your character acquires the passive 'Demolitionist' perk
+that allows finding certain chemicals and crafting explosive charges from them.
+See 'Digging' skill in (6.2) for details about acquiring chemicals.
+Use a grinding tool (available at the alchemist store) to grind items that you
+don't need anymore to easily obtain wood chips or reactive metal powder.
+
+By pressing 'A' to activate ingredients or mixtures you can combine them to
+create new ingredients or to create new mixtures. The order in which mixing is
+done is not important.
+Mixtures are works in progress containing at least two different ingredients,
+that can be combined with further ingredients until you are satisfied with the
+combination. In that case you can activate the mixture and 'combine' it with
+itself (think of it as some kind of drying process maybe :-p) and if you used a
+valid combination of chemicals you will craft a type of blast charge from it!
+
+A mixture that contains no valid combination of ingredients in the correct
+amounts is ruined and you can just discard it with 'k'.
+
+You then activate the blast charge to place and arm it. Its fuse will burn down
+in a matter of seconds and it will go off, so depending on the fuse length you
+might want to hurry up and get away.
+If you change your mind in time, you can try to disarm an armed charge before
+it goes boom, take care.
+See the table below about fuse lengths and note the hint about !F inscription.
+
+An alternative method is to just throw the charge, which will auto-arm it.
+(Basically the same conditions as for activating a charge will apply.)
+
+Obtaining chemicals/ingredients:
+--------------------------------
+Ingredient            | mining  | looting              | other source
+----------------------+---------+----------------------+-----------------------
+Water                 |         | Potion               | Freshwater sources
+Salt water            |         | Potion               | Seawater sources
+Lamp oil              |         | Flask                | General store
+Acid                  |         |                      | Crafting
+Wood chips            | Trees,  |                      | Grinding
+                      | bushes  |                      |
+Charcoal              |         |                      | Burning wood, crafting
+Sulfur                | Magma   | Medium firebreathers |
+Saltpetre             | Sandwall| Bats, Birds, Hybrids, Novice Mages (rarely)
+Ammonia salt          |         | Quadrupeds, Canines, Hydras, Yetis,
+                      |         | Medium poisonbreathers
+Reactive metal powder | Quartz  |                      | Grinding
+Caustic metal ash     |         |                      | Crafting
+Caustic salt          |         |                      | Crafting
+Vitriol               | Magma   | Medium acidbreathers |
+
+Note that in order to find some of these you need a minimum digging skill,
+just for reactive metal powder you can circumvent it via grinding tool usage:
+Sulfur                  at least 10.000 in 'Digging'
+Saltpetre               at least 10.000 in 'Digging'
+Ammonia salt            at least 10.000 in 'Digging'
+Reactive metal powder   at least 10.000 in 'Digging'
+Vitriol                 at least 15.000 in 'Digging'
+
+Crafting ingredients from raw materials:
+----------------------------------------
+- Wood chips can be processed into charcoal (needs a fire-based light source).
+- Sulfur + saltpetre + water = flask of acid.
+- Vitriol + water or salt water = flask of acid.
+- Reactive metal powder + salt water or ammonia salt = caustic metal ash.
+- Reactive metal powder + acid or vitriol = caustic salt.
+
+Crafting actual explosive charges:
+----------------------------------
+Activate a mixture with itself after you added all required ingredients, to
+craft an explosive charge from it. The type will depend on the ingredients.
+Note that you can inscribe charges !Fn where n ranges from 1 to 15 and sets
+the fuse timer in seconds until it blows up. If the inscription is omitted
+the charges use type-specific standard fuse lengths listed in this table.
+
+Charge type     | Char- Sul- Salt- Ammonia Reactive Caustic Caustic Lamp | Std.
+                | coal  fur  petre salt    m.powder m.ash   salt    oil  | fuse
+----------------+--------------------------------------------------------+-----
+Blast           |   1    1     2                                         |  3s
+ (alternative)  |                    3                                1  |
+Large Blast     |   1    1     3                                         |  5s
+ (alternative)  |                    3                 1              1  |
+Surgical        |   2    2     3     3                                   |  5s
+Ground-shaking  |   1    1     3                              1          |  9s
+Destructor      |   2    2     3                              3          | 10s
+Fire            |   2    1     2                       1                 |  5s
+Firestorm       |   2    2     3                       2                 |  9s
+Firewall        |   3    2     2                       1                 |  2s
+Wrecking        |                    3                 1              2  |  2s
+Cascading       |                    3                 3              2  |  2s
+Tactical        |                    3                 2              2  |  2s
+Flash bomb      |   1    1     2               2                         |  2s
+Concussive      |   1    1     2                       1                 |  2s
+L-Concussive    |   1    1     2                       2                 |  3s
+Underground     |   1    2     2                              1          |  7s
+
+Aside from blast charges it's possible to craft fireworks:
+----------------------------------------------------------
+Charcoal + sulfur + 2x saltpetre + 2x reactive metal powder
+ + scroll of light or scroll of fire = scroll of firework (random outcome)
 
 
 
@@ -14487,6 +14778,8 @@ Saving Throw
     How well you can resist attacks that have influence on your status
     other than just hit points (except for monster curses, which can be
     prevented too). Saving throw is rolled (possibly modified) against:
+    -Cause Wounds spells ("Monster points at you and curses/incanting terribly/
+     screaming the word 'DIE'")
     -Fear and paralysation melee attacks
     -Confusion, fear, blindness, slowness, paralysation spell effects
     -Non-friendly teleportation effects
@@ -14540,6 +14833,11 @@ Infra-Vision
     10 ft equal a distance of 1 field.
     IV can be very helpful for spotting monsters outside of your light radius
     that don't carry a light source themselves.
+    Note that (at the time of writing, v4.7.3) the general maximum range of
+    sight in TomeNET is 20 grids aka 200 ft, beyond which you cannot notice
+    anything. This means that infra-vision too is capped at a maximum of 200 ft
+    aka 20 grids.
+
 
 These miscellaneous abilities can also change when your character progresses,
 depending on your +hit and +dam (concerning Fighting and Bows/Throw) or your
@@ -14600,8 +14898,7 @@ create a character!):
     Humans have no experience penalties and tend to go up levels faster than
     most other races. No racial adjustments or intrinsics occur to characters
     choosing human.
-    Humans get a bonus on 'Climbing', a slight bonus on 'Climbing' and a large
-    bonus on 'Interception'.
+    Humans get a large bonus on 'Climbing' and 'Interception'.
 
 - Half-Elf
     Half-elves tend to be smarter and faster than humans, but not as strong.
@@ -14660,8 +14957,8 @@ create a character!):
     drawback, though. Dwarves are loudmouthed and proud, singing in loud
     voices, arguing with themselves for no good reason, and screaming out
     challenges at nearby foes. In other words, dwarves have a miserable
-    stealth. They receive a bonus on 'Axe-mastery' and 'Climbing' and a huge
-    bonus on 'Digging'.
+    stealth. They receive a bonus on 'Axe-mastery', a huge bonus on 'Digging'
+    and 'Climbing' and a large malus on 'Swimming'.
 
 - Half-Orc
     Because of their preference to living underground to on the surface,
@@ -14673,19 +14970,19 @@ create a character!):
     have great constitutions and lots of hit points.
     They get a slight bonus on 'Backstabbing', a large bonus on 'Weaponmastery'
     and a bonus on 'Necromancy' and occult 'Shadow' magic and receive penalties
-    on 'Magic', 'Sorcery' and 'Spirit' and a slight penalty on 'Swimming'.
+    on 'Spirit' and large penalties on 'Magic', 'Sorcery' and 'Swimming'.
 
 - Half-Troll
     Half-trolls have their strength sustained. They are very strong, but also
     very stupid and slow. They make great warriors and iffy priests. They are
     bad at searching, disarming, perception, and stealth. They are so ugly
     that a Half-Orc grimaces in their presence. They need to eat often but
-    they also regenerate hit point especially quickly (same as if wearing an
-    item providing regeneration, doesn't stack with item ability). Thanks to
+    they also regenerate hit point especially quickly (1.5x as fast as from
+    'regeneration' flag, doesn't stack with any regen items). Thanks to
     their thick skin, they also get an (albeit very small) bonus to armour
     class. Half-Trolls get bonus on 'Blunt-mastery', 'Health'. They receive a
-    penalty on 'Critical-strike' and 'Swimming' and large penalties on
-    'Climbing', 'Swimming', 'Archery', 'Magic' and 'Sorcery'.
+    large penalty 'Climbing' and huge penalties on 'Critical-strike', 'Magic',
+    'Sorcery', 'Archery' and 'Swimming'.
 
 - Dunadan
     Dunadain have their constitution sustained. Dunadain are a race of hardy
@@ -14693,7 +14990,7 @@ create a character!):
     field, especially constitution. However, being men of the world, very
     little is new to them, and levels are very hard for them to gain.
     A Dunadan gets bonus on 'Combat', 'Archery' and 'Interception' and a small
-    bonus to 'Magic' and 'Swimming'.
+    bonus to 'Magic' and a large bonus to 'Swimming'.
 
 - High-Elf
     High-Elves can see the invisible and resist light and the flow of time
@@ -14703,9 +15000,9 @@ create a character!):
     There are few things that they have not seen already, and experience is
     hard for them to gain.
     High-Elves receive boni on 'Bow-mastery', 'Magic', 'Stealth', 'Dodging'
-    and the magic 'Nature' school, a large bonus on 'Calmness', a slight
-    bonus on 'Swimming' and on occult 'Spirit' magic and a malus on 'Shadow'.
-    High-Elves also recieve minor boni on runemastery of 'Light' and 'Mana'.
+    and the magic 'Nature' school, a large bonus on 'Calmness' and 'Swimming',
+    a slight bonus on 'Spirit' occultism and a malus on 'Shadow' occultism.
+    High-Elves also recieve boni on 'Light' and 'Mana' runecraft.
 
 - Yeek
     Being weak and losing many childhood fights, they have learned the
@@ -14716,8 +15013,8 @@ create a character!):
     Yeeks are the least powerful of all the races. They suffer disadvantages
     in all stats and have attributes similar to humans. However, to
     compensate Yeeks learn, and thus gain levels, extremely quickly.
-    Yeeks don't receive boni or mali on any skills except that they are good at
-    'Swimming'.
+    Yeeks don't receive boni or mali on any skills except that they are very
+    good at 'Swimming'.
 
     Note:
     Since yeeks have low hit points you might consider training the skill
@@ -14754,8 +15051,9 @@ create a character!):
     provides a small bonus to armour class.
     They get bonus to 'Health', a slight bonus to 'Spirit' and a large bonus on
     'Calmness' and on the magic schools 'Earth', 'Water' and 'Nature'. They
-    receive a large penalty on 'Fire' school, a penalty on 'Axe-mastery' and a
-    small penalty on 'Sword-mastery'. They cannot train 'Climbing' at all.
+    receive a huge penalty on 'Fire' school, a large penalty on 'Axe-mastery'
+    and a penalty on 'Sword-mastery'. They cannot train 'Climbing' or any
+    blood magic at all.
 
 - Draconian
     These humanoid half-breeds of dragon and man surpass common humans in all
@@ -14786,30 +15084,32 @@ create a character!):
     Thanks to their scaly hide they receive a small bonus to armour class,
     especially the metallic lineages - bronze, silver and gold.
     Draconians receive a bonus on 'Polearm-mastery', 'Attunement',
-    'Nexus' runemastery, 'Magic devices', a large bonus on 'Aura of Fear',
-    and a slight bonus on 'Swimming'.
+    'Nexus' runemastery, 'Magic devices', a large bonus on 'Aura of Fear' and
+    'Swimming'.
 
     Table of their traits:
     Lineage     Breath          Resistances/abilities
     --------------------------------------------------------------------------
     Blue        Lightning       lightning, brand (5), aura (15), immune (25)
     White       Frost           frost, aura (15), immune (25),
-                                susceptible to fire
+                                 susceptible to fire
     Red         Fire            fire, immune (25),
-                                susceptible to cold
+                                 susceptible to cold, hit point regeneration
     Black       Acid            acid, immune (25)
     Green       Poison          poison, immune (25)
-    Multi-hued  Random of       lightning (5), frost (10), fire (15),
-                those above     acid (20), poison (25)
+    Multi-hued  Any of the      lightning (5), frost (10), fire (15),
+                 five above *    acid (20), poison (25)
     Bronze      Confusion       confusion (5), paralysis and electricity (10),
-                                reflection (20); a small extra AC bonus
+                                 reflection (20); a small extra AC bonus
     Silver      Inertia         cold (5), acid (10), poison (15),
-                                reflection (20); a small extra AC bonus
+                                 reflection (20); a small extra AC bonus
     Golden      Sound           fire (5), acid (10), sound (15),
-                                reflection (20); a small extra AC bonus
+                                 reflection (20); a small extra AC bonus
     Law         Shards          shards (5), paralysis (10), sound (15)
     Chaos       Chaos           confusion (5), chaos (15), disenchantment (20)
     Balance     Disenchantment  disenchantment (10), sound (20)
+
+    (*) Multi-hued lineage can use specific breaths in the 'm' menu.
 
     Hint: Make sure to set your breath attack to a hotkey when you learn it.
 
@@ -14822,7 +15122,7 @@ create a character!):
     They can see in the dark thanks to infra-vision, have extraordinarily sharp
     senses, and can move very silently, making them hard to spot. They are also
     good at disarming traps.
-    Kobolds receive a bonus on 'Trapping', a large bonus on 'Swimming' and a
+    Kobolds receive a bonus on 'Trapping', a huge bonus on 'Swimming' and a
     slight bonus on 'Sneakiness'.
 
 - Dark-Elf
@@ -14836,7 +15136,7 @@ create a character!):
     Dark-Elves intrinsically resist darkness, but are susceptible to light.
     At level 20 they learn to see the invisible.
     They get bonus on 'Stealth', 'Dodging', 'Sneakiness', 'Backstabbing', a
-    large bonnus on occult 'Shadow' magic and a malus on all four holy schools
+    large bonus on occult 'Shadow' magic and a malus on all four holy schools
     and the occult 'Spirit' school.
 
 - Vampire
@@ -14875,6 +15175,7 @@ create a character!):
     cold, time, nether, they're immune to poison and it's hard to drain their
     life force - this is also true for life force drained by items a vampire
     has equipped: Those will drain exp at only half the normal rate.
+    As they aren't living, they cannot be infected by continuous diseases.
     Vampires have a high chance to resist the adverse effects of encountering
     an eldritch horror (see (6.3) under 'Saving Throw' for details on those).
     They also intrinsically have partially life leeching (vampiric) attacks
@@ -14908,12 +15209,13 @@ create a character!):
     independant of their level, enabling them to survive a very long time
     without feeding - even an item granting 'Slow Digestion' will not improve
     this any further.
-    Vampires hate 'Blunt' weapons, are bad at 'Swimming', get a penalty on
-    'Divination' magic school, but receive a bonus on 'Mental Intrusion' and
-    a large bonus on 'Shadow', 'Necromancy' and all aura skills and a small
-    bonus on 'Traumaturgy'. They cannot use certain magic schools at all as
-    described above. As undead, Vampires gain a moderate skill bonus for
-    'Nether' runes but in turn find it hard to improve in 'Light' runes.
+    Vampires hate 'Blunt' weapons, are very bad at 'Swimming', cannot use
+    certain magic schools at all as described above, get a large penalty on
+    'Divination' magic but receive a bonus on 'Mental Intrusion' and a large
+    bonus on 'Shadow', 'Unlife', 'Necromancy', all aura skills and a small
+    bonus on 'Traumaturgy'.
+    As undead, Vampires gain a moderate skill bonus for 'Nether' runes but in
+    turn find it extremely hard to improve in 'Light' runes.
 
     Hint: In case you lose your mummy wrapping and the general store doesn't
     have one in stock, you can order one there (press 'o' key in the store).
@@ -14969,10 +15271,13 @@ create a character!):
     They gain experience extremely slowly, and rarely need to feed before
     initiation. Afterwards they have no more need for any worldly food at all
     (and they cannot become gorged either).
+    Likewise, when initiatied they become immune to the lingering damage effect
+    of any continuous disease.
+
     Maia get a bonus on 'Sneakiness' and 'Stealth' no matter the alignment.
 
     Hint: Since all Maiar start with a point in 'Astral Knowledge' skill, you
-    should buy a spell scroll of Power Bolt I right away from the book store,
+    should buy a spell scroll of Power Bolt I right away from the bookstore,
     because you will already be able to use it.
 
 
@@ -14981,7 +15286,7 @@ Here is a table showing boni/mali of the different races:
 Pe:Perception (sight range), Sr:Searching,  Fi:Fighting,        BT:Bows/Throw)
 
             STR INT WIS DEX CON CHR     HP die  Exp%  Infra-Vision
-            Di  MD  ST  St  Pe  Sr  Fi  BT
+            Di  MD  ST  St  Pe  Sr  Fi  BT            (caps at 200 ft)
 ------------------------------------------------------------------------------
 Human        0   0   0   0   0   0      10      100%     0ft
              0   0   0   0  10   0   0   0
@@ -15433,7 +15738,7 @@ create a character!):
     To see an overview of the forms and their abilities, see (6.7c).
 
     Hint: Druids have a powerful ranged area attack spell they can use very
-    early on, Toxic Moisture. Look for it in the book store right away.
+    early on, Toxic Moisture. Look for it in the bookstore right away.
     Also make sure to create a macro for your fighting technique 'Sprint' when
     you learn it, which you do pretty early on. It is great for catching
     annoying monsters that try to keep their distance to you. (See (6.12).)
@@ -15546,7 +15851,7 @@ create a character!):
     10, 20 or 40).
 
     Hint: Mindcrafters have a powerful ranged attack spell they can use very
-    early on, Psionic Blast. Look for it in the book store right away.
+    early on, Psionic Blast. Look for it in the bookstore right away.
     Also get the spell 'Autokinesis I' early on, which is a form of phase door.
     Pick one of the four weapon masteries (Sword/Blunt/Axe/Polearm), or Martial
     Arts if you don't want to use weapons, and always keep it maximized.
@@ -15560,63 +15865,45 @@ From level 60 and upwards there are special titles available every 10 levels.
 You can find a list of all titles in (6.5b) further down.
 
 
-Here is a table showing boni/mali of the different races:
-'Blows/Round' is the maximum number of melee attacks per round a character can
-have basing on strength and dexterity and on the weapon's weight.
-To that maximum of blows per round further boni are added, like extra blows
-from a specific weapon-type mastery or from rings of extra attacks or magical
-influence from priest prayer 'Zeal'.
-Note that these blows/round limits don't count for Martial Arts users (as long
-as they fight barehanded). See (5.3a) for a table of MA attacks.
-"Parrying" is done with weapons, while "blocking" is done with a shield;
-See (6.11) for details about parry and block.
+Here is a table showing boni/mali of the different classes:
+'Blows/Round' is the maximum base number of melee attacks per round a class can
+get, based solely on strength and dexterity and on the weapon's weight.
+You can further increase your BpR later via mastery skills, items or magic.
+BpR limits count only for weapons, not for martial arts usage, see (5.3a).
+"Parrying" is done with weapons, "blocking" is done with a shield, see (6.11).
 
 (Di:Disarming,      MD:Magic Device,        ST:Saving Throw,    St:Stealth,
 Pe:Perception (sight range), Sr:Searching,  Fi:Fighting,        BT:Bows/Throw)
 
 Class       STR INT WIS DEX CON CHR     HP die   Exp%   Max. base blows/round
  @-colour   Di  MD  ST  St  Pe  Sr  Fi  BT              Parrying/Blocking
-            Di  MD  ST  St  Pe  Sr  Fi  BT (relative modifiers, see (6.3))
 ------------------------------------------------------------------------------
 Warrior     +5  -2  -2  +2  +2  -1      +10       +0%       6
  brown      25  18  18   1   2  14  70  55              superb   superb
-            10   7  10   0   0   0  45  40
 Istar       -5  +3   0  +1  -2  +1       +0      +35%       1
  red        30  36  30   2  20  16  34  20              bad      bad
-             7  13   9   0   0   0  15  15
 Priest      -1  -3  +3  -1   0  +2       +5      +20%       4
  green      25  25  32   2   8  16  48  35              fair     fair
-             7  10  12   0   0   0  20  15
 Rogue       +2  +1  -2  +3  +1  -1       +5      +15%       5
  blue       45  28  28   5  32  24  60  66              superb   fair
-            15  10  10   0  10  10  40  40
 Mimic       +1   0   0  +1  +1  -4       +6      +30%       5
  l.grey     25  34  28   1  18  18  60  46              good     good
-             9  10  10   0   0   0  40  25
 Archer      +1   0  +2  +3  +1  -1       +5      +10%       3
  orange     30  22  28   2  20  24  56  72              fair     fair
-             8   7  10   0   0   0  30  50
 Paladin     +3  -3  +1   0  +2  +2       +8      +30%       5
  yellow     10  21  54   1  16  13  60  40              good     superb
-             2   8  10   0   2   0  35  10
 Ranger      +2  +2  -1  +1  +2   0       +7      +35%       5
  l.brown    34  32  30   5  30  30  50  60              superb   fair
-            12  10  10   0   5  15  30  45
 Adventurer   0   0   0   0   0   0       +6      +25%       4
  violet     20  22  20   3  15  15  50  50              fair     fair
-            10  10  10   0   5   5  25  25
 Druid       +1   0  +2  -2  -2  +1       +5      +35%       4
  l.green    30  35  30   4  25  25  50  44              poor     poor
-             8  11  10   0   5  10  20  25
 Shaman       0  +1  +2  -2   0   0       +3      +40%       4
  l.red      10  30  30   4  30  20  45  23              poor     poor
-             0  11  10   0   5   3  20  12
 Runemaster   0  +2  -2  +2  -2   0       +4      +40%       4
  l.blue     30  32  20   3  30  26  45  40              fair     poor
-             0  12  10   0   5   5  25  30
 Mindcrafter +2  +2   0   0   0  +1       +6      +25%       5
  grey       30  28  36   3  35  14  55  45              good     fair
-             0   9   5   0   3   3  26  25
 
 
 For melee characters, it's especially vital to know how many blows per round
@@ -15634,6 +15921,11 @@ for a little a bit until spending $ on it.
 
 (6.5a) Start-up blows/round table (BpR)
 ---------------------------------------
+Since 4.7.3 the client allows you to see your BpR with lightest existing
+weapons of each of the four classes already during the character creation
+process, when you distribute your stat points, so you no longer need to study
+this table in detail anymore to find out what STR and DEX you'd like to pick.
+
 Here is a table, showing you some BpR numbers you can expect your newly
 created character to have, depending on certain combinations of class, STR,
 DEX, given for both, lightest possible weapon and startup weapon:
@@ -15649,10 +15941,13 @@ Warrior         18      10      2               1
                 18/30   all     3               1-2 (depends on weapon)
                 18/40   18/10   4               2
                 18/50   all     3               2
-                18/70..110  *   3-4             3 (depends on weapon)
+                18/70..110 all  3-4             2-3 (depends on weapon)
+                18/80   18/10   3-4             3   (depends on weapon)
                 and for spears (no special treatment, just weight related):
                 18/40   18/10   3
                 18/70   10      3
+                note: there are more breakpoints, too many to include all,
+                mainly at STR 18/10, 18/20, 18/50, 18/60 and at DEX 18/10.
 
 Istar           -
 
@@ -15660,6 +15955,7 @@ Priest          18/10   10      2               1
                 18/50   10      3               2
 
 Rogue           15      18/10   2               2
+                18/10   10      2               1-2 (depends on weapon)
                 18/10   18/50   3               3
                 18/20   18/10   3               3
 
@@ -16314,7 +16610,7 @@ F: flag list
     KILL_WALL   The mimic will dig *easily* through walls.
     REGENERATE  Faster hit point regeneration (same as item ability, doesn't
                 stack with regeneration obtained from item flag).
-    REFLECTING  Gives 'reflect' ability to the player, see (5.8) for details.
+    REFLECTING  Gives 'REFLECT' passive ability to the player, see (5.8).
                 Also gives resistance to light.
                 (Side note about monster reflection in general:
                 The 'REFLECTING' flag on monsters gives them a flat 50% chance
@@ -16330,6 +16626,9 @@ F: flag list
     NO_STUN     Sound resistance.
     NO_CUT      The player can't be cut and won't bleed continously from
                 wounds.
+                This will also render the player immune against cause wounds
+                ("Monster points at you and curses/incanting terribly/screaming
+                the word 'DIE'").
     DISBELIEVE  Will provide (or increase an already existing) anti-magic field
                 by ((monsterlevel / 2) + 10) percent. The range of the field
                 is set to (or increased by) ((monsterlevel / 50) + 2) fields.
@@ -16428,12 +16727,13 @@ Yeeks           Feather falling.
                 level 4, can swim easily, pass trees.)
 All animals     Able to pass trees.
 All spiders     Able to pass mountains, able to pass spider webs.
-All ghosts      See invisible, Infra-vision +4 (stacks with undeads' +1 bonus).
-                Ghosts are susceptible to light.
-                Almost all ghosts can pass solid walls.
 All orcs        Resist darkness.
-All trolls and giants
-                Sustain strength.
+All trolls      Sustain strength. Extraordinary HP regeneration (2x as fast as
+                from 'REGEN' flag, doesn't stack with items. 1.5x as fast for
+                Half-Troll form).
+All giants      Sustain strength.
+All hydras      Extraordinary HP regeneration (2x as fast as from 'REGEN' flag,
+                doesn't stack with items), as they regrow their heads!
 All monsters with stone skin (HURT_ROCK flag)
                 Shard resistance.
 All dragonriders
@@ -16444,7 +16744,7 @@ All evil creatures
 All undead creatures
                 Resist darkness, blindness, poison (usually immunity, depends
                 on ~7 flags), time and nether;
-                can't bleed (no_cut), infra-vision +1, insanity attacks are
+                can't bleed (no_cut), infra-vision +2, insanity attacks are
                 reduced by a little bit (see (6.6)).
                 Drowning damage taken is halved.
                 Becomes susceptible to 'life', which concerns some healing or
@@ -16454,9 +16754,16 @@ All undead creatures
                 Take 2x damage from holy orbs or holy fire and suffer
                 from many 'good' effects/spells (even more so than demons).
                 Suffer less often from black breath infection and consequences.
+All ghosts      See 'All undead creatures' above, but ghosts gain +5
+                Infra-vision instead of just +2.
+                See invisible.
+                Ghosts are susceptible to light.
+                Almost all ghosts can pass solid walls.
+                NOTE: Player ghosts (aka when your character died) get somewhat
+                different boni instead, see (3.11).
 All greater undead creatures
-                See 'All undead creatures' above, and in addtion they get
-                another +4 bonus to infra-vision (ie +5 in total).
+                See 'All undead creatures' above, but greater undead gain +5
+                Infra-vision instead of just +2.
 All demons      Take 2x damage from holy orbs or holy fire and suffer
                 from a couple of 'good' effects/spells (similar to undead).
 All greater demons (capital 'U')
@@ -16516,8 +16823,8 @@ CHR     Dragonriders: +1
         GOOD creatures: +2
 
 Stealth         Body weight: -4..+3
-Infra-Vision    Undead in general: +1
-                Ghosts, Wraiths/Wights, Liches, Vampires : +3
+Infra-Vision    Undead in general: +2
+                Ghosts, Wraiths/Wights, Liches, Vampires : +5
 
 
 Intrinsic abilities that aren't kept when changing forms:
@@ -16740,13 +17047,16 @@ general though, without losing their excellent bare-handed melee skills.)
 Commonly seen advanced forms: Bloodletter of Khorne, Storm Giant, Dragonriders.
 
 
-(6.7c) Druid form details
--------------------------
+(6.7c) Druid forms
+------------------
 The according polymorph code is given in parentheses below the creature name.
 Note: Some druid forms can open doors, others may try to bash doors.
       Also, all animal forms are able to travel through woods.
 You can use the /ex command in game to see which forms you can use, and what
 polymorph code they have.
+
+Lore-wise all hydras have extraordinary hit point renegeration (that doesn't
+further stack with REGEN flag) as their heads regrow quickly when cut.
 
 Note: If a monster can fly that means it will grant the player the 'levitation'
       ability.
@@ -16772,8 +17082,8 @@ Level 15:
 Griffon                 can fly; can pass mountain terrain
 (Code 279)
 
-Sasquatch               speedy; similar to Yeti, but not susceptible to fire;
-(Code 343)              can pass woods too
+Sasquatch               speedy; can pass mountain terrain and woods;
+(Code 343)              immune to cold like Yeti, but not susceptible to fire;
 
 Level 20:
 ---------
@@ -16806,7 +17116,7 @@ Multi-hued Hound        resists fire/cold/lightning/acid/poison and is immune
 
 Level 30:
 ---------
-5-headed hydra          tough and speedy; can swim;
+5-headed hydra          tough and speedy; can swim; extraordinary regeneration;
 (Code 440)              all melee attacks are poisonous; immune to poison;
                         can cast fear and poison ball
 
@@ -16819,7 +17129,7 @@ Giant squid             tough and speedy aquatic(*) creature;
 
 Level 35:
 ---------
-7-headed hydra          tough and speedy; can swim;
+7-headed hydra          tough and speedy; can swim; extraordinary regeneration;
 (Code 614)              poisonous (75%) and blinding (25%) melee attacks;
                         immune to poison;
                         can cast fear, poison ball, and breathe poison
@@ -16843,8 +17153,8 @@ Plasma hound            speedy;
 Level 40:
 ---------
 11-headed hydra         speedy and toughest hydra; can swim;
-(Code 688)              fiery attacks;
-                        immune to fire;
+(Code 688)              extraordinary regeneration;
+                        fiery attacks; immune to fire;
                         has a small array of fire/fear spells
 
 Giant Roc               speedy giant bird; deals high damage;
@@ -16949,12 +17259,12 @@ stack! For example, casting Noxious Cloud and immediately afterwards Vapor will
 cause the Noxious Cloud getting replaced by Vapor on all map grids where they
 would overlap.
 
-Spell scrolls and some books can be purchased in store '9' (the 'book store',
+Spell scrolls and some books can be purchased in store '9' (the 'bookstore',
 usually also sells 'Beginner Cantrips' and sometimes also Codices) or in
 '7' (the 'black market' - very expensive but you often find tomes here!).
-Book stores in higher-level towns on average also tend to sell higher-level
-spells. You can also use the 'o' key in the book store to order specific
-spells! Note that in the book store it is sufficient to just enter the spell
+Bookstores in higher-level towns on average also tend to sell higher-level
+spells. You can also use the 'o' key in the bookstore to order specific
+spells! Note that in the bookstore it is sufficient to just enter the spell
 name when ordering, you don't need to type out the full item name of the
 spell scroll/crystal.
 
@@ -16971,7 +17281,7 @@ Example:
 Noxious Cloud is a level 3 spell of the Air school. That means if you spend at
 least 3 points into Air school, the spell will become usable and be displayed
 as "level 1" in your 'Spell Scroll of Noxious Cloud' you just bought from the
-Book Store in Bree (symbol '9').
+bookstore in Bree (symbol '9').
 If you raise your Air school to 6 by spending 3 more points into it, the level
 of your Noxious Cloud spell will increase by 3 and now be displayed as
 "level 4" in your spell scroll. The spell now deals more damage and lasts
@@ -17853,7 +18163,10 @@ spell failure rate. All Unlife spells use WIS.)
     Darkness Storm  Conjures up a storm of darkness.
                     Required skill level for first spell level: 42.
 
-    BONI:           At 10 it starts increasing your walking speed while you are
+    BONI:           Increases infra-vision by +1 every 10 points, up to +5.
+                    (Note that infra-vision caps at TomeNET's generic maximum
+                    sight range, which is 200 ft aka 20 grids.)
+                    At 10 it starts increasing your walking speed while you are
                     moving on non-lit grids (and not using any light source),
                     very similar to how the 'Sprint' technique works. This
                     'shadow walk' effect increases every 10 levels.
@@ -18687,8 +19000,8 @@ As runecraft does not rely on books or spell scrolls to guide its magic,
 runespells may be cast while blinded, although at increased rate of failure.
 Spell failure likewise increases while stunned, or simply when attempting a
 powerful spell. While an istar is always prevented from casting outside of his
-or her ability, a runemaster may continue to attempt spells until the backlash
-proves fatal. Runemasters are able to cast many kinds of spells, but it is
+or her ability, a runemaster may continue to attempt spells until a failure 
+would prove fatal. Runemasters are able to cast many kinds of spells, but it is
 important to note that some spells are more difficult to manage than others.
 
 Tracing runes safely requires both intellectual and physical agility, so high
@@ -18722,6 +19035,7 @@ runemasters are advised to start with basic elemental spells for which they can
 easily acquire the according resistance. Mana (as an element of choice) is also
 viable for beginners. Although the backlash damage from mana may be high when
 unresisted, it has no otherwise adverse effects which might cripple the caster.
+The adverb 'incompetently' is applied (in RED) to failed runespells in the log.
 
 Intelligence, dexterity, and skill level affect spell failure rates for
 runespells. Runespell type determines the base level of a spell, which is
@@ -18733,6 +19047,10 @@ even fall victim to unexpected backlash from spells previously mastered.
 
 Physical Runes:
 ---------------
+Physical runes are items found occasionally from tunneling deep in the earth,
+or in the collection of monsters fascinated by their magic. Certain secretive
+markets are also known to trade these rare embodiments of elemental power...
+
 Physical runes may be activated (after achieving skill level 40) to emblazon
 non-artifact armour, shields and melee weapons with an elemental sigil. This
 sigil confers a generally positive effect as long as the item remains wielded.
@@ -19447,7 +19765,7 @@ Classes do differently well at parrying and blocking. To find out more, see
 the class overview table at the end of section (6.5).
 
 Parrying/blocking might get boosted/modified under certain circumstances,
-such as PvP or defending from a trap you accidentally set off.
+such as pvp or defending from a trap you accidentally set off.
 
 
 More on Parrying
@@ -19473,7 +19791,7 @@ armour.
 This base chance in many cases applies as is to standard melee combat IF your
 character tries to block instead of parrying (compare (5.12)), but is sometimes
 modified depending on the type of an incoming attack: When deflecting bolts
-from bolt traps or when in PvP combat blocking receives an additional bonus.
+from bolt traps or when in pvp combat blocking receives an additional bonus.
 
 Parrying and blocking can both be affected by combat stances - see (6.2) for
 "Combat Stances" skill.
@@ -19554,7 +19872,7 @@ The techniques are as follows:
         branding will fade away.
         The poison will only last for a short while, so it's best to apply it
         before engaging in a fight.
-    Perceive Noise      3 stamina
+    Perceive Noise      2 stamina
         Listen carefully to every sound in your surroundings, thereby locating
         creatures. Some entities are so quiet that they cannot be detected this
         way though.
@@ -19669,10 +19987,10 @@ In that regard, it is quite different to the 'blood bond' duel, which always
 ends without anyone getting hurt for real.
 
 If you want to fight other players to death in a real pvp match, create a
-'pvp-mode' character. It's an option during the character creation process,
+'PvP mode' character. It's an option during the character creation process,
 much like 'everlasting mode' or 'normal mode'.
 
-PvP-mode characters can use the /pvp command to enter/leave the pvp arena.
+PvP mode characters can use the /pvp command to enter/leave the pvp arena.
 This arena also releases monsters from time to time. The entry point of a
 player is random, because he gets teleported on arrival.
 
@@ -19690,16 +20008,18 @@ make sure you hit SHIFT+G and distribute your skill points to your liking.
 For details about how this item is generated, see (8.5) Reward item creation,
 it actually uses the same mechanics.
 
-PvP-mode characters are called 'Gladiators' and use special rulesets that make
+PvP mode characters are called 'Gladiators' and use special rulesets that make
 it easier to rise in levels and less of a hassle when you get actually killed
 by an opponent! The special rules that apply are as follows:
 
--PVP chars have only one life and no ghost, ie are erased on death same as
+-PvP chars have only one life and no ghost, ie are erased on death same as
  no-ghost chars. However, they play more fast-paced and are quickly brought up
  again. The purpose of PvP chars is to fight other players to the death
  without remorse, which would otherwise be an unacceptable loss if done with
  regular characters (who can at least use Blood Bond scrolls for friendly duels
  though).
+-PvP mode characters do not gain certain safety effects like in Training Tower
+ or in the Arena Monster Challenge: They will just die for real there.
 -yellow name in chat, yellow * marker in @-list, completely yellow entry
  in @-list if viewed by another PvP mode char.
 -start at level 10 and with about 10000 Au.
@@ -20300,6 +20620,8 @@ Some monsters that people often get killed by are:
 -The Stormbringer, an animated blade that bears mad wrath within. It swings
  so powerful that it can knockout its enemies with ease. Defeating it,
  however, will make it usable to its defeater!
+ If you dare wielding this weapon be prepared that it will defy you and even
+ attack your own allies, possibly killing them! Only towns are safe zones.
 
 -Ulik the Troll. He is so strong that his hits cause earthquakes and he cannot
  be stopped by (non-permanent) walls. Beware his prowess in melee combat!
@@ -20492,6 +20814,49 @@ Some examples:
  surround you, to temporarily blind them (which has the same result as applying
  confusion state to them), allowing you to either escape or kill them while
  they're groping around blindly, even though it only lasts for a moment.
+
+
+(7.3a) When you are stuck
+-------------------------
+If you ever get stuck in a problematic situation such as..
+
+- you just died, oops! And you aren't sure how to go on or you'd like some help
+- you can't kill a certain monster you just met that you'd really love to slay
+- you've been trying to kill a boss monster for some time, already wasted a
+  fortunate on consumables (potions or scrolls) and still can't scratch it
+- you're having trouble advancing your character the way you'd like, experience
+  points seem to come in at a crawl while everything out there seems lethal!
+
+then it's time to.. talk to your fellow players in chat, looking for advice!
+More often than not there are a lot of possibilities to overcome your hardship,
+of which many might be simple but totally not obvious until pointed out!
+
+So just press that : key and write in public chat what's on your mind. Be aware
+though that often people are either AFK or busy in the dungeon. It is often
+lethal to chat while being in the dungeon, so if nobody seems to reply just be
+patient and wait. People are usually not impolite but just don't notice it
+because they're caught up in some fighting or just AFK for a prolonged period
+of time, such as a few hours even, but more often than not are very willing to
+help when they return and see your request!
+
+In very urgent situations such as when you died and have suspicions that nasty
+wall-passing monsters are still around and could get your ghost too any moment,
+aside from screaming for help in chat you could also use the /page command to
+try and page another player who isn't paying attention to the screen.
+The /page command will (if he has turned on sound) cause his client to beep, to
+catch his attention. Since this can be a bit annoying you should reserve it for
+emergencies :).
+
+There have been many, many cases where people thought they hit a wall
+unsurmountable just to realize a little hint was all they needed to spot what
+was going wrong! So don't hesitate to communicate.
+
+A word of warning - if you brought a newbie friend of yours to the game, do not
+try to 'give him an easier time' by stuffing him with powerful items in the
+beginning (also dubbed 'cheezing').
+This will only cause him to not get any grip of the very fundamentals of the
+game and get helplessly lost and frustrated when he hits a wall at later levels
+such as 30..40. You will do more damage than good, promised.
 
 
 
@@ -20992,7 +21357,7 @@ Weapons, boomerangs
         All SLAY mods (also have a chance to add the corresponding ESP)
         All KILL (*SLAY*) mods (will also add the corresponding ESP)
         Critical hit bonus
-        Vorpal mod (swords only, see (5.8) for details)
+        Vorpal mod (swords only, see (5.8) for details, and razor boomerangs)
         Extra attacks
         Extra +hit and +dam bonus
         Extra +AC bonus
@@ -21243,7 +21608,7 @@ power is, the more likely the randart will be 'aggravating nearby creatures'.
 
 (8.5) Reward item creation
 --------------------------
-PvP-mode characters may obtain item rewards by killing a lot of opponents (see
+PvP mode characters may obtain item rewards by killing a lot of opponents (see
 (6.13) for details on PvP mode), and events such as Highlander Tournament and
 Dungeon Keeper will give parchments to the winners that can be turned in at the
 mayor's office for reward items.
@@ -21885,11 +22250,11 @@ Solution:   The meta-server might be down or a DNS problem might be occuring
             Make sure your TomeNET.ini file contains the correct server port,
             usually 18348! This port isn't needed if you use the meta-list to
             choose a server to connect to, but it's important if you connect
-            directly! (For linux the file is ".tomenetrc".)
+            directly! (For Linux the file is ".tomenetrc".)
             You can connect directly to a TomeNET server and skip the meta
             server list by running your Tomenet directly from the command-line
             (DOS window) within its folder, adding the server IP as a
-            parameter. (In windows2k choose START/Run... and type 'cmd'
+            parameter. (In Windows 2000 choose START/Run... and type 'cmd'
             without quotation marks to open a command-line window.
             Alternatively you can create a shortcut from your TomeNET.exe by
             right-clicking, dragging, releasing it. Edit this shortcut's
@@ -22347,7 +22712,7 @@ Solution:   If you're on Windows and using a game version greater than 4.6.1a,
 PROBLEM 56: On a fresh TomeNET installation on Linux, the game will fail to
             start, giving a font-not-found error (usually about font '9x15'),
             like this: "Font not found: 9x15".
-Solution:   TomeNET uses basic linux system fonts (and allows you to switch to
+Solution:   TomeNET uses basic Linux system fonts (and allows you to switch to
             fonts of your own choice instead, if you want to). Some Linux
             distributions do not have these installed by default though, for
             example Antergos.
@@ -22422,5 +22787,13 @@ PROBLEM 64: Some modified keys seem to collide with other keys, for example
 Solution:   There is currently no 'native' fix for this. A workaround is to use
             an external tool such as AutoHotKey and (in above example) have it
             map CTRL+m to something else (eg:  ^m::+{1}  to map CTRL+m to '!').
+
+PROBLEM 65: A recent Windows 10 update from end of 2020 or beginning 2021 seems
+            to have broken running TomeNET (as well as some other programs) as
+            normal user for some users.
+            The client will just terminate on startup and throw this error:
+            "Font file corrupted"
+Solution:   A workaround is to run TomeNET as privileged user or as super user
+            (administrator).
 
 ===============================================================================

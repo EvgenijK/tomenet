@@ -32,6 +32,14 @@ char inventory_name[INVEN_TOTAL][ONAME_LEN];	/* The client-side copy of the inve
 int inventory_inscription[INVEN_TOTAL];	/* Position in an item name where a special inscription begins */
 int inventory_inscription_len[INVEN_TOTAL];	/* Length of a special inscription */
 int item_newest = -1;
+#ifdef ENABLE_SUBINVEN
+int item_newest_subinven = -1;
+
+object_type subinventory[MAX_SUBINVEN][INVEN_TOTAL];
+char subinventory_name[MAX_SUBINVEN][INVEN_TOTAL][ONAME_LEN];
+int subinventory_inscription[MAX_SUBINVEN][INVEN_TOTAL];
+int subinventory_inscription_len[MAX_SUBINVEN][INVEN_TOTAL];
+#endif
 
 store_type store;			/* The general info about the current store */
 c_store_extra c_store;	/* Extra info about the current store */
@@ -338,7 +346,7 @@ int weather_vol_smooth, weather_vol_smooth_anti_oscill, weather_smooth_avg[20];
 int grid_weather_volume = 100, grid_ambient_volume = 100, grid_weather_volume_goal = 100, grid_ambient_volume_goal = 100, grid_weather_volume_step, grid_ambient_volume_step;
 
 /* sounds that are hard-coded on client-side, because they won't be transmitted from the server: */
-int bell_sound_idx = -1, page_sound_idx = -1, warning_sound_idx = -1, rain1_sound_idx = -1, rain2_sound_idx = -1, snow1_sound_idx = -1, snow2_sound_idx = -1, browse_sound_idx = -1, browsebook_sound_idx = -1, thunder_sound_idx = -1;
+int bell_sound_idx = -1, page_sound_idx = -1, warning_sound_idx = -1, rain1_sound_idx = -1, rain2_sound_idx = -1, snow1_sound_idx = -1, snow2_sound_idx = -1, browse_sound_idx = -1, browsebook_sound_idx = -1, thunder_sound_idx = -1, browseinven_sound_idx = -1;
 
 /* optimization options */
 bool sound_hint = TRUE;
@@ -391,6 +399,7 @@ bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX];
 char artifact_list_name[MAX_A_IDX][80];
 int artifact_list_code[MAX_A_IDX], artifact_list_rarity[MAX_A_IDX], artifact_list_idx = 0;
 bool artifact_list_specialgene[MAX_A_IDX];
+char artifact_list_activation[MAX_A_IDX][80];
 /* For artifact lore */
 char kind_list_name[MAX_K_IDX][80];
 int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx = 0;
@@ -657,3 +666,9 @@ char cfg_musicpackfolder[1024];
 
 bool within_cmd_player = FALSE;
 int within_cmd_player_ticks;
+
+int NumPlayers = 0;
+char playerlist[1000][MAX_CHARS_WIDE * 2];
+
+byte col_raindrop = TERM_BLUE, col_snowflake = TERM_WHITE;
+bool custom_font_warning = FALSE;

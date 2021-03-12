@@ -910,6 +910,7 @@ static void wild_add_garden(struct worldpos *wpos, int x, int y) {
 					}
 					/* Hack -- only drop food the first time */
 					food.marked2 = ITEM_REMOVAL_NEVER;
+					food.level = 1;
 					if (!(w_ptr->flags & WILD_F_GARDENS)) drop_near(0, &food, -1, wpos, y, x);
 				}
 			}
@@ -1043,7 +1044,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 			y = rand_range(y1,y2);
 
 			if (cave_clean_bold(zcave,y,x)) {
-				object_level = w_ptr->radius/2 +1;
+				object_level = w_ptr->radius / 2 +1;
 				place_object(0, wpos, y, x, FALSE, FALSE, FALSE, RESF_LOW, default_obj_theme, 0, ITEM_REMOVAL_NEVER, FALSE);
 				num_objects--;
 			}
@@ -1060,7 +1061,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 			y = rand_range(y1,y2);
 
 			if (cave_clean_bold(zcave,y,x)) {
-				food_sval = SV_FOOD_MIN_FOOD+rand_int(12);
+				food_sval = SV_FOOD_MIN_FOOD + rand_int(12);
 				/* hack -- currently no food svals between 25 and 32 */
 				if (food_sval > 25) food_sval += 6;
 				/* hack -- currently no sval 34 */
@@ -1069,6 +1070,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 				k_idx = lookup_kind(TV_FOOD,food_sval);
 				invcopy(&forge, k_idx);
 				forge.marked2 = ITEM_REMOVAL_NEVER;
+				forge.level = 1;
 				drop_near(0, &forge, -1, wpos, y, x);
 
 				num_food--;
@@ -1092,6 +1094,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 				k_idx = get_obj_num(10, RESF_NONE);
 				invcopy(&forge, k_idx);
 				forge.marked2 = ITEM_REMOVAL_NEVER;
+				forge.level = 1;
 				drop_near(0, &forge, -1, wpos, y, x);
 
 				num_bones--;
@@ -3004,7 +3007,9 @@ bool fill_house(house_type *h_ptr, int func, void *data) {
 				}
 				else if (func == FILL_SFX_KNOCK) {
 					if (c_ptr->m_idx < 0) {
+#ifdef USE_SOUND_2010
 						sound(-(c_ptr->m_idx), (h_ptr->flags & HF_MOAT) ? "knock_castle" : "knock", "block_shield_projectile", SFX_TYPE_COMMAND, FALSE);
+#endif
 						msg_print(-(c_ptr->m_idx), "\377sYou hear someone knocking on the house door.");
 					}
 				}
@@ -3171,7 +3176,9 @@ bool fill_house(house_type *h_ptr, int func, void *data) {
 					else if (func == FILL_SFX_KNOCK) {
 						c_ptr = &zcave[miny + (y - 1)][minx + (x - 1)];
 						if (c_ptr->m_idx < 0) {
+#ifdef USE_SOUND_2010
 							sound(-(c_ptr->m_idx), (h_ptr->flags & HF_MOAT) ? "knock_castle" : "knock", "block_shield_projectile", SFX_TYPE_COMMAND, FALSE);
+#endif
 							msg_print(-(c_ptr->m_idx), "\377sYou hear someone knocking on the house door.");
 						}
 					}
@@ -3212,7 +3219,9 @@ bool fill_house(house_type *h_ptr, int func, void *data) {
 					else if (func == FILL_SFX_KNOCK) {
 						c_ptr = &zcave[miny + (y - 1)][minx + (x - 1)];
 						if (c_ptr->m_idx < 0) {
+#ifdef USE_SOUND_2010
 							sound(-(c_ptr->m_idx), (h_ptr->flags & HF_MOAT) ? "knock_castle" : "knock", "block_shield_projectile", SFX_TYPE_COMMAND, FALSE);
+#endif
 							msg_print(-(c_ptr->m_idx), "\377sYou hear someone knocking on the house door.");
 						}
 					}
@@ -4556,6 +4565,44 @@ void paint_house(int Ind, int x, int y, int k) {
 		msg_print(Ind, "With some effort, you remove the paint off your house door..");
 }
 #endif
+
+void tag_house(int Ind, int x, int y, char *args) {
+	player_type *p_ptr = Players[Ind];
+	cave_type **zcave = getcave(&p_ptr->wpos);
+	struct c_special *cs_ptr;
+	house_type *h_ptr = NULL;
+	int h_idx;
+
+	/* Check for a house door next to us */
+	h_idx = pick_house(&p_ptr->wpos, y, x);
+	if (h_idx == -1) {
+		msg_print(Ind, "There is no house next to you.");
+		return;
+	}
+	h_ptr = &houses[h_idx];
+
+	if (h_ptr->dna->owner_type == OT_GUILD) {
+		msg_print(Ind, "Guild halls cannot be tagged.");
+		return;
+	}
+
+	/* make sure we own the house */
+	if (!(cs_ptr = GetCS(&zcave[y][x], CS_DNADOOR))) {
+		msg_print(Ind, "You must have access to the house.");
+		return;
+	}
+	if (!(access_door(Ind, cs_ptr->sc.ptr, FALSE) || is_admin(p_ptr))) {
+		msg_print(Ind, "You must have access to the house.");
+		return;
+	}
+	s_printf("HOUSE_TAGGING: %s set '%s'.\n", p_ptr->name, args);
+
+	/* tag house, colour adjacent walls accordingly */
+	strcpy(h_ptr->tag, args);
+
+	if (args[0]) msg_format(Ind, "You tagged this house '%s' in the houses-list.", args);
+	else msg_print(Ind, "You cleared the houses-list tag of this house.");
+}
 
 void knock_house(int Ind, int x, int y) {
 	player_type *p_ptr = Players[Ind];

@@ -1,6 +1,11 @@
 /* $Id$ */
 #include "angband.h"
 
+#ifdef REGEX_SEARCH
+ #include <regex.h>
+ #define REGEXP_ARRAY_SIZE 1
+#endif
+
 /* reordering will allow these to be removed */
 static void cmd_clear_buffer(void);
 static void cmd_master(void);
@@ -309,7 +314,7 @@ void process_command() {
 		break;
 
 	/* Add separate buffer for chat only review (good for afk) -Zz */
-	case KTRL('O'): do_cmd_messages_chatonly(); break;
+	case KTRL('O'): do_cmd_messages_important(); break;
 	case KTRL('P'): do_cmd_messages(); break;
 
 	case KTRL('Q'):
@@ -695,6 +700,11 @@ void cmd_inven(void) {
 
 	command_gap = 50;
 
+#ifdef USE_SOUND_2010
+	/* Note: We don't play the sound in show_inven() itself because that will be too spammy. */
+	sound(browseinven_sound_idx, SFX_TYPE_COMMAND, 100, 0);
+#endif
+
 	show_inven();
 
 	while (TRUE) {
@@ -761,6 +771,100 @@ void cmd_inven(void) {
 	/* Flush any events */
 	Flush_queue();
 }
+
+#ifdef ENABLE_SUBINVEN
+void cmd_subinven(int subinven_sval) {
+	char ch; /* props to 'potato' and the korean team from sarang.net for the idea - C. Blue */
+	int c;
+	char buf[MSG_LEN];
+	int max_subinven = INVEN_PACK;
+
+	/* First, erase our current location */
+
+	/* Then, save the screen */
+	Term_save();
+	showing_inven = screen_icky;
+
+	command_gap = 50;
+
+#ifdef USE_SOUND_2010
+	/* Note: We don't play the sound in show_inven() itself because that will be too spammy. */
+	sound(browseinven_sound_idx, SFX_TYPE_COMMAND, 100, 0);
+#endif
+
+	switch (subinven_sval) {
+	case SV_SI_SATCHEL:
+		max_subinven = 9;
+		//max_subinven = return 11;
+	}
+
+	show_subinven(subinven_sval);
+
+	while (TRUE) {
+		ch = inkey();
+		if (ch == KTRL('T')) {
+			xhtml_screenshot("screenshot????");
+			break;
+		}
+		/* allow pasting item into chat */
+		else if (ch >= 'A' && ch < 'A' + max_subinven) { /* using capital letters to force SHIFT key usage, less accidental spam that way probably */
+			c = ch - 'A';
+
+			if (subinventory[subinven_sval][c].tval) {
+				snprintf(buf, MSG_LEN - 1, "\377s%s", subinventory_name[subinven_sval][c]);
+				buf[MSG_LEN - 1] = 0;
+				/* if item inscriptions contains a colon we might need
+				   another colon to prevent confusing it with a private message */
+				if (strchr(subinventory_name[subinven_sval][c], ':')) {
+					buf[strchr(subinventory_name[subinven_sval][c], ':') - subinventory_name[subinven_sval][c] + strlen(buf) - strlen(subinventory_name[subinven_sval][c]) + 1] = '\0';
+					if (strchr(buf, ':') == &buf[strlen(buf) - 1])
+						strcat(buf, ":");
+					strcat(buf, strchr(subinventory_name[subinven_sval][c], ':') + 1);
+				}
+				Send_paste_msg(buf);
+			}
+			break;
+		}
+		else if (ch == 'x') {
+			cmd_observe(USE_INVEN);
+			continue;
+		}
+		else if (ch == 'd') {
+			cmd_drop(USE_INVEN);
+			continue;
+		}
+		else if (ch == 'k' || ch == KTRL('D')) {
+			cmd_destroy(USE_INVEN);
+			continue;
+		}
+		else if (ch == '{') {
+			cmd_inscribe(USE_INVEN);
+			continue;
+		}
+		else if (ch == '}') {
+			cmd_uninscribe(USE_INVEN);
+			continue;
+		}
+		else if (ch == ':') {
+			cmd_message();
+			continue;
+		}
+		break;
+	}
+
+	screen_line_icky = -1;
+	screen_column_icky = -1;
+
+	showing_inven = FALSE;
+
+	/* restore the screen */
+	Term_load();
+	/* print our new location */
+
+	/* Flush any events */
+	Flush_queue();
+}
+#endif
 
 void cmd_equip(void) {
 	char ch; /* props to 'potato' and the korean team from sarang.net for the idea - C. Blue */
@@ -1513,6 +1617,64 @@ void cmd_high_scores(void) {
 	peruse_file();
 }
 
+#ifdef REGEX_SEARCH
+/* custom str-search function for regexps, to use instead of my_strcasestr..().
+   buf2 = the normal string to search in
+   re_src = the compiled regexp to search for
+   searchstr_re = the uncompiled string the user entered (clone of searchstr, but that one gets nulled on first hit, so need this clone backup)
+   withinsearch = returns the actual matched string in 'buf2'
+   next_start = returns next position in 'buf2' to start subsequent search or -1 for once-per-line matches (^/$) */
+static bool my_strregexp_skipcol(char *buf2, regex_t re_src, char *searchstr_re, char *withinsearch, int *next_start) {
+	int i, i2;
+	char buf2_skipcol[MAX_CHARS * 2 + 1], *c_skipcol, offset[MAX_CHARS * 2 + 1];
+	regmatch_t pmatch[REGEXP_ARRAY_SIZE + 1];
+
+	/* Don't confuse the regexp-matcher with colour codes */
+	buf2_skipcol[0] = 0;
+	i = i2 = 0;
+	c_skipcol = buf2;
+	while (c_skipcol[i2]) {
+		while (c_skipcol[i2] == '\377') {
+			i2++;
+			if (c_skipcol[i2] != 0) i2++; //paranoia: broken colour code
+		}
+		buf2_skipcol[i] = c_skipcol[i2];
+		offset[i] = i2;
+		i++;
+		i2++;
+	}
+	buf2_skipcol[i] = 0;
+
+	if (regexec(&re_src, buf2_skipcol, REGEXP_ARRAY_SIZE, pmatch, 0)) return FALSE;
+
+	/* Testing & Paranoia :) */
+	//c_message_add(format("re_nsub=%d", i, re_src.re_nsub));
+	if (pmatch[0].rm_so == -1) return FALSE;
+	/* Actually disallow searches that match empty strings */
+	if (pmatch[0].rm_eo - pmatch[0].rm_so == 0) return FALSE;
+
+	/* Just take the first match of the line.. */
+	strcpy(withinsearch, buf2_skipcol + pmatch[0].rm_so);
+	withinsearch[pmatch[0].rm_eo - pmatch[0].rm_so] = 0;
+
+ #if 0 /* not needed, as now all sub-matches are also found by this function */
+	/* Hack: Searching for ^ or $ will only colour one result per line */
+	if (searchstr_re[0] == '^' || searchstr_re[strlen(searchstr_re) - 1] == '$') *next_start = -1;
+	else
+ #endif
+	*next_start = offset[pmatch[0].rm_eo];
+
+ #if 0
+	c_message_add(format("buf2:%s",buf2));
+	c_message_add(format("buf2_skipcol:%s",buf2_skipcol));
+	c_message_add(format("searchstr_re:%s",searchstr_re));
+	c_message_add(format("withinsearch:%s",withinsearch));
+	c_message_add(format("next_start:%d,so=%d,eo=%d,os=%d", *next_start, pmatch[0].rm_so, pmatch[0].rm_eo, offset[pmatch[0].rm_so]));
+ #endif
+	return TRUE;
+}
+#endif
+
 #ifndef BUFFER_GUIDE
 static char *fgets_inverse(char *buf, int max, FILE *f) {
 	int c, res, pos;
@@ -1538,6 +1700,10 @@ static char *fgets_inverse(char *buf, int max, FILE *f) {
 /* Local Guide invocation -
    search_type: 1 = search, 2 = strict search (all upper-case),  3 = chapter search, 4 = line number,
                 0 = no pre-defined search, we're browsing it normally. */
+/* '/?' command switches between search types on failure and retries? */
+#define TOPICSEARCH_ALT
+/* '/?' command after failing to switch even attempts just a basic text search as last resort? */
+#define TOPICSEARCH_ALT_BASIC
 void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_string) {
 	static int line = 0, line_before_search = 0, jumped_to_line = 0;
 	static char lastsearch[MAX_CHARS] = "";
@@ -1545,7 +1711,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 
 	bool inkey_msg_old, within, within_col, searchwrap = FALSE, skip_redraw = FALSE, backwards = FALSE, restore_pos = FALSE;
 	int bottomline = (screen_hgt > SCREEN_HGT ? 46 - 1 : 24 - 1), maxlines = (screen_hgt > SCREEN_HGT ? 46 - 4 : 24 - 4);
-	int searchline = -1, within_cnt = 0, c, n, line_presearch = line;
+	int searchline = -1, within_cnt = 0, c = 0, n, line_presearch = line;
 	char searchstr[MAX_CHARS], withinsearch[MAX_CHARS], chapter[MAX_CHARS]; //chapter[8]; -- now also used for terms
 	char buf[MAX_CHARS * 2 + 1], buf2[MAX_CHARS * 2 + 1], *cp, *cp2;
 #ifndef BUFFER_GUIDE
@@ -1560,6 +1726,13 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 
 	int c_override = 0;
 	char buf_override[MAX_CHARS];
+
+#ifdef REGEX_SEARCH
+	bool search_regexp = FALSE;
+	int ires = -999;
+	regex_t re_src;
+	char searchstr_re[MAX_CHARS];
+#endif
 
 	/* empty file? */
 	if (guide_lastline == -1) return;
@@ -1576,8 +1749,41 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	searchstr[0] = 0;
 	//lastsearch[0] = 0;
 
+	/* In case we're invoked by /? command, always start searching from the beginning */
+	if (!init_lineno && init_search_string) line = 0;
+
 	/* invoked for a specific topic? */
 	*buf_override = 0;
+
+	/* Hack: Translate specific searches from all-uppercase to chapter: */
+	if (init_search_type == 2 || init_search_type == 3) {
+		strcpy(buf, init_search_string);
+
+		/* 'Troubleshooting' section, directly access it */
+		if (!strncasecmp(buf, "prob", 4) || !strncasecmp(buf, "prb", 3)) {
+			char *x = buf;
+			int p;
+
+			while (*x && !((*x < 'a' || *x > 'z') && (*x < 'A' || *x > 'Z'))) x++;
+			p = atoi(x);
+			*x = 0;
+
+			if (my_strcasestr("problem", buf) || my_strcasestr("prblem", buf)) {
+				if (!p) {
+					init_search_type = 3;
+					strcpy(init_search_string, "Troubleshooting");
+				} else {
+					init_search_type = 2;
+					strcpy(init_search_string, "PROBLEM ");
+					strcat(init_search_string, format("%d", p));
+				}
+			}
+		}
+
+		/* clean up */
+		buf[0] = 0;
+	}
+
 	switch (init_search_type) {
 	case 1:
 		c_override = 's';
@@ -1630,11 +1836,13 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		if (!skip_redraw) Term_clear();
 		if (backwards) Term_putstr(23,  0, -1, TERM_L_BLUE, format("[The Guide - line %5d of %5d]", (guide_lastline - line) + 1, guide_lastline + 1));
 		else Term_putstr(23,  0, -1, TERM_L_BLUE, format("[The Guide - line %5d of %5d]", line + 1, guide_lastline + 1));
-		//Term_putstr(1, bottomline, -1, TERM_L_BLUE, "Up,Down,PgUp,PgDn,End navigate; s/d/c/# search/next/chapter/line; ESC to exit");
-		//Term_putstr(0, bottomline, -1, TERM_L_BLUE, " Space/n,p,Enter,Back; s,S/d,D/f,c,# search,next,prev,chapter,line; ESC to exit");
-		//Term_putstr(0, bottomline, -1, TERM_L_BLUE, " Space/n,p,Enter,Back; s,d,D/f,S,c,# srch,nxt,prv,reset,chapter,line; ESC exits");
-		Term_putstr(8, bottomline, -1, TERM_L_BLUE, ",Space/n,p,Enter,Back,ESC; s,d,D/f,S,c,# srch,nxt,prv,reset,chapter,line");
-		Term_putstr(0, bottomline, -1, TERM_YELLOW, "'?' Help");
+#ifdef REGEX_SEARCH
+		Term_putstr(29, bottomline, -1, TERM_L_BLUE, " s/r/R,d,D/f,S,c,#:srch,nxt,prv,reset,chapter,line");
+#else
+		Term_putstr(29, bottomline, -1, TERM_L_BLUE, " s,d,D/f,S,c,#:srch,nxt,prv,reset,chapter,line");
+#endif
+		Term_putstr( 6, bottomline, -1, TERM_SLATE,  "  SPC/n,p,ENTER,BCK,ESC");
+		Term_putstr( 0, bottomline, -1, TERM_YELLOW, " ?:Help");
 		if (skip_redraw) goto skipped_redraw;
 		restore_pos = FALSE;
 
@@ -1779,6 +1987,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					continue;
 				}
 			}
+
 			/* Search for specific chapter? */
 			else if (chapter[0]) {
 				searchline++;
@@ -1800,6 +2009,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			/* Search for specific string? */
 			else if (searchstr[0]) {
 				searchline++;
+
 				/* Search wrapped around once and still no result? Finish. */
 				if (searchwrap && searchline == line) {
 					/* Hack: search_uppercase searches have multiple tiers of strictness, that result in another search with lowered strictness before giving up. */
@@ -1824,8 +2034,43 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					/* return to that position again */
 					restore_pos = TRUE;
 					break;
-				/* We found a result */
-				} else if (my_strcasestr_skipcol(buf2, searchstr, search_uppercase)) {
+				}
+
+#ifdef REGEX_SEARCH
+				/* We found a regexp result */
+				else if (search_regexp) {
+					if (my_strregexp_skipcol(buf2, re_src, searchstr_re, withinsearch, &i)) {
+						/* Reverse again to normal direction/location */
+						if (backwards) {
+							backwards = FALSE;
+							searchline = guide_lastline - searchline;
+ #ifndef BUFFER_GUIDE
+							/* Skip end of line, advancing to next line */
+							fseek(fff, 1, SEEK_CUR);
+							/* This line has already been read too, by fgets_inverse(), so skip too */
+							res = fgets(bufdummy, 81, fff); //res just slays compiler warning
+ #else
+							fseek_pseudo += 2;
+ #endif
+						}
+
+						searchstr[0] = 0;
+						searchwrap = FALSE;
+						line = searchline;
+						/* Redraw line number display */
+						Term_putstr(23,  0, -1, TERM_L_BLUE, format("[The Guide - line %5d of %5d]", line + 1, guide_lastline + 1));
+					}
+					/* Still searching */
+					else {
+						/* Skip all lines until we find the desired string */
+						n--;
+						continue;
+					}
+				}
+#endif
+
+				/* We found a result (non-regexp) */
+				else if (my_strcasestr_skipcol(buf2, searchstr, search_uppercase)) {
 					/* Reverse again to normal direction/location */
 					if (backwards) {
 						backwards = FALSE;
@@ -1846,6 +2091,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					line = searchline;
 					/* Redraw line number display */
 					Term_putstr(23,  0, -1, TERM_L_BLUE, format("[The Guide - line %5d of %5d]", line + 1, guide_lastline + 1));
+
 				/* Still searching */
 				} else {
 					/* Skip all lines until we find the desired string */
@@ -1855,6 +2101,77 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			}
 
 			/* Colour all search finds */
+#ifdef REGEX_SEARCH
+			if (search_regexp) {
+				if (withinsearch[0] && my_strregexp_skipcol(buf2, re_src, searchstr_re, withinsearch, &i)) {
+					/* Hack for '^' regexp. Problem is that we call my_.. below 'at the beginning' every time, as we just advance cp!
+					   So a regexp starting on '^' will match any results regardless of their real position: */
+					bool hax = searchstr_re[0] == '^', hax_done = FALSE;
+
+					strcpy(buf, buf2);
+
+					cp = buf;
+					cp2 = buf2;
+					within = within_col = FALSE;
+					while (*cp) {
+						/* We're entering/exiting a (light green) coloured chapter marker? */
+						if (*cp == '\377') {
+							if (*(cp + 1) == 'G') within_col = TRUE;
+							else within_col = FALSE;
+
+							/* The colour-letter inside a colour code does of course not count towards the search result.
+							   However, if already inside a result, don't recolour it from red to green.. */
+							if (!within) {
+								*cp2++ = *cp++;
+								/* paranoia: broken colour code? */
+								if (!(*cp)) break;
+								*cp2++ = *cp++;
+							} else {
+								cp++;
+								/* paranoia: broken colour code? */
+								if (!(*cp)) break;
+								cp++;
+							}
+
+							continue;
+						}
+
+						/* A bit hacky: Only accept matches at the beginning of our cp string,
+						   to do this we check whether match length (strlen) is same as the end-of-match pointer (i) */
+						if (!hax_done && my_strregexp_skipcol(cp, re_src, searchstr_re, withinsearch, &i) && i == strlen(withinsearch)) {
+							if (hax) hax_done = TRUE;
+
+							/* begin of colourizing */
+							*cp2++ = '\377';
+							*cp2++ = 'R';
+							within = TRUE;
+							within_cnt = 0;
+						}
+
+						/* just copy each single character over */
+						*cp2++ = *cp++;
+
+						/* end of colourizing? */
+						if (within) {
+							within_cnt++;
+							if (within_cnt == strlen(withinsearch)) {
+								within = FALSE;
+								*cp2++ = '\377';
+								/* restore a disrupted chapter marker? */
+								if (within_col) {
+									within_col = FALSE;
+									*cp2++ = 'G';
+								}
+								/* normal text */
+								else *cp2++ = 'w';
+							}
+						}
+
+					}
+					*cp2 = 0;
+				}
+			} else
+#endif
 			if (withinsearch[0] && my_strcasestr_skipcol(buf2, withinsearch, search_uppercase)) {
 				strcpy(buf, buf2);
 
@@ -1884,7 +2201,6 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 						continue;
 					}
 
-					//if (!strncasecmp_skipcol(cp, withinsearch, strlen(withinsearch, search_uppercase))) { --no need to define an extra function, just reuse my_strcasestr_skipcol() simply:
 					if (my_strcasestr_skipcol(cp, withinsearch, search_uppercase) == cp) {
 						/* begin of colourizing */
 						*cp2++ = '\377';
@@ -1958,10 +2274,68 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		Term->scr->cx = Term->wid;
 		Term->scr->cu = 1;
 
+		/* we're here via /? command? */
 		if (c_override) {
-			c = c_override;
-			c_override = 0;
-		} else c = inkey();
+			if (c_override == 255) {
+				/* we didn't find the topic we wanted to access via /? command? then just quit */
+				if (init_search_string && !line) {
+#ifdef TOPICSEARCH_ALT /* last chance: switch between search types and retry */
+					char *x;
+
+					/* change an all-caps search (2) to a chapter search (3) */
+					if (init_search_type == 2) {
+						strcpy(buf_override, init_search_string);
+						x = buf_override;
+						while (*x) { *x = tolower(*x); x++; }
+ #ifdef TOPICSEARCH_ALT_BASIC /* even fall back to a standard text search, instead of clinging to any sort of 'topic'? */
+						/* if we did that already, demote to standard text search instead */
+						if (c == 'c') {
+							c = 's';
+							init_search_type = 0; /* no further attemps */
+						}
+						/* otherwise perform chapter search now */
+						else
+ #else
+						init_search_type = 0; /* no further attemps */
+ #endif
+						c = 'c';
+					}
+					/* change a chapter search (3) to an all-caps search (2) */
+					else if (init_search_type == 3) {
+						strcpy(buf_override, init_search_string);
+						x = buf_override;
+ #ifdef TOPICSEARCH_ALT_BASIC /* even fall back to a standard text search, instead of clinging to any sort of 'topic'? */
+						/* if we did that already, demote to standard text search instead */
+						if (c == 's') {
+							while (*x) { *x = tolower(*x); x++; }
+							init_search_type = 0; /* no further attemps */
+						} else
+ #else
+						init_search_type = 0; /* no further attemps */
+ #endif
+						{
+							c = 's';
+							while (*x) { *x = toupper(*x); x++; }
+						}
+					/* finally failed to find relevant text */
+					} else
+#endif
+					{
+						c = ESCAPE;
+#ifndef TOPICSEARCH_ALT_BASIC
+						c_message_add(format("Topic '%s' not found.", init_search_string));
+#else
+						c_message_add(format("Search term '%s' not found.", init_search_string));
+#endif
+					}
+				} else c_override = 0;
+			} else {
+				c = c_override;
+				c_override = 255;
+			}
+		}
+		/* normal manual operation (resumed) */
+		if (!c_override) c = inkey();
 
 		switch (c) {
 		/* specialty: allow chatting from within here */
@@ -2018,6 +2392,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 
 		/* seach for 'chapter': can be either a numerical one or a main term, such as race/class/skill names. */
 		case 'c':
+#ifdef REGEX_SEARCH
+			search_regexp = FALSE;
+#endif
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter chapter to jump to: ");
 #if 0
@@ -2047,6 +2424,31 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 
 				chapter[0] = 0;
 
+				/* 'Troubleshooting' section, directly access it */
+				if (!strncasecmp(buf, "prob", 4) || !strncasecmp(buf, "prb", 3)) {
+					char *x = tmpbuf;
+					int p;
+
+					strcpy(tmpbuf, buf);
+					while (*x && !((*x < 'a' || *x > 'z') && (*x < 'A' || *x > 'Z'))) x++;
+					p = atoi(x);
+					*x = 0;
+
+					if (my_strcasestr("problem", tmpbuf) || my_strcasestr("prblem", tmpbuf)) {
+						if (!p) strcpy(buf, "Troubleshooting");
+						else {
+							strcpy(buf, "PROBLEM ");
+							strcat(buf, format("%d", p));
+							fallback = TRUE;
+							fallback_uppercase = 4;
+							continue;
+						}
+					}
+
+					/* clean up */
+					tmpbuf[0] = 0;
+				}
+
 				/* Expand 'AC' to 'Armour Class' */
 				if (!strcasecmp(buf, "ac")) strcpy(buf, "armour class");
 				/* Expand 'tc' to 'Treasure Class' */
@@ -2055,6 +2457,42 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				/* Melee weapon classes */
 				if (my_strcasestr(buf, "weap") && my_strcasestr(buf, "clas")) strcpy(buf, "weapon types");
 				else if (my_strcasestr(buf, "weap") && my_strcasestr(buf, "typ")) strcpy(buf, "weapon types");
+
+				/* ENABLE_DEMOLITIONIST */
+				if ((my_strcasestr("obtaining ", buf) && strlen(buf) >= 3) ||
+				    my_strcasestr(buf, "chemic")) {
+					strcpy(buf, "OBTAINING CHEMICALS/INGREDIENTS");
+					fallback = TRUE;
+					fallback_uppercase = 4;
+					continue;
+				}
+				if (my_strcasestr("charges", buf) && strlen(buf) >= 5 && !my_strcasestr(buf, "re")) {
+					strcpy(buf, "CHARGE TYPE");
+					fallback = TRUE;
+					fallback_uppercase = 4;
+					continue;
+				}
+				if (my_strcasestr(buf, "demo") && my_strcasestr(buf, "char")) strcpy(buf, "Demolition Charges");
+
+				/* Race/class boni/mali table */
+				if ((my_strcasestr(buf, "race") || my_strcasestr(buf, "racial"))
+				    && (my_strcasestr(buf, "bonus") || my_strcasestr(buf, "boni") || my_strcasestr(buf, "malus") || my_strcasestr(buf, "mali") || my_strcasestr(buf, "tab"))) {//(table)
+					strcpy(buf, "boni/mali of the different races");
+					fallback = TRUE;
+					continue;
+				}
+				/* Since there is nothing significant starting on 'table', actually accept this shortcut too */
+				if (my_strcasestr("table", buf) && strlen(buf) >= 3) {
+					strcpy(buf, "boni/mali of the different races");
+					fallback = TRUE;
+					continue;
+				}
+				if (my_strcasestr(buf, "class")
+				    && (my_strcasestr(buf, "bonus") || my_strcasestr(buf, "boni") || my_strcasestr(buf, "malus") || my_strcasestr(buf, "mali") || my_strcasestr(buf, "tab"))) {//(table)
+					strcpy(buf, "boni/mali of the different classes");
+					fallback = TRUE;
+					continue;
+				}
 
 				/* Expand 'pfe' to 'Protection from evil' */
 				if (!strcasecmp(buf, "pfe")) strcpy(buf, "Protection from evil");
@@ -2083,11 +2521,19 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					continue;
 				}
 				/* Draconian traits */
-				if (!strncasecmp(buf, "trai", 3) && my_strcasestr("traits:", buf)) {
+				if (!strncasecmp(buf, "trai", 4) && my_strcasestr("traits:", buf)) {
 					strcpy(buf, "Table of their traits:");
 					fallback = TRUE;
 					fallback_uppercase = 4;
 					line = 0; /* The correct chapter currently has the first hit from the beginning, while there are more 'wrong' hits coming up afterwards.. */
+					continue;
+				}
+				/* Demolitionist perk */
+				if (!strncasecmp(buf, "demol", 5) && !my_strcasestr(buf, "char")) { /* don't overlook chapter 'Demolition Charges'! */
+					strcpy(buf, "DEMOLITIONIST");
+					fallback = TRUE;
+					fallback_uppercase = 4;
+					line = 0; /* paranoia? */
 					continue;
 				}
 
@@ -2544,6 +2990,20 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				/* Continue with failure (empty chapter[] string) */
 				continue;
 			}
+
+			/* Search terms that don' start on alphanum char, but are not chapter numbers either: */
+
+			/* 'Item power inscription' */
+			if (!strcmp(buf, "@@") || !strcmp(buf, "@@@")) {
+				strcpy(buf, "ITEM POWER INSCRIPTION");
+				fallback = TRUE;
+				fallback_uppercase = 4;
+				line = 0; /* (just clean, not required) */
+				continue;
+			}
+
+			/* -- From here on we assume a chapter number was specified -- */
+
 			/* the original use of 'chapter' meant numerical chapters, which can have up to 8 characters, processed below */
 			buf[8] = 0;
 
@@ -2586,6 +3046,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			continue;
 		/* search for keyword */
 		case 's':
+#ifdef REGEX_SEARCH
+			search_regexp = FALSE;
+#endif
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter search string: ");
 #if 0
@@ -2619,9 +3082,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			/* Hack: If we enter all upper-case, search for exactly that, case sensitively */
 			search_uppercase = 4;
 			search_uppercase_ok = FALSE;
-			for (c = 0; searchstr[c]; c++) {
-				if (!search_uppercase_ok && isalpha(searchstr[c])) search_uppercase_ok = TRUE;
-				if (searchstr[c] == toupper(searchstr[c])) continue;
+			for (n = 0; searchstr[n]; n++) {
+				if (!search_uppercase_ok && isalpha(searchstr[n])) search_uppercase_ok = TRUE;
+				if (searchstr[n] == toupper(searchstr[n])) continue;
 				search_uppercase = FALSE;
 				break;
 			}
@@ -2633,6 +3096,49 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			strcpy(lastsearch, searchstr);
 			searchline = line - 1; //init searchline for string-search
 			continue;
+#ifdef REGEX_SEARCH
+		/* search for regexp ^^ why not! */
+		case 'r': /* <- case-insensitive */
+			__attribute__ ((fallthrough));
+		case 'R':
+			if (c == 'r') i = REG_EXTENDED | REG_ICASE;// | REG_NEWLINE;
+			else i = REG_EXTENDED;// | REG_NEWLINE;
+
+			Term_erase(0, bottomline, 80);
+			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter search regexp: ");
+
+			searchstr[0] = 0;
+
+			inkey_msg_old = inkey_msg;
+			inkey_msg = TRUE;
+			askfor_aux(searchstr, MAX_CHARS - 1, 0);
+			inkey_msg = inkey_msg_old;
+			if (!searchstr[0]) continue;
+
+			if (!ires) regfree(&re_src); /* release any previously compiled regexp first! */
+			ires = regcomp(&re_src, searchstr, i);
+			if (ires != 0) {
+				c_message_add(format("\377yInvalid regular expression (%d).", ires));
+				searchstr[0] = 0;
+				continue;
+			}
+
+			line_before_search = line;
+			line_presearch = line;
+			/* Skip the line we're currently in, start with the next line actually */
+			line++;
+			if (line > guide_lastline - maxlines) line = guide_lastline - maxlines;
+			if (line < 0) line = 0;
+
+			strcpy(lastsearch, searchstr);
+			searchline = line - 1; //init searchline for string-search
+
+			search_uppercase = FALSE;
+			search_regexp = TRUE;
+			strcpy(searchstr_re, searchstr); //clone just for ^/& evaluation later..
+			continue;
+#endif
+
 		/* special function now: Reset search. Means: Go to where I was before searching. */
 		case 'S':
 			line = line_before_search;
@@ -2697,28 +3203,40 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		case '?': //help
 			Term_clear();
 			Term_putstr(23,  0, -1, TERM_L_BLUE, "[The Guide - navigation keys]");
-			Term_putstr( 0,  2, -1, TERM_WHITE, "At the bottom of the guide screen you will see the following line:");
-			Term_putstr( 8,  3, -1, TERM_L_BLUE, ",Space/n,p,Enter,Back,ESC; s,d,D/f,S,c,# srch,nxt,prv,reset,chapter,line");
-			Term_putstr( 0,  3, -1, TERM_YELLOW, "'?' Help");
-			Term_putstr( 0,  4, -1, TERM_WHITE, "Those keys can be used to navigate the guide. Here's a detailed explanation:");
-			Term_putstr( 0,  5, -1, TERM_WHITE, "  Space or 'n':    Move down by one page");
-			Term_putstr( 0,  6, -1, TERM_WHITE, "  'p'         :    Move up by one page");
-			Term_putstr( 0,  7, -1, TERM_WHITE, "  's'         :    Search for a text string (use all upper-case for strict mode)");
-			Term_putstr( 0,  8, -1, TERM_WHITE, "  'd'         :    ..after 's', this jumps to the next match");
-			Term_putstr( 0,  9, -1, TERM_WHITE, "  'D' or 'f'  :    ..after 's', this jumps to the previous match");
-			Term_putstr( 0, 10, -1, TERM_WHITE, "  'S'         :    ..resets screen to where you were before you did a search.");
-			Term_putstr( 0, 11, -1, TERM_WHITE, "  'c'         :    Chapter Search. This is a special search that will skip most");
-			Term_putstr( 0, 12, -1, TERM_WHITE, "                   basic text and only match specific topics and keywords.");
-			Term_putstr( 0, 13, -1, TERM_WHITE, "                   Use this when searching for races, classes, skills, spells,");
-			Term_putstr( 0, 14, -1, TERM_WHITE, "                   schools, techniques, dungeons, bosses, events, lineages,");
-			Term_putstr( 0, 15, -1, TERM_WHITE, "                   depths, stair types, or actual chapter titles or indices.");
-			Term_putstr( 0, 16, -1, TERM_WHITE, "  '#'         :    Jump to a specific line number.");
-			Term_putstr( 0, 17, -1, TERM_WHITE, "  ESC         :    The Escape key will exit the guide screen.");
-			Term_putstr( 0, 18, -1, TERM_WHITE, "In addition, the arrow keys and the number pad keys can be used, and the keys");
-			Term_putstr( 0, 19, -1, TERM_WHITE, "PgUp/PgDn/Home/End should work both on the main keyboard and the number pad.");
-			Term_putstr( 0, 20, -1, TERM_WHITE, "This might depend on your specific OS flavour and desktop environment though.");
-			Term_putstr( 0, 21, -1, TERM_WHITE, "Searching for all-caps only gives 'emphasized' results first in a line (flags).");
-			Term_putstr(23, 23, -1, TERM_L_BLUE, "(Press any key to go back)");
+			i = 2;
+			Term_putstr( 0, i++, -1, TERM_WHITE, "At the bottom of the guide screen you will see the following line:");
+#ifdef REGEX_SEARCH
+			Term_putstr(29,   i, -1, TERM_L_BLUE, " s/r/R,d,D/f,S,c,#:srch,nxt,prv,reset,chapter,line");
+#else
+			Term_putstr(29,   i, -1, TERM_L_BLUE, " s,d,D/f,S,c,#:srch,nxt,prv,reset,chapter,line");
+#endif
+			Term_putstr( 6,   i, -1, TERM_SLATE,  "  SPC/n,p,ENTER,BCK,ESC");
+			Term_putstr( 0, i++, -1, TERM_YELLOW, " ?:Help");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "Those keys can be used to navigate the guide. Here's a detailed explanation:");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  Space or 'n':    Move down by one page");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'p'         :    Move up by one page");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  's'         :    Search for a text string (use all upper-case for strict mode)");
+#ifdef REGEX_SEARCH
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'r'/'R'     :    Search for a regular expression ('R' = case-sensitive)");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'd'         :    ..after 's/r/R', this jumps to the next match");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'D' or 'f'  :    ..after 's/r/R', this jumps to the previous match");
+#else
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'd'         :    ..after 's', this jumps to the next match");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'D' or 'f'  :    ..after 's', this jumps to the previous match");
+#endif
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'S'         :    ..resets screen to where you were before you did a search.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  'c'         :    Chapter Search. This is a special search that will skip most");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                   basic text and only match specific topics and keywords.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                   Use this when searching for races, classes, skills, spells,");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                   schools, techniques, dungeons, bosses, events, lineages,");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                   depths, stair types, or actual chapter titles or indices.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  '#'         :    Jump to a specific line number.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "  ESC         :    The Escape key will exit the guide screen.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "In addition, the arrow keys and the number pad keys can be used, and the keys");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "PgUp/PgDn/Home/End should work both on the main keyboard and the number pad.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "This might depend on your specific OS flavour and desktop environment though.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "Searching for all-caps only gives 'emphasized' results first in a line (flags).");
+			Term_putstr(25, 23, -1, TERM_L_BLUE, "(Press any key to go back)");
 			inkey();
 			continue;
 
@@ -2728,6 +3246,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			my_fclose(fff);
 #endif
 			Term_load();
+#ifdef REGEX_SEARCH
+			if (!ires) regfree(&re_src);
+#endif
 			return;
 		}
 	}
@@ -3556,21 +4077,21 @@ static void monster_lore(void) {
  /* '&' for async - actually not needed on X11 though, program will still continue to execute
     because xdg-open spawns the file manager asynchronously and returns right away */
  #ifdef OSX
-  #define FILEMAN(p) system(format("open \"%s\" &", p));
-  #define URLMAN(p) system(format("open \"%s\" &", p));
+  #define FILEMAN(p) (res = system(format("open \"%s\" &", p)));
+  #define URLMAN(p) (res = system(format("open \"%s\" &", p)));
  #else
-  #define FILEMAN(p) system(format("xdg-open \"%s\" &", p));
-  #define URLMAN(p) system(format("xdg-open \"%s\" &", p));
+  #define FILEMAN(p) (res = system(format("xdg-open \"%s\" &", p)));
+  #define URLMAN(p) (res = system(format("xdg-open \"%s\" &", p)));
  #endif
 #elif defined(WINDOWS)
  /* 'start' for async */
- #define FILEMAN(p) system(format("start explorer \"%s\"", p));
- //#define URLMAN(p) system(format("cmd /c start \"\" \"%s\"", p));
+ #define FILEMAN(p) (res = system(format("start explorer \"%s\"", p)));
+ //#define URLMAN(p) (res = system(format("cmd /c start \"\" \"%s\"", p)));
  #define URLMAN(p) ShellExecute(NULL, "open", p, NULL, NULL, SW_SHOWNORMAL);
 #endif
 void cmd_check_misc(void) {
 	char i = 0, choice;
-	int row = 2;
+	int row = 2, res;
 	/* suppress hybrid macros in some submenus */
 	bool inkey_msg_old, uniques;
 #if defined(USE_X11) || defined(WINDOWS)
@@ -3724,7 +4245,7 @@ void cmd_check_misc(void) {
 				do_cmd_messages();
 				break;
 			case 'j':
-				do_cmd_messages_chatonly();
+				do_cmd_messages_important();
 				break;
 			case 'l':
 				cmd_lagometer();
@@ -3802,6 +4323,7 @@ void cmd_check_misc(void) {
 		}
 	}
 	Term_load();
+	(void)res;
 }
 
 void cmd_message(void) {
@@ -3816,7 +4338,7 @@ void cmd_message(void) {
 	bool store_item = FALSE;
 
 	/* BIG_MAP leads to big shops */
-	bool big_shop = (screen_hgt > SCREEN_HGT);//14 more lines, so alphabet is fully used a)..z)
+	bool big_shop = (screen_hgt == MAX_SCREEN_HGT);//14 more lines, so alphabet is fully used a)..z)
 
 	/* Wipe the whole buffer to stop valgrind from complaining about the color code conversion - mikaelh */
 	C_WIPE(buf, sizeof(buf), char);
@@ -4300,7 +4822,11 @@ void cmd_throw(void) {
 }
 
 static bool item_tester_browsable(object_type *o_ptr) {
-	return (is_realm_book(o_ptr) || o_ptr->tval == TV_BOOK);
+	return (is_realm_book(o_ptr) || o_ptr->tval == TV_BOOK
+#ifdef ENABLE_SUBINVEN
+	    || o_ptr->tval == TV_SUBINVEN
+#endif
+	    );
 }
 
 void cmd_browse(void) {
@@ -4317,6 +4843,17 @@ void cmd_browse(void) {
 	}
 #endif
 
+#ifdef ENABLE_SUBINVEN
+	get_item_hook_find_obj_what = "Book/satchel name? ";
+	get_item_extra_hook = get_item_hook_find_obj;
+
+	item_tester_hook = item_tester_browsable;
+
+	if (!c_get_item(&item, "Browse which book/satchel? ", (USE_INVEN | USE_EXTRA | NO_FAIL_MSG))) {
+		if (item == -2) c_msg_print("You have no books that you can read, nor satchels to check.");
+		return;
+	}
+#else
 	get_item_hook_find_obj_what = "Book name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
@@ -4326,9 +4863,16 @@ void cmd_browse(void) {
 		if (item == -2) c_msg_print("You have no books that you can read.");
 		return;
 	}
-
+#endif
 	o_ptr = &inventory[item];
 
+#ifdef ENABLE_SUBINVEN
+	if (o_ptr->tval == TV_SUBINVEN) {
+		//browse_subinven(o_ptr->sval);
+		cmd_subinven(o_ptr->sval);
+		return;
+	}
+#endif
 	if (o_ptr->tval == TV_BOOK) {
 		browse_school_spell(item, o_ptr->sval, o_ptr->pval);
 		return;
@@ -4476,6 +5020,14 @@ static void cmd_house_paint(int dir) {
 	Send_admin_house(dir, buf);
 }
 
+static void cmd_house_tag(int dir) {
+	char buf[80];
+
+	get_string("Enter a tag for the houses list (max 19 characters): ", &buf[1], 20 - 1);
+	buf[0] = 'T';
+	Send_admin_house(dir, buf);
+}
+
 static void cmd_house_knock(int dir) {
 	char buf[80];
 
@@ -4496,9 +5048,10 @@ void cmd_purchase_house(void) {
 	Term_putstr(5, 4, -1, TERM_WHITE, "(1) Buy/Sell house");
 	Term_putstr(5, 5, -1, TERM_WHITE, "(2) Change house owner");
 	Term_putstr(5, 6, -1, TERM_WHITE, "(3) Change house permissions");
-	Term_putstr(5, 7, -1, TERM_WHITE, "(4) Paint house");/* new in 4.4.6: */
-	Term_putstr(5, 9, -1, TERM_WHITE, "(s) Enter player store");/* new in 4.4.6: */
-	Term_putstr(5, 10, -1, TERM_WHITE, "(k) Knock on house door");
+	Term_putstr(5, 7, -1, TERM_WHITE, "(4) Paint house");/* new in 4.4.6 */
+	Term_putstr(5, 8, -1, TERM_WHITE, "(5) Add houses-list tag");/* new in 4.7.3.1 */
+	Term_putstr(5, 10, -1, TERM_WHITE, "(s) Enter player store");/* new in 4.4.6 */
+	Term_putstr(5, 11, -1, TERM_WHITE, "(k) Knock on house door");
 	/* display in dark colour since only admins can do this really */
 	if (p_ptr->admin_dm || p_ptr->admin_wiz)
 		Term_putstr(5, 20, -1, TERM_L_DARK, "(D) Delete house (server administrators only)");
@@ -4524,6 +5077,10 @@ void cmd_purchase_house(void) {
 			break;
 		case '4':
 			cmd_house_paint(dir);
+			i = ESCAPE;
+			break;
+		case '5':
+			cmd_house_tag(dir);
 			i = ESCAPE;
 			break;
 		case 'D':

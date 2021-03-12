@@ -718,6 +718,7 @@ extern void do_cmd_check_other(int Ind, int line);
 extern void do_cmd_check_other_prepare(int Ind, char *path, char *title);
 extern void do_cmd_check_extra_info(int Ind, bool admin);
 extern void show_autoret(int Ind, byte typ, bool verbose);
+extern void write_player_info(int Ind, char *pinfo);
 
 /* cmd5.c */
 extern bool check_antimagic(int Ind, int percentage);
@@ -782,6 +783,7 @@ extern void do_cmd_melee_technique(int Ind, int technique);
 extern void do_cmd_ranged_technique(int Ind, int technique);
 extern void do_cmd_breathe(int Ind);
 extern void do_cmd_breathe_aux(int Ind, int dir);
+extern void do_pick_breath(int Ind, int element);
 extern void create_sling_ammo_aux(int Ind);
 extern bool create_snowball(int Ind, cave_type *c_ptr);
 
@@ -839,7 +841,7 @@ extern int get_recall_depth(struct worldpos *wpos, player_type *p_ptr);
 #ifdef CLIENT_SIDE_WEATHER
  #ifndef CLIENT_WEATHER_GLOBAL
   /* for use in slash.c */
-extern void cloud_create(int i, int cx, int cy);
+extern void cloud_create(int i, int cx, int cy, bool forced);
 extern void local_weather_update(void);
  #endif
 #endif
@@ -937,6 +939,7 @@ extern void init_wild_info_aux(int x, int y);
 extern void wild_flags(int Ind, u32b flags);
 extern void lively_wild(u32b flags);
 extern void paint_house(int Ind, int x, int y, int k);
+extern void tag_house(int Ind, int x, int y, char *args);
 extern void knock_house(int Ind, int x, int y);
 extern void wpos_apply_season_daytime(worldpos *wpos, cave_type **zcave);
 extern s32b house_price_area(int area, bool has_moat, bool random);
@@ -1231,6 +1234,8 @@ extern int Send_palette(int Ind, byte c, byte r, byte g, byte b);
 extern int Send_idle(int Ind, bool idle);
 extern int Send_Guide(int Ind, byte search_type, int lineno, char* search_string);
 
+extern int Send_indicators(int Ind, u32b indicators);
+extern int Send_weather_colouring(int Ind, byte col_raindrop, byte col_snowflake);
 
 /* object1.c */
 extern bool maybe_hidden_powers(int Ind, object_type *o_ptr, bool ignore_id);
@@ -1393,8 +1398,10 @@ extern int acc_set_deed_achievement(char *name, char deed_sval);
 extern char acc_get_deed_achievement(char *name);
 extern void sf_delete(const char *name);
 extern bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass);
+extern bool GetcaseAccount(struct account *c_acc, cptr name, char *correct_name, bool leavepass);
 extern bool GetAccountID(struct account *c_acc, u32b id, bool leavepass);
 extern bool Admin_GetAccount(struct account *c_acc, cptr name);
+extern bool Admin_GetcaseAccount(struct account *c_acc, cptr name, char *correct_name);
 extern void set_pkill(int Ind, int delay);
 extern int guild_lookup(cptr name);
 extern int party_lookup(cptr name);
@@ -1443,6 +1450,7 @@ extern s32b lookup_player_au(int id);
 extern s32b lookup_player_balance(int id);
 #endif
 extern int lookup_player_id(cptr name);
+extern int lookup_case_player_id(cptr name);
 extern int lookup_player_id_messy(cptr name);
 /* another arg, and its getting a struct... pfft. */
 extern void add_player_name(cptr name, int id, u32b account, byte race, byte class, byte mode, byte level, byte max_plv, u16b party, byte guild, u32b guild_flags, u16b xorder, time_t laston, byte admin, struct worldpos wpos, char houses, byte winner, byte order);
@@ -1741,7 +1749,9 @@ extern void tome_creation_aux(int Ind, int item);
 extern void mix_chemicals(int Ind, int item);
 extern void grind_chemicals(int Ind, int item);
 extern void arm_charge(int Ind, int item, int dir);
-extern void detonate_charge(object_type *o_ptr);
+extern bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown);
+extern void arm_charge_dir_and_fuse(object_type *o2_ptr, int dir);
+extern void detonate_charge(int o_idx);
 #endif
 
 extern bool create_garden(int Ind, int level);
@@ -2357,8 +2367,6 @@ extern s16b get_inven_xtra(int Ind, int inven_slot, int n);
 extern void lua_fix_skill_chart(int Ind);
 extern void lua_takeoff_costumes(int Ind);
 extern bool lua_is_unique(int r_idx);
-/* only called once, in util.c, referring to new file slash.c */
-extern void do_slash_cmd(int Ind, char *message, char *message_u);
 extern int global_luck; /* Global +LUCK modifier for the whole server (change the 'weather' - C. Blue) */
 extern void lua_intrusion(int Ind, char *problem_diz);
 extern bool lua_mimic_eligible(int Ind, int r_idx);
@@ -2534,6 +2542,12 @@ extern int shutdown_recall_timer, shutdown_recall_state;
 extern bool rune_enchant(int Ind, int item);
 extern bool warding_rune(int Ind, byte typ, int dam, byte rad);
 extern bool warding_rune_break(int m_idx);
+
+/* slash.c */
+extern void do_slash_cmd(int Ind, char *message, char *message_u);
+extern void tym_evaluate(int Ind);
+
+
 
 #ifdef MONSTER_ASTAR
 extern astar_list_open astar_info_open[ASTAR_MAX_INSTANCES];

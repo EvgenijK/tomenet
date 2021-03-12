@@ -1537,6 +1537,11 @@ if (!season_newyearseve) {
 #else
 		if (streq(m, "DEMOLITIONIST_IDDC_ONLY") && negation) invalid = TRUE;
 #endif
+#ifndef ENABLE_SUBINVEN
+		if (streq(m, "ENABLE_SUBINVEN") && !negation) invalid = TRUE;
+#else
+		if (streq(m, "ENABLE_SUBINVEN") && negation) invalid = TRUE;
+#endif
 		/* List all known flags. If we hit an unknown flag, ignore the line by default! */
 		if (strcmp(m, "MAIN_SERVER") &&
 		    strcmp(m, "RPG_SERVER") &&
@@ -1561,6 +1566,7 @@ if (!season_newyearseve) {
 		    strcmp(m, "ENABLE_OUNLIFE") &&
 		    strcmp(m, "ENABLE_DEMOLITIONIST") &&
 		    strcmp(m, "DEMOLITIONIST_IDDC_ONLY") &&
+		    strcmp(m, "ENABLE_SUBINVEN") &&
 			TRUE)
 			invalid = TRUE;
 	}
@@ -7342,7 +7348,9 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 				q_questor->reidx = reidx;
 				q_questor->rchar = ch;
 				q_questor->rattr = color_char_to_attr(attr);
+				if (minlv == -1) minlv = 0; /* (hack) Fix wrong q_info.txt data instead of throwing sanitizer-warnings. Todo: Instead, correct the wrong -1 values in q_info.txt. */
 				q_questor->rlevmin = minlv;
+				if (maxlv == -1) maxlv = 0; /* (hack) Fix wrong q_info.txt data instead of throwing sanitizer-warnings. Todo: Instead, correct the wrong -1 values in q_info.txt. */
 				q_questor->rlevmax = maxlv;
 				strcpy(q_questor->name, tmpbuf);
 				break;

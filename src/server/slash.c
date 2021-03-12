@@ -1560,7 +1560,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 
 			if (prepare_xorder(Ind, j, flags, &lev, &r, &num))
-			add_xorder(Ind, j, r, num, flags);
+				add_xorder(Ind, j, r, num, flags);
 			return;
 		}
 		else if (prefix(messagelc, "/feeling") || prefix(messagelc, "/fe")) {
@@ -3216,13 +3216,21 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			int skill = get_skill(p_ptr, SKILL_HEALTH), guis = 0;
 
 			if (gain && p_ptr->reskill_possible) {
+				/* Take care of mimicry form in conjunction with anti-magic skill,
+				   as Mimicry will be zero'ed from that! 'AM-Hack' */
+				int form;
+
 				memcpy(p_ptr->s_info, p_ptr->s_info_old, MAX_SKILLS * sizeof(skill_player));
 				p_ptr->skill_points = p_ptr->skill_points_old;
-
 				msg_format(Ind, "\377GYou have regained %d skill points.", gain);
+				/* AM-Hack part 1/2: If we (always) already had AM-skill before reskilling,
+				   then it means we also already had sufficient Mimicry skill for this form,
+				   hence we are allowed to keep it! */
+				form = get_skill_scale(p_ptr, SKILL_ANTIMAGIC, 1000) != 0 ? p_ptr->body_monster : 0;
 
 				/* in case we changed mimicry skill */
 				if (p_ptr->body_monster &&
+				    !form && /* <- AM-Hack part 2/2: Keep form if allowed. */
 				    r_info[p_ptr->body_monster].level > get_skill_scale(p_ptr, SKILL_MIMIC, 100))
 					do_mimic_change(Ind, 0, TRUE);
 
@@ -3916,66 +3924,55 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		}
 		else if (prefix(messagelc, "/testyourmight")  ||
 		    prefix(messagelc, "/tym")) {
-			long tmp;
-			if (tk != 1 || (tk == 1 && strcmp(token[1], "rs") && strcmp(token[1], "show"))) {
-				msg_print(Ind, "Usage: /testyourmight <show|rs>");
+			if (tk != 1 || (tk == 1 && strcmp(token[1], "rs") && tk == 1 && strcmp(token[1], "rsw") && strcmp(token[1], "rsx") && strcmp(token[1], "show"))) {
+				msg_print(Ind, "Usage: /testyourmight <show|rs[w]>");
 				msg_print(Ind, "       '/testyourmight show' will display your current damage/heal stats,");
-				msg_print(Ind, "        based on your number of *successful* attacks and over the time");
-				msg_print(Ind, "        passed, in seconds.");
-				msg_print(Ind, "        \377yNOTE: Having high +Speed and +EA is a problem, see /tym in the guide!");
+				msg_print(Ind, "         based on your number of *successful* attacks and over the time");
+				msg_print(Ind, "         passed, in seconds.");
+				msg_print(Ind, "         \377yNOTE: Having high +Speed and +EA is a problem, see /tym in the guide!");
 				msg_print(Ind, "       '/testyourmight rs' will reset the recorded stats to zero.");
+				msg_print(Ind, "       '/testyourmight rsw' will reset the recorded stats to zero and wait with");
+				msg_print(Ind, "        counting until you perform your next attack.");
+				msg_print(Ind, "       '/testyourmight rsx' will reset the recorded stats to zero and wait with");
+				msg_print(Ind, "        counting until you perform your next attack, and will automatically");
+				msg_print(Ind, "        evaluate the (idle-corrected) result if you don't attack for 5 seconds.");
 				return;
 			}
 			if (!strcmp(token[1], "rs")) {
 				p_ptr->test_count = p_ptr->test_dam = p_ptr->test_heal = 0;
 				p_ptr->test_turn = turn;
+				p_ptr->test_turn_idle = 0;
 				msg_print(Ind, "Attack count, damage and healing done have been reset to zero.");
 #ifdef TEST_SERVER
 				p_ptr->test_attacks = 0;
 #endif
 				return;
 			}
-			msg_print(Ind, "Your total damage and healing done since login or last reset:");
-			msg_format(Ind, "    \377oTotal damage done   : %8d", p_ptr->test_dam);
-			msg_format(Ind, "    \377gTotal healing done  : %8d", p_ptr->test_heal);
-			msg_print(Ind, "  Damage and healing done over # of attacks and amount of time passed:");
-
-			if (p_ptr->test_count == 0)
-				msg_print(Ind,  "    \377sNo count-based result available: # of successful attacks is still zero.");
-			else {
-				msg_format(Ind, "    \377w# of successful attacks:  %8d", p_ptr->test_count);
-				tmp = p_ptr->test_dam / p_ptr->test_count;
-				if (tmp != 0 && tmp < 100) msg_format(Ind, "    \377o    Average damage done : %8ld.%1d",
-				    tmp, ((p_ptr->test_dam * 10) / p_ptr->test_count) % 10);
-				else msg_format(Ind, "    \377o    Average damage done : %8ld", tmp);
-				tmp = p_ptr->test_heal / p_ptr->test_count;
-				if (tmp != 0 && tmp < 100) msg_format(Ind, "    \377g    Average healing done: %8ld.%1d",
-				    tmp, ((p_ptr->test_heal * 10) / p_ptr->test_count) % 10);
-				else msg_format(Ind, "    \377g    Average healing done: %8ld", tmp);
-			}
+			if (!strcmp(token[1], "rsw")) {
+				p_ptr->test_count = p_ptr->test_dam = p_ptr->test_heal = 0;
+				p_ptr->test_turn = 0;
+				p_ptr->test_turn_idle = 0;
+				msg_print(Ind, "Attack count, damage and healing done have been reset to zero");
+				msg_print(Ind, " and put on hold until your next attack, which will start the counter.");
 #ifdef TEST_SERVER
-			if (p_ptr->test_attacks == 0)
-				msg_print(Ind, "    \377wNo attempts to attack were made yet.");
-			else
-				msg_format(Ind, "    \377wHit with %d out of %d attacks (%d%%)", p_ptr->test_count, p_ptr->test_attacks, (100 * p_ptr->test_count) / p_ptr->test_attacks);
+				p_ptr->test_attacks = 0;
 #endif
-
-			if (p_ptr->test_turn == 0)
-				msg_print(Ind, "    \377sNo time-based result available: Initialize via '/testyourmight rs'.");
-			/* this shouldn't happen.. - except on 'turn' overflow/reset */
-			else if ((turn - p_ptr->test_turn) < cfg.fps)
-				msg_print(Ind,  "    \377sNo time-based result available: No second has passed yet.");
-			else {
-				msg_format(Ind, "    \377w# of seconds passed:      %8d.%1d", (turn - p_ptr->test_turn) / cfg.fps, (((turn - p_ptr->test_turn) * 10) / cfg.fps) % 10);
-				tmp = (p_ptr->test_dam * 10) / (((turn - p_ptr->test_turn) * 10) / cfg.fps);
-				if (tmp != 0 && tmp < 100) msg_format(Ind, "    \377o    Average damage done : %8ld.%1d",
-				    tmp, ((p_ptr->test_dam * 10) / ((turn - p_ptr->test_turn) / cfg.fps)) % 10);
-				else msg_format(Ind, "    \377o    Average damage done : %8ld", tmp);
-				tmp = (p_ptr->test_heal * 10) / (((turn - p_ptr->test_turn) * 10) / cfg.fps);
-				if (tmp != 0 && tmp < 100) msg_format(Ind, "    \377g    Average healing done: %8ld.%1d",
-				    tmp, ((p_ptr->test_heal * 10) / ((turn - p_ptr->test_turn) / cfg.fps)) % 10);
-				else msg_format(Ind, "    \377g    Average healing done: %8ld", tmp);
+				return;
 			}
+			if (!strcmp(token[1], "rsx")) {
+				p_ptr->test_count = p_ptr->test_dam = p_ptr->test_heal = 0;
+				p_ptr->test_turn = 0;
+				p_ptr->test_turn_idle = cfg.fps * 5;
+				msg_print(Ind, "Attack count, damage and healing done have been reset to zero");
+				msg_print(Ind, " and put on hold until your next attack, which will start the counter.");
+				msg_print(Ind, " Ceasing attacks for 5 seconds will stop and auto-evaluate the result.");
+#ifdef TEST_SERVER
+				p_ptr->test_attacks = 0;
+#endif
+				return;
+			}
+
+			tym_evaluate(Ind);
 			return;
 		}
 		/* request back real estate that was previously backed up via /backup_estate */
@@ -4177,6 +4174,8 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 
 			p_ptr->s_info[SKILL_BREATH].value = 1000;
 			Send_skill_info(Ind, SKILL_BREATH, TRUE);
+			p_ptr->s_info[SKILL_PICK_BREATH].value = 1000;
+			Send_skill_info(Ind, SKILL_PICK_BREATH, TRUE);
 			return;
 #endif
 #ifdef AUTO_RET_CMD
@@ -4425,6 +4424,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		}
 		else if (prefix(messagelc, "/seen")) {
 			char response[MAX_CHARS_WIDE];
+
 			get_laston(message3, response, admin_p(Ind), TRUE);
 			msg_print(Ind, response);
 			return;
@@ -4512,16 +4512,16 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			/* char names always start on upper-case */
 			message3[0] = toupper(message3[0]);
 
-			if (!(p_id = lookup_player_id(message3))) {
+			if (!(p_id = lookup_case_player_id(message3))) {
 				struct account acc;
 
 #if 1 /* hack: also do a 'whowas' here by checking the reserved names list */
 				for (i = 0; i < MAX_RESERVED_NAMES; i++) {
 					if (!reserved_name_character[i][0]) break;
 
-					if (!strcmp(reserved_name_character[i], message3)) {
+					if (!strcasecmp(reserved_name_character[i], message3)) {
 						for (j = 1; j <= NumPlayers; j++)
-							if (!strcmp(Players[j]->accountname, reserved_name_account[i])) {
+							if (!strcasecmp(Players[j]->accountname, reserved_name_account[i])) {
 								msg_format(Ind, "That deceased character belonged to account: \377s%s \377w(\377Gonline\377w)", reserved_name_account[i]);
 								return;
 							}
@@ -4534,15 +4534,15 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #if 0 /* don't check for account name */
 				msg_print(Ind, "That character name does not exist.");
 #else /* check for account name */
-				if (!GetAccount(&acc, message3, NULL, FALSE))
+				if (!GetcaseAccount(&acc, message3, message3, FALSE))
 					msg_print(Ind, "That character or account name does not exist.");
 				else {
 					for (i = 1; i <= NumPlayers; i++)
-						if (!strcmp(Players[i]->accountname, message3)) {
-							msg_print(Ind, "There is no such character, but there is an account of that name \377Gonline\377w.");
+						if (!strcasecmp(Players[i]->accountname, message3)) {
+							msg_format(Ind, "No such character, but an account '%s' is \377Gonline\377w.", Players[i]->accountname);
 							return;
 						}
-					msg_print(Ind, "There is no such character, but there is an account of that name.");
+					msg_format(Ind, "No such character, but there is an account named '%s'.", message3);
 				}
 #endif
 				return;
@@ -4551,6 +4551,8 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			/* character exists, look up its account */
 			acc = lookup_accountname(p_id);
 			if (!acc) {
+				/* NOTE: This _can_ happen for outdated/inconsistent player databases where a character
+				         of the name still exists but does not belong to the account of the same name! */
 				msg_print(Ind, "***ERROR: No account found.");
 				return;
 			}
@@ -4563,6 +4565,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			if (lookup_player_admin(p_id)) {
 				if (admin) {
 					struct worldpos wpos = lookup_player_wpos(p_id);
+
 					msg_format(Ind, "That administrative character belongs to account: \377s%s %s(%d,%d,%d)",
 					    acc, online ? "\377G" : "", wpos.wx, wpos.wy, wpos.wz);
 				}
@@ -4590,6 +4593,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					break;
 				case (MODE_HARD | MODE_NO_GHOST):
 					col = 'r';
+					break;
+				case (MODE_SOLO | MODE_NO_GHOST):
+					col = 's';
 					break;
 				case MODE_HARD: //deprecated
 					col = 's';
@@ -4793,6 +4799,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			set_player_order(p_ptr->id, k);
 			msg_format(Ind, "This character's ordering weight has been set to %d.", k);
 			C_KILL(id_list, ids, int);
+			return;
+		} else if (prefix(messagelc, "/edmt")) { /* manual c_cfg.easy_disarm_montraps */
+			p_ptr->easy_disarm_montraps = !p_ptr->easy_disarm_montraps;
+			msg_format(Ind, "Walking into a monster trap will %sdisarm it.", p_ptr->easy_disarm_montraps ? "" : "not ");
 			return;
 		}
 
@@ -5949,6 +5959,51 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				o_ptr->owner = 0;
 				if (tk > 2) o_ptr->pval = atoi(token[3]);
 				//o_ptr->owner = p_ptr->id;
+				o_ptr->level = 1;
+
+ #ifdef NEW_MDEV_STACKING
+				if (o_ptr->tval == TV_WAND || o_ptr->tval == TV_STAFF) o_ptr->pval *= o_ptr->number;
+ #endif
+				(void)inven_carry(Ind, o_ptr);
+
+				return;
+			}
+			/* actually wish a (basic) item by item name */
+			else if (prefix(messagelc, "/nwish")) {
+				object_kind *k_ptr;
+				object_type	forge;
+				object_type	*o_ptr = &forge;
+
+				WIPE(o_ptr, object_type);
+
+				if (!tk) {
+					msg_print(Ind, "\377oUsage: /nwish <item name>");
+					return;
+				}
+
+				/* todo: actually allow ego power prefix/postfix */
+
+				/* Hack -- Guess at "correct" values for tval_to_char[] */
+				for (i = 1; i < max_k_idx; i++) {
+					k_ptr = &k_info[i];
+					//if (!k_ptr->k_idx) continue;
+					if (!my_strcasestr(k_name + k_ptr->name, message3)) continue;
+					break;
+				}
+				if (i == max_k_idx) {
+					msg_print(Ind, "\377yItem not found.");
+					return;
+				}
+
+				invcopy(o_ptr, lookup_kind(k_ptr->tval, k_ptr->sval));
+
+				//o_ptr->number = o_ptr->weight >= 30 ? 1 : 99;
+
+				//apply_magic(&p_ptr->wpos, o_ptr, -1, !o_ptr->name2, TRUE, TRUE, FALSE, RESF_NONE);
+				apply_magic(&p_ptr->wpos, o_ptr, -1, !o_ptr->name2, o_ptr->name1 || o_ptr->name2, o_ptr->name1 || o_ptr->name2, FALSE, RESF_NONE);
+				o_ptr->discount = 0;
+				object_known(o_ptr);
+				o_ptr->owner = 0;
 				o_ptr->level = 1;
 
  #ifdef NEW_MDEV_STACKING
@@ -7563,8 +7618,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 
 						if (tmpm & MODE_EVERLASTING) strcpy(colour_sequence, "\377B");
 						else if (tmpm & MODE_PVP) strcpy(colour_sequence, format("\377%c", COLOUR_MODE_PVP));
+						else if (tmpm & MODE_SOLO) strcpy(colour_sequence, "\377s");
 						else if (tmpm & MODE_NO_GHOST) strcpy(colour_sequence, "\377D");
-						else if (tmpm & MODE_HARD) strcpy(colour_sequence, "\377s");
+						else if (tmpm & MODE_HARD) strcpy(colour_sequence, "\377s");//deprecated
 						else strcpy(colour_sequence, "\377W");
 						if (tmpm & MODE_DED_IDDC) strcat(colour_sequence, "*");
 						if (tmpm & MODE_DED_PVP) strcat(colour_sequence, "*");
@@ -7617,8 +7673,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 						tmpm = lookup_player_mode(id_list[i]);
 						if (tmpm & MODE_EVERLASTING) strcpy(colour_sequence, "\377B");
 						else if (tmpm & MODE_PVP) strcpy(colour_sequence, format("\377%c", COLOUR_MODE_PVP));
+						else if (tmpm & MODE_SOLO) strcpy(colour_sequence, "\377s");
 						else if (tmpm & MODE_NO_GHOST) strcpy(colour_sequence, "\377D");
-						else if (tmpm & MODE_HARD) strcpy(colour_sequence, "\377s");
+						else if (tmpm & MODE_HARD) strcpy(colour_sequence, "\377s");//deprecated
 						else strcpy(colour_sequence, "\377W");
 						if (tmpm & MODE_DED_IDDC) strcat(colour_sequence, "*");
 						if (tmpm & MODE_DED_PVP) strcat(colour_sequence, "*");
@@ -8709,9 +8766,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			   which space is actually occupied and which is free */
 			else if (prefix(messagelc, "/testdisplay")) {
 				struct worldpos wpos;
-				wpos.wx = 0; wpos.wy = 0; wpos.wz = 200;
 				Send_extra_status(Ind, "ABCDEFGHIJKL");
-//				Send_depth(Ind, &wpos);
+				//wpos.wx = 0; wpos.wy = 0; wpos.wz = 200;
+				//Send_depth(Ind, &wpos);
+				wpos.wx = p_ptr->wpos.wx; wpos.wy = p_ptr->wpos.wy; wpos.wz = p_ptr->wpos.wz;
 				Send_depth_hack(Ind, &wpos, TRUE, "TOONTOWNoO");
 				Send_food(Ind, PY_FOOD_MAX);
 				Send_blind(Ind, TRUE);
@@ -8720,8 +8778,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				Send_poison(Ind, 2);
 				Send_state(Ind, TRUE, TRUE, TRUE);
 				Send_speed(Ind, 210);
-				if (is_older_than(&p_ptr->version, 4, 4, 8, 5, 0, 0))
-					Send_study(Ind, TRUE);
+				if (is_older_than(&p_ptr->version, 4, 4, 8, 5, 0, 0)) Send_study(Ind, TRUE);
 				else Send_bpr(Ind, 99, TERM_L_RED);
 				Send_cut(Ind, 1001);
 				Send_stun(Ind, 101);
@@ -8802,7 +8859,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "You can no longer receive direct private chat from players.");
 				else
 					msg_print(Ind, "You can now receive direct private chat from players.");
-				p_ptr->admin_dm_chat = ~p_ptr->admin_dm_chat;
+				p_ptr->admin_dm_chat = !p_ptr->admin_dm_chat;
 				return;
 			}
 			/* unidentifies an item */
@@ -9843,7 +9900,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 
 				//around our current worldmap sector
-				cloud_create(i, p_ptr->wpos.wx * MAX_WID, p_ptr->wpos.wy * MAX_HGT);
+				cloud_create(i, p_ptr->wpos.wx * MAX_WID, p_ptr->wpos.wy * MAX_HGT, TRUE);
 
 				/* update players' local client-side weather if required */
 				local_weather_update();
@@ -10999,6 +11056,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_format(Ind, "Timer = %d.", great_pumpkin_timer);
 				return;
 			}
+			else if (prefix(messagelc, "/uptime")) { /* same as LUA uptime (It/Moltor) */
+				long elapsed = (turn - session_turn) / cfg.fps;
+				int days = elapsed / 86400, hours = (elapsed % 86400) / 3600, minutes = (elapsed % 3600) / 60, seconds = (elapsed % 60);
+
+				msg_format(Ind, "\377sUptime: %d days %d hours %d minutes %d seconds", days, hours, minutes, seconds);
+				return;
+			}
 		}
 	}
 
@@ -11028,13 +11092,13 @@ static void do_slash_brief_help(int Ind){
 
 /* determine when character or account name was online the last time */
 void get_laston(char *name, char *response, bool admin, bool colour) {
-	unsigned long int s, sl = 0;
+	unsigned long int s, sla = 0, slp = 0;
 	time_t now;
 	u32b p_id;
 	bool acc_found = FALSE;
 	int i;
 	struct account acc;
-	char name_tmp[MAX_CHARS_WIDE], *nameproc = name_tmp;
+	char name_tmp[MAX_CHARS_WIDE], *nameproc = name_tmp, correct_name[MAX_CHARS_WIDE];
 
 	/* trim name */
 	strncpy(nameproc, name, MAX_CHARS_WIDE - 1);
@@ -11051,41 +11115,32 @@ void get_laston(char *name, char *response, bool admin, bool colour) {
 	for (i = 1; i <= NumPlayers; i++) {
 		if (Players[i]->conn == NOT_CONNECTED) continue;
 		if (admin_p(i) && !admin) continue;
-		if (streq(Players[i]->name, nameproc)) {
+		if (!strcasecmp(Players[i]->name, nameproc)) {
 			strcpy(response, "A character of that name is online right now!");
 			return;
-		} else if (streq(Players[i]->accountname, nameproc)) {
+		} else if (!strcasecmp(Players[i]->accountname, nameproc)) {
 			strcpy(response, "The player using that account name is online right now!");
 			return;
 		}
 	}
 
 	/* check if it's an acount name */
-	if (Admin_GetAccount(&acc, nameproc)) {
+	if (Admin_GetcaseAccount(&acc, nameproc, correct_name)) {
 		acc_found = TRUE;
-		if (admin || !(acc.flags & ACC_ADMIN)) sl = acc.acc_laston_real;
+		if (admin || !(acc.flags & ACC_ADMIN)) sla = acc.acc_laston_real;
 		WIPE(&acc, struct account);
 	}
 
 	/* check if it's a character name (not really necessary if we found an account already) */
-	if ((p_id = lookup_player_id(nameproc))) {
-		if (!lookup_player_admin(p_id) || admin) {
-			if (!acc_found) sl = lookup_player_laston(p_id);
-			else {
-				s = lookup_player_laston(p_id);
-				if (s >= sl) {
-					sl = s;
-					acc_found = FALSE; /* as I said, not necessary :-p */
-				}
-			}
-		}
+	if ((p_id = lookup_case_player_id(nameproc))) {
+		if (!lookup_player_admin(p_id) || admin) slp = lookup_player_laston(p_id);
 	/* neither char nor acc_found? */
 	} else if (!acc_found) {
 		/* last resort: Check reserved names list, ie deceased characters */
 		for (i = 0; i < MAX_RESERVED_NAMES; i++) {
 			if (!reserved_name_character[i][0]) break;
-			if (strcmp(reserved_name_character[i], nameproc)) continue;
-			sprintf(response, "The character \377s%s\377w unfortunately is deceased.", nameproc);
+			if (strcasecmp(reserved_name_character[i], nameproc)) continue;
+			sprintf(response, "The character \377s%s\377w unfortunately is deceased.", reserved_name_character[i]);
 			return;
 		}
 
@@ -11095,13 +11150,25 @@ void get_laston(char *name, char *response, bool admin, bool colour) {
 	}
 
 	/* error or admin account? */
-	if (!sl) {
+	if (!sla && !slp) {
 		sprintf(response, "Sorry, unable to determine the last time %s was seen.", nameproc);
 		return;
 	}
 
+	/* Don't display account AND player info, just take what is more recent, for now */
+	if (sla && slp) {
+		if (slp < sla) {
+			acc_found = FALSE;
+			s = slp;
+		} else s = sla;
+	} else s = sla ? sla : slp;
+
+	/* Display the case-correct name instead of our entered name, if found */
+	if (acc_found) strcpy(nameproc, correct_name);
+	else strcpy(nameproc, lookup_player_name(p_id));
+
 	now = time(&now);
-	s = now - sl;
+	s = now - s;
 	if (colour) {
 		if (s >= 60 * 60 * 24 * 3) sprintf(response, "%s \377s%s\377w was last seen %ld days ago.", acc_found ? "The player using account" : "The character", nameproc, s / (60 * 60 * 24));
 		else if (s >= 60 * 60 * 3) sprintf(response, "%s \377s%s\377w was last seen %ld hours ago.", acc_found ? "The player using account" : "The character", nameproc, s / (60 * 60));
@@ -11112,5 +11179,55 @@ void get_laston(char *name, char *response, bool admin, bool colour) {
 		else if (s >= 60 * 60 * 3) sprintf(response, "%s %s was last seen %ld hours ago.", acc_found ? "The player using account" : "The character", nameproc, s / (60 * 60));
 		else if (s >= 60 * 3) sprintf(response, "%s %s was last seen %ld minutes ago.", acc_found ? "The player using account" : "The character", nameproc, s / 60);
 		else sprintf(response, "%s %s was last seen %ld seconds ago.", acc_found ? "The player using Account" : "The character", nameproc, s);
+	}
+}
+
+#define EVALPF "\374"
+void tym_evaluate(int Ind) {
+	player_type *p_ptr = Players[Ind];
+	long tmp;
+
+	msg_print(Ind, EVALPF"Your total damage and healing done since login or last reset:");
+	msg_format(Ind, EVALPF"    \377oTotal damage done   : %8d", p_ptr->test_dam);
+	msg_format(Ind, EVALPF"    \377gTotal healing done  : %8d", p_ptr->test_heal);
+	msg_print(Ind, EVALPF"  Damage and healing done over # of attacks and amount of time passed:");
+
+	if (p_ptr->test_count == 0)
+		msg_print(Ind,  EVALPF"    \377sNo count-based result available: # of successful attacks is still zero.");
+	else {
+		msg_format(Ind, EVALPF"    \377w# of successful attacks:  %8d", p_ptr->test_count);
+		tmp = p_ptr->test_dam / p_ptr->test_count;
+		if (tmp != 0 && tmp < 100) msg_format(Ind, EVALPF"    \377o    Average damage done : %8ld.%1d",
+		    tmp, ((p_ptr->test_dam * 10) / p_ptr->test_count) % 10);
+		else msg_format(Ind, EVALPF"    \377o    Average damage done : %8ld", tmp);
+		tmp = p_ptr->test_heal / p_ptr->test_count;
+		if (tmp != 0 && tmp < 100) msg_format(Ind, EVALPF"    \377g    Average healing done: %8ld.%1d",
+		    tmp, ((p_ptr->test_heal * 10) / p_ptr->test_count) % 10);
+		else msg_format(Ind, EVALPF"    \377g    Average healing done: %8ld", tmp);
+	}
+#ifdef TEST_SERVER
+	if (p_ptr->test_attacks == 0)
+		msg_print(Ind, EVALPF"    \377wNo attempts to attack were made yet.");
+	else
+		msg_format(Ind, EVALPF"    \377wHit with %d out of %d attacks (%d%%)", p_ptr->test_count, p_ptr->test_attacks, (100 * p_ptr->test_count) / p_ptr->test_attacks);
+#endif
+
+	if (p_ptr->test_turn == 0) {
+		msg_print(Ind, EVALPF"    \377sNo time-based result available,");
+		msg_print(Ind, EVALPF"     either attack something or start live-checking via \377y/testyourmight rs");
+	/* this shouldn't happen.. - except on 'turn' overflow/reset */
+	} else if ((turn - p_ptr->test_turn) < cfg.fps) {
+		msg_print(Ind,  EVALPF"    \377sNo time-based result available: No full second of attacks has passed,");
+		msg_print(Ind,  EVALPF"    \377s please reinitialize via \377y/testyourmight rs[w]");
+	} else {
+		msg_format(Ind, EVALPF"    \377w# of seconds passed:      %8d.%1d", (turn - p_ptr->test_turn) / cfg.fps, (((turn - p_ptr->test_turn) * 10) / cfg.fps) % 10);
+		tmp = (p_ptr->test_dam * 10) / (((turn - p_ptr->test_turn) * 10) / cfg.fps);
+		if (tmp != 0 && tmp < 100) msg_format(Ind, EVALPF"    \377o    Average damage done : %8ld.%1d",
+		    tmp, ((p_ptr->test_dam * 10) / ((turn - p_ptr->test_turn) / cfg.fps)) % 10);
+		else msg_format(Ind, EVALPF"    \377o    Average damage done : %8ld", tmp);
+		tmp = (p_ptr->test_heal * 10) / (((turn - p_ptr->test_turn) * 10) / cfg.fps);
+		if (tmp != 0 && tmp < 100) msg_format(Ind, EVALPF"    \377g    Average healing done: %8ld.%1d",
+		    tmp, ((p_ptr->test_heal * 10) / ((turn - p_ptr->test_turn) / cfg.fps)) % 10);
+		else msg_format(Ind, EVALPF"    \377g    Average healing done: %8ld", tmp);
 	}
 }

@@ -69,7 +69,6 @@ OBLIND_II = add_spell {
 	["fail"] = 	-25,
 	["direction"] = FALSE,
 	["spell"] = 	function()
-		--project_los(Ind, GF_BLIND, 5 + get_level(Ind, OBLIND_I, 80), "hisses")
 		--1..gl(7) starting at rad 2, or just gl(9) starting at rad 1
 		msg_print(Ind, "You are surrounded by darkness")
 		fire_ball(Ind, GF_DARK_WEAK, 0, 8192 + 10 + get_level(Ind, OBLIND_I, 80), 1 + get_level(Ind, OBLIND_II, 7), " calls darkness for")
@@ -77,7 +76,6 @@ OBLIND_II = add_spell {
 	["info"] = 	function()
 		return "power "..(10 + get_level(Ind, OBLIND_I, 80)).." rad "..(1 + get_level(Ind, OBLIND_II, 7))
 	end,
-	--["desc"] = { "Temporarily blinds all nearby foes.", }
 	["desc"] = { "Causes a burst of darkness around you, blinding nearby foes.", }
 }
 
@@ -197,25 +195,20 @@ OSLEEP_II = add_spell {
 	["direction"] = FALSE,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
-		--project_los(Ind, GF_OLD_SLEEP, 5 + get_level(Ind, OSLEEP_I, 80), "mumbles softly")
 		fire_wave(Ind, GF_OLD_SLEEP, 0, 5 + get_level(Ind, OSLEEP_I, 80), 1, 10, 3, EFF_WAVE, "mumbles softly")
 	end,
 	["info"] = 	function()
 		return "power "..(5 + get_level(Ind, OSLEEP_I, 80)).." rad 10"
 	end,
-	--["desc"] = { "Lets all nearby monsters fall asleep.", }
 	["desc"] = { "Expanding veil that lets monsters fall asleep.", }
 }
 
 function get_darkbolt_dam(Ind, limit_lev)
-	--return 5 + get_level(Ind, DARKBOLT, 25), 7 + get_level(Ind, DARKBOLT, 25) + 1
 	local lev
 
 	lev = get_level(Ind, DARKBOLT_I, 50)
 	if limit_lev ~= 0 and lev > limit_lev then lev = limit_lev + (lev - limit_lev) / 3 end
 
-	--return 5 + (lev / 2), 7 + ((lev * 2) / 3) + 1
-	--..since spirit was buffed:
 	return 5 + ((lev * 3) / 5), 7 + ((lev * 2) / 3)
 end
 DARKBOLT_I = add_spell {
@@ -341,7 +334,6 @@ OINVIS = add_spell {
 	["mana_max"] = 	30,
 	["fail"] = 	-40,
 	["spell"] = 	function()
-		--if player.tim_invisibility == 0 then set_invis(Ind, randint(20) + 15 + get_level(Ind, OINVIS, 50), 20 + get_level(Ind, OINVIS, 50)) end
 		local dur = randint(20) + 15 + get_level(Ind, OINVIS, 50)
 		set_invis(Ind, dur, 20 + get_level(Ind, OINVIS, 50))
 		set_shroud(Ind, dur, 10 + get_level(Ind, OINVIS, 50) / 2)
@@ -358,9 +350,6 @@ OINVIS = add_spell {
 
 function get_chaosbolt_dam(Ind)
 	local lev
-	--same damage as shadow bolt iii at 50:
-	--lev = get_level(Ind, CHAOSBOLT, 50) + 20
-	--slightly more damage:
 	lev = get_level(Ind, CHAOSBOLT, 50) + 21
 	return 0 + (lev * 3) / 5, 1 + lev
 end
@@ -387,83 +376,6 @@ CHAOSBOLT = add_spell {
 	["desc"] = 	{ "Channels the powers of chaos into a bolt.", }
 }
 
-if (not(def_hack("TEMP4", nil))) then
---ENABLE_DEATHKNIGHT:
-function get_netherbolt_dam(Ind)
-	local lev
-	--same damage as shadow bolt iii at 50:
-	--lev = get_level(Ind, NETHERBOLT, 50) + 20
-	--slightly more damage:
-	lev = get_level(Ind, NETHERBOLT, 50) + 21
-	return 0 + (lev * 3) / 5, 1 + lev
-end
-NETHERBOLT = add_spell {
-	["name"] = 	"Nether Bolt",
-	["name2"] = 	"NBolt",
-	["school"] = 	{SCHOOL_OSHADOW, SCHOOL_NECROMANCY},
-	["spell_power"] = 0,
-	["level"] = 	30,
-	["mana"] = 	16,
-	["mana_max"] = 	18,
-	["fail"] = 	-55,
-	["stat"] = 	A_WIS,
-	["direction"] = TRUE,
-	["ftk"] = 	1,
-	["spell"] = 	function(args)
-		fire_bolt(Ind, GF_NETHER, args.dir, damroll(get_netherbolt_dam(Ind)), " casts a nether bolt for")
-	end,
-	["info"] = 	function()
-		local x, y
-		x, y = get_netherbolt_dam(Ind)
-		return "dam "..x.."d"..y
-	end,
-	["desc"] = 	{ "Channels lingering nether into a bolt.", }
-}
-end --TEMP4
-
---[[
-ODRAINLIFE_I = add_spell {
-	["name"] = 	"Drain Life I",
-	["name2"] = 	"Drain I",
-	["school"] = 	{SCHOOL_OSHADOW, SCHOOL_NECROMANCY},
-	["am"] = 	75,
-	["spell_power"] = 0,
-	["level"] = 	20,
-	["mana"] = 	20,
-	["mana_max"] = 	20,
-	["fail"] = 	0,
-	["stat"] = 	A_WIS,
-	["direction"] = TRUE,
-	["spell"] = 	function(args)
-		drain_life(Ind, args.dir, 9 + get_level(Ind, ODRAINLIFE_I, 5))
-		hp_player(Ind, player.ret_dam / 6)
-	end,
-	["info"] = 	function()
-		return "drain "..(9 + get_level(Ind, ODRAINLIFE_I, 5)).."%, heal for 17%"
-	end,
-	["desc"] = 	{ "Drains life from a target, which must not be non-living or undead.", }
-}
-ODRAINLIFE = add_spell {
-	["name"] = 	"Drain Life",
-	["name2"] = 	"Drain",
-	["school"] = 	{SCHOOL_OSHADOW, SCHOOL_NECROMANCY},
-	["am"] = 	75,
-	["spell_power"] = 0,
-	["level"] = 	40,
-	["mana"] = 	50,
-	["mana_max"] = 	50,
-	["fail"] = 	-65,
-	["stat"] = 	A_WIS,
-	["direction"] = TRUE,
-	["spell"] = 	function(args)
-		drain_life(Ind, args.dir, 10 + get_level(Ind, ODRAINLIFE_I, 9))
-		hp_player(Ind, player.ret_dam / 4)
-	end,
-	["info"] = 	function()
-		return "drain "..(10 + get_level(Ind, ODRAINLIFE_I, 9)).."%, heal for 25%"
-	end,
-	["desc"] = 	{ "Drains life from a target, which must not be non-living or undead.", }
-}]]--
 ODRAINLIFE = add_spell {
 	["name"] = 	"Drain Life",
 	["name2"] = 	"Drain",
@@ -481,7 +393,6 @@ ODRAINLIFE = add_spell {
 		hp_player(Ind, player.ret_dam / 4)
 	end,
 	["info"] = 	function()
-		--return "drain "..(14 + get_level(Ind, ODRAINLIFE, 22)).."%, heal for 25%"
 		return (14 + get_level(Ind, ODRAINLIFE, 22)).."% (max 900), 25% heal"
 	end,
 	["desc"] = 	{ "Drains life from a target, which must not be non-living or undead.", }

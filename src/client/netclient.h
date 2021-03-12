@@ -114,3 +114,6 @@ int Receive_martyr(void);
 int Receive_palette(void);
 int Receive_idle(void);
 int Receive_Guide(void);
+int Receive_indicators(void);
+int Receive_playerlist(void);
+int Receive_weather_colouring(void);

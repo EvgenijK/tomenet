@@ -1365,24 +1365,31 @@ void do_cmd_drink_fountain(int Ind) {
 		sound(Ind, "quaff_potion", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
 		/* if it's the sea, it's salt water */
-		if (!p_ptr->wpos.wz)
-#if 0 /* problem: WILD_COAST is used for both oceans and lakes */
-		    switch (wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].type) {
+		if (!p_ptr->wpos.wz) {
+#ifndef USE_SOUND_2010
+			/* problem: WILD_COAST is used for both oceans and lakes */
+			switch (wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].type) {
 			case WILD_SHORE1:
 			case WILD_SHORE2:
 			case WILD_OCEANBED1:
 			case WILD_OCEANBED2:
 			case WILD_OCEAN:
 			case WILD_COAST:
+				/* actually instead, to do this non-hackily, we just check for .type AND .bled to not be WILD_OCEAN (same result as this hack): */
+				if (wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].type == WILD_OCEAN || wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].bled == WILD_OCEAN) {
 #else /* abuse ambient-sfx logic - it works pretty well ^^ */
-			if (p_ptr->sound_ambient == SFX_AMBIENT_SHORE) {
-#endif /* actually instead, to do this non-hackily, it should just check for .type AND .bled to not be WILD_OCEAN (same result as this hack) */
-				if (p_ptr->prace == RACE_ENT) msg_print(Ind, "The water is too salty to feed off.");
-				else msg_print(Ind, "The water tastes very salty.");
+				if (p_ptr->sound_ambient == SFX_AMBIENT_SHORE) {
+#endif
+					if (p_ptr->prace == RACE_ENT) msg_print(Ind, "The water is too salty to feed off.");
+					else msg_print(Ind, "The water tastes very salty.");
 
-				/* Take a turn */
-				p_ptr->energy -= level_speed(&p_ptr->wpos);
-				return;
+					/* Take a turn */
+					p_ptr->energy -= level_speed(&p_ptr->wpos);
+					return;
+				}
+#ifndef USE_SOUND_2010
+			}
+#endif
 		}
 		/* lake/river: fresh water */
 		if (!p_ptr->suscep_life) msg_print(Ind, "You feel less thirsty.");
@@ -1603,7 +1610,11 @@ void do_cmd_fill_bottle(int Ind) {
 				return;
 			}
 
-#if 0 /* problem: WILD_COAST is used for both oceans and lakes */
+			/* first assume normal water */
+			k_idx = lookup_kind(TV_POTION, SV_POTION_WATER);
+
+#ifndef USE_SOUND_2010
+			/* problem: WILD_COAST is used for both oceans and lakes */
 			switch (wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].type) {
 			case WILD_SHORE1:
 			case WILD_SHORE2:
@@ -1611,14 +1622,16 @@ void do_cmd_fill_bottle(int Ind) {
 			case WILD_OCEANBED2:
 			case WILD_OCEAN:
 			case WILD_COAST:
+				/* actually instead, to do this non-hackily, we just check for .type AND .bled to not be WILD_OCEAN (same result as this hack): */
+				if (wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].type == WILD_OCEAN || wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].bled == WILD_OCEAN)
 #else /* abuse ambient-sfx logic - it works pretty well ^^ */
-			if (p_ptr->sound_ambient == SFX_AMBIENT_SHORE)
-#endif /* actually instead, to do this non-hackily, it should just check for .type AND .bled to not be WILD_OCEAN (same result as this hack) */
-				/* salt water */
-				k_idx = lookup_kind(TV_POTION, SV_POTION_SALT_WATER);
-			else
-				/* normal water */
-				k_idx = lookup_kind(TV_POTION, SV_POTION_WATER);
+				if (p_ptr->sound_ambient == SFX_AMBIENT_SHORE)
+#endif
+					/* salt water */
+					k_idx = lookup_kind(TV_POTION, SV_POTION_SALT_WATER);
+#ifndef USE_SOUND_2010
+			}
+#endif
 
 			if (!get_something_tval(Ind, TV_BOTTLE, &item)) {
 				msg_print(Ind, "You have no bottles to fill.");
@@ -2967,7 +2980,11 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			}
 			cast_fireworks(&p_ptr->wpos, p_ptr->px, p_ptr->py, o_ptr->xtra1 * FIREWORK_COLOURS + o_ptr->xtra2); //size, colour
 #ifdef USE_SOUND_2010
-			sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #if 0
+			if (o_ptr) sound_vol(Ind, "fireworks_launch", "", SFX_TYPE_MISC, TRUE, 50);
+ #else
+			sound_near_site_vol(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "fireworks_launch", "", SFX_TYPE_MISC, FALSE, 50);
+ #endif
 #endif
 			ident = TRUE;
 			break;
@@ -3613,7 +3630,9 @@ void do_cmd_use_staff(int Ind, int item) {
 
 	if (!activate_magic_device(Ind, o_ptr)) {
 		msg_format(Ind, "\377%cYou failed to use the staff properly." , COLOUR_MD_FAIL);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
 		/* hack: repeat ID-spell attempt until item is successfully identified */
@@ -3635,7 +3654,9 @@ void do_cmd_use_staff(int Ind, int item) {
 	/* Notice empty staffs */
 	if (o_ptr->pval <= 0) {
 		msg_format(Ind, "\377%cThe staff has no charges left.", COLOUR_MD_NOCHARGE);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 		o_ptr->ident |= ID_EMPTY;
 		note_toggle_empty(o_ptr, TRUE);
 
@@ -3884,7 +3905,9 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 
 	if (!activate_magic_device(Ind, o_ptr)) {
 		msg_format(Ind, "\377%cYou failed to use the wand properly." , COLOUR_MD_FAIL);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 
 		//don't cancel FTK since this failure was just a chance thing
 		if (p_ptr->shooty_till_kill) {
@@ -3902,7 +3925,9 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 	/* The wand is already empty! */
 	if (o_ptr->pval <= 0) {
 		msg_format(Ind, "\377%cThe wand has no charges left.", COLOUR_MD_NOCHARGE);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 		o_ptr->ident |= ID_EMPTY;
 		note_toggle_empty(o_ptr, TRUE);
 
@@ -4350,7 +4375,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
  */
 void do_cmd_zap_rod(int Ind, int item, int dir) {
 	player_type *p_ptr = Players[Ind];
-	int lev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr);
+	int lev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
 	object_type *o_ptr;
 	u32b f4, dummy;
 #ifdef NEW_MDEV_STACKING
@@ -4490,7 +4515,8 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 	un_afk_idle(Ind);
 
 	/* Take a turn */
-	p_ptr->energy -= level_speed(&p_ptr->wpos) / ((f4 & TR4_FAST_CAST) ? 2 : 1);
+	energy = level_speed(&p_ptr->wpos) / ((f4 & TR4_FAST_CAST) ? 2 : 1);
+	p_ptr->energy -= energy;
 
 	/* Not identified yet */
 	ident = FALSE;
@@ -4511,7 +4537,9 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 
 	if (!activate_magic_device(Ind, o_ptr)) {
 		msg_format(Ind, "\377%cYou failed to use the rod properly." , COLOUR_MD_FAIL);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
@@ -4539,7 +4567,9 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 #endif
 		if (o_ptr->number == 1) msg_format(Ind, "\377%cThe rod is still charging.", COLOUR_MD_NOCHARGE);
 		else msg_format(Ind, "\377%cThe rods are still charging.", COLOUR_MD_NOCHARGE);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 
 #ifdef ENABLE_XID_MDEV
  #ifndef XID_REPEAT
@@ -4547,6 +4577,9 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 		XID_paranoia(p_ptr);
  #endif
 #endif
+
+		/* Noticing that the rod is charging takes only half a rod-using turn - refund the rest */
+		p_ptr->energy += energy / 2;
 		return;
 	}
 
@@ -4638,7 +4671,7 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
  */
 void do_cmd_zap_rod_dir(int Ind, int dir) {
 	player_type *p_ptr = Players[Ind];
-	int lev, item, ident, rad = DEFAULT_RADIUS_DEV(p_ptr);
+	int lev, item, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
 	object_type *o_ptr;
 	u32b f4, dummy;
 	/* Hack -- let perception get aborted */
@@ -4730,7 +4763,8 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	un_afk_idle(Ind);
 
 	/* Take a turn */
-	p_ptr->energy -= level_speed(&p_ptr->wpos) / ((f4 & TR4_FAST_CAST) ? 2 : 1);
+	energy = level_speed(&p_ptr->wpos) / ((f4 & TR4_FAST_CAST) ? 2 : 1);
+	p_ptr->energy -= energy;
 
 	/* Not identified yet */
 	ident = FALSE;
@@ -4757,7 +4791,9 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	/* Roll for usage */
 	if (!activate_magic_device(Ind, o_ptr)) {
 		msg_format(Ind, "\377%cYou failed to use the rod properly." , COLOUR_MD_FAIL);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 
 		//don't cancel FTK since this failure was just a chance thing
 		if (p_ptr->shooty_till_kill) {
@@ -4780,7 +4816,13 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 #endif
 		if (o_ptr->number == 1) msg_format(Ind, "\377%cThe rod is still charging.", COLOUR_MD_NOCHARGE);
 		else msg_format(Ind, "\377%cThe rods are still charging.", COLOUR_MD_NOCHARGE);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
+
+		/* Noticing that the rod is charging takes only half a rod-using turn - refund the rest */
+		p_ptr->energy += energy / 2;
+
 		return;
 	}
 
@@ -5529,7 +5571,9 @@ void do_cmd_activate(int Ind, int item, int dir) {
 #endif
 	} else if (!activate_magic_device(Ind, o_ptr)) {
 		msg_format(Ind, "\377%cYou failed to activate it properly.", COLOUR_MD_FAIL);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
 
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
@@ -5552,13 +5596,20 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	/* Check the recharge */
 	if (o_ptr->recharging) {
 		msg_format(Ind, "\377%cIt whines, glows and fades...", COLOUR_MD_NOCHARGE);
+#ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
+#endif
+
 #ifdef ENABLE_XID_SPELL
  #ifndef XID_REPEAT
 		p_ptr->current_item = -1;
 		XID_paranoia(p_ptr);
  #endif
 #endif
+
+		/* Noticing that the object is charging takes only half a turn - refund the rest */
+		p_ptr->energy += level_speed(&p_ptr->wpos) / 2;
+
 		return;
 	}
 
@@ -6596,7 +6647,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			}
 			o_ptr->recharging = 15 + randint(3) - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
-		case ART_FISTS:
+		case ART_FIST:
 			set_melee_brand(Ind, 30 + rand_int(5) + get_skill_scale(p_ptr, SKILL_DEVICE, 10), TBRAND_HELLFIRE, 10);
 			o_ptr->recharging = 350 - get_skill_scale(p_ptr, SKILL_DEVICE, 200) + rand_int(50);
 			break;
@@ -8320,8 +8371,8 @@ s_printf("TECHNIQUE_MELEE: %s - track animals\n", p_ptr->name);
 		p_ptr->warning_technique_melee = 1;
 		break;
 	case 7:	if (!(p_ptr->melee_techniques & MT_DETNOISE)) return; /* Perceive Noise */
-		if (p_ptr->cst < 3) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 3;
+		if (p_ptr->cst < 2) { msg_print(Ind, "Not enough stamina!"); return; }
+		p_ptr->cst -= 2;
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		detect_noise(Ind);
 s_printf("TECHNIQUE_MELEE: %s - perceive noise\n", p_ptr->name);
@@ -8564,6 +8615,76 @@ s_printf("TECHNIQUE_RANGED: %s - barrage\n", p_ptr->name);
 	}
 }
 
+void do_pick_breath(int Ind, int element) {
+	player_type *p_ptr = Players[Ind];
+
+#ifndef ENABLE_DRACONIAN_TRAITS
+	return;
+#endif
+
+	if (!get_skill(p_ptr, SKILL_PICK_BREATH)) return;
+	if (element < 0) {
+		msg_print(Ind, "\377sInvalid element.");
+		return;
+	}
+
+	switch (p_ptr->ptrait) {
+	case TRAIT_MULTI:
+		if (element > 5) {
+			msg_print(Ind, "\377sInvalid element.");
+			return;
+		}
+		break;
+	case TRAIT_POWER:
+		if (element > 11) {
+			msg_print(Ind, "\377sInvalid element.");
+			return;
+		}
+		break;
+	}
+
+	p_ptr->breath_element = element;
+	switch (element) {
+	case 0:
+		msg_print(Ind, "\377sYour breath element is now random.");
+		return;
+	case 1:
+		msg_print(Ind, "\377sYour breath element is now lightning.");
+		return;
+	case 2:
+		msg_print(Ind, "\377sYour breath element is now frost.");
+		return;
+	case 3:
+		msg_print(Ind, "\377sYour breath element is now fire.");
+		return;
+	case 4:
+		msg_print(Ind, "\377sYour breath element is now acid.");
+		return;
+	case 5:
+		msg_print(Ind, "\377sYour breath element is now poison.");
+		return;
+	/* extended elements for power trait */
+	case 6:
+		msg_print(Ind, "\377sYour breath element is now confusion.");
+		return;
+	case 7:
+		msg_print(Ind, "\377sYour breath element is now inertia.");
+		return;
+	case 8:
+		msg_print(Ind, "\377sYour breath element is now sound.");
+		return;
+	case 9:
+		msg_print(Ind, "\377sYour breath element is now shards.");
+		return;
+	case 10:
+		msg_print(Ind, "\377sYour breath element is now chaos.");
+		return;
+	case 11:
+		msg_print(Ind, "\377sYour breath element is now disenchantment.");
+		return;
+	}
+}
+
 void do_cmd_breathe(int Ind) {
 	player_type *p_ptr = Players[Ind];
 
@@ -8635,10 +8756,14 @@ void do_cmd_breathe_aux(int Ind, int dir) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 	trait = p_ptr->ptrait;
-	if (trait == TRAIT_MULTI) /* Draconic Multi-hued */
-		trait = rand_int(5) + TRAIT_BLUE;
-	if (trait == TRAIT_POWER) {
-		trait = rand_int(10) + TRAIT_BLUE;
+	if (trait == TRAIT_MULTI) {
+		/* Draconic Multi-hued */
+		if (p_ptr->breath_element == 0) trait = rand_int(5) + TRAIT_BLUE;
+		else trait = p_ptr->breath_element;
+	} else if (trait == TRAIT_POWER) {
+		/* Power dragon */
+		if (p_ptr->breath_element == 0) trait = rand_int(10) + TRAIT_BLUE;
+		else trait = p_ptr->breath_element;
 		if (trait >= TRAIT_MULTI) trait++;
 	}
 

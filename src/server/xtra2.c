@@ -616,6 +616,9 @@ bool set_tim_esp(int Ind, int v) {
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS | PU_MONSTERS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -1559,6 +1562,11 @@ bool set_blind(int Ind, int v) {
 			msg_format_near(Ind, "%s gropes around blindly!", p_ptr->name);
 			msg_print(Ind, "You are blind!");
 			notice = TRUE;
+
+			if (!p_ptr->warning_status_blindness) {
+				msg_print(Ind, "\374\377yHINT:\377w One way to cure \377yblindness\377w are potions of cure serious wounds (or better).");
+				p_ptr->warning_status_blindness = 1;
+			}
 		}
 
 		break_shadow_running(Ind);
@@ -1629,6 +1637,11 @@ bool set_confused(int Ind, int v) {
 			msg_format_near(Ind, "%s appears confused!", p_ptr->name);
 			msg_print(Ind, "You are confused!");
 			notice = TRUE;
+
+			if (!p_ptr->warning_status_confusion) {
+				msg_print(Ind, "\374\377yHINT:\377w One way to cure \377yconfusion\377w are potions of cure serious wounds (or better).");
+				p_ptr->warning_status_confusion = 1;
+			}
 		}
 
 		break_cloaking(Ind, 0);
@@ -1740,7 +1753,7 @@ bool set_diseased(int Ind, int v, int attacker) {
 	if (v) {
 		if (p_ptr->martyr) return FALSE;
 		if (p_ptr->ghost) return FALSE;
-		if (p_ptr->prace == RACE_VAMPIRE || p_ptr->prace == RACE_MAIA) return FALSE;
+		if (p_ptr->prace == RACE_VAMPIRE || (p_ptr->prace == RACE_MAIA && p_ptr->ptrait != TRAIT_NONE)) return FALSE;
 	}
 
 	/* Hack -- Force good values */
@@ -2772,6 +2785,9 @@ bool set_oppose_acid(int Ind, int v) {
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -2817,6 +2833,9 @@ bool set_oppose_elec(int Ind, int v) {
 
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -2864,6 +2883,9 @@ bool set_oppose_fire(int Ind, int v) {
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -2909,6 +2931,9 @@ bool set_oppose_cold(int Ind, int v) {
 
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -2956,6 +2981,9 @@ bool set_oppose_pois(int Ind, int v) {
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -2997,20 +3025,20 @@ bool set_stun_raw(int Ind, int v) {
 	if (new_aux > old_aux) {
 		/* Describe the state */
 		switch (new_aux) {
-			/* Stun */
-			case 1:
+		/* Stun */
+		case 1:
 			msg_format_near(Ind, "\377o%s appears stunned.", p_ptr->name);
 			msg_print(Ind, "\377oYou have been stunned.");
 			break;
 
-			/* Heavy stun */
-			case 2:
+		/* Heavy stun */
+		case 2:
 			msg_format_near(Ind, "\377o%s is heavily stunned.", p_ptr->name);
 			msg_print(Ind, "\377oYou have been heavily stunned.");
 			break;
 
-			/* Knocked out */
-			case 3:
+		/* Knocked out */
+		case 3:
 			msg_format_near(Ind, "%s has been knocked out.", p_ptr->name);
 			msg_print(Ind, "\377rYou have been knocked out.");
 			s_printf("%s EFFECT: Knockedout %s.\n", showtime(), p_ptr->name);
@@ -3022,6 +3050,11 @@ bool set_stun_raw(int Ind, int v) {
 
 		/* Notice */
 		notice = TRUE;
+
+		if (!p_ptr->warning_status_stun && !old_aux) {
+			msg_print(Ind, "\374\377yHINT:\377w One way to cure \377ystun\377w are potions of cure critical wounds (or better).");
+			p_ptr->warning_status_stun = 1;
+		}
 	}
 
 	/* Decrease cut */
@@ -3108,20 +3141,20 @@ bool set_stun(int Ind, int v) {
 	if (new_aux > old_aux) {
 		/* Describe the state */
 		switch (new_aux) {
-			/* Stun */
-			case 1:
+		/* Stun */
+		case 1:
 			msg_format_near(Ind, "\377o%s appears stunned.", p_ptr->name);
 			msg_print(Ind, "\377oYou have been stunned.");
 			break;
 
-			/* Heavy stun */
-			case 2:
+		/* Heavy stun */
+		case 2:
 			msg_format_near(Ind, "\377o%s is heavily stunned.", p_ptr->name);
 			msg_print(Ind, "\377oYou have been heavily stunned.");
 			break;
 
-			/* Knocked out */
-			case 3:
+		/* Knocked out */
+		case 3:
 			msg_format_near(Ind, "%s has been knocked out.", p_ptr->name);
 			msg_print(Ind, "\377rYou have been knocked out.");
 			s_printf("%s EFFECT: Knockedout %s.\n", showtime(), p_ptr->name);
@@ -3133,6 +3166,11 @@ bool set_stun(int Ind, int v) {
 
 		/* Notice */
 		notice = TRUE;
+
+		if (!p_ptr->warning_status_stun && !old_aux) {
+			msg_print(Ind, "\374\377yHINT:\377w One way to cure \377ystun\377w are potions of cure critical wounds (or better).");
+			p_ptr->warning_status_stun = 1;
+		}
 	}
 
 	/* Decrease cut */
@@ -3621,6 +3659,9 @@ bool do_divine_xtra_res(int Ind, int v) {
 
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -4309,7 +4350,7 @@ void shape_Maia_skills(int Ind) {
 #endif
 		do_Maia_skill(Ind, SKILL_MARTIAL_ARTS, 13);
 		do_Maia_skill(Ind, SKILL_R_DARK, 17);
-		do_Maia_skill(Ind, SKILL_R_NETH, 17);
+		do_Maia_skill(Ind, SKILL_R_CHAO, 17);
 
 #ifdef ENABLE_HELLKNIGHT
 		if (p_ptr->pclass == CLASS_PALADIN) {
@@ -5707,6 +5748,7 @@ bool monster_death(int Ind, int m_idx) {
 			santa_claus_timer = 60 + rand_int(120);
 			resf_drops |= RESF_SAURON; //We abuse Sauron's "no one ring" flag for setting no_soloist flag!
 		}
+#ifdef USE_SOUND_2010
 		/* Actually restore town music (or whichever) if Santa had his own music event */
 		for (i = 1; i <= NumPlayers; i++) {
 			if (Players[i]->music_monster == 67) {
@@ -5714,6 +5756,7 @@ bool monster_death(int Ind, int m_idx) {
 				handle_music(i);
 			}
 		}
+#endif
 	}
 
 
@@ -6233,11 +6276,13 @@ bool monster_death(int Ind, int m_idx) {
 			found_chemical = TRUE;
 		}
 	}
-	if (!found_chemical && (r_ptr->flags3 & RF3_ANIMAL) && !(r_ptr->flags3 & (RF3_DEMON | RF3_UNDEAD | RF3_NONLIVING)) && !(r_ptr->flags7 & RF7_AQUATIC) && !p_ptr->IDDC_logscum) {
+	if (!found_chemical && ((r_ptr->flags3 & RF3_ANIMAL) || r_idx == RI_NOVICE_MAGE || r_idx == RI_NOVICE_MAGE_F)
+	    && !(r_ptr->flags3 & (RF3_DEMON | RF3_UNDEAD | RF3_NONLIVING)) && !(r_ptr->flags7 & RF7_AQUATIC) && !p_ptr->IDDC_logscum) {
 		/* Avoid item flood */
 		if (!(r_ptr->flags1 & RF1_FRIENDS) || !rand_int(2)) {
-			/* Saltpetre (guano: bats/birds) */
-			if (r_ptr->d_char == 'b' || r_ptr->d_char == 'B' || r_ptr->d_char == 'H') {
+			/* Saltpetre (guano: bats/birds) + newbie 'spell components' as per k_info diz */
+			if (r_ptr->d_char == 'b' || r_ptr->d_char == 'B' || r_ptr->d_char == 'H'
+			    || (!rand_int(2) && (r_idx == RI_NOVICE_MAGE || r_idx == RI_NOVICE_MAGE_F))) { /* '..leaving behind a trail of dropped spell components' */
 				if (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST && !rand_int(3)) {
 					object_type forge;
 
@@ -6255,6 +6300,7 @@ bool monster_death(int Ind, int m_idx) {
 					found_chemical = TRUE;
 				}
 			}
+
 			/* Ammonia Salt (dung: whatever has hooves..) */
 			else if (r_ptr->d_char == 'q' || r_ptr->d_char == 'C' || r_ptr->d_char == 'M' || r_ptr->d_char == 'Y') {
 				if (get_skill(p_ptr, SKILL_DIG) >= ENABLE_DEMOLITIONIST && !rand_int(3)) {
@@ -6600,10 +6646,12 @@ if (cfg.unikill_format) {
 		else sauron_weakened = FALSE;
 	}
 
+#ifdef USE_SOUND_2010
 	/* Dungeon-boss-slain music if available client-side */
-	if (is_Sauron) Send_music(Ind, 91, -2);
-	//else if (is_Morgoth) Send_music(Ind, 88, -2); //handled in handle_music() already
-	else if (is_ZuAon) Send_music(Ind, 92, -2);
+	if (is_Sauron) Send_music(Ind, 91, -1);
+	//else if (is_Morgoth) Send_music(Ind, 88, -1); //handled in handle_music() already
+	else if (is_ZuAon) Send_music(Ind, 92, -1);
+#endif
 
 	if (r_idx == RI_BLUE) { /* just for now, testing */
 		zcave[2][55].feat = FEAT_UNSEALED_DOOR;
@@ -6621,8 +6669,10 @@ if (cfg.unikill_format) {
 		    d_info[d_ptr->type].name
 #endif
 		    );
+#ifdef USE_SOUND_2010
 		/* Dungeon-boss-slain music if available client-side */
-		if (!is_Sauron && !is_Morgoth && !is_ZuAon) Send_music(Ind, 90, -2);
+		if (!is_Sauron && !is_Morgoth && !is_ZuAon) Send_music(Ind, 90, -1);
+#endif
 
 		/* Drop final artifact? */
 		if ((
@@ -7329,14 +7379,13 @@ if (cfg.unikill_format) {
 			qq_ptr->name2b = 0;
 			drop_near(0, qq_ptr, -1, wpos, y, x);
 
-			object_wipe(qq_ptr);
-			invcopy(qq_ptr, lookup_kind(TV_DRAG_ARMOR, SV_DRAGON_SKY));
-			qq_ptr->number = 1;
-			qq_ptr->note = local_quark;
-			qq_ptr->note_utag = strlen(quark_str(local_quark));
-			qq_ptr->name1 = ART_RANDART;
 			tries = 500;
 			while (tries) {
+				object_wipe(qq_ptr);
+				invcopy(qq_ptr, lookup_kind(TV_DRAG_ARMOR, SV_DRAGON_SKY));
+				qq_ptr->number = 1;
+				qq_ptr->name1 = ART_RANDART;
+
 				/* Piece together a 32-bit random seed */
 				qq_ptr->name3 = (u32b)rand_int(0xFFFF) << 16;
 				qq_ptr->name3 += rand_int(0xFFFF);
@@ -7344,13 +7393,15 @@ if (cfg.unikill_format) {
 
 				a_ptr = randart_make(qq_ptr);
 				if (artifact_power(a_ptr) >= 105 + 5 && /* at least +1 new mod gained; and +extra bonus boost */
-				    qq_ptr->to_a > 0 && /* not cursed */
+				    qq_ptr->to_a > 0 && qq_ptr->to_h >= k_info[qq_ptr->k_idx].to_h && /* no lingering cursed effects */
 				    !(a_ptr->flags3 & (TR3_AGGRAVATE | TR3_NO_MAGIC)))
 					break;
 				tries--;
 			}
 			if (!tries) msg_format(Ind, "RI_LIVING_LIGHTNING: Re-rolling out of tries!");
 
+			qq_ptr->note = local_quark;
+			qq_ptr->note_utag = strlen(quark_str(local_quark));
 			qq_ptr->timeout_magic = 0;
 			drop_near(0, qq_ptr, -1, wpos, y, x);
 
@@ -7520,7 +7571,7 @@ if (cfg.unikill_format) {
 				}
 			} else if (strstr((r_name + r_ptr->name), "Gorlim, Betrayer of Barahir")) {
 				a_idx = ART_GORLIM;
-				chance = 30;
+				chance = 50;
 			} else if (strstr((r_name + r_ptr->name), "Hagen, son of Alberich")) { /* not in the game */
 				a_idx = ART_NIMLOTH;
 				chance = 66;
@@ -7534,6 +7585,9 @@ if (cfg.unikill_format) {
 			} else if (strstr((r_name + r_ptr->name), "Kronos, Lord of the Titans")) {
 				a_idx = ART_KRONOS;
 				chance = 80;
+			} else if (strstr((r_name + r_ptr->name), "Artsi, the Champion of Chaos")) {
+				a_idx = ART_FIST;
+				chance = 33;
 			/* Wyrms have a chance of dropping The Amulet of Grom, the Wyrm Hunter: -C. Blue */
 			} else if ((r_ptr->flags3 & RF3_DRAGON)) {
 				a_idx = ART_AMUGROM;
@@ -9914,7 +9968,9 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 
 	/* Turn him into a ghost */
 	p_ptr->ghost = 1;
+#ifdef USE_SOUND_2010
 	handle_music(Ind); //possibly ghostly music!
+#endif
 	/* Prevent accidental floating up/downwards depending on client option. - C. Blue */
 	if (p_ptr->safe_float) p_ptr->safe_float_turns = 5;
 
@@ -10024,6 +10080,11 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 		}
 	}
 
+	if (p_ptr->limit_chat) {
+		msg_print(Ind, "\374\3774Warning: \377oYou have the option '\377Rlimit_chat\377o' enabled so nobody will be able to read");
+		msg_print(Ind, "\374\377o         your chat unless he is on your floor or you disable the option via \377R=2\377o !");
+	}
+
 #if 0 /* currently disabled, because replaced by warning_death */
 	/* Possibly tell him what to do now */
 	if (p_ptr->warning_ghost == 0) {
@@ -10060,7 +10121,9 @@ void resurrect_player(int Ind, int loss_factor) {
 
 	/* Reset ghost flag */
 	p_ptr->ghost = 0;
+#ifdef USE_SOUND_2010
 	handle_music(Ind); //possibly no longer ghostly music
+#endif
 
 	disturb(Ind, 1, 0);
 
@@ -10383,6 +10446,9 @@ bool add_xorder(int Ind, int target, u16b type, u16b num, u16b flags) {
 	}
 
 	if (in_irondeepdive(&p_ptr->wpos)) p_ptr->IDDC_flags |= 0xC;
+#ifdef USE_SOUND_2010
+	sound(Ind, "receive_xo", NULL, SFX_TYPE_MISC, FALSE);
+#endif
 	return(TRUE);
 }
 
@@ -10463,16 +10529,27 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 	get_mon_num_prep(0, NULL);
 	i = 3 + rand_int(3);
 
+	r = 0;
 	do {
 		r = get_mon_num(lev, lev - 10); //reduce OoD chance slightly
 
 		k++;
 		if (k > 100) lev--;
+
+		/* To keep Goblin Slayer check in check: */
+		if (lev < 0) break;
 	} while (((lev - 5) > r_info[r].level && lev >= 5) ||
 	    (r_info[r].flags1 & RF1_UNIQUE) ||
 	    (r_info[r].flags7 & RF7_MULTIPLY) ||
+	    ((!strcmp(p_ptr->name, "Goblin Slayer") && r_info[r].d_char != 'o')) || /* Kurzel - Goblins Only! */
 	    !r_info[r].level); /* "no town quests" ;) */
 	    //r_info[r].level <= 2); /* no Training Tower quests */
+
+	/* Paranoia? No monster found */
+	if (!r) {
+		msg_print(Ind, "\377yNo feasible extermination order available. Please contact your administration!");
+		return FALSE;
+	}
 
 	/* easier in Ironman environments */
 #ifndef RPG_SERVER
@@ -10556,8 +10633,10 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 
 	if (m_ptr->status == M_STATUS_FRIENDLY) return FALSE;
 
+	if (!p_ptr->test_turn) p_ptr->test_turn = turn - 1; /* Start counting damage now */
 	p_ptr->test_count++;
 	p_ptr->test_dam += dam;
+	p_ptr->idle_attack = 0;
 
 	/* Break Charm/Possess */
 	if (m_ptr->charmedignore) {

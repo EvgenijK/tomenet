@@ -1944,7 +1944,6 @@ bool detect_treasure(int Ind, int rad) {
 			}
 		}
 	}
-	__GRID_DEBUG(Ind, wpos, c_ptr->feat, "detect_treasure()", 0);
 	return (detect);
 }
 
@@ -2019,7 +2018,6 @@ bool floor_detect_treasure(int Ind) {
 			}
 		}
 	}
-	__GRID_DEBUG(Ind, wpos, c_ptr->feat, "floor_detect_treasure()", 0);
 	return (detect);
 }
 
@@ -3113,8 +3111,6 @@ bool detect_treasure_object(int Ind, int rad) {
 			}
 		}
 	}
-	__GRID_DEBUG(Ind, wpos, c_ptr->feat, "detect_treasure_object()", 0);
-
 	return (detect);
 }
 
@@ -6963,19 +6959,20 @@ bool swap_position(int Ind, int lty, int ltx){
 		/* Other player */
 		int Ind2 = 0 - c_ptr->m_idx;
 		player_type *q_ptr = NULL;
+
 		if (Ind2) q_ptr = Players[Ind2];
 
 		/* Shift them if they are real */
-		if (q_ptr) {
+		if (Ind2) {
 			store_exit(Ind2);
 
 			q_ptr->py = ty;
 			q_ptr->px = tx;
-			#ifdef ARCADE_SERVER
+#ifdef ARCADE_SERVER
 			if (p_ptr->game == 3) {
 			p_ptr->arc_c = q_ptr->arc_c = 1;
 			p_ptr->arc_d = Ind2; }
-			#endif
+#endif
 		}
 
 		p_ptr->px = ltx;
@@ -6994,10 +6991,10 @@ bool swap_position(int Ind, int lty, int ltx){
 		/* Redraw new grid */
 		everyone_lite_spot(wpos, lty, ltx);
 
-		grid_affects_player(Ind, tx, ty);
+		if (Ind2) {
+			verify_panel(Ind2);
+			grid_affects_player(Ind2, ltx, lty);
 
-		if (Ind2) verify_panel(Ind2);
-		if (q_ptr) {
 			/* Update stuff */
 			q_ptr->update |= (PU_VIEW | PU_LITE | PU_FLOW | PU_DISTANCE);
 
@@ -7014,6 +7011,7 @@ bool swap_position(int Ind, int lty, int ltx){
 	panel = !local_panel(Ind);
 #endif
 	verify_panel(Ind);
+	grid_affects_player(Ind, tx, ty);
 
 	/* Update stuff */
 	p_ptr->update |= (PU_VIEW | PU_LITE | PU_FLOW | PU_DISTANCE);
@@ -8792,6 +8790,15 @@ static int ingredients_to_ingredient(int sval1, int tval2, int sval2) {
 				return CI_ME;
 		}
 		return 0;
+
+	/* Allow dissolving vitriol to obtain acid (in a flask) */
+	case SV_VITRIOL:
+		if (tval2 == TV_POTION) switch (sval2) {
+		case SV_POTION_WATER:
+		case SV_POTION_SALT_WATER:
+			return CI_AC;
+		}
+		return 0;
 	}
 	return 0;
 }
@@ -8936,6 +8943,9 @@ void mix_chemicals(int Ind, int item) {
 	object_type forge, *q_ptr = &forge; /* Result (Ingredient, mixture or finished blast charge) */
 	char o_name[ONAME_LEN];
 	int i = 0;
+	bool keep_tag = FALSE;
+	u16b old_note;
+	char old_note_utag;
 
 	byte cc = 0, su = 0, sp = 0, as = 0, mp = 0, mh = 0, me = 0, mc = 0, vi = 0, ru = 0; // ..., vitriol, rust (? from rusty mail? / metal + water)
 	byte lo = 0, wa = 0, sw = 0, ac = 0; //lamp oil (flask), water (potion), salt water (potion), acid(?)/vitriol TV_CHEMICAL
@@ -9098,6 +9108,10 @@ void mix_chemicals(int Ind, int item) {
 		} else {
 			q_ptr->tval = TV_CHARGE;
 			msg_format(Ind, "You assemble a blast charge..");
+			if (!p_ptr->warning_blastcharge) {
+				msg_print(Ind, "Hint: Inscribe charges \377y!Fn\377w with n from 1 to 15 to set the fuse time in seconds!");
+				p_ptr->warning_blastcharge = 1;
+			}
 		}
 	} else {
 #if 1
@@ -9184,7 +9198,7 @@ void mix_chemicals(int Ind, int item) {
 		/* Check for success in creating a new ingredient */
 		if (i > 0) {
 			/* Translate ingredient-index back to tval,sval */
-			if (i >= CI_CC && i <= CI_AC) {
+			if (i >= CI_CC && i <= CI_RU) {
 				q_ptr->tval = TV_CHEMICAL;
 				q_ptr->sval = i;
 			} else switch (i) {
@@ -9218,11 +9232,25 @@ void mix_chemicals(int Ind, int item) {
 				i = TRUE;
 			/* next, check for ingredient + mixture */
 			} else if (o_ptr->sval != SV_MIXTURE || o2_ptr->tval != TV_CHEMICAL || o2_ptr->sval != SV_MIXTURE) {
-				if (o_ptr->sval == SV_MIXTURE) i = mixingred_to_mixture(o_ptr, o2_ptr->tval, o2_ptr->sval, q_ptr);
-				else i = mixingred_to_mixture(o2_ptr, o_ptr->tval, o_ptr->sval, q_ptr);
+				keep_tag = TRUE;
+				if (o_ptr->sval == SV_MIXTURE) {
+					old_note = o_ptr->note;
+					old_note_utag = o_ptr->note_utag;
+					i = mixingred_to_mixture(o_ptr, o2_ptr->tval, o2_ptr->sval, q_ptr);
+				} else {
+					old_note = o2_ptr->note;
+					old_note_utag = o2_ptr->note_utag;
+					i = mixingred_to_mixture(o2_ptr, o_ptr->tval, o_ptr->sval, q_ptr);
+				}
 			}
 			/* finally do mixture + mixture */
-			else i = mixmix_to_mixture(o_ptr, o2_ptr, q_ptr);
+			else {
+				keep_tag = TRUE;
+				/* since we cannot keep both inscriptions, just prioritize the second object */
+				old_note = o2_ptr->note ? o2_ptr->note : o_ptr->note;
+				old_note_utag = o2_ptr->note_utag ? o2_ptr->note_utag : o_ptr->note_utag;
+				i = mixmix_to_mixture(o_ptr, o2_ptr, q_ptr);
+			}
 
 			/* catch failure because of already saturated mixture - meaning that these two items just cannot be combined, no matter what */
 			if (!i) {
@@ -9254,12 +9282,20 @@ void mix_chemicals(int Ind, int item) {
 	q_ptr->note = 0;
 	q_ptr->iron_trade = o_ptr->iron_trade;
 	q_ptr->iron_turn = o_ptr->iron_turn;
+	if (keep_tag) { /* only for mixture -> mixture reactions */
+		q_ptr->note = old_note;
+		q_ptr->note_utag = old_note_utag;
+	}
+	/* Fix sense_inventory-caused stacking glitch (existing characters were not yet 'obj_aware' of these items): */
+	object_aware(Ind, q_ptr);
 
  #ifdef USE_SOUND_2010
 	if (q_ptr->tval == TV_CHARGE)
 		sound(Ind, "item_rune", NULL, SFX_TYPE_COMMAND, FALSE);
 	else if (q_ptr->tval == TV_SCROLL)
 		sound(Ind, "item_scroll", NULL, SFX_TYPE_COMMAND, FALSE);
+	else if (q_ptr->tval == TV_FLASK)
+		sound(Ind, "item_potion", NULL, SFX_TYPE_COMMAND, FALSE);
 	else
 		sound(Ind, "snowball", NULL, SFX_TYPE_COMMAND, FALSE); //uhhh - todo: get some alchemyic sfx..
  #endif
@@ -9422,6 +9458,13 @@ void grind_chemicals(int Ind, int item) {
 	int i, tv = o_ptr->tval, sv = o_ptr->sval;
 	bool metal, wood;
 
+
+	/* Safety mechanism in case we're crafing via inscriptions and make a..mistake */
+	if (item >= INVEN_WIELD) {
+		msg_print(Ind, "The item must be in your inventory in order to dismantle it.");
+		return;
+	}
+
 	object_desc(Ind, o_name, o_ptr, FALSE, 0);
 	if (check_guard_inscription(o_ptr->note, 'k')) {
 		msg_print(Ind, "The item's inscription prevents grinding it.");
@@ -9532,62 +9575,126 @@ void grind_chemicals(int Ind, int item) {
 		}
 	}
 }
-/* Set a charge live */
+/* Check whether we may arm a charge on this grid / arm it and throw it from this grid to somewhere. */
+bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown) {
+	player_type *p_ptr = Players[Ind];
+	cave_type *c_ptr, **zcave;
+	int py = p_ptr->py, px = p_ptr->px;
+	worldpos *wpos = &p_ptr->wpos;
+
+	zcave = getcave(&p_ptr->wpos);
+	c_ptr = &zcave[py][px];
+
+
+	if (o_ptr->owner != p_ptr->id) {
+		msg_print(Ind, "You must own the charge in order to arm it.");
+		return FALSE;
+	}
+
+	if (!thrown) {
+		if (p_ptr->blind) {
+			msg_print(Ind, "You can't see anything.");
+			return FALSE;
+	}
+		if (no_lite(Ind)) {
+			msg_print(Ind, "You don't dare to set a charge in the darkness.");
+			return FALSE;
+		}
+	}
+
+	if (p_ptr->confused) {
+		msg_print(Ind, "You are too confused!");
+		return FALSE;
+	}
+#if 1 /* need something fiery to light the fuse with? */
+	{
+		object_type *ox_ptr = &Players[Ind]->inventory[INVEN_LITE];
+
+		if (!ox_ptr->k_idx || ox_ptr->sval == SV_LITE_FEANORIAN) {
+			object_type *ox2_ptr = &Players[Ind]->inventory[INVEN_TOOL];
+
+			if (!ox2_ptr->k_idx || ox2_ptr->sval != SV_TOOL_FLINT) {
+				msg_print(Ind, "You need to equip a fire-based light source or a flint to light the fuse.");
+				return FALSE;
+			}
+		}
+	}
+#endif
+
+#ifdef DEMOLITIONIST_BLAST_IDDC_ONLY
+	/* for debugging/testing purpose */
+	if (!in_irondeepdive(wpos)) {
+		msg_print(Ind, "You may arm charges only inside the IDDC.");
+		return FALSE;
+	}
+#endif
+
+	//if (!thrown) {   -- don't allow terraforming in town!
+		if (istownarea(wpos, MAX_TOWNAREA)) {
+			msg_print(Ind, "You may not arm charges in town.");
+			return FALSE;
+		}
+	//}
+
+	if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) ||
+	    (c_ptr->info & CAVE_PROT)) {
+		msg_print(Ind, "\377yYou cannot arm charges while on this special floor.");
+		return FALSE;
+	}
+
+	if (!thrown) {
+		/* Only set traps on floor grids */
+		if (!cave_clean_bold(zcave, py, px) ||
+		    !cave_set_feat_live_ok(&p_ptr->wpos, py, px, FEAT_MON_TRAP) ||
+		    c_ptr->special) {
+			msg_print(Ind, "\377yYou cannot place a charge here.");
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+/* Set direction (if applicable) and light the fuse at given length on a trap, arming it */
+void arm_charge_dir_and_fuse(object_type *o2_ptr, int dir) {
+	char *c;
+	int fuse;
+
+	/* Set 'dir' if any (for fire-wall charge) */
+	o2_ptr->xtra9 = dir;
+
+	/* Hack: Allow setting custom fuse length via '!Fxx' inscription! */
+	if (o2_ptr->note && (c = strchr(quark_str(o2_ptr->note), '!')) && (c[1] == 'F')) {
+		fuse = atoi(c + 2);
+
+		/* Limits: Fuse duration must be between 1s and 15s */
+		if (fuse > 15) fuse = 15;
+		if (fuse < 1) fuse = 1;
+	}
+	/* Otherwise use default fuse length */
+	else fuse = o2_ptr->pval;
+
+	o2_ptr->timeout = fuse;
+}
+/* Set a charge live --
+   Note: We are generous and don't demand a fire-based light source in inven/equip to set the fuse alight =p. */
 void arm_charge(int Ind, int item, int dir) {
 	player_type *p_ptr = Players[Ind];
 	object_type *o_ptr = &p_ptr->inventory[item];
-	char o_name[ONAME_LEN], *c;
-	cave_type *c_ptr;
-	cave_type **zcave;
+	char o_name[ONAME_LEN];
+	cave_type *c_ptr, **zcave;
 	struct c_special *cs_ptr;
 	int py = p_ptr->py, px = p_ptr->px;
 	s16b o2_idx;
 	object_type *o2_ptr;
 	worldpos *wpos = &p_ptr->wpos;
 
-
-	/* Check some conditions */
-
 	zcave = getcave(&p_ptr->wpos);
 	c_ptr = &zcave[py][px];
 
-	if (p_ptr->blind) {
-		msg_print(Ind, "You can't see anything.");
-		return;
-	}
-	if (no_lite(Ind)) {
-		msg_print(Ind, "You don't dare to set a charge in the darkness.");
-		return;
-	}
-	if (p_ptr->confused) {
-		msg_print(Ind, "You are too confused!");
-		return;
-	}
 
-#ifdef DEMOLITIONIST_BLAST_IDDC_ONLY
-	/* for debugging/testing purpose */
-	if (!in_irondeepdive(wpos)) {
-		msg_print(Ind, "You may plant charges only inside the IDDC.");
-		return;
-	}
-#endif
+	/* Check some conditions */
+	if (!arm_charge_conditions(Ind, o_ptr, FALSE)) return;
 
-	if (istownarea(wpos, MAX_TOWNAREA)) {
-		msg_print(Ind, "You may not place a charge in towns.");
-		return;
-	}
-	if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) ||
-	    (c_ptr->info & CAVE_PROT)) {
-		msg_print(Ind, "\377yYou cannot place charges on this special floor.");
-		return;
-	}
-	/* Only set traps on floor grids */
-	if (!cave_clean_bold(zcave, py, px) ||
-	    !cave_set_feat_live_ok(&p_ptr->wpos, py, px, FEAT_MON_TRAP) ||
-	    c_ptr->special) {
-		msg_print(Ind, "\377yYou cannot place a charge here.");
-		return;
-	}
 
 	/* Try to place it */
 
@@ -9597,11 +9704,12 @@ void arm_charge(int Ind, int item, int dir) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
 	if (interfere(Ind, 50 - get_skill_scale(p_ptr, SKILL_CALMNESS, 35))) return;
 
-	/* Hack: We just abuse monster traps for charges too.. */
+	/* Hack: We just abuse monster traps for charges too and place a montrap/rune-like glyph on the floor.. */
 	if (!(cs_ptr = AddCS(c_ptr, CS_MON_TRAP))) {
 		msg_print(Ind, "\377yYou cannot set a charge here.");
 		return;
 	}
+
 
 	/* Create a charge-item to be dropped on/into the floor */
 
@@ -9634,22 +9742,7 @@ void arm_charge(int Ind, int item, int dir) {
 	/* don't remove it quickly in towns */
 	o2_ptr->marked2 = ITEM_REMOVAL_MONTRAP;
 
-	/* Set 'dir' if any (for fire-wall charge) */
-	o2_ptr->xtra9 = dir;
-
-	/* Place monster-trap-/rune-like glyph on the floor */
-	o2_ptr->timeout = o_ptr->pval; //light the fuse
-
-	/* Hack: Allow setting custom fuse length via '!Fxx' inscription! */
-	if (o2_ptr->note && (c = strchr(quark_str(o2_ptr->note), '!')) && (c[1] == 'F')) {
-		int fuse = atoi(c + 2);
-
-		/* Limits: Fuse duration must be between 1s and 15s */
-		if (fuse > 15) fuse = 15;
-		if (fuse < 1) fuse = 1;
-
-		o2_ptr->timeout = fuse;
-	}
+	arm_charge_dir_and_fuse(o2_ptr, dir);
 
 	/* Finally, do place the standalone charge-item into the monster trap feat */
 
@@ -9673,7 +9766,9 @@ void arm_charge(int Ind, int item, int dir) {
 	inven_item_optimize(Ind, item);
 }
 /* A charge (planted into the floor) explodes */
-void detonate_charge(object_type *o_ptr) {
+void detonate_charge(int o_idx) {
+	object_type *oo_ptr = &o_list[o_idx];
+	object_type forge = (*oo_ptr), *o_ptr = &forge; /* create local working copy */
 	struct worldpos *wpos = &o_ptr->wpos;
 	int i, who = PROJECTOR_MON_TRAP, x = o_ptr->ix, y = o_ptr->iy;
 	int flg = (PROJECT_TRAP | PROJECT_NORF | PROJECT_JUMP | PROJECT_ITEM | PROJECT_KILL | PROJECT_NODO
@@ -9698,10 +9793,14 @@ void detonate_charge(object_type *o_ptr) {
 		/* Since we already erased the cs_ptr, we need to un-embed the object
 		   or it'll try to grab the (now non-existant) cs_ptr again,
 		   when we call delete_object_idx() right after this detonate_charge(). */
-		o_ptr->embed = 0;
+		oo_ptr->embed = 0;
 
 		cave_set_feat_live(wpos, y, x, i);
 	}
+	/* Get rid of it so we don't get 'the charge was destroyed'
+	   message from our own fire/blast effets on the o_ptr, looks silyl.
+	   This is the reason we needed to create a working copy in 'forge'.  */
+	delete_object_idx(o_idx, TRUE);
 
 	/* Find owner of the charge */
 	for (i = 1; i <= NumPlayers; i++) {
@@ -9762,14 +9861,17 @@ void detonate_charge(object_type *o_ptr) {
 		break;
 	case SV_CHARGE_FIREWALL:
  #ifdef USE_SOUND_2010
-		//sound_near_site(y, x, wpos, 0, "cast_cloud", NULL, SFX_TYPE_MISC, FALSE);
-		sound_near_site(y, x, wpos, 0, "cast_ball", NULL, SFX_TYPE_MISC, FALSE);
+		sound_near_site(y, x, wpos, 0, "cast_wall", NULL, SFX_TYPE_MISC, FALSE);
  #endif
+		flg |= PROJECT_STAY;
 		dir = o_ptr->xtra9;
 		for (i = 0; i < MAX_RANGE / 2; i++) {
 			x2 = x + ddx[dir] * i;
 			y2 = y + ddy[dir] * i;
-			if (!cave_los_wall(zcave, y2, x2)) break; /* Stop at permanent walls */
+			if (!cave_floor_bold(zcave, y2, x2)) break; /* Stop at walls */
+			//project_time_effect = 0;
+			project_time = 8;
+			project_interval = 6 + rand_int(3);
 			(void) project(who, 0, wpos, y2, x2, damroll(20, 15), GF_FIRE, flg, "");
 		}
 		break;
@@ -9799,7 +9901,7 @@ void detonate_charge(object_type *o_ptr) {
 		for (i = 0; i < MAX_RANGE / 2; i++) {
 			x2 = x + ddx[dir] * i;
 			y2 = y + ddy[dir] * i;
-			if (!cave_los_wall(zcave, y2, x2)) break; /* Stop at permanent walls */
+			if (!cave_floor_bold(zcave, y2, x2)) break; /* Stop at walls */
 			(void) project(who, 0, wpos, y2, x2, damroll(20, 15), GF_STONE_WALL, flg, "");
 		}
 		break;

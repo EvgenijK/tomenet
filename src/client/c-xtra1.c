@@ -310,7 +310,8 @@ void prt_ac(int ac, bool boosted) {
 	put_str("AC:", ROW_AC, COL_AC);
 	sprintf(tmp, "%5d", ac);
 
-	if (ac > 0 && boosted) attr = TERM_L_BLUE;
+	//if (ac > 0 && boosted) attr = TERM_L_BLUE;
+	if (boosted) attr = TERM_L_BLUE;
 	else attr = TERM_L_GREEN;
 
 	c_put_str(attr, tmp, ROW_AC, COL_AC + 7);
@@ -1027,6 +1028,149 @@ void prt_bpr(byte bpr, byte attr) {
 	Term_gotoxy(x, y);
 }
 
+void prt_indicators(u32b indicators) {
+	prt_res_fire((indicators & IND_RES_FIRE) != 0);
+	prt_res_cold((indicators & IND_RES_COLD) != 0);
+	prt_res_elec((indicators & IND_RES_ELEC) != 0);
+	prt_res_acid((indicators & IND_RES_ACID) != 0);
+	prt_res_pois((indicators & IND_RES_POIS) != 0);
+	prt_res_divine((indicators & IND_RES_DIVINE) != 0);
+	prt_esp((indicators & IND_ESP) != 0);
+}
+
+void prt_res_fire(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_RED, "F", ROW_RESIST_FIRE, COL_RESIST_FIRE);
+	} else {
+		c_put_str(TERM_RED, " ", ROW_RESIST_FIRE, COL_RESIST_FIRE);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_res_cold(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_WHITE, "C", ROW_RESIST_COLD, COL_RESIST_COLD);
+	} else {
+		c_put_str(TERM_WHITE, " ", ROW_RESIST_COLD, COL_RESIST_COLD);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_res_elec(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_BLUE, "E", ROW_RESIST_ELEC, COL_RESIST_ELEC);
+	} else {
+		c_put_str(TERM_BLUE, " ", ROW_RESIST_ELEC, COL_RESIST_ELEC);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_res_acid(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_SLATE, "A", ROW_RESIST_ACID, COL_RESIST_ACID);
+	} else {
+		c_put_str(TERM_SLATE, " ", ROW_RESIST_ACID, COL_RESIST_ACID);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_res_pois(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_GREEN, "P", ROW_RESIST_POIS, COL_RESIST_POIS);
+	} else {
+		c_put_str(TERM_GREEN, " ", ROW_RESIST_POIS, COL_RESIST_POIS);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_res_divine(bool is_resisted) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_resisted) {
+		c_put_str(TERM_VIOLET, "M", ROW_RESIST_MANA, COL_RESIST_MANA);
+	} else {
+		c_put_str(TERM_VIOLET, " ", ROW_RESIST_MANA, COL_RESIST_MANA);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_esp(bool is_full_esp) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_full_esp) {
+		c_put_str(TERM_WHITE, "ESP", ROW_TEMP_ESP, COL_TEMP_ESP);
+	} else {
+		c_put_str(TERM_WHITE, "   ", ROW_TEMP_ESP, COL_TEMP_ESP);
+	}
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
 /*
  * Prints cut status
  */
@@ -1442,6 +1586,12 @@ void show_inven(void) {
 	char	out_desc[23][ONAME_LEN];
 
 
+#ifdef USE_SOUND_2010
+ #if 0 /* actually too spammy because the inventory is opened for a lot of fast-paced actions all the time. */
+	sound(browseinven_sound_idx, SFX_TYPE_COMMAND, 100, 0);
+ #endif
+#endif
+
 	/* Starting column */
 	col = command_gap;
 
@@ -1558,6 +1708,158 @@ void show_inven(void) {
 	   (Concerns shopping only atm I think, but checking screen_icky seems better than checking 'shopping') */
 	if (screen_icky != 1) screen_line_icky = screen_column_icky = -1;
 }
+
+#ifdef ENABLE_SUBINVEN
+void show_subinven(int subinven_sval) {
+	int	i, j, k, l, z = 0;
+	int	col, len, lim;
+	long int wgt, totalwgt = 0;
+
+	object_type *o_ptr;
+
+	char	o_name[ONAME_LEN];
+	char	tmp_val[80];
+
+	int	out_index[23];
+	byte	out_color[23];
+	char	out_desc[23][ONAME_LEN];
+
+	int max_subinven = INVEN_TOTAL;
+
+
+	/* paranoia */
+	if (subinven_sval > MAX_SUBINVEN) return;
+
+	switch (subinven_sval) {
+	case SV_SI_SATCHEL:
+		max_subinven = 9;
+		//max_subinven = return 11;
+	}
+
+
+#ifdef USE_SOUND_2010
+ #if 0 /* actually too spammy because the inventory is opened for a lot of fast-paced actions all the time. */
+	sound(browseinven_sound_idx, SFX_TYPE_COMMAND, 100, 0);
+ #endif
+#endif
+
+	/* Starting column */
+	col = command_gap;
+
+	/* Default "max-length" */
+	len = 79 - col;
+
+	/* Maximum space allowed for descriptions */
+	lim = 79 - 3;
+
+	/* Require space for weight (if needed) */
+	lim -= 9;
+
+
+	/* Find the "final" slot */
+	for (i = 0; i < max_subinven; i++) {
+		o_ptr = &subinventory[subinven_sval][i];
+
+		/* Track non-empty slots */
+		if (o_ptr->tval) z = i + 1;
+	}
+
+	/* Display the inventory */
+	for (k = 0, i = 0; i < z; i++) {
+		o_ptr = &subinventory[subinven_sval][i];
+
+		/* Is this item acceptable? */
+		if (!item_tester_okay(o_ptr)) continue;
+
+		/* Describe the object */
+		strcpy(o_name, subinventory_name[subinven_sval][i]);
+
+		/* Hack -- enforce max length */
+		o_name[lim] = '\0';
+
+		/* Save the object index, color, and descrtiption */
+		out_index[k] = i;
+		out_color[k] = o_ptr->attr;
+		(void)strcpy(out_desc[k], o_name);
+
+		/* Find the predicted "line length" */
+		l = strlen(out_desc[k]) + 5;
+
+		/* Be sure to account for the weight */
+		l += 9;
+
+		/* Maintain the maximum length */
+		if (l > len) len = l;
+
+		/* Advance to next "line" */
+		k++;
+	}
+
+	/* For screen_line_icky: Fill the whole map-screen */
+	screen_column_icky = 79 - len - 2 - 1; /* -2: Item list has 2 leading spaces at the start of each line, -1: start _before_ this column */
+	screen_line_icky = k + 1 + 1; /* +1: Item list as 1 trailing empty 'border' line */
+
+	/* Find the column to start in */
+	col = (len > 76) ? 0 : (79 - len);
+
+	/* Output each entry */
+	for (j = 0; j < k; j++) {
+		/* Get the index */
+		i = out_index[j];
+
+		/* Get the item */
+		o_ptr = &subinventory[subinven_sval][i];
+
+		/* Clear the line */
+		prt("", j + 1, col ? col - 2 : col);
+
+		/* Prepare and index --(-- */
+		sprintf(tmp_val, "%c)", index_to_label(i));
+
+		/* Clear the line with the (possibly indented) index */
+		put_str(tmp_val, j + 1, col);
+
+		/* Display the entry itself */
+		c_put_str(out_color[j], out_desc[j], j + 1, col + 3);
+
+		/* Display the weight if needed */
+		if (c_cfg.show_weights && o_ptr->weight) {
+			wgt = o_ptr->weight * o_ptr->number;
+			if (wgt < 10000) /* still fitting into 3 digits? */
+				(void)sprintf(tmp_val, "%3li.%1li lb", wgt / 10, wgt % 10);
+			else
+				(void)sprintf(tmp_val, "%3lik%1li lb", wgt / 10000, (wgt % 10000) / 1000);
+			put_str(tmp_val, j + 1, 71);
+			totalwgt += wgt;
+		}
+	}
+
+	/* Display the weight if needed */
+	if (c_cfg.show_weights && totalwgt
+	    && !topline_icky) { /* <- for when we're inside cmd_inven() and pressed 'x' to examine an item, while a live-inve-timeout-update is coming in (only happens for equip atm tho, so not needed here) */
+		if (totalwgt < 10000) /* still fitting into 3 digits? */
+			(void)sprintf(tmp_val, "Total: %3li.%1li lb", totalwgt / 10, totalwgt % 10);
+		else if (totalwgt < 10000000) /* still fitting into 3 digits? */
+			(void)sprintf(tmp_val, "Total: %3lik%1li lb", totalwgt / 10000, (totalwgt % 10000) / 1000);
+		else
+			(void)sprintf(tmp_val, "Total: %3liM%1li lb", totalwgt / 10000000, (totalwgt % 10000000) / 1000000);
+		c_put_str(TERM_L_BLUE, tmp_val, 0, 64);
+	}
+
+	/* Make a "shadow" below the list (only if needed) */
+	if (j && (j < 23)) prt("", j + 1, col ? col - 2 : col);
+
+	/* Notify if inventory is actually empty */
+	if (!k) prt("(Your inventory is empty)", 1, 13);
+
+	/* Save the new column */
+	command_gap = col;
+
+	/* Do not allow environmental redrawing if we're actually already inside an icky screen here.
+	   (Concerns shopping only atm I think, but checking screen_icky seems better than checking 'shopping') */
+	if (screen_icky != 1) screen_line_icky = screen_column_icky = -1;
+}
+#endif
 
 
 /*
@@ -1909,6 +2211,36 @@ static void fix_lagometer(void) {
 
 		/* Display lag-o-meter */
 		display_lagometer(FALSE);
+
+		/* Fresh */
+		Term_fresh();
+
+		/* Restore */
+		Term_activate(old);
+	}
+}
+
+void fix_playerlist(void) {
+	int i, j;
+
+	/* Scan windows */
+	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
+		term *old = Term;
+
+		/* No window */
+		if (!ang_term[j]) continue;
+
+		/* No relevant flags */
+		if (!(window_flag[j] & PW_PLAYERLIST)) continue;
+
+		/* Activate */
+		Term_activate(ang_term[j]);
+
+		/* List players */
+		Term_clear();
+		prt("- [Players Online] -", 1, 30);
+		for (i = 0; i < NumPlayers; i++)
+			prt(playerlist[i], 3 + i, 30);
 
 		/* Fresh */
 		Term_fresh();
@@ -2276,8 +2608,8 @@ void update_lagometer() {
 }
 
 void display_player(int hist) {
-	int i;
-	char buf[80];
+	int i, tmp;
+	char buf[80], tmpc;
 	cptr desc;
 
 	if (hist != 2) {
@@ -2431,30 +2763,44 @@ void display_player(int hist) {
 
 
 			put_str("Blows/Round:", y_row3, 55);
-			c_put_str(TERM_L_BLUE, format("%d", p_ptr->num_blow), y_row3, 69);
+			c_put_str(p_ptr->extra_blows ? TERM_L_BLUE : TERM_L_GREEN, format("%d", p_ptr->num_blow), y_row3, 69);
 
 			put_str("Shots/Round:", y_row3 + 1, 55);
-			c_put_str(TERM_L_BLUE, format("%d", p_ptr->num_fire), y_row3 + 1, 69);
+			c_put_str(TERM_L_GREEN, format("%d", p_ptr->num_fire), y_row3 + 1, 69);
 #if 0
 			put_str("Spells/Round:", y_row3 + 2, 55);
-			c_put_str(TERM_L_BLUE, format("%d", p_ptr->num_spell), y_row3 + 2, 69);
+			c_put_str(TERM_L_GREEN, format("%d", p_ptr->num_spell), y_row3 + 2, 69);
 #endif
 			put_str("Infra-Vision:", y_row3 + 3, 55);
-			c_put_str(TERM_L_BLUE, format("%d feet", p_ptr->see_infra * 10), y_row3 + 3, 69);
+			c_put_str((p_ptr->tim_infra & 0x2) ? TERM_L_UMBER : ((p_ptr->tim_infra & 0x1) ? TERM_L_BLUE : TERM_L_GREEN),
+			    format("%d feet", p_ptr->see_infra * 10), y_row3 + 3, 69);
 		}
 
 		/* Dump the bonuses to hit/dam */
-		prt_num("+To MHit    ", p_ptr->dis_to_h + p_ptr->to_h_melee, y_row2, 1, TERM_L_BLUE);
-		prt_num("+To MDamage ", p_ptr->dis_to_d + p_ptr->to_d_melee, y_row2 + 1, 1, TERM_L_BLUE);
-		prt_num("+To RHit    ", p_ptr->dis_to_h + p_ptr->to_h_ranged, y_row2 + 2, 1, TERM_L_BLUE);
-		prt_num("+To RDamage ", p_ptr->to_d_ranged, y_row2 + 3, 1, TERM_L_BLUE);
+		tmp = (p_ptr->to_h_melee > 5000 ? p_ptr->to_h_melee - 10000 : p_ptr->to_h_melee); tmpc = (p_ptr->to_h_melee > 5000) ? TERM_L_BLUE : TERM_L_GREEN;
+		prt_num("+To MHit    ", p_ptr->dis_to_h + tmp, y_row2, 1, tmpc);
+		tmp = (p_ptr->to_d_melee > 5000 ? p_ptr->to_d_melee - 10000 : p_ptr->to_d_melee); tmpc = (p_ptr->to_d_melee > 5000) ? TERM_L_BLUE : TERM_L_GREEN;
+		prt_num("+To MDamage ", p_ptr->dis_to_d + tmp, y_row2 + 1, 1, tmpc);
+		tmp = (p_ptr->to_h_ranged > 5000 ? p_ptr->to_h_ranged - 10000 : p_ptr->to_h_ranged); tmpc = (p_ptr->to_h_ranged > 5000) ? TERM_L_BLUE : TERM_L_GREEN;
+		prt_num("+To RHit    ", p_ptr->dis_to_h + tmp, y_row2 + 2, 1, tmpc);
+		tmp = (p_ptr->to_d_ranged > 5000 ? p_ptr->to_d_ranged - 10000 : p_ptr->to_d_ranged); tmpc = (p_ptr->to_d_ranged > 5000) ? TERM_L_BLUE : TERM_L_GREEN;
+		prt_num("+To RDamage ", tmp, y_row2 + 3, 1, tmpc); //generic +dam never affects ranged
+
+		/* Armour Class */
+		if (is_atleast(&server_version, 4, 7, 3, 1, 0, 0)) {
+			tmp = (p_ptr->dis_ac > 5000 ? p_ptr->dis_ac - 10000 : p_ptr->dis_ac); tmpc = (p_ptr->dis_ac > 5000) ? TERM_L_BLUE : TERM_L_GREEN;
+		} else if (is_atleast(&server_version, 4, 7, 3, 0, 0, 0)) {
+			tmp = (p_ptr->dis_ac & ~0x1000); tmpc = (p_ptr->dis_ac & 0x1000) ? TERM_L_BLUE : TERM_L_GREEN;
+		} else {
+			tmp = p_ptr->dis_ac; tmpc = TERM_L_GREEN;
+		}
 #ifndef NEW_COMPRESSED_DUMP_AC
 		/* Dump the armor class bonus */
-		prt_num("+ To AC     ", p_ptr->dis_to_a, y_row2 + 4, 1, TERM_L_BLUE);
+		prt_num("+ To AC     ", p_ptr->dis_to_a, y_row2 + 4, 1, tmpc);
 		/* Dump the total armor class */
-		prt_num("  Base AC   ", p_ptr->dis_ac, y_row2 + 5, 1, TERM_L_BLUE);
+		prt_num("  Base AC   ", tmp, y_row2 + 5, 1, TERM_L_BLUE);
 #else
-		prt_num("Total AC    ", p_ptr->dis_to_a + p_ptr->dis_ac, y_row2 + 4, 1, TERM_L_BLUE);
+		prt_num("Total AC    ", tmp + p_ptr->dis_to_a, y_row2 + 4, 1, tmpc);
 #endif
 
 		prt_num("Level      ", (int)p_ptr->lev, y_row2, 28, TERM_L_GREEN);
@@ -2548,9 +2894,23 @@ void display_player(int hist) {
 				prt_num("", p_ptr->csp, y_row2 + 1, 62, TERM_RED);
 		}
 
+		if (p_ptr->mst == -9999) {
+			put_str("Stamina", y_row2 + 2, 52);
+			c_put_str(TERM_L_GREEN, "-", y_row2 + 2, 71);
+		} else {
+			prt_num("Stamina        ", p_ptr->mst, y_row2 + 2, 52, TERM_L_GREEN);
+			c_put_str(TERM_L_GREEN, "/", y_row2 + 2, 71);
+			if (p_ptr->cst >= p_ptr->mst)
+				prt_num("", p_ptr->cst, y_row2 + 2, 62, TERM_L_GREEN);
+			else if (p_ptr->cst > (p_ptr->mst) / 10)
+				prt_num("", p_ptr->cst, y_row2 + 2, 62, TERM_YELLOW);
+			else
+				prt_num("", p_ptr->cst, y_row2 + 2, 62, TERM_RED);
+		}
+
  #ifdef SHOW_SANITY
-		put_str("Sanity", y_row2 + 2, 52);
-		c_put_str(c_p_ptr->sanity_attr, c_p_ptr->sanity, y_row2 + 2, 67);
+		put_str("Sanity", y_row2 + 3, 52);
+		c_put_str(c_p_ptr->sanity_attr, c_p_ptr->sanity, y_row2 + 3, 67);
  #endif	/* SHOW_SANITY */
 
 		/* Display 'WINNER' status */
@@ -3251,7 +3611,7 @@ void do_weather(bool no_weather) {
 			int d;
 #endif
 			/* Animate palette */
-			if (!c_cfg.disable_lightning && !animate_lightning_icky) switch (animate_lightning) {
+			if (!c_cfg.disable_lightning && !animate_lightning_icky && c_cfg.palette_animation) switch (animate_lightning) {
 			case 1:
 				/* First thing: Backup all colours before temporarily manipulating them */
 				if (!active) {
@@ -3384,13 +3744,13 @@ void do_weather(bool no_weather) {
 #ifdef EXTENDED_BG_COLOURS /* use rain to test the extended background colour */
 					    rand_int(2) ? TERM2_BLUE : TERM_ORANGE, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
 #else
-					    TERM_BLUE, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
+					    col_raindrop, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
 #endif
 				} else if (weather_element_type[i] == 2) {
 					/* display snowflake */
 					Term_draw(PANEL_X + weather_element_x[i] - weather_panel_x,
 					    PANEL_Y + weather_element_y[i] - weather_panel_y,
-					    TERM_WHITE, '*');
+					    col_snowflake, '*');
 				}
 			}
 		}
@@ -3647,7 +4007,7 @@ void do_weather(bool no_weather) {
 #ifdef EXTENDED_BG_COLOURS /* use rain to test the extended background colour */
 				    rand_int(2) ? TERM2_BLUE : TERM_ORANGE, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
 #else
-				    TERM_BLUE, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
+				    col_raindrop, weather_wind == 0 ? '|' : (weather_wind % 2 == 1 ? '\\' : '/'));
 #endif
 			}
 		}
@@ -3690,7 +4050,7 @@ void do_weather(bool no_weather) {
 				/* display snowflake */
 				Term_draw(PANEL_X + weather_element_x[i] - weather_panel_x,
 				    PANEL_Y + weather_element_y[i] - weather_panel_y,
-				    TERM_WHITE, '*');
+				    col_snowflake, '*');
 			}
 		}
 	}
