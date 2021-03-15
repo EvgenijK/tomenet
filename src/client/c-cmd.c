@@ -2,7 +2,7 @@
 #include "angband.h"
 
 #ifdef REGEX_SEARCH
- #include <regex.h>
+ #include <pcre2posix.h>
  #define REGEXP_ARRAY_SIZE 1
 #endif
 
