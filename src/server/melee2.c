@@ -7988,7 +7988,7 @@ static void get_moves_arc(int targy, int targx, int m_idx, int *mm) {
 }
 #endif
 
-#ifdef RPG_SERVER
+//#ifdef RPG_SERVER
 /*
  * Choose "logical" directions for pet movement
  * Returns TRUE to move, FALSE to stand still
@@ -8197,7 +8197,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 
 	return(TRUE);
 }
-#endif
+//#endif
 
 /*
  * Choose "logical" directions for monster golem movement
@@ -10682,7 +10682,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 	}
 #endif
 }
-#ifdef RPG_SERVER
+  //#ifdef RPG_SERVER
 /* the pet handler. note that at the moment it _may_ be almost
  * identical to the golem's handler, except for some little
  * stuff. but let's NOT merge the two and add pet check hacks to
@@ -11122,7 +11122,7 @@ cave_midx_debug(wpos, oy, ox, c_ptr->m_idx); //DEBUG
 		//m_ptr->monfear_gone = 1;
 	}
 }
-#endif
+	//#endif
 static void process_monster_golem(int Ind, int m_idx) {
 	//player_type *p_ptr;
 
@@ -12301,9 +12301,9 @@ void process_monsters(void) {
 
 		/* Process the monster */
 		if (!m_ptr->special
-#ifdef RPG_SERVER
+		    //#ifdef RPG_SERVER
 		    && !m_ptr->pet
-#endif
+		    //#endif
 		   )
 		{
 			/* Hack -- suppress messages */
@@ -12318,13 +12318,13 @@ void process_monsters(void) {
 
 			suppress_message = FALSE;
 		}
-#ifdef RPG_SERVER
+		//#ifdef RPG_SERVER
 		else if (m_ptr->pet) { //pet
 			int p = find_player(m_ptr->owner);
 
 			process_monster_pet(p, i);
 		}
-#endif
+		//#endif
 		else { //golem
 			int p = find_player(m_ptr->owner);
 

@@ -165,6 +165,8 @@ extern bool detect_creatures(int Ind);
 extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_idx);
 extern bool heal_insanity(int Ind, int val);
 extern void summon_cyber(int Ind, int s_clone, int clone_summoning);
+extern void summon_pet(int Ind, int r_idx);
+extern void unsummon_pets(int Ind);
 extern void golem_creation(int Ind, int max);
 extern bool hp_player(int Ind, int num, bool quiet, bool autoeffect);
 extern void warding_glyph(int Ind);

@@ -5838,7 +5838,7 @@ bool monster_death(int Ind, int m_idx) {
 	else if (m_ptr->pet) s_printf("MONSTER_DEATH: Pet of '%s' by '%s'\n", lookup_player_name(m_ptr->owner), p_ptr->name);
 #endif
 
-#ifdef RPG_SERVER
+	//#ifdef RPG_SERVER
 	/* Pet death. Update and inform the owner -the_sandman */
 	if (m_ptr->pet) {
 		for (i = NumPlayers; i > 0; i--) {
@@ -5857,7 +5857,7 @@ bool monster_death(int Ind, int m_idx) {
 			}
 		}
 	}
-#endif
+	//#endif
 
 	if (cfg.henc_strictness && !p_ptr->total_winner &&
 	    /* p_ptr->lev more logical but harsh: */

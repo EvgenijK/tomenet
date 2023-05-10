@@ -8528,7 +8528,7 @@ extern int PlayerUID;
 
 /* for future use, so no client update will be required */
 #define SKILL_SOULFEASTING	102	/* could switch with SKILL_NECROMANCY if ever needed */
-#define SKILL_SUMMONING		103
+#define SKILL_SUMMONING		103	/* Using it now */
 #define SKILL_TAMING		104
 
 //hole 105-108

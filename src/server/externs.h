@@ -2661,6 +2661,7 @@ extern int SCHOOL_DRUID_ARCANE, SCHOOL_DRUID_PHYSICAL;
 extern int SCHOOL_ASTRAL;
 extern int SCHOOL_PPOWER, SCHOOL_MINTRUSION;
 extern int SCHOOL_OSHADOW, SCHOOL_OSPIRIT, SCHOOL_OHERETICISM, SCHOOL_OUNLIFE;
+extern int SCHOOL_SUMMON;
 
 /* For !X handling on spellbooks */
 extern int spell, ID_spell1, ID_spell1a, ID_spell1b, ID_spell2, ID_spell3, ID_spell4;

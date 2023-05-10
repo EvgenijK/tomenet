@@ -142,6 +142,12 @@ SCHOOL_OUNLIFE = add_school {
 	["skill"] = SKILL_OUNLIFE,
 }
 
+-- Summoning
+SCHOOL_SUMMON = add_school {
+	["name"] = "Summoning",
+	["skill"] = SKILL_SUMMONING,
+}
+
 
 -- Put some spells
 
@@ -181,6 +187,7 @@ pern_dofile(Ind, "o_spirit.lua")
 pern_dofile(Ind, "o_hereticism.lua")
 pern_dofile(Ind, "o_unlife.lua")
 
+pern_dofile(Ind, "s_summoning.lua")
 
 -- Tomes / Greater crystals
 
@@ -304,3 +311,6 @@ school_book[62] = { ODELFEAR, HERBALTEA, MEDITATION, DISPELMAGIC, HCUREWOUNDS_II
 school_book[63] = { MDISARM, MSILENCE, MSCARE_II, MCONFUSE_II, MSLEEP_II, MSLOWMONSTER_II, MTELEAWAY, MCHARM, MSTOPCHARM, MTELEKINESIS }
 -- Create the handbook of wind and weather
 school_book[64] = { THUNDERSTORM, AIRWINGS, TIDALWAVE_I, VAPOR_II, LIGHTNINGBOLT_II, ICESTORM_I, FROSTBALL_I, FROSTBOLT_II, WATERBOLT_II }
+
+-- Create the book of summoning
+school_book[68] = { SUMMON, UNSUMMON }

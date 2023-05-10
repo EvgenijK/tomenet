@@ -8208,7 +8208,8 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 		m_ptr->blow[j].d_side = r_ptr->blow[j].d_side;
 	}
 	m_ptr->level = r_ptr->level;
-	m_ptr->exp = MONSTER_EXP(m_ptr->level);
+	m_ptr->exp = MONSTER_EXP(m_ptr->level);	m_ptr->owner = Players[owner_id]->id;
+	m_ptr->pet = 1;
 	m_ptr->owner = 0;
 
 	/* Hack -- small racial variety */
@@ -8302,7 +8303,7 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 
 	return(TRUE);
 }
-#ifdef RPG_SERVER
+//#ifdef RPG_SERVER
 bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 	int		Ind, j;
 	cave_type	*c_ptr;
@@ -8404,6 +8405,7 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 	/* special pet value */
 	m_ptr->owner = Players[owner_id]->id;
 	m_ptr->pet = 1;
+	m_ptr->mind = GOLEM_ATTACK;
 
 	for (Ind = 1; Ind <= NumPlayers; Ind++) {
 		if (Players[Ind]->conn == NOT_CONNECTED)
@@ -8440,27 +8442,54 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 }
 
 /* Create a servant ! -- The_sandman */
-char pet_creation(int Ind) { //put the sanity tests here and call place_pet
-	int id = 955; //green dr for now
-	/* bleh, green dr is too powerful, lets do spiders. i'm fond of spiders. */
-	int lev = Players[Ind]->lev;
+ char pet_creation(int Ind, int r_idx) { //put the sanity tests here and call place_pet
 
-	if (lev < 5) id = (randint(2)>1 ? 60 /*cave S*/ : 62 /*wild cat*/);
-	else if (lev < 10) id = 127; //wood S
-	else if (lev < 15) id = 277; //mirkwood S
-	else if (lev < 20) id = 963; //aranea
-	else id = 964; //elder aranea
-
-	if (!Players[Ind]->has_pet) {
-		place_pet(Ind,
-		   &(Players[Ind]->wpos), Players[Ind]->py, Players[Ind]->px + 1,  /* E of player */
-		   id);
+   //	if (!Players[Ind]->has_pet) {
+		place_pet(
+		   Ind,
+		   &(Players[Ind]->wpos),
+		   Players[Ind]->py,
+		   Players[Ind]->px + 1,  /* E of player */
+		   r_idx
+		);
 		Players[Ind]->has_pet = 1;
+		s_printf("New pet created:");
 		return(1);
-	}
+		//	}
 	return(0);
 }
-#endif
+
+ /* Remove player pet(s) */
+ int remove_pets(int Ind) {
+   int i, j;
+   player_type *p_ptr = Players[Ind];
+   monster_type *m_ptr;
+	
+   //   if (!Players[Ind]->has_pet) return (0);
+   
+   s_printf("PET_REMOVAL: '%s' initiated.\n", p_ptr->name);
+
+   /* Process the monsters */
+   for (i = m_top - 1; i >= 0; i--) {
+     /* Access the index */
+     j = m_fast[i];
+
+     /* Access the monster */
+     m_ptr = &m_list[j];
+
+     /* Excise "dead" monsters */
+     if (!m_ptr->r_idx) continue;
+
+     if (m_ptr->owner != Players[Ind]->id) continue;
+
+     s_printf("PET_REMOVAL: found pet: '%d'.\n", j);
+     delete_monster_idx(j, FALSE);
+     p_ptr->has_pet = 0;
+     //     monster_death(Ind, j);
+   }
+   return (0);
+ }
+//#endif
 
 /* Create a mindless servant ! */
 void golem_creation(int Ind, int max) {
@@ -8789,6 +8818,16 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
 	return(ok);
 }
 
+
+ void summon_pet(int Ind, int r_idx) {
+   pet_creation(Ind, r_idx);
+ }
+ 
+ void unsummon_pets(int Ind) {
+   remove_pets(Ind);
+ }
+
+ 
 /* Heal insanity. */
 bool heal_insanity(int Ind, int val) {
 	player_type *p_ptr = Players[Ind];

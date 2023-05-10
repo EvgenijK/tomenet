@@ -2636,6 +2636,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_AURA_DEATH,
 			'+', 0,
 			'+', 1200, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Priest",
@@ -2725,6 +2728,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 0,
 			'+', 600, }, //400
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Rogue",
@@ -2856,6 +2862,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 1000,
 			'+', 900, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Mimic",
@@ -3158,6 +3167,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 1000,
 			'+', 800, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Ranger",
@@ -3302,6 +3314,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 1000,
 			'+', 800, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Adventurer",
@@ -3527,6 +3542,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 0,
 			'+', 700, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Druid",	/* by the_sandman -- w00t w00t -- a shapechanger+magical class */
@@ -3620,6 +3638,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_DIG,
 			'+', 0,
 			'+', 1200, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Shaman", /* by C. Blue -- Minor shapechange (restrictions), Necromancy/Praying/Magic */
@@ -3879,6 +3900,9 @@ player_class class_info[MAX_CLASS] = {
 			'+', 0,
 			'+', 500, },
 #endif
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 	{ "Runemaster",	/* A mage/rogue class, more caster than fighter, but with high spell damage / low durability.
@@ -4015,6 +4039,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_DIG,
 			'+', 1000,
 			'+', 1600, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 
 #ifdef ENABLE_MCRAFT
@@ -4140,6 +4167,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_DIG,
 			'+', 0,
 			'+', 900, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 #endif
 
@@ -4255,6 +4285,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 1000,
 			'+', 800, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 #endif
 #ifdef ENABLE_HELLKNIGHT
@@ -4386,6 +4419,9 @@ player_class class_info[MAX_CLASS] = {
 		{ SKILL_INTERCEPT,
 			'+', 1000,
 			'+', 800, },
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 #endif
 #ifdef ENABLE_CPRIEST
@@ -4499,6 +4535,9 @@ player_class class_info[MAX_CLASS] = {
 			'+', 0,
 			'+', 1300, },
 #endif
+		{ SKILL_SUMMONING,
+			'+', 0,
+			'+', 1000, },
 		}, },
 #endif
 };
