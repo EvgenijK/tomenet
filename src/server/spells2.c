@@ -8303,7 +8303,7 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 
 	return(TRUE);
 }
-//#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 	int		Ind, j;
 	cave_type	*c_ptr;
@@ -8444,7 +8444,7 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 /* Create a servant ! -- The_sandman */
  char pet_creation(int Ind, int r_idx) { //put the sanity tests here and call place_pet
 
-   //	if (!Players[Ind]->has_pet) {
+   //	if (!Players[Ind]->has_pet) { /* TODO - implement pets quantity limits */
 		place_pet(
 		   Ind,
 		   &(Players[Ind]->wpos),
@@ -8459,15 +8459,13 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 	return(0);
 }
 
- /* Remove player pet(s) */
+ /* Remove all player pet(s) */
  int remove_pets(int Ind) {
    int i, j;
    player_type *p_ptr = Players[Ind];
    monster_type *m_ptr;
 	
-   //   if (!Players[Ind]->has_pet) return (0);
-   
-   s_printf("PET_REMOVAL: '%s' initiated.\n", p_ptr->name);
+   //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
 
    /* Process the monsters */
    for (i = m_top - 1; i >= 0; i--) {
@@ -8482,14 +8480,12 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 
      if (m_ptr->owner != Players[Ind]->id) continue;
 
-     s_printf("PET_REMOVAL: found pet: '%d'.\n", j);
      delete_monster_idx(j, FALSE);
      p_ptr->has_pet = 0;
-     //     monster_death(Ind, j);
    }
    return (0);
  }
-//#endif
+#endif
 
 /* Create a mindless servant ! */
 void golem_creation(int Ind, int max) {
@@ -8832,56 +8828,50 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
    return &m_list[m_fast[m_idx]];
  }
 
- void toggle_pet_mind(monster_type *m_ptr, byte pet_mind) {
+ void toggle_pet_mind(int Ind, int m_idx, byte pet_mind) {
+// void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {
+   monster_type *m_ptr;
+
+   m_ptr = &m_list[m_fast[m_idx]];
+   
    if (!m_ptr->pet) return;
 
-   /* (pet_mind - 1) for correct left shift from 0 to N times */
+   s_printf("toggle_pet_mind(): current mind is %d\n", m_ptr->mind);
+   
    switch (pet_mind) {
    case PET_ATTACK:
-     
-     /* DEBUG */
-     s_printf("toggle_pet_mind(): current mind is %d\n", m_ptr->mind);
-     s_printf("toggle_pet_mind(): new mind is %d\n", pet_mind);
-
-     if (m_ptr->mind & (1U << (pet_mind - 1))) {
-       msg_print(Ind, "The pet stops going for your target.");
-       m_ptr->mind &= ~(1U << (pet_mind - 1));
+     if (m_ptr->mind & pet_mind) {
+       msg_print(Ind, "Your pets stop going for your target.");
+       m_ptr->mind &= ~pet_mind;
      } else {
-       msg_print(Ind, "The pet approaches your target!");
-       m_ptr->mind |= (1U << (pet_mind - 1));
+       msg_print(Ind, "Your pets approach your target!");
+       m_ptr->mind |= pet_mind;
      }
      break;
-
    case PET_GUARD:
-     
-     /* DEBUG */
-     s_printf("toggle_pet_mind(): current mind is %d\n", m_ptr->mind);
-     s_printf("toggle_pet_mind(): new mind is %d\n", pet_mind);
-
-     if (m_ptr->mind & (1U << (pet_mind - 1))) {
-       m_ptr->mind &= ~(1U << (pet_mind - 1));
-       msg_print(Ind, "The pet stops following you around.");
+     if (m_ptr->mind & pet_mind) {
+       m_ptr->mind &= ~pet_mind;
+       msg_print(Ind, "Your pets stop following you around.");
      } else {
-       msg_print(Ind, "The pet starts following you around!");
-       m_ptr->mind |= (1U << (pet_mind - 1));
+       msg_print(Ind, "Your pets start following you around!");
+       m_ptr->mind |= pet_mind;
      }
      break;
-
    case PET_FOLLOW:
-
-     /* DEBUG */
-     s_printf("toggle_pet_mind(): current mind is %d\n", m_ptr->mind);
-     s_printf("toggle_pet_mind(): new mind is %d\n", pet_mind);
-
-     if (m_ptr->mind & (1U << (pet_mind - 1))) {
-       m_ptr->mind &= ~(1U << (pet_mind - 1));
-       msg_print(Ind, "The pet stops being on guard.");
+     if (m_ptr->mind & pet_mind) {
+       m_ptr->mind &= ~pet_mind;
+       msg_print(Ind, "Your pets stop being on guard.");
      } else {
-       msg_print(Ind, "The pet seems to be on guard now!");
-       m_ptr->mind |= (1U << (pet_mind - 1));
+       msg_print(Ind, "Your pets seem to be on guard now!");
+       m_ptr->mind |= pet_mind;
      }
      break;
    }
+
+   update_mon(m_fast[m_idx], FALSE);
+   
+   s_printf("toggle_pet_mind(): new mind is %d\n", m_ptr->mind);
+   
  }
 
  void toggle_all_pets_mind(int Ind, byte pet_mind) {
@@ -8898,7 +8888,8 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
 
      if (m_ptr->owner != Players[Ind]->id) continue;
 
-     toggle_pet_mind(m_ptr, pet_mind);
+     //toggle_pet_mind(Ind, m_ptr, pet_mind);
+     toggle_pet_mind(Ind, i, pet_mind);
    }
  }
  

@@ -8006,8 +8006,14 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 	if (Ind > 0) p_ptr = Players[Ind];
 	else p_ptr = NULL;
 
-	/* DEBUG */
-//	s_prinf("get_moves_pet(): pet mind is: %d", m_ptr->mind);
+	/* DEBUG */ 
+        msg_print(Ind, "DEBUG SUMMON get_moves_pet() start");
+
+        msg_format(Ind, "Pet mind: %d", m_ptr->mind); 
+        msg_format(Ind, "Pet mind attack: %d", m_ptr->mind & PET_ATTACK); 
+        msg_format(Ind, "Pet mind guard:  %d", m_ptr->mind & PET_GUARD); 
+        msg_format(Ind, "Pet mind follow: %d", m_ptr->mind & PET_FOLLOW); 
+        msg_print(Ind, "DEBUG SUMMON get_moves_pet() end");
 
 	/* Lets find a target */
 	if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
