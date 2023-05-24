@@ -179,9 +179,9 @@
 #define SF_BAD_CHARS ":!?\\/()\"@. _"
 
 /* Maximum number of different characters one player account may hold - C. Blue */
-#define MAX_CHARS_PER_ACCOUNT	11
-#define MAX_DED_IDDC_CHARS	2	/* additional iddc-only characters (needs ALLOW_DED_IDDC_MODE) */
-#define MAX_DED_PVP_CHARS	1	/* additional pvp-only characters (needs ALLOW_DED_PVP_MODE) */
+#define MAX_CHARS_PER_ACCOUNT	1
+#define MAX_DED_IDDC_CHARS	0	/* additional iddc-only characters (needs ALLOW_DED_IDDC_MODE) */
+#define MAX_DED_PVP_CHARS	0	/* additional pvp-only characters (needs ALLOW_DED_PVP_MODE) */
 
 /* What kind of character creation method does the server use? - C. Blue
    currently (since 4.2.0):     0 = traditional random rolling (1 try)
@@ -762,7 +762,7 @@
 /* Limit value for Anti-magic fields (AM cap)
    Should range from 75..80%, maybe make skill & DS percentage
    multiply instead of sum up. - C. Blue */
-#define ANTIMAGIC_CAP		75
+#define ANTIMAGIC_CAP		100
 
 /* Cap for AM field radius. 9 is implied by skill+darksword,
    if monster form AM is added it could stack up to 12 though,
@@ -791,7 +791,7 @@
 /* Party level diff cancellation threshold. Just comment out (ie don't define it) to disable.
    For super high level characters: Minimum level at and above which there is no more limit to level difference of party members. [80]
    So as soon as all characters are of this level, they share exp even if they exceed MAX_KING_PARTY_LEVEL_DIFF. */
-#define KING_PARTY_FREE_THRESHOLD 80
+#define KING_PARTY_FREE_THRESHOLD 50
 
 
 /* --- Monster settings --- */
@@ -936,7 +936,7 @@
  /* The One Ring/Bladeturner don't get their timeout duration halved when their wearer wins */
  #define L100_ARTS_LAST
  /* Does the shop value of a trueart decline continuously while its timeout progresses? */
- #define TRUE_ART_VALUE_DECLINE
+// #define TRUE_ART_VALUE_DECLINE
 #endif
 
 /* Sort the artifact list by tval/sval before displaying it? */
@@ -966,7 +966,7 @@
 #define FOUNTAIN_GUARDS		10	/* chance of appearing */
 
 /* Keys are safe from monsters? (taking/killing/stealing) */
-//#define MON_IGNORE_KEYS
+#define MON_IGNORE_KEYS
 
 /* only imprison within town area? Otherwise it can be exploited for world travel. */
 #define JAIL_TOWN_AREA
@@ -1129,13 +1129,13 @@
 
 /* Various melee/ranged combat settings for cmd1.c and cmd2.c mostly */
 
-#define MAX_VAMPIRIC_DRAIN 50   /* was 25 - note: this counts per turn, not per blow */
+#define MAX_VAMPIRIC_DRAIN 10000   /* was 25 - note: this counts per turn, not per blow */
 #define WEAPON_VAMPIRIC_CHANCE 100
 #define NON_WEAPON_VAMPIRIC_CHANCE 50 /* was 67 - chance to drain if VAMPIRIC is given be a non-weapon item */
 
-#define MAX_VAMPIRIC_DRAIN_RANGED 10    /* was 25 - note: this counts per shot, not per turn */
-#define WEAPON_VAMPIRIC_CHANCE_RANGED 50
-#define NON_WEAPON_VAMPIRIC_CHANCE_RANGED 33 /* chance to drain if VAMPIRIC is given be a non-weapon/non-ammo item */
+#define MAX_VAMPIRIC_DRAIN_RANGED 1000    /* was 25 - note: this counts per shot, not per turn */
+#define WEAPON_VAMPIRIC_CHANCE_RANGED 100
+#define NON_WEAPON_VAMPIRIC_CHANCE_RANGED 50 /* chance to drain if VAMPIRIC is given be a non-weapon/non-ammo item */
 
 /* Reduce damage in PvP by this factor */
 #define PVP_MELEE_DAM_REDUCTION 3
@@ -1211,7 +1211,7 @@
    output for GF_DISP_xxx damage types instead of this penalty) */
 //#define MARTYR_NO_MANA
 /* Martyrdom reduces damage output of all GF_DISP_xxx to anti-cheeze pit sweeping? */
-#define MARTYR_CUT_DISP
+//#define MARTYR_CUT_DISP
 
 /* A random, rarely visited dungeon has a (slim) chance for firework drops */
 #define FIREWORK_DUNGEON
@@ -1770,7 +1770,7 @@
  * during the creation of an object (see "get_obj_num()" in "object.c").
  * Lower values yield better objects more often.
  */
-#define GREAT_OBJ	20
+#define GREAT_OBJ	1
 
 /*
  * There is a 1/50 (2%) chance of inflating the requested monster_level

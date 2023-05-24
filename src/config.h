@@ -402,7 +402,7 @@
  * OPTION: Allow use of the "flow_by_smell" and "flow_by_sound"
  * software options, which enable "monster flowing".
  */
-/* #define MONSTER_FLOW */
+/* #define MONSTER_FLOW */ // interesting
 
 
 
@@ -572,7 +572,7 @@
 /*
  * OPTION: Person to bother if something goes wrong.
  */
-#define MAINTAINER	"c_blue@gmx.net"
+#define MAINTAINER	"komov.evgen@gmail.com"
 
 
 /*
@@ -676,7 +676,7 @@
 
 
 /* Randart rarity (server/object2.c) [80] */
-#define RANDART_RARITY	80
+#define RANDART_RARITY	10 // make it lower?
 
 
 /*
