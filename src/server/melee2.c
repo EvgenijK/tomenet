@@ -7988,7 +7988,7 @@ static void get_moves_arc(int targy, int targx, int m_idx, int *mm) {
 }
 #endif
 
-//#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 /*
  * Choose "logical" directions for pet movement
  * Returns TRUE to move, FALSE to stand still
@@ -8006,11 +8006,13 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 	if (Ind > 0) p_ptr = Players[Ind];
 	else p_ptr = NULL;
 
-	/* Lets find a target */
+	/* DEBUG */
+//	s_prinf("get_moves_pet(): pet mind is: %d", m_ptr->mind);
 
-	if ((p_ptr != NULL) && (m_ptr->mind & GOLEM_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
+	/* Lets find a target */
+	if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
 		tm_idx = p_ptr->target_who;
-	else { // if (m_ptr->mind & GOLEM_GUARD)
+	else { // if (m_ptr->mind & PET_GUARD)
 		int sx, sy;
 		s32b max_hp = 0;
 
@@ -8046,7 +8048,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 		}
 	}
 	/* Nothing else to do ? */
-	if ((p_ptr != NULL) && !tm_idx && (m_ptr->mind & GOLEM_FOLLOW))
+	if ((p_ptr != NULL) && !tm_idx && (m_ptr->mind & PET_FOLLOW))
 		tm_idx = -Ind;
 
 	if (!tm_idx) return(FALSE);
@@ -8197,7 +8199,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 
 	return(TRUE);
 }
-//#endif
+#endif
 
 /*
  * Choose "logical" directions for monster golem movement
@@ -10682,7 +10684,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 	}
 #endif
 }
-  //#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 /* the pet handler. note that at the moment it _may_ be almost
  * identical to the golem's handler, except for some little
  * stuff. but let's NOT merge the two and add pet check hacks to
@@ -10729,7 +10731,7 @@ static void process_monster_pet(int Ind, int m_idx) {
 	if (Ind > 0) p_ptr = Players[Ind];
 	else p_ptr = NULL;
 #endif
-	m_ptr->mind |= (GOLEM_ATTACK|GOLEM_GUARD|GOLEM_FOLLOW);
+	m_ptr->mind |= (PET_ATTACK|PET_GUARD|PET_FOLLOW);
 
 	/* handle "stun" */
 	if (m_ptr->stunned) {
@@ -11122,7 +11124,7 @@ cave_midx_debug(wpos, oy, ox, c_ptr->m_idx); //DEBUG
 		//m_ptr->monfear_gone = 1;
 	}
 }
-	//#endif
+#endif
 static void process_monster_golem(int Ind, int m_idx) {
 	//player_type *p_ptr;
 

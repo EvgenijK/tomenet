@@ -7835,6 +7835,12 @@ extern int PlayerUID;
 #define GOLEM_FOLLOW		0x02
 #define GOLEM_GUARD		0x04
 
+/* Pet defines */
+#define PET_NONE		0x00
+#define PET_ATTACK		0x01
+#define PET_FOLLOW		0x02
+#define PET_GUARD		0x04
+
 /* Mind defines (non-golem/pet monsters that have AI_HYBRID) - C. Blue */
 #define HYBRID_NORMAL		0x0
 #define HYBRID_ANNOY		0x1
