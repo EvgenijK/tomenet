@@ -8836,8 +8836,6 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
    
    if (!m_ptr->pet) return;
 
-   s_printf("toggle_pet_mind(): current mind is %d\n", m_ptr->mind);
-   
    switch (pet_mind) {
    case PET_ATTACK:
      if (m_ptr->mind & pet_mind) {
@@ -8867,11 +8865,6 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
      }
      break;
    }
-
-   update_mon(m_fast[m_idx], FALSE);
-   
-   s_printf("toggle_pet_mind(): new mind is %d\n", m_ptr->mind);
-   
  }
 
  void toggle_all_pets_mind(int Ind, byte pet_mind) {
