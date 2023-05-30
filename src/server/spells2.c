@@ -1,4 +1,4 @@
-/* $Id$ */
+//* $Id$ */
 /* File: spells2.c */
 
 /* Purpose: Spell code (part 2) */
@@ -8828,12 +8828,7 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
    return &m_list[m_fast[m_idx]];
  }
 
- void toggle_pet_mind(int Ind, int m_idx, byte pet_mind) {
-// void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {
-   monster_type *m_ptr;
-
-   m_ptr = &m_list[m_fast[m_idx]];
-   
+ void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
    if (!m_ptr->pet) return;
 
    switch (pet_mind) {
@@ -8881,8 +8876,7 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
 
      if (m_ptr->owner != Players[Ind]->id) continue;
 
-     //toggle_pet_mind(Ind, m_ptr, pet_mind);
-     toggle_pet_mind(Ind, i, pet_mind);
+     toggle_pet_mind(Ind, m_ptr, pet_mind);
    }
  }
  

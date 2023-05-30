@@ -7,14 +7,16 @@ SUMMON_I = add_spell {
 	["level"] = 	1,
 	["mana"] = 	4,
 	["mana_max"] = 	4,
-	["fail"] = 	1,
+	["fail"] = 	10,
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
 		  summon_pet(Ind,  33)
 	end,
 	["info"] = 	function()
-			return "Summon lvl 1 friendly monster as your pet"
+		 	local lev
+			lev = get_level(Ind, SUMMON_I, 30)
+			return "Summon "..lev.."lvl weak monster as your pet"
 	end,
 	["desc"] = 	{ "Summon friendly monster as your pet", }
 }
@@ -24,16 +26,18 @@ SUMMON_II = add_spell {
 	["name2"] = 	"Summon II",
 	["school"] = 	SCHOOL_SUMMON,
 	["level"] = 	20,
-	["mana"] = 	4,
-	["mana_max"] = 	4,
-	["fail"] = 	10,
+	["mana"] = 	10,
+	["mana_max"] = 	10,
+	["fail"] = 	-20,
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
 		  summon_pet(Ind,  196)
 	end,
 	["info"] = 	function()
-			return "Summon lvl 10 friendly monster as your pet"
+		 	local lev
+			lev = get_level(Ind, SUMMON_II, 50)
+			return "Summon "..lev.."lvl weak monster as your pet"
 	end,
 	["desc"] = 	{ "Summon friendly monster as your pet", }
 }
@@ -42,36 +46,40 @@ SUMMON_III = add_spell {
 	["name"] = 	"Summon III",
 	["name2"] = 	"Summon III",
 	["school"] = 	SCHOOL_SUMMON,
-	["level"] = 	30,
-	["mana"] = 	4,
-	["mana_max"] = 	4,
-	["fail"] = 	10,
+	["level"] = 	40,
+	["mana"] = 	25,
+	["mana_max"] = 	25,
+	["fail"] = 	-75,
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
 		  summon_pet(Ind,  1073)
 	end,
 	["info"] = 	function()
-			return "Summon lvl 20 friendly monster as your pet"
+		 	local lev
+			lev = get_level(Ind, SUMMON_III, 70)
+			return "Summon "..lev.."lvl weak monster as your pet"
 	end,
 	["desc"] = 	{ "Summon friendly monster as your pet", }
 }
 
-SUMMON_VI = add_spell {
+SUMMON_GREAT = add_spell {
 	["name"] = 	"Great Summon",
 	["name2"] = 	"GreatSummon",
 	["school"] = 	SCHOOL_SUMMON,
 	["level"] = 	45,
-	["mana"] = 	4,
-	["mana_max"] = 	4,
-	["fail"] = 	5,
+	["mana"] = 	40,
+	["mana_max"] = 	40,
+	["fail"] = 	-80,
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
 		  summon_pet(Ind,  1073)
 	end,
 	["info"] = 	function()
-			return "Summon friendly monster as your pet"
+		 	local lev
+			lev = get_level(Ind, SUMMON_GREAT, 100)
+			return "Summon "..lev.."lvl weak monster as your pet"
 	end,
 	["desc"] = 	{ "Summon friendly monster as your pet", }
 }
@@ -90,9 +98,7 @@ UNSUMMON = add_spell {
 	["spell"] = 	function(args)
 			unsummon_pets(Ind)
 	end,
-	["info"] = 	function()
-			return "Unsummon your pet"
-	end,
+	["info"] = 	{ "Unsummon your pet", },
 	["desc"] = 	{ "Unsummon your pet", }
 }
 
@@ -109,9 +115,7 @@ PET_MIND_ATTACK = add_spell {
 	["spell"] = 	function(args)
 			toggle_all_pets_mind(Ind, PET_ATTACK)
 	end,
-	["info"] = 	function()
-			return ""
-	end,
+	["info"] = 	{ "", },
 	["desc"] = 	{ "", }
 }
 
@@ -128,9 +132,7 @@ PET_MIND_GUARD = add_spell {
 	["spell"] = 	function(args)
 			toggle_all_pets_mind(Ind, PET_GUARD)
 	end,
-	["info"] = 	function()
-			return ""
-	end,
+	["info"] = 	{ "", },
 	["desc"] = 	{ "", }
 }
 
@@ -147,8 +149,6 @@ PET_MIND_FOLLOW = add_spell {
 	["spell"] = 	function(args)
 			toggle_all_pets_mind(Ind, PET_FOLLOW)
 	end,
-	["info"] = 	function()
-			return ""
-	end,
+	["info"] = 	{ "", },
 	["desc"] = 	{ "", }
 }
