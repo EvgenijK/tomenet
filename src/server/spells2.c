@@ -8405,7 +8405,7 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 	/* special pet value */
 	m_ptr->owner = Players[owner_id]->id;
 	m_ptr->pet = 1;
-	m_ptr->mind = PET_NONE;
+	m_ptr->mind = PET_FOLLOW;
 
 	for (Ind = 1; Ind <= NumPlayers; Ind++) {
 		if (Players[Ind]->conn == NOT_CONNECTED)
@@ -8828,34 +8828,34 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
    return &m_list[m_fast[m_idx]];
  }
 
- void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
+ void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {
    if (!m_ptr->pet) return;
 
    switch (pet_mind) {
    case PET_ATTACK:
      if (m_ptr->mind & pet_mind) {
-       msg_print(Ind, "Your pets stop going for your target.");
+       msg_print(Ind, "Your pet stop going for your target.");
        m_ptr->mind &= ~pet_mind;
      } else {
-       msg_print(Ind, "Your pets approach your target!");
+       msg_print(Ind, "Your pet approach your target!");
        m_ptr->mind |= pet_mind;
      }
      break;
    case PET_GUARD:
      if (m_ptr->mind & pet_mind) {
        m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pets stop following you around.");
+       msg_print(Ind, "Your pet stop being on guard.");
      } else {
-       msg_print(Ind, "Your pets start following you around!");
+       msg_print(Ind, "Your pet seem to be on guard now!");
        m_ptr->mind |= pet_mind;
      }
      break;
    case PET_FOLLOW:
      if (m_ptr->mind & pet_mind) {
        m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pets stop being on guard.");
+       msg_print(Ind, "Your pet stop following you around.");
      } else {
-       msg_print(Ind, "Your pets seem to be on guard now!");
+       msg_print(Ind, "Your pet start following you around!");
        m_ptr->mind |= pet_mind;
      }
      break;
