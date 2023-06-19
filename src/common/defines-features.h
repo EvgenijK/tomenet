@@ -391,6 +391,12 @@
    Note that retrieval from 'minimap_yoff' from server-side is just needed for this. - C. Blue */
 //#define WILDMAP_ALLOW_SELECTOR_SCROLLING
 
+/* Enables pet behaviour */
+#define ENABLE_PETS
+
+#ifdef ENABLE_PETS
+ #define ENABLE_SUMMONING /* Enables summoning skills and spells */
+#endif
 
 
 /* ------------------------------------------------------------------------- */

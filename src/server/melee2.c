@@ -7988,7 +7988,7 @@ static void get_moves_arc(int targy, int targx, int m_idx, int *mm) {
 }
 #endif
 
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 /*
  * Choose "logical" directions for pet movement
  * Returns TRUE to move, FALSE to stand still
@@ -8007,10 +8007,9 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 	else p_ptr = NULL;
 
 	/* Lets find a target */
-
-	if ((p_ptr != NULL) && (m_ptr->mind & GOLEM_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
+	if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
 		tm_idx = p_ptr->target_who;
-	else { // if (m_ptr->mind & GOLEM_GUARD)
+	else { // if (m_ptr->mind & PET_GUARD)
 		int sx, sy;
 		s32b max_hp = 0;
 
@@ -8046,7 +8045,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 		}
 	}
 	/* Nothing else to do ? */
-	if ((p_ptr != NULL) && !tm_idx && (m_ptr->mind & GOLEM_FOLLOW))
+	if ((p_ptr != NULL) && !tm_idx && (m_ptr->mind & PET_FOLLOW))
 		tm_idx = -Ind;
 
 	if (!tm_idx) return(FALSE);
@@ -10682,7 +10681,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 	}
 #endif
 }
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 /* the pet handler. note that at the moment it _may_ be almost
  * identical to the golem's handler, except for some little
  * stuff. but let's NOT merge the two and add pet check hacks to
@@ -10729,7 +10728,6 @@ static void process_monster_pet(int Ind, int m_idx) {
 	if (Ind > 0) p_ptr = Players[Ind];
 	else p_ptr = NULL;
 #endif
-	m_ptr->mind |= (GOLEM_ATTACK|GOLEM_GUARD|GOLEM_FOLLOW);
 
 	/* handle "stun" */
 	if (m_ptr->stunned) {
@@ -12301,9 +12299,9 @@ void process_monsters(void) {
 
 		/* Process the monster */
 		if (!m_ptr->special
-#ifdef RPG_SERVER
+		    //#ifdef RPG_SERVER
 		    && !m_ptr->pet
-#endif
+		    //#endif
 		   )
 		{
 			/* Hack -- suppress messages */
@@ -12318,13 +12316,13 @@ void process_monsters(void) {
 
 			suppress_message = FALSE;
 		}
-#ifdef RPG_SERVER
+		//#ifdef RPG_SERVER
 		else if (m_ptr->pet) { //pet
 			int p = find_player(m_ptr->owner);
 
 			process_monster_pet(p, i);
 		}
-#endif
+		//#endif
 		else { //golem
 			int p = find_player(m_ptr->owner);
 
