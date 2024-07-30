@@ -28,6 +28,9 @@
 /* How fast HP/MP regenerate when 'resting'. [3] */
 #define RESTING_RATE	(cfg.resting_rate)
 
+/* Inverse of (1 - assumed density of wood relative to water), we're assuming 0.5, so it's "1 / (1 - 0.5)" = 2. */
+#define WOOD_INV_DENSITY 2
+
 /* Half-Trolls and especially Trolls regenerate extraordinarily quickly (both players and monsters) */
 #define TROLL_REGENERATION
 /* Hydras regenerate extraordinarily quickly aka regrowing their heads (both players and monsters) */
@@ -93,12 +96,36 @@ static void process_weather_control(void);
     //&& p_ptr->afk
     //&& p_ptr->idle_char > STARVE_KICK_TIMER) //reuse idle-starve-kick-timer for this
 
+static int fast_sqrt_10div6[120] = { /* 0..120, with 1 decimal place resolution, with the specified index being assumed to get pseudo-int-divided by 6 before going through sqrt() calc. */
+     0, 4, 6, 7, 8, 9,10,11,12,12,	13,14,14,15,15,16,16,17,17,18,
+    18,19,19,20,20,20,21,21,22,22,	22,23,23,23,24,24,24,25,25,25,
+    26,26,26,27,27,27,28,28,28,29,	29,29,29,30,30,30,31,31,31,31,
+    32,32,32,32,33,33,33,33,34,34,	34,34,35,35,35,35,36,36,36,36,
+    37,37,37,37,37,38,38,38,38,39,	39,39,39,39,40,40,40,40,40,41,
+    41,41,41,41,42,42,42,42,42,43,	43,43,43,43,44,44,44,44,44,45,
+};
+static int fast_sqrt_10[371] = { /* 0..370, with 1 decimal place resolution. Since MMP can be much higher than 371, the value needs to be divided by 6 before feeding as index. */
+     0,10,14,17,20,22,24,26,28,30,		32,33,35,36,37,39,40,41,42,44, /* <- redundant line, as up to here it's covered by fast_sqrt_10div6 already. Included just for completion's sake. */
+    45,46,47,48,49,50,51,52,53,54,		55,56,57,57,58,59,60,61,62,62,			63,64,65,66,66,67,68,69,69,70,			71,71,72,73,73,74,75,75,76,77,
+    77,78,79,79,80,81,81,82,82,83,		84,84,85,85,86,87,87,88,88,89,			89,90,91,91,92,92,93,93,94,94,			95,95,96,96,97,97,98,98,99,99,
+    100,100,101,101,102,102,103,103,104,104,	105,105,106,106,107,107,108,108,109,109,	110,110,110,111,111,112,112,113,113,114,	114,114,115,115,116,116,117,117,117,118,
+    118,119,119,120,120,120,121,121,122,122,	122,123,123,124,124,124,125,125,126,126,	126,127,127,128,128,128,129,129,130,130,	130,131,131,132,132,132,133,133,133,134,
+    134,135,135,135,136,136,136,137,137,137,	138,138,139,139,139,140,140,140,141,141,	141,142,142,142,143,143,144,144,144,145,	145,145,146,146,146,147,147,147,148,148,
+    148,149,149,149,150,150,150,151,151,151,	152,152,152,153,153,153,154,154,154,155,	155,155,156,156,156,157,157,157,157,158,	158,158,159,159,159,160,160,160,161,161,
+    161,162,162,162,162,163,163,163,164,164,	164,165,165,165,166,166,166,166,167,167,	167,168,168,168,169,169,169,169,170,170,	170,171,171,171,171,172,172,172,173,173,
+    173,173,174,174,174,175,175,175,175,176,	176,176,177,177,177,177,178,178,178,179,	179,179,179,180,180,180,181,181,181,181,	182,182,182,182,183,183,183,184,184,184,
+    184,185,185,185,185,186,186,186,187,187,	187,187,188,188,188,188,189,189,189,189,	190,190,190,191,191,191,191,192,192,192,	192
+};
+
 
 /*
  * Return a "feeling" (or NULL) about an item.  Method 1 (Heavy).
  */
+
+/* Feel 'combat' strongly (heavy) - always gives a result! */
 cptr value_check_aux1(object_type *o_ptr) {
 	object_kind *k_ptr = &k_info[o_ptr->k_idx];
+	u32b v;
 
 	/* Artifacts */
 	if (artifact_p(o_ptr)) {
@@ -114,29 +141,20 @@ cptr value_check_aux1(object_type *o_ptr) {
 		/* Hack for Stormbringer, so it doesn't show as "worthless" */
 		if (o_ptr->name2 == EGO_STORMBRINGER) return("terrible");
 
-#if 0
-		/* Cursed/Broken */
-		if (cursed_p(o_ptr) || broken_p(o_ptr)) return("worthless");
-#else
 		/* Cursed items */
 		if (cursed_p(o_ptr)) return("cursed");
 
 		/* Broken items */
 		if (broken_p(o_ptr)) return("worthless");
-#endif
 
-		/* Normal */
+		v = object_value(0, o_ptr);
+		if (!v) return("worthless");
 
-		/* All exploding or ego-ammo is excellent.. */
-		if (is_ammo(o_ptr->tval) && (o_ptr->pval || o_ptr->name2 || o_ptr->name2b)) {
-			/* ..except for zero-money ego: Backbiting ammo! */
-			if (o_ptr->name2 && !e_info[o_ptr->name2].cost) return("worthless");
-			if (o_ptr->name2b && !e_info[o_ptr->name2b].cost) return("worthless");
-			return("excellent");
-		}
+		/* Exploding ammo counts as pseudo-ego and is excellent */
+		if (is_ammo(o_ptr->tval) && o_ptr->pval) return("excellent");
 
-		if (!object_value(0, o_ptr)) return("worthless");
-		if (object_value(0, o_ptr) < 4000) return("good");
+		if (v < 4000) return("good");
+
 		return("excellent");
 	}
 
@@ -144,14 +162,23 @@ cptr value_check_aux1(object_type *o_ptr) {
 	if (cursed_p(o_ptr)) return("cursed");
 
 	/* Broken items */
-	if (broken_p(o_ptr)) return("broken");
+	if (broken_p(o_ptr)) return("worthless");
+
+	/* All exploding or ego-ammo is excellent.. */
+	if (is_ammo(o_ptr->tval) && (o_ptr->pval || o_ptr->name2 || o_ptr->name2b)) {
+		/* ..except for zero-money ego: Backbiting ammo! */
+		if (o_ptr->name2 && !e_info[o_ptr->name2].cost) return("worthless");
+		if (o_ptr->name2b && !e_info[o_ptr->name2b].cost) return("worthless");
+		return("excellent");
+	}
 
 	/* Valid "tval" codes */
 	switch (o_ptr->tval) {
-	case TV_DIGGING:
 	case TV_BLUNT:
 	case TV_POLEARM:
 	case TV_SWORD:
+	case TV_AXE:
+
 	case TV_BOOTS:
 	case TV_GLOVES:
 	case TV_HELM:
@@ -161,12 +188,16 @@ cptr value_check_aux1(object_type *o_ptr) {
 	case TV_SOFT_ARMOR:
 	case TV_HARD_ARMOR:
 	case TV_DRAG_ARMOR:
-	case TV_AXE:
+
+	case TV_DIGGING:
+
 	case TV_SHOT:
 	case TV_ARROW:
 	case TV_BOLT:
 	case TV_BOW:
 	case TV_BOOMERANG:
+
+	case TV_TRAPKIT:
 		/* Good "armor" bonus */
 		if ((o_ptr->to_a > k_ptr->to_a) &&
 		    (o_ptr->to_a > 0)) return("good");
@@ -186,24 +217,30 @@ cptr value_check_aux1(object_type *o_ptr) {
 	return("average");
 }
 
+/* Feel 'magic' strongly (heavy) - always gives a result! */
 cptr value_check_aux1_magic(object_type *o_ptr) {
 	object_kind *k_ptr = &k_info[o_ptr->k_idx];
-
+	u32b v;
 
 	switch (o_ptr->tval) {
 	/* Scrolls, Potions, Wands, Staves and Rods */
 	case TV_SCROLL:
 		/* hack for cheques */
-		if (k_ptr->sval == SV_SCROLL_CHEQUE) return("good");
+		if (k_ptr->sval == SV_SCROLL_CHEQUE) {
+			v = ps_get_cheque_value(o_ptr);
+			if (v < 10000) return("good");
+			return("excellent");
+		}
 		/* Fall through */
 	case TV_POTION:
 	case TV_POTION2:
+
 	case TV_WAND:
 	case TV_STAFF:
 	case TV_ROD:
 	case TV_ROD_MAIN:
 		/* "Cursed" scrolls/potions have a cost of 0 */
-		if (k_ptr->cost == 0) return("bad");//"terrible");
+		if (k_ptr->cost == 0) return("bad");
 
 		/* Artifacts */
 		if (artifact_p(o_ptr)) return("special");
@@ -220,36 +257,57 @@ cptr value_check_aux1_magic(object_type *o_ptr) {
 		/* Enchant Armor, *Identify*, Restore Stat, etc. */
 		if (k_ptr->cost < 4000) return("good");
 
-		/* Acquirement, Deincarnation, Strength, Blood of Life, ... */
-		if (k_ptr->cost >= 4000) return("excellent");
+		/* Acquirement, Artifact Creation... */
+		return("excellent");
 
-		break;
+	case TV_RING:
+	case TV_AMULET:
+		/* Artifacts */
+		if (artifact_p(o_ptr)) {
+			/* Cursed/Broken */
+			if (cursed_p(o_ptr) || broken_p(o_ptr)) return("terrible");
+
+			/* Normal */
+			return("special");
+		}
+
+		/* Cursed items */
+		if (cursed_p(o_ptr)) return("cursed");
+
+		/* Broken items -- doesn't exist for jewelry though, as this is an ego power, not in k_info */
+		if (broken_p(o_ptr)) return("worthless");
+
+		v = object_value(0, o_ptr);
+		if (!v) return("bad");
+		else if (v <= 20) return("worthless"); //adornment
+		else if (v < 1000) return("average");
+		else if (v < 10000) return("good"); //jewelry tends to be expensivo in general
+		return("excellent");
+
 	/* Food */
 	case TV_FOOD:
 		/* "Cursed" food */
-		if (k_ptr->cost == 0) return("bad");//"terrible");
+		if (k_ptr->cost == 0) return("bad");
 
 		/* Artifacts */
 		if (artifact_p(o_ptr)) return("special");
 
-		/* Normal food (no magical properties) */
-		if (k_ptr->cost <= 10) return("average");
-
-		/* Everything else is good */
+		/* Food with magical properties */
 		if (k_ptr->cost > 10) return("good");
 
 		break;
 	}
 
-	/* No feeling */
-//	return("");
-	return(NULL);
+	/* Default */
+	return("average");
 }
 
 
 /*
  * Return a "feeling" (or NULL) about an item.  Method 2 (Light).
  */
+
+/* Feel 'combat' lightly - 'average' in heavy becomes just <no result> here! */
 cptr value_check_aux2(object_type *o_ptr) {
 	object_kind *k_ptr = &k_info[o_ptr->k_idx];
 
@@ -257,23 +315,26 @@ cptr value_check_aux2(object_type *o_ptr) {
 	if (cursed_p(o_ptr)) return("cursed");
 
 	/* Broken items (all of them) */
-	if (broken_p(o_ptr)) return("broken");
+	if (broken_p(o_ptr)) return("worthless");
 
 	/* Artifacts -- except cursed/broken ones */
 	if (artifact_p(o_ptr)) return("good");
 
 	/* Ego-Items -- except cursed/broken ones */
-	if (!k_ptr->cost) return("broken");
+	if (!k_ptr->cost) return("worthless");
 	if (ego_item_p(o_ptr)) {
 		if (!object_value(0, o_ptr)) return("worthless");
 		return("good");
 	}
+	/* Exploding ammo counts as pseudo-ego */
+	if (is_ammo(o_ptr->tval) && o_ptr->pval) return("good");
 
 	switch (o_ptr->tval) {
-	case TV_DIGGING:
 	case TV_BLUNT:
 	case TV_POLEARM:
 	case TV_SWORD:
+	case TV_AXE:
+
 	case TV_BOOTS:
 	case TV_GLOVES:
 	case TV_HELM:
@@ -283,12 +344,16 @@ cptr value_check_aux2(object_type *o_ptr) {
 	case TV_SOFT_ARMOR:
 	case TV_HARD_ARMOR:
 	case TV_DRAG_ARMOR:
-	case TV_AXE:
+
+	case TV_DIGGING:
+
 	case TV_SHOT:
 	case TV_ARROW:
 	case TV_BOLT:
 	case TV_BOW:
 	case TV_BOOMERANG:
+
+	case TV_TRAPKIT:
 		/* Good "armor" bonus */
 		if (o_ptr->to_a > k_ptr->to_a
 		    && o_ptr->to_a > 0 /* for rusty armour....*/
@@ -310,9 +375,10 @@ cptr value_check_aux2(object_type *o_ptr) {
 	return(NULL);
 }
 
+/* Feel 'magic' lightly - 'average' in heavy becomes just <no result> here! */
 cptr value_check_aux2_magic(object_type *o_ptr) {
 	object_kind *k_ptr = &k_info[o_ptr->k_idx];
-
+	u32b v;
 
 	switch (o_ptr->tval) {
 	/* Scrolls, Potions, Wands, Staves and Rods */
@@ -322,51 +388,53 @@ cptr value_check_aux2_magic(object_type *o_ptr) {
 		/* Fall through */
 	case TV_POTION:
 	case TV_POTION2:
+
 	case TV_WAND:
 	case TV_STAFF:
 	case TV_ROD:
-		/* "Cursed" scrolls/potions have a cost of 0 */
-		if (k_ptr->cost == 0) return("bad");//"cursed");
+		/* Bad scrolls/potions have a cost of 0 */
+		if (k_ptr->cost == 0) return("worthless");
+
+		/* Artifacts (doesn't exist for these item types) */
+		if (artifact_p(o_ptr)) return("good");
+
+		if (k_ptr->cost >= 1000) return("good");
+
+		break;
+
+	case TV_RING:
+	case TV_AMULET:
+		/* Cursed items */
+		if (cursed_p(o_ptr)) return("cursed");
+
+		/* Broken items -- doesn't exist for jewelry though, as this is an ego power, not in k_info */
+		if (broken_p(o_ptr)) return("worthless");
 
 		/* Artifacts */
 		if (artifact_p(o_ptr)) return("good");
 
-		/* Scroll of Nothing, Apple Juice, etc. */
-		if (k_ptr->cost < 3) return("average");//or "worthless"
-
-		/*
-		 * Identify, Phase Door, Cure Light Wounds, etc. are
-		 * just average
-		 */
-		if (k_ptr->cost < 100) return("average");
-
-		/* Enchant Armor, *Identify*, Restore Stat, etc. */
-		if (k_ptr->cost < 4000) return("good");
-
-		/* Acquirement, Deincarnation, Strength, Blood of Life, ... */
-		if (k_ptr->cost >= 4000) return("good");
+		v = object_value(0, o_ptr);
+		if (!v) return("worthless");
+		if (ego_item_p(o_ptr)) return("good");
 
 		break;
 
 	/* Food */
 	case TV_FOOD:
 		/* "Cursed" food */
-		if (k_ptr->cost == 0) return("bad");//"cursed");
+		if (k_ptr->cost == 0) return("worthless");
 
-		/* Artifacts */
+		/* Artifacts (doesn't exist) */
 		if (artifact_p(o_ptr)) return("good");
 
-		/* Normal food (no magical properties) */
-		if (k_ptr->cost <= 10) return("average");
-
-		/* Everything else is good */
-		if (k_ptr->cost > 10) return("good");
+		/* Mushroom of Restoring detected (spoilery, but potions/devices have a value->good check, so there should be one in food too probably, pft) */
+		if (k_ptr->cost >= 1000) return("good");
 
 		break;
 	}
 
 	/* No feeling */
-//	return("");
+	//return("");
 	return(NULL);
 }
 
@@ -488,16 +556,14 @@ static void sense_inventory(int Ind) {
 		case TV_BOOMERANG:
 			if (fail && !heavy) continue; //finally fail
 			if (ok_combat) {
-				feel = (heavy ? value_check_aux1(o_ptr) :
-						value_check_aux2(o_ptr));
+				feel = (heavy ? value_check_aux1(o_ptr) : value_check_aux2(o_ptr));
 				if (heavy) felt_heavy = TRUE;
 			}
 			break;
 		case TV_MSTAFF:
 			if (fail && !heavy_magic) continue; //finally fail
 			if (ok_magic) {
-				feel = (heavy_magic ? value_check_aux1(o_ptr) :
-						value_check_aux2(o_ptr));
+				feel = (heavy_magic ? value_check_aux1(o_ptr) : value_check_aux2(o_ptr));
 				if (heavy_magic) felt_heavy = TRUE;
 			}
 			break;
@@ -510,10 +576,11 @@ static void sense_inventory(int Ind) {
 		case TV_WAND:
 		case TV_STAFF:
 		case TV_ROD:
+		case TV_RING: /* finally these two, in 2023 */
+		case TV_AMULET:
 			if (fail && !heavy_magic) continue; //finally fail
 			if (ok_magic && !object_aware_p(Ind, o_ptr)) {
-				feel = (heavy_magic ? value_check_aux1_magic(o_ptr) :
-				    value_check_aux2_magic(o_ptr));
+				feel = (heavy_magic ? value_check_aux1_magic(o_ptr) : value_check_aux2_magic(o_ptr));
 				if (heavy_magic) felt_heavy = TRUE;
 			}
 			break;
@@ -523,24 +590,21 @@ static void sense_inventory(int Ind) {
 		case TV_BOW:
 			if (fail && !heavy_archery) continue; //finally fail
 			if (ok_archery || (ok_combat && magik(25))) {
-				feel = (heavy_archery ? value_check_aux1(o_ptr) :
-				    value_check_aux2(o_ptr));
+				feel = (heavy_archery ? value_check_aux1(o_ptr) : value_check_aux2(o_ptr));
 				if (heavy_archery) felt_heavy = TRUE;
 			}
 			break;
 		case TV_TRAPKIT:
 			if (fail && !heavy_traps) continue; //finally fail
 			if (ok_traps) {
-				feel = (heavy_traps ? value_check_aux1(o_ptr) :
-						value_check_aux2(o_ptr));
+				feel = (heavy_traps ? value_check_aux1(o_ptr) : value_check_aux2(o_ptr));
 				if (heavy_traps) felt_heavy = TRUE;
 			}
 			break;
-		case TV_FOOD: /* dual! Uses auxX_magic, which contains the food-specific values */
+		case TV_FOOD: /* dual! Uses auxX_magic, which contains the food-specific values. Since potions are 'magic' too, food seems not misplaced.. */
 			if (fail && !heavy_magic && !heavy) continue; //finally fail
 			if ((ok_combat || ok_magic) && !object_aware_p(Ind, o_ptr)) {
-				feel = ((heavy || heavy_magic) ? value_check_aux1_magic(o_ptr) :
-						value_check_aux2_magic(o_ptr));
+				feel = ((heavy || heavy_magic) ? value_check_aux1_magic(o_ptr) : value_check_aux2_magic(o_ptr));
 				if (heavy || heavy_magic) felt_heavy = TRUE;
 			}
 			break;
@@ -590,13 +654,15 @@ static void sense_inventory(int Ind) {
 		   Remember static items seen in shops just by feeling before having IDed one. :)
 		    - C. Blue */
 		switch (o_ptr->tval) {
+		case TV_SCROLL:
+		case TV_POTION:
+		case TV_POTION2:
 		case TV_WAND:
 		case TV_STAFF:
 		case TV_ROD:
 		case TV_ROD_MAIN:
-		case TV_SCROLL:
-		case TV_POTION:
-		case TV_POTION2:
+		//case TV_RING: - no, as they might have 'cursed' ego power
+		//case TV_AMULET: - no, as they might have 'cursed' ego power
 		case TV_FOOD:
 			p_ptr->obj_felt[o_ptr->k_idx] = TRUE;
 			if (felt_heavy) p_ptr->obj_felt_heavy[o_ptr->k_idx] = TRUE;
@@ -649,142 +715,6 @@ static void sense_inventory(int Ind) {
 	}
 }
 
-#if 0 /* the results might be too incorrect! for example 'average' can still mean enchantment, etc. */
-/* for NEW_ID_SCREEN's pseudo-id handling: */
-
-static int quality_check_aux1(object_type *o_ptr) {
-	object_kind *k_ptr = &k_info[o_ptr->k_idx];
-
-	if (artifact_p(o_ptr)) return(3);
-
-	if (ego_item_p(o_ptr)) {
-		if (o_ptr->name2 == EGO_STORMBRINGER) return(3);
-		if (cursed_p(o_ptr) || broken_p(o_ptr)) return(2);
-		if (is_ammo(o_ptr->tval) && (o_ptr->pval || o_ptr->name2 || o_ptr->name2b)) return(2);
-		if (object_value(0, o_ptr) < 4000) return(1);
-		return(2);
-	}
-
-	if (cursed_p(o_ptr)) return(-1);
-	if (broken_p(o_ptr)) return(-1);
-
-	switch (o_ptr->tval) {
-	case TV_DIGGING:
-	case TV_BLUNT:
-	case TV_POLEARM:
-	case TV_SWORD:
-	case TV_BOOTS:
-	case TV_GLOVES:
-	case TV_HELM:
-	case TV_CROWN:
-	case TV_SHIELD:
-	case TV_CLOAK:
-	case TV_SOFT_ARMOR:
-	case TV_HARD_ARMOR:
-	case TV_DRAG_ARMOR:
-	case TV_AXE:
-	case TV_SHOT:
-	case TV_ARROW:
-	case TV_BOLT:
-	case TV_BOW:
-	case TV_BOOMERANG:
-		if ((o_ptr->ident & ID_SENSE_GOOD)) return(1);
-		break;
-	default:
-		if ((o_ptr->ident & ID_SENSE_GOOD)) return(1);
-	}
-
-	return(0);
-}
-
-/*
- * Return a "feeling" (or NULL) about an item.  Method 2 (Light).
- */
-static int quality_check_aux2(object_type *o_ptr) {
-	object_kind *k_ptr = &k_info[o_ptr->k_idx];
-
-	if (cursed_p(o_ptr)) return(-1);
-	if (broken_p(o_ptr)) return(-1);
-	if (artifact_p(o_ptr)) return(1);
-	if (!k_ptr->cost) return(-1);
-	if (ego_item_p(o_ptr)) {
-		return(1);
-	}
-
-	switch (o_ptr->tval) {
-	case TV_DIGGING:
-	case TV_BLUNT:
-	case TV_POLEARM:
-	case TV_SWORD:
-	case TV_BOOTS:
-	case TV_GLOVES:
-	case TV_HELM:
-	case TV_CROWN:
-	case TV_SHIELD:
-	case TV_CLOAK:
-	case TV_SOFT_ARMOR:
-	case TV_HARD_ARMOR:
-	case TV_DRAG_ARMOR:
-	case TV_AXE:
-	case TV_SHOT:
-	case TV_ARROW:
-	case TV_BOLT:
-	case TV_BOW:
-	case TV_BOOMERANG:
-		if ((o_ptr->ident & ID_SENSE_GOOD)) return(1);
-		break;
-	default:
-		if ((o_ptr->ident & ID_SENSE_GOOD)) return(1);
-	}
-
-	return(0);
-}
-
-int pseudo_id_result(object_type *o_ptr) {
-	int quality = 0;
-
-	switch (o_ptr->tval) {
-	case TV_DIGGING:
-	case TV_BLUNT:
-	case TV_POLEARM:
-	case TV_SWORD:
-	case TV_BOOTS:
-	case TV_GLOVES:
-	case TV_HELM:
-	case TV_CROWN:
-	case TV_SHIELD:
-	case TV_CLOAK:
-	case TV_SOFT_ARMOR:
-	case TV_HARD_ARMOR:
-	case TV_DRAG_ARMOR:
-	case TV_AXE:
-	case TV_TRAPKIT:
-
-	case TV_MSTAFF:
-
-	case TV_SHOT:
-	case TV_ARROW:
-	case TV_BOLT:
-	case TV_BOW:
-	case TV_BOOMERANG:
-		quality = ((o_ptr->ident & ID_SENSE_HEAVY) ? quality_check_aux1(o_ptr) :
-		    quality_check_aux2(o_ptr));
-		break;
-
-	case TV_SCROLL:
-	case TV_POTION:
-	case TV_POTION2:
-	case TV_WAND:
-	case TV_STAFF:
-	case TV_ROD:
-	case TV_FOOD:
-		return(0);
-	}
-
-	return(quality);
-}
-#endif
-
 /*
  * Regenerate hit points				-RAK-
  */
@@ -795,7 +725,9 @@ static void regenhp(int Ind, int percent) {
 	int	old_chp;
 	int	freeze_test_heal = p_ptr->test_heal;
 
-	//if (p_ptr->no_hp_regen) return;
+#ifndef NO_REGEN_ALT
+	if (p_ptr->no_hp_regen) return;
+#endif
 
 	/* Save the old hitpoints */
 	old_chp = p_ptr->chp;
@@ -818,7 +750,6 @@ static void regenhp(int Ind, int percent) {
 	p_ptr->test_heal = freeze_test_heal;
 }
 
-
 /*
  * Regenerate mana points				-RAK-
  */
@@ -829,6 +760,10 @@ static void regenmana(int Ind, int percent) {
 
 #ifdef MARTYR_NO_MANA
 	if (p_ptr->martyr) return;
+#endif
+
+#ifndef NO_REGEN_ALT
+	if (p_ptr->no_mp_regen) return;
 #endif
 
 	old_cmp = p_ptr->cmp;
@@ -929,7 +864,7 @@ static void apply_effect(int k, int *who, struct worldpos *wpos, int x, int y, c
 		project(*who, 0, wpos, y, x, e_ptr->dam, e_ptr->type, flg, "");
 
 		/* The caster got ghost-killed by the projection (or just disconnected)? If it was a real player, handle it: */
-		if (*who < 0 && *who != PROJECTOR_EFFECT && *who != PROJECTOR_PLAYER &&
+		if (*who < 0 && *who > PROJECTOR_UNUSUAL &&
 		    Players[0 - *who]->conn == NOT_CONNECTED) {
 			/* Make the effect friendly after death - mikaelh */
 			*who = PROJECTOR_PLAYER;
@@ -975,12 +910,13 @@ static void process_effects(void) {
 	worldpos *wpos;
 	cave_type **zcave;
 	cave_type *c_ptr;
-	int who = PROJECTOR_EFFECT;
+	int who;
 	player_type *p_ptr;
 	monster_type *m_ptr;
 	effect_type *e_ptr;
 	int flg;
 	bool skip;
+	bool is_player;
 
 	for (k = 0; k < MAX_EFFECTS; k++) {
 		e_ptr = &effects[k];
@@ -1002,6 +938,9 @@ static void process_effects(void) {
 
 		//not sure whether the mod_ball_spell_flags() should be used actually:
 		flg = mod_ball_spell_flags(e_ptr->type, PROJECT_NORF | PROJECT_GRID | PROJECT_KILL | PROJECT_ITEM | PROJECT_HIDE | PROJECT_JUMP | PROJECT_NODO | PROJECT_NODF);
+
+		/* New: EFF_SELF transports PROJECT_SELF aka self-harming spells, which we now translate back into PROJECT_SELF to inflict the periodic projection of this effect. */
+		if (e_ptr->flags & EFF_SELF) flg |= PROJECT_SELF;
 
 #ifdef ARCADE_SERVER
  #if 0
@@ -1057,29 +996,37 @@ static void process_effects(void) {
 		/* Reduce duration */
 		e_ptr->time--;
 
-		/* effect belongs to a non-player? */
-		if (e_ptr->who > 0) who = e_ptr->who;
-		else { /* or to a player? */
-			/* Make the effect friendly after logging out - mikaelh */
-			who = PROJECTOR_PLAYER;
+		/* effect belongs to a non-player? (Assume unchanging who, aka PROJECTOR_xxx values, not m_idx indices, or we'd have to verify if the monster is actually still alive!) */
+		if (e_ptr->who > 0 || e_ptr->who <= PROJECTOR_UNUSUAL) who = e_ptr->who;
+		/* or to a player? Confirm his Ind then, in case it meanwhile changed! */
+		else {
+			/* --- At first, assume Ind is no longer valid and replace by PROJECTOR_xxx: --- */
 
-			/* XXX Hack -- is the trapper online? */
+			/* Make the effect friendly after logging out - mikaelh */
+			if (!(e_ptr->flags & EFF_SELF)) who = PROJECTOR_PLAYER;
+			/* Or make the effect harmful to players instead, if the original projection was harmful too (PROJECT_SELF->EFF_SELF) */
+			else who = PROJECTOR_EFFECT;
+
+			/* --- Now verify player existance and reinstantiate his Ind if valid: --- */
+
+			/* Hack -- is the trapper online? (Why call him 'trapper' specifically?) */
 			for (i = 1; i <= NumPlayers; i++) {
 				p_ptr = Players[i];
 
 				/* Check if they are in here */
-				if (e_ptr->who != 0 - p_ptr->id) continue;
+				if (e_ptr->who_id != p_ptr->id) continue;
 
 				/* additionally check if player left level --
 				   avoids panic save on killing a dungeon boss with a lasting effect while
 				   already having been prematurely recalled to town meanwhile (insta-res!) - C. Blue */
 				if (!inarea(&p_ptr->wpos, wpos)) break;
 
-				/* it's fine */
+				/* it's fine, player still exists here, verify the Ind and proceed */
 				who = 0 - i;
 				break;
 			}
 		}
+		is_player = (who < 0 && who > PROJECTOR_UNUSUAL);
 
 		/* Storm ends if the cause is gone */
 		if (((e_ptr->flags & EFF_STORM) || (e_ptr->flags & EFF_VORTEX))
@@ -1128,14 +1075,14 @@ static void process_effects(void) {
 					project(who, 0, wpos, j, i, e_ptr->dam, e_ptr->type, flg, "");
 
 					/* The caster got ghost-killed by the projection (or just disconnected)? If it was a real player, handle it: */
-					if (who < 0 && who != PROJECTOR_EFFECT && who != PROJECTOR_PLAYER &&
-					    Players[0 - who]->conn == NOT_CONNECTED) {
+					if (is_player && Players[0 - who]->conn == NOT_CONNECTED) {
 						/* Make the effect friendly after death - mikaelh */
-						who = PROJECTOR_PLAYER;
+						if (!(e_ptr->flags & EFF_SELF)) who = PROJECTOR_PLAYER;
+						else who = PROJECTOR_EFFECT; /* Make effect harmful to players instead */
 					}
 					/* Storms end instantly though if the caster is gone or just died. (PROJECTOR_PLAYER falls through from above check.) */
 					if (((e_ptr->flags & EFF_STORM) || (e_ptr->flags & EFF_VORTEX))
-					    && (who == PROJECTOR_PLAYER || Players[0 - who]->death)) {
+					    && (who == PROJECTOR_PLAYER || (is_player && Players[0 - who]->death))) {
 						erase_effects(k);
 						break;
 					}
@@ -1214,7 +1161,8 @@ static void process_effects(void) {
 					/* explosion is faster than flying upwards */
 					//doesn't work-   e_ptr->interval = 2;
 #ifdef USE_SOUND_2010
-					if (e_ptr->rad == e_ptr->time + 1) {
+					if (e_ptr->rad == e_ptr->time + 1 && !(e_ptr->flags & EFF_TEMP)) {
+						e_ptr->flags |= EFF_TEMP; /* Play the sfx only during this one frame, not during ALL frames of this current e_ptr->rad period. Those would stack terribly (if ovl_sfx_misc isn't disabled). */
 						if ((e_ptr->flags & EFF_FIREWORKS3))
 							//sound_near_site(e_ptr->cy, e_ptr->cx, wpos, 0, "fireworks_big", "", SFX_TYPE_MISC, FALSE);
 							sound_floor_vol(wpos, "fireworks_big", "", SFX_TYPE_MISC, randint(26) + 75);
@@ -1447,7 +1395,7 @@ static void process_effects(void) {
 							c_ptr->effect_xtra = 2;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
-						if (i == e_ptr->cx - mirrored * (4+1) && j == e_ptr->cy + 3) {
+						if (i == e_ptr->cx - mirrored * (4 + 1) && j == e_ptr->cy + 3) {
 							c_ptr->effect_xtra = 2;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
@@ -1457,7 +1405,7 @@ static void process_effects(void) {
 							c_ptr->effect_xtra = -mirrored;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
-						if (i == e_ptr->cx - mirrored * (3+1) && j == e_ptr->cy + 3) {
+						if (i == e_ptr->cx - mirrored * (3 + 1) && j == e_ptr->cy + 3) {
 							c_ptr->effect_xtra = 2;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
@@ -1467,7 +1415,7 @@ static void process_effects(void) {
 							c_ptr->effect_xtra = 2;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
-						if (i == e_ptr->cx - mirrored * (2+1) && j == e_ptr->cy + 3) {
+						if (i == e_ptr->cx - mirrored * (2 + 1) && j == e_ptr->cy + 3) {
 							c_ptr->effect_xtra = mirrored;
 							apply_effect(k, &who, wpos, i, j, c_ptr);
 						}
@@ -1588,14 +1536,14 @@ static void process_effects(void) {
 					project(who, 0, wpos, j, i, e_ptr->dam, e_ptr->type, flg, "");
 
 					/* The caster got ghost-killed by the projection (or just disconnected)? If it was a real player, handle it: */
-					if (who < 0 && who != PROJECTOR_EFFECT && who != PROJECTOR_PLAYER &&
-					    Players[0 - who]->conn == NOT_CONNECTED) {
+					if (is_player && Players[0 - who]->conn == NOT_CONNECTED) {
 						/* Make the effect friendly after death - mikaelh */
-						who = PROJECTOR_PLAYER;
+						if (!(e_ptr->flags & EFF_SELF)) who = PROJECTOR_PLAYER;
+						else who = PROJECTOR_EFFECT; /* Make effect harmful to players instead */
 					}
 					/* Storms end instantly though if the caster is gone or just died. (PROJECTOR_PLAYER falls through from above check.) */
 					if (((e_ptr->flags & EFF_STORM) || (e_ptr->flags & EFF_VORTEX))
-					    && (who == PROJECTOR_PLAYER || Players[0 - who]->death)) {
+					    && (who == PROJECTOR_PLAYER || (is_player && Players[0 - who]->death))) {
 						erase_effects(k);
 						break;
 					}
@@ -1614,7 +1562,10 @@ static void process_effects(void) {
 #endif
 
 			/* We lost our caster for some reason? (Died to projection) */
-			if (!who) break;
+			if (!who) {
+				is_player = FALSE;
+				break;
+			}
 		}
 
 		/* --- Imprint simple non-damaging effects on grid (project() was already called above in the loop).
@@ -1625,7 +1576,7 @@ static void process_effects(void) {
 		if (e_ptr->flags & (EFF_WAVE | EFF_THINWAVE)) e_ptr->rad++;
 
 		/* Creates a "storm" effect*/
-		else if ((e_ptr->flags & EFF_STORM) && who > PROJECTOR_EFFECT) { //todo: the player-checks are paranoia? We already checked this far above
+		else if ((e_ptr->flags & EFF_STORM) && is_player) { //todo: the player-checks are paranoia? We already checked this far above
 			p_ptr = Players[0 - who];
 
 			e_ptr->cy = p_ptr->py;
@@ -1655,7 +1606,7 @@ static void process_effects(void) {
 		}
 
 		/* Maintain a "vortex" effect - Kurzel */
-		else if ((e_ptr->flags & EFF_VORTEX) && who > PROJECTOR_EFFECT) {
+		else if ((e_ptr->flags & EFF_VORTEX) && who > PROJECTOR_EFFECT) {  // TODO: verify this PROJECTOR_EFFECT comparison for correctness
 			e_ptr->rad = 0; //Hack: Fix strange EFF_VORTEX behavior...
 			if (e_ptr->whot > 0) {
 				m_ptr = &m_list[e_ptr->whot];
@@ -1871,16 +1822,19 @@ static void regen_monsters(void) {
 
 #ifdef TROLL_REGENERATION
 			/* Experimental - Trolls are super-regenerators (hard-coded) */
-			if (m_ptr->r_idx == RI_HALF_TROLL) frac *= 3;
-			else if (r_ptr->d_char == 'T') frac *= 4;
+			if (m_ptr->r_idx == RI_HALF_TROLL || (r_ptr->flags2 & RF2_REGENERATE_T2)) frac *= 3;
+			else if (r_ptr->d_char == 'T' || (r_ptr->flags2 & RF2_REGENERATE_TH)) frac *= 4;
 			else
 #endif
 #ifdef HYDRA_REGENERATION
-			if (r_ptr->d_char == 'M') frac *= 4;
+			if (r_ptr->d_char == 'M' || (r_ptr->flags2 & RF2_REGENERATE_TH)) frac *= 4;
 			else
 #endif
 			/* Hack -- Some monsters regenerate quickly */
 			if (r_ptr->flags2 & RF2_REGENERATE) frac *= 2;
+
+			if (m_ptr->hold_hp_regen) frac = (frac * m_ptr->hold_hp_regen_perc) / 100;
+			if (!frac) continue;
 
 			if (m_ptr->r_idx == RI_BLUE) frac /= 40;
 
@@ -1918,7 +1872,7 @@ bool player_day(int Ind) {
 		ret = TRUE;
 	}
 	if (p_ptr->wpos.wz) return(ret);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_INDOORS)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_INDOORS)) return(FALSE);
 	if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) return(FALSE);
 
 	//if (p_ptr->tim_watchlist) p_ptr->tim_watchlist--;
@@ -1976,7 +1930,7 @@ bool player_night(int Ind) {
 		ret = TRUE;
 	}
 	if (p_ptr->wpos.wz) return(ret);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_INDOORS)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_INDOORS)) return(FALSE);
 	if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) return(FALSE);
 
 	//if (p_ptr->tim_watchlist) p_ptr->tim_watchlist--;
@@ -2059,8 +2013,8 @@ void world_surface_day(struct worldpos *wpos) {
 
 	if (!zcave) return; /* paranoia */
 
-	if (sector00separation && 0 == WPOS_SECTOR00_Z &&
-	    wpos->wx == WPOS_SECTOR00_X && wpos->wy == WPOS_SECTOR00_Y) return;
+	if (sector000separation && 0 == WPOS_SECTOR000_Z &&
+	    wpos->wx == WPOS_SECTOR000_X && wpos->wy == WPOS_SECTOR000_Y) return;
 	if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) return;
 
 	/* Hack -- Scan the level */
@@ -2085,8 +2039,8 @@ void world_surface_night(struct worldpos *wpos) {
 
 	if (!zcave) return; /* paranoia */
 
-	if (sector00separation && 0 == WPOS_SECTOR00_Z &&
-	    wpos->wx == WPOS_SECTOR00_X && wpos->wy == WPOS_SECTOR00_Y) return;
+	if (sector000separation && 0 == WPOS_SECTOR000_Z &&
+	    wpos->wx == WPOS_SECTOR000_X && wpos->wy == WPOS_SECTOR000_Y) return;
 	if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) return;
 
 	/* Hack -- Scan the level */
@@ -2098,7 +2052,8 @@ void world_surface_night(struct worldpos *wpos) {
 		/* darken all */
 		if (!(f_info[c_ptr->feat].flags1 & FF1_PROTECTED) &&
 		    !(c_ptr->info & CAVE_ROOM) && /* keep houses' contents lit */
-		    !(f_info[c_ptr->feat].flags2 & FF2_GLOW)) {
+		    !(f_info[c_ptr->feat].flags2 & FF2_GLOW) &&
+		    !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP))) {
 			c_ptr->info &= ~CAVE_GLOW;
 			c_ptr->info |= CAVE_DARKEN;
 		}
@@ -2205,9 +2160,9 @@ static unsigned int colour_std[BASE_PALETTE_SIZE] = {
 	0xc79d55,      /* LUMBER */
 };
 
-#define COLOUR_R(i) ((colour_std[i] & 0xff0000) >> 16)
-#define COLOUR_G(i) ((colour_std[i] & 0x00ff00) >> 8)
-#define COLOUR_B(i) (colour_std[i] & 0x0000ff)
+#define COLOUR_R(i) ((int)((colour_std[i] & 0xff0000) >> 16))
+#define COLOUR_G(i) ((int)((colour_std[i] & 0x00ff00) >> 8))
+#define COLOUR_B(i) ((int)(colour_std[i] & 0x0000ff))
 
 #define COLOUR_DIFF_R(i,j) ((int)COLOUR_R(i) - (int)COLOUR_R(j))
 #define COLOUR_DIFF_G(i,j) ((int)COLOUR_G(i) - (int)COLOUR_G(j))
@@ -2860,21 +2815,14 @@ static void process_world_player(int Ind) {
 	 */
 
 	/* Check for creature generation */
-#if 0 /* too many people idling all day.. ;) */
-	if ((!istown(&p_ptr->wpos) && (rand_int(MAX_M_ALLOC_CHANCE) == 0)) ||
-	    (!season_halloween && (istown(&p_ptr->wpos) && (rand_int(TOWNIE_RESPAWN_CHANCE * ((3 / NumPlayers) + 1)) == 0))) ||
-	    (season_halloween && (istown(&p_ptr->wpos) && (rand_int((in_bree(&p_ptr->wpos) ?
-		HALLOWEEN_TOWNIE_RESPAWN_CHANCE : TOWNIE_RESPAWN_CHANCE) * ((3 / NumPlayers) + 1)) == 0))))
-#else /* ..so no longer depending on amount of players in town: */
 	if (((!istown(&p_ptr->wpos) && (rand_int(MAX_M_ALLOC_CHANCE) == 0)) ||
 	    (!season_halloween && istown(&p_ptr->wpos) && (rand_int(TOWNIE_RESPAWN_CHANCE) == 0)) ||
 	    (season_halloween && istown(&p_ptr->wpos) &&
 	    (rand_int(in_bree(&p_ptr->wpos) ? HALLOWEEN_TOWNIE_RESPAWN_CHANCE : TOWNIE_RESPAWN_CHANCE) == 0)))
 	    /* avoid admins spawning stuff */
-	    && !(p_ptr->admin_dm || p_ptr->admin_wiz))
-#endif
-	{
+	    && !(p_ptr->admin_dm || p_ptr->admin_wiz)) {
 		dun_level *l_ptr = getfloor(&p_ptr->wpos);
+
 		/* Should we disallow those with MULTIPLY flags to spawn on surface? */
 		if (!l_ptr || !(l_ptr->flags1 & LF1_NO_NEW_MONSTER)) {
 			/* Set the monster generation depth */
@@ -3185,7 +3133,7 @@ static bool retaliate_item(int Ind, int item, cptr inscription, bool fallback) {
 
 		/* Check if we're out of mana (or other problem), to handle 'fallback' to melee  --
 		   in any case suppress OoM message (which would be displayed if do_cmd_mimic() gets called) */
-		res = exec_lua(Ind, format("return test_school_spell(%d, %d)", Ind, spell));
+		res = exec_lua(Ind, format("return test_school_spell(%d, %d, %d)", Ind, spell, item));
 		if (res) {
 			if (!fallback || p_ptr->fail_no_melee) {
 #ifndef AUTORET_FAIL_FREE
@@ -3411,7 +3359,7 @@ static bool auto_retaliate_test(int Ind) {
 
 		/* scan the inscription for @O */
 		while (*inscription != '\0') {
-			if (*inscription == '@') {
+			if (*inscription == '@' && inscription[1] != '\0') {
 				inscription++;
 
 				/* a valid @O has been located */
@@ -3516,7 +3464,7 @@ static bool auto_retaliate_test(int Ind) {
 			/* Stop annoying auto-retaliation against certain 'monsters' */
 			if (r_ptr0->flags8 & RF8_NO_AUTORET) continue;
 
-			if (m_ptr->status == M_STATUS_FRIENDLY) continue;
+			if (m_ptr->status & M_STATUS_FRIENDLY) continue;
 
 #ifdef EXPENSIVE_NO_TARGET_TEST
 			/* Skip monsters we cannot actually target! (Sparrows) */
@@ -3967,7 +3915,7 @@ static void process_player_begin(int Ind) {
 		zcave[20][65].feat = FEAT_GLIT_WATER;
 		/* Some lil hacks */
 		msg_format(Ind, "\377%cYou enter the shores of Valinor..", COLOUR_DUNGEON);
-		wiz_lite(Ind);
+		wiz_lite_extra(Ind);
 		/* Move @ to designated starting position (level_rand_x/y()) and redraw */
 		oy = p_ptr->py;
 		ox = p_ptr->px;
@@ -4046,16 +3994,16 @@ static void process_player_begin(int Ind) {
 		//switch dungeon - assume that there is no other dungeon/tower on same wpos as Death Fate!
 		if (p_ptr->wpos.wz < 0) {
 			p_ptr->recall_pos.wz = 1;
-			//add the temporary 'mirror' dungeon
+			//add the temporary 'mirror' dungeon -- maybe use verify_dungeon() instead
 			if (!(wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].flags & WILD_F_UP))
-				add_dungeon(&p_ptr->wpos, 1, 2, DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
+				add_dungeon(&p_ptr->wpos, 1, 2, DF1_UNLISTED | DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
 				    DF2_NO_ENTRY_MASK | DF2_RANDOM,
 				    DF3_NO_SIMPLE_STORES | DF3_NO_DUNGEON_BONUS | DF3_EXP_20, TRUE, 0, DI_DEATH_FATE, 0, 0);
 		} else {
 			p_ptr->recall_pos.wz = -1;
-			//add the temporary 'mirror' dungeon
+			//add the temporary 'mirror' dungeon -- maybe use verify_dungeon() instead
 			if (!(wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].flags & WILD_F_DOWN))
-				add_dungeon(&p_ptr->wpos, 1, 2, DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
+				add_dungeon(&p_ptr->wpos, 1, 2, DF1_UNLISTED | DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
 				    DF2_NO_ENTRY_MASK | DF2_RANDOM,
 				    DF3_NO_SIMPLE_STORES | DF3_NO_DUNGEON_BONUS | DF3_EXP_20, FALSE, 0, DI_DEATH_FATE, 0, 0);
 		}
@@ -4132,9 +4080,8 @@ static void process_player_begin(int Ind) {
 
 	/* Mega-Hack -- Random teleportation XXX XXX XXX */
 	if ((p_ptr->teleport) && (rand_int(100) < 1)
-	    /* not during highlander tournament */
-	    && (p_ptr->wpos.wx || p_ptr->wpos.wy || !sector00separation))
-	{
+	    /* not during highlander tournament (or other events, for now) */
+	    && !(in_sector000(&p_ptr->wpos) && sector000separation)) {
 		/* Teleport player */
 		teleport_player(Ind, 40, FALSE);
 	}
@@ -4296,8 +4243,7 @@ void recall_player(int Ind, char *message) {
 		    (1U << ((p_ptr->wpos.wx + p_ptr->wpos.wy * MAX_WILD_X) % 8));
 
 	/* Did we really make it through all floors of the ironman challenge dungeon? */
-	if (in_irondeepdive(&old_wpos)
-	    && !is_admin(p_ptr)) {
+	if (in_irondeepdive(&old_wpos) && !is_admin(p_ptr)) {
 		int i, j;
 
 #ifdef IRONDEEPDIVE_FIXED_TOWN_WITHDRAWAL
@@ -4396,8 +4342,7 @@ void recall_player(int Ind, char *message) {
 				msg_print(Ind, "\377aIf you enter a dungeon or tower, \377Rretirement\377a is assumed \377Rautomatically\377a.");
 
 				process_player_change_wpos(Ind);
-				p_ptr->recall_pos.wx = cfg.town_x;
-				p_ptr->recall_pos.wy = cfg.town_y;
+				p_ptr->recall_pos = BREE_WPOS;
 
 				wpcopy(&old_wpos, &p_ptr->wpos);
 				wpcopy(&p_ptr->wpos, &p_ptr->recall_pos);
@@ -4466,8 +4411,7 @@ void recall_player(int Ind, char *message) {
 	/* Specialty: Did we make it through the Halls of Mandos?
 	   Those are now ironman, so they're a 'pure', traditional ironman challenge.
 	   However, this dungeon can be entered at any level, so it might be less of a challenge. */
-	if (in_hallsofmandos(&old_wpos)
-	    && !is_admin(p_ptr)) {
+	if (in_hallsofmandos(&old_wpos) && !is_admin(p_ptr)) {
 		msg_print(Ind, "\374\377a***\377sYou made it through the Halls of Mandos!\377a***");
 		sprintf(buf, "\374\377a***\377s%s made it through the Halls of Mandos!\377a***", p_ptr->name);
 		msg_broadcast(Ind, buf);
@@ -4480,8 +4424,7 @@ void recall_player(int Ind, char *message) {
 			//msg_print(Ind, "\377aIf you enter a dungeon or tower, \377Rretirement\377a is assumed \377Rautomatically\377a.");
 
 			process_player_change_wpos(Ind);
-			p_ptr->recall_pos.wx = cfg.town_x;
-			p_ptr->recall_pos.wy = cfg.town_y;
+			p_ptr->recall_pos = BREE_WPOS;
 
 			wpcopy(&old_wpos, &p_ptr->wpos);
 			wpcopy(&p_ptr->wpos, &p_ptr->recall_pos);
@@ -4500,6 +4443,15 @@ void recall_player(int Ind, char *message) {
 		}
 #endif
 	}
+
+#ifdef MODULE_ALLOW_INCOMPAT
+	if (in_module(&old_wpos) && !is_admin(p_ptr)) {
+		/* need to leave party, since we might be teamed up with incompatible char mode players! */
+		if (p_ptr->party && !p_ptr->admin_dm &&
+		    compat_mode(p_ptr->mode, parties[p_ptr->party].cmode))
+			party_leave(Ind, FALSE);
+	}
+#endif
 }
 
 
@@ -4511,10 +4463,10 @@ bool can_use_wordofrecall(player_type *p_ptr) {
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
 
 	/* special restriction for global events (Highlander Tournament) */
-	if (sector00separation && !is_admin(p_ptr) && (
-	    (!p_ptr->wpos.wx && !p_ptr->wpos.wy)
+	if (sector000separation && !is_admin(p_ptr) && (
+	    (p_ptr->wpos.wx == WPOS_SECTOR000_X && p_ptr->wpos.wy == WPOS_SECTOR000_Y)
 #if 0 /* for now not needed, as we only call this function atm to check on start of a global event */
-	    || (!p_ptr->recall_pos.wx && !p_ptr->recall_pos.wy))
+	    || (p_ptr->recall_pos.wx == WPOS_SECTOR000_X && p_ptr->recall_pos.wy == WPOS_SECTOR000_Y))
 	    && !(p_ptr->global_event_temp & PEVF_PASS_00)
 #else
 	    )
@@ -4541,7 +4493,7 @@ bool can_use_wordofrecall(player_type *p_ptr) {
 	if ((p_ptr->global_event_temp & PEVF_NOTELE_00)) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_TELE)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_TELE)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_TELE)) return(FALSE);
 	//if (l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC)) return(FALSE);
 
 	/* Space/Time Anchor */
@@ -4570,7 +4522,7 @@ static void do_recall(int Ind, bool bypass) {
 	disturb(Ind, 0, 0);
 
 	/* special restriction for global events (Highlander Tournament) */
-	if (sector00separation && !is_admin(p_ptr) && (
+	if (sector000separation && !is_admin(p_ptr) && (
 	    (!p_ptr->recall_pos.wx && !p_ptr->recall_pos.wy) ||
 	    (!p_ptr->wpos.wx && !p_ptr->wpos.wy))) {
 		if (!pass) {
@@ -4653,7 +4605,7 @@ static void do_recall(int Ind, bool bypass) {
 			new_pos.wy = p_ptr->wpos.wy;
 			new_pos.wz = 0;
 #if 0
-			p_ptr->new_level_method = ( istown(&new_pos) ? LEVEL_RAND : LEVEL_OUTSIDE_RAND );
+			p_ptr->new_level_method = (istown(&new_pos) ? LEVEL_RAND : LEVEL_OUTSIDE_RAND);
 #endif
 			p_ptr->new_level_method = (p_ptr->wpos.wz>0 ? LEVEL_RECALL_DOWN : LEVEL_RECALL_UP);
 		}
@@ -4869,6 +4821,7 @@ static bool process_player_end_aux(int Ind) {
 #if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
 	bool		intrinsic_regen = FALSE;
 #endif
+	bool		timeout_handled;
 
 	int minus = 1;
 	int minus_magic = 1;
@@ -4930,71 +4883,183 @@ static bool process_player_end_aux(int Ind) {
 
 		/* Drowning, but not ghosts */
 		if (c_ptr->feat == FEAT_DEEP_WATER) {
-			bool carry_wood = FALSE;
+			/* Rewrote this whole routine to take into account DSMs, wood helping thanks to its relative density, subinventories etc. - C. Blue */
+			if ((!p_ptr->tim_wraith) && (!p_ptr->levitate) &&
+			    !(p_ptr->body_monster && (r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC))) {
+				bool huge_wood = FALSE, cold = cold_place(&p_ptr->wpos);
+				int wood_weight, water_weight, required_wood_weight, drowning;
 
-			for (i = 0; i < INVEN_PACK; i++) {
-				o_ptr = &p_ptr->inventory[i];
-				if (!o_ptr->k_idx) break;
-				if (o_ptr->tval == TV_GOLEM && o_ptr->sval == SV_GOLEM_WOOD) {
-					carry_wood = TRUE;
-					break;
-				}
-			}
+				/* Calculate actual weight dragging us down and amount of wood pulling us up */
+				wood_weight = 0;
+				water_weight = (p_ptr->can_swim ? 0 : p_ptr->wt * 10) + p_ptr->total_weight;
+				j = -1;
+				for (i = 0; i < INVEN_PACK; i++) {
+					o_ptr = &p_ptr->inventory[i];
+					if (!o_ptr->k_idx) break;
 
-			/* note: TODO (bug): items should get damaged even if player can_swim,
-			   but this might devalue swimming too much compared to levitation. Dunno. */
-			if ((!p_ptr->tim_wraith) && (!p_ptr->levitate) && (!p_ptr->can_swim) &&
-			    !(p_ptr->body_monster && (r_info[p_ptr->body_monster].flags7 & (RF7_AQUATIC | RF7_CAN_SWIM)))) {
-				int hit = p_ptr->mhp >> 6;
-				int swim = get_skill_scale(p_ptr, SKILL_SWIM, 4500);
-
-				hit += randint(p_ptr->mhp >> 5);
-				if (!hit) hit = 1;
-
-				/* Take CON into consideration(max 30%) */
-				//note: if hit was 1, this can each result in 0 aka no hit!
-				hit = (hit * (80 - adj_str_wgt[p_ptr->stat_ind[A_CON]])) / 75;
-				if (p_ptr->suscep_life) hit >>= 1;
-
-				/* temporary abs weight calc */
-				if (p_ptr->wt + p_ptr->total_weight / 10 > 170 + swim * 2) { // 190
-					if (carry_wood) {
-						/* Clinging to the massive piece of wood, we're safe */
-						if (!rand_int(5)) msg_print(Ind, "You cling to the wood!");
-					} else { /* Take damage from drowning */
-						long factor = (p_ptr->wt + p_ptr->total_weight / 10) - 150 - swim * 2; // 170
-
-						/* too heavy, always drown? */
-						if (factor < 300 && randint(factor) < 20) hit = 0;
-
-						/* Hack: Take STR and DEX into consideration (max 28%) */
-						if (magik(adj_str_wgt[p_ptr->stat_ind[A_STR]] / 2) ||
-						    magik(adj_str_wgt[p_ptr->stat_ind[A_DEX]]) / 2)
-							hit = 0;
-
-						if (magik(swim)) hit = 0;
-
-						if (hit) msg_print(Ind, "\377rYou're drowning!");
-
-						/* harm equipments (even hit == 0) */
-						if (TOOL_EQUIPPED(p_ptr) != SV_TOOL_TARPAULIN &&
-						    magik(WATER_ITEM_DAMAGE_CHANCE) && !p_ptr->levitate &&
-						    !p_ptr->immune_water) {
-							if (!p_ptr->resist_water || magik(50)) {
-								if (!magik(get_skill_scale(p_ptr, SKILL_SWIM, 4900)))
-									inven_damage(Ind, set_water_destroy, 1);
-								equip_damage(Ind, GF_WATER);
-							}
+#ifdef ENABLE_SUBINVEN
+					ppea_subinv: /* sigh - I really don't want to add a helper function just for the contents of this loop -_- */
+					if (j != -1) {
+						o_ptr = &p_ptr->subinventory[i][j];
+						if (!o_ptr->k_idx) {
+							j = -1;
+							continue;
 						}
-
-						if (randint(1000 - factor) < 10 && !p_ptr->sustain_str) {
-							msg_print(Ind, "\377oYou are weakened by the exertion of swimming!");
-							dec_stat(Ind, A_STR, 10, STAT_DEC_TEMPORARY);
-						}
-						 /* Inventory can be immune, but cold immunity cannot avert drowning */
-						if (cold_place(&p_ptr->wpos)) (void)cold_dam(Ind, hit, "drowning", 0);
-						take_hit(Ind, hit, "drowning", 0);
 					}
+#endif
+
+					/* DSMs have neutral buoyancy */
+					if (o_ptr->tval == TV_DRAG_ARMOR) water_weight -= o_ptr->weight * o_ptr->number;
+
+					/* Wood helps, massive piece is an instant game changer - except for people CRAZILY overloaded perhaps.
+					   It also helps against backpack taking damage now, as we can put our backpack on it, or keep ourselves out of the water far enough maybe ^^. */
+					if (o_ptr->tval == TV_GOLEM && o_ptr->sval == SV_GOLEM_WOOD) huge_wood = TRUE;
+					/* Wood helps us, but note that we shouldn't disregard that wooden weapons often also contain a significant amount of metal that would counteract the effect.
+					   Trying to alleviate this a bit by checking whether it's a weapon, but that in turn will add mistakes if the weapon indeed was purely made of wood (club?) ^^.
+					   Well, we'll just have to accept the approximations. */
+					if (contains_significant_wood(o_ptr)) {
+						if (is_melee_weapon(o_ptr->tval)) {
+							water_weight -= (o_ptr->number * o_ptr->weight * 2) / 3;
+							wood_weight += (o_ptr->number * o_ptr->weight * 2) / 3;
+						} else {
+							water_weight -= o_ptr->number * o_ptr->weight;
+							wood_weight += o_ptr->number * o_ptr->weight; // massive piece: 1100, piece: 40
+						}
+					}
+
+#ifdef ENABLE_SUBINVEN
+					if (j != -1) {
+						/* Process next item in subinventory */
+						j++;
+						if (j == o_ptr->bpval) {
+							j = -1;
+							continue;
+						}
+						goto ppea_subinv;
+					} else if (o_ptr->tval == TV_SUBINVEN) { // assumption: There can be no subinventories inside subinventories!
+						/* Process items in subinventory, starting with the first item */
+						j = 0;
+						goto ppea_subinv;
+					}
+#endif
+				}
+
+				/* Calculate required amount of wood we need to carry in order to make us float safely. */
+				required_wood_weight = water_weight * WOOD_INV_DENSITY;
+				drowning = required_wood_weight - wood_weight; /* If we're >=0 then we're not drowning as the wood we carry is enough to keep us floating */
+
+				/* We're drowning because we don't have enough wood to keep us afloat? */
+				if (drowning >= 0) {
+					int swim;
+
+					/* --- Now test if we can 'swim' somehow, which nullifies 'hit'/ --- */
+
+					/* Swimming skill:
+					   Note that race weight is byte and max used is actually 255 (Ent/Draconian).
+					   Maxed out swimming, therefore we must be able to at least sustain 255 lbs =p,
+					   plus some extra weight we're carrying with us.
+					   Normal minimum (no items) drowning at 0 wood, relative water density 0.5, depending on race: 1000 (yeek) .. 5100 (Ent/Draconian)
+
+					   Ensure that the swimming skill (also unrealistically) doesn't create insane extra value for small/light races:
+					   So we let it depend on our weight or size or both:
+					   Size aka p_ptr->ht goes from 33 (Hobbit) to 180 (Draconian/Ent) and is byte,
+					   weight aka p_ptr->wt goes from 50 (Hobbit) to 255 (Draconian/Ent) and is byte too.
+
+					   Note: Typical inven for fighters is super roughly (depends on mdevs vs potions/scrolls) ~200 lbs,
+					         equipment ~60 lbs (or 80 lbs with Mattock) = ~2600 _extra_ object weight just form items.
+					         With real-life endgame stuff, can be more like total of ~330 lbs for fighter chars.
+					         Light chars (Dodgers) can be 120..160 lbs. Mages however may hit 200 lbs from mana potions and books,
+					         their mage staff is 9.0 and wooden though, offsetting the remaining ~15-20 lbs equipment. */
+					/* - Light race has it easier to swim in general:
+					     Scale so heavy races (16.500 swimming) need to train swimming more than light races (6.000 swimming) to carry themselves ^^.
+					   - Heavy race can sustain more total armour (~38%) at maxed swimming in general:
+					     Scale so heavy races can still/barely have full armour at max swimming skill, while light races can sustain somewhat less armour weight :) */
+					swim = get_skill_scale(p_ptr, SKILL_SWIM, 850 * 50);
+					//swim = ((r_info[p_ptr->body_monster].flags7 & RF7_CAN_SWIM) && swim < 500) ? 500 : swim;
+					//swim += 390 - (adj_chr_gold[p_ptr->stat_ind[A_STR]] + adj_chr_gold[p_ptr->stat_ind[A_DEX]] * 2); //0..150
+					swim += (adj_str_wgt[p_ptr->stat_ind[A_STR]] * 2 + adj_str_wgt[p_ptr->stat_ind[A_DEX]] * 4) - 30; //0..150 too :)
+					/* Balance vs total character weight: This supports around 280 lbs total weight as maximum without drowning. */
+					swim = (swim * 3) / 4;
+					/* Try to counter drowning with swimming capabilities. */
+					drowning = drowning / WOOD_INV_DENSITY - (swim * (p_ptr->ht + p_ptr->wt + 350)) / 100; //also use 'ht': It's disadvantageous to have bad BMI! =p
+
+					/* If we're STILL drowning, we take damage */
+					if (drowning >= 0) {
+						int hit;
+
+						/* Drowning damage per drowning 'tick' */
+						hit = (p_ptr->mhp >> 6) + randint(p_ptr->mhp >> 5);
+						/* Take CON into consideration (max 30%) */
+						hit = (hit * (80 - adj_str_wgt[p_ptr->stat_ind[A_CON]])) / 75;
+						/* Now regarding RACE_VAMPIRE - they cannot drown, but they take damage from 'running water'.
+						   So I decided on middle grounds and just assume all rivers, oceans, ponds and even puddles (fortunately these
+						   are usually FEAT_SHAL_WATER though) are 'running water' and just reduce the drowning damage somewhat. - C. Blue */
+						if (p_ptr->suscep_life) hit >>= 1;
+						else if (p_ptr->demon) hit >>= 1;
+						/* Always take damage? */
+						if (!hit) hit = rand_int(3) ? 0 : 1;
+
+						if (hit) {
+							/* Freezing place, add extra cold damage? */
+							if (cold && !p_ptr->immune_cold) {
+								i = hit;
+								if (p_ptr->resist_cold) i = (i + 2) / 3;
+								if (p_ptr->oppose_cold) i = (i + 2) / 3;
+								hit += i;
+#ifdef TEST_SERVER
+								msg_format(Ind, "\377rYou're drowning in freezing water for %d damage!", hit);
+							} else msg_format(Ind, "\377rYou're drowning for %d damage!", hit);
+#else
+								msg_print(Ind, "\377rYou're drowning in freezing water!");
+							} else msg_print(Ind, "\377rYou're drowning!");
+#endif
+							take_hit(Ind, hit, "drowning", 0);
+						}
+					}
+
+					/* Swimming, whether successful or not, can drain STR. */
+					if (!rand_int(adj_str_wgt[p_ptr->stat_ind[A_CON]]) && !p_ptr->sustain_str) {
+						msg_print(Ind, "\377oYou are weakened by the exertion of swimming!");
+						dec_stat(Ind, A_STR, 10, STAT_DEC_TEMPORARY);
+					}
+				}
+
+				/* If we're, after all (enough wood and/or enough swiming) not drowning... */
+				if (drowning < 0) {
+					/* Special flavour message when not drowning and carrying a huge block of wood */
+					if (huge_wood && !rand_int(5)) {
+						/* Give specific message for flavour, about clinging to the massive piece of wood, being our 'main relief' ;) */
+						msg_print(Ind, "You float in the water safely, clinging to the wood.");
+					}
+
+					/* Freezing place, still take cold damage? */
+					if (cold && !p_ptr->immune_cold) {
+						/* Same damage calc as for drowning -> consistent with the added cold damage when drowning in freezing water: */
+						i = (p_ptr->mhp >> 6) + randint(p_ptr->mhp >> 5);
+						if (p_ptr->resist_cold) i = (i + 2) / 3;
+						if (p_ptr->oppose_cold) i = (i + 2) / 3;
+#ifdef TEST_SERVER
+						msg_format(Ind, "\377rYou're freezing for %d damage!", i);
+#else
+						msg_print(Ind, "\377rYou're freezing!");
+#endif
+						take_hit(Ind, i, "freezing water", 0);
+					}
+				}
+
+				/* Harm items while in water (even if we're not drowning/taking damage, ie hit == 0).
+				   Items should get damaged even if player can_swim
+				   but this might devalue swimming too much compared to levitation. */
+				if (!p_ptr->tim_wraith && !p_ptr->levitate && !p_ptr->immune_water && !rand_int(p_ptr->resist_water ? 3 : 1)
+				    && TOOL_EQUIPPED(p_ptr) != SV_TOOL_TARPAULIN && magik(WATER_ITEM_DAMAGE_CHANCE)) {
+					/* Trying to keep the backpack from getting soaked too much */
+					if (!(huge_wood && drowning < 0) && !magik(get_skill_scale(p_ptr, SKILL_SWIM, 4900))) {
+						/* Apply water damage to inventory. If it has no effect (so we don't harm more than 1 slot at a time here),
+						   but we're in a freezing place, apply cold damage to inventory too. */
+						if (!inven_damage(Ind, set_water_destroy, 1) && cold) inven_damage(Ind, set_cold_destroy, 1);
+					}
+					/* Can't prevent our body being inside the water though */
+					equip_damage(Ind, GF_WATER);
 				}
 			}
 		}
@@ -5081,8 +5146,7 @@ static bool process_player_end_aux(int Ind) {
 						if (2 * amt > p_ptr->cmp - 1) amt = (p_ptr->cmp - 1) / 2;
 					}
 
-					/* Disruption shield protects from this type of damage */
-					bypass_invuln = FALSE;
+					bypass_invuln = FALSE; /* Disruption shield protects from this type of damage */
 					take_hit(Ind, amt, " walls ...", 0);
 					bypass_invuln = TRUE;
 				} else {
@@ -5173,6 +5237,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Ghosts don't need food */
 	/* Allow AFK-hivernation if not hungry */
 	else if (!p_ptr->ghost && !(p_ptr->afk && p_ptr->food >= PY_FOOD_ALERT) && !p_ptr->admin_dm &&
+	    p_ptr->paralyzed != 255 && /* Hack for forced stasis - also prevents damage from starving badly */
 	    /* Don't starve in town (but recover from being gorged) - C. Blue */
 	    //(!istown(&p_ptr->wpos) || p_ptr->food >= PY_FOOD_MAX))
 	    (!(istownarea(&p_ptr->wpos, MAX_TOWNAREA) || isdungeontown(&p_ptr->wpos) || safe_area(Ind)) //not in AMC either @ safe_area()
@@ -5339,20 +5404,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Blood Magic, aka Auras, draw from your blood and thereby slow your regeneration down to 1/4 if all 3 auras are enabled */
 	regen_amount = regen_amount / (1 + (p_ptr->aura[AURA_FEAR] ? 1 : 0) + (p_ptr->aura[AURA_SHIVER] ? 1 : 0) + (p_ptr->aura[AURA_DEATH] ? 1 : 0));
 
-	/* Increase regeneration by flat amount from timed regeneration powers */
-	if (p_ptr->tim_regen) {
-		/* Regeneration spell (Nature) and mushroom of fast metabolism */
-		if (p_ptr->tim_regen_pow > 0) hp_player(Ind, p_ptr->tim_regen_pow / 10 + (magik((p_ptr->tim_regen_pow % 10) * 10) ? 1 : 0), TRUE, TRUE);
-		/* Nether Sap spell (Unlife) */
-		else if (p_ptr->tim_regen_pow < 0 && p_ptr->cmp >= 10) {
-			p_ptr->cmp -= 10;
-			p_ptr->redraw |= PR_MANA;
-			/* (Cannot be using Martyr as true vampire, so no need to check for regen inhibition, but hp_player_quiet() does check for it anyway.) */
-			hp_player(Ind, (-p_ptr->tim_regen_pow) / 10 + (magik(((-p_ptr->tim_regen_pow) % 10) * 10) ? 1 : 0), TRUE, TRUE);
-		}
-	}
-
-	/* Poisoned or cut yields no healing */
+	/* Poisoned or cut yields no intrinsic healing (aka regeneration) */
 	if (p_ptr->poisoned || p_ptr->diseased || p_ptr->sun_burn
 #if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
 	    /* Trolls and Hydras continue to regenerate even while cut (it's the whole point of their regen) */
@@ -5366,9 +5418,33 @@ static bool process_player_end_aux(int Ind) {
 	/* But Biofeedback always helps -- TODO: Test the results a bit */
 	if (p_ptr->biofeedback) regen_amount += randint(1024) + regen_amount;
 
+	if (p_ptr->hold_hp_regen) regen_amount = (regen_amount * p_ptr->hold_hp_regen_perc) / 100;
+
 	/* Regenerate Hit Points if needed */
 	if (p_ptr->chp < p_ptr->mhp && regen_amount && !p_ptr->martyr)
 		regenhp(Ind, regen_amount);
+
+
+	/* Increase regeneration by flat amount from timed regeneration powers */
+	if (p_ptr->tim_regen) {
+		/* Regeneration spell (Nature) and mushroom of fast metabolism */
+		if (p_ptr->tim_regen_pow > 0) {
+			/* Actually 'quiet' and give msg afterwards */
+			i = hp_player(Ind, p_ptr->tim_regen_pow / 10 + (magik((p_ptr->tim_regen_pow % 10) * 10) ? 1 : 0), TRUE, TRUE);
+			msg_format(Ind, "\377gYou are healed for %d points.", i);
+		}
+		/* Nether Sap spell (Unlife) */
+		else if (p_ptr->tim_regen_pow < 0) {
+			if (p_ptr->cmp >= p_ptr->tim_regen_cost) {
+				p_ptr->cmp -= p_ptr->tim_regen_cost;
+				p_ptr->redraw |= PR_MANA;
+				/* (Cannot be using Martyr as true vampire, so no need to check for regen inhibition, but hp_player_quiet() does check for it anyway.)
+				   Actually 'quiet' and give msg afterwards */
+				i = hp_player(Ind, (-p_ptr->tim_regen_pow) / 10 + (magik(((-p_ptr->tim_regen_pow) % 10) * 10) ? 1 : 0), TRUE, TRUE);
+				msg_format(Ind, "\377gYou are healed for %d points.", i);
+			} else (void)set_tim_mp2hp(Ind, 0, 0, 0);  /* End prematurely when OOM */
+		}
+	}
 
 
 	/* Undiminish healing penalty in PVP mode */
@@ -5385,7 +5461,7 @@ static bool process_player_end_aux(int Ind) {
 	}
 
 	/* Regenerate depleted Stamina */
-	if ((p_ptr->cst < p_ptr->mst) && !p_ptr->shadow_running) {
+	if ((p_ptr->cst < p_ptr->mst) && !p_ptr->shadow_running && !p_ptr->dispersion) {
 		//int s = 2 * (76 + (adj_con_fix[p_ptr->stat_ind[A_CON]] + minus_health) * 3);
 		int s = regen_boost_stamina * (54 + (adj_con_fix[p_ptr->stat_ind[A_CON]] + minus_health) * 3);
 
@@ -5397,6 +5473,11 @@ static bool process_player_end_aux(int Ind) {
 			if (p_ptr->cst == p_ptr->mst) p_ptr->cst_frac = 0;
 			p_ptr->redraw |= (PR_STAMINA);
 		}
+	}
+	/* Dispersion spell if it has a duration (new version) */
+	if (p_ptr->dispersion_tim) {
+		p_ptr->dispersion_tim--;
+		if (!p_ptr->dispersion_tim) set_dispersion(Ind, 0, 0);
 	}
 
 	/* Disturb if we are done resting */
@@ -5412,7 +5493,7 @@ static bool process_player_end_aux(int Ind) {
 	/*** Timeout Various Things ***/
 
 	/* Handle temporary stat drains */
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < C_ATTRIBUTES; i++) {
 		if (p_ptr->stat_cnt[i] > 0) {
 			p_ptr->stat_cnt[i] -= (1 + minus_health);
 			if (p_ptr->stat_cnt[i] <= 0) {
@@ -5553,10 +5634,17 @@ static bool process_player_end_aux(int Ind) {
 	if (p_ptr->tim_meditation)
 		(void)set_tim_meditation(Ind, p_ptr->tim_meditation - minus);
 
-	/* Hack -- Wraithform/Wraithstep */
-	if (p_ptr->tim_wraith) {
-		if (p_ptr->tim_extra & 0x1) (void)set_tim_wraithstep(Ind, p_ptr->tim_wraith - minus_magic);
-		else (void)set_tim_wraith(Ind, p_ptr->tim_wraith - minus_magic);
+	/* Hack -- Wraithform (Not for Wraithstep though, it lasts indefinitely) */
+	if (p_ptr->tim_wraith && !(p_ptr->tim_wraithstep & 0x1)) (void)set_tim_wraith(Ind, p_ptr->tim_wraith - minus_magic);
+
+	/* Wraithstep: Check if we're within the few turns of weakened immaterium, allowing us to enter solid walls if we want to */
+	if ((p_ptr->tim_wraithstep & 0x1) && (p_ptr->tim_wraithstep & 0xF0)) {
+		p_ptr->tim_wraithstep -= 0x10;
+		if (!(p_ptr->tim_wraithstep & 0xF0)) {
+			p_ptr->tim_wraithstep &= ~0x1;
+			msg_print(Ind, "The boundary to the immaterium returns to normal.");
+			p_ptr->redraw |= PR_BPR_WRAITH;
+		}
 	}
 
 	/* Hack -- Hallucinating */
@@ -5576,11 +5664,11 @@ static bool process_player_end_aux(int Ind) {
 		(void)set_blind(Ind, p_ptr->blind - adjust);
 	}
 
-	/* Times see-invisible */
+	/* Timed see-invisible */
 	if (p_ptr->tim_invis)
 		(void)set_tim_invis(Ind, p_ptr->tim_invis - minus_magic);
 
-	/* Times invisibility */
+	/* Timed invisibility */
 	if (p_ptr->tim_invisibility) {
 		if (p_ptr->aggravate) {
 			msg_print(Ind, "Your invisibility is broken by your aggravation.");
@@ -5642,11 +5730,11 @@ static bool process_player_end_aux(int Ind) {
 
 	/* xtra stats? - the_sandman */
 	if (p_ptr->xtrastat_tim)
-		(void)do_xtra_stats(Ind, p_ptr->xtrastat_which, p_ptr->xtrastat_pow, p_ptr->xtrastat_tim - minus_magic);
+		(void)do_xtra_stats(Ind, p_ptr->xtrastat_which, p_ptr->xtrastat_pow, p_ptr->xtrastat_tim - minus_magic, p_ptr->xtrastat_demonic);
 
 	/* Protection from evil */
 	if (p_ptr->protevil)
-		(void)set_protevil(Ind, p_ptr->protevil - minus_magic);
+		(void)set_protevil(Ind, p_ptr->protevil - minus_magic, p_ptr->protevil_own);
 
 	/* Holy Zeal - EA bonus */
 	if (p_ptr->zeal) {
@@ -5730,15 +5818,15 @@ static bool process_player_end_aux(int Ind) {
 
 	/* Blessed */
 	if (p_ptr->blessed)
-		(void)set_blessed(Ind, p_ptr->blessed - 1);
+		(void)set_blessed(Ind, p_ptr->blessed - 1, p_ptr->blessed_own);
 
 	/* Shield */
 	if (p_ptr->shield)
 		(void)set_shield(Ind, p_ptr->shield - minus_magic, p_ptr->shield_power, p_ptr->shield_opt, p_ptr->shield_power_opt, p_ptr->shield_power_opt2);
 
 	/* Timed deflection */
-	if (p_ptr->tim_deflect)
-		(void)set_tim_deflect(Ind, p_ptr->tim_deflect - minus_magic);
+	if (p_ptr->tim_reflect)
+		(void)set_tim_reflect(Ind, p_ptr->tim_reflect - minus_magic);
 
 	/* Timed Feather Falling */
 	if (p_ptr->tim_ffall)
@@ -5749,7 +5837,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Timed regen */
 	if (p_ptr->tim_regen) {
 		if (p_ptr->tim_regen_pow > 0) (void)set_tim_regen(Ind, p_ptr->tim_regen - 1, p_ptr->tim_regen_pow); /* Regeneration */
-		else if (p_ptr->tim_regen_pow < 0) (void)set_tim_mp2hp(Ind, p_ptr->tim_regen - 1, -p_ptr->tim_regen_pow); /* Nether Sap */
+		else if (p_ptr->tim_regen_pow < 0) (void)set_tim_mp2hp(Ind, p_ptr->tim_regen - 1, -p_ptr->tim_regen_pow, p_ptr->tim_regen_cost); /* Nether Sap */
 	}
 
 	/* Thunderstorm */
@@ -5908,13 +5996,44 @@ static bool process_player_end_aux(int Ind) {
 		(void)set_cut(Ind, p_ptr->cut - adjust * (minus_health + 1), p_ptr->cut_attacker);
 	}
 
+#ifdef IRRITATING_WEATHER
+	if (!p_ptr->grid_house)
+		switch (p_ptr->weather_influence) {
+		case 0: break; //no bad weather
+		case 1: break; //rainstorm - no effect
+		case 2: //snowstorm
+			if (p_ptr->resist_cold || p_ptr->oppose_cold || p_ptr->immune_cold
+			    || worn_armour_weight(p_ptr) >= 140 + (p_ptr->inventory[INVEN_HEAD].tval ? 0 : 50) + (p_ptr->inventory[INVEN_OUTER].tval ? 0 : 50) /* surpass chain mail weight ^^ */
+			    || (p_ptr->inventory[INVEN_OUTER].tval == TV_CLOAK && p_ptr->inventory[INVEN_OUTER].sval == SV_FUR_CLOAK))
+				break;
+			if (!rand_int(5)) {
+				int dam = (p_ptr->chp * (3 + rand_int(5)) + 99) / 100;
+
+				if (dam && p_ptr->chp > dam) {
+					//msg_format(Ind, "The winds are freezing you for \377o%d\377w damage.", dam);
+					if (!rand_int(3)) msg_format(Ind, "\377wThe wind is freezing you!"); //less spam
+					bypass_invuln = FALSE; /* Disruption shield protects from this type of damage */
+					take_hit(Ind, dam, "freezing winds", 0);
+					bypass_invuln = TRUE;
+					/* Note: No inventory damage =p */
+				} else msg_format(Ind, "\377wThe wind is freezing you!");
+			}
+			break;
+		case 3: //sandstorm
+			if (p_ptr->resist_shard || p_ptr->resist_blind || p_ptr->no_cut
+			    || get_skill(p_ptr, SKILL_EARTH) >= 30)
+				break;
+			if (!rand_int(15)) {
+				msg_format(Ind, "\377yThe sand storm is blinding you!");
+				set_blind_quiet(Ind, p_ptr->blind + rand_int(7));
+			}
+			break;
+		}
+#endif
+
 	/* Temporary blessing of luck */
 	if (p_ptr->bless_temp_luck
-#if 0
-	    && !istownarea(&p_ptr->wpos, MAX_TOWNAREA))
-#else
 	    && p_ptr->wpos.wz)
-#endif
 		(void)bless_temp_luck(Ind, -1, p_ptr->bless_temp_luck - 1);
 
 	/* Temporary auras */
@@ -5922,56 +6041,130 @@ static bool process_player_end_aux(int Ind) {
 	if (p_ptr->sh_cold_tim) (void)set_sh_cold_tim(Ind, p_ptr->sh_cold_tim - minus_magic);
 	if (p_ptr->sh_elec_tim) (void)set_sh_elec_tim(Ind, p_ptr->sh_elec_tim - minus_magic);
 
+	if (p_ptr->tim_lcage) set_tim_lcage(Ind, p_ptr->tim_lcage - 1);
+
+
 	/* Still possible effects from another player's support spell on this player? */
 	if (p_ptr->support_timer) {
 		p_ptr->support_timer--;
 		if (!p_ptr->support_timer) p_ptr->supp = p_ptr->supp_top = 0;
 	}
 
-#if POLY_RING_METHOD == 0
-	/* Check polymorph rings with timeouts */
-	for (i = INVEN_LEFT; i <= INVEN_RIGHT; i++) {
+	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
+		if (i == INVEN_LITE) i++; /* Handled further down */
+
+		timeout_handled = FALSE;
 		o_ptr = &p_ptr->inventory[i];
-		if ((o_ptr->tval == TV_RING) && (o_ptr->sval == SV_RING_POLYMORPH) && (o_ptr->timeout_magic > 0) &&
-		    (p_ptr->body_monster == o_ptr->pval)) {
-			/* Decrease life-span */
-			o_ptr->timeout_magic--;
+
+#if POLY_RING_METHOD == 0
+		/* Check polymorph rings with timeouts */
+		if (i == INVEN_LEFT || i == INVEN_RIGHT) {
+			if ((o_ptr->tval == TV_RING) && (o_ptr->sval == SV_RING_POLYMORPH) && (o_ptr->timeout_magic > 0) &&
+			    (p_ptr->body_monster == o_ptr->pval)) {
+				timeout_handled = TRUE;
+
+				/* Decrease life-span */
+				o_ptr->timeout_magic--;
  #ifndef LIVE_TIMEOUTS
-			/* Hack -- notice interesting energy steps */
-			if ((o_ptr->timeout_magic < 100) || (!(o_ptr->timeout_magic % 100)))
+				/* Hack -- notice interesting energy steps */
+				if ((o_ptr->timeout_magic < 100) || (!(o_ptr->timeout_magic % 100)))
  #else
-			if (p_ptr->live_timeouts_magic || (o_ptr->timeout_magic < 100) || (!(o_ptr->timeout_magic % 100)))
+				if (p_ptr->live_timeouts || (o_ptr->timeout_magic < 100) || (!(o_ptr->timeout_magic % 100)))
  #endif
+				{
+					/* Window stuff */
+					p_ptr->window |= PW_EQUIP;
+				}
+
+				/* Hack -- notice interesting fuel steps */
+				if ((o_ptr->timeout_magic > 0) && (o_ptr->timeout_magic < 100) && !(o_ptr->timeout_magic % 10)) {
+					if (p_ptr->disturb_minor) disturb(Ind, 0, 0);
+					msg_print(Ind, "\376\377LYour ring flickers and fades, flashes of light run over its surface.");
+					/* Window stuff */
+					p_ptr->window |= PW_EQUIP;
+				} else if (o_ptr->timeout_magic == 0) {
+					disturb(Ind, 0, 0);
+					msg_print(Ind, "\376\377LYour ring disintegrates!");
+
+					if ((p_ptr->body_monster == o_ptr->pval) &&
+					    ((p_ptr->r_mimicry[p_ptr->body_monster] < r_info[p_ptr->body_monster].level) ||
+					    (get_skill_scale(p_ptr, SKILL_MIMIC, 100) < r_info[p_ptr->body_monster].level))) {
+						/* If player hasn't got high enough kill count anymore now, poly back to player form! */
+						msg_print(Ind, "You polymorph back to your normal form.");
+						do_mimic_change(Ind, 0, TRUE);
+					}
+
+					/* Decrease the item, optimize. */
+					inven_item_increase(Ind, i, -1);
+					inven_item_optimize(Ind, i);
+				}
+			}
+		}
+#endif
+
+		/* Yet-to-add "Ethereal" or other timed items, that live only until running out of energy. Added for ART_ANTIRIAD, the first of this sort. */
+		if (o_ptr->timeout && !timeout_handled) {
+			/* Decrease life-span */
+			/* Decrease in in-game hours (aka 360 in-game turns: ~2/s * 3600 / 20 (20x in-game-time vs real-time)) ? */
+			if (o_ptr->name1 == ART_ANTIRIAD) {
+				o_ptr->xtra9++;
+				if (o_ptr->xtra9 == 360) {
+					o_ptr->xtra9 = 0;
+					o_ptr->timeout--;
+				} else continue; /* No visible change yet */
+			}
+			/* Decrease in in-game (character) turns */
+			else o_ptr->timeout--;
+
+#ifndef LIVE_TIMEOUTS
+			/* Hack -- notice interesting energy steps */
+			if ((o_ptr->timeout < 100) || (!(o_ptr->timeout % 100)))
+#else
+			if (p_ptr->live_timeouts || (o_ptr->timeout < 100) || (!(o_ptr->timeout % 100)))
+#endif
 			{
 				/* Window stuff */
 				p_ptr->window |= PW_EQUIP;
 			}
 
 			/* Hack -- notice interesting fuel steps */
-			if ((o_ptr->timeout_magic > 0) && (o_ptr->timeout_magic < 100) && !(o_ptr->timeout_magic % 10)) {
+			if ((o_ptr->timeout > 0) && (o_ptr->timeout < 100) && !(o_ptr->timeout % 10)) {
 				if (p_ptr->disturb_minor) disturb(Ind, 0, 0);
-				msg_print(Ind, "\376\377LYour ring flickers and fades, flashes of light run over its surface.");
 				/* Window stuff */
 				p_ptr->window |= PW_EQUIP;
-			} else if (o_ptr->timeout_magic == 0) {
-				disturb(Ind, 0, 0);
-				msg_print(Ind, "\376\377LYour ring disintegrates!");
 
-				if ((p_ptr->body_monster == o_ptr->pval) &&
-				    ((p_ptr->r_mimicry[p_ptr->body_monster] < r_info[p_ptr->body_monster].level) ||
-				    (get_skill_scale(p_ptr, SKILL_MIMIC, 100) < r_info[p_ptr->body_monster].level))) {
-					/* If player hasn't got high enough kill count anymore now, poly back to player form! */
-					msg_print(Ind, "You polymorph back to your normal form.");
-					do_mimic_change(Ind, 0, TRUE);
+				if (o_ptr->name1 != ART_ANTIRIAD) {
+					char o_name[ONAME_LEN];
+
+					object_desc(Ind, o_name, o_ptr, TRUE, 3);
+					msg_format(Ind, "\376\377LYour %s flickers and flashes...", o_name);
+				}
+			} else if (o_ptr->timeout == 0) {
+				disturb(Ind, 0, 0);
+
+				if (o_ptr->name1 != ART_ANTIRIAD) {
+					char o_name[ONAME_LEN];
+
+					object_desc(Ind, o_name, o_ptr, TRUE, 3);
+					msg_format(Ind, "\376\377LYour %s disintegrates!", o_name);
+
+					/* Decrease the item, optimize. */
+					inven_item_increase(Ind, i, -1);
+					inven_item_optimize(Ind, i);
+				} else {
+					msg_format(Ind, "\376\377LYour armour is out of energy and suddenly becomes almost impossible to move!");
+					o_ptr->name1 = ART_ANTIRIAD_DEPLETED;
+					o_ptr->weight = a_info[o_ptr->name1].weight;
+					//handle_art_i(ART_ANTIRIAD_DEPLETED);
+					//handle_art_d(ART_ANTIRIAD);
+					p_ptr->window |= (PW_INVEN | PW_EQUIP); //todo: weight doesn't update!
 				}
 
-				/* Decrease the item, optimize. */
-				inven_item_increase(Ind, i, -1);
-				inven_item_optimize(Ind, i);
+				p_ptr->update |= PU_BONUS;
+				handle_stuff(Ind);
 			}
 		}
 	}
-#endif
 
 	/* Don't accidentally float after dying */
 	if (p_ptr->safe_float_turns) p_ptr->safe_float_turns--;
@@ -6248,6 +6441,28 @@ static bool process_player_end_aux(int Ind) {
 		p_ptr->no_alert = FALSE;
 	}
 
+	/* Charm/Possess: Drain Mana */
+	if (p_ptr->mcharming) {
+		int drain, drain_frac;
+
+		if (p_ptr->mmp < 120) drain = fast_sqrt_10div6[p_ptr->mmp];
+		else drain = fast_sqrt_10[p_ptr->mmp / 6];
+		drain = (drain * p_ptr->mcharming);
+		drain_frac = drain % 100;
+		drain = drain / 100;
+
+		if (rand_int(100) < drain_frac) p_ptr->cmp--; /* handle first decimal place via probability */
+		p_ptr->cmp -= drain;
+		if (p_ptr->cmp < 0) p_ptr->cmp = 0;
+
+		/* Redraw */
+		p_ptr->redraw |= (PR_MANA);
+		/* Window stuff */
+		p_ptr->window |= (PW_PLAYER);
+
+		if (!p_ptr->cmp) do_mstopcharm(Ind);
+	}
+
 	/* Note changes */
 	j = 0;
 
@@ -6377,7 +6592,11 @@ static bool process_player_end_aux(int Ind) {
 
 	/* Recharge rods in player's inventory */
 	/* this should be moved to 'timeout'? */
+#ifdef WIELD_DEVICES
+	for (i = 0; i <= INVEN_WIELD; i++) {
+#else
 	for (i = 0; i < INVEN_PACK; i++) {
+#endif
 		o_ptr = &p_ptr->inventory[i];
 
 		/* Examine all charging rods */
@@ -6532,17 +6751,17 @@ static bool process_player_end_aux(int Ind) {
 		}
 	}
 
-	if (p_ptr->tim_blacklist) {// && !p_ptr->afk) {
+	if (p_ptr->tim_blacklist) // && !p_ptr->afk)
 		/* Count down towards turnout */
 		p_ptr->tim_blacklist--;
-	}
 
 #if 1 /* use turns instead of day/night cycles */
-	if (p_ptr->tim_watchlist) {
+	if (p_ptr->tim_watchlist)
 		/* Count down towards turnout */
 		p_ptr->tim_watchlist--;
-	}
 #endif
+
+	if (p_ptr->hold_hp_regen) p_ptr->hold_hp_regen--;
 
 	if (p_ptr->pstealing) {
 		/* Count down towards turnout */
@@ -6593,7 +6812,7 @@ static bool process_player_end_aux(int Ind) {
 	if (p_ptr->tim_wraith) {
 		if (zcave[p_ptr->py][p_ptr->px].info & CAVE_STCK) {
 			p_ptr->tim_wraith = 0;
-			p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+			p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 			msg_print(Ind, "You lose your wraith powers.");
 			p_ptr->redraw |= PR_BPR_WRAITH;
 			msg_format_near(Ind, "%s loses %s wraith powers.", p_ptr->name, p_ptr->male ? "his":"her");
@@ -6601,7 +6820,7 @@ static bool process_player_end_aux(int Ind) {
 		/* No wraithform on NO_MAGIC levels - C. Blue */
 		else if (l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC)) {
 			p_ptr->tim_wraith = 0;
-			p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+			p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 			msg_print(Ind, "You lose your wraith powers.");
 			p_ptr->redraw |= PR_BPR_WRAITH;
 			msg_format_near(Ind, "%s loses %s wraith powers.", p_ptr->name, p_ptr->male ? "his":"her");
@@ -6659,7 +6878,7 @@ static void process_games(int Ind) {
 					tmp_obj = p_ptr->inventory[ball];
 					tmp_obj.marked2 = ITEM_REMOVAL_NEVER;
 					drop_near(TRUE, 0, &tmp_obj, -1, &p_ptr->wpos, oy, ox);
-					printf("dropping at %d %d (%d)\n", ox, oy, try);
+					s_printf("dropping at %d %d (%d)\n", ox, oy, try);
 					inven_item_increase(Ind, ball, -999);
 					inven_item_optimize(Ind, ball);
 					break;
@@ -6953,7 +7172,7 @@ bool stale_level(struct worldpos *wpos, int grace) {
 		if (l_ptr->lastused) {
 			if (now - l_ptr->lastused > grace) return(TRUE);
 		} else if (now - l_ptr->creationtime > grace) return(TRUE);
-	} else if (now - wild_info[wpos->wy][wpos->wx].lastused > grace) {
+	} else if (now - wild_info[wpos->wy][wpos->wx].surface.lastused > grace) {
 #if 0
 		/* Never allow dealloc where there are houses */
 		/* For now at least */
@@ -6972,52 +7191,54 @@ bool stale_level(struct worldpos *wpos, int grace) {
 
 static void do_unstat(struct worldpos *wpos, byte fast_unstat) {
 	int j;
+	dun_level *l_ptr = getfloor(wpos);
 
-	/* Highlander Tournament sector00 is static while players are in dungeon! */
-	if (in_sector00(wpos) && sector00separation) return;
+	/* For events or admin intervention: Floor flag 'STATIC' keeps floor artificially static until floor is deallocated or flag is cleared. */
+	if (l_ptr && (l_ptr->flags2 & LF2_STATIC)) return;
+
+	/* Highlander Tournament sector000 is static while players are in dungeon! */
+	if (in_sector000(wpos) && sector000separation) return;
 
 	/* Arena Monster Challenge */
 	if (ge_special_sector && in_arena(wpos)) return;
 
 	// Anyone on this depth?
-	for (j = 1; j <= NumPlayers; j++) {
+	for (j = 1; j <= NumPlayers; j++)
 		if (inarea(&Players[j]->wpos, wpos)) return;
-	}
 
-	// If this level is static and no one is actually on it
-	//if (stale_level(wpos)) {
-		/* limit static time in Ironman Deep Dive Challenge a lot */
-		if (in_irondeepdive(wpos)) {
-			if (isdungeontown(wpos)) {
-				if (stale_level(wpos, 300)) new_players_on_depth(wpos, 0, FALSE);//5 min
-			} else if ((getlevel(wpos) < cfg.min_unstatic_level) && (0 < cfg.min_unstatic_level)) {
-				/* still 2 minutes static for very shallow levels */
-				if (stale_level(wpos, 120)) new_players_on_depth(wpos, 0, FALSE);//2 min
-			} else if (stale_level(wpos, 300)) new_players_on_depth(wpos, 0, FALSE);//5 min (was 10)
-		} else {
-			switch (fast_unstat) {
-			case 1: //SAURON_FLOOR_FAST_UNSTAT
-				j = 60 * 60; //1h
-				break;
-			case 2: //DI_DEATH_FATE
+	// --- If this level is static and no one is actually on it: ---
+
+	/* limit static time in Ironman Deep Dive Challenge a lot */
+	if (in_irondeepdive(wpos)) {
+		if (isdungeontown(wpos)) {
+			if (stale_level(wpos, 300)) new_players_on_depth(wpos, 0, FALSE);//5 min
+		} else if ((getlevel(wpos) < cfg.min_unstatic_level) && (0 < cfg.min_unstatic_level)) {
+			/* still 2 minutes static for very shallow levels */
+			if (stale_level(wpos, 120)) new_players_on_depth(wpos, 0, FALSE);//2 min
+		} else if (stale_level(wpos, 300)) new_players_on_depth(wpos, 0, FALSE);//5 min (was 10)
+	} else {
+		switch (fast_unstat) {
+		case 1: //SAURON_FLOOR_FAST_UNSTAT
+			j = 60 * 60; //1h
+			break;
+		case 2: //DI_DEATH_FATE
 #if 0 /* Not working instantly. Done in process_player_change_wpos() instead. */
-				new_players_on_depth(wpos, 0, FALSE);
-				if (getcave(wpos)) dealloc_dungeon_level(wpos);
+			new_players_on_depth(wpos, 0, FALSE);
+			if (getcave(wpos)) dealloc_dungeon_level(wpos);
 #else
-				j = 0;
-				break;
+			j = 0;
+			break;
 #endif
-			default: //normal (fast_unstat = FALSE)
-				j = cfg.level_unstatic_chance * getlevel(wpos) * 60;
-				break;
-			}
-
-			/* makes levels between 50ft and min_unstatic_level unstatic on player saving/quiting game/leaving level DEG */
-			if (((getlevel(wpos) < cfg.min_unstatic_level) && (0 < cfg.min_unstatic_level)) ||
-			    stale_level(wpos, j))
-				new_players_on_depth(wpos, 0, FALSE);
+		default: //normal dungeon floor (fast_unstat = FALSE)
+			j = cfg.level_unstatic_chance * getlevel(wpos) * 60;
+			break;
 		}
-	//}
+
+		/* makes levels between 50ft and min_unstatic_level unstatic on player saving/quiting game/leaving level DEG */
+		if (((getlevel(wpos) < cfg.min_unstatic_level) && (0 < cfg.min_unstatic_level)) ||
+		    stale_level(wpos, j))
+			new_players_on_depth(wpos, 0, FALSE);
+	}
 }
 
 /*
@@ -7123,6 +7344,7 @@ static void purge_old() {
 }
 
 /*
+ * Log suspicious items inside hollow houses to tomenet.log
  * TODO: Check for OT_GUILD (or guild will be mere den of cheeze)
  */
 void cheeze(object_type *o_ptr) {
@@ -7156,10 +7378,13 @@ void cheeze(object_type *o_ptr) {
 }
 
 
-/* Traditional (Vanilla) houses version of cheeze()	- Jir - */
+/*
+ * Log suspicious items inside trad houses to tomenet.log
+ * Traditional (Vanilla) houses version of cheeze()	- Jir -
+ */
 #ifndef USE_MANG_HOUSE_ONLY
 void cheeze_trad_house() {
-#if CHEEZELOG_LEVEL > 3
+ #if CHEEZELOG_LEVEL > 3
 	int i, j;
 	house_type *h_ptr;
 	object_type *o_ptr;
@@ -7216,7 +7441,7 @@ void cheeze_trad_house() {
 			}
 		}
 	}
-#endif // CHEEZELOG_LEVEL > 3
+ #endif // CHEEZELOG_LEVEL > 3
 }
 #endif	// USE_MANG_HOUSE_ONLY
 
@@ -7388,12 +7613,12 @@ static void scan_objs() {
 
 #ifndef USE_MANG_HOUSE_ONLY
 	/* Additional cheeze check for all those items inside of mangband-style houses */
-#if CHEEZELOG_LEVEL > 1
-#if CHEEZELOG_LEVEL < 4
+ #if CHEEZELOG_LEVEL > 1
+  #if CHEEZELOG_LEVEL < 4
 	if (!(turn % (cfg.fps * 3600)))
-#endif	/* CHEEZELOG_LEVEL (4) */
+  #endif	/* CHEEZELOG_LEVEL (4) */
 		cheeze_trad_house();
-#endif	/* CHEEZELOG_LEVEL (1) */
+ #endif	/* CHEEZELOG_LEVEL (1) */
 #endif	/* USE_MANG_HOUSE_ONLY */
 
 }
@@ -7632,9 +7857,9 @@ static void process_various(void) {
 			nether_realm_collapsing--;
 
 			/* Give warning in the meantime */
-			if (nether_realm_collapsing == 10) floor_msg_format(&wpos, "\377RThis plane of the nether realm seems to be in the process of collapsing..");
-			else if (nether_realm_collapsing == 5) floor_msg_format(&wpos, "\377RThis plane of the nether realm seems to be on the verge of collapsing, beware!");
-			else if (nether_realm_collapsing == 1) floor_msg_format(&wpos, "\377lThis plane of the nether realm will collapse any moment, get out while you can!");
+			if (nether_realm_collapsing == 10) floor_msg_format(0, &wpos, "\377RThis plane of the nether realm seems to be in the process of collapsing..");
+			else if (nether_realm_collapsing == 5) floor_msg_format(0, &wpos, "\377RThis plane of the nether realm seems to be on the verge of collapsing, beware!");
+			else if (nether_realm_collapsing == 1) floor_msg_format(0, &wpos, "\377lThis plane of the nether realm will collapse any moment, get out while you can!");
 
 			/* Eventually collapse! */
 			if (!nether_realm_collapsing) {
@@ -7650,9 +7875,9 @@ static void process_various(void) {
 					if (!inarea(&p_ptr->wpos, &wpos)) continue;
 
  #if 1 /* Recall players out? */
-					p_ptr->recall_pos.wx = WPOS_SECTOR00_X;
-					p_ptr->recall_pos.wy = WPOS_SECTOR00_Y;
-					p_ptr->recall_pos.wz = WPOS_SECTOR00_Z;
+					p_ptr->recall_pos.wx = WPOS_SECTOR000_X;
+					p_ptr->recall_pos.wy = WPOS_SECTOR000_Y;
+					p_ptr->recall_pos.wz = WPOS_SECTOR000_Z;
 					p_ptr->new_level_method = LEVEL_RAND;
 					recall_player(i, "");
   #ifdef USE_SOUND_2010
@@ -7676,8 +7901,7 @@ static void process_various(void) {
 		if (season_xmas) { /* XMAS */
 			if (santa_claus_timer > 0) santa_claus_timer--;
 			if (santa_claus_timer == 0) {
-				struct worldpos wpos = {cfg.town_x, cfg.town_y, 0};
-				cave_type **zcave = getcave(&wpos);
+				cave_type **zcave = getcave(BREE_WPOS_P);
 
 				if (zcave) { /* anyone in town? */
 					int x, y, tries = 50;
@@ -7685,18 +7909,19 @@ static void process_various(void) {
 					/* Try nine locations */
 					while (--tries) {
 						/* Pick location nearby hard-coded town centre */
-						scatter(&wpos, &y, &x, 34, 96, 10, 0);
+						scatter(BREE_WPOS_P, &y, &x, 34, 96, 10, 0);
 
 						/* Require "empty" floor grids */
 						if (!cave_empty_bold(zcave, y, x)) continue;
 
-						if (place_monster_aux(&wpos, y, x, RI_SANTA2, FALSE, FALSE, 0, 0) == 0) {
+						if (place_monster_aux(BREE_WPOS_P, y, x, RI_SANTA2, FALSE, FALSE, 0, 0) == 0) {
 							s_printf("%s XMAS: Generated Santa Claus.\n", showtime());
 							santa_claus_timer = -1; /* put generation on hold */
 							break;
 						}
 					}
-					if (!tries) santa_claus_timer = 1; /* fast respawn, probably paranoia */
+					/* Still no Santa? Induce fast respawn, probably paranoia */
+					if (santa_claus_timer == 0) santa_claus_timer = 1;
 				}
 			}
 		}
@@ -7868,11 +8093,44 @@ static void process_world(void) {
 			/* Ignore characters that are not in a dungeon/tower */
 			if (p_ptr->wpos.wz == 0) {
 				/* Don't interrupt events though */
-				if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 			}
 			break;
 		}
 		if (!i && (n <= 3)) {
+			msg_broadcast(-1, "\374\377G<<<\377oServer is being updated, but will be up again in no time.\377G>>>");
+			cfg.runlevel = 2049;
+		}
+	/* /shutxxlow */
+	} else if (cfg.runlevel == 2052) {
+		for (i = NumPlayers; i > 0 ;i--) {
+			p_ptr = Players[i];
+			if (p_ptr->conn == NOT_CONNECTED) continue;
+			/* Ignore admins that are loged in */
+			if (admin_p(i)) continue;
+			/* count players */
+			n++;
+
+			/* Ignore characters that are afk and not in a dungeon/tower */
+			//if ((p_ptr->wpos.wz == 0) && (p_ptr->afk)) continue;
+
+			/* Ignore chars in fixed irondeepdive towns */
+			if (is_fixed_irondeepdive_town(&p_ptr->wpos, getlevel(&p_ptr->wpos))) continue;
+#ifdef IRONDEEPDIVE_EXTRA_FIXED_TOWNS
+			if (is_extra_fixed_irondeepdive_town(&p_ptr->wpos, getlevel(&p_ptr->wpos))) continue;
+#endif
+
+			/* extra, just for /shutempty: Ignore all iddc chars who are afk/idle */
+			if (SHUTDOWN_IGNORE_IDDC(p_ptr)) continue;
+
+			/* Ignore characters that are not in a dungeon/tower */
+			if (p_ptr->wpos.wz == 0) {
+				/* Don't interrupt events though */
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
+			}
+			break;
+		}
+		if (!i && (n <= 2)) {
 			msg_broadcast(-1, "\374\377G<<<\377oServer is being updated, but will be up again in no time.\377G>>>");
 			cfg.runlevel = 2049;
 		}
@@ -7905,7 +8163,7 @@ static void process_world(void) {
 			/* Ignore characters that are not in a dungeon/tower */
 			if (p_ptr->wpos.wz == 0) {
 				/* Don't interrupt events though */
-				if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 			}
 			break;
 		}
@@ -7918,6 +8176,8 @@ static void process_world(void) {
 
 			/* connection already has a character fully logged in? ignore! */
 			if (connp->state == 0x08) continue; // 0x08 = CONN_PLAYING
+
+			if (connp->id == -1) continue;
 
 			/* We now check all characters that aren't in-game yet, but in state 0x04 aka CONN_LOGIN:
 			   That is either still in character list screen or in character creation process. */
@@ -7966,7 +8226,7 @@ static void process_world(void) {
 			/* Ignore characters that are not in a dungeon/tower */
 			if (p_ptr->wpos.wz == 0) {
 				/* Don't interrupt events though */
-				if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 			}
 			break;
 		}
@@ -7999,7 +8259,7 @@ static void process_world(void) {
 			/* Ignore characters that are not in a dungeon/tower */
 			if (p_ptr->wpos.wz == 0) {
 				/* Don't interrupt events though */
-				if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 			}
 			break;
 		}
@@ -8025,6 +8285,8 @@ static void process_world(void) {
 
 			/* connection already has a character fully logged in? ignore! */
 			if (connp->state == 0x08) continue; // 0x08 = CONN_PLAYING
+
+			if (connp->id == -1) continue;
 
 #if 0 /* 0: don't restart even for those who just have logged in their account name and aren't creating a character yet */
 			if (!connp->c_name) continue; //has not chosen a character name to login yet? ignore then
@@ -8075,7 +8337,7 @@ static void process_world(void) {
 			/* Ignore characters that are not in a dungeon/tower */
 			if (p_ptr->wpos.wz == 0) {
 				/* Don't interrupt events though */
-				if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 			}
 			break;
 		}
@@ -8154,7 +8416,7 @@ static void process_world(void) {
 				/* Ignore characters that are not in a dungeon/tower */
 				if (p_ptr->wpos.wz == 0) {
 					/* Don't interrupt events though */
-					if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y || !sector00separation) continue;
+					if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
 				}
 				break;
 			}
@@ -8167,6 +8429,40 @@ static void process_world(void) {
 					cfg.runlevel = 2052;
 				}
 			}
+		}
+	}
+	/* /shutulow */
+	else if (cfg.runlevel == 2041) {
+		for (i = NumPlayers; i > 0 ;i--) {
+			p_ptr = Players[i];
+			if (p_ptr->conn == NOT_CONNECTED) continue;
+			/* Ignore admins that are loged in */
+			if (admin_p(i)) continue;
+			/* count players */
+			n++;
+
+			/* Ignore characters that are afk and not in a dungeon/tower */
+			//if ((p_ptr->wpos.wz == 0) && (p_ptr->afk)) continue;
+
+			/* Ignore chars in fixed irondeepdive towns */
+			if (is_fixed_irondeepdive_town(&p_ptr->wpos, getlevel(&p_ptr->wpos))) continue;
+#ifdef IRONDEEPDIVE_EXTRA_FIXED_TOWNS
+			if (is_extra_fixed_irondeepdive_town(&p_ptr->wpos, getlevel(&p_ptr->wpos))) continue;
+#endif
+
+			/* extra, just for /shutempty: Ignore all iddc chars who are afk/idle */
+			if (SHUTDOWN_IGNORE_IDDC(p_ptr)) continue;
+
+			/* Ignore characters that are not in a dungeon/tower */
+			if (p_ptr->wpos.wz == 0) {
+				/* Don't interrupt events though */
+				if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y || !sector000separation) continue;
+			}
+			break;
+		}
+		if (!i && (n <= 1)) {
+			msg_broadcast(-1, "\374\377G<<<\377oServer is being updated, but will be up again in no time.\377G>>>");
+			cfg.runlevel = 2049;
 		}
 	}
 
@@ -8205,6 +8501,12 @@ static void process_world(void) {
 
 		/* Process the world of that player */
 		process_world_player(i);
+	}
+
+	/* Additional townie monster spawn (t, ie specifically Bree), independant of any players present! */
+	if (!rand_int(TOWNIE_RESPAWN_CHANCE)) {
+		monster_level = 0;
+		(void)alloc_monster(BREE_WPOS_P, MAX_SIGHT + 5, FALSE);
 	}
 }
 
@@ -8783,14 +9085,13 @@ void process_player_change_wpos(int Ind) {
 	   However, if the code somewhere calls add_dungeon() of type 0 but forgets to add DF2_RANDOM,
 	   the result might be a dungeon that has no defined width and height.
 	   We catch that here to make an admin's debugging life easier. - C. Blue */
-	if (l_ptr && !l_ptr->wid) s_printf("L_PTR WARNING: Level has dimension zero. Check for missing DF2_RANDOM flag!\n");
+	if (l_ptr && (!l_ptr->wid || !l_ptr->hgt)) s_printf("L_PTR WARNING: Level has dimension zero. Check for missing DF2_RANDOM flag!\n");
 
 	/* Clear the "marked" and "lit" flags for each cave grid */
-	for (y = 0; y < MAX_HGT; y++) {
-		for (x = 0; x < MAX_WID; x++) {
+	for (y = 0; y < MAX_HGT; y++)
+		for (x = 0; x < MAX_WID; x++)
 			p_ptr->cave_flag[y][x] = 0;
-		}
-	}
+
 	/* Player now starts mapping this dungeon (as far as its flags allow) */
 	if (l_ptr) p_ptr->dlev_id = l_ptr->id;
 	else p_ptr->dlev_id = 0;
@@ -8995,6 +9296,19 @@ void process_player_change_wpos(int Ind) {
 			starty = emergency_y;
 		}
 		break;
+
+	case LEVEL_OUTSIDE_CENTER: /* Special admin debugging, not for player transport */
+		tries = 0;
+		do {
+			startx = (l_ptr ? l_ptr->wid : MAX_WID) / 2 + (rand_int(tries * 2 + 1) - tries) / 4;
+			starty = (l_ptr ? l_ptr->hgt : MAX_HGT) / 2 + (rand_int(tries * 2 + 1) - tries) / 4;
+		} while (!cave_floor_bold(zcave, starty, startx) && (++tries < 100));
+		if (tries == 100) {
+			startx = 1;
+			starty = 1;
+		}
+		break;
+
 	case LEVEL_TO_TEMPLE:
 		/* Try to find a temple's sickbay area */
 		for (y = 0; y < MAX_HGT; y++) {
@@ -9045,7 +9359,7 @@ void process_player_change_wpos(int Ind) {
 
 	/* Highlander Tournament hack: pseudo-teleport the player
 	   after he took a staircase inside the highlander dungeon */
-	if (sector00separation && in_highlander_dun(&p_ptr->wpos) && l_ptr)
+	if (sector000separation && in_highlander_dun(&p_ptr->wpos) && l_ptr)
 		starty = l_ptr->hgt + 1; /* for the code right below :) ("Hack -- handle smaller floors") */
 
 	/* Hack -- handle smaller floors */
@@ -9061,16 +9375,16 @@ void process_player_change_wpos(int Ind) {
 				emergency_y = starty;
 			}
 		}
-		while (  ((zcave[starty][startx].info & CAVE_ICKY)
+		while (((zcave[starty][startx].info & CAVE_ICKY)
 			|| (!cave_floor_bold(zcave, starty, startx)))
-			&& (++tries < 10000) );
+			&& (++tries < 10000));
 		if (tries == 10000 && emergency_x) {
 			startx = emergency_x;
 			starty = emergency_y;
 		}
 	}
 
-	//printf("finding area (%d,%d)\n",startx,starty);
+	//s_printf("finding area (%d,%d)\n", startx, starty);
 	/* Place the player in an empty space */
 	for (j = 0; j < 5000; j++) {
 		/* Increasing distance */
@@ -9313,7 +9627,7 @@ void process_player_change_wpos(int Ind) {
 	}
 
 	/* Did we enter/leave a no-run level? Temporarily disable/reenable warning_run */
-	if ((l_ptr && (l_ptr->flags2 & LF2_NO_RUN)) || (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_RUN))) {
+	if ((l_ptr && (l_ptr->flags2 & LF2_NO_RUN)) || (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_RUN))) {
 		if (p_ptr->warning_run < 3) p_ptr->warning_run += 10;
 	} else if (p_ptr->warning_run >= 10) p_ptr->warning_run -= 10;
 
@@ -9387,7 +9701,7 @@ void process_player_change_wpos(int Ind) {
 	}
 #endif
 	if (!p_ptr->warning_worldmap && p_ptr->wpos.wz == 0 &&
-	    !in_sector00(&p_ptr->wpos) &&
+	    !in_sector000(&p_ptr->wpos) &&
 	    (ABS(p_ptr->wpos.wx - 32) >= 2 || ABS(p_ptr->wpos.wy - 32) >= 2)) {
 		msg_print(Ind, "\374\377yHINT: You can press '\377oM\377y' or '\377o~0\377y'to browse a worldmap.");
 		msg_print(Ind, "\374\377y      Towns, for example Bree, are denoted as yellow 'T'.");
@@ -9396,7 +9710,7 @@ void process_player_change_wpos(int Ind) {
 	}
 
 	if (!p_ptr->warning_dungeon && p_ptr->wpos.wz == 0 &&
-	    !in_sector00(&p_ptr->wpos) &&
+	    !in_sector000(&p_ptr->wpos) &&
 	    (ABS(p_ptr->wpos.wx - 32) >= 3 || ABS(p_ptr->wpos.wy - 32) >= 3)) {
 		msg_print(Ind, "\374\377yHINT: Consider going to the Training Tower first, to gain some levels.");
 		msg_print(Ind, "\374\377y      After that, seek out a dungeon. The tower is located in Bree.");
@@ -9427,6 +9741,9 @@ void process_player_change_wpos(int Ind) {
 
 	/* daylight problems for vampires */
 	if (!p_ptr->wpos.wz && p_ptr->prace == RACE_VAMPIRE) calc_boni(Ind);
+	/* temp luck blessings are on hold while on the surface - which is applied in calc_boni(): */
+	else if (p_ptr->bless_temp_luck) calc_boni(Ind);
+
 
 	/* moved here, since it simplifies the wpos-changing process and
 	   should keep it highly consistent and linear.
@@ -9446,7 +9763,7 @@ void process_player_change_wpos(int Ind) {
 
 	/* Brightly lit Arena Monster Challenge */
 	if (ge_special_sector && in_arena(&p_ptr->wpos)) {
-		wiz_lite(Ind);
+		wiz_lite_extra(Ind);
 		/* Also tell him about this place */
 		for (j = 0; j < MAX_GLOBAL_EVENTS; j++) {
 			if (global_event[j].getype != GE_ARENA_MONSTER) continue;
@@ -9461,7 +9778,7 @@ void process_player_change_wpos(int Ind) {
 		   so stairs won't be camped */
 		teleport_player(Ind, 200, TRUE);
 		/* Brightly lit PvP Arena */
-		wiz_lite(Ind);
+		wiz_lite_extra(Ind);
 	}
 
 	/* PvP-Mode specialties: */
@@ -9560,7 +9877,10 @@ void process_player_change_wpos(int Ind) {
 		p_ptr->warning_wor = p_ptr->warning_wor2 = 1;
 	}
 
-	if (in_deathfate_x(wpos)) wiz_lite(Ind);
+	if (in_deathfate_x(wpos)) wiz_lite_extra(Ind);
+
+	/* Display this warning at most once per floor. Once per secret area would be nice but requires some non-trivial coding... */
+	p_ptr->warning_secret_area = FALSE;
 }
 
 
@@ -9715,7 +10035,9 @@ void dungeon(void) {
 		/* Process fallen winners */
 		for (i = 1; i <= NumPlayers; i++) {
 			if (!Players[i]->solo_reking) continue;
+
 			Players[i]->solo_reking -= 250; // 1 min = 250 au
+			if (Players[i]->solo_reking < 0) Players[i]->solo_reking = 0;
 		}
 #endif
 
@@ -9809,6 +10131,7 @@ void dungeon(void) {
 				invcopy(&forge, lookup_kind(TV_SCROLL, SV_SCROLL_FIREWORK));
 				forge.number = 1;
 				apply_magic(&wpos, &forge, -1, FALSE, FALSE, FALSE, FALSE, RESF_NONE);
+				forge.level = 1;
 
 				/* The inn in Bree, hardcoded coordinates ugh */
 				while (--t) {
@@ -10028,6 +10351,9 @@ void dungeon(void) {
 
 	/* Process everything else */
 	if (!(turn % 10)) {
+		char buf[1024];
+		FILE *fp;
+
 		process_various();
 
 		/* Hack -- Regenerate the monsters every hundred game turns */
@@ -10050,6 +10376,166 @@ void dungeon(void) {
 					Send_request_cfr(i, p_ptr->delay_cfr_id, p_ptr->delay_cfr_prompt, p_ptr->delay_cfr_default_choice);
 				}
 			}
+		}
+
+		/* EXPERIMENTAL: Poll for AI responses, output them through 8ball. - C. Blue */
+#define AI_MAXLEN 4096 /* Maximum length of AI's response string to read */
+#define AI_MULTILINE 2 /* Allow AI responses to be multiple [2] chat lines long */
+		path_build(buf, 1024, ANGBAND_DIR_DATA, "external-response.log");
+		if ((fp = fopen(buf, "r")) != NULL) {
+			if (!feof(fp)) {
+				char strbase[AI_MAXLEN], *str, *c, strtmp[1024], *open_parenthesis, *o, *p;
+				bool within_parentheses = FALSE;
+				/* Cut message of at MSG_LEN minus "\374\377y[8ball] " chat prefix length, and -6 for world-broadcast server prefix eg '\377g[1] ': */
+				int maxlen = MSG_LEN - 1 - 11 - 6; /* and note that this maxlen is the real content length, not a null-terminated string length */
+#if AI_MULTILINE > 0
+				char strm[AI_MULTILINE][MSG_LEN], c1;
+				int m_max = 0;
+#endif
+
+				if (fgets(strbase, AI_MAXLEN, fp) != NULL) {
+					strbase[AI_MAXLEN - 1] = 0;
+					str = strbase;
+					/* Trim leading spaces */
+					while (*str == ' ') str++;
+
+					/* Change all " into ' to avoid conflict with lua eight_ball("..") command syntax. */
+					c = str - 1;
+					while(*(++c)) if (*c == '"') *c = '\'';
+					/* Remove all linebreaks or LUA will break */
+					c = str - 1;
+					while(*(++c)) if (*c == '\n' || *c == '\r') *c = ' ';
+
+					/* If str actually isn't empty (buffer overflow then on accessing strlen-1), trim trailing spaces */
+					if (*c) while (c[strlen(c) - 1] == ' ') c[strlen(c) - 1] = 0;
+#if AI_MULTILINE > 0
+					/* Dissect -possibly very long- response string into multiple chat messages if required;
+					   only treat the last one with shortening/cutting procedures. */
+					while (strlen(str) > maxlen && m_max < AI_MULTILINE - 1) {
+						/* Fill a chat line, cutting off the rest */
+						strncpy(strm[m_max], str, maxlen);
+						strm[m_max][maxlen] = 0; /* remember note: content length, no null-termination needed (so no '-1') */
+						/* Try not to cut off the line within a word */
+						do {
+							c = strm[m_max] + strlen(strm[m_max]) - 1;
+							c1 = tolower(*c);
+							if (c1 < 'a' || c1 > 'z') break;
+							*c = 0;
+						} while (TRUE);
+
+						/* Prepare to fill another chat line if needed */
+						str = str + strlen(strm[m_max]);
+						m_max++;
+
+						/* Trim trailing spaces of the strm[] we just finished now (so we actually discard spaces completely, instead of them going into the next strm[]) */
+						while (strm[m_max - 1][strlen(strm[m_max - 1]) - 1] == ' ') strm[m_max - 1][strlen(strm[m_max - 1]) - 1] = 0;
+					}
+#endif
+
+					open_parenthesis = strchr(str, '(');
+
+					/* If response exceeds our maximum message length, get rid of parentheses-structs first */
+					while (strlen(str) > maxlen && open_parenthesis) {
+						p = NULL;
+						o = open_parenthesis;
+
+						while (!p) {
+							p = strchr(o, ')');
+							if (!p) break;
+
+							/* Skip smileys within parentheses.. */
+							if (p == str || *(p - 1) != '-') break;
+							o = p;
+							p = NULL;
+						}
+
+						/* Crop out the parentheses struct */
+						if (p) {
+							strcpy(strtmp, str);
+							if (*(p + 1) == ' ') p++; /* Skip a space after the closing parenthesis */
+							strcpy(o, strtmp + (p - str) + 1);
+
+							open_parenthesis = strchr(str, '(');
+						} else break;
+					}
+
+					/* Truncate so we don't exceed our maximum message length! (Panic save ensues) */
+					str[maxlen] = 0; /* remember note: content length, no null-termination needed (so no '-1') */
+
+					/* Anything left to process? Or we will get buffer overflows from accessing strlen-1 positions */
+					if (*str) {
+						/* Special maintenance/status response given by control scripts? */
+						if (!((*str == '<' && str[strlen(str) - 1] == '>') || (*str == '[' && str[strlen(str) - 1] == ']'))) {
+							/* Cut off trailing remains of a sentence -_- (even required for AI response, as it also gets cut off often).
+							   Try to make sure we catch at least one whole sentence, denotedly limited by according punctuation marks. */
+							c = str + strlen(str) - 1;
+							while(c > str && ((*c != '.' && *c != '?'  && *c != '!' && *c != ';') || within_parentheses)) {
+								if (open_parenthesis) {
+									if (*c == ')' && *(c - 1) != '-') within_parentheses = TRUE;
+									if (*c == '(') within_parentheses = FALSE;
+								}
+								c--;
+							}
+							/* ..however, some responses have so long sentences that there is maybe only a comma, none of the above marks.. */
+							if (c == str) {
+								c = str + strlen(str) - 1;
+								while(c > str && *c != ',') c--;
+								/* Avoid sillily short results */
+								if (c < str + 10) c = str;
+							}
+							/* ..and some crazy ones don't even have a comma :/ ..*/
+							if (c == str) {
+								char *c1, *c2, *c3, *c4, *c5;
+
+								c = str + strlen(str) - 1;
+								/* Beeeest effort at "language" gogo.. */
+								c1 = my_strcasestr(str, "that");
+								c2 = my_strcasestr(str, "what");
+								c3 = my_strcasestr(str, "which");
+								c4 = my_strcasestr(str, "who");
+								c5 = my_strcasestr(str, "where");
+								if (c2 > c1) c1 = c2;
+								if (c3 > c1) c1 = c3;
+								if (c4 > c1) c1 = c4;
+								if (c5 > c1) c1 = c5;
+								c = c1;
+								/* Also strip the space before this word */
+								if (c > str) c--;
+								/* Avoid sillily short results */
+								if (c < str + 10) c = NULL;
+							}
+
+							/* Found any valid way to somehow truncate the line? =_= */
+							if (c) {
+								if (*c != '?' && *c != '!') *c = '.'; /* At the end of the text, replace a comma or semicolon or space, but not an exclamation mark. */
+								*(c + 1) = 0;
+							}
+
+							/* A new weirdness has popped up: It started generating [more and more] trailing dot-triplets, separated with spaces, at the end of each answer */
+							if (*str && *(str + 1)) // paranoia? ensure there is some string left, so strlen-2 doesn't buffer-overflow */
+								while (str[strlen(str) - 1] == ' ' || (str[strlen(str) - 1] == '.' && (str[strlen(str) - 2] == '.'
+								    || str[strlen(str) - 2] == ' ' || str[strlen(str) - 2] == '?' || str[strlen(str) - 2] == '!')))
+									str[strlen(str) - 1] = 0;
+						}
+					}
+#if AI_MULTILINE > 0
+					/* Add the treated 'str' to our multiline array too, just to make it look orderly ^^ */
+					strcpy(strm[m_max], str);
+					m_max++;
+					/* ..and output all lines */
+					for (c1 = 0; c1 < m_max; c1++)
+						exec_lua(0, format("eight_ball(\"%s\")", strm[(int)c1])); //don't cry, compiler -_- @(int)
+#else
+					exec_lua(0, format("eight_ball(\"%s\")", str));
+#endif
+				}
+			}
+			fclose(fp);
+
+			/* Clear response file after having processed the response (through 8ball), as it's no longer pending but has been processed now. */
+			/* Create a backup just for debugging/checking: */
+			remove(format("%s.bak", buf));
+			rename(buf, format("%s.bak", buf));
 		}
 	}
 
@@ -10098,7 +10584,9 @@ void dungeon(void) {
 
 	/* Process debugging/helper functions - C. Blue */
 	if (store_debug_mode &&
-	    /* '/ 10 ' stands for quick motion, ie time * 10 */
+	    /* '/ 10 ' stands for quick motion, ie time * 10.
+	       Doesn't support cfg.dun_store_turns, but instead just uses cfg.store_turns even for dungeon stores.
+	       Doesn't support cfg.book_store_turns_perc. */
 	    (!(turn % ((store_debug_mode * (10L * cfg.store_turns)) / store_debug_quickmotion))))
 		store_debug_stock();
 
@@ -10123,11 +10611,11 @@ void set_runlevel(int val) {
 	switch (val) {
 		case -1:
 			/* terminate: return a value that lets a script know that
-			   it must not restart us. */
-			cfg.runlevel = -1;
+			   it must not restart us, in this case that is cfg.runlevel = -1, set below... */
 			s_printf("***SERVER MAINTENANCE TERMINATION***\n");
 			/* Fall through */
 		case 0:
+			cfg.runlevel = val;
 			shutdown_server();
 		case 1:
 			/* Logout all remaining players except admins */
@@ -10166,6 +10654,7 @@ void set_runlevel(int val) {
 		case 2047:
 		case 2048:
 		case 2051:
+		case 2052:
 			/* Shutdown as soon as server is empty (admins don't count) */
 			break;
 		case 2049:
@@ -10349,15 +10838,19 @@ void play_game(bool new_game, bool all_terrains, bool dry_Bree, bool TOC_near_Br
 					w_ptr = &wild_info[y][x];
 					if (w_ptr->flags & WILD_F_DOWN) {
 						d_ptr = w_ptr->dungeon;
+#ifndef UNIQUES_KILLED_ARRAY
 						for (i = 0; i < d_ptr->maxdepth; i++)
 							C_KILL(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
+#endif
 						C_KILL(d_ptr->level, d_ptr->maxdepth, struct dun_level);
 						KILL(d_ptr, struct dungeon_type);
 					}
 					if (w_ptr->flags & WILD_F_UP) {
 						d_ptr = w_ptr->tower;
+#ifndef UNIQUES_KILLED_ARRAY
 						for (i = 0; i < d_ptr->maxdepth; i++)
 							C_KILL(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
+#endif
 						C_KILL(d_ptr->level, d_ptr->maxdepth, struct dun_level);
 						KILL(d_ptr, struct dungeon_type);
 					}
@@ -10441,16 +10934,11 @@ void play_game(bool new_game, bool all_terrains, bool dry_Bree, bool TOC_near_Br
 	 * - Jir -
 	 */
 	if (!server_dungeon) {
-		struct worldpos twpos;
-
-		twpos.wx = cfg.town_x;
-		twpos.wy = cfg.town_y;
-		twpos.wz = 0;
 		/* Allocate space for it */
-		alloc_dungeon_level(&twpos);
+		alloc_dungeon_level(BREE_WPOS_P);
 
 		/* Actually generate the town */
-		generate_cave(&twpos, NULL);
+		generate_cave(BREE_WPOS_P, NULL);
 	}
 
 	/* Finish initializing dungeon monsters */
@@ -10482,7 +10970,7 @@ void play_game(bool new_game, bool all_terrains, bool dry_Bree, bool TOC_near_Br
 	scan_accounts();
 	scan_houses();
 
-#if defined CLIENT_SIDE_WEATHER && !defined CLIENT_WEATHER_GLOBAL
+#if defined(CLIENT_SIDE_WEATHER) && !defined(CLIENT_WEATHER_GLOBAL)
 	/* initialize weather */
 	wild_weather_init();
 #endif
@@ -10618,6 +11106,11 @@ void pack_overflow(int Ind) {
 		}
 
 		if (!j) i = INVEN_PACK;
+#ifdef SUBINVEN_LIMIT_GROUP
+		/* Be on the safe side, do NOT potentially drop a bag in use for another bag we just picked up:
+		   Too annoying to lose all its contents too, for zero potential value from the new bag item. */
+		else if (p_ptr->inventory[INVEN_PACK].tval == TV_SUBINVEN) i = INVEN_PACK;
+#endif
 
 		/* Access the slot to be dropped */
 		o_ptr = &p_ptr->inventory[i];
@@ -10676,15 +11169,19 @@ void process_timers() {
 		if (p_ptr->conn == NOT_CONNECTED) continue;
 		if (p_ptr->warning_rest_cooldown) {
 			p_ptr->warning_rest_cooldown--;
+//#if WARNING_REST_TIMES > 0 /* comment in, then move this to Receive_run() and Receive_walk()? */
 			if (!p_ptr->warning_rest_cooldown &&
 			    ((p_ptr->chp * 10) / p_ptr->mhp <= 5 || (p_ptr->mmp && ((p_ptr->cmp * 10) / p_ptr->mmp <= 2)))) {
 				msg_print(i, "\374\377RHINT: Press \377oSHIFT+r\377R to rest, so your hit points will");
 				msg_print(i, "\374\377R      regenerate faster! Also true for mana and stamina!");
-				p_ptr->warning_rest++;
 				p_ptr->warning_rest_cooldown = 60;
+ #if WARNING_REST_TIMES > 0
+				p_ptr->warning_rest++;
 				if (p_ptr->warning_rest == WARNING_REST_TIMES) acc_set_flags(p_ptr->accountname, ACC_WARN_REST, TRUE);
+ #endif
 				s_printf("warning_rest: %s\n", p_ptr->name);
 			}
+//#endif
 		}
 	}
 
@@ -11075,7 +11572,7 @@ static void process_firework_creation() {
 }
 
 
-#if defined CLIENT_SIDE_WEATHER && defined CLIENT_WEATHER_GLOBAL
+#if defined(CLIENT_SIDE_WEATHER) && defined(CLIENT_WEATHER_GLOBAL)
 /* Update all affected (ie on worldmap surface) players' client-side weather.
    NOTE: Called on opportunity of _global_ weather undergoing any change. */
 static void players_weather() {
@@ -11093,7 +11590,7 @@ static void players_weather() {
 }
 #endif
 
-#if defined CLIENT_WEATHER_GLOBAL || !defined CLIENT_SIDE_WEATHER
+#if defined(CLIENT_WEATHER_GLOBAL) || !defined(CLIENT_SIDE_WEATHER)
 /* manage and toggle weather and wind state - C. Blue
    NOTE: Called once per second,
          and for CLIENT_SIDE_WEATHER only if also CLIENT_WEATHER_GLOBAL. */
@@ -11318,17 +11815,17 @@ static void process_wild_weather() {
 
 		/* create cloud? limit value depends on season */
 		else if (clouds < max_clouds_seasonal) {
-#ifdef TEST_SERVER /* hack: fixed location for easier live testing? */
+ #ifdef TEST_SERVER /* hack: fixed location for easier live testing? */
 			//around Bree
 			cloud_create(i, 32 * MAX_HGT, 32 * MAX_WID, FALSE);
 			cloud_state[i] = 1;
-#else
+ #else
 			/* create cloud at random starting x, y world _grid_ coords (!) */
 			cloud_create(i,
 			    rand_int(MAX_WILD_X * MAX_WID),
 			    rand_int(MAX_WILD_Y * MAX_HGT),
 			    FALSE);
-#endif
+ #endif
 		}
 	}
 
@@ -11341,7 +11838,7 @@ static void process_wild_weather() {
    clients via buffered direction & duration.)
    New note: Negative values should probably work too (inverse direction). */
 static void cloud_set_movement(int i) {
-#ifdef WEATHER_NO_CLOUD_MOVEMENT
+ #ifdef WEATHER_NO_CLOUD_MOVEMENT
 { /* hack: Try to fix the eternal rain bug:
      Disable cloud movement for now - C. Blue */
 	cloud_xm100[i] = 0;
@@ -11349,20 +11846,20 @@ static void cloud_set_movement(int i) {
 	cloud_mdur[i] = 30 + rand_int(300);
 	return;
 }
-#endif
+ #endif
 
-#ifdef TEST_SERVER /* hack: fixed location for easier live testing? */
- #if 0
+ #ifdef TEST_SERVER /* hack: fixed location for easier live testing? */
+  #if 0
 	cloud_xm100[i] = 100;
 	cloud_ym100[i] = 100;
 	cloud_mdur[i] = 10;
- #endif
- #if 1
+  #endif
+  #if 1
 	cloud_xm100[i] = 0;
 	cloud_ym100[i] = 0;
 	cloud_mdur[i] = 10;
- #endif
-#else
+  #endif
+ #else
 	if (rand_int(2)) {
 		/* no pseudo-wind */
 		cloud_xm100[i] = 0;
@@ -11373,7 +11870,7 @@ static void cloud_set_movement(int i) {
 		cloud_ym100[i] = randint(100);
 	}
 	cloud_mdur[i] = 30 + rand_int(300); /* seconds */
-#endif
+ #endif
 }
 
 /* remove cloud status off all previously affected wilderness sectors,
@@ -11389,14 +11886,14 @@ static void cloud_set_movement(int i) {
    NOTE: 'change' means that either cloud movement changes or that
          a wild sector toggles affected/unaffected state, simply. */
 /* make rain fall down slower? */
-#if 1
- #define WEATHER_GEN_TICKS 3
- #define WEATHER_SNOW_MULT 3
-#else
+ #if 1
+  #define WEATHER_GEN_TICKS 3
+  #define WEATHER_SNOW_MULT 3
+ #else
 /* make rain fall down faster? (recommended) */
- #define WEATHER_GEN_TICKS 2
- #define WEATHER_SNOW_MULT 4
-#endif
+  #define WEATHER_GEN_TICKS 2
+  #define WEATHER_SNOW_MULT 4
+ #endif
 static void cloud_move(int i, bool newly_created) {
 	bool resend_dir = FALSE, sector_changed;
 	wilderness_type *w_ptr;
@@ -11502,9 +11999,12 @@ static void cloud_move(int i, bool newly_created) {
 		   may as well ignore and leave this sector now. */
 		if (!was_affected && !can_become_affected) continue;
 
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //SPAM(after a short while) s_printf("cloud-debug 1.\n");
-#endif
+ #endif
+
+		/* NOTE: Basically same code in c-xtra1.c:do_weather(), dungeon.c:cloud_move(), wild.c:pos_in_weather() */
+
 		/* is the sector affected now after moving? */
 		/* calculate coordinates for deciding test case */
 		/* NOTE regarding hardcoding: These calcs depend on cloud creation algo a lot */
@@ -11528,18 +12028,18 @@ static void cloud_move(int i, bool newly_created) {
 		/* is sector affected now? add cloud to its local cloud array */
 		if (d <= cloud_dsum[i]) {
 			is_affected = TRUE;
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //s_printf("cloud-debug 2.\n");
-#endif
+ #endif
 
 			/* update old cloud data or add a new entry if it didn't exist previously */
 			for (j = 0; j < 10; j++) {
 				/* unchanged cloud situation leads to continuing.. */
 				if (was_affected && w_ptr->cloud_idx[j] != i) continue;
 				if (!was_affected && w_ptr->cloud_idx[j] != -1) continue;
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //s_printf("cloud-debug 3.\n");
-#endif
+ #endif
 
 				/* imprint cloud data to this wild sector's local cloud array */
 				w_ptr->cloud_idx[j] = i;
@@ -11550,13 +12050,13 @@ static void cloud_move(int i, bool newly_created) {
 				w_ptr->cloud_dsum[j] = cloud_dsum[i];
 				w_ptr->cloud_xm100[j] = cloud_xm100[i];
 				w_ptr->cloud_ym100[j] = cloud_ym100[i];
-#if 0
+ #if 0
 				/* meta data for Send_weather() */
 				if (!w_ptr->cloud_updated[j]) {
 					w_ptr->cloud_updated[j] = TRUE;
 					w_ptr->clouds_to_update++;
 				}
-#endif
+ #endif
 				/* define weather situation accordingly */
 				switch (w_ptr->type) {
 				case WILD_ICE:
@@ -11569,23 +12069,23 @@ static void cloud_move(int i, bool newly_created) {
 					/* depends on season */
 					w_ptr->weather_type = (season == SEASON_WINTER ? 2 : 1);
 				}
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //s_printf("weather_type debug: wt=%d, x,y=%d,%d.\n", w_ptr->weather_type, x, y);
-#if 0
+  #if 0
 if (NumPlayers && Players[NumPlayers]->wpos.wx == x && Players[NumPlayers]->wpos.wy == y) {
     s_printf("weather_type debug: wt=%d, x,y=%d,%d.\n", w_ptr->weather_type, x, y);
     s_printf("cloud debug all: cidx=%d, x1,y1=%d,%d, dsum=%d.\n",
 	w_ptr->cloud_idx[j], w_ptr->cloud_x1[j], w_ptr->cloud_y1[j], w_ptr->cloud_dsum[j]);
 }
-#endif
-#endif
+  #endif
+ #endif
 
-#ifndef WEATHER_WINDS /* no winds */
+ #ifndef WEATHER_WINDS /* no winds */
 				w_ptr->weather_wind = 0; /* todo: change =p (implement winds, actually -- currently we're
 				                            using pseudo-winds by just setting random cloud movement - C. Blue */
 				w_ptr->weather_wind_vertical = 0;
-#else /* winds */
- #ifndef WEATHER_NO_CLOUD_MOVEMENT /* Cloud movemenet is disabled as a workaround for the 'eternal rain' bug.. */
+ #else /* winds */
+  #ifndef WEATHER_NO_CLOUD_MOVEMENT /* Cloud movemenet is disabled as a workaround for the 'eternal rain' bug.. */
 				/* note- pretty provisional implementation, since winds shouldnt depend
 				   on cloud movement, but actually the other way round ;) This is merely
 				   so we get to see some wind already, and these 'winds' would also conflict
@@ -11597,7 +12097,7 @@ if (NumPlayers && Players[NumPlayers]->wpos.wx == x && Players[NumPlayers]->wpos
 				if (cloud_ym100[i] > 40) w_ptr->weather_wind_vertical = 5 - (2 * ((cloud_ym100[i] - 40) / 21));
 				else if (cloud_ym100[i] < -40) w_ptr->weather_wind_vertical = 6 - (2 * ((-cloud_ym100[i] - 40) / 21));
 				else w_ptr->weather_wind_vertical = 0;
- #else /* ..so a little hack is needed to bring back 'windy' weather^^ - C. Blue */
+  #else /* ..so a little hack is needed to bring back 'windy' weather^^ - C. Blue */
 				/* hack - randomly assume some winds, that stay sufficiently consistent */
 				{
 					/* this should allow smooth/consistent winds over slight changes in a player's wilderness position: */
@@ -11619,47 +12119,47 @@ if (NumPlayers && Players[NumPlayers]->wpos.wx == x && Players[NumPlayers]->wpos
 					}
 					w_ptr->weather_wind_vertical = 0;
 				}
+  #endif
  #endif
-#endif
 
 				w_ptr->weather_intensity =
 				    ((w_ptr->weather_type == 2 || w_ptr->weather_type == 3) && (!w_ptr->weather_wind || w_ptr->weather_wind >= 3)) ?
 				    5 : 8;
 				w_ptr->weather_speed =
-#if 1 /* correct! (this is a different principle than 'weather_intensity' above) */
+ #if 1 /* correct! (this is a different principle than 'weather_intensity' above) */
 				    (w_ptr->weather_type == 2 || w_ptr->weather_type == 3) ? WEATHER_SNOW_MULT * WEATHER_GEN_TICKS :
 				    /* hack: for non-windy rainfall, accelerate raindrop falling speed by 1: */
 				    (w_ptr->weather_wind ? 1 * WEATHER_GEN_TICKS : WEATHER_GEN_TICKS - 1);
-#else /* just for testing stuff */
+ #else /* just for testing stuff */
 				    ((w_ptr->weather_type == 2 || w_ptr->weather_type == 3) && (!w_ptr->weather_wind || w_ptr->weather_wind >= 3)) ?
 				    WEATHER_SNOW_MULT * WEATHER_GEN_TICKS : 1 * WEATHER_GEN_TICKS;
-#endif
+ #endif
 				break;
 			}
 		}
 		/* sector is not affected. If it was previously affected,
 		   delete cloud from its local array now. */
 		else if (was_affected) {
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //s_printf("cloud-debug 4.\n");
-#endif
+ #endif
 			/* erase cloud locally */
 			w_ptr->cloud_idx[was_affected_idx] = -1;
 			w_ptr->cloud_x1[was_affected_idx] = -9999; /* hack for client: client sees this as 'disabled' */
-#if 0
+ #if 0
 			/* meta data for Send_weather() */
 			if (!w_ptr->cloud_updated[was_affected_idx]) {
 				w_ptr->cloud_updated[was_affected_idx] = TRUE;
 				w_ptr->clouds_to_update++;
 			}
-#endif
+ #endif
 
 			/* if this was the last cloud in this sector,
 			   define (stop) weather situation accordingly */
 			if (final_cloud_in_sector) {
-#ifdef TEST_SERVER
+ #ifdef TEST_SERVER
 //s_printf("cloud-debug 5.\n");
-#endif
+ #endif
 				w_ptr->weather_type = 0; /* make weather 'run out slowly' */
 			}
 		}
@@ -11719,13 +12219,13 @@ static void cloud_erase(int i) {
 			/* erase cloud locally */
 			w_ptr->cloud_idx[was_affected_idx] = -1;
 			w_ptr->cloud_x1[was_affected_idx] = -9999; /* hack for client: client sees this as 'disabled' */
-#if 0
+ #if 0
 			/* meta data for Send_weather() */
 			if (!w_ptr->cloud_updated[was_affected_idx]) {
 				w_ptr->cloud_updated[was_affected_idx] = TRUE;
 				w_ptr->clouds_to_update++;
 			}
-#endif
+ #endif
 
 			/* if this was the last cloud in this sector,
 			   define (stop) weather situation accordingly */
@@ -11807,9 +12307,9 @@ void local_weather_update(void) {
 	   Note: this is synched to all players in the same worldmap sector,
 	   for consistency. :) */
 	int thunderstorm, thunderclap = 999;
-#ifdef USE_SOUND_2010
+ #ifdef USE_SOUND_2010
 	int vol = rand_int(86);
-#endif
+ #endif
 
 	thunderstorm = (turn / (cfg.fps * 3600)) % 6; /* n out of every 6 world map sector clusters have thunderstorms going */
 	if (!(turn % (cfg.fps * 10))) thunderclap = rand_int(5); /* every 10s there is a 1 in 5 chance of thunderclap (in a thunderstorm area) */
@@ -11822,31 +12322,31 @@ void local_weather_update(void) {
 		if (Players[i]->wpos.wz) continue;
 
 		/* HACK part 2: if harsh weather, play random world-sector-synched thunderclaps */
-#if 0 /* debug */
+ #if 0 /* debug */
 		if (thunderclap == 0) {
 			s_printf("p %d - w %d, t %d\n",
 			    ((Players[i]->wpos.wy + Players[i]->wpos.wx) / 5) % 6,
 			    thunderstorm,
 			    wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_type);
 		}
-#endif
+ #endif
 		if (thunderclap == 0 &&
 		    wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_type == 1 && /* no blizzards for now, just rainstorms */
 		    //wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_wind &&
 		    ((Players[i]->wpos.wy + Players[i]->wpos.wx) / 5) % 6 == thunderstorm) {
-#ifdef USE_SOUND_2010
+ #ifdef USE_SOUND_2010
 			sound_vol(i, "thunder", NULL, SFX_TYPE_WEATHER, FALSE, 15 + (vol + Players[i]->wpos.wy + Players[i]->wpos.wx) % 86); //weather: screen flashing implied
-#endif
+ #endif
 		}
 
 		/* no change in local situation? nothing to do then */
 		if (!wild_info[Players[i]->wpos.wy][Players[i]->wpos.wx].weather_updated) continue;
 		/* update player's local weather */
-#ifdef TEST_SERVER /* DEBUG */
-#if 0
+ #ifdef TEST_SERVER /* DEBUG */
+  #if 0
 s_printf("updating weather for player %d.\n", i);
-#endif
-#endif
+  #endif
+ #endif
 		player_weather(i, FALSE, TRUE, FALSE);
 	}
 	/* reclear 'weather_updated' flag after all players have been updated */
@@ -11859,6 +12359,17 @@ s_printf("updating weather for player %d.\n", i);
 /* calculate slow-downs of running speed due to environmental circumstances / grid features - C. Blue
    Note: a.t.m. Terrain-related slowdowns take precedence over wind-related slowdowns, cancelling them. */
 void eff_running_speed(int *real_speed, player_type *p_ptr, cave_type *c_ptr) {
+	int impair = 100;
+
+	/* Shadow school: Especially fast at world surface at night, for travelling QoL, negating any terrain-induced slowdowns even! */
+	if (!p_ptr->wpos.wz && night_surface && (impair = 100 - get_skill_scale(p_ptr, SKILL_OSHADOW, 108))) {
+		int boost = 100 + get_skill_scale(p_ptr, SKILL_OSHADOW, 60);
+
+		if (impair < 25) impair = 25; /* up to 75% impairment reduction, reached at skill ~35 */
+		if (boost > 130) boost = 130; /* up to 30% faster running speed, reached at skill 25 already */
+		*real_speed = (*real_speed * boost) / 100;
+	}
+
 #if 1 /* NEW_RUNNING_FEAT */
 	if (!is_admin(p_ptr) && !p_ptr->ghost && !p_ptr->tim_wraith) {
 		/* are we in fact running-levitating? */
@@ -11866,61 +12377,63 @@ void eff_running_speed(int *real_speed, player_type *p_ptr, cave_type *c_ptr) {
 		if ((f_info[c_ptr->feat].flags1 & (FF1_CAN_LEVITATE | FF1_CAN_RUN))) {
 			/* Allow level 50 druids to run at full speed */
 			if (!(p_ptr->pclass == CLASS_DRUID &&  p_ptr->lev >= 50)) {
-				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_LEVITATING_1) *real_speed /= 2;
-				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_LEVITATING_2) *real_speed /= 4;
+				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_LEVITATING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
+				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_LEVITATING_2) *real_speed = (*real_speed * 100) / (100 + (300 * impair) / 100); // -75% speed
 			}
 		}
 	    /* or running-swimming? */
 		else if ((c_ptr->feat == FEAT_SHAL_WATER || c_ptr->feat == FEAT_GLIT_WATER || c_ptr->feat == FEAT_TAINTED_WATER || c_ptr->feat == FEAT_DEEP_WATER) && p_ptr->can_swim) {
 			/* Allow Aquatic players run/swim at full speed */
 			if (!(r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC)) {
-				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_1) *real_speed /= 2;
-				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_2) *real_speed /= 4;
+				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
+				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_2) *real_speed = (*real_speed * 100) / (100 + (300 * impair) / 100); // -75% speed
 			}
 		}
 		/* or just normally running? */
 		else {
-			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_1) *real_speed /= 2;
-			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_2) *real_speed /= 4;
+			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
+			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_2) *real_speed = (*real_speed * 100) / (100 + (300 * impair) / 100); // -75% speed
 		}
 	}
 #endif
 
-#if 0 /* enable? */
- #if defined CLIENT_SIDE_WEATHER && !defined CLIENT_WEATHER_GLOBAL
-    {	int wind, real_speed_vertical;
-	/* hack: wind without rain doesn't count, since it might confuse the players */
-	if (!wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_type) return;
+#ifdef IRRITATING_WEATHER /* Hinder player movement if running against the wind speed */
+ #if defined(CLIENT_SIDE_WEATHER) && !defined(CLIENT_WEATHER_GLOBAL)
+	if (!p_ptr->grid_house && !p_ptr->wpos.wz) {
+		int wind, real_speed_vertical;
 
-	real_speed_vertical = *real_speed;
-	/* running against strong wind is slower :) - C. Blue */
-	wind = wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_wind;
-	if (!wind || *real_speed != cfg.running_speed) ;
-		/* if no wind, or if we're already slowed down: nothing */
-	else if (wind % 2) {
-		/* west wind */
-		if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
-			*real_speed = (*real_speed * (wind + 3)) / 10;
-	} else {
-		/* east wind */
-		if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
-			*real_speed = (*real_speed * (wind + 6)) / 10;
+		/* hack: just 'wind' (invisible/inaudible) without actual rain/snow/sand doesn't count, since it might confuse the players */
+		if (!wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_type) return;
+
+		real_speed_vertical = *real_speed;
+		/* running against strong wind is slower :) - C. Blue */
+		wind = wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_wind;
+		if (!wind || *real_speed != cfg.running_speed) ;
+			/* if no wind, or if we're already slowed down: nothing */
+		else if (wind % 2) {
+			/* west wind */
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
+				*real_speed = (*real_speed * (wind + 3)) / 10;
+		} else {
+			/* east wind */
+			if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * (wind + 6)) / 10;
+		}
+		/* also check vertical winds (which are only used for exactly this purpose here) */
+		wind = wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_wind_vertical;
+		if (!wind || real_speed_vertical != cfg.running_speed) ;
+			/* if no wind, or if we're already slowed down: nothing */
+		else if (wind % 2) {
+			/* west wind */
+			if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
+				real_speed_vertical = (real_speed_vertical * (wind + 3)) / 10;
+		} else {
+			/* east wind */
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
+				real_speed_vertical = (real_speed_vertical * (wind + 6)) / 10;
+		}
+		if (real_speed_vertical < *real_speed) *real_speed = real_speed_vertical;
 	}
-	/* also check vertical winds (which are only used for exactly this purpose here) */
-	wind = wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].weather_wind_vertical;
-	if (!wind || real_speed_vertical != cfg.running_speed) ;
-		/* if no wind, or if we're already slowed down: nothing */
-	else if (wind % 2) {
-		/* west wind */
-		if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
-			real_speed_vertical = (real_speed_vertical * (wind + 3)) / 10;
-	} else {
-		/* east wind */
-		if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
-			real_speed_vertical = (real_speed_vertical * (wind + 6)) / 10;
-	}
-	if (real_speed_vertical < *real_speed) *real_speed = real_speed_vertical;
-    }
  #endif
 #endif
 }

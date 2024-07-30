@@ -17,11 +17,13 @@ function get_server_notes(x)
 			return notes
 		end
 	end
-	return game, version
+	--return game, version
+	return ""
 end
 
 function get_game_version(x)
 	local game, version = "unknown", "unknown"
+	local i
 
 	for i = 1, getn(x) do
 		if x[i].label == "game" then game = x[i][1] end
@@ -32,6 +34,7 @@ end
 
 function get_players(x)
 	local players = ""
+	local i
 
 	for i = 1, getn(x) do
 		if x[i].label == "player" then
@@ -51,6 +54,7 @@ end
 
 function get_players_count(x)
 	local nb = 0
+	local i
 
 	for i = 1, getn(x) do
 		if x[i].label == "player" then
@@ -76,6 +80,7 @@ function meta_display(xml_feed)
 			if x[i].label == "server" then
 				local game, version = get_game_version(x[i])
 				local cat_name = game .. " " .. version
+				local extra
 
 				cat_slot = 0
 				for k, e in categories do
@@ -93,7 +98,6 @@ function meta_display(xml_feed)
 --				local server_notes
 --				server_notes = get_server_notes(x[i])
 
-				local extra
 				if get_players_count(x[i]) == 1 then
 					extra = "\255b" .. get_players_count(x[i]) .. " player"
 				else
@@ -117,7 +121,10 @@ function meta_display(xml_feed)
 
 	line = 0
 	nb = 0
-	color_print(line, 0, "\255B" .. meta_name .. "\255B, " .. nb_servers .. " live servers available."); line = line + 3;
+	color_print(line, 0, "\255B" .. meta_name .. "\255B, " .. nb_servers .. " live servers available.")
+	if nb_servers == 0 then line = line + 6
+	else line = line + 4; end
+
 	for k, e in categories do
 		color_print(line, 0, "\255o" .. e.name .. " :"); line = line + 1
 
@@ -137,16 +144,22 @@ function meta_display(xml_feed)
 	line = 1
 	if nb_servers == 0 then
 		color_print(line, 0, "\255BPress \255RQ\255B to enter a server (IP or hostname) manually or to quit."); line = line + 1
+		color_print(line, 0, "\255BSince the meta server seems unreachable, you can also try looking in your"); line = line + 1
+		color_print(line, 0, "\255BTomeNET folder for a file '\255RTomeNET-direct*.bat\255B' and double-click that to"); line = line + 1
+		color_print(line, 0, "\255Bconnect directly to a TomeNET server, bypassing meta and DNS servers!"); line = line + 1
 	elseif nb_servers == 1 then
 		--color_print(line, 0, "\255BSelect the server with \255Ra"); line = line + 1
 		--color_print(line, 0, "\255Bor press \255RQ\255B to enter an IP or hostname manually or to quit."); line = line + 1
 		color_print(line, 0, "\255BSelect the server with \255Ra\255B or press \255RQ\255B to enter a server manually or to quit."); line = line + 1
+		color_print(line, 0, "\255B(You can run \255RTomeNET-direct*.bat\255B instead of TomeNET.exe to connect directly.)"); line = line + 1
 	else
 		--local c = string.char(96 + nb_servers)
 		local c = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
 		--color_print(line, 0, "\255BSelect a server with \255Ra\255B-\255R" .. c[nb_servers]); line = line + 1
 		--color_print(line, 0, "\255Bor press \255RQ\255B to enter an IP or hostname manually or to quit."); line = line + 1
 		color_print(line, 0, "\255BSelect a server with \255Ra\255B-\255R" .. c[nb_servers]  .. "\255B or press \255RQ\255B to enter a server manually or to quit."); line = line + 1
+		color_print(line, 0, "\255B(You can run \255RTomeNET-direct*.bat\255B instead of TomeNET.exe to connect directly.)"); line = line + 1
 	end
 
 	return nb
@@ -161,8 +174,7 @@ end
 
 -- META_PINGS - set/update ping and display it
 function meta_add_ping(pos, ping)
-	local attr
-	local unit
+	local attr, unit, spacer
 
 	meta_list[pos][5] = ping
 	unit = " ms"

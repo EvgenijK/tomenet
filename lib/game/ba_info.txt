@@ -180,12 +180,12 @@ I:6:0:x:0
 # Restrict to liked/normal
 N:36:Get an extermination order
 C:0:0:0
-I:46:1:x:0
+I:47:1:x:0
 
 #	--unused
 N:37:Get an extermination order
 C:0:0:0
-I:47:0:x:0
+I:48:0:x:0
 
 #	--unused
 N:38:Get an extermination order
@@ -385,3 +385,7 @@ I:75:0:L:0
 N:82:Contact house owner
 C:0:0:0
 I:76:0:o:0
+
+N:83:List of Guilds
+C:0:0:0
+I:77:0:G:0

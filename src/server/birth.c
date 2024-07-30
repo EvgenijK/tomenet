@@ -508,7 +508,7 @@ static int adjust_stat(int Ind, int value, s16b amount, int auto_roll) {
 	if (amount < 0) {
 		/* Apply penalty */
 		for (i = 0; i < (0 - amount); i++) {
-			if (value >= 18+10)
+			if (value >= 18 + 10)
 				value -= 10;
 			else if (value > 18)
 				value = 18;
@@ -521,16 +521,11 @@ static int adjust_stat(int Ind, int value, s16b amount, int auto_roll) {
 	else if (amount > 0) {
 		/* Apply reward */
 		for (i = 0; i < amount; i++) {
-			if (value < 18)
-				value++;
-			else if (p_ptr->maximize)
-				value += 10;
-			else if (value < 18+70)
-				value += ((auto_roll ? 15 : randint(15)) + 5);
-			else if (value < 18+90)
-				value += ((auto_roll ? 6 : randint(6)) + 2);
-			else if (value < 18+100)
-				value++;
+			if (value < 18) value++;
+			else if (p_ptr->maximize) value += 10;
+			else if (value < 18 + 70) value += ((auto_roll ? 15 : randint(15)) + 5);
+			else if (value < 18 + 90) value += ((auto_roll ? 6 : randint(6)) + 2);
+			else if (value < 18 + 100) value++;
 		}
 	}
 
@@ -546,7 +541,7 @@ static int adjust_stat(int Ind, int value, s16b amount, int auto_roll) {
  *
  * For efficiency, we include a chunk of "calc_boni()".
  */
-static bool get_stats(int Ind, int stat_order[6]) {
+static s16b get_stats(int Ind, int stat_order[6]) {
 	player_type *p_ptr = Players[Ind];
 	int i, j, tries = 1000;
 
@@ -558,22 +553,20 @@ static bool get_stats(int Ind, int stat_order[6]) {
 	int free_points = 30, maxed_stats = 0;
 
 	/* Clear "stats" array */
-	for (i = 0; i < 6; i++)
-		stats[i] = 0;
+	for (i = 0; i < C_ATTRIBUTES; i++) stats[i] = 0;
 
 	/* Traditional random stat rolling */
 	if (CHAR_CREATION_FLAGS == 0) {
-
 		/* Check over the given stat order, to prevent cheating */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Check range */
-			if (stat_order[i] < 0 || stat_order[i] > 5)
+			if (stat_order[i] < 0 || stat_order[i] >= C_ATTRIBUTES)
 				stat_order[i] = 1;
 
 			/* Check for duplicated entries */
 			if (stats[stat_order[i]] == 1) {
 				/* Find a stat that hasn't been specified yet */
-				for (j = 0; j < 6; j++) {
+				for (j = 0; j < C_ATTRIBUTES; j++) {
 					if (stats[j]) continue;
 					stat_order[i] = j;
 				}
@@ -603,9 +596,9 @@ static bool get_stats(int Ind, int stat_order[6]) {
 		}
 
 		/* Acquire the stats */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Extract 5 + 1d3 + 1d4 + 1d5 */
-			j = 5 + dice[3*i] + dice[3*i+1] + dice[3*i+2];
+			j = 5 + dice[3 * i] + dice[3 * i + 1] + dice[3 * i + 2];
 
 			/* Save that value */
 			stats[i] = j;
@@ -613,24 +606,22 @@ static bool get_stats(int Ind, int stat_order[6]) {
 
 		/* Now sort the stats */
 		/* I use a bubble sort because I'm lazy at the moment */
-		for (i = 0; i < 6; i++) {
-			for (j = 0; j < 5; j++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
+			for (j = 0; j < C_ATTRIBUTES - 1; j++) {
 				if (stats[j] < stats[j + 1]) {
-					int t;
-
-					t = stats[j];
+					tries = stats[j];
 					stats[j] = stats[j + 1];
-					stats[j + 1] = t;
+					stats[j + 1] = tries;
 				}
 			}
 		}
 
 		/* Now, put them in the correct order */
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < C_ATTRIBUTES; i++)
 			p_ptr->stat_max[stat_order[i]] = stats[i];
 
 		/* Adjust the stats */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Obtain a "bonus" for "race" and "class" */
 			bonus = p_ptr->rp_ptr->r_adj[i] + p_ptr->cp_ptr->c_adj[i];
 
@@ -662,7 +653,7 @@ static bool get_stats(int Ind, int stat_order[6]) {
 
 	/* Players may modify their stats manually */
 	else {
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			bonus = p_ptr->rp_ptr->r_adj[i] + p_ptr->cp_ptr->c_adj[i];
 
 			/* Fix limits - all cases here cover malicious client-side cheating attempts :) */
@@ -689,18 +680,18 @@ static bool get_stats(int Ind, int stat_order[6]) {
 		/* If client has been hacked or a version desync error occured, quit. */
 		if (free_points < 0) {
 			s_printf("EXPLOIT: %s allocates too many (+%d) stat points.\n", p_ptr->name, -free_points);
-			return(FALSE);
+			return(-1);
 		} else if (free_points) s_printf("STATPOINTS: %s allocates not all (-%d) stat points.\n", p_ptr->name, free_points);
 
 		/* Apply selected stats */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			bonus = p_ptr->rp_ptr->r_adj[i] + p_ptr->cp_ptr->c_adj[i];
 			p_ptr->stat_cur[i] = p_ptr->stat_max[i] = stat_order[i];
 			stat_use[i] = modify_stat_value(p_ptr->stat_max[i], bonus);
 		}
 	}
 
-	return(TRUE);
+	return(free_points);
 }
 
 
@@ -777,7 +768,7 @@ static void get_extra(int Ind) {
 			   smaller random range - C. Blue
 			j = randint(p_ptr->hitdie);*/
 			j = 2 + randint(p_ptr->hitdie - 4);
-			p_ptr->player_hp[i] = p_ptr->player_hp[i-1] + j;
+			p_ptr->player_hp[i] = p_ptr->player_hp[i - 1] + j;
 		}
 
 		/* Require "valid" hitpoints at kinging level */
@@ -884,8 +875,8 @@ void get_history(int Ind) {
 		    p_ptr->prace == RACE_HUMAN // of the house of Beor, before the Dunedain
 		    ) { // Human/Dunadan -->  1 -->  2 -->  3 --> 50 --> 51 --> 52 --> 53
 			/* Process predefined history using the existing charts */
-			int charts[7] = {1,2,3,50,51,52,53};
-			int rolls[7] = {100,100,80,100,90,30,90}; // nobility, Beor look like Noldor
+			int charts[7] = { 1, 2, 3, 50, 51, 52, 53 };
+			int rolls[7] = { 100, 100, 80, 100, 90, 30, 90 }; // nobility, Beor look like Noldor
 
 			for (int x = 0; x < 7; x++) {
 				i = 0;
@@ -901,8 +892,8 @@ void get_history(int Ind) {
 		    p_ptr->stat_max[5] == 17 // gotta remain true to the lore :)
 		    ) { // Elf/High-Elf  -->  7 -->  8 -->  9 --> 54 --> 55 --> 56
 			/* Process predefined history using the existing charts */
-			int charts[6] = {7,8,9,54,55,56};
-			int rolls[6] = {100,75,100,85,75,75}; // nobility, specific Teleri features
+			int charts[6] = { 7, 8, 9, 54, 55, 56 };
+			int rolls[6] = { 100, 75, 100, 85, 75, 75 }; // nobility, specific Teleri features
 
 			for (int x = 0; x < 6; x++) {
 				i = 0;
@@ -973,7 +964,7 @@ void get_history(int Ind) {
 	n = strlen(s);
 
 	/* Kill trailing spaces */
-	while ((n > 0) && (s[n-1] == ' ')) s[--n] = '\0';
+	while ((n > 0) && (s[n - 1] == ' ')) s[--n] = '\0';
 
 
 	/* Start at first line */
@@ -994,13 +985,13 @@ void get_history(int Ind) {
 		}
 
 		/* Find a reasonable break-point */
-		for (n = 60; ((n > 0) && (s[n-1] != ' ')); n--) /* loop */;
+		for (n = 60; ((n > 0) && (s[n - 1] != ' ')); n--) /* loop */;
 
 		/* Save next location */
 		t = s + n;
 
 		/* Wipe trailing spaces */
-		while ((n > 0) && (s[n-1] == ' ')) s[--n] = '\0';
+		while ((n > 0) && (s[n - 1] == ' ')) s[--n] = '\0';
 
 		/* Save one line of history */
 		strcpy(p_ptr->history[i++], s);
@@ -1039,22 +1030,55 @@ static void get_ahw(int Ind) {
 /*
  * Get the player's starting money
  */
-static void get_money(int Ind) {
+static void get_money(int Ind, s16b free_points) {
 	player_type *p_ptr = Players[Ind];
-	int	i, gold;
-
-	/* Social Class determines starting gold */
-/*	gold = (p_ptr->sc * 6) + randint(100) + 300; - the suicide spam to get more gold was annoying.. */
-	gold = randint(20) + 350;
+	int gold = 0;
+#if 0 /* old system - not used anymore because too arbitrary thresholds and not fitting the stat-point allocation system */
+	int i;
 
 	/* Process the stats */
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < C_ATTRIBUTES; i++) {
 		/* Mega-Hack -- reduce gold for high stats */
-		if (stat_use[i] >= 18+50) gold -= 150;
-		else if (stat_use[i] >= 18+20) gold -= 100;
+		if (stat_use[i] >= 18 + 50) gold -= 150;
+		else if (stat_use[i] >= 18 + 20) gold -= 100;
 		else if (stat_use[i] > 18) gold -= 50;
 		else gold -= (stat_use[i] - 8) * 5;
 	}
+
+	/* Social Class determines starting gold */
+ #if 0 /* 0'ed: the suicide spam to get more gold was annoying.. */
+	gold += (p_ptr->sc * 6) + randint(100) + 300;
+ #else
+	gold += randint(20) + 350;
+ #endif
+#else /* Reworked the complete Au bonus system for more fairness and interesting balance, hopefully... - C. Blue */
+ #if 0 /* This actually leads to extra Au bonus for using few, but in turn very high stats, which seems weird. */
+	int i;
+
+	/* Process the stats */
+	for (i = 0; i < C_ATTRIBUTES; i++) {
+		/* Linear increase (for fair stats) or deduction (for poor stats) */
+		gold -= (stat_use[i] - 15) * 5;
+  #if 0 /* Especially great stats already cost especially many stat points during character creation, using the new (ie non-random but point-allocation) system; should not double-tax it here again. */
+		/* Selected decrease for especially great stats? */
+		if (stat_use[i] >= 18) gold -= (stat_use[i] - 17) * 10;
+  #endif
+	}
+ #else /* Instead, give Au bonus for non-allocated stat points, which is a true matter of balance here. */
+  #if 0 /* Sounds cool but actually bad idea, because it is very easy to sacrifice some unimportant points to gain a huge advantage for things like IDDC or adventures! */
+	gold += (free_points + 1) * (free_points + 1) * 10 - 10; /* Exponential gain: Create an skill-lacking nouveau riche character >,> */
+  #else /* Still reward somewhat exponentially, but much less, and only add few and linear Au when reaching zero used stat points, so lowering stats into negatives (-1 or -2) will not add further exponential explosion! */
+	if (free_points > 30) {
+		gold += (free_points - 30) * 6; // only little Au gain for negative stat points
+		free_points = 30;
+	}
+	gold += (free_points + 15) * (free_points + 15) / 5 - 45; /* Exponential gain: Sacrifice unnecessary skill points for some monetary gain */
+  #endif
+ #endif
+
+	/* Social Class determines starting gold */
+	gold += randint(20) + 150 + p_ptr->sc / 5; /* sc: 1..100; this little influence should not lead to suicide spam surely...? :-p */
+#endif
 
 	/* Minimum 100 gold */
 	if (gold < 100) gold = 100;
@@ -1066,71 +1090,91 @@ static void get_money(int Ind) {
 	p_ptr->tim_watchlist = 0;
 	p_ptr->pstealing = 0;
 
-#ifdef RPG_SERVER /* casters need to buy a decent book, warriors don't */
- #if 0
-	p_ptr->au = 1000;
- #else
-  #if STARTEQ_TREATMENT < 3
-	switch (p_ptr->pclass) {
-	case CLASS_MAGE:	p_ptr->au += 850; break;
-   #ifdef ENABLE_CPRIEST
-	case CLASS_CPRIEST:
-   #endif
-	case CLASS_PRIEST:      p_ptr->au += 600; break;
-	case CLASS_SHAMAN:	p_ptr->au += 550; break;
-	case CLASS_RUNEMASTER:  p_ptr->au += 500; break;
-	case CLASS_MINDCRAFTER:	p_ptr->au += 500; break;
-	case CLASS_ROGUE:	p_ptr->au += 400; break;
-	case CLASS_ARCHER:	p_ptr->au += 400; break;
-	case CLASS_ADVENTURER:	p_ptr->au += 300; break;
-	case CLASS_RANGER:      p_ptr->au += 200; break;
-   #ifdef ENABLE_DEATHKNIGHT
-	case CLASS_DEATHKNIGHT:
-   #endif
-   #ifdef ENABLE_HELLKNIGHT
-	case CLASS_HELLKNIGHT:	//cannot happen here
-   #endif
-	case CLASS_PALADIN:     p_ptr->au += 200; break;
-	case CLASS_DRUID:	p_ptr->au += 200; break;
-	case CLASS_MIMIC:	p_ptr->au += 100; break;
-	case CLASS_WARRIOR:	p_ptr->au += 0; break;// they can sell their eq.
-	default:		;
-	}
-  #else
-	switch (p_ptr->pclass) {
-	case CLASS_MAGE:	p_ptr->au += 1000; break;
-	case CLASS_SHAMAN:	p_ptr->au += 1000; break;
-	case CLASS_MINDCRAFTER:	p_ptr->au += 900; break;
-   #ifdef ENABLE_CPRIEST
-	case CLASS_CPRIEST:
-   #endif
-	case CLASS_PRIEST:      p_ptr->au += 800; break;
-	case CLASS_RUNEMASTER:  p_ptr->au += 800; break;
-	case CLASS_ADVENTURER:	p_ptr->au += 700; break;
-	case CLASS_DRUID:	p_ptr->au += 600; break;
-	case CLASS_RANGER:      p_ptr->au += 600; break;
-   #ifdef ENABLE_DEATHKNIGHT
-	case CLASS_DEATHKNIGHT:
-   #endif
-   #ifdef ENABLE_HELLKNIGHT
-	case CLASS_HELLKNIGHT:	//cannot happen here
-   #endif
-	case CLASS_PALADIN:     p_ptr->au += 600; break;
-	case CLASS_ROGUE:	p_ptr->au += 600; break;
-	case CLASS_MIMIC:	p_ptr->au += 600; break;
-	case CLASS_WARRIOR:	p_ptr->au += 600; break;
-	case CLASS_ARCHER:	p_ptr->au += 400; break; /* gets ammo, bow, lantern, extra phases! */
-	default:		;
-	}
-  #endif
- #endif
-#else
- #if STARTEQ_TREATMENT == 3
+	/* --- Gain extra gold depending on class' needs and server settings --- */
+
+#if STARTEQ_TREATMENT == 3 /* Players cannot sell starter items. (default) */
 	p_ptr->au += 300;
- #else
-	if ((p_ptr->pclass != CLASS_WARRIOR) && (p_ptr->pclass != CLASS_MIMIC))
-		p_ptr->au += 200; /* their startup eq sells for most */
+#else /* Players can sell starter items! */
+	/* Some classes have starter items that sell for A LOT, being instantly sold basically (see [...] values further below)! */
+ #if 0
+	//TODO: set those items (IV amulet, invis pot, self-know pot) to 100% off; adjust +Au bonus of all classes according to their [<Au value>] numbers
+ #else /* ..until the above 'TODO' is resolved: */
+	/* Just a generic placeholder Au bonus for all classes (as if their starter items were not sellable) */
+	p_ptr->au += 200;
  #endif
+#endif
+
+#ifdef RPG_SERVER /* casters need to buy a decent book, warriors don't -- approximate book value of starter items, MINUS beginner books (except single scrolls), given in brackets */
+	switch (p_ptr->pclass) {
+	/* get starter books */
+	case CLASS_MAGE:	p_ptr->au += 250; break; //						[500]
+ #ifdef ENABLE_CPRIEST
+	case CLASS_CPRIEST:	//cannot happen here
+ #endif
+	case CLASS_PRIEST:      p_ptr->au += 250; break; //						[580]
+	case CLASS_SHAMAN:	p_ptr->au += 250; break; //						[1700 (IV amulet: 1350)]
+
+	/* get starter scroll */
+	case CLASS_MINDCRAFTER:	p_ptr->au += 400; break; //						[600]
+	case CLASS_RANGER:      p_ptr->au += 400; break; //						[750]
+	case CLASS_ROGUE:	p_ptr->au += 400; break; //						[200]
+ #ifdef ENABLE_DEATHKNIGHT
+	case CLASS_DEATHKNIGHT: //									[750]
+ #endif
+ #ifdef ENABLE_HELLKNIGHT
+	case CLASS_HELLKNIGHT:	//cannot happen here
+ #endif
+	case CLASS_PALADIN:     p_ptr->au += 400; break; //						[875]
+	case CLASS_DRUID:	p_ptr->au += 300; break; //is op anyway					[1150 (invis pot: 1000)]
+
+	/* doesn't get anything but can be anything */
+	case CLASS_ADVENTURER:	p_ptr->au += 450; break; //						[200]
+
+	/* doesn't get/need anything */
+	case CLASS_ARCHER:	p_ptr->au += 150; break; //escape mechanism/xbow maybe			[650 (w/o long bow)]
+	case CLASS_MIMIC:	p_ptr->au += 50; break; //low bpr, no real spells to make up for it	[3000 (self-know pot: 2000]
+	case CLASS_WARRIOR:	p_ptr->au += 0; break; //can sell starter equipment if required?	[1250]
+	case CLASS_RUNEMASTER:  p_ptr->au += 0; break; //doesn't use/need spells			[450]
+	}
+#else
+ /* Light-version of RPG server gold boni, for the normal server:
+    Extra Au, added specifically for events/challenges that don't allow you to get more spells easily and early on.
+    This creates a disparity between classes that start with a fully fledged starter spell book or especially
+    runemasters who do not require books at all to continuously increase their power with each early on level up,
+    and hybrid classes that start with only one specific very low-level spell scroll and need to spend excessive
+    money to acquire even one more low level spell.
+    Example events concerned: Highly Kurzel's adventure modules, but to some minor extent also Ironman Deep Dive Challenge.*/
+	switch (p_ptr->pclass) {
+	/* get starter books */
+	case CLASS_MAGE:	p_ptr->au += 0; break;
+ #ifdef ENABLE_CPRIEST
+	case CLASS_CPRIEST:	//cannot happen here
+ #endif
+	case CLASS_PRIEST:      p_ptr->au += 0; break;
+	case CLASS_SHAMAN:	p_ptr->au += 0; break;
+
+	/* get starter scroll */
+	case CLASS_MINDCRAFTER:	p_ptr->au += 200; break;
+	case CLASS_RANGER:      p_ptr->au += 200; break;
+	case CLASS_ROGUE:	p_ptr->au += 200; break;
+ #ifdef ENABLE_DEATHKNIGHT
+	case CLASS_DEATHKNIGHT:
+ #endif
+ #ifdef ENABLE_HELLKNIGHT
+	case CLASS_HELLKNIGHT:	//cannot happen here
+ #endif
+	case CLASS_PALADIN:     p_ptr->au += 200; break;
+	case CLASS_DRUID:	p_ptr->au += 100; break; //is op anyway
+
+	/* doesn't get anything but can be anything */
+	case CLASS_ADVENTURER:	p_ptr->au += 250; break;
+
+	/* doesn't get/need anything */
+	case CLASS_ARCHER:	p_ptr->au += 50; break; //escape mechanism/xbow maybe
+	case CLASS_MIMIC:	p_ptr->au += 50; break; //low bpr, no real spells to make up for it
+	case CLASS_WARRIOR:	p_ptr->au += 0; break;
+	case CLASS_RUNEMASTER:  p_ptr->au += 0; break; //doesn't use/need spells
+	}
 #endif
 
 	/* Since it's not a king/queen */
@@ -1225,6 +1269,8 @@ static void player_wipe(int Ind) {
  * will be given instead.	- Jir -
  */
 static byte player_init[2][MAX_CLASS][5][3] = {
+	/* Format: { tval, sval, pval } */
+
     { /* Normal body */
 	{
 		/* Warrior */
@@ -1264,6 +1310,7 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		//{ TV_SCROLL, SV_SCROLL_PHASE_DOOR, 0 },
 		{ TV_TRAPKIT, SV_TRAPKIT_POTION, 0 },
 		//{ TV_BOOK, SV_SPELLBOOK, 21 }, /* Spellbook of Phase Door */
+		//{ TV_BOOK, 66, 0 },
 	},
 
 	{
@@ -1298,7 +1345,8 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		/* Ranger */
 		{ TV_SWORD, SV_LONG_SWORD, 0 },
 		{ TV_SOFT_ARMOR, SV_LEATHER_SCALE_MAIL, 0 },
-		{ TV_BOOK, 50, 0 },
+		//{ TV_BOOK, 50, 0 },
+		{ TV_BOOK, SV_SPELLBOOK, -1 }, /* __lua_HEALING_I */
 		{ TV_BOW, SV_LONG_BOW, 0 },
 		{ TV_TRAPKIT, SV_TRAPKIT_SLING, 0 },
 	},
@@ -1347,6 +1395,7 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		{ TV_SOFT_ARMOR, SV_HARD_LEATHER_ARMOR, 0 },
 		{ TV_SCROLL, SV_SCROLL_TELEPORT, 0 },
 		{ 255, 255, 0 },
+		//{ TV_BOOK, 65, 0 },
 	},
 
 #ifdef ENABLE_DEATHKNIGHT
@@ -1416,6 +1465,7 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		/* Rogue */
 		{ TV_HELM, SV_HARD_LEATHER_CAP, 0 },
 		{ 255, 255, 0 },
+		//{ TV_BOOK, 66, 0 },
 		{ TV_CLOAK, SV_CLOAK, 0 },
 		{ TV_TRAPKIT, SV_TRAPKIT_SLING, 0 },
 		//{ TV_SCROLL, SV_SCROLL_PHASE_DOOR, 0 },
@@ -1455,7 +1505,8 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		/* Ranger */
 		{ TV_HELM, SV_HARD_LEATHER_CAP, 0 },
 		{ TV_CLOAK, SV_CLOAK, 0 },
-		{ TV_BOOK, 50, 0 },
+		//{ TV_BOOK, 50, 0 },
+		{ TV_BOOK, SV_SPELLBOOK, -1 }, /* __lua_HEALING_I */
 		{ TV_SCROLL, SV_SCROLL_WORD_OF_RECALL, 0 },//instead of unusable bow. alternatives: invis-pot, id-all-scroll?, mapping, rll, csw/ccw?
 		{ TV_TRAPKIT, SV_TRAPKIT_SLING, 0 },
 	},
@@ -1503,6 +1554,7 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 		{ TV_CLOAK, SV_CLOAK, 0 },
 		{ TV_SCROLL, SV_SCROLL_TELEPORT, 0 },
 		{ 255, 255, 0 },
+		//{ TV_BOOK, 65, 0 },
 	},
 #ifdef ENABLE_DEATHKNIGHT
 	{
@@ -1538,41 +1590,31 @@ static byte player_init[2][MAX_CLASS][5][3] = {
 #endif
     }
 };
+
+/* hack: make sure spellbook constants are correct.
+   actually this could be done once in init_lua,
+   but since the array player_init is static, we
+   just do it here. - C. Blue */
 void init_player_outfits(void) {
-	/* hack: make sure spellbook constants are correct.
-	   actually this could be done once in init_lua,
-	   but since the array player_init is static, we
-	   just do it here. - C. Blue */
+	int s;
 
-	//player_init[0][CLASS_PRIEST][2][2] = __lua_HHEALING;
-	//player_init[0][CLASS_PALADIN][3][2] = __lua_HBLESSING;
-	player_init[0][CLASS_PALADIN][3][2] = __lua_HDELFEAR;
+	for (s = 0; s <= 1; s++) {
+		//player_init[s][CLASS_PRIEST][2][2] = __lua_HHEALING;
+		//player_init[s][CLASS_PALADIN][3][2] = __lua_HBLESSING;
+		player_init[s][CLASS_PALADIN][3][2] = __lua_HDELFEAR;
 #ifdef ENABLE_DEATHKNIGHT
-	player_init[0][CLASS_DEATHKNIGHT][3][2] = __lua_OFEAR;
+		player_init[s][CLASS_DEATHKNIGHT][3][2] = __lua_OFEAR;
 #endif
 #ifdef ENABLE_HELLKNIGHT
-	player_init[0][CLASS_HELLKNIGHT][3][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
+		player_init[s][CLASS_HELLKNIGHT][3][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
 #endif
 #ifdef ENABLE_CPRIEST
-	player_init[0][CLASS_CPRIEST][2][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
+		player_init[s][CLASS_CPRIEST][2][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
 #endif
-	player_init[0][CLASS_MINDCRAFTER][0][2] = __lua_MSCARE;
-	player_init[0][CLASS_DRUID][3][2] = __lua_FOCUS;
-
-	//player_init[1][CLASS_PRIEST][2][2] = __lua_HHEALING;
-	//player_init[1][CLASS_PALADIN][3][2] = __lua_HBLESSING;
-	player_init[1][CLASS_PALADIN][3][2] = __lua_HDELFEAR;
-#ifdef ENABLE_DEATHKNIGHT
-	player_init[1][CLASS_DEATHKNIGHT][3][2] = __lua_OFEAR;
-#endif
-#ifdef ENABLE_HELLKNIGHT
-	player_init[1][CLASS_HELLKNIGHT][3][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
-#endif
-#ifdef ENABLE_CPRIEST
-	player_init[1][CLASS_CPRIEST][2][2] = __lua_OFEAR; //just placeholder, since class can't be "created"
-#endif
-	player_init[1][CLASS_MINDCRAFTER][0][2] = __lua_MSCARE;
-	player_init[1][CLASS_DRUID][3][2] = __lua_FOCUS;
+		player_init[s][CLASS_MINDCRAFTER][0][2] = __lua_MSCARE;
+		player_init[s][CLASS_DRUID][3][2] = __lua_FOCUS;
+		player_init[s][CLASS_RANGER][2][2] = __lua_HEALING_I;
+	}
 }
 
 #define BARD_INIT_NUM	15
@@ -1623,7 +1665,7 @@ void admin_outfit(int Ind, int realm) {
 
 
 	/* Hack -- assume the player has an initial knowledge of the area close to town */
-	for (i = 0; i < MAX_WILD_X*MAX_WILD_Y; i++)  p_ptr->wild_map[i/8] |= 1<<(i%8);
+	for (i = 0; i < MAX_WILD_X * MAX_WILD_Y; i++)  p_ptr->wild_map[i / 8] |= 1 << (i % 8);
 
 #if 0 /* book spam stopped for now -_-  -C. Blue */
 	for (i = 0; i < 255; i++) {
@@ -1716,43 +1758,27 @@ void admin_outfit(int Ind, int realm) {
 	object_known(o_ptr); \
 	o_ptr->ident |= ID_MENTAL; \
 	o_ptr->owner = p_ptr->id; \
-	o_ptr->mode = p_ptr->mode; \
+	o_ptr->mode = p_ptr->mode | MODE_STARTER_ITEM; \
 	o_ptr->level = 1; \
-	o_ptr->xtra9 = 1; /* mark as starter item */ \
 	(void)inven_carry_equip(Ind, o_ptr);
 #else
  #if STARTEQ_TREATMENT == 3
-  #if 0
-    #define do_player_outfit()	\
+  #define do_player_outfit()	\
 	object_aware(Ind, o_ptr); \
 	object_known(o_ptr); \
 	o_ptr->ident |= ID_MENTAL; \
 	o_ptr->owner = p_ptr->id; \
-	o_ptr->mode = p_ptr->mode; \
+	o_ptr->mode = p_ptr->mode | MODE_STARTER_ITEM; \
 	o_ptr->level = 0; \
-	o_ptr->discount = 100; /* <- replaced this by making level-0-items unsellable in general */ \
-	/* if (!o_ptr->note) o_ptr->note = quark_add(""); -- hack to hide 'unsalable' (or formerly '100% off') tag? */ \
 	(void)inven_carry_equip(Ind, o_ptr);
-  #else
-    #define do_player_outfit()	\
-	object_aware(Ind, o_ptr); \
-	object_known(o_ptr); \
-	o_ptr->ident |= ID_MENTAL; \
-	o_ptr->owner = p_ptr->id; \
-	o_ptr->mode = p_ptr->mode; \
-	o_ptr->level = 0; \
-	o_ptr->xtra9 = 1; /*mark as starter item, implies unsellable */ \
-	(void)inven_carry_equip(Ind, o_ptr);
-  #endif
  #else
-    #define do_player_outfit()	\
+  #define do_player_outfit()	\
 	object_aware(Ind, o_ptr); \
 	object_known(o_ptr); \
 	o_ptr->ident |= ID_MENTAL; \
 	o_ptr->owner = p_ptr->id; \
-	o_ptr->mode = p_ptr->mode; \
+	o_ptr->mode = p_ptr->mode | MODE_STARTER_ITEM; \
 	o_ptr->level = 0; \
-	o_ptr->xtra9 = 1; /* mark as starter item */ \
 	(void)inven_carry_equip(Ind, o_ptr);
  #endif
 #endif
@@ -1829,6 +1855,7 @@ static void player_outfit(int Ind) {
 		(void)inven_carry(Ind, o_ptr);
 	}
 
+#if 0
 #ifdef TEST_SERVER
 	invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_DEATH));
 	o_ptr->discount = 100;
@@ -1839,6 +1866,7 @@ static void player_outfit(int Ind) {
 	object_aware(Ind, o_ptr);
 	o_ptr->ident |= ID_MENTAL;
 	(void)inven_carry(Ind, o_ptr);
+#endif
 #endif
 
 	//admin_outfit(Ind);
@@ -1920,7 +1948,7 @@ static void player_outfit(int Ind) {
 			/* stat_ind has not been set so we have to hack it for calc_blows_obj().
 			   Side-effect: We ignore Hobbits' +2 DEX bonus for not wearing shoes */
 			//abuse 'wgt'
-			for (j = 0; j < 6; j++) {
+			for (j = 0; j < C_ATTRIBUTES; j++) {
 				/* Values: 3, 4, ..., 17 */
 				if (stat_use[j] <= 18) wgt = (stat_use[j] - 3);
 				/* Ranges: 18/00-18/09, ..., 18/210-18/219 */
@@ -2094,6 +2122,14 @@ static void player_outfit(int Ind) {
 		do_player_outfit();
 	}
 
+	/* Maiar all start with 1.000 in Astral, so maybe we just give them that Power Bolt I spell :| */
+	if (p_ptr->prace == RACE_MAIA) {
+		invcopy(o_ptr, lookup_kind(TV_BOOK, SV_SPELLBOOK));
+		o_ptr->pval = __lua_POWERBOLT;
+		o_ptr->number = 1;
+		do_player_outfit();
+	}
+
 	/* hack for mimics: pick a type of poly ring - C. Blue */
 #if 0 /* disabled for now */
 	if (p_ptr->pclass == CLASS_MIMIC) {
@@ -2137,10 +2173,8 @@ static void player_outfit(int Ind) {
 	o_ptr->discount = 100;
 	do_player_outfit();
  #else
-	if (p_ptr->pclass == CLASS_ARCHER)
-	p_ptr->au += 100;
-	else
-	p_ptr->au += 50;
+	if (p_ptr->pclass == CLASS_ARCHER) p_ptr->au += 100; /* for buying extra phase door scrolls */
+	else p_ptr->au += 50; /* generic RPG-server increase */
  #endif
 #endif
 
@@ -2172,9 +2206,14 @@ static void player_setup(int Ind, bool new) {
 
 	//bool unstaticed = FALSE;
 	bool panic = p_ptr->panic;
+#ifdef DM_MODULES
+	bool found_module = FALSE;
+#endif
 
 	struct worldpos *wpos = &p_ptr->wpos;
 	cave_type **zcave;
+	object_kind *k_ptr;
+
 
 	/* initialise "not in a store" very early on up here,
 	  for some teleport_player() calls that may follow soon */
@@ -2190,18 +2229,14 @@ static void player_setup(int Ind, bool new) {
 	if ((wpos->wx >= MAX_WILD_X) || (wpos->wy >= MAX_WILD_Y) || (wpos->wz > MAX_DEPTH) ||
 	    (wpos->wx < 0) || (wpos->wy < 0) || (wpos->wz < -MAX_DEPTH)) {
 		s_printf("Ultra-hack executed for %s. wx %d wy %d wz %d\n", p_ptr->name, wpos->wx, wpos->wy, wpos->wz);
-		wpos->wx = cfg.town_x;
-		wpos->wy = cfg.town_y;
-		wpos->wz = 0;
+		wpos = BREE_WPOS_P;
 	}
 	/* If dungeon existences changed, restore players who saved
 	   within a now-invalid dungeon - C. Blue */
 	if (((wpos->wz > 0) && (wild_info[wpos->wy][wpos->wx].tower == NULL)) ||
 	    ((wpos->wz < 0) && (wild_info[wpos->wy][wpos->wx].dungeon == NULL))) {
 		s_printf("Ultra-hack #2 executed for %s. wx %d wy %d wz %d\n", p_ptr->name, wpos->wx, wpos->wy, wpos->wz);
-		wpos->wx = cfg.town_x;
-		wpos->wy = cfg.town_y;
-		wpos->wz = 0;
+		wpos = BREE_WPOS_P;
 
 #ifdef ALLOW_NR_CROSS_ITEMS
 		for (i = 1; i < INVEN_TOTAL; i++)
@@ -2225,19 +2260,48 @@ static void player_setup(int Ind, bool new) {
 #endif
 	}
 
-	/* hack for sector00separation (Highlander Tournament): Players mustn't enter sector 0,0 */
+	/* hack for sector000separation (Highlander Tournament): Players mustn't enter sector 0,0 */
 	/* note that this hack will also prevent players who got disconnected during Highlander Tourney
 	   to continue it, but that must be accepted. Otherwise players could exploit it and just join
 	   with a certain character during highlander tourneys and continue to level it up
 	   infinitely! :) So, who gets disconnected will be removed from the event! */
-	//if (sector00separation && ...) {
-	if (wpos->wx == WPOS_SECTOR00_X && wpos->wy == WPOS_SECTOR00_Y) {
+	//if (sector000separation && ...) {
+#ifdef DM_MODULES
+	/* count validate participation in any active events, otherwise kick */
+	if (in_module(wpos)) {
+		global_event_type *ge;
+
+		for (x = 0; x < MAX_GLOBAL_EVENTS; x++) {
+			ge = &global_event[x];
+			if (!ge->getype) continue;
+			for (y = 0; y < MAX_GE_PARTICIPANTS; y++) {
+				if (ge->participant[y] != p_ptr->id) continue;
+				found_module = TRUE;
+				/* must reapply this? */
+				if (ge->noghost) p_ptr->global_event_temp |= PEVF_NOGHOST_00;
+				break;
+			}
+			if (found_module) break;
+		}
+		/* We didn't find a valid adventure he belongs to, yet he is inside the adventure module */
+		if (!found_module) {
+ #ifdef MODULE_ALLOW_INCOMPAT
+			/* need to leave party, since we might be teamed up with incompatible char mode players! */
+			if (p_ptr->party && !p_ptr->admin_dm && compat_mode(p_ptr->mode, parties[p_ptr->party].cmode)) party_leave(i, FALSE);
+ #endif
+		}
+	}
+	/* Standard check for everyone - just skip it if he is inside an eligible adventure module (TODO: maybe also skip if he is in an eligible global event). */
+	if (!found_module && wpos->wx == WPOS_SECTOR000_X && wpos->wy == WPOS_SECTOR000_Y) { //TODO: Check if an event is even running in sector00 atm, otherwise he may spawn here
+#else
+	if (wpos->wx == WPOS_SECTOR000_X && wpos->wy == WPOS_SECTOR000_Y) { //TODO: Check if an event is even running in sector00 atm, otherwise he may spawn here
+#endif
 		/* Teleport him out of the event area */
 #if 0
 		switch rand_int(3) {
-		case 0:	wpos->wx = WPOS_SECTOR00_ADJAC_X;
-		case 1:	wpos->wy = WPOS_SECTOR00_ADJAC_Y; break;
-		case 2: wpos->wx = WPOS_SECTOR00_ADJAC_X;
+		case 0:	wpos->wx = WPOS_SECTOR000_ADJAC_X;
+		case 1:	wpos->wy = WPOS_SECTOR000_ADJAC_Y; break;
+		case 2: wpos->wx = WPOS_SECTOR000_ADJAC_X;
 		}
 #else
 		wpos->wx = cfg.town_x;
@@ -2269,12 +2333,9 @@ static void player_setup(int Ind, bool new) {
 	/* If he's in the training tower of Bree, check for running global events accordingly */
 	if (in_arena(wpos)) {
 		for (d = 0; d < MAX_GLOBAL_EVENTS; d++)
-		if (p_ptr->global_event_type[d] != GE_NONE)
 		switch (p_ptr->global_event_type[d]) {
 		case GE_ARENA_MONSTER:
-			wpos->wx = cfg.town_x;
-			wpos->wy = cfg.town_y;
-			wpos->wz = 0;
+			wpos = BREE_WPOS_P;
 			break;
 		}
 	}
@@ -2347,9 +2408,7 @@ static void player_setup(int Ind, bool new) {
 	/* Default location if just starting */
 	//if (wpos->wz == 0 && wpos->wy == 0 && wpos->wx == 0 && p_ptr->py == 0 && p_ptr->px == 0) {
 	if (new) {
-		p_ptr->wpos.wx = cfg.town_x;
-		p_ptr->wpos.wy = cfg.town_y;
-		p_ptr->wpos.wz = 0;
+		p_ptr->wpos = BREE_WPOS;
 #if 0	// moved afterwards (since town can be non-allocated here)
 		p_ptr->py = level_down_y(wpos);
 		p_ptr->px = level_down_x(wpos);
@@ -2561,10 +2620,6 @@ static void player_setup(int Ind, bool new) {
 		player_dungeontown(Ind);
 	}
 
-	/* blink by 1 if standing on a shop grid (in town) */
-	if (zcave[p_ptr->py][p_ptr->px].feat == FEAT_SHOP)
-		teleport_player_force(Ind, 1);
-
 	if (new) {
 #if 0
 		p_ptr->py = level_down_y(wpos);
@@ -2577,6 +2632,17 @@ static void player_setup(int Ind, bool new) {
 
 #endif	// 0
 	}
+
+	/* If player was inside an IDDC refuge, try to move him into it again if we're not already in one */
+	if (in_irondeepdive(&p_ptr->wpos) && p_ptr->IDDC_refuge && l_ptr && l_ptr->refuge_x && !(zcave[p_ptr->py][p_ptr->px].info2 & CAVE2_REFUGE)) {
+		p_ptr->px = l_ptr->refuge_x;
+		p_ptr->py = l_ptr->refuge_y;
+		s_printf("Placed player into refuge at [%d,%d]\n", p_ptr->px, p_ptr->py);
+	}
+
+	/* blink by 1 if standing on a shop grid (in town) */
+	if (zcave[p_ptr->py][p_ptr->px].feat == FEAT_SHOP)
+		teleport_player_force(Ind, 1);
 
 	/* Hack be sure the player is inbounds */
 	if (p_ptr->px < 1) p_ptr->px = 1;
@@ -2646,7 +2712,7 @@ static void player_setup(int Ind, bool new) {
 	everyone_lite_spot(wpos, y, x);
 	/* Hack -- Give him "awareness" of certain objects */
 	for (i = 1; i < max_k_idx; i++) {
-		object_kind *k_ptr = &k_info[i];
+		k_ptr = &k_info[i];
 
 		/* Skip "empty" objects */
 		if (!k_ptr->name) continue;
@@ -2745,6 +2811,8 @@ static void player_setup(int Ind, bool new) {
 
 	/* No item being used up */
 	p_ptr->using_up_item = -1;
+	/* No previously used item */
+	p_ptr->item_newest = -1;
 
 	/* Drain-HP hack for client recognition when to warn */
 	p_ptr->hp_drained = TRUE;
@@ -2935,7 +3003,11 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_lite = 1;
 		p_ptr->warning_lite_refill = 1;
 		p_ptr->warning_wield_combat = 1;
+#if WARNING_REST_TIMES == 0
+		if (!p_ptr->warning_rest) p_ptr->warning_rest = 1;
+#else
 		p_ptr->warning_rest = WARNING_REST_TIMES;
+#endif
 		p_ptr->warning_mimic = 1;
 		p_ptr->warning_dual = 1;
 		p_ptr->warning_dual_mode = 1;
@@ -2961,6 +3033,8 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_voidjumpgate = 1;
 		p_ptr->warning_staircase = 1;
 		p_ptr->warning_staircase_oneway = 1;
+		p_ptr->warning_staircase_iddc = 1;
+		p_ptr->warning_staircase_mandos = 1;
 		p_ptr->warning_worldmap = 1;
 		p_ptr->warning_dungeon = 1;
 		p_ptr->warning_tunnel = p_ptr->warning_tunnel2 = p_ptr->warning_tunnel3 = p_ptr->warning_tunnel4 = p_ptr->warning_tunnel_hidden = 1;
@@ -2986,6 +3060,7 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_limitbottles = 1;
 		p_ptr->warning_ingredients = 1;
 		p_ptr->warning_id = 1;
+		p_ptr->warning_sanity = 1;
 		return;
 	}
 
@@ -3122,6 +3197,7 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_bpr3 = 1;
 		p_ptr->warning_ammotype = 1;
 		p_ptr->warning_wield = 1;
+		p_ptr->warning_staircase_iddc = 1; //cannot enter the IDDC anymore at this point anyway! Keep mandos warning forever though, as it is accessible forever.
 	}
 	if (p_ptr->max_plv > 2) {
 		p_ptr->warning_wield_combat = 1;
@@ -3154,7 +3230,11 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 	}
 	if (p_ptr->max_plv > 15) {
 		p_ptr->warning_bpr = 1;
+#if WARNING_REST_TIMES == 0
+		if (!p_ptr->warning_rest) p_ptr->warning_rest = 1;
+#else
 		p_ptr->warning_rest = WARNING_REST_TIMES;
+#endif
 		p_ptr->warning_hungry = 1;
 		p_ptr->warning_macros = 1;
 		p_ptr->warning_edmt = 1;
@@ -3169,13 +3249,13 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_dual_mode = 1;
 		p_ptr->warning_hungry = 2;
 		p_ptr->warning_lite_refill = 1;
-		p_ptr->warning_staircase_oneway = 1;
 		p_ptr->warning_repair = 1;
 		//p_ptr->warning_blastcharge = 1; //instead, we save/load it!
 		p_ptr->warning_ingredients = 1;
 	}
 	if (p_ptr->max_plv >= 25) {
 		p_ptr->warning_ai_annoy = 1; /* mimics, as the latest learners, learn sprint at 15 and taunt at 20 */
+		p_ptr->warning_staircase_oneway = 1;
 	}
 	if (p_ptr->max_plv > 30) {
 		p_ptr->warning_instares = 1;
@@ -3234,6 +3314,7 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	cptr accname = connp->nick, name = connp->c_name;
 	int race = connp->race, class = connp->class, trait = connp->trait, sex = connp->sex;
 	int stat_order[6];
+	s16b free_points = 0;
 	stat_order[0] = connp->stat_order[0];
 	stat_order[1] = connp->stat_order[1];
 	stat_order[2] = connp->stat_order[2];
@@ -3322,6 +3403,8 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	/* Init only the most basic info */
 	p_ptr->Ind = Ind;
 	p_ptr->version = connp->version;
+	strncpy(p_ptr->accountname, accname, ACCNAME_LEN - 1); /* Note: length check is not required, as all names are already capped in Contact() */
+	p_ptr->accountname[ACCNAME_LEN - 1] = 0;
 
 	/* Receive info found in PKT_SCREEN_DIM otherwise */
 	p_ptr->screen_wid = connp->Client_setup.screen_wid;
@@ -3373,7 +3456,7 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	}
 
 	/* init account-wide houses limit? // ACC_HOUSE_LIMIT */
-	if (acc_houses == -1) {
+	if (acc_houses == 127) { //hack: "re-count me!"
 		if (GetAccount(&acc, accname, NULL, FALSE)) {
 			/* grab sum from hash table entries */
 			acc_houses = acc_sum_houses(&acc, FALSE);
@@ -3508,10 +3591,13 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 
 	if (sex & MODE_FRUIT_BAT) p_ptr->fruit_bat = 1;
 	p_ptr->dna = ((class & 0xff) | ((race & 0xff) << 8) );
-	p_ptr->dna |= (randint(65535) << 16);
+	p_ptr->dna |= ((u32b)randint(65535) << 16);
 	p_ptr->male = (sex & MODE_MALE) ? 1 : 0;
 	p_ptr->prace = race;
 	p_ptr->pclass = class;
+#ifdef ENABLE_SUBCLASS
+	p_ptr->sclass = 0; // set to 0 until selectable by c-birth.c - Kurzel
+#endif
 	p_ptr->ptrait = trait;
 	p_ptr->align_good = 0x7fff;	/* start neutral */
 	p_ptr->align_law = 0x7fff;
@@ -3546,8 +3632,8 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	/* Actually Generate */
 	p_ptr->maximize = cfg.maximize ? TRUE : FALSE;
 
-	/* No autoroller */
-	if (!get_stats(Ind, stat_order)) return(FALSE);
+	/* No autoroller; -1 = exploit or client bug: Tried to allocate too many stat points. */
+	if ((free_points = get_stats(Ind, stat_order)) == -1) return(FALSE);
 
 	/* Roll for base hitpoints */
 	get_extra(Ind);
@@ -3559,7 +3645,7 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	get_history(Ind);
 
 	/* Roll for gold */
-	get_money(Ind);
+	get_money(Ind, free_points);
 
 	/* for PVP-mode chars: set level and skill, execute hacks */
 	if (p_ptr->mode & MODE_PVP) {
@@ -3716,10 +3802,25 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	if (p_ptr->prace == RACE_VAMPIRE && p_ptr->pclass == CLASS_MAGE &&
 	    /* fix old chars: add the skill */
 	    !p_ptr->s_info[SKILL_OSHADOW].mod) {
-		p_ptr->s_info[SKILL_OSHADOW].value = 0;
-		p_ptr->s_info[SKILL_OSHADOW].mod = 1600 + 160; /* "bonus", they supposedly gain 15% on OSHADOW in tables.c, we give 10% for istari */
+		p_ptr->s_info[SKILL_OSHADOW].value = 1000;
+		/* base value taken from standard istar schools;
+		   +bonus: they supposedly gain 15% on OSHADOW in tables.c, we give 13.3% to get a round, not over-the-top number */
+		p_ptr->s_info[SKILL_OSHADOW].mod = 1500 + 200;
 		p_ptr->s_info[SKILL_SCHOOL_OCCULT].dev = TRUE;
 		Send_skill_info(Ind, SKILL_OSHADOW, TRUE);
+	}
+#endif
+#ifdef VAMP_ISTAR_UNLIFE
+	/* Hack: Vampire Istari gain access to Shadow school */
+	if (p_ptr->prace == RACE_VAMPIRE && p_ptr->pclass == CLASS_MAGE &&
+	    /* fix old chars: add the skill */
+	    !p_ptr->s_info[SKILL_OUNLIFE].mod) {
+		p_ptr->s_info[SKILL_OUNLIFE].value = 0;
+		/* base value taken from standard istar schools;
+		   +bonus: they supposedly gain 15% on OUNLIFE in tables.c, we give 13.3% to get a round, not over-the-top number */
+		p_ptr->s_info[SKILL_OUNLIFE].mod = 1500 + 200;
+		p_ptr->s_info[SKILL_SCHOOL_OCCULT].dev = TRUE;
+		Send_skill_info(Ind, SKILL_OUNLIFE, TRUE);
 	}
 #endif
 
@@ -3795,6 +3896,17 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 	/* To find out which characters crash the server */
 	s_printf("Logged in with character %s.\n", name);
 
+	/* Finally clear name reservation if we had one, as we now succeeded with the complete login process */
+	for (i = 0; i < MAX_RESERVED_NAMES; i++) {
+		if (!reserved_name_character[i][0]) break;
+		if (strcasecmp(reserved_name_character[i], name)) continue;
+		/* No need to check account-relation, as we cannot have gotten this far if it wasn't tied to our account */
+
+		reserved_name_character[i][0] = '\0'; //clear reservation
+		s_printf("Reserved name cleared.\n");
+		break;
+	}
+
 	/* for "warning_pvp" */
 	p_ptr->newly_created = TRUE;
 
@@ -3804,8 +3916,7 @@ bool player_birth(int Ind, int conn, connection_t *connp) {
 
 /* Disallow non-authorized admin (improvement needed!!) */
 /* returns FALSE if bogus admin - Jir - */
-bool confirm_admin(int Ind)
-{
+bool confirm_admin(int Ind) {
 	struct account acc;
 	player_type *p_ptr = Players[Ind];
 	bool admin = FALSE;

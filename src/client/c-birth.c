@@ -69,7 +69,7 @@ static void choose_name(void) {
 	/* Prompt and ask */
 #ifndef SIMPLE_LOGIN
 	c_put_str(TERM_SLATE, "If you are new to TomeNET, read this:", 7, 2);
-	prt("http://www.tomenet.eu/guide.php", 8, 2);
+	prt("https://www.tomenet.eu/guide.php", 8, 2);
 	c_put_str(TERM_SLATE, "*** Logging in with an account ***", 12, 2);
 	prt("In order to play, you need to create an account.", 14, 2);
 	prt("Your account can hold a maximum of 7 different characters to play with!", 15, 2);
@@ -102,7 +102,7 @@ static void choose_name(void) {
 	c_put_str(TERM_SLATE, "If you don't have an account yet, just enter one of your choice. Remember", LOGIN_ROW + 1, 2);
 	c_put_str(TERM_SLATE, "your name and password. Players may only own one account each at a time.", LOGIN_ROW + 2, 2);
 	c_put_str(TERM_SLATE, "If you are new to TomeNET, this guide may prove useful:", LOGIN_ROW + 9, 2);
-	prt("http://www.tomenet.eu/guide.php", LOGIN_ROW + 10, 2);
+	prt("https://www.tomenet.eu/guide.php", LOGIN_ROW + 10, 2);
 #endif
 #ifndef SIMPLE_LOGIN
 	prt("Enter your account name above.", 21, 2);
@@ -219,9 +219,9 @@ static bool enter_password(void) {
 	 /* Re-Draw the password as 'x's (in light blue) */
 	for (c = 0; c < strlen(pass); c++)
 #ifndef SIMPLE_LOGIN
-		Term_putch(15+c, 3, TERM_L_BLUE, 'x');
+		Term_putch(15 + c, 3, TERM_L_BLUE, 'x');
 #else
-		Term_putch(15+c, LOGIN_ROW + 5, TERM_L_BLUE, 'x');
+		Term_putch(15 + c, LOGIN_ROW + 5, TERM_L_BLUE, 'x');
 #endif
 
 	/* Erase the prompt, etc */
@@ -469,7 +469,7 @@ race_redraw:
 		if (c == '#') {
 			if (valid_dna && (dna_race >= 0 && dna_race < Setup.max_race)) j = dna_race;
 			else {
-				valid_dna = 0;
+				valid_dna = FALSE;
 				hazard = FALSE;
 				auto_reincarnation = FALSE;
 				continue;
@@ -733,7 +733,7 @@ trait_redraw:
 		if (c == '#') {
 			if (valid_dna && (dna_trait > 0 && dna_trait < Setup.max_trait)) j = dna_trait;
 			else {
-				valid_dna = 0;
+				valid_dna = FALSE;
 				hazard = FALSE;
 				auto_reincarnation = FALSE;
 				continue;
@@ -990,14 +990,14 @@ class_redraw:
 					break;
 				}
 				if (i == Setup.max_class) {
-					valid_dna = 0;
-					hazard = FALSE,
+					valid_dna = FALSE;
+					hazard = FALSE;
 					auto_reincarnation = FALSE;
 					continue;
 				}
 #endif
 			} else {
-				valid_dna = 0;
+				valid_dna = FALSE;
 				hazard = FALSE;
 				auto_reincarnation = FALSE;
 				continue;
@@ -1052,8 +1052,18 @@ static bool choose_stat_order(void) {
 	player_class *cp_ptr = &class_info[class];
 	player_race *rp_ptr = &race_info[race];
 
-	for (i = 0; i < 6; i++) stat_order_tmp[i] = stat_order[i];
+	char attribute_name[6][20] = { "Strength", "Intelligence", "Wisdom", "Dexterity", "Constitution", "Charisma" };
 
+
+	for (i = 0; i < C_ATTRIBUTES; i++) stat_order_tmp[i] = stat_order[i];
+
+	/* Init the 6 attributes' diz from lua */
+	memset(attribute_diz, 0, sizeof(char) * 6 * 8 * 61);
+	for (j = 0; j < C_ATTRIBUTES; j++)
+		for (i = 0; i < 8; i++) {
+			sprintf(out_val, "return get_attribute_diz(\"%s\", %d)", attribute_name[j], i);
+			strcpy(attribute_diz[j][i], string_exec_lua(0, out_val));
+		}
 
 	/* Character stats are randomly rolled (1 time): */
 	if (char_creation_flags == 0) {
@@ -1061,19 +1071,19 @@ static bool choose_stat_order(void) {
 		put_str("Stat order  :", 11, 1);
 
 		/* All stats are initially available */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			strncpy(stats[i], stat_names[i], 3);
 			stats[i][3] = '\0';
 			avail[i] = 1;
 		}
 
 		/* Find the ordering of all 6 stats */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Clear bottom of screen */
 			clear_from(20);
 
 			/* Print available stats at bottom */
-			for (k = 0; k < 6; k++) {
+			for (k = 0; k < C_ATTRIBUTES; k++) {
 				/* Check for availability */
 				if (avail[k]) {
 					sprintf(out_val, "%c) %s", I2A(k), stats[k]);
@@ -1108,7 +1118,7 @@ static bool choose_stat_order(void) {
 					j = (islower(c) ? A2I(c) : -1);
 				}
 
-				if ((j < 6) && (j >= 0) && (avail[j])) {
+				if ((j < C_ATTRIBUTES) && (j >= 0) && (avail[j])) {
 					stat_order[i] = j;
 					c_put_str(TERM_L_BLUE, stats[j], 8, 15 + i * 5);
 					avail[j] = 0;
@@ -1213,14 +1223,11 @@ static bool choose_stat_order(void) {
  #endif
 #endif
 
-		c_put_str(TERM_L_UMBER,"   - Strength -    ", DIZ_ROW, 30);
-		c_put_str(TERM_YELLOW, "   How quickly you can strike with weapons.", DIZ_ROW + 1, 30);
-		c_put_str(TERM_YELLOW, "   How much you can carry and wear/wield.", DIZ_ROW + 2, 30);
-		c_put_str(TERM_YELLOW, "   How much damage your strikes inflict.", DIZ_ROW + 3, 30);
-		c_put_str(TERM_YELLOW, "   How easily you can bash, throw and dig.", DIZ_ROW + 4, 30);
-		c_put_str(TERM_YELLOW, "   Slightly improves your swimming.", DIZ_ROW + 5, 30);
+		/* Start with displaying Strength diz */
+		c_put_str(TERM_L_UMBER,format("   - %s -    ", attribute_name[0]), DIZ_ROW, 30);
+		for (i = 0; i < 8; i++) c_put_str(TERM_YELLOW, attribute_diz[0][i], DIZ_ROW + 1 + i, 30);
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			stat_order[i] = STAT_MOD_BASE;
 			strncpy(stats[i], stat_names[i], 3);
 			stats[i][3] = '\0';
@@ -1285,7 +1292,7 @@ static bool choose_stat_order(void) {
 			}
 #endif
 
-			for (i = 0; i < 6; i++) {
+			for (i = 0; i < C_ATTRIBUTES; i++) {
 				crb = stat_order[i] + cp_ptr->c_adj[i] + rp_ptr->r_adj[i];
 				if (crb > 18) crb = 18 + (crb - 18) * 10;
 				cnv_stat(crb, buf);
@@ -1384,68 +1391,8 @@ static bool choose_stat_order(void) {
 			if (c == '2' || c == 'j') j = (j + 1) % 6;
 			if (c == '8' || c == 'k') j = (j + 5) % 6;
 			if (c == '2' || c == '8' || c == 'j' || c == 'k') {
-				switch (j) {
-				case 0:	c_put_str(TERM_L_UMBER,"   - Strength -    ", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   How quickly you can strike with weapons.     ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "   How much you can carry and wear/wield.       ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "   How much damage your strikes inflict.        ", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "   How easily you can bash, throw and dig.      ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "   Slightly improves your swimming.             ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 8, 30);
-					break;
-				case 1:	c_put_str(TERM_L_UMBER,"   - Intelligence -", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   How well you can use magic                   ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "    (depending on your class and spells).       ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "   How well you can use magic devices.          ", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "   Helps your disarming ability.                ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "   Helps noticing attempts to steal from you.   ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 8, 30);
-					break;
-				case 2:	c_put_str(TERM_L_UMBER,"   - Wisdom -      ", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   How well you can use prayers and magic       ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "    (depending on your class and spells).       ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "   How well can you resist malicious effects    ", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "    and influences on both body and mind        ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "    (saving throw).                             ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "   How much insanity your mind can take.        ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 8, 30);
-					break;
-				case 3:	c_put_str(TERM_L_UMBER,"   - Dexterity -   ", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   How quickly you can strike with weapons.     ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "   Reduces your chance to miss.                 ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "   Opponents will miss very slightly more often.", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "   Helps your stealing skills (if any).         ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "   Helps to prevent foes stealing from you.     ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "   Helps keeping your balance after bashing.    ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "   Helps your disarming ability.                ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "   Slightly improves your swimming.             ", DIZ_ROW + 8, 30);
-					break;
-				case 4:	c_put_str(TERM_L_UMBER,"   - Constitution -", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   Determines your amout of HP                  ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "    (hit points, ie how much damage you can     ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "    take without dying. High constitution might ", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "    not show much effect until your character   ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "    also reaches an appropriate level.)         ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "   Reduces duration of poison and stun effects. ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "   Increases stamina regeneration rate.         ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "   Helps your character not to drown too easily.", DIZ_ROW + 8, 30);
-					break;
-				case 5:	c_put_str(TERM_L_UMBER,"   - Charisma -    ", DIZ_ROW, 30);
-					c_put_str(TERM_YELLOW, "   Shops will buy and sell at better prices.    ", DIZ_ROW + 1, 30);
-					c_put_str(TERM_YELLOW, "    (Note that shop keepers are also influenced ", DIZ_ROW + 2, 30);
-					c_put_str(TERM_YELLOW, "    by your character's race.)                  ", DIZ_ROW + 3, 30);
-					c_put_str(TERM_YELLOW, "   Also affects house prices.                   ", DIZ_ROW + 4, 30);
-					c_put_str(TERM_YELLOW, "   Helps you to resist seducing attacks.        ", DIZ_ROW + 5, 30);
-					c_put_str(TERM_YELLOW, "   Affects mindcrafters' mana pool somewhat.    ", DIZ_ROW + 6, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 7, 30);
-					c_put_str(TERM_YELLOW, "                                                ", DIZ_ROW + 8, 30);
-					break;
-				}
+				c_put_str(TERM_L_UMBER,format("   - %s -    ", attribute_name[j]), DIZ_ROW, 30);
+				for (i = 0; i < 8; i++) c_put_str(TERM_YELLOW, attribute_diz[j][i], DIZ_ROW + 1 + i, 30);
 			}
 			if (c == '\e' || c == '\r') {
 				if (k > 0) {
@@ -1459,7 +1406,7 @@ static bool choose_stat_order(void) {
 			if (rl_connection_destroyed) return(FALSE);
 #endif
 			if (c == '\b') {
-				for (i = 0; i < 6; i++) stat_order[i] = stat_order_tmp[i];
+				for (i = 0; i < C_ATTRIBUTES; i++) stat_order[i] = stat_order_tmp[i];
 
 				for (i = DIZ_ROW; i <= DIZ_ROW + 8; i++) Term_erase(30, i, 255);
 				clear_from(rowA);
@@ -1468,7 +1415,7 @@ static bool choose_stat_order(void) {
 			}
 			if (c == '#') {
 				if (valid_dna) {
-					for (i = 0; i < 6; i++) {
+					for (i = 0; i < C_ATTRIBUTES; i++) {
 						if (dna_stat_order[i] >= STAT_MOD_MIN && dna_stat_order[i] <= STAT_MOD_MAX) stat_order[i] = dna_stat_order[i];
 						else stat_order[i] = STAT_MOD_MIN;
 					}
@@ -1504,15 +1451,19 @@ static bool choose_mode(void) {
 
 	/* specialty: slot-exclusive-mode char? */
 	if (dedicated) {
-		put_str("i) Ironman Deep Dive Challenge", 16, 2);
-		c_put_str(TERM_SLATE, "(Unworldly - one life only.)", 16, 33);
-		put_str("s) Ironman Deep Dive Challenge Soloist", 17, 2);
-		c_put_str(TERM_SLATE, "(Cannot trade with other players)", 17, 41);
-		put_str("H) Hellish Ironman Deep Dive Challenge", 18, 2);
-		c_put_str(TERM_SLATE, "(Extra hard, sort of ridiculous)", 18, 41);
-		if (!s_RPG) {
-			put_str("p) PvP", 19, 2);
-			c_put_str(TERM_SLATE, "(Can't beat the game, instead special 'player vs player' rules apply)", 19, 9);
+		if (create_character_ok_iddc) {
+			put_str("i) Ironman Deep Dive Challenge", 16, 2);
+			c_put_str(TERM_SLATE, "(Unworldly - one life only.)", 16, 33);
+			put_str("s) Ironman Deep Dive Challenge Soloist", 17, 2);
+			c_put_str(TERM_SLATE, "(Cannot trade with other players)", 17, 41);
+			put_str("H) Hellish Ironman Deep Dive Challenge", 18, 2);
+			c_put_str(TERM_SLATE, "(Extra hard, sort of ridiculous)", 18, 41);
+		}
+		if (create_character_ok_pvp) {
+			if (!s_RPG) {
+				put_str("p) PvP", 19, 2);
+				c_put_str(TERM_SLATE, "(Can't beat the game, instead special 'player vs player' rules apply)", 19, 9);
+			}
 		}
 
 		c_put_str(TERM_L_BLUE, "                    ", 9, CHAR_COL);
@@ -1572,21 +1523,37 @@ static bool choose_mode(void) {
 				clear_from(15);
 				return(FALSE);
 			} else if (c == 'p' && !s_RPG) {
+				if (!create_character_ok_pvp) {
+					bell();
+					continue;
+				}
 				sex |= MODE_PVP | MODE_DED_PVP;
 				c_put_str(TERM_L_BLUE, "                    ", 9, CHAR_COL);
 				c_put_str(TERM_L_BLUE, "PvP", 9, CHAR_COL);
 				break;
 			} else if (c == 'i') {
+				if (!create_character_ok_iddc) {
+					bell();
+					continue;
+				}
 				sex |= MODE_NO_GHOST | MODE_DED_IDDC;
 				c_put_str(TERM_L_BLUE, "                    ", 9, CHAR_COL);
 				c_put_str(TERM_L_BLUE, "No Ghost", 9, CHAR_COL);
 				break;
 			} else if (c == 'H') {
+				if (!create_character_ok_iddc) {
+					bell();
+					continue;
+				}
 				sex |= (MODE_NO_GHOST | MODE_HARD | MODE_DED_IDDC);
 				c_put_str(TERM_L_BLUE, "                    ", 9, CHAR_COL);
 				c_put_str(TERM_L_BLUE, "Hellish", 9, CHAR_COL);
 				break;
 			} else if (c == 's') {
+				if (!create_character_ok_iddc) {
+					bell();
+					continue;
+				}
 				sex |= (MODE_NO_GHOST | MODE_SOLO | MODE_DED_IDDC);
 				c_put_str(TERM_L_BLUE, "                    ", 9, CHAR_COL);
 				c_put_str(TERM_L_BLUE, "Soloist", 9, CHAR_COL);
@@ -1596,15 +1563,31 @@ static bool choose_mode(void) {
 			} else if (c == '*') {
 				switch (rand_int(s_RPG ? 3 : 4)) {
 				case 0:
+					if (!create_character_ok_iddc) {
+						bell();
+						continue;
+					}
 					c = 'i';
 					break;
 				case 1:
+					if (!create_character_ok_iddc) {
+						bell();
+						continue;
+					}
 					c = 's';
 					break;
 				case 2:
+					if (!create_character_ok_iddc) {
+						bell();
+						continue;
+					}
 					c = 'H';
 					break;
 				case 3:
+					if (!create_character_ok_pvp) {
+						bell();
+						continue;
+					}
 					c = 'p';
 					break;
 				}
@@ -1618,6 +1601,20 @@ static bool choose_mode(void) {
 					else if ((dna_sex & MODE_EVERLASTING) == MODE_EVERLASTING) c = 'i';
 					else if ((dna_sex & MODE_PVP) == MODE_PVP && !s_RPG) c = 'p';
 					else c = 'i';
+					/* What dedicated slot types are even left? */
+					if (!create_character_ok_iddc &&
+					    (c == 'H' || c == 's' || c == 'i')) {
+						bell();
+						hazard = FALSE;
+						auto_reincarnation = FALSE;
+						continue;
+					}
+					if (!create_character_ok_pvp && c == 'p') {
+						bell();
+						hazard = FALSE;
+						auto_reincarnation = FALSE;
+						continue;
+					}
 					/* Fix dedicated modes */
 					if (!(dna_sex & (MODE_PVP | MODE_DED_PVP))) dna_sex |= MODE_DED_IDDC;
 					else dna_sex |= MODE_DED_PVP;
@@ -2446,7 +2443,11 @@ bool get_server_name(void) {
 	else {
 		meta_pings_servers = -1;
 		while (my_fgets(fff, response, sizeof(buf)) == 0) {
-			if (!strstr(response, "Usage")) continue; /* Same for all OS :) */
+ #ifdef WINDOWS
+			if (!strstr(response, "ping [-")) continue;
+ #else
+			if (!strstr(response, "  ping [")) continue;
+ #endif
 			meta_pings_servers = 0;
 			break;
 		}
@@ -2466,7 +2467,7 @@ bool get_server_name(void) {
 			else {
 				meta_pings_servers = -1;
 				while (my_fgets(fff, response, sizeof(buf)) == 0) {
-					if (!strstr(response, "Usage")) continue; /* Same for all OS :) */
+					if (!strstr(response, "ping [-")) continue;
 					meta_pings_servers = 0;
 					sprintf(meta_pings_xpath, " %s", xpath);
 					break;

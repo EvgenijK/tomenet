@@ -1,7 +1,7 @@
 -- handle the occultism school ('unlife')
 -- More spell ideas: "Torment" (res fear+conf), "Rune of Styx" (glyph), "Desecration" (aoe cloud)
 
---[[ there is currently no paralyzation, it's just sleep so monster wakes up on taking damage..
+--[[ there is currently no paralysis, it's just sleep so monster wakes up on taking damage..
 OHOLD_I = add_spell {
 	["name"] = 	"Paralyze",
 	["name2"] = 	"Para",
@@ -34,7 +34,7 @@ OSLOWMONSTER_I = add_spell {
 	["stat"] = 	A_WIS,
 	["direction"] = TRUE,
 	["spell"] = 	function(args)
-				fire_grid_bolt(Ind, GF_OLD_SLOW, args.dir, 5 + get_level(Ind, OSLOWMONSTER_I, 100), "drains power from your muscles")
+				fire_grid_bolt(Ind, GF_LIFE_SLOW, args.dir, 5 + get_level(Ind, OSLOWMONSTER_I, 100), "drains power from your muscles")
 			end,
 	["info"] = 	function()
 				return "power "..(5 + get_level(Ind, OSLOWMONSTER_I, 100))
@@ -53,7 +53,7 @@ OSLOWMONSTER_II = add_spell {
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
-				project_los(Ind, GF_OLD_SLOW, 5 + get_level(Ind, OSLOWMONSTER_I, 100), "drains power from your muscles")
+				project_los(Ind, GF_LIFE_SLOW, 5 + get_level(Ind, OSLOWMONSTER_I, 100), "drains power from your muscles")
 			end,
 	["info"] = 	function()
 				return "power "..(5 + get_level(Ind, OSLOWMONSTER_I, 100))
@@ -109,22 +109,25 @@ OREGEN = add_spell {
 	["level"] = 	22,
 	["mana"] = 	10,
 	["mana_max"] = 	10,
-	["fail"] = 	0,
+	["fail"] = 	-30,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 			if player.prace == RACE_VAMPIRE then
-				set_tim_mp2hp(Ind, randint(5) + 10 + get_level(Ind, OREGEN, 30), 200 + get_level(Ind, OREGEN, 500))
+				set_tim_mp2hp(Ind, randint(5) + 10 + get_level(Ind, OREGEN, 30), 200 + get_level(Ind, OREGEN, 500), 10)
 			else
 				msg_print(Ind, "You shudder, as nether streams envelope you and quickly dissipate again..");
 			end
 	end,
 	["info"] = 	function()
 			local p = 200 + get_level(Ind, OREGEN, 500)
+
 			p = p / 10
-			return "dur "..(10 + get_level(Ind, OREGEN, 30)).."+d5 heal "..p
+			return "dur "..(10 + get_level(Ind, OREGEN, 30)).."+d5 "..p.."HP/10MP tick"
 	end,
 	["desc"] = 	{
 			"Draws from nether undercurrents to replenish your health.",
+			"The spell ends prematurely if you run out of mana.",
+			"The spell will continue draining MP even if your Hit Points are full.",
 			"--- This spell is only usable by true vampires. ---",
 	}
 }
@@ -137,13 +140,13 @@ OSUBJUGATION = add_spell {
 	["level"] = 	26,
 	["mana"] = 	20,
 	["mana_max"] = 	20,
-	["fail"] = 	-10,
+	["fail"] = 	-55,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
-			project_los(Ind, GF_STASIS, 1000 + 5 + get_level(Ind, OSUBJUGATION, 50), "casts a spell")
+			project_los(Ind, GF_STASIS, 1000 + randint(5) + 20 + get_level(Ind, OSUBJUGATION, 50), "casts a spell")
 	end,
 	["info"] = 	function()
-			return "dur "..(5 + get_level(Ind, OSUBJUGATION, 50))
+			return "dur d5+"..(20 + get_level(Ind, OSUBJUGATION, 50))
 	end,
 	["desc"] = 	{ "Attempts to subjugate all undead lesser than you.", }
 }
@@ -151,6 +154,7 @@ OSUBJUGATION = add_spell {
 --ENABLE_DEATHKNIGHT:
 function get_netherbolt_dam(Ind)
 	local lev
+
 	lev = get_level(Ind, NETHERBOLT, 50) + 21
 	return 0 + (lev * 3) / 5, 1 + lev
 end
@@ -171,6 +175,7 @@ NETHERBOLT = add_spell {
 	end,
 	["info"] = 	function()
 		local x, y
+
 		x, y = get_netherbolt_dam(Ind)
 		return "dam "..x.."d"..y
 	end,
@@ -185,7 +190,7 @@ OUNLIFERES = add_spell {
 	["level"] = 	35,
 	["mana"] = 	25,
 	["mana_max"] = 	25,
-	["fail"] = 	-35,
+	["fail"] = 	-70,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 			if player.prace == RACE_VAMPIRE then
@@ -218,7 +223,7 @@ ODRAINLIFE2 = add_spell {
 	["level"] = 	37,
 	["mana"] = 	30,
 	["mana_max"] = 	30,
-	["fail"] = 	-60,
+	["fail"] = 	-70,
 	["stat"] = 	A_WIS,
 	["direction"] = TRUE,
 	["spell"] = 	function(args)
@@ -239,13 +244,13 @@ OIMBUE = add_spell {
 	["level"] = 	42,
 	["mana"] = 	40,
 	["mana_max"] = 	40,
-	["fail"] = 	-70,
+	["fail"] = 	-80,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
-			set_melee_brand(Ind, randint(10) + 10 + get_level(Ind, OIMBUE, 25), TBRAND_VAMPIRIC, 10, TRUE, FALSE)
+			set_melee_brand(Ind, randint(5) + 14 + get_level(Ind, OIMBUE, 69), TBRAND_VAMPIRIC, 10, TRUE, FALSE)
 			end,
 	["info"] = 	function()
-			return "dur "..(10 + get_level(Ind, OIMBUE, 25)).."+d10"
+			return "dur "..(14 + get_level(Ind, OIMBUE, 69)).."+d5"
 			end,
 	["desc"] = 	{ "Temporarily imbue your melee attacks with vampiric power.", }
 }
@@ -255,18 +260,68 @@ OWRAITHSTEP = add_spell {
 	["name2"] = 	"Wraith",
 	["school"] = 	{SCHOOL_OUNLIFE, SCHOOL_OSHADOW},
 	["level"] = 	46,
-	["mana"] = 	45,
-	["mana_max"] = 	45,
-	["fail"] = 	-80,
+	["mana"] = 	25,
+	["mana_max"] = 	25,
+	["fail"] = 	-95,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
-			set_tim_wraithstep(Ind, randint(30) + 20 + get_level(Ind, OWRAITHSTEP, 40))
+			set_tim_wraithstep(Ind, 6)
 	end,
 	["info"] = 	function()
-			return "dur "..(20 + get_level(Ind, OWRAITHSTEP, 40)).."+d30"
+			return "dur 6 + oo"
 	end,
 	["desc"] = 	{
-			"Renders you temporarily immaterial, but the effect will cease",
-			"immediately when you step from walls into open space again.",
+			"Weakens the barrier to the immaterial realm for a few turns.",
+			"If you enter terrain that is impassable to you during this time you will",
+			"remain immaterial infinitely, until you step out again onto open floor.",
 	}
+}
+
+function get_antiregen_pow(Ind, limit_lev)
+	local lev = get_level(Ind, ANTIREGEN_I, 109)
+
+	if limit_lev ~= 0 and lev > limit_lev then lev = limit_lev + (lev - limit_lev) / 2 end
+	return 33 + lev
+end
+
+ANTIREGEN_I = add_spell {
+	["name"] = 	"Mists of Decay I",
+	["name2"] = 	"MoD I",
+	["school"] = 	{SCHOOL_OUNLIFE},
+	["spell_power"] = 0,
+	["level"] = 	20,
+	["mana"] = 	10,
+	["mana_max"] = 	10,
+	["fail"] = 	-30,
+	["stat"] = 	A_WIS,
+	["direction"] = FALSE,
+	["spell"] = 	function()
+		fire_wave(Ind, GF_NO_REGEN, 0, get_antiregen_pow(Ind, 8), 1, 25 + get_level(Ind, ANTIREGEN_I, 20), 8, EFF_STORM, " conjures mists of decay")
+			end,
+	["info"] = 	function()
+		return "pow "..(get_antiregen_pow(Ind, 8)).." rad 1 dur "..((25 + get_level(Ind, ANTIREGEN_I, 20)) / 4)
+			end,
+	["desc"] = 	{ "Inhibits adjacent enemies' natural regeneration capabilities.",
+			  "Reduced effect vs enemies of levels exceeding the spell's power.", }
+}
+
+ANTIREGEN_II = add_spell {
+	["name"] = 	"Mists of Decay II",
+	["name2"] = 	"MoD II",
+	["school"] = 	{SCHOOL_OUNLIFE},
+	["spell_power"] = 0,
+	["level"] = 	40,
+	["mana"] = 	25,
+	["mana_max"] = 	25,
+	["fail"] = 	-85,
+	["stat"] = 	A_WIS,
+	["direction"] = FALSE,
+	["spell"] = 	function()
+		fire_wave(Ind, GF_NO_REGEN, 0, get_antiregen_pow(Ind, 0), 1, 25 + get_level(Ind, ANTIREGEN_I, 20), 8, EFF_STORM, " conjures mists of decay")
+			end,
+	["info"] = 	function()
+		return "pow "..(get_antiregen_pow(Ind, 0)).." rad 1 dur "..((25 + get_level(Ind, ANTIREGEN_I, 20)) / 4)
+			end,
+	["desc"] = 	{ "Inhibits adjacent enemies' natural regeneration capabilities.",
+			  "Reduced effect vs enemies of levels exceeding the spell's power.", }
 }

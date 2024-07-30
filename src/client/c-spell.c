@@ -347,7 +347,7 @@ int get_spell(s32b *sn, cptr prompt, int book) {
 		/* uppercase... hope this is portable. */
 		else if (isupper(choice)) {
 			i = (choice - 'A') + 64;
-			if (i-64 >= num) i = -1;
+			if (i - 64 >= num) i = -1;
 		}
 		else i = -1;
 
@@ -946,6 +946,9 @@ bool get_item_hook_find_spell(int *item, int mode) {
 			exact_match = TRUE;
 	}
 
+	/* Note about WIELD_BOOKS: This inventory iteration does not break if it finds a match,
+	   so any spells at INVEN_WIELD will override their equivalents up to INVEN_PACK,
+	   hence the search order from inven slot 0 upwards is correct. */
 	for (i = 0; i < INVEN_TOTAL; i++) {
 		o_ptr = &inventory[i];
 		if (o_ptr->tval != TV_BOOK) continue;
@@ -1069,6 +1072,8 @@ s32b get_school_spell(cptr do_what, int *item_book) {
 	//int tmp;
 	int sval, pval;
 
+//TODO: Subinventories!!! Prevent sending a wrong item_book etc to Receive_activate_skill!
+
 	hack_force_spell = -1;
 	hack_force_spell_level = 0;
 
@@ -1079,12 +1084,16 @@ s32b get_school_spell(cptr do_what, int *item_book) {
 		sprintf(out_val, "%s from which book?", do_what);
 		out_val[0] = toupper(out_val[0]);
 		if (sflags1 & SFLG1_LIMIT_SPELLS) {
-			if (!c_get_item(&item, out_val, (USE_INVEN | USE_EXTRA | USE_LIMIT | NO_FAIL_MSG) )) {
+			if (!c_get_item(&item, out_val, (USE_INVEN |
+			    USE_EQUIP | /* for WIELD_BOOKS */
+			    USE_EXTRA | USE_LIMIT | NO_FAIL_MSG) )) {
 				if (item == -2) c_msg_format("%s", buf2);
 				return(-1);
 			}
 		} else {
-			if (!c_get_item(&item, out_val, (USE_INVEN | USE_EXTRA | NO_FAIL_MSG) )) {
+			if (!c_get_item(&item, out_val, (USE_INVEN |
+			    USE_EQUIP | /* for WIELD_BOOKS */
+			    USE_EXTRA | NO_FAIL_MSG) )) {
 				if (item == -2) c_msg_format("%s", buf2);
 				return(-1);
 			}

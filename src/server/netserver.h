@@ -184,6 +184,8 @@ static int Receive_si_remove(int ind);
 #endif
 
 static int Receive_version(int ind);
+static int Receive_plistw_notify(int ind);
+static int Receive_unknownpacket(int ind);
 
 
 int Setup_net_server(void);

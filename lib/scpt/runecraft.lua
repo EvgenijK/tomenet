@@ -6,6 +6,10 @@ R1 = bshl(255,0)
 R2 = bshl(255,8)
 PROJ = bor(R1,R2)
 MODE = bshl(255,16)
+-- This causes a runetime error in script.c btw. as this value exceeds the int type used by LUA:
+-- "server/script.c:88:1: runtime error: left shift of 255 by 24 places cannot be represented in type 'int'"
+-- The error occurs if compiled with gcc, but not if compiled with clang.
+-- Fixed this by changing all types in the bitwise, shifting and logical operations from s32b to u32b. - C. Blue
 TYPE = bshl(255,24)
 WARN = 0
 
@@ -106,6 +110,8 @@ adj_mag_stat = {0,0,0,1,1,1,2,2,3,3,4,4,5,6,7,8,9,10,11,12,13,14,16,18,21,24,27,
 
 function hamming(u)
   local x = 0
+  local i
+
   for i = 0,31 do
     x = x + bshr(band(u,bshl(1,i)),i)
   end
@@ -140,8 +146,11 @@ end
 function rspell_cost(u,s)
   local XX = band(u,ENHA)~=0 and E[band(u,TYPE)] or T[band(u,TYPE)]
   local l = XX[3]
-  local x = rspell_scale(s, l, XX[4]) * M[band(u,MODE)][3] / 10
-  return x < l and l or x
+  local x = rspell_scale(s,l,XX[4]) * M[band(u,MODE)][3] / 10
+  -- Nerfed runespell cost reduction here, preventing < 100% cost? - Kurzel
+  -- return x < l and l or x
+  -- Reverting, as it seems like a bug!
+  return x
 end
 
 function rspell_failure(p,u,x,c)
@@ -233,7 +242,9 @@ function rcraft_max(u)
 end
 
 function rcraft_prt(u,w)
+  local i
   local U,C,row,col
+
   if w~=0 then
     C = TERM_GREEN
     row,col = 9,16
@@ -306,7 +317,7 @@ function rcraft_prt(u,w)
       elseif band(U,CONE)~=0 then
         c_prt(C, format("%c) %-8s %5d %4d %3d%% dam %dd%d%s rad %d",
           strbyte('a')+i, XX[1], a, c, f,
-          x, y, X and "" or " (x4)", r),
+          x, y, X and "" or " (x3)", r), -- 3->4 bolts, too OP?
         row+i+1, col)
       elseif band(U,SURG)~=0 then
         if X then
@@ -330,7 +341,8 @@ function rcraft_prt(u,w)
         else
           if p.cmp == nil then xxx = p.csp else xxx = p.cmp end
           if xxx > c then
-            c = xxx
+            -- Buff "nova" (by not draining 100% MP), since LoS anti-cheese.
+            -- c = xxx
             d = xxx
           end
           c_prt(C, format("%c) %-8s %5d %4d %3d%% dam %d dur %d backlash 20%%",
@@ -525,7 +537,8 @@ function cast_rune_spell(I,D,u)
       b = b + d / 10 + 1
     else
       if p.cmp == nil then xxx = p.csp else xxx = p.cmp end
-      c = xxx
+      -- Buff "nova" (by not draining 100% MP), since LoS anti-cheese.
+      -- c = xxx
       d = xxx
       b = b + d / 10 + 1
     end
@@ -591,7 +604,7 @@ function cast_rune_spell(I,D,u)
     if X then
       fire_cone(I, PP[2], D, d, r, p.attacker)
     else
-      fire_shot(I, PP[2], D, x, y, r, 4, p.attacker)
+      fire_shot(I, PP[2], D, x, y, r, 3, p.attacker) -- 3->4 bolts, too OP?
     end
   elseif band(u,SURG)~=0 then
     if X then

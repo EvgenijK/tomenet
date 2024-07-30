@@ -265,6 +265,8 @@ void dealloc_stores(int townval) {
  * Since greed/charisma/racial adjustments are centered at 100, we need
  * to adjust (by 200) to extract a usable multiplier.  Note that the
  * "greed" value is always something (?).
+ *
+ * flip: TRUE = player sells to store, FALSE = player buys from store.
  */
 s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 	player_type *p_ptr = Players[Ind];
@@ -304,18 +306,16 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 		factor = ot_ptr->costs[STORE_NORMAL];
 
 	/* Add in the charisma factor */
-	factor += adj_chr_gold[p_ptr->stat_ind[A_CHR]];
+	factor *= adj_chr_gold[p_ptr->stat_ind[A_CHR]];
 
 
 	/* Shop is buying */
 	if (flip) {
 		/* Adjust for greed */
-		adjust = 100 + (300 - (greed + factor));//greed+factor: 150..250 (flip=TRUE)
-
-#if 0 /* disabled for now to make things look more consistent (eg law dsm of def selling for less than law dsm) */
-		/* Hack -- Shopkeepers hate higher level-requirement */
-		adjust += (20 - o_ptr->level) / 2 ;
-#endif
+		/* Note about adjustment from 100M to 90M:
+		   Correct bad-case prices to what they were before (minus erroneous edge case implosions to 1 Au of course),
+		   and slightly correcting 'normal' prices to make good CHR work better in intermediately favouring pricing ranges. */
+		adjust = 90000000 / (greed * factor);
 
 		/* Never get "silly" */
 		if (adjust > 100 - STORE_BENEFIT) adjust = 100 - STORE_BENEFIT;
@@ -325,19 +325,26 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 		if ((o_ptr->tval == TV_RING) && (o_ptr->sval == SV_RING_POLYMORPH)) price = price_poly_ring(Ind, o_ptr, 0);
 
 		/* Mega-Hack -- Black market sucks */
-		if (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) price /= 4;
+		if (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) price = (price + 3) / 4;
 
 		/* Seasoned Tradesman et al don't pay very much either, they know the customers can't disagree.. */
-		if (st_info[st_ptr->st_idx].flags1 & SF1_BUY67) price = (price * 2) / 3;
+		if (st_info[st_ptr->st_idx].flags1 & SF1_BUY67) price = (price * 2 + 1) / 3;
+
+		/* Seasoned Tradesman et al don't pay very much either, they know the customers can't disagree.. */
+		if (st_info[st_ptr->st_idx].flags1 & SF1_BUY50) price = (price + 1) / 2;
 
 		/* You're not a welcomed customer.. */
-		if (p_ptr->tim_blacklist) price = price / 4;
+		if (p_ptr->tim_blacklist) price = (price + 3) / 4;
+
+		/* If shop-selling prices are 2/3, so must be shop-buying prices, of course, or you could make free money */
+		if (st_info[st_ptr->st_idx].flags1 & SF1_SELL67) price = (price * 2 + 1) / 3;
 	}
 
 	/* Shop is selling */
 	else {
 		/* Adjust for greed */
-		adjust = 100 + ((greed + factor) - 300);
+		/* Note about adjustment from 10000 to 9230: Match previous top-priced items. Has virtually no effect on lower priced items. */
+		adjust = (greed * factor) / 9230;
 
 		/* Never get "silly" */
 		if (adjust < 100 + STORE_BENEFIT) adjust = 100 + STORE_BENEFIT;
@@ -366,6 +373,7 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 #endif
 		}
 		if (st_info[st_ptr->st_idx].flags1 & SF1_PRICE1) price = (price * 3) / 2;
+
 		/* hack - make speed/poly rings 'affordable' (2/2) -- not speed rings here anymore! */
 		if ((o_ptr->tval == TV_RING && o_ptr->sval == SV_RING_POLYMORPH) &&
 		    (st_info[st_ptr->st_idx].flags1 & (SF1_PRICE4 | SF1_PRICE16))) {
@@ -373,15 +381,23 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 			if (st_info[st_ptr->st_idx].flags1 & SF1_PRICE1) price = (price * 2) / 3;
 		}
 
+		/* CHEAPER items: Added for Hidden Library in IDDC */
+		if (st_info[st_ptr->st_idx].flags1 & SF1_SELL67) price = (price * 2 + 1) / 3;
+
 		/* You're not a welcomed customer.. */
 		if (p_ptr->tim_blacklist) price = price * 4;
-
-		/* Added for Hidden Library in IDDC */
-		if (st_info[st_ptr->st_idx].flags1 & SF1_SELL67) price = (price * 2) / 3;
 	}
 
 	/* Compute the final price (with rounding) */
+#if 0 /* debug print, for checking practicability of rounding offsets */
+if (o_ptr->tval == TV_ARROW)
+msg_format(Ind, "0: %d, 10: %d, 20: %d, 30: %d, 40: %d", (price * adjust + 0L) / 100L, (price * adjust + 10L) / 100L, (price * adjust + 20L) / 100L, (price * adjust + 30L) / 100L, (price * adjust + 40L) / 100L, (price * adjust + 40L) / 100L);
+#endif
+#if 0 /* classical rounding (only really affects ammo, all other items are more expensive so this fraction becomes irrelevant) */
 	price = (price * adjust + 50L) / 100L;
+#else /* more easy-going for ammo, for races that are hated by most shopkeepers -> rounding resulting in double cost is too much */
+	price = (price * adjust + 30L) / 100L;
+#endif
 
 	/* Note -- Never become "free" */
 	if (price <= 0L) return(1L);
@@ -440,8 +456,10 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 		/* We have to manually handle whether the player has IDed / knows the ring flavour or not! */
 		if (!object_known_p(Ind, o_ptr) && !object_aware_p(Ind, o_ptr)) {
 			price = object_value_base(Ind, o_ptr);
+
 			/* Apply discount (if any) */
 			if (o_ptr->discount) price -= (price * o_ptr->discount / 100L);
+
 			return(price);
 		}
 		price = k_info[o_ptr->k_idx].cost;
@@ -449,18 +467,31 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 		if (!object_known_p(Ind, o_ptr)) return(price);
 
 		if (o_ptr->name2) price += e_info[o_ptr->name2b].cost; /* 'Indestructible' ego, pft */
+#if 0 /* cheapo, basically just a tip :/ */
 		if (o_ptr->pval != 0) price += r_info[o_ptr->pval].level * 100;
+#elif 0 /* can be a very serious tip. Worth selling forms you don't need, perhaps even? (1/10 of npc stores' selling price) */
+		if (o_ptr->pval != 0) price += ((r_val >= r_ptr->level * 100) ? r_val : r_ptr->level * 100) / 10;
+#else /* get even moar out of it! Side hustle for mimicry users! */
+		if (o_ptr->pval != 0) price += (((r_val >= r_ptr->level * 100) ? r_val : r_ptr->level * 100) * 10) / (30 + 300 / (r_ptr->level + 5));
+#endif
+
+		/* Apply discount (if any) */
+		if (o_ptr->discount) price -= (price * o_ptr->discount / 100L);
+
 		break;
 	case 1:
 		/* npc shop sells: very expensive */
 		if (o_ptr->pval != 0) price += (r_val >= r_ptr->level * 100) ? r_val : r_ptr->level * 100;
+
+		/* Apply discount (if any) */
+		if (o_ptr->discount) price -= (price * o_ptr->discount / 100L);
 		break;
 	case 2:
 		/* player store: balanced */
 		if (Ind && !object_known_p(Ind, o_ptr) && !object_aware_p(Ind, o_ptr)) {
 			price = object_value_base(Ind, o_ptr);
-			/* Apply discount (if any) */
-			if (o_ptr->discount) price -= (price * o_ptr->discount / 100L);
+
+			//note: o_ptr->discount doesn't apply in player stores
 			return(price);
 		}
 		price = k_info[o_ptr->k_idx].cost;
@@ -663,6 +694,8 @@ static bool store_object_similar(object_type *o_ptr, object_type *j_ptr) {
 	if (o_ptr->questor) return(FALSE);
 	/* Don't ever stack special quest items */
 	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_QUEST) return(FALSE);
+	/* Gifts can contain a stack of items, so they themselves must not be stackable, or inven space limits could be badly exploited */
+	if (o_ptr->tval == TV_SPECIAL && (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)) return(FALSE);
 	/* Don't stack quest items if not from same quest AND stage! */
 	if (o_ptr->quest != j_ptr->quest || o_ptr->quest_stage != j_ptr->quest_stage) return(FALSE);
 
@@ -770,7 +803,7 @@ static void store_object_absorb(object_type *o_ptr, object_type *j_ptr) {
 
 	/* Combine quantity, lose excess items */
 	total = o_ptr->number + j_ptr->number;
-	if (total > 99) total = 99;
+	if (total >= MAX_STACK_SIZE) total = MAX_STACK_SIZE - 1;
 
 	if (o_ptr->tval == TV_ROD) {
 #ifdef NEW_MDEV_STACKING
@@ -834,25 +867,24 @@ static bool store_check_num(store_type *st_ptr, object_type *o_ptr) {
 
 
 /*
- * Determine if the current store will purchase the given item
- *
- * Note that a shop-keeper must refuse to buy "worthless" items
+ * Determine if the current store will purchase the given item.
+ * Note that a shop-keeper must refuse to buy "worthless" items.
  */
-static bool store_will_buy(int Ind, object_type *o_ptr) {
+static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 	player_type *p_ptr = Players[Ind];
 
 #ifdef PLAYER_STORES
 	/* player stores don't buy anything */
-	if (p_ptr->store_num <= -2) return(FALSE);
+	if (p_ptr->store_num <= -2) return(2);
 #endif
 
 	/* Hack: The Mathom House */
-	if (st_info[p_ptr->store_num].flags1 & SF1_MUSEUM) {
+	if (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM) {
 		/* Museums won't buy true artifacts, since they'd be
 		   conserved and out of reach for players thereby. */
-		if (true_artifact_p(o_ptr)) return(FALSE);
+		if (true_artifact_p(o_ptr)) return(3);
 		/* Museum does accept even worthless donations.. */
-		return(TRUE);
+		return(0);
 	}
 
 	/* Switch on the store */
@@ -884,12 +916,12 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 			break;
 #ifdef ENABLE_SUBINVEN
 		case TV_SUBINVEN: /* Chest clones */
-			if (o_ptr->sval >= SV_SI_GROUP_CHEST_MIN && o_ptr->sval <= SV_SI_GROUP_CHEST_MAX) return(TRUE);
-			if (o_ptr->sval == SV_SI_TRAPKIT_BAG) return(TRUE);
-			return(FALSE);
+			if (o_ptr->sval >= SV_SI_GROUP_CHEST_MIN && o_ptr->sval <= SV_SI_GROUP_CHEST_MAX) return(0);
+			if (o_ptr->sval == SV_SI_TRAPKIT_BAG) return(0);
+			return(1);
 #endif
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -900,7 +932,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_GOLEM:
 			/* Buy massive pieces of wood/metal for forging/fletching! */
-			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(FALSE);
+			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(1);
 		case TV_BOOTS:
 		case TV_GLOVES:
 		case TV_CROWN:
@@ -912,7 +944,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_DRAG_ARMOR:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -923,7 +955,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_GOLEM:
 			/* Buy massive pieces of wood/metal for forging/fletching! */
-			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(FALSE);
+			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(1);
 		case TV_SHOT:
 		case TV_BOLT:
 		case TV_ARROW:
@@ -936,7 +968,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOMERANG:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -948,14 +980,14 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOK:
 			if (get_book_name_color(o_ptr) != TERM_GREEN &&
 			    get_book_name_color(o_ptr) != TERM_WHITE) /* unused custom books */
-				 return(FALSE);
+				 return(1);
 		case TV_SCROLL:
 		case TV_POTION:
 		case TV_POTION2:
 		case TV_BLUNT:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -967,12 +999,12 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 #ifdef ENABLE_SUBINVEN
 		case TV_SUBINVEN:
-			if (o_ptr->sval != SV_SI_SATCHEL) return(FALSE);
+			if (o_ptr->sval != SV_SI_SATCHEL && o_ptr->sval != SV_SI_POTION_BELT) return(1);
 			break;
 #endif
 #ifdef ENABLE_DEMOLITIONIST
 		case TV_TOOL:
-			if (o_ptr->sval != SV_TOOL_GRINDER) return(FALSE);
+			if (o_ptr->sval != SV_TOOL_GRINDER) return(1);
 			break;
 		case TV_CHEMICAL:
 #endif
@@ -985,7 +1017,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOTTLE:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -997,7 +1029,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOK:
 			if (get_book_name_color(o_ptr) != TERM_L_BLUE &&
 			    get_book_name_color(o_ptr) != TERM_WHITE) /* unused custom books */
-				return(FALSE);
+				return(1);
 		case TV_AMULET:
 		case TV_RING:
 		case TV_STAFF:
@@ -1014,15 +1046,15 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 #ifdef ENABLE_DEMOLITIONIST
 		case TV_CHEMICAL:
 			/* Just because of novice mages dropping this... */
-			if (o_ptr->sval != SV_SALTPETRE) return(FALSE); else break;
+			if (o_ptr->sval != SV_SALTPETRE) return(1); else break;
 #endif
 #ifdef ENABLE_SUBINVEN
 		case TV_SUBINVEN:
-			if (o_ptr->sval != SV_SI_MDEVP_WRAPPING) return(FALSE);
+			if (o_ptr->sval != SV_SI_MDEVP_WRAPPING) return(1);
 			break;
 #endif
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1040,7 +1072,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 #endif	/* 0 */
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1053,7 +1085,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_RUNE:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1064,7 +1096,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOTS:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1076,7 +1108,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_RING:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1090,10 +1122,10 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_CHARGE:
 #endif
 			break;
-		case TV_WAND: if (o_ptr->sval != SV_WAND_STONE_TO_MUD) return(FALSE); else break;
-		case TV_POTION: if (o_ptr->sval != SV_POTION_DETONATIONS) return(FALSE); else break;
+		case TV_WAND: if (o_ptr->sval != SV_WAND_STONE_TO_MUD) return(1); else break;
+		case TV_POTION: if (o_ptr->sval != SV_POTION_DETONATIONS) return(1); else break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1112,10 +1144,10 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_RING:
 			if ((o_ptr->sval != SV_RING_RES_NETHER) &&
 			    (o_ptr->sval != SV_RING_FLAMES) &&
-			    (o_ptr->sval != SV_RING_RESIST_FIRE)) return(FALSE);
+			    (o_ptr->sval != SV_RING_RESIST_FIRE)) return(1);
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1123,21 +1155,21 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_BOOK:
 			/* The owner is actually a druid? >_> */
-			if (get_book_name_color(o_ptr) != TERM_L_GREEN) return(FALSE);
+			if (get_book_name_color(o_ptr) != TERM_L_GREEN) return(1);
 			break;
 		case TV_FOOD:
-			if ((o_ptr->sval <= SV_FOOD_MUSHROOMS_MAX) || /* all mushrooms are of a herbalist's interest! */
-			    (o_ptr->sval == SV_FOOD_WAYBREAD) || (o_ptr->sval == SV_FOOD_ATHELAS) || /* 'normal' food, but counts as herbalist stuff due to their special nature */
-			    (o_ptr->sval == SV_FOOD_PINT_OF_ALE) || (o_ptr->sval == SV_FOOD_PINT_OF_WINE)) /* owner likes booze for a change =_= */
+			if (o_ptr->sval <= SV_FOOD_MUSHROOMS_MAX || /* all mushrooms are of a herbalist's interest! */
+			    o_ptr->sval == SV_FOOD_WAYBREAD || o_ptr->sval == SV_FOOD_ATHELAS || /* 'normal' food, but counts as herbalist stuff due to their special nature */
+			    o_ptr->sval == SV_FOOD_PINT_OF_ALE || o_ptr->sval == SV_FOOD_PINT_OF_WINE || o_ptr->sval == SV_FOOD_KHAZAD) /* owner likes booze for a change =_= */
 				 break;
-			return(FALSE);
+			return(1);
 		case TV_POTION:
 			/* Juice is nice */
 			if ((o_ptr->sval != SV_POTION_APPLE_JUICE) &&
-			    (o_ptr->sval != SV_POTION_SLIME_MOLD)) return(FALSE);
+			    (o_ptr->sval != SV_POTION_SLIME_MOLD)) return(1);
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1150,7 +1182,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOTTLE:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 	case STORE_SPEC_SCROLL:
@@ -1159,7 +1191,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_SCROLL:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 	case STORE_SPEC_CLOSECOMBAT:
@@ -1167,7 +1199,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_GOLEM:
 			/* Buy massive pieces of wood/metal for forging/fletching! */
-			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(FALSE);
+			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(1);
 		case TV_BOOTS:
 		case TV_GLOVES:
 		case TV_CROWN:
@@ -1188,7 +1220,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_MSTAFF:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1197,7 +1229,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		switch (o_ptr->tval) {
 		case TV_GOLEM:
 			/* Buy massive pieces of wood/metal for forging/fletching! */
-			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(FALSE);
+			if (o_ptr->sval > SV_GOLEM_MATERIAL_MAX) return(1);
 		case TV_SHOT:
 		case TV_BOLT:
 		case TV_ARROW:
@@ -1205,7 +1237,7 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOMERANG:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
@@ -1215,43 +1247,57 @@ static bool store_will_buy(int Ind, object_type *o_ptr) {
 		case TV_BOOK:
 			break;
 		default:
-			return(FALSE);
+			return(1);
 		}
 		break;
 
 	case STORE_STRADER: /* For ironman dungeons */
 #ifdef ENABLE_SUBINVEN
 		case TV_SUBINVEN:
-			if (o_ptr->sval != SV_SI_TRAPKIT_BAG) return(FALSE);
+			if (o_ptr->sval != SV_SI_TRAPKIT_BAG) return(1);
 			break;
 #endif
 		/* doesn't like very cheap items */
-		if (object_value(Ind, o_ptr) < 10) return(FALSE);
+		if (object_value(Ind, o_ptr) < 10) return(1);
 		break;
 	}
 
-
 	/* XXX XXX XXX Ignore "worthless" items */
-	if (object_value(Ind, o_ptr) <= 0) return(FALSE);
+	if (object_value(Ind, o_ptr) <= 0) return(1);
 
 	/* XXX Never OK to sell keys */
-	if (o_ptr->tval == TV_KEY) return(FALSE);
+	if (o_ptr->tval == TV_KEY) return(4);
 
-	/* This prevents suicide-cheeze */
-#if 0 /* changed to allow selling own level 0 rewards that weren't discounted */
+	/* Note: We currently allow selling someone else's level-0 items, eg unique monsters' DROP_CHOSEN items/artifacts (and also starter items). */
+	//if (!o_ptr->level && o_ptr->owner != p_ptr->id) return(5);
+
+#if STARTEQ_TREATMENT >= 2
+	if (o_ptr->mode & MODE_STARTER_ITEM) {
  #if STARTEQ_TREATMENT == 3
-	if (o_ptr->level < 1) return(FALSE);
+		/* Cannot sell any starter items, including own ones */
+		return(6);
+ #else
+		/* Prevent suicide-item-accumulation-cheeze, but allow selling own level 0 rewards (that weren't 100% discounted) */
+		if (o_ptr->owner != p_ptr->id) return(7);
  #endif
- #if STARTEQ_TREATMENT == 2
-	if ((o_ptr->level < 1) && (o_ptr->owner != p_ptr->id)) return(FALSE);
- #endif
-#else
- #if STARTEQ_TREATMENT > 1
-	if ((o_ptr->level < 1) && (o_ptr->owner != p_ptr->id)) return(FALSE);
- #endif
+	}
 #endif
+
 	/* Assume okay */
-	return(TRUE);
+	return(0);
+}
+static bool store_will_buy(int Ind, object_type *o_ptr) {
+	switch(store_will_buy_aux(Ind, o_ptr)) {
+	case 0: return(TRUE);
+	case 1: msg_print(Ind, "I don't want that!"); break;
+	case 2: msg_print(Ind, "I am only selling goods, not buying them."); break;
+	case 3: msg_print(Ind, "Sorry, we do not accept true artifacts."); break;
+	case 4: msg_print(Ind, "You cannot sell house keys."); break;
+	case 5: msg_print(Ind, "You cannot sell level-0 items that you don't own."); break;
+	case 6: msg_print(Ind, "You cannot sell starter items."); break;
+	case 7: msg_print(Ind, "You cannot sell starter items that you don't own."); break;
+	}
+	return(FALSE);
 }
 
 static int get_spellbook_store_order(int pval) {
@@ -1294,13 +1340,13 @@ int player_store_base(object_type *o_ptr) {
 	if (!o_ptr->note || !(c = strstr(quark_str(o_ptr->note), "@SB"))) return(0);
 
 	/* No specific amount specified? Default to 1 */
-	if (c[4] != ';' && c[5] != ';') keep = 1;
-	/* Specified an amount, must range from 1 to 99 */
+	if (!c[3] || !c[4] || (c[4] != ';' && c[5] != ';')) keep = 1;
+	/* Specified an amount, must range from 1 to 99 [MAX_STACK_SIZE-1] */
 	else keep = atoi(c + 3);
 
 	if (keep >= o_ptr->number) return(-o_ptr->number); /* Object must have bigger amount provided than we want to keep as base stock, to be eligible for sale */
 	if (keep < 1) return(1);
-	if (keep > 99) return(99);
+	if (keep >= MAX_STACK_SIZE) return(MAX_STACK_SIZE - 1);
 	return(keep);
 }
 #endif
@@ -1326,6 +1372,11 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	object_type *j_ptr;
 	s16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
 
+	if (o_tv == TV_SPECIAL && o_sv == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+		o_tv = o_ptr->tval2;
+		o_sv = o_ptr->sval2;
+	}
+
 #ifdef ENABLE_SUBINVEN
 	/* Hack so subinventories are placed at the very first slots even before custom objects */
 	if (o_tv == TV_SUBINVEN) o_tv = TV_MAX + 1;
@@ -1333,8 +1384,8 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 	/* Hack so they don't end up too close to orange amulets sometimes */
-	if (o_tv == TV_CHARGE) o_tv = 9;
-	if (o_tv == TV_CHEMICAL) o_tv = 10;
+	if (o_tv == TV_CHARGE) o_tv = TV_CORPSE;
+	if (o_tv == TV_CHEMICAL) o_tv = TV_EGG;
 #endif
 
 	/* Evaluate the object */
@@ -1352,7 +1403,7 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	if (!st_ptr->player_owner) /* allow 100% off items in player stores */
 #endif
 	if (value <= 0 &&
-	    !(st_info[st_ptr->st_idx].flags1 & SF1_MUSEUM))
+	    !(st_info[st_ptr->st_idx].flags2 & SF2_MUSEUM))
 		return(-1);
 
 	/* All store items are fully *identified* */
@@ -1368,7 +1419,7 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	if (!st_ptr->player_owner) /* don't erase inscriptions in player stores */
 #endif
 #ifndef TEST_SERVER /* redundant? inscription is already erased on selling an item in store_sell()! */
-	if (!(st_info[st_ptr->st_idx].flags1 & SF1_MUSEUM)) {
+	if (!(st_info[st_ptr->st_idx].flags2 & SF2_MUSEUM)) {
 		o_ptr->note = 0;
 		o_ptr->note_utag = 0;
 	}
@@ -1402,7 +1453,7 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	if (st_ptr->stock_num >= st_ptr->stock_size) return(-1);
 
 
-	if (!(st_info[st_ptr->st_idx].flags1 & SF1_MUSEUM)
+	if (!(st_info[st_ptr->st_idx].flags2 & SF2_MUSEUM)
 #ifdef PLAYER_STORES
 	    /* Don't sort store signs */
 	    && !(st_ptr->player_owner && o_ptr->tval == TV_JUNK && o_ptr->sval == SV_WOOD_PIECE && o_ptr->note && strstr(quark_str(o_ptr->note), "@S:"))
@@ -1417,6 +1468,11 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 			j_tv = j_ptr->tval;
 			j_sv = j_ptr->sval;
 
+			if (j_tv == TV_SPECIAL && j_sv == SV_CUSTOM_OBJECT && j_ptr->xtra3 & 0x0200) {
+				j_tv = j_ptr->tval2;
+				j_sv = j_ptr->sval2;
+			}
+
 #ifdef ENABLE_SUBINVEN
 			/* Hack so subinventories are placed at the very first slots even before custom objects */
 			if (j_tv == TV_SUBINVEN) j_tv = TV_MAX + 1;
@@ -1424,8 +1480,8 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 			/* Hack so they don't end up too close to orange amulets sometimes */
-			if (j_tv == TV_CHARGE) j_tv = 9;
-			if (j_tv == TV_CHEMICAL) j_tv = 10;
+			if (j_tv == TV_CHARGE) j_tv = TV_CORPSE;
+			if (j_tv == TV_CHEMICAL) j_tv = TV_EGG;
 #endif
 
 #ifdef PLAYER_STORES
@@ -1468,7 +1524,7 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 
 		/* Slide the others up */
 		for (i = st_ptr->stock_num; i > slot; i--)
-			st_ptr->stock[i] = st_ptr->stock[i-1];
+			st_ptr->stock[i] = st_ptr->stock[i - 1];
 	} else { /* is museum -> don't order items! */
 		slot = st_ptr->stock_num;
 	}
@@ -1613,20 +1669,17 @@ static bool black_market_crap(object_type *o_ptr, int st_idx) {
 	if (o_ptr->to_h > 0) return(FALSE);
 	if (o_ptr->to_d > 0) return(FALSE);
 
-#if 0 /* Would mess up at least the dungeon BMs, and was buggy all the time anyway \
-       * (returned FALSE instead of TRUE), so disabling it altogether. \
-       */
+#if 0	/* Would mess up at least the dungeon BMs, and was buggy all the time anyway \
+	 * (returned FALSE instead of TRUE), so disabling it altogether. */
 	/* Don't allow items in black markets that are listed in other BMs' templates already */
 	/* check individual store would be better. *later* */
 	for (i = 0; i < max_st_idx; i++) {
 		if (st_info[i].flags1 & SF1_ALL_ITEM) {
 			for (j = 0; j < st_info[i].table_num; j++) {
 				if (st_info[i].table[j][0] >= 10000) {
-					if (o_ptr->tval == st_info[i].table[j][0] - 10000)
-						return(TRUE);
+					if (o_ptr->tval == st_info[i].table[j][0] - 10000) return(TRUE);
 				} else {
-					if (o_ptr->k_idx == st_info[i].table[j][0])
-						return(TRUE);
+					if (o_ptr->k_idx == st_info[i].table[j][0]) return(TRUE);
 				}
 			}
 		}
@@ -1663,7 +1716,7 @@ static bool black_market_crap(object_type *o_ptr, int st_idx) {
 			/* Don't compare other BMs */
 			if (st_info[i].flags1 & SF1_ALL_ITEM) continue;
   #else /* using light-weight version that shouldn't pose problems */
-		/* Check the other basic normal stores */
+		/* Check the other basic normal stores (entrance '1' to '6') */
 		for (i = 0; i < 6; i++) {
   #endif
 			/* Check every item in the store */
@@ -1747,19 +1800,16 @@ static int return_level(store_type *st_ptr, int town_base_level) {
 	if (sti_ptr->flags1 & SF1_RANDOM) level = 0;
 	else level = rand_range(1, STORE_OBJ_LEVEL); //usually 5
 
-//	if (sti_ptr->flags1 & SF1_DEPEND_LEVEL) level += dun_level;
+	/* For example higher level books in bookstores outside of Bree: */
+	//if (sti_ptr->flags1 & SF1_DEPEND_LEVEL) level += dun_level;
+	if (sti_ptr->flags1 & SF1_DEPEND_LEVEL) level += town_base_level;
 
 	/* used for rare dungeon stores */
 	if (sti_ptr->flags1 & SF1_SHALLOW_LEVEL) level += 5 + rand_int(5);
 	if (sti_ptr->flags1 & SF1_MEDIUM_LEVEL) level += 25 + rand_int(25);
 	if (sti_ptr->flags1 & SF1_DEEP_LEVEL) level += 45 + rand_int(45); /* if < 50 will prevent tomes in XBM, but occurs only rarely */
 
-//	if (sti_ptr->flags1 & SF1_ALL_ITEM) level += p_ptr->lev;
-
-	/* Better books in bookstores outside of Bree */
-	if (st_ptr->st_idx == STORE_BOOK ||
-	    st_ptr->st_idx == STORE_BOOK_DUN)
-		level += town_base_level;
+	//if (sti_ptr->flags1 & SF1_ALL_ITEM) level += p_ptr->lev;
 
 	return(level);
 }
@@ -1819,7 +1869,7 @@ static void store_create(store_type *st_ptr) {
 	u32b resf = RESF_STORE;
 	obj_theme theme;
 	bool black_market = (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) != 0;
-	//bool town_bm = (st_ptr->st_idx == 6);
+	//bool town_bm = (st_ptr->st_idx == STORE_BLACK);
 
 	/* Paranoia -- no room left */
 	if (st_ptr->stock_num >= st_ptr->stock_size) return;
@@ -2441,15 +2491,12 @@ static void updatebargain(s64b price, s64b minprice) {
  */
 int gettown(int Ind) {
 	player_type *p_ptr = Players[Ind];
-	int i, retval =- 1;
+	int i;
+
 	if (p_ptr->wpos.wz) return(-1);
-	for (i = 0; i < numtowns; i++) {
-		if (town[i].x == p_ptr->wpos.wx && town[i].y == p_ptr->wpos.wy) {
-			retval = i;
-			break;
-		}
-	}
-	return(retval);
+	for (i = 0; i < numtowns; i++)
+		if (town[i].x == p_ptr->wpos.wx && town[i].y == p_ptr->wpos.wy) return(i);
+	return(-1);
 }
 /* For abusing towns to provide dungeon stores - C. Blue
    (Use dlev_id and fake_town_num to bind a town's dungeon stores to a dungeon floor.) */
@@ -2543,7 +2590,7 @@ static void display_entry(int Ind, int pos) {
 	object_type	*o_ptr;
 	s64b		x;
 
-	char		o_name[ONAME_LEN], powers[MAX_CHARS_WIDE];
+	char		o_name[ONAME_LEN], powers[POW_INSCR_LEN];
 	byte		attr;
 #ifdef IDDC_DED_DISCOUNT
 	int		wgt = -1;
@@ -2569,7 +2616,7 @@ static void display_entry(int Ind, int pos) {
 #endif
 	{
 		st_ptr = &town[i].townstore[p_ptr->store_num];
-		museum = (st_info[p_ptr->store_num].flags1 & SF1_MUSEUM) ? TRUE : FALSE;
+		museum = (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM) ? TRUE : FALSE;
 	}
 
 	//ot_ptr = &owners[p_ptr->store_num][st_ptr->owner];
@@ -2609,8 +2656,8 @@ static void display_entry(int Ind, int pos) {
 		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 
 		/* grey out if level requirements don't meet */
-		if (((!o_ptr->level) || (o_ptr->level > p_ptr->lev)) &&
-		    (o_ptr->owner) && (o_ptr->owner != p_ptr->id))
+		if ((!o_ptr->level || o_ptr->level > p_ptr->lev) &&
+		    o_ptr->owner && o_ptr->owner != p_ptr->id)
 			attr = TERM_L_DARK;
 
 		/* grey out if mode doesn't meet */
@@ -2728,8 +2775,8 @@ static void display_entry(int Ind, int pos) {
 		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 
 		/* grey out if level requirements don't meet */
-		if (((!o_ptr->level) || (o_ptr->level > p_ptr->lev)) &&
-		    (o_ptr->owner) && (o_ptr->owner != p_ptr->id))
+		if ((!o_ptr->level || o_ptr->level > p_ptr->lev) &&
+		    o_ptr->owner && o_ptr->owner != p_ptr->id)
 			attr = TERM_L_DARK;
 
 		/* grey out if mode doesn't meet */
@@ -2788,8 +2835,10 @@ static void display_entry(int Ind, int pos) {
 #endif
 		    )
 		    //|| (o_ptr->tval == TV_BOOK && is_custom_tome(o_ptr->sval)) -- no, because custom book spells are already all transmitted via Send_store_wide below.
-		    )
+		    ) {
 			power_inscribe(o_ptr, o_ptr->tval == TV_BOOK ? TRUE : FALSE, powers);
+			powers[INSCR_LEN - 1] = 0;
+		}
 
 		/* Send the info */
 		if (is_newer_than(&p_ptr->version, 4, 4, 3, 0, 0, 4)) {
@@ -2907,7 +2956,7 @@ static void display_store(int Ind) {
 		show_building(Ind, st_ptr);
 
 		/* Hack -- Museum doesn't have owner */
-		if (st_info[st_ptr->st_idx].flags1 & SF1_MUSEUM) owner_name = "";
+		if (st_info[st_ptr->st_idx].flags2 & SF2_MUSEUM) owner_name = "";
 
 #ifdef PLAYER_STORES
 		if (p_ptr->store_num <= -2) {
@@ -2953,7 +3002,7 @@ static void display_store(int Ind) {
 		if (cfg.item_awareness != 0 &&
 		    p_ptr->store_num > -2) { /* Never become aware of player store items */
 			bool noticed = FALSE, default_stock;
-			bool base_store = (0 <= p_ptr->store_num) && (p_ptr->store_num <= 5);
+			bool base_store = (0 <= p_ptr->store_num) && (p_ptr->store_num <= 5); /* only the 6 basic stores, '1' to '6' */
 
 			if (base_store || cfg.item_awareness >= 2) {
 				for (i = 0; i < st_ptr->stock_num; i++) {
@@ -3086,15 +3135,13 @@ static bool sell_haggle(int Ind, object_type *o_ptr, s64b *price, bool quiet) {
  */
 static bool retire_owner_p(store_type *st_ptr) {
 	store_info_type *sti_ptr = &st_info[st_ptr->st_idx];
+	int n;
 
-	if ((sti_ptr->owners[0] == sti_ptr->owners[1]) &&
-	    (sti_ptr->owners[0] == sti_ptr->owners[2]) &&
-	    (sti_ptr->owners[0] == sti_ptr->owners[3]) &&
-	    (sti_ptr->owners[0] == sti_ptr->owners[4]) &&
-	    (sti_ptr->owners[0] == sti_ptr->owners[5])) { /* MAX_STORE_OWNERS */
-		/* there is no other owner */
-		return(FALSE);
-	}
+	for (n = 1; n < MAX_STORE_OWNERS; n++)
+		if (sti_ptr->owners[0] != sti_ptr->owners[n]) break;
+
+	/* there is no other owner? */
+	if (n == MAX_STORE_OWNERS) return(FALSE);
 
 	if (rand_int(STORE_SHUFFLE) != 0) return(FALSE);
 
@@ -3111,7 +3158,7 @@ static bool store_attest_command(int store, int bact) {
 	if (store <= -2) store = STORE_PLAYER;
 #endif
 
-	for (i = 0; i < STORE_MAX_ACTION; i++)
+	for (i = 0; i < MAX_STORE_ACTIONS; i++)
 		if (ba_info[st_info[store].actions[i]].action == bact) return(TRUE);
 		//if (st_info[store].actions[i] == action) return(TRUE);
 	return(FALSE);
@@ -3126,7 +3173,7 @@ void store_stole(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
 
 	int st = p_ptr->store_num;
-	byte tolerance = 0x0;
+	s16b tolerance = 0x0;
 
 	store_type *st_ptr;
 	//owner_type *ot_ptr;
@@ -3157,8 +3204,7 @@ void store_stole(int Ind, int item) {
 	st_ptr = &town[i].townstore[st];
 
 	/* Sanity check - mikaelh */
-	if (item < 0 || item >= st_ptr->stock_size)
-		return;
+	if (item < 0 || item >= st_ptr->stock_size) return;
 
 	/* Get the actual item */
 	o_ptr = &st_ptr->stock[item];
@@ -3224,6 +3270,13 @@ void store_stole(int Ind, int item) {
 	    ) {
 		msg_print(Ind, "Only royalties are powerful enough to pick up that item!");
 		if (!is_admin(p_ptr)) return;
+	}
+
+	/* Wrapped gifts: Totally enforce level restrictions */
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END
+		&& o_ptr->owner && o_ptr->owner != p_ptr->id && p_ptr->lev < o_ptr->level) {
+		msg_print(Ind, "Your level must at least be the same as the gift in order to steal it.");
+		return;
 	}
 
 	if (compat_pomode(Ind, o_ptr)) {
@@ -3312,8 +3365,10 @@ void store_stole(int Ind, int item) {
 	sell_obj.discount = 100;
 	sell_obj.note = quark_add("stolen");
 
+	/* Regarding !Gn inscription: As we only steal 1 item at a time, it already works with inven_carry_okay() without further code here. :) */
+
 	/* Hack -- require room in pack */
-	if (!inven_carry_okay(Ind, &sell_obj, tolerance)) {
+	if (!inven_carry_okay(Ind, &sell_obj, tolerance | 0x200)) {
 		msg_print(Ind, "You cannot carry that many different items.");
 		return;
 	}
@@ -3426,7 +3481,7 @@ void store_stole(int Ind, int item) {
 		/* Describe the final result */
 		object_desc(Ind, o_name, &p_ptr->inventory[item_new], TRUE, 3);
 
-		//s_printf("Stealing: %s (%d) succ. %s (chance %d%% (%d)).\n", p_ptr->name, p_ptr->lev, o_name, 950 / (chance<10?10:chance), chance);
+		//s_printf("Stealing: %s (%d) succ. %s (chance %d%% (%d)).\n", p_ptr->name, p_ptr->lev, o_name, 950 / (chance < 10 ? 10 : chance), chance);
 		/* let's instead display the chance without regards to 5% chance to fail, since very small % numbers become more accurate! */
 #if 0 /* omit logging successful stealing of trivial items? */
 		if (chance > 10)
@@ -3455,6 +3510,7 @@ void store_stole(int Ind, int item) {
 		if (st_ptr->stock_num == 0) {
 			/* This should do a nice restock */
 			//st_ptr->last_visit = 0;
+			//st_ptr->last_visit = -10L * (p_ptr->wpos.wz ? cfg.dun_store_turns : cfg.store_turns);
 			st_ptr->last_visit = -10L * cfg.store_turns;
 		}
 
@@ -3477,8 +3533,8 @@ void store_stole(int Ind, int item) {
 			gain_exp(Ind, 1);
 		}
 	} else {
-//s_printf("Stealing: %s (%d) fail. %s (chance %d%% (%d)).\n", p_ptr->name, p_ptr->lev, o_name, 950 / (chance<10?10:chance), chance);
-s_printf("Stealing: %s (%d) fail. %s (chance %ld%%0 (%ld) %d,%d,%d).\n", p_ptr->name, p_ptr->lev, o_name, 10000 / (chance<10?10:chance), chance, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+//s_printf("Stealing: %s (%d) fail. %s (chance %d%% (%d)).\n", p_ptr->name, p_ptr->lev, o_name, 950 / (chance < 10 ? 10 : chance), chance);
+s_printf("Stealing: %s (%d) fail. %s (chance %ld%%0 (%ld) %d,%d,%d).\n", p_ptr->name, p_ptr->lev, o_name, 10000 / (chance < 10 ? 10 : chance), chance, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 		/* Complain */
 		// say_comment_4();
 		msg_print(Ind, "\"\377yBastard\377L!!!\377w\" - The angry shopkeeper throws you out!");
@@ -3548,7 +3604,7 @@ void store_purchase(int Ind, int item, int amt) {
 
 	int i, choice;
 	int item_new;
-	byte tolerance = 0x0;
+	s16b tolerance = 0x0;
 
 	s64b price, best;
 
@@ -3566,7 +3622,13 @@ void store_purchase(int Ind, int item, int amt) {
 		return;
 	}
 
-	if ((st_info[p_ptr->store_num].flags1 & SF1_MUSEUM) && !is_admin(p_ptr)) {
+#ifdef PLAYER_STORES
+	if ((p_ptr->store_num >= 0) &&
+#else
+	if (
+#endif
+	    (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM)
+	    && !is_admin(p_ptr)) {
 		msg_print(Ind, "Only authorised personnel may transfer items from the mathom house.");
 		return;
 	}
@@ -3625,7 +3687,7 @@ void store_purchase(int Ind, int item, int amt) {
 
 	/* Hack (for SUBINVEN_LIMIT_GROUP especially! But also good to apply in general):
 	   Some objects are not allowed to stack in the player's inventory, but can be offered stackedly in stores. */
-	if (!object_similar(Ind, o_ptr, o_ptr, tolerance | 0x20)) amt = 1;
+	if (!object_similar(Ind, o_ptr, o_ptr, tolerance | 0x80)) amt = 1;
 
 #ifdef PLAYER_STORES
 	/* Consistency check: Make sure noone inside a mang-house store
@@ -3761,7 +3823,7 @@ void store_purchase(int Ind, int item, int amt) {
 	}
 
 	/* Check if the player is powerful enough for that item */
-	if ((o_ptr->owner) && (o_ptr->owner != p_ptr->id) &&
+	if (o_ptr->owner && o_ptr->owner != p_ptr->id &&
 	    (o_ptr->level > p_ptr->lev || o_ptr->level == 0)) {
 		if (cfg.anti_cheeze_pickup) {
 			if (!o_ptr->level) msg_print(Ind, "Only its owner can pick up that item!");
@@ -3786,12 +3848,22 @@ void store_purchase(int Ind, int item, int amt) {
 		if (!is_admin(p_ptr)) return;
 	}
 
+	/* Wrapped gifts: Totally enforce level restrictions */
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END
+	    && o_ptr->owner && o_ptr->owner != p_ptr->id && p_ptr->lev < o_ptr->level) {
+		msg_print(Ind, "Your level must at least be the same as the gift in order to buy it.");
+		return;
+	}
 
 	if ((p_ptr->mode & MODE_DED_IDDC) && !in_irondeepdive(&p_ptr->wpos)
 	    && o_ptr->owner && o_ptr->owner != p_ptr->id) {
 		msg_print(Ind, "\377yYou cannot purchase used goods or your life would be forfeit.");
 		return;
 	}
+
+	/* Handle !Gn inscription */
+	if ((i = inven_carry_okay(Ind, o_ptr, 0x20 | 0x200)) > 0 && i < amt) amt = i;
+	if (!amt) return;
 
 	/* Hack -- get a "sample" object */
 	sell_obj = *o_ptr;
@@ -3806,7 +3878,7 @@ void store_purchase(int Ind, int item, int amt) {
 	if (is_magic_device(o_ptr->tval)) divide_charged_item(&sell_obj, o_ptr, amt);
 
 	/* Hack -- require room in pack */
-	if (!inven_carry_okay(Ind, &sell_obj, tolerance)) {
+	if (!inven_carry_okay(Ind, &sell_obj, tolerance | 0x200)) {
 		msg_print(Ind, "You cannot carry that many different items.");
 		return;
 	}
@@ -3921,20 +3993,25 @@ if (sell_obj.tval == TV_SCROLL && sell_obj.sval == SV_SCROLL_ARTIFACT_CREATION)
 				/* ..And actually give an outdated-client warning for the bag purchase itself.. */
 				case TV_SUBINVEN:
 					if (is_older_than(&p_ptr->version, 4, 8, 0, 0, 0, 0))
-						msg_print(Ind, "\377oYou need to use at least client version \377R4.8.0\377o to use this bag!");
+						msg_print(Ind, "\377oYou need to use at least client version \377R4.8.0\377o to use this bag! Your current client won't work!");
+					if (o_ptr->sval == SV_SI_POTION_BELT && !is_newer_than(&p_ptr->version, 4, 9, 1, 0, 0, 0))
+						msg_print(Ind, "\377oYou need to use at least the \377RTEST client 4.9.1\377o or a higher client version to use this bag! Your current client won't work!");
 					break;
 				case TV_CHEMICAL: /* DEMOLITIONIST stuff */
-					(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE);
+					(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE);
 					break;
 				case TV_TRAPKIT:
-					(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE);
+					(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE);
 					break;
 				case TV_ROD:
 					/* Unknown rods cannot be stowed as we don't want to reveal whether they need an activation or not */
 					if (rod_requires_direction(Ind, o_ptr)) break;
 					/* fall through */
 				case TV_STAFF:
-					(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE);
+					(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE);
+					break;
+				case TV_POTION: case TV_POTION2:
+					(void)auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE);
 					break;
 				}
 
@@ -4048,8 +4125,8 @@ if (sell_obj.tval == TV_SCROLL && sell_obj.sval == SV_SCROLL_ARTIFACT_CREATION)
  * Sell an item to the store (or home)
  */
 void store_sell(int Ind, int item, int amt) {
-	player_type *p_ptr = Players[Ind];
-	//store_type *st_ptr;
+	player_type	*p_ptr = Players[Ind];
+	//store_type	*st_ptr;
 
 	s64b		price;
 	//int		choice;
@@ -4059,12 +4136,25 @@ void store_sell(int Ind, int item, int amt) {
 
 	char		o_name[ONAME_LEN];
 
-	/* Sanity check */
-	if (item < 0 || item >= INVEN_TOTAL) return;
+	/* Sanity check - mikaelh */
+	if (!verify_inven_item(Ind, item)) return;
+
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Get the item (in the pack) */
+		o_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+	} else
+#endif
+	{
+		/* Get the item (in the pack) */
+		if (item >= 0) o_ptr = &p_ptr->inventory[item];
+		/* Get the item (on the floor) */
+		else o_ptr = &o_list[0 - item];
+	}
 
 	/* Check for client-side exploit! */
-	if (p_ptr->inventory[item].number < amt) {
-		s_printf("$INTRUSION$ Bad amount %d of %d! (Home) Sold by %s.\n", amt, p_ptr->inventory[item].number, p_ptr->name);
+	if (o_ptr->number < amt) {
+		s_printf("$INTRUSION$ Bad amount %d of %d! (Home) Sold by %s.\n", amt, o_ptr->number, p_ptr->name);
 		msg_print(Ind, "You don't have that many!");
 		return;
 	}
@@ -4087,29 +4177,11 @@ void store_sell(int Ind, int item, int amt) {
 	/* You can't sell 0 of something. */
 	if (amt <= 0) return;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) {
-		/* Sanity check - mikaelh */
-		if (item < 0 || item >= INVEN_TOTAL)
-			return;
-
-		o_ptr = &p_ptr->inventory[item];
-	}
-
-	/* Get the item (on the floor) */
-	else {
-		o_ptr = &o_list[0 - item];
-	}
-
 	/* Check that it's a real item - mikaelh */
 	if (!o_ptr->tval) return;
 
 	/* Check for validity of sale */
-	if (!store_will_buy(Ind, o_ptr)) {
-		msg_print(Ind, "I don't want that!");
-		return;
-	}
-
+	if (!store_will_buy(Ind, o_ptr)) return;
 
 #ifdef INVERSE_CURSED_RANDARTS
 	if (o_ptr->name1 == ART_RANDART && o_ptr->pval2 >= 1) {
@@ -4127,7 +4199,7 @@ void store_sell(int Ind, int item, int amt) {
 		u32b f4, fx;
 
 		object_flags(o_ptr, &fx, &fx, &fx, &f4, &fx, &fx, &fx);
-		if ((item >= INVEN_WIELD) ) {
+		if ((item % SUBINVEN_INVEN_MUL >= INVEN_WIELD) ) { /* ENABLE_SUBINVEN */
 			msg_print(Ind, "Hmmm, it seems to be cursed.");
 			return;
 		} else if (f4 & TR4_CURSE_NO_DROP) {
@@ -4191,8 +4263,11 @@ void store_sell(int Ind, int item, int amt) {
 	}
 
 	/* Museum */
-//	if (p_ptr->store_num == STORE_MATHOM_HOUSE)
-	if (st_info[p_ptr->store_num].flags1 & SF1_MUSEUM) {
+#ifdef PLAYER_STORES
+	if (p_ptr->store_num >= 0 && (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM)) {
+#else
+	if (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM) {
+#endif
 		/* Save the info for the confirmation */
 		p_ptr->current_selling = item;
 		p_ptr->current_sell_amt = amt;
@@ -4206,8 +4281,12 @@ void store_sell(int Ind, int item, int amt) {
 	}
 
 	/* Real store */
-	if ( p_ptr->store_num != STORE_HOME && p_ptr->store_num != STORE_HOME_DUN) {
+	if (p_ptr->store_num != STORE_HOME && p_ptr->store_num != STORE_HOME_DUN) {
 		/* Describe the transaction */
+#ifdef ENABLE_SUBINVEN
+		if (item >= SUBINVEN_INVEN_MUL) msg_format(Ind, "Selling %s (%c)(%c).", o_name, index_to_label(item / SUBINVEN_INVEN_MUL - 1),  index_to_label(item % SUBINVEN_INVEN_MUL));
+		else
+#endif
 		msg_format(Ind, "Selling %s (%c).", o_name, index_to_label(item));
 
 		/* Haggle for it */
@@ -4251,7 +4330,11 @@ void store_confirm(int Ind) {
 		return;
 	}
 
-	museum = (st_info[p_ptr->store_num].flags1 & SF1_MUSEUM) ? TRUE : FALSE;
+#ifdef PLAYER_STORES
+	museum = (p_ptr->store_num >= 0 && (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM)) ? TRUE : FALSE;
+#else
+	museum = (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM) ? TRUE : FALSE;
+#endif
 
 	/* Restore the variables */
 	item = p_ptr->current_selling;
@@ -4259,30 +4342,23 @@ void store_confirm(int Ind) {
 	price = p_ptr->current_sell_price;
 
 	/* -------------------Repeated checks in case inven changed (rods recharging->restacking) */
-	/* Get the item (in the pack) */
-	if (item >= 0) {
-		/* Sanity check - mikaelh */
-		if (item < 0 || item >= INVEN_TOTAL)
-			return;
-
-		o_ptr = &p_ptr->inventory[item];
-	}
-	/* Get the item (on the floor) */
-	else {
-#if 0
-		o_ptr = &o_list[0 - item];
-#else
-		return;
+	if (!verify_inven_item(Ind, item)) return;
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Get the item (in the pack) */
+		o_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+	} else
 #endif
-	}
+	/* Get the item (in the pack) */
+	if (item >= 0) o_ptr = &p_ptr->inventory[item];
+	/* Get the item (on the floor) */
+	else o_ptr = &o_list[0 - item];
+
 	/* Check that it's a real item - mikaelh */
 	if (!o_ptr->tval) return;
 
 	/* Check for validity of sale */
-	if (!store_will_buy(Ind, o_ptr)) {
-		msg_print(Ind, "I don't want that!");
-		return;
-	}
+	if (!store_will_buy(Ind, o_ptr)) return;
 
 #ifdef INVERSE_CURSED_RANDARTS
 	if (o_ptr->name1 == ART_RANDART && o_ptr->pval2 >= 1) {
@@ -4300,7 +4376,7 @@ void store_confirm(int Ind) {
 		u32b f4, fx;
 
 		object_flags(o_ptr, &fx, &fx, &fx, &f4, &fx, &fx, &fx);
-		if ((item >= INVEN_WIELD) ) {
+		if ((item % SUBINVEN_INVEN_MUL >= INVEN_WIELD) ) { /* ENABLE_SUBINVEN */
 			msg_print(Ind, "Hmmm, it seems to be cursed.");
 			return;
 		} else if (f4 & TR4_CURSE_NO_DROP) {
@@ -4718,7 +4794,9 @@ void do_cmd_store(int Ind) {
 	p_ptr->tim_store = STORE_TURNOUT;
 
 	/* Calculate the number of store maintainances since the last visit */
-	maintain_num = (turn - st_ptr->last_visit) / (10L * (p_ptr->wpos.wz ? cfg.dun_store_turns : cfg.store_turns));
+	maintain_num = (turn - st_ptr->last_visit) / (10L *
+	    (((is_bookstore(st_ptr->st_idx) ? cfg.book_store_turns_perc : 100)
+	    * (p_ptr->wpos.wz ? cfg.dun_store_turns : cfg.store_turns) + 99) / 100));
 
 	/* Maintain the store max. 10 times.
 	   Note: this value could probably be reduced down to 4, with
@@ -4748,7 +4826,7 @@ void do_cmd_store(int Ind) {
 #ifdef USE_SOUND_2010
 	/* Ring door bell for shops that offer either buying or selling of items */
 	if (p_ptr->sfx_store)
-		for (i = 0; i < STORE_MAX_ACTION; i++)
+		for (i = 0; i < MAX_STORE_ACTIONS; i++)
 			if (st_info[st_ptr->st_idx].actions[i] == 1 || //sell item
 			    st_info[st_ptr->st_idx].actions[i] == 2) { //purchase item
 				sound(Ind, "store_doorbell_enter", NULL, SFX_TYPE_MISC, FALSE);
@@ -4895,17 +4973,17 @@ void do_cmd_store(int Ind) {
 			/* early delivery! (ie item appeared in regular stock meanwhile) */
 			if (num) {
  #ifndef PARTIAL_ITEM_DELIVERY
-				no_space = !inven_carry_okay(Ind, &forge, 0x0);
+				no_space = !inven_carry_okay(Ind, &forge, 0x200);
 				if (no_space) msg_print(Ind, "\377GYour order has arrived earlier than expected but your inventory is full!");
 				else msg_print(Ind, "\377GYour order has arrived earlier than expected! Here, take it.");
  #else
 				if (num < p_ptr->item_order_forge.number) {
 					forge.number = num;
-					no_space = !inven_carry_okay(Ind, &forge, 0x0);
+					no_space = !inven_carry_okay(Ind, &forge, 0x200);
 					if (no_space) msg_print(Ind, "\377GPart of your order has arrived earlier than expected but your inventory is full!");
 					else msg_print(Ind, "\377GPart of your order has arrived earlier than expected! Here, take it.");
 				} else {
-					no_space = !inven_carry_okay(Ind, &forge, 0x0);
+					no_space = !inven_carry_okay(Ind, &forge, 0x200);
 					if (no_space) msg_print(Ind, "\377GYour order has arrived earlier than expected but your inventory is full!");
 					else msg_print(Ind, "\377GYour order has arrived earlier than expected! Here, take it.");
 				}
@@ -4913,7 +4991,7 @@ void do_cmd_store(int Ind) {
 			}
 			/* normal, full delivery */
 			else {
-				no_space = !inven_carry_okay(Ind, &forge, 0x0);
+				no_space = !inven_carry_okay(Ind, &forge, 0x200);
 				if (no_space) msg_print(Ind, "\377GYour order has arrived but your inventory is full!");
 				else msg_print(Ind, "\377GYour order has arrived! Here, take it.");
 			}
@@ -5085,7 +5163,7 @@ void store_shuffle(store_type *st_ptr) {
 
 	/* Pick a new owner */
 	for (j = st_ptr->owner; j == st_ptr->owner; ) {
-//		st_ptr->owner = rand_int(MAX_STORE_OWNERS);
+		//st_ptr->owner = rand_int(MAX_STORE_OWNERS);
 		st_ptr->owner = st_info[st_ptr->st_idx].owners[rand_int(MAX_STORE_OWNERS)];
 		if ((!(--tries))) break;
 	}
@@ -5139,8 +5217,7 @@ void store_shuffle(store_type *st_ptr) {
  */
 void store_maint(store_type *st_ptr) {
 	int j;
-	//owner_type *ot_ptr;
-	int tries = 200;
+	int tries;
 
 #if 0
 	/* Ignore home */
@@ -5173,7 +5250,7 @@ void store_maint(store_type *st_ptr) {
 #endif
 
 	/* Ignore Museum */
-	if (st_info[st_ptr->st_idx].flags1 & SF1_MUSEUM) return;
+	if (st_info[st_ptr->st_idx].flags2 & SF2_MUSEUM) return;
 
 	/* Make sure no one is in the store */
 #if 0 /* not used (cf.st_ptr->last_visit) */
@@ -5206,9 +5283,9 @@ void store_maint(store_type *st_ptr) {
 	st_ptr->insult_cur = 0;
 
 	/* Mega-Hack -- prune the black market */
-	//if (st_ptr->st_idx == 6)
+	//if (st_ptr->st_idx == STORE_BLACK)
 	if (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) {
-		//bool town_bm = (st_ptr->st_idx == 6);
+		//bool town_bm = (st_ptr->st_idx == STORE_BLACK);
 
 		/* Destroy crappy black market items */
 		for (j = st_ptr->stock_num - 1; j >= 0; j--) {
@@ -5225,35 +5302,21 @@ void store_maint(store_type *st_ptr) {
 	}
 
 
-
 	/* Choose the number of slots to keep */
 	j = st_ptr->stock_num;
-
 	/* Sell a few items */
 	j = j - randint(1 + st_ptr->stock_size / STORE_TURNOVER_DIV);
-
-#if 0 /* making it dependant on shop size instead - C. Blue */
-	/* Never keep more than "STORE_MAX_KEEP" slots */
-	if (j > STORE_MAX_KEEP) j = STORE_MAX_KEEP;
-#else
+	/* Keep at most this many items */
 	if (j > (st_ptr->stock_size * 7) / 8) j = (st_ptr->stock_size * 7) / 8;
-#endif
-
-#if 0 /* making it dependant on shop size instead - C. Blue */
-	/* Always "keep" at least "STORE_MIN_KEEP" items */
-	if (j < STORE_MIN_KEEP) j = STORE_MIN_KEEP;
-#else
+	/* Keep at least this many items */
 	if (j < st_ptr->stock_size / 4) j = st_ptr->stock_size / 4;
-#endif
 
-	/* Hack for Libraries: fluctuate books more often.
-	   Reason: It's probably a bit too annoying to wait for specific books. - C. Blue */
-	if (st_ptr->st_idx == STORE_BOOK ||
-	    st_ptr->st_idx == STORE_BOOK_DUN ||
-	    st_ptr->st_idx == STORE_LIBRARY ||
-	    st_ptr->st_idx == STORE_HIDDENLIBRARY ||
-	    st_ptr->st_idx == STORE_FORBIDDENLIBRARY)
+	if ((st_info[st_ptr->st_idx].flags2 & SF2_KEEP_QUART) && j > st_ptr->stock_size / 4)
+		j = st_ptr->stock_size / 4;
+	else if ((st_info[st_ptr->st_idx].flags2 & SF2_KEEP_HALF) && j > st_ptr->stock_size / 2)
 		j = st_ptr->stock_size / 2;
+	else if ((st_info[st_ptr->st_idx].flags2 & SF2_KEEP_TQUART) && j > (st_ptr->stock_size * 3) / 4)
+		j = (st_ptr->stock_size * 3) / 4;
 
 	/* Hack -- prevent "underflow" */
 	if (j < 0) j = 0;
@@ -5262,41 +5325,25 @@ void store_maint(store_type *st_ptr) {
 	while (st_ptr->stock_num > j) store_delete(st_ptr);
 
 
-
 	/* Choose the number of slots to fill */
 	j = st_ptr->stock_num;
-
 	/* Buy some more items */
 	j = j + randint(1 + st_ptr->stock_size / STORE_TURNOVER_DIV);
-
-#if 0 /* making it dependant on shop size instead - C. Blue */
-	/* Never keep more than "STORE_MAX_KEEP" slots */
-	if (j > STORE_MAX_KEEP) j = STORE_MAX_KEEP;
-#else
+	/* Buy at most this many items */
 	if (j > (st_ptr->stock_size * 7) / 8) j = (st_ptr->stock_size * 7) / 8;
-#endif
-
-#if 0 /* making it dependant on shop size instead - C. Blue */
-	/* Always "keep" at least "STORE_MIN_KEEP" items */
-	if (j < STORE_MIN_KEEP) j = STORE_MIN_KEEP;
-#else
+	/* Buy at least this many items */
 	if (j < st_ptr->stock_size / 4) j = st_ptr->stock_size / 4;
-#endif
 
 	/* Hack -- prevent "overflow" */
 	if (j >= st_ptr->stock_size) j = st_ptr->stock_size - 1;
 
-	/* Hack for Libraries: Keep especially many books, which fluctuate often.
-	   Reason: It's probably a bit too annoying to wait for specific books. - C. Blue */
-	if (st_ptr->st_idx == STORE_BOOK ||
-	    st_ptr->st_idx == STORE_BOOK_DUN ||
-	    st_ptr->st_idx == STORE_LIBRARY ||
-	    st_ptr->st_idx == STORE_HIDDENLIBRARY ||
-	    st_ptr->st_idx == STORE_FORBIDDENLIBRARY)
-		j = st_ptr->stock_size - rand_int((st_ptr->stock_size * 1) / 16);
+	tries = st_ptr->stock_size - rand_int(st_ptr->stock_size / 16);
+	if ((st_info[st_ptr->st_idx].flags2 & SF2_FILL_WELL) && j < tries)
+		j = tries;
 
 	/* Acquire some new items */
 	/* We want speed & healing & mana pots in the BM */
+	tries = 200;
 	while (st_ptr->stock_num < j) {
 		store_create(st_ptr);
 		tries--;
@@ -5309,18 +5356,16 @@ void store_maint(store_type *st_ptr) {
  * Initialize the stores
  */
 void store_init(store_type *st_ptr) {
-	int	 k;
+	int k;
 	//owner_type *ot_ptr;
 
-
 	/* Pick an owner */
-//	st_ptr->owner = rand_int(MAX_STORE_OWNERS);
+	//st_ptr->owner = rand_int(MAX_STORE_OWNERS);
 	st_ptr->owner = st_info[st_ptr->st_idx].owners[rand_int(MAX_STORE_OWNERS)];
 
 	/* Activate the new owner */
-//	ot_ptr = &owners[st_ptr->st_idx][st_ptr->owner];
+	//ot_ptr = &owners[st_ptr->st_idx][st_ptr->owner];
 	//ot_ptr = &ow_info[st_ptr->owner];
-
 
 	/* Initialize the store */
 	st_ptr->store_open = 0;
@@ -5336,43 +5381,47 @@ void store_init(store_type *st_ptr) {
 	 * BEFORE player birth to enable store restocking
 	 */
 	/* so let's not employ it :) */
-//	st_ptr->last_visit = -100L * cfg.store_turns;
+	//st_ptr->last_visit = -100L * cfg.store_turns;
 
 	/* Clear any old items */
 	for (k = 0; k < st_ptr->stock_size; k++)
 		invwipe(&st_ptr->stock[k]);
 }
 
-/* Assumes we ARE in a store. Get kicked out of it and teleported. */
+/* Almost assumes we ARE in a store. Get kicked out of it and teleported.
+   However, we're also called when a store is full - in which case we already stand on the store grid, but store_num is still -1,
+   so if USE_SOUND_2010 is defined we need to skip the sfx checks that try to read a particular store's info. */
 void store_kick(int Ind, bool say) {
 #if defined(PLAYER_STORES) || defined(USE_SOUND_2010)
 	int i;
+	player_type *p_ptr = Players[Ind];
 #endif
 
 	if (say) msg_print(Ind, "The shopkeeper asks you to leave the store once.");
 	//store_leave(Ind);
 
 #ifdef USE_SOUND_2010
-	if (Players[Ind]->sfx_store) {
+	if (p_ptr->sfx_store) {
+		/* Store is full? (Happens if the same store has multiple entrances and another player occupies another one already, eg 1 and 5 in Gondolin) */
+		if (p_ptr->store_num == -1)
+			sound(Ind, "open_door_stuck", NULL, SFX_TYPE_MISC, FALSE);
  #ifdef PLAYER_STORES
-		if (Players[Ind]->store_num <= -2)
+		else if (p_ptr->store_num <= -2)
 			sound(Ind, "store_doorbell_leave", NULL, SFX_TYPE_MISC, FALSE);
+ #endif
 		else {
- #endif
-		store_info_type *st_ptr;
+			store_info_type *st_ptr;
 
-		i = gettown(Ind);
-		/* hack: non-town stores (ie dungeon, but could also be wild) are borrowed from town #0 - C. Blue */
-		if (i == -1) i = gettown_dun(Ind);
-		st_ptr = &st_info[town[i].townstore[Players[Ind]->store_num].st_idx];
-		for (i = 0; i < 6; i++)
-			if (st_ptr->actions[i] == 1 || st_ptr->actions[i] == 2) {
-				sound(Ind, "store_doorbell_leave", NULL, SFX_TYPE_MISC, FALSE);
-				break;
-			}
- #ifdef PLAYER_STORES
+			i = gettown(Ind);
+			/* hack: non-town stores (ie dungeon, but could also be wild) are borrowed from town #0 - C. Blue */
+			if (i == -1) i = gettown_dun(Ind);
+			st_ptr = &st_info[town[i].townstore[p_ptr->store_num].st_idx];
+			for (i = 0; i < MAX_STORE_ACTIONS; i++)
+				if (st_ptr->actions[i] == 1 || st_ptr->actions[i] == 2) {
+					sound(Ind, "store_doorbell_leave", NULL, SFX_TYPE_MISC, FALSE);
+					break;
+				}
 		}
- #endif
 	}
 #endif
 
@@ -5380,7 +5429,7 @@ void store_kick(int Ind, bool say) {
 	Send_store_kick(Ind);
 
 #ifdef PLAYER_STORES
-	i = Players[Ind]->store_num; /* (handle_store_leave() erases p_ptr->store_num) */
+	i = p_ptr->store_num; /* (handle_store_leave() erases p_ptr->store_num) */
 	/* Player stores aren't entered such as normal stores,
 	   instead, the customer just stays in front of it. */
 	if (i > -2)
@@ -5390,12 +5439,14 @@ void store_kick(int Ind, bool say) {
 /* Just silently exits store in case we are in one.
    No teleportation needed because we're only called if player wants to move anyway. */
 void store_exit(int Ind) {
-	if (Players[Ind]->store_num == -1) return;
+	player_type *p_ptr = Players[Ind];
+
+	if (p_ptr->store_num == -1) return;
 
 #ifdef USE_SOUND_2010
-	if (Players[Ind]->sfx_store) {
+	if (p_ptr->sfx_store) {
  #ifdef PLAYER_STORES
-		if (Players[Ind]->store_num <= -2)
+		if (p_ptr->store_num <= -2)
 			sound(Ind, "store_doorbell_leave", NULL, SFX_TYPE_MISC, FALSE);
 		else {
  #endif
@@ -5405,8 +5456,8 @@ void store_exit(int Ind) {
 		i = gettown(Ind);
 		/* hack: non-town stores (ie dungeon, but could also be wild) are borrowed from town #0 - C. Blue */
 		if (i == -1) i = gettown_dun(Ind);
-		st_ptr = &st_info[town[i].townstore[Players[Ind]->store_num].st_idx];
-		for (i = 0; i < 6; i++)
+		st_ptr = &st_info[town[i].townstore[p_ptr->store_num].st_idx];
+		for (i = 0; i < MAX_STORE_ACTIONS; i++)
 			if (st_ptr->actions[i] == 1 || st_ptr->actions[i] == 2) {
 				sound(Ind, "store_doorbell_leave", NULL, SFX_TYPE_MISC, FALSE);
 				break;
@@ -5854,14 +5905,22 @@ static int home_object_similar(int Ind, object_type *j_ptr, object_type *o_ptr, 
 	/* An everlasting player will have _his_ items stack w/ non-everlasting stuff
 	(especially new items bought in the shops) and convert them all to everlasting */
 	if (Ind && (p_ptr->mode & MODE_EVERLASTING)) {
-		o_ptr->mode = MODE_EVERLASTING;
-		j_ptr->mode = MODE_EVERLASTING;
+		/* Depending on charmode_trading_restrictions, we might have to clear other mode flags out */
+		o_ptr->mode &= ~MODE_PVP;
+		j_ptr->mode &= ~MODE_PVP;
+		/* Now ours */
+		o_ptr->mode |= MODE_EVERLASTING;
+		j_ptr->mode |= MODE_EVERLASTING;
 	}
 
 	/* A PvP-player will get his items convert to pvp-mode */
 	if (Ind && (p_ptr->mode & MODE_PVP)) {
-		o_ptr->mode = MODE_PVP;
-		j_ptr->mode = MODE_PVP;
+		/* Depending on charmode_trading_restrictions, we might have to clear other mode flags out */
+		o_ptr->mode &= ~MODE_EVERLASTING;
+		j_ptr->mode &= ~MODE_EVERLASTING;
+		/* Now ours */
+		o_ptr->mode |= MODE_PVP;
+		j_ptr->mode |= MODE_PVP;
 	}
 
 	/* They match, so they must be similar */
@@ -5875,6 +5934,11 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 	object_type *j_ptr;
 	s16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
 
+	if (o_tv == TV_SPECIAL && o_sv == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+		o_tv = o_ptr->tval2;
+		o_sv = o_ptr->sval2;
+	}
+
 #ifdef ENABLE_SUBINVEN
 	/* Hack so subinventories are placed at the very first slots even before custom objects */
 	if (o_tv == TV_SUBINVEN) o_tv = TV_MAX + 1;
@@ -5882,10 +5946,9 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 	/* Hack so they don't end up too close to orange amulets sometimes */
-	if (o_tv == TV_CHARGE) o_tv = 9;
-	if (o_tv == TV_CHEMICAL) o_tv = 10;
+	if (o_tv == TV_CHARGE) o_tv = TV_CORPSE;
+	if (o_tv == TV_CHEMICAL) o_tv = TV_EGG;
 #endif
-
 
 	/* Check each existing item (try to combine) */
 	for (slot = 0; slot < h_ptr->stock_num; slot++) {
@@ -5922,6 +5985,11 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 			j_tv = j_ptr->tval;
 			j_sv = j_ptr->sval;
 
+			if (j_tv == TV_SPECIAL && j_sv == SV_CUSTOM_OBJECT && j_ptr->xtra3 & 0x0200) {
+				j_tv = j_ptr->tval2;
+				j_sv = j_ptr->sval2;
+			}
+
 #ifdef ENABLE_SUBINVEN
 			/* Hack so subinventories are placed at the very first slots even before custom objects */
 			if (j_tv == TV_SUBINVEN) j_tv = TV_MAX + 1;
@@ -5929,8 +5997,8 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 			/* Hack so they don't end up too close to orange amulets sometimes */
-			if (j_tv == TV_CHARGE) j_tv = 9;
-			if (j_tv == TV_CHEMICAL) j_tv = 10;
+			if (j_tv == TV_CHARGE) j_tv = TV_CORPSE;
+			if (j_tv == TV_CHEMICAL) j_tv = TV_EGG;
 #endif
 
 #ifdef PLAYER_STORES
@@ -5991,7 +6059,7 @@ static int home_carry(int Ind, house_type *h_ptr, object_type *o_ptr) {
 
 	/* Slide the others up */
 	for (i = h_ptr->stock_num; i > slot; i--)
-		h_ptr->stock[i] = h_ptr->stock[i-1];
+		h_ptr->stock[i] = h_ptr->stock[i - 1];
 
 	/* More stuff now */
 	h_ptr->stock_num++;
@@ -6105,13 +6173,17 @@ void home_sell(int Ind, int item, int amt) {
 	/* You can't sell 0 of something. */
 	if (amt <= 0) return;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) {
-		o_ptr = &p_ptr->inventory[item];
-	}
-	/* Get the item (on the floor) */
-	else { /* Never.. */
-		o_ptr = &o_list[0 - item];
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Get the item (in the pack) */
+		o_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+	} else
+#endif
+	{
+		/* Get the item (in the pack) */
+		if (item >= 0) o_ptr = &p_ptr->inventory[item];
+		/* Get the item (on the floor) */
+		else o_ptr = &o_list[0 - item];
 	}
 
 	if (cursed_p(o_ptr) && !is_admin(p_ptr)) {
@@ -6155,10 +6227,19 @@ void home_sell(int Ind, int item, int amt) {
 		return;
 	}
 
-
-
-	/* Get the inventory item */
-	o_ptr = &p_ptr->inventory[item];
+	/* Get the inventory item again */
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Get the item (in the pack) */
+		o_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+	} else
+#endif
+	{
+		/* Get the item (in the pack) */
+		if (item >= 0) o_ptr = &p_ptr->inventory[item];
+		/* Get the item (on the floor) */
+		else o_ptr = &o_list[0 - item];
+	}
 
 	/* Sigil (reset it) - Kurzel (fix the list house exploit) */
 	if (sold_obj.sigil) {
@@ -6282,16 +6363,17 @@ void home_sell(int Ind, int item, int amt) {
 void home_purchase(int Ind, int item, int amt) {
 	player_type *p_ptr = Players[Ind];
 
-	int			i;
-	int			item_new;
+	int i;
+	int item_new;
 	int h_idx;
 
-	object_type		sell_obj;
-	object_type		*o_ptr;
+	object_type sell_obj;
+	object_type *o_ptr;
 
-	char		o_name[ONAME_LEN];
+	char o_name[ONAME_LEN];
 
 	house_type *h_ptr;
+
 
 	if (amt < 1) {
 		s_printf("$INTRUSION(HOME)$ Bad amount %d! (Home) Bought by %s.", amt, p_ptr->name);
@@ -6319,8 +6401,7 @@ void home_purchase(int Ind, int item, int amt) {
 	}
 
 	/* Sanity check - mikaelh */
-	if (item < 0 || item >= h_ptr->stock_size)
-		return;
+	if (item < 0 || item >= h_ptr->stock_size) return;
 
 	/* Get the actual item */
 	o_ptr = &h_ptr->stock[item];
@@ -6333,7 +6414,7 @@ void home_purchase(int Ind, int item, int amt) {
 
 	/* Hack (for SUBINVEN_LIMIT_GROUP especially! But also good to apply in general):
 	   Some objects are not allowed to stack in the player's inventory, but can be stored stackedly in homes. */
-	if (!object_similar(Ind, o_ptr, o_ptr, 0x20)) amt = 1;
+	if (!object_similar(Ind, o_ptr, o_ptr, 0x80)) amt = 1;
 
 	/* check whether client tries to buy more than the store has */
 	if (o_ptr->number < amt) {
@@ -6382,7 +6463,7 @@ void home_purchase(int Ind, int item, int amt) {
 #endif
 
 	/* Check if the player is powerful enough for that item */
-	if ((o_ptr->owner) && (o_ptr->owner != p_ptr->id) &&
+	if (o_ptr->owner && o_ptr->owner != p_ptr->id &&
 	    (o_ptr->level > p_ptr->lev || o_ptr->level == 0)) {
 		if (cfg.anti_cheeze_pickup) {
 			if (o_ptr->level) {
@@ -6414,6 +6495,17 @@ void home_purchase(int Ind, int item, int amt) {
 		if (!is_admin(p_ptr)) return;
 	}
 
+	/* Wrapped gifts: Totally enforce level restrictions */
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END
+	    && o_ptr->owner && o_ptr->owner != p_ptr->id && p_ptr->lev < o_ptr->level) {
+		msg_print(Ind, "Your level must at least be the same as the gift in order to pick it up.");
+		return;
+	}
+
+	/* Handle !Gn inscription */
+	if ((i = inven_carry_okay(Ind, o_ptr, 0x20 | 0x200)) > 0 && i < amt) amt = i;
+	if (!amt) return;
+
 	/* Assume the player wants just one of them */
 	/*amt = 1;*/
 
@@ -6430,7 +6522,7 @@ void home_purchase(int Ind, int item, int amt) {
 	if (is_magic_device(o_ptr->tval)) divide_charged_item(&sell_obj, o_ptr, amt);
 
 	/* Hack -- require room in pack */
-	if (!inven_carry_okay(Ind, &sell_obj, 0x0)) {
+	if (!inven_carry_okay(Ind, &sell_obj, 0x200)) {
 		msg_print(Ind, "You cannot carry that many different items.");
 		return;
 	}
@@ -6501,17 +6593,20 @@ void home_purchase(int Ind, int item, int amt) {
 	/* Try to put into a specialized bag automatically */
 	switch (o_ptr->tval) {
 	case TV_CHEMICAL: /* DEMOLITIONIST stuff */
-		(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE);
+		(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE);
 		break;
 	case TV_TRAPKIT:
-		(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE);
+		(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE);
 		break;
 	case TV_ROD:
 		/* Unknown rods cannot be stowed as we don't want to reveal whether they need an activation or not */
 		if (rod_requires_direction(Ind, o_ptr)) break;
 		/* fall through */
 	case TV_STAFF:
-		(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE);
+		(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE);
+		break;
+	case TV_POTION: case TV_POTION2:
+		(void)auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE);
 		break;
 	}
 
@@ -6958,14 +7053,15 @@ void view_exploration_history(int Ind) {
 #endif
 	byte known;
 	struct dungeon_type *d_ptr;
-	char boss_name[MNAME_LEN], *bn = boss_name, *bnc, *bn1, *bn2, *bn3;
+	char boss_name[MNAME_LEN + 2], *bn = boss_name, *bnc, *bn1, *bn2, *bn3, tmp_name[MNAME_LEN + 2]; //+2 for prefixed colour code
 
 	/* Temporary file */
 	if (path_temp(file_name, MAX_PATH_LENGTH)) return;
 	fff = my_fopen(file_name, "wb");
 
-	fprintf(fff, "\377U  ~ List of all known dungeons which adventurers have discovered in the past ~\n\n");
-	fprintf(fff, "\377U     (To discover a dungeon, somebody has to locate its entrance staircase)   \n\n");
+	fprintf(fff, "\377U  ~ List of all known dungeons which adventurers have discovered in the past ~  \n");
+	fprintf(fff, "\377U      To discover a dungeon, somebody has to spot its entrance staircase.       \n");
+	fprintf(fff, "\377U        Dungeon bosses you have slain are listed in light umber colour.         \n\n");
 
 	/* output the actual list */
 	for (i = 1; i <= dungeon_id_max; i++) {
@@ -7026,6 +7122,13 @@ void view_exploration_history(int Ind) {
 			} else strcpy(bn, "- no guardian -");
 		}
 
+		/* Prefix colour code to the boss name if we already killed the boss aka conquered the dungeon */
+		if (d_info[d_ptr->type].final_guardian && Players[Ind]->r_killed[d_info[d_ptr->type].final_guardian] == 1) {
+			strcpy(tmp_name, "\377U");
+			strcat(tmp_name, bn);
+			strcpy(bn, tmp_name);
+		}
+
 		fprintf(fff, " \377u%-31s  (%2d,%2d) %s%s  %s\n",
 		    get_dun_name(dungeon_x[i], dungeon_y[i], dungeon_tower[i],
 		    getdungeon(&((struct worldpos) {dungeon_x[i], dungeon_y[i], dungeon_tower[i] ? 1 : -1})), 0, FALSE),
@@ -7046,6 +7149,50 @@ void view_exploration_history(int Ind) {
 }
 #endif
 
+void view_guild_roster(int Ind) {
+	int i, cnt = 1, mapped;
+	FILE *fff;
+	char file_name[MAX_PATH_LENGTH];
+	cptr master;
+	bool none = TRUE;
+	s16b idx[MAX_GUILDS], mem[MAX_GUILDS];
+
+	/* Temporary file */
+	if (path_temp(file_name, MAX_PATH_LENGTH)) return;
+	fff = my_fopen(file_name, "wb");
+
+	//well, members are characters, not accounts, so to 'boost' your count you can just add all your eligible account's characters to the guild...
+	fprintf(fff, "\377y        The List of all registered guilds, sorted by number of members:\n");
+	fprintf(fff, "\377y        ===============================================================\n\n");
+
+	for (i = 0; i < MAX_GUILDS; i++) {
+		idx[i] = i;
+		mem[i] = guilds[i].members;
+	}
+	ang_sort_comp = ang_sort_comp_order;
+	ang_sort_swap = ang_sort_swap_order;
+	ang_sort(0, mem, idx, MAX_GUILDS);
+
+	/* output the actual list */
+	for (mapped = MAX_GUILDS - 1; mapped >= 0; mapped--) {
+		i = idx[mapped];
+		if (!guilds[i].members) continue;
+		none = FALSE;
+		master = lookup_player_name(guilds[i].master);
+		master = master ? master : "\377o<LEADERLESS>    \377w"; //note: the colour codes are counted by strlen() ^^' hence only 16 'real' chars
+		fprintf(fff, "  %3d.  \377y[ \377U%*s%*s \377y]     \377wmaster: %-*s    %4d member%s\n", cnt++, (int)(NAME_LEN + strlen(guilds[i].name + 1)) / 2, guilds[i].name, (int)(NAME_LEN - strlen(guilds[i].name)) / 2, "", CNAME_LEN, master, guilds[i].members, guilds[i].members == 1 ? "" : "s");
+	}
+
+	if (none) fprintf(fff, "\n\377s                   There are currently no guilds registered\n");
+#ifdef USE_SOUND_2010
+	else sound(Ind, "store_paperwork", NULL, SFX_TYPE_MISC, FALSE);
+#endif
+
+	my_fclose(fff);
+	/* Display the file contents */
+	do_cmd_check_other_prepare(Ind, file_name, "Guild Roster");
+}
+
 void reward_deed_item(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
 	object_type forge, *o_ptr = &forge;
@@ -7058,7 +7205,7 @@ void reward_deed_item(int Ind, int item) {
 		msg_print(Ind, "That's not a deed.");
 		return;
 	}
-//	if (!o2_ptr->level && o2_ptr->owner != p_ptr->id) {
+	//if (!o2_ptr->level && o2_ptr->owner != p_ptr->id) {
 	if (o2_ptr->owner && o2_ptr->owner != p_ptr->id) {
 		msg_print(Ind, "\377oYou can only redeem your own deeds for items.");
 		return;
@@ -7109,7 +7256,7 @@ void reward_deed_item(int Ind, int item) {
 		break;
 	case SV_DEED_PVP_START:
 		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_LOW2, 3000);
-		if (!o_ptr->note) o_ptr->note = quark_add("");
+		//if (!o_ptr->note) o_ptr->note = quark_add("");
 		msg_print(Ind, "\377GThe mayor's secretary hands you an item and gives you a supportive pat.");
 		lev = 1; dis = 0;
 		break;
@@ -7207,7 +7354,9 @@ void reward_deed_blessing(int Ind, int item) {
 }
 
 /* Set store_debugging_mode and put stores into a special mode that helps debugging their stocks - C. Blue
-   note: may be called every 10 turns (since cfg.store_turns is multiplied by 10). */
+   May be called every 10 turns (since cfg.store_turns is multiplied by 10).
+   Currently doesn't support cfg.dun_store_turns for dungeon stores, using normal cfg.store_turns for them.
+   Currently doesn't support cfg.book_store_turns_perc. */
 void store_debug_stock() {
 	int i, j, n, maintain_num, what;
 	store_type *st_ptr;
@@ -7362,10 +7511,14 @@ static s64b player_store_inscribed(object_type *o_ptr, u32b price, bool appraise
 	/* Advance to inscription contents */
 	p += 2;
 
+	/* Just '@S'? Return the unmodified price then. */
+	if (!*p) return(price);
+
 	/* Base-item keeper marker, skip (no price relevance) */
 	if (*p == 'B') {
-		if (p[2] == ';') p += 3;
-		else if (p[3] == ';') p += 4;
+		if (!p[1]) return(price); /* Just '@SB'? Return the unmodified price then. */
+		else if (p[2] == ';') p += 3;
+		else if (p[2] && p[3] == ';') p += 4;
 		else p++;
 	}
 
@@ -7713,7 +7866,7 @@ u32b ps_get_cheque_value(object_type *o_ptr) {
 }
 
 /* Set 4-Byte cheque value from 4 Bytes xtra1..xtra4 - C. Blue */
-static void ps_set_cheque_value(object_type *o_ptr, u32b value) {
+void ps_set_cheque_value(object_type *o_ptr, u32b value) {
 	o_ptr->xtra1 = value & 0xFF;
 	o_ptr->xtra2 = (value & 0xFF00) >> 8;
 	o_ptr->xtra3 = (value & 0xFF0000) >> 16;
@@ -8167,7 +8320,8 @@ void export_player_store_offers(int *export_turns) {
 	int i, keep;
 	long price;
 	object_type forge, *o_ptr = &forge;
-	char o_name[ONAME_LEN], o_name_escaped[2 * ONAME_LEN], log[MAX_CHARS], attr;
+	char o_name[ONAME_LEN], o_name_escaped[2 * ONAME_LEN], log[MAX_CHARS];
+	byte attr;
 	struct timeval time_begin, time_end, time_delta;
 
 #ifdef EXPORT_JSON
@@ -8333,14 +8487,14 @@ void export_player_store_offers(int *export_turns) {
 				while ((cesc = strchr(o_name, '"'))) *cesc = '\''; //don't escape it, just replace instead, for laziness
 				if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 				else attr = get_attr_from_tval(o_ptr);
-				fprintf(fp, "{\"wx\":%d, \"wy\":%d, \"x\":%d, \"y\":%d, \"house\":%d, \"tval\":%d, \"sval\":%d, \"attr\":%d, \"lev\":%d, \"mode\":%d, \"price\":%ld, \"wgt\":%d, \"name\":\"%s\"}",
-				    h_ptr->wpos.wx, h_ptr->wpos.wy, h_ptr->dx, h_ptr->dy, h, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, json_escape_str(o_name_escaped, o_name, sizeof(o_name_escaped)));
+				fprintf(fp, "{\"wx\":%d, \"wy\":%d, \"x\":%d, \"y\":%d, \"house\":%d, \"flags4\":%d, \"tval\":%d, \"sval\":%d, \"attr\":%d, \"lev\":%d, \"mode\":%d, \"price\":%ld, \"wgt\":%d, \"name\":\"%s\"}",
+				    h_ptr->wpos.wx, h_ptr->wpos.wy, h_ptr->dx, h_ptr->dy, h, k_info[o_ptr->k_idx].flags4, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, json_escape_str(o_name_escaped, o_name, sizeof(o_name_escaped)));
 				kommao = TRUE;
  #else
 				if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 				else attr = get_attr_from_tval(o_ptr);
-				fprintf(fp, "(%d,%d) <%d,%d> [%d]: (%d, %d, %d, %d, %d, %ld Au) %s\n",
-				    h_ptr->wpos.wx, h_ptr->wpos.wy, h_ptr->dx, h_ptr->dy, h, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, o_name); //or just x,y?
+				fprintf(fp, "(%d,%d) <%d,%d> [%d]: (%d, %d, %d, %d, %d, %d, %ld Au, %d) %s\n",
+				    h_ptr->wpos.wx, h_ptr->wpos.wy, h_ptr->dx, h_ptr->dy, h, k_info[o_ptr->k_idx].flags4, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, o_name); //or just x,y?
  #endif
 			}
 		}
@@ -8502,14 +8656,14 @@ void export_player_store_offers(int *export_turns) {
 		while ((cesc = strchr(o_name, '"'))) *cesc = '\''; //don't escape it, just replace instead, for laziness
 		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 		else attr = get_attr_from_tval(o_ptr);
-		fprintf(fp, "{\"wx\":%d, \"wy\":%d, \"x\":%d, \"y\":%d, \"house\":%d, \"tval\":%d, \"sval\":%d, \"attr\":%d, \"lev\":%d, \"mode\":%d, \"price\":%ld, \"wgt\":%d, \"name\":\"%s\"}",
-		    o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->ix, o_ptr->iy, o_ptr->housed - 1, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, json_escape_str(o_name_escaped, o_name, sizeof(o_name_escaped)));
+		fprintf(fp, "{\"wx\":%d, \"wy\":%d, \"x\":%d, \"y\":%d, \"house\":%d, \"flags4\":%d, \"tval\":%d, \"sval\":%d, \"attr\":%d, \"lev\":%d, \"mode\":%d, \"price\":%ld, \"wgt\":%d, \"name\":\"%s\"}",
+		    o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->ix, o_ptr->iy, o_ptr->housed - 1, k_info[o_ptr->k_idx].flags4, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, json_escape_str(o_name_escaped, o_name, sizeof(o_name_escaped)));
 		kommao = TRUE;
 #else
 		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr);
 		else attr = get_attr_from_tval(o_ptr);
-		fprintf(fp, "(%d,%d) <%d,%d> [%d]: (%d, %d, %d, %d, %d, %d, %ld Au) %s\n",
-		    o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->ix, o_ptr->iy, o_ptr->housed - 1, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, o_name);
+		fprintf(fp, "(%d,%d) <%d,%d> [%d]: (%d, %d, %d, %d, %d, %d, %ld Au, %d) %s\n",
+		    o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->ix, o_ptr->iy, o_ptr->housed - 1, k_info[o_ptr->k_idx].flags4, o_ptr->tval, o_ptr->sval, attr, o_ptr->level, o_ptr->mode, price, o_ptr->weight, o_name);
 #endif
 	}
 	if (step) { //not disabled? then log

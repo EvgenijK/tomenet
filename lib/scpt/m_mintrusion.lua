@@ -17,8 +17,8 @@ function get_psiblast_dam(Ind, limit_lev)
 end
 
 function get_psistorm_dam(Ind, limit_lev)
-	local lev
-	lev = get_level(Ind, MPSISTORM_I, 200)
+	local lev = get_level(Ind, MPSISTORM_I, 200)
+
 	if limit_lev ~= 0 and lev > limit_lev * 4 then lev = limit_lev * 4 + (lev - limit_lev * 4) / 2 end
 	return 33 + lev
 end
@@ -35,12 +35,12 @@ MSCARE_I = add_spell {
 	["fail"] = 	10,
 	["direction"] = TRUE,
 	["spell"] = 	function(args)
-				fire_grid_bolt(Ind, GF_TURN_ALL, args.dir, 5 + get_level(Ind, MSCARE_I, 80), "stares deep into your eyes")
+				fire_ball(Ind, GF_TURN_ALL, 0, 5 + get_level(Ind, MSCARE_I, 80), 1, "stares deep into your eyes")
 			end,
 	["info"] = 	function()
 				return "power "..(5 + get_level(Ind, MSCARE_I, 80))
 			end,
-	["desc"] = 	{ "Tries to manipulate the mind of a monster to scare it.", }
+	["desc"] = 	{ "Tries to manipulate the mind of adjacent monsters to scare them.", }
 }
 __lua_MSCARE = MSCARE_I
 MSCARE_II = add_spell {
@@ -153,7 +153,7 @@ MSLOWMONSTER_I = add_spell {
 	["fail"] = 	10,
 	["direction"] = TRUE,
 	["spell"] = 	function(args)
-				fire_grid_bolt(Ind, GF_MIND_SLOW, args.dir, 5 + get_level(Ind, MSLOWMONSTER_I, 100), "drains power from your muscles")
+				fire_grid_bolt(Ind, GF_MIND_SLOW, args.dir, 5 + get_level(Ind, MSLOWMONSTER_I, 100), "weakens your will to act")
 			end,
 	["info"] = 	function()
 				return "power "..(5 + get_level(Ind, MSLOWMONSTER_I, 100))
@@ -172,7 +172,7 @@ MSLOWMONSTER_II = add_spell {
 	["fail"] = 	-20,
 	["direction"] = FALSE,
 	["spell"] = 	function()
-				project_los(Ind, GF_MIND_SLOW, 5 + get_level(Ind, MSLOWMONSTER_I, 100), "drains power from your muscles")
+				project_los(Ind, GF_MIND_SLOW, 5 + get_level(Ind, MSLOWMONSTER_I, 100), "weakens your will to act")
 			end,
 	["info"] = 	function()
 				return "power "..(5 + get_level(Ind, MSLOWMONSTER_I, 100))
@@ -194,11 +194,13 @@ MMINDBLAST_I = add_spell {
 	["ftk"] = 	2,
 	["spell"] = 	function(args)
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 1)
 			fire_grid_bolt(Ind, GF_PSI, args.dir, damroll(d, s) + p, "")
 			end,
 	["info"] = 	function()
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 1)
 			return "power "..d.."d"..s.."+"..p
 			end,
@@ -218,11 +220,13 @@ MMINDBLAST_II = add_spell {
 	["ftk"] = 	2,
 	["spell"] = 	function(args)
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 20)
 			fire_grid_bolt(Ind, GF_PSI, args.dir, damroll(d, s) + p, "")
 			end,
 	["info"] = 	function()
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 20)
 			return "power "..d.."d"..s.."+"..p
 			end,
@@ -242,11 +246,13 @@ MMINDBLAST_III = add_spell {
 	["ftk"] = 	2,
 	["spell"] = 	function(args)
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 0)
 			fire_grid_bolt(Ind, GF_PSI, args.dir, damroll(d, s) + p, "")
 			end,
 	["info"] = 	function()
 			local d, s, p
+
 			d, s, p = get_psiblast_dam(Ind, 0)
 			return "power "..d.."d"..s.."+"..p
 			end,
@@ -265,13 +271,13 @@ MPSISTORM_I = add_spell {
 	["fail"] = 	5,
 	["direction"] = TRUE,
 	["spell"] = function(args)
-		local d
-		d = get_psistorm_dam(Ind, 1)
+		local d = get_psistorm_dam(Ind, 1)
+
 		fire_cloud(Ind, GF_PSI, args.dir, d, 3 + get_level(Ind, MPSISTORM_I, 4), 6 + get_level(Ind, MPSISTORM_I, 4), 14, " releases a psi storm for")
 	end,
 	["info"] = function()
-		local d
-		d = get_psistorm_dam(Ind, 1)
+		local d = get_psistorm_dam(Ind, 1)
+
 		return "dam "..d.." rad "..(3 + get_level(Ind, MPSISTORM_I, 4)).." dur "..(6 + get_level(Ind, MPSISTORM_I, 4))
 	end,
 	["desc"] = { "A psionic storm that damages and disturbs all minds within an area.", }
@@ -288,13 +294,13 @@ MPSISTORM_II = add_spell {
 	["fail"] = 	-90,
 	["direction"] = TRUE,
 	["spell"] = function(args)
-		local d
-		d = get_psistorm_dam(Ind, 0)
+		local d  = get_psistorm_dam(Ind, 0)
+
 		fire_cloud(Ind, GF_PSI, args.dir, d, 3 + get_level(Ind, MPSISTORM_I, 4), 6 + get_level(Ind, MPSISTORM_I, 4), 14, " releases a psi storm for")
 	end,
 	["info"] = function()
-		local d
-		d = get_psistorm_dam(Ind, 0)
+		local d = get_psistorm_dam(Ind, 0)
+
 		return "dam "..d.." rad "..(3 + get_level(Ind, MPSISTORM_I, 4)).." dur "..(6 + get_level(Ind, MPSISTORM_I, 4))
 	end,
 	["desc"] = { "A psionic storm that damages and disturbs all minds within an area.", }
@@ -335,11 +341,13 @@ MMAP = add_spell {
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			local pow = get_level(Ind, MMAP)
+
 			if pow > 15 then pow = 15 end
 			mind_map_level(Ind, pow)
 			end,
 	["info"] = 	function()
 			local pow = get_level(Ind, MMAP)
+
 			if pow > 15 then pow = 15 end
 			return "power "..pow
 			end,
@@ -367,8 +375,7 @@ MCHARM = add_spell {
 			fire_grid_bolt(Ind, GF_CHARMIGNORE, args.dir, 10 + get_level(Ind, MCHARM, 150), "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, MCHARM, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, MCHARM, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] = 	{
 			"Tries to manipulate the mind of a monster",
@@ -391,8 +398,7 @@ MCHARM_II = add_spell {
 			fire_ball(Ind, GF_CHARMIGNORE, args.dir, 10 + get_level(Ind, MCHARM, 150), 3, "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, MCHARM, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, MCHARM, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] = 	{
 			"Tries to manipulate the mind of your target and others around it",
@@ -415,8 +421,7 @@ MCHARM_III = add_spell {
 			project_los(Ind, GF_CHARMIGNORE, 10 + get_level(Ind, MCHARM, 150), "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, MCHARM, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, MCHARM, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] = 	{
 			"Tries to manipulate the mind of all monsters in sight",
@@ -430,7 +435,7 @@ MSTOPCHARM = add_spell {
 	["school"] = 	{SCHOOL_MINTRUSION},
 	["am"] = 	0,
 	["spell_power"] = 0,
-	["level"] = 	33,
+	["level"] = 	45,
 	["mana"] = 	0,
 	["mana_max"] = 	0,
 	["fail"] = 	101,

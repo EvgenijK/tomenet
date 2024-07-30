@@ -29,25 +29,95 @@ static bool item_tester_edible(object_type *o_ptr) {
 
 	return(FALSE);
 }
+/* Compare cmd3.c */
+static bool item_tester_torch_fuel(object_type *o_ptr) {
+	if (o_ptr->name1) return(FALSE);
 
-/* XXX not fully functional */
-static bool item_tester_oils(object_type *o_ptr) {
-	if (o_ptr->tval == TV_LITE) return(TRUE);
+	if ((o_ptr->tval == TV_LITE) &&
+	    (o_ptr->sval == SV_LITE_TORCH)
+	    //These checks for 'fuel-draining' light type actually seem unnecessary, as we already checked for artifact and omitted SV_LITE_TORCH_EVER:
+	    //&& o_ptr->timeout /* we don't have this info client-side, could just try to hack the name instead: */
+	    //&& strstr(inventory_name[inven_slot], "turns")
+	    ) return(TRUE);
+
+	return(FALSE);
+}
+static bool item_tester_lantern_fuel(object_type *o_ptr) {
+	if (o_ptr->name1) return(FALSE);
+
+	/* Fuel */
 	if (o_ptr->tval == TV_FLASK && o_ptr->sval == SV_FLASK_OIL) return(TRUE);
+
+	/* Other lanterns are okay */
+	if ((o_ptr->tval == TV_LITE) &&
+	    (o_ptr->sval == SV_LITE_LANTERN)
+	    //These checks for 'fuel-draining' light type actually seem unnecessary, as we already checked for artifact and omitted SV_LITE_DWARVEN and SV_LITE_FEANORIAN:
+	    //&& o_ptr->timeout /* we don't have this info client-side, could just try to hack the name instead: */
+	    //&& strstr(inventory_name[inven_slot], "turns")
+	    ) return(TRUE);
 
 	return(FALSE);
 }
 
 static void cmd_all_in_one(void) {
-	int item, dir;
+	int item, dir, tval;
 
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA)))
+#ifdef ENABLE_SUBINVEN
+	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA | USE_SUBINVEN))) {
+#else
+	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA))) {
+#endif
+		if (item == -2) c_msg_print("You don't have any items.");
 		return;
+	}
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) tval = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].tval;
+	else
+#endif
+	if (item >= INVEN_WIELD) {
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+	tval = inventory[item].tval;
+#endif
+#ifdef WIELD_BOOKS
+		if (tval == TV_BOOK) {
+			int i;
 
-	if (INVEN_WIELD <= item) {
+			for (i = 1; i < MAX_SKILLS; i++) {
+				if (s_info[i].tval == inventory[item].tval &&
+				    s_info[i].action_mkey && p_ptr->s_info[i].value) {
+					do_activate_skill(i, item);
+					return;
+					/* Now a number of skills shares same mkey */
+				}
+			}
+		}
+#endif
+
+#ifdef WIELD_DEVICES
+		switch (tval) {
+		case TV_WAND:
+			if (!get_dir(&dir)) return;
+			Send_aim(item, dir);
+			return;
+		case TV_STAFF:
+			Send_use(item);
+			return;
+		case TV_ROD:
+			/* Does rod require aiming? (Always does if not yet identified) */
+			if (inventory[item].uses_dir == 0) {
+				/* (also called if server is outdated, since uses_dir will be 0 then) */
+				Send_zap(item);
+			} else {
+				if (!get_dir(&dir)) return;
+				Send_zap_dir(item, dir);
+			}
+			return;
+		}
+#endif
+
 		/* Does item require aiming? (Always does if not yet identified) */
 		if (inventory[item].uses_dir == 0) {
 			/* (also called if server is outdated, since uses_dir will be 0 then) */
@@ -57,9 +127,9 @@ static void cmd_all_in_one(void) {
 			Send_activate_dir(item, dir);
 		}
 		return;
-	}
+	} else tval = inventory[item].tval;
 
-	switch (inventory[item].tval) {
+	switch (tval) {
 	case TV_POTION:
 	case TV_POTION2:
 		Send_quaff(item);
@@ -77,6 +147,10 @@ static void cmd_all_in_one(void) {
 		break;
 	case TV_ROD:
 		/* Does rod require aiming? (Always does if not yet identified) */
+#ifdef ENABLE_SUBINVEN
+		if (item >= SUBINVEN_INVEN_MUL) Send_zap(item);
+		else
+#endif
 		if (inventory[item].uses_dir == 0) {
 			/* (also called if server is outdated, since uses_dir will be 0 then) */
 			Send_zap(item);
@@ -92,6 +166,9 @@ static void cmd_all_in_one(void) {
 			Send_wield(item);
 		break;
 	case TV_FLASK:
+#ifdef ENABLE_SUBINVEN
+		if (item >= SUBINVEN_INVEN_MUL) return;
+#endif
 		if (inventory[item].sval == SV_FLASK_OIL) Send_fill(item);
 		break;
 	case TV_FOOD:
@@ -152,6 +229,10 @@ static void cmd_all_in_one(void) {
 	    {
 		int i;
 		bool done = FALSE;
+
+#ifdef ENABLE_SUBINVEN
+		if (item >= SUBINVEN_INVEN_MUL) return;
+#endif
 
 		for (i = 1; i < MAX_SKILLS; i++) {
 			if (s_info[i].tval == inventory[item].tval &&
@@ -370,15 +451,23 @@ void process_command() {
 	case KTRL('T'): xhtml_screenshot("screenshot????", FALSE); break;
 	case KTRL('I'): cmd_lagometer(); break;
 
+#ifdef TEST_CLIENT
+//#define CTRLC_DEBUG /* Use CTRL-C for some special debug stuff instead of its normal function (audio shortcut)? */
+#endif
+
 #ifdef USE_SOUND_2010
 	case KTRL('U'): interact_audio(); break;
 	//case KTRL('M'): //this is same as '\r' and hence doesn't work..
+ #ifndef CTRLC_DEBUG
 	case KTRL('C'): toggle_music(FALSE); break;
+ #endif
 	case KTRL('N'): toggle_master(FALSE); break;
 #else
 	case KTRL('U'):
 	//case KTRL('M'): //this is same as '\r' and hence doesn't work..
+ #ifndef CTRLC_DEBUG
 	case KTRL('C'):
+ #endif
 	case KTRL('N'):
 		c_msg_print("This key is unused in clients without SDL-sound support.  Hit '?' for help.");
 		break;
@@ -390,8 +479,11 @@ void process_command() {
 #else /* For debugging */
 		c_msg_format("%d->%d", TERMX_BLUE, term2attr(TERMX_BLUE)); break;
 #endif
-#if 0 /* only for debugging purpose - dump some client-side special config */
-	case KTRL('C'): c_msg_format("Client FPS: %d", cfg_client_fps); break;
+#ifdef CTRLC_DEBUG /* only for debugging purpose - dump some client-side special config */
+	case KTRL('C'):
+		//c_msg_format("Client FPS: %d", cfg_client_fps);
+		//handle_process_font_file();
+		break;
 #endif
 	default: cmd_raw_key(command_cmd); break;
 	}
@@ -696,8 +788,12 @@ void cmd_locate(void) {
 			if (ch == ESCAPE || ch == ' ' || ch == (c_cfg.rogue_like_commands ? 'W' : 'L')) break;
 
 			/* Take a screenshot */
-			if (ch == KTRL('T'))
-				xhtml_screenshot("screenshot????", FALSE);
+			if (ch == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
+
+			if (ch == ':') {
+				cmd_message();
+				inkey_msg = TRUE; /* And suppress macros again.. */
+			}
 
 			/* Extract direction */
 			dir = keymap_dirs[ch & 0x7F];
@@ -778,7 +874,7 @@ void cmd_disarm(void) {
    b) automatically move the most possible amount
 */
 static void cmd_subinven_move(void) {
-	int item;
+	int item, num, amt;
 
 	item_tester_hook = NULL;
 	get_item_hook_find_obj_what = "Item name? ";
@@ -793,11 +889,23 @@ static void cmd_subinven_move(void) {
 
 	if (!c_get_item(&item, "Stow what? ", (USE_INVEN | USE_EXTRA))) return;
 
-	Send_subinven_move(item);
+	/* Get an amount */
+	num = inventory[item].number;
+	if (num > 1) {
+		if (is_cheap_misc(inventory[item].tval) && c_cfg.whole_ammo_stack && !verified_item)
+			amt = num;
+		else {
+			inkey_letter_all = TRUE;
+			amt = c_get_quantity("How many (ENTER = all)? ", -num);
+		}
+	}
+	else amt = 1;
+
+	Send_subinven_move(item, amt);
 }
 /* Note: islot can be ignored, since it's actually using_subinven, which is checked in c_get_item() anyway. */
 static void cmd_subinven_remove(int islot) {
-	int item;
+	int item, num, amt;
 
 	item_tester_hook = NULL;
 	get_item_hook_find_obj_what = "Item name? ";
@@ -805,7 +913,19 @@ static void cmd_subinven_remove(int islot) {
 
 	if (!c_get_item(&item, "Unstow what? ", (USE_SUBINVEN | USE_EXTRA))) return;
 
-	Send_subinven_remove(item);
+	/* Get an amount */
+	num = subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number;
+	if (num > 1) {
+		if (is_cheap_misc(subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].tval) && c_cfg.whole_ammo_stack && !verified_item)
+			amt = subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number;
+		else {
+			inkey_letter_all = TRUE;
+			amt = c_get_quantity("How many (ENTER = all)? ", -subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number);
+		}
+	}
+	else amt = 1;
+
+	Send_subinven_remove(item, amt);
 }
 #endif
 
@@ -928,7 +1048,7 @@ void cmd_subinven(int islot) {
 	int c;
 	char buf[MSG_LEN];
 	object_type *i_ptr = &inventory[islot];
-	int subinven_size = i_ptr->pval;
+	int subinven_size = i_ptr->bpval;
 	bool leave = FALSE;
 
 	Term_save();
@@ -972,6 +1092,10 @@ void cmd_subinven(int islot) {
 			break;
 		}
 		else switch (ch) {
+		default:
+			if (c_cfg.item_error_beep) bell(); //not really an item selection error though
+			else bell_silent();
+			continue;
 		case ESCAPE:
 			/* Leave subinventory */
 			leave = TRUE;
@@ -1001,8 +1125,8 @@ void cmd_subinven(int islot) {
 
 		/* Additional commands specifically replacing/allowing backpack-related commands for subinventories: */
 
-		/* Move item to backpack inventory - let's abuse equipment-related commands for the heck of it */
-		case 't': cmd_subinven_remove(using_subinven); continue;
+		/* Move item to backpack inventory */
+		case 's': cmd_subinven_remove(using_subinven); continue;
 
 		/* More basic functions */
 		//postponed
@@ -1131,7 +1255,8 @@ void cmd_equip(void) {
 }
 
 void cmd_drop(byte flag) {
-	int item, amt;
+	int item, amt, num, tval;
+	bool equipped;
 
 	item_tester_hook = NULL;
 	get_item_hook_find_obj_what = "Item name? ";
@@ -1141,31 +1266,41 @@ void cmd_drop(byte flag) {
 
 #ifdef ENABLE_SUBINVEN
 	if (using_subinven != -1) {
+		equipped = FALSE;
+
 		/* Get an amount */
-		if (subinventory[using_subinven][item % 100].number > 1) {
-			if (is_cheap_misc(subinventory[using_subinven][item % 100].tval) && c_cfg.whole_ammo_stack && !verified_item
-			    && (item % 100) < INVEN_WIELD) /* <- new: ignore whole_ammo_stack for equipped ammo, so it can easily be shared */
-				amt = subinventory[using_subinven][item % 100].number;
+		if (subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number > 1) {
+			if (is_cheap_misc(subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].tval) && c_cfg.whole_ammo_stack && !verified_item)
+				amt = subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number;
 			else {
 				inkey_letter_all = TRUE;
-				amt = c_get_quantity("How many ('a' or spacebar for all)? ", subinventory[using_subinven][item % 100].number);
+				amt = c_get_quantity("How many ('a' or spacebar for all)? ", subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number);
 			}
 		}
 		else amt = 1;
 
 		Send_drop(item, amt);
 		return;
-	}
+	} else if (item >= SUBINVEN_INVEN_MUL) {
+		equipped = FALSE;
+		num = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].number;
+		tval = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].tval;
+	} else
 #endif
+	{
+		equipped = item >= INVEN_WIELD;
+		num = inventory[item].number;
+		tval = inventory[item].tval;
+	}
 
 	/* Get an amount */
-	if (inventory[item].number > 1) {
-		if (is_cheap_misc(inventory[item].tval) && c_cfg.whole_ammo_stack && !verified_item
-		    && item < INVEN_WIELD) /* <- new: ignore whole_ammo_stack for equipped ammo, so it can easily be shared */
-			amt = inventory[item].number;
+	if (num > 1) {
+		if (is_cheap_misc(tval) && c_cfg.whole_ammo_stack && !verified_item
+		    && !equipped) /* <- new: ignore whole_ammo_stack for equipped ammo, so it can easily be shared */
+			amt = num;
 		else {
 			inkey_letter_all = TRUE;
-			amt = c_get_quantity("How many ('a' or spacebar for all)? ", inventory[item].number);
+			amt = c_get_quantity("How many ('a' or spacebar for all)? ", num);
 		}
 	}
 	else amt = 1;
@@ -1192,8 +1327,7 @@ void cmd_wield(void) {
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Wear/Wield which item? ", (USE_INVEN | USE_EXTRA)))
-		return;
+	if (!c_get_item(&item, "Wear/Wield which item? ", (USE_INVEN | USE_EXTRA))) return;
 
 	/* Send it */
 	Send_wield(item);
@@ -1206,8 +1340,7 @@ void cmd_wield2(void) {
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Wear/Wield which item? ", (USE_INVEN | USE_EXTRA)))
-		return;
+	if (!c_get_item(&item, "Wear/Wield which item? ", (USE_INVEN | USE_EXTRA))) return;
 
 	/* Send it */
 	Send_wield2(item);
@@ -1220,27 +1353,31 @@ void cmd_observe(byte mode) {
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Examine which item? ", (mode | USE_EXTRA)))
-		return;
+	if (!c_get_item(&item, "Examine which item? ", (mode | USE_EXTRA))) return;
 
 	/* Send it */
 	Send_observe(item);
 }
 
 void cmd_take_off(void) {
-	int item, amt = 255;
+	int item, amt = 255, num;
 
 	item_tester_hook = NULL;
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
 	if (!c_get_item(&item, "Takeoff which item? ", (USE_EQUIP | USE_EXTRA))) return;
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) num = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].number;
+	else
+#endif
+	num = inventory[item].number;
 
 	/* New in 4.4.7a, for ammunition: Can take off a certain amount - C. Blue */
-	if (inventory[item].number > 1 && verified_item
+	if (num > 1 && verified_item
 	    && is_newer_than(&server_version, 4, 4, 7, 0, 0, 0)) {
 		inkey_letter_all = TRUE;
-		amt = c_get_quantity("How many ('a' or spacebar for all)? ", inventory[item].number);
+		amt = c_get_quantity("How many ('a' or spacebar for all)? ", num);
 		Send_take_off_amt(item, amt);
 	} else
 		Send_take_off(item);
@@ -1315,8 +1452,9 @@ void cmd_swap(void) {
 
 
 void cmd_destroy(byte flag) {
-	int item, amt;
+	int item, amt, num, tval;
 	char out_val[MSG_LEN];
+	cptr name;
 
 	item_tester_hook = NULL;
 	get_item_hook_find_obj_what = "Item name? ";
@@ -1324,15 +1462,14 @@ void cmd_destroy(byte flag) {
 
 	if (!c_get_item(&item, "Destroy what? ", (flag | USE_EXTRA))) return;
 
-
 #ifdef ENABLE_SUBINVEN
 	if (using_subinven != -1) {
 		/* Get an amount */
-		if (subinventory[using_subinven][item % 100].number > 1) {
-			if (is_cheap_misc(subinventory[using_subinven][item % 100].tval) && c_cfg.whole_ammo_stack && !verified_item) amt = subinventory[using_subinven][item % 100].number;
+		if (subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number > 1) {
+			if (is_cheap_misc(subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].tval) && c_cfg.whole_ammo_stack && !verified_item) amt = subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number;
 			else {
 				inkey_letter_all = TRUE;
-				amt = c_get_quantity("How many ('a' or spacebar for all)? ", subinventory[using_subinven][item % 100].number);
+				amt = c_get_quantity("How many ('a' or spacebar for all)? ", subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number);
 			}
 		} else amt = 1;
 
@@ -1340,25 +1477,34 @@ void cmd_destroy(byte flag) {
 		if (!amt) return;
 
 		if (!c_cfg.no_verify_destroy) {
-			if (subinventory[using_subinven][item % 100].number == amt)
-				sprintf(out_val, "Really destroy %s?", subinventory_name[using_subinven][item % 100]);
+			if (subinventory[using_subinven][item % SUBINVEN_INVEN_MUL].number == amt)
+				sprintf(out_val, "Really destroy %s?", subinventory_name[using_subinven][item % SUBINVEN_INVEN_MUL]);
 			else
-				sprintf(out_val, "Really destroy %d of your %s?", amt, subinventory_name[using_subinven][item % 100]);
+				sprintf(out_val, "Really destroy %d of your %s?", amt, subinventory_name[using_subinven][item % SUBINVEN_INVEN_MUL]);
 			if (!get_check2(out_val, FALSE)) return;
 		}
 
 		/* Send it */
 		Send_destroy(item, amt);
 		return;
-	}
+	} else if (item >= SUBINVEN_INVEN_MUL) {
+		num = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].number;
+		tval = subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].tval;
+		name = subinventory_name[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+	} else
 #endif
+	{
+		num = inventory[item].number;
+		tval = inventory[item].tval;
+		name = inventory_name[item];
+	}
 
 	/* Get an amount */
-	if (inventory[item].number > 1) {
-		if (is_cheap_misc(inventory[item].tval) && c_cfg.whole_ammo_stack && !verified_item) amt = inventory[item].number;
+	if (num > 1) {
+		if (is_cheap_misc(tval) && c_cfg.whole_ammo_stack && !verified_item) amt = num;
 		else {
 			inkey_letter_all = TRUE;
-			amt = c_get_quantity("How many ('a' or spacebar for all)? ", inventory[item].number);
+			amt = c_get_quantity("How many ('a' or spacebar for all)? ", num);
 		}
 	} else amt = 1;
 
@@ -1366,10 +1512,10 @@ void cmd_destroy(byte flag) {
 	if (!amt) return;
 
 	if (!c_cfg.no_verify_destroy) {
-		if (inventory[item].number == amt)
-			sprintf(out_val, "Really destroy %s?", inventory_name[item]);
+		if (num == amt)
+			sprintf(out_val, "Really destroy %s?", name);
 		else
-			sprintf(out_val, "Really destroy %d of your %s?", amt, inventory_name[item]);
+			sprintf(out_val, "Really destroy %d of your %s?", amt, name);
 		if (!get_check2(out_val, FALSE)) return;
 	}
 
@@ -1416,8 +1562,7 @@ void cmd_uninscribe(byte flag) {
 	get_item_hook_find_obj_what = "Item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Uninscribe what? ", (flag | USE_EXTRA)))
-		return;
+	if (!c_get_item(&item, "Uninscribe what? ", (flag | USE_EXTRA))) return;
 
 	/* Send it */
 	Send_uninscribe(item);
@@ -1433,8 +1578,9 @@ void cmd_apply_autoins(void) {
 	/* Get the item */
 	if (!c_get_item(&item, "Inscribe which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA))) return;
 
-	apply_auto_inscriptions(item, TRUE);
-	if (c_cfg.auto_inscribe) Send_autoinscribe(item);
+	if (!apply_auto_inscriptions_aux(item, -1, TRUE)
+	    && c_cfg.auto_inscr_server && !inventory_inscription_len[item])
+		Send_autoinscribe(item);
 }
 
 void cmd_steal(void) {
@@ -1451,7 +1597,8 @@ static bool item_tester_quaffable(object_type *o_ptr) {
 	if (o_ptr->tval == TV_POTION2) return(TRUE);
 	if ((o_ptr->tval == TV_FOOD) &&
 			(o_ptr->sval == SV_FOOD_PINT_OF_ALE ||
-			 o_ptr->sval == SV_FOOD_PINT_OF_WINE) )
+			 o_ptr->sval == SV_FOOD_PINT_OF_WINE ||
+			 o_ptr->sval == SV_FOOD_KHAZAD)) /* nice hard-coding >_< */
 			return(TRUE);
 	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0002)) return(TRUE);
 
@@ -1465,7 +1612,11 @@ void cmd_quaff(void) {
 	get_item_hook_find_obj_what = "Potion name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
+#ifdef ENABLE_SUBINVEN
+	if (!c_get_item(&item, "Quaff which potion? ", (USE_INVEN | USE_EXTRA | NO_FAIL_MSG | USE_SUBINVEN))) {
+#else
 	if (!c_get_item(&item, "Quaff which potion? ", (USE_INVEN | USE_EXTRA | NO_FAIL_MSG))) {
+#endif
 		if (item == -2) c_msg_print("You don't have any potions.");
 		return;
 	}
@@ -1505,7 +1656,8 @@ void cmd_aim_wand(void) {
 	get_item_hook_find_obj_what = "Wand name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
-	if (!c_get_item(&item, "Aim which wand? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG))) {
+	if (!c_get_item(&item, "Aim which wand? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG
+	    | USE_EQUIP))) { //WIELD_DEVICES
 		if (item == -2) c_msg_print("You don't have any wands.");
 		return;
 	}
@@ -1524,9 +1676,11 @@ void cmd_use_staff(void) {
 	get_item_extra_hook = get_item_hook_find_obj;
 
 #ifdef ENABLE_SUBINVEN
-	if (!c_get_item(&item, "Use which staff? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG | USE_SUBINVEN))) {
+	if (!c_get_item(&item, "Use which staff? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG | USE_SUBINVEN
+	    | USE_EQUIP))) { //WIELD_DEVICES
 #else
-	if (!c_get_item(&item, "Use which staff? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG))) {
+	if (!c_get_item(&item, "Use which staff? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG
+	    | USE_EQUIP))) { //WIELD_DEVICES
 #endif
 		if (item == -2) c_msg_print("You don't have any staves.");
 		return;
@@ -1538,33 +1692,31 @@ void cmd_use_staff(void) {
 
 void cmd_zap_rod(void) {
 	int item, dir;
-#ifdef ENABLE_SUBINVEN
-	int sub = -1;
-#endif
 
 	item_tester_tval = TV_ROD;
 	get_item_hook_find_obj_what = "Rod name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
 #ifdef ENABLE_SUBINVEN
-	if (!c_get_item(&item, "Zap which rod? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG | USE_SUBINVEN))) {
+	if (!c_get_item(&item, "Zap which rod? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG | USE_SUBINVEN
+	    | USE_EQUIP))) { //WIELD_DEVICES
 #else
-	if (!c_get_item(&item, "Zap which rod? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG))) {
+	if (!c_get_item(&item, "Zap which rod? ", (USE_INVEN | USE_EXTRA | CHECK_CHARGED | NO_FAIL_MSG
+	    | USE_EQUIP))) { //WIELD_DEVICES
 #endif
 		if (item == -2) c_msg_print("You don't have any rods.");
 		return;
 	}
 #ifdef ENABLE_SUBINVEN
-	if (sub != -1) {
+	if (item >= SUBINVEN_INVEN_MUL) {
 		/* Send it */
 		/* Does item require aiming? (Always does if not yet identified) */
-		if (subinventory[sub][item % 100].uses_dir == 0) {
+		if (subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].uses_dir == 0) {
 			/* (also called if server is outdated, since uses_dir will be 0 then) */
-			using_subinven_item = item; /* allow mixing chemicals directly from satchels */
-			Send_activate(item);
+			Send_zap(item);
 		} else { /* Actually directional rods are not allowed to be used from within a subinventory, but anyway.. */
 			if (!get_dir(&dir)) return;
-			Send_activate_dir(item, dir);
+			Send_zap_dir(item, dir);
 		}
 		return;
 	}
@@ -1583,18 +1735,22 @@ void cmd_zap_rod(void) {
 /* FIXME: filter doesn't work nicely */
 void cmd_refill(void) {
 	int item;
-	cptr p;
 
 	if (!inventory[INVEN_LITE].tval) {
 		c_msg_print("You are not wielding a light source.");
 		return;
 	}
 
-	item_tester_hook = item_tester_oils;
-	p = "Refill with which light? ";
-
-	if (!c_get_item(&item, p, (USE_INVEN)))
-		return;
+	get_item_extra_hook = get_item_hook_find_obj;
+	if (inventory[INVEN_LITE].sval == SV_LITE_TORCH || inventory[INVEN_LITE].sval == SV_LITE_TORCH_EVER) { /* @Everburning: Might be ego 'of Fading' */
+		item_tester_hook = item_tester_torch_fuel;
+		get_item_hook_find_obj_what = "Torch? ";
+		if (!c_get_item(&item, "Refill with which torch? ", (USE_INVEN | USE_EXTRA))) return;
+	} else { /* Assume lantern */
+		item_tester_hook = item_tester_lantern_fuel;
+		get_item_hook_find_obj_what = "Light source/oil? ";
+		if (!c_get_item(&item, "Refill with which oil/lantern? ", (USE_INVEN | USE_EXTRA))) return;
+	}
 
 	/* Send it */
 	Send_fill(item);
@@ -1627,12 +1783,15 @@ void cmd_activate(void) {
 	get_item_hook_find_obj_what = "Activatable item name? ";
 	get_item_extra_hook = get_item_hook_find_obj;
 
+	/* Could in theory add a client-side check for is_custom_tome() here, because we know the bpval, so we can verify if there are still pages left.
+	   Not really needed though, as the server-side checks in place work fine too. */
+
 	/* Currently, most activatable items must be worn as they are equippable items.
 	   Exceptions are: Custom books, book of the dead, golem scrolls and runes. */
 #ifdef ENABLE_SUBINVEN
 	if (using_subinven == -1) {
 		if (!c_get_item(&item, "Activate what? ", (USE_EQUIP | USE_INVEN | USE_EXTRA | USE_SUBINVEN))) return;
-		if (item >= 100) sub = item / 100 - 1;
+		if (item >= SUBINVEN_INVEN_MUL) sub = item / SUBINVEN_INVEN_MUL - 1;
 	} else
 #endif
 	//if (!c_get_item(&item, "Activate what? ", (USE_EQUIP | USE_INVEN | EQUIP_FIRST | USE_EXTRA)))
@@ -1643,7 +1802,7 @@ void cmd_activate(void) {
 		if (sub == -1) sub = using_subinven;
 		/* Send it */
 		/* Does item require aiming? (Always does if not yet identified) */
-		if (subinventory[sub][item % 100].uses_dir == 0) {
+		if (subinventory[sub][item % SUBINVEN_INVEN_MUL].uses_dir == 0) {
 			/* (also called if server is outdated, since uses_dir will be 0 then) */
 			using_subinven_item = item; /* allow mixing chemicals directly from satchels */
 			Send_activate(item);
@@ -1760,6 +1919,10 @@ void cmd_look(void) {
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", FALSE);
 			break;
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case 'p':
 			/* Toggle manual ground-targetting */
 			position = !position;
@@ -1790,6 +1953,10 @@ void cmd_look(void) {
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", FALSE);
 			break;
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case 'p':
 			/* Toggle manual ground-targetting */
 			position = !position;
@@ -1815,6 +1982,7 @@ void cmd_look(void) {
 }
 
 
+/* Display character sheet (any page) */
 #define CS_SEL_COL TERM_SELECTOR
 void cmd_character(void) {
 	char ch = 0;
@@ -1827,7 +1995,7 @@ void cmd_character(void) {
 
 	/* Init and re-init between relogs*/
 	//if (sel == 0 && !p_ptr->fruit_bat) sel++;
-	if (sel == 3 && !strcasecmp(c_p_ptr->body_name, "Player")) sel++;
+	//if (sel == 3 && !strcasecmp(c_p_ptr->body_name, "Player")) sel++;
 	if (sel == 4 && !p_ptr->ptrait) sel++;
 
 	while (!done) {
@@ -1895,11 +2063,33 @@ void cmd_character(void) {
 			if (csheet_page == 2) break;
 			sel--;
 			if (sel < 0) sel = 22;
-			//if (sel == 0 && !p_ptr->fruit_bat) sel--;
 			if (sel == 4 && !p_ptr->ptrait) sel--;
 			//if (sel == 3 && !strcasecmp(c_p_ptr->body_name, "Player")) sel--;
+			//if (sel == 0 && !p_ptr->fruit_bat) sel--;
 			if (sel < 0) sel = 22;
 			if (csheet_page == 1 && sel >= 12) sel = 11;
+			break;
+		/* Allow some horizontal navigation too, with some visual alignment hacks */
+		case '6':
+			if (sel <= 5) sel += 6;
+			else if (sel <= 11) {
+				sel -= 6;
+				//if (sel == 3 && !strcasecmp(c_p_ptr->body_name, "Player")) sel++;
+				if (sel == 4 && !p_ptr->ptrait) sel++;
+			}
+			else if (sel <= 15) sel += 4;
+			else if (sel <= 19) { sel += 4; if (sel == 22) sel -= 8; else if (sel == 23) sel = 22; }
+			else { sel = sel - 8; if (sel == 14) sel = 15; }
+			break;
+		case '4':
+			if (sel <= 5) sel += 6;
+			else if (sel <= 11) {
+				sel -= 6;
+				//if (sel == 3 && !strcasecmp(c_p_ptr->body_name, "Player")) sel++;
+				if (sel == 4 && !p_ptr->ptrait) sel++;
+			}
+			else if (sel <= 15) { sel += 8; if (sel == 22) sel -= 4; else if (sel == 23) sel = 22; }
+			else { sel -= 4; if (sel == 18) sel = 19; }
 			break;
 		//case '\n': case '\r':
 		case '?':
@@ -1923,10 +2113,12 @@ void cmd_character(void) {
 			case 13: cmd_the_guide(3, 0, "BOWS/THROW$$"); break;
 			case 14: cmd_the_guide(3, 0, "SAVING THROW$$"); break;
 			case 15: cmd_the_guide(3, 0, "STEALTH$$"); break;
+
 			case 16: cmd_the_guide(3, 0, "PERCEPTION$$"); break;
 			case 17: cmd_the_guide(3, 0, "SEARCHING$$"); break;
 			case 18: cmd_the_guide(3, 0, "DISARMING$$"); break;
 			case 19: cmd_the_guide(3, 0, "MAGIC DEVICE$$"); break;
+
 			case 20: cmd_the_guide(3, 0, "BLOWS/ROUND$$"); break;
 			case 21: cmd_the_guide(3, 0, "SHOTS/ROUND$$"); break;
 			case 22: cmd_the_guide(3, 0, "INFRA-VISION$$"); break;
@@ -1945,8 +2137,19 @@ void cmd_character(void) {
 			/* Dump */
 			strnfmt(tmp, MAX_CHARS - 1, "%s.txt", cname);
 			if (get_string("Filename(you can post it to http://angband.oook.cz/): ", tmp, MAX_CHARS - 1)) {
-				if (tmp[0] && (tmp[0] != ' '))
+				if (tmp[0] && (tmp[0] != ' ')) {
+					/* add '.ins' extension if not already existing */
+					if (strlen(tmp) > 4) {
+						if (tmp[strlen(tmp) - 1] == 't' &&
+						    tmp[strlen(tmp) - 2] == 'x' &&
+						    tmp[strlen(tmp) - 3] == 't' &&
+						    tmp[strlen(tmp) - 4] == '.') {
+							/* fine */
+						} else strcat(tmp, ".txt");
+					} else strcat(tmp, ".txt");
+
 					file_character(tmp, FALSE);
+				} else c_message_add("\377yError: No valid filename. Must start not on a space.");
 			}
 			break;
 		case KTRL('T'):
@@ -2005,28 +2208,37 @@ void cmd_high_scores(void) {
 	peruse_file();
 }
 
-//#ifndef BUFFER_GUIDE
 static char *fgets_inverse(char *buf, int max, FILE *f) {
 	int c, res, pos;
 	char *ress;
 
 	/* We expect to start positioned on the '\n' of the line we want to read, aka at its very end */
-	fseek(f, -1, SEEK_CUR);
+	if (fseek(f, -1, SEEK_CUR)) {
+		/* Did we try to go beyond the beginning of the file? Emulate 'EOF' aka return 'NULL' */
+		return(NULL);
+	}
 	while ((c = fgetc(f)) != '\n') {
+		/* Did we hit the beginning of the file? */
+		if (ftell(f) == 1) {
+			/* Position on the very first character of the file */
+			fseek(f, 0, SEEK_SET);
+			ress = fgets(buf, max, f);
+			fseek(f, 0, SEEK_SET);
+			return(ress);
+		}
+		/* Move backwards from end to beginning of the line, character by character */
 		res = fseek(f, -2, SEEK_CUR);
-		/* Did we hit the beginning of the file? Emulate 'EOF' aka return 'NULL' */
-		if (res == -1) return(NULL);
+		if (res == -1) return(NULL); //paranoia, can't hit begining of line here
 	}
 	/* We're now on the beginning of the line we want to read */
 	pos = ftell(f);
 	ress = fgets(buf, max, f);
 
-	/* Rewind by this line + 1, to fulful our starting expectation for next time again */
+	/* Rewind by this line + 1, to fulfil our starting expectation for next time again */
 	fseek(f, pos - 1, SEEK_SET);
 
 	return(ress);
 }
-//#endif
 
 /* Local Guide invocation -
    search_type: 1 = search, 2 = strict search (all upper-case), 3 = chapter search, 4 = line number,
@@ -2045,6 +2257,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	int searchline = -1, within_cnt = 0, c = 0, n, line_presearch = line;
 	char searchstr[MAX_CHARS], withinsearch[MAX_CHARS], chapter[MAX_CHARS]; //chapter[8]; -- now also used for terms
 	char buf[MAX_CHARS * 2 + 1], buf2[MAX_CHARS * 2 + 1], *cp, *cp2, tempstr[MAX_CHARS + 1];
+	char tempstr_KL[MSG_LEN + MAX_CHARS], tempstr2_KL[MSG_LEN + MAX_CHARS]; //for CTRL+K and CTRL+L functionality
 #ifndef BUFFER_GUIDE
 	char path[1024], bufdummy[MAX_CHARS + 1];
 	FILE *fff;
@@ -2072,11 +2285,11 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	if (guide_lastline == -1) {
 		if (guide_errno <= 0) {
 			c_message_add("\377yThe file TomeNET-Guide.txt seems to be empty.");
-			c_message_add("\377y Try updating it with the TomeNET-Updater or download it manually.");
+			c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 		} else {
 			if (guide_errno == ENOENT) {
 				c_msg_format("\377yThe file TomeNET-Guide.txt wasn't found in your TomeNET folder.");
-				c_message_add("\377y Try updating it with the TomeNET-Updater or download it manually.");
+				c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 			} else c_msg_format("\377yThe file TomeNET-Guide.txt couldn't be opened from your TomeNET folder (%d).", guide_errno);
 		}
 		return;
@@ -2089,7 +2302,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	/* mysteriously can't open file anymore? */
 	if (!fff) {
 		c_msg_format("\377yThe file TomeNET-Guide.txt was not found in your TomeNET folder anymore (%d).", errno);
-		if (errno == ENOENT) c_message_add("\377y Try updating it with the TomeNET-Updater or download it manually.");
+		if (errno == ENOENT) c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 		return;
 	}
 #endif
@@ -2200,6 +2413,26 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			init_search_type = 2;
 			strcpy(init_search_string, "Class         STR");
 		}
+		/* Also allow directly jumping to any attribute */
+		else if (!strcmp(buf, "STR")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Strength (STR)");
+		} else if (!strcmp(buf, "INT")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Intelligence (INT)");
+		} else if (!strcmp(buf, "WIS")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Wisdom (WIS)");
+		} else if (!strcmp(buf, "DEX")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Dexterity (DEX)");
+		} else if (!strcmp(buf, "CON")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Constitution (CON)");
+		} else if (!strcmp(buf, "CHR")) {
+			init_search_type = 2;
+			strcpy(init_search_string,  "Charisma (CHR)");
+		}
 		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "reincar")) strcpy(init_search_string, "reincarnation");
 		else if (!strcasecmp(buf, "go")) strcpy(init_search_string, "Go challenge");
 		/* Pft, inconsistency - basically, data uses 'color' while text uses 'colour'.. */
@@ -2213,13 +2446,16 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		else if (!strcasecmp(buf, "death") || !strcasecmp(buf, "dead")) strcpy(init_search_string, "Death, Ghosts"); //chapter (3.11) about when you died
 		else if (!strcasecmp("rescue", buf)) strcpy(init_search_string, "Getting Help");
 		else if (!strcasecmp("mirror", buf)) strcpy(init_search_string, "The Mirror");
+		else if (!strcasecmp("change fate", buf)) strcpy(init_search_string, "The Mirror");
 		else if (my_strcasestr(buf, "shop") && my_strcasestr(buf, "serv")) strcpy(init_search_string, "services");
 		else if (!strcasecmp(buf, "stor") || !strcasecmp(buf, "store") || !strcasecmp(buf, "stores")) strcpy(init_search_string, "Shops");
 		else if (my_strcasestr(buf, "shop") && my_strcasestr(buf, "player")) strcpy(init_search_string, "Player stores");
 		else if (my_strcasestr(buf, "store") && my_strcasestr(buf, "player")) strcpy(init_search_string, "Player stores");
 		else if (!strcasecmp("rw", buf)) strcpy(init_search_string, "Nazgul");
 		else if (!strcasecmp(buf, "win") || !strcasecmp(buf, "winning") || !strcasecmp(buf, "winner")|| !strcasecmp(buf, "winners")) strcpy(init_search_string, "goal");
-		else if (!strcasecmp(buf, "king") || !strcasecmp(buf, "queen") || !strcasecmp(buf, "emperor")|| !strcasecmp(buf, "empress")) strcpy(init_search_string, "goal");
+		else if (!strcasecmp(buf, "king") || !strcasecmp(buf, "queen") || !strcasecmp(buf, "emperor")|| !strcasecmp(buf, "empress") ||
+		    !strcasecmp(buf, "kings") || !strcasecmp(buf, "queens") || !strcasecmp(buf, "emperors")|| !strcasecmp(buf, "empresses"))
+			strcpy(init_search_string, "goal");
 		else if (!strcasecmp("OoD", buf)) strcpy(init_search_string, "OOD  "); //uh hacky: avoid overlap with OOD_xx flag
 		else if ((cp = my_strcasestr(buf, "town")) && (cp2 = my_strcasestr(buf, "dun")) && cp < cp2) strcpy(init_search_string, "town dungeons");
 		else if ((cp = my_strcasestr(buf, "town")) && (cp2 = my_strcasestr(buf, "dun")) && cp > cp2) strcpy(init_search_string, "IDDC");// dungeon towns
@@ -2247,9 +2483,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			 else init_search_type = old;
 		}
 		else if (!strcasecmp("encumbrance", buf)) strcpy(init_search_string, "encumberment");
-		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "destr")) strcpy(init_search_string, "auto-destr"); //auto-destroy
-		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "pick")) strcpy(init_search_string, "auto-pick"); //auto-pickup
-		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "ins")) strcpy(init_search_string, "auto-inscri"); //auto-inscription
+		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "des") && !my_strcasestr(buf, "auto_des")) strcpy(init_search_string, "auto-destr"); //auto-destroy
+		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "pick") && !my_strcasestr(buf, "auto_pick")) strcpy(init_search_string, "auto-pick"); //auto-pickup
+		else if (my_strcasestr(buf, "auto") && my_strcasestr(buf, "ins") && !my_strcasestr(buf, "auto_ins")) strcpy(init_search_string, "auto-inscri"); //auto-inscription
 		else if (my_strcasestr(buf, "forc") && my_strcasestr(buf, "stack")) strcpy(init_search_string, "force-stack");
 		else if (!strcasecmp("key", buf) || !strcasecmp("keys", buf)) strcpy(init_search_string, "Command keys");
 		else if (!strcasecmp("command", buf) || !strcasecmp("commands", buf)) strcpy(init_search_string, "Slash commands");
@@ -2262,6 +2498,26 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		else if (!strcasecmp(buf, "bl")) strcpy(init_search_string, "blacklist");
 		else if (!strcasecmp(buf, "!")) strcpy(init_search_string, "! inscription");
 		else if (!strcasecmp(buf, "@")) strcpy(init_search_string, "macro");
+		else if (!strcasecmp(buf, "slays") || !strcasecmp(buf, "brands") || !strcasecmp(buf, "brand")) strcpy(init_search_string, "slay"); //will actually invoke "Slaying vs brands"
+		else if ((my_strcasestr(buf, "wield") && my_strcasestr(buf, "book")) || (my_strcasestr(buf, "quirk") && my_strcasestr(buf, "book"))
+		    || (my_strcasestr(buf, "wield") && my_strcasestr(buf, "spell")) || (my_strcasestr(buf, "quirk") && my_strcasestr(buf, "spell")))
+			strcpy(init_search_string, "Wielding a spell book");
+		else if ((my_strcasestr(buf, "wield") && my_strcasestr(buf, "dev")) || (my_strcasestr(buf, "quirk") && my_strcasestr(buf, "dev")))
+			strcpy(init_search_string, "Wielding a magic device");
+		else if (my_strcasestr(buf, "wield") && my_strcasestr(buf, "quirk")) strcpy(init_search_string, "Quirk: Wield");
+		else if (!strcasecmp("autostow", buf)) strcpy(init_search_string, "auto-stow");
+		else if (!strcasecmp("stow", buf)) strcpy(init_search_string, " stow");//'hack': prevent matching 'auto-stow', which comes first in text -_-
+		else if (!strcasecmp("fill", buf)
+		    || (my_strcasestr(buf, "fill") && my_strcasestr(buf, "foun")) || (my_strcasestr(buf, "fill") && my_strcasestr(buf, "bott")))
+			strcpy(init_search_string, "/fill");
+		else if (!strcasecmp("tea", buf)) strcpy(init_search_string, "Herbal Tea"); //prevent 'Stealth' skill result
+		else if (!strcasecmp("esp", buf)) {
+			strcpy(init_search_string, "ESP");
+			init_search_type = 2;
+		} else if (my_strcasestr(buf, "modu")) {
+			init_search_type = 2;
+			strcpy(init_search_string, "Adventure modules");
+		}
 
 		/* clean up */
 		buf[0] = 0;
@@ -2269,11 +2525,26 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 
 	/* Searching for a slash command? Always translate to uppercase 's'earch */
 	if (init_search_string && init_search_string[0] == '/') init_search_type = 2;
+#if 0
 	/* Searching for a predefined inscriptions? Always translate to uppercase 's'earch  */
 	if (init_search_string && (init_search_string[0] == '@' || init_search_string[0] == '!') && !init_search_string[2]) {
 		init_search_type = 2;
 		force_uppercase = TRUE; //insc might not be alphanum, so force anyway, eg !*
 	}
+#else
+	/* Hack: Inscriptions: Find either !<lowercase> or !<uppercase>, as specified */
+	if (init_search_string && (init_search_string[0] == '@' || init_search_string[0] == '!') && !init_search_string[2]) {
+		if (init_search_string[1] == toupper(init_search_string[1])) {
+			init_search_type = 2;
+			force_uppercase = TRUE;
+		} else {
+			init_search_type = 1;
+			force_uppercase = FALSE;
+			search_uppercase = 1;
+		}
+	}
+#endif
+
 #if 0 /* go to 'command-line options' instead */
 	/* Searching for client commandline args? Always translate to uppercase 's'earch  */
 	if (init_search_string && init_search_string[0] == '-' && !init_search_string[2]) {
@@ -2317,6 +2588,8 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	}
 
 	Term_save();
+
+	inkey_interact_macros = TRUE; /* Advantage: Non-command macros on Backspace etc won't interfere; Drawback: Cannot use up/down while numlock is off - unless ALLOW_NAVI_KEYS_IN_PROMPT is enabled! */
 
 	while (TRUE) {
 		/* We just wanted to do a chapter search which resulted a hard-coded substitution that isn't a real chapter but instead falls back to normal search? */
@@ -2949,9 +3222,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			Term->scr->cu = 1;
 #endif
 
-			//inkey_interact_macros = TRUE; /* Advantage: Macros in Backspace etc won't interfere; Drawback: Cannot use up/down while numlock is off. */
-			c = inkey();
-			//inkey_interact_macros = FALSE;
+			c = inkey_combo(FALSE, NULL, NULL);
 		}
 
 		switch (c) {
@@ -2974,17 +3245,23 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			skip_redraw = TRUE;
 			continue;
 
-		/* navigate (up/down) */
+		/* navigate line up */
+		case NAVI_KEY_UP:
 		case '8': case '\010': case 0x7F: //rl:'k'
 			line--;
 			if (line < 0) line = guide_lastline - maxlines + 1;
 			if (line < 0) line = 0;
 			continue;
+
+		/* navigate line down */
+		case NAVI_KEY_DOWN:
 		case '2': case '\r': case '\n': //rl:'j'
 			line++;
-			if (line > guide_lastline - maxlines) line = 0;
+			if (line > guide_lastline - maxlines + 1) line = 0;
 			continue;
-		/* page up/down */
+
+		/* page up */
+		case NAVI_KEY_PAGEUP:
 		case '9': case 'p': //rl:?
 		case 'P':
 			if (line == 0) line = guide_lastline - maxlines + 1;
@@ -2994,6 +3271,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			else line -= maxlines;
 			if (line < 0) line = 0;
 			continue;
+
+		/* page down */
+		case NAVI_KEY_PAGEDOWN:
 		case '3': case 'n': case ' ': //rl:?
 		case 'N':
 			if (line < guide_lastline - maxlines) {
@@ -3002,19 +3282,64 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				else
 #endif
 				line += maxlines;
-				if (line > guide_lastline - maxlines) line = guide_lastline - maxlines;
+				if (line > guide_lastline - maxlines + 1) line = guide_lastline - maxlines + 1;
 				if (line < 0) line = 0;
 			} else line = 0;
 			continue;
+
 		/* home key to reset */
+		case NAVI_KEY_POS1:
 		case '7': //rl:?
 			line = 0;
 			continue;
+
 		/* support end key too.. */
+		case NAVI_KEY_END:
 		case '1': //rl:?
 			line = guide_lastline - maxlines + 1;
 			if (line < 0) line = 0;
 			continue;
+
+		/* Initiate '/?' command from client-side, for chapter-and-more combo search */
+		case 'C':
+			marking = marking_after = FALSE; //clear hack
+#ifdef REGEX_SEARCH
+			search_regexp = FALSE;
+#endif
+			Term_erase(0, bottomline, 80);
+			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter topic to search for: ");
+#if 0
+			buf[0] = 0;
+#else
+			strcpy(buf, lastchapter); //a small life hack
+#endif
+			inkey_msg_old = inkey_msg;
+			inkey_msg = TRUE;
+			if (*buf_override) {
+				strcpy(buf, buf_override);
+				*buf_override = 0;
+			} else {
+				//askfor_aux(buf, 7, 0)); //was: numerical chapters only
+				askfor_aux(buf, MAX_CHARS - 1, 0); //allow entering chapter terms too
+			}
+			inkey_msg = inkey_msg_old;
+			if (!buf[0]) continue;
+
+			/* Emulate /? */
+			Send_msg(format("/? %s", buf));
+
+#if 1 /* Close the guide screen before it gets reinvoked by the server, like for '/?' ? */
+ #ifndef BUFFER_GUIDE
+			my_fclose(fff);
+ #endif
+			Term_load();
+ #ifdef REGEX_SEARCH
+			if (!ires) regfree(&re_src);
+ #endif
+			return;
+#else
+			continue;
+#endif
 
 		/* seach for 'chapter': can be either a numerical one or a main term, such as race/class/skill names. */
 		case 'c':
@@ -3082,8 +3407,8 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				if (!strcasecmp(buf, "about")) strcpy(buf, "introduction");
 
 				/* Expand 'AC' to 'Armour Class' */
-				if (!strcasecmp(buf, "ac")) strcpy(buf, "armour class");
-				else if (my_strcasestr(buf, "armo") && my_strcasestr(buf, "clas")) strcpy(buf, "armour class"); //translate armor class to armour class
+				if (!strcasecmp(buf, "ac")) strcpy(buf, "armour class:");
+				else if (my_strcasestr(buf, "armo") && my_strcasestr(buf, "clas")) strcpy(buf, "armour class:"); //translate armor class to armour class
 				/* Expand 'tc' to 'Treasure Class' */
 				if (!strcasecmp(buf, "tc")) strcpy(buf, "treasure class");
 				/* Expand 'am' to 'Anti-Magic' */
@@ -3098,7 +3423,6 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				}
 				/* Expand 'Update' to 'Updating' */
 				if (!strcasecmp(buf, "update")) strcpy(buf, "updating");
-
 
 				if (my_strcasestr(buf, "auto") && !my_strcasestr(buf, "/auto") && my_strcasestr(buf, "ret")) strcpy(buf, "auto-ret"); //auto-retaliation, but not slash command
 
@@ -3374,7 +3698,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					strcpy(chapter, "The Helcaraxe   ");
 					continue;
 				}
-				if (my_strcasestr(buf, "Sandw") || my_strcasestr(buf, "Lair") || !strcasecmp(buf, "swl") || !strcasecmp(buf, "sl")) {
+				if (my_strcasestr(buf, "Sandw") || (my_strcasestr(buf, "Lair") && !my_strcasestr(buf, "clair")) || !strcasecmp(buf, "swl") || !strcasecmp(buf, "sl")) {
 					strcpy(chapter, "The Sandworm Lair   ");
 					continue;
 				}
@@ -3468,6 +3792,18 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				if (!strcasecmp(buf, "DK") || !strcasecmp(buf, "Dungeon Keeper") || my_strcasestr(buf, "Keeper")
 				    || (my_strcasestr(buf, "Dun") && my_strcasestr(buf, "Kee"))) { //sorry, Death Knights
 					strcpy(chapter, "Dungeon Keeper");
+					continue;
+				}
+				if ((my_strcasestr(buf, "De") && my_strcasestr(buf, "Kn"))) { //I just hope this isn't toooo short
+					strcpy(chapter, "- Death Knight");
+					continue;
+				}
+				if ((my_strcasestr(buf, "He") && my_strcasestr(buf, "Kn"))) { //^
+					strcpy(chapter, "- Hell Knight");
+					continue;
+				}
+				if ((my_strcasestr(buf, "Co") && my_strcasestr(buf, "Pr"))) { //^
+					strcpy(chapter, "- Corrupted Priest");
 					continue;
 				}
 				if (!strcasecmp(buf, "XO") || !strcasecmp(buf, "Extermination Orders")
@@ -3686,7 +4022,11 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					strcpy(chapter, "    Character level");
 					continue;
 				}
-				if (my_strcasestr(buf, "Dung") && (my_strcasestr(buf, "typ") || my_strcasestr(buf, "Col"))) { //dungeon types/colours, same as staircases below
+				if (my_strcasestr(buf, "Dun") && (my_strcasestr(buf, "typ") || my_strcasestr(buf, "Col"))) { //dungeon types/colours, same as staircases below
+					strcpy(chapter, "Dungeon types");
+					continue;
+				}
+				if (my_strcasestr(buf, "Stair") && !my_strcasestr(buf, "goi")) { //staircase types, same as 'Dungeon types'
 					strcpy(chapter, "Dungeon types");
 					continue;
 				}
@@ -3697,16 +4037,19 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 					strcpy(chapter, "Dungeon                 ");
 					continue;
 				}
-				if (my_strcasestr(buf, "Stair") && !my_strcasestr(buf, "goi")) { //staircase types, same as 'Dungeon types'
-					strcpy(chapter, "Dungeon types");
-					continue;
-				}
 				if (!strcasecmp(buf, "goi")) { //staircase types, same as 'Dungeon types'
 					strcpy(buf, "GOI ");
 					fallback = TRUE;
 					fallback_uppercase = 4;
 					continue;
 				}
+				if (my_strcasestr(buf, "pow") && my_strcasestr(buf, "ins")) {
+					strcpy(buf, "ITEM POWER INSCRIPTION");
+					fallback = TRUE;
+					fallback_uppercase = 4;
+					continue;
+				}
+
 
 			    /* Handle temp_priority[] at this point: */
 			    if (temp_priority[0]) {
@@ -3846,8 +4189,16 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			   exception from exception: Allow upper-case search for slash commands!
 			   exception 2: Allow upper-case search for predefined inscriptions: */
 			if (!isalphanum(searchstr[0]) && searchstr[0] != '/' && searchstr[0] != '*' && !((searchstr[0] == '!' || searchstr[0] == '@') && !searchstr[2])) search_uppercase_ok = FALSE; /* slash cmd, *destruction*, !x / @x inscription */
+#if 0
 			/* Hack: Inscriptions: Find both !<lowercase> and !<uppercase> */
-			if ((searchstr[0] == '!' || searchstr[0] == '@') && !searchstr[2]) search_uppercase = 2; /* skip tier 4 and 3 (all-uppercase in actual text), start with 2 instead */
+			if ((searchstr[0] == '!' || searchstr[0] == '@') && !searchstr[2])) search_uppercase = 1; /* skip tier 4 and 3 and 2 (all-uppercase in actual text), start with 1 instead */
+#else
+			/* Hack: Inscriptions: Find either !<lowercase> or !<uppercase>, as specified */
+			if ((searchstr[0] == '!' || searchstr[0] == '@') && !searchstr[2]) {
+				if (searchstr[1] == toupper(searchstr[1])) search_uppercase = 2; /* skip tier 4 and 3 (all-uppercase in actual text), start with 2 instead */
+				else search_uppercase = 1;
+			}
+#endif
 #if 0 /* go to 'command-line options' instead */
 			/* Hack: Commandline parm: Find both -<lowercase> and -<uppercase> */
 			if (searchstr[0] == '-' && !searchstr[2]) search_uppercase = 2; /* skip tier 4 and 3 (all-uppercase in actual text), start with 2 instead */
@@ -4121,7 +4472,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 			Term_clear();
 			Term_putstr(23,  0, -1, TERM_L_BLUE, "[The Guide - Navigation Keys]");
 			i = 1;
-			Term_putstr( 0, i++, -1, TERM_WHITE, "At the bottom of the guide screen you will see the following line:");
+			//Term_putstr( 0, i++, -1, TERM_WHITE, "At the bottom of the guide screen you will see the following line:");
 #ifdef REGEX_SEARCH
 			Term_putstr(26,   i, -1, TERM_L_BLUE, " s/r/R,d,D/f,a/A,S,c,#:src,nx,pv,mark,rs,chpt,line");
  #ifdef GUIDE_BOOKMARKS
@@ -4148,20 +4499,21 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 #endif
 			Term_putstr( 0, i++, -1, TERM_WHITE, " 'a' / 'A'      : Mark old/new search results on currently visible guide part.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " 'S'            : ..resets screen to where you were before you did a search.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, " 'c'            : Chapter Search. This is a special search that will skip most");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "                  basic text and only match specific topics and keywords.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "                  Use this when searching for races, classes, skills, spells,");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "                  schools, techniques, dungeons, bosses, events, lineages,");
+			Term_putstr( 0, i++, -1, TERM_WHITE, " 'c' / 'C'      : Chapter Search. A special search that skips most basic text");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                  to only match specific topics and keywords. 'C' is like '/?'");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                  command, encompassing more. Use 'c' for race, classe, skill,");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "                  spell, school, technique, dungeon, bosses, events, lineage,");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "                  depths, stair types, or actual chapter titles or indices.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " '#'            : Jump to a specific line number.");
 #ifdef GUIDE_BOOKMARKS
 			Term_putstr( 0, i++, -1, TERM_WHITE, " 'b' / 'B'      : Open bookmark menu / add bookmark at current position.");
 #endif
+			Term_putstr( 0, i++, -1, TERM_WHITE, " CTRL+K/L       : Copy current lines to clipboard / Chat-paste current line #.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " ESC            : The Escape key will exit the guide screen.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "In addition, the arrow keys and the number pad keys can be used, and the keys");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "PgUp/PgDn/Home/End should work both on the main keyboard and the number pad.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "This might depend on your specific OS flavour and desktop environment though.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "Searching for all-caps only gives 'emphasized' results first in a line (flags).");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "Searching in all-caps gives 'emphasized' results first in a line (eg flags).");
 			Term_putstr(25, 23, -1, TERM_L_BLUE, "(Press any key to go back)");
 			inkey();
 			continue;
@@ -4175,7 +4527,42 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 #ifdef REGEX_SEARCH
 			if (!ires) regfree(&re_src);
 #endif
+			inkey_interact_macros = FALSE;
 			return;
+		case KTRL('K'): /* copy current chat line to clipboard */
+		case KTRL('L'): /* paste current line number and line (and subsequent lines) to chat */
+			sprintf(tempstr_KL, "%s %s %s", guide_line[line], line + 1 <= guide_lastline ? guide_line[line + 1] : "", line + 2 <= guide_lastline ? guide_line[line + 2] : "");
+			/* Replace linebreaks with spaces */
+			cp = tempstr_KL;
+			while (*cp) {
+				if (*cp == '\n') *cp = ' ';
+				cp++;
+			}
+			/* Trim duplicate spaces, minus/equal signs; remove colour codes */
+			cp = tempstr_KL;
+			cp2 = tempstr2_KL;
+			while (*cp) {
+				while(*cp == '\377') {
+					cp++;
+					if (*cp) cp++;
+				}
+				*cp2 = *cp;
+				/* shorten multiple spaces, hyphens or equal-signs in a row to just one */
+				if (*cp == ' ') while(*++cp == ' ');
+				else if (*cp == '-') while(*++cp == '-');
+				else if (*cp == '=') while(*++cp == '=');
+				else cp++;
+				cp2++;
+			}
+			*cp2 = 0;
+			/* Add line number header */
+			sprintf(tempstr_KL, "\377wThe Guide (line %d)::\377B %s", line + 1, tempstr2_KL);
+			/* Trim to legal value and send */
+			tempstr_KL[MSG_LEN - 1] = 0;
+
+			if (c == KTRL('K')) copy_to_clipboard(tempstr_KL, FALSE);
+			else Send_msg(tempstr_KL);
+			break;
 		}
 	}
 
@@ -4183,25 +4570,33 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 	my_fclose(fff);
 #endif
 	Term_load();
+	inkey_interact_macros = FALSE;
 }
 
 /* Added based on cmd_the_guide() to similarly browse the client-side spoiler files. - C. Blue
    Remember things such as last line visited, last search term.. for up to this - 1 different fixed files (0 is reserved for 'not saved'). */
-#define MAX_REMEMBERANCE_INDICES 11
-void browse_local_file(char* fname, int rememberance_index) {
-	static int line_cur[MAX_REMEMBERANCE_INDICES] = { 0 }, line_before_search[MAX_REMEMBERANCE_INDICES] = { 0 }, jumped_to_line[MAX_REMEMBERANCE_INDICES] = { 0 }, file_lastline[MAX_REMEMBERANCE_INDICES] = { -1 };
-	static char lastsearch[MAX_REMEMBERANCE_INDICES][MAX_CHARS] = { 0 };
+#define MAX_REMEMBRANCE_INDICES 11
+void browse_local_file(const char* angband_path, char* fname, int remembrance_index, bool reverse) {
+	static int line_cur[MAX_REMEMBRANCE_INDICES] = { 0 }, line_before_search[MAX_REMEMBRANCE_INDICES] = { 0 }, jumped_to_line[MAX_REMEMBRANCE_INDICES] = { 0 }, file_lastline[MAX_REMEMBRANCE_INDICES] = { -1 };
+	static char lastsearch[MAX_REMEMBRANCE_INDICES][MAX_CHARS] = { 0 };
 
 	bool inkey_msg_old, within, within_col, searchwrap = FALSE, skip_redraw = FALSE, backwards = FALSE, restore_pos = FALSE, marking = FALSE, marking_after = FALSE;
 	int bottomline = (screen_hgt > SCREEN_HGT ? 46 - 1 : 24 - 1), maxlines = (screen_hgt > SCREEN_HGT ? 46 - 4 : 24 - 4);
-	int searchline = -1, within_cnt = 0, c = 0, n, line_presearch = line_cur[rememberance_index];
+	int searchline = -1, within_cnt = 0, c = 0, n, line_presearch = line_cur[remembrance_index];
 	char searchstr[MAX_CHARS], withinsearch[MAX_CHARS];
-	char buf[MAX_CHARS * 2 + 1], buf2[MAX_CHARS * 2 + 1], *cp, *cp2, *buf2ptr;
-	char path[1024], bufdummy[MAX_CHARS + 1];
-	FILE *fff;
+	char buf[MAX_CHARS_WIDE * 2 + 1], buf2[MAX_CHARS_WIDE * 2 + 1], *cp, *cp2, *buf2ptr;
+	char tempstr_KL[MAX_CHARS_WIDE * 3 + MAX_CHARS], tempstr2_KL[MAX_CHARS_WIDE * 3 + MAX_CHARS]; //for CTRL+K and CTRL+L functionality
+	char path[1024];
 
-	int i;
-	char *res;
+	int i, q_offset = 0;
+	char *res, *bufp_offset;
+#ifndef BUFFER_LOCAL_FILE
+	char bufdummy[MAX_CHARS_WIDE + 1];
+#else
+	static int fseek_pseudo[MAX_REMEMBRANCE_INDICES] = { 0 }; //fake a file position, within our buffered guide string array
+#endif
+	FILE *fff;
+	byte attr, attr_prev, attr_b;
 
 #ifdef REGEX_SEARCH
 	bool search_regexp = FALSE;
@@ -4218,17 +4613,17 @@ void browse_local_file(char* fname, int rememberance_index) {
 	bool tag_ok;
 
 
-	if (!rememberance_index || rememberance_index >= MAX_REMEMBERANCE_INDICES) {
-		rememberance_index = 0;
+	if (!remembrance_index || remembrance_index >= MAX_REMEMBRANCE_INDICES) {
+		remembrance_index = 0;
 
-		line_cur[rememberance_index] = 0;
-		line_before_search[rememberance_index] = 0;
-		jumped_to_line[rememberance_index] = 0;
-		//lastsearch[rememberance_index][0] = 0; //maybe just keep this, doesn't hurt
+		line_cur[remembrance_index] = 0;
+		line_before_search[remembrance_index] = 0;
+		jumped_to_line[remembrance_index] = 0;
+		//lastsearch[remembrance_index][0] = 0; //maybe just keep this, doesn't hurt
 	}
 
-	file_lastline[rememberance_index] = -1; //always try anew if the file is valid
-	path_build(path, 1024, ANGBAND_DIR_GAME, fname);
+	file_lastline[remembrance_index] = -1; //always try anew whether the file is valid
+	path_build(path, 1024, angband_path, fname);
 
 	/* init the file */
 	errno = 0;
@@ -4241,12 +4636,16 @@ void browse_local_file(char* fname, int rememberance_index) {
 		return;
 	}
 
+#ifdef BUFFER_LOCAL_FILE
+	if (fgets(buf, MAX_CHARS_WIDE + 1, fff)) file_lastline[remembrance_index] = 0;
+#else
 	/* count lines */
-	while (fgets(buf, 81 , fff)) file_lastline[rememberance_index]++;
+	while (fgets(buf, MAX_CHARS_WIDE + 1, fff)) file_lastline[remembrance_index]++;
+#endif
 	my_fclose(fff);
 
 	/* empty file? */
-	if (file_lastline[rememberance_index] == -1) {
+	if (file_lastline[remembrance_index] == -1) {
 		if (errno <= 0) {
 			c_msg_format("\377yThe file %s seems to be empty.", fname);
 			c_message_add("\377y Try updating with the TomeNET-Updater or download it manually.");
@@ -4255,17 +4654,52 @@ void browse_local_file(char* fname, int rememberance_index) {
 	}
 
 	fff = my_fopen(path, "r");
+#ifdef BUFFER_LOCAL_FILE
+	/* buffer file, for easy reverse browsing */
+	i = 0;
+	if (reverse) {
+		fseek(fff, -1, SEEK_END);
+		while (fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff)) {
+			//buf[strlen(buf) - 1] = 0; //strip trailing newlines -- done later
+			strcpy(local_file_line[i++], buf);
+			if (i == LOCAL_FILE_LINES_MAX) {
+				c_msg_format("\377The file %s is too big to get buffered, cut off at line %d.", fname, LOCAL_FILE_LINES_MAX);
+				break;
+			}
+		}
+		file_lastline[remembrance_index] = i - 1;
+	} else {
+		while (fgets(buf, MAX_CHARS_WIDE + 1, fff)) {
+			//buf[strlen(buf) - 1] = 0; //strip trailing newlines -- done later
+			strcpy(local_file_line[i++], buf);
+			if (i == LOCAL_FILE_LINES_MAX) {
+				c_msg_format("\377The file %s is too big to get buffered, cut off at line %d.", fname, LOCAL_FILE_LINES_MAX);
+				break;
+			}
+		}
+		file_lastline[remembrance_index] = i - 1;
+	}
+	my_fclose(fff);
+#endif
 
 	/* init searches */
 	searchstr[0] = 0;
-	//lastsearch[rememberance_index][0] = 0;
+	//lastsearch[remembrance_index][0] = 0;
 
 	Term_save();
 
+	inkey_interact_macros = TRUE; /* Advantage: Non-command macros on Backspace etc won't interfere; Drawback: Cannot use up/down while numlock is off - unless ALLOW_NAVI_KEYS_IN_PROMPT is enabled! */
+
 	while (TRUE) {
 		if (!skip_redraw) Term_clear();
-		if (backwards) Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, (file_lastline[rememberance_index] - line_cur[rememberance_index]) + 1, file_lastline[rememberance_index] + 1));
-		else Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, line_cur[rememberance_index] + 1, file_lastline[rememberance_index] + 1));
+
+		if (line_cur[remembrance_index] == file_lastline[remembrance_index] - maxlines
+		    || file_lastline[remembrance_index] < maxlines)
+			attr = TERM_ORANGE;
+		else attr = TERM_L_BLUE;
+
+		if (backwards) Term_putstr(23,  0, -1, attr, format("[%s - line %5d of %5d]", fname, (file_lastline[remembrance_index] - line_cur[remembrance_index]) + 1, file_lastline[remembrance_index] + 1));
+		else Term_putstr(23,  0, -1, attr, format("[%s - line %5d of %5d]", fname, line_cur[remembrance_index] + 1, file_lastline[remembrance_index] + 1));
 #ifdef REGEX_SEARCH
 		Term_putstr(26, bottomline, -1, TERM_L_BLUE, " s/r/R,d,D/f,a/A,S,#:src,nx,pv,mark,rs,chpt,line");
 #else
@@ -4276,22 +4710,51 @@ void browse_local_file(char* fname, int rememberance_index) {
 		if (skip_redraw) goto skipped_redraw;
 		restore_pos = FALSE;
 
+#ifndef BUFFER_LOCAL_FILE
 		/* Always begin at zero */
 		if (backwards) fseek(fff, -1, SEEK_END);
 		else fseek(fff, 0, SEEK_SET);
 
 		/* If we're not searching for something specific, just seek forwards until reaching our current starting line */
 		if (backwards) {
-			if (!searchwrap) for (n = 0; n < line_cur[rememberance_index]; n++) res = fgets_inverse(buf, 81, fff); //res just slays non-existant compiler warning..what
+			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff); //res just slays non-existant compiler warning..what
 		} else {
-			if (!searchwrap) for (n = 0; n < line_cur[rememberance_index]; n++) res = fgets(buf, 81, fff); //res just slays compiler warning
+			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets(buf, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
 		}
+#else
+		/* Always begin at zero */
+		if (backwards) fseek_pseudo[remembrance_index] = file_lastline[remembrance_index];
+		else fseek_pseudo[remembrance_index] = 0;
+		if (backwards) {
+			if (!searchwrap) fseek_pseudo[remembrance_index] -= line_cur[remembrance_index];
+		} else {
+			if (!searchwrap) fseek_pseudo[remembrance_index] += line_cur[remembrance_index];
+		}
+#endif
 
 		/* Display as many lines as fit on the screen, starting at the desired position */
 		withinsearch[0] = 0;
 		for (n = 0; n < maxlines; n++) {
-			if (backwards) res = fgets_inverse(buf, 81, fff);
-			else res = fgets(buf, 81, fff);
+#ifndef BUFFER_LOCAL_FILE
+			if (backwards) res = fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff);
+			else res = fgets(buf, MAX_CHARS_WIDE + 1, fff);
+#else
+			if (backwards) {
+				if (fseek_pseudo[remembrance_index] < 0) {
+					fseek_pseudo[remembrance_index] = 0;
+					res = NULL; //emulate EOF
+				} else res = buf;
+				strcpy(buf, local_file_line[fseek_pseudo[remembrance_index]]);
+				fseek_pseudo[remembrance_index]--;
+			} else {
+				if (fseek_pseudo[remembrance_index] > file_lastline[remembrance_index]) {
+					fseek_pseudo[remembrance_index] = file_lastline[remembrance_index];
+					res = NULL; //emulate EOF
+				} else res = buf;
+				strcpy(buf, local_file_line[fseek_pseudo[remembrance_index]]);
+				fseek_pseudo[remembrance_index]++;
+			}
+#endif
 			/* Reached end of file? -> No need to try and display further lines */
 			if (!res) break;
 
@@ -4308,7 +4771,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 			*cp2 = 0;
 
 			/* Hack: keep last search results marked all the time, even while just navigating (pg)up/dn etc.. */
-			if (marking && !searchstr[0]) strcpy(searchstr, lastsearch[rememberance_index]);
+			if (marking && !searchstr[0]) strcpy(searchstr, lastsearch[remembrance_index]);
 
 			/* Just mark last search's results within currently visible file piece */
 			if (marking) {
@@ -4324,17 +4787,17 @@ void browse_local_file(char* fname, int rememberance_index) {
 				searchline++;
 
 				/* Search wrapped around once and still no result? Finish. */
-				if (searchwrap && searchline == line_cur[rememberance_index]) {
+				if (searchwrap && searchline == line_cur[remembrance_index]) {
 					/* We're done (unsuccessfully), clean up.. */
 					searchstr[0] = 0;
 					searchwrap = FALSE;
 					withinsearch[0] = 0;
 
 					/* we cannot search for further results if there was none (would result in glitchy visuals) */
-					//lastsearch[rememberance_index][0] = 0;
+					//lastsearch[remembrance_index][0] = 0;
 
 					/* correct our line number again */
-					line_cur[rememberance_index] = line_presearch;
+					line_cur[remembrance_index] = line_presearch;
 					backwards = FALSE;
 					/* return to that position again */
 					restore_pos = TRUE;
@@ -4348,18 +4811,22 @@ void browse_local_file(char* fname, int rememberance_index) {
 						/* Reverse again to normal direction/location */
 						if (backwards) {
 							backwards = FALSE;
-							searchline = file_lastline[rememberance_index] - searchline;
+							searchline = file_lastline[remembrance_index] - searchline;
+ #ifndef BUFFER_LOCAL_FILE
 							/* Skip end of line, advancing to next line */
 							fseek(fff, 1, SEEK_CUR);
 							/* This line has already been read too, by fgets_inverse(), so skip too */
-							res = fgets(bufdummy, 81, fff); //res just slays compiler warning
+							res = fgets(bufdummy, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
+ #else
+							fseek_pseudo[remembrance_index] += 2;
+ #endif
 						}
 
 						searchstr[0] = 0;
 						searchwrap = FALSE;
-						line_cur[rememberance_index] = searchline;
+						line_cur[remembrance_index] = searchline;
 						/* Redraw line number display */
-						Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, line_cur[rememberance_index] + 1, file_lastline[rememberance_index] + 1));
+						Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, line_cur[remembrance_index] + 1, file_lastline[remembrance_index] + 1));
 					}
 					/* Still searching */
 					else {
@@ -4375,19 +4842,23 @@ void browse_local_file(char* fname, int rememberance_index) {
 					/* Reverse again to normal direction/location */
 					if (backwards) {
 						backwards = FALSE;
-						searchline = file_lastline[rememberance_index] - searchline;
+						searchline = file_lastline[remembrance_index] - searchline;
+ #ifndef BUFFER_LOCAL_FILE
 						/* Skip end of line, advancing to next line */
 						fseek(fff, 1, SEEK_CUR);
 						/* This line has already been read too, by fgets_inverse(), so skip too */
-						res = fgets(bufdummy, 81, fff); //res just slays compiler warning
+						res = fgets(bufdummy, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
+ #else
+						fseek_pseudo[remembrance_index] += 2;
+ #endif
 					}
 
 					strcpy(withinsearch, searchstr);
 					searchstr[0] = 0;
 					searchwrap = FALSE;
-					line_cur[rememberance_index] = searchline;
+					line_cur[remembrance_index] = searchline;
 					/* Redraw line number display */
-					Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, line_cur[rememberance_index] + 1, file_lastline[rememberance_index] + 1));
+					Term_putstr(23,  0, -1, TERM_L_BLUE, format("[%s - line %5d of %5d]", fname, line_cur[remembrance_index] + 1, file_lastline[remembrance_index] + 1));
 
 				/* Still searching */
 				} else {
@@ -4613,8 +5084,24 @@ void browse_local_file(char* fname, int rememberance_index) {
 			}
 
 
+			/* Apply horizontal scroll
+			   -- TODO: take care of colour codes, in both extra string length and reapplying them if they got cut off due to offsetting */
+			bufp_offset = ((int)strlen(buf2) >= q_offset) ? (buf2 + q_offset) : "";
+			/* For horizontal scrolling: Parse correct colour code that we might have skipped */
+			attr = attr_b = attr_prev = TERM_WHITE;
+			if (q_offset) {
+				for (i = 0; i < q_offset; i++) {
+					if (buf2[i] != '\377') continue;
+					if (buf2[i + 1] == '.') attr = attr_prev;
+					else if (isalpha(buf2[i + 1]) || isdigit(buf2[i + 1])) {
+						attr_prev = attr_b;
+						attr = attr_b = color_char_to_attr(buf2[i + 1]);
+					}
+				}
+			}
+
 			/* Display processed line, colourized by chapters and search results (and 'syntax' highlighting) */
-			Term_putstr(0, 2 + n, -1, TERM_WHITE, buf2);
+			Term_putstr(0, 2 + n, -1, attr, bufp_offset);
 		}
 
 		/* failed to find search string? wrap around and search once more,
@@ -4630,7 +5117,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 				searchwrap = FALSE;
 
 				/* correct our line number again */
-				line_cur[rememberance_index] = line_presearch = line_cur[rememberance_index];
+				line_cur[remembrance_index] = line_presearch = line_cur[remembrance_index];
 				if (backwards) backwards = FALSE;
 				continue;
 			}
@@ -4639,8 +5126,8 @@ void browse_local_file(char* fname, int rememberance_index) {
 		/* Reverse again to normal direction/location */
 		if (backwards) {
 			backwards = FALSE;
-			line_cur[rememberance_index] = file_lastline[rememberance_index] - line_cur[rememberance_index];
-			line_cur[rememberance_index]++;
+			line_cur[remembrance_index] = file_lastline[remembrance_index] - line_cur[remembrance_index];
+			line_cur[remembrance_index]++;
 		}
 
 		skipped_redraw:
@@ -4655,9 +5142,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 		Term->scr->cx = Term->wid;
 		Term->scr->cu = 1;
 
-		//inkey_interact_macros = TRUE; /* Advantage: Macros in Backspace etc won't interfere; Drawback: Cannot use up/down while numlock is off. */
-		c = inkey();
-		//inkey_interact_macros = FALSE;
+		c = inkey_combo(FALSE, NULL, NULL);
 
 		switch (c) {
 		/* specialty: allow chatting from within here */
@@ -4679,37 +5164,66 @@ void browse_local_file(char* fname, int rememberance_index) {
 			skip_redraw = TRUE;
 			continue;
 
-		/* navigate (up/down) */
+		/* navigate up */
+		case NAVI_KEY_UP:
 		case '8': case '\010': case 0x7F: //rl:'k'
-			line_cur[rememberance_index]--;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines + 1;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index]--;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines + 1;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 			continue;
+
+		/* navigate down */
+		case NAVI_KEY_DOWN:
 		case '2': case '\r': case '\n': //rl:'j'
-			line_cur[rememberance_index]++;
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index]++;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines + 1) line_cur[remembrance_index] = 0;
 			continue;
-		/* page up/down */
+
+		/* horizontal scroll left */
+		case NAVI_KEY_LEFT:
+		case '4': case '<': case 'h':
+			q_offset = (q_offset >= 40) ? (q_offset - 40) : 0;
+			continue;
+
+		/* horizontal scroll right */
+		case NAVI_KEY_RIGHT:
+		case '6': case '>': case 'l':
+			q_offset = q_offset + 40;
+			if (q_offset > MAX_CHARS_WIDE - MAX_CHARS) { /* Prevent buffer overflow. We just pick an arbitrary value here, randomly picked from Receive_special_line():buf[]. */
+				q_offset -= 40;
+				if (q_offset < 0) q_offset = 0; /* Edge case, paranoia. */
+			}
+			continue;
+
+		/* page up */
+		case NAVI_KEY_PAGEUP:
 		case '9': case 'p': //rl:?
-			if (line_cur[rememberance_index] == 0) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines + 1;
-			else line_cur[rememberance_index] -= maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			if (line_cur[remembrance_index] == 0) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines + 1;
+			else line_cur[remembrance_index] -= maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 			continue;
+
+		/* page down */
+		case NAVI_KEY_PAGEDOWN:
 		case '3': case 'n': case ' ': //rl:?
-			if (line_cur[rememberance_index] < file_lastline[rememberance_index] - maxlines) {
-				line_cur[rememberance_index] += maxlines;
-				if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-				if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
-			} else line_cur[rememberance_index] = 0;
+			if (line_cur[remembrance_index] < file_lastline[remembrance_index] - maxlines + 1) {
+				line_cur[remembrance_index] += maxlines;
+				if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines + 1) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines + 1;
+				if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
+			} else line_cur[remembrance_index] = 0;
 			continue;
+
 		/* home key to reset */
+		case NAVI_KEY_POS1:
 		case '7': //rl:?
-			line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index] = 0;
 			continue;
+
 		/* support end key too.. */
+		case NAVI_KEY_END:
 		case '1': //rl:?
-			line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines + 1;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines + 1;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 			continue;
 
 		/* search for keyword */
@@ -4720,7 +5234,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 #endif
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter search string: ");
-			if (lastsearch[rememberance_index][0]) strcpy(searchstr, lastsearch[rememberance_index]);
+			if (lastsearch[remembrance_index][0]) strcpy(searchstr, lastsearch[remembrance_index]);
 			else searchstr[0] = 0;
 			inkey_msg_old = inkey_msg;
 			inkey_msg = TRUE;
@@ -4728,15 +5242,15 @@ void browse_local_file(char* fname, int rememberance_index) {
 			inkey_msg = inkey_msg_old;
 			if (!searchstr[0]) continue;
 
-			line_before_search[rememberance_index] = line_cur[rememberance_index];
-			line_presearch = line_cur[rememberance_index];
+			line_before_search[remembrance_index] = line_cur[remembrance_index];
+			line_presearch = line_cur[remembrance_index];
 			/* Skip the line we're currently in, start with the next line actually */
-			line_cur[rememberance_index]++;
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index]++;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 
-			strcpy(lastsearch[rememberance_index], searchstr);
-			searchline = line_cur[rememberance_index] - 1; //init searchline for string-search
+			strcpy(lastsearch[remembrance_index], searchstr);
+			searchline = line_cur[remembrance_index] - 1; //init searchline for string-search
 
 			/* Hack: keep last search results marked all the time, even while just navigating (pg)up/dn etc.. */
 			marking_after = TRUE;
@@ -4755,7 +5269,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter search regexp: ");
 
-			if (lastsearch[rememberance_index][0]) strcpy(searchstr, lastsearch[rememberance_index]);
+			if (lastsearch[remembrance_index][0]) strcpy(searchstr, lastsearch[remembrance_index]);
 			else searchstr[0] = 0;
 
 			inkey_msg_old = inkey_msg;
@@ -4772,15 +5286,15 @@ void browse_local_file(char* fname, int rememberance_index) {
 				continue;
 			}
 
-			line_before_search[rememberance_index] = line_cur[rememberance_index];
-			line_presearch = line_cur[rememberance_index];
+			line_before_search[remembrance_index] = line_cur[remembrance_index];
+			line_presearch = line_cur[remembrance_index];
 			/* Skip the line we're currently in, start with the next line actually */
-			line_cur[rememberance_index]++;
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			line_cur[remembrance_index]++;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 
-			strcpy(lastsearch[rememberance_index], searchstr);
-			searchline = line_cur[rememberance_index] - 1; //init searchline for string-search
+			strcpy(lastsearch[remembrance_index], searchstr);
+			searchline = line_cur[remembrance_index] - 1; //init searchline for string-search
 
 			search_regexp = TRUE;
 			strcpy(searchstr_re, searchstr); //clone just for ^/& evaluation later..
@@ -4794,24 +5308,24 @@ void browse_local_file(char* fname, int rememberance_index) {
 		case 'S':
 			marking = marking_after = FALSE; //clear hack
 
-			line_cur[rememberance_index] = line_before_search[rememberance_index];
+			line_cur[remembrance_index] = line_before_search[remembrance_index];
 			continue;
 		/* search for next occurance of the previously used search keyword */
 		case 'd':
 			marking = marking_after = FALSE; //clear hack
 
-			if (!lastsearch[rememberance_index][0]) continue;
+			if (!lastsearch[remembrance_index][0]) continue;
 
-			line_presearch = line_cur[rememberance_index];
+			line_presearch = line_cur[remembrance_index];
 			/* Skip the line we're currently in, start with the next line actually */
-			line_cur[rememberance_index]++;
+			line_cur[remembrance_index]++;
 #if 0
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 #endif
 
-			strcpy(searchstr, lastsearch[rememberance_index]);
-			searchline = line_cur[rememberance_index] - 1; //init searchline for string-search
+			strcpy(searchstr, lastsearch[remembrance_index]);
+			searchline = line_cur[remembrance_index] - 1; //init searchline for string-search
 
 			/* Hack: keep last search results marked all the time, even while just navigating (pg)up/dn etc.. */
 			marking_after = TRUE;
@@ -4827,9 +5341,9 @@ void browse_local_file(char* fname, int rememberance_index) {
 			}
 #endif
 
-			if (!lastsearch[rememberance_index][0]) continue;
+			if (!lastsearch[remembrance_index][0]) continue;
 
-			strcpy(searchstr, lastsearch[rememberance_index]);
+			strcpy(searchstr, lastsearch[remembrance_index]);
 			marking = TRUE;
 			continue;
 		/* Enter a new (non-regexp) mark string and mark it on currently visible file part */
@@ -4840,7 +5354,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter mark string: ");
-			if (lastsearch[rememberance_index][0]) strcpy(searchstr, lastsearch[rememberance_index]);
+			if (lastsearch[remembrance_index][0]) strcpy(searchstr, lastsearch[remembrance_index]);
 			else searchstr[0] = 0;
 			inkey_msg_old = inkey_msg;
 			inkey_msg = TRUE;
@@ -4848,7 +5362,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 			inkey_msg = inkey_msg_old;
 			if (!searchstr[0]) continue;
 
-			strcpy(lastsearch[rememberance_index], searchstr);
+			strcpy(lastsearch[remembrance_index], searchstr);
 			marking = TRUE;
 			continue;
 		/* search for previous occurance of the previously used search keyword */
@@ -4856,21 +5370,21 @@ void browse_local_file(char* fname, int rememberance_index) {
 		case 'f':
 			marking = marking_after = FALSE; //clear hack
 
-			if (!lastsearch[rememberance_index][0]) continue;
+			if (!lastsearch[remembrance_index][0]) continue;
 
-			line_presearch = line_cur[rememberance_index];
+			line_presearch = line_cur[remembrance_index];
 			/* Inverse location/direction */
 			backwards = TRUE;
-			line_cur[rememberance_index] = file_lastline[rememberance_index] - line_cur[rememberance_index];
+			line_cur[remembrance_index] = file_lastline[remembrance_index] - line_cur[remembrance_index];
 			/* Skip the line we're currently in, start with the next line actually */
-			line_cur[rememberance_index]++;
+			line_cur[remembrance_index]++;
 
 #if 0
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 #endif
-			strcpy(searchstr, lastsearch[rememberance_index]);
-			searchline = line_cur[rememberance_index] - 1; //init searchline for string-search
+			strcpy(searchstr, lastsearch[remembrance_index]);
+			searchline = line_cur[remembrance_index] - 1; //init searchline for string-search
 
 			/* Hack: keep last search results marked all the time, even while just navigating (pg)up/dn etc.. */
 			marking_after = TRUE;
@@ -4880,7 +5394,7 @@ void browse_local_file(char* fname, int rememberance_index) {
 		case '#':
 			Term_erase(0, bottomline, 80);
 			Term_putstr(0, bottomline, -1, TERM_YELLOW, "Enter line number to jump to: ");
-			sprintf(buf, "%d", jumped_to_line[rememberance_index]);
+			sprintf(buf, "%d", jumped_to_line[remembrance_index]);
 			inkey_msg_old = inkey_msg;
 			inkey_msg = TRUE;
 			if (!askfor_aux(buf, 7, 0)) {
@@ -4888,10 +5402,10 @@ void browse_local_file(char* fname, int rememberance_index) {
 				continue;
 			}
 			inkey_msg = inkey_msg_old;
-			jumped_to_line[rememberance_index] = atoi(buf); //Remember, just as a small QoL thingy
-			line_cur[rememberance_index] = jumped_to_line[rememberance_index] - 1;
-			if (line_cur[rememberance_index] > file_lastline[rememberance_index] - maxlines) line_cur[rememberance_index] = file_lastline[rememberance_index] - maxlines;
-			if (line_cur[rememberance_index] < 0) line_cur[rememberance_index] = 0;
+			jumped_to_line[remembrance_index] = atoi(buf); //Remember, just as a small QoL thingy
+			line_cur[remembrance_index] = jumped_to_line[remembrance_index] - 1;
+			if (line_cur[remembrance_index] > file_lastline[remembrance_index] - maxlines) line_cur[remembrance_index] = file_lastline[remembrance_index] - maxlines;
+			if (line_cur[remembrance_index] < 0) line_cur[remembrance_index] = 0;
 			continue;
 
 		case '?': //help
@@ -4920,28 +5434,73 @@ void browse_local_file(char* fname, int rememberance_index) {
 			Term_putstr( 0, i++, -1, TERM_WHITE, " 'a' / 'A'      : Mark old/new search results on currently visible file part.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " 'S'            : ..resets screen to where you were before you did a search.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " '#'            : Jump to a specific line number.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, " CTRL+K/L       : Copy current lines to clipboard / Chat-paste current line #.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, " ESC            : The Escape key will exit the file screen.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "In addition, the arrow keys and the number pad keys can be used, and the keys");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "PgUp/PgDn/Home/End should work both on the main keyboard and the number pad.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "This might depend on your specific OS flavour and desktop environment though.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "Searching for all-caps only gives 'emphasized' results first in a line (flags).");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "Searching in all-caps gives 'emphasized' results first in a line (eg flags).");
 			Term_putstr(25, 23, -1, TERM_L_BLUE, "(Press any key to go back)");
 			inkey();
 			continue;
 
 		/* exit */
 		case ESCAPE: //case 'q': case KTRL('Q'):
+#ifndef BUFFER_LOCAL_FILE
 			my_fclose(fff);
+#endif
 			Term_load();
 #ifdef REGEX_SEARCH
 			if (!ires) regfree(&re_src);
 #endif
+			inkey_interact_macros = FALSE;
 			return;
+
+		case KTRL('K'): /* copy current chat line to clipboard */
+		case KTRL('L'): /* paste current line number and line (and subsequent lines) to chat */
+			sprintf(tempstr_KL, "%s %s %s",
+			    local_file_line[line_cur[remembrance_index]],
+			    line_cur[remembrance_index] + 1 <= file_lastline[remembrance_index] ? local_file_line[line_cur[remembrance_index] + 1] : "",
+			    line_cur[remembrance_index] + 2 <= file_lastline[remembrance_index] ? local_file_line[line_cur[remembrance_index] + 2] : "");
+			/* Replace linebreaks with spaces */
+			cp = tempstr_KL;
+			while (*cp) {
+				if (*cp == '\n') *cp = ' ';
+				cp++;
+			}
+			/* Trim duplicate spaces, minus/equal signs; remove colour codes */
+			cp = tempstr_KL;
+			cp2 = tempstr2_KL;
+			while (*cp) {
+				while(*cp == '\377') {
+					cp++;
+					if (*cp) cp++;
+				}
+				*cp2 = *cp;
+				/* shorten multiple spaces, hyphens or equal-signs in a row to just one */
+				if (*cp == ' ') while(*++cp == ' ');
+				else if (*cp == '-') while(*++cp == '-');
+				else if (*cp == '=') while(*++cp == '=');
+				else cp++;
+				cp2++;
+			}
+			*cp2 = 0;
+			/* Add line number header */
+			sprintf(tempstr_KL, "\377w%s (line %d)::\377B %s", fname, line_cur[remembrance_index] + 1, tempstr2_KL);
+			/* Trim to legal value and send */
+			tempstr_KL[MSG_LEN - 1] = 0;
+
+			if (c == KTRL('K')) copy_to_clipboard(tempstr_KL, FALSE);
+			else Send_msg(tempstr_KL);
+			break;
 		}
 	}
 
+#ifndef BUFFER_LOCAL_FILE
 	my_fclose(fff);
+#endif
 	Term_load();
+	inkey_interact_macros = FALSE;
 }
 
 void cmd_help(void) {
@@ -4991,7 +5550,7 @@ static void artifact_lore(void) {
 		/* hack 1: exact match always takes top position
 		   hack 2: match at beginning of name takes precedence */
 		direct_match = FALSE;
-		if (s[0] && !pageoffset) for (i = 0; i < MAX_A_IDX; i++) {
+		if (s[0] && !pageoffset) for (i = 0; i < artifact_list_idx; i++) {
 			/* create upper-case working copy */
 			strcpy(tmp, artifact_list_name[i]);
 			for (j = 0; tmp[j]; j++) tmp[j] = toupper(tmp[j]);
@@ -5005,8 +5564,12 @@ static void artifact_lore(void) {
 
 				selected = artifact_list_code[i];
 				selected_list = i;
+
 				if (n) Term_erase(5, 5, 80); //erase old beginning-of-line match that was shown here first
 				Term_putstr(5, 5, -1, selected_line == 0 ? TERM_L_UMBER : TERM_UMBER, artifact_list_name[i]);
+				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+				if (Client_setup.k_char[artifact_list_kidx[i]] && !c_cfg.ascii_items)
+					Term_draw(5, 5, color_char_to_attr(artifact_list_name[i][1]), Client_setup.k_char[artifact_list_kidx[i]]);
 
 				/* no beginning-of-line match yet? good. */
 				if (!n) {
@@ -5019,6 +5582,9 @@ static void artifact_lore(void) {
 
 					/* redisplay the moved choice */
 					Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_L_UMBER : TERM_UMBER, artifact_list_name[i]);
+					/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+					if (Client_setup.k_char[artifact_list_kidx[i]] && !c_cfg.ascii_items)
+						Term_draw(5, 5 + n, color_char_to_attr(artifact_list_name[i][1]), Client_setup.k_char[artifact_list_kidx[i]]);
 				}
 
 				n++;
@@ -5032,7 +5598,12 @@ static void artifact_lore(void) {
 			    (tmp[0] == 'T' && tmp[1] == 'H' && tmp[2] == 'E' && tmp[3] == ' ' && !strncmp(tmp + 4, s, strlen(s))))) {
 				selected = artifact_list_code[i];
 				selected_list = i;
+
 				Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_L_UMBER : TERM_UMBER, artifact_list_name[i]);
+				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+				if (Client_setup.k_char[artifact_list_kidx[i]] && !c_cfg.ascii_items)
+					Term_draw(5, 5 + n, color_char_to_attr(artifact_list_name[i][1]), Client_setup.k_char[artifact_list_kidx[i]]);
+
 				list_idx[n] = i;
 				n++;
 				if (direct_match) break;//allow 1 direct + 1 beginning-of-line match
@@ -5040,7 +5611,7 @@ static void artifact_lore(void) {
 		}
 		presorted = n;
 
-		for (i = 0; i < MAX_A_IDX && n < ARTIFACT_LORE_LIST_SIZE + 1; i++) { /* '+ 1' for 'more_results' hack */
+		for (i = 0; i < artifact_list_idx && n < ARTIFACT_LORE_LIST_SIZE + 1; i++) { /* '+ 1' for 'more_results' hack */
 #if 0
 			/* direct match above already? */
 			if (i == selected_list) continue;
@@ -5071,7 +5642,12 @@ static void artifact_lore(void) {
 					selected_list = i;
 					selected = artifact_list_code[i];
 				}
+
 				Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_L_UMBER : TERM_UMBER, artifact_list_name[i]);
+				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+				if (Client_setup.k_char[artifact_list_kidx[i]] && !c_cfg.ascii_items)
+					Term_draw(5, 5 + n, color_char_to_attr(artifact_list_name[i][1]), Client_setup.k_char[artifact_list_kidx[i]]);
+
 				list_idx[n] = i;
 				n++;
 			}
@@ -5081,7 +5657,12 @@ static void artifact_lore(void) {
 		if (selected_line >= n) {
 			selected_line = n - 1;
 			if (selected_line < 0) selected_line = 0;
-			else Term_putstr(5, 5 + selected_line, -1, TERM_L_UMBER, artifact_list_name[list_idx[selected_line]]);
+			else {
+				Term_putstr(5, 5 + selected_line, -1, TERM_L_UMBER, artifact_list_name[list_idx[selected_line]]);
+				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+				if (Client_setup.k_char[artifact_list_kidx[i]] && !c_cfg.ascii_items)
+					Term_draw(5, 5 + selected_line, color_char_to_attr(artifact_list_name[i][1]), Client_setup.k_char[artifact_list_kidx[i]]);
+			}
 		}
 
 		if (!s[0])
@@ -5203,10 +5784,10 @@ static void artifact_lore(void) {
 		for (i = 0; i < 18; i++) paste_lines[i][0] = '\0';
 
 		if (show_lore) {
-			artifact_lore_aux(selected, selected_list, paste_lines);
+			artifact_lore_aux(selected, selected_list, paste_lines, FALSE);
 			Term_putstr(5,  23, -1, TERM_WHITE, "-- press ESC/Backspace to exit, SPACE for stats, c/C to chat-paste --");
 		} else {
-			artifact_stats_aux(selected, selected_list, paste_lines);
+			artifact_stats_aux(selected, selected_list, paste_lines, FALSE);
 			Term_putstr(5,  23, -1, TERM_WHITE, "-- press ESC/Backspace to exit, SPACE for lore, c/C to chat-paste --");
 		}
 		/* hack: hide cursor */
@@ -5258,18 +5839,31 @@ static void artifact_lore(void) {
 			if (c == 'c') {
 				/* paste currently displayed artifact information into chat:
 				   scan line #5 for title, lines 7..22 for info. */
-				for (i = 0; i < 18; i++) {
-					if (!paste_lines[i][0]) break;
-					//if (i == 6 || i == 12) usleep(10000000);
-					if (paste_lines[i][strlen(paste_lines[i]) - 1] == ' ')
-						paste_lines[i][strlen(paste_lines[i]) - 1] = '\0';
-					Send_paste_msg(paste_lines[i]);
+				if (show_lore) {
+					for (i = 0; i < 18; i++) paste_lines[i][0] = '\0';
+					artifact_lore_aux(selected, selected_list, paste_lines, TRUE);
+					for (i = 0; i < 18; i++) {
+						if (!paste_lines[i][0]) break;
+						if (paste_lines[i][strlen(paste_lines[i]) - 1] == ' ')
+							paste_lines[i][strlen(paste_lines[i]) - 1] = '\0';
+						Send_paste_msg(paste_lines[i]);
+					}
+				} else {
+					for (i = 0; i < 18; i++) paste_lines[i][0] = '\0';
+					artifact_stats_aux(selected, selected_list, paste_lines, TRUE);
+					for (i = 0; i < 18; i++) {
+						if (!paste_lines[i][0]) break;
+						if (paste_lines[i][strlen(paste_lines[i]) - 1] == ' ')
+							paste_lines[i][strlen(paste_lines[i]) - 1] = '\0';
+						Send_paste_msg(paste_lines[i]);
+					}
 				}
+				break;
 			}
 			if (c == 'C') {
 				/* paste lore AND stats into chat */
 				for (i = 0; i < 18; i++) paste_lines[i][0] = '\0';
-				artifact_lore_aux(selected, selected_list, paste_lines);
+				artifact_lore_aux(selected, selected_list, paste_lines, TRUE);
 				for (i = 0; i < 18; i++) {
 					if (!paste_lines[i][0]) break;
 					//if (i == 6 || i == 12) usleep(10000000);
@@ -5279,7 +5873,7 @@ static void artifact_lore(void) {
 				}
 				/* don't double-post the title: skip paste line 0 */
 				for (i = 0; i < 18; i++) paste_lines[i][0] = '\0';
-				artifact_stats_aux(selected, selected_list, paste_lines);
+				artifact_stats_aux(selected, selected_list, paste_lines, TRUE);
 				for (i = 1; i < 18; i++) {
 					if (!paste_lines[i][0]) break;
 					//if (i == 6 || i == 12) usleep(10000000);
@@ -5308,7 +5902,7 @@ static void artifact_lore(void) {
    hence ending up with a neat amount of 17 'pure' ATTR_ANY monsters. ;) - C. Blue */
 #define MONSTER_LORE_LIST_SIZE 17
 static void monster_lore(void) {
-	char s[20 + 1], tmp[80];
+	char s[20 + 1], tmp[80], buf[80];
 	int c, i, j, n, selected, selected_list, list_idx[MONSTER_LORE_LIST_SIZE], presorted;
 	bool show_lore = TRUE, direct_match;
 	int selected_line = 0;
@@ -5362,19 +5956,20 @@ static void monster_lore(void) {
 				if (monster_list_level[i] >= levs && monster_list_level[i] <= leve) {
 					selected = monster_list_code[i];
 					selected_list = i;
-#if 0
-					Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					/* Custom font mapping? */
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
-					} else {
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
+					} else { /* Standard font mapping */
 						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[0] = i;
 					n++;
 					break;
@@ -5400,19 +5995,19 @@ static void monster_lore(void) {
 						selected = monster_list_code[i];
 						selected_list = i;
 					}
-#if 0
-					Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5 + n, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[n] = i;
 					n++;
 				}
@@ -5433,21 +6028,21 @@ static void monster_lore(void) {
 				     ||
 				    (s[2] == 'm' && monster_list_any[i]) ||
 				    (s[2] == 'M' && monster_list_breath[i]))) {
-		    			selected = monster_list_code[i];
+					selected = monster_list_code[i];
 					selected_list = i;
-#if 0
-					Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[0] = i;
 					n++;
 					break;
@@ -5483,19 +6078,19 @@ static void monster_lore(void) {
 						selected = monster_list_code[i];
 						selected_list = i;
 					}
-#if 0
-					Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5 + n, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[n] = i;
 					n++;
 				}
@@ -5521,20 +6116,19 @@ static void monster_lore(void) {
 					selected = monster_list_code[i];
 					selected_list = i;
 
-#if 0
-					Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
 					if (n) Term_erase(5, 5, 80); //erase old beginning-of-line match that was shown here first
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 
 					/* no beginning-of-line match yet? good. */
 					if (!n) {
@@ -5546,10 +6140,13 @@ static void monster_lore(void) {
 						list_idx[n] = tmp;
 
 						/* redisplay the moved choice */
-						if (Client_setup.r_char[monster_list_code[i]]) {
-							Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
-								monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-								monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						if (Client_setup.r_char[monster_list_code[list_idx[1]]] && !c_cfg.ascii_monsters && !(monster_list_unique[list_idx[1]] && c_cfg.ascii_uniques)) {
+							sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+							    monster_list_code[list_idx[1]], monster_list_level[list_idx[1]], monster_list_symbol[list_idx[1]][0], monster_list_symbol[list_idx[1]][1], n == selected_line ? 'y' : 'u',
+							    monster_list_symbol[list_idx[1]][0], Client_setup.r_char[monster_list_code[list_idx[1]]], n == selected_line ? 'y' : 'u', monster_list_name[list_idx[1]]);
+							Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, buf);
+							/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+							Term_draw(5 + 15, 5 + n, color_char_to_attr(monster_list_symbol[list_idx[1]][0]), Client_setup.r_char[monster_list_code[list_idx[1]]]);
 						} else {
 							Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 								monster_list_code[list_idx[1]], monster_list_level[list_idx[1]], monster_list_symbol[list_idx[1]][0], monster_list_symbol[list_idx[1]][1], selected_line == n ? 'y' : 'u', monster_list_name[list_idx[1]]));
@@ -5562,19 +6159,19 @@ static void monster_lore(void) {
 				else if ((n == 0 || (direct_match && n == 1)) && !strncmp(tmp, s, strlen(s))) {
 					selected = monster_list_code[i];
 					selected_list = i;
-#if 0
-					Term_putstr(5, 5 + n, -1, selected_line == 0 ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == 0 ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5 + n, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5 + n, -1, selected_line == n ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], selected_line == n ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[n] = i;
 					n++;
 					if (direct_match) break;//allow 1 direct + 1 beginning-of-line match
@@ -5611,19 +6208,19 @@ static void monster_lore(void) {
 						selected = monster_list_code[i];
 						selected_list = i;
 					}
-#if 0
-					Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, \377%c%c\377%c, L%-3d)  %s",
-					    monster_list_code[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_level[i], monster_list_name[i]));
-#else
-					if (Client_setup.r_char[monster_list_code[i]]) {
-						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+
+					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
+						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
-						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+						    monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]);
+						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, buf);
+						/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+						Term_draw(5 + 15, 5 + n, color_char_to_attr(monster_list_symbol[i][0]), Client_setup.r_char[monster_list_code[i]]);
 					} else {
 						Term_putstr(5, 5 + n, -1, n == selected_line ? TERM_YELLOW : TERM_UMBER, format("(%4d, L%-3d, \377%c%-3c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_name[i]));
 					}
-#endif
+
 					list_idx[n] = i;
 					n++;
 				}
@@ -5634,21 +6231,19 @@ static void monster_lore(void) {
 		if (selected_line >= n) {
 			selected_line = n - 1;
 			if (selected_line < 0) selected_line = 0;
-			else
-#if 0
-				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, format("(%4d, \377%c%c\377y, L%-3d)  %s",
-				    monster_list_code[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0],
-				    monster_list_symbol[list_idx[selected_line]][1], monster_list_level[list_idx[selected_line]], monster_list_name[list_idx[selected_line]]));
-#else
-			if (Client_setup.r_char[monster_list_code[i]]) {
-				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, format("(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
-				    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u', monster_list_symbol[i][0], Client_setup.r_char[monster_list_code[i]], n == selected_line ? 'y' : 'u', monster_list_name[i]));
+
+			if (Client_setup.r_char[monster_list_code[list_idx[selected_line]]] && !c_cfg.ascii_monsters && !(monster_list_unique[list_idx[selected_line]] && c_cfg.ascii_uniques)) {
+				sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+				    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0], monster_list_symbol[list_idx[selected_line]][1], n == selected_line ? 'y' : 'u',
+				    monster_list_symbol[list_idx[selected_line]][0], Client_setup.r_char[monster_list_code[list_idx[selected_line]]], n == selected_line ? 'y' : 'u', monster_list_name[list_idx[selected_line]]);
+				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, buf);
+				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+				Term_draw(5 + 15, 5 + selected_line, color_char_to_attr(monster_list_symbol[list_idx[selected_line]][0]), Client_setup.r_char[monster_list_code[list_idx[selected_line]]]);
 			} else {
 				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, format("(%4d, L%-3d, \377%c%-3c\377y)  %s",
 				    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0],
 				    monster_list_symbol[list_idx[selected_line]][1], monster_list_name[list_idx[selected_line]]));
 			}
-#endif
 		}
 
 		if (!s[0])
@@ -6044,6 +6639,7 @@ bool png_screenshot(void) {
 		} else {
 			//k = system("firefox --version --headless");  -- error 9009 "file not found" wut? due to bad path escaping/quoting without using a .bat file probably
 			k = system("reg query \"HKEY_CURRENT_USER\\Software\\Mozilla\\Firefox\" /v OldDefaultBrowserCommand");
+			//HKEY_CURRENT_USER\Software\Mozilla\Firefox\Launcher
 			if (!k) {
 				/* Obtain path to browser */
 				system("reg query \"HKEY_CLASSES_ROOT\\Applications\\firefox.exe\\shell\\open\\command\" /ve > __temp__");
@@ -6226,34 +6822,34 @@ static void cmd_spoilers(void) {
 
 		switch (i) {
 		case 'k':
-			browse_local_file("k_info.txt", 1);
+			browse_local_file(ANGBAND_DIR_GAME, "k_info.txt", 1, FALSE);
 			break;
 		case 'e':
-			browse_local_file("e_info.txt", 2);
+			browse_local_file(ANGBAND_DIR_GAME, "e_info.txt", 2, FALSE);
 			break;
 		case 'r':
-			browse_local_file("r_info.txt", 3);
+			browse_local_file(ANGBAND_DIR_GAME, "r_info.txt", 3, FALSE);
 			break;
 		case 'E':
-			browse_local_file("re_info.txt", 4);
+			browse_local_file(ANGBAND_DIR_GAME, "re_info.txt", 4, FALSE);
 			break;
 		case 'a':
-			browse_local_file("a_info.txt", 5);
+			browse_local_file(ANGBAND_DIR_GAME, "a_info.txt", 5, FALSE);
 			break;
 		case 'v':
-			browse_local_file("v_info.txt", 6);
+			browse_local_file(ANGBAND_DIR_GAME, "v_info.txt", 6, FALSE);
 			break;
 		case 'd':
-			browse_local_file("d_info.txt", 7);
+			browse_local_file(ANGBAND_DIR_GAME, "d_info.txt", 7, FALSE);
 			break;
 		case 'f':
-			browse_local_file("f_info.txt", 8);
+			browse_local_file(ANGBAND_DIR_GAME, "f_info.txt", 8, FALSE);
 			break;
 		case 't':
-			browse_local_file("tr_info.txt", 9);
+			browse_local_file(ANGBAND_DIR_GAME, "tr_info.txt", 9, FALSE);
 			break;
 		case 's':
-			browse_local_file("st_info.txt", 10);
+			browse_local_file(ANGBAND_DIR_GAME, "st_info.txt", 10, FALSE);
 			break;
 		case KTRL('Q'):
 			i = ESCAPE;
@@ -6270,6 +6866,157 @@ static void cmd_spoilers(void) {
 			bell();
 		}
 	}
+}
+
+#include <dirent.h> /* for cmd_notes() */
+#define MAX_NOTES_FILES 9999
+static void cmd_notes(void) {
+	static int y = 0, j_sel = 0;
+	int i = 0, d, vertikal_offset = 3, horiz_offset = 5;
+	int row, col = 1;
+
+	char ch = 0;
+	bool inkey_msg_old;
+
+	char notes_fname[MAX_NOTES_FILES][MAX_CHARS], path[1024];
+	int notes_files = 0;
+	char tmp_name[256];
+
+	DIR *dir;
+	struct dirent *ent;
+
+
+	Term_clear();
+	topline_icky = TRUE;
+
+	/* read all locally available note files */
+	path_build(path, 1024, ANGBAND_DIR_USER, "");
+	if (!(dir = opendir(path))) {
+		c_msg_format("Couldn't open user directory (%s).", path);
+		return;
+	}
+
+	while ((ent = readdir(dir))) {
+		strcpy(tmp_name, ent->d_name);
+		if (!strncmp(tmp_name, "notes-", 6)) {
+			strcpy(notes_fname[notes_files], tmp_name);
+			notes_files++;
+			if (notes_files == MAX_NOTES_FILES) {
+				c_msg_format("\377oWARNING: Amount of 'notes-' files exceeds processable maximum (%d)!", MAX_NOTES_FILES);
+				break;
+			}
+		}
+	}
+	closedir(dir);
+
+	/* suppress hybrid macros */
+	inkey_msg_old = inkey_msg;
+	inkey_msg = TRUE;
+
+	while (ch != ESCAPE) {
+		Term_putstr(0,  0, -1, TERM_BLUE, "Browse notes-*.txt files (in TomeNET's lib/user folder)");
+
+		row = 1;
+		if (!notes_files) Term_putstr(col, row++, -1, TERM_WHITE, format("You have not receveid any notes yet. (To write a note, use the \377y/note\377w command.)"));
+		else {
+			//Term_putstr(col, row++, -1, TERM_WHITE, format("Found %d notes-files from other players (Press \377yENTER\377w to browse selected):", notes_files));
+			Term_putstr(col, row++, -1, TERM_WHITE, format("Found %d notes-files from other players:", notes_files));
+#ifdef ENABLE_SHIFT_SPECIALKEYS
+			Term_putstr(col, row++, -1, TERM_WHITE, "\377ydirectional keys\377w, \377ys\377w search, \377yESC\377w leave, \377BRETURN\377w reverse browse, \377BSHIFT+RET\377w browse");
+#else
+			Term_putstr(col, row++, -1, TERM_WHITE, "\377ydirectional keys\377w, \377ys\377w search, \377yESC\377w leave, \377BRETURN\377w reverse browse");
+#endif
+		}
+
+		/* Display the notes */
+		for (i = y - 10 ; i <= y + 10 ; i++) {
+			if (i < 0 || i >= notes_files) {
+				Term_putstr(horiz_offset + 5, vertikal_offset + i + 10 - y, -1, TERM_WHITE, "                                                          ");
+				continue;
+			}
+
+			if (i == y) j_sel = i;
+
+			Term_putstr(horiz_offset + 5, vertikal_offset + i + 10 - y, -1, TERM_WHITE, format("  %3d", i + 1));
+			Term_putstr(horiz_offset + 12, vertikal_offset + i + 10 - y, -1, TERM_WHITE, "                                                   ");
+			Term_putstr(horiz_offset + 12, vertikal_offset + i + 10 - y, -1, TERM_WHITE, notes_fname[i]);
+		}
+
+		/* display static selector */
+		Term_putstr(horiz_offset + 1, vertikal_offset + 10, -1, TERM_SELECTOR, ">>>");
+		Term_putstr(horiz_offset + 1 + 12 + 50 + 1, vertikal_offset + 10, -1, TERM_SELECTOR, "<<<");
+
+		Term->scr->cx = Term->wid;
+		Term->scr->cu = 1;
+
+		/* Hack to disable macros: Macros on SHIFT+X for example prohibits 'X' menu choice here.. */
+#ifdef ENABLE_SHIFT_SPECIALKEYS
+		inkey_shift_special = 0x0;
+#endif
+		ch = inkey();
+		/* ..and reenable macros right away again, so navigation via arrow keys works. */
+
+		switch (ch) {
+		case '\n': case '\r':
+#ifdef ENABLE_SHIFT_SPECIALKEYS
+			browse_local_file(ANGBAND_DIR_USER, notes_fname[j_sel], 0, (inkey_shift_special == 0x1) ? FALSE : TRUE);
+#else
+			browse_local_file(ANGBAND_DIR_USER, notes_fname[j_sel], 0, TRUE);
+#endif
+			break;
+		case KTRL('Q'):
+			i = ESCAPE;
+			/* fall through */
+		case ESCAPE:
+			break;
+		case KTRL('T'):
+			xhtml_screenshot("screenshot????", FALSE);
+			break;
+		case ':':
+			cmd_message();
+			break;
+		case 's': /* Search for receipient name */
+			{
+			char searchstr[MAX_CHARS] = { 0 };
+
+			Term_putstr(0, 0, -1, TERM_WHITE, "  Enter (partial) note receipient name: ");
+			askfor_aux(searchstr, MAX_CHARS - 1, 0);
+			if (!searchstr[0]) break;
+
+			for (i = 0; i < notes_files; i++)
+				if (my_strcasestr(notes_fname[i], searchstr)) break;
+			if (i < notes_files) j_sel = y = i;
+			break;
+			}
+		case '9':
+		case 'p':
+			y = (y - 10 + notes_files) % notes_files;
+			break;
+		case '3':
+		case ' ':
+			y = (y + 10 + notes_files) % notes_files;
+			break;
+		case '1':
+			y = notes_files - 1;
+			break;
+		case '7':
+			y = 0;
+			break;
+		case '8':
+		case '2':
+			d = keymap_dirs[ch & 0x7F];
+			y = (y + ddy[d] + notes_files) % notes_files;
+			break;
+		case '\010':
+			y = (y - 1 + notes_files) % notes_files;
+			break;
+		default:
+			bell();
+		}
+	}
+
+	inkey_msg = inkey_msg_old;
+	Term_clear();
 }
 
 /*
@@ -6347,13 +7094,14 @@ void cmd_check_misc(void) {
 			Term_putstr(40, row + 2, -1, TERM_WHITE, "(\377yi\377w) Server settings");
 			Term_putstr(40, row + 3, -1, TERM_WHITE, "(\377yj\377w) Message history");
 			Term_putstr(40, row + 4, -1, TERM_WHITE, "(\377yk\377w) Chat history");
-			row += 6;
+			row += 5;
 
-			Term_putstr( 5, row, -1, TERM_WHITE, "(\377y?\377w) Help");
-			Term_putstr(40, row, -1, TERM_WHITE, "(\377yg\377w) The Guide");
-			Term_putstr( 5, row + 1, -1, TERM_WHITE, "\377s(Type \377y/ex\377s in chat for extra info)");
-			Term_putstr(40, row + 1, -1, TERM_WHITE, "(\377yl\377w) Spoiler files (in lib/game)");
-			row += 3;
+			Term_putstr( 5, row + 0, -1, TERM_WHITE, "(\377y?\377w) Help");
+			Term_putstr( 5, row + 1, -1, TERM_WHITE, "(\377yg\377w) The Guide (also use \377y/?\377w)");
+			Term_putstr( 5, row + 2, -1, TERM_WHITE, "(\377yx\377w) Extra info (same as \377y/ex\377w)");
+			Term_putstr(40, row + 0, -1, TERM_WHITE, "(\377yl\377w) Spoiler files (in lib/game)");
+			Term_putstr(40, row + 1, -1, TERM_WHITE, "(\377yn\377w) Notes you received from others");
+			row += 4;
 
 			/* Folders */
 			Term_putstr( 5, row + 0, -1, TERM_WHITE, "(\377UT\377w) Open program folder");
@@ -6521,6 +7269,14 @@ void cmd_check_misc(void) {
 			cmd_spoilers();
 			redraw = TRUE;
 			break;
+		case 'x':
+			//Send_special_line(SPECIAL_FILE_EXTRAINFO, 0, ""); --not implemented
+			Send_msg("/ex");
+			break;
+		case 'n':
+			cmd_notes();
+			redraw = TRUE;
+			break;
 		case KTRL('Q'):
 			i = ESCAPE;
 			/* fall through */
@@ -6559,7 +7315,7 @@ void cmd_check_misc(void) {
 			FILEMAN(ANGBAND_DIR_XTRA);
 			break;
 		case 'G':
-			URLMAN("http://github.com/TomenetGame/");
+			URLMAN("https://github.com/TomenetGame/");
 			break;
 		case 'W':
 			/* Le quality de liferino~ */
@@ -6575,7 +7331,7 @@ void cmd_check_misc(void) {
 			URLMAN("https://muuttuja.org/tomenet/monsters/index.php");
 			break;
 		case 'L': //ow http
-			URLMAN("http://angband.oook.cz/ladder-browse.php?v=TomeNET");
+			URLMAN("http://angband.oook.cz/ladder-browse.php?v=TomeNET"); //https fails, NET::ERR_CERT_COMMON_NAME_INVALID
 			break;
 #else
 		/* USE_GCU (without USE_X11) and any other unknown OS.. */
@@ -6633,17 +7389,24 @@ void cmd_check_misc(void) {
 		    }
 #endif
 #ifdef USE_X11
+		    {
 			//system(format("xdg-open %s &", mangrc_filename));
 			//FILEMAN(mangrc_filename);
 			//system("cat /usr/share/applications/`xdg-mime query default text/plain` | grep -o 'Exec.*' | head -n 1 | grep -o '=.*' | grep -o '[0-9a-z]*' > __tmp__");
-			system("cat /usr/share/applications/`xdg-mime query default text/plain` | grep -o 'Exec.*' | grep -o '=.*' | grep -o '[0-9a-z]*' > __tmp__");
+			int r = system("cat /usr/share/applications/`xdg-mime query default text/plain` | grep -o 'Exec.*' | grep -o '=.*' | grep -o '[0-9a-z]*' > __tmp__");
+			char *c;
+
 			fp = fopen("__tmp__", "r");
 			if (fp) {
-				fgets(buf, MAX_CHARS, fp);
+				c = fgets(buf, MAX_CHARS, fp);
+				//todo maybe: error handling if xdg-mime fails
 				fclose(fp);
 				buf[strlen(buf) - 1] = 0;
-				system(format("%s %s &", buf, mangrc_filename));
+				r = system(format("%s %s &", buf, mangrc_filename));
 			}
+			(void)r;
+			(void)c;
+		    }
 #endif
 			break;
 
@@ -6803,8 +7566,9 @@ void cmd_message(void) {
 		else if (!strcasecmp(buf, "/ctime")) {
 			time_t ct = time(NULL);
 			struct tm* ctl = localtime(&ct);
+			static char day_names[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
-			c_msg_format("\374\376\377yYour current local time: %04d/%02d/%02d - %02d:%02d:%02dh", 1900 + ctl->tm_year, ctl->tm_mon + 1, ctl->tm_mday, ctl->tm_hour, ctl->tm_min, ctl->tm_sec);
+			c_msg_format("\374\376\377yYour current local time: %04d/%02d/%02d (%s) - %02d:%02d:%02dh", 1900 + ctl->tm_year, ctl->tm_mon + 1, ctl->tm_mday, day_names[ctl->tm_wday], ctl->tm_hour, ctl->tm_min, ctl->tm_sec);
 			inkey_msg = FALSE;
 			return;
 		} else if (!strcasecmp(buf, "/cver") || !strcasecmp(buf, "/cversion")) {
@@ -6993,6 +7757,16 @@ void cmd_message(void) {
 		} else if (!strcasecmp(buf, "/reinit_guide")) { /* Undocumented: Re-init the guide (update buffered guide info if guide was changed while client is still running). */
 			init_guide();
 			c_msg_format("Guide reinitialized. (errno %d,lastline %d,endofcontents %d,chapters %d)", guide_errno, guide_lastline, guide_endofcontents, guide_chapters);
+			inkey_msg = FALSE;
+			return;
+		} else if (!strcasecmp(buf, "/reinit_audio")) { /* Undocumented: Re-init the audio system. Same as pressing CTRL+R in the mixer UI. */
+			if (re_init_sound() == 0) c_message_add("Audio packs have been reloaded and audio been reinitialized successfully.");
+			inkey_msg = FALSE;
+			return;
+		} else if (!strncasecmp(buf, "// ", 3)) { /* Directly access LUA client-side - C. Blue */
+			/* Hack: Ind is 1 on client-side by default, set it to 0 so some functions (eg prn()) would be able to recognize client-side execution */
+			//c_msg_format("Ind=0; %s", string_exec_lua(0, buf + 3)); -- not needed, Ind isn't queried anyway, it's function(i), so '0' can be passed just fine.
+			c_msg_format("%s", string_exec_lua(0, buf + 3));
 			inkey_msg = FALSE;
 			return;
 		}
@@ -7347,11 +8121,10 @@ void cmd_throw(void) {
 	get_item_extra_hook = get_item_hook_find_obj;
 	get_item_hook_find_obj_what = "Item name? ";
 
-	if (!c_get_item(&item, "Throw what? ", (USE_INVEN | USE_EQUIP | USE_EXTRA)))
-		return;
+	/* USE_INVEN: Since we can throw equipped weapons now, it seems more likely that if inven and equip items match the inscription, we prefer to throw from inven first! */
+	if (!c_get_item(&item, "Throw what? ", (INVEN_FIRST | USE_INVEN | USE_EQUIP | USE_EXTRA))) return;
 
-	if (!get_dir(&dir))
-		return;
+	if (!get_dir(&dir)) return;
 
 	/* Send it */
 	Send_throw(item, dir);
@@ -7392,9 +8165,10 @@ void cmd_browse(int item) {
 		Flush_queue();
 	}
 
-/* commented out because first, admins are usually ghosts;
-   second, we might want a 'ghost' tome or something later,
-   kind of to bring back 'undead powers' :) - C. Blue */
+	/* commented out because first, admins are usually ghosts;
+	   second, we might want a 'ghost' tome or something later,
+	   kind of to bring back 'undead powers',
+	   as 'ghost powers' though since the regular vampire race is undead too, pft. :) - C. Blue */
 #if 0
 	if (p_ptr->ghost) {
 		show_browse(NULL);
@@ -7404,12 +8178,14 @@ void cmd_browse(int item) {
 
 	if (item == -1) {
 #ifdef ENABLE_SUBINVEN
-		get_item_hook_find_obj_what = "Book/satchel name? ";
+		get_item_hook_find_obj_what = "Book/container name? ";
 		get_item_extra_hook = get_item_hook_find_obj;
 
 		item_tester_hook = item_tester_browsable;
 
-		if (!c_get_item(&item, "Browse which book/container? ", (USE_INVEN | USE_EXTRA | NO_FAIL_MSG))) {
+		if (!c_get_item(&item, "Browse which book/container? ", (USE_INVEN | EXCLUDE_SUBINVEN |
+		    USE_EQUIP | /* for WIELD_BOOKS */
+		    USE_EXTRA | NO_FAIL_MSG))) {
 			if (item == -2) c_msg_print("You have no books that you can read, nor containers to peruse.");
 			return;
 		}
@@ -7419,7 +8195,9 @@ void cmd_browse(int item) {
 
 		item_tester_hook = item_tester_browsable;
 
-		if (!c_get_item(&item, "Browse which book? ", (USE_INVEN | USE_EXTRA | NO_FAIL_MSG))) {
+		if (!c_get_item(&item, "Browse which book? ", (USE_INVEN |
+		    USE_EQUIP | /* for WIELD_BOOKS */
+		    USE_EXTRA | NO_FAIL_MSG))) {
 			if (item == -2) c_msg_print("You have no books that you can read.");
 			return;
 		}
@@ -7548,6 +8326,10 @@ static void cmd_house_chown(int dir) {
 			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
+			break;
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
 			break;
 		default:
 			bell();
@@ -7691,6 +8473,10 @@ void cmd_purchase_house(void) {
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		default:
 			bell();
 		}
@@ -7737,10 +8523,17 @@ static void cmd_master_aux_level(void) {
 		Term_putstr(5, 6, -1, TERM_WHITE, "(3) Add dungeon");
 		Term_putstr(5, 7, -1, TERM_WHITE, "(4) Remove dungeon");
 		Term_putstr(5, 8, -1, TERM_WHITE, "(5) Town generation");
-
+#ifdef DM_MODULES
+		Term_putstr(5, 9, -1, TERM_WHITE, "(6) Save level to module file");
+		Term_putstr(5, 10, -1, TERM_WHITE, "(7) Load level from module file");
+		Term_putstr(5, 11, -1, TERM_WHITE, "(8) Generate a blank level");
+		Term_putstr(5, 12, -1, TERM_WHITE, "(9) Set entry position");
 
 		/* Prompt */
-		Term_putstr(0, 9, -1, TERM_WHITE, "Command: ");
+		Term_putstr(0, 14, -1, TERM_WHITE, "Command: ");
+#else
+		Term_putstr(0, 10, -1, TERM_WHITE, "Command: ");
+#endif
 
 		/* Get a key */
 		i = inkey();
@@ -7750,6 +8543,10 @@ static void cmd_master_aux_level(void) {
 
 		/* Take a screenshot */
 		else if (i == KTRL('T')) xhtml_screenshot("screenshot????", 2);
+		else if (i == ':') {
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+		}
 		/* static the current level */
 		else if (i == '1') Send_master(MASTER_LEVEL, "s");
 		/* unstatic the current level */
@@ -7863,6 +8660,29 @@ static void cmd_master_aux_level(void) {
 			Send_master(MASTER_LEVEL, buf);
 		}
 
+#ifdef DM_MODULES
+		/* Kurzel - save/load a module file (or create a blank to begin with) */
+		else if (i == '6') {
+			buf[0] = 'S';
+			get_string("Save module name (max 19 char):", &buf[1], 19);
+			Send_master(MASTER_LEVEL, buf);
+		}
+		else if (i == '7') {
+			buf[0] = 'L';
+			get_string("Load module name (max 19 char):", &buf[1], 19);
+			Send_master(MASTER_LEVEL, buf);
+		}
+		else if (i == '8') {
+			buf[0] = 'B';
+			get_string("WxH string (eg. 1x1-5x5):", &buf[1], 19);
+			Send_master(MASTER_LEVEL, buf);
+		}
+		else if (i == '9') {
+			get_string("Set level entry (> < or +):", &buf[0], 1);
+			Send_master(MASTER_LEVEL, buf);
+		}
+#endif
+
 		/* Oops */
 		else {
 			/* Ring bell */
@@ -7906,7 +8726,10 @@ static void cmd_master_aux_generate_vault(void) {
 
 		/* Take a screenshot */
 		if (i == KTRL('T')) xhtml_screenshot("screenshot????", 2);
-
+		else if (i == ':') {
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+		}
 		/* Generate by number */
 		else if (i == '1') {
 			buf[1] = '#';
@@ -7914,14 +8737,12 @@ static void cmd_master_aux_generate_vault(void) {
 			if (!buf[2]) redo_hack = 1;
 			buf[3] = 0;
 		}
-
 		/* Generate by name */
 		else if (i == '2') {
 			buf[1] = 'n';
 			get_string("Enter vault name: ", &buf[2], 77);
 			if (!buf[2]) redo_hack = 1;
 		}
-
 		/* Oops */
 		else {
 			/* Ring bell */
@@ -7964,10 +8785,13 @@ static void cmd_master_aux_generate(void) {
 
 		/* Take a screenshot */
 		else if (i == KTRL('T')) xhtml_screenshot("screenshot????", 2);
-
+		/* Chat */
+		else if (i == ':') {
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+		}
 		/* Generate a vault */
 		else if (i == '1') cmd_master_aux_generate_vault();
-
 		/* Oops */
 		else
 			/* Ring bell */
@@ -8023,6 +8847,10 @@ static void cmd_master_aux_build(void) {
 
 		switch (i) {
 		/* Take a screenshot */
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8110,6 +8938,10 @@ static char * cmd_master_aux_summon_orcs(void) {
 
 		/* get the type of orc */
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8176,6 +9008,10 @@ static char * cmd_master_aux_summon_undead_low(void) {
 
 		/* get the type of undead */
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8251,6 +9087,10 @@ static char * cmd_master_aux_summon_undead_high(void) {
 
 		/* get the type of undead */
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8321,6 +9161,10 @@ static void cmd_master_aux_summon(void) {
 
 		/* get the type of monster to summon */
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		/* Take a screenshot */
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
@@ -8438,6 +9282,10 @@ static void cmd_master_aux_summon(void) {
 
 			/* get the type of summoning */
 			switch (i) {
+			case ':':
+				cmd_message();
+				inkey_msg = TRUE; /* And suppress macros again.. */
+				break;
 			case KTRL('T'):
 				xhtml_screenshot("screenshot????", 2);
 				break;
@@ -8499,6 +9347,10 @@ static void cmd_master_aux_player() {
 		i = inkey();
 		buf[0] = '\0';
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8591,7 +9443,7 @@ static void cmd_script_exec_local() {
 	buf[0] = '\0';
 	if (!get_string("Script> ", buf, 80)) return;
 
-	exec_lua(0, buf);
+	c_msg_format("%s", string_exec_lua(0, buf));
 }
 
 
@@ -8612,6 +9464,10 @@ static void cmd_master_aux_system() {
 		/* Get a key */
 		i = inkey();
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8676,6 +9532,10 @@ static void cmd_master(void) {
 		i = inkey();
 
 		switch (i) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);
 			break;
@@ -8792,6 +9652,10 @@ void cmd_lagometer(void) {
 		if (k == ESCAPE || k == KTRL('Q') || k == KTRL('I')) break;
 
 		switch (k) {
+		case ':':
+			cmd_message();
+			inkey_msg = TRUE; /* And suppress macros again.. */
+			break;
 		/* Take a screenshot */
 		case KTRL('T'):
 			xhtml_screenshot("screenshot????", 2);

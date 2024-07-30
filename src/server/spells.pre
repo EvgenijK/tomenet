@@ -35,14 +35,40 @@ typedef unsigned int u32b;
 /* These should not directly be used from LUA, because at least cave_set_feat_live()
    assumes that allow_terraforming() has been checked before!
 	extern void cave_set_feat(worldpos *wpos, int y, int x, int feat);
-	extern void cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
+	extern bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
    Instead, for Glyphs we use the following one cleanly: */
 // Argh, I need cave_set_feat for arcade stuff. -Moltor
 extern void cave_set_feat(worldpos *wpos, int y, int x, int feat);
 extern void warding_glyph(int Ind);
-#ifdef ARCADE_SERVER
+// #if defined(ARCADE_SERVER) || defined(DM_MODULES)
 extern int check_feat(worldpos *wpos, int y, int x);
-#endif
+// #ifdef DM_MODULES
+extern int dun_get_wid(worldpos *wpos);
+extern int dun_get_hgt(worldpos *wpos);
+extern int check_monster(worldpos *wpos, int y, int x);
+extern int check_monster_ego(worldpos *wpos, int y, int x);
+extern int check_item_tval(worldpos *wpos, int y, int x);
+extern int check_item_sval(worldpos *wpos, int y, int x);
+extern void place_item_module(worldpos *wpos, int y, int x, int tval, int sval);
+extern int place_monster_ego(worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning);
+extern int players_on_depth(struct worldpos *wpos);
+extern byte level_up_x(struct worldpos *wpos);
+extern byte level_up_y(struct worldpos *wpos);
+extern byte level_down_x(struct worldpos *wpos);
+extern byte level_down_y(struct worldpos *wpos);
+extern byte level_rand_x(struct worldpos *wpos);
+extern byte level_rand_y(struct worldpos *wpos);
+extern void new_level_up_x(struct worldpos *wpos, int x);
+extern void new_level_up_y(struct worldpos *wpos, int y);
+extern void new_level_down_x(struct worldpos *wpos, int x);
+extern void new_level_down_y(struct worldpos *wpos, int y);
+extern void new_level_rand_x(struct worldpos *wpos, int x);
+extern void new_level_rand_y(struct worldpos *wpos, int y);
+/* generate.c */
+extern struct worldpos make_wpos(int wx, int wy, int wz);
+extern void summon_override(bool force);
+extern void generate_cave_blank(worldpos *twpos, int W, int H, bool light);
+// #endif
 
 /* cmd2.c */
 extern void do_cmd_fusion(int Ind);
@@ -68,6 +94,7 @@ extern bool teleport_away(int m_idx, int dis);
 extern void teleport_player(int Ind, int dis, bool ignore_pvp);
 extern void teleport_player_to(int Ind, int ny, int nx, bool forced);
 extern void teleport_player_level(int Ind, bool force);
+extern bool retreat_player(int Ind, int dis);
 extern bool bypass_invuln;
 extern void acid_dam(int Ind, int dam, cptr kb_str, int Ind_attacker);
 extern void elec_dam(int Ind, int dam, cptr kb_str, int Ind_attacker);
@@ -111,7 +138,7 @@ extern bool set_mimic(int Ind, int v, int p);
 extern bool set_tim_traps(int Ind, int v);
 extern bool set_tim_manashield(int Ind, int v);
 extern bool set_invis(int Ind, int v, int p);
-extern void set_shroud(int Ind, int v, int p);
+extern bool set_shroud(int Ind, int v, int p);
 extern bool set_fury(int Ind, int v);
 extern bool set_tim_meditation(int Ind, int v);
 extern bool set_tim_wraith(int Ind, int v);
@@ -126,19 +153,21 @@ extern bool set_stopped(int Ind, int v);
 extern bool set_image(int Ind, int v);
 extern bool set_fast(int Ind, int v, int p);
 extern bool set_slow(int Ind, int v);
+extern bool set_tim_reflect(int Ind, int v);
 extern void wizard_lock(int Ind, int dir);
 
 extern bool set_shield(int Ind, int v, int p, s16b o, s16b d1, s16b d2);
 extern bool set_tim_thunder(int Ind, int v, int p1, int p2);
 extern bool set_tim_regen(int Ind, int v, int p);
-extern bool set_tim_mp2hp(int Ind, int v, int p);
+extern bool set_tim_mp2hp(int Ind, int v, int p, int c);
 extern bool set_tim_ffall(int Ind, int v);
 extern bool set_tim_lev(int Ind, int v);
-extern bool set_blessed(int Ind, int v);
+extern bool set_blessed(int Ind, int v, bool own);
+extern bool set_dispersion(int Ind, int v, int d);
 extern bool set_res_fear(int Ind, int v);
 extern bool set_hero(int Ind, int v);
 extern bool set_shero(int Ind, int v);
-extern bool set_protevil(int Ind, int v);
+extern bool set_protevil(int Ind, int v, bool own);
 extern bool set_zeal(int Ind, int p, int v);
 extern bool set_martyr(int Ind, int v);
 extern bool set_invuln(int Ind, int v);
@@ -157,6 +186,7 @@ extern void map_area(int Ind);
 extern void mind_map_level(int Ind, int pow);
 extern void wiz_lite(int Ind);
 extern void wiz_lite_extra(int Ind);
+extern void wiz_lite_spell(int Ind);
 extern void wiz_dark(int Ind);
 extern bool detect_creatures_xxx(int Ind, u32b match_flag);
 extern bool detect_creatures(int Ind);
@@ -169,7 +199,7 @@ extern void summon_pet(int Ind, int r_idx);
 extern void unsummon_pets(int Ind);
 extern void toggle_all_pets_mind(int Ind, byte pet_mind);
 extern void golem_creation(int Ind, int max);
-extern bool hp_player(int Ind, int num, bool quiet, bool autoeffect);
+extern s16b hp_player(int Ind, int num, bool quiet, bool autoeffect);
 extern void warding_glyph(int Ind);
 extern bool do_dec_stat(int Ind, int stat, int mode);
 extern bool do_res_stat(int Ind, int stat);
@@ -262,12 +292,12 @@ extern bool cure_critical_wounds_proj(int Ind, int dir);
 extern void grow_trees(int Ind, int rad);
 extern bool heal_other_proj(int Ind, int dir);
 extern bool door_creation(int Ind);
-extern bool trap_creation(int Ind, int mod, int rad);
+extern bool trap_creation(int Ind, int mod, int rad, int clone);
 extern bool destroy_doors_touch(int Ind, int rad);
 extern bool destroy_traps_touch(int Ind, int rad);
 extern bool destroy_traps_doors_touch(int Ind, int rad);
 extern bool sleep_monsters_touch(int Ind);
-extern bool create_artifact(int Ind, bool nolife);
+extern void create_artifact(int Ind, bool nolife);
 extern bool create_artifact_aux(int Ind, int item);
 extern bool curse_spell(int Ind);
 extern bool curse_spell_aux(int Ind, int item);
@@ -288,8 +318,9 @@ extern bool py_warding_rune_break(int Ind);
 /* Druidry */
 extern bool create_garden(int Ind, int level);
 extern bool do_banish_animals(int Ind, int chance);
-extern bool do_xtra_stats(int Ind, int s, int p, int v);
+extern bool do_xtra_stats(int Ind, int s, int p, int v, bool demonic);
 extern bool do_focus(int Ind, int p, int v);
+extern bool set_tim_lcage(int Ind, int v);
 
 #ifdef ENABLE_MAIA
 extern void divine_vengeance(int Ind, int power);
@@ -352,6 +383,7 @@ extern s32b lua_get_level(int Ind, s32b s, s32b lvl, s32b max, s32b min, s32b bo
 extern s32b lua_spell_chance(int Ind, s32b chance, int level, int skill_level, int mana, int cur_mana, int stat);
 /* extern u32b get_school_spell(cptr do_what); */
 extern void lua_s_print(cptr logstr);
+extern void lua_x_print(cptr logstr);
 extern void lua_add_anote(char *anote);
 extern void lua_del_anotes();
 extern void lua_broadcast_motd();
@@ -373,6 +405,7 @@ extern void lua_fix_spellbooks2(int sold, int snew, int swap);
 extern void lua_arts_fix(int Ind);
 extern char* lua_get_last_chat_line();
 extern char* lua_get_last_chat_owner();
+extern char* lua_get_last_chat_account();
 extern void lua_get_pgestat(int Ind, int n);
 extern void lua_start_global_event(int Ind, int evtype, char *parm);
 extern void lua_apply_item_changes(int Ind, int changes);
@@ -407,6 +440,8 @@ extern int __lua_P_FIRST;
 extern int __lua_P_LAST;
 extern int __lua_OFEAR;
 extern int __lua_FOCUS;
+extern int __lua_POWERBOLT;
+extern int __lua_HEALING_I;
 
 extern bool sauron_weakened;
 extern bool sauron_weakened_iddc;

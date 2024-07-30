@@ -358,8 +358,8 @@ errr check_load_init(void) {
 
 	char buf[1024];
 
-	char temphost[MAXHOSTNAMELEN+1];
-	char thishost[MAXHOSTNAMELEN+1];
+	char temphost[MAXHOSTNAMELEN + 1];
+	char thishost[MAXHOSTNAMELEN + 1];
 
 
 	/* Build the filename */
@@ -523,7 +523,7 @@ void display_player(int Ind) {
 	Send_various(Ind, p_ptr->ht, p_ptr->wt, p_ptr->age, p_ptr->sc);
 
 	/* Send all the stats */
-	for (i = 0; i < 6; i++) Send_stat(Ind, i);
+	for (i = 0; i < C_ATTRIBUTES; i++) Send_stat(Ind, i);
 
 	/* Extra info */
 	display_player_middle(Ind);
@@ -1064,6 +1064,16 @@ bool process_player_name(int Ind, bool sf) {
 }
 
 
+static void handle_kingly(int Ind) {
+	player_type *p_ptr = Players[Ind];
+
+	/* Retirement in Valinor? - C. Blue :) */
+	if (in_valinor(&p_ptr->wpos)) kingly(Ind, 2);
+	else if (p_ptr->total_winner) {
+		if (p_ptr->iron_winner) kingly(Ind, 4);
+		else kingly(Ind, 1);
+	} else if (p_ptr->iron_winner) kingly(Ind, 3);
+}
 
 /*
  * Hack -- commit suicide
@@ -1092,12 +1102,7 @@ void do_cmd_suicide(int Ind) {
 	/* Hack -- clear ghost */
 	p_ptr->ghost = 0;
 
-	if (p_ptr->total_winner) {
-		if (p_ptr->iron_winner) kingly(Ind, 4);
-		else kingly(Ind, 1);
-	} else if (p_ptr->iron_winner) kingly(Ind, 3);
-	/* Retirement in Valinor? - C. Blue :) */
-	if (in_valinor(&p_ptr->wpos)) kingly(Ind, 2);
+	handle_kingly(Ind);
 
 	/* Kill him */
 	p_ptr->deathblow = 0;
@@ -1825,7 +1830,7 @@ static void display_scores_aux(int Ind, int line, int note, int erased_slot, hig
 
 	high_score the_score;
 
-	char out_val[256];
+	char out_val[256], out_val2[256], out_val_floor[20];
 
 	FILE *fff;
 	char file_name[MAX_PATH_LENGTH];
@@ -1874,9 +1879,9 @@ static void display_scores_aux(int Ind, int line, int note, int erased_slot, hig
 	if (i > to) i = to;
 
 	/* Show 5 per page, until "done" */
-	for (j = from, place = j+1; j < i; j++, place++) {
+	for (j = from, place = j + 1; j < i; j++, place++) {
 		int pr, pc, clev, mlev, cdun, mdun;
-		byte modebuf;
+		u16b modebuf;
 		char modestr[20], modecol[5];
 		cptr gold, when, aged;
 
@@ -1923,7 +1928,7 @@ static void display_scores_aux(int Ind, int line, int note, int erased_slot, hig
 		clev = atoi(the_score.cur_lev);
 		mlev = atoi(the_score.max_lev);
 #if 0
-		if (the_score.cur_dun[strlen(the_score.cur_dun) - 1] == '\001') {
+		if (*the_score.cur_dun && the_score.cur_dun[strlen(the_score.cur_dun) - 1] == '\001') {
 			wilderness = TRUE;
 			the_score.cur_dun[strlen(the_score.cur_dun) - 1] = '\0';
 		}
@@ -1962,7 +1967,7 @@ static void display_scores_aux(int Ind, int line, int note, int erased_slot, hig
 		}
 
 		/* Hack ;) Remember if the player was a former winner */
-		if (the_score.how[strlen(the_score.how) - 1] == '\001') {
+		if (*the_score.how && the_score.how[strlen(the_score.how) - 1] == '\001') {
 			strcpy(extra_info, ". (Defeated Morgoth)");
 			the_score.how[strlen(the_score.how) - 1] = '\0';
 		}
@@ -1979,46 +1984,29 @@ static void display_scores_aux(int Ind, int line, int note, int erased_slot, hig
 		/* Dump the first line */
 		fprintf(fff, "%s\n", out_val);
 
+		/* Prepare 2nd line for next info: What floor we stopped on, max floor reached, extra info (killed Morgoth or not) */
+		if (!strcasecmp(the_score.how, "*Winner*")) { /* Valinor - omit showing current dungeon level */
+			cdun = 0; //hack: "town"
+			strcpy(out_val_floor, "in Valinor");
+		} else strcpy(out_val_floor, "in town");
+		snprintf(out_val2, sizeof(out_val2),
+		    "%s%s%s", cdun ? format(
+		    "               on %s %d",
+		    wilderness ? "wilderness level" : "dungeon level", cdun) : format(
+		    "               %s", out_val_floor),
+		    mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
+
 		/* Another line of info */
 		if (strcasecmp(the_score.how, "Winner") && strcasecmp(the_score.how, "*Winner*") && strcasecmp(the_score.how, "Iron Champion") && strcasecmp(the_score.how, "Iron Emperor"))
-			snprintf(out_val, sizeof(out_val),
-				"               Killed by %s\n"
-				"               on %s %d%s%s",
-				the_score.how, wilderness ? "wilderness level" : "dungeon level", cdun, mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
+			snprintf(out_val, sizeof(out_val), "               Killed by %s\n%s", the_score.how, out_val2);
 		else if (!strcasecmp(the_score.how, "Winner"))
-			snprintf(out_val, sizeof(out_val),
-				"               \377vRetired after a legendary career\n"
-				"               on %s %d%s%s", wilderness ? "wilderness level" : "dungeon level", cdun, mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
+			snprintf(out_val, sizeof(out_val), "               \377vRetired after a legendary career\n%s", out_val2);
 		else if (!strcasecmp(the_score.how, "*Winner*"))
-			snprintf(out_val, sizeof(out_val),
-				"               \377vRetired on the shores of Valinor\n"
-				"               on %s %d%s%s", wilderness ? "wilderness level" : "dungeon level", cdun, mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
+			snprintf(out_val, sizeof(out_val), "               \377vRetired on the shores of Valinor\n%s", out_val2);
 		else if (!strcasecmp(the_score.how, "Iron Champion"))
-			snprintf(out_val, sizeof(out_val),
-				"               \377sRetired Iron Champion\n"
-				"               on %s %d%s%s", wilderness ? "wilderness level" : "dungeon level", cdun, mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
+			snprintf(out_val, sizeof(out_val), "               \377sRetired Iron Champion\n%s", out_val2);
 		else if (!strcasecmp(the_score.how, "Iron Emperor"))
-			snprintf(out_val, sizeof(out_val),
-				"               \377vRetired from the Iron Throne\n"
-				"               on %s %d%s%s", wilderness ? "wilderness level" : "dungeon level", cdun, mdun > cdun ? format(" (max %d)", mdun) : "", extra_info);
-
-		/* Hack -- some people die in the town */
-		if (!cdun)
-		{
-			/* (can't be in Valinor while we're in town, can we) */
-			if (strcasecmp(the_score.how, "Winner"))
-				snprintf(out_val, sizeof(out_val),
-					"               Killed by %s\n"
-					"               in town%s",
-					the_score.how, mdun > cdun ? format(" (max %d)", mdun) : "");
-			else
-				snprintf(out_val, sizeof(out_val),
-					"               \377vRetired after a legendary career\n"
-					"               in town%s", mdun > cdun ? format(" (max %d)", mdun) : "");
-		}
-
-		/* Append a "maximum level" */
-		//if (mdun > cdun) strcat(out_val, format(" (max %d)", mdun));
+			snprintf(out_val, sizeof(out_val), "               \377vRetired from the Iron Throne\n%s", out_val2);
 
 		/* Dump the info */
 		fprintf(fff, "%s\n", out_val);
@@ -2345,9 +2333,7 @@ void close_game(void) {
 		/* Handle death */
 		if (p_ptr->death) {
 			/* Handle retirement */
-		        /* Retirement in Valinor? - C. Blue :) */
-			if (in_valinor(&p_ptr->wpos)) kingly(i, 2);
-			else if (p_ptr->total_winner) kingly(i, 1);
+			handle_kingly(i);
 
 			/* Save memories */
 			if (!save_player(i)) msg_print(i, "death save failed!");
@@ -2707,7 +2693,7 @@ void wipeout_needless_objects() {
 				d_ptr = w_ptr->dungeon;
 				for (z = 1; z <= d_ptr->maxdepth; z++) {
 					cwpos.wz = -z;
-					if (d_ptr->level[z-1].ondepth && d_ptr->level[z-1].cave)
+					if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave)
 						wipe_o_list(&cwpos);
 				}
 			}
@@ -2715,7 +2701,7 @@ void wipeout_needless_objects() {
 				d_ptr = w_ptr->tower;
 				for (z = 1; z <= d_ptr->maxdepth; z++) {
 					cwpos.wz = z;
-					if (d_ptr->level[z-1].ondepth && d_ptr->level[z-1].cave)
+					if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave)
 						wipe_o_list(&cwpos);
 				}
 			}
@@ -2899,8 +2885,9 @@ LPTOP_LEVEL_EXCEPTION_FILTER old_handler;
 /* Callback to be called by Windows when our term closes, the user
  * logs off, the system is shutdown, etc.
  */
-BOOL ctrl_handler( DWORD fdwCtrlType ) {
+BOOL ctrl_handler(DWORD fdwCtrlType) {
 	/* Save everything and quit the game */
+	cfg.runlevel = 0;
 	shutdown_server();
 
 	return(TRUE);
@@ -3010,7 +2997,8 @@ static void handle_signal_simple(int sig) {
 		Report_to_meta(META_DIE);
 
 		/* Save everything and quit the game */
-//              exit_game_panic();
+		//exit_game_panic();
+		cfg.runlevel = 0;
 		shutdown_server();
 	}
 

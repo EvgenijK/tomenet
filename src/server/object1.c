@@ -34,17 +34,22 @@
  */
 /*#define TERM_MULTI	TERM_VIOLET */
 
+/* Special: Further shorten the very long item names of royal armour [optionally only if we already omit its article for length constraints (mode & 8) ]: */
+#define ROYAL_ARMOUR_SHORTEN_NAME
+/* Don't shorten the item name of the artifact 'Antiriad': */
+#define ROYAL_ARMOUR_SHORTEN_ANTIRIAD_ONLY
+/* Don't shorten the item name of the artifact 'Antiriad' in its depleted version: */
+#define ROYAL_ARMOUR_SHORTEN_ANTIRIAD_DEPLETED
+
+
+
 
 #if EXTRA_FLAVORS
-
  #define MAX_MODIFIERS	6       /* Used with rings (see below) */
-
 static cptr ring_adj2[MAX_ROCKS2] = {
 	"", "Brilliant", "Dark", "Enchanting", "Murky", "Bright"
 };
-
 #endif	// EXTRA_FLAVORS
-
 
 /*
  * Rings (adjectives and colors)
@@ -1190,7 +1195,6 @@ void object_flags(object_type *o_ptr, u32b *f1, u32b *f2, u32b *f3, u32b *f4, u3
 
 	/* Ego-item */
 	if (o_ptr->name2) {
-//		ego_item_type *e_ptr = &e_info[o_ptr->name2];
 		a_ptr = ego_make(o_ptr);
 
 		(*f1) |= a_ptr->flags1;
@@ -1839,8 +1843,8 @@ static char *object_desc_int(char *t, sint v) {
 }
 
 /*
- * Print an unsigned number "n" into a string "t", as if by
- * sprintf(t, "%u%%", n), and return a pointer to the terminator.
+ * Print a signed number "n" into a string "t", as if by
+ * sprintf(t, "%+u%%", n), and return a pointer to the terminator.
  */
 static char *object_desc_per(char *t, sint v) {
 	uint p, n;
@@ -1884,6 +1888,88 @@ static char *object_desc_per(char *t, sint v) {
 	return(t);
 }
 
+#ifdef WEAPONS_NO_AC
+/*
+ * Print an unsigned number "n" into a string "t", as if by
+ * sprintf(t, "%u%%", n), and return a pointer to the terminator.
+ * Note that we always print a sign, either "+" or "-".
+ */
+static char *object_desc_intper(char *t, sint v) {
+	uint p, n;
+
+	/* Negative */
+	if (v < 0) {
+		/* Take the absolute value */
+		n = 0 - v;
+
+		/* Use a "minus" sign */
+		*t++ = '-';
+	}
+	/* Positive (or zero) */
+	else {
+		/* Use the actual number */
+		n = v;
+
+		/* Use a "plus" sign */
+		*t++ = '+';
+	}
+
+	/* Find "size" of "n" */
+	for (p = 1; n >= p * 10; p = p * 10) /* loop */;
+
+	/* Dump each digit */
+	while (p >= 1) {
+		/* Dump the digit */
+		*t++ = '0' + n / p;
+
+		/* Remove the digit */
+		n = n % p;
+
+		/* Process next digit */
+		p = p / 10;
+	}
+
+	/* Use a "percent" sign */
+	*t++ = '%';
+
+	/* Terminate */
+	*t = '\0';
+
+	/* Result */
+	return(t);
+}
+#endif
+
+#if 0 /* could be used for really long timeouts > 99999 */
+/*
+ * Print an unsigned large number "n" into a string "t", as if by
+ * sprintf(t, "%u", n), and return a pointer to the terminator.
+ */
+static char *object_desc_lnum(char *t, uint n) {
+	uint p;
+
+	/* Find "size" of "n" */
+	for (p = 1; n >= p * 10; p = p * 10) /* loop */;
+
+	/* Dump each digit */
+	while (p >= 1) {
+		/* Dump the digit */
+		*t++ = '0' + n / p;
+
+		/* Remove the digit */
+		n = n % p;
+
+		/* Process next digit */
+		p = p / 10;
+	}
+
+	/* Terminate */
+	*t = '\0';
+
+	/* Result */
+	return(t);
+}
+#endif
 
 
 /*
@@ -1942,9 +2028,11 @@ static char *object_desc_per(char *t, sint v) {
  *        (not used in player/home inventory, but used in player stores again.) - C. Blue
  *  +128 - Don't prefix "The"
  *  +256 - Short name: Only the purely textual name, no stats/level/owner/status.
- *  +512 - Don't suppress flavour for flavoured true arts (insta-arts, ie rings and amulets) (for ~4 list)
+ *  +512 - Don't suppress flavour for flavoured true arts or hacked-base-name items (insta-arts, ie rings and amulets) (for ~4 list)
  * +1024 - Assume that no flavours are known by the player (added for exporting player store item list)
  *         ONLY works with Ind == 0.
+ * +2048 - Do not display anything referring to the base item (for seals and wrapped gifts). Add +32 too when using this.
+ * +4096 - Assume item is not "known", even if Ind is 0.
  *
  * If the strings created with mode 0-3 are too long, this function is called
  * again with 8 added to 'mode' and attempt to 'abbreviate' the strings. -Jir-
@@ -1957,14 +2045,14 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	bool		aware = FALSE;
 	bool		known = FALSE;
 
-	bool		append_name = FALSE;
+	bool		append_name = FALSE, hacked_base_name = FALSE;
 	bool		switched_ego_prefix_and_modstr = FALSE;
 
 	bool		show_weapon = FALSE;
 	bool		show_armour = FALSE;
 	bool		show_shield = FALSE;
 
-	cptr		s, u;
+	cptr		s_ptr;
 	char		*t;
 
 	char		p1 = '(', p2 = ')';
@@ -1982,13 +2070,18 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	char		tmp_modstr[ONAME_LEN];
 #endif
 
+	/* For custom objects mimicking other objects: */
+	int		tval;
+	object_type	forge, *ox_ptr = &forge;
+
+
 	/* Extract some flags */
 	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
 
 	/* hack - don't show special abilities on shirts easily (by adding them to their item name) - C. Blue */
 	if (o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT) mode |= 32;
-	/* same for seals - C. Blue */
-	if (o_ptr->tval == TV_SPECIAL) mode |= 32;
+	/* same for seals and gift wrappings - C. Blue */
+	if (o_ptr->tval == TV_SPECIAL) mode |= 32 | 2048;
 
 	/* Assume aware and known if not a valid player */
 	if (Ind) {
@@ -2004,6 +2097,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		/* Assume aware and known */
 		aware = known = TRUE;
 		if (mode & 1024) aware = FALSE; //don't spoil flavours in player shop export list!
+		if (mode & 4096) known = FALSE;
 	}
 	/* Never use short item names in flavour knowledge list */
 	if ((mode & 512)) short_item_names = FALSE;
@@ -2024,8 +2118,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 
 	/* Hack: Fix silly names on artifact flavoured items (rings/amulets) */
-	if (artifact_p(o_ptr) && aware && !known && !special_rop) aware = FALSE;
-
+	if (artifact_p(o_ptr) && (k_info[o_ptr->k_idx].flags3 & TR3_INSTA_ART) && aware && !known && !special_rop && !(mode & 2048)) aware = FALSE;
 
 	/* Analyze the object */
 	switch (o_ptr->tval) {
@@ -2097,87 +2190,38 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 	/* Amulets (including a few "Specials") */
 	case TV_AMULET:
-		/* keep our special randart naming ;) 'the slow digestion of..' */
-		if (o_ptr->name1 == ART_RANDART && known) break;
-
-#if 0
-		/* Suppress flavour */
-		if (artifact_p(o_ptr) && known && !(mode & 512)) {
-			//obsolete	basenm = "& Amulet~";
-			break;
-		}
-#endif
-
 		/* "Amulets of Luck" are just called "Talismans" -C. Blue */
 		if ((o_ptr->sval == SV_AMULET_LUCK) && aware) {
-			if (!(mode & 512)) basenm = "& Talisman~";
-			else {
+			if (mode & 512) { /* Specialty: In ~ menu list, show the colour actually, so player knows which flavour is a talisman */
 				modstr = amulet_adj[indexx];
 				basenm = "& # Talisman~";
+				break;
 			}
+			basenm = "& Talisman~";
+			hacked_base_name = TRUE;
 			break;
 		}
 		/* Optionally flavoury */
 		if (o_ptr->sval == SV_AMULET_INVINCIBILITY) {
 			basenm = "& Administrative Decree~";
+			hacked_base_name = TRUE;
 			break;
 		}
 
 		/* Color the object */
 		modstr = amulet_adj[indexx];
-
-		if (aware && (!artifact_p(o_ptr) || (!known && !(f3 & TR3_INSTA_ART)))) append_name = TRUE;
-
-		/* Hack for insta-arts: Use alternative name from k_info?
-		   If the k-name starts on '&' it's actually an alternative base item name,
-		   otherwise it's the usual subtype name (eg 'Slow Digestion'). */
-		if ((f3 & TR3_INSTA_ART) && *(k_ptr->name + k_name) == '&') {
-			if (short_item_names || !aware) basenm = k_name + k_ptr->name;
-			else {
-				strcpy(basenm2, "& #");
-				strcat(basenm2, k_name + k_ptr->name + 1);
-				basenm = basenm2;
-			}
-		} else {
-			if (short_item_names) basenm = aware ? "& Amulet~" : "& # Amulet~";
-			else basenm = "& # Amulet~";
-		}
-
+		if (aware) append_name = TRUE;
+		if (short_item_names) basenm = aware ? "& Amulet~" : "& # Amulet~";
+		else basenm = "& # Amulet~";
 		break;
 
 	/* Rings (including a few "Specials") */
 	case TV_RING:
-		/* keep our special randart naming ;) 'the slow digestion of..' */
-		if (o_ptr->name1 == ART_RANDART && known && !special_rop) break;
-
-#if 0
-		/* Suppress flavour */
-		if (artifact_p(o_ptr) && known && !(mode & 512)) {
-			//obsolete	basenm = "& Amulet~";
-			break;
-		}
-#endif
-
 		/* Color the object */
 		modstr = ring_adj[indexx];
-
-		if (aware && (!artifact_p(o_ptr) || (!known && !(f3 & TR3_INSTA_ART)) || special_rop)) append_name = TRUE;
-
-		/* Hack for insta-arts: Use alternative name from k_info?
-		   If the k-name starts on '&' it's actually an alternative base item name,
-		   otherwise it's the usual subtype name (eg 'Slow Digestion'). */
-		if ((f3 & TR3_INSTA_ART) && *(k_ptr->name + k_name) == '&') {
-			if (short_item_names || !aware) basenm = k_name + k_ptr->name;
-			else {
-				strcpy(basenm2, "& #");
-				strcat(basenm2, k_name + k_ptr->name + 1);
-				basenm = basenm2;
-			}
-		} else {
-			if (short_item_names) basenm = aware ? "& Ring~" : "& # Ring~";
-			else basenm = "& # Ring~";
-		}
-
+		if (aware) append_name = TRUE;
+		if (short_item_names) basenm = aware ? "& Ring~" : "& # Ring~";
+		else basenm = "& # Ring~";
 		break;
 
 	case TV_STAFF:
@@ -2213,44 +2257,38 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	}
 
 	case TV_SCROLL:
-		/* Suppress flavour */
-		if (artifact_p(o_ptr) && known && !(mode & 512)) {
-			basenm = "& Scroll~";
+#ifdef NEW_WILDERNESS_MAP_SCROLLS
+		/* For new wilderness mapping code, where it's actually a puzzle piece of the map */
+		if (o_ptr->sval == SV_SCROLL_WILDERNESS_MAP) {
+			if (mode & 512) { /* Specialty: In ~ menu list, show the colour actually, so player knows which flavour is a talisman */
+				modstr = scroll_adj[indexx];
+				basenm = "& Wilderness Map Piece~ titled \"#\"";
+				break;
+			}
+			basenm = "& Wilderness Map Piece~";
+			hacked_base_name = TRUE;
 			break;
 		}
+#endif
 
 		if (o_ptr->sval == SV_SCROLL_CHEQUE) {
 			if (mode & 256)
 				basenm = "& Cheque~";
 			else
 				basenm = "& Cheque~ worth $ Au";
+			hacked_base_name = TRUE;
 			break;
 		}
-
-#ifdef NEW_WILDERNESS_MAP_SCROLLS
-		/* For new wilderness mapping code, where it's actually a puzzle piece of the map */
-		if (o_ptr->sval == SV_SCROLL_WILDERNESS_MAP) {
-			basenm = "& Wilderness Map Piece~";
-			break;
-		}
-#endif
 
 		/* Color the object */
 		modstr = scroll_adj[indexx];
 		if (aware) append_name = TRUE;
 		if (short_item_names) basenm = aware ? "& Scroll~" : "& Scroll~ titled \"#\"";
 		else basenm = aware ? "& Scroll~ \"#\"" : "& Scroll~ titled \"#\"";
-		//basenm = "& Scroll~ titled \"#\"";
 		break;
 
 	case TV_POTION:
 	case TV_POTION2:
-		/* Suppress flavour */
-		if (artifact_p(o_ptr) && known && !(mode & 512)) {
-			basenm = "& Potion~";
-			break;
-		}
-
 		/* Color the object */
 		modstr = potion_adj[indexx + (o_ptr->tval == TV_POTION2 ? STATIC_COLORS : 0)]; /* the first n potions have static flavours */
 		if (aware) append_name = TRUE;
@@ -2323,13 +2361,41 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		return;
 	}
 
+	/* Handle flavoured randart names: Keep our special randart naming ;) 'the slow digestion of..' */
+	if (o_ptr->name1 == ART_RANDART && known && !special_rop) {
+		//no flavour
+		modstr = "";
+		append_name = FALSE;
+		//no object-kind name prefix
+		if (!hacked_base_name) basenm = (k_name + k_ptr->name);
+	}
+	/* Handle flavoured insta-art names */
+	/* Redundant 'if' condition: modstr+unswitched can only be flavoured arts, and flavoured arts are always insta-arts (paranoia) */
+	else if (modstr[0] && !switched_ego_prefix_and_modstr && (f3 & TR3_INSTA_ART)) {
+		append_name = FALSE;
+
+		/* Hack for insta-arts: Use alternative name from k_info?
+		   If the k-name starts on '&' it's actually an alternative base item name,
+		   otherwise it's the usual subtype name (eg 'Slow Digestion'). */
+		if (*(k_ptr->name + k_name) == '&') {
+#if 0 /* Stop displaying the flavour colour once the insta-art is identified? */
+			if ((short_item_names || aware) && !(mode & 512)) basenm = k_name + k_ptr->name;
+#else
+			if ((short_item_names) && !(mode & 512)) basenm = k_name + k_ptr->name;
+#endif
+			else {
+				strcpy(basenm2, "& #");
+				strcat(basenm2, k_name + k_ptr->name + 1);
+				basenm = basenm2;
+			}
+		}
+	}
 
 	/* Start dumping the result */
 	t = buf;
 
 	/* hack: questors have an arbitrary name */
-	if (o_ptr->questor)
-		basenm = q_info[o_ptr->quest - 1].questor[o_ptr->questor_idx].name;
+	if (o_ptr->questor) basenm = q_info[o_ptr->quest - 1].questor[o_ptr->questor_idx].name;
 	/* hack: quest items have an arbitrary name */
 	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_QUEST
 	    && o_ptr->xtra4) /* <- extra check, in case a silyl admin tries to wish for one ;) */
@@ -2342,22 +2408,18 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		/* Grab any ego-item name */
 		//if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN))
 		if (known && (o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN) &&
-		    !(o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT))
-		{
+		    !(mode & 32)) {
 			ego_item_type *e_ptr = &e_info[o_ptr->name2];
 			ego_item_type *e2_ptr = &e_info[o_ptr->name2b];
 
-			if (e_ptr->before)
-				ego = e_ptr->name + e_name;
+			if (e_ptr->before) ego = e_ptr->name + e_name;
 #if 1
-			else if (e2_ptr->before)
-				ego = e2_ptr->name + e_name;
-#endif	// 0
-
+			else if (e2_ptr->before) ego = e2_ptr->name + e_name;
+#endif
 		}
 
 		/* Skip the ampersand (and space) */
-		s = basenm + 2;
+		s_ptr = basenm + 2;
 
 		/* No prefix */
 		if (!pref) {
@@ -2380,12 +2442,12 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		}
 
 		/* Hack -- The only one of its kind */
-		else if (known && artifact_p(o_ptr)) {
+		else if (known && artifact_p(o_ptr) && !(mode & 2048)) {
 			/* hack: some base item types in k_info start
 			   on 'the', so prevent a second 'The ' for those */
 			if (!(mode & 128)) t = object_desc_str(t, "The ");
 			if (strstr(k_name + k_ptr->name, "the ") == k_name + k_ptr->name) {
-				s += 4;
+				s_ptr += 4;
 				skip_base_article = TRUE;
 			}
 		}
@@ -2397,7 +2459,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		}
 
 		/* A single one, with a vowel in the modifier */
-		else if ((*s == '#') && is_a_vowel(modstr[0])) {
+		else if ((*s_ptr == '#') && is_a_vowel(modstr[0])) {
 			t = object_desc_str(t, "an ");
 		}
 
@@ -2407,7 +2469,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		}
 
 		/* A single one, with a vowel */
-		else if (is_a_vowel(*s)) t = object_desc_str(t, "an ");
+		else if (is_a_vowel(*s_ptr)) t = object_desc_str(t, "an ");
 
 		/* A single one, without a vowel */
 		else t = object_desc_str(t, "a ");
@@ -2416,7 +2478,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	/* Hack -- objects that "never" take an article */
 	else {
 		/* No ampersand */
-		s = basenm;
+		s_ptr = basenm;
 
 		/* No pref */
 		if (!pref) {
@@ -2434,12 +2496,12 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		}
 
 		/* Hack -- The only one of its kind */
-		else if (known && artifact_p(o_ptr) && !(mode & 8)) {
+		else if (known && artifact_p(o_ptr) && !(mode & 8) && !(mode & 2048)) {
 			/* hack: some base item types in k_info start
 			   on 'the', so prevent a second 'The ' for those */
 			if (!(mode & 128)) t = object_desc_str(t, "The ");
 			if (strstr(k_name + k_ptr->name, "the ") == k_name + k_ptr->name) {
-				s += 4;
+				s_ptr += 4;
 				skip_base_article = TRUE;
 			}
 		}
@@ -2450,13 +2512,44 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		}
 	}
 
+#ifdef ROYAL_ARMOUR_SHORTEN_NAME
+	/* Special: Shorten 'heavy' for heavy armour, if we already omit 'the' or anything */
+	if (known
+ #if 0
+	    && (mode & 8) /* Only if we're already shortening the name anyway, leaving out the item's article, due to length constraints? */
+ #endif
+ #ifdef ROYAL_ARMOUR_SHORTEN_ANTIRIAD_ONLY
+	    && (o_ptr->name1 == ART_ANTIRIAD || o_ptr->name1 == ART_ANTIRIAD_DEPLETED) //for now only for Antiriad?
+ #endif
+ #ifndef ROYAL_ARMOUR_SHORTEN_ANTIRIAD_DEPLETED
+	    && o_ptr->name1 != ART_ANTIRIAD_DEPLETED //not for the depleted version actually?
+ #endif
+	    ) {
+		if (strstr(k_name + k_ptr->name, "Heavy Adam") == k_name + k_ptr->name) {
+			s_ptr += 6 + 11; //'heavy ' + 'adamantite '
+			t = object_desc_str(t, "H.Adamant.");
+		}
+		else if (strstr(k_name + k_ptr->name, "Heavy Ribbed Adam") == k_name + k_ptr->name) {
+			s_ptr += 6 + 7 + 11; //'heavy ' + 'ribbed ' + 'adamantite '
+			t = object_desc_str(t, "H.Ribbed Adamant.");
+		}
+		else if (strstr(k_name + k_ptr->name, "Heavy Mith") == k_name + k_ptr->name) {
+			s_ptr += 6; // 'heavy '
+			t = object_desc_str(t, "H.");
+		}
+		else if (strstr(k_name + k_ptr->name, "Heavy Ribbed Mith") == k_name + k_ptr->name) {
+			s_ptr += 6; // 'heavy '
+			t = object_desc_str(t, "H.");
+		}
+	}
+#endif
+
 	/* Grab any ego-item name */
 	//if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN))
 	if (known && (o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN) &&
-	    !(o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT)
+	    !(mode & 32)
 	    //&& o_ptr->tval != TV_SPECIAL
-	    )
-	{
+	    ) {
 		ego_item_type *e_ptr = &e_info[o_ptr->name2];
 		ego_item_type *e2_ptr = &e_info[o_ptr->name2b];
 
@@ -2470,21 +2563,20 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 			t = object_desc_chr(t, ' ');
 		}
 #endif	// 0
-
 	}
 
 	/* Paranoia -- skip illegal tildes */
-	/* while (*s == '~') s++; */
+	/* while (*s_ptr == '~') s_ptr++; */
 
 	/* Copy the string */
-	for (; *s; s++) {
+	for (; *s_ptr; s_ptr++) {
 		/* Pluralizer */
-		if (*s == '~') {
+		if (*s_ptr == '~') {
 			/* Hack -- The only one of its kind - 'No more Tunic of the Wind' instead of 'Tunics' */
-			if (known && artifact_p(o_ptr)) continue;
+			if (known && artifact_p(o_ptr) && !(mode & 2048)) continue;
 
 			/* Add a plural if needed */
-			if (o_ptr->number != 1) {
+			if (o_ptr->number != 1 && t >= buf + 2) { //guard vs buffer underflow
 				char k = t[-1], k2 = t[-2];
 
 				/* XXX XXX XXX Mega-Hack */
@@ -2531,7 +2623,9 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 			}
 		}
 		/* Modifier */
-		else if (*s == '#') {
+		else if (*s_ptr == '#') {
+			cptr tmp_cptr;
+
 			/* Grab any ego-item name */
 			if (o_ptr->tval == TV_ROD_MAIN) {
 				t = object_desc_chr(t, ' ');
@@ -2544,17 +2638,17 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 			}
 
 			/* Insert the modifier */
-			for (u = modstr; *u; u++) *t++ = *u;
+			for (tmp_cptr = modstr; *tmp_cptr; tmp_cptr++) *t++ = *tmp_cptr;
 		}
 		/* Cheque value */
-		else if (*s == '$') {
+		else if (*s_ptr == '$') {
 			sprintf(tmp_val, "%d", ps_get_cheque_value(o_ptr));
 			t = object_desc_str(t, tmp_val);
 		}
 		/* Normal */
 		else {
 			/* Copy */
-			*t++ = *s;
+			*t++ = *s_ptr;
 		}
 	}
 
@@ -2600,57 +2694,58 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	}
 
 
-	/* Hack -- Append "Artifact" or "Special" names */
+	/* Hack -- Append "Artifact" or "Special" (#-inscription) names; also handle raw-name-only */
 	if (known) {
-		/* Grab any ego-item name */
-		//if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN))
-		if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN) &&
-		    !(o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT)
-		    //&& o_ptr->tval != TV_SPECIAL
-		    ) {
-			ego_item_type *e_ptr = &e_info[o_ptr->name2];
-			ego_item_type *e2_ptr = &e_info[o_ptr->name2b];
+		if (!(mode & 2048)) {
+			/* Grab any ego-item name */
+			//if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN))
+			if ((o_ptr->name2 || o_ptr->name2b) && (o_ptr->tval != TV_ROD_MAIN) &&
+			    !(mode & 32)
+			    //&& o_ptr->tval != TV_SPECIAL
+			    ) {
+				ego_item_type *e_ptr = &e_info[o_ptr->name2];
+				ego_item_type *e2_ptr = &e_info[o_ptr->name2b];
 
-			if (!e_ptr->before && o_ptr->name2) {
-				if (strlen(e_name + e_ptr->name)) t = object_desc_chr(t, ' ');
-				t = object_desc_str(t, (e_name + e_ptr->name));
+				if (!e_ptr->before && o_ptr->name2) {
+					if (strlen(e_name + e_ptr->name)) t = object_desc_chr(t, ' ');
+					t = object_desc_str(t, (e_name + e_ptr->name));
 
-			}
+				}
 #if 1
-			else if (!e2_ptr->before && o_ptr->name2b) {
-				if (strlen(e_name + e2_ptr->name)) t = object_desc_chr(t, ' ');
-				t = object_desc_str(t, (e_name + e2_ptr->name));
-//				ego = e2_ptr->name + e_name;
-			}
+				else if (!e2_ptr->before && o_ptr->name2b) {
+					if (strlen(e_name + e2_ptr->name)) t = object_desc_chr(t, ' ');
+					t = object_desc_str(t, (e_name + e2_ptr->name));
+					//ego = e2_ptr->name + e_name;
+				}
 #endif	// 0
 
-		}
-
-		/* Grab any randart name */
-		if (o_ptr->name1 == ART_RANDART) {
-			t = object_desc_chr(t, ' ');
-
-			if (special_rop) {
-				monster_race *r_ptr = &r_info[o_ptr->bpval];
-				t = object_desc_str(t, "of ");
-				if (!(r_ptr->flags7 & RF7_NAZGUL)) {
-					t = object_desc_str(t, "bug");
-				} else {
-					t = object_desc_str(t, r_name + r_ptr->name);
-				}
-			} else {
-				/* Create the name */
-				randart_name(o_ptr, tmp_val, NULL);
-				t = object_desc_str(t, tmp_val);
 			}
-		}
 
-		/* Grab any artifact name */
-		else if (o_ptr->name1) {
-			artifact_type *a_ptr = &a_info[o_ptr->name1];
+			/* Grab any randart name */
+			if (o_ptr->name1 == ART_RANDART) {
+				t = object_desc_chr(t, ' ');
 
-			t = object_desc_chr(t, ' ');
-			t = object_desc_str(t, (a_name + a_ptr->name));
+				if (special_rop) {
+					monster_race *r_ptr = &r_info[o_ptr->bpval];
+					t = object_desc_str(t, "of ");
+					if (!(r_ptr->flags7 & RF7_NAZGUL))
+						t = object_desc_str(t, "bug");
+					else
+						t = object_desc_str(t, r_name + r_ptr->name);
+				} else {
+					/* Create the name */
+					randart_name(o_ptr, tmp_val, NULL);
+					t = object_desc_str(t, tmp_val);
+				}
+			}
+
+			/* Grab any artifact name */
+			else if (o_ptr->name1) {
+				artifact_type *a_ptr = &a_info[o_ptr->name1];
+
+				t = object_desc_chr(t, ' ');
+				t = object_desc_str(t, (a_name + a_ptr->name));
+			}
 		}
 
 		/* raw name only? */
@@ -2659,7 +2754,10 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		/* -TM- Hack -- Add false-artifact names */
 		/* Dagger inscribed {@w0#of Smell} will be named
 		 * Dagger of Smell {@w0} */
-		if (o_ptr->note && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT)) {
+		if (o_ptr->note &&
+		    /* Not for custom objects! As their inscription is actually their item name! */
+		    !(o_ptr->tval == TV_SPECIAL &&
+		     o_ptr->sval == SV_CUSTOM_OBJECT)) {
 			cptr str = strchr(quark_str(o_ptr->note), '#');
 
 			/* Add the false name */
@@ -2725,7 +2823,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 	/* No more details wanted */
 	if ((mode & 7) < 1) {
-		if (t - buf <= 65 || mode & 8) {
+		if (t - buf <= 65 || (mode & 8)) {
 			return;
 		} else {
 			object_desc(Ind, buf, o_ptr, pref, mode | 8);
@@ -2736,19 +2834,17 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 	/* Hack -- Chests must be described in detail */
 	if (o_ptr->tval == TV_CHEST) {
-		/* Not searched yet */
-		if (!known) {
+		/* May be "empty" - cannot happen with SUBINVEN_CHESTS as chests will be immediately converted to TV_SUBINVEN on emptying, except for Ruined Chests. */
+		if (!o_ptr->pval) t = object_desc_str(t, " (empty)");
+		/* Not searched yet - even though we perhaps didn't know the chest yet, we could still at least see whether it was empty or not (above). Important for Ruined Chests too. */
+		else if (!known) {
 			/* Nothing */
 #ifdef SUBINVEN_CHESTS
 			t = object_desc_str(t, " (shut tight)"); /* To visually distinguish this lootable chest from subinven-chests in our inventory */
 #endif
 		}
-		/* May be "empty" - cannot happen with SUBINVEN_CHESTS as chests will be immediately converted to TV_SUBINVEN on emptying, except for Ruined Chests. */
-		else if (!o_ptr->pval)
-			t = object_desc_str(t, " (empty)");
 		/* May be "disarmed" */
-		else if (o_ptr->pval < 0)
-			t = object_desc_str(t, " (disarmed)");
+		else if (o_ptr->pval < 0) t = object_desc_str(t, " (disarmed)");
 		/* Describe the traps, if any */
 		else if (o_ptr->pval) {
 			/* Describe the traps */
@@ -2794,26 +2890,34 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	}
 #endif
 
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+		tval = o_ptr->tval2;
+		invcopy(ox_ptr, lookup_kind(o_ptr->tval2, o_ptr->sval2));
+
+		/* Hack: Actually permanently *(re)transfer* the dice and base AC onto the custom item! */
+		o_ptr->dd = ox_ptr->dd;
+		o_ptr->ds = ox_ptr->ds;
+		o_ptr->ac = ox_ptr->ac;
+	} else tval = o_ptr->tval;
 
 	/* Dump base weapon info */
-	switch (o_ptr->tval) {
-		/* Missiles and Weapons */
-		case TV_SHOT:
-		case TV_BOLT:
-		case TV_ARROW:
-			/* Exploding arrow? */
-			if (o_ptr->pval != 0 && known)
-				t = object_desc_str(t, " (exploding)");
-			/* No break, we want to continue the description */
-			__attribute__ ((fallthrough));
+	switch (tval) {
+	/* Missiles and Weapons */
+	case TV_SHOT:
+	case TV_BOLT:
+	case TV_ARROW:
+		/* Exploding arrow? */
+		if (o_ptr->pval != 0 && known) t = object_desc_str(t, " (exploding)");
+		/* No break, we want to continue the description */
+		__attribute__ ((fallthrough));
 
-		case TV_BLUNT:
-		case TV_POLEARM:
-		case TV_SWORD:
-		case TV_DIGGING:
-		case TV_BOOMERANG:
-		case TV_AXE:
-		case TV_MSTAFF:
+	case TV_BLUNT:
+	case TV_POLEARM:
+	case TV_SWORD:
+	case TV_DIGGING:
+	case TV_BOOMERANG:
+	case TV_AXE:
+	case TV_MSTAFF:
 
 		/* Append a "damage" string */
 		if (!(mode & 8)) t = object_desc_chr(t, ' ');
@@ -2827,11 +2931,12 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		break;
 
 
-		/* Bows get a special "damage string" */
-		case TV_BOW:
+	/* Bows get a special "damage string" */
+	case TV_BOW:
 
 		/* Mega-Hack -- Extract the "base power" */
-		power = (o_ptr->sval % 10);
+		//power = (sval % 10);
+		power = get_shooter_mult(o_ptr);
 
 		/* Apply the "Extra Might" flag */
 		if (f3 & TR3_XTRA_MIGHT) power++;
@@ -2847,145 +2952,157 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		break;
 	}
 
-
-	/* Add the weapon boni */
-	if (known) {
-		/* Show the tohit/todam on request */
-		if (show_weapon) {
-			if (!(mode & 8)) t = object_desc_chr(t, ' ');
-			t = object_desc_chr(t, p1);
-			t = object_desc_int(t, o_ptr->to_h);
-			t = object_desc_chr(t, ',');
-			t = object_desc_int(t, o_ptr->to_d);
-			t = object_desc_chr(t, p2);
+	/* Add base item +hit,+dam,ac,+ac */
+	if (!(mode & 2048)) {
+		/* Add the weapon boni */
+		if (known) {
+			/* Show the tohit/todam on request */
+			if (show_weapon) {
+				if (!(mode & 8)) t = object_desc_chr(t, ' ');
+				t = object_desc_chr(t, p1);
+				t = object_desc_int(t, o_ptr->to_h);
+				t = object_desc_chr(t, ',');
+				t = object_desc_int(t, o_ptr->to_d);
+				t = object_desc_chr(t, p2);
+			}
+			/* Show the tohit if needed */
+			else if (o_ptr->to_h) {
+				if (!(mode & 8)) t = object_desc_chr(t, ' ');
+				t = object_desc_chr(t, p1);
+				t = object_desc_int(t, o_ptr->to_h);
+				t = object_desc_chr(t, p2);
+			}
+			/* Show the todam if needed */
+			else if (o_ptr->to_d) {
+				if (!(mode & 8)) t = object_desc_chr(t, ' ');
+				t = object_desc_chr(t, p1);
+				t = object_desc_int(t, o_ptr->to_d);
+				t = object_desc_chr(t, p2);
+			}
 		}
-		/* Show the tohit if needed */
-		else if (o_ptr->to_h) {
-			if (!(mode & 8)) t = object_desc_chr(t, ' ');
-			t = object_desc_chr(t, p1);
-			t = object_desc_int(t, o_ptr->to_h);
-			t = object_desc_chr(t, p2);
-		}
-		/* Show the todam if needed */
-		else if (o_ptr->to_d) {
-			if (!(mode & 8)) t = object_desc_chr(t, ' ');
-			t = object_desc_chr(t, p1);
-			t = object_desc_int(t, o_ptr->to_d);
-			t = object_desc_chr(t, p2);
-		}
-	}
 
-
-	/* Add the armor boni */
-	if (known) {
-		/* Show the armor class info */
-		if (show_armour) {
+		/* Add the armor boni */
+		if (known) {
+			/* Show the armor class info */
+			if (show_armour) {
+				if (!(mode & 8)) t = object_desc_chr(t, ' ');
+				t = object_desc_chr(t, b1);
+				t = object_desc_num(t, o_ptr->ac);
+				t = object_desc_chr(t, ',');
+				t = object_desc_int(t, o_ptr->to_a);
+				t = object_desc_chr(t, b2);
+			} else if (show_shield) {
+				if (!(mode & 8)) t = object_desc_chr(t, ' ');
+#ifndef NEW_SHIELDS_NO_AC
+				t = object_desc_chr(t, b1);
+				t = object_desc_per(t, o_ptr->ac);
+				t = object_desc_chr(t, ',');
+				t = object_desc_int(t, o_ptr->to_a);
+				t = object_desc_chr(t, b2);
+#else
+				t = object_desc_chr(t, b1);
+				t = object_desc_per(t, o_ptr->ac);
+				t = object_desc_chr(t, b2);
+#endif
+			/* No base armor, but does increase armor */
+			} else if (o_ptr->to_a) {
+#ifdef WEAPONS_NO_AC
+				if (is_melee_weapon(o_ptr->tval)) {
+					/* Weapons give to parry chance instead? */
+					if (!(mode & 8)) t = object_desc_chr(t, ' ');
+					t = object_desc_chr(t, b1);
+					t = object_desc_intper(t, (o_ptr->to_a * 10 + WEAPONS_NO_AC - 10) / WEAPONS_NO_AC);
+					t = object_desc_chr(t, b2);
+				} else {
+#endif
+					if (!(mode & 8)) t = object_desc_chr(t, ' ');
+					t = object_desc_chr(t, b1);
+					t = object_desc_int(t, o_ptr->to_a);
+					t = object_desc_chr(t, b2);
+#ifdef WEAPONS_NO_AC
+				}
+#endif
+			}
+		}
+		/* Hack -- always show base armor */
+		else if (show_armour) {
 			if (!(mode & 8)) t = object_desc_chr(t, ' ');
 			t = object_desc_chr(t, b1);
 			t = object_desc_num(t, o_ptr->ac);
-			t = object_desc_chr(t, ',');
-			t = object_desc_int(t, o_ptr->to_a);
 			t = object_desc_chr(t, b2);
 		} else if (show_shield) {
 			if (!(mode & 8)) t = object_desc_chr(t, ' ');
-#ifndef NEW_SHIELDS_NO_AC
-			t = object_desc_chr(t, b1);
-			t = object_desc_per(t, o_ptr->ac);
-			t = object_desc_chr(t, ',');
-			t = object_desc_int(t, o_ptr->to_a);
-			t = object_desc_chr(t, b2);
-#else
 			t = object_desc_chr(t, b1);
 			t = object_desc_per(t, o_ptr->ac);
 			t = object_desc_chr(t, b2);
-#endif
 		}
-		/* No base armor, but does increase armor */
-		else if (o_ptr->to_a) {
-			if (!(mode & 8)) t = object_desc_chr(t, ' ');
-			t = object_desc_chr(t, b1);
-			t = object_desc_int(t, o_ptr->to_a);
-			t = object_desc_chr(t, b2);
-		}
-	}
-	/* Hack -- always show base armor */
-	else if (show_armour) {
-		if (!(mode & 8)) t = object_desc_chr(t, ' ');
-		t = object_desc_chr(t, b1);
-		t = object_desc_num(t, o_ptr->ac);
-		t = object_desc_chr(t, b2);
-	} else if (show_shield) {
-		if (!(mode & 8)) t = object_desc_chr(t, ' ');
-		t = object_desc_chr(t, b1);
-		t = object_desc_per(t, o_ptr->ac);
-		t = object_desc_chr(t, b2);
 	}
 
 
 	/* No more details wanted */
 	if ((mode & 7) < 2) {
-		if (t - buf <= 65 || mode & 8) return;
+		if (t - buf <= 65 || (mode & 8)) return;
 		else {
 			object_desc(Ind, buf, o_ptr, pref, mode | 8);
 			return;
 		}
 	}
 
-
-	/* Hack -- Wands and Staffs have charges */
-	if (known &&
-	    ((o_ptr->tval == TV_STAFF) ||
-	     (o_ptr->tval == TV_WAND)))
-	{
-		/* Dump " (N charges)" */
-		if (!(mode & 8)) t = object_desc_chr(t, ' ');
-		t = object_desc_chr(t, p1);
-		t = object_desc_num(t, o_ptr->pval);
-		if (!(mode & 8)) {
-			t = object_desc_str(t, " charge");
-			if (o_ptr->pval != 1) t = object_desc_chr(t, 's');
-			if (o_ptr->tval == TV_WAND &&
-			    o_ptr->number > 1 &&
-			    !(mode & 64))
-				t = object_desc_str(t, " total");
-		}
-		t = object_desc_chr(t, p2);
-	}
-
-	/* Hack -- Rods have a "charging" indicator */
-	else if (known && (o_ptr->tval == TV_ROD)) {
-		/* Hack -- Dump " (charging)" if relevant */
-#ifndef NEW_MDEV_STACKING
-		if (o_ptr->pval) t = object_desc_str(t, !(mode & 8) ? " (charging)" : "(#)");
-#else
-		if (o_ptr->bpval == o_ptr->number
-		    && o_ptr->number) /* <- special case: 'You have no more rods..' */
-			t = object_desc_str(t, !(mode & 8) ? " (charging)" : "(#)");
- #if 0
-		else if (o_ptr->pval) t = object_desc_str(t, !(mode & 8) ? " (partially charging)" : "(~)");
- #else
-		else if (o_ptr->pval) {
-			if (mode & 8) {
-				t = object_desc_str(t, "(");
-				t = object_desc_num(t, o_ptr->bpval);
-				t = object_desc_str(t, "~)");
-			} else {
-				t = object_desc_str(t, " (");
-				t = object_desc_num(t, o_ptr->bpval);
-				t = object_desc_str(t, " charging)");
+	if (!(mode & 2048)) {
+		/* Hack -- Wands and Staffs have charges */
+		if (known &&
+		    ((o_ptr->tval == TV_STAFF) ||
+		     (o_ptr->tval == TV_WAND))) {
+			/* Dump " (N charges)" */
+			if (!(mode & 8)) t = object_desc_chr(t, ' ');
+			t = object_desc_chr(t, p1);
+			t = object_desc_num(t, o_ptr->pval);
+			if (!(mode & 8)) {
+				t = object_desc_str(t, " charge");
+				if (o_ptr->pval != 1) t = object_desc_chr(t, 's');
+				if (o_ptr->tval == TV_WAND &&
+				    o_ptr->number > 1 &&
+				    !(mode & 64))
+					t = object_desc_str(t, " total");
 			}
+			t = object_desc_chr(t, p2);
 		}
+
+		/* Hack -- Rods have a "charging" indicator */
+		else if (known && (o_ptr->tval == TV_ROD)) {
+			/* Hack -- Dump " (charging)" if relevant */
+#ifndef NEW_MDEV_STACKING
+			if (o_ptr->pval) t = object_desc_str(t, !(mode & 8) ? " (charging)" : "(#)");
+#else
+			if (o_ptr->bpval == o_ptr->number
+			    && o_ptr->number) /* <- special case: 'You have no more rods..' */
+				t = object_desc_str(t, !(mode & 8) ? " (charging)" : "(#)");
+ #if 0
+			else if (o_ptr->pval) t = object_desc_str(t, !(mode & 8) ? " (partially charging)" : "(~)");
+ #else
+			else if (o_ptr->pval) {
+				if (mode & 8) {
+					t = object_desc_str(t, "(");
+					t = object_desc_num(t, o_ptr->bpval);
+					t = object_desc_str(t, "~)");
+				} else {
+					t = object_desc_str(t, " (");
+					t = object_desc_num(t, o_ptr->bpval);
+					t = object_desc_str(t, " charging)");
+				}
+			}
  #endif
 #endif
-	}
+		}
 
-	/* Hack -- Process Lanterns/Torches */
-	//else if ((o_ptr->tval == TV_LITE) && (o_ptr->sval < SV_LITE_DWARVEN) && (!o_ptr->name3))
-	else if ((o_ptr->tval == TV_LITE) && (f4 & TR4_FUEL_LITE)) {
-		/* Hack -- Turns of light for normal lites */
-		t = object_desc_str(t, !(mode & 8) ? " (with " : "(");
-		t = object_desc_num(t, o_ptr->timeout);
-		t = object_desc_str(t, !(mode & 8) ? " turns of light)" : "t)");
+		/* Hack -- Process Lanterns/Torches */
+		//else if ((o_ptr->tval == TV_LITE) && (o_ptr->sval < SV_LITE_DWARVEN) && (!o_ptr->name3))
+		else if ((o_ptr->tval == TV_LITE) && (f4 & TR4_FUEL_LITE)) {
+			/* Hack -- Turns of light for normal lites */
+			t = object_desc_str(t, !(mode & 8) ? " (with " : "(");
+			t = object_desc_num(t, o_ptr->timeout);
+			t = object_desc_str(t, !(mode & 8) ? " turns of light)" : "t)");
+		}
 	}
 
 	if (!(mode & 32)) {
@@ -3010,7 +3127,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 					} else if (k_ptr->flags5 & (TR5_CRIT)) t = object_desc_str(t, !(mode & 8) ? " critical hits" : "crt");
 					else if (k_ptr->flags1 & TR1_STEALTH) t = object_desc_str(t, !(mode & 8) ? " to stealth" : "stl");
 					else if (k_ptr->flags1 & TR1_SEARCH) t = object_desc_str(t, !(mode & 8) ? " to searching" : "srch");
-					else if (k_ptr->flags1 & TR1_INFRA) t = object_desc_str(t, !(mode & 8) ? " to infravision" : "infr");
+					else if (k_ptr->flags1 & TR1_INFRA) t = object_desc_str(t, !(mode & 8) ? " to infra-vision" : "infr");
 					else if (k_ptr->flags5 & TR5_LUCK) t = object_desc_str(t, !(mode & 8) ? " to luck" : "luck");
 					else if (k_ptr->flags1 & TR1_TUNNEL) {}
 				}
@@ -3073,7 +3190,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 				}
 				/* Infravision */
 				else if (f1 & TR1_INFRA) {
-					t = object_desc_str(t, !(mode & 8) ? " to infravision" : "infr");
+					t = object_desc_str(t, !(mode & 8) ? " to infra-vision" : "infr");
 				}
 				else if (f5 & TR5_LUCK) {
 					t = object_desc_str(t, !(mode & 8) ? " to luck" : "luck");
@@ -3119,10 +3236,21 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		t = object_desc_str(t, !(mode & 8) ? " (charging)" : "(#)");
 	}
 
+	/* Special case: Sacred Armour of Antiriad */
+	if (known && (o_ptr->name1 == ART_ANTIRIAD || o_ptr->name1 == ART_ANTIRIAD_DEPLETED)) {
+		t = object_desc_str(t, !(mode & 8) ? " (" : "(");
+#if 0
+		t = object_desc_lnum(t, o_ptr->timeout);
+		t = object_desc_str(t, !(mode & 8) ? " turns of energy)" : "t)"); /* 1 turn is ~ 1/2 s real-time */
+#else
+		t = object_desc_num(t, o_ptr->timeout);
+		t = object_desc_str(t, !(mode & 8) ? " hours of energy)" : "h)"); /* 1 real-time hour is ~ 2 turns, but in-game time runs at 20x speed, so 2 * 3600 / 20 = 360 turns of energy are 1 (in-game) hour of energy */
+#endif
+	}
 
 	/* No more details wanted */
 	if ((mode & 7) < 3) {
-		if (t - buf <= 65 || mode & 8) {
+		if (t - buf <= 65 || (mode & 8)) {
 			return;
 		} else {
 			object_desc(Ind, buf, o_ptr, pref, mode + 8);
@@ -3136,11 +3264,11 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 	/* Use the standard inscription if available */
 	if (o_ptr->note && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT)) {
-		char *u = tmp_val;
+		char *tmp_ptr = tmp_val;
 
 		strcpy(tmp_val, quark_str(o_ptr->note));
-		for (; *u && (*u != '#'); u++);
-		*u = '\0';
+		for (; *tmp_ptr && (*tmp_ptr != '#'); tmp_ptr++);
+		*tmp_ptr = '\0';
 	}
 
 	/* Note "cursed" if the item is known to be cursed */
@@ -3182,7 +3310,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 
 	/* This should always be true, but still.. */
 	if ((mode & 7) < 4) {
-		if (t - buf <= 65 || mode >= 8) {
+		if (t - buf <= 65 || (mode >= 8)) {
 			return;
 		} else {
 			object_desc(Ind, buf, o_ptr, pref, mode + 8);
@@ -3431,7 +3559,7 @@ cptr item_activation(object_type *o_ptr) {
 		//return("summon a dragonrider every 1000 turns");
 		return("banishing dragons (100..130) every 500..1000 turns");
 	case ART_PALANTIR_ITHIL:
-	case ART_PALANTIR:
+	case ART_PALANTIR_ORTHANC:
 		return("clairvoyance every 200..1000+d150 turns");
 #if 0
 	case ART_ROBINTON:
@@ -3446,14 +3574,14 @@ cptr item_activation(object_type *o_ptr) {
 	case ART_DRUEDAIN:
 		return("detection every 49..99 turns");
 	case ART_ROHAN:
-		return("heroism, berserker rage, haste every 100..250+d50 turns");
+		return("heroism, berserk rage, haste every 100..250+d50 turns");
 	case ART_HELM:
 		return("a sound ball (300..600) every 300 turns");
 	case ART_BOROMIR:
 		return("mass human summoning every 500..1000 turns");
 
 	case ART_HURIN:
-		return("berserker rage and +10 to speed (50) every 75..175+d75 turns");
+		return("berserk rage and +10 to speed (50) every 75..175+d75 turns");
 	case ART_AXE_GOTHMOG:
 		return("a fire ball (300..600) every 50..200+d200 turns");
 	case ART_MELKOR:
@@ -3483,15 +3611,19 @@ cptr item_activation(object_type *o_ptr) {
 	case ART_LEBOHAUM:
 		return("singing a cheerful song every 30 turns");
 	case ART_HAVOC:
-		return("invoking a force bolt (8..24d8) every 1+d2 turns");
+		return("invoking a force bolt (8..24d8) every d2 turns");
 	case ART_SMASHER:
 		return("destroying doors every 10..15+d3 turns");
+	case ART_COBALTFOCUS:
+		return("mirage mirror for 30+d10 turns every 30..80+d10 turns");
 	case ART_FIST:
 		return("hellfire brand every 150..350+d50 turns");
 	case ART_WARPSPEAR:
 		return("teleport-to every 15..40+d5 turns");
 	case ART_SEVENLEAGUE:
 		return("teleportation every 5..15 turns");
+	case ART_ANTIRIAD:
+		return("fire a plasma bolt (50..65d20) every 2 turns");
 
 #if 0 /* no, eg randart serpent amulet should retain basic activation! */
 	/* For the moment ignore (non-ego) randarts */
@@ -3505,7 +3637,7 @@ cptr item_activation(object_type *o_ptr) {
 	if (is_ego_p(o_ptr, EGO_DRAGON))
 		return("teleportation every 25..50+d50 turns");
 	if (is_ego_p(o_ptr, EGO_JUMP))
-		return("phase jump every 5..15+d10 turns");
+		return("phase jump every 4..13+d3 turns");
 	if (is_ego_p(o_ptr, EGO_SPINNING))
 		return("spinning around every 15..50+d25 turns");
 	if (is_ego_p(o_ptr, EGO_FURY))
@@ -3651,6 +3783,14 @@ cptr item_activation(object_type *o_ptr) {
 	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_GLASS_SHARD)
 		return("altering a death fate");
 
+	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_ENERGY_CELL)
+		return("delivering a full energy recharge");
+
+	if (o_ptr->tval == TV_JUNK && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+		return("wrapping a present");
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+		return("Opening the present");
+
 #if 0
 	if (o_ptr->tval == TV_PARCHMENT && o_ptr->sval == SV_PARCHMENT_DEATH)
 		return("Spiritual recall");
@@ -3691,23 +3831,104 @@ cptr item_activation(object_type *o_ptr) {
 	return(NULL);
 }
 
+/*
+ * Compute the probability (as a fraction of denominator die)
+ * that a die roll of d(die) + bonus will have a result
+ * less than target. This is trivial, but exists in analogy
+ * with the much more involved two_dice_cdf below.
+ */
+static long one_die_cdf(int die, int bonus, int target) {
+	if (target <= bonus + 1) return(0);
+	if (target <= die + bonus) return((target - bonus - 1));
+	return(die);
+}
 
 /*
- * Display the damage done with a multiplier
+ * Compute the probability (as a fraction of denominator die1 * die2)
+ * that a die roll of d(die1) + d(die2) + bonus will have a result
+ * less than target.
+ */
+static long two_dice_cdf(int die1, int die2, int bonus, int target) {
+	if (die1 < die2) { // Swap to guarantee that die1 > die2 without requiring it of the user of the function.
+		int temp = die2;
+
+		die2 = die1;
+		die1 = temp;
+	}
+	if (target <= bonus + 2) return(0);
+	if (target <= die2 + bonus + 1) return((long)(target - bonus - 2) * (target - bonus - 1) / 2);
+	if (target <= die1 + bonus + 1)
+		return ((long)(target - die2 - bonus - 1) * die2 + (long)(die2 - 1) * die2 / 2);
+	if (target <= die1 + die2 + bonus)
+		return((long) die1 * die2 - (long) (die1 + die2 + bonus - target + 1) * (die1 + die2 + bonus - target + 2) / 2);
+	return((long) die1 * die2);
+}
+
+/*
+ * Compute the expected damage value of a melee critical hit,
+ * given base damage and some other relevant parameters.
+ * Bonus is equal to weapon weight + a quantity depending on +crits.
+ * Crit die size is 0 if the player cannot use their weapon in a way
+ * that utilizes the critical hits skill, and scales with that skill
+ * up to 900 otherwise.
+ * See also cmd1's critical_melee and py_attack_mon for more information.
+ */
+static int melee_crit_dam(int dam, int bonus, int crit_die) {
+	long denominator = crit_die ? (700L * crit_die) : 700L; // This can in principle exceed 2^15, so it should be long.
+	long great_chance = denominator - (crit_die ? two_dice_cdf(700, crit_die, bonus, 400) : one_die_cdf(700, bonus, 400));
+	long superb_chance = denominator - (crit_die ? two_dice_cdf(700, crit_die, bonus, 700) : one_die_cdf(700, bonus, 700));
+	long greater_chance = denominator - (crit_die ? two_dice_cdf(700, crit_die, bonus, 900) : one_die_cdf(700, bonus, 900));
+	long superber_chance = denominator - (crit_die ? two_dice_cdf(700, crit_die, bonus, 1300) : one_die_cdf(700, bonus, 1300));
+
+	// Checked the math for the largest possible values of damage and crit die,
+	// and we get uncomfortably close to the 32-bit max value, so I'm playing it safe.
+	u64b crit_dam = (u64b) denominator * (4 * dam + 15);
+
+
+	crit_dam += (u64b) great_chance * (dam + 15);
+	crit_dam += (u64b) superb_chance * (dam + 15);
+	crit_dam += (u64b) greater_chance * (dam + 15);
+	crit_dam += (u64b) superber_chance * (dam + 15);
+	crit_dam /= (3 * denominator);
+
+	return((int) crit_dam);
+}
+
+/*
+ * Display the melee damage done with a multiplier
  */
 //void output_dam(object_type *o_ptr, int mult, int mult2, cptr against, cptr against2, bool *first)
 static void output_dam(int Ind, FILE *fff, object_type *o_ptr, int mult, int mult2, int bonus, int bonus2, cptr against, cptr against2) {
 	player_type *p_ptr = Players[Ind];
 	int dam;
 
+	bool allow_skill_crit = rogue_armed_melee(o_ptr, p_ptr);
+	int plus_crit = p_ptr->xtra_crit + calc_crit_obj(o_ptr);
+	int w = (o_ptr->weight > 100) ? 10 : ((o_ptr->weight < 10) ? 10 : (110 - o_ptr->weight));
+	int critical_chance = 2 * w + // Chance out of 5000.
+		5 * (p_ptr->to_h + p_ptr->to_h_melee + o_ptr->to_h) +
+		get_skill_scale(p_ptr, SKILL_MASTERY, 150) +
+		50 * BOOST_CRIT(plus_crit) +
+		(allow_skill_crit ? get_skill_scale(p_ptr, SKILL_CRITS, 2000) : 0);
+	int crit_flat_bonus = o_ptr->weight +
+		500 - (10000 / (BOOST_CRIT(p_ptr->xtra_crit) + 20));
+	int scaled_crit_skill = get_skill_scale(p_ptr, SKILL_CRITS, 900);
+	int crit_die_size = scaled_crit_skill ? scaled_crit_skill : 1; //randint(0)=1
+	long critical_damage;
+
+
 	dam = ((o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5L * mult) / FACTOR_MULT;
 	dam += (o_ptr->to_d + p_ptr->to_d + p_ptr->to_d_melee + bonus) * 10;
 	dam *= p_ptr->num_blow;
+
+	// expected damage IF it crits
+	critical_damage = melee_crit_dam(dam, crit_flat_bonus, allow_skill_crit ? crit_die_size : 0);
+	// expected damage factoring in crits
+	dam = (((long) critical_chance) * critical_damage + (5000L - critical_chance) * dam) / 5000;
+
 	if (dam > 0) {
-		if (dam % 10)
-			fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-		else
-			fprintf(fff, "    %d", dam / 10);
+		if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+		else fprintf(fff, "    %d", dam / 10);
 	} else fprintf(fff, "    0");
 	fprintf(fff, " against %s", against);
 
@@ -3716,17 +3937,25 @@ static void output_dam(int Ind, FILE *fff, object_type *o_ptr, int mult, int mul
 		dam = ((o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5L * mult2) / FACTOR_MULT;
 		dam += (o_ptr->to_d + p_ptr->to_d + p_ptr->to_d_melee + bonus2) * 10;
 		dam *= p_ptr->num_blow;
+
+		// expected damage IF it crits
+		critical_damage = melee_crit_dam(dam, crit_flat_bonus, allow_skill_crit ? crit_die_size : 0);
+		// expected damage factoring in crits
+		dam = (((long) critical_chance) * critical_damage + (5000L - critical_chance) * dam) / 5000;
+
 		if (dam > 0) {
-			if (dam % 10)
-				fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-			else
-				fprintf(fff, "    %d", dam / 10);
+			if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+			else fprintf(fff, "    %d", dam / 10);
 		} else fprintf(fff, "    0");
 		fprintf(fff, " against %s", against2);
 	}
 	fprintf(fff, "\n");
 }
 
+/* For displaying expected weapon damage prognosis on weapon inspection:
+   Add player's own current slay flags to the weapon's, so we really get the damage we "would have"?
+   Currently still missing monster brands/aura brands.		- C. Blue*/
+#define DISPLAY_DAMAGE_INTRINSIC_SLAYS
 
 /* XXX this ignores the chance of extra dmg via 'critical hit' */
 static void display_weapon_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f1) {
@@ -3743,6 +3972,7 @@ static void display_weapon_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f
 	   to get! We can just take care of forced cases which are..
 	   - unequipping a shield or secondary weapon if weapon is MUST2H here.
 	   - unequipping a secondary weapon if weapon is weapon is SHOULD2H - C. Blue */
+
 
 	/* Ok now the hackish stuff, we replace the current weapon with this one */
 	/* XXX this hack can be even worse under TomeNET, dunno :p */
@@ -3771,7 +4001,7 @@ static void display_weapon_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f
 //	if (p_ptr->heavy_wield) fprintf(fff, "\377rThis weapon is currently too heavy for you to use effectively:\377w\n");
 #if 0 /* don't colour the # of bpr */
 	fprintf(fff, "\377sUsing it you would have \377W%d\377s blow%s and do an average damage per round of:\n", p_ptr->num_blow, (p_ptr->num_blow > 1) ? "s" : "");
-#else /* colour the # of bpr -- compare with prt_bpr() */
+#else /* colour the # of bpr -- compare with prt_bpr_wraith() */
 	{
 		byte attr = TERM_L_GREEN;//TERM_L_WHITE;
 
@@ -3810,12 +4040,16 @@ static void display_weapon_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f
 	}
 #endif
 
-	if (instakills(Ind)) {
+	if (p_ptr->instakills) {
 		/* Admin */
-
-		fprintf(fff, "    \377Uoo\377w against all monsters\n");
+		fprintf(fff, "    \377%coo\377w against all monsters\n", p_ptr->instakills == 2 ? '6' : 'U');
 	} else {
 		/* Normal */
+
+#ifdef DISPLAY_DAMAGE_INTRINSIC_SLAYS
+		/* add player's own current slay flags to the weapon's, so we really get the damage we "would have"... */
+		f1 |= p_ptr->slay | p_ptr->slay_equip | p_ptr->slay_melee; // TODO: Add monster brands and aura brands! And maybe temp-melee-weapon brands from enchantment spells.
+#endif
 
 		if (f1 & TR1_SLAY_ANIMAL) output_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "animals", NULL);
 		if (f1 & TR1_SLAY_EVIL) output_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "evil creatures", NULL);
@@ -3853,17 +4087,61 @@ static void display_weapon_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f
 	suppress_boni = FALSE;
 }
 
+/*
+ * Compute the expected damage value of a ranged critical hit,
+ * given base damage and some other relevant parameters.
+ * Bonus is equal to ammo weight + 2 * archery skill.
+ * Crit die size follows a formula that has doubly diminishing returns with xtra_crit:
+ * 600 - (12000 / (BOOST_CRIT(p_ptr->xtra_crit) + 20))
+ * See also cmd1's critical_shot and cmd2's do_cmd_fire for more information.
+ */
+static int ranged_crit_dam(int dam, int bonus, int crit_die) {
+	long denominator = 700L * crit_die; // This can in principle exceed 2^15, so it should be long.
+	long great_chance = denominator - two_dice_cdf(700, crit_die, bonus, 350);
+	long superb_chance = denominator - two_dice_cdf(700, crit_die, bonus, 650);
+	long greater_chance = denominator - two_dice_cdf(700, crit_die, bonus, 900);
+	long superber_chance = denominator - two_dice_cdf(700, crit_die, bonus, 1100);
+
+	// Checked the math for the largest possible values of damage and crit die,
+	// and we get uncomfortably close to the 32-bit max value, so I'm playing it safe.
+	u64b crit_dam = (u64b) denominator * (4 * dam + 15);
+
+
+	crit_dam += (u64b) great_chance * (dam + 15);
+	crit_dam += (u64b) superb_chance * dam;
+	crit_dam += (u64b) greater_chance * dam;
+	crit_dam += (u64b) superber_chance * (dam + 15);
+	crit_dam /= (3 * denominator);
+
+	return((int) crit_dam);
+}
+
 static void output_boomerang_dam(int Ind, FILE *fff, object_type *o_ptr, int mult, int mult2, int bonus, int bonus2, cptr against, cptr against2) {
 	player_type *p_ptr = Players[Ind];
 	int dam;
 
+	int critical_chance = o_ptr->weight + // Chance out of 3500.
+		5 * (p_ptr->to_h + p_ptr->to_h_ranged + o_ptr->to_h) +
+		50 * BOOST_CRIT(p_ptr->xtra_crit);
+	int crit_flat_bonus = o_ptr->weight;
+	int crit_die_size = 600 - (12000 / (BOOST_CRIT(p_ptr->xtra_crit) + 20));
+	long critical_damage;
+
 	dam = ((o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5L * mult) / FACTOR_MULT;
 	dam += (o_ptr->to_d + p_ptr->to_d_ranged + bonus) * 10;
+	dam = dam * (10 + p_ptr->xtra_might) / 10;
+
+#ifdef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
+	if (p_ptr->combat_stance == 1) dam /= 2;
+#endif
+	// expected damage IF it crits
+	critical_damage = ranged_crit_dam(dam, crit_flat_bonus, crit_die_size);
+	// expected damage factoring in crits
+	dam = (((long) critical_chance) * critical_damage + (3500L - critical_chance) * dam) / 3500;
+
 	if (dam > 0) {
-		if (dam % 10)
-			fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-		else
-			fprintf(fff, "    %d", dam / 10);
+		if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+		else fprintf(fff, "    %d", dam / 10);
 	} else fprintf(fff, "    0");
 	fprintf(fff, " against %s", against);
 
@@ -3871,13 +4149,20 @@ static void output_boomerang_dam(int Ind, FILE *fff, object_type *o_ptr, int mul
 		fprintf(fff, "\n");
 		dam = ((o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5L * mult2) / FACTOR_MULT;
 		dam += (o_ptr->to_d + p_ptr->to_d_ranged + bonus2) * 10;
+		dam = dam * (10 + p_ptr->xtra_might) / 10;
+
+#ifdef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
+		if (p_ptr->combat_stance == 1) dam /= 2;
+#endif
+		// expected damage IF it crits
+		critical_damage = ranged_crit_dam(dam, crit_flat_bonus, crit_die_size);
+		// expected damage factoring in crits
+		dam = (((long) critical_chance) * critical_damage + (3500L - critical_chance) * dam) / 3500;
+
 		if (dam > 0) {
-			if (dam % 10)
-				fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-			else
-				fprintf(fff, "    %d", dam / 10);
-		} else
-			fprintf(fff, "    0");
+			if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+			else fprintf(fff, "    %d", dam / 10);
+		} else fprintf(fff, "    0");
 		fprintf(fff, " against %s", against2);
 	}
 	fprintf(fff, "\n");
@@ -3890,6 +4175,7 @@ static void display_boomerang_damage(int Ind, object_type *o_ptr, FILE *fff, u32
 
 	/* save timed effects that might be changed on weapon switching - C. Blue */
 	long tim_wraith = p_ptr->tim_wraith;
+
 
 	/* this stuff doesn't take into account dual-wield or shield(lessness) directly,
 	   but the player actually has to take care of unequipping/reequipping his
@@ -3912,6 +4198,11 @@ static void display_boomerang_damage(int Ind, object_type *o_ptr, FILE *fff, u32
 //	/* give weight warning, so player won't buy something he can't use. (todo: for shields and bows too) */
 //	if (p_ptr->heavy_wield) fprintf(fff, "\377rThis weapon is currently too heavy for you to use effectively:\377w\n");
 	fprintf(fff, "\377sUsing it you would have %d throw%s and do an average damage per throw of:\n", p_ptr->num_fire, (p_ptr->num_fire > 1) ? "s" : "");
+
+#ifdef DISPLAY_DAMAGE_INTRINSIC_SLAYS
+	/* add player's own current slay flags to the weapon's, so we really get the damage we "would have"... */
+	f1 |= p_ptr->slay | p_ptr->slay_equip; // TODO maybe: Add monster brands and aura brands, if applicable to ranged weapons
+#endif
 
 	if (f1 & TR1_SLAY_ANIMAL) output_boomerang_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "animals", NULL);
 	if (f1 & TR1_SLAY_EVIL) output_boomerang_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "evil creatures", NULL);
@@ -3950,42 +4241,65 @@ static void display_boomerang_damage(int Ind, object_type *o_ptr, FILE *fff, u32
  * Display the ammo damage done with a multiplier
  */
 //void output_ammo_dam(object_type *o_ptr, int mult, int mult2, cptr against, cptr against2, bool *first)
-static void output_ammo_dam(int Ind, FILE *fff, object_type *o_ptr, int mult, int mult2, cptr against, cptr against2) {
+static void output_ammo_dam(int Ind, FILE *fff, object_type *o_ptr, int mult, int mult2, int bonus, int bonus2, cptr against, cptr against2) {
 	player_type *p_ptr = Players[Ind];
 	int dam;
 	object_type *b_ptr = &p_ptr->inventory[INVEN_BOW];
 	int tmul = get_shooter_mult(b_ptr) + p_ptr->xtra_might;
 
+	int critical_chance = o_ptr->weight + // Chance out of 3500.
+		5 * (p_ptr->to_h + p_ptr->to_h_ranged + o_ptr->to_h) +
+		get_skill_scale(p_ptr, SKILL_ARCHERY, 150) +
+		50 * BOOST_CRIT(p_ptr->xtra_crit);
+	int crit_flat_bonus = o_ptr->weight + get_skill_scale(p_ptr, SKILL_ARCHERY, 100);
+	int crit_die_size = 600 - (12000 / (BOOST_CRIT(p_ptr->xtra_crit) + 20));
+	long critical_damage;
+
 	dam = (o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5;
+	dam *= FACTOR_MULT + ((mult - FACTOR_MULT) * 2) / 5;
+	dam /= FACTOR_MULT;
+	dam += (bonus / 2) * 10;
 	dam += (o_ptr->to_d + b_ptr->to_d) * 10;
 	dam += (p_ptr->to_d_ranged) * 10;
 	dam *= tmul;
-	dam *= FACTOR_MULT + ((mult - FACTOR_MULT) * 2) / 5;
-	dam /= FACTOR_MULT;
+
+
+#ifdef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
+	if (p_ptr->combat_stance == 1) dam /= 2;
+#endif
+	// expected damage IF it crits
+	critical_damage = ranged_crit_dam(dam, crit_flat_bonus, crit_die_size);
+	// expected damage factoring in crits
+	dam = (((long) critical_chance) * critical_damage + (3500L - critical_chance) * dam) / 3500;
+
 	if (dam > 0) {
-		if (dam % 10)
-			fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-		else
-			fprintf(fff, "    %d", dam / 10);
+		if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+		else fprintf(fff, "    %d", dam / 10);
 	} else fprintf(fff, "    0");
 	fprintf(fff, " against %s", against);
 
 	if (mult2) {
 		fprintf(fff, "\n");
 		dam = (o_ptr->dd + (o_ptr->dd * o_ptr->ds)) * 5;
-		dam += (o_ptr->to_d + b_ptr->to_d) * 10;
-		dam *= tmul;
-		dam += (p_ptr->to_d_ranged) * 10;
 		dam *= FACTOR_MULT + ((mult2 - FACTOR_MULT) * 2) / 5;
 		dam /= FACTOR_MULT;
+		dam += (bonus2 / 2) * 10;
+		dam += (o_ptr->to_d + b_ptr->to_d) * 10;
+		dam += (p_ptr->to_d_ranged) * 10;
+		dam *= tmul;
+
+#ifdef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
+		if (p_ptr->combat_stance == 1) dam /= 2;
+#endif
+		// expected damage IF it crits
+		critical_damage = ranged_crit_dam(dam, crit_flat_bonus, crit_die_size);
+		// expected damage factoring in crits
+		dam = (((long) critical_chance) * critical_damage + (3500L - critical_chance) * dam) / 3500;
+
 		if (dam > 0) {
-			if (dam % 10)
-				fprintf(fff, "    %d.%d", dam / 10, dam % 10);
-			else
-				fprintf(fff, "    %d", dam / 10);
-		}
-		else
-			fprintf(fff, "    0");
+			if (dam % 10) fprintf(fff, "    %d.%d", dam / 10, dam % 10);
+			else fprintf(fff, "    %d", dam / 10);
+		} else fprintf(fff, "    0");
 		fprintf(fff, " against %s", against2);
 	}
 	fprintf(fff, "\n");
@@ -4003,6 +4317,7 @@ static void display_ammo_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f1,
 
 	/* save timed effects that might be changed on ammo switching - C. Blue */
 	long tim_wraith = p_ptr->tim_wraith;
+
 
 	switch (o_ptr->tval) {
 	case TV_SHOT:
@@ -4034,39 +4349,42 @@ static void display_ammo_damage(int Ind, object_type *o_ptr, FILE *fff, u32b f1,
 	suppress_boni = TRUE;
 	calc_boni(Ind);
 
+#ifdef DISPLAY_DAMAGE_INTRINSIC_SLAYS
+	/* add player's own current slay flags to the weapon's, so we really get the damage we "would have"... */
+	f1 |= p_ptr->slay | p_ptr->slay_equip; // TODO maybe: Add monster brands and aura brands, if applicable to ranged weapons
+#endif
+
 	/* combine slay flags of ammo and bow */
 	f1 |= bow_f1;
 
 	fprintf(fff, "\n\377sUsing it with your current shooter you would do an average damage per shot of:\n");
-	if (f1 & TR1_SLAY_ANIMAL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, "animals", NULL);
-	if (f1 & TR1_SLAY_EVIL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, "evil creatures", NULL);
-	if (f1 & TR1_SLAY_ORC) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "orcs", NULL);
-	if (f1 & TR1_SLAY_TROLL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "trolls", NULL);
-	if (f1 & TR1_SLAY_GIANT) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "giants", NULL);
-	if (f1 & TR1_KILL_DRAGON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, "dragons", NULL);
-	else if (f1 & TR1_SLAY_DRAGON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "dragons", NULL);
-	if (f1 & TR1_KILL_UNDEAD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, "undead", NULL);
-	else if (f1 & TR1_SLAY_UNDEAD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "undead", NULL);
-	if (f1 & TR1_KILL_DEMON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, "demons", NULL);
-	else if (f1 & TR1_SLAY_DEMON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, "demons", NULL);
+	if (f1 & TR1_SLAY_ANIMAL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "animals", NULL);
+	if (f1 & TR1_SLAY_EVIL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "evil creatures", NULL);
+	if (f1 & TR1_SLAY_ORC) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "orcs", NULL);
+	if (f1 & TR1_SLAY_TROLL) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "trolls", NULL);
+	if (f1 & TR1_SLAY_GIANT) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "giants", NULL);
+	if (f1 & TR1_KILL_DRAGON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "dragons", NULL);
+	else if (f1 & TR1_SLAY_DRAGON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "dragons", NULL);
+	if (f1 & TR1_KILL_UNDEAD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "undead", NULL);
+	else if (f1 & TR1_SLAY_UNDEAD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "undead", NULL);
+	if (f1 & TR1_KILL_DEMON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "demons", NULL);
+	else if (f1 & TR1_SLAY_DEMON) output_ammo_dam(Ind, fff, o_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "demons", NULL);
 
-	if (f1 & TR1_BRAND_FIRE) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non fire resistant creatures", "fire susceptible creatures");
-	if (f1 & TR1_BRAND_COLD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non cold resistant creatures", "cold susceptible creatures");
-	if (f1 & TR1_BRAND_ELEC) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non lightning resistant creatures", "lightning susceptible creatures");
-	if (f1 & TR1_BRAND_ACID) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non acid resistant creatures", "acid susceptible creatures");
-	if (f1 & TR1_BRAND_POIS) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non poison resistant creatures", "poison susceptible creatures");
+	if (f1 & TR1_BRAND_FIRE) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non fire resistant creatures", "fire susceptible creatures");
+	if (f1 & TR1_BRAND_COLD) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non cold resistant creatures", "cold susceptible creatures");
+	if (f1 & TR1_BRAND_ELEC) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non lightning resistant creatures", "lightning susceptible creatures");
+	if (f1 & TR1_BRAND_ACID) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non acid resistant creatures", "acid susceptible creatures");
+	if (f1 & TR1_BRAND_POIS) output_ammo_dam(Ind, fff, o_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non poison resistant creatures", "poison susceptible creatures");
 
-	output_ammo_dam(Ind, fff, o_ptr, FACTOR_MULT, 0, (first) ? "all monsters" : "other monsters", NULL);
+	output_ammo_dam(Ind, fff, o_ptr, FACTOR_MULT, 0, 0, 0, (first) ? "all monsters" : "other monsters", NULL);
 	fprintf(fff, "\n");
 
 #if 0
 	if (o_ptr->pval2) {
 		roff("The explosion will be ");
 		i = 0;
-		while (gf_names[i].gf != -1)
-		{
-			if (gf_names[i].gf == o_ptr->pval2)
-				break;
+		while (gf_names[i].gf != -1) {
+			if (gf_names[i].gf == o_ptr->pval2) break;
 			i++;
 		}
 		c_roff(TERM_L_GREEN, (gf_names[i].gf != -1) ? gf_names[i].name : "something weird");
@@ -4094,6 +4412,7 @@ static void display_shooter_damage(int Ind, object_type *o_ptr, FILE *fff, u32b 
 
 	/* save timed effects that might be changed on ammo switching - C. Blue */
 	long tim_wraith = p_ptr->tim_wraith;
+
 
 	switch (o_ptr->sval) {
 	case SV_SLING:
@@ -4127,29 +4446,34 @@ static void display_shooter_damage(int Ind, object_type *o_ptr, FILE *fff, u32b 
 	suppress_boni = TRUE;
 	calc_boni(Ind);
 
+#ifdef DISPLAY_DAMAGE_INTRINSIC_SLAYS
+	/* add player's own current slay flags to the weapon's, so we really get the damage we "would have"... */
+	f1 |= p_ptr->slay | p_ptr->slay_equip; // TODO maybe: Add monster brands and aura brands, if applicable to ranged weapons
+#endif
+
 	/* combine slay flags of ammo and bow */
 	f1 |= ammo_f1;
 
 	fprintf(fff, "\n\377sUsing it with your ammo you would have %d shot%s and do an average damage of:\n", p_ptr->num_fire, (p_ptr->num_fire > 1) ? "s" : "");
-	if (f1 & TR1_SLAY_ANIMAL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_HURT, 0, "animals", NULL);
-	if (f1 & TR1_SLAY_EVIL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_HURT, 0, "evil creatures", NULL);
-	if (f1 & TR1_SLAY_ORC) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "orcs", NULL);
-	if (f1 & TR1_SLAY_TROLL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "trolls", NULL);
-	if (f1 & TR1_SLAY_GIANT) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "giants", NULL);
-	if (f1 & TR1_KILL_DRAGON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, "dragons", NULL);
-	else if (f1 & TR1_SLAY_DRAGON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "dragons", NULL);
-	if (f1 & TR1_KILL_UNDEAD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, "undead", NULL);
-	else if (f1 & TR1_SLAY_UNDEAD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "undead", NULL);
-	if (f1 & TR1_KILL_DEMON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, "demons", NULL);
-	else if (f1 & TR1_SLAY_DEMON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, "demons", NULL);
+	if (f1 & TR1_SLAY_ANIMAL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "animals", NULL);
+	if (f1 & TR1_SLAY_EVIL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_HURT, 0, FLAT_HURT_BONUS, 0, "evil creatures", NULL);
+	if (f1 & TR1_SLAY_ORC) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "orcs", NULL);
+	if (f1 & TR1_SLAY_TROLL) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "trolls", NULL);
+	if (f1 & TR1_SLAY_GIANT) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "giants", NULL);
+	if (f1 & TR1_KILL_DRAGON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "dragons", NULL);
+	else if (f1 & TR1_SLAY_DRAGON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "dragons", NULL);
+	if (f1 & TR1_KILL_UNDEAD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "undead", NULL);
+	else if (f1 & TR1_SLAY_UNDEAD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "undead", NULL);
+	if (f1 & TR1_KILL_DEMON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_KILL, 0, FLAT_KILL_BONUS, 0, "demons", NULL);
+	else if (f1 & TR1_SLAY_DEMON) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_SLAY, 0, FLAT_SLAY_BONUS, 0, "demons", NULL);
 
-	if (f1 & TR1_BRAND_FIRE) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non fire resistant creatures", "fire susceptible creatures");
-	if (f1 & TR1_BRAND_COLD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non cold resistant creatures", "cold susceptible creatures");
-	if (f1 & TR1_BRAND_ELEC) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non lightning resistant creatures", "lightning susceptible creatures");
-	if (f1 & TR1_BRAND_ACID) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non acid resistant creatures", "acid susceptible creatures");
-	if (f1 & TR1_BRAND_POIS) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, "non poison resistant creatures", "poison susceptible creatures");
+	if (f1 & TR1_BRAND_FIRE) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non fire resistant creatures", "fire susceptible creatures");
+	if (f1 & TR1_BRAND_COLD) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non cold resistant creatures", "cold susceptible creatures");
+	if (f1 & TR1_BRAND_ELEC) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non lightning resistant creatures", "lightning susceptible creatures");
+	if (f1 & TR1_BRAND_ACID) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non acid resistant creatures", "acid susceptible creatures");
+	if (f1 & TR1_BRAND_POIS) output_ammo_dam(Ind, fff, oa_ptr, FACTOR_BRAND, FACTOR_BRAND_SUSC, FLAT_BRAND_BONUS, FLAT_BRAND_BONUS, "non poison resistant creatures", "poison susceptible creatures");
 
-	output_ammo_dam(Ind, fff, oa_ptr, FACTOR_MULT, 0, (first) ? "all monsters" : "other monsters", NULL);
+	output_ammo_dam(Ind, fff, oa_ptr, FACTOR_MULT, 0, 0, 0, (first) ? "all monsters" : "other monsters", NULL);
 	fprintf(fff, "\n");
 
 #if 0
@@ -4196,6 +4520,7 @@ static void display_armour_handling(int Ind, object_type *o_ptr, FILE *fff, int 
 
 	/* save timed effects that might be changed on weapon switching */
 	long tim_wraith = p_ptr->tim_wraith;
+
 
 	if (!Ind_target) Ind_target = Ind;
 	slot = wield_slot(Ind, o_ptr); /* slot the item goes into */
@@ -4327,6 +4652,7 @@ static void display_weapon_handling(int Ind, object_type *o_ptr, FILE *fff, int 
 	/* save timed effects that might be changed on weapon switching */
 	long tim_wraith = p_ptr->tim_wraith;
 
+
 	if (!Ind_target) Ind_target = Ind;
 
 	/* since his mana or HP might get changed or even nulled, backup player too! */
@@ -4376,7 +4702,7 @@ static void display_weapon_handling(int Ind, object_type *o_ptr, FILE *fff, int 
 			if (k_info[o_ptr->k_idx].flags4 & TR4_COULD2H) fprintf(fff, "\377r    Wielding it two-handedly might make it even more effective.\n");
 			if (p_ptr->heavy_wield && !old_heavy_wield) fprintf(fff, "\377r    Your strength is insufficient to hold it properly.\n");
 			if (p_ptr->icky_wield && !old_icky_wield) {
-				if (p_ptr->bless_blade && (
+				if (p_ptr->blessed_weapon && (
 				    p_ptr->prace == RACE_VAMPIRE
 				    || p_ptr->ptrait == TRAIT_CORRUPTED
 #ifdef ENABLE_CPRIEST
@@ -4464,6 +4790,7 @@ static void display_shooter_handling(int Ind, object_type *o_ptr, FILE *fff, int
 	/* save timed effects that might be changed on weapon switching */
 	long tim_wraith = p_ptr->tim_wraith;
 
+
 	if (!Ind_target) Ind_target = Ind;
 
 	/* since his mana or HP might get changed or even nulled, backup player too! */
@@ -4532,6 +4859,7 @@ static void display_tool_handling(int Ind, object_type *o_ptr, FILE *fff, int In
 
 	/* save timed effects that might be changed on weapon switching */
 	long tim_wraith = p_ptr->tim_wraith;
+
 
 	if (!Ind_target) Ind_target = Ind;
 
@@ -4688,16 +5016,19 @@ void observe_aux(int Ind, object_type *o_ptr) {
 	msg_format(Ind, "\377s%s:", o_name);
 	// ?	if (strlen(o_name) > 77) msg_format(Ind, "\377s%s:", o_name + 77);
 
+	if (o_ptr->tval == TV_SPECIAL && (o_ptr->sval == SV_SEAL || o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)) {
+		msg_print(Ind, "\377s  You have no special knowledge about that item.");
+		return;
+	}
+
 	/* Sigil */
 	if (o_ptr->sigil) msg_format(Ind, "\377B  It is emblazoned with a sigil of %s.", string_exec_lua(0, format("return rcraft_name(%d)", o_ptr->sigil)));
 
  #ifdef ENABLE_DEMOLITIONIST
 	if (o_ptr->tval == TV_CHARGE) msg_format(Ind, "\377s  Its default fuse length will burn down in %d seconds.", o_ptr->pval);
  #endif
- #ifdef ENABLE_SUBINVEN
-  #ifdef SUBINVEN_LIMIT_GROUP
+ #ifdef SUBINVEN_LIMIT_GROUP
 	if (o_ptr->tval == TV_SUBINVEN) msg_format(Ind, "\377s  You cannot use more than one of this type of container.");
-  #endif
  #endif
 	switch (o_ptr->tval) {
 	case TV_BLUNT:
@@ -4799,7 +5130,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	object_type forge;
 	bool am_unknown = FALSE;
 #endif
-	int j, am;
+	int j, k, am;
 	u32b f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5 = 0, f6 = 0, esp = 0;
 	FILE *fff;
 	char buf[1024], o_name[ONAME_LEN];
@@ -4818,6 +5149,29 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	/* Let the player scroll through this info */
 	p_ptr->special_file_type = TRUE;
 
+	/* Admins can peek inside gifts */
+	if (is_admin(p_ptr) && o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) {
+		object_desc(0, o_name, o_ptr, TRUE, 3);
+		fprintf(fff, "%s\n", o_name);
+#ifdef KIND_DIZ
+		fprintf(fff, "%s", k_text + k_info[o_ptr->k_idx].text);
+#endif
+
+		object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
+		if (f3 & TR3_ACTIVATE) {
+			/* TODO maybe: Some of the strings in item_activation() are rendered via format() and hence not constant! Might need free'ing! */
+			cptr activation = item_activation(o_ptr);
+
+			if (!activation) fprintf(fff, "It can be activated.\n");
+			else fprintf(fff, "It can be activated for...\n %s.\n", activation);
+		}
+		f1 = f2 = f3 = f4 = f5 = f6 = esp = 0x0;
+
+		fprintf(fff, "\nIt contains:\n\n");
+		/* Let o_ptr point to a new, static object that is a clone of the gift contents */
+		peek_gift(o_ptr, &o_ptr);
+		slot = -1; /* Not directly located inside our inventory/equipment */
+	}
 
 #ifdef NEW_ID_SCREEN
 	/* ---------------------------- determine degree of knowledge ------------------------------- */
@@ -4975,6 +5329,8 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 #ifdef PLAYER_STORES
 	if (pt_ptr->store_num <= -2 && o_ptr->note) player_stores_cut_inscription(o_name);
+
+	/* Hack for cheques - display special name and info instead */
 	if (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE) {
 		fprintf(fff, "\377sIt's a cheque worth \377y%d\377s gold pieces.\n", ps_get_cheque_value(o_ptr));
  #ifdef KIND_DIZ
@@ -4995,6 +5351,33 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	}
 #endif
 
+	/* Hack for seals and wrapped gifts */
+	if (o_ptr->tval == TV_SPECIAL && (o_ptr->sval == SV_SEAL || (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END))) {
+		fprintf(fff, "%s\n", o_name);
+ #ifdef KIND_DIZ
+		fprintf(fff, "%s", k_text + k_info[o_ptr->k_idx].text);
+ #endif
+
+		if (f3 & TR3_ACTIVATE) {
+			/* TODO maybe: Some of the strings in item_activation() are rendered via format() and hence not constant! Might need free'ing! */
+			cptr activation = item_activation(o_ptr);
+
+			if (!activation) {
+				/* Mysterious message for items missing description (eg. golem command scrolls) - mikaelh */
+				if (wearable_p(o_ptr)) fprintf(fff, "When equipped, it can be activated.\n");
+				else fprintf(fff, "It can be activated.\n");
+			} else {
+				if (wearable_p(o_ptr)) fprintf(fff, "When equipped, it can be activated for...\n");
+				else fprintf(fff, "It can be activated for...\n");
+				fprintf(fff, " %s.\n", activation);
+			}
+		}
+		my_fclose(fff);
+		Send_special_other(Ind);
+		return(TRUE);
+	}
+
+	/* Start with the object's name in the first line of the item description */
 	if (strlen(o_name) > 79) {
 		strncpy(buf_tmp, o_name, 79);
 		buf_tmp[79] = 0;
@@ -5019,6 +5402,11 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	if (aware)
  #endif
 	{
+		/* Custom objects can emulate a k-diz via LUA function */
+		if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra5)
+			fprintf(fff, "%s", string_exec_lua(0, format("return custom_object_diz(%d)", o_ptr->xtra5)));
+		else
+
 		if (k_info[o_ptr->k_idx].text)
 			fprintf(fff, "%s", k_text + k_info[o_ptr->k_idx].text);
  #ifdef EGO_DIZ
@@ -5030,10 +5418,20 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	}
 #endif
 
-#ifdef ENABLE_SUBINVEN
- #ifdef SUBINVEN_LIMIT_GROUP
-	if (o_ptr->tval == TV_SUBINVEN) fprintf(fff, "\377WYou cannot use more than one of this type of container at a time.\n");
+#if STARTEQ_TREATMENT >= 2
+	if (o_ptr->mode & MODE_STARTER_ITEM) {
+ #if STARTEQ_TREATMENT == 3
+		/* Cannot sell any starter items, including own ones */
+		fprintf(fff, "\377sThis is a starter item and therefore cannot be sold to shops.\n");
+ #else
+		/* Prevent suicide-item-accumulation-cheeze, but allow selling own level 0 rewards (that weren't 100% discounted) */
+		if (o_ptr->owner != p_ptr->id) fprintf(fff, "\377sThis is a starter item. It can therefore only be sold by its owner.\n");
  #endif
+	}
+#endif
+
+#ifdef SUBINVEN_LIMIT_GROUP
+	if (o_ptr->tval == TV_SUBINVEN) fprintf(fff, "\377WYou cannot use more than one of this type of container at a time.\n");
 #endif
 
 	/* Questor object! */
@@ -5048,7 +5446,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 #ifdef NEW_ID_SCREEN
  #ifdef ENABLE_SUBINVEN
-	if (slot < 100)
+	if (slot < SUBINVEN_INVEN_MUL)
  #endif
 	/* Temporary brands -- kinda hacky that they use p_ptr instead of o_ptr.. */
 	if (pt_ptr->melee_brand && !pt_ptr->melee_brand_ma && is_melee_weapon(o_ptr->tval) && (slot == INVEN_WIELD || slot == INVEN_ARM))
@@ -5082,7 +5480,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 #endif
 
 	/* in case we just *ID* it because an admin inspected it */
-	if (!(o_ptr->ident & ID_MENTAL) && is_admin(p_ptr)
+	if (is_admin(p_ptr) && maybe_hidden_powers(0, o_ptr, FALSE)
 #ifdef NEW_ID_SCREEN
 	    && full
 #endif
@@ -5150,21 +5548,24 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	else if (f4 & TR4_MUST2H) fprintf(fff, "It must be wielded two-handed.\n");
 	else if (f4 & TR4_COULD2H) {
 		if (o_ptr->weight <= DUAL_MAX_WEIGHT)
-			fprintf(fff, "It can be wielded one-handed, two-handed or dual.\n");
+	fprintf(fff, "It can be wielded one-handed, two-handed or dual.\n");
 		else
-			fprintf(fff, "It can be wielded one-handed or two-handed.\n");
+	fprintf(fff, "It can be wielded one-handed or two-handed.\n");
 	}
 	else if (is_melee_weapon(o_ptr->tval) && o_ptr->weight <= DUAL_MAX_WEIGHT) fprintf(fff, "It can be wielded one-handed or dual.\n");
 	else if (is_melee_weapon(o_ptr->tval)) fprintf(fff, "It is wielded one-handed.\n");
 
 	if (is_throwing_weapon(o_ptr)) fprintf(fff, "It can be used as an effective throwing weapon.\n");
 
+#ifdef WEAPONS_NO_AC
+	/* Optional. Shields don't say block chance, weapons don't say to-hit/to-dam either. These are assumed to be understood. */
+	//if (id && is_melee_weapon(o_ptr->tval) && o_ptr->to_a) fprintf(fff, "It increases your chance to parry by %+d%%.\n", o_ptr->to_a);
+#endif
+
 	/* Kings/Queens only warning */
 	if (f5 & TR5_WINNERS_ONLY) fprintf(fff, "\377vIt is to be used by royalties exclusively.\377w\n");
 	/* Morgoth crown hardcoded note to give a warning!- C. Blue */
-	else if (o_ptr->name1 == ART_MORGOTH && full) {
-		fprintf(fff, "\377vIt may only be worn by kings and queens!\377w\n");
-	}
+	else if (o_ptr->name1 == ART_MORGOTH && full) fprintf(fff, "\377vIt may only be worn by kings and queens!\377w\n");
 
 	if (o_ptr->tval == TV_BOW) display_shooter_handling(Ind, &forge, fff, Ind_target);
 	else if (is_melee_weapon(o_ptr->tval)) display_weapon_handling(Ind, &forge, fff, Ind_target);
@@ -5239,8 +5640,14 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	    ) {
 #if 1 /* display breakage for ammo and trigger chance for magic devices even if not *id*ed? */
 		if (eff_full) {
-			if (wield_slot(0, o_ptr) == INVEN_AMMO)
-				fprintf(fff, "\377WIt has %d%% chances to break upon hit///.\n", breakage_chance(o_ptr));
+			if (wield_slot(0, o_ptr) == INVEN_AMMO) {
+				byte chance, permille, vowel;
+
+				chance = breakage_chance_with_skill(pt_ptr->Ind, o_ptr, &permille);
+				vowel = (chance == 8) || (chance == 11) || (chance == 18); /* 0 <= chance <= 20 */
+				if (permille == 0) fprintf(fff, "\377WIt has a%s %d%% chance to break upon hit///.\n", vowel ? "n" : "", chance);
+				else fprintf(fff, "\377WIt has a%s %d.%d%% chance to break upon hit///.\n", vowel ? "n" : "", chance, permille);
+			}
 
  #if 1 /* display trigger chance for magic devices? */
 			if ((is_magic_device(o_ptr->tval) || (f3 & TR3_ACTIVATE))
@@ -5251,7 +5658,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 				if (!get_skill(pt_ptr, SKILL_ANTIMAGIC)) {
 					byte chance, permille;
 
-					chance = activate_magic_device_chance(pt_ptr->Ind, o_ptr, &permille);
+					chance = activate_magic_device_chance(pt_ptr->Ind, o_ptr, &permille, is_magic_device(o_ptr->tval) && slot == INVEN_WIELD);
 					if (chance == 99) fprintf(fff, "\377WYou have a 99.%d%% chance to successfully activate this magic device.\n", permille);
 					else fprintf(fff, "\377WYou have a %d%% chance to successfully activate this magic device.\n", chance);
 				} else
@@ -5332,17 +5739,13 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		if (radius > LITE_CAP) radius = LITE_CAP; /* LITE_MAX ? */
 
 		//maybe todo: distinguish TR5_WHITE_LIGHT?
-		if (f4 & TR4_FUEL_LITE)
-			fprintf(fff, "It provides %slight (radius %d) when fueled.\n", (f5 & TR5_WHITE_LIGHT) ? "white " : "", radius);
-		else if (radius)
-			fprintf(fff, "It provides %slight (radius %d) forever.\n", (f5 & TR5_WHITE_LIGHT) ? "white " : "", radius);
-		else
-			fprintf(fff, "It never provides light.\n");
+		if (f4 & TR4_FUEL_LITE) fprintf(fff, "It provides %slight (radius %d) when fueled.\n", (f5 & TR5_WHITE_LIGHT) ? "white " : "", radius);
+		else if (radius) fprintf(fff, "It provides %slight (radius %d) forever.\n", (f5 & TR5_WHITE_LIGHT) ? "white " : "", radius);
+		else fprintf(fff, "It never provides light.\n");
 	}
 
 	/* Mega Hack^3 -- describe the Anchor of Space-time */
-	if (o_ptr->name1 == ART_ANCHOR && full)
-		fprintf(fff, "When activated prevents the space-time continuum from being disrupted.\n");
+	if (o_ptr->name1 == ART_ANCHOR && full) fprintf(fff, "When activated prevents the space-time continuum from being disrupted.\n");
 
 	am = ((f4 & (TR4_ANTIMAGIC_50)) ? 50 : 0)
 	    + ((f4 & (TR4_ANTIMAGIC_30)) ? 30 : 0)
@@ -5370,142 +5773,80 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 	/* And then describe it fully */
 
-	if (f1 & (TR1_LIFE))
-		fprintf(fff, "It affects your hit points%s.\n", o_ptr->name1 == ART_RANDART ? " \377v(royalties only)\377w" : "");
-	if (f1 & (TR1_STR))
-		fprintf(fff, "It affects your strength.\n");
-	if (f1 & (TR1_INT))
-		fprintf(fff, "It affects your intelligence.\n");
-	if (f1 & (TR1_WIS))
-		fprintf(fff, "It affects your wisdom.\n");
-	if (f1 & (TR1_DEX))
-		fprintf(fff, "It affects your dexterity.\n");
-	if (f1 & (TR1_CON))
-		fprintf(fff, "It affects your constitution.\n");
-	if (f1 & (TR1_CHR))
-		fprintf(fff, "It affects your charisma.\n");
+	if (f1 & (TR1_LIFE)) fprintf(fff, "It affects your hit points%s.\n", o_ptr->name1 == ART_RANDART ? " \377v(royalties only)\377w" : "");
+	if (f1 & (TR1_STR)) fprintf(fff, "It affects your strength.\n");
+	if (f1 & (TR1_INT)) fprintf(fff, "It affects your intelligence.\n");
+	if (f1 & (TR1_WIS)) fprintf(fff, "It affects your wisdom.\n");
+	if (f1 & (TR1_DEX)) fprintf(fff, "It affects your dexterity.\n");
+	if (f1 & (TR1_CON)) fprintf(fff, "It affects your constitution.\n");
+	if (f1 & (TR1_CHR)) fprintf(fff, "It affects your charisma.\n");
 
 	if (f1 & (TR1_STEALTH)) {
-		if (o_ptr->tval != TV_TRAPKIT)
-			fprintf(fff, "It affects your stealth.\n");
-		else
-			fprintf(fff, "It is well-hidden.\n");
+		if (o_ptr->tval != TV_TRAPKIT) fprintf(fff, "It affects your stealth.\n");
+		else fprintf(fff, "It is well-hidden.\n");
 	}
 #ifdef ART_WITAN_STEALTH
-	else if (o_ptr->name1 && o_ptr->tval == TV_BOOTS && o_ptr->sval == SV_PAIR_OF_WITAN_BOOTS)
-		fprintf(fff, "It affects your stealth.\n");
+	else if (o_ptr->name1 && o_ptr->tval == TV_BOOTS && o_ptr->sval == SV_PAIR_OF_WITAN_BOOTS) fprintf(fff, "It affects your stealth.\n");
 #endif
-	if (f1 & (TR1_SEARCH))
-		fprintf(fff, "It affects your searching.\n");
-	if (f5 & (TR5_DISARM))
-		fprintf(fff, "It affects your disarming.\n");
-	if (f1 & (TR1_INFRA))
-		fprintf(fff, "It affects your infravision.\n");
-	if (f1 & (TR1_TUNNEL))
-		fprintf(fff, "It affects your ability to tunnel.\n");
-	if (f1 & (TR1_SPEED))
-		fprintf(fff, "It affects your speed.\n");
-	if (f1 & (TR1_BLOWS))
-		fprintf(fff, "It affects your melee attack speed.\n");
-	if (f5 & (TR5_CRIT))
-		fprintf(fff, "It affects your ability to score critical hits.\n");
-	if (f5 & (TR5_LUCK))
-		fprintf(fff, "It affects your luck.\n");
+	if (f1 & (TR1_SEARCH)) fprintf(fff, "It affects your searching.\n");
+	if (f5 & (TR5_DISARM)) fprintf(fff, "It affects your disarming.\n");
+	if (f1 & (TR1_INFRA)) fprintf(fff, "It affects your infra-vision.\n");
+	if (f1 & (TR1_TUNNEL)) fprintf(fff, "It affects your ability to tunnel.\n");
+	if (f1 & (TR1_SPEED)) fprintf(fff, "It affects your speed.\n");
+	if (f1 & (TR1_BLOWS)) fprintf(fff, "It affects your melee attack speed.\n");
+	if (f5 & (TR5_CRIT)) fprintf(fff, "It affects your ability to score critical hits.\n");
+	if (f5 & (TR5_LUCK)) fprintf(fff, "It affects your luck.\n");
 
-	if (f1 & (TR1_BRAND_ACID))
-		fprintf(fff, "It does extra damage from acid.\n");
-	if (f1 & (TR1_BRAND_ELEC))
-		fprintf(fff, "It does extra damage from electricity.\n");
-	if (f1 & (TR1_BRAND_FIRE))
-		fprintf(fff, "It does extra damage from fire.\n");
-	if (f1 & (TR1_BRAND_COLD))
-		fprintf(fff, "It does extra damage from frost.\n");
-	if (f1 & (TR1_BRAND_POIS))
-		fprintf(fff, "It poisons your foes.\n");
-	if (f5 & (TR5_CHAOTIC))
-		fprintf(fff, "It produces chaotic effects.\n");
-	if (f1 & (TR1_VAMPIRIC))
-		fprintf(fff, "It drains life from your foes.\n");
-	if (f5 & (TR5_IMPACT))
-		fprintf(fff, "It can cause earthquakes.\n");
-	if (f5 & (TR5_VORPAL))
-		fprintf(fff, "It is very sharp and can cut your foes.\n");
-	/*if (f5 & (TR5_WOUNDING))
-		fprintf(fff, "It is very sharp and makes your foes bleed.\n");*/
-	if (f1 & (TR1_SLAY_ORC))
-		fprintf(fff, "It is especially deadly against orcs.\n");
-	if (f1 & (TR1_SLAY_TROLL))
-		fprintf(fff, "It is especially deadly against trolls.\n");
-	if (f1 & (TR1_SLAY_GIANT))
-		fprintf(fff, "It is especially deadly against giants.\n");
-	if (f1 & (TR1_SLAY_ANIMAL))
-		fprintf(fff, "It is especially deadly against natural creatures.\n");
-	if (f1 & (TR1_KILL_UNDEAD))
-		fprintf(fff, "It is a great bane of undead.\n");
-	else if (f1 & (TR1_SLAY_UNDEAD))
-		fprintf(fff, "It strikes at undead with holy wrath.\n");
-	if (f1 & (TR1_KILL_DEMON))
-		fprintf(fff, "It is a great bane of demons.\n");
-	else if (f1 & (TR1_SLAY_DEMON))
-		fprintf(fff, "It strikes at demons with holy wrath.\n");
-	if (f1 & (TR1_KILL_DRAGON))
-		fprintf(fff, "It is a great bane of dragons.\n");
-	else if (f1 & (TR1_SLAY_DRAGON))
-		fprintf(fff, "It is especially deadly against dragons.\n");
-	if (f1 & (TR1_SLAY_EVIL))
-		fprintf(fff, "It fights against evil with holy fury.\n");
-	if (f1 & (TR1_MANA))
-		fprintf(fff, "It affects your mana capacity.\n");
-	if (f1 & (TR1_SPELL))
-		fprintf(fff, "It affects your spell power.\n");
-	if (f5 & (TR5_INVIS))
-		fprintf(fff, "It makes you invisible.\n");
+	if (f1 & (TR1_BRAND_ACID)) fprintf(fff, "It does extra damage from acid.\n");
+	if (f1 & (TR1_BRAND_ELEC)) fprintf(fff, "It does extra damage from electricity.\n");
+	if (f1 & (TR1_BRAND_FIRE)) fprintf(fff, "It does extra damage from fire.\n");
+	if (f1 & (TR1_BRAND_COLD)) fprintf(fff, "It does extra damage from frost.\n");
+	if (f1 & (TR1_BRAND_POIS)) fprintf(fff, "It poisons your foes.\n");
+	if (f5 & (TR5_CHAOTIC)) fprintf(fff, "It produces chaotic effects.\n");
+	if (f1 & (TR1_VAMPIRIC)) fprintf(fff, "It drains life from your foes.\n");
+	if (f5 & (TR5_IMPACT)) fprintf(fff, "It can cause earthquakes.\n");
+	if (f5 & (TR5_VORPAL)) fprintf(fff, "It is very sharp and can cut your foes.\n");
+	/*if (f5 & (TR5_WOUNDING)) fprintf(fff, "It is very sharp and makes your foes bleed.\n");*/
+	if (f1 & (TR1_SLAY_ORC)) fprintf(fff, "It is especially deadly against orcs.\n");
+	if (f1 & (TR1_SLAY_TROLL)) fprintf(fff, "It is especially deadly against trolls.\n");
+	if (f1 & (TR1_SLAY_GIANT)) fprintf(fff, "It is especially deadly against giants.\n");
+	if (f1 & (TR1_SLAY_ANIMAL)) fprintf(fff, "It is especially deadly against natural creatures.\n");
+	if (f1 & (TR1_KILL_UNDEAD)) fprintf(fff, "It is a great bane of undead.\n");
+	else if (f1 & (TR1_SLAY_UNDEAD)) fprintf(fff, "It strikes at undead with holy wrath.\n");
+	if (f1 & (TR1_KILL_DEMON)) fprintf(fff, "It is a great bane of demons.\n");
+	else if (f1 & (TR1_SLAY_DEMON)) fprintf(fff, "It strikes at demons with holy wrath.\n");
+	if (f1 & (TR1_KILL_DRAGON)) fprintf(fff, "It is a great bane of dragons.\n");
+	else if (f1 & (TR1_SLAY_DRAGON)) fprintf(fff, "It is especially deadly against dragons.\n");
+	if (f1 & (TR1_SLAY_EVIL)) fprintf(fff, "It fights against evil with holy fury.\n");
+	if (f1 & (TR1_MANA)) fprintf(fff, "It affects your mana capacity.\n");
+	if (f1 & (TR1_SPELL)) fprintf(fff, "It affects your spell power.\n");
+	if (f5 & (TR5_INVIS)) fprintf(fff, "It makes you invisible.\n");
 	if (o_ptr->tval != TV_TRAPKIT) {
-		if (f2 & (TR2_SUST_STR))
-			fprintf(fff, "It sustains your strength.\n");
-		if (f2 & (TR2_SUST_INT))
-			fprintf(fff, "It sustains your intelligence.\n");
-		if (f2 & (TR2_SUST_WIS))
-			fprintf(fff, "It sustains your wisdom.\n");
-		if (f2 & (TR2_SUST_DEX))
-			fprintf(fff, "It sustains your dexterity.\n");
-		if (f2 & (TR2_SUST_CON))
-			fprintf(fff, "It sustains your constitution.\n");
-		if (f2 & (TR2_SUST_CHR))
-			fprintf(fff, "It sustains your charisma.\n");
-		if (f2 & (TR2_IM_FIRE))
-			fprintf(fff, "It provides \377Uimmunity\377- to fire.\n");
-		if (f2 & (TR2_IM_COLD))
-			fprintf(fff, "It provides \377Uimmunity\377- to cold.\n");
-		if (f2 & (TR2_IM_ELEC))
-			fprintf(fff, "It provides \377Uimmunity\377- to electricity.\n");
-		if (f2 & (TR2_IM_ACID))
-			fprintf(fff, "It provides \377Uimmunity\377- to acid.\n");
+		if (f2 & (TR2_SUST_STR)) fprintf(fff, "It sustains your strength.\n");
+		if (f2 & (TR2_SUST_INT)) fprintf(fff, "It sustains your intelligence.\n");
+		if (f2 & (TR2_SUST_WIS)) fprintf(fff, "It sustains your wisdom.\n");
+		if (f2 & (TR2_SUST_DEX)) fprintf(fff, "It sustains your dexterity.\n");
+		if (f2 & (TR2_SUST_CON)) fprintf(fff, "It sustains your constitution.\n");
+		if (f2 & (TR2_SUST_CHR)) fprintf(fff, "It sustains your charisma.\n");
+		if (f2 & (TR2_IM_FIRE)) fprintf(fff, "It provides \377Uimmunity\377- to fire.\n");
+		if (f2 & (TR2_IM_COLD)) fprintf(fff, "It provides \377Uimmunity\377- to cold.\n");
+		if (f2 & (TR2_IM_ELEC)) fprintf(fff, "It provides \377Uimmunity\377- to electricity.\n");
+		if (f2 & (TR2_IM_ACID)) fprintf(fff, "It provides \377Uimmunity\377- to acid.\n");
 	}
 #if 1
 	else {
-		if (f2 & (TRAP2_AUTOMATIC_5))
-			fprintf(fff, "It can rearm itself.\n");
-		if (f2 & (TRAP2_AUTOMATIC_99))
-			fprintf(fff, "It rearms itself.\n");
-		if (f2 & (TRAP2_KILL_GHOST))
-			fprintf(fff, "It can affect wraithed creatures too.\n");
-		if (f2 & (TRAP2_TELEPORT_TO))
-			fprintf(fff, "It can teleport monsters to you.\n");
-		if (f2 & (TRAP2_ONLY_DRAGON))
-			fprintf(fff, "It can only be set off by dragons.\n");
-		if (f2 & (TRAP2_ONLY_DEMON))
-			fprintf(fff, "It can only be set off by demons.\n");
-		if (f2 & (TRAP2_ONLY_UNDEAD))
-			fprintf(fff, "It can only be set off by undead.\n");
-		if (f2 & (TRAP2_ONLY_ANIMAL))
-			fprintf(fff, "It can only be set off by animals.\n");
-		if (f2 & (TRAP2_ONLY_EVIL))
-			fprintf(fff, "It can only be set off by evil creatures.\n");
+		if (f2 & (TRAP2_AUTOMATIC_5)) fprintf(fff, "It can rearm itself.\n");
+		if (f2 & (TRAP2_AUTOMATIC_99)) fprintf(fff, "It rearms itself.\n");
+		if (f2 & (TRAP2_KILL_GHOST)) fprintf(fff, "It can affect wraithed creatures too.\n");
+		if (f2 & (TRAP2_TELEPORT_TO)) fprintf(fff, "It can teleport monsters to you.\n");
+		if (f2 & (TRAP2_ONLY_DRAGON)) fprintf(fff, "It can only be set off by dragons.\n");
+		if (f2 & (TRAP2_ONLY_DEMON)) fprintf(fff, "It can only be set off by demons.\n");
+		if (f2 & (TRAP2_ONLY_UNDEAD)) fprintf(fff, "It can only be set off by undead.\n");
+		if (f2 & (TRAP2_ONLY_ANIMAL)) fprintf(fff, "It can only be set off by animals.\n");
+		if (f2 & (TRAP2_ONLY_EVIL)) fprintf(fff, "It can only be set off by evil creatures.\n");
 	}
 #endif
-	if (f2 & (TR2_IM_POISON))
-		fprintf(fff, "It provides \377Uimmunity\377- to poison.\n");
+	if (f2 & (TR2_IM_POISON)) fprintf(fff, "It provides \377Uimmunity\377- to poison.\n");
 
 	if (o_ptr->tval == TV_DRAG_ARMOR && o_ptr->sval == SV_DRAGON_MULTIHUED) {
 		if (!(f2 & (TR2_IM_FIRE))) {
@@ -5533,72 +5874,43 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		   resistance AND immunity to the same element. This can
 		   happen if art/ego gives IM, while base item type
 		   already has RES. */
-		if ((f2 & (TR2_RES_FIRE)) && !(f2 & (TR2_IM_FIRE)))
-			fprintf(fff, "It provides resistance to fire.\n");
-		if ((f2 & (TR2_RES_COLD)) && !(f2 & (TR2_IM_COLD)))
-			fprintf(fff, "It provides resistance to cold.\n");
-		if ((f2 & (TR2_RES_ELEC)) && !(f2 & (TR2_IM_ELEC)))
-			fprintf(fff, "It provides resistance to electricity.\n");
-		if ((f2 & (TR2_RES_ACID)) && !(f2 & (TR2_IM_ACID)))
-			fprintf(fff, "It provides resistance to acid.\n");
-		if ((f2 & (TR2_RES_POIS)) && !(f2 & (TR2_IM_POISON)))
-			fprintf(fff, "It provides resistance to poison.\n");
+		if ((f2 & (TR2_RES_FIRE)) && !(f2 & (TR2_IM_FIRE))) fprintf(fff, "It provides resistance to fire.\n");
+		if ((f2 & (TR2_RES_COLD)) && !(f2 & (TR2_IM_COLD))) fprintf(fff, "It provides resistance to cold.\n");
+		if ((f2 & (TR2_RES_ELEC)) && !(f2 & (TR2_IM_ELEC))) fprintf(fff, "It provides resistance to electricity.\n");
+		if ((f2 & (TR2_RES_ACID)) && !(f2 & (TR2_IM_ACID))) fprintf(fff, "It provides resistance to acid.\n");
+		if ((f2 & (TR2_RES_POIS)) && !(f2 & (TR2_IM_POISON))) fprintf(fff, "It provides resistance to poison.\n");
 	}
 
-	if (f2 & (TR2_IM_WATER))
-		fprintf(fff, "It provides \377Ucomplete protection\377- from unleashed water.\n");
-	else if (f2 & (TR2_RES_WATER))
-		fprintf(fff, "It provides resistance to unleashed water.\n");
-	if (f2 & (TR2_IM_NETHER))
-		fprintf(fff, "It provides \377Uimmunity\377- to nether.\n");
-	else if (f2 & (TR2_RES_NETHER))
-		fprintf(fff, "It provides resistance to nether.\n");
+	if (f2 & (TR2_IM_WATER)) fprintf(fff, "It provides \377Ucomplete protection\377- from unleashed water.\n");
+	else if (f2 & (TR2_RES_WATER)) fprintf(fff, "It provides resistance to unleashed water.\n");
+	if (f2 & (TR2_IM_NETHER)) fprintf(fff, "It provides \377Uimmunity\377- to nether.\n");
+	else if (f2 & (TR2_RES_NETHER)) fprintf(fff, "It provides resistance to nether.\n");
 
-	if (f2 & (TR2_RES_NEXUS))
-		fprintf(fff, "It provides resistance to nexus.\n");
-	if (f2 & (TR2_RES_CHAOS))
-		fprintf(fff, "It provides resistance to chaos.\n");
-	if (f2 & (TR2_RES_DISEN))
-		fprintf(fff, "It provides resistance to disenchantment.\n");
-	if (f2 & (TR2_RES_SOUND))
-		fprintf(fff, "It provides resistance to sound.\n");
-	if (f2 & (TR2_RES_SHARDS))
-		fprintf(fff, "It provides resistance to shards.\n");
+	if (f2 & (TR2_RES_NEXUS)) fprintf(fff, "It provides resistance to nexus.\n");
+	if (f2 & (TR2_RES_CHAOS)) fprintf(fff, "It provides resistance to chaos.\n");
+	if (f2 & (TR2_RES_DISEN)) fprintf(fff, "It provides resistance to disenchantment.\n");
+	if (f2 & (TR2_RES_SOUND)) fprintf(fff, "It provides resistance to sound.\n");
+	if (f2 & (TR2_RES_SHARDS)) fprintf(fff, "It provides resistance to shards.\n");
 
-	if (f5 & (TR5_RES_TIME))
-		fprintf(fff, "It provides resistance to time.\n");
-	if (f5 & (TR5_RES_MANA))
-		fprintf(fff, "It provides resistance to magical energy.\n");
+	if (f5 & (TR5_RES_TIME)) fprintf(fff, "It provides resistance to time.\n");
+	if (f5 & (TR5_RES_MANA)) fprintf(fff, "It provides resistance to magical energy.\n");
 	if (f5 & TR5_RES_TELE) fprintf(fff, "It provides resistance to teleportation attacks.\n");
 
-	if (f2 & (TR2_RES_LITE))
-		fprintf(fff, "It provides resistance to light.\n");
-	if (f2 & (TR2_RES_DARK))
-		fprintf(fff, "It provides resistance to dark.\n");
-	if (f2 & (TR2_RES_BLIND))
-		fprintf(fff, "It provides resistance to blindness.\n");
+	if (f2 & (TR2_RES_LITE)) fprintf(fff, "It provides resistance to light.\n");
+	if (f2 & (TR2_RES_DARK)) fprintf(fff, "It provides resistance to dark.\n");
+	if (f2 & (TR2_RES_BLIND)) fprintf(fff, "It provides resistance to blindness.\n");
 
-	if (f2 & (TR2_RES_FEAR))
-		fprintf(fff, "It makes you completely fearless.\n");
-	if (f2 & (TR2_FREE_ACT))
-		fprintf(fff, "It provides immunity to paralysis.\n");
-	if (f2 & (TR2_RES_CONF))
-		fprintf(fff, "It provides resistance to confusion.\n");
-	if (f2 & (TR2_HOLD_LIFE))
-		fprintf(fff, "It provides resistance to life draining attacks.\n");
-	if (f3 & (TR3_SEE_INVIS))
-		fprintf(fff, "It allows you to see invisible monsters.\n");
+	if (f2 & (TR2_RES_FEAR)) fprintf(fff, "It makes you completely fearless.\n");
+	if (f2 & (TR2_FREE_ACT)) fprintf(fff, "It provides immunity to paralysis.\n");
+	if (f2 & (TR2_RES_CONF)) fprintf(fff, "It provides resistance to confusion.\n");
+	if (f2 & (TR2_HOLD_LIFE)) fprintf(fff, "It provides resistance to life draining attacks.\n");
+	if (f3 & (TR3_SEE_INVIS)) fprintf(fff, "It allows you to see invisible monsters.\n");
 
-	if (f3 & (TR3_FEATHER))
-		fprintf(fff, "It slows down your fall gently.\n");
-	if (f4 & (TR4_LEVITATE))
-		fprintf(fff, "It allows you to levitate.\n");
-	if (f5 & (TR5_PASS_WATER))
-		fprintf(fff, "It allows you to swim easily.\n");
-	if (f4 & (TR4_CLIMB))
-		fprintf(fff, "It allows you to climb high mountains.\n");
-	if (f3 & (TR3_WRAITH))
-		fprintf(fff, "It renders you incorporeal.\n");
+	if (f3 & (TR3_FEATHER)) fprintf(fff, "It slows down your fall gently.\n");
+	if (f4 & (TR4_LEVITATE)) fprintf(fff, "It allows you to levitate.\n");
+	if (f5 & (TR5_PASS_WATER)) fprintf(fff, "It allows you to swim easily.\n");
+	if (f4 & (TR4_CLIMB)) fprintf(fff, "It allows you to climb high mountains.\n");
+	if (f3 & (TR3_WRAITH)) fprintf(fff, "It renders you incorporeal.\n");
 	if ((o_ptr->tval != TV_LITE) && ((f3 & (TR3_LITE1)) || (f4 & (TR4_LITE2)) || (f4 & (TR4_LITE3))))
 		fprintf(fff, "It provides %slight.\n", (f5 & TR5_WHITE_LIGHT) ? "white " : "");
 	if (esp) {
@@ -5619,59 +5931,32 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 			if (esp & ESP_UNIQUE) fprintf(fff, "It allows you to sense the presence of unique beings.\n");
 		}
 	}
-	if (f3 & (TR3_SLOW_DIGEST))
-		fprintf(fff, "It slows your metabolism.\n");
-	if (f3 & (TR3_REGEN))
-		fprintf(fff, "It speeds your hit point regeneration.\n");
-	if (f3 & (TR3_REGEN_MANA))
-		fprintf(fff, "It speeds your mana recharging.\n");
-	if (f5 & (TR5_REFLECT))
-		fprintf(fff, "It reflects bolts and arrows.\n");
-	if (f3 & (TR3_SH_FIRE))
-		fprintf(fff, "It produces a fiery aura.\n");
-	if (f3 & (TR3_SH_COLD))
-		fprintf(fff, "It produces an icy aura.\n");
-	if (f3 & (TR3_SH_ELEC))
-		fprintf(fff, "It produces an electric aura.\n");
-	if (f3 & (TR3_NO_MAGIC))
-		fprintf(fff, "It produces an anti-magic shell.\n");
+	if (f3 & (TR3_SLOW_DIGEST)) fprintf(fff, "It slows your metabolism.\n");
+	if (f3 & (TR3_REGEN)) fprintf(fff, "It speeds your hit point regeneration.\n");
+	if (f3 & (TR3_REGEN_MANA)) fprintf(fff, "It speeds your mana recharging.\n");
+	if (f5 & (TR5_REFLECT)) fprintf(fff, "It reflects bolts and arrows.\n");
+	if (f3 & (TR3_SH_FIRE)) fprintf(fff, "It produces a fiery aura.\n");
+	if (f3 & (TR3_SH_COLD)) fprintf(fff, "It produces an icy aura.\n");
+	if (f3 & (TR3_SH_ELEC)) fprintf(fff, "It produces an electric aura.\n");
+	if (f3 & (TR3_NO_MAGIC)) fprintf(fff, "It produces an anti-magic shell.\n");
+	if (f3 & (TR3_BLESSED)) fprintf(fff, "It has been blessed by the gods.\n");
+	if (f4 & (TR4_AUTO_ID)) fprintf(fff, "It identifies all items for you.\n");
 
-	if (f3 & (TR3_BLESSED)) {
-#if 0 /* already given under red 'encumberments' above these lines.. */
-		/* BLESSED items give icky_wield to Corrupted? */
-		if (pt_ptr->ptrait == TRAIT_CORRUPTED) fprintf(fff, "\377oIt has been blessed by the gods.\n");
-		else
-#endif
-		fprintf(fff, "It has been blessed by the gods.\n");
-	}
-
-	if (f4 & (TR4_AUTO_ID))
-		fprintf(fff, "It identifies all items for you.\n");
-
-	if (f3 & (TR3_XTRA_MIGHT))
-		fprintf(fff, "It fires missiles with extra might.\n");
+	if (f3 & (TR3_XTRA_MIGHT)) fprintf(fff, "It fires missiles with extra might.\n");
 	if (f3 & (TR3_XTRA_SHOTS)) {
-		if (o_ptr->tval == TV_BOOMERANG)
-			fprintf(fff, "It flies excessively fast.\n");
-		else
-			fprintf(fff, "It fires missiles excessively fast.\n");
+		if (o_ptr->tval == TV_BOOMERANG) fprintf(fff, "It flies excessively fast.\n");
+		else fprintf(fff, "It fires missiles excessively fast.\n");
 	}
 
 	if (f6 & TR6_RETURNING) fprintf(fff, "It returns to you when thrown while equipped.\n");
 
-	if (f4 & (TR4_EASY_USE))
-		fprintf(fff, "It is especially easy to activate.\n");
-	if (f4 & (TR4_CAPACITY))
-		fprintf(fff, "It can hold more mana.\n");
-	if (f4 & (TR4_CHEAPNESS))
-		fprintf(fff, "It can cast spells for a lesser mana cost.\n");
-	if (f4 & (TR4_FAST_CAST))
-		fprintf(fff, "It can cast spells faster.\n");
-	if (f4 & (TR4_CHARGING))
-		fprintf(fff, "It regenerates its mana faster.\n");
+	if (f4 & (TR4_EASY_USE)) fprintf(fff, "It is especially easy to activate.\n");
+	if (f4 & (TR4_CAPACITY)) fprintf(fff, "It can hold more mana.\n");
+	if (f4 & (TR4_CHEAPNESS)) fprintf(fff, "It can cast spells for a lesser mana cost.\n");
+	if (f4 & (TR4_FAST_CAST)) fprintf(fff, "It can cast spells faster.\n");
+	if (f4 & (TR4_CHARGING)) fprintf(fff, "It regenerates its mana faster.\n");
 
-	if (f3 & (TR3_TELEPORT))
-		fprintf(fff, "It induces random teleportation.\n");
+	if (f3 & (TR3_TELEPORT)) fprintf(fff, "It induces random teleportation.\n");
 
 	/* exploding ammo */
 	if (is_ammo(o_ptr->tval) && (o_ptr->pval != 0))
@@ -5720,10 +6005,8 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	    )
 		fprintf(fff, "It drops a veil of sleep over all your surroundings.\n");
 
-	if (f3 & (TR3_NO_TELE))
-		fprintf(fff, "\377DIt prevents teleportation.\n");
-	if (f5 & (TR5_DRAIN_MANA))
-		fprintf(fff, "\377DIt drains your magic.\n");
+	if (f3 & (TR3_NO_TELE)) fprintf(fff, "\377DIt prevents teleportation.\n");
+	if (f5 & (TR5_DRAIN_MANA)) fprintf(fff, "\377DIt drains your magic.\n");
 
 	if (f5 & (TR5_DRAIN_HP)) {
 		/* Note: This assumes that there is no possible double-ego power that also has DRAIN_HP besides 'Spectral', otherwise this message might turn out incorrect.. */
@@ -5732,73 +6015,50 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		else fprintf(fff, "\377DIt drains your health.\n");
 	}
 
-	if (f3 & (TR3_DRAIN_EXP))
-		fprintf(fff, "\377DIt drains your life force.\n");
-	if (f3 & (TR3_AGGRAVATE))
-		fprintf(fff, "\377DIt aggravates nearby creatures.\n");
-
-
-	if (f4 & (TR4_NEVER_BLOW))
-		fprintf(fff, "\377DIt can't attack.\n");
-
-	if (f4 & (TR4_BLACK_BREATH))
-		fprintf(fff, "\377DIt fills you with the Black Breath.\n");
-	if (f4 & (TR4_CLONE))
-		fprintf(fff, "\377DIt can clone monsters.\n");
+	if (f3 & (TR3_DRAIN_EXP)) fprintf(fff, "\377DIt drains your life force.\n");
+	if (f3 & (TR3_AGGRAVATE)) fprintf(fff, "\377DIt aggravates nearby creatures.\n");
+	if (f4 & (TR4_NEVER_BLOW)) fprintf(fff, "\377DIt can't attack.\n");
+	if (f4 & (TR4_BLACK_BREATH)) fprintf(fff, "\377DIt fills you with the Black Breath.\n");
+	if (f4 & (TR4_CLONE)) fprintf(fff, "\377DIt can clone monsters.\n");
 
 	if (cursed_p(o_ptr) && aware_cursed) {
-		if (f3 & (TR3_PERMA_CURSE))
-			fprintf(fff, "\377DIt is permanently cursed.\n");
-		else if (f3 & (TR3_HEAVY_CURSE))
-			fprintf(fff, "\377DIt is heavily cursed.\n");
-		else
-			fprintf(fff, "\377DIt is cursed.\n");
+		if (f3 & (TR3_PERMA_CURSE)) fprintf(fff, "\377DIt is permanently cursed.\n");
+		else if (f3 & (TR3_HEAVY_CURSE)) fprintf(fff, "\377DIt is heavily cursed.\n");
+		else fprintf(fff, "\377DIt is cursed.\n");
 
-		if (f3 & (TR3_TY_CURSE))
-			fprintf(fff, "\377DIt carries an ancient foul curse.\n");
-
-		if (f4 & (TR4_DG_CURSE))
-			fprintf(fff, "\377DIt carries an ancient morgothian curse.\n");
-		if (f4 & (TR4_CURSE_NO_DROP))
-			fprintf(fff, "\377DIt cannot be dropped while cursed.\n");
+		if (f3 & (TR3_TY_CURSE)) fprintf(fff, "\377DIt carries an ancient foul curse.\n");
+		if (f4 & (TR4_DG_CURSE)) fprintf(fff, "\377DIt carries an ancient morgothian curse.\n");
+		if (f4 & (TR4_CURSE_NO_DROP)) fprintf(fff, "\377DIt cannot be dropped while cursed.\n");
 	}
-	if (f3 & (TR3_AUTO_CURSE))
-		fprintf(fff, "\377DIt can re-curse itself.\n");
+	if (f3 & (TR3_AUTO_CURSE)) fprintf(fff, "\377DIt can re-curse itself.\n");
 
 	/* Stormbringer hardcoded note to give a warning!- C. Blue */
-	if (o_ptr->name2 == EGO_STORMBRINGER)
-		fprintf(fff, "\377DIt's possessed by mad wrath!\n");
+	if (o_ptr->name2 == EGO_STORMBRINGER) fprintf(fff, "\377DIt's possessed by mad wrath!\n");
 
 	/* also show anti-undead/demon life drain */
-	switch ((j = anti_undead(o_ptr, pt_ptr))) {
-	case 1: fprintf(fff, "\377oIts power is adverse to undead, draining your health.\n"); break;
-	case 2: //fprintf(fff, "\377oIts power is adverse to undead, preventing your health from regenerating.\n"); break;
-		fprintf(fff, "\377oIts power is adverse to undead, hampering your health regeneration.\n"); break;
+	j = anti_undead(o_ptr, pt_ptr);
+	k = anti_demon(o_ptr, pt_ptr);
+	am = wield_slot(Ind, o_ptr); //abuse am
+	am = (am == INVEN_HEAD || am == INVEN_HANDS);
+	if (j >= k) switch (j) {
+		case 1: fprintf(fff, "\377oIts power is adverse to undead, draining your %s.\n", am ? "mana" : "health"); break;
+		case 2: //fprintf(fff, "\377oIts power is adverse to undead, preventing your %s from regenerating.\n", am ? "mana" : "health"); break;
+			fprintf(fff, "\377oIts power is adverse to undead, hampering your %s regeneration.\n", am ? "mana" : "health"); break;
+		}
+	else switch (k) {
+		case 1: fprintf(fff, "\377oIts power is adverse to demons, draining your %s.\n", am ? "mana" : "health"); break;
+		case 2: //fprintf(fff, "\377oIts power is adverse to demons, preventing your %s from regenerating.\n", am ? "mana" : "health"); break;
+			fprintf(fff, "\377oIts power is adverse to demons, hampering your %s regeneration.\n", am ? "mana" : "health"); break;
 	}
-	if (!j) switch ((j = anti_demon(o_ptr, pt_ptr))) {
-	case 1: fprintf(fff, "\377oIts power is adverse to demons, draining your health.\n"); break;
-	case 2: //fprintf(fff, "\377oIts power is adverse to demons, preventing your health from regenerating.\n"); break;
-		fprintf(fff, "\377oIts power is adverse to demons, hampering your health regeneration.\n"); break;
-	}
-	/* BLESSED items harm all Corrupted beings in general? */
-#if 0 /* 0ed: just make it icky_wield instead */
-	if (!j && pt_ptr->ptrait == TRAIT_CORRUPTED && (f3 & TR3_BLESSED))
-		//fprintf(fff, "\377oIts power is adverse to corruption, draining your health.\n");
-		fprintf(fff, "\377oIts power is adverse to corruption, hampering your health regeneration.\n");
-#endif
 
 	/* magically returning ranged weapon? */
-	if (o_ptr->tval == TV_BOOMERANG && o_ptr->name1)
-		fprintf(fff, "\377WIt always returns to your quiver.\n");
+	if (o_ptr->tval == TV_BOOMERANG && o_ptr->name1) fprintf(fff, "\377WIt always returns to your quiver.\n");
 	else if (is_ammo(o_ptr->tval)) {
-		if (o_ptr->name2 == EGO_ETHEREAL || o_ptr->name2b == EGO_ETHEREAL)
-			fprintf(fff, "\377WIt magically returns to your quiver most of the time.\n");
-		else if (o_ptr->sval == SV_AMMO_MAGIC || o_ptr->name1)
-			fprintf(fff, "\377WIt always magically returns to your quiver.\n");
+		if (o_ptr->name2 == EGO_ETHEREAL || o_ptr->name2b == EGO_ETHEREAL) fprintf(fff, "\377WIt magically returns to your quiver most of the time.\n");
+		else if (o_ptr->sval == SV_AMMO_MAGIC || o_ptr->name1) fprintf(fff, "\377WIt always magically returns to your quiver.\n");
 	}
 
-	if (((f5 & TR5_NO_ENCHANT) || o_ptr->name1)
-	    && is_enchantable(o_ptr))
+	if (((f5 & TR5_NO_ENCHANT) || o_ptr->name1) && is_enchantable(o_ptr))
 		fprintf(fff, "\377WIt cannot be enchanted by any means.\n");
 
 	strcpy(buf_tmp, "\377WUnaffected by ");
@@ -5898,14 +6158,15 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	if (eff_full && wield_slot(0, o_ptr) == INVEN_AMMO) {
 		u32b shooter_f1 = 0, dummy;
 		object_type *x_ptr = &pt_ptr->inventory[INVEN_BOW];
+		byte chance, permille, vowel;
 
 		if (x_ptr->k_idx && x_ptr->tval == TV_BOW &&
-		    (( (x_ptr->sval == SV_SHORT_BOW || x_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
-		     ( (x_ptr->sval == SV_LIGHT_XBOW || x_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
+		    (((x_ptr->sval == SV_SHORT_BOW || x_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
+		     ((x_ptr->sval == SV_LIGHT_XBOW || x_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
 		     (x_ptr->sval == SV_SLING && o_ptr->tval == TV_SHOT))) {
-			if ((x_ptr->ident & ID_MENTAL)) {
+			if ((x_ptr->ident & ID_MENTAL))
 				object_flags(x_ptr, &shooter_f1, &dummy, &dummy, &dummy, &dummy, &dummy, &dummy);
-			} else {
+			else {
 				/* Just assume basic fixed flags */
 				shooter_f1 = k_info[o_ptr->k_idx].flags1;
 				/* item has undergone basic ID (or is easy-know and basic)? */
@@ -5929,7 +6190,11 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 			}
 		}
 
-		fprintf(fff, "\377WIt has %d%% chances to break upon hit.\n", breakage_chance(o_ptr));
+		chance = breakage_chance_with_skill(pt_ptr->Ind, o_ptr, &permille);
+		vowel = (chance == 8) || (chance == 11) || (chance == 18);
+		if (permille == 0) fprintf(fff, "\377WIt has a%s %d%% chance to break upon hit.\n", vowel ? "n" : "", chance);
+		else fprintf(fff, "\377WIt has a%s %d.%d%% chance to break upon hit.\n", vowel ? "n" : "", chance, permille);
+
 		/* TODO: 3rd party observe via Ind_target */
 		display_ammo_damage(Ind_target ? Ind_target : Ind, &forge, fff, f1, shooter_f1);
 	}
@@ -5943,7 +6208,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		if (!get_skill(pt_ptr, SKILL_ANTIMAGIC)) {
 			byte chance, permille;
 
-			chance = activate_magic_device_chance(p_ptr->Ind, o_ptr, &permille);
+			chance = activate_magic_device_chance(p_ptr->Ind, o_ptr, &permille, is_magic_device(o_ptr->tval) && slot == INVEN_WIELD);
 			if (chance == 99) fprintf(fff, "\377WYou have a 99.%d%% chance to successfully activate this magic device.\n", permille);
 			else fprintf(fff, "\377WYou have a %d%% chance to successfully activate this magic device.\n", chance);
 		} else
@@ -6040,7 +6305,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
  */
 s16b index_to_label(int i) {
 #ifdef ENABLE_SUBINVEN
-	if (i >= 100) return(I2A(i % 100));
+	if (i >= SUBINVEN_INVEN_MUL) return(I2A(i % SUBINVEN_INVEN_MUL));
 #endif
 
 	/* Indexes for "inven" are easy */
@@ -6102,9 +6367,10 @@ s16b label_to_equip(int Ind, int c) {
 s16b wield_slot(int Ind, object_type *o_ptr) {
 	player_type *p_ptr = NULL;
 	if (Ind) p_ptr = Players[Ind];
+	int tval = (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0200)) ? o_ptr->tval2 : o_ptr->tval;
 
 	/* Slot for equipment */
-	switch (o_ptr->tval) {
+	switch (tval) {
 	case TV_DIGGING:
 	case TV_TOOL:
 		return(INVEN_TOOL);
@@ -6164,11 +6430,22 @@ s16b wield_slot(int Ind, object_type *o_ptr) {
 
 	/* Special hack for custom objects that have wear/wield flag set */
 	case TV_SPECIAL:
-		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0F00)) return(-1);
+		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0100)) return(-1);
 		/* Paranoia - check for valid equipment slot */
-		if (o_ptr->xtra4 < INVEN_WIELD || o_ptr->xtra4 > INVEN_TOOL) return(-1);
+		if (o_ptr->tval2 < INVEN_WIELD || o_ptr->tval2 > INVEN_TOOL) return(-1);
 		/* Equippable special object */
-		return(o_ptr->xtra4);
+		return(o_ptr->tval2);
+
+#ifdef WIELD_BOOKS
+	case TV_BOOK:
+		return(INVEN_WIELD);
+#endif
+#ifdef WIELD_DEVICES
+	case TV_WAND:
+	case TV_STAFF:
+	case TV_ROD:
+		return(INVEN_WIELD);
+#endif
 	}
 
 	/* No slot available */
@@ -6475,7 +6752,7 @@ void display_equip(int Ind) {
 		}
 
 		/* Unhack hack to show equip_set[] boni, aka force-update slot */
-		o_ptr->temp = 0;
+		o_ptr->temp &= ~0x01;
 
 		/* Update the copy */
 		memcpy(&p_ptr->inventory_copy[i], o_ptr, sizeof(object_type));
@@ -6501,7 +6778,8 @@ void display_equip(int Ind) {
 		o_name[ONAME_LEN - 1] = 0; //fix in case our 4 spaces caused the string to exceed ONAME_LEN
 
 		/* Get the color */
-		attr = get_attr_from_tval(o_ptr);
+		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr); /* WIELD_BOOKS */
+		else attr = get_attr_from_tval(o_ptr);
 
 		/* You can inscribe with !U to force TERM_L_DARK colouring (more visibility tuning!) */
 		if (check_guard_inscription(o_ptr->note, 'U')) attr = TERM_L_DARK;
@@ -6514,8 +6792,11 @@ void display_equip(int Ind) {
 		//wgt = o_ptr->weight; <- shows wrongly for ammunition!
 
 		/* Send the info off */
-		//Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr->number, o_ptr->tval, o_ptr->sval, o_ptr->pval, o_name);
-		Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
+		if (((o_ptr->tval != TV_BOOK || !is_custom_tome(o_ptr->sval)) && (o_ptr->tval != TV_SPECIAL || o_ptr->sval != SV_CUSTOM_OBJECT)) || !is_newer_than(&p_ptr->version, 4, 9, 0, 5, 0, 1))
+			//Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr->number, o_ptr->tval, o_ptr->sval, o_ptr->pval, o_name);
+			Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
+		else
+			Send_equip_wide(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
 	}
 
 	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
@@ -6608,7 +6889,8 @@ void display_invenequip(int Ind) {
 		//n = strlen(o_name);
 
 		/* Get the color */
-		attr = get_attr_from_tval(o_ptr);
+		if (o_ptr->tval == TV_BOOK) attr = get_book_name_color(o_ptr); /* WIELD_BOOKS */
+		else attr = get_attr_from_tval(o_ptr);
 
 		/* You can inscribe with !U to force TERM_L_DARK colouring (more visibility tuning!) */
 		if (check_guard_inscription(o_ptr->note, 'U')) attr = TERM_L_DARK;
@@ -6621,9 +6903,35 @@ void display_invenequip(int Ind) {
 		//wgt = o_ptr->weight; <- shows wrongly for ammunition!
 
 		/* Send the info off */
-		//Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr->number, o_ptr->tval, o_ptr->sval, o_ptr->pval, o_name);
-		Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
+		if (((o_ptr->tval != TV_BOOK || !is_custom_tome(o_ptr->sval)) && (o_ptr->tval != TV_SPECIAL || o_ptr->sval != SV_CUSTOM_OBJECT)) || !is_newer_than(&p_ptr->version, 4, 9, 0, 5, 0, 1))
+			//Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr->number, o_ptr->tval, o_ptr->sval, o_ptr->pval, o_name);
+			Send_equip(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
+		else
+			Send_equip_wide(Ind, tmp_val[0], attr, wgt, o_ptr, o_name);
 	}
+}
+
+/* Computes ammo breakage chance after skill has been factored in. */
+int breakage_chance_with_skill(int Ind, object_type *o_ptr, byte *permille) {
+	player_type *p_ptr = Players[Ind];
+	int base_percentage = breakage_chance(o_ptr);
+	int archery = get_archery_skill_from_ammo(o_ptr);
+	int j = base_percentage * 100;
+
+	if (wield_slot(0, o_ptr) != INVEN_AMMO) return(-1);
+
+	j = (j * (100 - get_skill_scale(p_ptr, archery, 90))) / 100;
+	*permille = (j % 100) / 10;
+	return(j / 100);
+}
+
+/* Takes an ammo object and returns the relevant skill, without relying
+   on what's equipped, since breakage chance doesn't depend on shooter. */
+int get_archery_skill_from_ammo(object_type *o_ptr) {
+	if (o_ptr->tval == TV_ARROW) return(SKILL_BOW);
+	if (o_ptr->tval == TV_BOLT) return(SKILL_XBOW);
+	if (o_ptr->tval == TV_SHOT) return(SKILL_SLING);
+	else return(-1);
 }
 
 /* Attempts to convert owner of item to player, if allowed.
@@ -6793,38 +7101,34 @@ byte get_book_name_color(object_type *o_ptr) {
 byte get_attr_from_tval(object_type *o_ptr) {
 	int attr = tval_to_attr[o_ptr->tval];
 
+	/* Gift wrappings: Get the attr from sval */
+	if ((o_ptr->tval == TV_SPECIAL || o_ptr->tval == TV_JUNK) && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) return(k_info[o_ptr->k_idx].d_attr);
 #ifdef ENABLE_SUBINVEN
  #ifndef SUBINVEN_UNIFIED_COLOUR
 	if (o_ptr->tval == TV_SUBINVEN) switch (get_subinven_group(o_ptr->sval)) {
-		case SV_SI_GROUP_CHEST_MIN: attr = tval_to_attr[TV_CHEST]; break;
-		case SV_SI_SATCHEL: attr = tval_to_attr[TV_CHEMICAL]; break;
-		case SV_SI_TRAPKIT_BAG: attr = TERM_BLUE; break; //rogueish
-		case SV_SI_MDEVP_WRAPPING: attr = TERM_L_WHITE; break;
+		case SV_SI_GROUP_CHEST_MIN: return(tval_to_attr[TV_CHEST]);
+		case SV_SI_SATCHEL: return(tval_to_attr[TV_CHEMICAL]);
+		case SV_SI_TRAPKIT_BAG: return(TERM_BLUE); //rogueish
+		case SV_SI_MDEVP_WRAPPING: return(TERM_L_WHITE);
+		case SV_SI_POTION_BELT: return(tval_to_attr[TV_POTION]);
 	}
  #endif
 #endif
-
 #ifdef ENABLE_DEMOLITIONIST
-	
 	if (o_ptr->tval == TV_CHEMICAL && o_ptr->sval == SV_MIXTURE)
-	
 		return(TERM_L_UMBER);
 #endif
-
 #ifdef PLAYER_STORES
 	if (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE)
 		return(TERM_L_UMBER);
 #endif
-
 	if ((o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT) ||
 	    (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT)) {
 		if (!o_ptr->xtra1) o_ptr->xtra1 = (s16b)attr;
 		return((byte)o_ptr->xtra1);
 	}
-
 	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_QUEST)
 		return((byte)o_ptr->xtra2);
-
 #if 0
 	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_WOOD_PIECE)
 		return(TERM_UMBER);
@@ -6869,7 +7173,7 @@ byte get_spellbook_name_colour(int pval) {
 void apply_XID(int Ind, object_type *o_ptr, int slot) {
 	player_type *p_ptr = Players[Ind];
 	object_type *i_ptr;
-	int index;
+	int index, tc;
 	bool ID_spell1_found = FALSE, ID_spell1a_found = FALSE, ID_spell1b_found = FALSE, ID_spell2_found = FALSE, ID_spell3_found = FALSE, ID_spell4_found = FALSE;
 	byte failure = 0x0;
 #ifdef ENABLE_SUBINVEN
@@ -6890,7 +7194,10 @@ void apply_XID(int Ind, object_type *o_ptr, int slot) {
 		if (!can_use(Ind, i_ptr)) continue;
 
 		/* Check if the player does want this feature (!X - for now :) ) */
-		if (!check_guard_inscription(i_ptr->note, 'X')) continue;
+		if (!(tc = check_guard_inscription(i_ptr->note, 'X'))) continue;
+		/* Allow 'treasure class': No flavoured items (2), only flavoured items (1), all items (-1 aka not specified). */
+		if (tc == 1 && !object_has_flavor(o_ptr->k_idx)) continue;
+		else if (tc == 2 && object_has_flavor(o_ptr->k_idx)) continue;
 
 		/* Can't use them? skip */
 		if (p_ptr->blind || no_lite(Ind) || p_ptr->confused) {
@@ -6923,7 +7230,10 @@ void apply_XID(int Ind, object_type *o_ptr, int slot) {
 		    i_ptr->name1 != ART_STONE_LORE) continue;
 
 		/* Check if the player does want this feature (!X - for now :) ) */
-		if (!check_guard_inscription(i_ptr->note, 'X')) continue;
+		if (!(tc = check_guard_inscription(i_ptr->note, 'X'))) continue;
+		/* Allow 'treasure class': No flavoured items (2), only flavoured items (1), all items (-1 aka not specified). */
+		if (tc == 1 && !object_has_flavor(o_ptr->k_idx)) continue;
+		else if (tc == 2 && object_has_flavor(o_ptr->k_idx)) continue;
 
 		/* Item is still charging up? */
 		if (i_ptr->recharging) continue;
@@ -7006,7 +7316,10 @@ void apply_XID(int Ind, object_type *o_ptr, int slot) {
 		if (!can_use(Ind, i_ptr)) continue;
 
 		/* Check if the player does want this feature (!X - for now :) ) */
-		if (!check_guard_inscription(i_ptr->note, 'X')) continue;
+		if (!(tc = check_guard_inscription(i_ptr->note, 'X'))) continue;
+		/* Allow 'treasure class': No flavoured items (2), only flavoured items (1), all items (-1 aka not specified). */
+		if (tc == 1 && !object_has_flavor(o_ptr->k_idx)) continue;
+		else if (tc == 2 && object_has_flavor(o_ptr->k_idx)) continue;
 
 		if (p_ptr->antimagic || get_skill(p_ptr, SKILL_ANTIMAGIC)) {
 			msg_format(Ind, "\377%cYour anti-magic prevents you from using your magic device.", COLOUR_AM_OWN);
@@ -7042,7 +7355,10 @@ void apply_XID(int Ind, object_type *o_ptr, int slot) {
 		if (!can_use(Ind, i_ptr)) continue;
 
 		/* Check if the player does want this feature (!X - for now :) ) */
-		if (!check_guard_inscription(i_ptr->note, 'X')) continue;
+		if (!(tc = check_guard_inscription(i_ptr->note, 'X'))) continue;
+		/* Allow 'treasure class': No flavoured items (2), only flavoured items (1), all items (-1 aka not specified). */
+		if (tc == 1 && !object_has_flavor(o_ptr->k_idx)) continue;
+		else if (tc == 2 && object_has_flavor(o_ptr->k_idx)) continue;
 
 		/* Can't use them? skip. (Note: Even 'Revelation' requires these, luckily) */
 		if (p_ptr->blind || no_lite(Ind) || p_ptr->confused) {

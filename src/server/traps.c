@@ -88,6 +88,14 @@ bool do_player_drop_items(int Ind, int chance, bool trap) {
 
 	if (p_ptr->inval) return(FALSE);
 
+	/* Specialty: Make theft prevention devices actually help us a bit: Reduce drop chance multiplicatively by 50% of its usual protection chance. */
+#ifndef TOOL_NOTHEFT_COMBO
+	if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) chance >>= 1;
+#else
+	if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) chance = (chance * (100 - TOOL_SAFETY_CHANCE / 2)) / 100;
+#endif
+	if (!chance) chance = 1;
+
 	for (i = 0; i < INVEN_PACK; i++) {
 		tmp_obj = p_ptr->inventory[i];
 #ifdef ENABLE_SUBINVEN
@@ -120,6 +128,14 @@ bool do_player_scatter_items(int Ind, int chance, int rad) {
 	zcave = getcave(&p_ptr->wpos);
 
 	if (p_ptr->inval) return(FALSE);
+
+	/* Specialty: Make theft prevention devices actually help us a bit: Reduce drop chance multiplicatively by 50% of its usual protection chance. */
+#ifndef TOOL_NOTHEFT_COMBO
+	if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) chance >>= 1;
+#else
+	if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) chance = (chance * (100 - TOOL_SAFETY_CHANCE / 2)) / 100;
+#endif
+	if (!chance) chance = 1;
 
 	for (i = 0; i < INVEN_PACK; i++) {
 		if (!p_ptr->inventory[i].k_idx) continue;
@@ -303,7 +319,10 @@ static bool do_player_trap_call_out(int Ind) {
 		everyone_lite_spot(&p_ptr->wpos, cy, cx);
 
 		/* Actually wake it up... */
-		m_ptr->csleep = 0;
+		if (m_ptr->csleep) {
+			m_ptr->csleep = 0;
+			if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, h_index, m_ptr->custom_lua_awoke));
+		}
 
 		monster_desc(Ind, m_name, h_index, 0x08);
 		msg_format(Ind, "You hear a rapid-shifting wail, and %s appears!",m_name);
@@ -433,6 +452,12 @@ static bool player_handle_missile_trap(int Ind, s16b num, s16b tval, s16b sval, 
 		msg_format(Ind, "Suddenly %s are shot at you!", i_name);
 
 	for (i = 0; i < num; i++) {
+		/* Take precedence over all other means of defense */
+		if (p_ptr->dispersion && p_ptr->cst) {
+			msg_format(Ind, "\377%cYou disperse around the attack!", COLOUR_DODGE_GOOD);
+			if (magik(p_ptr->dispersion)) use_stamina(p_ptr, 1);
+			continue;
+		}
 		if ((p_ptr->kinetic_shield
 #ifdef ENABLE_OCCULT
 		    || p_ptr->spirit_shield
@@ -947,7 +972,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 						else
 							msg_format(Ind, "\376\377o%sour %s (%c)(%c) was stolen!",
 							    ((o_ptr->number > 1) ? "One of y" : "Y"),
-							    o_name, index_to_label(i / 100 - 1), index_to_label(s));
+							    o_name, index_to_label(i / SUBINVEN_INVEN_MUL - 1), index_to_label(s));
 #endif
 
 						inven_item_increase(Ind, i, -1);
@@ -1671,7 +1696,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 			else {
 				cptr name;
 
-				name = deity_info[p_ptr->pgod-1].name;
+				name = deity_info[p_ptr->pgod - 1].name;
 				msg_format(Ind, "You feel you have angered %s.", name);
 				set_grace(p_ptr->grace - 3000);
 			}
@@ -1686,7 +1711,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 			else {
 				cptr name;
 
-				name = deity_info[p_ptr->pgod-1].name;
+				name = deity_info[p_ptr->pgod - 1].name;
 
 				msg_format(Ind, "%s quakes in rage: ``Thou art supremely insolent, mortal!!''", name);
 				nasty_side_effect();
@@ -1698,7 +1723,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 		/* Trap of hallucination */
 		case TRAP_OF_HALLUCINATION:
 			msg_print(Ind, "Scintillating colours hypnotize you for a moment.");
-			set_image(Ind, 80);
+			set_image(Ind, 60 + rand_int(40));
 			break;
 
 		/* Bolt Trap */
@@ -2424,8 +2449,14 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 				o_ptr = &p_ptr->inventory[i];
 
 				if (!o_ptr->k_idx) continue;
-				if (o_ptr->tval != TV_POTION && o_ptr->tval != TV_POTION2)
-					continue;
+				if (o_ptr->tval != TV_POTION && o_ptr->tval != TV_POTION2) continue;
+
+				/* Specialty: Make theft prevention devices actually help us a bit: Reduce drop chance multiplicatively by 50% of its usual protection chance. */
+#ifndef TOOL_NOTHEFT_COMBO
+				if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION && rand_int(2)) continue;
+#else
+				if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION && magik(TOOL_SAFETY_CHANCE / 2)) continue;
+#endif
 
 				ident = TRUE;
 				//vanish = 90;
@@ -2442,7 +2473,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 			}
 
 			if (bottles) {
-				if (bottles > 99) bottles = 99;
+				if (bottles >= MAX_STACK_SIZE) bottles = MAX_STACK_SIZE - 1;
 
 				invcopy(q_ptr, lookup_kind(TV_BOTTLE, 1));
 				q_ptr->number = bottles;
@@ -2540,6 +2571,13 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 				if (q_ptr->lev > 20) amt *= q_ptr->lev - 20;
 				if (amt > max_amt) amt = max_amt;
 				if (amt < 100) continue;
+
+#ifndef TOOL_NOTHEFT_COMBO
+				if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) amt >>= 1;
+#else
+				if (TOOL_EQUIPPED(p_ptr) == SV_TOOL_THEFT_PREVENTION) amt = (amt * (100 - TOOL_SAFETY_CHANCE / 2)) / 100;
+#endif
+				if (amt < 50) continue;
 
 				p_ptr->au -= amt;
 				/* hack: prevent s32b overflow */
@@ -2726,8 +2764,8 @@ void player_activate_door_trap(int Ind, s16b y, s16b x) {
 	//msg_print(Ind, "You found a trap!");
 	msg_print(Ind, "You triggered a trap!");
 
-	/* Pick a trap */
-	pick_trap(&p_ptr->wpos, y, x);
+	/* Mark trap as found */
+	trap_found(&p_ptr->wpos, y, x);
 
 	/* Hit the trap */
 	ident = player_activate_trap_type(Ind, y, x, NULL, -1);
@@ -2743,10 +2781,11 @@ void player_activate_door_trap(int Ind, s16b y, s16b x) {
  * mod: -1 means no multiplication trap allowed.
  */
 // FEAT_DOOR stuffs should be revised after f_info reform	- Jir -
-void place_trap(struct worldpos *wpos, int y, int x, int mod) {
+void place_trap(struct worldpos *wpos, int y, int x, int modx) {
 	bool more = TRUE;
 	s16b trap, lv;
 	trap_kind *t_ptr;
+	int mod = modx % 1000, clone_trapping = modx / 1000;
 
 	s16b cnt = 0;
 	u32b flags;
@@ -2756,10 +2795,13 @@ void place_trap(struct worldpos *wpos, int y, int x, int mod) {
 
 	/* Paranoia -- verify location */
 	cave_type **zcave;
+	struct dun_level *l_ptr = getfloor(wpos);
 
 #ifdef ARCADE_SERVER
 	return;
 #endif
+
+	if (l_ptr && (l_ptr->flags2 & LF2_NO_TRAPS)) return;
 
 	/* Not in Arena Monster Challenge, nor PvP Arena */
 	if (in_arena(wpos) || in_pvparena(wpos)) return;
@@ -2780,9 +2822,7 @@ void place_trap(struct worldpos *wpos, int y, int x, int mod) {
 	/* Require empty, clean, floor grid */
 	/* Hack - '+1' for secret doors */
 	if (cave_floor_grid(c_ptr) || c_ptr->feat == FEAT_DEEP_WATER) flags = FTRAP_FLOOR;
-	else if ((c_ptr->feat >= FEAT_DOOR_HEAD) &&
-		    (c_ptr->feat <= FEAT_DOOR_TAIL + 1))
-		flags = FTRAP_DOOR;
+	else if ((c_ptr->feat >= FEAT_DOOR_HEAD) && (c_ptr->feat <= FEAT_DOOR_TAIL + 1)) flags = FTRAP_DOOR;
 	else return;
 
 #if 0 //allow?
@@ -2814,8 +2854,7 @@ void place_trap(struct worldpos *wpos, int y, int x, int mod) {
 	   (c_ptr->feat <= FEAT_DOOR_TAIL)) ||
 	*/
 #if 0
-	if (f_info[c_ptr->feat].flags1 & FF1_DOOR)
-		flags = FTRAP_DOOR;
+	if (f_info[c_ptr->feat].flags1 & FF1_DOOR) flags = FTRAP_DOOR;
 	else flags = FTRAP_FLOOR;
 #endif	// 0
 
@@ -2853,6 +2892,7 @@ void place_trap(struct worldpos *wpos, int y, int x, int mod) {
 			cs_ptr->sc.trap.t_idx = trap;
 			cs_ptr->sc.trap.found = FALSE;
 			//c_ptr = &zcave[y][x];
+			cs_ptr->sc.trap.clone = clone_trapping;
 		}
 	}
 
@@ -3196,6 +3236,8 @@ void do_cmd_set_trap(int Ind, int item_kit, int item_load) {
 	cave_type *c_ptr;
 	cave_type **zcave;
 	struct c_special *cs_ptr;
+	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+
 
 	zcave = getcave(&p_ptr->wpos);
 	c_ptr = &zcave[py][px];
@@ -3219,9 +3261,8 @@ void do_cmd_set_trap(int Ind, int item_kit, int item_load) {
 		return;
 	}
 
-	if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) ||
-	    (c_ptr->info & (CAVE_PROT | CAVE_NO_MONSTER))) {
-		msg_print(Ind, "You cannot set monster traps on this special floor.");
+	if (l_ptr && (l_ptr->flags2 & LF2_NO_TRAPS)) {
+		msg_print(Ind, "This whole floor is not suitable for setting monster traps.");
 		return;
 	}
 
@@ -3237,16 +3278,22 @@ void do_cmd_set_trap(int Ind, int item_kit, int item_load) {
 	/* Sanity-check and get the objects */
 	if (!verify_inven_item(Ind, item_kit)) return;
 #ifdef ENABLE_SUBINVEN
-	if (item_kit >= 100 && p_ptr->inventory[item_kit / 100 - 1].sval != SV_SI_TRAPKIT_BAG) {
+	if (item_kit >= SUBINVEN_INVEN_MUL && p_ptr->inventory[item_kit / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_TRAPKIT_BAG) {
 		msg_print(Ind, "\377yTrap Kit Bags are the only eligible sub-containers for using trap kits.");
 		return;
 	}
 #endif
-	get_inven_item(Ind, item_kit, &o_ptr);
+	if (!get_inven_item(Ind, item_kit, &o_ptr)) return;
 	if (!can_use_verbose(Ind, o_ptr)) return;
 
 	if (!verify_inven_item(Ind, item_load)) return;
-	get_inven_item(Ind, item_load, &j_ptr);
+#ifdef ENABLE_SUBINVEN
+	if (item_load >= SUBINVEN_INVEN_MUL && p_ptr->inventory[item_load / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_POTION_BELT) { /* Allow using potions from potion belt for fumes traps */
+		msg_print(Ind, "\377yTrap Kit payload must be readily held in normal inventory, not in a container.");
+		return;
+	}
+#endif
+	if (!get_inven_item(Ind, item_load, &j_ptr)) return;
 	if (!can_use_verbose(Ind, j_ptr)) return;
 
 	/* Trap kits need a second object */
@@ -3359,10 +3406,10 @@ void do_cmd_set_trap(int Ind, int item_kit, int item_load) {
 	inven_item_increase(Ind, item_load, -num);
 	inven_item_describe(Ind, item_load);
 #ifdef ENABLE_SUBINVEN
-	if (item_kit >= 100) inven_item_optimize(Ind, item_kit);
+	if (item_kit >= SUBINVEN_INVEN_MUL) inven_item_optimize(Ind, item_kit);
 	/* Optimize load, or a 'number = 0' staff will not get erased from subinven and its remaining charges
 	   will stack with itself when the item is placed in here again after trap went off or was disarmed! */
-	if (item_load >= 100) inven_item_optimize(Ind, item_load);
+	if (item_load >= SUBINVEN_INVEN_MUL) inven_item_optimize(Ind, item_load);
 #endif
 	for (i = 0; i < INVEN_TOTAL; i++)
 		if (inven_item_optimize(Ind, i)) break;
@@ -3466,12 +3513,17 @@ void do_cmd_disarm_mon_trap_aux(int Ind, worldpos *wpos, int y, int x) {
 				/* Try to just place it into the inventory, or drop it to the floor if full */
 #ifdef ENABLE_SUBINVEN
 				if (q_ptr->tval == TV_TRAPKIT) {
-					(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, q_ptr, -1, FALSE);
+					(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, q_ptr, -1, FALSE, FALSE);
 					/* If we could stow it, we're done with this item */
 					if (!q_ptr->number) continue;
 				}
 				else if (q_ptr->tval == TV_STAFF || (q_ptr->tval == TV_ROD && !rod_requires_direction(Ind, o_ptr))) {
-					(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, q_ptr, -1, FALSE);
+					(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, q_ptr, -1, FALSE, FALSE);
+					/* If we could stow it, we're done with this item */
+					if (!q_ptr->number) continue;
+				}
+				else if (q_ptr->tval == TV_POTION || q_ptr->tval == TV_POTION2) {
+					(void)auto_stow(Ind, SV_SI_POTION_BELT, q_ptr, -1, FALSE, FALSE);
 					/* If we could stow it, we're done with this item */
 					if (!q_ptr->number) continue;
 				}
@@ -4689,7 +4741,6 @@ static bool mon_hit_trap_aux_potion(int who, int m_idx, object_type *o_ptr) {
 #endif
 
 	/* Actually hit the monster */
-	//(void)project_m(who, y, x, 0, y, x, dam, typ);
 	(void)project(0 - who, rad, &m_ptr->wpos, y, x, dam, typ, flg, "");
 	return(zcave[y][x].m_idx == 0 ? TRUE : FALSE);
 }
@@ -5006,10 +5057,13 @@ bool mon_hit_trap(int m_idx) {
 
 						/* Some mosnters are immune to death */
 						if (r_ptr->flags7 & RF7_NO_DEATH) dam = 0;
-						if (m_ptr->status == M_STATUS_FRIENDLY) dam = 0;
+						if (m_ptr->status & M_STATUS_FRIENDLY) dam = 0;
 
 						/* Wake the monster up */
-						m_ptr->csleep = 0;
+						if (m_ptr->csleep) {
+							m_ptr->csleep = 0;
+							if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, m_idx, m_ptr->custom_lua_awoke));
+						}
 
 						/* Hurt the monster */
 						m_ptr->hp -= dam;

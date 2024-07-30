@@ -86,7 +86,9 @@ char ang_term_name[ANGBAND_TERM_MAX][40] = {
 	"Chat",
 	"Equipment",
 	"Term-6",
-	"Term-7"
+	"Term-7",
+	"Term-8",
+	"Term-9"
 };
 
 /*
@@ -139,7 +141,7 @@ cptr window_flag_desc[32] = {
 	NULL
 };
 #else
-cptr window_flag_desc[9] = {
+cptr window_flag_desc[NR_OPTIONS_SHOWN] = {
 	"Display inven/equip",
 	"Display equip/inven",
 	"Display character",
@@ -149,6 +151,8 @@ cptr window_flag_desc[9] = {
 	"Display mini-map",
 	"Display lag-o-meter",
 	"Display player list",
+	"Display character boni",
+	"Display subinventory",
 };
 #endif
 
@@ -191,9 +195,9 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "censor_swearing",		"Censor certain swear words in public messages" },
 
 	{ &c_cfg.hilite_chat,		TRUE,	1,	0, 3, TRUE,
-	    "hilite_chat",		"Highlight chat messages containing your name" },
+	    "highlight_chat",		"Highlight chat messages containing your name" },
 	{ &c_cfg.hibeep_chat,		TRUE,	1,	0, 4, TRUE,
-	    "hibeep_chat",		"Beep on chat messages containing your name" },
+	    "highbeep_chat",		"Beep on chat messages containing your name" },
 	{ &c_cfg.page_on_privmsg,	FALSE,	1,	0, 5, TRUE,
 	    "page_on_privmsg",		"Beep when receiving a private message" },
 	{ &c_cfg.page_on_afk_privmsg,	TRUE,	1,	0, 6, TRUE,
@@ -210,7 +214,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.font_map_solid_walls,	TRUE,	1,	0, 8, TRUE,
 	    "font_map_solid_walls",	"Certain fonts only: Walls look like solid blocks" },
 	{ &c_cfg.view_animated_lite,	TRUE,	1,	0, 9, TRUE,
-	    "view_animated_lite",	"Animate lantern light, flickering in colour" },
+	    "view_animated_light",	"Animate lantern light, flickering in colour" },
 	{ &c_cfg.wall_lighting,		TRUE,	1,	0, 10, TRUE,
 	    "wall_lighting",		"Generally enable lighting/shading for wall grids" },
 	{ &c_cfg.view_lamp_walls,	TRUE,	1,	0, 11, TRUE,
@@ -224,7 +228,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.view_shade_floor,	TRUE,	1,	0, 15, TRUE,
 	    "view_shade_floor",		"Use special colors to shade floor grids" },
 	{ &c_cfg.view_lite_extra,	TRUE,	1,	9, 16, TRUE,
-	    "view_lite_extra",		"Lamp light affects more floor/wall types" },
+	    "view_light_extra",		"Lamp light affects more floor/wall types" },
 
 	{ &c_cfg.alert_hitpoint,	FALSE,	7,	0, 17, TRUE,
 	    "alert_hitpoint",		"Beep/message about critical hitpoints/sanity" },
@@ -295,7 +299,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "flash_player",		"Flash own character icon after far relocation" },
     //todo: fix/implement good cursor on *nix/osx
 	{ &c_cfg.hilite_player,		FALSE,	6,	0, 45, TRUE,
-	    "hilite_player",		"Hilite own character icon with the cursor" },
+	    "highlight_player",		"Highlight own character icon with the cursor" },
 	{ &c_cfg.consistent_players,	FALSE,	6,	0, 46, TRUE,
 	    "consistent_players",	"Use consistent symbols and colours for players" },
 
@@ -316,12 +320,12 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.safe_macros,		TRUE,	2,	0, 53, TRUE,
 	    "safe_macros",		"Abort macro if item is missing or an action fails" },
 
-	{ &c_cfg.auto_untag,		FALSE,	2,	0, 54, TRUE,
+	{ &c_cfg.auto_untag,		FALSE,	8,	0, 54, TRUE,
 	    "auto_untag",		"Remove unique monster inscription on pick-up" },
-	{ &c_cfg.clear_inscr,		FALSE,	2,	9, 55, TRUE,
+	{ &c_cfg.clear_inscr,		FALSE,	8,	9, 55, TRUE,
 	    "clear_inscr",		"Clear @-inscriptions on taking item ownership" },
-	{ &c_cfg.auto_inscribe,		FALSE,	2,	9, 56, TRUE,
-	    "auto_inscribe",		"Use additional predefined auto-inscriptions" },
+	{ &c_cfg.auto_inscr_server,	FALSE,	8,	9, 56, TRUE,
+	    "auto_inscr_server",	"Also use predefined server-side auto-inscriptions" },
 	{ &c_cfg.stack_force_notes,	TRUE,	2,	0, 57, TRUE,
 	    "stack_force_notes",	"Merge inscriptions when stacking" },
 	{ &c_cfg.stack_force_costs,	TRUE,	2,	0, 58, TRUE,
@@ -378,9 +382,9 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.view_torch_grids,	FALSE,	3,	0, 82, TRUE,
 	    "view_torch_grids",		"Map remembers all torch-lit grids" },
 	{ &c_cfg.view_reduce_lite,	FALSE,	3,	0, 83, FALSE, /* Doesn't make sense */
-	    "view_reduce_lite",		"Reduce lite-radius when running" },
+	    "view_reduce_light",	"Reduce light radius when running" },
 	{ &c_cfg.view_reduce_view,	FALSE,	3,	0, 84, FALSE, /* Doesn't make sense */
-	    "view_reduce_view",		"Reduce view-radius in town" },
+	    "view_reduce_view",		"Reduce view radius in town" },
 
 	{ &c_cfg.easy_open,		TRUE,	3,	0, 85, TRUE,
 	    "easy_open",		"Automatically open doors" },
@@ -482,7 +486,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.flash_insane,		FALSE,	6,	0, 116, TRUE, //page 3 (UI 3)
 	    "flash_insane",		"Flash own character icon when going badly insane" },
     /* 4.7.1: */
-	{ &c_cfg.last_words,		TRUE,	6,	0, 117, TRUE,
+	{ &c_cfg.last_words,		TRUE,	1,	0, 117, TRUE,
 	    "last_words",		"Get last words when the character dies" },
 	{ &c_cfg.disturb_see,		FALSE,	3,	0, 118, TRUE,
 	    "disturb_see",		"Disturb whenever seeing any monster" },
@@ -529,7 +533,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	{ &c_cfg.no_house_magic,	FALSE,	3,	0, 137, TRUE,
 	    "no_house_magic",		"Prevent using magic inside houses" },
 	{ &c_cfg.no_lite_fainting,	FALSE,	1,	0, 138, TRUE,
-	    "no_lite_fainting",		"Disable shading effect for fainting light source" },
+	    "no_light_fainting",	"Disable shading effect for fainting light source" },
 
 	{ &c_cfg.auto_pickup,		FALSE,	8,	0, 139, TRUE,
 	    "auto_pickup",		"Automatically pickup items (see '/apickup')" },
@@ -560,6 +564,21 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 
 	{ &c_cfg.flash_player2,		FALSE,	6,	0, 151, TRUE,
 	    "flash_player2",		"Flash own character icon after close relocation" },
+	{ &c_cfg.load_form_macros,	TRUE,	2,	0, 152, TRUE,
+	    "load_form_macros",		"Automatically load form-specific macros on change" },
+	{ &c_cfg.auto_inscr_off,	FALSE,	8,	0, 153, TRUE,
+	    "auto_inscr_off",		"Disable all client-side auto-inscriptions" },
+
+	{ &c_cfg.ascii_feats,		FALSE,	7,	0, 154, TRUE,
+	    "ascii_feats",		"Disable font-specific mapping for all floor feats" },
+	{ &c_cfg.ascii_items,		FALSE,	7,	0, 155, TRUE,
+	    "ascii_items",		"Disable font-specific mapping for all items" },
+	{ &c_cfg.ascii_monsters,	FALSE,	7,	0, 156, TRUE,
+	    "ascii_monsters",		"Disable font-specific mapping for all monsters" },
+	{ &c_cfg.ascii_uniques,		FALSE,	7,	0, 157, TRUE,
+	    "ascii_uniques",		"Disable font-specific mapping for unique monsters" },
+	{ &c_cfg.no_flicker,		FALSE,	6,	0, 158, TRUE,
+	    "no_flicker",		"Disable all fast colour animations" },
 };
 
 cptr melee_techniques[16] = {

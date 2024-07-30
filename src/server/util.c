@@ -14,8 +14,6 @@
 /* For gettimeofday */
 #include <sys/time.h>
 
-static void console_talk_aux(char *message);
-
 
 /* Ignore roman number suffix when checking for similar names? */
 #define SIMILAR_ROMAN
@@ -23,9 +21,15 @@ static void console_talk_aux(char *message);
 /* Attempt to concatenate multiple chat lines to spot broken-up swear words? */
 #define ENABLE_MULTILINE_CENSOR
 
+/* Checking intercept and dodge chances gives not just vs current level monster but also 2x that level info?
+   (Note: Parry and block are independant of monster level, so they aren't affected.) */
+#define CHECK_CHANCES_DUAL
+
+
+
+static void console_talk_aux(char *message);
 
 #ifndef HAS_MEMSET
-
 /*
  * For those systems that don't have "memset()"
  *
@@ -37,7 +41,6 @@ char *memset(char *s, int c, huge n) {
 	for (t = s; n--; ) *t++ = c;
 	return(s);
 }
-
 #endif
 
 
@@ -256,7 +259,7 @@ errr path_parse(char *buf, int max, cptr file) {
 	}
 
 	/* Point at the user */
-	u = file+1;
+	u = file + 1;
 
 	/* Look for non-user portion of the file */
 	s = strstr(u, PATH_SEP);
@@ -265,8 +268,7 @@ errr path_parse(char *buf, int max, cptr file) {
 	if (s && (s >= u + sizeof(user))) return(1);
 
 	/* Extract a user name */
-	if (s)
-	{
+	if (s) {
 		int i;
 
 		for (i = 0; u < s; ++i) user[i] = *u++;
@@ -391,23 +393,17 @@ errr my_fclose(FILE *fff) {
  *
  * Process tabs, strip internal non-printables
  */
-errr my_fgets(FILE *fff, char *buf, huge n, bool conv)
-{
+static errr my_fgets_aux(FILE *fff, char *buf, huge n, bool conv, bool col) {
 	huge i = 0;
-
 	char *s;
-
 	char tmp[1024];
 
 	/* Read a line */
-	if (fgets(tmp, 1024, fff))
-	{
+	if (fgets(tmp, 1024, fff)) {
 		/* Convert weirdness */
-		for (s = tmp; *s; s++)
-		{
+		for (s = tmp; *s; s++) {
 			/* Handle newline */
-			if (*s == '\n')
-			{
+			if (*s == '\n') {
 				/* Terminate */
 				buf[i] = '\0';
 
@@ -416,8 +412,7 @@ errr my_fgets(FILE *fff, char *buf, huge n, bool conv)
 			}
 
 			/* Handle tabs */
-			else if (*s == '\t')
-			{
+			else if (*s == '\t') {
 				/* Hack -- require room */
 				if (i + 8 >= n) break;
 
@@ -428,12 +423,28 @@ errr my_fgets(FILE *fff, char *buf, huge n, bool conv)
 				while (!(i % 8)) buf[i++] = ' ';
 			}
 
+#ifdef X_INFO_TXT_COLOURS
+			/* Even without 'conv' being TRUE: Allow using \{c colour codes in *_info.txt files too */
+			else if (col && *s == '\\' && *(s + 1) == '{') {
+				/* Convert '\{' to '\377' colour code */
+				*s = '\377';
+
+				/* Copy */
+				buf[i++] = *s;
+
+				/* Skip next char ('{') */
+				s++;
+
+				/* Check length */
+				if (i >= n) break;
+			}
+#endif
+
 			/* Handle printables */
-			else if (isprint(*s) || *s == '\377')
-			{
+			else if (isprint(*s) || *s == '\377') {
 				/* easier to edit perma files */
-				if (conv && *s == '{' && *(s + 1) != '{')
-					*s = '\377';
+				if (conv && *s == '{' && *(s + 1) != '{') *s = '\377';
+
 				/* Copy */
 				buf[i++] = *s;
 
@@ -448,6 +459,12 @@ errr my_fgets(FILE *fff, char *buf, huge n, bool conv)
 
 	/* Failure */
 	return(1);
+}
+errr my_fgets(FILE *fff, char *buf, huge n, bool conv) {
+	return(my_fgets_aux(fff, buf, n, conv, FALSE));
+}
+errr my_fgets_col(FILE *fff, char *buf, huge n, bool conv) {
+	return(my_fgets_aux(fff, buf, n, conv, TRUE));
 }
 
 
@@ -784,14 +801,14 @@ errr fd_close(int fd) {
  * Convert a decimal to a single digit octal number
  */
 static char octify(uint i) {
-	return(hexsym[i%8]);
+	return(hexsym[i % 8]);
 }
 
 /*
  * Convert a decimal to a single digit hex number
  */
 static char hexify(uint i) {
-	return(hexsym[i%16]);
+	return(hexsym[i % 16]);
 }
 
 
@@ -990,6 +1007,7 @@ void sound(int Ind, int val) {
    'type' is used client-side, for efficiency options concerning near-simultaneous sounds
    'nearby' means if other players nearby would be able to also hear the sound. - C. Blue */
 void sound(int Ind, cptr name, cptr alternative, int type, bool nearby) {
+	bool dm = Players[Ind]->admin_dm;
 #if 0 /* non-optimized way (causes LUA errors if sound() is called in fire_ball() which is in turn called from LUA - C. Blue */
 	int val, val2;
 
@@ -1009,7 +1027,7 @@ void sound(int Ind, cptr name, cptr alternative, int type, bool nearby) {
 	if (name && p_ptr->admin_dm && cfg.secret_dungeon_master && (
 	    //!strcmp(name, "blink") ||
 	    !strcmp(name, "phase_door") || !strcmp(name, "teleport")))
-		return;
+		nearby = FALSE;
 
 	/* backward compatibility */
 	if (type == SFX_TYPE_STOP && !is_newer_than(&p_ptr->version, 4, 6, 1, 1, 0, 0)) return;
@@ -1052,6 +1070,7 @@ void sound(int Ind, cptr name, cptr alternative, int type, bool nearby) {
 		for (i = 1; i <= NumPlayers; i++) {
 			if (Players[i]->conn == NOT_CONNECTED) continue;
 			if (!inarea(&Players[i]->wpos, &p_ptr->wpos)) continue;
+			if (dm && !Players[i]->player_sees_dm) continue;
 			if (Ind == i) continue;
 
 			/* backward compatibility */
@@ -1082,6 +1101,7 @@ void sound(int Ind, cptr name, cptr alternative, int type, bool nearby) {
 void sound_vol(int Ind, cptr name, cptr alternative, int type, bool nearby, int vol) {
 	player_type *p_ptr = Players[Ind];
 	int val = -1, val2 = -1, i, d;
+	bool dm = p_ptr->admin_dm;
 
 	if (name) for (i = 0; i < SOUND_MAX_2010; i++) {
 		if (!audio_sfx[i][0]) break;
@@ -1117,6 +1137,7 @@ void sound_vol(int Ind, cptr name, cptr alternative, int type, bool nearby, int 
 		for (i = 1; i <= NumPlayers; i++) {
 			if (Players[i]->conn == NOT_CONNECTED) continue;
 			if (!inarea(&Players[i]->wpos, &p_ptr->wpos)) continue;
+			if (dm && !Players[i]->player_sees_dm) continue;
 			if (Ind == i) continue;
 
 			d = distance(p_ptr->py, p_ptr->px, Players[i]->py, Players[i]->px);
@@ -1778,6 +1799,13 @@ void handle_music(int Ind) {
 		p_ptr->music_monster = -2;
 		Send_music(Ind, 8, 1, 1); //Valinor
 		return;
+#ifdef DM_MODULES
+	} else if (in_module(&p_ptr->wpos)) {
+		//hack: init music as 'higher priority than boss-specific':
+		p_ptr->music_monster = -2;
+		Send_music(Ind, exec_lua(0, format("return adventure_locale(%d, 4)", p_ptr->wpos.wz)), 0, 0);
+		return;
+#endif
 	} else if (in_pvparena(&p_ptr->wpos)) {
 		//hack: init music as 'higher priority than boss-specific':
 		p_ptr->music_monster = -2;
@@ -1788,15 +1816,15 @@ void handle_music(int Ind) {
 		p_ptr->music_monster = -2;
 		Send_music(Ind, 48, 0, 0); //Monster Arena Challenge
 		return;
-	} else if (in_sector00(&p_ptr->wpos)) {
+	} else if (in_sector000(&p_ptr->wpos)) {
 		//hack: init music as 'higher priority than boss-specific':
 		p_ptr->music_monster = -2;
-		Send_music(Ind, sector00music, sector00musicalt, sector00musicalt2);
+		Send_music(Ind, sector000music, sector000musicalt, sector000musicalt2);
 		return;
-	} else if (in_sector00_dun(&p_ptr->wpos)) {
+	} else if (in_sector000_dun(&p_ptr->wpos)) {
 		//hack: init music as 'higher priority than boss-specific':
 		p_ptr->music_monster = -2;
-		Send_music(Ind, sector00music_dun, sector00musicalt_dun, sector00musicalt2_dun);
+		Send_music(Ind, sector000music_dun, sector000musicalt_dun, sector000musicalt2_dun);
 		return;
 	} else if (d_ptr && !d_ptr->type && d_ptr->theme == DI_DEATH_FATE) {
 		if (p_ptr->wpos.wz == 1 || p_ptr->wpos.wz == -1) Send_music(Ind, 98, 55, 55); //party/halloween
@@ -1856,9 +1884,9 @@ void handle_music(int Ind) {
 			return;
 		}
 		/* Hack: Shops that don't offer the option to buy (store action '2') anything, aka 'service shops' */
-		for (a = 0; a < STORE_MAX_ACTION; a++)
+		for (a = 0; a < MAX_STORE_ACTIONS; a++)
 			if (st_info[p_ptr->store_num].actions[a] == 2) break;
-		if (a == STORE_MAX_ACTION) Send_music(Ind, 97, -1, -1); //service shop music
+		if (a == MAX_STORE_ACTIONS) Send_music(Ind, 97, -1, -1); //service shop music
 		/* Normal shops (in town or elsewhere) */
 		else if (!istownarea(&p_ptr->wpos, MAX_TOWNAREA) && !isdungeontown(&p_ptr->wpos)) Send_music(Ind, 95, -1, -1); //dungeon shops (and strange world-surface shops not attached to any town, if they exist oO)
 		else Send_music(Ind, 93, -1, -1); //town shops
@@ -1869,7 +1897,7 @@ void handle_music(int Ind) {
 	if (p_ptr->wpos.wz == 0) {
 		/* Jail hack */
 		if (p_ptr->music_monster == -5) {
-			Send_music(Ind, 87, 46, 46);
+			Send_music(Ind, 87, 13, 13);
 			return;
 		}
 
@@ -2160,7 +2188,8 @@ void handle_music(int Ind) {
 		switch (i) {
 		default:
 		case 0:
-			if (d_ptr->flags2 & DF2_NO_DEATH) Send_music(Ind, 12, 11, 11);//note: music file (dungeon_generic_nodeath) is identical to the one of the Training Tower
+			if (d_ptr->flags3 & DF3_JAIL_DUNGEON) Send_music(Ind, 178, 14, 14); //take precedence over DF2_IRON for jail-specific dungeons; also, use hellish/forcedown for a change (as replacement) as it's underused..
+			else if (d_ptr->flags2 & DF2_NO_DEATH) Send_music(Ind, 12, 11, 11);//note: music file (dungeon_generic_nodeath) is identical to the one of the Training Tower
 			else if (d_ptr->flags2 & DF2_IRON) Send_music(Ind, 13, 11, 11);
 			else if ((d_ptr->flags2 & DF2_HELL) || (d_ptr->flags1 & DF1_FORCE_DOWN)) Send_music(Ind, 14, 11, 11);
 			else Send_music(Ind, 11, 0, 0); //dungeon, generic
@@ -2231,11 +2260,16 @@ void handle_ambient_sfx(int Ind, cave_type *c_ptr, struct worldpos *wpos, bool s
 	if (in_valinor(wpos)) {
 		Send_sfx_ambient(Ind, SFX_AMBIENT_SHORE, TRUE);
 		return;
+#ifdef DM_MODULES
+	} else if (in_module(wpos)) {
+		Send_sfx_ambient(Ind, exec_lua(0, format("return adventure_locale(%d, 5)", wpos->wz)), TRUE);
+		return;
+#endif
 	}
 
 	/* don't play outdoor (or any other) ambient sfx if we're in a special pseudo-indoors sector */
 	if ((l_ptr && (l_ptr->flags2 & LF2_INDOORS)) ||
-	    (in_sector00(wpos) && (sector00flags2 & LF2_INDOORS))) {
+	    (in_sector000(wpos) && (sector000flags2 & LF2_INDOORS))) {
 		Send_sfx_ambient(Ind, SFX_AMBIENT_NONE, FALSE);
 		return;
 	}
@@ -2386,7 +2420,7 @@ void process_ambient_sfx(void) {
 		if (p_ptr->wpos.wz) continue;
 		/* for Dungeon Keeper event, considered indoors */
 		//if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) continue;
-		if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_INDOORS)) continue;
+		if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_INDOORS)) continue;
 
 		w_ptr = &wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx];
 		if (w_ptr->ambient_sfx_counteddown) continue;
@@ -2558,7 +2592,10 @@ void sound_item(int Ind, int tval, int sval, cptr action) {
 		case TV_FIRESTONE: item = "firestone"; break;
 		case TV_SPIKE: item = "spike"; break;
 		case TV_CHEST: item = "chest"; break;
-		case TV_JUNK: item = "junk"; break;
+		case TV_JUNK:
+			if (sval >= SV_GIFT_WRAPPING_START && sval <= SV_GIFT_WRAPPING_END) item = "scroll";
+			else item = "junk";
+			break;
 		case TV_GAME:
 			if (sval == SV_GAME_BALL) {
 				item = "ball_pass"; break; }
@@ -2587,7 +2624,12 @@ void sound_item(int Ind, int tval, int sval, cptr action) {
 		case TV_SPECIAL:
 			switch (sval) {
 			case SV_SEAL: item = "seal"; break;
+			case SV_CUSTOM_OBJECT:
+				//todo maybe:
+				//if (o_ptr->xtra3 & 0x0200) sound_item(Ind, o_ptr->tval2, o_ptr->sval2, action);
+				break;
 			}
+			if (sval >= SV_GIFT_WRAPPING_START && sval <= SV_GIFT_WRAPPING_END) item = "scroll";
 			break;
 #ifdef ENABLE_SUBINVEN
 		case TV_SUBINVEN:
@@ -2595,6 +2637,7 @@ void sound_item(int Ind, int tval, int sval, cptr action) {
 			case SV_SI_SATCHEL:
 			case SV_SI_TRAPKIT_BAG:
 			case SV_SI_MDEVP_WRAPPING:
+			case SV_SI_POTION_BELT:
 				item = "armour_light"; //a textile bag, basically
 				break;
 			case SV_SI_CHEST_SMALL_WOODEN:
@@ -2640,8 +2683,12 @@ void sound_item(int Ind, int tval, int sval, cptr action) {
 /*
  * Add a new "quark" to the set of quarks.
  */
-s32b quark_add(cptr str) {
+s32b quark_add(cptr raw_str) {
 	s32b i;
+	char str[INSCR_LEN];
+
+	strncpy(str, raw_str, INSCR_LEN);
+	str[INSCR_LEN - 1] = 0;
 
 	/* Look for an existing quark */
 	for (i = 1; i < quark__num; i++) {
@@ -2679,31 +2726,37 @@ cptr quark_str(s32b i) {
 	return(q);
 }
 
-/*
- * Check to make sure they haven't inscribed an item against what
+/* Check to make sure they haven't inscribed an item against what
  * they are trying to do -Crimson
  * look for "!*Erm" type, and "!* !A !f" type.
- */
-
-bool check_guard_inscription( s16b quark, char what ) {
+ * New (2023): Encode TRUE directly as -1 instead, and if TRUE and there's a number behind
+ *             the inscription still within this same !-'segment', return that number + 1 (to encode a value of 0 too),
+ *             just negative values aren't possible as -1 would interfere with 'FALSE'. -C. Blue
+ *             Added this for !M and !G handling.
+ * Returns <-1> if TRUE, <0> if FALSE, >0 if TRUE and a number is specified, with return value being <number+1>. */
+int check_guard_inscription(s16b quark, char what) {
 	const char *ax = quark_str(quark);
+	int n = 0; //paranoia initialization
 
 	if (ax == NULL) return(FALSE);
 
 	while ((ax = strchr(ax, '!')) != NULL) {
-		while (ax++ != NULL) {
-			if (*ax == 0)  {
-				return(FALSE); /* end of quark, stop */
+		while (++ax) {
+			if (*ax == 0) return(FALSE); /* end of quark, exit */
+			if (*ax == ' ' || *ax == '@' || *ax == '#' || *ax == '-') break; /* end of segment, stop */
+			if (*ax == what) { /* exact match, accept */
+				/* Additionally scan for any 'amount' in case this inscription uses one */
+				while (*(++ax)) {
+					if (*ax == ' ' || *ax == '@' || *ax == '#' || *ax == '-') return(-1); /* end of segment, accepted, so exit */
+					/* Check for number (Note: Evaluate atoi first, in case it's a number != 0 but with leading '0'. -0 and +0 will also be caught fine as simply 0.) */
+					if ((n = atoi(ax)) || *ax == '0') return(n + 1); /* '+1' hack: Allow specifying '0' too, still distinguishing it from pure inscription w/o a number specified. */
+				}
+				return(-1); /* end of quark, exit */
 			}
-			if (*ax == ' ' || *ax == '@' || *ax == '#' || *ax == '-') {
-				break; /* end of segment, stop */
-			}
-			if (*ax == what) {
-				return(TRUE); /* exact match, stop */
-			}
+			/* '!*' special combo inscription */
 			if (*ax == '*') {
 				/* why so much hassle? * = all, that's it */
-/*				return(TRUE); -- well, !'B'ash if it's on the ground sucks ;) */
+				/*return(TRUE); -- well, !'B'ash if it's on the ground sucks ;) */
 
 				switch (what) { /* check for paranoid tags */
 				case 'd': /* no drop */
@@ -2716,25 +2769,25 @@ bool check_guard_inscription( s16b quark, char what ) {
 				case 'w': /* no wear/wield */
 				case 't': /* no take off */
 #endif
-					return(TRUE);
+					return(-1);
 				}
 				//return(FALSE);
 			}
+			/* '!+' special combo inscription */
 			if (*ax == '+') {
 				/* why so much hassle? * = all, that's it */
-/*				return(TRUE); -- well, !'B'ash if it's on the ground sucks ;) */
+				/*return(TRUE); -- well, !'B'ash if it's on the ground sucks ;) */
 
 				switch (what) { /* check for paranoid tags */
 				case 'h': /* (obsolete) no house ( sell a a key ) */
 				case 'k': /* no destroy */
 				case 's': /* no sell */
-				case 'v': /* no thowing */
 				case '=': /* force pickup */
 #if 0
 				case 'w': /* no wear/wield */
 				case 't': /* no take off */
 #endif
-					return(TRUE);
+					return(-1);
 				}
 				//return(FALSE);
 			}
@@ -3229,23 +3282,24 @@ void msg_format(int Ind, cptr fmt, ...) {
 }
 
 /*
- * Send a message to everyone on a floor.
+ * Send a message to everyone on a floor, optionally except to Ind [or 0]
  */
-static void floor_msg(struct worldpos *wpos, cptr msg) {
+static void floor_msg(int Ind, struct worldpos *wpos, cptr msg) {
 	int i;
 
 //system-msg, currently unused anyway-	if (cfg.log_u) s_printf("[%s] %s\n", Players[sender]->name, msg);
 	/* Check for this guy */
 	for (i = 1; i <= NumPlayers; i++) {
 		if (Players[i]->conn == NOT_CONNECTED) continue;
+		if (i == Ind) continue;
 		/* Check this guy */
 		if (inarea(wpos, &Players[i]->wpos)) msg_print(i, msg);
 	}
 }
 /*
- * Send a formatted message to everyone on a floor. (currently unused)
+ * Send a formatted message to everyone on a floor, optionally except to Ind [or 0]
  */
-void floor_msg_format(struct worldpos *wpos, cptr fmt, ...) {
+void floor_msg_format(int Ind, struct worldpos *wpos, cptr fmt, ...) {
 	va_list vp;
 	char buf[1024];
 
@@ -3256,10 +3310,10 @@ void floor_msg_format(struct worldpos *wpos, cptr fmt, ...) {
 	/* End the Varargs Stuff */
 	va_end(vp);
 	/* Display */
-	floor_msg(wpos, buf);
+	floor_msg(Ind, wpos, buf);
 }
 /*
- * Send a message to everyone on a floor, considering ignorance.
+ * Send a message from sender to everyone on a floor including himself, considering ignorance.
  */
 #if 0 /* currently unused, just killing compiler warning.. */
 static void floor_msg_ignoring(int sender, struct worldpos *wpos, cptr msg) {
@@ -3288,7 +3342,7 @@ static void floor_msg_ignoring2(int sender, struct worldpos *wpos, cptr msg, cpt
 	}
 }
 /*
- * Send a formatted message to everyone on a floor, considering ignorance.
+ * Send a formatted message from sender to everyone on a floor including himself, considering ignorance.
  */
 #if 0 /* currently unused, just killing compiler warning.. */
 static void floor_msg_format_ignoring(int sender, struct worldpos *wpos, cptr fmt, ...) {
@@ -3755,18 +3809,12 @@ void msg_guild_print(int Ind, cptr msg, cptr msg_u) {
 
 #if 0 /* unused atm */
 static char* dodge_diz(int chance) {
-	if (chance < 5)
-		return("almost no");
-	else if (chance < 14)
-		return("a slight");
-	else if (chance < 23)
-		return("a significant");
-	else if (chance < 30)
-		return("a good");
-	else if (chance < 40)
-		return("a very good");
-	else
-		return("a high");
+	if (chance < 5) return("almost no");
+	else if (chance < 14) return("a slight");
+	else if (chance < 23) return("a significant");
+	else if (chance < 30) return("a good");
+	else if (chance < 40) return("a very good");
+	else return("a high");
 }
 #endif
 
@@ -3798,21 +3846,20 @@ void check_dodge(int Ind) {
 		msg_format(Ind, "You will usually dodge a level %d monster.", dun_level);
  #endif
 #else
-	int lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
+	int lev;
 
+ #ifndef CHECK_CHANCES_DUAL
+	lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
 	if (is_admin(p_ptr))
-		msg_format(Ind, "You have a %d%%/%d%% chance of dodging a level %d/%d monster.",
-		    apply_dodge_chance(Ind, p_ptr->lev), apply_dodge_chance(Ind, lev), p_ptr->lev, lev);
-
-/*
-	msg_format(Ind, "You have %s/%s chance of dodging a level %d/%d monster.",
-		dodge_diz(apply_dodge_chance(Ind, p_ptr->lev)), dodge_diz(apply_dodge_chance(Ind, lev)),
-		p_ptr->lev, lev);
-
-	msg_format(Ind, "You have %s chance of dodging a level %d monster.",
-	    dodge_diz(apply_dodge_chance(Ind, p_ptr->lev)), p_ptr->lev);
-*/
-
+ #else
+	if (is_admin(p_ptr)) lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
+	else lev = p_ptr->lev * 2 < 100 ? p_ptr->lev * 2 : 100;
+	if (TRUE)
+ #endif
+	msg_format(Ind, "You have a %d%%/%d%% chance of dodging a level %d/%d monster.",
+	    apply_dodge_chance(Ind, p_ptr->lev), apply_dodge_chance(Ind, lev), p_ptr->lev, lev);
+	/*msg_format(Ind, "You have %s/%s chance of dodging a level %d/%d monster.",
+	    dodge_diz(apply_dodge_chance(Ind, p_ptr->lev)), dodge_diz(apply_dodge_chance(Ind, lev)), p_ptr->lev, lev);*/
 	else msg_format(Ind, "You have a %d%% chance of dodging a level %d monster's attack.",
 	    apply_dodge_chance(Ind, p_ptr->lev), p_ptr->lev);
 #endif
@@ -3821,11 +3868,18 @@ void check_dodge(int Ind) {
 
 void check_intercept(int Ind) {
 	player_type *p_ptr = Players[Ind];
-	int lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
+	int lev;
 
+#ifndef CHECK_CHANCES_DUAL
+	lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
 	if (is_admin(p_ptr))
-		msg_format(Ind, "You have a %d%%/%d%% chance of intercepting a level %d/%d monster.",
-		    calc_grab_chance(p_ptr, 100, p_ptr->lev), calc_grab_chance(p_ptr, 100, lev), p_ptr->lev, lev);
+#else
+	if (is_admin(p_ptr)) lev = p_ptr->lev * 2 < 127 ? p_ptr->lev * 2 : 127;
+	else lev = p_ptr->lev * 2 < 100 ? p_ptr->lev * 2 : 100;
+	if (TRUE)
+#endif
+	msg_format(Ind, "You have a %d%%/%d%% chance of intercepting a level %d/%d monster.",
+	    calc_grab_chance(p_ptr, 100, p_ptr->lev), calc_grab_chance(p_ptr, 100, lev), p_ptr->lev, lev);
 	else msg_format(Ind, "You have a %d%% chance of intercepting a level %d monster's attack.",
 	    calc_grab_chance(p_ptr, 100, p_ptr->lev), p_ptr->lev);
 
@@ -3844,50 +3898,31 @@ void check_parryblock(int Ind) {
 		msg_format(Ind, "You have exactly %d%%/%d%% real chance of parrying/blocking.",
 			apc, abc);
 	} else {
-		if (!apc)
-			strcpy(msg, "You cannot parry at the moment. ");
-			//msg_print(Ind, "You cannot parry at the moment.");
  #if 0
-		else if (apc < 5)
-			msg_print(Ind, "You have almost no chance of parrying.");
-		else if (apc < 10)
-			msg_print(Ind, "You have a slight chance of parrying.");
-		else if (apc < 20)
-			msg_print(Ind, "You have a significant chance of parrying.");
-		else if (apc < 30)
-			msg_print(Ind, "You have a good chance of parrying.");
-		else if (apc < 40)
-			msg_print(Ind, "You have a very good chance of parrying.");
-		else if (apc < 50)
-			msg_print(Ind, "You have an excellent chance of parrying.");
-		else
-			msg_print(Ind, "You have a superb chance of parrying.");
+		if (!apc) strcpy(msg, "You cannot parry at the moment. ");
+		else if (apc < 5) msg_print(Ind, "You have almost no chance of parrying.");
+		else if (apc < 10) msg_print(Ind, "You have a slight chance of parrying.");
+		else if (apc < 20) msg_print(Ind, "You have a significant chance of parrying.");
+		else if (apc < 30) msg_print(Ind, "You have a good chance of parrying.");
+		else if (apc < 40) msg_print(Ind, "You have a very good chance of parrying.");
+		else if (apc < 50) msg_print(Ind, "You have an excellent chance of parrying.");
+		else msg_print(Ind, "You have a superb chance of parrying.");
  #else
-		else strcpy(msg, format("You have a %d%% chance of parrying. ",
-			apc));
+		if (!apc) strcpy(msg, "You cannot parry at the moment. ");
+		else strcpy(msg, format("You have a %d%% chance of parrying. ", apc));
  #endif
-
-		if (!abc)
-			strcat(msg, "You cannot block at the moment.");
-			//msg_print(Ind, "You cannot block at the moment.");
  #if 0
-		else if (abc < 5)
-			msg_print(Ind, "You have almost no chance of blocking.");
-		else if (abc < 14)
-			msg_print(Ind, "You have a slight chance of blocking.");
-		else if (abc < 23)
-			msg_print(Ind, "You have a significant chance of blocking.");
-		else if (abc < 33)
-			msg_print(Ind, "You have a good chance of blocking.");
-		else if (abc < 43)
-			msg_print(Ind, "You have a very good chance of blocking.");
-		else if (abc < 48)
-			msg_print(Ind, "You have an excellent chance of blocking.");
-		else
-			msg_print(Ind, "You have a superb chance of blocking.");
+		if (!abc) msg_print(Ind, "You cannot block at the moment.");
+		else if (abc < 5) msg_print(Ind, "You have almost no chance of blocking.");
+		else if (abc < 14) msg_print(Ind, "You have a slight chance of blocking.");
+		else if (abc < 23) msg_print(Ind, "You have a significant chance of blocking.");
+		else if (abc < 33) msg_print(Ind, "You have a good chance of blocking.");
+		else if (abc < 43) msg_print(Ind, "You have a very good chance of blocking.");
+		else if (abc < 48) msg_print(Ind, "You have an excellent chance of blocking.");
+		else msg_print(Ind, "You have a superb chance of blocking.");
  #else
-		else strcat(msg, format("You have a %d%% chance of blocking.",
-			abc));
+		if (!abc) strcat(msg, "You cannot block at the moment.");
+		else strcat(msg, format("You have a %d%% chance of blocking.", abc));
  #endif
 		msg_print(Ind, msg);
 	}
@@ -4054,6 +4089,8 @@ static int censor_aux(char *buf, char *lcopy, int *c, bool leet, bool max_reduce
 
 	/* create working copies */
 	strcpy(line, buf);
+	/* '!i' explanation: The first index (i=0) may not yet be the array's null-terminator, but just point at string index 0 and hence be 0.
+	    If it is 0 and the string was empty, then c[1] is guaranteed to be a 0-terminator, to avoid buffer overrun here (so an additional i < MSG_LEN check is not needed here). */
 	for (i = 0; !i || c[i]; i++) cc[i] = c[i];
 	cc[i] = 0;
 
@@ -4166,6 +4203,7 @@ static int censor_aux(char *buf, char *lcopy, int *c, bool leet, bool max_reduce
 	/* ensure the reduced string is possibly terminated earlier */
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
 
 	/* reduce 'h' after consonant except for c or s */
 	//TODO: do HIGHLY_EFFECTIVE_CENSOR first probably
@@ -4196,6 +4234,7 @@ static int censor_aux(char *buf, char *lcopy, int *c, bool leet, bool max_reduce
 	/* ensure the reduced string is possibly terminated earlier */
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
  #endif
 
  #ifdef HIGHLY_EFFECTIVE_CENSOR
@@ -4253,6 +4292,7 @@ static int censor_aux(char *buf, char *lcopy, int *c, bool leet, bool max_reduce
 	/* ensure the reduced string is possibly terminated earlier */
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
  #endif
 
 	/* reduce repeated chars (>3 for consonants, >2 for vowel) */
@@ -4300,9 +4340,10 @@ static int censor_aux(char *buf, char *lcopy, int *c, bool leet, bool max_reduce
 	/* ensure the reduced string is possibly terminated earlier */
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
 
 	/* check for swear words and censor them */
-	for (i = 0; swear[i].word[0]; i++) {
+	for (i = 0; swear[i].word[0] && i < MAX_SWEAR; i++) {
 		if (!swear[i].level) continue;
 		offset = 0;
 
@@ -4478,14 +4519,14 @@ int handle_censor(char *line) {
  #ifdef SMARTER_NONSWEARING
 	/* non-swearing extra check (reduces insignificant characters) */
 	bool reduce;
-	char ccns[MSG_LEN];
+	int ccns[MSG_LEN];
  #endif
 
 	strcpy(lcopy, line);
 
  #if 1	/* extra: also apply non-swearing in advance here, for exact matching (ie case-sensitive, non-alphanum, etc) */
 	/* Maybe todo: Also apply nonswear to lcopy2 (the non-reduced version of lcopy) afterwards */
-	for (i = 0; nonswear[i][0]; i++) {
+	for (i = 0; nonswear[i][0] && i < MAX_NONSWEAR; i++) {
   #ifndef HIGHLY_EFFECTIVE_CENSOR
 		/* hack! If HIGHLY_EFFECTIVE_CENSOR is NOT enabled, skip all nonswearing-words that contain spaces!
 		   This is done because those nonswearing-words are usually supposed to counter wrong positives
@@ -4596,6 +4637,7 @@ int handle_censor(char *line) {
 	}
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
 
  #ifdef CENSOR_PH_TO_F
 	/* reduce ph to f */
@@ -4618,6 +4660,7 @@ int handle_censor(char *line) {
 	}
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
  #endif
 
  #ifdef REDUCE_DUPLICATE_H
@@ -4638,6 +4681,7 @@ int handle_censor(char *line) {
 	}
 	lcopy[i] = '\0';
 	cc[i] = 0;
+	if (!i) cc[1] = 0; /* Add "null-terminator". The first cc[0] is not a real terminator but still a reference to a string position (0 in this case). */
  #endif
 
  #ifdef CENSOR_LEET
@@ -4677,7 +4721,7 @@ int handle_censor(char *line) {
 	if ((word = strstr(lcopy2, "ashole")) ||
 	    (word = strstr(lcopy2, "ashoie")))
 		/* use severity level of 'ashole' (condensed) for 'asshole' */
-		for (i = 0; swear[i].word[0]; i++) {
+		for (i = 0; swear[i].word[0] && i < MAX_SWEAR; i++) {
 			if (!swear[i].level) continue;
 			if (!strcmp(swear[i].word, "ashole")) {
 				j_pre = swear[i].level;
@@ -4739,7 +4783,7 @@ int handle_censor(char *line) {
  #endif
 //s_printf("ns: '%s'  '%s'\n", lcopy, lcopy2); //DEBUG
 	/* Maybe todo: Also apply nonswear to lcopy2 (the non-reduced version of lcopy) afterwards */
-	for (i = 0; nonswear[i][0]; i++) {
+	for (i = 0; nonswear[i][0] && i < MAX_NONSWEAR; i++) {
  #ifndef HIGHLY_EFFECTIVE_CENSOR
 		/* hack! If HIGHLY_EFFECTIVE_CENSOR is NOT enabled, skip all nonswearing-words that contain spaces!
 		   This is done because those nonswearing-words are usually supposed to counter wrong positives
@@ -4829,9 +4873,12 @@ int handle_censor(char *line) {
 
  #ifdef ENABLE_MULTILINE_CENSOR
 int handle_ml_censor(int Ind, char *line) {
-	int cl;
+	int cl, old_keep = MSG_LEN / 3, max_keep = (MSG_LEN * 4) / 7, half_keep = max_keep / 2, min_keep = NAME_LEN + 2;
 	player_type *p_ptr = Players[Ind];
-	char tmpbuf[MSG_LEN];
+	char tmpbuf[MSG_LEN], *c, *c_end;
+
+	/* Empty line? - Clear */
+	if (!(*line)) return(0);
 
 	/* Attempt single-line censor first and quit if that already succeeds */
 	cl = handle_censor(line);
@@ -4842,32 +4889,40 @@ int handle_ml_censor(int Ind, char *line) {
 	}
 
 	/* Construct relevant line to check, from the beginnning and ending parts of chat input lines.
-	   Note: We abuse 'NAME_LEN' also as limiter for swear word length. */
+	   Note: We abuse 'NAME_LEN' also as limiter/minimum ensured checking length for swear word length. */
 
-	/* Note: Uf a line gets cut off in the middle of a word, new swearwords might get created that way, eg brass -> br -snip- ass.
+	/* Note: If a line gets cut off in the middle of a word, new swearwords might get created that way, eg brass -> br -snip- ass.
 	   For that reason we always try to not cut words into two pieces here. */
 
-	/* Make room by discarding a bit of the beginning of the line, that has already long been checked */
-	if (strlen(p_ptr->multi_chat_line) >= MAX_CHARS - NAME_LEN * 2 - 2) {
-		char *c = p_ptr->multi_chat_line + strlen(p_ptr->multi_chat_line) - NAME_LEN - 2;
+	/* We are already building a line? Continue with the last 'old_keep' chars from it. */
+	if (*(p_ptr->multi_chat_line)) {
+		/* Make room by discarding a bit of the beginning of the line, that has already long been checked */
+		if (strlen(p_ptr->multi_chat_line) > old_keep) {
+			/* Keep the rest of our line */
+			c_end = p_ptr->multi_chat_line + strlen(p_ptr->multi_chat_line) - 1;
+			c = c_end - old_keep;
+			/* Don't cut words in parts, this could result in swear words that didn't exist previously */
+			while (c_end - c > min_keep && *c != ' ' && *c != '.' && *c != ',') c++; /* only accept 'safe' characters, eg '!' could be part of l33tsp34k */
 
-		/* Don't cut words in parts, this could result in swear words that didn't exist previously */
-		while (c - p_ptr->multi_chat_line <= NAME_LEN * 2 + 2 && *c != ' ' && *c != '.' && *c != ',') c--;
-		strcpy(tmpbuf, c);
-		strcpy(p_ptr->multi_chat_line, tmpbuf);
+			strcpy(tmpbuf, c);
+			strcpy(p_ptr->multi_chat_line, tmpbuf);
+		}
 	}
 
-	/* Line is long -> add beginning and end of new line? */
-	if (strlen(line) > NAME_LEN * 2) {
-		char *c = line + strlen(line) - NAME_LEN;
-
+	/* New line is long -> add beginning and end of it! */
+	if (strlen(line) > max_keep) {
 		/* Add spacer (maybe superfluous) */
 		strcat(p_ptr->multi_chat_line, " ");
 
+		/* add beginning of the line */
+		c = line + half_keep;
 		/* Don't cut words in parts, this could result in swear words that didn't exist previously */
-		while (line + strlen(line) - c <= NAME_LEN * 2 && *c != ' ' && *c != '.' && *c != ',') c--;
+		while (c - line > min_keep && *c != ' ' && *c != '.' && *c != ',') c--; /* only accept 'safe' characters, eg '!' could be part of l33tsp34k */
 		/* Add the beginning */
-		strncat(p_ptr->multi_chat_line, line, c - line);
+		strncat(p_ptr->multi_chat_line, line, c - line); // (note: strncat() always adds null-termination)
+
+		/* Add spacer (maybe superfluous) */
+		strcat(p_ptr->multi_chat_line, " ");
 
 		/* Check if we pass just fine */
 //s_printf("ML_CENSOR(1): %s\n", p_ptr->multi_chat_line);
@@ -4877,13 +4932,12 @@ int handle_ml_censor(int Ind, char *line) {
 			p_ptr->multi_chat_line[0] = 0;
 		}
 
-		/* Add spacer (maybe superfluous) */
-		strcat(p_ptr->multi_chat_line, " ");
-
-		/* Add the ending, for next time */
-		c = line + strlen(line) - 1 - NAME_LEN;
+		/* Add/start with the ending, for next time aka next line */
+		c_end = line + strlen(line) - 1;
+		c = c_end - half_keep;
 		/* Don't cut words in parts, this could result in swear words that didn't exist previously */
-		while (line + strlen(line) - c <= NAME_LEN * 2 + 1 && *c != ' ' && *c != '.' && *c != ',') c--;
+		while (c_end - c > min_keep && *c != ' ' && *c != '.' && *c != ',') c++;
+
 		strcpy(tmpbuf, c);
 		strcpy(p_ptr->multi_chat_line, tmpbuf);
 	} else { /* Line is short -> add the whole line */
@@ -4934,7 +4988,7 @@ void handle_punish(int Ind, int level) return(0);
 
 /* Helper function for player_talk_aux():
    Allow privileged player accounts of administrators to address hidden dungeon masters via private chat */
-static bool may_address_dm(player_type *p_ptr) {
+bool may_address_dm(player_type *p_ptr) {
 	/* DMs aren't hidden on this server? */
 	if (!cfg.secret_dungeon_master) return(TRUE);
 	/* Need to be privileged, simply to avoid someone creating such a name for the purpose of circumventing the rules. */
@@ -5020,8 +5074,9 @@ static void player_talk_aux(int Ind, char *message) {
 
 	/* tBot's stuff */
 	/* moved here to allow tbot to see fake pvt messages. -Molt */
-	strncpy(last_chat_owner, sender, NAME_LEN);
+	strncpy(last_chat_owner, sender, CNAME_LEN);
 	strncpy(last_chat_line, message, MSG_LEN);
+	strncpy(last_chat_account, p_ptr->accountname, ACCNAME_LEN); // <- added this for chat-AI 1000 years later :) - C. Blue
 	/* do exec_lua() not here instead of in dungeon.c - mikaelh */
 
 	/* '-:' at beginning of message sends to normal chat, cancelling special chat modes - C. Blue */
@@ -5194,6 +5249,7 @@ static void player_talk_aux(int Ind, char *message) {
 	/* Special - shutdown command (for compatibility) */
 	if (prefix(message, "@!shutdown") && admin) {
 		/*world_reboot();*/
+		cfg.runlevel = 0;
 		shutdown_server();
 		return;
 	}
@@ -5239,7 +5295,7 @@ static void player_talk_aux(int Ind, char *message) {
 
 	if (message[0] == '/') {
 		if (!strncmp(messagelc, "/me ", 4)) rp_me = TRUE;
-		else if (!strncmp(messagelc, "/me'", 3)) rp_me = rp_me_gen = TRUE;
+		else if (!strncmp(messagelc, "/me'", 4)) rp_me = rp_me_gen = TRUE;
 		else if (!strncmp(messagelc, "/broadcast ", 11)) broadcast = TRUE;
 		else {
 			slash_command = TRUE;
@@ -5732,14 +5788,19 @@ static void player_talk_aux(int Ind, char *message) {
 		message_u[MSG_LEN - 1 - strlen(sender) - 12 + 11] = 0;
 		snprintf(tmessage_u, sizeof(tmessage_u), "\375\377r[\377%c%s\377r]\377%c %s", c_n, sender, COLOUR_CHAT, message_u + 11);
 	} else if (!rp_me) {
+ #ifndef KURZEL_PK
 		/* prevent buffer overflow */
 		message[MSG_LEN - 1 - strlen(sender) - 8 + mycolor] = 0;
 		message_u[MSG_LEN - 1 - strlen(sender) - 8 + mycolor] = 0;
 
- #ifndef KURZEL_PK
 		snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s]\377%c %s", c_n, sender, COLOUR_CHAT, message + mycolor);
 		snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[%s]\377%c %s", c_n, sender, COLOUR_CHAT, message_u + mycolor);
  #else
+		/* prevent buffer overflow */
+		message[MSG_LEN - 1 - strlen(sender) - 12 + mycolor] = 0;
+		message_u[MSG_LEN - 1 - strlen(sender) - 12 + mycolor] = 0;
+
+		snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s\377%c]\377%c %s", c_b, c_n, sender, c_b, COLOUR_CHAT, message + mycolor);
 		snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[\377%c%s\377%c]\377%c %s", c_b, c_n, sender, c_b, COLOUR_CHAT, message_u + mycolor);
  #endif
 	} else {
@@ -5748,22 +5809,35 @@ static void player_talk_aux(int Ind, char *message) {
 		else return;
 		if (mycolor) c_n = message[5];
 
-		/* prevent buffer overflow */
-		message[MSG_LEN - 1 - strlen(sender) - 10 + 4 + mycolor] = 0;
-		message_u[MSG_LEN - 1 - strlen(sender) - 10 + 4 + mycolor] = 0;
 		if (rp_me_gen) {
  #ifndef KURZEL_PK
+			/* prevent buffer overflow */
+			message[MSG_LEN - 1 - strlen(sender) - 5 + 4 + mycolor] = 0;
+			message_u[MSG_LEN - 1 - strlen(sender) - 5 + 4 + mycolor] = 0;
+
 			snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s%s]", c_n, sender, message + 3 + mycolor);
 			snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[%s%s]", c_n, sender, message_u + 3 + mycolor);
  #else
+			/* prevent buffer overflow */
+			message[MSG_LEN - 1 - strlen(sender) - 9 + 4 + mycolor] = 0;
+			message_u[MSG_LEN - 1 - strlen(sender) - 9 + 4 + mycolor] = 0;
+
 			snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s%s\377%c]", c_b, c_n, sender, message + 3 + mycolor, c_b);
 			snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[\377%c%s%s\377%c]", c_b, c_n, sender, message_u + 3 + mycolor, c_b);
  #endif
 		} else {
  #ifndef KURZEL_PK
+			/* prevent buffer overflow */
+			message[MSG_LEN - 1 - strlen(sender) - 6 + 4 + mycolor] = 0;
+			message_u[MSG_LEN - 1 - strlen(sender) - 6 + 4 + mycolor] = 0;
+
 			snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s %s]", c_n, sender, message + 4 + mycolor);
 			snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[%s %s]", c_n, sender, message_u + 4 + mycolor);
  #else
+			/* prevent buffer overflow */
+			message[MSG_LEN - 1 - strlen(sender) - 10 + 4 + mycolor] = 0;
+			message_u[MSG_LEN - 1 - strlen(sender) - 10 + 4 + mycolor] = 0;
+
 			snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s %s\377%c]", c_b, c_n, sender, message + 4 + mycolor, c_b);
 			snprintf(tmessage_u, sizeof(tmessage_u), "\375\377%c[\377%c%s %s\377%c]", c_b, c_n, sender, message_u + 4 + mycolor, c_b);
  #endif
@@ -5820,12 +5894,17 @@ static void player_talk_aux(int Ind, char *message) {
 			message_u[MSG_LEN - 1 - strlen(sender) - 12 + 11] = 0;
 			msg_format(i, "\375\377r[\377%c%s\377r]\377%c %s", c_n, sender, COLOUR_CHAT, q_ptr->censor_swearing ? message + 11 : message_u + 11);
 		} else if (!rp_me) {
+ #ifndef KURZEL_PK
+			/* prevent buffer overflow */
+			message[MSG_LEN - 1 - strlen(sender) - 8 + mycolor] = 0;
+			message_u[MSG_LEN - 1 - strlen(sender) - 8 + mycolor] = 0;
+
+			msg_format(i, "\375\377%c[%s]\377%c %s", c_n, sender, COLOUR_CHAT, q_ptr->censor_swearing ? message + mycolor : message_u + mycolor);
+ #else
 			/* prevent buffer overflow */
 			message[MSG_LEN - 1 - strlen(sender) - 12 + mycolor] = 0;
 			message_u[MSG_LEN - 1 - strlen(sender) - 12 + mycolor] = 0;
- #ifndef KURZEL_PK
-			msg_format(i, "\375\377%c[%s]\377%c %s", c_n, sender, COLOUR_CHAT, q_ptr->censor_swearing ? message + mycolor : message_u + mycolor);
- #else
+
 			msg_format(i, "\375\377%c[\377%c%s\377%c]\377%c %s", c_b, c_n, sender, c_b, COLOUR_CHAT, q_ptr->censor_swearing ? message + mycolor : message_u + mycolor);
  #endif
 			/* msg_format(i, "\375\377%c[%s] %s", Ind ? 'B' : 'y', sender, message); */
@@ -5855,7 +5934,7 @@ static void player_talk_aux(int Ind, char *message) {
 /* Console talk is automatically sent by 'Server Admin' which is treated as an admin */
 static void console_talk_aux(char *message) {
 	cptr sender = "Server Admin";
-	bool rp_me = FALSE, log = TRUE;
+	bool rp_me = FALSE, rp_me_gen = FALSE, log = TRUE;
 	char c_n = 'y'; /* colours of sender name and of brackets (unused atm) around this name */
 #ifdef KURZEL_PK
 	char c_b = 'y';
@@ -5868,8 +5947,9 @@ static void console_talk_aux(char *message) {
 
 	/* tBot's stuff */
 	/* moved here to allow tbot to see fake pvt messages. -Molt */
-	strncpy(last_chat_owner, sender, NAME_LEN);
+	strncpy(last_chat_owner, sender, CNAME_LEN);
 	strncpy(last_chat_line, message, MSG_LEN);
+	strncpy(last_chat_account, "", ACCNAME_LEN); // <- added this for chat-AI 1000 years later :) - C. Blue
 
 	/* no big brother */
 	if (cfg.log_u && log) s_printf("[%s] %s\n", sender, message);
@@ -5877,12 +5957,14 @@ static void console_talk_aux(char *message) {
 	/* Special - shutdown command (for compatibility) */
 	if (prefix(message, "@!shutdown")) {
 		/*world_reboot();*/
+		cfg.runlevel = 0;
 		shutdown_server();
 		return;
 	}
 
 	if (message[0] == '/') {
 		if (!strncmp(message, "/me ", 4)) rp_me = TRUE;
+		if (!strncmp(message, "/me'", 4)) rp_me = rp_me_gen = TRUE;
 		else if (!strncmp(message, "/broadcast ", 11)) broadcast = TRUE;
 		else return;
 	}
@@ -5897,11 +5979,19 @@ static void console_talk_aux(char *message) {
 		snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s\377%c]\377%c %s", c_b, c_n, sender, c_b, COLOUR_CHAT, message);
  #endif
 	} else {
+		if (rp_me_gen) {
  #ifndef KURZEL_PK
-		snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s %s]", c_n, sender, message + 4);
+			snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s%s]", c_n, sender, message + 3);
  #else
-		snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s %s\377%c]", c_b, c_n, sender, message + 4, c_b);
+			snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s%s\377%c]", c_b, c_n, sender, message + 3, c_b);
  #endif
+		} else {
+ #ifndef KURZEL_PK
+			snprintf(tmessage, sizeof(tmessage), "\375\377%c[%s %s]", c_n, sender, message + 4);
+ #else
+			snprintf(tmessage, sizeof(tmessage), "\375\377%c[\377%c%s %s\377%c]", c_b, c_n, sender, message + 4, c_b);
+ #endif
+		}
 	}
 
 #else
@@ -6058,22 +6148,19 @@ void toggle_afk(int Ind, char *msg)
  * tabs ('\t').  Thus, this function splits them and calls
  * "player_talk_aux" to do the dirty work.
  */
-void player_talk(int Ind, char *message)
-{
+void player_talk(int Ind, char *message) {
 	char *cur, *next;
 
 	/* Start at the beginning */
 	cur = message;
 
 	/* Process until out of messages */
-	while (cur)
-	{
+	while (cur) {
 		/* Find the next tab */
 		next = strchr(cur, '\t');
 
 		/* Stop out the tab */
-		if (next)
-		{
+		if (next) {
 			/* Replace with \0 */
 			*next = '\0';
 		}
@@ -6082,13 +6169,10 @@ void player_talk(int Ind, char *message)
 		player_talk_aux(Ind, cur);
 
 		/* Move to the next one */
-		if (next)
-		{
+		if (next) {
 			/* One step past the \0 */
 			cur = next + 1;
-		}
-		else
-		{
+		} else {
 			/* No more message */
 			cur = NULL;
 		}
@@ -6129,6 +6213,7 @@ bool is_a_vowel(int ch) {
  * 2) Ignoring a whole party
  * 3) Sending a message to a party (only possible from outside for admins)
  * NOTE: Now that we have guilds too, this might be deprecated kind of? Or should be extended in all 3 points for guilds too?..hmm
+ * Note: Will fail if a non-admin tries to address an admin and requirements for that aren't met.
  */
 int name_lookup_loose(int Ind, cptr name, u16b party, bool include_account_names, bool quiet) {
 	int i, j, len, target = 0;
@@ -6281,7 +6366,8 @@ int name_lookup_loose(int Ind, cptr name, u16b party, bool include_account_names
 	return(target);
 }
 
-/* copy/pasted from name_lookup_loose(), just without being loose.. */
+/* copy/pasted from name_lookup_loose(), just without being loose..
+   Note: Will fail if a non-admin tries to address an admin and requirements for that aren't met. */
 int name_lookup(int Ind, cptr name, u16b party, bool include_account_names, bool quiet) {
 	int i, j, len, target = 0;
 	player_type *q_ptr, *p_ptr;
@@ -6519,7 +6605,7 @@ int get_playerslot_loose(int Ind, char *iname) {
 	for (i = 0; i < INVEN_TOTAL; i++) {
 		if (!Players[Ind]->inventory[i].k_idx) continue;
 
-		object_desc(0, o_name, &Players[Ind]->inventory[i], FALSE, 3+16+32);
+		object_desc(0, o_name, &Players[Ind]->inventory[i], FALSE, 0x01 + 0x02 + 0x10 + 0x20);
 		for (j = 0; o_name[j]; j++) o_name[j] = tolower(o_name[j]);
 
 		if (strstr(o_name, i_name)) return(i);
@@ -6539,6 +6625,9 @@ bool show_floor_feeling(int Ind, bool dungeon_feeling) {
 	struct dungeon_type *d_ptr = getdungeon(wpos);
 	dun_level *l_ptr = getfloor(wpos);
 	bool felt = FALSE;
+
+	/* No feelings on world surface for now */
+	if (!wpos->wz) return(TRUE);
 
 	/* No feelings! */
 	if (d_ptr && (d_ptr->type == DI_DEATH_FATE || (!d_ptr->type && d_ptr->theme == DI_DEATH_FATE))) return(TRUE);
@@ -6764,8 +6853,6 @@ cptr get_day(int day) {
 int gold_colour(s32b amt, bool fuzzy, bool compact) {
 	s32b i;
 	int unit = 1;
-
-	//for (i = amt; i > 99; i >>= 1, unit++) /* naught */; --old
 
 #if 1
 	/* Limit to avoid overflow freeze */
@@ -6997,6 +7084,13 @@ cptr compat_pmode(int Ind1, int Ind2, bool strict) {
 		return(NULL);
 #endif
 
+#ifdef MODULE_ALLOW_INCOMPAT
+	if (!strict &&
+	    in_module(&p1_ptr->wpos) &&
+	    in_module(&p2_ptr->wpos))
+		return(NULL);
+#endif
+
 	if (p1_ptr->mode & MODE_PVP) {
 		if (!(p2_ptr->mode & MODE_PVP)) {
 			return("non-pvp");
@@ -7023,6 +7117,12 @@ cptr compat_pomode(int Ind, object_type *o_ptr) {
 	/* EXPERIMENTAL */
 	if (in_irondeepdive(&p_ptr->wpos) &&
 	    in_irondeepdive(&o_ptr->wpos))
+		return(NULL);
+#endif
+
+#ifdef MODULE_ALLOW_INCOMPAT
+	if (in_module(&p_ptr->wpos) &&
+	    in_module(&o_ptr->wpos))
 		return(NULL);
 #endif
 
@@ -7067,6 +7167,12 @@ cptr compat_omode(object_type *o1_ptr, object_type *o2_ptr) {
 		return(NULL);
 #endif
 
+#ifdef MODULE_ALLOW_INCOMPAT
+	if ((in_module(&o1_ptr->wpos)) &&
+	    in_module(&o2_ptr->wpos))
+		return(NULL);
+#endif
+
 	/* ownership given for both items? */
 	if (!o1_ptr->owner) {
 		if (!o2_ptr->owner) return(NULL); /* always compatible */
@@ -7093,7 +7199,7 @@ cptr compat_omode(object_type *o1_ptr, object_type *o2_ptr) {
 /* compare mode compatibility (eg player/player for merchants guild post, player/party, player/guild member) - C. Blue
    Note: returns NULL if compatible.
    Note: We don't handle MODE_SOLO, so it has to be checked explicitely whenever important. */
-cptr compat_mode(byte mode1, byte mode2) {
+cptr compat_mode(u16b mode1, u16b mode2) {
 	if (mode1 & MODE_PVP) {
 		if (!(mode2 & MODE_PVP)) {
 			return("non-pvp");
@@ -7656,6 +7762,13 @@ cptr get_ptitle(player_type *p_ptr, bool short_form) {
 	if (p_ptr->lev < 60) return(player_title[p_ptr->pclass][((p_ptr->lev / 5) < 10)? (p_ptr->lev / 5) : 10][(short_form ? 3 : 1) - p_ptr->male]);
 	return(player_title_special[p_ptr->pclass][(p_ptr->lev < PY_MAX_PLAYER_LEVEL) ? (p_ptr->lev - 60) / 10 : 4][(short_form ? 3 : 1) - p_ptr->male]);
 }
+#ifdef ENABLE_SUBCLASS_TITLE
+cptr get_ptitle2(player_type *p_ptr, bool short_form) {
+	if (!(p_ptr->sclass)) return(""); // paranoia?
+	if (p_ptr->lev < 60) return(player_title[p_ptr->sclass - 1][((p_ptr->lev / 5) < 10)? (p_ptr->lev / 5) : 10][(short_form ? 3 : 1) - p_ptr->male]);
+	return(player_title_special[p_ptr->sclass - 1][(p_ptr->lev < PY_MAX_PLAYER_LEVEL) ? (p_ptr->lev - 60) / 10 : 4][(short_form ? 3 : 1) - p_ptr->male]);
+}
+#endif
 
 #ifdef DUNGEON_VISIT_BONUS
 void reindex_dungeons() {
@@ -7846,7 +7959,7 @@ bool gain_au(int Ind, u32b amt, bool quiet, bool exempt) {
 
 /* backup all house prices and contents for all players to lib/save/estate/.
    partial: don't stop with failure if a character files can't be read. */
-#define ESTATE_BACKUP_VERSION "v5"
+#define ESTATE_BACKUP_VERSION "v8"
 bool backup_estate(bool partial) {
 	FILE *fp;
 	char buf[MAX_PATH_LENGTH], buf2[MAX_PATH_LENGTH], savefile[CNAME_LEN], c;
@@ -8005,7 +8118,7 @@ bool backup_estate(bool partial) {
 }
 /* Backup all houses that belong to a specific character and give content ownership to another character:
    h_id = character who owns the houses, id = character name to use for the estate savefile. */
-bool backup_char_estate(int Ind, s32b h_id, s32b id) {
+bool backup_char_estate(int Ind, s32b h_id, cptr target_name) {
 	int i;
 	bool res = TRUE;
 
@@ -8015,16 +8128,17 @@ bool backup_char_estate(int Ind, s32b h_id, s32b id) {
 		if (!dna->owner) continue; /* not owned */
 		if ((dna->owner_type == OT_PLAYER) && (dna->owner == h_id)) {
 			if (Ind) msg_format(Ind, "House %d at (%d,%d) %d,%d:", i, houses[i].wpos.wx, houses[i].wpos.wy, houses[i].dx, houses[i].dy);
-			if (!backup_one_estate(&houses[i].wpos, houses[i].dx, houses[i].dy, id)) res = FALSE;
+			if (!backup_one_estate(&houses[i].wpos, houses[i].dx, houses[i].dy, -1, target_name)) res = FALSE;
 		}
 	}
 	return(res);
 }
-/* Backup one house and give content ownership to a specific character */
-bool backup_one_estate(struct worldpos *hwpos, int hx, int hy, s32b id) {
+/* Backup one house and give content ownership to a specific character.
+   If h_idx is not -1, ie a house index is provided, hwpos/hx/hy will all be ignored,
+   and instead derived from the house of the index h_idx. */
+bool backup_one_estate(struct worldpos *hwpos, int hx, int hy, int h_idx, cptr target_name) {
 	FILE *fp;
 	char buf[MAX_PATH_LENGTH], buf2[MAX_PATH_LENGTH], savefile[CNAME_LEN], c;
-	cptr name;
 	int i, j, k;
 	int sy, sx, ey,ex , x, y;
 	cave_type **zcave, *c_ptr;
@@ -8033,9 +8147,33 @@ bool backup_one_estate(struct worldpos *hwpos, int hx, int hy, s32b id) {
 	struct worldpos *wpos;
 	object_type *o_ptr;
 
-	s_printf("Backing up a house (%d,%d,%d - %d,%d - %d)... ", hwpos->wx, hwpos->wy, hwpos->wz, hx, hy, id);
-	path_build(buf2, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "estate");
+	/* If h_idx is specified, ignore hx, hy */
+	if (h_idx != -1) {
+		i = h_idx;
+		h_ptr = &houses[i];
 
+		hx = h_ptr->dx;
+		hy = h_ptr->dy;
+		wpos = &h_ptr->wpos;
+
+		s_printf("Backing up a house via h_idx (%d,%d,%d - %d,%d (%d) - %s)... ", wpos->wx, wpos->wy, wpos->wz, hx, hy, i, target_name);
+	} else {
+		s_printf("Backing up a house via d-x/y (%d,%d,%d - %d,%d ", hwpos->wx, hwpos->wy, hwpos->wz, hx, hy);
+
+		/* scan house on which door we're sitting */
+		i = pick_house(hwpos, hy, hx);
+		if (i == -1) {
+			s_printf("(%d) - %s)... ", i, target_name);
+			s_printf(" error: No estate here.\n");
+			return(FALSE);
+		}
+
+		s_printf("(%d)- %s)... ", i, target_name);
+		h_ptr = &houses[i];
+		wpos = &h_ptr->wpos;
+	}
+
+	path_build(buf2, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "estate");
 	/* create folder lib/save/estate if not existing */
 #if defined(WINDOWS) && !defined(CYGWIN)
 	mkdir(buf2);
@@ -8043,25 +8181,11 @@ bool backup_one_estate(struct worldpos *hwpos, int hx, int hy, s32b id) {
 	mkdir(buf2, 0770);
 #endif
 
-	/* scan house on which door we're sitting */
-	i = pick_house(hwpos, hy, hx);
-	if (i == -1) {
-		s_printf(" error: No estate here.\n");
-		return(FALSE);
-	}
-	h_ptr = &houses[i];
-	wpos = &h_ptr->wpos;
-	name = lookup_player_name(id);
-	if (!name) {
-		s_printf(" warning: couldn't fetch player name of id %d.\n", id);
-		return(FALSE);
-	}
-
 	/* create backup file if required, or append to it */
 	/* create actual filename from character name (same as used for sf_delete or process_player_name) */
 	k = 0;
-	for (j = 0; name[j]; j++) {
-		c = name[j];
+	for (j = 0; target_name[j]; j++) {
+		c = target_name[j];
 		/* Accept some letters */
 		if (isalphanum(c)) savefile[k++] = c;
 		/* Convert space, dot, and underscore to underscore */
@@ -8130,6 +8254,7 @@ bool backup_one_estate(struct worldpos *hwpos, int hx, int hy, s32b id) {
 			sx = h_ptr->x + 1;
 			ey = h_ptr->y + h_ptr->coords.rect.height - 1;
 			ex = h_ptr->x + h_ptr->coords.rect.width - 1;
+
 			for (y = sy; y < ey; y++) {
 				for (x = sx; x < ex; x++) {
 					c_ptr = &zcave[y][x];
@@ -8191,12 +8316,17 @@ void restore_estate(int Ind) {
 	int data_len, r;
 	object_type forge, *o_ptr = &forge;
 	bool gained_anything = FALSE;
+
 	int conversion = 0;
+	object_type_v7 forge_v7, *o_ptr_v7 = &forge_v7;
+	object_type_v6 forge_v6, *o_ptr_v6 = &forge_v6;
+	object_type_v5 forge_v5, *o_ptr_v5 = &forge_v5;
 	object_type_v4 forge_v4, *o_ptr_v4 = &forge_v4;
 	object_type_v3 forge_v3, *o_ptr_v3 = &forge_v3;
 	object_type_v2 forge_v2, *o_ptr_v2 = &forge_v2;
 	object_type_v2a forge_v2a, *o_ptr_v2a = &forge_v2a;
 	object_type_v2b forge_v2b, *o_ptr_v2b = &forge_v2b;
+
 
 	s_printf("Restoring real estate for %s...\n", p_ptr->name);
 
@@ -8219,15 +8349,25 @@ void restore_estate(int Ind) {
 		fclose(fp);
 		return;
 	}
-	version[strlen(version) - 1] = '\0';
+	if (*version) version[strlen(version) - 1] = '\0';
 	s_printf("  reading a version '%s' estate file.\n", version);
 
 	/* convert older version object types */
-	if (streq(version, "v2")) conversion = 1;
-	if (streq(version, "v2a")) conversion = 2;
-	if (streq(version, "v2b")) conversion = 3;
-	if (streq(version, "v3")) conversion = 4;
-	if (streq(version, "v4")) conversion = 5;
+	if (streq(version, ESTATE_BACKUP_VERSION)) conversion = 0;
+	else if (streq(version, "v2")) conversion = 1;
+	else if (streq(version, "v2a")) conversion = 2;
+	else if (streq(version, "v2b")) conversion = 3;
+	else if (streq(version, "v3")) conversion = 4;
+	else if (streq(version, "v4")) conversion = 5;
+	else if (streq(version, "v5")) conversion = 6;
+	else if (streq(version, "v6")) conversion = 7;
+	else if (streq(version, "v7")) conversion = 8;
+	else {
+		s_printf("  error: Invalid backup version.\nfailed.\n");
+		msg_print(Ind, "\377oAn error occurred, please contact an administrator.");
+		fclose(fp);
+		return;
+	}
 
 	/* open temporary file for writing the stuff the player left over */
 	strcpy(buf2, buf);
@@ -8358,7 +8498,6 @@ void restore_estate(int Ind) {
 				o_ptr->questor_idx = o_ptr_v2->questor_idx;
 				o_ptr->questor_invincible = o_ptr_v2->questor_invincible;
 				o_ptr->quest_credited = o_ptr_v2->quest_credited;
-				o_ptr->note = 0;	//convert
 				o_ptr->note_utag = o_ptr_v2->note_utag;
 				o_ptr->inven_order = o_ptr_v2->inven_order;
 				o_ptr->next_o_idx = o_ptr_v2->next_o_idx;
@@ -8371,11 +8510,59 @@ void restore_estate(int Ind) {
 				o_ptr->housed = o_ptr_v2->housed;
 				o_ptr->changed = o_ptr_v2->changed;
 				o_ptr->NR_tradable = o_ptr_v2->NR_tradable;
-				o_ptr->no_soloist = FALSE;	//convert
 				o_ptr->temp = o_ptr_v2->temp;
 				o_ptr->iron_trade = o_ptr_v2->iron_trade;
 				o_ptr->iron_turn = o_ptr_v2->iron_turn;
-				o_ptr->embed = 0; //convert
+				//convert; (2)
+				o_ptr->no_soloist = FALSE;
+				o_ptr->iron_turn = 0;
+				//convert: (3)
+				o_ptr->note = 0;
+				 //convert: (4)
+				o_ptr->embed = 0;
+				//convert: (5)
+				o_ptr->id = o_ptr->f_id = o_ptr->f_name[0] = 0; //don't generate an id here, whatever
+				o_ptr->f_turn = o_ptr->f_time = 0;
+				o_ptr->f_wpos = (struct worldpos){ 0, 0, 0 };
+				o_ptr->f_dun = 0;
+				o_ptr->f_player = o_ptr->f_player_turn = 0;
+				o_ptr->f_ridx = o_ptr->f_reidx = 0;
+				o_ptr->f_special = o_ptr->f_reward = 0;
+				//convert: (6)
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 				break;
 			case 2: r = fread(o_ptr_v2a, sizeof(object_type_v2a), 1, fp);
 				o_ptr->owner = o_ptr_v2a->owner;
@@ -8444,7 +8631,6 @@ void restore_estate(int Ind) {
 				o_ptr->questor_idx = o_ptr_v2a->questor_idx;
 				o_ptr->questor_invincible = o_ptr_v2a->questor_invincible;
 				o_ptr->quest_credited = o_ptr_v2a->quest_credited;
-				o_ptr->note = 0;	//convert
 				o_ptr->note_utag = o_ptr_v2a->note_utag;
 				o_ptr->inven_order = o_ptr_v2a->inven_order;
 				o_ptr->next_o_idx = o_ptr_v2a->next_o_idx;
@@ -8457,11 +8643,58 @@ void restore_estate(int Ind) {
 				o_ptr->housed = o_ptr_v2a->housed;
 				o_ptr->changed = o_ptr_v2a->changed;
 				o_ptr->NR_tradable = o_ptr_v2a->NR_tradable;
-				o_ptr->no_soloist = FALSE;	//convert
 				o_ptr->temp = o_ptr_v2a->temp;
 				o_ptr->iron_trade = o_ptr_v2a->iron_trade;
-				o_ptr->iron_turn = 0;		//convert
-				o_ptr->embed = 0; //convert
+				//convert;
+				o_ptr->no_soloist = FALSE;
+				o_ptr->iron_turn = 0;
+				//convert: (3)
+				o_ptr->note = 0;
+				 //convert: (4)
+				o_ptr->embed = 0;
+				//convert: (5)
+				o_ptr->id = o_ptr->f_id = o_ptr->f_name[0] = 0; //don't generate an id here, whatever
+				o_ptr->f_turn = o_ptr->f_time = 0;
+				o_ptr->f_wpos = (struct worldpos){ 0, 0, 0 };
+				o_ptr->f_dun = 0;
+				o_ptr->f_player = o_ptr->f_player_turn = 0;
+				o_ptr->f_ridx = o_ptr->f_reidx = 0;
+				o_ptr->f_special = o_ptr->f_reward = 0;
+				//convert: (6)
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 				break;
 			case 3: r = fread(o_ptr_v2b, sizeof(object_type_v2b), 1, fp);
 				o_ptr->owner = o_ptr_v2b->owner;
@@ -8530,7 +8763,6 @@ void restore_estate(int Ind) {
 				o_ptr->questor_idx = o_ptr_v2b->questor_idx;
 				o_ptr->questor_invincible = o_ptr_v2b->questor_invincible;
 				o_ptr->quest_credited = o_ptr_v2b->quest_credited;
-				o_ptr->note = 0;	//convert
 				o_ptr->note_utag = o_ptr_v2b->note_utag;
 				o_ptr->inven_order = o_ptr_v2b->inven_order;
 				o_ptr->next_o_idx = o_ptr_v2b->next_o_idx;
@@ -8547,7 +8779,53 @@ void restore_estate(int Ind) {
 				o_ptr->temp = o_ptr_v2b->temp;
 				o_ptr->iron_trade = o_ptr_v2b->iron_trade;
 				o_ptr->iron_turn = o_ptr_v2b->iron_turn;
-				o_ptr->embed = 0; //convert
+				//convert:
+				o_ptr->note = 0;
+				 //convert: (4)
+				o_ptr->embed = 0;
+				//convert: (5)
+				o_ptr->id = o_ptr->f_id = o_ptr->f_name[0] = 0; //don't generate an id here, whatever
+				o_ptr->f_turn = o_ptr->f_time = 0;
+				o_ptr->f_wpos = (struct worldpos){ 0, 0, 0 };
+				o_ptr->f_dun = 0;
+				o_ptr->f_player = o_ptr->f_player_turn = 0;
+				o_ptr->f_ridx = o_ptr->f_reidx = 0;
+				o_ptr->f_special = o_ptr->f_reward = 0;
+				//convert: (6)
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 				break;
 			case 4: r = fread(o_ptr_v3, sizeof(object_type_v3), 1, fp);
 				o_ptr->owner = o_ptr_v3->owner;
@@ -8633,7 +8911,51 @@ void restore_estate(int Ind) {
 				o_ptr->temp = o_ptr_v3->temp;
 				o_ptr->iron_trade = o_ptr_v3->iron_trade;
 				o_ptr->iron_turn = o_ptr_v3->iron_turn;
-				o_ptr->embed = 0; //convert
+				//convert:
+				o_ptr->embed = 0;
+				//convert: (5)
+				o_ptr->id = o_ptr->f_id = o_ptr->f_name[0] = 0; //don't generate an id here, whatever
+				o_ptr->f_turn = o_ptr->f_time = 0;
+				o_ptr->f_wpos = (struct worldpos){ 0, 0, 0 };
+				o_ptr->f_dun = 0;
+				o_ptr->f_player = o_ptr->f_player_turn = 0;
+				o_ptr->f_ridx = o_ptr->f_reidx = 0;
+				o_ptr->f_special = o_ptr->f_reward = 0;
+				//convert: (6)
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 				break;
 			case 5: r = fread(o_ptr_v4, sizeof(object_type_v4), 1, fp);
 				o_ptr->owner = o_ptr_v4->owner;
@@ -8728,7 +9050,441 @@ void restore_estate(int Ind) {
 				o_ptr->f_player = o_ptr->f_player_turn = 0;
 				o_ptr->f_ridx = o_ptr->f_reidx = 0;
 				o_ptr->f_special = o_ptr->f_reward = 0;
+				//convert: (6)
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 				break;
+			case 6: r = fread(o_ptr_v5, sizeof(object_type_v5), 1, fp);
+				o_ptr->owner = o_ptr_v5->owner;
+				o_ptr->killer = o_ptr_v5->killer;
+				o_ptr->level = o_ptr_v5->level;
+				o_ptr->k_idx = o_ptr_v5->k_idx;
+				o_ptr->h_idx = o_ptr_v5->h_idx;
+				o_ptr->wpos = o_ptr_v5->wpos;
+				o_ptr->iy = o_ptr_v5->iy;
+				o_ptr->ix = o_ptr_v5->ix;
+				o_ptr->tval = o_ptr_v5->tval;
+				o_ptr->sval = o_ptr_v5->sval;
+				o_ptr->tval2 = o_ptr_v5->tval2;
+				o_ptr->sval2 = o_ptr_v5->sval2;
+				o_ptr->bpval = o_ptr_v5->bpval;
+				o_ptr->pval = o_ptr_v5->pval;
+				o_ptr->pval2 = o_ptr_v5->pval2;
+				o_ptr->pval3 = o_ptr_v5->pval3;
+				o_ptr->pval_org = o_ptr_v5->pval_org;
+				o_ptr->bpval_org = o_ptr_v5->bpval_org;
+				o_ptr->to_h_org = o_ptr_v5->to_h_org;
+				o_ptr->to_d_org = o_ptr_v5->to_d_org;
+				o_ptr->to_a_org = o_ptr_v5->to_a_org;
+				o_ptr->sigil = o_ptr_v5->sigil;
+				o_ptr->sseed = o_ptr_v5->sseed;
+				o_ptr->discount = o_ptr_v5->discount;
+				o_ptr->number = o_ptr_v5->number;
+				o_ptr->weight = o_ptr_v5->weight;
+				o_ptr->name1 = o_ptr_v5->name1;
+				o_ptr->name2 = o_ptr_v5->name2;
+				o_ptr->name2b = o_ptr_v5->name2b;
+				o_ptr->name3 = o_ptr_v5->name3;
+				o_ptr->name4 = o_ptr_v5->name4;
+				o_ptr->attr = o_ptr_v5->attr;
+				o_ptr->mode = o_ptr_v5->mode;
+				o_ptr->xtra1 = o_ptr_v5->xtra1;
+				o_ptr->xtra2 = o_ptr_v5->xtra2;
+				o_ptr->xtra3 = o_ptr_v5->xtra3;
+				o_ptr->xtra4 = o_ptr_v5->xtra4;
+				o_ptr->xtra5 = o_ptr_v5->xtra5;
+				o_ptr->xtra6 = o_ptr_v5->xtra6;
+				o_ptr->xtra7 = o_ptr_v5->xtra7;
+				o_ptr->xtra8 = o_ptr_v5->xtra8;
+				o_ptr->xtra9 = o_ptr_v5->xtra9;
+				o_ptr->uses_dir = o_ptr_v5->uses_dir;
+#ifdef PLAYER_STORES
+				o_ptr->ps_idx_x = o_ptr_v5->ps_idx_x;
+				o_ptr->ps_idx_y = o_ptr_v5->ps_idx_y;
+				o_ptr->appraised_value = o_ptr_v5->appraised_value;
+#endif
+				o_ptr->to_h = o_ptr_v5->to_h;
+				o_ptr->to_d = o_ptr_v5->to_d;
+				o_ptr->to_a = o_ptr_v5->to_a;
+				o_ptr->ac = o_ptr_v5->ac;
+				o_ptr->dd = o_ptr_v5->dd;
+				o_ptr->ds = o_ptr_v5->ds;
+				o_ptr->ident = o_ptr_v5->ident;
+				o_ptr->timeout = o_ptr_v5->timeout;
+				o_ptr->timeout_magic = o_ptr_v5->timeout_magic;
+				o_ptr->recharging = o_ptr_v5->recharging;
+				o_ptr->marked = o_ptr_v5->marked;
+				o_ptr->marked2 = o_ptr_v5->marked2;
+				o_ptr->questor = o_ptr_v5->questor;
+				o_ptr->quest = o_ptr_v5->quest;
+				o_ptr->quest_stage = o_ptr_v5->quest_stage;
+				o_ptr->questor_idx = o_ptr_v5->questor_idx;
+				o_ptr->questor_invincible = o_ptr_v5->questor_invincible;
+				o_ptr->quest_credited = o_ptr_v5->quest_credited;
+				o_ptr->note = o_ptr_v5->note;
+				o_ptr->note_utag = o_ptr_v5->note_utag;
+				o_ptr->inven_order = o_ptr_v5->inven_order;
+				o_ptr->next_o_idx = o_ptr_v5->next_o_idx;
+				o_ptr->held_m_idx = o_ptr_v5->held_m_idx;
+				o_ptr->auto_insc = o_ptr_v5->auto_insc;
+				o_ptr->stack_pos = o_ptr_v5->stack_pos;
+				o_ptr->cheeze_dlv = o_ptr_v5->cheeze_dlv;
+				o_ptr->cheeze_plv = o_ptr_v5->cheeze_plv;
+				o_ptr->cheeze_plv_carry = o_ptr_v5->cheeze_plv_carry;
+				o_ptr->housed = o_ptr_v5->housed;
+				o_ptr->changed = o_ptr_v5->changed;
+				o_ptr->NR_tradable = o_ptr_v5->NR_tradable;
+				o_ptr->no_soloist = o_ptr_v5->no_soloist;
+				o_ptr->temp = o_ptr_v5->temp;
+				o_ptr->iron_trade = o_ptr_v5->iron_trade;
+				o_ptr->iron_turn = o_ptr_v5->iron_turn;
+				o_ptr->embed = o_ptr_v5->embed;
+				o_ptr->id = o_ptr_v5->id;
+				o_ptr->f_id = o_ptr_v5->f_id;
+				strcpy(o_ptr->f_name, o_ptr_v5->f_name);
+				o_ptr->f_turn = o_ptr_v5->f_turn;
+				o_ptr->f_time = o_ptr_v5->f_time;
+				o_ptr->f_wpos = o_ptr_v5->f_wpos;
+				o_ptr->f_dun = o_ptr_v5->f_dun;
+				o_ptr->f_player = o_ptr_v5->f_player;
+				o_ptr->f_player_turn = o_ptr_v5->f_player_turn;
+				o_ptr->f_ridx = o_ptr_v5->f_ridx;
+				o_ptr->f_reidx = o_ptr_v5->f_reidx;
+				o_ptr->f_special = o_ptr_v5->f_special;
+				o_ptr->f_reward = o_ptr_v5->f_reward;
+				//convert:
+				o_ptr->number2 = 0;
+				o_ptr->note2 = o_ptr->note2_utag = 0;
+				//convert: (7)
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
+				break;
+			case 7: r = fread(o_ptr_v6, sizeof(object_type_v6), 1, fp);
+				o_ptr->owner = o_ptr_v6->owner;
+				o_ptr->killer = o_ptr_v6->killer;
+				o_ptr->level = o_ptr_v6->level;
+				o_ptr->k_idx = o_ptr_v6->k_idx;
+				o_ptr->h_idx = o_ptr_v6->h_idx;
+				o_ptr->wpos = o_ptr_v6->wpos;
+				o_ptr->iy = o_ptr_v6->iy;
+				o_ptr->ix = o_ptr_v6->ix;
+				o_ptr->tval = o_ptr_v6->tval;
+				o_ptr->sval = o_ptr_v6->sval;
+				o_ptr->tval2 = o_ptr_v6->tval2;
+				o_ptr->sval2 = o_ptr_v6->sval2;
+				o_ptr->bpval = o_ptr_v6->bpval;
+				o_ptr->pval = o_ptr_v6->pval;
+				o_ptr->pval2 = o_ptr_v6->pval2;
+				o_ptr->pval3 = o_ptr_v6->pval3;
+				o_ptr->pval_org = o_ptr_v6->pval_org;
+				o_ptr->bpval_org = o_ptr_v6->bpval_org;
+				o_ptr->to_h_org = o_ptr_v6->to_h_org;
+				o_ptr->to_d_org = o_ptr_v6->to_d_org;
+				o_ptr->to_a_org = o_ptr_v6->to_a_org;
+				o_ptr->sigil = o_ptr_v6->sigil;
+				o_ptr->sseed = o_ptr_v6->sseed;
+				o_ptr->discount = o_ptr_v6->discount;
+				o_ptr->number = o_ptr_v6->number;
+				o_ptr->weight = o_ptr_v6->weight;
+				o_ptr->name1 = o_ptr_v6->name1;
+				o_ptr->name2 = o_ptr_v6->name2;
+				o_ptr->name2b = o_ptr_v6->name2b;
+				o_ptr->name3 = o_ptr_v6->name3;
+				o_ptr->name4 = o_ptr_v6->name4;
+				o_ptr->attr = o_ptr_v6->attr;
+				o_ptr->mode = o_ptr_v6->mode;
+				o_ptr->xtra1 = o_ptr_v6->xtra1;
+				o_ptr->xtra2 = o_ptr_v6->xtra2;
+				o_ptr->xtra3 = o_ptr_v6->xtra3;
+				o_ptr->xtra4 = o_ptr_v6->xtra4;
+				o_ptr->xtra5 = o_ptr_v6->xtra5;
+				o_ptr->xtra6 = o_ptr_v6->xtra6;
+				o_ptr->xtra7 = o_ptr_v6->xtra7;
+				o_ptr->xtra8 = o_ptr_v6->xtra8;
+				o_ptr->xtra9 = o_ptr_v6->xtra9;
+				o_ptr->uses_dir = o_ptr_v6->uses_dir;
+#ifdef PLAYER_STORES
+				o_ptr->ps_idx_x = o_ptr_v6->ps_idx_x;
+				o_ptr->ps_idx_y = o_ptr_v6->ps_idx_y;
+				o_ptr->appraised_value = o_ptr_v6->appraised_value;
+#endif
+				o_ptr->to_h = o_ptr_v6->to_h;
+				o_ptr->to_d = o_ptr_v6->to_d;
+				o_ptr->to_a = o_ptr_v6->to_a;
+				o_ptr->ac = o_ptr_v6->ac;
+				o_ptr->dd = o_ptr_v6->dd;
+				o_ptr->ds = o_ptr_v6->ds;
+				o_ptr->ident = o_ptr_v6->ident;
+				o_ptr->timeout = o_ptr_v6->timeout;
+				o_ptr->timeout_magic = o_ptr_v6->timeout_magic;
+				o_ptr->recharging = o_ptr_v6->recharging;
+				o_ptr->marked = o_ptr_v6->marked;
+				o_ptr->marked2 = o_ptr_v6->marked2;
+				o_ptr->questor = o_ptr_v6->questor;
+				o_ptr->quest = o_ptr_v6->quest;
+				o_ptr->quest_stage = o_ptr_v6->quest_stage;
+				o_ptr->questor_idx = o_ptr_v6->questor_idx;
+				o_ptr->questor_invincible = o_ptr_v6->questor_invincible;
+				o_ptr->quest_credited = o_ptr_v6->quest_credited;
+				o_ptr->note = o_ptr_v6->note;
+				o_ptr->note_utag = o_ptr_v6->note_utag;
+				o_ptr->inven_order = o_ptr_v6->inven_order;
+				o_ptr->next_o_idx = o_ptr_v6->next_o_idx;
+				o_ptr->held_m_idx = o_ptr_v6->held_m_idx;
+				o_ptr->auto_insc = o_ptr_v6->auto_insc;
+				o_ptr->stack_pos = o_ptr_v6->stack_pos;
+				o_ptr->cheeze_dlv = o_ptr_v6->cheeze_dlv;
+				o_ptr->cheeze_plv = o_ptr_v6->cheeze_plv;
+				o_ptr->cheeze_plv_carry = o_ptr_v6->cheeze_plv_carry;
+				o_ptr->housed = o_ptr_v6->housed;
+				o_ptr->changed = o_ptr_v6->changed;
+				o_ptr->NR_tradable = o_ptr_v6->NR_tradable;
+				o_ptr->no_soloist = o_ptr_v6->no_soloist;
+				o_ptr->temp = o_ptr_v6->temp;
+				o_ptr->iron_trade = o_ptr_v6->iron_trade;
+				o_ptr->iron_turn = o_ptr_v6->iron_turn;
+				o_ptr->embed = o_ptr_v6->embed;
+				o_ptr->id = o_ptr_v6->id;
+				o_ptr->f_id = o_ptr_v6->f_id;
+				strcpy(o_ptr->f_name, o_ptr_v6->f_name);
+				o_ptr->f_turn = o_ptr_v6->f_turn;
+				o_ptr->f_time = o_ptr_v6->f_time;
+				o_ptr->f_wpos = o_ptr_v6->f_wpos;
+				o_ptr->f_dun = o_ptr_v6->f_dun;
+				o_ptr->f_player = o_ptr_v6->f_player;
+				o_ptr->f_player_turn = o_ptr_v6->f_player_turn;
+				o_ptr->f_ridx = o_ptr_v6->f_ridx;
+				o_ptr->f_reidx = o_ptr_v6->f_reidx;
+				o_ptr->f_special = o_ptr_v6->f_special;
+				o_ptr->f_reward = o_ptr_v6->f_reward;
+				o_ptr->number2 = o_ptr_v6->number2;
+				o_ptr->note2 = o_ptr_v6->note2;
+				o_ptr->note2_utag = o_ptr_v6->note2_utag;
+				//convert:
+				o_ptr->slain_monsters = 0;
+				o_ptr->slain_uniques = 0;
+				o_ptr->slain_players = 0;
+				o_ptr->times_activated = 0;
+				o_ptr->time_equipped = 0;
+				o_ptr->time_carried = 0;
+				o_ptr->slain_orcs = 0;
+				o_ptr->slain_trolls = 0;
+				o_ptr->slain_giants = 0;
+				o_ptr->slain_animals = 0;
+				o_ptr->slain_dragons = 0;
+				o_ptr->slain_demons = 0;
+				o_ptr->slain_undead = 0;
+				o_ptr->slain_evil = 0;
+				o_ptr->slain_bosses = 0;
+				o_ptr->slain_nazgul = 0;
+				o_ptr->slain_superuniques = 0;
+				o_ptr->slain_sauron = 0;
+				o_ptr->slain_morgoth = 0;
+				o_ptr->slain_zuaon = 0;
+				o_ptr->done_damage = 0;
+				o_ptr->done_healing = 0;
+				o_ptr->got_damaged = 0;
+				o_ptr->got_repaired = 0;
+				o_ptr->got_enchanted = 0;
+				o_ptr->custom_lua_carrystate = 0;
+				o_ptr->custom_lua_equipstate = 0;
+				o_ptr->custom_lua_destruction = 0;
+				o_ptr->custom_lua_usage = 0;
+				//convert (8):
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
+				break;
+			case 8: r = fread(o_ptr_v7, sizeof(object_type_v7), 1, fp);
+				o_ptr->owner = o_ptr_v7->owner;
+				o_ptr->killer = o_ptr_v7->killer;
+				o_ptr->level = o_ptr_v7->level;
+				o_ptr->k_idx = o_ptr_v7->k_idx;
+				o_ptr->h_idx = o_ptr_v7->h_idx;
+				o_ptr->wpos = o_ptr_v7->wpos;
+				o_ptr->iy = o_ptr_v7->iy;
+				o_ptr->ix = o_ptr_v7->ix;
+				o_ptr->tval = o_ptr_v7->tval;
+				o_ptr->sval = o_ptr_v7->sval;
+				o_ptr->tval2 = o_ptr_v7->tval2;
+				o_ptr->sval2 = o_ptr_v7->sval2;
+				o_ptr->bpval = o_ptr_v7->bpval;
+				o_ptr->pval = o_ptr_v7->pval;
+				o_ptr->pval2 = o_ptr_v7->pval2;
+				o_ptr->pval3 = o_ptr_v7->pval3;
+				o_ptr->pval_org = o_ptr_v7->pval_org;
+				o_ptr->bpval_org = o_ptr_v7->bpval_org;
+				o_ptr->to_h_org = o_ptr_v7->to_h_org;
+				o_ptr->to_d_org = o_ptr_v7->to_d_org;
+				o_ptr->to_a_org = o_ptr_v7->to_a_org;
+				o_ptr->sigil = o_ptr_v7->sigil;
+				o_ptr->sseed = o_ptr_v7->sseed;
+				o_ptr->discount = o_ptr_v7->discount;
+				o_ptr->number = o_ptr_v7->number;
+				o_ptr->weight = o_ptr_v7->weight;
+				o_ptr->name1 = o_ptr_v7->name1;
+				o_ptr->name2 = o_ptr_v7->name2;
+				o_ptr->name2b = o_ptr_v7->name2b;
+				o_ptr->name3 = o_ptr_v7->name3;
+				o_ptr->name4 = o_ptr_v7->name4;
+				o_ptr->attr = o_ptr_v7->attr;
+				o_ptr->xtra1 = o_ptr_v7->xtra1;
+				o_ptr->xtra2 = o_ptr_v7->xtra2;
+				o_ptr->xtra3 = o_ptr_v7->xtra3;
+				o_ptr->xtra4 = o_ptr_v7->xtra4;
+				o_ptr->xtra5 = o_ptr_v7->xtra5;
+				o_ptr->xtra6 = o_ptr_v7->xtra6;
+				o_ptr->xtra7 = o_ptr_v7->xtra7;
+				o_ptr->xtra8 = o_ptr_v7->xtra8;
+				o_ptr->xtra9 = o_ptr_v7->xtra9;
+				o_ptr->uses_dir = o_ptr_v7->uses_dir;
+#ifdef PLAYER_STORES
+				o_ptr->ps_idx_x = o_ptr_v7->ps_idx_x;
+				o_ptr->ps_idx_y = o_ptr_v7->ps_idx_y;
+				o_ptr->appraised_value = o_ptr_v7->appraised_value;
+#endif
+				o_ptr->to_h = o_ptr_v7->to_h;
+				o_ptr->to_d = o_ptr_v7->to_d;
+				o_ptr->to_a = o_ptr_v7->to_a;
+				o_ptr->ac = o_ptr_v7->ac;
+				o_ptr->dd = o_ptr_v7->dd;
+				o_ptr->ds = o_ptr_v7->ds;
+				o_ptr->ident = o_ptr_v7->ident;
+				o_ptr->timeout = o_ptr_v7->timeout;
+				o_ptr->timeout_magic = o_ptr_v7->timeout_magic;
+				o_ptr->recharging = o_ptr_v7->recharging;
+				o_ptr->marked = o_ptr_v7->marked;
+				o_ptr->marked2 = o_ptr_v7->marked2;
+				o_ptr->questor = o_ptr_v7->questor;
+				o_ptr->quest = o_ptr_v7->quest;
+				o_ptr->quest_stage = o_ptr_v7->quest_stage;
+				o_ptr->questor_idx = o_ptr_v7->questor_idx;
+				o_ptr->questor_invincible = o_ptr_v7->questor_invincible;
+				o_ptr->quest_credited = o_ptr_v7->quest_credited;
+				o_ptr->note = o_ptr_v7->note;
+				o_ptr->note_utag = o_ptr_v7->note_utag;
+				o_ptr->inven_order = o_ptr_v7->inven_order;
+				o_ptr->next_o_idx = o_ptr_v7->next_o_idx;
+				o_ptr->held_m_idx = o_ptr_v7->held_m_idx;
+				o_ptr->auto_insc = o_ptr_v7->auto_insc;
+				o_ptr->stack_pos = o_ptr_v7->stack_pos;
+				o_ptr->cheeze_dlv = o_ptr_v7->cheeze_dlv;
+				o_ptr->cheeze_plv = o_ptr_v7->cheeze_plv;
+				o_ptr->cheeze_plv_carry = o_ptr_v7->cheeze_plv_carry;
+				o_ptr->housed = o_ptr_v7->housed;
+				o_ptr->changed = o_ptr_v7->changed;
+				o_ptr->NR_tradable = o_ptr_v7->NR_tradable;
+				o_ptr->no_soloist = o_ptr_v7->no_soloist;
+				o_ptr->temp = o_ptr_v7->temp;
+				o_ptr->iron_trade = o_ptr_v7->iron_trade;
+				o_ptr->iron_turn = o_ptr_v7->iron_turn;
+				o_ptr->embed = o_ptr_v7->embed;
+				o_ptr->id = o_ptr_v7->id;
+				o_ptr->f_id = o_ptr_v7->f_id;
+				strcpy(o_ptr->f_name, o_ptr_v7->f_name);
+				o_ptr->f_turn = o_ptr_v7->f_turn;
+				o_ptr->f_time = o_ptr_v7->f_time;
+				o_ptr->f_wpos = o_ptr_v7->f_wpos;
+				o_ptr->f_dun = o_ptr_v7->f_dun;
+				o_ptr->f_player = o_ptr_v7->f_player;
+				o_ptr->f_player_turn = o_ptr_v7->f_player_turn;
+				o_ptr->f_ridx = o_ptr_v7->f_ridx;
+				o_ptr->f_reidx = o_ptr_v7->f_reidx;
+				o_ptr->f_special = o_ptr_v7->f_special;
+				o_ptr->f_reward = o_ptr_v7->f_reward;
+				o_ptr->number2 = o_ptr_v7->number2;
+				o_ptr->note2 = o_ptr_v7->note2;
+				o_ptr->note2_utag = o_ptr_v7->note2_utag;
+				o_ptr->slain_monsters = o_ptr_v7->slain_monsters;
+				o_ptr->slain_uniques = o_ptr_v7->slain_uniques;
+				o_ptr->slain_players = o_ptr_v7->slain_players;
+				o_ptr->times_activated = o_ptr_v7->times_activated;
+				o_ptr->time_equipped = o_ptr_v7->time_equipped;
+				o_ptr->time_carried = o_ptr_v7->time_carried;
+				o_ptr->slain_orcs = o_ptr_v7->slain_orcs;
+				o_ptr->slain_trolls = o_ptr_v7->slain_trolls;
+				o_ptr->slain_giants = o_ptr_v7->slain_giants;
+				o_ptr->slain_animals = o_ptr_v7->slain_animals;
+				o_ptr->slain_dragons = o_ptr_v7->slain_dragons;
+				o_ptr->slain_demons = o_ptr_v7->slain_demons;
+				o_ptr->slain_undead = o_ptr_v7->slain_undead;
+				o_ptr->slain_evil = o_ptr_v7->slain_evil;
+				o_ptr->slain_bosses = o_ptr_v7->slain_bosses;
+				o_ptr->slain_nazgul = o_ptr_v7->slain_nazgul;
+				o_ptr->slain_superuniques = o_ptr_v7->slain_superuniques;
+				o_ptr->slain_sauron = o_ptr_v7->slain_sauron;
+				o_ptr->slain_morgoth = o_ptr_v7->slain_morgoth;
+				o_ptr->slain_zuaon = o_ptr_v7->slain_zuaon;
+				o_ptr->done_damage = o_ptr_v7->done_damage;
+				o_ptr->done_healing = o_ptr_v7->done_healing;
+				o_ptr->got_damaged = o_ptr_v7->got_damaged;
+				o_ptr->got_repaired = o_ptr_v7->got_repaired;
+				o_ptr->got_enchanted = o_ptr_v7->got_enchanted;
+				o_ptr->custom_lua_carrystate = o_ptr_v7->custom_lua_carrystate;
+				o_ptr->custom_lua_equipstate = o_ptr_v7->custom_lua_equipstate;
+				o_ptr->custom_lua_destruction = o_ptr_v7->custom_lua_destruction;
+				o_ptr->custom_lua_usage = o_ptr_v7->custom_lua_usage;
+				//convert:
+				o_ptr->mode = o_ptr_v7->mode; /* u16b = byte */
 			}
 			if (r == 0) {
 				s_printf("  error: Failed to read object.\n");
@@ -8807,6 +9563,15 @@ void restore_estate(int Ind) {
 					case 5:
 						(void)fwrite(o_ptr_v4, sizeof(object_type_v4), 1, fp_tmp);
 						break;
+					case 6:
+						(void)fwrite(o_ptr_v5, sizeof(object_type_v5), 1, fp_tmp);
+						break;
+					case 7:
+						(void)fwrite(o_ptr_v6, sizeof(object_type_v6), 1, fp_tmp);
+						break;
+					case 8:
+						(void)fwrite(o_ptr_v7, sizeof(object_type_v7), 1, fp_tmp);
+						break;
 					}
 #endif
 
@@ -8852,6 +9617,15 @@ void restore_estate(int Ind) {
 					break;
 				case 5:
 					(void)fwrite(o_ptr_v4, sizeof(object_type_v4), 1, fp_tmp);
+					break;
+				case 6:
+					(void)fwrite(o_ptr_v5, sizeof(object_type_v5), 1, fp_tmp);
+					break;
+				case 7:
+					(void)fwrite(o_ptr_v6, sizeof(object_type_v6), 1, fp_tmp);
+					break;
+				case 8:
+					(void)fwrite(o_ptr_v7, sizeof(object_type_v7), 1, fp_tmp);
 					break;
 				}
 
@@ -8943,6 +9717,11 @@ void grid_affects_player(int Ind, int ox, int oy) {
 		calc_boni(Ind);
 	}
 
+	if (!p_ptr->warning_secret_area && ((zcave[y][x].info2 & CAVE2_SCRT) && (ox == -1 || !(zcave[oy][ox].info2 & CAVE2_SCRT)))) {
+		p_ptr->warning_secret_area = TRUE;
+		msg_print(Ind, "\377yYou have discovered a secret area!");
+	}
+
 	/* Handle entering/leaving no-teleport area */
 	if ((zcave[y][x].info & CAVE_STCK) && (ox == -1 || !(zcave[oy][ox].info & CAVE_STCK))) {
 		msg_print(Ind, "\377DThe air in here feels very still.");
@@ -8959,7 +9738,7 @@ void grid_affects_player(int Ind, int ox, int oy) {
 
 			/* Automatically disable permanent wraith form (set_tim_wraith) */
 			p_ptr->tim_wraith = 0; //avoid duplicate message
-			p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+			p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 			p_ptr->update |= PU_BONUS;
 			p_ptr->redraw |= PR_BPR_WRAITH;
 		}
@@ -8979,9 +9758,10 @@ void grid_affects_player(int Ind, int ox, int oy) {
 	}
 
 #ifdef ENABLE_OUNLIFE
-	if (p_ptr->tim_wraith && (p_ptr->tim_extra & 0x1)) {
-		if (cave_floor_grid(&zcave[y][x]) && (ox == -1 || !cave_floor_grid(&zcave[oy][ox])))
-			set_tim_wraithstep(Ind, 0);
+	/* Leaving a wall with Wraithstep */
+	if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1)
+	    && cave_floor_grid(&zcave[y][x]) && (ox == -1 || !cave_floor_grid(&zcave[oy][ox]))) {
+		set_tim_wraith(Ind, 0);
 	}
 #endif
 
@@ -9199,8 +9979,8 @@ static int magic_device_base_chance(int Ind, object_type *o_ptr) {
 	return(chance);
 }
 
-/* just for display purpose, return an actual average percentage value */
-int activate_magic_device_chance(int Ind, object_type *o_ptr, byte *permille) {
+/* just for display purpose, return an actual average percentage value. ('bonus' is for WIELD_DEVICES.) */
+int activate_magic_device_chance(int Ind, object_type *o_ptr, byte *permille, bool bonus) {
 	int chance = magic_device_base_chance(Ind, o_ptr);
 
 	if (o_ptr->tval == TV_RUNE) return(chance); // Hack: Rune Boni - Kurzel
@@ -9215,6 +9995,7 @@ int activate_magic_device_chance(int Ind, object_type *o_ptr, byte *permille) {
 	/* 100% possible to reach: */
 	*permille = (1000 - ((USE_DEVICE - 1) * 1000) / chance + (chance * 10) / 11) % 10;
 	chance = 100 - ((USE_DEVICE - 1) * 100) / chance + chance / 11;
+	if (bonus) chance += 30; //WIELD_DEVICES flat bonus for wands/staves/rods
 	if (chance >= 100) {
 		chance = 100;
 		*permille = 0;
@@ -9226,10 +10007,10 @@ int activate_magic_device_chance(int Ind, object_type *o_ptr, byte *permille) {
 	return(chance);
 }
 
-bool activate_magic_device(int Ind, object_type *o_ptr) {
+bool activate_magic_device(int Ind, object_type *o_ptr, bool bonus) {
 	player_type *p_ptr = Players[Ind];
 	byte permille;
-	int chance = activate_magic_device_chance(Ind, o_ptr, &permille);
+	int chance = activate_magic_device_chance(Ind, o_ptr, &permille, bonus);
 
 	if (o_ptr->tval == TV_RUNE) return(magik(chance));
 
@@ -9259,7 +10040,7 @@ void condense_name(char *condensed, const char *name_raw) {
 
 	strcpy(name, name_raw);
 	if ((ptr = roman_suffix(name))) *(ptr - 1) = 0;
-plog(format("condense: n='%s'", name));
+	//s_printf("condense: n='%s'", name); // debug (spammy)
 #endif
 
 	for (ptr = (char*)name; *ptr; ptr++) {
@@ -9318,7 +10099,7 @@ int similar_names(const char *name1_raw, const char *name2_raw) {
 	strcpy(name2, name2_raw);
 	if ((ptr3 = roman_suffix(name1))) *(ptr3 - 1) = 0;
 	if ((ptr3 = roman_suffix(name2))) *(ptr3 - 1) = 0;
-plog(format("similar: n1='%s',n2='%s'", name1, name2));
+	//s_printf("similar: n1='%s',n2='%s'", name1, name2); // debug (spammy)
 #endif
 
 	if (strlen(name1) < 5 || strlen(name2) < 5) return(0); //trivial length, it's ok to be similar
@@ -9583,15 +10364,15 @@ void verify_expfact(int Ind, int p) {
 /* Based on Mikaelh's sanity check, extended to this helper function for subinventories. */
 bool verify_inven_item(int Ind, int item) {
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
+	if (item >= SUBINVEN_INVEN_MUL) {
 		/* Verify container location, must be inside inventory */
-		if (item / 100 - 1 < 0) return(FALSE);
-		if (item / 100 - 1 >= INVEN_PACK) return(FALSE);
-		if (Players[Ind]->inventory[item / 100 - 1].tval != TV_SUBINVEN) return(FALSE);
+		if (item / SUBINVEN_INVEN_MUL - 1 < 0) return(FALSE);
+		if (item / SUBINVEN_INVEN_MUL - 1 >= INVEN_PACK) return(FALSE);
+		if (Players[Ind]->inventory[item / SUBINVEN_INVEN_MUL - 1].tval != TV_SUBINVEN) return(FALSE);
 
 		/* Verify item location inside container */
-		if (item % 100 < 0) return(FALSE); //is this even... compiler specs please
-		if ((item % 100) >= Players[Ind]->inventory[item / 100 - 1].bpval) return(FALSE);
+		if (item % SUBINVEN_INVEN_MUL < 0) return(FALSE); //is this even... compiler specs please
+		if ((item % SUBINVEN_INVEN_MUL) >= Players[Ind]->inventory[item / SUBINVEN_INVEN_MUL - 1].bpval) return(FALSE);
 
 		return(TRUE);
 	}
@@ -9612,24 +10393,43 @@ bool verify_inven_item(int Ind, int item) {
 
 /* Get an item in the player's inventory or (for /dis and /xdis) on the floor.
    NOTE: We assume the item is legal as a previous verify_inven_item() happened in nserver.c!
-         So it is not neccesary to check if -item >= o_max. */
-void get_inven_item(int Ind, int item, object_type **o_ptr) {
+         So it is not neccesary to check if -item >= o_max.
+   Returns TRUE if ok, FALSE if item doesn't exist (floor items only, paranoia?). */
+bool get_inven_item(int Ind, int item, object_type **o_ptr) {
 #ifdef ENABLE_SUBINVEN
 	/* This function can be used for subinventories too, if using get_subinven_item() were overkill. */
-	if (item >= 100) {
-		*o_ptr = &Players[Ind]->subinventory[item / 100 - 1][item % 100];
-		return;
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Sanity/Paranoia check that the item is actually inside a subinventory */
+		if (Players[Ind]->inventory[item / SUBINVEN_INVEN_MUL - 1].tval != TV_SUBINVEN) {
+			msg_print(Ind, "ERROR: Not a subinventory.");
+			s_printf("ERROR: Not a subinventory. (%s, %i)\n", Players[Ind]->name, item / SUBINVEN_INVEN_MUL - 1);
+			return(FALSE);
+		}
+
+		/* Verify the item */
+		//if (item / SUBINVEN_INVEN_MUL - 1 > INVEN_PACK || item % SUBINVEN_INVEN_MUL > SUBINVEN_PACK) return(FALSE); -- already done in verify_inven_item()
+
+		/* Get the item */
+		*o_ptr = &Players[Ind]->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
+		return(TRUE);
 	}
 #endif
 
 	/* Get the item (in the pack) */
-	if (item >= 0) *o_ptr = &Players[Ind]->inventory[item];
+	if (item >= 0) {
+		//if (item >= INVEN_TOTAL) return(FALSE); -- already done in verify_inven_item()
+		*o_ptr = &Players[Ind]->inventory[item];
+	}
 	/* Get the item (on the floor) */
-	else *o_ptr = &o_list[0 - item];
+	else {
+		if (-item > o_max) return(FALSE);// actually already done in verify_inven_item(), which prohibits floor items in general for now, as that feature is not used
+		*o_ptr = &o_list[0 - item];
+	}
+	return(TRUE);
 }
 
 #ifdef ENABLE_SUBINVEN
-/* Translate encoded item (>=100) to subinventory index,
+/* Translate encoded item (>=SUBINVEN_INVEN_MUL) to subinventory index,
    or just identity if it's not a subinventory, so it includes get_inven_item() functionality.
    If both Ind and **o_ptr are not 0/NULL, o_ptr will be set to point to the indexed object.
    Ind should be non-zero, to ensure correct check of legal size for the subinventory.
@@ -9639,7 +10439,7 @@ void get_subinven_item(int Ind, int item, object_type **o_ptr, int *sitem, int *
 	int i = item; /* For memory safety, in case item and iitem are the same object */
 
 	/* Not a subinventory but just a 'direct' item? */
-	if (i < 100) {
+	if (i < SUBINVEN_INVEN_MUL) {
 		/* Normal inven/equip item */
 		if (sitem) *sitem = -1;
 		if (iitem) *iitem = i;
@@ -9651,14 +10451,14 @@ void get_subinven_item(int Ind, int item, object_type **o_ptr, int *sitem, int *
 	}
 
 	/* Determine container slot in backpack */
-	if (sitem) *sitem = i / 100 - 1;
+	if (sitem) *sitem = i / SUBINVEN_INVEN_MUL - 1;
 	/* Determine item slot inside the container */
-	if (iitem) *iitem = i % 100;
+	if (iitem) *iitem = i % SUBINVEN_INVEN_MUL;
 
 	/* Optionally set o_ptr already for convenience */
 	if (Ind && o_ptr && sitem && iitem) *o_ptr = &Players[Ind]->subinventory[*sitem][*iitem];
 }
-/* Reduce the size of a subinventory if it was an older version while the newer ones have less capacity.
+/* Reduce the size of a subinventory if it was from an outdated k_info.txt file version while the newer ones have less capacity.
    If 'check' is TRUE, the subinventory will be scanned for current usage. This must be done whenever it is
    not guaranteed to currently carry at most as many items as the new limit. */
 void verify_subinven_size(int Ind, int slot, bool check) {
@@ -9771,6 +10571,7 @@ int get_subinven_group(int sval) {
 	case SV_SI_SATCHEL:
 	case SV_SI_TRAPKIT_BAG:
 	case SV_SI_MDEVP_WRAPPING:
+	case SV_SI_POTION_BELT:
 		return(sval); //identity
 	default:
 		//combine multiple choices to a single group, using the first element as its identifier

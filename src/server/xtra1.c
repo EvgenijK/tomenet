@@ -34,6 +34,11 @@
  #define MIMIC_TO_D_DENTHACK /* should always be on */
 #endif
 
+/* Do not lower HP of mimics if the monster form has lower HP than their @ form. - C. Blue
+   Currently also works for to-dam, could be extended to even Speed maybe. Shouldn't be extended onto AC. */
+#define MIMICRY_BOOST_WEAK_FORM
+
+
 /* Announce global events every 900 seconds */
 #define GE_ANNOUNCE_INTERVAL 900
 
@@ -42,10 +47,6 @@
 
 /* Allow ego monsters in Arena Challenge global event? */
 #define GE_ARENA_ALLOW_EGO
-
-/* Do not lower HP of mimics if the monster form has lower HP than their @ form. - C. Blue
-   Currently also works for to-dam, could be extended to even Speed maybe. Shouldn't be extended onto AC. */
-#define MIMICRY_BOOST_WEAK_FORM
 
 /* Enable to allow '..' inscription, for suppressing TELEPORT flag on non-cursed items.
    This is a bit ugly and there is no reason to have this enabled as long as the
@@ -105,7 +106,7 @@ s16b modify_stat_value(int value, int amount) {
 		/* Apply each point */
 		for (i = 0; i < (0 - amount); i++) {
 			/* Ten points at a time */
-			if (value >= 18+10) value -= 10;
+			if (value >= 18 + 10) value -= 10;
 
 			/* Hack -- prevent weirdness */
 			else if (value > 18) value = 18;
@@ -484,12 +485,16 @@ static void prt_study(int Ind) {
 }
 
 
-static void prt_bpr(int Ind) {
+static void prt_bpr_wraith(int Ind) {
 	player_type *p_ptr = Players[Ind];
 	byte attr = p_ptr->num_blow ? TERM_L_GREEN : TERM_RED;
 
+	if ((p_ptr->tim_wraithstep & 0x1) && (p_ptr->tim_wraithstep & 0xF0)) {
+		Send_bpr_wraith(Ind, 255, TERM_UMBER, "WStep ");//TERM_ACID/TERM_L_DARK
+		return;
+	}
 	if (p_ptr->tim_wraith) {
-		Send_bpr(Ind, 255, TERM_WHITE);
+		Send_bpr_wraith(Ind, 255, TERM_WHITE, "");
 		return;
 	}
 
@@ -527,7 +532,7 @@ static void prt_bpr(int Ind) {
 	/* Indicate temporary +EA buffs, but only if we can attack at all */
 	if (p_ptr->extra_blows && p_ptr->num_blow) attr = TERM_L_BLUE;
 
-	Send_bpr(Ind, p_ptr->num_blow, attr);
+	Send_bpr_wraith(Ind, p_ptr->num_blow, attr, "");
 }
 
 
@@ -603,6 +608,10 @@ static void prt_plusses(int Ind) {
 	}
 	show_tohit_m += bmh;
 	show_todam_m += bmd;
+
+#ifdef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
+	if (p_ptr->combat_stance == 1) show_todam_r /= 2;
+#endif
 
 	if (is_atleast(&p_ptr->version, 4, 7, 3, 1, 0, 0)) {
 		if (p_ptr->to_h_tmp) { show_tohit_m += 10000; show_tohit_r += 10000; }
@@ -748,6 +757,21 @@ static void prt_indicators(int Ind) {
 	if (p_ptr->oppose_pois) indicators |= IND_RES_POIS;
 	if (p_ptr->divine_xtra_res) indicators |= IND_RES_DIVINE;
 	if (p_ptr->tim_esp) indicators |= IND_ESP;
+	if (p_ptr->melee_brand) indicators |= IND_MELEE_BRAND;
+	if (p_ptr->tim_regen) indicators |= IND_REGEN;
+	if (p_ptr->dispersion) indicators |= IND_DISPERSION;
+	if (p_ptr->mcharming) indicators |= IND_CHARM;
+
+	if (p_ptr->tim_reflect) indicators |= IND_SHIELD1;
+	if (p_ptr->tim_lcage) indicators |= IND_SHIELD2;
+	if (p_ptr->shield) switch(p_ptr->shield_opt) {
+		case SHIELD_COUNTER: indicators |= IND_SHIELD3; break;
+		case SHIELD_FIRE: indicators |= IND_SHIELD4; break;
+		case SHIELD_ICE: indicators |= IND_SHIELD5; break;
+		case SHIELD_PLASMA: indicators |= IND_SHIELD6; break;
+		default: indicators |= IND_SHIELD7; break;
+	}
+
 	if (is_atleast(&p_ptr->version, 4, 7, 3, 1, 0, 0)) Send_indicators(Ind, indicators);
 }
 
@@ -912,7 +936,7 @@ static void health_redraw(int Ind) {
 
 		/* Monster never dies? */
 		if ((r_info[m_ptr->r_idx].flags7 & RF7_NO_DEATH)
-		    || m_ptr->status == M_STATUS_FRIENDLY)
+		    || m_ptr->status & M_STATUS_FRIENDLY)
 			attr = TERM_L_UMBER;
 
 		/* Convert percent into "health" */
@@ -946,7 +970,7 @@ static void prt_frame_basic(int Ind) {
 	prt_exp(Ind);
 
 	/* All Stats */
-	for (i = 0; i < 6; i++) prt_stat(Ind, i);
+	for (i = 0; i < C_ATTRIBUTES; i++) prt_stat(Ind, i);
 
 	/* Armor */
 	prt_ac(Ind);
@@ -974,7 +998,7 @@ static void prt_frame_basic(int Ind) {
 	/* Special */
 	health_redraw(Ind);
 
-	/* Temporary stuff: resistances and ESP  */
+	/* Temporary stuff: resistances, melee brand, regen and ESP  */
 	prt_indicators(Ind);
 }
 
@@ -1020,7 +1044,7 @@ static void prt_frame_extra(int Ind) {
 		prt_study(Ind);
 	else
 		/* Blows/Round */
-		prt_bpr(Ind);
+		prt_bpr_wraith(Ind);
 }
 
 
@@ -1036,6 +1060,7 @@ static void fix_inven(int Ind) {
 	/* Refresh subinventory */
 static void fix_subinven(int Ind) {
 	int i;
+	bool none = TRUE;
 	player_type *p_ptr = Players[Ind];
 
 	/* Currently only purpose: Initially send him the character-loaded subinventories.
@@ -1043,6 +1068,16 @@ static void fix_subinven(int Ind) {
 	for (i = 0; i < INVEN_PACK; i++) {
 		if (p_ptr->inventory[i].tval != TV_SUBINVEN) continue;
 		display_subinven(Ind, i);
+		none = FALSE;
+	}
+	if (none) {
+		/* Workaround for visual bug: Clear all remains from old bag in same slot by 'erasing' the first bag slot. */
+		object_type forge;
+
+		forge.tval = 0;
+		forge.sval = 0;
+		forge.k_idx = 0;
+		Send_subinven(Ind, 0, 'a', TERM_WHITE, 0, &forge, "");
 	}
 }
 #endif
@@ -1064,6 +1099,8 @@ static void fix_player(int Ind) {
 static void fix_allitems(int Ind) {
 	/* Resend the inventory */
 	display_invenequip(Ind);
+	/* Also re-use for resending subinventories after link-end */
+	fix_subinven(Ind);
 }
 
 
@@ -1395,9 +1432,8 @@ void calc_mana(int Ind) {
 
 	/* Only mindcraft-users are affected (CLASS_MINDCRAFTER) */
 	if (get_skill(p_ptr, SKILL_PPOWER) ||
-	    get_skill(p_ptr, SKILL_TCONTACT) ||
-	    get_skill(p_ptr, SKILL_MINTRUSION))
-	{
+	    get_skill(p_ptr, SKILL_ATTUNEMENT) ||
+	    get_skill(p_ptr, SKILL_MINTRUSION)) {
 		/* Assume player is not encumbered by helm */
 		p_ptr->cumber_helm = FALSE;
 
@@ -1928,6 +1964,7 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 	/* If in the player body nothing have to be done */
 	if (!p_ptr->body_monster) return;
 
+
 	immunity[1] = 0; immunity[2] = 0; immunity[3] = 0;
 	immunity[4] = 0; immunity[5] = 0; immunity[6] = 0;
 	immrand = 0;
@@ -2333,7 +2370,7 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 
 	/* Forms that occur in the mountains are able to pass them */
 	if ((r_ptr->flags8 & (RF8_WILD_MOUNTAIN | RF8_WILD_VOLCANO)) ||
-	    (r_ptr->flags0 & RF0_CAN_CLIMB))
+	    (r_ptr->flags7 & RF7_CAN_CLIMB))
 		{ p_ptr->climb = TRUE; csheet_boni->cb[5] |= CB6_RCLMB; }
 
 	/* Orcs get resist_dark */
@@ -2415,7 +2452,7 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 	p_ptr->stat_add[A_CHR] += d; csheet_boni->pchr += d;
 
 
-	//if (r_ptr->flags1 & RF1_NEVER_MOVE) p_ptr->immovable = TRUE;
+	//if (r_ptr->flags2 & RF2_NEVER_MOVE) p_ptr->immovable = TRUE;
 	if (r_ptr->flags2 & RF2_STUPID) { p_ptr->stat_add[A_INT] -= 2; csheet_boni->pint -= 2; }
 	if (r_ptr->flags2 & RF2_SMART) { p_ptr->stat_add[A_INT] += 2; csheet_boni->pint += 2; }
 	if (r_ptr->flags2 & RF2_INVISIBLE) {
@@ -2430,7 +2467,7 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 			//BAD!(recursion)	set_tim_wraith(Ind, 10000);
 			if (!p_ptr->tim_wraith) p_ptr->redraw |= PR_BPR_WRAITH;
 			p_ptr->tim_wraith = 10000; csheet_boni->cb[5] |= CB6_RWRTH;
-			p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+			p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 		}
 		p_ptr->drain_life++; csheet_boni->cb[5] |= CB6_SRGHP;
 	}
@@ -2899,7 +2936,7 @@ int calc_blows_weapons(int Ind) {
 	return(num_blow);
 }
 
-int calc_crit_obj(int Ind, object_type *o_ptr) {
+int calc_crit_obj(object_type *o_ptr) {
 	int xcrit = 0;
 	u32b f1, f2, f3, f4, f5, f6, esp;
 
@@ -2994,6 +3031,9 @@ void calc_boni(int Ind) {
 
 	u32b f1, f2, f3, f4, f5, f6, esp;
 	s16b pval;
+#ifdef WEAPONS_NO_AC
+	s16b extra_weapon_parry = 0;
+#endif
 
 	bool old_auto_id = p_ptr->auto_id;
 	bool old_dual_wield = p_ptr->dual_wield;
@@ -3001,6 +3041,7 @@ void calc_boni(int Ind) {
 
 	bool old_sun_burn;
 	bool old_black_breath = p_ptr->black_breath_tmp;
+	bool old_suscep_good = p_ptr->suscep_good, old_suscep_life = p_ptr->suscep_life, old_demon = p_ptr->demon;
 
 	int lite_inc_norm = 0, lite_inc_white = 0, old_lite_type;
 
@@ -3084,7 +3125,7 @@ void calc_boni(int Ind) {
 	extra_blows_tmp = extra_shots = extra_spells = 0;
 
 	/* Clear the stat modifiers */
-	for (i = 0; i < 6; i++) p_ptr->stat_tmp[i] = p_ptr->stat_add[i] = 0;
+	for (i = 0; i < C_ATTRIBUTES; i++) p_ptr->stat_tmp[i] = p_ptr->stat_add[i] = 0;
 
 #if defined(ENABLE_OHERETICISM) && defined(ENABLE_HELLKNIGHT)
 	/* Hack: Blood Sacrifice form may give double-immunity!
@@ -3147,7 +3188,7 @@ void calc_boni(int Ind) {
 	p_ptr->drain_exp = 0;
 	p_ptr->drain_mana = 0;
 	p_ptr->drain_life = 0;
-	p_ptr->bless_blade = FALSE;
+	p_ptr->blessed_weapon = FALSE;
 	p_ptr->xtra_might = 0;
 	p_ptr->impact = FALSE;
 	p_ptr->see_inv = FALSE;
@@ -3315,12 +3356,12 @@ void calc_boni(int Ind) {
 	p_ptr->admin_immort = p_ptr->admin_invuln = p_ptr->admin_invinc = FALSE;
 
 	p_ptr->no_heal = FALSE;
-	p_ptr->no_hp_regen = FALSE;
+	p_ptr->no_hp_regen = p_ptr->no_mp_regen = FALSE;
 
 
 	/* Not a limit, but good place maybe */
 	if ((l_ptr && (l_ptr->flags2 & LF2_NO_RES_HEAL)) ||
-	    (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_RES_HEAL)))
+	    (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_RES_HEAL)))
 		p_ptr->no_heal = TRUE;
 
 
@@ -3467,8 +3508,8 @@ void calc_boni(int Ind) {
 			p_ptr->can_swim = TRUE; csheet_boni[14].cb[12] |= CB13_XSWIM; /* wood? */
 			p_ptr->pass_trees = TRUE; csheet_boni[14].cb[12] |= CB13_XTREE;
 			/* tree bark is  harder than skin */
-			p_ptr->to_a += 5;
-			p_ptr->dis_to_a += 5;
+			p_ptr->to_a += 3;
+			p_ptr->dis_to_a += 3;
 		} else { p_ptr->pspeed -= 1; csheet_boni[14].spd -= 1; } /* it's cost of ent's power, isn't it? */
 
 		if (p_ptr->lev >= 4) { p_ptr->see_inv = TRUE; csheet_boni[14].cb[4] |= CB5_RSINV; }
@@ -3595,6 +3636,9 @@ void calc_boni(int Ind) {
 
 			/* Both initiated sides get time resistance now */
 			p_ptr->resist_time = TRUE; csheet_boni[14].cb[3] |= CB4_RTIME;
+
+			/* Uncomfortable with evil forms */
+			//if (p_ptr->body_monster && (r_ptr->flags3 & RF3_DEMON) && (r_ptr->d_char == 'U')) p_ptr->drain_mana++;
 			break;
 		case TRAIT_CORRUPTED:
 			if (p_ptr->lev >= 20) csheet_boni[14].cb[6] |= CB7_IFOOD;
@@ -3618,6 +3662,9 @@ void calc_boni(int Ind) {
 
 			/* Both initiated sides get time resistance now */
 			p_ptr->resist_time = TRUE; csheet_boni[14].cb[3] |= CB4_RTIME;
+
+			/* Uncomfortable with good forms */
+			//if (p_ptr->body_monster && (r_ptr->flags3 & RF3_GOOD) && (r_ptr->d_char == 'A')) p_ptr->drain_mana++;
 			break;
 		default:
 			/* Uninitiated yet */
@@ -3776,18 +3823,18 @@ void calc_boni(int Ind) {
 		p_ptr->levitate = TRUE; csheet_boni[14].cb[5] |= CB6_RLVTN; /* redundant */
 		p_ptr->feather_fall = TRUE; csheet_boni[14].cb[5] |= CB6_RFFAL;
 		/*p_ptr->tim_wraith = 10000; redundant*/
-		//p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+		//p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 		//p_ptr->invis += 5; */ /* No. */
 	}
 
 	/* Hack -- apply racial/class stat maxes */
 	if (p_ptr->maximize) {
 		/* Apply the racial modifiers */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Modify the stats for "race" */
 			/* yeek mimic no longer rocks too much */
 			//if (!p_ptr->body_monster) p_ptr->stat_add[i] += (p_ptr->rp_ptr->r_adj[i]);
-//done in calc_body_bonus()!			p_ptr->stat_add[i] += (p_ptr->rp_ptr->r_adj[i]) * 3 / (p_ptr->body_monster ? 4 : 3);
+			//done in calc_body_bonus()!	p_ptr->stat_add[i] += (p_ptr->rp_ptr->r_adj[i]) * 3 / (p_ptr->body_monster ? 4 : 3);
 			p_ptr->stat_add[i] += p_ptr->rp_ptr->r_adj[i];
 			p_ptr->stat_add[i] += p_ptr->cp_ptr->c_adj[i];
 		}
@@ -3795,7 +3842,7 @@ void calc_boni(int Ind) {
 
 	/* Apply the racial modifiers */
 	if (p_ptr->mode & MODE_HARD) {
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Modify the stats for "race" */
 			p_ptr->stat_add[i]--;
 		}
@@ -3863,7 +3910,7 @@ void calc_boni(int Ind) {
 		pval = o_ptr->pval;
 
 		/* Set item display info */
-		get_object_visuals(&c, &a, o_ptr, p_ptr);
+		get_object_visual(&c, &a, o_ptr, p_ptr);
 		csheet_boni[i - INVEN_WIELD].symbol = c;
 		csheet_boni[i - INVEN_WIELD].color = a; //WARNING: this is necessary because csheet_boni.color is type char instead of byte
 
@@ -4232,7 +4279,6 @@ void calc_boni(int Ind) {
 			if (j > p_ptr->tim_invis_power) p_ptr->tim_invis_power = j;
 			csheet_boni[i-INVEN_WIELD].cb[4] |= CB5_RINVS;
 		}
-		if (f3 & TR3_BLESSED) p_ptr->bless_blade = TRUE;
 		if (f3 & TR3_XTRA_MIGHT) { p_ptr->xtra_might++; csheet_boni[i-INVEN_WIELD].migh++; }
 		if (f3 & TR3_SLOW_DIGEST) { p_ptr->slow_digest = TRUE; csheet_boni[i-INVEN_WIELD].cb[6] |= CB7_RFOOD; }
 		if (f3 & TR3_REGEN) { p_ptr->regenerate = TRUE; csheet_boni[i-INVEN_WIELD].cb[5] |= CB6_RRGHP; }
@@ -4291,23 +4337,6 @@ void calc_boni(int Ind) {
 			if (!(f4 & TR4_FUEL_LITE)) csheet_boni[i-INVEN_WIELD].cb[12] |= CB13_XLITE;
 		}
 
-		/* powerful lights and anti-undead/evil items damage undead */
-		switch (anti_undead(o_ptr, p_ptr)) {
-		case 1: p_ptr->drain_life++; break;
-		case 2: p_ptr->no_hp_regen = TRUE; break;
-		}
-
-		/* powerful lights and anti-demon/evil items damage hell knights and (mimicked) demons */
-		switch (anti_demon(o_ptr, p_ptr)) {
-		case 1: p_ptr->drain_life++; break;
-		case 2: p_ptr->no_hp_regen = TRUE; break;
-		}
-
-#if 0 /* 0ed: get icky_wield instead */
-		/* BLESSED items are adverse to Corrupted beings in general? */
-		if (p_ptr->ptrait == TRAIT_CORRUPTED && (f3 & TR3_BLESSED)) p_ptr->no_hp_regen++;
-#endif
-
 		/* Immunity flags */
 		if (f2 & TR2_IM_FIRE) { p_ptr->immune_fire = TRUE; csheet_boni[i-INVEN_WIELD].cb[0] |= CB1_IFIRE; }
 		if (f2 & TR2_IM_ACID) { p_ptr->immune_acid = TRUE; csheet_boni[i-INVEN_WIELD].cb[1] |= CB2_IACID; }
@@ -4353,7 +4382,7 @@ void calc_boni(int Ind) {
 			    !(l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC))) {
 				//BAD!(recursion)	set_tim_wraith(Ind, 10000);
 				p_ptr->tim_wraith = 10000; csheet_boni[i-INVEN_WIELD].cb[5] |= CB6_RWRTH;
-				p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+				p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 			}
 		}
 		if (f4 & (TR4_LEVITATE)) {
@@ -4447,18 +4476,44 @@ void calc_boni(int Ind) {
 #ifndef NEW_SHIELDS_NO_AC
 		/* Apply the bonuses to armor class */
 		if (o_ptr->tval == TV_SHIELD) may_to_a += o_ptr->to_a;
+ #ifndef WEAPONS_NO_AC
 		else p_ptr->to_a += o_ptr->to_a;
+ #else
+		else if (!is_melee_weapon(o_ptr->tval) p_ptr->to_a += o_ptr->to_a;
+		else extra_weapon_parry += (o_ptr->to_a * 10 + WEAPONS_NO_AC - 10) / WEAPONS_NO_AC;
+ #endif
 #else
-		if (o_ptr->tval != TV_SHIELD) p_ptr->to_a += o_ptr->to_a;
+		if (o_ptr->tval != TV_SHIELD)
+ #ifndef WEAPONS_NO_AC
+			p_ptr->to_a += o_ptr->to_a;
+ #else
+		{
+			if (!is_melee_weapon(o_ptr->tval)) p_ptr->to_a += o_ptr->to_a;
+			else extra_weapon_parry += (o_ptr->to_a * 10 + WEAPONS_NO_AC - 10) / WEAPONS_NO_AC;
+		}
+ #endif
 #endif
 
 		/* Apply the mental bonuses to armor class, if known */
 		if (object_known_p(Ind, o_ptr)) {
 #ifndef NEW_SHIELDS_NO_AC
 			if (o_ptr->tval == TV_SHIELD) may_dis_to_a += o_ptr->to_a;
+ #ifndef WEAPONS_NO_AC
 			else p_ptr->dis_to_a += o_ptr->to_a;
+ #else
+			else if (!is_melee_weapon(o_ptr->tval)) p_ptr->dis_to_a += o_ptr->to_a;
+			//note: ATM we always tell the player his true parry chance, even though we'd need a 'dis_to_parry' here for unidentified weapons that give hidden +parry chance!
+ #endif
 #else
-			if (o_ptr->tval != TV_SHIELD) p_ptr->dis_to_a += o_ptr->to_a;
+			if (o_ptr->tval != TV_SHIELD)
+ #ifndef WEAPONS_NO_AC
+				p_ptr->dis_to_a += o_ptr->to_a;
+ #else
+			{
+				if (!is_melee_weapon(o_ptr->tval)) p_ptr->dis_to_a += o_ptr->to_a;
+				//note: ATM we always tell the player his true parry chance, even though we'd need a 'dis_to_parry' here for unidentified weapons that give hidden +parry chance!
+			}
+ #endif
 #endif
 		}
 
@@ -4506,6 +4561,12 @@ void calc_boni(int Ind) {
 			if (f1 & TR1_BLOWS) csheet_boni[i-INVEN_WIELD].blow += pval;
 			if (f5 & TR5_CRIT) csheet_boni[i-INVEN_WIELD].crit += pval;
 			if (f1 & TR1_VAMPIRIC) csheet_boni[i-INVEN_WIELD].cb[6] |= CB7_RVAMP;
+
+			/* Ultrahack: BLESSED was meant for melee weapons (originally swords), especially for priests.
+			   Now BLESSED can also appear on boomerangs, but we don't want to count those for blessing at this time!
+			   They would just negatively impact spell fail rate, and they have no influence on priest's weapon-usability either.
+			   So here, only for wield/altwield slots: */
+			if (f3 & TR3_BLESSED) p_ptr->blessed_weapon = TRUE;
 			continue;
 		}
 
@@ -4552,6 +4613,31 @@ void calc_boni(int Ind) {
 		if (object_known_p(Ind, o_ptr)) p_ptr->dis_to_d += o_ptr->to_d;
 	}
 
+	/* Has to be done here as it may depend on other items granting light resistance,
+	   so all items have to be applied first: */
+	/* powerful lights and anti-undead/evil items damage (mimicked) undead,
+	   while anti-demon/evil items damage hell knights and (mimicked) demons */
+	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
+		o_ptr = &p_ptr->inventory[i];
+		/* Skip missing items */
+		if (!o_ptr->k_idx) continue;
+
+		j = anti_undead(o_ptr, p_ptr);
+		hold = anti_demon(o_ptr, p_ptr);
+		if (hold > j) j = hold;
+
+		switch (j) {
+		case 1:
+			if (i == INVEN_HEAD || i == INVEN_HANDS) p_ptr->drain_mana++;
+			else p_ptr->drain_life++;
+			break;
+		case 2:
+			if (i == INVEN_HEAD || i == INVEN_HANDS) p_ptr->no_mp_regen = TRUE;
+			else p_ptr->no_hp_regen = TRUE;
+			break;
+		}
+	}
+
 	p_ptr->antimagic += am_bonus;
 #ifdef NEW_ANTIMAGIC_RATIO
 	p_ptr->antimagic_dis += (am_bonus / 9);
@@ -4564,11 +4650,7 @@ void calc_boni(int Ind) {
 
 	/* Check for temporary blessings */
 	if (p_ptr->bless_temp_luck
-#if 0
-	    && !istownarea(&p_ptr->wpos, MAX_TOWNAREA)) {
-#else
 	    && p_ptr->wpos.wz) {
-#endif
 		p_ptr->luck += p_ptr->bless_temp_luck_power;
 		/* abuse '@ form' luck column for this for now */
 		csheet_boni[14].luck += p_ptr->bless_temp_luck_power;
@@ -4579,7 +4661,7 @@ void calc_boni(int Ind) {
 	for (i = 0; i < INVEN_TOTAL - INVEN_WIELD; i++) {
 		/* remember for things like admin command checking or visual indicator in client's equipment window */
 		p_ptr->equip_set[i] = equipment_set_amount[i];
-		if (equip_set_old[i] != p_ptr->equip_set[i]) p_ptr->inventory[INVEN_WIELD + i].temp = 1; //force-update this equipment slot
+		if (equip_set_old[i] != p_ptr->equip_set[i]) p_ptr->inventory[INVEN_WIELD + i].temp |= 0x01; //force-update this equipment slot
 
 		if (!equipment_set[i]) continue;
 		if (equipment_set_amount[i] > equipment_set_bonus)
@@ -4612,7 +4694,7 @@ void calc_boni(int Ind) {
 	    (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'V'))
 	    && !p_ptr->ghost && !(p_ptr->global_event_temp & PEVF_INDOORS_00)
 	    && !(l_ptr && (l_ptr->flags2 & LF2_INDOORS))
-	    && !(in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_INDOORS))) {
+	    && !(in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_INDOORS))) {
 		/* damage from sunlight */
 		if (!p_ptr->wpos.wz && !night_surface && //!(zcave[p_ptr->py][p_ptr->px].info & CAVE_ICKY) &&
 		    !p_ptr->resist_lite && (TOOL_EQUIPPED(p_ptr) != SV_TOOL_WRAPPING) &&
@@ -4694,10 +4776,7 @@ void calc_boni(int Ind) {
 	if (p_ptr->tim_lev) p_ptr->levitate = TRUE;
 
 	/* Temp ESP */
-	if (p_ptr->tim_esp) {
-		//p_ptr->telepathy = TRUE;
-		p_ptr->telepathy |= ESP_ALL;
-	}
+	if (p_ptr->tim_esp) p_ptr->telepathy |= ESP_ALL;
 
 	/* Temporary invisibility */
 	if (p_ptr->tim_invis_power > p_ptr->tim_invis_power2)
@@ -4706,7 +4785,7 @@ void calc_boni(int Ind) {
 		p_ptr->invis = p_ptr->tim_invis_power2;
 
 	/* Temporary deflection */
-	if (p_ptr->tim_deflect) p_ptr->reflect = TRUE;
+	if (p_ptr->tim_reflect) p_ptr->reflect = TRUE;
 
 	/* Temporary "Hero" */
 	if (p_ptr->hero || (p_ptr->mindboost && p_ptr->mindboost_power >= 5)) {
@@ -4746,10 +4825,7 @@ void calc_boni(int Ind) {
 	if (p_ptr->tim_invis) p_ptr->see_inv = TRUE;
 
 	/* Temporary infravision boost */
-	if (p_ptr->tim_infra) {
-		//p_ptr->see_infra++;
-		p_ptr->see_infra += 5;
-	}
+	if (p_ptr->tim_infra) p_ptr->see_infra += 5;
 
 	/* Heart is boldened */
 	if (p_ptr->res_fear_temp || p_ptr->hero || p_ptr->shero ||
@@ -4766,6 +4842,10 @@ void calc_boni(int Ind) {
 	/* Bloating slows the player down (a little) */
 	if (p_ptr->food >= PY_FOOD_MAX) p_ptr->pspeed -= 10;
 
+	/* Being weakened by hunger? */
+	if (p_ptr->food < PY_FOOD_FAINT) { p_ptr->stat_add[A_STR] -= 2; csheet_boni[14].pstr -= 2; }
+	else if (p_ptr->food < PY_FOOD_WEAK) { p_ptr->stat_add[A_STR] -= 1; csheet_boni[14].pstr -= 1; }
+
 	/* Searching slows the player down */
 	if (p_ptr->searching) {
 		int sneakiness = get_skill(p_ptr, SKILL_SNEAKINESS);
@@ -4781,13 +4861,7 @@ void calc_boni(int Ind) {
 	}
 
 	if (p_ptr->cloaked) {
-#if 0 /* for now, light is simply dimmed in cloaking mode, instead of breaking it. */
-	/*  might need to give rogues a special ability to see in the dark like vampires. or not, pft. - C. Blue */
-	/* cannot be cloaked if wielding a (real, not vampire vision) light source */
-		if (p_ptr->cur_lite) break_cloaking(Ind, 0);
-#else
-		if (p_ptr->cur_lite) p_ptr->cur_lite = 1; /* dim it */
-#endif
+		if (p_ptr->cur_lite) p_ptr->cur_lite = 1; /* dim it greatly */
 	}
 	if (p_ptr->cloaked == 1) {
 		p_ptr->pspeed -= 10 - get_skill_scale(p_ptr, SKILL_SNEAKINESS, 3);
@@ -4798,16 +4872,17 @@ void calc_boni(int Ind) {
 		csheet_boni[14].srch += 10;
 	}
 
-	/* Trapping skill helps with searching */
-	p_ptr->skill_srh += get_skill_scale(p_ptr, SKILL_TRAPPING, 25);
-	csheet_boni[14].srch += get_skill_scale(p_ptr, SKILL_TRAPPING, 25);
-	p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_TRAPPING, 15);
-
 	if (p_ptr->shadow_running) { p_ptr->pspeed += 10; csheet_boni[14].spd += 10; }
 
 	if (p_ptr->sh_fire_tim) p_ptr->sh_fire = TRUE;
 	if (p_ptr->sh_cold_tim) p_ptr->sh_cold = TRUE;
 	if (p_ptr->sh_elec_tim) p_ptr->sh_elec = TRUE;
+
+	if (p_ptr->tim_lcage) {
+		p_ptr->slay |= TR1_BRAND_ELEC; csheet_boni[14].cb[10] |= CB11_BELEC;
+		p_ptr->sh_elec = TRUE; csheet_boni[14].cb[10] |= CB11_AELEC;
+		p_ptr->immune_elec = TRUE; csheet_boni[14].cb[1] |= CB2_IELEC;
+	}
 
 	/* Bonus from +LIFE items (should be weapons only -- not anymore, Bladeturner / Randarts etc.!).
 	   Also, cap it at +3 (boomerang + weapon could result in +6) (Boomerangs can't have +LIFE anymore) */
@@ -4815,7 +4890,7 @@ void calc_boni(int Ind) {
 
 
 	/* Calculate stats */
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < C_ATTRIBUTES; i++) {
 		int top, use, ind;
 
 		/* Extract the new "stat_use" value for the stat */
@@ -4954,11 +5029,11 @@ void calc_boni(int Ind) {
 	if (p_ptr->inventory[INVEN_WIELD].k_idx &&
 	    (k_info[p_ptr->inventory[INVEN_WIELD].k_idx].flags4 & (TR4_MUST2H | TR4_SHOULD2H))
 	    && !suppress_boni) {
-		if (p_ptr->cloaked && !instakills(Ind)) {
+		if (p_ptr->cloaked && !p_ptr->instakills) {
 			msg_print(Ind, "\377yYour weapon is too large to remain cloaked effectively.");
 			break_cloaking(Ind, 0);
 		}
-		if (p_ptr->shadow_running && !instakills(Ind)) {
+		if (p_ptr->shadow_running && !p_ptr->instakills) {
 			msg_print(Ind, "\377yYour weapon is too large for effective shadow running.");
 			break_shadow_running(Ind);
 		}
@@ -5249,8 +5324,7 @@ void calc_boni(int Ind) {
 		p_ptr->dis_to_a += p_ptr->shield_power;
 		p_ptr->to_a_tmp += p_ptr->shield_power;
 	}
-	/* Temporary shadow shroud - note that it cannot coexist with 'reactive shield' magic.
-	   However, the only currently available spell of that sort is Fiery Shield. */
+	/* Temporary shadow shroud. */
 	else if (p_ptr->shrouded) {
 		if (p_ptr->unlit_grid) {
 			p_ptr->to_a += p_ptr->shroud_power;
@@ -5544,7 +5618,14 @@ void calc_boni(int Ind) {
 	p_ptr->heavy_wield = FALSE;
 #ifdef USE_PARRYING
 	/* Do we have a weapon equipped at all? */
-	if (o_ptr->k_idx) {
+	if (o_ptr->k_idx
+ #ifdef WIELD_BOOKS
+	    && o_ptr->tval != TV_BOOK
+ #endif
+ #ifdef WIELD_DEVICES
+	    && !is_magic_device(o_ptr->tval)
+ #endif
+	    ) {
 		if (k_info[o_ptr->k_idx].flags4 & TR4_MUST2H) {
 			p_ptr->weapon_parry = 10 + get_skill_scale(p_ptr, SKILL_MASTERY, 20);
 		} else if (k_info[o_ptr->k_idx].flags4 & TR4_SHOULD2H) {
@@ -5566,6 +5647,15 @@ void calc_boni(int Ind) {
 		    )
 			//p_ptr->weapon_parry += 5 + get_skill_scale(p_ptr, SKILL_MASTERY, 5);//was +0(+10)
 			p_ptr->weapon_parry += 10;//pretty high, because independent of mastery skill^^
+
+ #ifdef WEAPONS_NO_AC
+		/* Apply weapons' magical +parry boni */
+		if (p_ptr->dual_wield) extra_weapon_parry >>= 1; /* Two weapons? Apply the averaged parry bonus from both (as they were both added to extra_weapon_parry previously) */
+		p_ptr->weapon_parry += extra_weapon_parry;
+		if (p_ptr->weapon_parry < 0) p_ptr->weapon_parry = 0;
+		/* Note: We don't give reduced chance for awkward_wield, icky_wield or heavy_wield here, for now, as these will cut down the total weapon_parry chance anyway, further below.
+		   Currently though only heavy_wield applies a parry penalty, the other two don't. */
+ #endif
 
 		/* adjust class-dependantly! */
 		switch (p_ptr->pclass) {
@@ -5721,14 +5811,13 @@ void calc_boni(int Ind) {
 		p_ptr->num_blow = 0;
 
 		/*the_sandman for the RPG server (might as well stay for all servers ^^ - C. Blue) */
-		if (marts >  0) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		if (marts >  9) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		if (marts > 19) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		if (marts > 29) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		//if (marts > 34) p_ptr->num_blow++; csheet_boni[14].blow++; } /* This _could_ be added if really required */
-		if (marts > 39) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		if (marts > 44) { p_ptr->num_blow++; csheet_boni[14].blow++; }
-		if (marts > 49) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >=  2) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 10) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 20) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 30) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 40) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 45) { p_ptr->num_blow++; csheet_boni[14].blow++; }
+		if (marts >= 50) { p_ptr->num_blow++; csheet_boni[14].blow++; }
 
 		if (monk_heavy_armor(p_ptr)) p_ptr->num_blow /= 2;
 
@@ -5828,7 +5917,7 @@ void calc_boni(int Ind) {
 	}
 
 	if (get_skill(p_ptr, SKILL_DODGE) && !p_ptr->rogue_heavyarmor)
-	//if (!(r_ptr->flags1 & RF1_NEVER_MOVE)); // not for now
+	//if (!(r_ptr->flags2 & RF2_NEVER_MOVE)); // not for now
 	{
 #ifndef NEW_DODGING /* reworking dodge, see #else.. */
 		/* use a long var temporarily to handle v.high total_weight */
@@ -5962,15 +6051,15 @@ void calc_boni(int Ind) {
 
 	/* Priest weapon penalty for non-blessed edged weapons (assumes priests cannot dual-wield) */
 	if (p_ptr->inventory[INVEN_WIELD].k_idx && (
-	    (p_ptr->pclass == CLASS_PRIEST && !p_ptr->bless_blade &&
+	    (p_ptr->pclass == CLASS_PRIEST && !p_ptr->blessed_weapon &&
 	    (o_ptr->tval == TV_SWORD || o_ptr->tval == TV_POLEARM || o_ptr->tval == TV_AXE))
-	    || (p_ptr->prace == RACE_VAMPIRE && p_ptr->bless_blade)
-	    || (p_ptr->ptrait == TRAIT_CORRUPTED && p_ptr->bless_blade)
+	    || (p_ptr->prace == RACE_VAMPIRE && p_ptr->blessed_weapon)
+	    || (p_ptr->ptrait == TRAIT_CORRUPTED && p_ptr->blessed_weapon)
 #ifdef ENABLE_CPRIEST
-	    || (p_ptr->pclass == CLASS_CPRIEST && p_ptr->bless_blade)
+	    || (p_ptr->pclass == CLASS_CPRIEST && p_ptr->blessed_weapon)
 #endif
 #ifdef ENABLE_HELLKNIGHT
-	    || (p_ptr->pclass == CLASS_HELLKNIGHT && p_ptr->bless_blade)
+	    || (p_ptr->pclass == CLASS_HELLKNIGHT && p_ptr->blessed_weapon)
 #endif
 	    )) {
 		/* Reduce the real bonuses */
@@ -6065,25 +6154,33 @@ void calc_boni(int Ind) {
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 1: p_ptr->shield_deflect += 11;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 2: p_ptr->shield_deflect += 13;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 3: p_ptr->shield_deflect += 15;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 8) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 8) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 8) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		}
  #endif
@@ -6111,25 +6208,33 @@ void calc_boni(int Ind) {
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 6) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 6) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 6) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 1: p_ptr->weapon_parry = (p_ptr->weapon_parry * 13) / 10;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 2: p_ptr->weapon_parry = (p_ptr->weapon_parry * 14) / 10;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		case 3: p_ptr->weapon_parry = (p_ptr->weapon_parry * 15) / 10;
 			p_ptr->dis_to_d = (p_ptr->dis_to_d * 7) / 10;
 			p_ptr->to_d = (p_ptr->to_d * 7) / 10;
 			p_ptr->to_d_melee = (p_ptr->to_d_melee * 7) / 10;
+   #ifndef DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 			p_ptr->to_d_ranged = (p_ptr->to_d_ranged * 5) / 10;
+   #endif
 			break;
 		}
   #endif
@@ -6206,7 +6311,7 @@ void calc_boni(int Ind) {
 
 	/* Affect Skill -- search frequency (Level, by Class) */
 	//p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, p_ptr->cp_ptr->x_fos);
-	p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, 5);
+	p_ptr->skill_fos += get_skill_scale(p_ptr, SKILL_SNEAKINESS, 5) + get_skill_scale(p_ptr, SKILL_TRAPPING, 15);
 
 	/* Affect Skill -- combat (normal) (Level, by Class) */
 	//p_ptr->skill_thn += p_ptr->cp_ptr->x_thn * ((melee_weapon ? get_skill_scale(p_ptr, SKILL_MASTERY, 100)) + (1 * get_skill(p_ptr, SKILL_COMBAT))) / 100;
@@ -6255,10 +6360,10 @@ void calc_boni(int Ind) {
 	if (get_skill(p_ptr, SKILL_HSUPPORT) >= 50) csheet_boni[14].cb[6] |= CB7_IFOOD;
 
 	/* slay/brand boni check here... */
-	if (get_skill(p_ptr, SKILL_HOFFENSE) >= 30) { p_ptr->slay |= TR1_SLAY_UNDEAD; csheet_boni[14].cb[9] |= CB10_SUNDD; }
-	if (get_skill(p_ptr, SKILL_HOFFENSE) >= 40) { p_ptr->slay |= TR1_SLAY_DEMON; csheet_boni[14].cb[8] |= CB9_SDEMN; }
-	if (get_skill(p_ptr, SKILL_HOFFENSE) >= 50) { p_ptr->slay |= TR1_SLAY_EVIL; csheet_boni[14].cb[9] |= CB10_SEVIL; }
-	if (get_skill(p_ptr, SKILL_HCURING) >= 50) { p_ptr->slay_melee |= TR1_SLAY_UNDEAD; } //prob: it's melee only: csheet_boni[14].cb[9] |= CB10_SUNDD;
+	if (!p_ptr->suscep_life && get_skill(p_ptr, SKILL_HOFFENSE) >= 30) { p_ptr->slay |= TR1_SLAY_UNDEAD; csheet_boni[14].cb[9] |= CB10_SUNDD; }
+	if (!p_ptr->demon && get_skill(p_ptr, SKILL_HOFFENSE) >= 40) { p_ptr->slay |= TR1_SLAY_DEMON; csheet_boni[14].cb[8] |= CB9_SDEMN; }
+	if (!p_ptr->suscep_good && get_skill(p_ptr, SKILL_HOFFENSE) >= 50) { p_ptr->slay |= TR1_SLAY_EVIL; csheet_boni[14].cb[9] |= CB10_SEVIL; }
+	if (!p_ptr->suscep_life && get_skill(p_ptr, SKILL_HCURING) >= 50) { p_ptr->slay_melee |= TR1_SLAY_UNDEAD; } //prob: it's melee only: csheet_boni[14].cb[9] |= CB10_SUNDD;
 
 #ifdef ENABLE_OCCULT /* Occult */
 	/* Should Occult schools really give boni? */
@@ -6454,7 +6559,8 @@ void calc_boni(int Ind) {
 		p_ptr->old_heavy_tool = p_ptr->heavy_tool;
 	}
 
-#if 0 /* doesn't work well because it's mostly a continuous increase from hardly-noticing to massive-drowning */
+#if 0 //TODO: Completely outdated code, do not enable. Use new rework, see drowning routine in dungeon.c! - C. Blue
+	/* doesn't work well because it's mostly a continuous increase from hardly-noticing to massive-drowning */
 	/* Swimming-indicator (maybe a bit too cheezy) */
 	p_ptr->heavy_swim = FALSE;
 	//if ((!p_ptr->tim_wraith) && (!p_ptr->levitate) && (!p_ptr->can_swim)) { --actually don't count these in
@@ -6465,8 +6571,8 @@ void calc_boni(int Ind) {
 			int swim = get_skill_scale(p_ptr, SKILL_SWIM, 4500);
 
 			/* temporary abs weight calc */
-			if (p_ptr->wt + p_ptr->total_weight / 10 > 170 + swim * 2) {
-				long factor = (p_ptr->wt + p_ptr->total_weight / 10) - 150 - swim * 2;
+			if (p_ptr->wt * 10 + p_ptr->total_weight / 10 > 170 + swim * 2) {
+				long factor = (p_ptr->wt * 10 + p_ptr->total_weight / 10) - 150 - swim * 2;
 
 				if (factor >= 20) p_ptr->heavy_swim = TRUE;
 			}
@@ -6573,7 +6679,13 @@ void calc_boni(int Ind) {
 	/* Display the speed (if needed) */
 	if (p_ptr->pspeed != old_speed) p_ptr->redraw |= (PR_SPEED);
 
-
+#if 0 /* not atm */
+	/* Cannot regenerate MP while keeping a spell up that requires active resource to run.
+	   Note: martyrdom is handled inside regenmana() instead. boundless rage is zeal, which isn't affected by mp really.
+	   p_ptr->voidx should stop mp-regen, but there is currently no way to turn it off (zero it) except for leaving the floor.
+	   Also there are no stop-spells for spirit_shield, kinetic_shield (and tim_regen_pow, but that one is not important). */
+	if (p_ptr->tim_manashield || p_ptr->spirit_shield || p_ptr->kinetic_shield || p_ptr->mcharming || p_ptr->dispersion || p_ptr->tim_regen_pow < 0) p_ptr->no_regen_mp = TRUE;
+#endif
 
 	/* swapping in AUTO_ID items will instantly ID inventory and equipment.
 	   Careful, we're called from birth->player_setup->player_night maybe,
@@ -6596,10 +6708,18 @@ void calc_boni(int Ind) {
 #endif
 	}
 
+	/* Admin-specific item powers - C. Blue */
+	/* Can a player see the secret_dungeon_master? Only if he wears the special Goggles.. */
+	o_ptr = &p_ptr->inventory[INVEN_HEAD];
+	p_ptr->player_sees_dm = (o_ptr->tval && o_ptr->name1 == ART_GOGGLES_DM);
+	o_ptr = &p_ptr->inventory[INVEN_WIELD];
+	p_ptr->instakills = (o_ptr->tval && o_ptr->name1 == ART_SCYTHE_DM) ? ((o_ptr->note && strstr(quark_str(o_ptr->note), "IDDQD")) ? 2 : 1) : 0; //at doom's gate...
+
 
 
 /* -------------------- Limits -------------------- */
 
+#ifdef NO_REGEN_ALT
 	/* no_hp_regen special workings: Actually simulates having hp-drain and hp-regen at the same time, keeping each other in check.
 	   Weakness: If the player has additional HP regen sources (skills) he will still effectively regen HP and setting the regenerate flag will even help him to do so. */
 	if (p_ptr->no_hp_regen) {
@@ -6610,6 +6730,16 @@ void calc_boni(int Ind) {
 			//csheet_boni[14].cb[5] |= CB6_RRGHP; /* don't display this maybe */
 		}
 	}
+	/* Same hack as above for no_mp_regen */
+	if (p_ptr->no_mp_regen) {
+		if (!p_ptr->drain_mana) {
+			p_ptr->drain_mana = 1;
+
+			p_ptr->regen_mana = TRUE;
+			//csheet_boni[14].cb[5] |= CB6_RRGHP; /* don't display this maybe */
+		}
+	}
+#endif
 
 	/* Make sure we don't get negative stealth from monster body malus */
 	if (p_ptr->skill_stl < 0) p_ptr->skill_stl = 0;
@@ -6628,12 +6758,12 @@ void calc_boni(int Ind) {
 #endif
 
 	if (((l_ptr && (l_ptr->flags2 & LF2_NO_SPEED)) ||
-	    (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_SPEED)))
+	    (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_SPEED)))
 	    && p_ptr->pspeed > 110 && !p_ptr->admin_dm)
 		p_ptr->pspeed = 110;
 
 	if (((l_ptr && (l_ptr->flags2 & LF2_NO_RES_HEAL)) ||
-	    (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_RES_HEAL)))
+	    (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_RES_HEAL)))
 	    && !p_ptr->admin_dm) {
 		p_ptr->resist_acid = FALSE;
 		p_ptr->resist_elec = FALSE;
@@ -6667,7 +6797,7 @@ void calc_boni(int Ind) {
 	/* Limit Skill -- stealth from 0 to 30 */
 	if (p_ptr->skill_stl > 30) p_ptr->skill_stl = 30;
 	if (p_ptr->skill_stl < 0) p_ptr->skill_stl = 0;
-	if (p_ptr->aggravate) p_ptr->skill_stl = 0;
+	if (p_ptr->aggravate) p_ptr->skill_stl = -1; //was 0, but -1 will actually display "Very Bad" instead of just "Bad", without causing any problems (only thing affected is actually [pvp-]stealing a little bit) :)
 
 	/* Limit Skill -- digging from 1 up */
 	if (p_ptr->skill_dig < 1) p_ptr->skill_dig = 1;
@@ -6718,7 +6848,36 @@ void calc_boni(int Ind) {
 	   so we can just cap it. */
 	if (p_ptr->see_infra > MAX_SIGHT) p_ptr->see_infra = MAX_SIGHT;
 
-
+	/* Stop any contradicting buffs on form change - debatable though, see SV_SCROLL_PROTECTION_FROM_EVIL notes! - C. Blue
+	   This can only really be triggered via form changes, but it is clunkier
+	   to actually put it into calc_body_bonus() instead of just doing it here. */
+	if (p_ptr->suscep_good || p_ptr->suscep_life) {
+		if (p_ptr->blessed && !p_ptr->blessed_own) set_blessed(Ind, 0, FALSE);
+		if (p_ptr->protevil && !p_ptr->protevil_own) set_protevil(Ind, 0, FALSE);
+	}
+	if (p_ptr->suscep_evil && (p_ptr->xtrastat_demonic)) do_xtra_stats(Ind, 0, 0, 0, FALSE);
+	if (old_suscep_good != p_ptr->suscep_good) {
+		if (get_skill(p_ptr, SKILL_HOFFENSE) >= 50) {
+			if (p_ptr->suscep_good) msg_print(Ind, "\375\377yYour intrinsic evil-slaying effect is inactive while in evil form.");
+			else msg_print(Ind, "\375\377gYour intrinsic evil-slaying effect is active again.");
+		}
+	}
+	if (old_suscep_life != p_ptr->suscep_life) {
+		if (get_skill(p_ptr, SKILL_HOFFENSE) >= 30) {
+			if (p_ptr->suscep_life) msg_print(Ind, "\375\377yYour intrinsic undead-slaying effect is inactive while in undead form.");
+			else msg_print(Ind, "\375\377gYour intrinsic undead-slaying effect is active again.");
+		}
+		else if (get_skill(p_ptr, SKILL_HCURING) >= 50) {
+			if (p_ptr->suscep_life) msg_print(Ind, "\375\377yYour intrinsic unead-slaying melee effect is inactive while in undead form.");
+			else msg_print(Ind, "\375\377gYour intrinsic undead-slaying melee effect is active again.");
+		}
+	}
+	if (old_demon != p_ptr->demon) {
+		if (get_skill(p_ptr, SKILL_HOFFENSE) >= 40) {
+			if (p_ptr->demon) msg_print(Ind, "\375\377yYour intrinsic demon-slaying effect is inactive while in demon form.");
+			else msg_print(Ind, "\375\377gYour intrinsic demon-slaying effect is active again.");
+		}
+	}
 
 
 	/* Determine colour of our light radius */
@@ -6784,7 +6943,7 @@ void calc_boni(int Ind) {
 				bool can_have_hidden_powers = TRUE;
 #ifdef NEW_ID_SCREEN
 				can_have_hidden_powers = FALSE;
-//				bool not_identified_at_all = TRUE;
+				//bool not_identified_at_all = TRUE;
 				if (i != 14) {
 					o_ptr = &p_ptr->inventory[i + INVEN_WIELD];
 					k_ptr = &k_info[o_ptr->k_idx];
@@ -7142,7 +7301,7 @@ void calc_boni(int Ind) {
 
 	/* hack: no physical attacks */
 	if ((p_ptr->prace == RACE_VAMPIRE && p_ptr->body_monster == RI_VAMPIRIC_MIST) ||
-	    (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags1 & RF1_NEVER_BLOW)) ||
+	    (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags2 & RF2_NEVER_BLOW)) ||
 	    never_blow == 0x1 || ((never_blow == 0x2 || never_blow == 0x4) && !(p_ptr->dual_wield && p_ptr->dual_mode)) || never_blow == 0x6)
 		p_ptr->num_blow = 0;
 	if ((p_ptr->prace == RACE_VAMPIRE && p_ptr->body_monster == RI_VAMPIRIC_MIST) ||
@@ -7544,7 +7703,7 @@ void redraw_stuff(int Ind) {
 	} else {
 		if (p_ptr->redraw & PR_BPR_WRAITH) {
 			p_ptr->redraw &= ~(PR_BPR_WRAITH);
-			prt_bpr(Ind);
+			prt_bpr_wraith(Ind);
 		}
 	}
 }
@@ -7561,6 +7720,11 @@ void redraw2_stuff(int Ind) {
 		/* Hack: Receiving the title will cause a big_map client to erase the unused
 		   part of the map for visual clarity if linked target isn't using big_map */
 		prt_title(Ind);
+#ifdef ENABLE_SUBINVEN
+		/* Also abuse this to refresh subinventories */
+		//if (p_ptr->window & PW_SUBINVEN) { p_ptr->window &= ~(PW_SUBINVEN); }
+		fix_subinven(Ind);
+#endif
 	}
 
 	if (p_ptr->redraw2 & PR2_MAP_SCR) {
@@ -7670,6 +7834,15 @@ void window_stuff(int Ind) {
 		fix_allitems(Ind); //Send_equip() checks p_ptr->window for PW_ALLITEMS_FWD
 		p_ptr->window &= ~(PW_ALLITEMS_FWD);
 	}
+
+	if (p_ptr->window & PW_SUBINVEN) {
+		p_ptr->window &= ~PW_SUBINVEN;
+
+#ifdef ENABLE_SUBINVEN
+		//if (p_ptr->window & PW_SUBINVEN) { p_ptr->window &= ~(PW_SUBINVEN); }
+		fix_subinven(Ind);
+#endif
+	}
 }
 
 
@@ -7751,6 +7924,10 @@ int start_global_event(int Ind, int getype, char *parm) {
 	ge->limited = 0; /* no maximum */
 	ge->cleanup = 0; /* no cleaning up needed so far (for when the event ends) */
 	ge->noghost = FALSE;
+	for (i = 0; i < 128; i++) {
+		ge->beacon_wpos[i] = (worldpos) { WPOS_SECTOR000_X, WPOS_SECTOR000_Y, 32767 }; /* 32767 = unused; assume default values, events have to set them to the correct ones */
+		ge->beacon_parm[i] = 0;
+	}
 
 	/* IMPORTANT: state[0] == 255 is used as indicator that cleaning-up must be done, event has ended. */
 	switch (getype) {
@@ -7794,7 +7971,7 @@ int start_global_event(int Ind, int getype, char *parm) {
 
 		strcpy(ge->title, "Arena Monster Challenge");
 		strcpy(ge->description[0], " During the duration of Bree's Arena Monster Challenge, you just type  ");
-		strcpy(ge->description[1], format(" '\377U/evsign %d <Monster Name>\377w' and you'll have a chance to challenge  ", n+1));
+		strcpy(ge->description[1], format(" '\377U/evsign %d <Monster Name>\377w' and you'll have a chance to challenge  ", n + 1));
 		strcpy(ge->description[2], " it for an illusion death match in Bree's upper training tower floor.  ");
 		strcpy(ge->description[3], " Neither the monster nor you will really die in person, just illusions ");
 		strcpy(ge->description[4], " of you, created by the wizards of 'Arena Monster Challenge (tm)' will ");
@@ -7802,7 +7979,7 @@ int start_global_event(int Ind, int getype, char *parm) {
 		strcpy(ge->description[6], " completely real to you though, and you can even use and consume items!");
 		strcpy(ge->description[7], " (PvP-mode characters are an exception and will actually die for real!)");
 		//strcpy(ge->description[7], " (Note: Some creatures might be beyond the wizards' abilities.)");
-		strcpy(ge->description[8], format(" (Example: '\377U/evsign %d black orc vet\377w' gets you a veteran archer!)", n+1));
+		strcpy(ge->description[8], format(" (Example: '\377U/evsign %d black orc vet\377w' gets you a veteran archer!)", n + 1));
 		ge->end_turn = ge->start_turn + cfg.fps * 60 * 30 ; /* 30 minutes max. duration, insta-start */
 #if 0
 		switch (rand_int(2)) { /* Determine terrain type! */
@@ -7837,7 +8014,39 @@ int start_global_event(int Ind, int getype, char *parm) {
 		ge->extra[0] = 95; /* there are no objects of lvl 96..99 anyways */
 		ge->min_participants = 1; /* EXPERIMENTAL */
 		if (atoi(parm)) ge->announcement_time = atoi(parm);
+		ge->beacon_wpos[0].wz = 0;
 		break;
+#ifdef DM_MODULES
+	case GE_ADVENTURE: /* DM Adventure Modules - Kurzel */
+		/* parameters: ie. /gestart <predefined type> [parameters...]
+		[<str>]		"Adventure Module" title definition from adventures.lua */
+
+		// strcpy(ge->title, format("Adventure Module - %s", parm));
+		strcpy(ge->title, format("%s", parm));
+
+		// GE_TYPE announcement_time signup_time end_turn min_participants limited noghost challenge
+		ge->announcement_time = 60 * exec_lua(0, format("return adventure_type(\"%s\", 1)", parm));
+		ge->signup_time = 60 * exec_lua(0, format("return adventure_type(\"%s\", 2)", parm));
+		ge->end_turn = ge->start_turn + cfg.fps * 60 * exec_lua(0, format("return adventure_type(\"%s\", 3)", parm));
+
+		ge->min_participants = exec_lua(0, format("return adventure_type(\"%s\", 4)", parm));
+		ge->limited = exec_lua(0, format("return adventure_type(\"%s\", 5)", parm));
+		ge->noghost = exec_lua(0, format("return adventure_type(\"%s\", 6)", parm));
+		// Provides the /evinfo warning, check applies PEVF_NOGHOST_00 elsewhere - Kurzel
+
+		// Indefinite "challenge" events, managed by a DM. Use /gestop to cancel.
+		ge->state[1] = exec_lua(0, format("return adventure_type(\"%s\", 7)", parm));
+
+		// for (i = 0; i < 64; i++) // Up to 64, only 7 defined (so far)
+		for (i = 0; i < 7; i++) // GE_EXTRA in adventures.lua
+			ge->extra[i] = exec_lua(0, format("return adventure_extra(\"%s\", %d)", parm, i + 1));
+		ge->beacon_wpos[0].wz = ge->extra[6]; // Required to exit the event!
+
+		for (i = 0; i < 10; i++) // GE_DESCRIPTION in adventures.lua (default "")
+			strcpy(ge->description[i], string_exec_lua(0, format("return adventure_description(\"%s\", %d)", parm, i + 1)));
+
+		break;
+#endif
 	}
 
 	/* Fix limits */
@@ -7856,19 +8065,15 @@ int start_global_event(int Ind, int getype, char *parm) {
 		}
 	}
 #endif
-	s_printf("%s EVENT_CREATE: #%d of type %d parms='%s'\n", showtime(), n + 1, getype, parm);
+	s_printf("%s EVENT_CREATE: #%d '%s'(%d) parms='%s'\n", showtime(), n + 1, ge->title, getype, parm);
 
 	/* extra announcement if announcement time isn't the usual multiple of announcement intervals */
-#if 1 /* this is ok, and leaving it for now */
-	if ((ge->announcement_time % GE_ANNOUNCE_INTERVAL) && (ge->announcement_time % GE_FINAL_ANNOUNCEMENT)) announce_global_event(n);
-#else /* this would be even finer, but actually it's not needed as long as start_global_event() is called with sensible announcement_time :) */
-/* note that this else-branch is missing the GE_FINAL_ANNOUNCEMENT-check atm */
-	if (ge->announcement_time >= 120 && !(GE_ANNOUNCE_INTERVAL % 60)) { /* if we announce in x-minute-steps, and have at least 2 minutes left.. */
+	if (ge->announcement_time <= GE_FINAL_ANNOUNCEMENT) announce_global_event(n);
+	else if (ge->announcement_time >= 120 && !(GE_ANNOUNCE_INTERVAL % 60)) { /* if we announce in x-minute-steps, and have at least 2 minutes left.. */
 		if ((ge->announcement_time / 60) % (GE_ANNOUNCE_INTERVAL / 60)) announce_global_event(n); /* ..then don't double-announce for this whole minute */
 	} else { /* if we announce in second-steps or weird fractions of minutes, or if we display the remaining time in seconds anyway because it's <120s.. */
 		if (ge->announcement_time % GE_ANNOUNCE_INTERVAL) announce_global_event(n);/* ..then don't double-announce just for this second */
 	}
-#endif
 	return(0);
 }
 
@@ -7877,9 +8082,10 @@ int start_global_event(int Ind, int getype, char *parm) {
  */
 void stop_global_event(int Ind, int n) {
 	global_event_type *ge = &global_event[n];
-	if (Ind) msg_format(Ind, "Wiping event #%d of type %d.", n+1, ge->getype);
-	s_printf("%s EVENT_STOP: #%d of type %d\n", showtime(), n+1, ge->getype);
-	if (ge->getype) msg_broadcast_format(0, "\377y[Event '%s' (%d) was cancelled.]", ge->title, n+1);
+
+	if (Ind) msg_format(Ind, "Wiping event #%d of type %d.", n + 1, ge->getype);
+	s_printf("%s EVENT_STOP: #%d '%s'(%d)\n", showtime(), n + 1, ge->title, ge->getype);
+	if (ge->getype) msg_broadcast_format(0, "\377y[Event '%s' (%d) was cancelled.]", ge->title, n + 1);
 #if 0
 	ge->getype = GE_NONE;
 	for (i = 1; i <= NumPlayers; i++) Players[i]->global_event_type[n] = GE_NONE;
@@ -7891,6 +8097,9 @@ void stop_global_event(int Ind, int n) {
 	ge->start_turn = turn;
 	ge->announcement_time = -1; /* enter the processing phase, */
  #endif
+#ifdef DM_MODULES
+	if (ge->getype == GE_ADVENTURE) ge->state[1] = 0; /* signal cancellation */
+#endif
 	ge->state[0] = 255; /* ..and process clean-up! */
 #endif
 	return;
@@ -7899,6 +8108,13 @@ void stop_global_event(int Ind, int n) {
 void announce_global_event(int ge_id) {
 	global_event_type *ge = &global_event[ge_id];
 	int time_left = ge->announcement_time - ((turn - ge->start_turn) / cfg.fps);
+
+#ifdef DM_MODULES
+	if ((ge->getype == GE_ADVENTURE) && (ge->state[1] == 1)) {
+		msg_broadcast_format(0, "\374\377W[%s (\377U%d\377W) is accepting challengers]", ge->title, ge_id + 1);
+		return;
+	}
+#endif
 
 	/* display minutes, if at least 120s left */
 	//if (time_left >= 120) msg_broadcast_format(0, "\374\377W[%s (%d) starts in %d minutes. See \377s/evinfo\377W]", ge->title, ge_id + 1, time_left / 60);
@@ -8001,7 +8217,7 @@ void global_event_signup(int Ind, int n, cptr parm) {
 			return;
 		}
 		if ((parm == NULL) || !strlen(parm)) {
-			msg_format(Ind, "\377yYou have to specify a monster name:  /evsign %d monstername", n+1);
+			msg_format(Ind, "\377yYou have to specify a monster name:  /evsign %d monstername", n + 1);
 			return;
 		}
 
@@ -8013,7 +8229,7 @@ void global_event_signup(int Ind, int n, cptr parm) {
 		/* trim spaces .. and also quotes */
 		p2p = parm2;
 		while (*p2p == ' ' || *p2p == '"') p2p++;
-		while (p2p[strlen(p2p) - 1] == ' ' || p2p[strlen(p2p) - 1] == '"') p2p[strlen(p2p) - 1] = 0;
+		if (*p2p) while (p2p[strlen(p2p) - 1] == ' ' || p2p[strlen(p2p) - 1] == '"') p2p[strlen(p2p) - 1] = 0;
 
 		/* Scan the monster races */
 		for (i = 1; i < MAX_R_IDX - 1; i++) {
@@ -8073,7 +8289,7 @@ void global_event_signup(int Ind, int n, cptr parm) {
 				/* trim spaces just to be sure */
 				p2ep = parm2e;
 				while (*p2ep == ' ') p2ep++;
-				while (p2ep[strlen(p2ep) - 1] == ' ') p2ep[strlen(p2ep) - 1] = 0;
+				if (*p2ep) while (p2ep[strlen(p2ep) - 1] == ' ') p2ep[strlen(p2ep) - 1] = 0;
 
 				/* IMPOSSIBLE-- no ego power specified, it was just spaces? */
 				//if (!strlen(parm2e))
@@ -8112,7 +8328,7 @@ void global_event_signup(int Ind, int n, cptr parm) {
 									if (!is_admin(p_ptr) &&
 									    ((r_info[i].flags1 & RF1_UNIQUE) ||
 									    //(r_info[i].flags1 & RF1_QUESTOR) ||
-									    (r_info[i].flags7 & RF7_NEVER_ACT) ||
+									    (r_info[i].flags2 & RF2_NEVER_ACT) ||
 									    (r_info[i].flags7 & RF7_PET) ||
 									    (r_info[i].flags7 & RF7_NEUTRAL) ||
 									    (r_info[i].flags7 & RF7_FRIENDLY) ||
@@ -8186,7 +8402,8 @@ void global_event_signup(int Ind, int n, cptr parm) {
 		if (!is_admin(p_ptr) &&
 		    //((r_info[r_found].flags1 & (RF1_UNIQUE | RF1_QUESTOR)) ||
 		    ((r_info[r_found].flags1 & RF1_UNIQUE) ||
-		    (r_info[r_found].flags7 & (RF7_NEVER_ACT | RF7_NO_DEATH | RF7_PET | RF7_NEUTRAL | RF7_FRIENDLY)) ||
+		    (r_info[r_found].flags2 & (RF2_NEVER_ACT)) ||
+		    (r_info[r_found].flags7 & (RF7_NO_DEATH | RF7_PET | RF7_NEUTRAL | RF7_FRIENDLY)) ||
 		    (r_info[r_found].flags8 & (RF8_GENO_NO_THIN | RF8_JOKEANGBAND)) ||
 		    (r_info[r_found].rarity == 255))) {
 			msg_print(Ind, "\377ySorry, that creature is beyond the wizards' abilities.");
@@ -8242,10 +8459,74 @@ void global_event_signup(int Ind, int n, cptr parm) {
 			if (!is_admin(p_ptr)) return;
 		}
 		break;
+#ifdef DM_MODULES
+	case GE_ADVENTURE:
+
+		/* Disqualified? */
+		if (p_ptr->mode & MODE_DED_IDDC) {
+			msg_print(Ind, "\377ySorry, as a dedicated ironman deep diver you may not participate.");
+			if (!is_admin(p_ptr)) return;
+		}
+		if (p_ptr->mode & MODE_PVP) {
+			msg_print(Ind, "\377ySorry, PvP characters may not participate.");
+			if (!is_admin(p_ptr)) return;
+		}
+		if (!(ge->extra[1]) && (p_ptr->max_exp > 0 || p_ptr->max_plv > 1)) { // GE_EXTRA - adventures.lua
+			msg_print(Ind, "\377ySorry, only newly created characters may sign up for this event.");
+			if (!is_admin(p_ptr)) return;
+		}
+		if (p_ptr->max_plv < ge->extra[1]) { // GE_EXTRA - adventures.lua
+			msg_format(Ind, "\377ySorry, you must be at least level %d to sign up for this event.", ge->extra[1]); // GE_EXTRA - adventures.lua
+			if (!is_admin(p_ptr)) return;
+		}
+		if (p_ptr->max_plv > ge->extra[2]) { // GE_EXTRA - adventures.lua
+			msg_format(Ind, "\377ySorry, you must be at most level %d to sign up for this event.", ge->extra[2]); // GE_EXTRA - adventures.lua
+			if (!is_admin(p_ptr)) return;
+		}
+#if 1 /* Forbidden as +10 spd is too unbalanced! - Kurzel */
+		if (p_ptr->fruit_bat == 1) { /* 1 = native bat, 2 = from chauve-souris */
+			msg_print(Ind, "\377ySorry, native fruit bats are not eligible to join this event.");
+			if (!is_admin(p_ptr)) return;
+		}
+#endif
+		if (p_ptr->ghost) {
+			msg_print(Ind, "\377ySorry, ghosts may not participate in this event.");
+			if (!is_admin(p_ptr)) return;
+		}
+		if (!in_bree(&p_ptr->wpos)) {
+			msg_print(Ind, "\377yYou have to be in Bree to sign up for this event!");
+			if (!is_admin(p_ptr)) return;
+		}
+
+		/* If the adventure is ongoing, begin sign-up phase! */
+		if (ge->state[1] == 1) {
+
+			/* Stall for any real player presence, eg. DM or testers but NOT static counter */
+			n = 0;
+			for (i = 1; i <= NumPlayers; i++)
+				if (in_module(&Players[i]->wpos) && (Players[i]->wpos.wz >= ge->extra[3]) && (Players[i]->wpos.wz <= ge->extra[4])) n++; // GE_EXTRA - adventures.lua
+			if (n) {
+				msg_print(Ind, "\377ySorry, this event is currently undergoing renovations.");
+				return;
+			}
+
+			/* HACK - restart timers */
+			ge->start_turn = turn + (cfg.fps - (turn % cfg.fps));
+			time(&ge->started);
+			ge->announcement_time = 60 * exec_lua(0, format("return adventure_type(\"%s\", 1)", ge->title));
+			ge->end_turn = ge->start_turn + cfg.fps * 60 * exec_lua(0, format("return adventure_type(\"%s\", 3)", ge->title));
+
+			/* Begin! */
+			ge->state[1] = 2;
+
+		}
+
+		break;
+#endif
 	}
 
-	if (parm_log[0]) s_printf("%s EVENT_SIGNUP: %d (%s): %s (%s).\n", showtime(), n + 1, ge->title, p_ptr->name, parm_log);
-	else s_printf("%s EVENT_SIGNUP: %d (%s): %s.\n", showtime(), n + 1, ge->title, p_ptr->name);
+	if (parm_log[0]) s_printf("%s EVENT_SIGNUP: %d '%s'(%d): %s (%s).\n", showtime(), n + 1, ge->title, ge->getype, p_ptr->name, parm_log);
+	else s_printf("%s EVENT_SIGNUP: %d '%s'(%d): %s.\n", showtime(), n + 1, ge->title, ge->getype, p_ptr->name);
 	if (fake_signup) return;
 
 	/* currently no warning/error/solution if you try to sign on for multiple events at the same time :|
@@ -8278,6 +8559,7 @@ static void process_global_event(int ge_id) {
 	char m_name[MNAME_LEN], buf[MSG_LEN];
 	int m_idx, tries = 0;
 	time_t now;
+	cptr pname;
 
 	time(&now);
 	/* real timer will sometimes fail when using in a function which isn't sync'ed against it but instead relies
@@ -8285,9 +8567,9 @@ static void process_global_event(int ge_id) {
 	elapsed_turns = turn - ge->start_turn - ge->paused_turns;
 	elapsed = elapsed_turns / cfg.fps;
 
-	wpos.wx = WPOS_SECTOR00_X; /* sector 0,0 by default, for 'sector00separation' */
-	wpos.wy = WPOS_SECTOR00_Y;
-	wpos.wz = WPOS_SECTOR00_Z;
+	wpos.wx = WPOS_SECTOR000_X; /* sector 0,0 by default, for 'sector000separation' */
+	wpos.wy = WPOS_SECTOR000_Y;
+	wpos.wz = WPOS_SECTOR000_Z;
 
 	/* catch absurdities (happens on turn overflow) */
 	if (elapsed_turns > 100000 * cfg.fps) {
@@ -8296,7 +8578,12 @@ static void process_global_event(int ge_id) {
 		elapsed_turns = 0;
 		ge->announcement_time = -1; /* enter the processing phase, */
 		ge->state[0] = 255; /* ..and process clean-up! */
+		s_printf("%s EVENT_STOP (turn overflow): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 	}
+
+#ifdef DM_MODULES
+	if ((ge->getype == GE_ADVENTURE) && (ge->state[1] == 1)) return; /* waiting for first participant to signup */
+#endif
 
 	/* extra warning at T - x min for last minute subscribers */
 	if (ge->announcement_time * cfg.fps - elapsed_turns == GE_FINAL_ANNOUNCEMENT * cfg.fps) {
@@ -8324,8 +8611,9 @@ static void process_global_event(int ge_id) {
 					/* Check that the player really is here - mikaelh */
 					for (j = 1; j <= NumPlayers; j++)
 						if (Players[j]->id == ge->participant[i]) break;
-					if (j > NumPlayers) {
+					if (j == NumPlayers + 1) {
 						s_printf("EVENT_CHECK_PARTICIPANTS: ID %d no longer available.\n", ge->participant[i]);
+						ge->participant[i] = 0; // not online? unsign. - Kurzel
 						continue;
 					}
 
@@ -8381,6 +8669,35 @@ static void process_global_event(int ge_id) {
 							continue;
 						}
 						break;
+#ifdef DM_MODULES
+					case GE_ADVENTURE:
+						if (((!(ge->extra[1]) && (p_ptr->max_exp > 0 || p_ptr->max_plv > 1)) || (p_ptr->max_plv > ge->extra[2])) && !is_admin(p_ptr)) { // GE_EXTRA - adventures.lua
+							s_printf("EVENT_CHECK_PARTICIPANTS: Player '%s' no longer eligible.\n", p_ptr->name);
+							if (!(ge->extra[1]) && (p_ptr->max_exp > 0 || p_ptr->max_plv > 1))
+								msg_format(j, "\377oCharacters need to have 0 experience to be eligible.");
+							else if (p_ptr->max_plv > ge->extra[2])
+								msg_format(j, "\377oCharacters must not have been experience beyond level %d to be eligible.", ge->extra[1]); // GE_EXTRA - adventures.lua
+							msg_broadcast_format(j, "\377s%s is no longer eligible due to character level.", p_ptr->name);
+ #ifdef USE_SOUND_2010
+							sound(j, "failure", NULL, SFX_TYPE_MISC, FALSE);
+ #endif
+							p_ptr->global_event_type[ge_id] = GE_NONE;
+							ge->participant[j] = 0;
+							continue;
+						}
+						if (!can_use_wordofrecall(p_ptr) && !is_admin(p_ptr)) {
+							s_printf("EVENT_CHECK_PARTICIPANTS: Player '%s' stuck in dungeon.\n", p_ptr->name);
+							msg_print(j, "\377oEvent participation failed because your dungeon doesn't allow recalling.");
+							msg_broadcast_format(j, "\377s%s isn't allowed to leave the dungeon to participate.", p_ptr->name);
+ #ifdef USE_SOUND_2010
+							sound(j, "failure", NULL, SFX_TYPE_MISC, FALSE);
+ #endif
+							p_ptr->global_event_type[ge_id] = GE_NONE;
+							ge->participant[j] = 0;
+							continue;
+						}
+						break;
+#endif
 					}
 
 					/* Player is valid for entering */
@@ -8390,20 +8707,38 @@ static void process_global_event(int ge_id) {
 				/* not enough participants? Don't hand out reward for free to someone. */
 				if (ge->min_participants && (participants < ge->min_participants)) {
 					msg_broadcast_format(0, "\377y%s needs at least %d participant%s.", ge->title, ge->min_participants, ge->min_participants == 1 ? "" : "s");
-					s_printf("%s EVENT_NOPLAYERS: %d (%s) has only %d/%d participants.\n", showtime(), ge_id + 1, ge->title, participants, ge->min_participants);
+					s_printf("%s EVENT_NOPLAYERS: %d '%s'(%d) has only %d/%d participants.\n", showtime(), ge_id + 1, ge->title, ge->getype, participants, ge->min_participants);
 					/* remove players who DID sign up from being 'participants' */
-					for (j = 1; j <= NumPlayers; j++)
-						if (Players[j]->global_event_type[ge_id] == ge->getype) {
+					for (i = 0; i < MAX_GE_PARTICIPANTS; i++) {
+						if (!ge->participant[i]) continue;
+						for (j = 1; j <= NumPlayers; j++) {
+							if (ge->participant[i] != j) continue;
 							Players[j]->global_event_type[ge_id] = GE_NONE;
+							s_printf("EVENT_UNPARTICIPATE (insufficient,0): '%s' (%d) -> #%d '%s'(%d) [%d]\n", Players[j]->name, j, ge_id, ge->title, ge->getype, i);
+							ge->participant[i] = 0; // wipe participant list - Kurzel
 #ifdef USE_SOUND_2010
 							sound(j, "failure", NULL, SFX_TYPE_MISC, FALSE);
 #endif
+							break;
 						}
+						if (j == NumPlayers + 1) {
+							pname = lookup_player_name(ge->participant[i]);
+							s_printf("EVENT_UNPARTICIPATE (insufficient,1): '%s' (%d) -> #%d '%s'(%d) [%d]\n", pname ? pname : "(NULL)", ge->participant[i], ge_id, ge->title, ge->getype, i);
+							ge->participant[i] = 0; // wipe offline participants too
+						}
+					}
+#ifdef DM_MODULES
+					/* If the adventure is pending, retract sign-up phase! */
+					if (ge->getype == GE_ADVENTURE && ge->state[1] == 2) {
+						ge->state[1] = 1;
+						announce_global_event(ge_id);
+					} else
+#endif
 					ge->getype = GE_NONE;
 
 				/* Participants are ok, event now starts! */
 				} else {
-					s_printf("%s EVENT_STARTS: %d (%s) has %d participants.\n", showtime(), ge_id + 1, ge->title, participants);
+					s_printf("%s EVENT_STARTS: %d '%s'(%d) has %d participants.\n", showtime(), ge_id + 1, ge->title, ge->getype, participants);
 					msg_broadcast_format(0, "\374\377U[>>\377C%s (\377U%d\377C) starts now!\377U<<]", ge->title, ge_id + 1);
 
 					/* memorize each character's participation */
@@ -8412,6 +8747,10 @@ static void process_global_event(int ge_id) {
 
 						for (i = 1; i <= NumPlayers; i++) {
 							if (Players[i]->id != ge->participant[j]) continue;
+#ifdef DM_MODULES
+							// Kurzel - debug - Elmoth false starts
+							s_printf("DM_MODULES: Players[i]->name = %s, ge->participant[%d] = %d, Players[i]->id = %d.\n", Players[i]->name, j, ge->participant[j], Players[i]->id);
+#endif
 							Players[i]->global_event_participated[ge->getype]++;
 							/* play warning sfx in case they were afk waiting for it to begin? ;) */
 #ifdef USE_SOUND_2010
@@ -8419,6 +8758,8 @@ static void process_global_event(int ge_id) {
 #endif
 							/* 'alerted'? */
 							disturb(i, 1, 0);
+
+							break;
 						}
 					}
 				}
@@ -8441,7 +8782,7 @@ static void process_global_event(int ge_id) {
 		    (ge->ending && now >= ge->ending)) {
 			ge->state[0] = 255; /* state[0] is used as indicator for clean-up phase of any event */
 			msg_broadcast_format(0, "\377y>>%s ends due to time limit!<<", ge->title);
-			s_printf("%s EVENT_TIMEOUT: %d - %s.\n", showtime(), ge_id + 1, ge->title);
+			s_printf("%s EVENT_TIMEOUT: %d - %s(%d).\n", showtime(), ge_id + 1, ge->title, ge->getype);
 		}
 		/* Time warning at T-5minutes! (only if the whole event lasts MORE THAN 10 minutes) */
 		/* Note: paused turns will be added to the running time, IF the event end is given in "turns" */
@@ -8459,8 +8800,8 @@ static void process_global_event(int ge_id) {
 		switch (ge->state[0]) {
 		case 0: /* prepare level, gather everyone, start exp'ing */
 			ge->cleanup = 1;
-			sector00separation++; /* separate sector 0,0 from the worldmap - participants have access ONLY */
-			sector00flags1 = sector00flags2 = 0x0;
+			sector000separation++; /* separate sector 0,0 from the worldmap - participants have access ONLY */
+			sector000flags1 = sector000flags2 = 0x0;
 			wipe_m_list(&wpos); /* clear any (powerful) spawns */
 			wipe_o_list_safely(&wpos); /* and objects too */
 			unstatic_level(&wpos);/* get rid of any other person, by unstaticing ;) */
@@ -8504,12 +8845,12 @@ static void process_global_event(int ge_id) {
 				/* add staircase downwards into the dungeon? */
 				if (!ge->extra[5]) {
 					s_printf("EVENT_LAYOUT: Adding dungeon (no entry).\n");
-					add_dungeon(&wpos, 1, 50, DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
+					add_dungeon(&wpos, 1, 50, DF1_UNLISTED | DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
 					    DF2_NO_ENTRY_MASK | DF2_RANDOM,
 					    DF3_NO_SIMPLE_STORES | DF3_NO_DUNGEON_BONUS | DF3_EXP_20, FALSE, 0, 0, 0, 0);
 				} else {
 					s_printf("EVENT_LAYOUT: Adding dungeon (entry ok).\n");
-					add_dungeon(&wpos, 1, 50, DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
+					add_dungeon(&wpos, 1, 50, DF1_UNLISTED | DF1_NO_RECALL, DF2_IRON | DF2_NO_EXIT_MASK |
 					    DF2_NO_ENTRY_WOR | DF2_NO_ENTRY_PROB | DF2_NO_ENTRY_FLOAT | DF2_RANDOM,
 					    DF3_NO_SIMPLE_STORES | DF3_NO_DUNGEON_BONUS | DF3_EXP_20, FALSE, 0, 0, 0, 0);
 
@@ -8524,15 +8865,15 @@ static void process_global_event(int ge_id) {
 					ge->extra[6] = x;
 					ge->extra[7] = y;
 
-					sector00downstairs++;
+					sector000downstairs++;
 				}
 			} else {
 				s_printf("EVENT_LAYOUT: Dungeon already in place.\n");
 			}
 
-			sector00music_dun = 62;
-			sector00musicalt_dun = 0;
-			sector00musicalt2_dun = 0;
+			sector000music_dun = 62;
+			sector000musicalt_dun = 0;
+			sector000musicalt2_dun = 0;
 
 			/* teleport the participants into the dungeon */
 			for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
@@ -8547,9 +8888,7 @@ static void process_global_event(int ge_id) {
 						p_ptr->recall_pos.wx = WPOS_HIGHLANDER_X;
 						p_ptr->recall_pos.wy = WPOS_HIGHLANDER_Y;
 						p_ptr->recall_pos.wz = WPOS_HIGHLANDER_DUN_Z;
-						p_ptr->global_event_temp = PEVF_PASS_00 | PEVF_NOGHOST_00 |
-						    PEVF_SAFEDUN_00 | PEVF_SEPDUN_00;
-						//p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
+						p_ptr->global_event_temp = PEVF_NOGHOST_00 | PEVF_SAFEDUN_00 | PEVF_SEPDUN_00;
 						p_ptr->new_level_method = LEVEL_RAND;
 						recall_player(i, "");
 					}
@@ -8578,6 +8917,11 @@ static void process_global_event(int ge_id) {
 					}
 #endif
 					p_ptr->global_event_progress[ge_id][0] = 1; /* now in 0,0,0-dungeon! */
+					break;
+				}
+				if (i == NumPlayers + 1) {
+					pname = lookup_player_name(ge->participant[j]);
+					s_printf("EVENT_MISSING_PLAYER: '%s' (%d) -> #%d '%s'(%d) [%d]\n", pname ? pname : "(NULL)", ge->participant[j], ge_id, ge->title, ge->getype, j);
 				}
 			}
 
@@ -8587,14 +8931,17 @@ static void process_global_event(int ge_id) {
 			n = 0;
 			k = 0;
 			for (i = 1; i <= NumPlayers; i++)
-				if (!Players[i]->admin_dm && Players[i]->wpos.wx == WPOS_SECTOR00_X && Players[i]->wpos.wy == WPOS_SECTOR00_Y) {
+				if (!Players[i]->admin_dm && Players[i]->wpos.wx == WPOS_SECTOR000_X && Players[i]->wpos.wy == WPOS_SECTOR000_Y) {
 					n++;
 					j = i;
 					/* count players who have already been kicked out of the dungeon by pseudo-dying */
 					if (!Players[i]->wpos.wz) k++;
 				}
 
-			if (!n) ge->state[0] = 255; /* double kill by monsters or something? ew. */
+			if (!n) {
+				ge->state[0] = 255; /* double kill by monsters or something? ew. */
+				s_printf("%s EVENT_STOP (no players (0)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			}
 			else if (n == 1) { /* early ending, everyone died to monsters in the dungeon */
 				ge->state[0] = 6;
 				ge->extra[3] = j;
@@ -8604,20 +8951,20 @@ static void process_global_event(int ge_id) {
 										and there's no staircase to re-enter the dungeon.. */
 			else if (elapsed - ge->announcement_time >= 600 - 45) { /* give a warning, peace ends soon */
 				for (i = 1; i <= NumPlayers; i++)
-					if (Players[i]->wpos.wx == WPOS_SECTOR00_X && Players[i]->wpos.wy == WPOS_SECTOR00_Y)
+					if (Players[i]->wpos.wx == WPOS_SECTOR000_X && Players[i]->wpos.wy == WPOS_SECTOR000_Y)
 						msg_print(i, "\377f[The slaughter will begin soon!]");
 				ge->state[0] = 2;
 			}
 			break;
 		case 2: /* final exp phase after the warning has been issued - end prematurely if needed (see above) */
-			sector00music_dun = 63;
-			sector00musicalt_dun = 0;
-			sector00musicalt2_dun = 0;
+			sector000music_dun = 63;
+			sector000musicalt_dun = 0;
+			sector000musicalt2_dun = 0;
 
 			n = 0;
 			k = 0;
 			for (i = 1; i <= NumPlayers; i++)
-				if (!Players[i]->admin_dm && Players[i]->wpos.wx == WPOS_SECTOR00_X && Players[i]->wpos.wy == WPOS_SECTOR00_Y) {
+				if (!Players[i]->admin_dm && Players[i]->wpos.wx == WPOS_SECTOR000_X && Players[i]->wpos.wy == WPOS_SECTOR000_Y) {
 					n++;
 					j = i;
 					if (!Players[i]->wpos.wz) k++;
@@ -8626,8 +8973,10 @@ static void process_global_event(int ge_id) {
 #endif
 				}
 
-			if (!n) ge->state[0] = 255; /* double kill or something? ew. */
-			else if (n == 1) { /* early ending, everyone died to monsters in the dungeon */
+			if (!n) {
+				ge->state[0] = 255; /* double kill or something? ew. */
+				s_printf("%s EVENT_STOP (no players (1)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			} else if (n == 1) { /* early ending, everyone died to monsters in the dungeon */
 				ge->state[0] = 6;
 				ge->extra[3] = j;
 			}
@@ -8638,27 +8987,27 @@ static void process_global_event(int ge_id) {
 			/* remember time stamp when we entered deathmatch phase (for spawning a baddy) */
 			ge->state[2] = turn - ge->start_turn; /* this keeps it /gefforward friendly */
 			ge->state[3] = 0;
-			sector00music = 47; /* death match theme */
-			sector00musicalt = 0;
-			sector00musicalt2 = 0;
+			sector000music = 47; /* death match theme */
+			sector000musicalt = 0;
+			sector000musicalt2 = 0;
 
 			/* got a staircase to remove? */
 			if (ge->extra[5]) {
 				zcave = getcave(&wpos);
 				zcave[ge->extra[7]][ge->extra[6]].feat = FEAT_DIRT;
 				everyone_lite_spot(&wpos, ge->extra[7], ge->extra[6]);
-				sector00downstairs--;
+				sector000downstairs--;
 				ge->extra[5] = 0;
 			}
 
 			for (i = 1; i <= NumPlayers; i++) {
 				p_ptr = Players[i];
-				if (p_ptr->admin_dm || p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y) continue;
+				if (p_ptr->admin_dm || p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y) continue;
 
 				if (p_ptr->party) {
 					for (j = 1; j <= NumPlayers; j++) {
 						if (j == i) continue;
-						if (Players[j]->wpos.wx != WPOS_SECTOR00_X || Players[j]->wpos.wy != WPOS_SECTOR00_Y) continue;
+						if (Players[j]->wpos.wx != WPOS_SECTOR000_X || Players[j]->wpos.wy != WPOS_SECTOR000_Y) continue;
 						/* leave party */
 						if (Players[j]->party == p_ptr->party) party_leave(i, FALSE);
 					}
@@ -8685,8 +9034,8 @@ static void process_global_event(int ge_id) {
 				p_ptr->global_event_temp |= PEVF_AUTOPVP_00;
 
 				if (Players[i]->wpos.wz) {
-					p_ptr->recall_pos.wx = WPOS_SECTOR00_X;
-					p_ptr->recall_pos.wy = WPOS_SECTOR00_Y;
+					p_ptr->recall_pos.wx = WPOS_SECTOR000_X;
+					p_ptr->recall_pos.wy = WPOS_SECTOR000_Y;
 					p_ptr->recall_pos.wz = 0;
 					p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
 					recall_player(i, "");
@@ -8706,7 +9055,7 @@ static void process_global_event(int ge_id) {
 			for (i = 1; i <= NumPlayers; i++)
 				if (inarea(&Players[i]->wpos, &wpos)) {
 					p_ptr = Players[i];
-					wiz_lite(i); /* no tourneys at night, chars with low IV lose */
+					wiz_lite_extra(i); /* no tourneys at night, chars with low IV lose */
 					teleport_player(i, 200, TRUE);
 					/* in case some player waited in a NO_TELE vault..!: */
 					if (p_ptr->wpos.wz && !p_ptr->admin_dm) {
@@ -8741,7 +9090,10 @@ static void process_global_event(int ge_id) {
 					j = i;
 				}
 			}
-			if (!n) ge->state[0] = 255; /* double kill or something? ew. */
+			if (!n) {
+				ge->state[0] = 255; /* double kill or something? ew. */
+				s_printf("%s EVENT_STOP (no players (2)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			}
 			if (n == 1) { /* We have a winner! (not a total_winner but anyways..) */
 				ge->state[0] = 6;
 				ge->extra[3] = j;
@@ -8750,7 +9102,7 @@ static void process_global_event(int ge_id) {
 			/* if tournament runs for too long without result, spice it up by
 			   throwing in some nasty baddy (Bad Luck Bat from Hell): */
 			/* TODO: also spawn something if a player is AFK (or highlandering himself on friend's account -_-) */
-//			if (elapsed_turns - (ge->announcement_time * cfg.fps) - 600 == 600) { /* after 10 minutes of deathmatch phase */
+			//if (elapsed_turns - (ge->announcement_time * cfg.fps) - 600 == 600) { /* after 10 minutes of deathmatch phase */
 			if ((!ge->state[3]) && ((turn - ge->start_turn) - ge->state[2] >= 600 * cfg.fps)) {
 				msg_broadcast(0, "\377aThe gods of highlands are displeased by the lack of blood flowing.");
 				summon_override_checks = SO_ALL & ~(SO_GRID_EMPTY);
@@ -8766,11 +9118,13 @@ static void process_global_event(int ge_id) {
 			j = ge->extra[3];
 			if (j > NumPlayers) { /* Make sure the winner didn't die in the 1 turn that just passed! */
 				ge->state[0] = 255; /* no winner, d'oh */
+				s_printf("%s EVENT_STOP (winner no longer existant): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 				break;
 			}
 
 			p_ptr = Players[j];
-			if (!in_sector00(&p_ptr->wpos)) { /* not ok.. */
+			if (!in_sector000(&p_ptr->wpos)) { /* not ok.. */
+				s_printf("%s EVENT_STOP (winner no longer in sector): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 				ge->state[0] = 255; /* no winner, d'oh */
 				break;
 			}
@@ -8797,7 +9151,7 @@ static void process_global_event(int ge_id) {
 			//o_ptr->note = quark_add("Tournament reward");
 			inven_carry(j, o_ptr);
 
-			s_printf("%s EVENT_WON: %s wins %d (%s)\n", showtime(), p_ptr->name, ge_id + 1, ge->title);
+			s_printf("%s EVENT_WON: %s wins %d '%s'(%d)\n", showtime(), p_ptr->name, ge_id + 1, ge->title, ge->getype);
 			l_printf("%s \\{s%s has won %s\n", showdate(), p_ptr->name, ge->title);
 
 			/* avoid him dying */
@@ -8811,7 +9165,10 @@ static void process_global_event(int ge_id) {
 			ge->state[1] = elapsed;
 			break;
 		case 7: /* chill out for a few seconds (or get killed -- but now there aren't monster spawns anymore) */
-			if (elapsed - ge->state[1] >= 5) ge->state[0] = 255;
+			if (elapsed - ge->state[1] >= 5) {
+				ge->state[0] = 255;
+				s_printf("%s EVENT_STOP (success): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			}
 			break;
 		case 255: /* clean-up */
 			if (!ge->cleanup) {
@@ -8821,7 +9178,7 @@ static void process_global_event(int ge_id) {
 
 			for (i = 1; i <= NumPlayers; i++) {
 				p_ptr = Players[i];
-				if (in_sector00(&p_ptr->wpos)) {
+				if (in_sector000(&p_ptr->wpos)) {
 					for (j = INVEN_TOTAL; j >= 0; j--) /* Erase the highlander amulets */
 						if (p_ptr->inventory[j].tval == TV_AMULET &&
 						    ((p_ptr->inventory[j].sval == SV_AMULET_HIGHLANDS) ||
@@ -8830,11 +9187,9 @@ static void process_global_event(int ge_id) {
 							inven_item_optimize(i, j);
 						}
 					p_ptr->global_event_type[ge_id] = GE_NONE; /* no longer participant */
-					p_ptr->recall_pos.wx = cfg.town_x;
-					p_ptr->recall_pos.wy = cfg.town_y;
-					p_ptr->recall_pos.wz = 0;
+					p_ptr->recall_pos = BREE_WPOS;
 					p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
-					p_ptr->global_event_temp = PEVF_PASS_00; /* clear all other flags, allow a final recall out */
+					p_ptr->global_event_temp = 0x0; /* clear all flags */
 					recall_player(i, "");
 					/* required, or the double-wpos-change in below's 'unstatic_level()' call will cause
 					   panic save due to old wpos possibly still being in non-existant highlander dungeon */
@@ -8842,21 +9197,21 @@ static void process_global_event(int ge_id) {
 				}
 			}
 
-			sector00flags1 = sector00flags2 = 0x0;
-			sector00separation--;
+			sector000flags1 = sector000flags2 = 0x0;
+			sector000separation--;
 
 			/* still got a staircase to remove? */
 			if (ge->extra[5]) {
 				zcave = getcave(&wpos);
 				zcave[ge->extra[7]][ge->extra[6]].feat = FEAT_DIRT;
 				everyone_lite_spot(&wpos, ge->extra[7], ge->extra[6]);
-				sector00downstairs--;
+				sector000downstairs--;
 				ge->extra[5] = 0;
 			}
 
 			/* remove temporary Highlander dungeon! */
 			if (wild_info[wpos.wy][wpos.wx].dungeon)
-				rem_dungeon(&wpos, FALSE);
+				(void)rem_dungeon(&wpos, FALSE);
 
 			wild_info[wpos.wy][wpos.wx].type = ge->extra[1];
 			wipe_m_list(&wpos); /* clear any (powerful) spawns */
@@ -8899,9 +9254,8 @@ static void process_global_event(int ge_id) {
 					Players[i]->recall_pos.wz = 0;
 					recall_player(i, "\377yThe arena wizards teleport you out of here!");
 				}
-			if (getcave(&wpos)) { /* check that the level is allocated - mikaelh */
+			if (getcave(&wpos)) /* check that the level is allocated - mikaelh */
 				dealloc_dungeon_level(&wpos);
-			}
 #endif
 
 			ge_special_sector++;
@@ -8967,9 +9321,8 @@ static void process_global_event(int ge_id) {
 						sound(i, "failure", NULL, SFX_TYPE_MISC, FALSE);
 #endif
 					}
-				if (getcave(&wpos)) { /* check that the level is allocated - mikaelh */
+				if (getcave(&wpos)) /* check that the level is allocated - mikaelh */
 					dealloc_dungeon_level(&wpos);
-				}
 #endif /* so if if0'ed, we just have to wait for normal unstaticing routine to take care of stale level :/ */
 			}
 			ge->getype = GE_NONE; /* end of event */
@@ -8982,17 +9335,17 @@ static void process_global_event(int ge_id) {
 	case GE_DUNGEON_KEEPER:
 		switch (ge->state[0]) {
 		case 0: { /* prepare level, gather everyone, begin */
-			int bx[3], by[3];
+			int bx[4], by[4];
 
 			ge->state[1] = 0;
 			ge->cleanup = 1;
-			sector00separation++; /* separate sector 0,0 from the worldmap - participants have access ONLY */
-			sector00music = 64;
-			sector00musicalt = 46; /* terrifying (notele) music */
-			sector00musicalt2 = 46;
-			sector00flags1 = LF1_NO_MAGIC_MAP | LF1_NO_MAGIC;
-			sector00flags2 = LF2_NO_RUN | LF2_NO_TELE | LF2_NO_DETECT | LF2_NO_ESP | LF2_NO_SPEED | LF2_NO_RES_HEAL | LF2_FAIR_TERRAIN_DAM | LF2_INDOORS;
-			sector00wall = FEAT_PERM_INNER; //FEAT_PERM_SOLID gets shaded to slate :/
+			sector000separation++; /* separate sector 0,0 from the worldmap - participants have access ONLY */
+			sector000music = 64;
+			sector000musicalt = 46; /* terrifying (notele) music */
+			sector000musicalt2 = 46;
+			sector000flags1 = LF1_NO_MAGIC_MAP | LF1_NO_MAGIC;
+			sector000flags2 = LF2_NO_RUN | LF2_NO_TELE | LF2_NO_DETECT | LF2_NO_ESP | LF2_NO_SPEED | LF2_NO_RES_HEAL | LF2_FAIR_TERRAIN_DAM | LF2_INDOORS;
+			sector000wall = FEAT_PERM_INNER; //FEAT_PERM_SOLID gets shaded to slate :/
 			wipe_m_list(&wpos); /* clear any (powerful) spawns */
 			wipe_o_list_safely(&wpos); /* and objects too */
 			unstatic_level(&wpos);/* get rid of any other person, by unstaticing ;) */
@@ -9186,7 +9539,8 @@ static void process_global_event(int ge_id) {
 				}
 				if (!n) continue;
 				cave_set_feat_live(&wpos, y, x, FEAT_BEACON);
-				bx[k] = x; by[k] = y;
+				bx[k] = x;
+				by[k] = y;
 				k++;
 			}
 			if (!k) s_printf("..COULDN'T PLACE exit beacons\n");
@@ -9217,14 +9571,13 @@ static void process_global_event(int ge_id) {
 					if (Players[i]->id != ge->participant[j]) continue;
 					p_ptr = Players[i];
 
-					if (p_ptr->wpos.wx != WPOS_SECTOR00_X || p_ptr->wpos.wy != WPOS_SECTOR00_Y
-					    || p_ptr->wpos.wz != WPOS_SECTOR00_Z) {
-						p_ptr->recall_pos.wx = WPOS_SECTOR00_X;
-						p_ptr->recall_pos.wy = WPOS_SECTOR00_Y;
-						p_ptr->recall_pos.wz = WPOS_SECTOR00_Z;
-						p_ptr->global_event_temp = PEVF_PASS_00;
-						//p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
-						if (!WPOS_SECTOR00_Z) p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
+					if (p_ptr->wpos.wx != WPOS_SECTOR000_X || p_ptr->wpos.wy != WPOS_SECTOR000_Y
+					    || p_ptr->wpos.wz != WPOS_SECTOR000_Z) {
+						p_ptr->recall_pos.wx = WPOS_SECTOR000_X;
+						p_ptr->recall_pos.wy = WPOS_SECTOR000_Y;
+						p_ptr->recall_pos.wz = WPOS_SECTOR000_Z;
+						p_ptr->global_event_temp = 0x0;
+						if (!WPOS_SECTOR000_Z) p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
 						else p_ptr->new_level_method = LEVEL_RAND;
 						/* don't spawn them too close to a beacon */
 						p_ptr->avoid_loc = k;
@@ -9255,10 +9608,11 @@ static void process_global_event(int ge_id) {
 			/* everyone has escaped or died? */
 			n = 0;
 			for (i = 1; i <= NumPlayers; i++)
-				if (!Players[i]->admin_dm && in_sector00(&Players[i]->wpos))
+				if (!Players[i]->admin_dm && in_sector000(&Players[i]->wpos))
 					n++;
 			if (!n) {
 				ge->state[0] = 255;
+				s_printf("%s EVENT_STOP (no players (3)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 				break;
 			}
 
@@ -9266,11 +9620,11 @@ static void process_global_event(int ge_id) {
 			if (elapsed - ge->announcement_time < 300) break;//start after 300s
 
 #ifdef USE_SOUND_2010
-			sector00music = 65;
-			sector00musicalt = 47; /* death match music */
-			sector00musicalt2 = 47;
+			sector000music = 65;
+			sector000musicalt = 47; /* death match music */
+			sector000musicalt2 = 47;
 			for (i = 1; i <= NumPlayers; i++)
-				if (!Players[i]->admin_dm && in_sector00(&Players[i]->wpos))
+				if (!Players[i]->admin_dm && in_sector000(&Players[i]->wpos))
 					handle_music(i);
 #endif
 
@@ -9280,10 +9634,11 @@ static void process_global_event(int ge_id) {
 			/* everyone has escaped or died? */
 			n = 0;
 			for (i = 1; i <= NumPlayers; i++)
-				if (!Players[i]->admin_dm && in_sector00(&Players[i]->wpos))
+				if (!Players[i]->admin_dm && in_sector000(&Players[i]->wpos))
 					n++;
 			if (!n) {
 				ge->state[0] = 255;
+				s_printf("%s EVENT_STOP (no players (4)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 				break;
 			}
 
@@ -9333,15 +9688,13 @@ static void process_global_event(int ge_id) {
 				break;
 			}
 
-			sector00flags1 = sector00flags2 = 0x0;
-			sector00separation--;
+			sector000flags1 = sector000flags2 = 0x0;
+			sector000separation--;
 
 			/* cleanly teleport all lingering admins out instead of displacing them into (non-generated) pvp-dungeon ^^ */
 			for (i = 1; i <= NumPlayers; i++)
 				if (inarea(&Players[i]->wpos, &wpos)) {
-					Players[i]->recall_pos.wx = cfg.town_x;
-					Players[i]->recall_pos.wy = cfg.town_y;
-					Players[i]->recall_pos.wz = 0;
+					Players[i]->recall_pos = BREE_WPOS;
 					Players[i]->new_level_method = LEVEL_OUTSIDE_RAND;
 					recall_player(i, "");
 				}
@@ -9355,6 +9708,127 @@ static void process_global_event(int ge_id) {
 		}
 		break;
 
+#ifdef DM_MODULES
+	case GE_ADVENTURE:
+		switch (ge->state[0]) {
+		case 0: /* require active participation to start <- what does this mean? */
+			sector000separation++; // in_sector000..() check needs this to function
+
+			s_printf("EVENT_LAYOUT: Adding tower (no entry).\n");
+
+			// slash.c PvP ARENA for reference... sharing tower for now - Kurzel
+			verify_dungeon(&wpos, 1, 1 + DM_MODULES_DUNGEON_SIZE,
+				DF1_UNLISTED | DF1_NO_RECALL | DF1_SMALLEST,
+				DF2_NO_ENTRY_MASK | DF2_NO_EXIT_MASK | DF2_RANDOM,
+				DF3_NO_SIMPLE_STORES | DF3_NO_DUNGEON_BONUS, TRUE, 0, 0, 0, 0);
+
+			/* clean any static module floors from server crashes, remove idle DMs */
+			for (j = ge->extra[3]; j <= ge->extra[4]; j++) { // GE_EXTRA - adventures.lua
+				wpos.wz = j;
+				// s_printf("DM_MODULES: Cleaning wpos (%d,%d,%d).\n",wpos.wx,wpos.wy,wpos.wz);
+				wipe_m_list(&wpos); /* clear any (powerful) spawns */
+				wipe_o_list_safely(&wpos); /* and objects too */
+				unstatic_level(&wpos);
+			}
+
+			/* load module(s) and teleport the participants into the dungeon */
+			for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
+				if (!ge->participant[j]) continue;
+				// s_printf("DM_MODULES: j = %d, ge->participant[j] = %d, NumPlayers = %d.\n", j, ge->participant[j], NumPlayers);
+				for (i = 1; i <= NumPlayers; i++) {
+					if (Players[i]->id != ge->participant[j]) continue;
+					// Kurzel - debug - Elmoth false starts
+					s_printf("DM_MODULES: Players[%d]->name = %s, ge->participant[%d] = %d, Players[i]->id = %d.\n", i, Players[i]->name, j, ge->participant[j], Players[i]->id);
+					// s_printf("DM_MODULES: i = %d.\n", i);
+					if (ge->noghost) Players[i]->global_event_temp |= PEVF_NOGHOST_00;
+					exec_lua(0, format("return adventure_start(%d, \"%s\")", i, ge->title));
+					break;
+				}
+				//note: offline participants are handled in next loop below
+			}
+
+			/* Immediately check for participation, remove offline participants */
+			n = 0;
+			for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
+				if (!ge->participant[j]) continue;
+				for (i = 1; i <= NumPlayers; i++) { // Count present players only!
+					if (Players[i]->id != ge->participant[j]) continue;
+					p_ptr = Players[i];
+					if (in_module(&p_ptr->wpos) && (p_ptr->wpos.wz >= ge->extra[3]) && (p_ptr->wpos.wz <= ge->extra[4])) n++; // GE_EXTRA - adventures.lua
+					break;
+				}
+				if (i == NumPlayers + 1) {
+					pname = lookup_player_name(ge->participant[j]);
+					s_printf("%s EVENT_UNPARTICIPATE (offline,1): '%s' (%d) -> #%d '%s'(%d) [%d]\n", showtime(), pname ? pname : "(NULL)", ge->participant[j], ge_id, ge->title, ge->getype, j);
+					ge->participant[j] = 0; // not online? unsign. - Kurzel
+				}
+			}
+			if (!n) {
+				ge->state[0] = 255;
+				s_printf("%s EVENT_STOP (no players (5)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			} else ge->state[0] = 1;
+			// s_printf("DM_MODULES: wpos (%d,%d,%d) contains %d players (state = %d,%d).\n",wpos.wx,wpos.wy,wpos.wz,n,ge->state[0],ge->state[1]);
+
+			break;
+		case 1: /* ongoing modules are actually running now, not just in signup phase */
+
+			/* Monitor event participation, but allow reconnecting if disconnected */
+			n = 0;
+			for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
+				if (!ge->participant[j]) continue;
+				n++; // Count participants even if offline / logged out! Dead players would be 0'd.
+			}
+			if (!n) {
+				ge->state[0] = 255;
+				s_printf("%s EVENT_STOP (no players (6)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
+			}
+			// s_printf("DM_MODULES: %d participants (state = %d,%d).\n",n,ge->state[0],ge->state[1]);
+
+			break;
+		case 255: /* clean-up or restart */
+			sector000separation--;
+
+			/* wipe participation */
+			for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
+				if (!ge->participant[j]) continue;
+				for (i = 1; i <= NumPlayers; i++) {
+					if (Players[i]->id != ge->participant[j]) continue;
+					p_ptr = Players[i];
+					if (in_module(&p_ptr->wpos) && ((p_ptr->wpos.wz >= ge->extra[3]) && (p_ptr->wpos.wz <= ge->extra[4]))) { // GE_EXTRA - adventures.lua
+						p_ptr->recall_pos = BREE_WPOS;
+						p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
+						p_ptr->global_event_type[ge_id] = GE_NONE; /* no longer a participant */
+						p_ptr->global_event_temp = 0x0; /* clear all flags */
+						recall_player(i, "");
+					}
+					break;
+				}
+				pname = lookup_player_name(ge->participant[j]);
+				s_printf("%s EVENT_UNPARTICIPATE (success): '%s' (%d) -> #%d '%s'(%d) [%d]\n", showtime(), pname ? pname : "(NULL)", ge->participant[j], ge_id, ge->title, ge->getype, j);
+				ge->participant[j] = 0;
+			}
+
+			// Don't wipe it once generated, avoiding conflicts with PVPARENA / other modules - Kurzel
+			// if (wild_info[wpos.wy][wpos.wx].tower) (void)rem_dungeon(&wpos, TRUE);
+
+			/* Debug why state[1] might be != 2 and therefore state[0] wouldn't be reset, if we didn't add the 'Always reset stage' safety measure below */
+			s_printf("ge->state[1] is %d\n", ge->state[1]);
+			/* Always reset stage to the beginning, to be safe */
+			ge->state[0] = 0;
+			/* restart challenge announcement */
+			if (ge->state[1] == 2) {
+				//ge->state[0] = 0; --safety measure: moved above
+				ge->state[1] = 1;
+				announce_global_event(ge_id);
+				break;
+			}
+
+			ge->getype = GE_NONE; /* end of event */
+			break;
+		}
+		break;
+#endif
+
 	default: /* generic clean-up routine for untitled events */
 		switch (ge->state[0]) {
 		case 255: /* remove an untitled event that has been stopped */
@@ -9366,7 +9840,7 @@ static void process_global_event(int ge_id) {
 	/* Check for end of event */
 	if (ge->getype == GE_NONE) {
 		msg_broadcast_format(0, "\374\377W[%s has ended]", ge->title);
-		s_printf("%s EVENT_END: %d - '%s'.\n", showtime(), ge_id + 1, ge->title);
+		s_printf("%s EVENT_END: %d - '%s'(%d).\n", showtime(), ge_id + 1, ge->title, ge->getype);
 	}
 }
 
@@ -9419,13 +9893,14 @@ void clear_current(int Ind) {
 	p_ptr->current_recharge = 0;
 	p_ptr->current_artifact = 0;
 	p_ptr->current_artifact_nolife = FALSE;
+	p_ptr->current_telekinesis = NULL;
 	p_ptr->current_curse = 0;
 	p_ptr->current_tome_creation = 0;
 	p_ptr->current_rune = 0;
 #ifdef ENABLE_DEMOLITIONIST
 	p_ptr->current_chemical = 0;
 #endif
-	p_ptr->current_telekinesis = NULL;
+	p_ptr->current_activation = 0;
 }
 
 void calc_techniques(int Ind) {
@@ -9622,7 +10097,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 
 		/* trim */
 		while (*str == ' ') str++;
-		while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
+		if (*str) while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
 		if (!(*str)) return;
 		for (i = 0; i < strlen(str) - 1; i++) {
 			if (str[i] == ' ' && str[i + 1] == ' ') continue;
@@ -9655,8 +10130,8 @@ void handle_request_return_str(int Ind, int id, char *str) {
 			while (*str2ptr >= '0' && *str2ptr <= '9') str2ptr++;
 			if (*str2ptr == ' ') str2ptr++;
 		} else num = 1;
-		if (num > 99) {
-			msg_print(Ind, "Sorry, you can order a stack of up to 99 items at most.");
+		if (num >= MAX_STACK_SIZE) {
+			msg_format(Ind, "Sorry, you can order a stack of up to %d items at most.", MAX_STACK_SIZE - 1);
 			return;
 		}
 
@@ -9799,7 +10274,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 #if 1 /* quality of life: for specific stores, no need to type the whole (always same) item name. */
 			/* assume player maybe just entered a spell name, if this is the bookstore. */
 			switch (p_ptr->store_num) {
-			case STORE_BOOK:
+			case STORE_BOOK: // aka is_bookstore() ...
 			case STORE_BOOK_DUN:
 			case STORE_LIBRARY:
 			case STORE_HIDDENLIBRARY:
@@ -9895,7 +10370,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 		old_rand = Rand_quick;
 		tmp_seed = Rand_value;
 		Rand_quick = TRUE;
-		Rand_value = (3623 * p_ptr->wpos.wy + 29753) * (2843 * p_ptr->wpos.wx + 48869) + p_ptr->wpos.wz + (379 * (turn / HOUR) + 41);
+		Rand_value = (3623u * p_ptr->wpos.wy + 29753) * (2843u * p_ptr->wpos.wx + 48869) + p_ptr->wpos.wz + (379u * (turn / HOUR) + 41);
 		apply_magic(&p_ptr->wpos, &forge, 0, FALSE, FALSE, FALSE, FALSE, RESF_NO_ENCHANT);
 		Rand_quick = old_rand;
 		Rand_value = tmp_seed;
@@ -10012,7 +10487,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 		cptr comp;
 		cptr acc;
 		u32b pid;
-		byte w, pmode;
+		u16b w, pmode;
 		bool total_winner, once_winner;
 		char o_name[ONAME_LEN];
 		dungeon_type *d_ptr;
@@ -10169,12 +10644,26 @@ void handle_request_return_str(int Ind, int id, char *str) {
 			return;
 		}
 
+#if 1
+		/* Wrapped gifts: Totally enforce level restrictions */
+		if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END
+		    && o_ptr->owner && o_ptr->owner != pid && plev < o_ptr->level) {
+			msg_print(Ind, "Sorry, but the taget's level does not meet this gift's level.");
+			return;
+		}
+#else
+		/* Wrapped gifts: Must be given manually (>'')> -- not for mail, seems reasonable to send gifts ^^ */
+		if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) {
+			msg_print(Ind, "Sorry, but we do not accept pre-wrapped packages.");
+			if (!is_admin(p_ptr)) return;
+		}
+#endif
 
 		/* le paranoid double-check */
 		for (i = 0; i < MAX_MERCHANT_MAILS; i++)
 			if (!mail_sender[i][0]) break;
 		if (i == MAX_MERCHANT_MAILS) {
-			msg_print(Ind, "\377yWe're very sorry, our service is currently overloaded! Please try again later.");
+			msg_print(Ind, "\377yWe're very sorry, our service is currently overbooked! Please try again later.");
 			return;
 		}
 
@@ -10212,7 +10701,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 		return; }
 	case RID_SEND_GOLD: {
 		int i;
-		byte pmode;
+		u16b pmode;
 		cptr comp;
 		cptr acc;
 		u32b pid, total = p_ptr->mail_gold;
@@ -10440,17 +10929,27 @@ void handle_request_return_num(int Ind, int id, int num) {
 			msg_print(Ind, "You do not have that much gold with you!");
 			return;
 		}
+		msg_print(Ind, " ");
 		if (num <= 0) {
-			msg_print(Ind, "You decide not to donate at this time.");
-			msg_print(Ind, "You pray to the gods.");
+			msg_print(Ind, "\377BYou decide not to donate at this time.");
+			msg_print(Ind, "\377BYou pray to the gods.");
+
+			/* Check how far we are away from rekinging actually */
+			if (p_ptr->once_winner && !p_ptr->total_winner) {
+				msg_print(Ind, " ");
+				if (p_ptr->solo_reking_au) msg_format(Ind, "You still need to donate \377y%d\377w AU for your fate to change.", p_ptr->solo_reking_au);
+				else msg_print(Ind, "You do not require to donate any more AU for your fate to change.");
+				if (p_ptr->solo_reking) msg_format(Ind, "You still need to gain \377B%d\377w XP for your fate to change.", p_ptr->solo_reking);
+				else msg_print(Ind, "You do not require to gain any more XP for your fate to change.");
+			}
 			return;
 		}
 
 		p_ptr->au -= num;
 		p_ptr->redraw |= PR_GOLD;
-		if (num == 1) msg_format(Ind, "Your donation of %d gold piece is well received.", num);
-		else msg_format(Ind, "Your donation of %d gold pieces is well received.", num);
-		msg_print(Ind, "You pray to the gods.");
+		if (num == 1) msg_format(Ind, "\377BYour donation of %d gold piece is well received.", num);
+		else msg_format(Ind, "\377BYour donation of %d gold pieces is well received.", num);
+		msg_print(Ind, "\377BYou pray to the gods.");
 
 		/* no fallen winner yet or already donated enough and changed our fate? */
 		if (!p_ptr->once_winner || p_ptr->total_winner) return;
@@ -10462,11 +10961,20 @@ void handle_request_return_num(int Ind, int id, int num) {
 			p_ptr->solo_reking_au = 0;
 			if (p_ptr->solo_reking < 0) p_ptr->solo_reking = 0;
 		}
+		/* Fate was just changed, we may reking! */
 		if (p_ptr->solo_reking + p_ptr->solo_reking_au == 0) {
-			msg_print(Ind, "\377GYou feel your fate has been changed!");
+			msg_print(Ind, "\377GYou feel your fate has changed!");
 			// .. revive Sauron too? =P .. */
 			p_ptr->once_winner = 0;
 			p_ptr->r_killed[RI_MORGOTH] = 0;
+		}
+		/* Check how far we are away from rekinging actually */
+		else {
+			msg_print(Ind, " ");
+			if (p_ptr->solo_reking_au) msg_format(Ind, "You still need to donate \377y%d\377w AU for your fate to change.", p_ptr->solo_reking_au);
+			else msg_print(Ind, "You do not require to donate any more AU for your fate to change.");
+			if (p_ptr->solo_reking) msg_format(Ind, "You still need to gain \377B%d\377w XP for your fate to change.", p_ptr->solo_reking);
+			else msg_print(Ind, "You do not require to gain any more XP for your fate to change.");
 		}
 		return;
 #endif

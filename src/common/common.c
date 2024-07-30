@@ -127,6 +127,7 @@ int color_char_to_attr(char c) {
 		case '5': return TERM_SMOOTHPAL;
 		case '6': return TERM_SEL_RED;
 		case '7': return TERM_SEL_BLUE;
+		case '8': return TERM_SRCLITE;
 	}
 
 	return (-1);
@@ -136,7 +137,7 @@ int color_char_to_attr(char c) {
  * Convert a color to a color letter.
  * The colors are: dwsorgbuDWvyRGBU, as shown below
  */
-char color_attr_to_char(int a) {
+char color_attr_to_char(byte a) {
 	switch (a) {
 		case TERM_DARK: return 'd';
 		case TERM_WHITE: return 'w';
@@ -205,6 +206,7 @@ char color_attr_to_char(int a) {
 		case TERM_SMOOTHPAL: return '5';
 		case TERM_SEL_RED: return '6';
 		case TERM_SEL_BLUE: return '7';
+		case TERM_SRCLITE: return '8';
 	}
 
 	return 'w';
@@ -422,7 +424,7 @@ char *my_strcasestr(const char *big, const char *little) {
 /* Same as my_strcasestr() but skips colour codes (added for guide search).
    strict:
     0 - not strict
-    1 - search for occurances only at the beginning of a line (tolerating colour codes and spaces)
+    1 - search for occurances only at the beginning of a line (tolerating colour codes and spaces (and experimentally bulletin markers, '-'))
     2 - same as (1) and it must not start on a lower-case letter (to ensure it's not just inside some random text).
     3 - same as (2) and also search only for all-caps (for item flags)
     4 - same as (3) and it must be at the beginning of the line without tolerating spaces, to rule out that we're inside some paragraph already.
@@ -447,7 +449,8 @@ char *my_strcasestr_skipcol(const char *big, const char *littlex, byte strict) {
 	L = strlen(little);
 
 	if (strict) { /* switch to strict mode */
-		bool just_spaces = (strict == 4 ? FALSE : TRUE);
+		bool just_spaces = (strict == 4 ? FALSE : TRUE), testfirstalphachar = (strict >= 2), no_more_spaces = FALSE;
+
 		do {
 			/* Skip colour codes */
 			while (big[cnt] == '\377') {
@@ -455,10 +458,18 @@ char *my_strcasestr_skipcol(const char *big, const char *littlex, byte strict) {
 				if (big[cnt] != 0) cnt++; //paranoia: broken colour code
 			}
 			if (!big[cnt]) return(NULL);
-			if (big[cnt] != ' ') just_spaces = FALSE;
 
-			/* Should not start on a lower-case letter, so we know we're not just in the middle of some random text.. */
-			if (strict >= 2 && isalpha(big[cnt]) && big[cnt] == tolower(big[cnt])) return(NULL);
+			if (just_spaces) {
+				if (no_more_spaces) just_spaces = FALSE;
+				else {
+					if (big[cnt] != ' '
+					    && big[cnt] != '-' /* actually, also tolerate '-' bulletin list markers! hm */
+					    ) just_spaces = FALSE;
+					/* ..however, after the '-' do not tolerate more spaces! This allows us to distinguish between
+					   'important' bulletin points and 'unimportant' ones in the guide :o */
+					if (big[cnt] == '-') no_more_spaces = TRUE;
+				}
+			}
 
 			cnt2 = cnt_offset = 0;
 			l = 0;
@@ -468,7 +479,13 @@ char *my_strcasestr_skipcol(const char *big, const char *littlex, byte strict) {
 					cnt_offset++;
 					if (big[cnt + cnt2 + cnt_offset] != 0) cnt_offset++; //paranoia: broken colour code
 				}
-				if (!big[cnt + cnt2 + cnt_offset]) return(NULL);
+				if (!big[cnt + cnt2 + cnt_offset]) return(NULL); /* Was only colour codes, no text oO */
+
+				/* Should not start on a lower-case letter, so we know we're not just in the middle of some random text.. */
+				if (testfirstalphachar && isalpha(big[cnt + cnt2 + cnt_offset])) {
+					if (big[cnt + cnt2 + cnt_offset] == tolower(big[cnt + cnt2 + cnt_offset])) return(NULL);
+					testfirstalphachar = FALSE;
+				}
 
 				if (strict >= 3) { /* Case-sensitive: Caps only (the needle is actually all-caps) */
 					if (big[cnt + cnt2 + cnt_offset] == little[cnt2]) l++;
@@ -536,7 +553,7 @@ char *my_strcasestr_skipcol(const char *big, const char *littlex, byte strict) {
    next_start [NULL] = returns next position in 'buf2' to start subsequent search or -1 for once-per-line matches (^/$) */
 bool my_strregexp_skipcol(char *buf2, regex_t re_src, char *searchstr_re, char *withinsearch, int *next_start) {
 	int i, i2;
-	char buf2_skipcol[MAX_CHARS * 2 + 1], *c_skipcol, offset[MAX_CHARS * 2 + 1];
+	char buf2_skipcol[MSG_LEN], *c_skipcol, offset[MSG_LEN];
 	regmatch_t pmatch[REGEX_ARRAY_SIZE + 1];
 
 	/* Don't confuse the regexp-matcher with colour codes */

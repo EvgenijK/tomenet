@@ -180,7 +180,7 @@ server_opts cfg = {
 	32,32,		// town_x, town_y
 	0,		// town_base,
 
-	200, 50,	// store_turns, dun_store_turns
+	200, 50, 50,	// store_turns, dun_store_turns, book_store_turns_perc
 	/* char */
 	3, 2,		// resting_rate, party_xp_boost
 
@@ -267,6 +267,8 @@ struct xorder_type xorders[MAX_XORDERS]; /* server quest data */
 #ifdef IRONDEEPDIVE_MIXED_TYPES
 struct iddc_type iddc[128]; //(hardcode, ew)
 #endif
+
+struct worldpos BREE_WPOS, *BREE_WPOS_P = &BREE_WPOS;
 
 /* The information about houses */
 house_type *houses, *houses_bak;
@@ -409,8 +411,7 @@ s16b *alloc_race_index_level;
 /*
  * Unique monster mask arrays.
  */
-char *allow_uniques;
-char *reject_uniques;
+char *allow_uniques, *reject_uniques, *orcs_only;
 
 
 /*
@@ -445,7 +446,7 @@ object_kind *k_info;
 char *k_name;
 char *k_text;
 
-s16b k_info_num[MAX_K_IDX]; /* mapper from internal k_idx to the N-numbers in k_info.txt */
+u16b k_info_num[MAX_K_IDX]; /* mapper from internal k_idx to the N-numbers in k_info.txt */
 
 /*
  * The artifact arrays
@@ -821,7 +822,7 @@ int gametype;
 char priv_note[MAX_NOTES][MSG_LEN], priv_note_sender[MAX_NOTES][NAME_LEN], priv_note_target[MAX_NOTES][NAME_LEN], priv_note_u[MAX_NOTES][MSG_LEN];
 char party_note[MAX_PARTYNOTES][MSG_LEN], party_note_target[MAX_PARTYNOTES][NAME_LEN], party_note_u[MAX_PARTYNOTES][MSG_LEN];
 char guild_note[MAX_GUILDNOTES][MSG_LEN], guild_note_target[MAX_GUILDNOTES][NAME_LEN], guild_note_u[MAX_GUILDNOTES][MSG_LEN];
-char admin_note[MAX_ADMINNOTES][MAX_CHARS], server_warning[MSG_LEN];
+char admin_note[MAX_ADMINNOTES][MAX_CHARS_WIDE], server_warning[MSG_LEN];
 
 /* in-game bbs :) - C. Blue */
 char bbs_line[BBS_LINES][MSG_LEN], bbs_line_u[BBS_LINES][MSG_LEN];
@@ -861,7 +862,7 @@ bool first_player_joined = TRUE;
 /* lua-dependant 'constants' */
 int __lua_HHEALING, __lua_HBLESSING, __lua_HDELFEAR;
 int __lua_MSCARE, __lua_M_FIRST, __lua_M_LAST;
-int __lua_P_FIRST, __lua_P_LAST;
+int __lua_P_FIRST, __lua_P_LAST, __lua_POWERBOLT, __lua_HEALING_I;
 #ifndef ENABLE_OCCULT
 int __lua_OFEAR = 0;
 #else
@@ -876,13 +877,13 @@ int cron_1h_last_hour = -1; /* -1 to call immediately after server restart */
 
 /* for global events (xtra1.c, slash.c) */
 global_event_type global_event[MAX_GLOBAL_EVENTS];
-int sector00separation = 0; /* some events separate sector 0,0 from the worldmap
+int sector000separation = 0; /* some events separate world surface sector 0,0,0 from the worldmap
 			 to use it in a special way - WoR won't work either */
-int sector00downstairs = 0; /* remember that sector 0,0 contains staircases downwards at the moment */
-int sector00music = 0, sector00musicalt = 0, sector00musicalt2 = 0; /* special event music */
-int sector00music_dun = 0, sector00musicalt_dun = 0, sector00musicalt2_dun = 0; /* special event music (dungeon) */
-int sector00wall = 0; /* outer wall tile around the sector to be displayed instead of FEAT_PERM_CLEAR */
-u32b sector00flags1 = 0x0, sector00flags2 = 0x0; /* floor flags */
+int sector000downstairs = 0; /* remember that sector 0,0 contains staircases downwards at the moment */
+int sector000music = 0, sector000musicalt = 0, sector000musicalt2 = 0; /* special event music */
+int sector000music_dun = 0, sector000musicalt_dun = 0, sector000musicalt2_dun = 0; /* special event music (dungeon) */
+int sector000wall = 0; /* outer wall tile around the sector to be displayed instead of FEAT_PERM_CLEAR */
+u32b sector000flags1 = 0x0, sector000flags2 = 0x0; /* floor flags */
 int ge_special_sector = 0; /* to make it known that a certain sector (or multiple sectors, given in
 			    defines.h as WPOS_ constants) are now in special use for global events. */
 u32b ge_contender_buffer_ID[MAX_CONTENDER_BUFFERS]; /* Remember account IDs of players who are supposed to receive */
@@ -952,7 +953,8 @@ int firework_dungeon = 0, firework_dungeon_chance = 0;
 #endif
 
 char last_chat_line[MSG_LEN];  /* What was said */
-char last_chat_owner[NAME_LEN]; /* Who said it */
+char last_chat_owner[CNAME_LEN]; /* Who said it */
+char last_chat_account[ACCNAME_LEN]; /* Who said it */
 // char last_chat_prev[MSG_LEN];  /* What was said before the above*/
 
 auction_type *auctions;
@@ -1086,3 +1088,8 @@ char fake_waitxxx_ipaddr[MAX_CHARS] = { 0 };
 s16b global_temp_n;
 byte global_temp_y[TEMP_MAX];
 byte global_temp_x[TEMP_MAX];
+
+bool restart_panic = FALSE, restart_unstatice_bree = FALSE, restart_unstatice_towns = FALSE, restart_unstatice_surface = FALSE, restart_unstatice_dungeons = FALSE;
+int pdf_hack_feat = -1, pdf_hack_feat_new, pdf_hack_mon = -1, pdf_hack_mon_new;
+/* World map global mushroom fields, for Farmer Maggot ^^ */
+u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHROOM_FIELDS], mushroom_field_x[MAX_MUSHROOM_FIELDS], mushroom_field_y[MAX_MUSHROOM_FIELDS], mushroom_fields = 0;

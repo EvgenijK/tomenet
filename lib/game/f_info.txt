@@ -22,6 +22,7 @@ V:4.0.0
 
 
 # 0x00 --> nothing
+# Note: For transparency of t_*.prf files loaded over existing floors etc, use special feat FEAT_ALPHA! (138 / 8A)
 
 N:0:nothing
 G: :w
@@ -158,9 +159,13 @@ F:NO_SHADE
 
 N:21:signpost
 #G:#:y  looks too much like trees.
+#G:+:u  looks too much like a door, sent two people on a wild goose chase..
+# % is used for a lot of things already :/
+# & is same as mirror, pfft - still maybe best
+# : could be used, currently only for rubble and some greens
 #possible: %:U, %:o, &:y, &:o, &:U, +:y, +:u, +:o
-G:+:u
-F:WALL | NO_WALK | CAN_PASS | NOTICE | SUPPORT_LIGHT
+G:&:o
+F:WALL | NO_WALK | CAN_PASS | NOTICE | SUPPORT_LIGHT | PERMANENT
 #NO_VISION |
 
 # 0x28 --> home door (strength 1)
@@ -228,7 +233,7 @@ F:LAMP_LITE | NO_SHADE
 
 N:30:wooden table
 G:=:u
-F:LOS | NO_WALK | WALL | PERMANENT | DONT_NOTICE_RUNNING | BLOCK_CONTACT
+F:LOS | NO_WALK | WALL | PERMANENT | DONT_NOTICE_RUNNING
 
 N:31:open floor
 G:.:5
@@ -718,7 +723,7 @@ F:LAMP_LITE_OPTIONAL
 N:94:mud
 G:~:u
 F:FLOOR | DONT_NOTICE_RUNNING | CAN_RUN | SUPPORT_LIGHT | NO_ARTICLE
-F:LAMP_LITE_SNOW
+F:LAMP_LITE_SNOW | LAMP_LITE_OPTIONAL
 #F:LAMP_LITE_OPTIONAL | NO_SHADE | NO_LITE_WHITEN --maybe not so cool, confusing with ~ feats/objects?
 
 N:95:ice wall
@@ -954,7 +959,6 @@ G:o:w
 F:LOS | NO_WALK | WALL | PERMANENT | DONT_NOTICE_RUNNING | BLOCK_CONTACT
 D:1:You cannot break down this marble balustrade.
 
-#--visual bug: gets shaded outside of lamp rad
 # Fireplace (Inn)
 N:131:hearthfire
 G:*:f
@@ -963,7 +967,8 @@ D:0:The blazing fire burns you!
 F:LOS | NO_WALK | WALL | PERMANENT | DONT_NOTICE_RUNNING | BLOCK_CONTACT
 F:GLOW | NO_SHADE
 D:0:The inn's hearthfire.
-#--visual bug: gets shaded outside of lamp rad
+
+# Fireplace (Inn)
 N:132:hearthfire's embers
 #using hellfire instead of embers for the ash-grey part ^^
 G:*:X
@@ -995,8 +1000,108 @@ G:>:w
 F:FLOOR | PERMANENT | NOTICE | SUPPORT_LIGHT | REMEMBER | CAN_RUN
 D:0:A staircase leading out
 
+# Permanent floor, added for t_refuge.txt, just to prevent monster spawn (cave_naked_bold() avoids PERMANENT)
+N:137:open floor
+G:.:w
+M:1
+F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN | LAMP_LITE_SNOW
+F:PERMANENT | ALLOW_TELE | NO_ARTICLE
 
-# HOLE 137..158 -------------------------------------------------------------
+# Special floor that gets ignored in init1.c -> process_dungeon_file_aux() -> 'D:' lines
+N:138:alpha-transparent floor
+G:.:m
+F:FLOOR
+
+# xmas tree
+N:139:an evergreen conifer
+G:#:g
+F:WALL | NO_WALK | NO_VISION | PERMANENT | GLOW
+F:DONT_NOTICE_RUNNING
+D:1:This evergreen conifer is surprisingly hard.
+D:2:An evergreen conifer, blocking your way
+
+# for xmas tree top
+N:140:decorative glowing sphere
+G:*:L
+F:WALL | NO_WALK | NO_VISION | PERMANENT | GLOW
+F:DONT_NOTICE_RUNNING
+D:1:This spere on top of a conifer is far too hard.
+D:2:a light sphere on top of a conifer, blocking your way
+
+# Fire
+N:141:embers
+G:%:Z
+E:1d3:2:FIRE
+D:0:The fiery embers burn you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE | NO_ARTICLE
+
+# Fire
+N:142:small fire
+G:%:f
+E:2d4:2:FIRE
+D:0:The fire burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE2 | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
+
+# Fire
+N:143:small campfire
+G:%:f
+E:2d3:2:FIRE
+D:0:The fire burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
+
+# Fire
+N:144:campfire
+G:%:f
+E:2d4:2:FIRE
+D:0:The fire burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE2 | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
+
+# Fire
+N:145:burning torch
+G:~:f
+#E:2d2:2:FIRE
+#D:0:The fire burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
+
+# Fire
+N:146:burning oil lamp
+G:~:L
+#E:2d3:2:FIRE
+#D:0:The oil burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE2 | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
+
+# Light
+N:147:small glowing sphere
+G:&:0
+# = wall?
+F:WALL | NO_WALK | LOS
+# = floor?
+#F:FLOOR | CAN_LEVITATE
+# definite common mods:
+F:DONT_NOTICE_RUNNING | NOTICE | REMEMBER | SUPPORT_LIGHT | SHINE
+# questionable common mods:
+#F:PERMANENT
+
+# Light - also see flag comments of feat 147 regarding this!
+N:148:glowing sphere
+G:&:0
+F:WALL | NO_WALK | LOS
+F:DONT_NOTICE_RUNNING | NOTICE | REMEMBER | SUPPORT_LIGHT | SHINE2
+
+# Light - also see flag comments of feat 147 regarding this!
+N:149:large glowing sphere
+G:&:0
+F:WALL | NO_WALK | LOS
+F:DONT_NOTICE_RUNNING | NOTICE | REMEMBER | SUPPORT_LIGHT | SHINE | SHINE2
+
+
+# HOLE 150..158 -------------------------------------------------------------
 
 
 #permanent magma vein
@@ -1077,11 +1182,11 @@ D:1:The lava is far too hot to tunnel into it.
 D:2:a lava wall blocking your way
 
 N:178:great fire
-G:%:v
-S:R:R:y:v:y:v:R
+G:%:X
+#S:R:R:y:v:y:v:R
 E:150d2:10:HELLFIRE
-F:ATTR_MULTI
-F:FLOOR | REMEMBER | NOTICE | PERMANENT | GLOW
+#F:ATTR_MULTI
+F:FLOOR | REMEMBER | NOTICE | PERMANENT | SHINE | SHINE2 | SHINE_FIRE
 D:0:This fire is so powerful it could destroy even the most powerful artifacts.
 
 N:179:path to the next area
@@ -1122,9 +1227,18 @@ G:#:7
 F:WALL | NO_WALK | NO_VISION | PERMANENT | SUPPORT_LIGHT
 F:DONT_NOTICE_RUNNING | LAMP_LITE | NO_SHADE | BOUNDARY
 
+#like 183, but special animated colour aka search lights (testing)
+N:185:permanent wall
+G:#:8
+F:WALL | NO_WALK | NO_VISION | PERMANENT | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | LAMP_LITE | NO_SHADE | BOUNDARY
 
-# HOLE 185..186 -------------------------------------------------------------
-
+N:186:blazing fire
+G:%:f
+E:2d5:2:FIRE
+D:0:The blazing fire burns you!
+F:FLOOR | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | SHINE | SHINE2 | SHINE_FIRE
+F:DONT_NOTICE_RUNNING | NOTICE
 
 # 187 --> terrain -- deep water
 
@@ -1138,8 +1252,10 @@ F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
 N:188:glass wall
 #G:.:B
 G:#:B
-F:NO_WALK | WALL | PERMANENT | NOTICE
-F:DONT_NOTICE_RUNNING
+#F:NO_WALK | WALL | PERMANENT | NOTICE
+#F:DONT_NOTICE_RUNNING
+F:LOS | NO_WALK | WALL | PERMANENT | DONT_NOTICE_RUNNING | BLOCK_CONTACT
+#making glass transparent again? - Kurzel
 D:1:This glass seems to be totally impenetrable.
 D:2:a glass wall blocking your way
 
@@ -1226,6 +1342,7 @@ F:FLOOR | REMEMBER | SUPPORT_LIGHT | DONT_NOTICE_RUNNING | CAN_RUN
 D:0:Oh, an underground tunnel!
 
 # Fire
+#non-distracting version of (186) blazing fire for mt doom (it doesn't live-flicker)
 N:205:blazing fire
 G:%:y
 S:y:y:y:R:r:y:R
@@ -1440,7 +1557,7 @@ F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN | LAMP_LITE_SNOW
 F:NO_ARTICLE | ENTER_FROM_SPECIAL
 
 
-# NOTE: 255 is reserved for special purpose ('not done yet' indicator)
+# NOTE: 255 is reserved for special purpose (RLE in server save file / 'not done yet' indicator -- TODO: Check the latter one, can't coexist w/ RLE?)
 
 
 # generic scheme (all lines are unique except

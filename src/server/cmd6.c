@@ -156,8 +156,12 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 
 	case SV_FOOD_HALLUCINATION:
 		if (!p_ptr->resist_chaos) {
-			take_sanity_hit(Ind, 2, "drugs", 0);
+			take_sanity_hit(Ind, (p_ptr->msane + 39) / 20, "drugs", 0);
+#if 0 /* Note: spell_stack_limit is actually just 200.. */
 			if (set_image(Ind, p_ptr->image + rand_int(250) + 250))
+#else
+			if (set_image(Ind, p_ptr->image + rand_int(100) + 100))
+#endif
 				ident = TRUE;
 		}
 		/* new in 2022 - just to actually 'do' something - emergency usage (yay for Chaos Lineage) */
@@ -166,6 +170,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 		    && !p_ptr->martyr
 #endif
 		    ) {
+			set_image(Ind, p_ptr->image + rand_int(3) + 3); /* Still very small hallu effect */
 			p_ptr->cmp += 15;
 			if (p_ptr->cmp > p_ptr->mmp) p_ptr->cmp = p_ptr->mmp;
 			p_ptr->redraw |= (PR_MANA);
@@ -366,11 +371,12 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 
 	case SV_FOOD_PINT_OF_ALE:
 	case SV_FOOD_PINT_OF_WINE:
+	case SV_FOOD_KHAZAD:
 		/* as this counts as food and not as potion, there's a hack allowing ents to 'eat' this anyway.. */
 		if (!p_ptr->suscep_life && p_ptr->prace != RACE_ENT) {
-			if (!o_ptr) {
+			if (!o_ptr) { // ???
 				msg_format(Ind, "\377%c*HIC*", random_colour());
-				msg_format_near(Ind, "\377%c%s hiccups!", random_colour(), p_ptr->name);
+				msg_format_near(Ind, "\377w%s hiccups!", p_ptr->name);
 
 				if (magik(TRUE? 60 : 30)) set_confused(Ind, p_ptr->confused + 20 + randint(20));
 				if (magik(TRUE? 50 : 20)) set_stun_raw(Ind, p_ptr->stun + 10 + randint(10));
@@ -406,8 +412,12 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 			}
 			/* Let's make this usable... - the_sandman */
 			else if (o_ptr->name1 == ART_DWARVEN_ALE) {
-				msg_print(Ind, "\377gYou drank the liquior of the gods");
-				msg_format_near(Ind, "\377gYou look enviously as %s took a sip of The Ale", p_ptr->name);
+				if (!rand_int(5)) {
+					msg_format(Ind, "\377%c*HIC*", random_colour());
+					msg_format_near(Ind, "\377w%s hiccups!", p_ptr->name);
+				}
+				msg_print(Ind, "\377wYou drank the liquior of the gods");
+				if (!rand_int(3)) msg_format_near(Ind, "\377wYou look enviously as %s took a sip of The Ale", p_ptr->name);
 				switch (randint(10)) {
 				case 1:
 				case 2:
@@ -416,7 +426,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 				case 4:
 				case 5:
 				case 6:	// 3 in 10 for Speed
-					set_fast(Ind, 20 + randint(10), 10); break;
+					set_fast(Ind, 20 + randint(10), 3); break;
 				case 7:
 				case 8:
 				case 9: // 3 in 10 for Berserk
@@ -426,9 +436,9 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 					if (!(p_ptr->resist_conf)) set_confused(Ind, randint(10));
 				}
 				p_ptr->food = PY_FOOD_FULL;	// A quaff will bring you to the norm sustenance level!
-			} else if (magik(o_ptr->name2? 50 : 20)) {
+			} else if (magik(o_ptr->name2 ? 50 : 20)) {
 				msg_format(Ind, "\377%c*HIC*", random_colour());
-				msg_format_near(Ind, "\377%c%s hiccups!", random_colour(), p_ptr->name);
+				msg_format_near(Ind, "\377w%s hiccups!", p_ptr->name);
 
 				if (magik(o_ptr->name2? 60 : 30)) set_confused(Ind, p_ptr->confused + 20 + randint(20));
 				if (magik(o_ptr->name2? 50 : 20)) set_stun_raw(Ind, p_ptr->stun + 10 + randint(10));
@@ -484,7 +494,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 void do_cmd_eat_food(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
 
-	int ident, lev;
+	int ident, klev;
 	int feed = 0;
 
 	object_type *o_ptr;
@@ -494,13 +504,7 @@ void do_cmd_eat_food(int Ind, int item) {
 	/* Restrict choices to food */
 	item_tester_tval = TV_FOOD;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else {
-		if (-item >= o_max) return; /* item doesn't exist */
-		o_ptr = &o_list[0 - item];
-	}
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	if (check_guard_inscription(o_ptr->note, 'E')) {
 		msg_print(Ind, "The item's inscription prevents it.");
@@ -508,7 +512,6 @@ void do_cmd_eat_food(int Ind, int item) {
 	}
 
 	if (!can_use_verbose(Ind, o_ptr)) return;
-
 
 	if (!(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0001))) {
 		if (o_ptr->tval != TV_FOOD && o_ptr->tval != TV_FIRESTONE && !(o_ptr->tval == TV_GAME && o_ptr->sval == SV_SNOWBALL)) {
@@ -521,7 +524,8 @@ void do_cmd_eat_food(int Ind, int item) {
 		/* Let them drink :) */
 		if (o_ptr->tval != TV_FOOD ||
 		    (o_ptr->sval != SV_FOOD_PINT_OF_ALE &&
-		    o_ptr->sval != SV_FOOD_PINT_OF_WINE)) {
+		    o_ptr->sval != SV_FOOD_PINT_OF_WINE &&
+		    o_ptr->sval != SV_FOOD_KHAZAD)) {
 			msg_print(Ind, "You cannot eat food.");
 			return;
 		}
@@ -539,7 +543,7 @@ void do_cmd_eat_food(int Ind, int item) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 #ifdef USE_SOUND_2010
-	if (o_ptr->sval == SV_FOOD_PINT_OF_ALE || o_ptr->sval == SV_FOOD_PINT_OF_WINE)
+	if (o_ptr->sval == SV_FOOD_PINT_OF_ALE || o_ptr->sval == SV_FOOD_PINT_OF_WINE || o_ptr->sval == SV_FOOD_KHAZAD)
 		sound(Ind, "quaff_potion", NULL, SFX_TYPE_COMMAND, FALSE);
 	else
 		sound(Ind, "eat", NULL, SFX_TYPE_COMMAND, FALSE);
@@ -549,7 +553,8 @@ void do_cmd_eat_food(int Ind, int item) {
 	ident = FALSE;
 
 	/* Object level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	/* (not quite) Normal foods */
 	if (o_ptr->tval == TV_FOOD) ident = eat_food(Ind, o_ptr->sval, o_ptr, &keep);
@@ -625,7 +630,7 @@ void do_cmd_eat_food(int Ind, int item) {
 		/* The player is now aware of the object */
 		if (ident && !object_aware_p(Ind, o_ptr)) {
 			flipped = object_aware(Ind, o_ptr);
-			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 		}
 
 		/* We have tried it */
@@ -648,6 +653,7 @@ void do_cmd_eat_food(int Ind, int item) {
 	else if (p_ptr->prace != RACE_VAMPIRE)
 		(void)set_food(Ind, p_ptr->food + feed / 3);
 
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 3, o_ptr->custom_lua_usage));
 
 	/* Hack -- really allow certain foods to be "preserved" */
 	if (keep) return;
@@ -811,12 +817,28 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 					msg_print(Ind, "You burp.");
 					msg_format_near(Ind, "%s burps.", p_ptr->name);
 				}
+#if 0 /* disable because of 'Dispersion' spell! */
 				if (p_ptr->cst < p_ptr->mst && !p_ptr->shadow_running) {
 					msg_print(Ind, "You feel refreshed.");
 					p_ptr->cst = p_ptr->mst;
 					p_ptr->cst_frac = 0;
 					p_ptr->redraw |= PR_STAMINA;
 				}
+#else
+				restore_level(Ind);
+				if (p_ptr->cmp < p_ptr->mmp
+ #ifdef MARTYR_NO_MANA
+				    && !p_ptr->martyr
+ #endif
+				    ) {
+					p_ptr->cmp += 500;
+					if (p_ptr->cmp > p_ptr->mmp) p_ptr->cmp = p_ptr->mmp;
+					msg_print(Ind, "You feel your head clearing!");
+					p_ptr->redraw |= (PR_MANA);
+					p_ptr->window |= (PW_PLAYER);
+					ident = TRUE;
+				}
+#endif
 			}
 			break;
 		case SV_POTION_INFRAVISION:
@@ -927,6 +949,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 				p_ptr->black_breath = FALSE;
 				msg_print(Ind, "The hold of the Black Breath on you is broken!");
 			}
+#if 0 /* disable because of 'Dispersion' spell! */
 			if (!p_ptr->suscep_life &&
 			    p_ptr->cst < p_ptr->mst && !p_ptr->shadow_running) {
 				msg_print(Ind, "You feel refreshed.");
@@ -934,6 +957,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 				p_ptr->cst_frac = 0;
 				p_ptr->redraw |= PR_STAMINA;
 			}
+#endif
 			ident = TRUE;
 			break;
 		case SV_POTION_RESTORE_MANA:
@@ -1015,7 +1039,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			(void)set_image(Ind, 0);
 			identify_pack(Ind);
 			msg_print(Ind, "An image of your surroundings forms in your mind...");
-			wiz_lite(Ind);
+			wiz_lite_extra(Ind);
 			ident = TRUE;
 			break;
 		case SV_POTION_STAR_ENLIGHTENMENT:
@@ -1028,7 +1052,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 #endif
 			msg_print(Ind, "You begin to feel more enlightened...");
 			msg_print(Ind, NULL);
-			wiz_lite(Ind);
+			wiz_lite_extra(Ind);
 			(void)do_inc_stat(Ind, A_INT);
 			(void)do_inc_stat(Ind, A_WIS);
 			//(void)detect_treasure(Ind, DEFAULT_RADIUS * 2);
@@ -1225,10 +1249,10 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 		case SV_POTION2_AMBER:
 			ident = TRUE;
 			msg_print(Ind, "Your muscles bulge, and your skin turns to amber!");
-			do_xtra_stats(Ind, 4, 8, 20 + rand_int(5));
+			do_xtra_stats(Ind, 4, 8, 20 + rand_int(5), FALSE);
 			set_shero(Ind, 20); /* -AC cancelled by blessing below */
 			p_ptr->blessed_power = 35;
-			set_blessed(Ind, 20);
+			set_blessed(Ind, 20, FALSE);
 			break;
 		}
 	}
@@ -1242,20 +1266,24 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
  */
 void do_cmd_quaff_potion(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
-	int ident, lev;
+	int ident, klev;
 	object_type *o_ptr, forge;
 	bool flipped = FALSE;
 
 	/* Restrict choices to potions (apparently meanless) */
 	item_tester_tval = TV_POTION;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else {
-		if (-item >= o_max) return; /* item doesn't exist */
-		o_ptr = &o_list[0 - item];
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Sanity checks */
+		if (p_ptr->inventory[item / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_POTION_BELT) {
+			msg_print(Ind, "\377yPotion belts are the only eligible sub-containers for quaffing potions.");
+			return;
+		}
 	}
+#endif
 
 	/* Hack -- allow to quaff ale/wine */
 	if (o_ptr->tval == TV_FOOD) {
@@ -1284,7 +1312,7 @@ void do_cmd_quaff_potion(int Ind, int item) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 	/* For outdated learning potions */
-	if (o_ptr->xtra1) {
+	if (o_ptr->tval != TV_SPECIAL && o_ptr->xtra1) {
 		msg_print(Ind, "This potion seems to have crystallized and cannot be consumed anymore.");
 		return;
 	}
@@ -1293,9 +1321,11 @@ void do_cmd_quaff_potion(int Ind, int item) {
 	ident = FALSE;
 
 	/* Object level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	process_hooks(HOOK_QUAFF, "d", Ind);
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 2, o_ptr->custom_lua_usage));
 
 	if (o_ptr->tval != TV_SPECIAL) ident = quaff_potion(Ind, o_ptr->tval, o_ptr->sval, o_ptr->pval);
 	else exec_lua(0, format("custom_object(%d,%d,0)", Ind, item));
@@ -1308,7 +1338,7 @@ void do_cmd_quaff_potion(int Ind, int item) {
 		if (ident && !object_aware_p(Ind, o_ptr)) {
 			flipped = object_aware(Ind, o_ptr);
 			//object_known(o_ptr);//only for object1.c artifact potion description... maybe obsolete
-			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 		}
 
 		/* The item has been tried */
@@ -1375,6 +1405,9 @@ void do_cmd_quaff_potion(int Ind, int item) {
 		o_ptr->iron_turn = turn;
 		/* If we have no space, drop it to the ground instead of overflowing inventory */
 		if (inven_carry_okay(Ind, o_ptr, 0x0)) {
+#ifdef ENABLE_SUBINVEN
+			if (auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, FALSE)) return;
+#endif
 			item = inven_carry(Ind, o_ptr);
 			if (!p_ptr->warning_limitbottles && p_ptr->inventory[item].number > 25) {
 				msg_print(Ind, "\374\377yHINT: You can inscribe your stack of empty bottles \377o!Mn\377y to limit their amount");
@@ -1385,6 +1418,11 @@ void do_cmd_quaff_potion(int Ind, int item) {
 		} else drop_near(TRUE, 0, o_ptr, 0, &p_ptr->wpos, p_ptr->py, p_ptr->px);
 		//if (item >= 0) inven_item_describe(Ind, item);
 	}
+
+#ifdef ENABLE_SUBINVEN
+	/* Redraw subinven item */
+//	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
 }
 
 #ifdef FOUNTAIN_GUARDS
@@ -1683,6 +1721,7 @@ void do_cmd_fill_bottle(int Ind) {
 	object_type *q_ptr, forge;
 	//cptr q, s;
 
+
 	if (p_ptr->IDDC_logscum) {
 		msg_print(Ind, "\377oThis floor has become stale, take a staircase to move on!");
 		return;
@@ -1775,8 +1814,19 @@ void do_cmd_fill_bottle(int Ind) {
 		q_ptr->iron_trade = p_ptr->iron_trade;
 		q_ptr->iron_turn = turn;
 
+		//#ifdef ENABLE_SUBINVEN -- not atm, see further below for comments regarding apply_XID() etc.
 		item = inven_carry(Ind, q_ptr);
-		if (item >= 0) inven_item_describe(Ind, item);
+		if (item >= 0) {
+#if 0
+			inven_item_describe(Ind, item);
+#else
+			char o_name[ONAME_LEN];
+
+			q_ptr = &p_ptr->inventory[item];
+			object_desc(Ind, o_name, q_ptr, TRUE, 3);
+			msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+#endif
+		}
 
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		return;
@@ -1854,7 +1904,21 @@ void do_cmd_fill_bottle(int Ind) {
 #endif
 	q_ptr->iron_trade = p_ptr->iron_trade;
 	q_ptr->iron_turn = turn;
+
+//#ifdef ENABLE_SUBINVEN
+#if 0 /* Not for now, as neither apply_XID() nor remember_sense() can handle subinventory items atm */
+	(void)auto_stow(Ind, SV_SI_POTION_BELT, q_ptr, -1, FALSE, TRUE);
+	/* If we couldn't auto-stow, pick it up normally */
+	if (o_ptr->number) {
+		item = inven_carry(Ind, q_ptr);
+		//object_desc(Ind, o_name, &p_ptr->inventory[item], TRUE, 3);
+		//msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+	}
+#else
 	item = inven_carry(Ind, q_ptr);
+	//object_desc(Ind, o_name, &p_ptr->inventory[item], TRUE, 3);
+	//msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+#endif
 
 	s_printf("FOUNTAIN_FILL: %s: %s\n", p_ptr->name, k_name + k_info[k_idx].name);
 
@@ -1862,7 +1926,16 @@ void do_cmd_fill_bottle(int Ind) {
 		q_ptr = &p_ptr->inventory[item];
 		if (!object_aware_p(Ind, q_ptr) || !object_known_p(Ind, q_ptr)) /* was just object_known_p */
 			apply_XID(Ind, q_ptr, item);
-		if (!remember_sense(Ind, item, q_ptr)) inven_item_describe(Ind, item);
+		if (!remember_sense(Ind, item, q_ptr)) {
+#if 0
+			inven_item_describe(Ind, item);
+#else
+			char o_name[ONAME_LEN];
+
+			object_desc(Ind, o_name, q_ptr, TRUE, 3);
+			msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+#endif
+		}
 	}
 
 	cs_ptr->sc.fountain.rest--;
@@ -1884,12 +1957,11 @@ void do_cmd_fill_bottle(int Ind) {
 /*
  * Empty a potion in the backpack
  */
+ //TODO: support potions/flasks inside subinventory
 void do_cmd_empty_potion(int Ind, int slot) {
 	player_type *p_ptr = Players[Ind];
-
 	//bool ident;
-	int tval;//, k_idx, item;
-
+	int tval, in_slot = p_ptr->item_newest;//, k_idx, item;
 	object_type *o_ptr, *q_ptr, forge;
 	//cptr q, s;
 
@@ -1926,6 +1998,9 @@ void do_cmd_empty_potion(int Ind, int slot) {
 #else
 		p_ptr->window |= PW_INVEN;
 #endif
+
+		/* Combine / Reorder the pack (later) */
+		p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 		return;
 	}
 
@@ -1949,6 +2024,8 @@ void do_cmd_empty_potion(int Ind, int slot) {
 	invcopy(q_ptr, lookup_kind(TV_BOTTLE, SV_EMPTY_BOTTLE));
 	q_ptr->level = 1;
 
+	if (p_ptr->item_newest == slot && o_ptr->number == 1) in_slot = p_ptr->item_newest = -1;
+
 	/* Destroy a potion in the pack */
 	inven_item_increase(Ind, slot, -1);
 	inven_item_describe(Ind, slot);
@@ -1957,14 +2034,26 @@ void do_cmd_empty_potion(int Ind, int slot) {
 	/* let the player carry the bottle */
 	q_ptr->iron_trade = p_ptr->iron_trade;
 	q_ptr->iron_turn = turn;
-	slot = inven_carry(Ind, q_ptr);
-	if (slot >= 0) inven_item_describe(Ind, slot);
 
 	/* S(he) is no longer afk */
 	un_afk_idle(Ind);
 
 	/* Take a turn */
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
+
+#ifdef ENABLE_SUBINVEN
+	if (auto_stow(Ind, SV_SI_POTION_BELT, q_ptr, -1, FALSE, FALSE)) {
+		/* QoL hack: Empty bottles won't really processed in meaningful ways with item-accessing command keys, instead just with /fill, because don't intend to drop/kill the bottle right after we empty'd it. */
+		p_ptr->item_newest = in_slot;
+
+		return;
+	}
+#endif
+	slot = inven_carry(Ind, q_ptr);
+	if (slot >= 0) inven_item_describe(Ind, slot);
+
+	/* QoL hack: Empty bottles won't really processed in meaningful ways with item-accessing command keys, instead just with /fill, because don't intend to drop/kill the bottle right after we empty'd it. */
+	p_ptr->item_newest = in_slot;
 }
 
 
@@ -2540,9 +2629,9 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			ident = TRUE;
 			/* check for 'no +LIFE' inscription */
 			if (o_ptr->note && check_guard_inscription(o_ptr->note, 'L'))
-				(void)create_artifact(Ind, TRUE);
+				create_artifact(Ind, TRUE);
 			else
-				(void)create_artifact(Ind, FALSE);
+				create_artifact(Ind, FALSE);
 			*used_up = FALSE;
 			p_ptr->using_up_item = item;
 			break;
@@ -2653,7 +2742,7 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			break;
 
 		case SV_SCROLL_TRAP_CREATION:
-			if (trap_creation(Ind, 5, 1)) ident = TRUE;
+			if (trap_creation(Ind, 5, 1, 0)) ident = TRUE;
 			break;
 
 		case SV_SCROLL_PHASE_DOOR:
@@ -2697,7 +2786,7 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			ident = TRUE;
 			if (p_ptr->current_item != -1) (void)identify_fully(Ind); /* XID */
 			else { /* Manual usage */
-				msg_print(Ind, "This is an *identify* scroll.");
+				msg_print(Ind, "This is an *Identify* scroll.");
 				(void)identify_fully(Ind);
 				*used_up = FALSE;
 			}
@@ -2838,9 +2927,9 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 				dam = damroll(5, 3);
 				msg_format(Ind, "You are hit by a blessing for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, o_ptr ? "a Scroll of Blessing" : "a blessing", 0);
-			} else if (p_ptr->blessed_power <= 8) {
-				p_ptr->blessed_power = 8;
-				if (set_blessed(Ind, randint(12) + 6)) ident = TRUE; /* removed stacking */
+			} else if (p_ptr->blessed_power <= 6) {
+				p_ptr->blessed_power = 6;
+				if (set_blessed(Ind, randint(12) + 6, FALSE)) ident = TRUE; /* removed stacking */
 			}
 			break;
 
@@ -2850,9 +2939,9 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 				dam = damroll(10, 3);
 				msg_format(Ind, "You are hit by a blessing for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, o_ptr ? "a Scroll of Holy Chant" : "a chant", 0);
-			} else if (p_ptr->blessed_power <= 14) {
-				p_ptr->blessed_power = 14;
-				if (set_blessed(Ind, randint(24) + 12)) ident = TRUE; /* removed stacking */
+			} else if (p_ptr->blessed_power <= 10) {
+				p_ptr->blessed_power = 10;
+				if (set_blessed(Ind, randint(24) + 12, FALSE)) ident = TRUE; /* removed stacking */
 			}
 			break;
 
@@ -2862,9 +2951,9 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 				dam = damroll(30, 3);
 				msg_format(Ind, "You are hit by a blessing for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, o_ptr ? "a Scroll of Holy Prayer" : "a holy prayer", 0);
-			} else if (p_ptr->blessed_power <= 20) {
-				p_ptr->blessed_power = 20;
-				if (set_blessed(Ind, randint(48) + 24)) ident = TRUE; /* removed stacking */
+			} else if (p_ptr->blessed_power <= 16) {
+				p_ptr->blessed_power = 16;
+				if (set_blessed(Ind, randint(48) + 24, FALSE)) ident = TRUE; /* removed stacking */
 			}
 			break;
 
@@ -2877,13 +2966,18 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			break;
 
 		case SV_SCROLL_PROTECTION_FROM_EVIL:
+			/* C. Blue: In theory, it may be allowed for an evil creature to utilize the protective aura against other evil.
+				    Debatable, but the spell is actually allowed for mimics in evil/undead form for now. Just the scroll isn't.
+				    Also maybe very significant (from an interwebs pro D&D discussion, omitting source =p):
+				    "Any creature with an evil alignment, or the evil subtype regardless of alignment (such as a redeemed succubus), is warded against by the protection from evil spell."
+				    Which could indicate, that a mimic using 'just' an evil form should in turn not be affected negatively. */
 			if (p_ptr->suscep_good || p_ptr->suscep_life) {
 			//if (p_ptr->prace == RACE_VAMPIRE) {
 				dam = damroll(10, 3);
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, o_ptr ? "a Scroll of Protection from Evil" : "evil-repelling magic", 0);
 			} else {
-				if (set_protevil(Ind, randint(15) + 30)) ident = TRUE; /* removed stacking */
+				if (set_protevil(Ind, randint(15) + 30, FALSE)) ident = TRUE; /* removed stacking */
 			}
 			break;
 
@@ -2904,8 +2998,8 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 
 		case SV_SCROLL_DISPEL_UNDEAD:
 			if (dispel_undead(Ind, 100 + p_ptr->lev * 8)) ident = TRUE;
-			//if (p_ptr->suscep_life)
-			if (p_ptr->prace == RACE_VAMPIRE) {
+			if (p_ptr->suscep_life) {
+			//if (p_ptr->prace == RACE_VAMPIRE) {
 				dam = damroll(30, 3);
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, o_ptr ? "a Scroll of Dispel Undead" : "undead-dispelling magic", 0);
@@ -3113,10 +3207,34 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 					if ((d_ptr = wild->tower) && !(d_ptr->flags1 & DF1_UNLISTED) && !(!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) {
 						msg_print(Ind, "\377sYou learn that there is a tower at or next to that location, called:");
 						msg_format(Ind, "\377s  '\377u%s\377s'", get_dun_name(x, y, TRUE, d_ptr, 0, TRUE));
+						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
+ #if 0 /* learn about dungeon existance as character? */
+							d_ptr->known |= 0x1;
+							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE), d_ptr->type, x, y);
+							msg_format(Ind, "\377yYou discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far!", get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
+							/* Announce it to publicly */
+							l_printf("%s \\{B%s discovered a dungeon: %s\n", showdate(), p_ptr->name, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
+							msg_broadcast_format(Ind, "\374\377B%s discovered a dungeon: %s!", p_ptr->name, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
+ #else /* learn about dungeon just as player, having to go there and really find it in character-person?  */
+							s_printf("(%s) DUNHINT: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE), d_ptr->type, x, y);
+ #endif
+						}
 					}
 					if ((d_ptr = wild->dungeon) && !(d_ptr->flags1 & DF1_UNLISTED) && !(!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) {
 						msg_print(Ind, "\377sYou learn that there is a dungeon at or next to that location, called:");
 						msg_format(Ind, "\377s  '\377u%s\377s'", get_dun_name(x, y, FALSE, d_ptr, 0, TRUE));
+						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
+ #if 0 /* learn about dungeon existance as character? */
+							d_ptr->known |= 0x1;
+							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE), d_ptr->type, x, y);
+							msg_format(Ind, "\377yYou discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far!", get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
+							/* Announce it to publicly */
+							l_printf("%s \\{B%s discovered a dungeon: \n", showdate(), p_ptr->name, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
+							msg_broadcast_format(Ind, "\374\377B%s discovered a dungeon: %s!", p_ptr->name, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
+ #else /* learn about dungeon just as player, having to go there and really find it in character-person?  */
+							s_printf("(%s) DUNHINT: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE), d_ptr->type, x, y);
+ #endif
+						}
 					}
 				}
 			}
@@ -3198,7 +3316,7 @@ void do_cmd_read_scroll(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
 	//cave_type * c_ptr;
 
-	int	ident, lev;
+	int	ident, klev;
 	bool	used_up, keep = FALSE, flipped = FALSE;
 
 	object_type	*o_ptr;
@@ -3219,15 +3337,7 @@ void do_cmd_read_scroll(int Ind, int item) {
 	/* Restrict choices to scrolls */
 	item_tester_tval = TV_SCROLL;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else {
-		if (-item >= o_max)
-			return; /* item doesn't exist */
-
-		o_ptr = &o_list[0 - item];
-	}
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	if (no_lite(Ind) && !(p_ptr->ghost && (o_ptr->tval == TV_PARCHMENT) && (o_ptr->sval == SV_PARCHMENT_DEATH))) {
 		msg_print(Ind, "You have no light to read by.");
@@ -3288,6 +3398,8 @@ s_printf("PLAYER_STORE_CASH: %s +%d (%s).\n", p_ptr->name, value, o_ptr->note ? 
 		msg_format(Ind, "\375\377sYou acquire \377y%s\377s gold pieces.", val2);
  #endif
 
+		if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 1, o_ptr->custom_lua_usage));
+
 		p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 		p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
 
@@ -3328,9 +3440,11 @@ s_printf("PLAYER_STORE_CASH: %s +%d (%s).\n", p_ptr->name, value, o_ptr->note ? 
 	ident = FALSE;
 
 	/* Object level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	process_hooks(HOOK_READ, "d", Ind);
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 1, o_ptr->custom_lua_usage));
 
 	/* Assume the scroll will get used up */
 	used_up = TRUE;
@@ -3359,7 +3473,7 @@ s_printf("PLAYER_STORE_CASH: %s +%d (%s).\n", p_ptr->name, value, o_ptr->note ? 
 		/* An identification was made */
 		if (ident && !object_aware_p(Ind, o_ptr)) {
 			flipped = object_aware(Ind, o_ptr);
-			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+			if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 		}
 
 		/* The item was tried */
@@ -3603,14 +3717,15 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 
 	case SV_STAFF_HOLINESS:
 		if (dispel_undead(Ind, 200 + get_skill_scale(p_ptr, SKILL_DEVICE, 300))) ident = TRUE;
-		if (p_ptr->suscep_life) {
+		//if (p_ptr->suscep_life) {
+		if (p_ptr->suscep_good || p_ptr->suscep_life) { /* Added suscep_good check for the set_protevil() effect, also see SV_SCROLL_PROTECTION_FROM_EVIL notes! */
 			dam = damroll(50, 3);
 			msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 			take_hit(Ind, dam, msg ? "a staff of holiness" : "holy aura", 0);
 			ident = TRUE;
 		} else {
 			k = get_skill_scale(p_ptr, SKILL_DEVICE, 25);
-			if (set_protevil(Ind, randint(15) + 30 + k)) ident = TRUE; /* removed stacking */
+			if (set_protevil(Ind, randint(15) + 30 + k, FALSE)) ident = TRUE; /* removed stacking */
 			if (set_afraid(Ind, 0)) ident = TRUE;
 			/* Uh, this stuff, really? Rather set un-confused maybe. */
 			if (set_poisoned(Ind, 0, 0)) ident = TRUE;
@@ -3659,7 +3774,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
  */
 void do_cmd_use_staff(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
-	int lev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr);
+	int klev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr);
 	object_type *o_ptr;
 
 	/* Hack -- let staffs of identify get aborted */
@@ -3727,27 +3842,10 @@ void do_cmd_use_staff(int Ind, int item) {
 		return;
 	}
 
-	/* Restrict choices to wands */
+	/* Restrict choices to staves */
 	item_tester_tval = TV_STAFF;
 
-#ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
-		/* Sanity checks */
-		if (p_ptr->inventory[item / 100 - 1].tval != TV_SUBINVEN) {
-			msg_print(Ind, "ERROR: Not a subinventory.");
-			s_printf("ERROR: Not a subinventory. (%s, %i)\n", p_ptr->name, item / 100 - 1);
-			return;
-		}
-		if (p_ptr->inventory[item / 100 - 1].sval != SV_SI_MDEVP_WRAPPING) {
-			msg_print(Ind, "\377yAntistatic wrappings are the only eligible sub-containers for using staves.");
-			return;
-		}
-	}
-#endif
-
-	get_inven_item(Ind, item, &o_ptr);
-
-	if (-item >= o_max) {
+	if (!get_inven_item(Ind, item, &o_ptr)) {
 #ifdef ENABLE_XID_MDEV
  #ifndef XID_REPEAT
 		p_ptr->current_item = -1;
@@ -3756,6 +3854,16 @@ void do_cmd_use_staff(int Ind, int item) {
 #endif
 		return; /* item doesn't exist */
 	}
+
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		/* Sanity check */
+		if (p_ptr->inventory[item / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_MDEVP_WRAPPING) {
+			msg_print(Ind, "\377yAntistatic wrappings are the only eligible sub-containers for using staves.");
+			return;
+		}
+	}
+#endif
 
 	if (check_guard_inscription(o_ptr->note, 'u')) {
 		msg_print(Ind, "The item's inscription prevents it.");
@@ -3819,7 +3927,13 @@ void do_cmd_use_staff(int Ind, int item) {
 	/* Not identified yet */
 	ident = FALSE;
 
-	if (!activate_magic_device(Ind, o_ptr)) {
+	if (!activate_magic_device(Ind, o_ptr, is_magic_device(o_ptr->tval) && item == INVEN_WIELD)) {
+#ifdef ENABLE_XID_SPELL
+ #ifdef XID_REPEAT
+		object_type *i_ptr;
+ #endif
+#endif
+
 		msg_format(Ind, "\377%cYou failed to use the staff properly." , COLOUR_MD_FAIL);
 #ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
@@ -3827,7 +3941,7 @@ void do_cmd_use_staff(int Ind, int item) {
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
 		/* hack: repeat ID-spell attempt until item is successfully identified */
-		if (rep && !object_known_p(Ind, &p_ptr->inventory[p_ptr->current_item])) {
+		if (rep && get_inven_item(Ind, p_ptr->current_item, i_ptr) && !object_known_p(Ind, i_ptr)) {
 			sockbuf_t *conn_q = get_conn_q(Ind);
 
 			p_ptr->command_rep = PKT_USE;
@@ -3871,7 +3985,7 @@ void do_cmd_use_staff(int Ind, int item) {
 
 #ifdef ENABLE_SUBINVEN
 		/* Redraw subinven item */
-		if (item >= 100) display_subinven_aux(Ind, item / 100 - 1, item % 100);
+		if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
 #endif
 
 #ifdef ENABLE_XID_MDEV
@@ -3882,6 +3996,8 @@ void do_cmd_use_staff(int Ind, int item) {
 #endif
 		return;
 	}
+
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 5, o_ptr->custom_lua_usage));
 
 	ident = use_staff(Ind, o_ptr->sval, rad, TRUE, &use_charge);
 #ifdef ENABLE_XID_MDEV
@@ -3894,12 +4010,13 @@ void do_cmd_use_staff(int Ind, int item) {
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 
 	/* Extract the item level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	/* An identification was made */
 	if (ident && !object_aware_p(Ind, o_ptr)) {
 		flipped = object_aware(Ind, o_ptr);
-		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 	}
 
 	/* Tried the item */
@@ -3915,9 +4032,17 @@ void do_cmd_use_staff(int Ind, int item) {
 	stop_shooting_till_kill(Ind);
 #endif
 
+	//WIELD_DEVICE: (re-use 'rad')
+	rad = (k_info[o_ptr->k_idx].level + 20);
+	rad = ((rad * rad * rad) / 9000 + 3) / 4;
+	if (item == INVEN_WIELD && !rand_int(5) && p_ptr->cmp >= rad) {
+		p_ptr->cmp -= rad;
+		p_ptr->redraw |= PR_MANA;
+		use_charge = FALSE;
+	}
+
 	/* Hack -- some uses are "free" */
 	if (!use_charge) return;
-
 
 	/* Use a single charge */
 	o_ptr->pval--;
@@ -3952,7 +4077,7 @@ void do_cmd_use_staff(int Ind, int item) {
 
 #ifdef ENABLE_SUBINVEN
 	/* Redraw subinven item */
-	if (item >= 100) display_subinven_aux(Ind, item / 100 - 1, item % 100);
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
 #endif
 }
 
@@ -3979,22 +4104,14 @@ void do_cmd_use_staff(int Ind, int item) {
  */
 void do_cmd_aim_wand(int Ind, int item, int dir) {
 	player_type *p_ptr = Players[Ind];
-	int lev, ident, sval;
+	int klev, ident, sval;
 	object_type *o_ptr;
 	bool flipped = FALSE;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else {
-		if (-item >= o_max) {
-			p_ptr->shooting_till_kill = FALSE;
-			return; /* item doesn't exist */
-		}
-		o_ptr = &o_list[0 - item];
-	}
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+
 	if (o_ptr->tval != TV_WAND) {
-//(may happen on death, from macro spam)		msg_print(Ind, "SERVER ERROR: Tried to use non-wand!");
+		//(may happen on death, from macro spam)		msg_print(Ind, "SERVER ERROR: Tried to use non-wand!");
 		p_ptr->shooting_till_kill = FALSE;
 		return;
 	}
@@ -4005,7 +4122,7 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 		p_ptr->shooty_till_kill = TRUE; /* so for now we are just ATTEMPTING to shoot till kill (assumed we have a monster for target) */
 	}
 	if (p_ptr->shooty_till_kill) {
-		if (dir == 5 && check_guard_inscription(o_ptr->note, 'K')) {
+		if (dir == 5 && check_guard_inscription(o_ptr->note, 'F')) {
 			/* We lost our target? (monster dead?) */
 			if (target_okay(Ind)) {
 				/* To continue shooting_till_kill, check if spell requires clean LOS to target
@@ -4110,7 +4227,7 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 		return;
 	}
 
-	if (!activate_magic_device(Ind, o_ptr)) {
+	if (!activate_magic_device(Ind, o_ptr, is_magic_device(o_ptr->tval) && item == INVEN_WIELD)) {
 		msg_format(Ind, "\377%cYou failed to use the wand properly." , COLOUR_MD_FAIL);
 #ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
@@ -4159,6 +4276,7 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 		return;
 	}
 
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 4, o_ptr->custom_lua_usage));
 
 
 	/* XXX Hack -- Extract the "sval" effect */
@@ -4385,12 +4503,13 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 
 	/* Extract the item level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	/* Apply identification */
 	if (ident && !object_aware_p(Ind, o_ptr)) {
 		flipped = object_aware(Ind, o_ptr);
-		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 	}
 
 	/* Mark it as tried */
@@ -4398,17 +4517,6 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
-
-
-	/* Use a single charge */
-	o_ptr->pval--;
-
-	/* Describe the charges in the pack */
-	if (item >= 0)
-		inven_item_charges(Ind, item);
-	/* Describe the charges on the floor */
-	else
-		floor_item_charges(0 - item);
 
 	if (p_ptr->shooty_till_kill) {
 #if 0
@@ -4432,6 +4540,25 @@ void do_cmd_aim_wand(int Ind, int item, int dir) {
 		p_ptr->shoot_till_kill_rcraft = FALSE;
 		p_ptr->shoot_till_kill_rod = 0;
 	}
+
+	//WIELD_DEVICE: (re-use 'klev')
+	klev = (k_info[o_ptr->k_idx].level + 20);
+	klev = ((klev * klev * klev) / 9000 + 3) / 4;
+	if (item == INVEN_WIELD && !rand_int(5) && p_ptr->cmp >= klev) {
+		p_ptr->cmp -= klev;
+		p_ptr->redraw |= PR_MANA;
+		return; // 'use_charge = FALSE'
+	}
+
+	/* Use a single charge */
+	o_ptr->pval--;
+
+	/* Describe the charges in the pack */
+	if (item >= 0)
+		inven_item_charges(Ind, item);
+	/* Describe the charges on the floor */
+	else
+		floor_item_charges(0 - item);
 }
 
 
@@ -4476,7 +4603,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
 		ident = TRUE;
 		//o_ptr->pval += 60;
 		/* up to a 50% faster with maxed MD - the_sandman */
-		o_ptr->pval += 60 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
+		o_ptr->pval += 75 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
 		break;
 
 	case SV_ROD_ILLUMINATION:
@@ -4577,7 +4704,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
  */
 void do_cmd_zap_rod(int Ind, int item, int dir) {
 	player_type *p_ptr = Players[Ind];
-	int lev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
+	int klev, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
 	object_type *o_ptr;
 	u32b f4, dummy;
 #ifdef NEW_MDEV_STACKING
@@ -4620,32 +4747,24 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 	/* Restrict choices to rods */
 	item_tester_tval = TV_ROD;
 
-	get_inven_item(Ind, item, &o_ptr);
-
-#ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
-		/* Sanity checks */
-		if (p_ptr->inventory[item / 100 - 1].tval != TV_SUBINVEN) {
-			msg_print(Ind, "ERROR: Not a subinventory.");
-			s_printf("ERROR: Not a subinventory. (%s, %i)\n", p_ptr->name, item / 100 - 1);
-			return;
-		}
-		if (p_ptr->inventory[item / 100 - 1].sval != SV_SI_MDEVP_WRAPPING) {
-			msg_print(Ind, "\377yAntistatic wrappings are the only eligible sub-containers for zapping rods.");
-			return;
-		}
-	}
-#endif
-
-	if (-item >= o_max) {
+	if (!get_inven_item(Ind, item, &o_ptr)) {
 #ifdef ENABLE_XID_MDEV
  #ifndef XID_REPEAT
 		p_ptr->current_item = -1;
 		XID_paranoia(p_ptr);
  #endif
 #endif
-		return; /* item doesn't exist */
+		return;
 	}
+
+#ifdef ENABLE_SUBINVEN
+	if (item >= SUBINVEN_INVEN_MUL) {
+		if (p_ptr->inventory[item / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_MDEVP_WRAPPING) {
+			msg_print(Ind, "\377yAntistatic wrappings are the only eligible sub-containers for zapping rods.");
+			return;
+		}
+	}
+#endif
 
 	if (check_guard_inscription(o_ptr->note, 'z')) {
 		msg_print(Ind, "The item's inscription prevents it.");
@@ -4748,7 +4867,13 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 		return;
 	}
 
-	if (!activate_magic_device(Ind, o_ptr)) {
+	if (!activate_magic_device(Ind, o_ptr, is_magic_device(o_ptr->tval) && item == INVEN_WIELD)) {
+#ifdef ENABLE_XID_SPELL
+ #ifdef XID_REPEAT
+		object_type *i_ptr;
+ #endif
+#endif
+
 		msg_format(Ind, "\377%cYou failed to use the rod properly." , COLOUR_MD_FAIL);
 #ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
@@ -4757,7 +4882,7 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
 		/* hack: repeat ID-spell attempt until item is successfully identified */
-		if (rep && !object_known_p(Ind, &p_ptr->inventory[p_ptr->current_item])) {
+		if (rep && get_inven_item(Ind, p_ptr->current_item, i_ptr) && !object_known_p(Ind, i_ptr)) {
 			sockbuf_t *conn_q = get_conn_q(Ind);
 
 			p_ptr->command_rep = PKT_ZAP;
@@ -4797,6 +4922,7 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 	}
 
 	process_hooks(HOOK_ZAP, "d", Ind);
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 6, o_ptr->custom_lua_usage));
 
 #ifdef NEW_MDEV_STACKING
 	pval_old = o_ptr->pval;
@@ -4825,12 +4951,13 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 
 	/* Extract the item level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	/* Successfully determined the object function */
 	if (ident && !object_aware_p(Ind, o_ptr)) {
 		flipped = object_aware(Ind, o_ptr);
-		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 	}
 
 	/* Tried the object */
@@ -4838,6 +4965,15 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
+
+	//WIELD_DEVICE: (re-use 'energy')
+	energy = (k_info[o_ptr->k_idx].level + 20);
+	energy = ((energy * energy * energy) / 9000 + 3) / 4;
+	if (item == INVEN_WIELD && !rand_int(5) && p_ptr->cmp >= energy) {
+		p_ptr->cmp -= energy;
+		p_ptr->redraw |= PR_MANA;
+		use_charge = FALSE;
+	}
 
 	/* Hack -- deal with cancelled zap */
 	if (!use_charge) {
@@ -4873,7 +5009,7 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
 
 #ifdef ENABLE_SUBINVEN
 	/* Redraw subinven item */
-	if (item >= 100) display_subinven_aux(Ind, item / 100 - 1, item % 100);
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
 #endif
 }
 
@@ -4889,7 +5025,7 @@ void do_cmd_zap_rod(int Ind, int item, int dir) {
  */
 void do_cmd_zap_rod_dir(int Ind, int dir) {
 	player_type *p_ptr = Players[Ind];
-	int lev, item, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
+	int klev, item, ident, rad = DEFAULT_RADIUS_DEV(p_ptr), energy;
 	int i, dam;
 	object_type *o_ptr;
 	u32b f4, dummy;
@@ -4902,14 +5038,12 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	item = p_ptr->current_rod;
 
 #ifdef ENABLE_SUBINVEN
-	/* Paranoia - no directional rods from within bags */
-	if (item >= 100) return;
+	/* Paranoia - zapping directional rods from within bags is not allowed! */
+	if (item >= SUBINVEN_INVEN_MUL) return;
 #endif
-	get_inven_item(Ind, item, &o_ptr);
-
-	if (-item >= o_max) {
+	if (!get_inven_item(Ind, item, &o_ptr)) {
 		p_ptr->shooting_till_kill = FALSE;
-		return; /* item doesn't exist */
+		return;
 	}
 
 	if (o_ptr->tval != TV_ROD) {
@@ -4924,7 +5058,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 		p_ptr->shooty_till_kill = TRUE; /* so for now we are just ATTEMPTING to shoot till kill (assumed we have a monster for target) */
 	}
 	if (p_ptr->shooty_till_kill) {
-		if (dir == 5 && check_guard_inscription(o_ptr->note, 'K')) {
+		if (dir == 5 && check_guard_inscription(o_ptr->note, 'F')) {
 			/* We lost our target? (monster dead?) */
 			if (target_okay(Ind)) {
 				/* To continue shooting_till_kill, check if spell requires clean LOS to target
@@ -5012,7 +5146,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	}
 
 	/* Roll for usage */
-	if (!activate_magic_device(Ind, o_ptr)) {
+	if (!activate_magic_device(Ind, o_ptr, is_magic_device(o_ptr->tval) && item == INVEN_WIELD)) {
 		msg_format(Ind, "\377%cYou failed to use the rod properly." , COLOUR_MD_FAIL);
 #ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
@@ -5050,6 +5184,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	}
 
 	process_hooks(HOOK_ZAP, "d", Ind);
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 6, o_ptr->custom_lua_usage));
 
 #ifdef NEW_MDEV_STACKING
 	pval_old = o_ptr->pval;
@@ -5204,7 +5339,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 		set_recall(Ind, rand_int(20) + 15, o_ptr);
 		ident = TRUE;
 		/* up to a 50% faster with maxed MD - the_sandman */
-		o_ptr->pval += 60 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
+		o_ptr->pval += 75 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
 		break;
 
 	case SV_ROD_ILLUMINATION:
@@ -5310,12 +5445,13 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 
 	/* Extract the item level */
-	lev = k_info[o_ptr->k_idx].level;
+	klev = k_info[o_ptr->k_idx].level;
+	if (klev == 127) klev = 0; /* non-findable flavour items shouldn't give excessive XP (level 127 -> clev1->5). Actuall give 0, so fireworks can be used in town by IDDC chars for example. */
 
 	/* Successfully determined the object function */
 	if (ident && !object_aware_p(Ind, o_ptr)) {
 		flipped = object_aware(Ind, o_ptr);
-		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (lev + (p_ptr->lev >> 1)) / p_ptr->lev);
+		if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (klev + (p_ptr->lev >> 1)) / p_ptr->lev);
 	}
 
 	/* Tried the object */
@@ -5323,6 +5459,15 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
+
+	//WIELD_DEVICE: (re-use 'energy')
+	energy = (k_info[o_ptr->k_idx].level + 20);
+	energy = ((energy * energy * energy) / 9000 + 3) / 4;
+	if (item == INVEN_WIELD && !rand_int(5) && p_ptr->cmp >= energy) {
+		p_ptr->cmp -= energy;
+		p_ptr->redraw |= PR_MANA;
+		use_charge = FALSE;
+	}
 
 	/* Hack -- deal with cancelled zap */
 	if (!use_charge) {
@@ -5387,6 +5532,9 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
  */
 static bool item_tester_hook_activate(int Ind, object_type *o_ptr) {
 	u32b f3, dummy;
+
+	/* Can always open gift wrappings =_= */
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) return(TRUE);
 
 	/* Not known */
 	if (!object_known_p(Ind, o_ptr)) return(FALSE);
@@ -5505,7 +5653,13 @@ static bool brand_bolts(int Ind) {
 /* hard-coded same as the 2 functions below, do_cmd_activate() and do_cmd_activate_dir().
    Returns TRUE if item is activatable, for sending the client proper targetting info. - C. Blue */
 bool activation_requires_direction(object_type *o_ptr) {
-	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT) return(o_ptr->xtra3 & 0x00C0);
+	if (o_ptr->tval == TV_SPECIAL) {
+		if (o_ptr->sval == SV_CUSTOM_OBJECT) return(o_ptr->xtra3 & 0x00C0);
+		/* Ensure directionally activatable true arts wrapped as gifts can be unwrapped still: */
+		//if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+		//...simply FALSE for all non-custom TV_SPECIAL objects for now:
+		return(FALSE);
+	}
 
 	/* Art DSMs are handled below */
 	if (o_ptr->tval == TV_DRAG_ARMOR && !o_ptr->name1)
@@ -5550,6 +5704,7 @@ bool activation_requires_direction(object_type *o_ptr) {
 		case ART_HELLFIRE:
 		case ART_HAVOC:
 		case ART_WARPSPEAR:
+		case ART_ANTIRIAD:
 			return(TRUE);
 		}
 	}
@@ -5628,21 +5783,17 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		set_tim_wraith(Ind, 0);
 #endif	// 0
 
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
+	if (item >= SUBINVEN_INVEN_MUL) {
 		/* For now, only allow demo-alch from here */
 		if (o_ptr->tval != TV_CHEMICAL) {
 			msg_print(Ind, "In a container you can only activate demolition-related chemicals.");
 			return;
 		}
-		/* Sanity checks */
-		if (p_ptr->inventory[item / 100 - 1].tval != TV_SUBINVEN) {
-			msg_print(Ind, "ERROR: Not a subinventory.");
-			s_printf("ERROR: Not a subinventory. (%s, %i)\n", p_ptr->name, item / 100 - 1);
-			return;
-		}
-		if (p_ptr->inventory[item / 100 - 1].sval != SV_SI_SATCHEL) {
+		/* Sanity check */
+		if (p_ptr->inventory[item / SUBINVEN_INVEN_MUL - 1].sval != SV_SI_SATCHEL) {
 			msg_print(Ind, "\377yAlchemy Satchels are the only eligible sub-containers for activating chemicals.");
 			return;
 		}
@@ -5651,9 +5802,6 @@ void do_cmd_activate(int Ind, int item, int dir) {
 
 	/* dual-wield hack: cannot activate items if armour is too heavy.
 	   Spectral weapons will not drain life either ;). */
-#ifdef ENABLE_SUBINVEN
-	if (item < 100)
-#endif
 	if (item == INVEN_ARM && o_ptr->tval != TV_SHIELD && p_ptr->rogue_heavyarmor) {
 		msg_format(Ind, "\377oYour armour is too heavy for dual-wielding, preventing activation of your secondary weapon.");
 #ifdef ENABLE_XID_MDEV
@@ -5676,6 +5824,8 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	    && !(o_ptr->tval == TV_TOOL && o_ptr->sval == SV_TOOL_GRINDER)
 #endif
 	    && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && !(o_ptr->xtra3 & 0x0050))
+	    && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+	    && !(o_ptr->tval == TV_JUNK && (o_ptr->sval == SV_GLASS_SHARD || o_ptr->sval == SV_ENERGY_CELL))
 	    ) {
 		if (p_ptr->anti_magic) {
 			msg_format(Ind, "\377%cYour anti-magic shell disrupts your attempt.", COLOUR_AM_OWN);
@@ -5713,7 +5863,11 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	}
 
 	/* If the item can be equipped, it MUST be equipped to be activated */
-	if ((item < INVEN_WIELD) && wearable_p(o_ptr)) {
+	if ((item < INVEN_WIELD
+#ifdef ENABLE_SUBINVEN
+	    || item >= SUBINVEN_INVEN_MUL
+#endif
+	    ) && wearable_p(o_ptr)) {
 		msg_print(Ind, "You must be using this item to activate it.");
 #ifdef ENABLE_XID_MDEV
  #ifndef XID_REPEAT
@@ -5758,7 +5912,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		if (o_ptr->tval == TV_BOTTLE) {
 #ifdef ENABLE_SUBINV
 			/* Cannot fill empty bottles that are stored inside a chest.. */
-			if (item >= 100) {
+			if (item >= SUBINVEN_INVEN_MUL) {
 				msg_print(Ind, "You cannot fill bottles that are stowed away.");
 				return;
 			}
@@ -5779,8 +5933,9 @@ void do_cmd_activate(int Ind, int item, int dir) {
 
 	/* Roll for usage */
 	if (o_ptr->tval == TV_BOOK /* hack: blank books can always be 'activated' */
+	    || ((o_ptr->tval == TV_JUNK || o_ptr->tval == TV_SPECIAL) && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
 #ifdef ENABLE_DEMOLITIONIST
-	/* Alchemy has nothing to do with magic device skills, and especially shouldn't set command_rep or we may run into weirdness!: */
+	    /* Alchemy has nothing to do with magic device skills, and especially shouldn't set command_rep or we may run into weirdness!: */
 	    || o_ptr->tval == TV_CHEMICAL
 	    || o_ptr->tval == TV_CHARGE
 	    || (o_ptr->tval == TV_TOOL && o_ptr->sval == SV_TOOL_GRINDER)
@@ -5797,7 +5952,13 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			}
 		}
 #endif
-	} else if (!activate_magic_device(Ind, o_ptr)) {
+	} else if (!activate_magic_device(Ind, o_ptr, FALSE)) {
+#ifdef ENABLE_XID_SPELL
+ #ifdef XID_REPEAT
+		object_type *i_ptr;
+ #endif
+#endif
+
 		msg_format(Ind, "\377%cYou failed to activate it properly.", COLOUR_MD_FAIL);
 #ifdef USE_SOUND_2010
 		if (check_guard_inscription(o_ptr->note, 'B')) sound(Ind, "bell", NULL, SFX_TYPE_NO_OVERLAP, FALSE);
@@ -5806,7 +5967,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 #ifdef ENABLE_XID_MDEV
  #ifdef XID_REPEAT
 		/* hack: repeat ID-spell attempt until item is successfully identified */
-		if (rep && !object_known_p(Ind, &p_ptr->inventory[p_ptr->current_item])) {
+		if (rep && get_inven_item(Ind, p_ptr->current_item, i_ptr) && !object_known_p(Ind, i_ptr)) {
 			sockbuf_t *conn_q = get_conn_q(Ind);
 
 			p_ptr->command_rep = PKT_ACTIVATE;
@@ -5842,17 +6003,19 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	}
 
 	process_hooks(HOOK_ACTIVATE, "d", Ind);
-
-#ifdef ENABLE_XID_MDEV
- #ifndef XID_REPEAT
-		p_ptr->current_item = -1;
-		XID_paranoia(p_ptr);
- #endif
-#endif
+	if (o_ptr->custom_lua_usage) exec_lua(0, format("custom_object_usage(%d,%d,%d,%d,%d)", Ind, 0, item, 0, o_ptr->custom_lua_usage));
 
 	switch (o_ptr->tval) {
 	case TV_RUNE: msg_print(Ind, "The rune glows with power!"); break;
 	case TV_BOOK: msg_print(Ind, "You open the book to add a new spell.."); break;
+	case TV_JUNK:
+		if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) msg_print(Ind, "You prepare the gift wrapping...");
+		else msg_print(Ind, "You activate it...");
+		break;
+	case TV_SPECIAL:
+		if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) msg_print(Ind, "You open the gift wrapping...");
+		else msg_print(Ind, "You activate it...");
+		break;
 #ifdef ENABLE_DEMOLITIONIST
 	case TV_CHEMICAL: case TV_CHARGE: break;
 	case TV_TOOL: if (o_ptr->sval == SV_TOOL_GRINDER) break; //else: fall through
@@ -5888,8 +6051,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	//(could be moved down to 'base items' for less efficiency but better sort order)
 
 	if (o_ptr->tval == TV_RUNE) {
-		p_ptr->current_activation = item;
-		activate_rune(Ind);
+		activate_rune(Ind, item);
 		return;
 	}
 
@@ -5982,6 +6144,25 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		return;
 	}
 
+	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_ENERGY_CELL) {
+		recharge(Ind, 10000 + get_skill_scale(p_ptr, SKILL_DEVICE, 100)); //10000: Hack, marker that it's not a normal recharging
+		p_ptr->using_up_item = item;
+		return;
+	}
+
+	/* Gift wrappings */
+	if (o_ptr->tval == TV_JUNK && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) {
+		clear_current(Ind);
+		p_ptr->current_activation = item;
+		get_item(Ind, ITH_NONE);
+		return;
+	}
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) {
+		clear_current(Ind);
+		unwrap_gift(Ind, item);
+		return;
+	}
+
 	/* add a single spell to the player's customizable tome */
 	if (o_ptr->tval == TV_BOOK && is_custom_tome(o_ptr->sval)) {
 		/* free space left? */
@@ -6057,11 +6238,11 @@ void do_cmd_activate(int Ind, int item, int dir) {
 
 			/* Place charcoal into inventory */
  #ifdef ENABLE_SUBINVEN
-			if (item >= 100) {
+			if (item >= SUBINVEN_INVEN_MUL) {
 				i = inven_carry(Ind, ox_ptr);
 				/* Automatically move it into the same bag if possible */
 				//do_cmd_subinven_move(Ind, islot);
-				(void)subinven_move_aux(Ind, i, item / 100 - 1);
+				(void)subinven_move_aux(Ind, i, item / SUBINVEN_INVEN_MUL - 1, MAX_STACK_SIZE - 1);
 				return;
 			}
  #endif
@@ -6200,7 +6381,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			msg_print(Ind, "Your battle axe radiates deep purple...");
 			hp_player(Ind, damroll(4, 8 + get_skill_scale(p_ptr, SKILL_DEVICE, 20)), FALSE, FALSE);
 			if (p_ptr->cut < CUT_MORTAL_WOUND) (void)set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker);
-			o_ptr->recharging = rand_int(3) + 3 - get_skill_scale(p_ptr, SKILL_DEVICE, 2);//o_o
+			o_ptr->recharging = randint(3) + 2 - get_skill_scale(p_ptr, SKILL_DEVICE, 2);//o_o
 			break;
 		case ART_CUBRAGOL:
 			(void)brand_bolts(Ind);
@@ -6306,7 +6487,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_HOLHENNETH:
 			msg_print(Ind, "An image forms in your mind...");
 			detection(Ind, DEFAULT_RADIUS * 2);
-			o_ptr->recharging = rand_int(25) + 55 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
+			o_ptr->recharging = randint(25) + 55 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
 			break;
 		case ART_GONDOR:
 			msg_print(Ind, "\377GYou feel a warm tingling inside...");
@@ -6324,7 +6505,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			msg_print(Ind, "Your armour glows in many colours...");
 			(void)set_shero(Ind, randint(50) + 50); /* removed stacking */
 			//p_ptr->blessed_power = 20;
-			//(void)set_blessed(Ind, randint(50) + 50); /* removed stacking */
+			//(void)set_blessed(Ind, randint(50) + 50, FALSE); /* removed stacking */
 			(void)set_oppose_acid(Ind, randint(50) + 50); /* removed stacking */
 			(void)set_oppose_elec(Ind, randint(50) + 50);
 			(void)set_oppose_fire(Ind, randint(50) + 50);
@@ -6341,7 +6522,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				take_hit(Ind, dam, "The Phial of Galadriel", 0);
 			}
 			if (p_ptr->suscep_lite && !p_ptr->resist_lite && !p_ptr->resist_blind) (void)set_blind(Ind, p_ptr->blind + 5 + randint(10));
-			o_ptr->recharging = rand_int(10) + 10 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
+			o_ptr->recharging = randint(10) + 10 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_ELENDIL:
 			msg_print(Ind, "The star shines brightly...");
@@ -6353,14 +6534,14 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			}
 			if (p_ptr->suscep_lite && !p_ptr->resist_lite && !p_ptr->resist_blind) (void)set_blind(Ind, p_ptr->blind + 5 + randint(10));
 			map_area(Ind);
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
 			break;
 		case ART_THRAIN:
 			msg_print(Ind, "The stone glows a deep green...");
 			wiz_lite(Ind);
 			(void)detect_sdoor(Ind, DEFAULT_RADIUS * 2);
 			(void)detect_trap(Ind, DEFAULT_RADIUS * 2);
-			o_ptr->recharging = rand_int(150) + 1000 - get_skill_scale(p_ptr, SKILL_DEVICE, 800);
+			o_ptr->recharging = randint(150) + 1000 - get_skill_scale(p_ptr, SKILL_DEVICE, 800);
 			break;
 		case ART_INGWE:
 			msg_print(Ind, "An aura of good floods the area...");
@@ -6370,23 +6551,23 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, "The Amulet of Ingwe", 0);
 			}
-			o_ptr->recharging = rand_int(150) + 300 - get_skill_scale(p_ptr, SKILL_DEVICE, 250);
+			o_ptr->recharging = randint(150) + 300 - get_skill_scale(p_ptr, SKILL_DEVICE, 250);
 			break;
 		case ART_CARLAMMAS:
 			msg_print(Ind, "The amulet lets out a shrill wail...");
-			if (p_ptr->suscep_good) {
+			if (p_ptr->suscep_good) { /* No dispel, just PfE, actually. See SV_SCROLL_PROTECTION_FROM_EVIL notes, might be debatable. */
 				dam = damroll(10, 3);
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, "The Amulet of Carlammas", 0);
 			} else {
-				(void)set_protevil(Ind, randint(15) + 30); /* removed stacking */
+				(void)set_protevil(Ind, randint(15) + 30, FALSE); /* removed stacking */
 			}
-			o_ptr->recharging = rand_int(125) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 200);
+			o_ptr->recharging = randint(125) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 200);
 			break;
 		case ART_TULKAS:
 			msg_print(Ind, "The ring glows brightly...");
 			(void)set_fast(Ind, randint(50) + 75, 15); /* removed stacking */
-			o_ptr->recharging = rand_int(100) + 150 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
+			o_ptr->recharging = randint(100) + 150 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			break;
 		case ART_NARYA:
 			msg_print(Ind, "The ring glows deep red...");
@@ -6411,20 +6592,20 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_GILGALAD:
 			for (k = 1; k < 10; k++)
 				if (k - 5) fire_beam(Ind, GF_LITE, k, 75 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), " emits a beam of light for");
-			o_ptr->recharging = rand_int(50) + 75 - get_skill_scale(p_ptr, SKILL_DEVICE, 60);
+			o_ptr->recharging = randint(50) + 75 - get_skill_scale(p_ptr, SKILL_DEVICE, 60);
 			break;
 		case ART_CELEBRIMBOR:
 			set_tim_esp(Ind, p_ptr->tim_esp + randint(20) + 20);
 			 /* not removed stacking */
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
 			break;
 		case ART_SKULLCLEAVER:
 			destroy_area(&p_ptr->wpos, p_ptr->py, p_ptr->px, 15, TRUE, FEAT_FLOOR, 120);
-			o_ptr->recharging = rand_int(200) + 200 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
+			o_ptr->recharging = randint(200) + 200 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			break;
 		case ART_HARADRIM:
 			set_shero(Ind, randint(25) + 25); /* removed stacking */
-			o_ptr->recharging = rand_int(40) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 35);
+			o_ptr->recharging = randint(40) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 35);
 			break;
 		case ART_FUNDIN:
 			dispel_evil(Ind, p_ptr->lev * 8 + get_skill_scale(p_ptr, SKILL_DEVICE, 400));
@@ -6433,7 +6614,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, "the Ball-and-Chain of Fundin Bluecloak", 0);
 			}
-			o_ptr->recharging = rand_int(50) + 100 - get_skill_scale(p_ptr, SKILL_DEVICE, 80);
+			o_ptr->recharging = randint(50) + 100 - get_skill_scale(p_ptr, SKILL_DEVICE, 80);
 			break;
 		case ART_NAIN:
 		case ART_EOL:
@@ -6471,9 +6652,9 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				(((r_ptr->flags1 & (RF1_DROP_4D2)) ? 8 : 0) +
 				 ((r_ptr->flags1 & (RF1_DROP_3D2)) ? 6 : 0) +
 				 ((r_ptr->flags1 & (RF1_DROP_2D2)) ? 4 : 0) +
-				 ((r_ptr->flags0 & (RF0_DROP_2))   ? 2 : 0) +
+				 ((r_ptr->flagsA & (RFA_DROP_2))   ? 2 : 0) +
 				 ((r_ptr->flags1 & (RF1_DROP_1D2)) ? 2 : 0) +
-				 ((r_ptr->flags0 & (RF0_DROP_1))   ? 1 : 0) +
+				 ((r_ptr->flagsA & (RFA_DROP_1))   ? 1 : 0) +
 				 ((r_ptr->flags1 & (RF1_DROP_90))  ? 1 : 0) +
 				 ((r_ptr->flags1 & (RF1_DROP_60))  ? 1 : 0));
 
@@ -6497,10 +6678,10 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			r_ptr->r_flags9 = r_ptr->flags9;
  #endif
 
-			o_ptr->recharging = rand_int(200) + 500 - get_skill_scale(p_ptr, SKILL_DEVICE, 350);
+			o_ptr->recharging = randint(200) + 500 - get_skill_scale(p_ptr, SKILL_DEVICE, 350);
 #else
 			probing(Ind);
-			o_ptr->recharging = rand_int(200) + 300 - get_skill_scale(p_ptr, SKILL_DEVICE, 250);
+			o_ptr->recharging = randint(200) + 300 - get_skill_scale(p_ptr, SKILL_DEVICE, 250);
 #endif
 			break;
 		case ART_KNOWLEDGE:
@@ -6508,7 +6689,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			msg_print(Ind, "\377RYou hear horrible, otherworldy sounds of the dead in your head..");
 			take_sanity_hit(Ind, damroll(2, 7), "the sounds of the dead", 0);
 			//take_hit(Ind, damroll(10, 7), "the sounds of the dead", 0);
-			o_ptr->recharging = rand_int(100) + 200 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
+			o_ptr->recharging = randint(100) + 200 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			break;
 		case ART_UNDEATH:
 			msg_print(Ind, "The phial wells with dark light...");
@@ -6524,17 +6705,17 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				(void)dec_stat(Ind, A_CHR, 25, STAT_DEC_PERMANENT);
 				(void)dec_stat(Ind, A_INT, 25, STAT_DEC_PERMANENT);
 			}
-			o_ptr->recharging = rand_int(10) + 10 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
+			o_ptr->recharging = randint(10) + 10 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_HIMRING:
-			if (p_ptr->suscep_good) {
+			if (p_ptr->suscep_good) { /* No dispel, just PfE, actually. See SV_SCROLL_PROTECTION_FROM_EVIL notes, might be debatable. */
 				dam = damroll(10, 3);
 				msg_format(Ind, "You are hit by dispelling powers for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, "The Hard Leather Armour of Himring", 0);
 			} else {
-				(void)set_protevil(Ind, randint(15) + 30); /* removed stacking */
+				(void)set_protevil(Ind, randint(15) + 30, FALSE); /* removed stacking */
 			}
-			o_ptr->recharging = rand_int(125) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
+			o_ptr->recharging = randint(125) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
 			break;
 		case ART_FLAR:
 #if 0
@@ -6563,7 +6744,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_BARAHIR:
 			msg_print(Ind, "You exterminate small life.");
 			(void)dispel_monsters(Ind, 100 + get_skill_scale(p_ptr, SKILL_DEVICE, 300));
-			o_ptr->recharging = rand_int(55) + 55 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
+			o_ptr->recharging = randint(55) + 55 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
 			break;
 		/* The Stone of Lore is perilous, for the sake of game balance. */
 		case ART_STONE_LORE:
@@ -6731,14 +6912,14 @@ void do_cmd_activate(int Ind, int item, int dir) {
 #endif
 			o_ptr->recharging = 1000 - get_skill_scale(p_ptr, SKILL_DEVICE, 500);
 			break;
+		case ART_PALANTIR_ORTHANC:
 		case ART_PALANTIR_ITHIL:
-		case ART_PALANTIR:
 			msg_print(Ind, "The stone glows a deep green...");
 			wiz_lite_extra(Ind);
 			(void)detect_trap(Ind, DEFAULT_RADIUS * 2);
 			(void)detect_sdoor(Ind, DEFAULT_RADIUS * 2);
 			//(void)detect_stair(Ind);
-			o_ptr->recharging = rand_int(150) + 1000 - get_skill_scale(p_ptr, SKILL_DEVICE, 800);
+			o_ptr->recharging = randint(150) + 1000 - get_skill_scale(p_ptr, SKILL_DEVICE, 800);
 			break;
 #if 0	// Instruments
 		case ART_ROBINTON:
@@ -6795,7 +6976,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_HURIN:
 			(void)set_fast(Ind, randint(50) + 50, 10); /* removed stacking */
 			set_shero(Ind, randint(50) + 50); /* removed stacking */
-			o_ptr->recharging = rand_int(75) + 175 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
+			o_ptr->recharging = randint(75) + 175 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			break;
 		case ART_AXE_GOTHMOG:
 			msg_print(Ind, "Your lochaber axe erupts in fire...");
@@ -6851,10 +7032,10 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				msg_format(Ind, "You are hit by a blessing for \377o%d \377wdamage!", dam);
 				take_hit(Ind, dam, "The Set of Leather Gloves 'Soul Grip'", 0);
 				o_ptr->recharging = 150 + randint(100) - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
-			} else if (p_ptr->blessed_power <= 20) {
+			} else if (p_ptr->blessed_power <= 16) {
 				msg_print(Ind, "Your gloves glow golden...");
-				p_ptr->blessed_power = 20;
-				set_blessed(Ind, randint(48) + 24); /* removed stacking */
+				p_ptr->blessed_power = 16;
+				set_blessed(Ind, randint(48) + 24, FALSE); /* removed stacking */
 				o_ptr->recharging = 150 + randint(100) - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			} else {
 				msg_print(Ind, "Your gloves shimmer..");
@@ -6924,9 +7105,13 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			}
 			o_ptr->recharging = 15 + randint(3) - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
+		case ART_COBALTFOCUS:
+			set_tim_reflect(Ind, 30 + randint(10));
+			o_ptr->recharging = randint(10) + 80 - get_skill_scale(p_ptr, SKILL_DEVICE, 50);
+			break;
 		case ART_FIST:
 			set_melee_brand(Ind, 30 + rand_int(5) + get_skill_scale(p_ptr, SKILL_DEVICE, 10), TBRAND_HELLFIRE, 10, TRUE, FALSE);
-			o_ptr->recharging = 350 - get_skill_scale(p_ptr, SKILL_DEVICE, 200) + rand_int(50);
+			o_ptr->recharging = 350 - get_skill_scale(p_ptr, SKILL_DEVICE, 200) + randint(50);
 			break;
 		case ART_WARPSPEAR:
 			p_ptr->current_activation = item;
@@ -6957,7 +7142,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			return;
 		} else if (is_ego_p(o_ptr, EGO_JUMP)) {
 			teleport_player(Ind, 10, TRUE);
-			o_ptr->recharging = 15 + randint(10) - get_skill_scale(p_ptr, SKILL_DEVICE, 10);
+			o_ptr->recharging = 13 + randint(3) - get_skill_scale(p_ptr, SKILL_DEVICE, 9);
 			/* Window stuff */
 			p_ptr->window |= (PW_INVEN | PW_EQUIP);
 			/* Done */
@@ -7221,7 +7406,11 @@ void do_cmd_activate_dir(int Ind, int dir) {
 	}
 
 	/* (paranoia?) If the item can be equipped, it MUST be equipped to be activated */
-	if ((item < INVEN_WIELD) && wearable_p(o_ptr)) {
+	if ((item < INVEN_WIELD
+#ifdef ENABLE_SUBINVEN
+	    || item >= SUBINVEN_INVEN_MUL
+#endif
+	    ) && wearable_p(o_ptr)) {
 		msg_print(Ind, "You must be using this item to activate it.");
 		return;
 	}
@@ -7255,28 +7444,28 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		case ART_NARTHANC:
 			sprintf(p_ptr->attacker, " fires a fire bolt for");
 			fire_bolt(Ind, GF_FIRE, dir, damroll(9 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(4) + 8 - get_skill_scale(p_ptr, SKILL_DEVICE, 6);
+			o_ptr->recharging = randint(4) + 8 - get_skill_scale(p_ptr, SKILL_DEVICE, 6);
 			break;
 		case ART_NIMTHANC:
 			sprintf(p_ptr->attacker, " fires a frost bolt for");
 			fire_bolt(Ind, GF_COLD, dir, damroll(6 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
+			o_ptr->recharging = randint(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_DETHANC:
 			sprintf(p_ptr->attacker, " fires a lightning bolt for");
 			fire_bolt(Ind, GF_ELEC, dir, damroll(4 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(3) + 6 - get_skill_scale(p_ptr, SKILL_DEVICE, 4);
+			o_ptr->recharging = randint(3) + 6 - get_skill_scale(p_ptr, SKILL_DEVICE, 4);
 			break;
 		case ART_RILIA:
 			sprintf(p_ptr->attacker, " casts a stinking cloud for");
 			//fire_ball(Ind, GF_POIS, dir, 12 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 3, p_ptr->attacker);
 			fire_cloud(Ind, GF_POIS, dir, 4 + get_skill_scale_fine(p_ptr, SKILL_DEVICE, 7), 3, 4, 9, p_ptr->attacker);
-			o_ptr->recharging = rand_int(2) + 4 - get_skill_scale(p_ptr, SKILL_DEVICE, 2);
+			o_ptr->recharging = randint(4) + 15 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_BELANGIL:
 			sprintf(p_ptr->attacker, " casts a cold ball for");
 			fire_ball(Ind, GF_COLD, dir, 48 + get_skill_scale(p_ptr, SKILL_DEVICE, 60), 2, p_ptr->attacker);
-			o_ptr->recharging = rand_int(2) + 5 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
+			o_ptr->recharging = randint(2) + 5 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
 			break;
 		case ART_RINGIL:
 			sprintf(p_ptr->attacker, " casts a cold ball for");
@@ -7333,46 +7522,46 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		case ART_PAURHACH:
 			sprintf(p_ptr->attacker, " fires a fire bolt for");
 			fire_bolt(Ind, GF_FIRE, dir, damroll(9 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(4) + 8 - get_skill_scale(p_ptr, SKILL_DEVICE, 6);
+			o_ptr->recharging = randint(4) + 8 - get_skill_scale(p_ptr, SKILL_DEVICE, 6);
 			break;
 		case ART_PAURNIMMEN:
 			sprintf(p_ptr->attacker, " fires a frost bolt for");
 			fire_bolt(Ind, GF_COLD, dir, damroll(6 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
+			o_ptr->recharging = randint(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_PAURAEGEN:
 			sprintf(p_ptr->attacker, " fires a lightning bolt for");
 			fire_bolt(Ind, GF_ELEC, dir, damroll(4 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(3) + 6 - get_skill_scale(p_ptr, SKILL_DEVICE, 4);
+			o_ptr->recharging = randint(3) + 6 - get_skill_scale(p_ptr, SKILL_DEVICE, 4);
 			break;
 		case ART_PAURNEN:
 			sprintf(p_ptr->attacker, " fires an acid bolt for");
 			fire_bolt(Ind, GF_ACID, dir, damroll(5 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(2) + 5 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
+			o_ptr->recharging = randint(2) + 5 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
 			break;
 		case ART_FINGOLFIN:
 			sprintf(p_ptr->attacker, " fires an arrow for");
 			fire_bolt(Ind, GF_ARROW, dir, 150, p_ptr->attacker);
-			o_ptr->recharging = rand_int(30) + 90 - get_skill_scale(p_ptr, SKILL_DEVICE, 75);
+			o_ptr->recharging = randint(30) + 90 - get_skill_scale(p_ptr, SKILL_DEVICE, 75);
 			break;
 		case ART_NARYA:
 			sprintf(p_ptr->attacker, " casts a fire ball for");
 			fire_ball(Ind, GF_FIRE, dir, 120 + get_skill_scale(p_ptr, SKILL_DEVICE, 250), 3, p_ptr->attacker);
-			o_ptr->recharging = rand_int(75) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
+			o_ptr->recharging = randint(75) + 225 - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
 			break;
 		case ART_NENYA:
 			sprintf(p_ptr->attacker, " casts a cold ball for");
 			fire_ball(Ind, GF_COLD, dir, 200 + get_skill_scale(p_ptr, SKILL_DEVICE, 250), 3, p_ptr->attacker);
-			o_ptr->recharging = rand_int(125) + 325 - get_skill_scale(p_ptr, SKILL_DEVICE, 225);
+			o_ptr->recharging = randint(125) + 325 - get_skill_scale(p_ptr, SKILL_DEVICE, 225);
 			break;
 		case ART_VILYA:
 			sprintf(p_ptr->attacker, " casts a lightning ball for");
 			fire_ball(Ind, GF_ELEC, dir, 250 + get_skill_scale(p_ptr, SKILL_DEVICE, 250), 3, p_ptr->attacker);
-			o_ptr->recharging = rand_int(175) + 425 - get_skill_scale(p_ptr, SKILL_DEVICE, 325);
+			o_ptr->recharging = randint(175) + 425 - get_skill_scale(p_ptr, SKILL_DEVICE, 325);
 			break;
 		case ART_POWER:
 			ring_of_power(Ind, dir);
-			o_ptr->recharging = rand_int(450) + 450;// - get_skill_scale(p_ptr, SKILL_DEVICE, 225);
+			o_ptr->recharging = randint(450) + 450;// - get_skill_scale(p_ptr, SKILL_DEVICE, 225);
 			break;
 		case ART_MEDIATOR:
 			msg_print(Ind, "You breathe the elements.");
@@ -7380,8 +7569,8 @@ void do_cmd_activate_dir(int Ind, int dir) {
 			fire_ball(Ind, GF_MISSILE, dir, 300 + get_skill_scale(p_ptr, SKILL_DEVICE, 300), 4, p_ptr->attacker);
 			msg_print(Ind, "Your armour glows in many colours...");
 			(void)set_shero(Ind, randint(50) + 50); /* removed stacking */
-			//p_ptr->blessed_power = 20;
-			//(void)set_blessed(Ind, randint(50) + 50); /* removed stacking */
+			//p_ptr->blessed_power = 16;
+			//(void)set_blessed(Ind, randint(50) + 50, FALSE); /* removed stacking */
 			(void)set_oppose_acid(Ind, randint(50) + 50); /* removed stacking */
 			(void)set_oppose_elec(Ind, randint(50) + 50);
 			(void)set_oppose_fire(Ind, randint(50) + 50);
@@ -7398,7 +7587,7 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		case ART_AXE_GOTHMOG:
 			sprintf(p_ptr->attacker, " casts a fireball for");
 			fire_ball(Ind, GF_FIRE, dir, 300 + get_skill_scale(p_ptr, SKILL_DEVICE, 300), 4, p_ptr->attacker);
-			o_ptr->recharging = 200 + rand_int(200) - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
+			o_ptr->recharging = 200 + randint(200) - get_skill_scale(p_ptr, SKILL_DEVICE, 150);
 			break;
 		case ART_MELKOR:
 			sprintf(p_ptr->attacker, " casts a darkness storm for");
@@ -7417,17 +7606,17 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		}
 		case ART_NAIN:
 			wall_to_mud(Ind, dir);
-			o_ptr->recharging = rand_int(5) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
+			o_ptr->recharging = randint(5) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 3);
 			break;
 		case ART_EOL:
 			sprintf(p_ptr->attacker, " fires a mana bolt for");
 			fire_bolt(Ind, GF_MANA, dir, damroll(9 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
+			o_ptr->recharging = randint(3) + 7 - get_skill_scale(p_ptr, SKILL_DEVICE, 5);
 			break;
 		case ART_UMBAR:
 			sprintf(p_ptr->attacker, " fires a missile for");
 			fire_bolt(Ind, GF_MISSILE, dir, damroll(10 + get_skill_scale(p_ptr, SKILL_DEVICE, 20), 10), p_ptr->attacker);
-			o_ptr->recharging = rand_int(10) + 20 - get_skill_scale(p_ptr, SKILL_DEVICE, 15);
+			o_ptr->recharging = randint(10) + 20 - get_skill_scale(p_ptr, SKILL_DEVICE, 15);
 			break;
 		case ART_HELLFIRE:
 			sprintf(p_ptr->attacker, " conjures up hellfire for");
@@ -7437,11 +7626,16 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		case ART_HAVOC:
 			sprintf(p_ptr->attacker, " casts a force bolt for");
 			fire_bolt(Ind, GF_FORCE, dir, damroll(8 + get_skill_scale(p_ptr, SKILL_DEVICE, 16), 8), p_ptr->attacker);
-			o_ptr->recharging = rand_int(2) + 1;
+			o_ptr->recharging = randint(2);
 			break;
 		case ART_WARPSPEAR:
 			project_hook(Ind, GF_TELE_TO, dir, 1, PROJECT_STOP | PROJECT_KILL, "");
-			o_ptr->recharging = rand_int(5) + 40 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(5) + 40 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			break;
+		case ART_ANTIRIAD:
+			sprintf(p_ptr->attacker, " fires a plasma bolt for");
+			fire_bolt(Ind, GF_PLASMA, dir, damroll(50 + get_skill_scale(p_ptr, SKILL_DEVICE, 15), 20), p_ptr->attacker);
+			o_ptr->recharging = 2;
 			break;
 		default: done = FALSE;
 		}
@@ -7701,7 +7895,7 @@ void do_cmd_activate_dir(int Ind, int dir) {
 			}
 			break;
 		}
-		o_ptr->recharging = 250 + rand_int(20) - get_skill_scale(p_ptr, SKILL_DEVICE, 230);//pretty big effect^^
+		o_ptr->recharging = 250 + randint(20) - get_skill_scale(p_ptr, SKILL_DEVICE, 230);//pretty big effect^^
 	}
 
 	/* Hack -- Amulet of the Serpents can be activated as well */
@@ -7709,7 +7903,7 @@ void do_cmd_activate_dir(int Ind, int dir) {
 		msg_print(Ind, "You breathe venom...");
 		sprintf(p_ptr->attacker, " breathes venom for");
 		fire_ball(Ind, GF_POIS, dir, 100 + get_skill_scale(p_ptr, SKILL_DEVICE, 200), 2, p_ptr->attacker);
-		o_ptr->recharging = rand_int(60) + 40 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
+		o_ptr->recharging = randint(60) + 40 - get_skill_scale(p_ptr, SKILL_DEVICE, 30);
 	}
 	else if (!done && o_ptr->tval == TV_RING) {
 		switch (o_ptr->sval) {
@@ -7718,28 +7912,28 @@ void do_cmd_activate_dir(int Ind, int dir) {
 			sprintf(p_ptr->attacker, " casts a lightning ball for");
 			fire_ball(Ind, GF_ELEC, dir, 50 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), 2, p_ptr->attacker);
 			(void)set_oppose_elec(Ind, randint(20) + 20); /* removed stacking */
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
 			break;
 		case SV_RING_ACID:
 			/* Get a direction for breathing (or abort) */
 			sprintf(p_ptr->attacker, " casts an acid ball for");
 			fire_ball(Ind, GF_ACID, dir, 50 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), 2, p_ptr->attacker);
 			(void)set_oppose_acid(Ind, randint(20) + 20); /* removed stacking */
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
 			break;
 		case SV_RING_ICE:
 			/* Get a direction for breathing (or abort) */
 			sprintf(p_ptr->attacker, " casts a frost ball for");
 			fire_ball(Ind, GF_COLD, dir, 50 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), 2, p_ptr->attacker);
 			(void)set_oppose_cold(Ind, randint(20) + 20); /* removed stacking */
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
 			break;
 		case SV_RING_FLAMES:
 			/* Get a direction for breathing (or abort) */
 			sprintf(p_ptr->attacker, " casts a fire ball for");
 			fire_ball(Ind, GF_FIRE, dir, 50 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), 2, p_ptr->attacker);
 			(void)set_oppose_fire(Ind, randint(20) + 20); /* removed stacking */
-			o_ptr->recharging = rand_int(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
+			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 25);
 			break;
 		}
 	}
@@ -7767,29 +7961,32 @@ bool unmagic(int Ind) {
 		set_adrenaline(Ind, 0) +
 		set_biofeedback(Ind, 0) +
 		set_tim_esp(Ind, 0) +
-		set_st_anchor(Ind, 0) +
+		//set_st_anchor(Ind, 0) +  --external force, much like rune of protection for set_stopped()
 		set_prob_travel(Ind, 0) +
-		set_ammo_brand(Ind, 0, p_ptr->ammo_brand_t, 0) +
+		//set_ammo_brand(Ind, 0, p_ptr->ammo_brand_t, 0) +   --considered external effect for now
+		//set_melee_brand(Ind, 0, p_ptr->melee_brand_t, 0, FALSE, FALSE) +   --considered external effect for now
 		set_nimbus(Ind, 0, 0, 0) +
-#if 0
-		set_mimic(Ind, 0, 0) +
-#endif
-#if 0
-		(p_ptr->body_monster) +
-	if (p_ptr->tim_mimic) do_mimic_change(Ind, 0, TRUE)
-#endif
+		((p_ptr->tim_mimic && p_ptr->body_monster == p_ptr->tim_mimic_what) ? do_mimic_change(Ind, 0, TRUE) : 0) +
 		set_tim_manashield(Ind, 0) +
-		set_tim_traps(Ind, 0) +
+		set_tim_traps(Ind, 0) + //unused
 		set_invis(Ind, 0, 0) +
 		set_tim_meditation(Ind, 0) +
 		set_tim_wraith(Ind, 0) +
 		set_fast(Ind, 0, 0) +
+		set_slow(Ind, 0) +
+		//set_afraid(Ind, 0) -- fear isn't considered magical for this purpose ^^
+		//set_confused(Ind, 0) -- neither is confusion
+		//set_blind(Ind, 0) -- nor blindness
+		//set_image(Ind, 0) -- nor hallucinations
+		set_paralyzed(Ind, 0) + //..but let paralysis be affected, for off-chance of odd turnarounds! oO
+		//set_stopped(Ind, 0) + -- no, it's a rune of protection that locks us down, not an internal effect
 		set_shield(Ind, 0, 0, SHIELD_NONE, 0, 0) +
-		set_blessed(Ind, 0) +
+		set_blessed(Ind, 0, FALSE) +
+		set_dispersion(Ind, 0, 0) +
 		set_hero(Ind, 0) +
 		set_shero(Ind, 0) +
 		set_fury(Ind, 0) +
-		set_protevil(Ind, 0) +
+		set_protevil(Ind, 0, FALSE) +
 		set_invuln(Ind, 0) +
 		set_tim_invis(Ind, 0) +
 		set_tim_infra(Ind, 0) +
@@ -7810,9 +8007,21 @@ bool unmagic(int Ind) {
 		set_savingthrow(Ind, 0) +
 		set_spirit_shield(Ind, 0, 0) +
 #endif
-		set_tim_deflect(Ind, 0)
+		set_tim_reflect(Ind, 0) +
+		set_tim_ffall(Ind, 0) +
+		set_tim_lev(Ind, 0) +
+		set_tim_regen(Ind, 0, 0) +
+		set_tim_mp2hp(Ind, 0, 0, 0) +
+		set_tim_thunder(Ind, 0, 0, 0) +
+		set_res_fear(Ind, 0) +
+		do_focus(Ind, 0, 0) +
+		do_xtra_stats(Ind, 0, 0, 0, FALSE) +
+		do_divine_xtra_res(Ind, 0) +
+		do_divine_hp(Ind, 0, 0) +
+		do_divine_crit(Ind, 0, 0) +
+		set_shroud(Ind, 0, 0) +
+		set_tim_lcage(Ind, 0)
 	) ident = TRUE;
-	set_shroud(Ind, 0, 0); /* (this function is type void) */
 
 	if (p_ptr->word_recall) ident |= set_recall_timer(Ind, 0);
 
@@ -7931,14 +8140,14 @@ static int fletchery_items(int Ind, int type) {
 	object_aware(Ind, q_ptr); \
 	object_known(q_ptr); \
 	if (tlev > 50) q_ptr->ident |= ID_MENTAL; \
-	apply_magic(&p_ptr->wpos, q_ptr, tlev, FALSE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10))?TRUE:FALSE, FALSE, RESF_NOART); \
+	apply_magic(&p_ptr->wpos, q_ptr, tlev, FALSE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10)) ? TRUE : FALSE, FALSE, RESF_NOART); \
 	q_ptr->ident &= ~ID_CURSED; \
 	q_ptr->note = quark_add("handmade"); \
 	/* q_ptr->discount = 50 + 25 * rand_int(3); */ \
 	msg_print(Ind, "You make some ammo.")
 /*
-	apply_magic(&p_ptr->wpos, q_ptr, tlev, TRUE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10))?TRUE:FALSE, FALSE, make_resf(p_ptr)); \
-	apply_magic(&p_ptr->wpos, q_ptr, tlev, TRUE, TRUE, (magik(tlev / 10))?TRUE:FALSE, FALSE, make_resf(p_ptr));
+	apply_magic(&p_ptr->wpos, q_ptr, tlev, TRUE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10)) ? TRUE : FALSE, FALSE, make_resf(p_ptr)); \
+	apply_magic(&p_ptr->wpos, q_ptr, tlev, TRUE, TRUE, (magik(tlev / 10)) ? TRUE : FALSE, FALSE, make_resf(p_ptr));
 */
 
 /* finish creating sling ammo dug from rubble */
@@ -8038,6 +8247,11 @@ void do_cmd_fletchery(int Ind) {
 			    q_ptr = &o_list[0 - item];
 #endif
 
+#ifdef ENABLE_OUNLIFE
+			/* Wraithstep gets auto-cancelled on forced interaction with solid environment */
+			if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1)) set_tim_wraith(Ind, 0);
+#endif
+
 			if (CANNOT_OPERATE_SPECTRAL) { /* Not in WRAITHFORM ^^ */
 				msg_print(Ind, "You can't pick up rubble in incorporeal form!");
 				return;
@@ -8085,7 +8299,7 @@ void do_cmd_fletchery(int Ind) {
 		//q_ptr->number = (byte)rand_range(15,25);
 		invcopy(q_ptr, lookup_kind(TV_SHOT, SV_AMMO_LIGHT));
 		q_ptr->number = (p_ptr->inventory[item].weight * 2) / (q_ptr->weight + 1) + randint(5);
-		if (q_ptr->number > 99) q_ptr->number = 99;
+		if (q_ptr->number >= MAX_STACK_SIZE) q_ptr->number = MAX_STACK_SIZE - 1;
 		raw_amount = q_ptr->number * raw_materials;
 		do_fletchery_aux();
 
@@ -8103,9 +8317,9 @@ void do_cmd_fletchery(int Ind) {
 		q_ptr->iron_trade = p_ptr->iron_trade;
 		q_ptr->iron_turn = turn;
 
-		while (raw_amount > 99) {
-			q_ptr->number = 99;
-			raw_amount -= 99;
+		while (raw_amount >= MAX_STACK_SIZE) {
+			q_ptr->number = MAX_STACK_SIZE - 1;
+			raw_amount -= MAX_STACK_SIZE - 1;
 			(void)inven_carry(Ind, q_ptr);
 		}
 		if (raw_amount) {
@@ -8144,7 +8358,7 @@ void do_cmd_fletchery(int Ind) {
 		//q_ptr->number = (byte)rand_range(15,25);
 		invcopy(q_ptr, lookup_kind(TV_ARROW, m_bonus(1, tlev) + 1));
 		q_ptr->number = p_ptr->inventory[item].weight / q_ptr->weight + randint(5);
-		if (q_ptr->number > 99) q_ptr->number = 99;
+		if (q_ptr->number >= MAX_STACK_SIZE) q_ptr->number = MAX_STACK_SIZE - 1;
 		raw_amount = q_ptr->number * raw_materials;
 		do_fletchery_aux();
 
@@ -8162,9 +8376,9 @@ void do_cmd_fletchery(int Ind) {
 		q_ptr->iron_trade = p_ptr->iron_trade;
 		q_ptr->iron_turn = turn;
 
-		while (raw_amount > 99) {
-			q_ptr->number = 99;
-			raw_amount -= 99;
+		while (raw_amount >= MAX_STACK_SIZE) {
+			q_ptr->number = MAX_STACK_SIZE - 1;
+			raw_amount -= MAX_STACK_SIZE - 1;
 			(void)inven_carry(Ind, q_ptr);
 		}
 		if (raw_amount) {
@@ -8203,7 +8417,7 @@ void do_cmd_fletchery(int Ind) {
 		invcopy(q_ptr, lookup_kind(TV_BOLT, m_bonus(1, tlev) + 1));
 		//q_ptr->number = (byte)rand_range(15,25);
 		q_ptr->number = p_ptr->inventory[item].weight / q_ptr->weight + randint(5);
-		if (q_ptr->number > 99) q_ptr->number = 99;
+		if (q_ptr->number >= MAX_STACK_SIZE) q_ptr->number = MAX_STACK_SIZE - 1;
 		raw_amount = q_ptr->number * raw_materials;
 		do_fletchery_aux();
 
@@ -8221,9 +8435,9 @@ void do_cmd_fletchery(int Ind) {
 		q_ptr->iron_trade = p_ptr->iron_trade;
 		q_ptr->iron_turn = turn;
 
-		while (raw_amount > 99) {
-			q_ptr->number = 99;
-			raw_amount -= 99;
+		while (raw_amount >= MAX_STACK_SIZE) {
+			q_ptr->number = MAX_STACK_SIZE - 1;
+			raw_amount -= MAX_STACK_SIZE - 1;
 			(void)inven_carry(Ind, q_ptr);
 		}
 		if (raw_amount) {
@@ -8553,8 +8767,8 @@ void do_cmd_melee_technique(int Ind, int technique) {
 
 	switch (technique) {
 	case 0:	if (!(p_ptr->melee_techniques & MT_SPRINT)) return; /* Sprint */
-		if (p_ptr->cst < 7) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 7;
+		if (p_ptr->cst < 6) { msg_print(Ind, "Not enough stamina!"); return; }
+		use_stamina(p_ptr, 6);
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
 		break_shadow_running(Ind);
@@ -8569,7 +8783,7 @@ s_printf("TECHNIQUE_MELEE: %s - sprint\n", p_ptr->name);
 		if (p_ptr->cst < 2) { msg_print(Ind, "Not enough stamina!"); return; }
 		//if (p_ptr->energy < level_speed(&p_ptr->wpos) / 4) return;
 		if (p_ptr->energy <= 0) return;
-		p_ptr->cst -= 2;
+		use_stamina(p_ptr, 2);
 		p_ptr->energy -= level_speed(&p_ptr->wpos) / 4; /* doing it while fighting no prob */
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
@@ -8583,7 +8797,7 @@ s_printf("TECHNIQUE_MELEE: %s - taunt\n", p_ptr->name);
 
 	case 2:	if (!(p_ptr->melee_techniques & MT_DIRT)) return; /* Throw Dirt */
 		if (p_ptr->cst < 3) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 3;
+		use_stamina(p_ptr, 3);
 		p_ptr->energy -= level_speed(&p_ptr->wpos);// / 2
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
@@ -8612,7 +8826,7 @@ s_printf("TECHNIQUE_MELEE: %s - throw dirt\n", p_ptr->name);
 
 	case 4:	if (!(p_ptr->melee_techniques & MT_DISTRACT)) return; /* Distract */
 		if (p_ptr->cst < 1) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 1;
+		use_stamina(p_ptr, 1);
 		p_ptr->energy -= level_speed(&p_ptr->wpos) / 2; /* just a quick grimace and mimicking ;) */
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
@@ -8633,10 +8847,11 @@ s_printf("TECHNIQUE_MELEE: %s - distract\n", p_ptr->name);
 		for (i = 0; i < INVEN_WIELD; i++)
 			if (//object_known_p(Ind, &p_ptr->inventory[i]) && /* skip unknown items */
 			    object_aware_p(Ind, &p_ptr->inventory[i]) && /* skip unknown items */
+			    !check_guard_inscription(p_ptr->inventory[INVEN_AMMO].note, 'k') &&
 			    ((p_ptr->inventory[i].tval == TV_POTION && p_ptr->inventory[i].sval == SV_POTION_POISON) ||
 			    (p_ptr->inventory[i].tval == TV_FOOD &&
 			    (p_ptr->inventory[i].sval == SV_FOOD_POISON || p_ptr->inventory[i].sval == SV_FOOD_UNHEALTH)))) {
-				//p_ptr->cst -= 2;
+				//use_stamina(p_ptr, 2);
 				inven_item_increase(Ind, i, -1);
 				inven_item_describe(Ind, i);
 				inven_item_optimize(Ind, i);
@@ -8658,7 +8873,7 @@ s_printf("TECHNIQUE_MELEE: %s - apply poison\n", p_ptr->name);
 
 	case 6:	if (!(p_ptr->melee_techniques & MT_TRACKANIM)) return; /* Track Animals */
 		if (p_ptr->cst < 3) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 3;
+		use_stamina(p_ptr, 3);
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		(void)detect_creatures_xxx(Ind, RF3_ANIMAL);
 s_printf("TECHNIQUE_MELEE: %s - track animals\n", p_ptr->name);
@@ -8667,7 +8882,7 @@ s_printf("TECHNIQUE_MELEE: %s - track animals\n", p_ptr->name);
 
 	case 7:	if (!(p_ptr->melee_techniques & MT_DETNOISE)) return; /* Perceive Noise */
 		if (p_ptr->cst < 2) { msg_print(Ind, "Not enough stamina!"); return; }
-		p_ptr->cst -= 2;
+		use_stamina(p_ptr, 2);
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		detect_noise(Ind);
 s_printf("TECHNIQUE_MELEE: %s - perceive noise\n", p_ptr->name);
@@ -8678,7 +8893,7 @@ s_printf("TECHNIQUE_MELEE: %s - perceive noise\n", p_ptr->name);
 		if (p_ptr->cst < 4) { msg_print(Ind, "Not enough stamina!"); return; }
 		//if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
 		if (p_ptr->energy <= 0) return;
-		p_ptr->cst -= 4;
+		use_stamina(p_ptr, 4);
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
@@ -8736,7 +8951,7 @@ s_printf("TECHNIQUE_MELEE: %s - flash bomb\n", p_ptr->name);
 			return;
 		}
 		if (p_ptr->energy < level_speed(&p_ptr->wpos)) return; // ?
-		p_ptr->cst -= 5;
+		use_stamina(p_ptr, 5);
 		un_afk_idle(Ind);
 		break_cloaking(Ind, 0);
 		break_shadow_running(Ind);
@@ -8780,7 +8995,7 @@ s_printf("TECHNIQUE_MELEE: %s - assassinate\n", p_ptr->name);
 		stop_precision(Ind);
 		stop_shooting_till_kill(Ind);
 
-		p_ptr->cst -= 10;
+		use_stamina(p_ptr, 10);
 		un_afk_idle(Ind);
 		set_shero(Ind, randint(5) + 15);
 s_printf("TECHNIQUE_MELEE: %s - berserk\n", p_ptr->name);
@@ -8872,7 +9087,7 @@ void do_cmd_ranged_technique(int Ind, int technique) {
 #endif
 		for (i = 0; i < INVEN_WIELD; i++)
 			if (p_ptr->inventory[i].tval == TV_FLASK && p_ptr->inventory[i].sval == SV_FLASK_OIL) {
-				//p_ptr->cst -= 2;
+				//use_stamina(p_ptr, 2);
 				p_ptr->ranged_flare = TRUE;
 				inven_item_increase(Ind, i, -1);
 				inven_item_describe(Ind, i);
@@ -8898,7 +9113,7 @@ s_printf("TECHNIQUE_RANGED: %s - flare missile\n", p_ptr->name);
 			return;
 		}
 		if (p_ptr->cst < 7) { msg_print(Ind, "Not enough stamina!"); return; }
-		//p_ptr->cst -= 7;
+		//use_stamina(p_ptr, 7);
 		break_shadow_running(Ind);
 		stop_shooting_till_kill(Ind);
 		p_ptr->ranged_flare = FALSE; p_ptr->ranged_double = FALSE; p_ptr->ranged_barrage = FALSE;
@@ -8941,7 +9156,7 @@ s_printf("TECHNIQUE_RANGED: %s - double\n", p_ptr->name);
 			msg_print(Ind, "You need at least 6 projectiles for a barrage!");
 			return;
 		}
-		//p_ptr->cst -= 9;
+		//use_stamina(p_ptr, 9);
 		break_shadow_running(Ind);
 		stop_shooting_till_kill(Ind);
 		p_ptr->ranged_flare = FALSE; p_ptr->ranged_precision = FALSE; p_ptr->ranged_double = FALSE;
@@ -9017,7 +9232,7 @@ void do_steamblast(int Ind, int x, int y) {
 		return;
 	}
 
-	//p_ptr->cst -= 3;
+	//use_stamina(p_ptr, 3);
 	inven_item_increase(Ind, t, -1);
 	inven_item_increase(Ind, p, -1);
 	if (t > p) { //higher value (lower in inventory) first; to preserve indices
@@ -9169,7 +9384,7 @@ void do_cmd_breathe_aux(int Ind, int dir) {
 	un_afk_idle(Ind);
 	disturb(Ind, 1, 0); /* stop things like running, resting.. */
 
-	p_ptr->cst -= 3;
+	use_stamina(p_ptr, 3);
 	p_ptr->redraw |= PR_STAMINA;
 	p_ptr->current_breath = 0;
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
@@ -9291,4 +9506,10 @@ bool create_snowball(int Ind, cave_type *c_ptr) {
 		return(TRUE);
 	}
 	return(FALSE);
+}
+
+void use_stamina(player_type *p_ptr, byte st) {
+	p_ptr->cst -= st;
+	p_ptr->redraw |= PR_STAMINA;
+	if (!p_ptr->cst && p_ptr->dispersion) set_dispersion(p_ptr->Ind, 0, 0);
 }

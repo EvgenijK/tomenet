@@ -39,7 +39,10 @@ extern void animate_palette(void);
 extern void set_palette(byte c, byte r, byte g, byte b);
 extern void get_palette(byte c, byte *r, byte *g, byte *b);
 extern void refresh_palette(void);
-extern int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length);
+extern int get_misc_fonts(char *output_list, int max_misc_fonts, int max_font_name_length, int max_fonts);
+extern void set_window_title_x11(int term_idx, cptr title);
+#elif defined(USE_GCU)
+extern bool term_get_visibility(int term_idx);
 #endif
 
 #ifdef USE_XAW
@@ -103,7 +106,7 @@ extern option_type option_info[];
 extern cptr stat_names[6];
 extern cptr stat_names_reduced[6];
 extern char ang_term_name[ANGBAND_TERM_MAX][40];
-extern cptr window_flag_desc[9];
+extern cptr window_flag_desc[NR_OPTIONS_SHOWN];
 extern monster_spell_type monster_spells4[32];
 extern monster_spell_type monster_spells5[32];
 extern monster_spell_type monster_spells6[32];
@@ -317,6 +320,7 @@ extern player_class *class_info;
 extern player_trait *trait_info;
 
 //the +16 are just for some future-proofing, to avoid needing to update the client
+extern char attribute_diz[6][8][61];
 extern char race_diz[MAX_RACE + 16][12][61];
 extern char class_diz[MAX_CLASS + 16][12][61];
 extern char trait_diz[MAX_TRAIT + 16][12][61];
@@ -397,6 +401,7 @@ extern bool s_RPG, s_FUN, s_ARCADE, s_TEST;
 extern bool s_RPG_ADMIN, s_PARTY;
 extern bool s_DED_IDDC, s_DED_PVP;
 extern bool s_NO_PK, s_PVP_MAIA;
+extern bool create_character_ok_pvp, create_character_ok_iddc;
 
 /* Server's temporary features flags */
 extern u32b sflags_TEMP;
@@ -410,6 +415,8 @@ extern bool auto_inscription_force[MAX_AUTO_INSCRIPTIONS];
 #ifdef REGEX_SEARCH
 extern bool auto_inscription_invalid[MAX_AUTO_INSCRIPTIONS];
 #endif
+extern bool auto_inscription_subinven[MAX_AUTO_INSCRIPTIONS];//ENABLE_SUBINVEN
+extern bool auto_inscription_disabled[MAX_AUTO_INSCRIPTIONS];
 
 /* Monster health memory (health_redraw) */
 extern int mon_health_num;
@@ -579,8 +586,8 @@ extern void client_init(char *argv1, bool skip);
 extern s32b char_creation_flags;
 extern void monster_lore_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool to_chat);
 extern void monster_stats_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool to_chat);
-extern void artifact_lore_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]);
-extern void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]);
+extern void artifact_lore_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN], bool to_chat);
+extern void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN], bool to_chat);
 extern bool check_dir2(cptr s);
 extern void init_guide(void);
 
@@ -605,6 +612,7 @@ extern void clear_macros(void);
 extern void macro_add(cptr pat, cptr act, bool cmd_flag, bool hyb_flag);
 extern bool macro_del(cptr pat);
 extern char inkey(void);
+extern char inkey_combo(bool modify_allowed, int *cursor_pos, cptr input_str);
 extern void keymap_init(void);
 extern void bell(void);
 extern void bell_silent(void);
@@ -681,10 +689,12 @@ extern void sync_sleep(int milliseconds);
 extern void sync_xsleep(int milliseconds);
 extern char original_commands(char command);
 extern char roguelike_commands(char command);
-extern void copy_to_clipboard(char *buf);
+extern void copy_to_clipboard(char *buf, bool chat_input);
 extern bool paste_from_clipboard(char *buf, bool global);
 extern void colour_bignum(s32b bn, s32b bn_max, char *out_val, byte method, bool afford);
 extern void set_bigmap(int bm, bool verbose);
+extern void apply_auto_inscriptions(int insc_idx);
+extern int check_guard_inscription_str(cptr ax, char what);
 
 /* c-store.c */
 extern bool leave_store;
@@ -717,7 +727,7 @@ extern void prt_poisoned(char poisoned);
 extern void prt_state(bool paralyzed, bool searching, bool resting);
 extern void prt_speed(int speed);
 extern void prt_study(bool study);
-extern void prt_bpr(byte bpr, byte attr);
+extern void prt_bpr_wraith(byte bpr, byte attr, cptr bpr_str);
 extern void prt_cut(int cut);
 extern void prt_stun(int stun);
 extern void prt_basic(void);
@@ -743,13 +753,18 @@ extern void update_lagometer(void);
 extern void prt_lagometer(int lag);
 
 extern void prt_indicators(u32b indicators);
-extern void prt_res_fire(bool is_resisted);
-extern void prt_res_cold(bool is_resisted);
-extern void prt_res_elec(bool is_resisted);
-extern void prt_res_acid(bool is_resisted);
-extern void prt_res_pois(bool is_resisted);
-extern void prt_res_divine(bool is_resisted);
-extern void prt_esp(bool is_full_esp);
+extern void prt_indicator_res_fire(bool is_active);
+extern void prt_indicator_res_cold(bool is_active);
+extern void prt_indicator_res_elec(bool is_active);
+extern void prt_indicator_res_acid(bool is_active);
+extern void prt_indicator_res_pois(bool is_active);
+extern void prt_indicator_res_divine(bool is_active);
+extern void prt_indicator_esp(bool is_active);
+extern void prt_indicator_melee_brand(bool is_active);
+extern void prt_indicator_regen(bool is_active);
+extern void prt_indicator_dispersion(bool is_active);
+extern void prt_indicator_charm(bool is_active);
+extern void prt_indicator_shield(u32b flags);
 
 extern void prt_whats_under_your_feet(char *o_name, bool crossmod_item, bool cant_see, bool on_pile);
 extern char whats_under_your_feet[ONAME_LEN];
@@ -774,6 +789,7 @@ extern int cloud_x1[10], cloud_y1[10], cloud_x2[10], cloud_y2[10], cloud_dsum[10
 extern int cloud_xm100[10], cloud_ym100[10], cloud_xfrac[10], cloud_yfrac[10];
 
 extern void fix_playerlist(void);
+extern void check_for_playerlist(void);
 extern void do_animate_lightning(bool reset);
 extern void do_animate_screenflash(bool reset);
 extern bool fullscreen_weather; //RAINY_TOMB
@@ -919,15 +935,17 @@ extern int Send_request_key(int id, char key);
 extern int Send_request_num(int id, int num);
 extern int Send_request_str(int id, char *str);
 extern int Send_request_cfr(int id, int cfr);
-extern void apply_auto_inscriptions(int slot, bool force);
+extern bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force);
 extern int Send_client_setup(void);
 extern int Send_audio(void);
 extern int Send_font(void);
 #ifdef ENABLE_SUBINVEN
-extern int Send_subinven_move(int item);
-extern int Send_subinven_remove(int item);
+extern int Send_subinven_move(int item, int amt);
+extern int Send_subinven_remove(int item, int amt);
 #endif
 extern int Send_version(void);
+extern int Send_plistw_notify(bool on);
+extern int Send_unknownpacket(int type, int prev_type);
 
 /* skills.c */
 extern s16b get_skill(int skill);
@@ -972,7 +990,7 @@ extern cptr longVersion, os_version;
 extern cptr shortVersion;
 extern void version_build(void);
 extern int find_realm(int book);
-extern char color_attr_to_char(int a);
+extern char color_attr_to_char(byte a);
 extern int color_char_to_attr(char c);
 extern byte mh_attr(int max);
 extern char *my_strcasestr(const char *big, const char *little);
@@ -1033,6 +1051,11 @@ extern int stricmp(cptr a, cptr b);
 /* extern void main(void); */
 #endif
 
+#ifdef USE_X11
+/* main-x11.c */
+void all_term_data_to_term_prefs(void);
+#endif
+
 #ifdef WINDOWS
 /* main-win.c */
 /* extern int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, ...); */
@@ -1051,6 +1074,9 @@ extern void set_palette(byte c, byte r, byte g, byte b);
 extern void get_palette(byte c, byte *r, byte *g, byte *b);
 extern void refresh_palette(void);
 extern void store_audiopackfolders(void);
+extern void save_term_data_to_term_prefs(void);
+extern void save_prefs(void);
+extern void set_window_title_win(int term_idx, cptr title);
 #endif
 extern void store_crecedentials(void);
 
@@ -1112,16 +1138,18 @@ extern int weather_particles_seen;
 
 extern char monster_list_name[MAX_R_IDX][80], monster_list_symbol[MAX_R_IDX][2];
 extern int monster_list_code[MAX_R_IDX], monster_list_idx, monster_list_level[MAX_R_IDX];
-extern bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX];
+extern bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX], monster_list_unique[MAX_R_IDX];
 
 extern char artifact_list_name[MAX_A_IDX][80];
 extern int artifact_list_code[MAX_A_IDX], artifact_list_rarity[MAX_A_IDX], artifact_list_idx;
+extern int artifact_list_kidx[MAX_A_IDX];
 extern bool artifact_list_specialgene[MAX_A_IDX];
 extern char artifact_list_activation[MAX_A_IDX][80];
 
 extern char kind_list_name[MAX_K_IDX][80];
-extern int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx;
-extern char kind_list_char[MAX_K_IDX], kind_list_attr[MAX_K_IDX];
+extern int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx, kind_list_kidx[MAX_K_IDX];
+extern char kind_list_char[MAX_K_IDX];
+extern byte kind_list_attr[MAX_K_IDX];
 
 extern char monster_mapping_org[MAX_R_IDX + 1];
 extern struct u32b_char_dict_t *monster_mapping_mod;
@@ -1161,12 +1189,15 @@ extern u32b client_ext_color_map[TERMX_AMT][2];
 extern const char colour_name[BASE_PALETTE_SIZE][9];
 extern bool lighterdarkblue;
 #ifdef WINDOWS
-void enable_readability_blue_win(void);
+extern void enable_readability_blue_win(void);
 #else
  #ifdef USE_X11
-void enable_readability_blue_x11(void);
+extern void enable_readability_blue_x11(void);
  #else
-void enable_readability_blue_gcu(void);
+extern void enable_readability_blue_gcu(void);
+extern void set_palette(byte c, byte r, byte g, byte b);
+extern void get_palette(byte c, byte *r, byte *g, byte *b);
+extern void refresh_palette(void);
  #endif
 #endif
 
@@ -1188,6 +1219,9 @@ extern char guide_spell[256][MAX_CHARS];
 extern int guide_races, guide_classes, guide_skills, guide_schools, guide_spells;
 extern char guide_chapter[256][MAX_CHARS], guide_chapter_no[256][8];
 extern int guide_chapters, guide_endofcontents;
+#ifdef BUFFER_LOCAL_FILE
+extern char local_file_line[LOCAL_FILE_LINES_MAX][MAX_CHARS_WIDE + 1];
+#endif
 
 extern byte showing_inven, showing_equip;
 
@@ -1203,7 +1237,7 @@ extern char cfg_soundpackfolder[1024];
 extern char cfg_musicpackfolder[1024];
 
 extern int NumPlayers;
-extern char playerlist[1000][MAX_CHARS_WIDE * 2];
+extern char playerlist_name[MAX_PLAYERS_LISTED][NAME_LEN], playerlist[MAX_PLAYERS_LISTED][MAX_CHARS_WIDE];
 
 extern byte col_raindrop, col_snowflake, col_sandgrain;
 extern char c_sandgrain;
@@ -1231,3 +1265,6 @@ extern int food_warn_once_timer;
 extern int prev_huge_cmp, prev_huge_mmp;
 extern int prev_huge_csn, prev_huge_msn;
 extern int prev_huge_chp, prev_huge_mhp;
+
+extern bool fix_custom_font_after_startup;
+extern int flick_global_x, flick_global_y, flick_global_time;

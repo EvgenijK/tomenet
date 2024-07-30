@@ -1080,6 +1080,7 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 		if (tokenize(buf + 2, 2, zz) == 2) {
 			i = (byte)strtol(zz[0], NULL, 0);
 			window_flag[i] = 1L << ((byte)strtol(zz[1], NULL, 0));
+			check_for_playerlist();
 			return(0);
 		}
 	}
@@ -1106,6 +1107,7 @@ errr process_pref_file(cptr name) {
 	/* Build the filename */
 	path_build(buf, 1024, ANGBAND_DIR_USER, name);
 
+printf("processing prf file %s\n", name);
 	/* Open the file */
 	fp = my_fopen(buf, "r");
 
@@ -1504,6 +1506,7 @@ void peruse_file(void) {
  * XXX XXX XXX Allow the "full" flag to dump additional info,
  * and trigger its usage from various places in the code.
  */
+#define DUMP_MAX_X 80	/* Increased to 80 from originally 79, or Chh gets its last column cut off (and potentially other stuff too) */
 errr file_character(cptr name, bool quiet) {
 	int		i, x, y;
 	byte		a;
@@ -1546,7 +1549,7 @@ errr file_character(cptr name, bool quiet) {
 #if 0 /* this is actually correct */
 		for (x = 0; x < Term->wid; x++) {
 #else /* bad hack actually, just to avoid spacer lines on oook.cz */
-		for (x = 0; x < 79; x++) {
+		for (x = 0; x < DUMP_MAX_X; x++) {
 #endif
 			/* Get the attr/char */
 			(void)(Term_what(x, y, &a, &c));
@@ -1570,7 +1573,7 @@ errr file_character(cptr name, bool quiet) {
 #if 0 /* this is actually correct */
 		for (x = 0; x < Term->wid; x++) {
 #else /* bad hack actually, just to avoid spacer lines on oook.cz */
-		for (x = 0; x < 79; x++) {
+		for (x = 0; x < DUMP_MAX_X; x++) {
 #endif
 			/* Get the attr/char */
 			(void)(Term_what(x, y, &a, &c));
@@ -1594,7 +1597,7 @@ errr file_character(cptr name, bool quiet) {
 #if 0 /* this is actually correct */
 		for (x = 0; x < Term->wid; x++) {
 #else /* bad hack actually, just to avoid spacer lines on oook.cz */
-		for (x = 0; x < 79; x++) {
+		for (x = 0; x < DUMP_MAX_X; x++) {
 #endif
 			/* Get the attr/char */
 			(void)(Term_what(x, y, &a, &c));
@@ -1632,7 +1635,6 @@ errr file_character(cptr name, bool quiet) {
 		/* trim lines to 80 chars */
 		sprintf(linebuf, "%c%s %s\n", index_to_label(i), paren, buf);
 		//linebuf[80] = 0; --not for now
-
 		fprintf(fff, "%s", linebuf);
 	}
 	fprintf(fff, "\n\n");
@@ -1645,10 +1647,32 @@ errr file_character(cptr name, bool quiet) {
 		/* trim lines to 80 chars */
 		sprintf(linebuf, "%c%s %s\n", index_to_label(i), paren, inventory_name[i]);
 		//linebuf[80] = 0; --not for now
-
 		fprintf(fff, "%s", linebuf);
 	}
 	fprintf(fff, "\n\n");
+
+#ifdef ENABLE_SUBINVEN
+	/* Dump the inventory */
+	fprintf(fff, "  [Character Subinventory]\n\n");
+	for (i = 0; i < INVEN_PACK; i++) {
+		if (inventory[i].tval != TV_SUBINVEN) continue;
+
+		/* trim lines to 80 chars */
+		sprintf(linebuf, "[%c] %s\n", index_to_label(i), inventory_name[i]);
+		//linebuf[80] = 0; --not for now
+		fprintf(fff, "%s", linebuf);
+
+		for (x = 0; x < SUBINVEN_PACK; x++) {
+			if (!subinventory[i][x].tval) continue;
+
+			/* trim lines to 80 chars */
+			sprintf(linebuf, "  %c%s %s\n", index_to_label(i), paren, subinventory_name[i][x]);
+			//linebuf[80] = 0; --not for now
+			fprintf(fff, "%s", linebuf);
+		}
+	}
+	fprintf(fff, "\n\n");
+#endif
 
 	/* Dump the last messages */
 	fprintf(fff, "  [Last Messages]\n\n");
@@ -1714,7 +1738,7 @@ errr file_character(cptr name, bool quiet) {
 	Term_load();
 
 	/* Message */
-	if (!quiet) c_msg_print("Character dump successful.");
+	if (!quiet) c_msg_format("Character dump to file '%s' successful.", name);
 	clear_topline_forced();
 
 	/* Success */
@@ -1847,12 +1871,14 @@ void xhtml_screenshot(cptr name, byte redux) {
 			buf[x] = '\0';
 			snprintf(file_name, 256, "%s%04d.xhtml", buf, max + 1);
 		} else {
+			time_t ct = time(NULL);
+			struct tm* ctl = localtime(&ct);
+
 			/* Replace '????' with the current date and time */
 			strncpy(buf, name, x);
 			buf[x] = '\0';
-			time_t ct = time(NULL);
+
 			//snprintf(file_name, 256, "%s%-.24s", buf, ctime(&ct));
-			struct tm* ctl = localtime(&ct);
 			snprintf(file_name, 256, "%s_%04d-%02d-%02d_%02d-%02d-%02d.xhtml", buf,
 			    1900 + ctl->tm_year, ctl->tm_mon + 1, ctl->tm_mday,
 			    ctl->tm_hour, ctl->tm_min, ctl->tm_sec);
@@ -1898,7 +1924,7 @@ void xhtml_screenshot(cptr name, byte redux) {
 
 	cur_attr = Term->scr->a[0][0];
 #ifdef EXTENDED_COLOURS_PALANIM
-	if (cur_attr >= TERMA_DARK && cur_attr <= TERMA_L_UMBER) cur_attr = cur_attr - TERMA_OFFSET; /* Use the basic colours instead of the palette-animated ones */
+	if (cur_attr >= TERMA_OFFSET && cur_attr < TERMA_OFFSET + BASE_PALETTE_SIZE) cur_attr -= TERMA_OFFSET; /* Use the basic colours instead of the palette-animated ones */
 #endif
 	prt_attr = term2attr(cur_attr);
 	/* safe-fail: can happen if an EXTENDED_BG_COLOUR is used but not defined here (see color_table[] above): */
@@ -1957,7 +1983,7 @@ void xhtml_screenshot(cptr name, byte redux) {
 			if (scr_aa[x] != cur_attr) {
 				cur_attr = scr_aa[x];
 #ifdef EXTENDED_COLOURS_PALANIM
-				if (cur_attr >= TERMA_DARK && cur_attr <= TERMA_L_UMBER) cur_attr = cur_attr - TERMA_OFFSET; /* Use the basic colours instead of the palette-animated ones */
+				if (cur_attr >= TERMA_OFFSET && cur_attr < TERMA_OFFSET + BASE_PALETTE_SIZE) cur_attr -= TERMA_OFFSET; /* Use the basic colours instead of the palette-animated ones */
 #endif
 
 				strcpy(&buf[bytes], "</span><span style=\"color: ");
@@ -2100,19 +2126,21 @@ void save_auto_inscriptions(cptr name) {
 		fprintf(fp, "%s\n", auto_inscription_tag[i]);
 		fprintf(fp, "%d\n", auto_inscription_autopickup[i]);
 		fprintf(fp, "%d\n", auto_inscription_autodestroy[i]);
+		fprintf(fp, "%d\n", auto_inscription_subinven[i]); //ENABLE_SUBINVEN
+		fprintf(fp, "%d\n", auto_inscription_disabled[i]);
 	}
 
 	fclose(fp);
 
-	c_msg_format("Auto-inscriptions saved to file '%s'.", name);
+	c_msg_format("Auto-inscriptions saved to file '%s'.", file_name);
 }
 
 /* Load Auto-Inscription file (*.ins) - C. Blue */
 void load_auto_inscriptions(cptr name) {
 	FILE *fp;
 	char buf[1024], *bufptr, dummy[1024], *rptr;
-	char file_name[256], vtag[5];
-	int i, c, j, c_eff, version, vmaj, vmin, vex;
+	char file_name[256], vtag[7];
+	int i, c, j, c_eff, version, vmaj, vmin, vpatch;
 	bool replaced, force;
 #ifdef REGEX_SEARCH
 	int ires = -999;
@@ -2147,98 +2175,26 @@ void load_auto_inscriptions(cptr name) {
 		return;
 	}
 	/* extract version */
-	sscanf(buf, "Auto-Inscriptions file for TomeNET v%d.%d.%d%s\n", &vmaj, &vmin, &vex, vtag);
-//c_message_add(format("n='%s',v=%d,%d,%d,%s.", name,vmaj,vmin,vex,vtag));
+	sscanf(buf, "Auto-Inscriptions file for TomeNET v%d.%d.%d%s\n", &vmaj, &vmin, &vpatch, vtag);
 	if (vmaj < 4 || /* at most 4.7.1a */
 	    (vmaj == 4 && (vmin < 7 ||
-	    (vmin == 7 && (vex < 1 ||
-	    (vex == 1 && (streq(vtag, "") || streq(vtag, "a"))))))))
+	    (vmin == 7 && (vpatch < 1 ||
+	    (vpatch == 1 && (!vtag[0] || vtag[0] == 'a')))))))
 		version = 1;
-	else if (vmaj == 4 && vmin == 7 && vex < 4) /* older than 4.7.4 */
+	else if (vmaj == 4 && vmin == 7 && vpatch < 4) /* older than 4.7.4 */
 		version = 2;
-	else
+	else if (vmaj == 4 && (vmin < 9 ||
+	    (vmin == 9 && (vpatch < 1 || (vpatch == 1 && (!vtag[0] || vtag[0] == '-')))))) // '-Test' client tag
 		version = 3;
+	else
+		version = 4;
 
-#if 0 /* completely overwrite/erase current auto-inscriptions */
-	/* load inscriptions (2 lines each) */
-	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
-		if (fgets(auto_inscription_match[i], AUTOINS_MATCH_LEN, fp) == NULL)
-			strcpy(auto_inscription_match[i], "");
-		if (strlen(auto_inscription_match[i])) auto_inscription_match[i][strlen(auto_inscription_match[i]) - 1] = '\0';
-
-		if (fgets(auto_inscription_tag[i], AUTOINS_TAG_LEN, fp) == NULL)
-			strcpy(auto_inscription_tag[i], "");
-		if (strlen(auto_inscription_tag[i])) auto_inscription_tag[i][strlen(auto_inscription_tag[i]) - 1] = '\0';
-	}
-
-	fclose(fp);
-//	c_msg_print("Auto-inscriptions loaded.");
+#ifdef TEST_CLIENT
+	//c_msg_format("Read a v%d.%d.%d%s .ins file, version %d.", vmaj, vmin, vpatch, vtag, version);
 #endif
-#if 0 /* attempt to merge current auto-inscriptions somewhat */
-	/* load inscriptions (2 lines each) */
-	c = -1; /* current internal auto-inscription slot to set */
-	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
-		replaced = FALSE;
 
-		/* try to read a match */
-		if (fgets(buf, AUTOINS_MATCH_LEN + 1, fp) == NULL) {
-			fclose(fp);
-			return;
-		}
-		if (strlen(buf)) buf[strlen(buf) - 1] = '\0';
+	/* attempt to merge current auto-inscriptions, and give priority to those we want to load here */
 
-		/* skip empty matches */
-		if (buf[0] == '\0') {
-			/* try to read according tag */
-			if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) {
-				fclose(fp);
-				return;
-			}
-			continue;
-		}
-
-		/* check for duplicate entry (if it already exists)
-		   and replace older entry simply */
-		for (j = 0; j < MAX_AUTO_INSCRIPTIONS; j++) {
-			if (!strcmp(buf, auto_inscription_match[j])) {
-				/* try to read according tag */
-				if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) {
-					fclose(fp);
-					return;
-				}
-				if (strlen(buf)) buf[strlen(buf) - 1] = '\0';
-				strcpy(auto_inscription_tag[j], buf);
-
-				replaced = TRUE;
-				break;
-			}
-		}
-		if (replaced) continue;
-
-		/* search for free match-slot */
-		c++;
-		while (strlen(auto_inscription_match[c]) && c < MAX_AUTO_INSCRIPTIONS) c++;
-		if (c == MAX_AUTO_INSCRIPTIONS) {
-			/* give a warning maybe */
-			//c_msg_print("Auto-inscriptions partially loaded and merged.");
-			fclose(fp);
-			return;
-		}
-		/* set slot */
-		strcpy(auto_inscription_match[c], buf);
-
-		/* load according tag */
-		if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) {
-			fclose(fp);
-			return;
-		}
-		if (strlen(buf)) buf[strlen(buf) - 1] = '\0';
-		strcpy(auto_inscription_tag[c], buf);
-	}
-	//c_msg_print("Auto-inscriptions loaded/merged.");
-	fclose(fp);
-#endif
-#if 1 /* attempt to merge current auto-inscriptions, and give priority to those we want to load here */
 	/* load inscriptions (2 lines each) */
 	c = 0; /* current internal auto-inscription slot to set */
 	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
@@ -2264,6 +2220,11 @@ void load_auto_inscriptions(cptr name) {
 			if (buf[0]) buf[strlen(buf) - 1] = 0;
 			/* try to read automation flags */
 			if (version >= 3) {
+				if (fgets(buf, 5, fp) == NULL) break;
+				if (fgets(buf, 5, fp) == NULL) 	break;
+			}
+			/* try to read 'bags-only' and 'disabled' flags */
+			if (version >= 4) {
 				if (fgets(buf, 5, fp) == NULL) break;
 				if (fgets(buf, 5, fp) == NULL) 	break;
 			}
@@ -2295,6 +2256,14 @@ void load_auto_inscriptions(cptr name) {
 				auto_inscription_autopickup[j] = atoi(buf);
 				if (fgets(buf, 5, fp) == NULL) break;
 				auto_inscription_autodestroy[j] = atoi(buf);
+			}
+
+			/* try to read 'bags-only' and 'disabled' flags */
+			if (version >= 4) {
+				if (fgets(buf, 5, fp) == NULL) break;
+				auto_inscription_subinven[j] = atoi(buf);
+				if (fgets(buf, 5, fp) == NULL) break;
+				auto_inscription_disabled[j] = atoi(buf);
 			}
 
 			replaced = TRUE;
@@ -2348,6 +2317,14 @@ void load_auto_inscriptions(cptr name) {
 			auto_inscription_autodestroy[c_eff] = atoi(buf);
 		}
 
+		/* try to read 'bags-only' and 'disabled' flags */
+		if (version >= 4) {
+			if (fgets(buf, 5, fp) == NULL) break;
+			auto_inscription_subinven[c_eff] = atoi(buf);
+			if (fgets(buf, 5, fp) == NULL) break;
+			auto_inscription_disabled[c_eff] = atoi(buf);
+		}
+
 		if (c >= 0) c++;
 		(void)rptr; /*stfu already, compiler O_O*/
 	}
@@ -2355,14 +2332,20 @@ void load_auto_inscriptions(cptr name) {
 	fclose(fp);
 
 	/* Auto-convert old version files: Write new version back to disk. */
-	if (version == 1) {
-		c_message_add("Old auto-inscription wildcards ('?') have been converted to new version ('#').");
-		save_auto_inscriptions(name);
-	} else if (version == 2) {
-		c_message_add("Old auto-inscriptions were converted to new version supporting autopick/destroy."); //welllll, not exactly :-s
+	switch (version) {
+	case 1:
+		c_message_add("Old auto-inscription wildcards ('?') updated to new version ('#').");
+		/* fall through */
+	case 2:
+		c_message_add("Old auto-inscriptions updated to support auto-pickup/-destroy."); //welllll, not exactly :-s
+		/* fall through */
+	case 3:
+		c_message_add("Old auto-inscriptions updated to support bags-only/disabled flags."); //welllll, not exactly :-s
+		/* fall through */
+
+		/* Always re-save the converted inscriptions */
 		save_auto_inscriptions(name);
 	}
-#endif
 }
 
 /* Save Character-Birth file (*.dna) */
@@ -2406,7 +2389,7 @@ void save_birth_file(cptr name, bool touch) {
 		fprintf(fp, "%d\n", trait); //Trait
 
 		/* Stats */
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < C_ATTRIBUTES; i++)
 			fprintf(fp, "%d\n", stat_order[i]);
 	} else {
 		/* Info */
@@ -2416,7 +2399,7 @@ void save_birth_file(cptr name, bool touch) {
 		fprintf(fp, "%d\n", dna_trait); //Trait
 
 		/* Stats */
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < C_ATTRIBUTES; i++)
 			fprintf(fp, "%d\n", dna_stat_order[i]);
 	}
 
@@ -2437,6 +2420,10 @@ void load_birth_file(cptr name) {
 	strncpy(file_name, name, 249);
 	file_name[249] = '\0';
 	int tmp, i, r;
+
+
+	/* Assume invalid until we completely loaded it successfully */
+	valid_dna = FALSE;
 
 	/* add '.dna' extension if not already existing */
 	if (strlen(name) > 4) {
@@ -2523,7 +2510,7 @@ void load_birth_file(cptr name) {
 	dna_trait = (s16b)tmp;
 
 	/* Stats */
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < C_ATTRIBUTES; i++) {
 		r = fscanf(fp, "\n%d", &tmp);
 		if (r == EOF || r == 0) {
 			fclose(fp);
@@ -2539,7 +2526,7 @@ void load_birth_file(cptr name) {
 #endif
 
 	/* Validate */
-	valid_dna = 1; //Safety for mis-hacked dna files in future? - Kurzel
+	valid_dna = TRUE; //Safety for mis-hacked dna files in future? - Kurzel
 
 	/* Done */
 	fclose(fp);

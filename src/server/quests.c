@@ -75,6 +75,10 @@
    function luafn(flags, Ind, "..."). */
 #define QUESTS_ALLOW_LUA
 
+/* Copy-paste from cave.c (at cave_illuminate_rad()): */
+#define CAVE_ILLUM_MACRO(zcave, x_org, y_org, x, y, flags) \
+	if (in_bounds_array(y, x) && los_zcave(zcave, y_org, x_org, y, x)) { zcave[y][x].info |= flags; everyone_lite_spot(&wpos, cy, cx); }
+
 
 static void quest_goal_check_reward(int pInd, int q_idx);
 static bool quest_goal_check(int pInd, int q_idx, bool interacting);
@@ -375,9 +379,11 @@ static cave_type **quest_prepare_zcave(struct worldpos *wpos, bool stat, cptr tp
 	return getcave(wpos);
 }
 
-/* Replace placeholders $$n/N, $$t/T, $$r/R, $$a/A and $$c/C in a string,
+/* Replace placeholders $$<letter> / $$<capital letter> in a string,
    thereby personalising it for dialogues and narrations.
-   New addition: $$P (party members, 0 = no party, 1 = only yourself, 2+..).
+   Examples:
+    $$P (party members, 0 = no party, 1 = only yourself, 2+..). Same for $$G for guild members.
+    $$E (trait-/class-affected race, eg Enlightened/Corrupted, empty for Hell Knight/Death Knight, else same as race)
 
    Note that similar placeholders are already used in other places exclusively:
    $$p1..5 for randomized passwords.
@@ -402,6 +408,12 @@ static void quest_text_replace(char *dest, cptr src, player_type *p_ptr) {
 			break;
 		case 'T':
 			strcat(dest, get_ptitle(p_ptr, FALSE));
+#ifdef ENABLE_SUBCLASS_TITLE
+			if (p_ptr->sclass) {
+				strcat(dest, " ");
+				strcat(dest, get_ptitle2(p_ptr, FALSE));
+			}
+#endif
 			break;
 		case 'R':
 			strcat(dest, race_info[p_ptr->prace].title);
@@ -423,6 +435,12 @@ static void quest_text_replace(char *dest, cptr src, player_type *p_ptr) {
 			break;
 		case 't':
 			strcat(dest, get_ptitle(p_ptr, FALSE));
+#ifdef ENABLE_SUBCLASS_TITLE
+			if (p_ptr->sclass) {
+				strcat(dest, " ");
+				strcat(dest, get_ptitle2(p_ptr, FALSE));
+			}
+#endif
 			lp = pos - 1;
 			while (dest[++lp]) dest[lp] = tolower(dest[lp]);
 			break;
@@ -532,7 +550,7 @@ static bool quest_special_spawn_location(struct worldpos *wpos, s16b *x_result, 
 				/* specialty: avoid players, so we don't have to teleport
 				   them around in case we have to deallocate the sector */
 				if (!wpos->wz) {
-					if (wild_info[y2][x2].ondepth && tries > 250) continue;
+					if (wild_info[y2][x2].surface.ondepth && tries > 250) continue;
 				} else if (wpos->wz < 0) {
 					if (wild_info[y2][x2].dungeon->level[ABS(wpos->wz) - 1].ondepth && tries > 250) continue;
 				} else {
@@ -570,7 +588,7 @@ static bool quest_special_spawn_location(struct worldpos *wpos, s16b *x_result, 
 
 				/* specialty: avoid players, so we don't have to teleport
 				   them around in case we have to deallocate the sector */
-				if (wild_info[y][x].ondepth && tries > 1000) continue;
+				if (wild_info[y][x].surface.ondepth && tries > 1000) continue;
 
 				bool match = FALSE;
 
@@ -884,9 +902,7 @@ static bool questor_monster(int q_idx, qi_questor *q_questor, int questor_idx) {
 		/* check again. If still here, just transport him to Bree for now -_- */
 		if (c_ptr->m_idx < 0) {
 			p_ptr->new_level_method = LEVEL_RAND;
-			p_ptr->recall_pos.wx = cfg.town_x;
-			p_ptr->recall_pos.wy = cfg.town_y;
-			p_ptr->recall_pos.wz = 0;
+			p_ptr->recall_pos = BREE_WPOS;
 			recall_player(Ind, "A strange force teleports you far away.");
 		}
 	} else if (c_ptr->m_idx > 0) {
@@ -946,8 +962,9 @@ static bool questor_monster(int q_idx, qi_questor *q_questor, int questor_idx) {
 	r_ptr->flags0 = rbase_ptr->flags0;
 
 	r_ptr->flags1 |= RF1_FORCE_MAXHP;
+	r_ptr->flags2 |= RF2_NEVER_ACT;
 	r_ptr->flags3 |= RF3_RES_TELE | RF3_RES_NEXU;
-	r_ptr->flags7 |= RF7_NO_TARGET | RF7_NEVER_ACT;
+	r_ptr->flags7 |= RF7_NO_TARGET;
 	if (q_questor->invincible) r_ptr->flags7 |= RF7_NO_DEATH; //for now we just use NO_DEATH flag for invincibility
 	r_ptr->flags8 |= RF8_GENO_PERSIST | RF8_GENO_NO_THIN | RF8_ALLOW_RUNNING | RF8_NO_AUTORET;
 	r_ptr->flags9 |= RF9_IM_TELE;
@@ -992,7 +1009,7 @@ static bool questor_monster(int q_idx, qi_questor *q_questor, int questor_idx) {
 	r_ptr->freq_spell = rbase_ptr->freq_spell;
 
 #ifdef MONSTER_ASTAR
-	if (r_ptr->flags0 & RF0_ASTAR) {
+	if (r_ptr->flags7 & RF7_ASTAR) {
 		/* search for an available A* table to use */
 		for (i = 0; i < ASTAR_MAX_INSTANCES; i++) {
 			/* found an available instance? */
@@ -1064,8 +1081,7 @@ static bool questor_monster(int q_idx, qi_questor *q_questor, int questor_idx) {
 		for (cx = x - lite_rad; cx <= x + lite_rad; cx++)
 		for (cy = y - lite_rad; cy <= y + lite_rad; cy++) {
 			if (distance(cy, cx, y, x) > lite_rad) continue;
-			zcave[cy][cx].info |= lite_type;
-			everyone_lite_spot(&wpos, cy, cx);
+			CAVE_ILLUM_MACRO(zcave, x, y, cx, cy, lite_type)
 		}
 	}
 
@@ -1094,7 +1110,7 @@ static void teleport_objects_away(struct worldpos *wpos, s16b x, s16b y, int dis
 
 		if (!in_bounds(cy, cx)) continue;
 		if (!cave_floor_bold(zcave, cy, cx) ||
-		    cave_perma_bold(zcave, cy, cx)) continue;
+		    cave_perma_bold2(zcave, cy, cx)) continue;
 
 //		(void)floor_carry(cy, cx, &tmp_obj);
 		drop_near(TRUE, 0, &tmp_obj, 0, wpos, cy, cx);
@@ -1110,7 +1126,7 @@ static void teleport_objects_away(struct worldpos *wpos, s16b x, s16b y, int dis
 
 		if (!in_bounds(cy, cx)) continue;
 		if (!cave_floor_bold(zcave, cy, cx) ||
-		    cave_perma_bold(zcave, cy, cx)) continue;
+		    cave_perma_bold2(zcave, cy, cx)) continue;
 
 		/* no idea if this works */
 		if (!cave_naked_bold(zcave, cy, cx)) continue;
@@ -1264,8 +1280,7 @@ static bool questor_object(int q_idx, qi_questor *q_questor, int questor_idx) {
 		for (cx = x - lite_rad; cx <= x + lite_rad; cx++)
 		for (cy = y - lite_rad; cy <= y + lite_rad; cy++) {
 			if (distance(cy, cx, y, x) > lite_rad) continue;
-			zcave[cy][cx].info |= lite_type;
-			everyone_lite_spot(&wpos, cy, cx);
+			CAVE_ILLUM_MACRO(zcave, x, y, cx, cy, lite_type)
 		}
 	}
 
@@ -2326,7 +2341,8 @@ static void quest_questor_hostility(int q_idx, int stage, int questor_idx) {
 
 	/* questor turns hostile to players? */
 	if (q_qhost->hostile_player) {
-		r_ptr->flags7 &= ~(RF7_NO_TARGET | RF7_NEVER_ACT);//| RF7_NO_DEATH; --done in quest_questor_morph() actually
+		r_ptr->flags2 &= ~(RF2_NEVER_ACT);
+		r_ptr->flags7 &= ~(RF7_NO_TARGET);//| RF7_NO_DEATH; --done in quest_questor_morph() actually
 		m_ptr->questor_hostile |= 0x1;
 	}
 
@@ -2513,7 +2529,7 @@ static void quest_add_dungeon(int q_idx, int stage) {
 	case 1: flags1 |= DF1_FORCE_DOWN; break;
 	case 2: flags2 |= DF2_IRON; break;
 	}
-	add_dungeon(&q_stage->dun_wpos, q_stage->dun_base, q_stage->dun_max, flags1, flags2 | DF2_RANDOM, flags3, q_stage->dun_tower, 0, q_stage->dun_theme, q_idx + 1, stage);
+	add_dungeon(&q_stage->dun_wpos, q_stage->dun_base, q_stage->dun_max, flags1 | DF1_UNLISTED, flags2 | DF2_RANDOM, flags3, q_stage->dun_tower, 0, q_stage->dun_theme, q_idx + 1, stage);
 
 	/* place staircase */
 	do {
@@ -2530,7 +2546,7 @@ static void quest_remove_dungeons(int q_idx) {
 
 	for (i = 0; i < q_ptr->stages; i++) {
 		if (!q_ptr->stage[i].dun_base) continue;
-		rem_dungeon(&q_ptr->stage[i].dun_wpos, FALSE);
+		(void)rem_dungeon(&q_ptr->stage[i].dun_wpos, FALSE);
 	}
 }
 /* Remove the dungeon of a specific quest stage */
@@ -2538,7 +2554,7 @@ static void quest_remove_dungeon(int q_idx, int stage) {
 	qi_stage *q_stage = quest_qi_stage(q_idx, stage);
 
 	if (!q_stage->dun_base || q_stage->dun_keep) return;
-	rem_dungeon(&q_stage->dun_wpos, FALSE);
+	(void)rem_dungeon(&q_stage->dun_wpos, FALSE);
 }
 /* Helper vars for quest_aux(), sigh.. TODO: some other way? ^^ */
 static cptr quest_aux_name = NULL;
@@ -3894,7 +3910,7 @@ void quest_reply(int Ind, int q_idx, char *str) {
 
 	/* check for pure '?': trim leading/trailing spaces */
 	while (*str == ' ') str++;
-	while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
+	if (*str) while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
 	/* check for '?': */
 	if (!strcmp(str, "?")) help = TRUE;
 
@@ -3907,7 +3923,7 @@ void quest_reply(int Ind, int q_idx, char *str) {
 	}
 	/* trim leading/trailing spaces */
 	while (*str == ' ') str++;
-	while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
+	if (*str) while (str[strlen(str) - 1] == ' ') str[strlen(str) - 1] = 0;
 	/* reduce multi-spaces */
 	c = str;
 	ct = text;
@@ -4182,11 +4198,8 @@ static bool quest_goal_matches_object(int q_idx, int stage, int goal, object_typ
 
 	/* First let's find out the object's attr..which is uggh not so cool (from cave.c).
 	   Note that d_attr has the correct get base colour, especially for flavoured items! */
-#if 0
-	attr = k_ptr->k_attr;
-#else /* this is correct */
 	attr = k_ptr->d_attr;
-#endif
+
 	if (o_ptr->tval == TV_BOOK && is_custom_tome(o_ptr->sval))
 		attr = get_book_name_color(o_ptr);
 	/* hack: colour of fancy shirts or custom objects can vary  */
@@ -4844,6 +4857,7 @@ void quest_statuseffect(int Ind, int fx) {
 	int k_idx = k_info_num[fx];
 	int tv = k_info[k_idx].tval, sv = k_info[k_idx].sval;
 	bool dummy;
+	object_type dummy_forge;
 
 	/* special effects, not in k_info */
 	if (fx < 0) switch (-fx) {
@@ -4864,7 +4878,7 @@ void quest_statuseffect(int Ind, int fx) {
 	if (tv == TV_FOOD) (void)eat_food(Ind, sv, NULL, &dummy);
 	else if (tv == TV_POTION || tv == TV_POTION2) (void)quaff_potion(Ind, tv, sv, -257);
 	else if (tv == TV_SCROLL) (void)read_scroll(Ind, tv, sv, NULL, 0, &dummy, &dummy);
-	else if (tv == TV_ROD) (void)zap_rod(Ind, sv, DEFAULT_RADIUS, NULL, &dummy);
+	else if (tv == TV_ROD) (void)zap_rod(Ind, sv, DEFAULT_RADIUS, &dummy_forge, &dummy);
 	else if (tv == TV_STAFF) (void)use_staff(Ind, sv, DEFAULT_RADIUS, FALSE, &dummy);
 	//not implemented--
 	//else if ((k_info[k_idx].flags3 & TR3_ACTIVATE)) (void)activate_item(Ind, tv, sv, DEFAULT_RADIUS, FALSE);
@@ -5726,7 +5740,7 @@ qi_kill *init_quest_kill(int q_idx, int stage, int q_info_goal) {
 	for (i = 0; i < 5; i++) {
 		p->name[i] = NULL;
 
-		p->rchar[i] = 254;
+		p->rchar[i] = 126;
 		p->rattr[i] = 254;
 
 	}
@@ -6223,7 +6237,8 @@ void quest_questor_reverts(int q_idx, int questor_idx, struct worldpos *wpos) {
 	monster_type *m_ptr = &m_list[q_questor->mo_idx];
 	monster_race *r_ptr = m_ptr->r_ptr;
 
-	r_ptr->flags7 |= (RF7_NO_TARGET | RF7_NEVER_ACT);//| RF7_NO_DEATH; --done in quest_questor_morph() actually
+	r_ptr->flags2 |= (RF2_NEVER_ACT);
+	r_ptr->flags7 |= (RF7_NO_TARGET);//| RF7_NO_DEATH; --done in quest_questor_morph() actually
 	m_ptr->questor_hostile = 0x0;
 
 	/* change stage? */

@@ -14,9 +14,10 @@ HBLESSING_I = add_spell {
 	["spell"] = 	function()
 			if player.blessed_power <= 8 then
 				local dur
+
 				player.blessed_power = 8
 				dur = 9 + randint(get_level(Ind, HBLESSING_I, 25))
-				set_blessed(Ind, dur)
+				set_blessed(Ind, dur, TRUE)
 				fire_ball(Ind, GF_BLESS_PLAYER, 0, dur, 2, " recites a blessing.")
 			end
 	end,
@@ -44,9 +45,10 @@ HBLESSING_II = add_spell {
 	["spell"] = 	function()
 			if player.blessed_power <= 14 then
 				local dur
+
 				player.blessed_power = 14
 				dur = 17 + randint(get_level(Ind, HBLESSING_I, 25))
-				set_blessed(Ind, dur)
+				set_blessed(Ind, dur, TRUE)
 				fire_ball(Ind, GF_BLESS_PLAYER, 0, dur, 2, " chants.")
 			end
 	end,
@@ -73,9 +75,10 @@ HBLESSING_III = add_spell {
 	["spell"] = 	function()
 			if player.blessed_power <= 20 then
 				local dur
+
 				player.blessed_power = 20
 				dur = 32 + randint(get_level(Ind, HBLESSING_I, 25))
-				set_blessed(Ind, dur)
+				set_blessed(Ind, dur, TRUE)
 				fire_ball(Ind, GF_BLESS_PLAYER, 0, dur, 2, " speaks a holy prayer.")
 			end
 	end,
@@ -191,12 +194,12 @@ HPROTEVIL = add_spell {
 	["spell_power"] = 0,
 	["am"] = 	75,
 	["level"] = 	12,
-	["mana"] = 	20,
-	["mana_max"] = 	20,
-	["fail"] = 	20,
+	["mana"] = 	15,
+	["mana_max"] = 	15,
+	["fail"] = 	0,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
-			set_protevil(Ind, 20 + randint(10) + get_level(Ind, HPROTEVIL, 50))
+			set_protevil(Ind, 20 + randint(10) + get_level(Ind, HPROTEVIL, 50), TRUE)
 	end,
 	["info"] = 	function()
 			return "dur "..20 + get_level(Ind, HPROTEVIL, 50)..".."..30 + get_level(Ind, HPROTEVIL, 50)
@@ -251,6 +254,7 @@ HRUNEPROT = add_spell {
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 			local x, y
+
 			y = player.py
 			x = player.px
 			warding_glyph(Ind)

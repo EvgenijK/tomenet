@@ -275,6 +275,8 @@ void delete_object_idx(int o_idx, bool unfound_art) {
 	}
 #endif
 
+	if (o_ptr->custom_lua_destruction) exec_lua(0, format("custom_object_destruction(0,%d,0,%d)", o_idx, o_ptr->custom_lua_destruction));
+
 	/* Excise */
 	excise_object_idx(o_idx);
 
@@ -1472,8 +1474,9 @@ void object_tried(int Ind, object_type *o_ptr, bool flipped) {
 
 
 /*
- * Return the "value" of an "unknown" item
- * Make a guess at the value of non-aware items
+ * Return the "value" of an "unknown" item.
+ * Make a guess at the value of non-aware items.
+ * (Does not apply any 'discounts'.)
  */
 s64b object_value_base(int Ind, object_type *o_ptr) {
 	object_kind *k_ptr = &k_info[o_ptr->k_idx];
@@ -1483,30 +1486,30 @@ s64b object_value_base(int Ind, object_type *o_ptr) {
 
 	/* Analyze the type */
 	switch (o_ptr->tval) {
-		/* Un-aware Food */
-		case TV_FOOD: return(5L);
+	/* Un-aware Food */
+	case TV_FOOD: return(5L);
 
-		/* Un-aware Potions */
-		case TV_POTION:
-		case TV_POTION2: return(20L);
+	/* Un-aware Potions */
+	case TV_POTION:
+	case TV_POTION2: return(20L);
 
-		/* Un-aware Scrolls */
-		case TV_SCROLL: return(20L);
+	/* Un-aware Scrolls */
+	case TV_SCROLL: return(20L);
 
-		/* Un-aware Staffs */
-		case TV_STAFF: return(70L);
+	/* Un-aware Staffs */
+	case TV_STAFF: return(70L);
 
-		/* Un-aware Wands */
-		case TV_WAND: return(50L);
+	/* Un-aware Wands */
+	case TV_WAND: return(50L);
 
-		/* Un-aware Rods */
-		case TV_ROD: return(90L);
+	/* Un-aware Rods */
+	case TV_ROD: return(90L);
 
-		/* Un-aware Rings */
-		case TV_RING: return(45L);
+	/* Un-aware Rings */
+	case TV_RING: return(45L);
 
-		/* Un-aware Amulets */
-		case TV_AMULET: return(45L);
+	/* Un-aware Amulets */
+	case TV_AMULET: return(45L);
 	}
 
 	/* Paranoia -- Oops */
@@ -1782,9 +1785,6 @@ s64b object_value_real(int Ind, object_type *o_ptr) {
 
 	/* Hack -- "worthless" items */
 	if (!value) return(0L);
-
-	/* hack: ammo used by newbies, that wasn't level0'ed */
-	if (o_ptr->xtra9 == 1) return(0L);
 
 	/* Sigil (ignore it) */
 	s32b temp_sigil = o_ptr->sigil;
@@ -3406,9 +3406,6 @@ s64b object_value(int Ind, object_type *o_ptr) {
 	/* Apply discount (if any) */
 	if (o_ptr->discount) value -= (value * o_ptr->discount / 100L);
 
-	/* hack: ammo used by newbies, that wasn't level0'ed */
-	if (o_ptr->xtra9 == 1) return(0L);
-
 	/* Return the final value */
 	return(value);
 }
@@ -3443,23 +3440,33 @@ s64b object_value(int Ind, object_type *o_ptr) {
  * o_ptr and j_ptr no longer are simmetric;
  * j_ptr should be the new item or level-reqs gets meanless.
  *
- * 'tolerance' flag:
- * 0	- no tolerance
- * +0x1	- tolerance for ammo to_h and to_d enchantment
- * +0x2	- manual 'force stack' by the player: tolerance for level 0 items (starter items)
-          and for trapping kits with different (+h,+d) enchantments (like !M works for ammo)
- * +0x4 - tolerance for discount and inscription
- *        (added for dropping items on top of stacks inside houses)
- * +0x8 - ignore non-matching inscriptions. For player stores, which erase inscriptions on purchase anyway!
+ * 'tolerance' flag (C. Blue):
+ * 0x0   - no tolerance
+ * +0x1  - tolerance for ammo to_h and to_d enchantment
+ * +0x2  - manual 'force stack' by the player: tolerance for level 0 items (starter items)
+           and for trapping kits with different (+h,+d) enchantments (like !M works for ammo)
+ * +0x4  - tolerance for discount and inscription
+ *         (added for dropping items on top of stacks inside houses)
+ * +0x8  - ignore non-matching inscriptions. For player stores, which erase inscriptions on purchase anyway!
  * +0x10 - item is dropped on the floor, not in player's inventory (SUBINVEN_LIMIT_GROUP)
- * -- C. Blue
+ * +0x20 - also perform !Gn checks with specified n amount here, in preparation for manual pickup (aka 'g' key)
+ *         Changed function type to int for this to return the amount of acceptable items for an inventory stack.
+ *         Instead of TRUE, now -1 is returned directly.
+ * +0x40 - also for !Gn check: Treat !G as 'FALSE' as usual, but now treat too big stacks as non-working,
+ *         instead of preparing for partial merging as with 0x20 tolerance.
+ * +0x80 - hack for subinventory stuff (work in progress) some items can be stacked in stores but not in inventory.
+ * +0x100- ignore stack sizes, so a 99 stack + another 99 stack can still be 'similar' even though they couldn't really stack.
+ *         This mustn't be used without +0x20 at the same time!
+ * +0x200- store_bought marker, for passing it through to subinven_can_stack() in inven_carry_okay().
+ *
+ * Returns 0 if not similar, -1 if whole stack can be merged (similar, normal case), or...
+ * a number how many items are acceptable, specifically for !Gn inscription.
  */
-bool object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolerance) {
+int object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolerance) {
 	player_type *p_ptr = NULL;
-	int total = (j_ptr == o_ptr ? o_ptr->number : o_ptr->number + j_ptr->number);
+	int total = (j_ptr == o_ptr ? o_ptr->number : o_ptr->number + j_ptr->number), i;
 	bool unknown = !((k_info[o_ptr->k_idx].flags3 & TR3_EASY_KNOW) && (k_info[j_ptr->k_idx].flags3 & TR3_EASY_KNOW))
 	    && (!Ind || !object_known_p(Ind, o_ptr) || !object_known_p(Ind, j_ptr));
-
 
 	/* In general, incompatible modes never stack.
 	   Also takes care of unowned everlasting items in shops after a now-dead
@@ -3470,7 +3477,7 @@ bool object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolera
 	if (o_ptr->tval == TV_GOLD && j_ptr->tval == TV_GOLD) {
 		/* special exception: pile colour from coin-type monsters is immutable! */
 		if (o_ptr->sval != j_ptr->sval && (o_ptr->xtra2 || j_ptr->xtra2)) return(FALSE);
-		return(TRUE);
+		return(-1);
 	}
 
 #ifdef SUBINVEN_LIMIT_GROUP
@@ -3479,15 +3486,8 @@ bool object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolera
 #endif
 	/* Don't EVER stack questors oO */
 	if (o_ptr->questor) return(FALSE);
-	/* Don't ever stack special quest items */
-	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_QUEST) return(FALSE);
 	/* Don't stack quest items if not from same quest AND stage! */
 	if (o_ptr->quest != j_ptr->quest || o_ptr->quest_stage != j_ptr->quest_stage) return(FALSE);
-
-
-	/* Don't stack potions of blood because of their timeout */
-	if ((o_ptr->tval == TV_POTION || o_ptr->tval == TV_FOOD) && o_ptr->timeout) return(FALSE);
-
 
 	/* Require identical object types */
 	if (o_ptr->k_idx != j_ptr->k_idx) return(FALSE);
@@ -3527,283 +3527,319 @@ bool object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolera
 
 	/* Analyze the items */
 	switch (o_ptr->tval) {
+	case TV_SPECIAL:
+		/* Gifts can contain a stack of items, so they themselves must not be stackable, or inven space limits could be badly exploited */
+		if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) return(FALSE);
 		/* quest items */
-		case TV_SPECIAL:
-			if (o_ptr->sval == SV_QUEST) {
-				if ((o_ptr->pval != j_ptr->pval) ||
-				    (o_ptr->xtra1 != j_ptr->xtra1) ||
-				    (o_ptr->xtra2 != j_ptr->xtra2) ||
-				    (o_ptr->weight != j_ptr->weight) ||
-				    (o_ptr->quest != j_ptr->quest) ||
-				    (o_ptr->quest_stage != j_ptr->quest_stage))
-					return(FALSE);
-				break;
-			}
-			return(FALSE);
-
-		/* Chests */
-		case TV_KEY:
-		case TV_CHEST:
-			/* Never okay */
-			return(FALSE);
-
-		/* Food and Potions and Scrolls */
-		case TV_SCROLL:
-			/* cheques may have different value, so they must not stack */
-			if (o_ptr->sval == SV_SCROLL_CHEQUE) return(FALSE);
-			/* fireworks of different type */
-			if (o_ptr->sval == SV_SCROLL_FIREWORK &&
-			    (o_ptr->xtra1 != j_ptr->xtra1 ||
-			    o_ptr->xtra2 != j_ptr->xtra2))
-				return(FALSE);
-			/* Fall through */
-		case TV_FOOD:
-		case TV_POTION:
-		case TV_POTION2:
-			/* Hack for ego foods :) */
-			if (o_ptr->name2 != j_ptr->name2) return(FALSE);
-			if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
-
-			/* Assume okay */
-			break;
-
-		/* Staffs and Wands */
-		case TV_WAND:
-			/* Require either knowledge or known empty for both wands. */
-			if ((!(o_ptr->ident & (ID_EMPTY)) &&
-			    (!Ind || !object_known_p(Ind, o_ptr))) ||
-			    (!(j_ptr->ident & (ID_EMPTY)) &&
-			    (!Ind || !object_known_p(Ind, j_ptr)))) return(FALSE);
-
-			/* Beware artifacts should not combine with "lesser" thing */
-			if (o_ptr->name1 != j_ptr->name1) return(FALSE);
-			if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
-
-			/* Do not combine recharged ones with non recharged ones. */
-			//if ((f4 & TR4_RECHARGED) != (f14 & TR4_RECHARGED)) return(FALSE);
-
-			/* Do not combine different ego or normal ones */
-			if (o_ptr->name2 != j_ptr->name2) return(FALSE);
-
-			/* Do not combine different ego or normal ones */
-			if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
-
-			/* Assume okay */
-			break;
-
-		case TV_STAFF:
-			/* Require knowledge */
-			//if (!Ind || !object_known_p(Ind, o_ptr) || !object_known_p(Ind, j_ptr)) return(FALSE);
-			if ((!(o_ptr->ident & (ID_EMPTY)) &&
-			    (!Ind || !object_known_p(Ind, o_ptr))) ||
-			    (!(j_ptr->ident & (ID_EMPTY)) &&
-			    (!Ind || !object_known_p(Ind, j_ptr)))) return(FALSE);
-
-			if (o_ptr->name1 != j_ptr->name1) return(FALSE);
-			if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
-
-#ifndef NEW_MDEV_STACKING
-			/* Require identical charges */
-			if (o_ptr->pval != j_ptr->pval) return(FALSE);
-#endif
-
-			if (o_ptr->name2 != j_ptr->name2) return(FALSE);
-			if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
-
-			/* Probably okay */
-			break;
-
-			/* Fall through */
-			/* NO MORE FALLING THROUGH! MUHAHAHA the_sandman */
-
-		/* Staffs and Wands and Rods */
-		case TV_ROD:
-			/* Overpoweredness, Hello! - the_sandman */
-#if 1
-			if (o_ptr->sval == SV_ROD_HAVOC) return(FALSE);
-#else
-			if (o_ptr->sval == SV_ROD_HAVOC && o_ptr->number + j_ptr->number > 3) return(FALSE); //hm
-#endif
-
-			/* Require permission */
-			if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
-			if (o_ptr->name1 != j_ptr->name1) return(FALSE);
-
-#ifndef NEW_MDEV_STACKING
-			/* this is only for rods... the_sandman */
-			if (o_ptr->pval == 0 && j_ptr->pval != 0) return(FALSE); //lol :)
-#endif
-
-			if (o_ptr->name2 != j_ptr->name2) return(FALSE);
-			if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
-
-			/* Probably okay */
-			break;
-
-		/* Weapons and Armor */
-		case TV_DRAG_ARMOR:	return(FALSE);
-		case TV_BOW:
-		case TV_BOOMERANG:
-		case TV_DIGGING:
-		case TV_BLUNT:
-		case TV_POLEARM:
-		case TV_SWORD:
-		case TV_AXE:
-		case TV_MSTAFF:
-		case TV_BOOTS:
-		case TV_GLOVES:
-		case TV_HELM:
-		case TV_CROWN:
-		case TV_SHIELD:
-		case TV_CLOAK:
-		case TV_SOFT_ARMOR:
-		case TV_HARD_ARMOR:
-		case TV_TRAPKIT: /* so they don't stack carelessly - the_sandman */
-			/* Require permission */
-			if (!Ind || !p_ptr->stack_allow_items) return(FALSE);
-
-			/* XXX XXX XXX Require identical "sense" status */
-			/* if ((o_ptr->ident & ID_SENSE) != */
-			/*     (j_ptr->ident & ID_SENSE)) return(FALSE); */
-
-			/* Costumes must be for same monster */
-			if ((o_ptr->tval == TV_SOFT_ARMOR) && (o_ptr->sval == SV_COSTUME)) {
-				if (o_ptr->bpval != j_ptr->bpval) return(FALSE);
-			}
-
-			/* Fall through */
-
-		/* Rings, Amulets, Lites */
-		case TV_RING:
-			/* no more, due to their 'timeout' ! */
-			if ((o_ptr->tval == TV_RING) && (o_ptr->sval == SV_RING_POLYMORPH)) return(FALSE);
-			/* Fall through */
-		case TV_AMULET:
-		case TV_LITE:
-		case TV_TOOL:
-		case TV_BOOK:	/* Books can be 'fireproof' */
-			/* custom tomes which appear identical, spell-wise too, may stack */
-			if (o_ptr->tval == TV_BOOK && is_custom_tome(o_ptr->sval) &&
-			    ((o_ptr->xtra1 != j_ptr->xtra1) ||
+		if (o_ptr->sval == SV_QUEST) {
+			if ((o_ptr->pval != j_ptr->pval) ||
+			    (o_ptr->xtra1 != j_ptr->xtra1) ||
 			    (o_ptr->xtra2 != j_ptr->xtra2) ||
-			    (o_ptr->xtra3 != j_ptr->xtra3) ||
-			    (o_ptr->xtra4 != j_ptr->xtra4) ||
-			    (o_ptr->xtra5 != j_ptr->xtra5) ||
-			    (o_ptr->xtra6 != j_ptr->xtra6) ||
-			    (o_ptr->xtra7 != j_ptr->xtra7) ||
-			    (o_ptr->xtra8 != j_ptr->xtra8) ||
-			    (o_ptr->xtra9 != j_ptr->xtra9)))
+			    (o_ptr->weight != j_ptr->weight) ||
+			    (o_ptr->quest != j_ptr->quest) ||
+			    (o_ptr->quest_stage != j_ptr->quest_stage))
 				return(FALSE);
+			break;
+		}
 
-//			if (o_ptr->tval == TV_BOOK) { /* this was probably only meant for books..? */
-			/* Require full knowledge of both items */
-			if (unknown) return(FALSE);
+		/* allow practically-identical 'custom' items to stack */
+		if (o_ptr->sval == SV_CUSTOM_OBJECT &&
+		    o_ptr->pval == j_ptr->pval &&
+		    o_ptr->bpval == j_ptr->bpval &&
+		    o_ptr->pval2 == j_ptr->pval2 &&
+		    o_ptr->pval3 == j_ptr->pval3 &&
+		    o_ptr->xtra1 == j_ptr->xtra1 &&
+		    o_ptr->xtra2 == j_ptr->xtra2 &&
+		    o_ptr->xtra3 == j_ptr->xtra3 &&
+		    o_ptr->xtra4 == j_ptr->xtra4 &&
+		    o_ptr->xtra5 == j_ptr->xtra5 &&
+		    o_ptr->xtra6 == j_ptr->xtra6 &&
+		    o_ptr->xtra7 == j_ptr->xtra7 &&
+		    o_ptr->xtra8 == j_ptr->xtra8 &&
+		    o_ptr->xtra9 == j_ptr->xtra9 &&
+		    o_ptr->sseed == j_ptr->sseed &&
+		    o_ptr->name1 == j_ptr->name1 &&
+		    o_ptr->name2 == j_ptr->name2 &&
+		    o_ptr->name2b == j_ptr->name2b &&
+		    o_ptr->name3 == j_ptr->name3 &&
+		    o_ptr->name4 == j_ptr->name4 &&
+		    o_ptr->to_h == j_ptr->to_h &&
+		    o_ptr->to_d == j_ptr->to_d &&
+		    o_ptr->to_a == j_ptr->to_a &&
+		    o_ptr->ac == j_ptr->ac &&
+		    o_ptr->dd == j_ptr->dd &&
+		    o_ptr->ds == j_ptr->ds)
+			break;
 
-			/* different bpval? */
+		return(FALSE);
+
+	/* Chests */
+	case TV_KEY:
+	case TV_CHEST:
+		/* Never okay */
+		return(FALSE);
+
+	/* Food and Potions and Scrolls */
+	case TV_SCROLL:
+		/* cheques may have different value, so they must not stack */
+		if (o_ptr->sval == SV_SCROLL_CHEQUE) return(FALSE);
+		/* fireworks of different type */
+		if (o_ptr->sval == SV_SCROLL_FIREWORK &&
+		    (o_ptr->xtra1 != j_ptr->xtra1 ||
+		    o_ptr->xtra2 != j_ptr->xtra2))
+			return(FALSE);
+		/* Fall through */
+	case TV_FOOD:
+	case TV_POTION:
+	case TV_POTION2:
+		/* Hack for ego foods :) */
+		if (o_ptr->name2 != j_ptr->name2) return(FALSE);
+		if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+
+		/* Don't stack potions of blood because of their timeout */
+		if (o_ptr->timeout) return(FALSE);
+
+		/* Assume okay */
+		break;
+
+	/* Staffs, Wands and Rods (magic devices) */
+	case TV_WAND:
+		/* Require either knowledge or known empty for both wands. */
+		if ((!(o_ptr->ident & (ID_EMPTY)) &&
+		    (!Ind || !object_known_p(Ind, o_ptr))) ||
+		    (!(j_ptr->ident & (ID_EMPTY)) &&
+		    (!Ind || !object_known_p(Ind, j_ptr)))) return(FALSE);
+
+		/* Beware artifacts should not combine with "lesser" thing */
+		if (o_ptr->name1 != j_ptr->name1) return(FALSE);
+		if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
+
+		/* Do not combine recharged ones with non recharged ones. */
+		//if ((f4 & TR4_RECHARGED) != (f14 & TR4_RECHARGED)) return(FALSE);
+
+		/* Do not combine different ego or normal ones */
+		if (o_ptr->name2 != j_ptr->name2) return(FALSE);
+
+		/* Do not combine different ego or normal ones */
+		if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+
+		/* Assume okay */
+		break;
+
+	case TV_STAFF:
+		/* Require knowledge */
+		//if (!Ind || !object_known_p(Ind, o_ptr) || !object_known_p(Ind, j_ptr)) return(FALSE);
+		if ((!(o_ptr->ident & (ID_EMPTY)) &&
+		    (!Ind || !object_known_p(Ind, o_ptr))) ||
+		    (!(j_ptr->ident & (ID_EMPTY)) &&
+		    (!Ind || !object_known_p(Ind, j_ptr)))) return(FALSE);
+
+		if (o_ptr->name1 != j_ptr->name1) return(FALSE);
+		if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
+
+#ifndef NEW_MDEV_STACKING
+		/* Require identical charges */
+		if (o_ptr->pval != j_ptr->pval) return(FALSE);
+#endif
+
+		if (o_ptr->name2 != j_ptr->name2) return(FALSE);
+		if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+
+		/* Probably okay */
+		break;
+
+		/* Fall through */
+		/* NO MORE FALLING THROUGH! MUHAHAHA the_sandman */
+
+	case TV_ROD:
+		/* Overpoweredness, Hello! - the_sandman */
+#if 1
+		if (o_ptr->sval == SV_ROD_HAVOC) return(FALSE);
+#else
+		if (o_ptr->sval == SV_ROD_HAVOC && o_ptr->number + j_ptr->number > 3) return(FALSE); //hm
+#endif
+
+		/* Require permission */
+		if (!Ind || !p_ptr->stack_allow_devices) return(FALSE);
+		if (o_ptr->name1 != j_ptr->name1) return(FALSE);
+
+#ifndef NEW_MDEV_STACKING
+		/* this is only for rods... the_sandman */
+		if (o_ptr->pval == 0 && j_ptr->pval != 0) return(FALSE); //lol :)
+#endif
+
+		if (o_ptr->name2 != j_ptr->name2) return(FALSE);
+		if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+
+		/* Probably okay */
+		break;
+
+	/* Weapons and Armor */
+	case TV_DRAG_ARMOR:	return(FALSE);
+	case TV_BOW:
+	case TV_BOOMERANG:
+	case TV_DIGGING:
+	case TV_BLUNT:
+	case TV_POLEARM:
+	case TV_SWORD:
+	case TV_AXE:
+	case TV_MSTAFF:
+	case TV_BOOTS:
+	case TV_GLOVES:
+	case TV_HELM:
+	case TV_CROWN:
+	case TV_SHIELD:
+	case TV_CLOAK:
+	case TV_SOFT_ARMOR:
+	case TV_HARD_ARMOR:
+	case TV_TRAPKIT: /* so they don't stack carelessly - the_sandman */
+		/* Require permission */
+		if (!Ind || !p_ptr->stack_allow_items) return(FALSE);
+
+		/* XXX XXX XXX Require identical "sense" status */
+		/* if ((o_ptr->ident & ID_SENSE) != */
+		/*     (j_ptr->ident & ID_SENSE)) return(FALSE); */
+
+		/* Costumes must be for same monster */
+		if ((o_ptr->tval == TV_SOFT_ARMOR) && (o_ptr->sval == SV_COSTUME)) {
 			if (o_ptr->bpval != j_ptr->bpval) return(FALSE);
+		}
 
-			/* Fall through */
+		/* Fall through */
 
-		/* Missiles */
-		case TV_BOLT:
-		case TV_ARROW:
-		case TV_SHOT:
-			/* Fall through */
+	/* Rings, Amulets, Lites */
+	case TV_RING:
+		/* no more, due to their 'timeout' ! */
+		if ((o_ptr->tval == TV_RING) && (o_ptr->sval == SV_RING_POLYMORPH)) return(FALSE);
+		/* Fall through */
+	case TV_AMULET:
+	case TV_LITE:
+	case TV_TOOL:
+	case TV_BOOK:	/* Books can be 'fireproof' */
+		/* custom tomes which appear identical, spell-wise too, may stack */
+		if (o_ptr->tval == TV_BOOK && is_custom_tome(o_ptr->sval) &&
+		    ((o_ptr->xtra1 != j_ptr->xtra1) ||
+		    (o_ptr->xtra2 != j_ptr->xtra2) ||
+		    (o_ptr->xtra3 != j_ptr->xtra3) ||
+		    (o_ptr->xtra4 != j_ptr->xtra4) ||
+		    (o_ptr->xtra5 != j_ptr->xtra5) ||
+		    (o_ptr->xtra6 != j_ptr->xtra6) ||
+		    (o_ptr->xtra7 != j_ptr->xtra7) ||
+		    (o_ptr->xtra8 != j_ptr->xtra8) ||
+		    (o_ptr->xtra9 != j_ptr->xtra9)))
+			return(FALSE);
 
-			/* ---- All above items that made it through to here: ---- */
+		//if (o_ptr->tval == TV_BOOK) { /* this was probably only meant for books..? */
+		/* Require full knowledge of both items */
+		if (unknown) return(FALSE);
+
+		/* different bpval? */
+		if (o_ptr->bpval != j_ptr->bpval) return(FALSE);
+
+		/* Fall through */
+
+	/* Missiles */
+	case TV_BOLT:
+	case TV_ARROW:
+	case TV_SHOT:
+		/* Fall through */
+
+		/* ---- All above items that made it through to here: ---- */
 
 #if 0 /* no, because then if you find a stack of unidentified ammo and you shoot those arrows and pick them up again they won't stack anymore! */
-			/* For ammo too! */
-			if (unknown) return(FALSE);
+		/* For ammo too! */
+		if (unknown) return(FALSE);
 #endif
 
-			/* Verify matching (+hit,+dam) enchantment: */
+		/* Verify matching (+hit,+dam) enchantment: */
 
-			/* Ammo has special 0x1 tolerance option (exclusively for !M inscribed ammo so far) */
-			if (is_ammo(o_ptr->tval)) {
-				if (!((tolerance & 0x1) && !(cursed_p(o_ptr) || cursed_p(j_ptr) || artifact_p(o_ptr) || artifact_p(j_ptr))) ||
-				    (!check_guard_inscription(o_ptr->note, 'M') && !check_guard_inscription(j_ptr->note, 'M'))) {
-					if (o_ptr->to_h != j_ptr->to_h) return(FALSE);
-					if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
-				}
-			}
-			/* Trapkits have special 0x2 tolerance option (that is also used for stacking level 0 items in general) */
-			else if (o_ptr->tval == TV_TRAPKIT) {
-				if (!((tolerance & 0x2) && !(cursed_p(o_ptr) || cursed_p(j_ptr) || artifact_p(o_ptr) || artifact_p(j_ptr)))) {
-					if (o_ptr->to_h != j_ptr->to_h) return(FALSE);
-					if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
-				}
-			}
-			/* All other items */
-			else {
+		/* Ammo has special 0x1 tolerance option (exclusively for !M inscribed ammo so far) */
+		if (is_ammo(o_ptr->tval)) {
+			if (!((tolerance & 0x1) && !(cursed_p(o_ptr) || cursed_p(j_ptr) || artifact_p(o_ptr) || artifact_p(j_ptr))) ||
+			    (!check_guard_inscription(o_ptr->note, 'M') && !check_guard_inscription(j_ptr->note, 'M'))) {
 				if (o_ptr->to_h != j_ptr->to_h) return(FALSE);
-				if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
+			if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
 			}
-
-			/* Verify further enchantments matching.. */
-
-			if (o_ptr->to_a != j_ptr->to_a) return(FALSE);
-
-			/* Require identical "pval" code */
-			if (o_ptr->pval != j_ptr->pval) return(FALSE);
-
-			/* Require identical "artifact" names <- this shouldnt happen right? */
-			if (o_ptr->name1 != j_ptr->name1) return(FALSE);
-
-			/* Require identical "ego-item" names.
-			   Allow swapped ego powers: Ie Arrow (SlayDragon,Ethereal) combines with Arrow (Ethereal,SlayDragon).
-			   Note: This code assumes there's no ego power which can be both prefix and postfix. */
-			/* This one only allows name2 and name2b to be swapped */
-			if (! ((o_ptr->name2 == j_ptr->name2b) && (o_ptr->name2b == j_ptr->name2))) {
-				if (o_ptr->name2 != j_ptr->name2) return(FALSE);
-				if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+		}
+		/* Trapkits have special 0x2 tolerance option (that is also used for stacking level 0 items in general) */
+		else if (o_ptr->tval == TV_TRAPKIT) {
+			if (!((tolerance & 0x2) && !(cursed_p(o_ptr) || cursed_p(j_ptr) || artifact_p(o_ptr) || artifact_p(j_ptr)))) {
+				if (o_ptr->to_h != j_ptr->to_h) return(FALSE);
+			if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
 			}
+		}
+		/* All other items */
+		else {
+			if (o_ptr->to_h != j_ptr->to_h) return(FALSE);
+			if (o_ptr->to_d != j_ptr->to_d) return(FALSE);
+		}
 
-			/* Require identical random seeds */
-			if (o_ptr->name3 != j_ptr->name3
-			    && !is_ammo(o_ptr->tval) /* hack: fix 'old' ammo that didn't have NO_SEED flag yet.. */
-			    && o_ptr->tval != TV_TRAPKIT) /* doh, also fix trapkits */
-				return(FALSE);
+		/* Verify further enchantments matching.. */
+		if (o_ptr->to_a != j_ptr->to_a) return(FALSE);
 
-			/* Hack -- Never stack "powerful" items */
-			//if (o_ptr->xtra1 || j_ptr->xtra1) return(FALSE);
+		/* Require identical "pval" code */
+		if (o_ptr->pval != j_ptr->pval) return(FALSE);
 
-			/* Hack -- Never stack recharging items */
-			if (o_ptr->timeout != j_ptr->timeout) return(FALSE);
-			if (o_ptr->timeout_magic != j_ptr->timeout_magic) return(FALSE);
-			if (o_ptr->recharging != j_ptr->recharging) return(FALSE);
+		/* Require identical "artifact" names <- this shouldnt happen right? */
+		if (o_ptr->name1 != j_ptr->name1) return(FALSE);
 
-			/* Require identical "values" */
-			if (o_ptr->ac != j_ptr->ac) return(FALSE);
-			if (o_ptr->dd != j_ptr->dd) return(FALSE);
-			if (o_ptr->ds != j_ptr->ds) return(FALSE);
+		/* Require identical "ego-item" names.
+		   Allow swapped ego powers: Ie Arrow (SlayDragon,Ethereal) combines with Arrow (Ethereal,SlayDragon).
+		   Note: This code assumes there's no ego power which can be both prefix and postfix. */
+		/* This one only allows name2 and name2b to be swapped */
+		if (! ((o_ptr->name2 == j_ptr->name2b) && (o_ptr->name2b == j_ptr->name2))) {
+			if (o_ptr->name2 != j_ptr->name2) return(FALSE);
+			if (o_ptr->name2b != j_ptr->name2b) return(FALSE);
+		}
 
-			/* Probably okay */
-			break;
+		/* Require identical random seeds */
+		if (o_ptr->name3 != j_ptr->name3
+		    && !is_ammo(o_ptr->tval) /* hack: fix 'old' ammo that didn't have NO_SEED flag yet.. */
+		    && o_ptr->tval != TV_TRAPKIT) /* doh, also fix trapkits */
+			return(FALSE);
 
-		case TV_GOLEM:
-			if (o_ptr->pval != j_ptr->pval) return(FALSE);
-			break;
+		/* Hack -- Never stack "powerful" items */
+		//if (o_ptr->xtra1 || j_ptr->xtra1) return(FALSE);
+
+		/* Hack -- Never stack recharging items */
+		if (o_ptr->timeout != j_ptr->timeout) return(FALSE);
+		if (o_ptr->timeout_magic != j_ptr->timeout_magic) return(FALSE);
+		if (o_ptr->recharging != j_ptr->recharging) return(FALSE);
+
+		/* Require identical "values" */
+		if (o_ptr->ac != j_ptr->ac) return(FALSE);
+		if (o_ptr->dd != j_ptr->dd) return(FALSE);
+		if (o_ptr->ds != j_ptr->ds) return(FALSE);
+
+		/* Probably okay */
+		break;
+
+	case TV_GOLEM:
+		if (o_ptr->pval != j_ptr->pval) return(FALSE);
+		break;
 
 #ifdef ENABLE_DEMOLITIONIST
-		case TV_CHEMICAL:
-			if (o_ptr->xtra1 != j_ptr->xtra1) return(FALSE);
-			if (o_ptr->xtra2 != j_ptr->xtra2) return(FALSE);
-			if (o_ptr->xtra3 != j_ptr->xtra3) return(FALSE);
-			break;
+	case TV_CHEMICAL:
+		if (o_ptr->xtra1 != j_ptr->xtra1) return(FALSE);
+		if (o_ptr->xtra2 != j_ptr->xtra2) return(FALSE);
+		if (o_ptr->xtra3 != j_ptr->xtra3) return(FALSE);
+		break;
 #endif
 
-		/* Various */
-		default:
-			/* Require knowledge */
-			if (!unknown && /* added this just for the EASY_KNOW check it contains */
-			    Ind && (!object_known_p(Ind, o_ptr) || !object_known_p(Ind, j_ptr)))
-				return(FALSE);
+	case TV_JUNK:
+		if (o_ptr->sval == SV_ENERGY_CELL) return(FALSE);
+		break;
 
-			/* Probably okay */
-			break;
+	/* Various -- todo: verify if this is really correct */
+	default:
+		/* Require knowledge */
+		if (!unknown && /* added this just for the EASY_KNOW check it contains */
+		    Ind && (!object_known_p(Ind, o_ptr) || !object_known_p(Ind, j_ptr)))
+			return(FALSE);
+
+		/* Probably okay */
+		break;
 	}
-
 
 	/* Hack -- Require identical "cursed" status */
 	if ((o_ptr->ident & ID_CURSED) != (j_ptr->ident & ID_CURSED)) return(FALSE);
@@ -3826,47 +3862,99 @@ bool object_similar(int Ind, object_type *o_ptr, object_type *j_ptr, s16b tolera
 			return(FALSE);
 
 		/* Hack -- normally require matching "inscriptions" */
-		if (!(tolerance & 0x4) && (!Ind || !p_ptr->stack_force_notes) && (o_ptr->note != j_ptr->note))
-			return(FALSE);
+		if (!(tolerance & 0x4) && (!Ind || !p_ptr->stack_force_notes) && (o_ptr->note != j_ptr->note)) return(FALSE);
 	}
 
 	/* Hack -- normally require matching "discounts" */
-	if (!(tolerance & 0x4) && (!Ind || !p_ptr->stack_force_costs) && (o_ptr->discount != j_ptr->discount))
-		return(FALSE);
+	if (!(tolerance & 0x4) && (!Ind || !p_ptr->stack_force_costs) && (o_ptr->discount != j_ptr->discount)) return(FALSE);
 
+	/* ('Gain') QoL hack for limiting stack size of specific items, mostly consumables on restocking -
+	   we only handle the generic "don't allow any stacking" cases here though! The rest is handled by carry(). */
+	if ((i = check_guard_inscription(o_ptr->note, 'G'))
+	    /* For combine_pack(): The player might just as well have erased an inscription of an item that is
+	       above the !G item inside the inventory, instead of just one that is located below the !G item.
+	       So we have to check both ways for !Gn in this case, as the j_ptr vs o_ptr priority is no longer clear but they are equals in this special case. */
+	    || ((tolerance & 0x40) && (i = check_guard_inscription(j_ptr->note, 'G')))) {
+		/* No optional amount specified. (Also, specifying 0 doesn't make sense.) */
+		if (i == -1) return(FALSE); /* (We just ignore the number==0 aka 'no more scrolls...' feature edge case here, too much hassle) */
+
+		/* The other syntax (specifying a limit amount) is also handled by inven_carry_okay(), carry() and subinven_stow_aux(),
+		   specifying the 0x20 tolerance marker for explicit-pickups only (aka player pressing 'g' key). */
+		if (tolerance & 0x20) {
+			/* Unhack value from +1 state */
+			i--;
+			/* Treat pointless case !G0 same as just !G */
+			if (!i) return(FALSE);
+			/* Sanity checks */
+			if (i >= MAX_STACK_SIZE) i = MAX_STACK_SIZE - 1;
+			/* Already reached the max amount on this inventory stack? */
+			if (o_ptr->number >= i) {
+				if (tolerance & 0x100) return(-1); /* Fallback to hack: 'item type exists, but we must create a new stack' */
+				return(FALSE);
+			}
+			/* How many to additionally pick up? */
+			i = i - o_ptr->number;
+			/* Cannot pick up more than available */
+			if (i > j_ptr->number) i = j_ptr->number;
+			return(i);
+		}
+		/* Treat stacks that exceed the total desired number simply as 'skip' instead of preparing for partial merge as with tolerance 0x20 above. */
+		else if (tolerance & 0x40) {
+			/* Unhack value from +1 state */
+			i--;
+			/* Treat pointless case !G0 same as just !G */
+			if (!i) return(FALSE);
+			/* Sanity checks */
+			if (i >= MAX_STACK_SIZE) i = MAX_STACK_SIZE - 1;
+			/* Already reached the max amount on this inventory stack? */
+			if (o_ptr->number + j_ptr->number > i) return(FALSE);
+			/* Allow and fall through */
+		}
+	}
 
 	/* Maximal "stacking" limit */
-	if (total >= MAX_STACK_SIZE) return(FALSE);
+	if (total >= MAX_STACK_SIZE) {
+		if ((tolerance & (0x20 | 0x100)) != (0x20 | 0x100)) return(FALSE); /* normal case */
+		/* else -> Fallback to hack: 'item type exists, but we must create a new stack' */
+	}
 
 	/* An everlasting player will have _his_ items stack w/ non-everlasting stuff
 	   (especially new items bought in the shops) and convert them all to everlasting */
 	if (Ind && (p_ptr->mode & MODE_EVERLASTING)) {
-		o_ptr->mode = MODE_EVERLASTING;
-		j_ptr->mode = MODE_EVERLASTING;
+		/* Depending on charmode_trading_restrictions, we might have to clear other mode flags out */
+		o_ptr->mode &= ~MODE_PVP;
+		j_ptr->mode &= ~MODE_PVP;
+		/* Now ours */
+		o_ptr->mode |= MODE_EVERLASTING;
+		j_ptr->mode |= MODE_EVERLASTING;
 	}
 
 	/* A PvP-player will get his items convert to pvp-mode */
 	if (Ind && (p_ptr->mode & MODE_PVP)) {
-		o_ptr->mode = MODE_PVP;
-		j_ptr->mode = MODE_PVP;
+		/* Depending on charmode_trading_restrictions, we might have to clear other mode flags out */
+		o_ptr->mode &= ~MODE_EVERLASTING;
+		j_ptr->mode &= ~MODE_EVERLASTING;
+		/* Now ours */
+		o_ptr->mode |= MODE_PVP;
+		j_ptr->mode |= MODE_PVP;
 	}
 
 	/* They match, so they must be similar */
-	return(TRUE);
+	return(-1);
 }
 
 
 /*
  * Allow one item to "absorb" another, assuming they are similar.
+ * This function is only called after successful object_similar() check or for the Highlander Tournament amulets.
  * Note: j_ptr is the 'new' item that gets dropped/added to an existing one:
  * o_ptr = dest, j_ptr = src.
  */
 void object_absorb(int Ind, object_type *o_ptr, object_type *j_ptr) {
-	int total = o_ptr->number + j_ptr->number;
+	int total = o_ptr->number + j_ptr->number, i;
 #ifndef NEW_MDEV_STACKING
 	int onum = o_ptr->number, jnum = j_ptr->number;
 #endif
-	const char *c;
 
 	/* Prepare ammo for possible combining */
 	//int o_to_h, o_to_d;
@@ -3890,15 +3978,16 @@ void object_absorb(int Ind, object_type *o_ptr, object_type *j_ptr) {
 	/* Add together the item counts */
 	o_ptr->number = ((total < MAX_STACK_SIZE) ? total : (MAX_STACK_SIZE - 1));
 
-	/* QoL hack for amassing empty bottles, mainly via keep_bottle option.. */
-	if (o_ptr->tval == TV_BOTTLE && o_ptr->sval == SV_EMPTY_BOTTLE && o_ptr->note
-	    && (c = strstr(quark_str(o_ptr->note), "!M"))) {
-		int i = atoi(c + 2);
-
+	/* ('Max') QoL hack for amassing empty bottles, mainly via keep_bottle option.
+	   Artifact paranoia check (cannot have more than 1 anyway), and prohibiting costly accidents;
+	   questor items are already exempt in object_similar() so we don't need to check for them again here. */
+	if (!(o_ptr->name1 || j_ptr->name1 || o_ptr->name2 || j_ptr->name2 || o_ptr->name2b || j_ptr->name2b) &&
+	    (i = check_guard_inscription(o_ptr->note, 'K'))) {
+		if (i == -1) i = 16; /* Just '!K' assumes default value of '!K15' */
+		i--; //unhack
 		/* Sanity checks, and apply! */
-		if (i > 99) i = 99;
-		if (i > 0 && o_ptr->number > i) o_ptr->number = i;
-
+		if (i >= MAX_STACK_SIZE) i = MAX_STACK_SIZE - 1;
+		if (o_ptr->number > i) o_ptr->number = i;
 		if (Ind) Players[Ind]->warning_limitbottles = 1;
 	}
 
@@ -4182,6 +4271,9 @@ static void log_arts(int a_idx, struct worldpos *wpos) {
 	case ART_DREADNOUGHT:
 		s_printf("ARTIFACT: 'Dreadnought' created at %d,%d,%d.\n", wpos->wx, wpos->wy, wpos->wz);
 		return;
+	case ART_ANTIRIAD:
+		s_printf("ARTIFACT: 'Antiriad' created at %d,%d,%d.\n", wpos->wx, wpos->wy, wpos->wz);
+		return;
 #if 0
 	case ART_NARYA:
 		s_printf("ARTIFACT: 'Narya' created at %d,%d,%d.\n", wpos->wx, wpos->wy, wpos->wz);
@@ -4258,14 +4350,15 @@ s_printf("TRUEART_R-OOD: %d failed, a %d vs d %d (%d%%)\n", aidx, alev, dlev, d)
  * Note -- see "make_artifact()" and "apply_magic()"
  */
 static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr, u32b resf) {
-	int	i, dlev = getlevel(wpos);
-	int	k_idx = 0;
+	int i, dlev = getlevel(wpos);
+	int k_idx = 0;
 	bool winner_arts_only = ((resf & RESF_NOTRUEART) && (resf & RESF_WINNER));
 #ifdef IDDC_EASY_TRUE_ARTIFACTS
-	int	difficulty = in_irondeepdive(wpos) ? 1 : 0;
+	int difficulty = in_irondeepdive(wpos) ? 1 : 0;
 #endif
 	artifact_type *a_ptr;
 	int im, a_map[MAX_A_IDX];
+	dungeon_type *d_ptr = getdungeon(wpos);
 
 	/* Check if artifact generation is currently disabled -
 	   added this for maintenance reasons -C. Blue */
@@ -4306,6 +4399,9 @@ static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr, u32
 
 		/* Sauron-slayers and players currently in Mt Doom can't find The One Ring (anymore) */
 		if (i == ART_POWER && (resf & RESF_SAURON)) continue;
+
+		/* Found nearby an old volcano~ */
+		if (i == ART_ANTIRIAD && (!d_ptr || d_ptr->type != DI_MT_DOOM)) continue;
 
 		/* Artifact "rarity roll" */
 #ifdef IDDC_EASY_TRUE_ARTIFACTS
@@ -4407,8 +4503,7 @@ static bool make_artifact(struct worldpos *wpos, object_type *o_ptr, u32b resf) 
 			if (a_ptr->flags4 & TR4_SPECIAL_GENE) continue;
 
 			/* Allow non-dropchosen/specialgene winner arts */
-			if (winner_arts_only && !(a_ptr->flags5 & TR5_WINNERS_ONLY))
-				continue;
+			if (winner_arts_only && !(a_ptr->flags5 & TR5_WINNERS_ONLY)) continue;
 
 			/* Must have the correct fields */
 			if (a_ptr->tval != o_ptr->tval) continue;
@@ -4559,7 +4654,7 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u32b resf) {
 		if (good && (!e_ptr->cost)) continue;
 		if ((!good) && e_ptr->cost) continue;
 
-		/* (Handling of TR6_EVIL is done via e_info.txt tval/sval restriction entry instead of a check here, unlike for randarts) */
+		/* (Handling of TR6_UNBLESSED is done via e_info.txt tval/sval restriction entry instead of a check here, unlike for randarts) */
 
 		/* ok */
 		ok_ego[ok_num++] = e_tval[tval][i];
@@ -4780,19 +4875,27 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u32b resf) {
 					break;
 				}
 				break;
+			case EGO_CORRUPTED:
 			case EGO_CHAOTIC:
-				if (i == EGO_HA) continue;
+				if (i == EGO_HA || i == EGO_LIFE) continue;
 				break;
+			case EGO_SPECTRAL:
+				if (i == EGO_LIFE) continue;
+				break;
+			case EGO_LIFE:
+				if (i == EGO_SPECTRAL) continue;
+				/* Fall through */
 			case EGO_HA:
-				if (i == EGO_CHAOTIC) continue;
+				if (i == EGO_CHAOTIC || i == EGO_CORRUPTED) continue;
 				break;
 			case EGO_MORGUL:
-				if (i == EGO_BLESS_BLADE) continue;
+				if (i == EGO_BLESSED_WEAPON) continue;
 				break;
-			case EGO_BLESS_BLADE:
+			case EGO_BLESSED_WEAPON:
 				if (i == EGO_MORGUL) continue;
 				break;
 			}
+			/* (Note: We allow two mods that both have BLESSED, eg Blessed of Aman etc) */
 
 			/* Hack: If we upgraded the first ego power, the second one hasn't become set.
 			   In that case i == 0 here. */
@@ -5250,7 +5353,7 @@ static void a_m_aux_3(object_type *o_ptr, int level, int power, u32b resf) {
 	/* Very good */
 	if (power > 1) {
 #if 0
-		if (!rand_int(RANDART_JEWEL)) create_artifact(o_ptr, FALSE, TRUE);
+		if (!rand_int(RANDART_JEWEL)) create_artifact(o_ptr, FALSE);
 		else
 #endif
 		/* Make ego item */
@@ -5730,7 +5833,7 @@ static void a_m_aux_4(object_type *o_ptr, int level, int power, u32b resf) {
 	/* Very good */
 	if (power > 1) {
 		/* Make ego item */
-		//if (!rand_int(RANDART_JEWEL) && (o_ptr->tval == TV_LITE)) create_artifact(o_ptr, FALSE, TRUE);	else
+		//if (!rand_int(RANDART_JEWEL) && (o_ptr->tval == TV_LITE)) create_artifact(o_ptr, FALSE); else
 		make_ego_item(level, o_ptr, TRUE, resf);
 	} else if (power < -1) {
 		/* Make ego item */
@@ -6056,6 +6159,9 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 		/* Fuelable artifact lights shouldn't always start at 0 energy */
 		if (o_ptr->tval == TV_LITE) a_m_aux_4(o_ptr, lev, power, resf);
 
+		/* Specialty: Charge with starting energy */
+		if (o_ptr->name1 == ART_ANTIRIAD) o_ptr->timeout = 3500 + rand_int(499);
+
 		/* clear flags from pre-artified item, simulating
 		   generation of a brand new object. */
 		o_ptr->ident &= ~(ID_MENTAL | ID_BROKEN | ID_CURSED | ID_NO_HIDDEN);
@@ -6160,8 +6266,7 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 		/* Hack -- analyze ego-items */
 		//else if (o_ptr->name2)
 		if (o_ptr->name2 && !o_ptr->name1) {
-			artifact_type *a_ptr;
-			a_ptr = ego_make(o_ptr);
+			artifact_type *a_ptr = ego_make(o_ptr);
 
 			/* Extract the other fields */
 			if ((o_ptr->tval == TV_RING && o_ptr->sval == SV_RING_POLYMORPH)
@@ -6194,7 +6299,7 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 			}
 
 			/* Hack -- acquire "cursed" flag */
-			//		if (f3 & TR3_CURSED) o_ptr->ident |= (ID_CURSED);	// this should be done here!
+			//if (f3 & TR3_CURSED) o_ptr->ident |= (ID_CURSED);	// this should be done here!
 			if (a_ptr->flags3 & TR3_CURSED) o_ptr->ident |= (ID_CURSED);
 		}
 #endif	// 1
@@ -6206,6 +6311,7 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 		/* Examine real objects */
 		if (o_ptr->k_idx) {
 			object_kind *k_ptr = &k_info[o_ptr->k_idx];
+
 			/* Hack -- acquire "broken" flag */
 			if (!k_ptr->cost) o_ptr->ident |= ID_BROKEN;
 			/* Hack -- acquire "cursed" flag */
@@ -6661,7 +6767,7 @@ void determine_level_req(int level, object_type *o_ptr) {
 
 		case EGO_FREE_ACTION:
 		case EGO_SLAYING:	case EGO_AGILITY:
-		case EGO_MOTION:
+		case EGO_BOOTS_FA:
 		case EGO_RISTARI:
 		case EGO_AURA_COLD2:	case EGO_AURA_FIRE2:	case EGO_AURA_ELEC2:
 
@@ -7990,7 +8096,7 @@ void place_object(int Ind, struct worldpos *wpos, int y, int x, bool good, bool 
 		}
 	}
 
-#ifdef IDDC_ID_BOOST /* experimental */
+#ifdef IDDC_ID_BOOST /* experimental - replace insignificant loot with an ID scroll sometimes */
 	if ((resf & RESF_COND_MASK) == 0x0 && in_irondeepdive(wpos) && !forge.name1 && !forge.name2
 	    /* However, don't overwrite Word of Recall scrolls at deeper levels, since they're needed to get out eventually! */
 	    && !(forge.tval == TV_SCROLL && forge.sval == SV_SCROLL_WORD_OF_RECALL && dlev >= 100)
@@ -8059,6 +8165,25 @@ void place_object(int Ind, struct worldpos *wpos, int y, int x, bool good, bool 
 	if (forge.tval == TV_ARROW && forge.sval == SV_AMMO_HEAVY) s_printf("DROP: %d Seeker Arrows\n", forge.number);
 	if (forge.tval == TV_SHOT && forge.sval == SV_AMMO_HEAVY) s_printf("DROP: %d Mithril Shots\n", forge.number);
 #endif
+
+	/* Unhack Santa Claus hack to generate presents */
+	if (forge.note && streq(quark_str(forge.note), "Santa Claus")) {
+		char o_name_short[ONAME_LEN];
+
+		/* Spoiler for contents of the gift wrapping, otherwise nobody will ever get anything useful */
+		object_desc(0, o_name_short, &forge, TRUE, 256 + 4096);
+		forge.note = quark_add(o_name_short);
+		forge.note_utag = 0;
+
+		forge.tval2 = forge.tval;
+		forge.sval2 = forge.sval;
+		forge.number2 = forge.number;
+		forge.number = 1; // one gift may contain a stack of items, but in turn, gifts aren't stackable of course
+		forge.tval = TV_SPECIAL;
+		forge.sval = SV_GIFT_WRAPPING_START + rand_int(SV_GIFT_WRAPPING_END - SV_GIFT_WRAPPING_START + 1);
+		forge.k_idx = lookup_kind(TV_SPECIAL, forge.sval);
+		forge.weight += 1; /* Gift wrapping paper is added */
+	}
 
 	forge.marked2 = removal_marker;
 	forge.discount = object_discount; /* usually 0, except for creation from stolen acquirement scrolls */
@@ -9152,7 +9277,7 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 
 			//boots
 			case EGO_LEVITATION:
-			case EGO_MOTION:
+			case EGO_BOOTS_FA:
 			//case EGO_JUMPING: //hmmm
 
 			//body armour
@@ -9681,13 +9806,13 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 				s_printf(" REWARD_WIPED (impossible - we failed completely!\n");
 				return;
 			}
-			object_desc(0, o_name, o_ptr, TRUE, 2+8+16);
+			object_desc(0, o_name, o_ptr, TRUE, 0x02 + 0x08 + 0x10);
 			s_printf(" REWARD_CREATED: (%s) %s\n", p_ptr->name, o_name);
 		}
 	}
 
 	/* more loggin' */
-	object_desc(0, o_name, o_ptr, TRUE, 2+8+16);
+	object_desc(0, o_name, o_ptr, TRUE, 0x02 + 0x08 + 0x10);
 	s_printf(" REWARD_CREATED: (%s) %s\n", p_ptr->name, o_name);
 
 	/* Give the object to the player who is to be rewarded */
@@ -9759,7 +9884,7 @@ void place_gold(int Ind, struct worldpos *wpos, int y, int x, int mult, int bonu
 	invcopy(&forge, k_idx);
 
 	/* Hack -- Base coin cost */
-	//base = k_info[OBJ_GOLD_LIST+i].cost;
+	//base = k_info[OBJ_GOLD_LIST + i].cost;
 	base = k_info[k_idx].cost;
 
 	/* Determine how much the treasure is "worth" */
@@ -9778,10 +9903,13 @@ void place_gold(int Ind, struct worldpos *wpos, int y, int x, int mult, int bonu
 	if (Ind) {
 		forge.killer = Players[Ind]->id;
 		if (opening_chest) {
+			/* Gold in the IDDC is untradable, add special marker to circumvent this for money from chests.
+			   We still need to set its trade-flags here though to keep sharing it restricted to the party, which is easier than just not pre-owning it! */
 			forge.owner = forge.killer;
 			forge.mode = Players[Ind]->mode;
 			forge.iron_trade = Players[Ind]->iron_trade; /* gold cannot be traded in IDDC anyway, so this has no effect.. */
 			forge.iron_turn = opening_chest;
+			if (forge.tval == TV_GOLD) forge.xtra3 = 1; /* mark as exception for trading in the IDDC */
 		}
 	}
 
@@ -10045,10 +10173,11 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 		if (!cave_floor_bold(zcave, ny, nx) ||
 		    /* Usually cannot drop items on permanent features,
 		       exception for stairs/gates though in case of emergency */
-		    (cave_perma_bold(zcave, ny, nx)
+		    (cave_perma_bold2(zcave, ny, nx)
 #ifdef DROP_ON_STAIRS_IN_EMERGENCY
 		     && !(allow_stairs && is_stair(c_ptr->feat))
 #endif
+		    && c_ptr->feat != FEAT_FLOOR_PERMANENT /* special IDDC_REFUGES floor */
 		     ))
 			continue;
 
@@ -10062,8 +10191,8 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 		   Target Dummy, so players can get their items (ammo) back - C. Blue */
 		if (c_ptr->m_idx > 0) {
 			r_ptr = race_inf(&m_list[c_ptr->m_idx]);
-			if (((r_ptr->flags1 & RF1_NEVER_MOVE) ||
-			    (r_ptr->flags7 & RF7_NEVER_ACT)) &&
+			if (((r_ptr->flags2 & RF2_NEVER_MOVE) ||
+			    (r_ptr->flags2 & RF2_NEVER_ACT)) &&
 			    (r_ptr->flags7 & RF7_NO_DEATH))
 			continue;
 		}
@@ -10103,7 +10232,7 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 		if (!arts && crash) continue;
 
 		/* Paranoia */
-		if (k > 99) continue;
+		if (k >= MAX_STACK_SIZE) continue; /* Note: We ab-/re-use MAX_STACK_SIZE for actual max _pile_ size here, where a pile of items can contain many different items actually. */
 
 		/* Calculate score */
 		s = 10000 - (d + k * 5 + (crash ? 2000 : 0));
@@ -10169,6 +10298,20 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 			    o_name);
 		}
 
+		/* Catch items that got lost when dropped into full houses */
+		if (!o_ptr->name1 && o_ptr->owner) {
+			cptr name = lookup_player_name(o_ptr->owner);
+			int lev = lookup_player_level(o_ptr->owner);
+			char o_name[ONAME_LEN];
+
+			object_desc_store(Ind, o_name, o_ptr, TRUE, 3);
+
+			s_printf("%s object failed to drop by %s(%d) at (%d,%d,%d):\n  %s\n",
+			    showtime(), name ? name : "(Dead player)", lev,
+			    wpos->wx, wpos->wy, wpos->wz,
+			    o_name);
+		}
+
 		return(-2);
 	}
 
@@ -10200,6 +10343,12 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 		break;
 	case FEAT_SHAL_LAVA:
 	case FEAT_DEEP_LAVA:
+	case FEAT_EMBERS:
+	case FEAT_SMALL_FIRE:
+	case FEAT_SMALL_CAMPFIRE:
+	case FEAT_CAMPFIRE:
+	// case FEAT_BURNING_TORCH:
+	// case FEAT_BURNING_LAMP:
 	case FEAT_FIRE:
 	case FEAT_GREAT_FIRE:
 		if (hates_fire(o_ptr)) {
@@ -10534,12 +10683,14 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 			}
 
 			/* Extra logging for those cases of "where did my randart disappear to??1" */
-			if (o_ptr->name1 == ART_RANDART) {
+			//if (o_ptr->name1 == ART_RANDART)
+			{
 				char o_name[ONAME_LEN];
 
 				object_desc(0, o_name, o_ptr, TRUE, 3);
 
-				s_printf("%s drop_near couldn't allocate random artifact at (%d,%d,%d):\n  %s\n",
+				//s_printf("%s drop_near couldn't allocate random artifact at (%d,%d,%d):\n  %s\n",
+				s_printf("%s drop_near couldn't allocate object at (%d,%d,%d):\n  %s\n",
 				    showtime(),
 				    wpos->wx, wpos->wy, wpos->wz,
 				    o_name);
@@ -10569,27 +10720,14 @@ int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct wor
 
 
 
-/*
- * Hack -- instantiate a trap
- *
- * XXX XXX XXX This routine should be redone to reflect trap "level".
- * That is, it does not make sense to have spiked pits at 50 feet.
- * Actually, it is not this routine, but the "trap instantiation"
- * code, which should also check for "trap doors" on quest levels.
- */
-/* The note above is completely obsoleted.	- Jir -	*/
-void pick_trap(struct worldpos *wpos, int y, int x)
-{
-	//int feat;
-	//int tries = 100;
-
+/* Mark a trap as 'found' */
+void trap_found(struct worldpos *wpos, int y, int x) {
 	cave_type **zcave;
 	cave_type *c_ptr;
 	struct c_special *cs_ptr;
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
-
 	/* Paranoia */
 	if (!(cs_ptr = GetCS(c_ptr, CS_TRAPS))) return;
 
@@ -10597,7 +10735,6 @@ void pick_trap(struct worldpos *wpos, int y, int x)
 
 	/* Notice */
 	note_spot_depth(wpos, y, x);
-
 	/* Redraw */
 	everyone_lite_spot(wpos, y, x);
 }
@@ -10686,7 +10823,7 @@ void divide_charged_item(object_type *onew_ptr, object_type *o_ptr, int amt) {
 void inven_item_charges(int Ind, int item) {
 	object_type *o_ptr;
 
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	/* Require staff/wand */
 	if ((o_ptr->tval != TV_STAFF) && (o_ptr->tval != TV_WAND)) return;
@@ -10715,7 +10852,7 @@ void inven_item_describe(int Ind, int item) {
 	object_type *o_ptr;
 	char o_name[ONAME_LEN];
 
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	/* Hack -- suppress msg */
 	if (p_ptr->taciturn_messages) return;
@@ -10724,6 +10861,28 @@ void inven_item_describe(int Ind, int item) {
 	/* Get a description */
 	object_desc(Ind, o_name, o_ptr, TRUE, 3);
 
+	/* Hack for running-low warning from !Wn inscription */
+	if (o_ptr->temp & 0x02) {
+		char *c = strchr(o_name, '{');
+
+		if (!c) msg_format(Ind, "You have \377o%s.", o_name);
+		else {
+			char tmp[ONAME_LEN];
+
+			strcpy(tmp, c);
+			*c = 0;
+			msg_format(Ind, "You have \377o%s\377w%s.", o_name, tmp);
+		}
+#ifdef USE_SOUND_2010
+ #ifdef USE_SOUND_2010
+		Send_warning_beep(Ind);
+		//sound(Ind, "warning", "page", SFX_TYPE_MISC, FALSE);
+ #else
+		if (!p_ptr->paging) p_ptr->paging = 1;
+ #endif
+#endif
+		o_ptr->temp &= ~(0x02 | 0x04);
+	} else
 	/* Print a message */
 	msg_format(Ind, "You have %s.", o_name);
 }
@@ -10733,11 +10892,12 @@ void inven_item_describe(int Ind, int item) {
  * Increase the "number" of an item in the inventory
  */
 void inven_item_increase(int Ind, int item, int num) {
+	int i;
 	player_type *p_ptr = Players[Ind];
 #ifdef ENABLE_SUBINVEN
 	object_type *o_ptr;
 
-	if (item >= 100) o_ptr = &p_ptr->subinventory[item / 100 - 1][item % 100];
+	if (item >= SUBINVEN_INVEN_MUL) o_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL];
 	else o_ptr = &p_ptr->inventory[item];
 #else
 	object_type *o_ptr = &p_ptr->inventory[item];
@@ -10767,9 +10927,13 @@ void inven_item_increase(int Ind, int item, int num) {
 		p_ptr->total_weight += (num * o_ptr->weight);
 
 #ifdef ENABLE_SUBINVEN
-		if (item >= 100) {
+		if (item >= SUBINVEN_INVEN_MUL) {
+			/* If we lose an item, prepare for a warning, given in subsequent inven_item_describe() call */
+			if (!(o_ptr->temp & 0x04) && num < 0 && (i = check_guard_inscription(o_ptr->note, 'W')) && o_ptr->number <= (i == -1 ? 10 : i - 1)) o_ptr->temp |= 0x02;
+			else o_ptr->temp &= ~(0x02 | 0x04);
+
 			/* Update the slot 'manually' */
-			display_subinven_aux(Ind, item / 100 - 1, item % 100);
+			display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
 
 			/* If losing quest items, the quest goal might get unset again! */
 			if ((p_ptr->quest_any_r || p_ptr->quest_any_r_target) && num < 0) quest_check_ungoal_r(Ind, o_ptr, -num);
@@ -10793,6 +10957,10 @@ void inven_item_increase(int Ind, int item, int num) {
 		p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
 	}
 
+	/* If we lose an item, prepare for a warning, given in subsequent inven_item_describe() call */
+	if (!(o_ptr->temp & 0x04) && num < 0 && (i = check_guard_inscription(o_ptr->note, 'W')) && o_ptr->number <= (i == -1 ? 10 : i - 1)) o_ptr->temp |= 0x02;
+	else o_ptr->temp &= ~(0x02 | 0x04);
+
 	/* If losing quest items, the quest goal might get unset again! */
 	if ((p_ptr->quest_any_r || p_ptr->quest_any_r_target) && num < 0) quest_check_ungoal_r(Ind, o_ptr, -num);
 }
@@ -10810,11 +10978,11 @@ bool inven_item_optimize(int Ind, int item) {
 	object_type *o_ptr;
 	int s;
 
-	if (item >= 100) {
-		int i, s = item / 100 - 1;
+	if (item >= SUBINVEN_INVEN_MUL) {
+		int i, s = item / SUBINVEN_INVEN_MUL - 1;
 		object_type *s_ptr = &p_ptr->inventory[s];
 
-		o_ptr = &p_ptr->subinventory[s][item % 100];
+		o_ptr = &p_ptr->subinventory[s][item % SUBINVEN_INVEN_MUL];
 
 		/* Only optimize real items */
 		if (!o_ptr->k_idx) {
@@ -10826,7 +10994,7 @@ bool inven_item_optimize(int Ind, int item) {
 		if (o_ptr->number) return(FALSE);
 
 		/* Slide everything down */
-		for (i = item % 100; i < s_ptr->bpval; i++) {
+		for (i = item % SUBINVEN_INVEN_MUL; i < s_ptr->bpval; i++) {
 			/* Structure copy */
 			p_ptr->subinventory[s][i] = p_ptr->subinventory[s][i + 1];
 			display_subinven_aux(Ind, s, i);
@@ -11080,52 +11248,73 @@ void auto_inscribe(int Ind, object_type *o_ptr, int flags) {
 
 /*
  * Check if we have space for an item in the pack without overflow
+ * Returns -1 if yes, 0 if no, or -for a !Gn inscription found- the amount of items that we may pickup regarding a possible !Gn inscription.
  */
-bool inven_carry_okay(int Ind, object_type *o_ptr, byte tolerance) {
+int inven_carry_okay(int Ind, object_type *o_ptr, s16b tolerance) {
 	player_type *p_ptr = Players[Ind];
-	int i;
+	int i, r;
 	object_type *j_ptr;
 
-#if 0 /* Allow carrying multiple redundant bags, but just don't utilize them */
+#if 0 /* Allow carrying multiple redundant bags, but just don't utilize them (1/3) */
 #ifdef SUBINVEN_LIMIT_GROUP /* By having this check here, we don't need it in telekinesis_aux() actually */
 	int subinven_group = (o_ptr->tval == TV_SUBINVEN) ? get_subinven_group(o_ptr->sval) : -1;
 
 	if (subinven_group == -1)
 #endif
 #endif
-	/* Empty slot? */
-	if (p_ptr->inven_cnt < INVEN_PACK) return(TRUE);
+	/* Empty slot? - Only accept it right away if we're not looking to partially stack items in inventory via !Gn inscription.*/
+	if (p_ptr->inven_cnt < INVEN_PACK && !(tolerance & 0x20)) return(-1);
 
 	/* Similar slot? */
 	for (i = 0; i < INVEN_PACK; i++) {
 		/* Get that item */
 		j_ptr = &p_ptr->inventory[i];
 
-#if 0 /* See comment above */
+#if 0 /* Allow carrying multiple redundant bags, but just don't utilize them (2/3) */
 #ifdef SUBINVEN_LIMIT_GROUP
-		if (subinven_group != -1 && j_ptr->tval == TV_SUBINVEN && get_subinven_group(j_ptr->sval) == subinven_group) return(FALSE);
+		/* For tolerance 0x20 check we postponed the inven_cnt check, so we have to do it here too, instead of returning just FALSE */
+		if (subinven_group != -1 && j_ptr->tval == TV_SUBINVEN && get_subinven_group(j_ptr->sval) == subinven_group) return(p_ptr->inven_cnt < INVEN_PACK ? -1 : FALSE);
 #endif
 #endif
-		/* Check if the two items can be combined */
-		if (object_similar(Ind, j_ptr, o_ptr, tolerance)) return(TRUE);
+
+#ifdef ENABLE_SUBINVEN
+		/* Specifically for !Gn inscription inside subinventories:
+		   TODO: Allow an empty and eligible slot in the subinventory to cause inven_carry_okay() and then picking up to succeed, even if normal inventory is full. */
+		if (j_ptr->tval == TV_SUBINVEN) {
+			int j;
+			object_type *k_ptr;
+
+			for (j = 0; j < j_ptr->bpval; j++) {
+				k_ptr = &p_ptr->subinventory[i][j];
+				if (!k_ptr->tval) break;
+				if (!subinven_can_stack(Ind, o_ptr, i, tolerance & 0x200)) continue;
+				/* Check if the two items can be combined - here we can also check for !Gn inscription via 0x20 tolerance.
+				   We do not check the actual bag type, as we can assume that if a similar-enough item exists in that bag, we must be compatible with the bag type too. */
+				if ((r = object_similar(Ind, k_ptr, o_ptr, tolerance))) return(r);
+			}
+		}
+#endif
+
+		/* Check if the two items can be combined - here we can also check for !Gn inscription via 0x20 tolerance */
+		if ((r = object_similar(Ind, j_ptr, o_ptr, tolerance))) return(r);
 	}
-#if 0 /* See comment above */
+#if 0 /* Allow carrying multiple redundant bags, but just don't utilize them (3/3) */
 #ifdef SUBINVEN_LIMIT_GROUP
-	if (p_ptr->inven_cnt < INVEN_PACK) return(TRUE);
+	if (p_ptr->inven_cnt < INVEN_PACK) return(-1);
 #endif
 #endif
 
 	/* Hack -- try quiver slot (see inven_carry) */
-	//if (object_similar(Ind, &p_ptr->inventory[INVEN_AMMO], o_ptr, 0x0)) return(TRUE);
+	//if (object_similar(Ind, &p_ptr->inventory[INVEN_AMMO], o_ptr, 0x0)) return(-1);
 
-	/* Nope */
-	return(FALSE);
+	/* Nope -- but for the tolerance 0x20 check we postponed the inven_cnt check, so we have to do it here too, instead of returning just FALSE */
+	return(p_ptr->inven_cnt < INVEN_PACK ? -1 : FALSE);
 }
 /*
  * Check if an item will not take up any further inven space because it can just be merged into a stack.
  * Additionally check if there will be still one more inventory slot left that doesn't have CURSE_NO_DROP!
  */
-bool inven_carry_cursed_okay(int Ind, object_type *o_ptr, byte tolerance) {
+bool inven_carry_cursed_okay(int Ind, object_type *o_ptr, s16b tolerance) {
 	player_type *p_ptr = Players[Ind];
 	int i, cursed = 0;
 	bool add_cursed;
@@ -11187,12 +11376,10 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 	player_type *p_ptr = Players[Ind];
 	int i, j, k;
 	int n = -1;
-#ifdef ENABLE_SUBINVEN
- #ifdef SUBINVEN_LIMIT_GROUP
+#ifdef SUBINVEN_LIMIT_GROUP
 	bool excess = FALSE;
- #endif
-	object_type forge;
 #endif
+	object_type forge;
 	object_type *j_ptr;
 	u32b f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5, f6 = 0, esp = 0;
 
@@ -11203,21 +11390,18 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 		/* Skip empty items */
 		if (!j_ptr->k_idx) continue;
 
-#ifdef ENABLE_SUBINVEN
 #ifdef SUBINVEN_LIMIT_GROUP
 		if (!p_ptr->warning_subinven && !excess &&
 		    j_ptr->tval == TV_SUBINVEN && o_ptr->tval == TV_SUBINVEN &&
-		    j_ptr->tval == TV_SUBINVEN && o_ptr->tval == TV_SUBINVEN &&
-		    get_subinven_group(j_ptr->tval) == get_subinven_group(o_ptr->tval))
+		    get_subinven_group(j_ptr->sval) == get_subinven_group(o_ptr->sval))
 			excess = TRUE;
-#endif
 #endif
 
 		/* Hack -- track last item */
 		n = j;
 
-		/* Check if the two items can be combined */
-		if (object_similar(Ind, j_ptr, o_ptr, 0x0)) {
+		/* Check if the two items can be combined - with regards to !G inscriptions */
+		if (object_similar(Ind, j_ptr, o_ptr, 0x40)) {
 			/* Check whether this item was requested by an item-retrieval quest.
 			   Note about quest_credited check: inven_carry() is also called by carry(),
 			   resulting in double crediting otherwise! */
@@ -11269,10 +11453,16 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 	i = j;
 
 
-	/* Hack -- pre-reorder the pack */
+	/* Hack -- pre-reorder the pack.
+           Note: We skip the INVEN_PACK overflow slot, so an overflow-added item is kept in the last slot and doesn't get sorted in 'properly', hm. */
 	if (i < INVEN_PACK) {
 		s64b o_value, j_value;
 		u16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
+
+		if (o_tv == TV_SPECIAL && o_sv == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+			o_tv = o_ptr->tval2;
+			o_sv = o_ptr->sval2;
+		}
 
 #ifdef ENABLE_SUBINVEN
 		/* Hack so subinventories are placed at the very first slots even before custom objects */
@@ -11281,8 +11471,8 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 		/* Hack so they don't end up too close to orange amulets sometimes */
-		if (o_tv == TV_CHARGE) o_tv = 9;
-		if (o_tv == TV_CHEMICAL) o_tv = 10;
+		if (o_tv == TV_CHARGE) o_tv = TV_CORPSE;
+		if (o_tv == TV_CHEMICAL) o_tv = TV_EGG;
 #endif
 
 		/* Get the "value" of the item */
@@ -11298,6 +11488,11 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 			j_tv = j_ptr->tval;
 			j_sv = j_ptr->sval;
 
+			if (j_tv == TV_SPECIAL && j_sv == SV_CUSTOM_OBJECT && j_ptr->xtra3 & 0x0200) {
+				j_tv = j_ptr->tval2;
+				j_sv = j_ptr->sval2;
+			}
+
 #ifdef ENABLE_SUBINVEN
 			/* Hack so subinventories are placed at the very first slots even before custom objects */
 			if (j_tv == TV_SUBINVEN) j_tv = TV_MAX + 1;
@@ -11305,8 +11500,8 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 
 #ifdef ENABLE_DEMOLITIONIST
 			/* Hack so they don't end up too close to orange amulets sometimes */
-			if (j_tv == TV_CHARGE) j_tv = 9;
-			if (j_tv == TV_CHEMICAL) j_tv = 10;
+			if (j_tv == TV_CHARGE) j_tv = TV_CORPSE;
+			if (j_tv == TV_CHEMICAL) j_tv = TV_EGG;
 #endif
 
 			/* Objects sort by decreasing type */
@@ -11324,6 +11519,15 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 			/* Objects sort by increasing sval */
 			if (o_sv < j_sv) break;
 			if (o_sv > j_sv) continue;
+
+#ifdef SUBINVEN_LIMIT_GROUP
+			/* Ignore any other sorting, especially discounted-value sorting (the rest is probably mostly paranoia),
+			   to sort in identical subinven bags _AFTER_ any already existing ones, so they remain unusable
+			   and don't move into the first slot of that subinven type, which would make them usable too. */
+			if (j_ptr->tval == TV_SUBINVEN && o_ptr->tval == TV_SUBINVEN &&
+			    get_subinven_group(j_ptr->sval) == get_subinven_group(o_ptr->sval))
+				continue;
+#endif
 
 			/* Level 0 items owned by the player come first */
 			if (o_ptr->level == 0 && o_ptr->owner == p_ptr->id && j_ptr->level != 0) break;
@@ -11395,7 +11599,7 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 
 	/* Auto-inscriber */
 #ifdef AUTO_INSCRIBER
-	if (p_ptr->auto_inscribe) auto_inscribe(Ind, o_ptr, 0);
+	if (p_ptr->auto_inscr_server) auto_inscribe(Ind, o_ptr, 0);
 #endif
 
 	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
@@ -11446,13 +11650,11 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 #endif
 	Send_item_newest(Ind, i);
 
-#ifdef ENABLE_SUBINVEN
 #ifdef SUBINVEN_LIMIT_GROUP
 	if (excess) {
 		msg_print(Ind, "\377yYou can only use one of each subinventory type at a time.");
 		p_ptr->warning_subinven = 1;
 	}
-#endif
 #endif
 
 #ifdef ENABLE_SUBINVEN
@@ -11462,6 +11664,8 @@ s16b inven_carry(int Ind, object_type *o_ptr) {
 	forge.k_idx = 0;
 	Send_subinven(Ind, i, 'a', TERM_WHITE, 0, &forge, "");
 #endif
+
+	if (o_ptr->custom_lua_carrystate) exec_lua(0, format("custom_object_carrystate(%d,0,%d,%d)", Ind, i, o_ptr->custom_lua_carrystate));
 
 	return(i);
 }
@@ -11474,7 +11678,7 @@ void inven_carry_equip(int Ind, object_type *o_ptr) {
 
 	if (!is_ammo(o_ptr->tval)) {
 		suppress_message = TRUE;
-		do_cmd_wield(Ind, item, 0x0);
+		(void)do_cmd_wield(Ind, item, 0x0);
 		suppress_message = FALSE;
 		/* make the torch somewhat 'used' */
 		if (o_ptr->tval == TV_LITE && o_ptr->sval == SV_LITE_TORCH) Players[Ind]->inventory[INVEN_LITE].timeout -= rand_int(FUEL_TORCH / 10);
@@ -11491,7 +11695,7 @@ void inven_carry_equip(int Ind, object_type *o_ptr) {
 			break;
 		}
 		suppress_message = TRUE;
-		do_cmd_wield(Ind, item, 0x0);
+		(void)do_cmd_wield(Ind, item, 0x0);
 		suppress_message = FALSE;
 	}
 }
@@ -11515,13 +11719,106 @@ void combine_pack(int Ind) {
 
 
 	/* Combine the pack (backwards) */
+#ifdef ENABLE_SUBINVEN
+	for (i = INVEN_PACK; i >= 0; i--) {
+		/* Get the item -- the top-most item cannot be combined with anything as there is nothing above it,
+		   but we still have to process it in case it is a subinventory, and inside of it might be things that need combining. */
+		o_ptr = &p_ptr->inventory[i];
+		if (!i && o_ptr->tval != TV_SUBINVEN) break;
+#else
 	for (i = INVEN_PACK; i > 0; i--) {
 		/* Get the item */
 		o_ptr = &p_ptr->inventory[i];
+#endif
 
 		/* Skip empty items */
 		if (!o_ptr->k_idx) continue;
 
+#ifdef ENABLE_SUBINVEN
+		if (o_ptr->tval == TV_SUBINVEN) {
+			/* Simply cloned the complete loop in here, pfft */
+			int bagsize = o_ptr->bpval, s;
+			bool redraw = FALSE; /* We do that here, as we're missing a PW_SUBINVEN flag - TODO: Implement that flag. */
+
+			/* Combine the pack (backwards) */
+			for (s = bagsize; s > 0; s--) {
+				/* Get the item */
+				o_ptr = &p_ptr->subinventory[i][s];
+
+				/* Skip empty items */
+				if (!o_ptr->k_idx) continue;
+
+				/* Auto id ? */
+				if (p_ptr->auto_id) {
+					object_aware(Ind, o_ptr);
+					object_known(o_ptr);
+
+					/* Window stuff */
+					//p_ptr->window |= (PW_INVEN | PW_EQUIP);
+					redraw = TRUE;
+				}
+
+				/* Scan the items above that item */
+				for (j = 0; j < s; j++) {
+					/* Get the item */
+					j_ptr = &p_ptr->subinventory[i][j];
+
+					/* Skip empty items */
+					if (!j_ptr->k_idx) continue;
+
+					/* Can we drop "o_ptr" onto "j_ptr"? */
+					/* 0x40: Handle !G inscription - prevents any partial combining aka partial stack-shifting across slots too though, atm :/ but that's maybe not really an issue. */
+					if (object_similar(Ind, j_ptr, o_ptr, (p_ptr->current_force_stack - 1 == i ? 0x2 : 0x0) | 0x40)) {
+						/* clear if used */
+						if (p_ptr->current_force_stack - 1 == i) p_ptr->current_force_stack = 0;
+
+						/* Take note */
+						flag = TRUE;
+
+						/* Add together the item counts */
+						object_absorb(Ind, j_ptr, o_ptr);
+
+ #if 0 /* We are not in the normal inventory! */
+						/* One object is gone */
+						p_ptr->inven_cnt--;
+ #endif
+
+						/* Slide everything down */
+						for (k = s; k < bagsize; k++) {
+							/* Structure copy */
+							p_ptr->subinventory[i][k] = p_ptr->subinventory[i][k + 1];
+						}
+
+ #if 0 /* not implemented for subinventories */
+						/* Update inventory indices - mikaelh */
+						inven_index_move(Ind, j, i);
+						inven_index_slide(Ind, i + 1, -1, INVEN_PACK);
+ #endif
+						/* Erase the "final" slot */
+						invwipe(&p_ptr->subinventory[i][k]);
+
+						/* Window stuff */
+						//p_ptr->window |= (PW_INVEN | PW_EQUIP);
+						redraw = TRUE;
+
+						if (p_ptr->subinventory[i][j].auto_insc) {
+							p_ptr->subinventory[i][i].auto_insc = TRUE;
+							p_ptr->subinventory[i][j].auto_insc = FALSE;
+						}
+
+						/* Done */
+						break;
+					}
+				}
+			}
+
+			/* Emulate a 'PW_SUBINVEN' */
+			if (redraw) display_subinven(Ind, i);
+
+			/* End of cloned loop */
+			continue;
+		}
+#endif
 
 		/* Auto id ? */
 		if (p_ptr->auto_id) {
@@ -11541,7 +11838,8 @@ void combine_pack(int Ind) {
 			if (!j_ptr->k_idx) continue;
 
 			/* Can we drop "o_ptr" onto "j_ptr"? */
-			if (object_similar(Ind, j_ptr, o_ptr, p_ptr->current_force_stack - 1 == i ? 0x2 : 0x0)) {
+			/* 0x40: Handle !G inscription - prevents any partial combining aka partial stack-shifting across slots too though, atm :/ but that's maybe not really an issue. */
+			if (object_similar(Ind, j_ptr, o_ptr, (p_ptr->current_force_stack - 1 == i ? 0x2 : 0x0) | 0x40)) {
 				/* clear if used */
 				if (p_ptr->current_force_stack - 1 == i) p_ptr->current_force_stack = 0;
 
@@ -11557,7 +11855,7 @@ void combine_pack(int Ind) {
 				/* Slide everything down */
 				for (k = i; k < INVEN_PACK; k++) {
 					/* Structure copy */
-					p_ptr->inventory[k] = p_ptr->inventory[k+1];
+					p_ptr->inventory[k] = p_ptr->inventory[k + 1];
 				}
 
 				/* Update inventory indices - mikaelh */
@@ -11601,27 +11899,18 @@ void combine_pack(int Ind) {
  */
 void reorder_pack(int Ind) {
 	player_type *p_ptr = Players[Ind];
+	object_type *o_ptr, *j_ptr, temp;
 
-	int		i, j, k;
-
-	s64b	o_value;
-	s64b	j_value;
-
-	object_type *o_ptr;
-	object_type *j_ptr;
-
-	object_type	temp;
-
-	bool	flag = FALSE;
-
+	int i, j, k;
 	s16b o_tv, o_sv, j_tv, j_sv;
+	s64b o_value, j_value;
+
+	bool flag = FALSE;
 
 
-	/* Re-order the pack (forwards) */
+	/* Re-order the pack (forwards).
+           Note: We skip the INVEN_PACK overflow slot, so an overflow-added item is kept in the last slot and doesn't get sorted in 'properly', hm. */
 	for (i = 0; i < INVEN_PACK; i++) {
-		/* Mega-Hack -- allow "proper" over-flow */
-		if ((i == INVEN_PACK) && (p_ptr->inven_cnt == INVEN_PACK)) break;
-
 		/* Get the item */
 		o_ptr = &p_ptr->inventory[i];
 
@@ -11631,6 +11920,11 @@ void reorder_pack(int Ind) {
 		o_tv = o_ptr->tval;
 		o_sv = o_ptr->sval;
 
+		if (o_tv == TV_SPECIAL && o_sv == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+			o_tv = o_ptr->tval2;
+			o_sv = o_ptr->sval2;
+		}
+
 #ifdef ENABLE_SUBINVEN
 		/* Hack so subinventories are placed at the very first slots even before custom objects */
 		if (o_tv == TV_SUBINVEN) o_tv = TV_MAX + 1;
@@ -11638,15 +11932,15 @@ void reorder_pack(int Ind) {
 
 #ifdef ENABLE_DEMOLITIONIST
 		/* Hack so they don't end up too close to orange amulets sometimes */
-		if (o_tv == TV_CHARGE) o_tv = 9;
-		if (o_tv == TV_CHEMICAL) o_tv = 10;
+		if (o_tv == TV_CHARGE) o_tv = TV_CORPSE;
+		if (o_tv == TV_CHEMICAL) o_tv = TV_EGG;
 #endif
 
 		/* Get the "value" of the item */
 		o_value = object_value(Ind, o_ptr);
 
-		/* Scan every occupied slot */
-		for (j = 0; j < INVEN_PACK; j++) {
+		/* Scan every occupied slot, but stop before i, because we never move an item downwards! */
+		for (j = 0; j < i; j++) {
 			/* Get the item already there */
 			j_ptr = &p_ptr->inventory[j];
 
@@ -11656,6 +11950,11 @@ void reorder_pack(int Ind) {
 			j_tv = j_ptr->tval;
 			j_sv = j_ptr->sval;
 
+			if (j_tv == TV_SPECIAL && j_sv == SV_CUSTOM_OBJECT && j_ptr->xtra3 & 0x0200) {
+				j_tv = j_ptr->tval2;
+				j_sv = j_ptr->sval2;
+			}
+
 #ifdef ENABLE_SUBINVEN
 			/* Hack so subinventories are placed at the very first slots even before custom objects */
 			if (j_tv == TV_SUBINVEN) j_tv = TV_MAX + 1;
@@ -11663,8 +11962,8 @@ void reorder_pack(int Ind) {
 
 #ifdef ENABLE_DEMOLITIONIST
 			/* Hack so they don't end up too close to orange amulets sometimes */
-			if (j_tv == TV_CHARGE) j_tv = 9;
-			if (j_tv == TV_CHEMICAL) j_tv = 10;
+			if (j_tv == TV_CHARGE) j_tv = TV_CORPSE;
+			if (j_tv == TV_CHEMICAL) j_tv = TV_EGG;
 #endif
 
 			/* Objects sort by decreasing type */
@@ -11682,6 +11981,15 @@ void reorder_pack(int Ind) {
 			/* Objects sort by increasing sval */
 			if (o_sv < j_sv) break;
 			if (o_sv > j_sv) continue;
+
+#ifdef SUBINVEN_LIMIT_GROUP
+			/* Ignore any other sorting, especially discounted-value sorting (the rest is probably mostly paranoia),
+			   to sort in identical subinven bags _AFTER_ any already existing ones, so they remain unusable
+			   and don't move into the first slot of that subinven type, which would make them usable too. */
+			if (j_ptr->tval == TV_SUBINVEN && o_ptr->tval == TV_SUBINVEN &&
+			    get_subinven_group(j_ptr->sval) == get_subinven_group(o_ptr->sval))
+				continue;
+#endif
 
 			/* Level 0 items owned by the player come first */
 			if (o_ptr->level == 0 && o_ptr->owner == p_ptr->id && j_ptr->level != 0) break;
@@ -11702,9 +12010,8 @@ void reorder_pack(int Ind) {
 			if (o_value > j_value) break;
 			if (o_value < j_value) continue;
 		}
-
-		/* Never move down */
-		if (j >= i) continue;
+		/* Nothing found to break for and move upwards? */
+		if (j == i) continue;
 
 		/* Take note */
 		flag = TRUE;
@@ -11715,7 +12022,7 @@ void reorder_pack(int Ind) {
 		/* Structure slide (make room) */
 		for (k = i; k > j; k--) {
 			/* Slide the item */
-			p_ptr->inventory[k] = p_ptr->inventory[k-1];
+			p_ptr->inventory[k] = p_ptr->inventory[k - 1];
 		}
 
 		/* Insert the moved item */
@@ -11770,12 +12077,20 @@ void process_objects(void) {
 		}
 
 #ifdef ENABLE_DEMOLITIONIST
-		/* specialty: process these 1/s instead of 1/dungeonturn */
-		if (!(turn % cfg.fps) && o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
-			o_ptr->timeout--;
-			if (!o_ptr->timeout) {
+		if (o_ptr->tval == TV_CHARGE) {
+			/* New: Allow insta-blowup aka 0s fuse */
+			if (o_ptr->timeout == -1) {
+				o_ptr->timeout = 0;
 				detonate_charge(i); //also calls delete_object_idx() on it
 				continue;
+			}
+			/* specialty: process these 1/s instead of 1/dungeonturn */
+			else if (!(turn % cfg.fps) && o_ptr->timeout) {
+				o_ptr->timeout--;
+				if (!o_ptr->timeout) {
+					detonate_charge(i); //also calls delete_object_idx() on it
+					continue;
+				}
 			}
 		}
 #endif
@@ -12093,18 +12408,19 @@ s_printf("A_TIMEOUT: handle_art_d 2 (%d)\n", aidx);
 	}
 }
 
-/* Check whether an item causes HP drain on an undead player (vampire) who wears/wields it */
+/* Check whether an item causes HP drain on an undead player (vampire) who wears/wields it.
+   Returns 0 (FALSE) if not affected, 1 if strongly affected, 2 if weakly affected. */
 byte anti_undead(object_type *o_ptr, player_type *p_ptr) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
 	int l = 0;
+	bool no_res_lite;
 
 	/* Assumption: Only undead get this.
 	   (Affects true vampires and mimicked undead forms.) */
 	if (!p_ptr->suscep_life) return(FALSE);
-
 	/* only concerns wearable items */
 	if (wield_slot(0, o_ptr) == -1) return(FALSE);
-
+	/* Cursed items never harm undead */
 	if (cursed_p(o_ptr)) return(FALSE);
 
 	/* hack: it's carried by the wight-king! */
@@ -12120,13 +12436,14 @@ byte anti_undead(object_type *o_ptr, player_type *p_ptr) {
 	if (f4 & TR4_LITE2) l += 2;
 	if (f4 & TR4_LITE3) l += 3;
 	if ((f4 & TR4_FUEL_LITE) && (o_ptr->timeout < 1)) l = 0;
+	no_res_lite = (!p_ptr->resist_lite && !(f2 & TR2_RES_LITE));
 
 	/* be less strict to mimicked undead forms */
 	if (p_ptr->prace != RACE_VAMPIRE) {
 		/* powerful lights and anti-undead/evil items damage undead */
 		if (l) { /* light sources, or other items that provide light */
 			if ((f1 & TR1_SLAY_UNDEAD) || (f1 & TR1_KILL_UNDEAD)) return(1);
-			if ((f5 & TR5_WHITE_LIGHT) && (l >= 3 || o_ptr->name1 || !p_ptr->resist_lite)) return(2);
+			if ((f5 & TR5_WHITE_LIGHT) && (l >= 3 || o_ptr->name1 || no_res_lite)) return(2);
 		} else {
 			if ((!is_weapon(o_ptr->tval) || o_ptr->name1) && (f1 & TR1_KILL_UNDEAD)) return(1); /* allow undead to kill each other with *slay undead* weapons =p */
 		}
@@ -12139,9 +12456,9 @@ byte anti_undead(object_type *o_ptr, player_type *p_ptr) {
 		    (f1 & TR1_SLAY_EVIL) || (f1 & TR1_SLAY_UNDEAD) || (f1 & TR1_KILL_UNDEAD) ||
 		    ////(o_ptr->name1 && (f5 & TR5_WHITE_LIGHT)) || /* exempt: +lite caused by BRAND_FIRE mod; covered by just checking for white light below: */
 		    //(f5 & TR5_WHITE_LIGHT) || /* ! (controversial: Anchor, Stone, Razorback, Knowledge, Orthanc) */
-		    /* .. instead this, to make normal Brilliance/Night&Day/Light hats wearable: (Added BLESSED to Devotion amulet though, to actually exempt it) */
+		    /* .. instead this, to make normal Brilliance/Night&Day/Light hats wearable: */
 		    (l > 2) ||
-		    ((l == 2 || o_ptr->name1 || !p_ptr->resist_lite) && (f5 & TR5_WHITE_LIGHT))) /* ! (controversial: Razorback, Knowledge, Orthanc) */
+		    ((l == 2 || o_ptr->name1 || no_res_lite) && (f5 & TR5_WHITE_LIGHT))) /* ! (controversial: Razorback, Knowledge, Orthanc) */
 			return(1);
 	} else {
 		if ((f3 & TR3_BLESSED) ||
@@ -12154,18 +12471,19 @@ byte anti_undead(object_type *o_ptr, player_type *p_ptr) {
 #ifdef ENABLE_HELLKNIGHT
 /* Check whether an item causes HP drain on a demonic player (hell knight) who wears/wields it.
    Less strict than anti_undead(), since Vampires aren't really supposed to wear any light,
-   while for hell knights they don't have any intrinsic light source! */
+   while for hell knights they don't have any intrinsic light source!
+   Returns 0 (FALSE) if not affected, 1 if strongly affected, 2 if weakly affected. */
 byte anti_demon(object_type *o_ptr, player_type *p_ptr) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
 	int l = 0;
+	bool no_res_lite;
 
 	/* Assumptions: Vampires are both, demons are just suscep_good, only demons get suscep_good.
 	   (Affects hell knights and mimicked demon forms.) */
 	if (!p_ptr->demon) return(FALSE);
-
 	/* only concerns wearable items */
 	if (wield_slot(0, o_ptr) == -1) return(FALSE);
-
+	/* Cursed items never harm demons */
 	if (cursed_p(o_ptr)) return(FALSE);
 
 	/* hack: it's carried by the wight-king! */
@@ -12181,6 +12499,7 @@ byte anti_demon(object_type *o_ptr, player_type *p_ptr) {
 	if (f4 & TR4_LITE2) l += 2;
 	if (f4 & TR4_LITE3) l += 3;
 	if ((f4 & TR4_FUEL_LITE) && (o_ptr->timeout < 1)) l = 0;
+	no_res_lite = (!p_ptr->resist_lite && !(f2 & TR2_RES_LITE));
 
 	/* be less strict to mimicked demon forms */
 	if (TRUE
@@ -12196,7 +12515,7 @@ byte anti_demon(object_type *o_ptr, player_type *p_ptr) {
 		   reasoning is that undead and demon mimic forms should be treated equally in this regard. */
 		if (l) { /* light sources, or other items that provide light */
 			if ((f1 & TR1_SLAY_DEMON) || (f1 & TR1_KILL_DEMON)) return(1);
-			if ((f5 & TR5_WHITE_LIGHT) && (l >= 3 || o_ptr->name1 || !p_ptr->resist_lite)) return(2);
+			if ((f5 & TR5_WHITE_LIGHT) && (l >= 3 || o_ptr->name1 || no_res_lite)) return(2);
 		} else {
 			if ((!is_weapon(o_ptr->tval) || o_ptr->name1) && (f1 & TR1_KILL_DEMON)) return(2); /* allow demons to kill each other with *slay demon* weapons =p */
 		}
@@ -12208,8 +12527,8 @@ byte anti_demon(object_type *o_ptr, player_type *p_ptr) {
 		if ((f3 & TR3_BLESSED) ||
 		    (f1 & TR1_SLAY_EVIL) || (f1 & TR1_SLAY_DEMON) || (f1 & TR1_KILL_DEMON) ||
 		    //(f5 & TR5_WHITE_LIGHT) || /* ! (controversial: Anchor, Stone, Razorback, Knowledge, Orthanc) */
-		    /* .. instead this, to make normal Brilliance/Night&Day/Light hats wearable: (Added BLESSED to Devotion amulet though, to actually exempt it) */
-		    ((l >= 2 || o_ptr->name1) && (f5 & TR5_WHITE_LIGHT))) /* ! (controversial: Razorback, Knowledge, Orthanc) */
+		    /* .. instead this, to make normal Brilliance/Night&Day/Light hats wearable: */
+		    ((l == 2 || o_ptr->name1) && (f5 & TR5_WHITE_LIGHT))) /* ! (controversial: Razorback, Knowledge, Orthanc) */
 			return(1);
 	} else {
 		if ((f3 & TR3_BLESSED) ||
@@ -12368,25 +12687,29 @@ void inven_index_erase(int Ind, s16b slot) {
 /*
  * Apply recorded changes to an inventory slot number - mikaelh
  * Note that slot can be -1 for MKEY_SCHOOL handling for example. Seems fine.
- * -- Maybe todo: Update for ENABLE_SUBINVEN
+ * -- Maybe TODO!!!: Update for ENABLE_SUBINVEN
  */
 s16b replay_inven_changes(int Ind, s16b slot) {
 	player_type *p_ptr = Players[Ind];
 	inventory_change_type *inv_change;
 
+#ifdef ENABLE_SUBINVEN
+	/* TODO: Implement for subinven, instead of just returning identity!! */
+	if (slot >= SUBINVEN_INVEN_MUL) return(slot);
+#endif
+
 	inv_change = p_ptr->inventory_changes;
 	while (inv_change) {
 		switch (inv_change->type) {
-			case INVENTORY_CHANGE_SLIDE:
-				if (slot >= inv_change->begin && slot <= inv_change->end)
-					slot += inv_change->mod;
-				break;
-			case INVENTORY_CHANGE_MOVE:
-				if (slot == inv_change->begin) slot = inv_change->end;
-				break;
-			case INVENTORY_CHANGE_ERASE:
-				if (slot == inv_change->begin) return(0xFF);
-				break;
+		case INVENTORY_CHANGE_SLIDE:
+			if (slot >= inv_change->begin && slot <= inv_change->end) slot += inv_change->mod;
+			break;
+		case INVENTORY_CHANGE_MOVE:
+			if (slot == inv_change->begin) slot = inv_change->end;
+			break;
+		case INVENTORY_CHANGE_ERASE:
+			if (slot == inv_change->begin) return(0x7FFF);
+			break;
 		}
 		inv_change = inv_change->next;
 	}
@@ -12471,6 +12794,14 @@ int get_artifact_timeout(int a_idx) {
    to counter long-time hoarding of artifacts. - C. Blue */
 void determine_artifact_timeout(int a_idx, struct worldpos *wpos) {
 	a_info[a_idx].timeout = get_artifact_timeout(a_idx);
+
+	/* Specialty hacks */
+	if (a_idx == ART_ANTIRIAD) {
+		a_info[ART_ANTIRIAD_DEPLETED].timeout = a_info[a_idx].timeout;
+		a_info[ART_ANTIRIAD_DEPLETED].carrier = a_info[a_idx].carrier;
+		if (wpos) a_info[ART_ANTIRIAD_DEPLETED].iddc = in_irondeepdive(wpos);
+		a_info[ART_ANTIRIAD_DEPLETED].winner = FALSE;
+	}
 
 //debug
 s_printf("A_TIMEOUT: Called (%d)!\n", a_idx);
@@ -12955,16 +13286,6 @@ void hack_particular_item(void) {
 }
 
 #ifdef VAMPIRES_INV_CURSED
-/* Reverse negative boni on a cursed item while equipped by a true undead (RACE_VAMPIRE) player,
-   provided the item is eligible (HEAVY_CURSE). - C. Blue */
-/* Will randarts retain their positive abilities on flipping? (mostly for auto-id) */
- #define INVERSE_CURSED_RETAIN
- #ifdef INVERSE_CURSED_RETAIN
-  //TR3_BLESSED -- cursed items cannot have BLESSED flag, TR3_PERMA_CURSE -- not happening on randarts
-  #define TR3_BAD_MASK (TR3_AUTO_CURSE | TR3_NO_TELE | TR3_NO_MAGIC | TR3_TY_CURSE | TR3_DRAIN_EXP | TR3_TELEPORT | TR3_AGGRAVATE | TR3_CURSED | TR3_HEAVY_CURSE)
-  #define TR4_BAD_MASK (TR4_NEVER_BLOW | TR4_BLACK_BREATH | TR4_DG_CURSE | TR4_CLONE | TR4_CURSE_NO_DROP)
-  #define TR5_BAD_MASK (TR5_DRAIN_MANA | TR5_DRAIN_HP)
- #endif
 void inverse_cursed(object_type *o_ptr) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
 
@@ -12979,14 +13300,13 @@ void inverse_cursed(object_type *o_ptr) {
 	if (o_ptr->name1 == ART_RANDART) {
 		object_type forge_bak, *o_ptr_bak = &forge_bak;
 		s32b old_owner, swap;
-		struct worldpos wpos = {cfg.town_x, cfg.town_y, 0};
 		player_type player;
 		u16b ident = (o_ptr->ident & ~ID_CURSED); /* Resulting item is not allowed to be cursed, so we need to drop this ident state */
   #ifdef INVERSE_CURSED_RETAIN
 		artifact_type a_org, *a_ptr;
 		bool anti_undead_org;
 		bool anti_demon_org;
-		int tries = 1000;
+		int tries = 1000, old_lite_rad, lite_rad;
   #else
 		int tries = 20;
   #endif
@@ -13009,6 +13329,10 @@ void inverse_cursed(object_type *o_ptr) {
 		a_org.flags5 &= ~TR5_BAD_MASK;
 		anti_undead_org = anti_undead(o_ptr, &player);
 		anti_demon_org = anti_demon(o_ptr, &player);
+		/* Remove all light flags too, as we're fine with just having at least as much light, but will also accept getting more light! */
+		old_lite_rad = ((a_org.flags3 & TR3_LITE1) ? 1 : 0) + ((a_org.flags4 & TR4_LITE2) ? 2 : 0) + ((a_org.flags4 & TR4_LITE3) ? 3 : 0);
+		a_org.flags3 &= ~TR3_LITE1;
+		a_org.flags4 &= ~(TR4_LITE2 | TR4_LITE3);
   #endif
 
 		swap = o_ptr->pval3; /* remember the flipped randart in the future */
@@ -13037,7 +13361,7 @@ void inverse_cursed(object_type *o_ptr) {
 			randart_make(o_ptr);
 
 			/* hack: RESF_NORANDART will prevent calling make_artifact() in apply_magic(), which would re-roll the seed again which is unnecessary as we just did that already */
-			apply_magic(&wpos, o_ptr, 50, FALSE, FALSE, FALSE, FALSE, RESF_FORCERANDART | RESF_NOTRUEART | RESF_LIFE | RESF_NORANDART);
+			apply_magic(BREE_WPOS_P, o_ptr, 50, FALSE, FALSE, FALSE, FALSE, RESF_FORCERANDART | RESF_NOTRUEART | RESF_LIFE | RESF_NORANDART);
 			o_ptr->ident = ident; /* Keep identification states, a little bonus QoL.. */
 
 			/* Forbid some flags and being cursed AGAIN or this was pointless */
@@ -13051,6 +13375,11 @@ void inverse_cursed(object_type *o_ptr) {
 			if ((a_ptr->flags4 & a_org.flags4) != a_org.flags4) continue;
 			if ((a_ptr->flags5 & a_org.flags5) != a_org.flags5) continue;
 			if ((a_ptr->flags6 & a_org.flags6) != a_org.flags6) continue;
+
+			/* Recount light, as we're fine with just having at least as much light, but will also accept getting more light! */
+			lite_rad = ((a_ptr->flags3 & TR3_LITE1) ? 1 : 0) + ((a_ptr->flags4 & TR4_LITE2) ? 2 : 0) + ((a_ptr->flags4 & TR4_LITE3) ? 3 : 0);
+			if (lite_rad < old_lite_rad) continue;
+
 			if (!anti_undead_org && anti_undead(o_ptr, &player)) continue;
    #ifdef ENABLE_HELLKNIGHT
 			if (!anti_demon_org && anti_demon(o_ptr, &player)) continue;
@@ -13109,7 +13438,7 @@ void inverse_cursed(object_type *o_ptr) {
 					if ((iend = strstr(tmp, "@^"))) strcat(o_name, iend + 2);
 				}
 				/* Catch the potential +1 string overflow and fix it */
-				if (o_name[ONAME_LEN - 1]) o_name[ONAME_LEN - 1] = 0;
+				o_name[ONAME_LEN - 1] = 0;
 
 				/* -- Apply new power inscription if there was one -- */
 				(void)check_power_inscribe(0, o_ptr, NULL, o_name);
@@ -13194,27 +13523,36 @@ void inverse_cursed(object_type *o_ptr) {
 	if (!is_armour(o_ptr->tval) && o_ptr->to_a > 15) o_ptr->to_a = 15;
 
 	/* reverse +pval/bpval */
-	/* Be more lenient for items that only increase attributes */
+ #define FLIP_METHOD 2
+ #if FLIP_METHOD == 1
+  #define FLIP_ATTR(v) (-(v) / 2 + 1)		/* (1->1, 2->2, 4->3, 6->4) */
+  #define FLIP_PVAL(v) ((-(v) + 3) / 4)		/* (1->1, 5->2, 9->3, 13->4) */
+ #else /* 2 :-p */
+  #define FLIP_ATTR(v) ((-(v) + 1) / 2)		/* stricter rounding (Beruthiel ends up +2 instead of +3) (1->1, 3->2, 5->3, 7->4, can Doom amulet be -9? -> +5) */
+  #define FLIP_PVAL(v) ((-(v) + 2) / 3)		/* somehwat better stats (Angmar ends up +4 instead of +3) (1->1, 4->2, 7->3, 10->4) */
+ #endif
+	/* Be more lenient for items that only increase attributes (STR/INT/WIS/DEX/CON/CHR) */
 	if ((f1 & TR1_PVAL_MASK) == (f1 & TR1_ATTR_MASK) && !(f5 & TR5_PVAL_MASK)) {
 		if (o_ptr->pval < 0) {
 			o_ptr->pval_org = o_ptr->pval;
-			o_ptr->pval = (-o_ptr->pval) / 2 + 1;
+			o_ptr->pval = FLIP_ATTR(o_ptr->pval);
 			if (o_ptr->pval > 5) o_ptr->pval = 5;
 		}
 		if (o_ptr->bpval < 0) {
 			o_ptr->bpval_org = o_ptr->bpval;
-			o_ptr->bpval = (-o_ptr->bpval) / 2 + 1;
+			o_ptr->bpval = FLIP_ATTR(o_ptr->bpval);
 			if (o_ptr->bpval > 5) o_ptr->bpval = 5;
 		}
 	} else {
+		// note: could also consider (-o_ptr->pval + 2) / 3 for 
 		if (o_ptr->pval < 0) {
 			o_ptr->pval_org = o_ptr->pval;
-			o_ptr->pval = -(o_ptr->pval - 3) / 4; //the evil gods are pleased '>_>.. (thinking of +LUCK)
+			o_ptr->pval = FLIP_PVAL(o_ptr->pval);
 			if (o_ptr->pval > 3) o_ptr->pval = 3; //thinking EA/Life, but just paranoia really..
 		}
 		if (o_ptr->bpval < 0) {
 			o_ptr->bpval_org = o_ptr->bpval;
-			o_ptr->bpval = -(o_ptr->bpval - 3) / 4; //the evil gods are pleased '>_>.. (thinking of +LUCK)
+			o_ptr->bpval = FLIP_PVAL(o_ptr->bpval);
 			if (o_ptr->bpval > 3) o_ptr->bpval = 3; //thinking EA/Life, but just paranoia really..
 		}
 	}
@@ -13231,7 +13569,6 @@ void reverse_cursed(object_type *o_ptr) {
 	if (o_ptr->name1 == ART_RANDART) {
 		s32b old_owner, swap, lev;
 		u16b ident = o_ptr->ident;
-		struct worldpos wpos = {cfg.town_x, cfg.town_y, 0};
 
 		if (!o_ptr->pval3 || o_ptr->pval2 <= 1) return; //paranoia @ pval3?
 		swap = o_ptr->name3;
@@ -13246,7 +13583,7 @@ void reverse_cursed(object_type *o_ptr) {
 		//note_toggle_cursed(o_ptr, TRUE); -- not needed, it gets already added
 
 		/* hack: RESF_NORANDART will prevent calling make_artifact() in apply_magic(), which would re-roll the seed randomly */
-		apply_magic(&wpos, o_ptr, 50, FALSE, FALSE, FALSE, FALSE, RESF_FORCERANDART | RESF_NOTRUEART | RESF_LIFE | RESF_NORANDART);
+		apply_magic(BREE_WPOS_P, o_ptr, 50, FALSE, FALSE, FALSE, FALSE, RESF_FORCERANDART | RESF_NOTRUEART | RESF_LIFE | RESF_NORANDART);
   #if 0
 		o_ptr->level = lev; /* Restore original level requirements! */
   #else
@@ -13279,7 +13616,7 @@ void reverse_cursed(object_type *o_ptr) {
 				if ((iend = strstr(tmp, "@^"))) strcat(o_name, iend + 2);
 			}
 			/* Catch the potential +1 string overflow and fix it */
-			if (o_name[ONAME_LEN - 1]) o_name[ONAME_LEN - 1] = 0;
+			o_name[ONAME_LEN - 1] = 0;
 
 			/* -- Apply new power inscription if there was one -- */
 			(void)check_power_inscribe(0, o_ptr, NULL, o_name);
@@ -13540,9 +13877,10 @@ void init_treasure_classes(void) {
 int check_for_wand_of_wonder(int sval, struct worldpos *wpos) {
 	if (sval != SV_WAND_WONDER) return(sval); /* identity */
 
-	/* Restrict: Leave out some especially powerful spells for pvp balance reasons. */
-	/* Highlander Tournament or PvP-arena */
-	if (wpos && !wpos->wx && !wpos->wy && ((!wpos->wz && sector00separation) || wpos->wz > 0)) {
+	/* Restrict: Leave out some especially powerful spells for pvp balance reasons, in.. */
+	if (wpos && wpos->wx == WPOS_SECTOR000_X && wpos->wy == WPOS_SECTOR000_Y && (
+	    (wpos->wz == WPOS_SECTOR000_Z && sector000separation) || /* Highlander Tournament, final surface battle */
+	    wpos->wz * WPOS_PVPARENA_Z > 0)) { /* PvP-arena */
 		/* no ball spell effects for cheap mass zapping in PvP */
 		sval = rand_int(SV_WAND_WONDER - 4 - 2 - 1);
 		if (sval >= SV_WAND_DRAIN_LIFE) sval += 2; /* skip drain life and polymorph */

@@ -157,30 +157,37 @@ static cptr r_info_flags1[] = {
 	"RAND_100", //was: "QUESTOR",
 	"MALE",
 	"FEMALE",
+
 	"CHAR_CLEAR",
 	"CHAR_MULTI",
 	"ATTR_CLEAR",
 	"ATTR_MULTI",
+
 	"FORCE_DEPTH",
 	"FORCE_MAXHP",
 	"FORCE_SLEEP",
-	"FORCE_EXTRA",
+	"RAND_5",
+
 	"FRIEND",
 	"FRIENDS",
 	"ESCORT",
 	"ESCORTS",
-	"NEVER_BLOW",
-	"NEVER_MOVE",
+
+	"DROP_1",
+	"DROP_2",
 	"RAND_25",
 	"RAND_50",
+
 	"ONLY_GOLD",
 	"ONLY_ITEM",
 	"DROP_60",
 	"DROP_90",
+
 	"DROP_1D2",
 	"DROP_2D2",
 	"DROP_3D2",
 	"DROP_4D2",
+
 	"DROP_GOOD",
 	"DROP_GREAT",
 	"DROP_USEFUL",
@@ -193,36 +200,43 @@ static cptr r_info_flags1[] = {
 static cptr r_info_flags2[] = {
 	"STUPID",
 	"SMART",
-	"CAN_SPEAK",	// "XXX1X2",
-	"REFLECTING",	// "XXX2X2",
+	"CAN_SPEAK",
+	"REFLECTING",
+
 	"INVISIBLE",
 	"COLD_BLOOD",
 	"EMPTY_MIND",
 	"WEIRD_MIND",
-	"DEATH_ORB",	// "MULTIPLY",
+
+	"DEATH_ORB",
 	"REGENERATE",
-	"SHAPECHANGER",	// "XXX3X2",
-	"ATTR_ANY",	// "XXX4X2",
+	"SHAPECHANGER",
+	"ATTR_ANY",
+
 	"POWERFUL",
-	"ELDRITCH_HORROR",		//"XXX5X2",
-	"AURA_FIRE",	// "XXX7X2",
-	"AURA_ELEC",	// "XXX6X2",
+	"ELDRITCH_HORROR",
+	"AURA_FIRE",
+	"AURA_ELEC",
+
 	"OPEN_DOOR",
 	"BASH_DOOR",
 	"PASS_WALL",
 	"KILL_WALL",
+
 	"MOVE_BODY",
 	"KILL_BODY",
 	"TAKE_ITEM",
 	"KILL_ITEM",
-	"BRAIN_1",
-	"BRAIN_2",
-	"BRAIN_3",
-	"BRAIN_4",
-	"BRAIN_5",
-	"BRAIN_6",
-	"BRAIN_7",
-	"BRAIN_8"
+
+	"NEVER_BLOW",
+	"NEVER_MOVE",
+	"NEVER_ACT",
+	"NO_ESCORT",
+
+	"NO_NEST",
+	"ROAMING",
+	"REGENERATE_T2",
+	"REGENERATE_TH"
 };
 
 /*
@@ -233,30 +247,37 @@ static cptr r_info_flags3[] = {
 	"TROLL",
 	"GIANT",
 	"DRAGON",
+
 	"DEMON",
 	"UNDEAD",
 	"EVIL",
 	"ANIMAL",
-	"DRAGONRIDER",	// "XXX1X3",
-	"GOOD",	// "XXX2X3",
-	"AURA_COLD",	// "XXX3X3",
-	"NONLIVING",	// "IM_TELE",
+
+	"DRAGONRIDER",
+	"GOOD",
+	"AURA_COLD",
+	"NONLIVING",
+
 	"HURT_LITE",
 	"HURT_ROCK",
-	"SUSCEP_FIRE",	// "HURT_FIRE",
-	"SUSCEP_COLD",	// "HURT_COLD",
+	"SUSCEP_FIRE",
+	"SUSCEP_COLD",
+
 	"IM_ACID",
 	"IM_ELEC",
 	"IM_FIRE",
 	"IM_COLD",
+
 	"IM_POIS",
-	"RES_TELE",	// "IM_PSI",
+	"RES_TELE",
 	"RES_NETH",
 	"RES_WATE",
+
 	"IM_WATER",
 	"RES_NEXU",
 	"RES_DISE",
 	"AI_HYBRID",
+
 	"NO_FEAR",
 	"NO_STUN",
 	"NO_CONF",
@@ -269,37 +290,44 @@ static cptr r_info_flags3[] = {
 /* spells 96-127 (innate) */
 static cptr r_info_flags4[] = {
 	"SHRIEK",
-	"UNMAGIC",		//	"CAUSE_4",
-	"S_ANIMAL",	// "XXX3X4",
-	"ROCKET",	// "XXX4X4",
+	"UNMAGIC",
+	"TRAPS",
+	"ROCKET",
+
 	"ARROW_1",	// former 1/2 (arrow), now arrow/light
 	"ARROW_2",	// former 3/4 (missile), now shot/heavy
 	"ARROW_3",	//	"ARROW_3", now bolt/heavy
 	"ARROW_4",	//	"ARROW_4", now missile/heavy
+
 	"BR_ACID",
 	"BR_ELEC",
 	"BR_FIRE",
 	"BR_COLD",
+
 	"BR_POIS",
 	"BR_NETH",
 	"BR_LITE",
 	"BR_DARK",
+
 	"BR_CONF",
 	"BR_SOUN",
 	"BR_CHAO",
 	"BR_DISE",
+
 	"BR_NEXU",
 	"BR_TIME",
 	"BR_INER",
 	"BR_GRAV",
+
 	"BR_SHAR",
 	"BR_PLAS",
 	"BR_WALL",
 	"BR_MANA",
-	"BR_DISI",	// "XXX8X4"
-	"BR_NUKE",	// "XXX6X4",
-	"MOAN",		//"XXX",    <- MOAN is for Halloween event :) -C. Blue
-	"BOULDER",	// "XXX",
+
+	"BR_DISI",
+	"BR_NUKE",
+	"MOAN",		// <- MOAN is for Halloween event :) -C. Blue
+	"BOULDER",
 };
 
 /*
@@ -311,30 +339,37 @@ static cptr r_info_flags5[] = {
 	"BA_ELEC",
 	"BA_FIRE",
 	"BA_COLD",
+
 	"BA_POIS",
 	"BA_NETH",
 	"BA_WATE",
 	"BA_MANA",
+
 	"BA_DARK",
 	"DRAIN_MANA",
 	"MIND_BLAST",
 	"BRAIN_SMASH",
+
 	"CURSE",	//	"CAUSE_1",
 	"BO_CODE",
-	"BA_NUKE",	// "XXX5X4",
-	"BA_CHAO",	// "XXX7X4",
+	"BA_NUKE",
+	"BA_CHAO",
+
 	"BO_ACID",
 	"BO_ELEC",
 	"BO_FIRE",
 	"BO_COLD",
+
 	"BO_POIS",
 	"BO_NETH",
 	"BO_WATE",
 	"BO_MANA",
+
 	"BO_PLAS",
 	"BO_ICEE",
 	"MISSILE",
 	"SCARE",
+
 	"BLIND",
 	"CONF",
 	"SLOW",
@@ -347,33 +382,40 @@ static cptr r_info_flags5[] = {
 /* spells 160-191 (bizarre) */
 static cptr r_info_flags6[] = {
 	"HASTE",
-	"HAND_DOOM",	// "XXX1X6",
+	"HAND_DOOM",
 	"HEAL",
-	"S_ANIMALS",	// "XXX2X6",
+	"S_ANIMALS",
+
 	"BLINK",
 	"TPORT",
-	"RAISE_DEAD",	// "XXX3X6", -- not implemented
-	"S_BUG",	// "XXX4X6",
+	"RAISE_DEAD",	// -- not implemented
+	"S_BUG",
+
 	"TELE_TO",
 	"TELE_AWAY",
 	"TELE_LEVEL",
-	"S_RNG",	// "XXX5",
+	"S_RNG",
+
 	"DARKNESS",
-	"TRAPS",
+	"S_ANIMAL",
 	"FORGET",
-	"S_DRAGONRIDER",	// "XXX6X6",
-	"S_KIN",	// "XXX7X6",
-	"S_HI_DEMONS",	// "XXX8X6",
+	"S_DRAGONRIDER",
+
+	"S_KIN",
+	"S_HI_DEMONS",
 	"S_MONSTER",
 	"S_MONSTERS",
+
 	"S_ANTS",
 	"S_SPIDERS",
 	"S_HOUNDS",
 	"S_HYDRAS",
+
 	"S_ANGEL",
 	"S_DEMON",
 	"S_UNDEAD",
 	"S_DRAGON",
+
 	"S_HI_UNDEAD",
 	"S_HI_DRAGONS",
 	"S_NAZGUL",
@@ -393,34 +435,41 @@ static cptr r_info_flags7[] = {
 	"CAN_SWIM",
 	"CAN_FLY",
 	"FRIENDLY",
+
 	"PET",
-	"MORTAL",
+	"CAN_CLIMB",
 	"SPIDER",
 	"NAZGUL",
+
 	"DG_CURSE",
-	"POSSESSOR",
+	"MORTAL",
 	"NO_DEATH",
 	"NO_TARGET",
+
 	"AI_ANNOY",
 	"AI_SPECIAL",
 	"NEUTRAL",
 	"DROP_ART",
+
 	"DROP_RANDART",
 	"AI_PLAYER",
 	"NO_THEFT",
-	"NEVER_ACT",
+	"ASTAR",
+
 	"NO_ESP",
 	"ATTR_BASE",
 	"VORTEX",
 	"OOD_20",
+
 	"OOD_15",
 	"OOD_10",
 	"ATTR_BNW",
-	"S_LOWEXP", //"XXX7X27",
-	"S_NOEXP", //"XXX7X28",
-	"ATTR_BREATH",	//"XXX7X29",
-	"MULTIPLY",		//"XXX7X30",
-	"DISBELIEVE",	//"XXX7X31",
+	"S_LOWEXP",
+
+	"S_NOEXP",
+	"ATTR_BREATH",
+	"MULTIPLY",
+	"DISBELIEVE",
 };
 
 /*
@@ -431,33 +480,39 @@ static cptr r_info_flags8[] = {
 	"WILD_TOWN",
 	"WILD_EASY",	/* ground without requirements: town/shore/waste/grass/swamp */
 	"WILD_SHORE",
+
 	"WILD_OCEAN",
 	"WILD_WASTE",
 	"WILD_WOOD",
 	"WILD_VOLCANO",
+
 	"WILD_LAKE",
 	"WILD_MOUNTAIN",
 	"WILD_GRASS",
 	"NO_CUT",
+
 	"CTHANGBAND",
 	"PERNANGBAND",
 	"ZANGBAND",
 	"JOKEANGBAND",
+
 	"BASEANGBAND",
 	"BLUEBAND",
 	"NO_AUTORET",
 	"WILD_DESERT",
+
 	"WILD_ICE",
 	"NETHER_REALM",
 	"PLURAL",
 	"NO_BLOCK",
+
 	"ALLOW_RUNNING",
 	"AVOID_PERMAWALLS",
 	"PSEUDO_UNIQUE",
 	"GENO_PERSIST",
+
 	"GENO_NO_THIN",
-	"XXX",
-	//^hole
+	"FINAL_GUARDIAN", /* should NOT be used in r_info, it's instead set in d_info! */ //4
 	"WILD_SWAMP",	/* ToDo: Implement Swamp */
 	"WILD_TOO",
 };
@@ -484,7 +539,7 @@ static cptr r_info_flags9[] = {
 
 	"ONLY_DEPTH",
 	"SPECIAL_GENE",
-	"NO_REDUCE",
+	"NO_REDUCE",	//hole
 	"RES_ACID",
 
 	"RES_ELEC",
@@ -502,7 +557,7 @@ static cptr r_info_flags9[] = {
 	"RES_TIME",
 	"RES_MANA",
 
-	"X10000000",
+	"VAMPIRIC",
 	"IM_TELE",
 	"IM_PSI",
 	"RES_PSI",
@@ -515,35 +570,83 @@ static cptr r_info_flags0[] = {
 	"S_HI_MONSTER",
 	"S_HI_MONSTERS",
 	"S_HI_UNIQUE",
-	"ASTAR",//4
-	"NO_ESCORT",
-	"NO_NEST",
-	"FINAL_GUARDIAN", /* should not be used in r_info, since it's set implicitely from d_info */
-	"BO_DISE",//8
+	"BO_DISE",
+
 	"BA_DISE",
-	"ROAMING",
-	"DROP_1",
-	"CAN_CLIMB",//12
-	"RAND_5",
-	"DROP_2",
 	"S_DEMONS",
-	"S_DRAGONS",//16
+	"S_DRAGONS",
 	"S_HI_DEMON",
+
 	"S_HI_DRAGON",
+	"BA_LITE",
+	"BO_WALL",
+	"BA_HELLFIRE",
+
+	"BO_LITE",
+	"BO_DARK",
+	"DISPEL",
+	"WATERPOISON",
+
+	"ICEPOISON",
+	"BO_CHAO",
+	"DRAIN_LIFE",
+	"BO_PSI",
+
+	"X00100000",
+	"X00200000",
+	"X00400000",
+	"X00800000",
+
 	"BR_ICE",
-	"BR_WATER",//20
+	"BR_WATER",
+	"HEAL_PHYS",
+	"BLINK_PHYS",
+
+	"TPORT_PHYS",
 	"ADMINISTRATIVE_PUSH",
 	"METEOR_SWARM",
 	"ADMINISTRATIVE_HOLD",
-	"X00800000",//24
+};
+static cptr r_info_flagsA[] = {
+	"X00000001",
+	"X00000002",
+	"X00000004",
+	"X00000008",
+
+	"X00000010",
+	"X00000020",
+	"X00000040",
+	"X00000080",
+
+	"X00000100",
+	"X00000200",
+	"X00000400",
+	"X00000800",
+
+	"X00001000",
+	"X00002000",
+	"X00004000",
+	"X00008000",
+
+	"X00010000",
+	"X00020000",
+	"X00040000",
+	"X00080000",
+
+	"X00100000",
+	"X00200000",
+	"X00400000",
+	"X00800000",
+
 	"X01000000",
 	"X02000000",
 	"X04000000",
-	"X08000000",//28
+	"X08000000",
+
 	"X10000000",
 	"X20000000",
 	"X40000000",
-	"X80000000",//32
+	"X80000000",
 };
 
 /*
@@ -828,7 +931,7 @@ static cptr k_info_flags6[] = {
 	"XXX00000080",
 
 	"OFTEN_EGO",
-	"EVIL",
+	"UNBLESSED",
 	"RETURNING",
 	"XXX00000800",
 
@@ -1008,7 +1111,7 @@ static cptr f_info_flags1[] = {
 	"TUNNELABLE",
 
 	"WEB",
-	"ATTR_MULTI",
+	"ALLOW_TELE",
 	"SLOW_RUNNING_1",
 	"SLOW_RUNNING_2",
 
@@ -1042,11 +1145,11 @@ static cptr f_info_flags2[] = {
 	"GLOW",
 	"ENTER_FROM_SPECIAL",
 	"NO_PROB",
-	"XXX",
+	"ATTR_MULTI",
 
-	"XXX",
-	"XXX",
-	"XXX",
+	"SHINE",
+	"SHINE_FIRE",
+	"SHINE2",
 	"XXX",
 
 	"XXX",
@@ -1331,12 +1434,11 @@ static cptr st_info_flags1[] = {
 	"DEEP_LEVEL",
 	"RARE",
 	"VERY_RARE",
-	//"COMMON",
 	"FLAT_BASE",
 	"ALL_ITEM",
 	"RANDOM",
 	"FORCE_LEVEL",
-	"MUSEUM",
+	"BUY50",
 	"NO_DISCOUNT",
 	"NO_DISCOUNT2",
 	"EGO",
@@ -1358,6 +1460,47 @@ static cptr st_info_flags1[] = {
 	"NO_DISCOUNT1",
 	"SELL67",
 	"ZEROLEVEL"
+};
+static cptr st_info_flags2[] = {
+	"MUSEUM",
+	"KEEP_QUART",
+	"KEEP_HALF",
+	"KEEP_TQUART",
+
+	"FILL_WELL",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	"",
+
+	"",
+	"",
+	"",
+	""
 };
 
 /*** Initialize from ascii template files ***/
@@ -1541,6 +1684,11 @@ if (!season_newyearseve) {
 #else
 		if (streq(m, "DEMOLITIONIST_IDDC_ONLY") && negation) invalid = TRUE;
 #endif
+#ifndef NO_RUST_NO_HYDROXIDE
+		if (streq(m, "NO_RUST_NO_HYDROXIDE") && !negation) invalid = TRUE;
+#else
+		if (streq(m, "NO_RUST_NO_HYDROXIDE") && negation) invalid = TRUE;
+#endif
 #ifndef ENABLE_SUBINVEN
 		if (streq(m, "ENABLE_SUBINVEN") && !negation) invalid = TRUE;
 #else
@@ -1585,6 +1733,7 @@ if (!season_newyearseve) {
 		    strcmp(m, "ENABLE_OUNLIFE") &&
 		    strcmp(m, "ENABLE_DEMOLITIONIST") &&
 		    strcmp(m, "DEMOLITIONIST_IDDC_ONLY") &&
+		    strcmp(m, "NO_RUST_NO_HYDROXIDE") &&
 		    strcmp(m, "ENABLE_SUBINVEN") &&
 		    strcmp(m, "ENABLE_PETS") &&
 		    strcmp(m, "ENABLE_SUMMONING") &&		    
@@ -1629,7 +1778,7 @@ static errr grab_one_race_allow_flag(s32b *choice, cptr what) {
 #endif
 
 	/* Scan classes flags */
-//	for (i = 0; i < max_rp_idx && (s = race_info[i].title + rp_name); i++)
+	//for (i = 0; i < max_rp_idx && (s = race_info[i].title + rp_name); i++)
 	for (i = 0; i < MAX_RACE && (s = race_info[i].title); i++) {
 		if (streq(what, s)) {
 			(choice[i / 32]) |= (1U << i);
@@ -2436,8 +2585,10 @@ errr init_f_info_txt(FILE *fp, char *buf) {
 	max_f_idx = ++error_idx;
 
 	/* implied flags */
-	for (i = 0; i < max_f_idx; i++)
+	for (i = 0; i < max_f_idx; i++) {
 		if ((f_info[i].flags2 & FF2_BOUNDARY)) f_info[i].flags1 |= FF1_PERMANENT;
+		//if ((f_info[i].flags2 & (FF2_SHINE | FF2_SHINE2))) f_info[i].flags2 |= FF2_GLOW;
+	}
 
 	/* Success */
 	return(0);
@@ -2510,7 +2661,7 @@ static errr grab_one_kind_flag(object_kind *k_ptr, cptr what) {
  * Initialize the "k_info" array, by parsing an ascii "template" file
  */
 errr init_k_info_txt(FILE *fp, char *buf) {
-	int i, idx = 0;
+	int i, idx = 0, kidx;
 	char *s, *t;
 #ifdef KIND_DIZ
 	char tmp[MSG_LEN];
@@ -2535,7 +2686,7 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 	k_head->text_size = 0;
 
 	/* Parse */
-	while (0 == my_fgets(fp, buf, 1024, FALSE)) {
+	while (0 == my_fgets_col(fp, buf, 1024, FALSE)) {
 		/* Advance the line number */
 		error_line++;
 
@@ -2582,14 +2733,16 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 			/* Verify that colon */
 			if (!s) return(1);
 
+			/* Before proceeding to that colon, get the 'static' index (ie the index in k_info.txt).
+			   Added it in Jan 2024, just to create a mapping of the static indices specified in k_info.txt to our in-engine indices we build here,
+			   in order to allow custom fonts to reliably map objects. */
+			kidx = atoi(buf + 2);
+
 			/* Nuke the colon, advance to the name */
 			*s++ = '\0';
 
 			/* Paranoia -- require a name */
 			if (!*s) return(1);
-
-			/* Get the index */
-			//i = atoi(buf + 2);
 
 			/* Count it up */
 			i = ++idx;
@@ -2606,9 +2759,6 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 			/* Point at the "info" */
 			k_ptr = &k_info[i];
 
-			/* For quest_statuseffect() */
-			k_info_num[atoi(buf + 2)] = i;
-
 			/* Hack -- Verify space */
 			if (k_head->name_size + strlen(s) + 8 > fake_name_size) return(7);
 
@@ -2620,6 +2770,9 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 
 			/* Advance the index */
 			k_head->name_size += strlen(s);
+
+			/* Create index-mapping for custom fonts and for quest_statuseffect() */
+			k_info_num[kidx] = i;
 
 			/* Next... */
 			continue;
@@ -2722,10 +2875,10 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 
 		/* Process 'A' for "Allocation" (one line only) */
 		if (buf[0] == 'A') {
-			int i;
+			int i, chance;
 
 			/* XXX XXX XXX Simply read each number following a colon */
-			for (i = 0, s = buf+1; s && (s[0] == ':') && s[1]; ++i) {
+			for (i = 0, s = buf + 1; s && (s[0] == ':') && s[1]; ++i) {
 				/* Sanity check */
 				if (i >= 4) {
 					s_printf("Warning: Too many allocation entries on line %hd of 'k_info.txt'.\n", error_line);
@@ -2735,19 +2888,18 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 				/* Default chance */
 				k_ptr->chance[i] = 1;
 
-				/* Store the attack damage index */
-				k_ptr->locale[i] = atoi(s+1);
+				/* Store the depth where this item is native (Note: It's depth has no relation to the item's actual base kind level (W-line))  */
+				k_ptr->locale[i] = atoi(s + 1);
 
 				/* Find the slash */
-				t = strchr(s+1, '/');
+				t = strchr(s + 1, '/');
 
 				/* Find the next colon */
-				s = strchr(s+1, ':');
+				s = strchr(s + 1, ':');
 
 				/* If the slash is "nearby", use it */
 				if (t && (!s || t < s)) {
-					int chance = atoi(t+1);
-
+					chance = atoi(t + 1);
 					k_ptr->chance[i] = chance;
 				}
 			}
@@ -2809,6 +2961,29 @@ errr init_k_info_txt(FILE *fp, char *buf) {
 	++k_head->name_size;
 	++k_head->text_size;
 
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+	/* Now these cases could be done via $WIELD_BOOKS tags too maybe (which currently aren't implemented) */
+	for (i = 1; i < MAX_K_IDX; i++) {
+ #ifdef WIELD_BOOKS
+		/* All books acquire '2-handed' flag */
+		if (k_info[i].tval == TV_BOOK) k_info[i].flags4 |= TR4_MUST2H;
+ #else
+		/* All books lose their WIELD_BOOKS-intended extra powers */
+		if (k_info[i].tval == TV_BOOK) {
+			k_info[i].flags1 = 0x0;
+			k_info[i].flags2 = 0x0;
+			k_info[i].flags3 &= (TR3_EASY_KNOW | TR3_IGNORE_ACID | TR3_IGNORE_COLD | TR3_IGNORE_FIRE | TR3_IGNORE_ELEC);
+			k_info[i].flags4 = 0x0;
+			k_info[i].flags5 &= (TR5_IGNORE_DISEN | TR5_IGNORE_MANA | TR5_IGNORE_WATER);
+			//flags6 ignored atm
+		}
+ #endif
+ #ifdef WIELD_DEVICES
+		/* All devices acquire '2-handed' flag (staves should have this definitely, for now treat all equally) */
+		if (k_info[i].tval == TV_STAFF || k_info[i].tval == TV_WAND || k_info[i].tval == TV_ROD) k_info[i].flags4 |= TR4_MUST2H;
+ #endif
+	}
+#endif
 
 	/* No version yet */
 	if (!okay) return(2);
@@ -3607,7 +3782,7 @@ errr init_e_info_txt(FILE *fp, char *buf) {
 
 
 	/* Parse */
-	while (0 == my_fgets(fp, buf, 1024, FALSE)) {
+	while (0 == my_fgets_col(fp, buf, 1024, FALSE)) {
 		/* Advance the line number */
 		error_line++;
 
@@ -3816,7 +3991,7 @@ errr init_e_info_txt(FILE *fp, char *buf) {
 			/* Save the values */
 			/* e_ptr->slot = slot; */
 			e_ptr->rating = rating;
-			e_ptr->before = (pos == 'B')?TRUE:FALSE;
+			e_ptr->before = (pos == 'B') ? TRUE : FALSE;
 
 			/* Next... */
 			continue;
@@ -3975,10 +4150,10 @@ static errr grab_one_basic_flag(monster_race *r_ptr, cptr what) {
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flagsA -- more basic types */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_BASIC_MASK) && streq(what, r_info_flags0[i])) {
-			r_ptr->flags0 |= (1U << i);
+		if (streq(what, r_info_flagsA[i])) {
+			r_ptr->flagsA |= (1U << i);
 			return(0);
 		}
 
@@ -4017,9 +4192,9 @@ static errr grab_one_spell_flag(monster_race *r_ptr, cptr what) {
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flags0 -- additional spells */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_SPELL_MASK) && streq(what, r_info_flags0[i])) {
+		if (streq(what, r_info_flags0[i])) {
 			r_ptr->flags0 |= (1U << i);
 			return(0);
 		}
@@ -4460,7 +4635,7 @@ errr init_r_info_txt(FILE *fp, char *buf) {
 	/* XXX XXX XXX XXX The ghost is unused */
 
 	/* Mega-Hack -- acquire "ghost" */
-	r_ptr = &r_info[MAX_R_IDX-1];
+	r_ptr = &r_info[MAX_R_IDX - 1];
 
 	/* Acquire the next index */
 	r_ptr->name = r_head->name_size;
@@ -4482,7 +4657,7 @@ errr init_r_info_txt(FILE *fp, char *buf) {
 	r_ptr->flags1 |= (RF1_UNIQUE);
 
 	/* Hack -- Try to prevent a few "potential" bugs */
-	r_ptr->flags1 |= (RF1_NEVER_MOVE | RF1_NEVER_BLOW);
+	r_ptr->flags2 |= (RF2_NEVER_MOVE | RF2_NEVER_BLOW);
 
 	/* Hack -- Try to prevent a few "potential" bugs */
 	r_ptr->hdice = r_ptr->hside = 1;
@@ -4573,7 +4748,7 @@ errr init_r_info_txt(FILE *fp, char *buf) {
 		if (r_info[i].flags3 & RF3_ORC) r_info[i].flags9 |= RF9_RES_DARK;
 		if (r_info[i].flags3 & RF3_DRAGONRIDER) r_info[i].flags7 |= RF7_CAN_FLY;
 		if (r_info[i].flags3 & RF3_DEMON) {
-			if (r_info[i].d_char == 'U') r_info[i].flags9 |= (RF9_RES_POIS | RF9_RES_TIME);
+			if (r_info[i].d_char == 'U') r_info[i].flags9 |= (RF9_RES_POIS | RF9_RES_TIME | RF9_RES_CHAOS);
 		}
 		if (r_info[i].flags3 & RF3_UNDEAD) {
 			//r_info[i].flags9 |= (RF9_RES_DARK | RF9_RES_POIS | RF9_RES_TIME);
@@ -4751,13 +4926,13 @@ static errr grab_one_basic_ego_flag(monster_ego *re_ptr, cptr what, bool add) {
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flagsA -- more basic types */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_BASIC_MASK) && streq(what, r_info_flags0[i])) {
+		if (streq(what, r_info_flagsA[i])) {
 			if (add)
-				re_ptr->mflags0 |= (1U << i);
+				re_ptr->mflagsA |= (1U << i);
 			else
-				re_ptr->nflags0 |= (1U << i);
+				re_ptr->nflagsA |= (1U << i);
 			return(0);
 		}
 
@@ -4805,9 +4980,9 @@ static errr grab_one_spell_ego_flag(monster_ego *re_ptr, cptr what, bool add) {
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flags0 -- additional spells */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_SPELL_MASK) && streq(what, r_info_flags0[i])) {
+		if (streq(what, r_info_flags0[i])) {
 			if (add)
 				re_ptr->mflags0 |= (1U << i);
 			else
@@ -4890,11 +5065,11 @@ static errr grab_one_ego_flag(monster_ego *re_ptr, cptr what, bool must) {
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flags0 -- contains more basic types */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_BASIC_MASK) && streq(what, r_info_flags0[i])) {
-			if (must) re_ptr->flags0 |= (1U << i);
-			else re_ptr->hflags0 |= (1U << i);
+		if (streq(what, r_info_flagsA[i])) {
+			if (must) re_ptr->flagsA |= (1U << i);
+			else re_ptr->hflagsA |= (1U << i);
 			return(0);
 		}
 
@@ -5098,7 +5273,7 @@ errr init_re_info_txt(FILE *fp, char *buf) {
 			re_ptr->rarity = rar;
 			re_ptr->weight = (wt << 2) + monster_ego_modify(mwt);
 			re_ptr->mexp = (exp << 2) + monster_ego_modify(mexp);
-			re_ptr->before = (pos == 'B')?TRUE:FALSE;
+			re_ptr->before = (pos == 'B') ? TRUE : FALSE;
 
 			/* Next... */
 			continue;
@@ -5727,10 +5902,10 @@ static errr grab_one_basic_monster_flag(dungeon_info_type *d_ptr, cptr what, byt
 			return(0);
 		}
 
-	/* Scan flags0 -- contains both, spell and basic type */
+	/* Scan flagsA -- contains more basic types */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_BASIC_MASK) && streq(what, r_info_flags0[i])) {
-			d_ptr->rules[rule].mflags0 |= (1U << i);
+		if (streq(what, r_info_flagsA[i])) {
+			d_ptr->rules[rule].mflagsA |= (1U << i);
 			return(0);
 		}
 
@@ -5773,7 +5948,7 @@ static errr grab_one_spell_monster_flag(dungeon_info_type *d_ptr, cptr what, byt
 
 	/* Scan flags0 */
 	for (i = 0; i < 32; i++)
-		if (((1U << i) & RF0_SPELL_MASK) && streq(what, r_info_flags0[i])) {
+		if (streq(what, r_info_flags0[i])) {
 			d_ptr->rules[rule].mflags0 |= (1U << i);
 			return(0);
 		}
@@ -5790,7 +5965,7 @@ static errr grab_one_spell_monster_flag(dungeon_info_type *d_ptr, cptr what, byt
  */
 errr init_d_info_txt(FILE *fp, char *buf) {
 	int i, j;
-	byte rule_num = 0;
+	s16b rule_num = 0;
 	byte r_char_number = 0;
 	char *s, *t;
 
@@ -6191,7 +6366,7 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 					d_ptr->final_guardian = monst;
 
 					/* automatically mark it as such, no need for doing that in r_info.txt */
-					r_info[monst].flags0 |= RF0_FINAL_GUARDIAN;
+					r_info[monst].flags8 |= RF8_FINAL_GUARDIAN;
 
 					/* Start at next entry */
 					s = t;
@@ -6381,6 +6556,10 @@ static errr grab_one_store_flag(store_info_type *st_ptr, cptr what) {
 			st_ptr->flags1 |= (1U << i);
 			return(0);
 		}
+		if (streq(what, st_info_flags2[i])) {
+			st_ptr->flags2 |= (1U << i);
+			return(0);
+		}
 	}
 
 	/* Oops */
@@ -6515,7 +6694,7 @@ errr init_st_info_txt(FILE *fp, char *buf) {
 		if (!st_ptr) return(3);
 
 		/* Process 'I' for "Items" (multiple lines) */
-		if (buf[0] == 'I') {
+		if (buf[0] == 'I' && item_idx < STORE_CHOICES) {
 			/* Find the colon before the name */
 			s = strchr(buf + 2, ':');
 
@@ -6541,7 +6720,7 @@ errr init_st_info_txt(FILE *fp, char *buf) {
 		}
 
 		/* Process 'T' for "Tval/sval" */
-		if (buf[0] == 'T') {
+		if (buf[0] == 'T' && item_idx < STORE_CHOICES) {
 			int tv1, sv1, rar1;
 
 			/* Scan for the values */
@@ -6584,19 +6763,27 @@ errr init_st_info_txt(FILE *fp, char *buf) {
 
 		/* Process 'A' for "Actions" (one line only) */
 		if (buf[0] == 'A') {
-			int a1, a2, a3, a4, a5, a6;
+			int a, c = 1;
+			cptr bufp = buf + 2;
 
 			/* Scan for the values */
-			if (6 != sscanf(buf + 2, "%d:%d:%d:%d:%d:%d",
-				&a1, &a2, &a3, &a4, &a5, &a6)) return(1);
-
-			/* Save the values */
-			st_ptr->actions[0] = a1;
-			st_ptr->actions[1] = a2;
-			st_ptr->actions[2] = a3;
-			st_ptr->actions[3] = a4;
-			st_ptr->actions[4] = a5;
-			st_ptr->actions[5] = a6;
+			if (sscanf(bufp, "%d", &a) != 1) return(1);
+			st_ptr->actions[0] = a;
+			bufp = strchr(bufp, ':');
+			if (!bufp && MAX_STORE_ACTIONS > 1) {
+				s_printf("Warning: st_info.txt - Read only the first of %d store actions for store %d.\n", MAX_STORE_ACTIONS, i);
+				//return(1);
+				continue;
+			}
+			while (c < MAX_STORE_ACTIONS && bufp && sscanf(bufp, ":%d", &a) == 1) {
+				st_ptr->actions[c] = a;
+				c++;
+				bufp = strchr(bufp + 1, ':');
+			}
+			if (c != MAX_STORE_ACTIONS) {
+				s_printf("Warning: st_info.txt - Read only %d of %d store actions for store %d.\n", c, MAX_STORE_ACTIONS, i);
+				//return(1);
+			}
 
 			/* Next... */
 			continue;
@@ -6628,19 +6815,26 @@ errr init_st_info_txt(FILE *fp, char *buf) {
 
 		/* Process 'O' for "Owners" (one line only) */
 		if (buf[0] == 'O') {
-			int a1, a2, a3, a4, a5, a6;
+			int a, c = 1;
+			cptr bufp = buf + 2;
 
 			/* Scan for the values */
-			if (MAX_STORE_OWNERS != sscanf(buf + 2, "%d:%d:%d:%d:%d:%d",
-				&a1, &a2, &a3, &a4, &a5, &a6)) return(1);
-
-			/* Save the values */
-			st_ptr->owners[0] = a1;
-			st_ptr->owners[1] = a2;
-			st_ptr->owners[2] = a3;
-			st_ptr->owners[3] = a4;
-			st_ptr->owners[4] = a5;
-			st_ptr->owners[5] = a6; /* MAX_STORE_OWNERS */
+			if (sscanf(bufp, "%d", &a) != 1) return(1);
+			st_ptr->owners[0] = a;
+			bufp = strchr(bufp, ':');
+			if (!bufp && MAX_STORE_OWNERS > 1) {
+				s_printf("Error: st_info.txt - Read only the first of %d store owners for store %d.\n", MAX_STORE_OWNERS, i);
+				return(1);
+			}
+			while (c < MAX_STORE_OWNERS && bufp && sscanf(bufp, ":%d", &a) == 1) {
+				st_ptr->owners[c] = a;
+				c++;
+				bufp = strchr(bufp + 1, ':');
+			}
+			if (c != MAX_STORE_OWNERS) {
+				s_printf("Error: st_info.txt - Read only %d of %d store owners for store %d.\n", c, MAX_STORE_OWNERS, i);
+				return(1);
+			}
 
 			/* Next... */
 			continue;
@@ -7000,7 +7194,7 @@ errr init_ow_info_txt(FILE *fp, char *buf) {
 				&cost, &max_inf, &min_inf, &haggle, &insult)) return(1);
 
 			/* Save the values */
-//			ow_ptr->max_cost = cost;
+			//ow_ptr->max_cost = cost;
 			ow_ptr->max_cost = cost * STORE_PURSE_BOOST;
 			ow_ptr->max_inflate = max_inf;
 			ow_ptr->min_inflate = min_inf;
@@ -7224,7 +7418,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 			strcpy(q_ptr->codename, codename);
 			strcpy(q_ptr->creator, creator);
 
-			if (tolower(tmpbuf[strlen(tmpbuf) - 1]) == 'x') disabled = TRUE;
+			if (*tmpbuf && tolower(tmpbuf[strlen(tmpbuf) - 1]) == 'x') disabled = TRUE;
 			else disabled = FALSE;
 			q_ptr->repeatable = atoi(tmpbuf); /* this defaults to 0 if just 'x' is specified without a number */
 			q_ptr->auto_accept = (byte)aa;
@@ -7369,7 +7563,8 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 		/* Process 'Q' for questor (creature) type */
 		if (buf[0] == 'Q') {
 			int q, lite, ridx, reidx, minlv, maxlv, tval, sval;
-			char ch, attr;
+			char ch;
+			byte attr;
 			int good, great, vgreat;
 			int pval, bpval, name1, name2, name2b;
 
@@ -7659,7 +7854,8 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 			/* we have 3 sub-types of 'm' lines */
 			if (buf[1] == ':') { /* init */
 				int amt, grp, scat, clo, ridx, reidx, lvmin, lvmax;
-				unsigned char rchar, rattr;
+				char rchar;
+				byte rattr;
 
 				s = buf + 2;
 				if (12 != sscanf(s, "%d:%d:%d:%d:%d:%d:%d:%c:%c:%d:%d%79[^:]",
@@ -7677,7 +7873,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 				q_mspawn->clones = clo;
 				q_mspawn->ridx = ridx;
 				q_mspawn->reidx = reidx;
-				q_mspawn->rchar = rchar == '-' ? 255 : rchar;
+				q_mspawn->rchar = rchar == '-' ? 127 : rchar;
 				q_mspawn->rattr = rattr == '-' ? 255 : color_char_to_attr(rattr);
 				q_mspawn->rlevmin = lvmin;
 				q_mspawn->rlevmax = lvmax;
@@ -7828,7 +8024,8 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 		/* Process 'S' for questor changes/polymorphing/hostility */
 		if (buf[0] == 'S') {
 			int q, talk, despawn, invinc, dfail, ridx, reidx, lev;
-			unsigned char rchar, rattr;
+			char rchar;
+			byte rattr;
 
 			s = buf + 2;
 			if (12 != sscanf(s, "%d:%d:%d:%d:%d:%d:%79[^:]:%d:%d:%c:%c:%d",
@@ -7848,7 +8045,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 			}
 			if (ridx) q_qmorph->ridx = ridx;
 			q_qmorph->reidx = reidx;
-			if (rchar == '-') q_qmorph->rchar = 255; /* keep */
+			if (rchar == '-') q_qmorph->rchar = 127; /* keep */
 			else q_qmorph->rchar = rchar;
 			if (rattr == '-') q_qmorph->rattr = 255; /* keep */
 			else q_qmorph->rattr = color_char_to_attr(rattr);
@@ -8088,7 +8285,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 				/* "-1" stands for 'all' */
 				if (questor < -1 || questor >= QI_QUESTORS) return(1);
 				if (stage < -1 || stage >= QI_STAGES) return(1);
-//				if (nextstage == stage) return(1); /* disallow reflexive stage changes for now */
+				//if (nextstage == stage) return(1); /* disallow reflexive stage changes for now */
 
 				lc = q_ptr->keywords;
 				if (lc >= QI_KEYWORDS) return(1);
@@ -8395,7 +8592,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 				if (ABS(goal) > QI_GOALS) return(1);
 				q_kill = init_quest_kill(error_idx, stage, goal);
 				for (j = 0; j < k; j++) {
-					if (rchar[j] == '-') rchar[j] = 254; /* any */
+					if (rchar[j] == '-') rchar[j] = 126; /* any */
 					q_kill->rchar[j] = rchar[j];
 
 					if (rattr[j] == '-') q_kill->rattr[j] = 254; /* any */
@@ -8403,7 +8600,7 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 				}
 				/* disable the unused criteria */
 				for (j = k; j < 5; j++) {
-					q_kill->rchar[j] = 255;
+					q_kill->rchar[j] = 127;
 					q_kill->rattr[j] = 255;
 				}
 				continue;
@@ -8610,7 +8807,8 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 			/* we have 2 sub-types of 'B' lines */
 			if (buf[1] == ':') { /* init, object feats */
 				int pval, lev, wgt;
-				char ochar, oattr;
+				char ochar;
+				byte oattr;
 
 				s = buf + 2;
 				if (7 != sscanf(s, "%d:%d:%c:%c:%d:%d:%79[^:]",
@@ -8878,26 +9076,33 @@ static int i = 0;
 
 
 typedef struct dungeon_grid dungeon_grid;
-
 struct dungeon_grid {
-	int		feature;		/* Terrain feature */
-	int		monster;		/* Monster */
-	int		object;			/* Object */
-	int		ego;			/* Ego-Item */
-	int		artifact;		/* Artifact */
-	int		trap;			/* Trap */
-	int		cave_info;		/* Flags for CAVE_MARK, CAVE_GLOW, CAVE_ICKY, CAVE_ROOM */
-	int		special;		/* Reserved for special terrain info */
-	int		random;			/* Number of the random effect */
-	int	     bx, by;		 /* For between gates */
-	int	     mimic;		  /* Mimiced features */
-	bool	    ok;
-	bool	    defined;
+	int	feature;		/* Terrain feature */
+	int	monster;		/* Monster */
+	int	object;			/* Object */
+	int	ego;			/* Ego-Item */
+	int	artifact;		/* Artifact */
+	int	trap;			/* Trap */
+	u32b	cave_info, cave_info2;	/* Flags for CAVE_MARK, CAVE_GLOW, CAVE_ICKY, CAVE_ROOM */
+	int	special;		/* Reserved for special terrain info */
+	int	random;			/* Number of the random effect */
+	int	bx, by;			/* For between gates */
+	int	mimic;			/* Mimiced features */
+	bool	ok;
+	bool	defined;
 };
 static bool meta_sleep = TRUE;
 static int meta_width = 0, meta_height = 0, meta_boundary = 0;
 
 static dungeon_grid letter[255];
+
+/* Same as slash commands /loadmap and /lloadmap, added as function here for use from LUA. */
+extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y) {
+	struct worldpos wpos = { wx, wy, wz };
+
+	s_printf("loadmap('%s') returned %d.\n", name,
+	    process_dungeon_file(format("t_%s.txt", name), &wpos, &y, &x, MAX_HGT, MAX_WID, TRUE));
+}
 
 /*
  * Parse a sub-file of the "extra info"
@@ -8940,7 +9145,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 		return(0);
 	}
 
-	/* Process "F:<letter>:<terrain>:<cave_info>:<monster>:<object>:<ego>:<artifact>:<trap>:<special>:<mimic>" -- info for dungeon grid */
+	/* Process "F:<letter>:<terrain>:<cave_info>:<cave_info2>:<monster>:<object>:<ego>:<artifact>:<trap>:<special>:<mimic>" -- info for dungeon grid */
 	if (buf[0] == 'F') {
 		int num;
 
@@ -8956,6 +9161,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 			letter[index].artifact = 0;
 			letter[index].trap = 0;
 			letter[index].cave_info = 0;
+			letter[index].cave_info2 = 0;
 			letter[index].special = 0;
 			letter[index].random = 0;
 			letter[index].mimic = 0;
@@ -8970,113 +9176,115 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 						letter[index].feature = atoi(zz[1]);
 					}
 				} else letter[index].feature = atoi(zz[1]);
+				if (pdf_hack_feat == letter[index].feature) letter[index].feature = pdf_hack_feat_new;
 			}
 
-			if (num > 2)
-				letter[index].cave_info = atoi(zz[2]);
+			if (num > 2) letter[index].cave_info = atoi(zz[2]);
+			if (num > 3) letter[index].cave_info2 = atoi(zz[3]);
 
 			/* Monster */
-			if (num > 3) {
-				if (zz[3][0] == '*') {
+			if (num > 4) {
+				if (zz[4][0] == '*') {
 					letter[index].random |= RANDOM_MONSTER;
-					if (zz[3][1]) {
-						zz[3]++;
-						letter[index].monster = atoi(zz[3]);
+					if (zz[4][1]) {
+						zz[4]++;
+						letter[index].monster = atoi(zz[4]);
 					}
-				} else letter[index].monster = atoi(zz[3]);
+				} else letter[index].monster = atoi(zz[4]);
+				if (pdf_hack_mon == letter[index].monster) letter[index].monster = pdf_hack_mon_new;
 			}
 
 			/* Object */
-			if (num > 4) {
-				if (zz[4][0] == '*') {
-					letter[index].random |= RANDOM_OBJECT;
-
-					if (zz[4][1]) {
-						zz[4]++;
-						letter[index].object = atoi(zz[4]);
-					}
-				} else letter[index].object = atoi(zz[4]);
-			}
-
-			/* Ego-Item */
 			if (num > 5) {
 				if (zz[5][0] == '*') {
-					letter[index].random |= RANDOM_EGO;
+					letter[index].random |= RANDOM_OBJECT;
 
 					if (zz[5][1]) {
 						zz[5]++;
-						letter[index].ego = atoi(zz[5]);
+						letter[index].object = atoi(zz[5]);
 					}
-				} else letter[index].ego = atoi(zz[5]);
+				} else letter[index].object = atoi(zz[5]);
 			}
 
-			/* Artifact */
+			/* Ego-Item */
 			if (num > 6) {
 				if (zz[6][0] == '*') {
-					letter[index].random |= RANDOM_ARTIFACT;
+					letter[index].random |= RANDOM_EGO;
 
 					if (zz[6][1]) {
 						zz[6]++;
-						letter[index].artifact = atoi(zz[6]);
+						letter[index].ego = atoi(zz[6]);
 					}
-				} else letter[index].artifact = atoi(zz[6]);
+				} else letter[index].ego = atoi(zz[6]);
 			}
 
+			/* Artifact */
 			if (num > 7) {
 				if (zz[7][0] == '*') {
-					letter[index].random |= RANDOM_TRAP;
+					letter[index].random |= RANDOM_ARTIFACT;
 
 					if (zz[7][1]) {
 						zz[7]++;
-						letter[index].trap = atoi(zz[7]);
+						letter[index].artifact = atoi(zz[7]);
 					}
-				} else letter[index].trap = atoi(zz[7]);
+				} else letter[index].artifact = atoi(zz[7]);
+			}
+
+			if (num > 8) {
+				if (zz[8][0] == '*') {
+					letter[index].random |= RANDOM_TRAP;
+
+					if (zz[8][1]) {
+						zz[8]++;
+						letter[index].trap = atoi(zz[8]);
+					}
+				} else letter[index].trap = atoi(zz[8]);
 			}
 
 #if 0
-			if (num > 8) {
+			if (num > 9) {
 				/* Quests can be defined by name only */
-				if (zz[8][0] == '"') {
+				if (zz[9][0] == '"') {
 					int i;
 
 					/* Hunt & shoot the ending " */
-					i = strlen(zz[8]) - 1;
-					if (zz[8][i] == '"') zz[8][i] = '\0';
+					i = strlen(zz[9]) - 1;
+					if (zz[9][i] == '"') zz[9][i] = '\0';
 					letter[index].special = 0;
 					for (i = 0; i < max_xo_idx; i++) {
-						if (!strcmp(&zz[8][1], quest[i].name)) {
+						if (!strcmp(&zz[9][1], quest[i].name)) {
 							letter[index].special = i;
 							break;
 						}
 					}
 				}
-				else letter[index].special = atoi(zz[8]);
+				else letter[index].special = atoi(zz[9]);
 			}
 #else	// 0
-			if (num > 8) {
+			if (num > 9) {
 				/* Quests can be defined by name only */
-				if (zz[8][0] == '"') {
+				if (zz[9][0] == '"') {
 #if 0	// later for quest
 					int i;
 
 					/* Hunt & shoot the ending " */
-					i = strlen(zz[8]) - 1;
-					if (zz[8][i] == '"') zz[8][i] = '\0';
+					i = strlen(zz[9]) - 1;
+					if (zz[9][i] == '"') zz[9][i] = '\0';
 					letter[index].special = 0;
 					for (i = 0; i < max_xo_idx; i++) {
-						if (!strcmp(&zz[8][1], quest[i].name)) {
+						if (!strcmp(&zz[9][1], quest[i].name)) {
 							letter[index].special = i;
 							break;
 						}
 					}
 #endif	// 0
 				}
-				else letter[index].special = atoi(zz[8]);
+				else letter[index].special = atoi(zz[9]);
 			}
 #endif	// 0
 
-			if (num > 9)
-				letter[index].mimic = atoi(zz[9]);
+			if (num > 10)
+				letter[index].mimic = atoi(zz[10]);
 
 			return(0);
 		}
@@ -9104,11 +9312,19 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 			int object_index = letter[idx].object;
 			int monster_index = letter[idx].monster;/* rudimentary support till actual code (see further below what i mean) has been looked at, too lazy atm - C. Blue */
 			int random = letter[idx].random;
+			int ego_index = letter[idx].ego;
 			int artifact_index = letter[idx].artifact;
 
 			if (!letter[idx].ok) s_printf("Warning '%c' not defined but used.\n", idx);
 
 			//if (init_flags & INIT_GET_SIZE) continue;
+
+#if 0 /* wrong! this introduces bugs for dungeon towns (' ' empty floor aka 0 ending up as feat 81, boundary steep mountain chain) */
+			/* Allow transparent layouts to get loaded over existing floors */
+			if (letter[idx].feature == 0) continue;
+#else /* Just use a dedicated floor code for 'alpha transparency'! */
+			if (letter[idx].feature == FEAT_ALPHA) continue;
+#endif
 
 			/* use the plasma generator wilderness */
 			//if (((!dun_level) || (!letter[idx].defined)) && (idx == ' ')) continue;
@@ -9153,6 +9369,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 
 			/* Cave info */
 			c_ptr->info |= letter[idx].cave_info;
+			c_ptr->info2 |= letter[idx].cave_info2;
 
 			/* Create a monster */
 			if (random & RANDOM_MONSTER) {
@@ -9176,7 +9393,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 			else if (monster_index) {
 				summon_override_checks = SO_ALL; /* disable all checks */
 				place_monster_aux(wpos, y, x, monster_index, FALSE, FALSE, 0, 0);
-				if (zcave[y][x].m_idx > 0 && (zcave[y][x].info & CAVE_DECAL)) m_list[zcave[y][x].m_idx].status = M_STATUS_FRIENDLY;
+				if (zcave[y][x].m_idx > 0 && (zcave[y][x].info2 & CAVE2_DECAL)) m_list[zcave[y][x].m_idx].status |= M_STATUS_FRIENDLY;
 				//place_monster_one(wpos, y, x, monster_index, 0, 0, FALSE, 0, 0);
 				summon_override_checks = SO_NONE; /* re-enable default */
 			}
@@ -9245,6 +9462,8 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 #else /* rudimentary support yada yada yada - C. Blue */
 			else if (object_index) {
 				object_type *o_ptr = &object_type_body;
+				int k;
+
 				object_prep(o_ptr, object_index);
 				if (o_ptr->tval == TV_GOLD) {
 					o_ptr->pval = letter[idx].special; /* support for 'money' objects ^^ */
@@ -9252,21 +9471,22 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 					o_ptr->sval = k_info[o_ptr->k_idx].sval;
 				}
 				apply_magic(wpos, o_ptr, dun_level, FALSE, TRUE, FALSE, FALSE, RESF_NONE);
-				drop_near(TRUE, 0, o_ptr, -1, wpos, y, x);
+				k = drop_near(TRUE, 0, o_ptr, -1, wpos, y, x);
+				if (k > 0) o_list[k].marked2 = ITEM_REMOVAL_NEVER;
+				else s_printf("Failed to place object %d (%d,%d).\n", object_index, o_ptr->tval, o_ptr->sval);
 			}
 #endif	// 0
+
+			/* Ego item */
+			if (ego_index) {
+			}
 
 			/* Artifact */
 			if (artifact_index) {
 #if 0
-				int I_kind = 0;
-
+				int I_kind = 0, k;
 				artifact_type *a_ptr = &a_info[artifact_index];
-
-				object_type forge;
-
-				/* Get local object */
-				object_type *q_ptr = &forge;
+				object_type forge, *q_ptr = &forge;
 
 				a_allow_special[artifact_index] = TRUE;
 
@@ -9299,7 +9519,9 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 				a_allow_special[artifact_index] = FALSE;
 
 				/* Drop the artifact */
-				drop_near(TRUE, 0, q_ptr, -1, y, x);
+				k = drop_near(TRUE, 0, q_ptr, -1, y, x);
+				if (k > 0) o_list[k].marked2 = ITEM_REMOVAL_NEVER;
+				else s_printf("Failed to place artifact %d (%d,%d).\n", artifact_index, q_ptr->tval, q_ptr->sval);
 #endif
 			}
 
@@ -9343,7 +9565,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 						cs_ptr->sc.omni = store;
 					}
 				}
-//				c_ptr->special = letter[idx].special;
+				//c_ptr->special = letter[idx].special;
 			}
 #endif
 		}
@@ -9364,7 +9586,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 			char i;
 
 			/* Acquire the text */
-			char *s = buf+4;
+			char *s = buf + 4;
 			int y = *yval;
 
 			for (x = 0; x < max_wild_x; x++) {
@@ -9378,7 +9600,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 		}
 		/* Process "M:<plus>:<line>" -- move line lines */
 		else if (buf[2] == 'M') {
-			if (tokenize(buf+4, 2, zz, ':', '/') == 2) {
+			if (tokenize(buf + 4, 2, zz, ':', '/') == 2) {
 				if (atoi(zz[0])) (*yval) += atoi(zz[1]);
 				else (*yval) -= atoi(zz[1]);
 			} else return(1);
@@ -9388,7 +9610,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 		else if (buf[2] == 'P') {
 			if ((p_ptr->wilderness_x == 0) &&
 			    (p_ptr->wilderness_y == 0)) {
-				if (tokenize(buf+4, 2, zz, ':', '/') == 2) {
+				if (tokenize(buf + 4, 2, zz, ':', '/') == 2) {
 					p_ptr->wilderness_x = atoi(zz[0]);
 					p_ptr->wilderness_y = atoi(zz[1]);
 				} else return(1);
@@ -9398,7 +9620,7 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 		}
 		/* Process "W:E:<dungeon>:<y>:<x> - entrance to the dungeon <dungeon> */
 		else if (buf[2] == 'E') {
-			if (tokenize(buf+4, 3, zz, ':', '/') == 3)
+			if (tokenize(buf + 4, 3, zz, ':', '/') == 3)
 				wild_map[atoi(zz[1])][atoi(zz[2])].entrance = 1000 + atoi(zz[0]);
 			else
 				return(1);
@@ -9555,8 +9777,10 @@ static errr process_dungeon_file_aux(char *buf, worldpos *wpos, int *yval, int *
 		int num;
 
 		/* Set a specific feature for the boundary walls instead of defaulting to FEAT_PERM_SOLID */
-		if ((num = tokenize(buf + 2, 1, zz, ':', '/')) > 0)
+		if ((num = tokenize(buf + 2, 1, zz, ':', '/')) > 0) {
 			meta_boundary = atoi(zz[0]);
+			if (pdf_hack_feat == meta_boundary) meta_boundary = pdf_hack_feat_new;
+		}
 		return(0);
 	}
 
@@ -9707,55 +9931,55 @@ static cptr process_dungeon_file_expr(char **sp, char *fp) {
 		/* Variable */
 		if (*b == '$') {
 			/* System */
-			if (streq(b+1, "SYS"))
+			if (streq(b + 1, "SYS"))
 				v = ANGBAND_SYS;
 
 			/* Graphics */
-			else if (streq(b+1, "GRAF"))
+			else if (streq(b + 1, "GRAF"))
 				v = ANGBAND_GRAF;
 
 			/* Race */
-			else if (streq(b+1, "RACE"))
+			else if (streq(b + 1, "RACE"))
 				v = rp_ptr->title + rp_name;
 
 			/* Race Mod */
-			else if (streq(b+1, "RACEMOD"))
+			else if (streq(b + 1, "RACEMOD"))
 				v = rmp_ptr->title + rmp_name;
 
 			/* Class */
-			else if (streq(b+1, "CLASS"))
+			else if (streq(b + 1, "CLASS"))
 				v = cp_ptr->title + c_name;
 
 			/* Player */
-			else if (streq(b+1, "PLAYER"))
+			else if (streq(b + 1, "PLAYER"))
 				v = player_base;
 
 			/* Town */
-			else if (streq(b+1, "TOWN")) {
+			else if (streq(b + 1, "TOWN")) {
 				strnfmt(pref_tmp_value, 8, "%d", p_ptr->town_num);
 				v = pref_tmp_value;
 			}
 
 			/* Town destroyed */
-			else if (prefix(b+1, "TOWN_DESTROY")) {
+			else if (prefix(b + 1, "TOWN_DESTROY")) {
 				strnfmt(pref_tmp_value, 8, "%d", town_info[atoi(b + 13)].destroyed);
 				v = pref_tmp_value;
 			}
 
 			/* Current quest number */
-			else if (streq(b+1, "QUEST_NUMBER")) {
+			else if (streq(b + 1, "QUEST_NUMBER")) {
 				strnfmt(pref_tmp_value, 8, "%d", p_ptr->inside_quest);
 				v = pref_tmp_value;
 			}
 
 			/* Number of last quest */
-			else if (streq(b+1, "LEAVING_QUEST")) {
+			else if (streq(b + 1, "LEAVING_QUEST")) {
 				strnfmt(pref_tmp_value, 8, "%d", leaving_quest);
 				v = pref_tmp_value;
 			}
 
 			/* DAYTIME status */
-			else if (prefix(b+1, "DAYTIME")) {
+			else if (prefix(b + 1, "DAYTIME")) {
 				if ((bst(HOUR, turn) >= SUNRISE) && (bst(HOUR, turn) < NIGHTFALL))
 					v = "1";
 				else
@@ -9763,10 +9987,10 @@ static cptr process_dungeon_file_expr(char **sp, char *fp) {
 			}
 
 			/* Quest status */
-			else if (prefix(b+1, "QUEST")) {
+			else if (prefix(b + 1, "QUEST")) {
 				/* "QUEST" uses a special parameter to determine the number of the quest */
 				if (*(b + 6) != '"')
-					strnfmt(pref_tmp_value, 8, "%d", quest[atoi(b+6)].status);
+					strnfmt(pref_tmp_value, 8, "%d", quest[atoi(b + 6)].status);
 				else {
 					char c[80];
 					int i;
@@ -9789,10 +10013,10 @@ static cptr process_dungeon_file_expr(char **sp, char *fp) {
 			}
 
 			/* Variant name */
-			else if (streq(b+1, "VARIANT")) v = "ToME";
+			else if (streq(b + 1, "VARIANT")) v = "ToME";
 
 			/* Wilderness */
-			else if (streq(b+1, "WILDERNESS")) {
+			else if (streq(b + 1, "WILDERNESS")) {
 				if (vanilla_town) v = "NONE";
 				else v = "NORMAL";
 			}
@@ -9846,17 +10070,17 @@ errr process_dungeon_file(cptr name, worldpos *wpos, int *yval, int *xval, int y
 	meta_boundary = 0;
 
 	/* Build the filename */
-//	path_build(buf, 1024, ANGBAND_DIR_EDIT, name);
+    //path_build(buf, 1024, ANGBAND_DIR_EDIT, name);
 	path_build(buf, 1024, ANGBAND_DIR_GAME, name);
 
 	/* Grab permission */
-//	safe_setuid_grab();
+	//safe_setuid_grab();
 
 	/* Open the file */
 	fp = my_fopen(buf, "r");
 
 	/* Drop permission */
-//	safe_setuid_drop();
+	//safe_setuid_drop();
 
 	/* No such file */
 	if (!fp) {

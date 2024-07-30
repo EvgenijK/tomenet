@@ -559,7 +559,7 @@ static void add_ability(artifact_type *a_ptr) {
 				if (rand_int(2) == 0) a_ptr->flags2 |= TR2_SUST_WIS;
 				/* chaotic and blessed are exclusive atm */
 				if (!(a_ptr->flags5 & TR5_CHAOTIC) &&
-				    !(k_ptr->flags6 & TR6_EVIL) &&
+				    !(k_ptr->flags6 & TR6_UNBLESSED) &&
 				    (is_melee_weapon(a_ptr->tval) || a_ptr->tval == TV_BOOMERANG))
 					a_ptr->flags3 |= TR3_BLESSED;
 			} else if (r < 7) {
@@ -1128,7 +1128,7 @@ static void add_ability(artifact_type *a_ptr) {
 				do_pval(a_ptr);
 				if (rand_int(2) == 0) a_ptr->flags2 |= TR2_SUST_WIS;
 				if ((a_ptr->tval == TV_SWORD || a_ptr->tval == TV_POLEARM)
-				    && !(k_ptr->flags6 & TR6_EVIL))
+				    && !(k_ptr->flags6 & TR6_UNBLESSED))
 					a_ptr->flags3 |= TR3_BLESSED;
 				break;
 			case 3:
@@ -1200,7 +1200,7 @@ static void add_ability(artifact_type *a_ptr) {
 					a_ptr->flags1 |= TR1_WIS;
 					do_pval(a_ptr);
 					if ((a_ptr->tval == TV_SWORD || a_ptr->tval == TV_POLEARM)
-					    && !(k_ptr->flags6 & TR6_EVIL))
+					    && !(k_ptr->flags6 & TR6_UNBLESSED))
 						a_ptr->flags3 |= TR3_BLESSED;
 				}
 				break;
@@ -1406,6 +1406,13 @@ static void artifact_fix_limits_inbetween(artifact_type *a_ptr, object_kind *k_p
 #endif
 	/* If an item is BLESSED, remove NO_MAGIC property */
 	if ((a_ptr->flags3 & TR3_BLESSED) && !(k_ptr->flags3 & TR3_NO_MAGIC)) a_ptr->flags3 &= ~TR3_NO_MAGIC;
+
+	/* Unblessed removes all flags that could hurt undead/demonic wielders */
+	if ((k_ptr->flags6 & TR6_UNBLESSED)) {
+		a_ptr->flags3 &= ~TR3_LITE1;
+		a_ptr->flags1 &= ~TR1_KILL_DEMON;
+		a_ptr->flags1 &= ~TR1_KILL_UNDEAD;
+	}
 
 /* -------------------------------------- Flag-killing limits -------------------------------------- */
 
@@ -2141,7 +2148,7 @@ artifact_type *randart_make(object_type *o_ptr) {
 
 	/* Art ammo doesn't get great hit/dam in general. */
 	if (is_ammo(a_ptr->tval)) {
-		o_ptr->xtra9 = 0; //clear 'mark as unsellable' hack.. as if^^
+		o_ptr->mode &= ~MODE_STARTER_ITEM; //clear 'mark as unsellable' hack.. as if^^
 		a_ptr->to_d = 0;
 		a_ptr->to_h = 0;
 		if (magik(50)) {
@@ -2291,7 +2298,15 @@ artifact_type *randart_make(object_type *o_ptr) {
 			}
 		}
 	}
-
+	/* Artefacts that have an item base type that intrinsically uses flames can never get white light instead. */
+	if (k_ptr->tval == TV_LITE)
+		switch (k_ptr->sval) {
+		case SV_LITE_TORCH:
+		case SV_LITE_LANTERN:
+		case SV_LITE_TORCH_EVER:
+		case SV_LITE_DWARVEN:
+			a_ptr->flags5 &= ~TR5_WHITE_LIGHT;
+		}
 
 	a_ptr->cost = (ap - RANDART_QUALITY + 50);
 	if (a_ptr->cost < 0) {
@@ -3018,24 +3033,24 @@ void add_random_ego_flag(artifact_type *a_ptr, u32b fego1, u32b fego2, bool *lim
 		/* Add a random pval-affected ability */
 		/* This might cause boots with + to blows */
 		switch (randint(6)) {
-		case 1:a_ptr->flags1 |= TR1_STEALTH; break;
-		case 2:a_ptr->flags1 |= TR1_SEARCH; break;
-		case 3:a_ptr->flags1 |= TR1_INFRA; break;
-		case 4:a_ptr->flags1 |= TR1_TUNNEL; break;
-		case 5:a_ptr->flags1 |= TR1_SPEED; break;
-		case 6:a_ptr->flags1 |= TR1_BLOWS; break;
+		case 1: a_ptr->flags1 |= TR1_STEALTH; break;
+		case 2: a_ptr->flags1 |= TR1_SEARCH; break;
+		case 3: a_ptr->flags1 |= TR1_INFRA; break;
+		case 4: a_ptr->flags1 |= TR1_TUNNEL; break;
+		case 5: a_ptr->flags1 |= TR1_SPEED; break;
+		case 6: a_ptr->flags1 |= TR1_BLOWS; break;
 		}
 
 	}
 	if (fego1 & ETR1_R_STAT) {
 		/* Add a random stat */
 		switch (randint(6)) {
-		case 1:a_ptr->flags1 |= TR1_STR; break;
-		case 2:a_ptr->flags1 |= TR1_INT; break;
-		case 3:a_ptr->flags1 |= TR1_WIS; break;
-		case 4:a_ptr->flags1 |= TR1_DEX; break;
-		case 5:a_ptr->flags1 |= TR1_CON; break;
-		case 6:a_ptr->flags1 |= TR1_CHR; break;
+		case 1: a_ptr->flags1 |= TR1_STR; break;
+		case 2: a_ptr->flags1 |= TR1_INT; break;
+		case 3: a_ptr->flags1 |= TR1_WIS; break;
+		case 4: a_ptr->flags1 |= TR1_DEX; break;
+		case 5: a_ptr->flags1 |= TR1_CON; break;
+		case 6: a_ptr->flags1 |= TR1_CHR; break;
 		}
 	}
 	if (fego1 & ETR1_R_STAT_SUST) {

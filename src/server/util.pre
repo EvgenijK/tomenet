@@ -94,6 +94,7 @@ struct server_opts
 
 	s16b store_turns;
 	s16b dun_store_turns;
+	s16b book_store_turns_perc;
 	char resting_rate;
 	char party_xp_boost;
 
@@ -172,6 +173,8 @@ struct server_opts
 };
 
 extern s32b turn;
+extern s32b session_turn;
+extern s32b turn_overflow;
 
 #ifdef ARCADE_SERVER
 extern char tron_speed;
@@ -187,21 +190,21 @@ extern const u32b seed_flavor;		/* Hack -- consistent object colors */
 extern const u32b seed_town;		/* Hack -- consistent town layout */
 extern const u32b seed_wild_extra;	/* Hack -- random additional wilderness features (used in terrain_spot()) */
 
-$extern s32b intMod(s32b a, s32b b);
-$extern s32b intAnd(s32b a, s32b b);
-$extern s32b intOr(s32b a, s32b b);
-$extern s32b intXor(s32b a, s32b b);
-$extern s32b intShiftl(s32b a, s32b b);
-$extern s32b intShiftr(s32b a, s32b b);
-$extern s32b intBitNot(s32b b);
+$extern u32b intMod(u32b a, u32b b);
+$extern u32b intAnd(u32b a, u32b b);
+$extern u32b intOr(u32b a, u32b b);
+$extern u32b intXor(u32b a, u32b b);
+$extern u32b intShiftl(u32b a, u32b b);
+$extern u32b intShiftr(u32b a, u32b b);
+$extern u32b intBitNot(u32b b);
 
-extern s32b intMod @ mod(s32b a, s32b b);
-extern s32b intAnd @ band(s32b a, s32b b);
-extern s32b intOr @ bor(s32b a, s32b b);
-extern s32b intXor @ bxor(s32b a, s32b b);
-extern s32b intShiftl @ bshl(s32b a, s32b b);
-extern s32b intShiftr @ bshr(s32b a, s32b b);
-extern s32b intBitNot @ bnot(s32b b);
+extern u32b intMod @ mod(u32b a, u32b b);
+extern u32b intAnd @ band(u32b a, u32b b);
+extern u32b intOr @ bor(u32b a, u32b b);
+extern u32b intXor @ bxor(u32b a, u32b b);
+extern u32b intShiftl @ bshl(u32b a, u32b b);
+extern u32b intShiftr @ bshr(u32b a, u32b b);
+extern u32b intBitNot @ bnot(u32b b);
 
 extern bool pern_dofile(int Ind, char *file);
 extern int exec_lua(int Ind, char *file);
@@ -279,8 +282,7 @@ extern unsigned char runtime_server;
 
 /* for lua-controlled/automatically scheduled artifact resets */
 extern int artifact_reset;
-struct artifact_type
-{
+struct artifact_type {
 	u16b name;		/* Name (offset) */
 	u16b text;		/* Text (offset) */
 	byte tval;		/* Artifact type */
@@ -313,9 +315,19 @@ struct artifact_type
 };
 artifact_type a_info[MAX_A_IDX];
 
+struct monster_race {
+	byte cur_num;
+	byte max_num;
+
+	s32b r_sights;	/* Count sightings of this monster */
+	s32b r_deaths;	/* Count deaths from this monster */
+	s32b r_tkills;	/* Count monsters killed by all players */
+};
+monster_race r_info[MAX_R_IDX];
+
 /* Stuff for global events */
 /* extern global_event_type global_event[MAX_GLOBAL_EVENTS];   see types.h - C. Blue */
-extern int sector00separation;
+extern int sector000separation;
 extern int ge_special_sector;
 extern u32b ge_contender_buffer_ID[MAX_CONTENDER_BUFFERS];
 extern int ge_contender_buffer_deed[MAX_ACHIEVEMENT_BUFFERS];
@@ -327,8 +339,8 @@ struct party_type
 	char owner[NAME_LEN];	/* Owner's name */
 	s32b members;		/* Number of people in the party */
 	s32b created;		/* Creation (or disband-tion) time */
-	byte cmode;	     /* Guild creator's character mode */
-	byte mode;		/* 'Iron Team' or normal party? (C. Blue) */
+	u16b cmode;		/* Guild creator's character mode */
+	u16b mode;		/* 'Iron Team' or normal party? (C. Blue) */
 	s32b experience;	/* For 'Iron Teams': Max experienc of members. */
 	u32b flags;		/* Party rules flags */
 	s32b iron_trade;	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
@@ -339,7 +351,7 @@ struct guild_type
 	const char *name; /* [MAX_CHARS]; */
 	s32b master;		/* Guildmaster unique player ID */
 	s32b members;		/* Number of guild members */
-	byte cmode;	     /* Guild creator's character mode */
+	u16b cmode;		/* Guild creator's character mode */
 	u32b flags;		/* Guild rules flags */
 	s16b minlev;		/* minimum level to join */
 };
@@ -452,3 +464,9 @@ extern s32b m_max;
 extern s32b m_top;
 
 extern void verify_expfact(int Ind, int p);
+extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);
+extern bool restart_panic;
+extern bool restart_unstatice_bree;
+extern bool restart_unstatice_towns;
+extern bool restart_unstatice_surface;
+extern bool restart_unstatice_dungeons;

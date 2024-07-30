@@ -44,6 +44,7 @@ end
 -- returns TRUE if there is a pb
 function increase_mana(i, amt)
 	local player = players(i)
+
 	player.cmp = player.cmp + amt
 	player.redraw = bor(player.redraw, PR_MANA)
 	if (player.cmp < 0) then
@@ -72,4 +73,9 @@ function ind_combo(name)
 	if p2 == -1 then p2 = p end
 	if p2 ~= p then p = p2 end
 	return p, players(p).name
+end
+
+-- For new client-side "// " command - C. Blue
+function prn(tolua_S)
+	c_msg_print(tolua_S.."#")
 end

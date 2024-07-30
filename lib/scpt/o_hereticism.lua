@@ -76,10 +76,10 @@ OFIREBOLT_I = add_spell {
 	["name2"] = 	"FBolt I",
 	["school"] = 	SCHOOL_OHERETICISM,
 	["spell_power"] = 0,
-	["level"] = 	10,
+	["level"] = 	6,
 	["mana"] = 	3,
 	["mana_max"] = 	3,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -143,15 +143,16 @@ FIRERES = add_spell {
 	["name2"] = 	"Wrath",
 	["school"] = 	{SCHOOL_OHERETICISM},
 	["spell_power"] = 0,
-	["level"] = 	12,
+	["level"] = 	8,
 	["mana"] = 	15,
 	["mana_max"] = 	15,
 	["fail"] = 	0,
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 		local dur
+
 		dur = randint(15) + 20 + get_level(Ind, FIRERES, 25)
-		if get_level(Ind, FIRERES, 50) >= 17 then
+		if get_level(Ind, FIRERES, 50) >= 21 then
 			set_melee_brand(Ind, dur, TBRAND_HELLFIRE, 10, TRUE, TRUE)
 		else
 			set_melee_brand(Ind, dur, TBRAND_FIRE, 10, TRUE, TRUE)
@@ -166,7 +167,7 @@ FIRERES = add_spell {
 	["desc"] = 	{
 		"It temporarily brands your melee weapons with fire.",
 		"At level 7 it grants temporary fire resistance.",
-		"At level 17 the flame turns into hellfire instead.",
+		"At level 21 the flame turns into hellfire instead.",
 	}
 }
 
@@ -182,7 +183,7 @@ OEXTRASTATS = add_spell {
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
-			do_xtra_stats(Ind, 4, 2 + get_level(Ind, OEXTRASTATS, 50) / 7, rand_int(7) + 22 + get_level(Ind, OEXTRASTATS, 17))
+			do_xtra_stats(Ind, 4, 2 + get_level(Ind, OEXTRASTATS, 50) / 7, rand_int(7) + 22 + get_level(Ind, OEXTRASTATS, 17), -1)
 			end,
 	["info"] = 	function()
 			return "+" .. (2 + get_level(Ind, OEXTRASTATS, 50) / 7) .. " dur d7+" .. (22 + get_level(Ind, OEXTRASTATS, 17))
@@ -195,6 +196,7 @@ OEXTRASTATS = add_spell {
 
 function get_chaosbolt2_dam(Ind)
 	local lev
+
 	--must at same level have at least same damage as identically named CHAOSBOLT to make 'priority' work
 	lev = get_level(Ind, CHAOSBOLT2, 50) + 21
 	return 0 + (lev * 3) / 5 + 1, 1 + lev + 1
@@ -284,7 +286,7 @@ FIRESTORM = add_spell {
 			fire_wave(Ind, GF_HELLFIRE, 0, 114 + get_level(Ind, FIRESTORM, 258), 1, 25 + get_level(Ind, FIRESTORM, 50), 8, EFF_STORM, " conjures hellfire for")
 		end,
 	["info"] = 	function()
-			return "dam "..(114 + get_level(Ind, FIRESTORM, 258)).." rad 1 dur "..(25 + get_level(Ind, FIRESTORM, 50))
+			return "dam "..(114 + get_level(Ind, FIRESTORM, 258)).." rad 1 dur "..((25 + get_level(Ind, FIRESTORM, 50)) / 4)
 		end,
 	["desc"] = 	{ "Envelops you in hellfire, burning your opponents to ashes.", }
 }

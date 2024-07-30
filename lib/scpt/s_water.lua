@@ -12,10 +12,10 @@ FROSTBOLT_I = add_spell {
 	["name"] = 	"Frost Bolt I",
 	["name2"] = 	"FrBolt I",
 	["school"] = 	SCHOOL_WATER,
-	["level"] = 	8,
+	["level"] = 	3,
 	["mana"] = 	2,
 	["mana_max"] = 	2,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -84,10 +84,10 @@ WATERBOLT_I = add_spell {
 	["name"] = 	"Water Bolt I",
 	["name2"] = 	"WBolt I",
 	["school"] = 	SCHOOL_WATER,
-	["level"] = 	14,
+	["level"] = 	10,
 	["mana"] = 	4,
 	["mana_max"] = 	4,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -195,7 +195,7 @@ ICESTORM_I = add_spell {
 			fire_wave(Ind, GF_COLD, 0, 34 + get_level(Ind, ICESTORM_I, 200), 1, 20 + get_level(Ind, ICESTORM_I, 27), 8, EFF_STORM, " summons an ice storm for")
 	end,
 	["info"] = 	function()
-			return "dam "..(34 + get_level(Ind, ICESTORM_I, 200)).." rad 1 dur "..(20 + get_level(Ind, ICESTORM_I, 27))
+			return "dam "..(34 + get_level(Ind, ICESTORM_I, 200)).." rad 1 dur "..((20 + get_level(Ind, ICESTORM_I, 27)) / 4)
 	end,
 	["desc"] = 	{ "Engulfs you in a whirl of roaring cold that strikes all foes at close range.", }
 }
@@ -211,7 +211,7 @@ ICESTORM_II = add_spell {
 			fire_wave(Ind, GF_ICE, 0, 34 + get_level(Ind, ICESTORM_I, 200), 1, 20 + get_level(Ind, ICESTORM_I, 27), 8, EFF_STORM, " summons an ice storm for")
 	end,
 	["info"] = 	function()
-			return "dam "..(34 + get_level(Ind, ICESTORM_I, 200)).." rad 1 dur "..(20 + get_level(Ind, ICESTORM_I, 27))
+			return "dam "..(34 + get_level(Ind, ICESTORM_I, 200)).." rad 1 dur "..((20 + get_level(Ind, ICESTORM_I, 27)) / 4)
 	end,
 	["desc"] = 	{ "Engulfs you in a whirl of sparkling ice that strikes all foes at close range.", }
 }
@@ -226,7 +226,7 @@ ENTPOTION = add_spell {
 	["fail"] = 	20,
 	["spell"] = 	function()
 				fire_ball(Ind, GF_SATHUNGER_PLAYER, 0, 1, 2, "")
-				--if player.suscep_life == false then
+				--if player.suscep_life == FALSE then
 				if player.prace ~= RACE_VAMPIRE then
 					set_food(Ind, PY_FOOD_MAX - 1)
 					msg_print(Ind, "The Ent's Potion fills your stomach.")
@@ -269,7 +269,7 @@ VAPOR_I = add_spell {
 	["info"] = 	function()
 			return "dam "..(3 + get_level(Ind, VAPOR_I, 20)).." rad "..(3 + get_level(Ind, VAPOR_I, 4, 0)).." dur 5"
 	end,
-	["desc"] = 	{ "Fills the air with toxic moisture to eradicate annoying critters." }
+	["desc"] = 	{ "Fills the nearby air with toxic moisture to eradicate annoying critters." }
 }
 VAPOR_II = add_spell {
 	["name"] = 	"Vapor II",
@@ -285,7 +285,7 @@ VAPOR_II = add_spell {
 	["info"] = 	function()
 			return "dam "..(3 + 20 + get_level(Ind, VAPOR_II, 20)).." rad "..(3 + get_level(Ind, VAPOR_I, 4, 0)).." dur 5"
 	end,
-	["desc"] = 	{ "Fills the air with toxic moisture to eradicate annoying critters." }
+	["desc"] = 	{ "Fills the nearby air with toxic moisture to eradicate annoying critters." }
 }
 VAPOR_III = add_spell {
 	["name"] = 	"Vapor III",
@@ -301,7 +301,7 @@ VAPOR_III = add_spell {
 	["info"] = 	function()
 			return "dam "..(3 + 40 + get_level(Ind, VAPOR_III, 20)).." rad "..(3 + get_level(Ind, VAPOR_I, 4, 0)).." dur 5"
 	end,
-	["desc"] = 	{ "Fills the air with toxic moisture to eradicate annoying critters." }
+	["desc"] = 	{ "Fills the nearby air with toxic moisture to eradicate annoying critters." }
 }
 
 FROSTBALL_I = add_spell {

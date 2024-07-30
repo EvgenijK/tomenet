@@ -11,6 +11,7 @@ STONESKIN = add_spell {
 	["fail"] = 	10,
 	["spell"] = 	function()
 			local type
+
 			if get_level(Ind, STONESKIN, 50) >= 25 then
 				type = SHIELD_COUNTER
 			else
@@ -61,10 +62,10 @@ ACIDBOLT_I = add_spell {
 	["name"] = 	"Acid Bolt I",
 	["name2"] = 	"ABolt I",
 	["school"] = 	SCHOOL_EARTH,
-	["level"] = 	12,
+	["level"] = 	5,
 	["mana"] = 	3,
 	["mana_max"] = 	3,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)

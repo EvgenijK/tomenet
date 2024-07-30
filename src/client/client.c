@@ -73,7 +73,7 @@ static void read_mangrc_aux(int t, cptr sec_name) {
 static bool read_mangrc(cptr filename) {
 	FILE *config;
 	char buf[1024];
-	bool skip = FALSE;
+	bool skip = FALSE, fail = FALSE;
 
 	lighterdarkblue = FALSE;
 
@@ -107,6 +107,7 @@ static bool read_mangrc(cptr filename) {
 		strcpy(mangrc_filename, filename);
 	}
 
+retry_mangrc:
 	/* Attempt to open file */
 	if ((config = fopen(mangrc_filename, "r"))) {
 		/* Read until end */
@@ -127,7 +128,7 @@ static bool read_mangrc(cptr filename) {
 				name = strtok(NULL, "\t\n");
 
 				/* Default nickname */
-				strcpy(nick, name);
+				if (name) strcpy(nick, name);
 			}
 
 			/* Password line */
@@ -139,7 +140,7 @@ static bool read_mangrc(cptr filename) {
 				p = strtok(NULL, "\t\n");
 
 				/* Default password */
-				strcpy(pass, p);
+				if (p) strcpy(pass, p);
 			}
 
 			if (!strncmp(buf, "name", 4)) {
@@ -250,7 +251,7 @@ static bool read_mangrc(cptr filename) {
 				p = strtok(NULL, "\t\n");
 				if (p) use_graphics = (atoi(p) != 0);
 			}
-			if (!strncmp(buf, "graphic_tiles", 5)) {
+			if (!strncmp(buf, "graphic_tiles", 13)) {
 				char *p;
 
 				p = strtok(buf, " \t\n");
@@ -398,12 +399,10 @@ static bool read_mangrc(cptr filename) {
 				read_mangrc_aux(6, buf);
 			if (!strncmp(buf, "Term-7window", 12))
 				read_mangrc_aux(7, buf);
-#if 0 /* keep n/a for now, not really needed */
 			if (!strncmp(buf, "Term-8window", 12))
 				read_mangrc_aux(8, buf);
 			if (!strncmp(buf, "Term-9window", 12))
 				read_mangrc_aux(9, buf);
-#endif
 
 			/* big_map hint */
 			if (!strncmp(buf, "hintBigmap", 10)) {
@@ -438,6 +437,15 @@ static bool read_mangrc(cptr filename) {
 #else
 			enable_readability_blue_gcu();
 #endif
+	} else {
+		if (!fail) { /* guard against infinite loop, in case we don't have write access to the target location or something */
+			fail = TRUE;
+
+			/* .tomenetrc not found. Try to copy the default one over.
+			   If this also fails, our last chance will be the auto-generated minimal .tomenetrc from write_mangrc() later. */
+			(void)system(format("cp .tomenetrc %s", mangrc_filename));
+			goto retry_mangrc;
+		} else fprintf(stderr, "Warning: Cannot read stock .tomenetrc in CWD or cannot write to target '%s'\n", mangrc_filename);
 	}
 	return(skip);
 }
@@ -445,7 +453,6 @@ static bool read_mangrc(cptr filename) {
 #ifdef USE_X11
 /* linux clients: save subwindow prefs to .tomenetrc - C. Blue */
 static void write_mangrc_aux(int t, cptr sec_name, FILE *cfg_file) {
-
 	if (t != 0) {
 		fputs(format("%s_Title\t%s\n", sec_name, ang_term_name[t]), cfg_file);
 		fputs(format("%s_Visible\t%c\n", sec_name, term_prefs[t].visible ? '1' : '0'), cfg_file);
@@ -469,9 +476,9 @@ static void write_mangrc_aux(int t, cptr sec_name, FILE *cfg_file) {
 /* linux clients: save one line of subwindow prefs to .tomenetrc - C. Blue */
 static void write_mangrc_aux_line(int t, cptr sec_name, char *buf_org) {
 	char buf[1024], *ter_name = buf_org + strlen(sec_name);
-#if 0 /* we still want to save at least the new visibility state, if it was toggled via in-game menu */
+ #if 0 /* we still want to save at least the new visibility state, if it was toggled via in-game menu */
 	if (!c) return; /* invisible window? */
-#endif
+ #endif
 
 	/* no line that gets modified? then keep original! */
 	strcpy(buf, buf_org);
@@ -516,6 +523,11 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 	/* backward compatibility */
 	bool compat_apf = FALSE;
 #endif
+#ifdef USE_X11
+	bool found_window[10] = { FALSE };
+#endif
+	bool explicit_save = !(creds_only == TRUE && update_creds == FALSE) /* Don't execute if we got called from client_init(). */
+	    && !(creds_only == TRUE && update_creds == TRUE); /* Don't execute if we got called from store_crecedentials(). */
 
 	buf[0] = 0;//valgrind warning it seems..?
 
@@ -600,29 +612,50 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 #ifdef USE_X11
 						/* Don't do this in terminal mode ('-c') */
 						if (!strcmp(ANGBAND_SYS, "x11")) {
-							/* new: save window positions/sizes/visibility (and possibly fonts) */
-							if (!strncmp(buf, "Mainwindow", 10))
+							/* save window positions/sizes/visibility (and possibly fonts) */
+							if (!strncmp(buf, "Mainwindow", 10)) {
 								write_mangrc_aux_line(0, "Mainwindow", buf);
-							else if (!strncmp(buf, "Mirrorwindow", 12))
+								found_window[0] = TRUE;
+							} else if (!strncmp(buf, "Mirrorwindow", 12)) {
 								write_mangrc_aux_line(1, "Mirrorwindow", buf);
-							else if (!strncmp(buf, "Recallwindow", 12))
+								found_window[1] = TRUE;
+							} else if (!strncmp(buf, "Recallwindow", 12)) {
 								write_mangrc_aux_line(2, "Recallwindow", buf);
-							else if (!strncmp(buf, "Choicewindow", 12))
+								found_window[2] = TRUE;
+							} else if (!strncmp(buf, "Choicewindow", 12)) {
 								write_mangrc_aux_line(3, "Choicewindow", buf);
-							else if (!strncmp(buf, "Term-4window", 12))
+								found_window[3] = TRUE;
+							} else if (!strncmp(buf, "Term-4window", 12)) {
 								write_mangrc_aux_line(4, "Term-4window", buf);
-							else if (!strncmp(buf, "Term-5window", 12))
+								found_window[4] = TRUE;
+							} else if (!strncmp(buf, "Term-5window", 12)) {
 								write_mangrc_aux_line(5, "Term-5window", buf);
-							else if (!strncmp(buf, "Term-6window", 12))
+								found_window[5] = TRUE;
+							} else if (!strncmp(buf, "Term-6window", 12)) {
 								write_mangrc_aux_line(6, "Term-6window", buf);
-							else if (!strncmp(buf, "Term-7window", 12))
+								found_window[6] = TRUE;
+							} else if (!strncmp(buf, "Term-7window", 12)) {
 								write_mangrc_aux_line(7, "Term-7window", buf);
- #if 0 /* keep n/a for now, not really needed */
-							else if (!strncmp(buf, "Term-8window", 12))
+								found_window[7] = TRUE;
+							} else if (!strncmp(buf, "Term-8window", 12)) {
 								write_mangrc_aux_line(8, "Term-8window", buf);
-							else if (!strncmp(buf, "Term-9window", 12))
+								found_window[8] = TRUE;
+							} else if (!strncmp(buf, "Term-9window", 12)) {
 								write_mangrc_aux_line(9, "Term-9window", buf);
- #endif
+								found_window[9] = TRUE;
+							}
+
+							/* save current graphical tileset state */
+							else if (!strncmp(buf, "graphics", 8)) {
+								strcpy(buf, "graphics\t\t");
+								strcat(buf, format("%d\n", use_graphics ? 1 : 0));
+							}
+#ifdef USE_GRAPHICS
+							else if (!strncmp(buf, "graphic_tiles", 13)) {
+								strcpy(buf, "graphic_tiles\t\t");
+								strcat(buf, format("%s\n", graphic_tiles));
+							}
+#endif
 						}
 #endif /* USE_X11 */
 					}
@@ -675,9 +708,60 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 #endif
 			}
 
+#ifdef USE_X11
+			/* Don't do this in terminal mode ('-c') */
+			if (!strcmp(ANGBAND_SYS, "x11")
+			    && explicit_save) { /*This code is only meant for when we deliberately save config. */
+				/* Add missing windows (added for older client versions that didn't have 7-9 yet) */
+				if (!found_window[0]) {
+					write_mangrc_aux(0, "Mainwindow", config2);
+					printf("Added missing Mainwindow to config file.\n");
+				}
+				if (!found_window[1]) {
+					write_mangrc_aux(1, "Mirrorwindow", config2);
+					printf("Added missing Mirrorwindow to config file.\n");
+				}
+				if (!found_window[2]) {
+					write_mangrc_aux(2, "Recallwindow", config2);
+					printf("Added missing Recallwindow to config file.\n");
+				}
+				if (!found_window[3]) {
+					write_mangrc_aux(3, "Choicewindow", config2);
+					printf("Added missing Choicewindow to config file.\n");
+				}
+				if (!found_window[4]) {
+					write_mangrc_aux(4, "Term-4window", config2);
+					printf("Added missing Term-4window to config file.\n");
+				}
+				if (!found_window[5]) {
+					write_mangrc_aux(5, "Term-5window", config2);
+					printf("Added missing Term-5window to config file.\n");
+				}
+				if (!found_window[6]) {
+					write_mangrc_aux(6, "Term-6window", config2);
+					printf("Added missing Term-6window to config file.\n");
+				}
+				if (!found_window[7]) {
+					write_mangrc_aux(7, "Term-7window", config2);
+					printf("Added missing Term-7window to config file.\n");
+				}
+				if (!found_window[8]) {
+					write_mangrc_aux(8, "Term-8window", config2);
+					printf("Added missing Term-8window to config file.\n");
+				}
+				if (!found_window[9]) {
+					write_mangrc_aux(9, "Term-9window", config2);
+					printf("Added missing Term-9window to config file\n.");
+				}
+			}
+#endif
+
 			//if (!creds_only) {
-				/* hack: disable one-time hint */
-				if (bigmap_hint) fputs("\nhintBigmap\n", config2);
+			/* hack: disable one-time hint */
+			if (bigmap_hint && explicit_save) {
+				fputs("\nhintBigmap\n", config2);
+				bigmap_hint = FALSE;
+			}
 			//}
 
 			fclose(config);
@@ -756,6 +840,8 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 
 			fputs(format("graphics\t\t%s\n", use_graphics ? "1" : "0"), config2);
 #ifdef USE_GRAPHICS
+			/* On writing a default .tomenetrc, also default to 16x22sv tileset */
+			if (!graphic_tiles[0]) strcpy(graphic_tiles, "16x22sv");
 			fputs(format("graphic_tiles\t\t%s\n", graphic_tiles), config2);
 #endif
 			fputs("\n", config2);
@@ -793,18 +879,18 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 				write_mangrc_aux(5, "Term-5window", config2);
 				write_mangrc_aux(6, "Term-6window", config2);
 				write_mangrc_aux(7, "Term-7window", config2);
- #if 0 /* keep n/a for now, not really needed */
 				write_mangrc_aux(8, "Term-8window", config2);
 				write_mangrc_aux(9, "Term-9window", config2);
- #endif
 			}
 #endif
 
-			if (!creds_only) {
+#if 0
+			if (!creds_only) { //explicit_save ?
 				fputs("\n", config2);
 				fputs("hintBigmap\n", config2);
+				bigmap_hint = FALSE;
 			}
-
+#endif
 			fclose(config2);
 
 			/* rename temporary file to new ".tomenetrc" */
@@ -853,7 +939,11 @@ bool write_mangrc_colourmap(void) {
 				/* Insert colourmap info here */
 				if ((!buf[0] || buf[0] == '\n') && found_start && !found) {
 					found = TRUE;
+#ifndef CUSTOMIZE_COLOURS_FREELY
 					for (i = 1; i < BASE_PALETTE_SIZE; i++) {
+#else
+					for (i = 0; i < BASE_PALETTE_SIZE; i++) {
+#endif
 						c = client_color_map[i];
 						sprintf(buf, "colormap_%d\t\t#%06lx\n", i, c);
 						fputs(buf, config2);
@@ -869,7 +959,11 @@ bool write_mangrc_colourmap(void) {
 			/* Just append new colourmap? */
 			if (!found) {
 				fputs("\n", config2);
-				for (i = 1; i < BASE_PALETTE_SIZE; i++) {
+#ifndef CUSTOMIZE_COLOURS_FREELY
+					for (i = 1; i < BASE_PALETTE_SIZE; i++) {
+#else
+					for (i = 0; i < BASE_PALETTE_SIZE; i++) {
+#endif
 					c = client_color_map[i];
 					sprintf(buf, "colormap_%d\t\t#%06lx\n", i, c);
 					fputs(buf, config2);
@@ -1005,11 +1099,13 @@ int main(int argc, char **argv) {
 			for (j = 0; j < BASE_PALETTE_SIZE; j++) client_color_map[j] = client_color_map_org[j];
 			use_sound = TRUE;
 			quiet_mode = FALSE;
+#ifdef USE_SOUND_2010
 			sound_hint = TRUE;
-			bigmap_hint = TRUE;
-			firstrun = TRUE;
 			no_cache_audio = FALSE;
+#endif
 			cfg_soundpackfolder[0] = cfg_musicpackfolder[0] = 0;
+			firstrun = TRUE;
+			bigmap_hint = TRUE;
 #ifdef GLOBAL_BIG_MAP
 			/* Also reset main window to non-big_map */
 			global_c_cfg_big_map = FALSE;
@@ -1142,20 +1238,20 @@ int main(int argc, char **argv) {
 		puts("                     that is read is used as default config file and any");
 		puts("                     changes that are saved will be saved to this file.");
 		puts("  -F                 Client FPS");
-		//puts("  -k                 don't disable numlock on client startup");
 		puts("  -l<nick> <passwd>  Login as");
-		puts("  -m                 Skip motd (message of the day) on login");
 		puts("  -N<name>           Character name");
 		puts("  -R<name>           Character name, auto-reincarnate");
 		puts("  -p<num>            Change game Port number");
 		puts("  -P<path>           Set the lib directory Path");
+		//puts("  -k                 don't disable numlock on client startup");
+		puts("  -m                 Skip motd (message of the day) on login");
 		puts("  -q                 Disable audio capabilities ('quiet mode')");
 		puts("  -u                 Disable client-side automatic lua updates");
 		puts("                     (you shouldn't use this option!");
+		puts("  -w                 Disable client-side weather effects");
 		puts("  -v                 Save chat log on exit, don't prompt");
 		puts("  -V                 Save complete message log on exit, don't prompt");
 		puts("  -x                 Don't save chat/message log on exit (don't prompt)");
-		puts("  -w                 Disable client-side weather effects");
 
 #ifdef USE_SOUND_2010
 #if 0 //we don't have 'modules' for everything, yet :-p only sound_modules for now - C. Blue

@@ -55,7 +55,7 @@ void init_skill(player_type *p_ptr, u32b value, s16b mod, int i) {
 	else
 		p_ptr->s_info[i].dummy = FALSE;
 #else
-	p_ptr->s_info[i].flags1 = (char)(s_info[i].flags1 & 0xFF);
+	p_ptr->s_info[i].flags1 = (byte)(s_info[i].flags1 & 0xFF);
 
 	/* hack: Rangers can train limited Archery skill */
 	if (p_ptr->pclass == CLASS_RANGER && i == SKILL_ARCHERY)
@@ -246,12 +246,13 @@ void msg_gained_abilities(int Ind, int old_value, int i) {
 			p_ptr->warning_bpr3 = 1;
 		}
 		if (old_value < 10 && new_value >= 10) { /* the_sandman */
-//			msg_print(Ind, "\374\377GYou feel as if you could take on the world!");
+			//msg_print(Ind, "\374\377GYou feel as if you could take on the world!");
 			msg_print(Ind, "\374\377GYou learn to use punching techniques.");
+		}
+		if (old_value < 20 && new_value >= 20) {
+			msg_print(Ind, "\374\377GYou get the hang of using kicks.");
 			msg_print(Ind, "\374\377GYour melee attack speed has become faster due to your training!");
 		}
-		if (old_value < 20 && new_value >= 20)
-			msg_print(Ind, "\374\377GYou get the hang of using kicks.");
 		if (old_value < 30 && new_value >= 30)
 			msg_print(Ind, "\374\377GYou get the hang of using hand side strikes.");
 		if (old_value < 50 && new_value >= 50)
@@ -534,6 +535,9 @@ void msg_gained_abilities(int Ind, int old_value, int i) {
 	case SKILL_META: /* + continuous effect */
 		break;
 	case SKILL_HOFFENSE:
+		//bad hack to display warnings if slays aren't active due to conflicting form alignment:
+		p_ptr->suscep_life = p_ptr->suscep_good = p_ptr->demon = FALSE;
+
 		if (old_value < 300 && new_value >= 300)
 			msg_print(Ind, "\374\377GYou fight against undead with holy wrath.");
 		if (old_value < 400 && new_value >= 400)
@@ -555,6 +559,9 @@ void msg_gained_abilities(int Ind, int old_value, int i) {
 		if (old_value < 400 && new_value >= 400)
 			msg_print(Ind, "\374\377GYou feel strong against stun and cuts.");
 		if (old_value < 500 && new_value >= 500) {
+			//bad hack to display warnings if slay-undead isn't active due to conflicting form alignment:
+			p_ptr->suscep_life = FALSE;
+
 			msg_print(Ind, "\374\377GYou feel strong against hallucination and black breath.");
 			msg_print(Ind, "\374\377GYour melee attacks inflict greater damage on undead.");
 			msg_print(Ind, "\374\377GYour soul escapes less quickly on death.");
@@ -682,10 +689,12 @@ void msg_gained_abilities(int Ind, int old_value, int i) {
 	case SKILL_AURA_SHIVER:
 		if (old_value == 0 && new_value > 0 && !(p_ptr->anti_magic || get_skill(p_ptr, SKILL_ANTIMAGIC))) p_ptr->aura[AURA_SHIVER] = TRUE;
 		if (old_value < 300 && new_value >= 300) msg_print(Ind, "\374\377GYour shivering aura brands your melee attacks with frost!");
+		if (old_value < 300 && new_value >= 300) msg_print(Ind, "\374\377GYour shivering aura coverts cold to shattering ice!");
 		break;
 	case SKILL_AURA_DEATH:
 		if (old_value == 0 && new_value > 0 && !(p_ptr->anti_magic || get_skill(p_ptr, SKILL_ANTIMAGIC))) p_ptr->aura[AURA_DEATH] = TRUE;
 		if (old_value < 400 && new_value >= 400) msg_print(Ind, "\374\377GYour aura of death brands your melee attacks with plasma and ice!");
+		if (old_value < 400 && new_value >= 400) msg_print(Ind, "\374\377GYour aura of death converts fire and cold to plasma and ice!");
 		break;
 	case SKILL_DIG:
 #if 0 /* obsolete */
@@ -740,6 +749,9 @@ void msg_gained_abilities(int Ind, int old_value, int i) {
 #endif
 		if (old_value < 100 && new_value >= 100)
 			msg_print(Ind, "\374\377GYou learn how to use the fighting technique 'Steam Blast'!");
+		if (old_value < 110 && new_value >= 110
+		    && get_skill(p_ptr, SKILL_DIVINATION) < 50) //auto-id
+			msg_print(Ind, "\374\377GYou got better at recognizing the power of unknown traps.");
 		break;
 	case SKILL_DEVICE:
 		if (old_value < 20 && new_value >= 20 && p_ptr->newbie_hints)
@@ -1124,6 +1136,59 @@ void respec_skill(int Ind, int i, bool update_skill, bool polymorph) {
 	p_ptr->reskill_possible |= RESKILL_F_UNDO;
 }
 
+#ifdef ENABLE_SUBCLASS
+/* Subclass - Average new class ratios with existing class ratios. - Kurzel */
+void subclass_skills(int Ind, int class) {
+	player_type *p_ptr = Players[Ind];
+	int class0 = p_ptr->pclass; // original
+	int i;
+	s32b v, m; /* base starting skill value, skill modifier */
+
+	/* Average existing ratios with new class ratios; that's all! */
+	/* Apply 2/3 instead of 1/2 ratio per class, balancing +100% XP penalty.
+		 This will make much more viable combinations than adventurers! - Kurzel
+		 Just 50% from each class was about equivalent to adventurer ratios. */
+	/* Double racial mods by compute_skills() twice? Seems fine! MOAR RACE */
+	/* +200% XP penalty is better aligned with Maia at 400%, also...
+		 Doubling maia initial race mods means 49% skills for sub-class maia!
+		 This provides a competitive skill boost option for the lesser races. */
+	/* Perhaps disable Maia, dual/multiclass history seems to forbid high XP. */
+
+	// Reset mods
+	for (i = 0; i < MAX_SKILLS; i++) {
+		v = 0; m = 0;
+		compute_skills(p_ptr, &v, &m, i);
+		p_ptr->s_info[i].mod = m;
+	}
+
+	// Subclass!
+	if (p_ptr->pclass != class)
+		for (i = 0; i < MAX_SKILLS; i++) {
+			// 1st Class
+			v = 0; m = 0;
+			compute_skills(p_ptr, &v, &m, i);
+			p_ptr->s_info[i].mod = m;
+			// 2nd Class
+			v = 0; m = 0;
+			p_ptr->pclass = class;
+			p_ptr->cp_ptr = &class_info[p_ptr->pclass];
+			compute_skills(p_ptr, &v, &m, i);
+			p_ptr->s_info[i].mod += m;
+			p_ptr->pclass = class0;
+			p_ptr->cp_ptr = &class_info[p_ptr->pclass];
+			// Weight
+			p_ptr->s_info[i].mod *= 2;
+			p_ptr->s_info[i].mod /= 3;
+		}
+
+	// Don't forget batties. <_<
+	if (p_ptr->fruit_bat == 1) fruit_bat_skills(p_ptr);
+
+	/* Update the client */
+	for (i = 0; i < MAX_SKILLS; i++) Send_skill_info(Ind, i, FALSE);
+}
+#endif
+
 /* Complete skill-chart reset (full respec) - C. Blue
    update_skill: Change base value and base mod to up-to-date values. */
 void respec_skills(int Ind, bool update_skills) {
@@ -1146,6 +1211,11 @@ void respec_skills(int Ind, bool update_skills) {
 		}
 	}
 	if (p_ptr->fruit_bat == 1) fruit_bat_skills(p_ptr);
+
+#ifdef ENABLE_SUBCLASS
+	if (p_ptr->sclass) subclass_skills(Ind, (p_ptr->sclass - 1));
+#endif
+
 	/* Update the client */
 	for (i = 0; i < MAX_SKILLS; i++) Send_skill_info(Ind, i, FALSE);
 

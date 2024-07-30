@@ -227,6 +227,7 @@ void initialize_main_pref_files(void) {
 	}
 
 
+#if 0 /* New flags were added meanwhile, this seems invalid now -- when backward compatibility goes too far, maybe.. */
 	/* Hack: Convert old window.prf or user.prf files that
 	   were made < 4.4.7.1. - C. Blue */
 	for (i = 0; i < ANGBAND_TERM_MAX; i++) {
@@ -254,6 +255,7 @@ void initialize_main_pref_files(void) {
 		/* and.. save them! */
 		(void)options_dump("global.opt");
 	}
+#endif
 }
 
 void initialize_player_pref_files(void) {
@@ -326,6 +328,8 @@ void initialize_player_ins_files(void) {
 #ifdef REGEX_SEARCH
 		auto_inscription_invalid[i] = FALSE;
 #endif
+		auto_inscription_subinven[i] = FALSE;
+		auto_inscription_disabled[i] = FALSE;
 	}
 
 #if 0 /* disabled, since everyone only has 1 account anyway. It just disturbs macros if you have a character of same name. */
@@ -366,7 +370,7 @@ static void init_monster_list() {
 	char buf[1024], *p1, *p2;
 	int v1 = 0, v2 = 0, v3 = 0;
 	FILE *fff;
-	bool discard = FALSE, multihued = FALSE, breathhued = FALSE, basehued = FALSE;
+	bool discard = FALSE, multihued = FALSE, breathhued = FALSE, basehued = FALSE, unique = FALSE;
 	bool halloween; /* Don't display 'level 127' for townies during Halloween */
 
 	/* actually use local r_info.txt - a novum */
@@ -431,6 +435,9 @@ static void init_monster_list() {
 		}
 
 		if (buf[0] == 'N') {
+			if (unique) monster_list_unique[monster_list_idx - 1] = TRUE;
+			unique = FALSE;
+
 			if (!basehued) {
 				if (multihued) monster_list_any[monster_list_idx - 1] = TRUE;
 				else if (breathhued) monster_list_breath[monster_list_idx - 1] = TRUE;
@@ -457,6 +464,9 @@ static void init_monster_list() {
 		if (buf[0] == 'F' && strstr(buf, "ATTR_BASE")) basehued = TRUE;
 
 		if (buf[0] == 'N' && strstr(buf, "Test Blob")) discard = TRUE;
+
+		/* for c_cfg.ascii_uniques */
+		if (buf[0] == 'F' && strstr(buf, "UNIQUE")) unique = TRUE;
 
 		p1 = buf + 2; /* monster code */
 		p2 = strchr(p1, ':'); /* 1 before monster name */
@@ -507,6 +517,9 @@ static void init_monster_list() {
 			if (buf[0] == 'F' && strstr(buf, "ATTR_BASE")) basehued = TRUE;
 
 			if (buf[0] == 'N' && strstr(buf, "Test Blob")) discard = TRUE;
+
+			/* for c_cfg.ascii_uniques */
+			if (buf[0] == 'F' && strstr(buf, "UNIQUE")) unique = TRUE;
 
 			if (strlen(buf) < 5 || buf[0] != 'G') continue;
 
@@ -593,6 +606,9 @@ void monster_lore_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool t
 				 ridx));
 		}
 		Term_putstr(5, 5, -1, TERM_YELLOW, paste_lines[pl] + 2); /* no need for \377y */
+		/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+		if (Client_setup.r_char[monster_list_code[rlidx]] && !to_chat && !c_cfg.ascii_monsters && !(monster_list_unique[rlidx] && c_cfg.ascii_uniques))
+			Term_draw(5 + (strchr(paste_lines[pl] + 2, '(') - (paste_lines[pl] + 2)) + 3, 5, color_char_to_attr(monster_list_symbol[rlidx][0]), Client_setup.r_char[monster_list_code[rlidx]]);
 
 		/* fetch diz */
 		lpp = 1;
@@ -663,225 +679,79 @@ void monster_lore_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool t
 
 	my_fclose(fff);
 }
-const char *mon_flags2highlight[] = {"IM_COLD", "IM_FIRE", "IM_ACID", "IM_ELEC", "IM_POIS", "IM_WATER", "IM_PSI", "IM_TELE", ""};
-const char *mon_flags2highlight2[] = {"SUSCEP_COLD", "SUSCEP_FIRE", "SUSCEP_ACID", "SUSCEP_ELEC", "SUSCEP_POIS", "HURT_LITE", "HURT_ROCK", ""};
-//omitting SPIDER; note: DRAGON and DRAGONRIDER occur mutually exclusively, so we don't have to do extra string checks
-const char *mon_flags2highlight3[] = {"ANIMAL", "ORC", "TROLL", "GIANT", "DRAGONRIDER", "DRAGON", "DEMON", "UNDEAD", "EVIL", "GOOD", "NONLIVING", ""};
-const char *mon_flags2highlight4[] = {"UNIQUE", "NAZGUL", "PSEUDO_UNIQUE", "NO_DEATH", ""};//no hints about dungeon/game boss status available or used
-const char *mon_flags2highlight5[] = {"NEUTRAL", "FRIENDLY", "PET", "QUESTOR", ""};//currently unavailable
-const char *mon_flags2highlight6[] = {"AQUATIC", ""};
+const char mon_flags2highlight[6][12][NAME_LEN] = {
+    {"IM_COLD", "IM_FIRE", "IM_ACID", "IM_ELEC",			"IM_POIS", "IM_WATER", "IM_PSI", "IM_TELE",	"", "", "", ""},
+    {"SUSCEP_COLD", "SUSCEP_FIRE", "SUSCEP_ACID", "SUSCEP_ELEC",	"SUSCEP_POIS", "HURT_LITE", "HURT_ROCK", "",	"", "", "", ""},
+    //omitting SPIDER; note: DRAGON and DRAGONRIDER occur mutually exclusively, so we don't have to do extra string checks
+    {"ANIMAL", "ORC", "TROLL", "GIANT",					"DRAGONRIDER", "DRAGON", "DEMON", "UNDEAD",	"EVIL", "GOOD", "NONLIVING", ""},
+    {"UNIQUE", "NAZGUL", "PSEUDO_UNIQUE", "NO_DEATH",			"", "", "", ""					"", "", "", ""}, //no hints about dungeon/game boss status available or used
+    {"NEUTRAL", "FRIENDLY", "PET", "QUESTOR",				"", "", "", ""					"", "", "", ""}, //currently unavailable
+    {"AQUATIC", "", "", "",						"", "", "", ""					"", "", "", ""}
+    };
 static int mon_highlit_flags(char *line) {
-	const char **f = mon_flags2highlight;
+	const char (*f)[NAME_LEN];
 	char *p2;
-	int i = 0, l;
+	int i = 0, l, mf;
 
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
+	for (mf = 0; mf < 6; mf++) {
+		f = mon_flags2highlight[mf];
+		while (*f[0]) {
+			p2 = line;
+			l = strlen(*f);
+			while ((p2 = strstr(p2, *f))) {
+				//make sure the string is not just part of a different, longer flag string
+				if ((p2 == line ||
+				    (p2 >= line + 1 && (*(p2 - 1) == ' ' || *(p2 - 1) == '|')) ||
+				    (p2 >= line + 2 && *(p2 - 2) == '\377')
+				    ) && (
+				    *p2 && (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')
+				    )) {
+					i += 4;
+					break;
+				}
+				p2++;
 			}
-			p2++;
+			f++;
 		}
-		f++;
-	}
-
-	f = mon_flags2highlight2;
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight3;
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight4;
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight5;
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight6;
-	while (*f[0]) {
-		p2 = line;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			//make sure the string is not just part of a different, longer flag string
-			if ((p2 == line || *(p2 - 1) == ' ' || *(p2 - 1) == '|' || *(p2 - 2) == '\377') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' || *(p2 + l) == '\377')) {
-				i += 4;
-				break;
-			}
-			p2++;
-		}
-		f++;
 	}
 
 	return i;
 }
 static void mon_highlight_flags(char *info) {
-	const char **f = mon_flags2highlight, a_flag = 's';
+	const char (*f)[NAME_LEN], a_flag = 's';
 	char info_tmp[MSG_LEN], *p2;
-	int l;
+	int l, mf;
 
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377w%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
+	for (mf = 0; mf < 6; mf++) {
+		f = mon_flags2highlight[mf];
+		while (*f[0]) {
+			p2 = info;
+			l = strlen(*f);
+			while ((p2 = strstr(p2, *f))) {
+				if ((p2 == info ||
+				    (p2 >= info + 1 && (*(p2 - 1) == ' ' || *(p2 - 1) == '|')) ||
+					(p2 >= info + 2 && *(p2 - 2) == '\377') //?
+				    ) && (
+				    *p2 && (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|' ||
+					*(p2 + l) == '\377') //?
+				    )) {
+					strcpy(info_tmp, info);
+					switch (mf) {
+					case 0: sprintf(info_tmp + (p2 - info), "\377w%s\377%c", *f, a_flag); break;
+					case 1: sprintf(info_tmp + (p2 - info), "\377y%s\377%c", *f, a_flag); break;
+					case 2: sprintf(info_tmp + (p2 - info), "\377o%s\377%c", *f, a_flag); break;
+					case 3: sprintf(info_tmp + (p2 - info), "\377U%s\377%c", *f, a_flag); break;
+					case 4: sprintf(info_tmp + (p2 - info), "\377G%s\377%c", *f, a_flag); break;
+					case 5: sprintf(info_tmp + (p2 - info), "\377B%s\377%c", *f, a_flag); break;
+					}
+					strcat(info_tmp, p2 + strlen(*f));
+					strcpy(info, info_tmp);
+					break;
+				}
+				p2++;
 			}
-			p2++;
+			f++;
 		}
-		f++;
-	}
-
-	f = mon_flags2highlight2;
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377y%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight3;
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377o%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight4;
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377U%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight5;
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377G%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
-			}
-			p2++;
-		}
-		f++;
-	}
-
-	f = mon_flags2highlight6;
-	while (*f[0]) {
-		p2 = info;
-		l = strlen(*f);
-		while ((p2 = strstr(p2, *f))) {
-			if ((p2 == info || *(p2 - 1) == ' ' || *(p2 - 1) == '|') &&
-			    (*(p2 + l) == 0 || *(p2 + l) == ' ' || *(p2 + l) == '|')) {
-				strcpy(info_tmp, info);
-				sprintf(info_tmp + (p2 - info), "\377B%s\377%c", *f, a_flag);
-				strcat(info_tmp, p2 + strlen(*f));
-				strcpy(info, info_tmp);
-				break;
-			}
-			p2++;
-		}
-		f++;
 	}
 }
 void monster_stats_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool to_chat) {
@@ -954,6 +824,9 @@ void monster_stats_aux(int ridx, int rlidx, char paste_lines[18][MSG_LEN], bool 
 				 ridx));
 		}
 		Term_putstr(5, 5, -1, TERM_YELLOW, paste_lines[pl] + 2); /* no need for \377y */
+		/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+		if (Client_setup.r_char[monster_list_code[rlidx]] && !to_chat && !c_cfg.ascii_monsters && !(monster_list_unique[rlidx] && c_cfg.ascii_uniques))
+			Term_draw(5 + (strchr(paste_lines[pl] + 2, '(') - (paste_lines[pl] + 2)) + 3, 5, color_char_to_attr(monster_list_symbol[rlidx][0]), Client_setup.r_char[monster_list_code[rlidx]]);
 
 		/* specialty: tentacles count as finger-limbs (for rings) + hand-limbs (for weapon-wielding) + arm-limbs (shields)
 		   (but cannot wear gloves!). So we only need to mention them once (under 'hands' above) */
@@ -1656,6 +1529,9 @@ static void init_kind_list() {
 		/* hack - skip item 0, because it doesn't have tval/sval */
 		if (atoi(p1) == 0) continue;
 
+		/* remember k_info index (N: line) as it is used for custom mappings */
+		kind_list_kidx[kind_list_idx] = atoi(p1);
+
 		/* strip '& ' and '~' */
 		strcpy(kind_list_name[kind_list_idx], "");
 		while (*p2) {
@@ -1880,6 +1756,7 @@ static void init_artifact_list() {
 				strcpy(artifact_list_name[artifact_list_idx], "The ");
 				strcat(artifact_list_name[artifact_list_idx], kind_list_name[i]);
 				strcat(artifact_list_name[artifact_list_idx], " ");
+				artifact_list_kidx[artifact_list_idx] = kind_list_kidx[i];
 				break;
 			}
 		}
@@ -1918,7 +1795,7 @@ static void init_artifact_list() {
 		else artifact_list_rarity[artifact_list_idx] = ((10000 / kind_list_rarity[i]) * (10000 / rar)) / 100;
 #else /* bad hack: manipulate rarity so that if either k-rarity or a-rarity is very high, it outweighs the other one -_- */
 		/* hack: recognize insta-arts and calculate their rarity in a funny way (scale up into our 10000 array) */
-		if (!kind_list_rarity[i]) artifact_list_rarity[artifact_list_idx] = ((10000 / rar) * (10000 / rar)) / 100;
+		if (i >= MAX_K_IDX || !kind_list_rarity[i]) artifact_list_rarity[artifact_list_idx] = ((10000 / rar) * (10000 / rar)) / 100;
 		/* normal artifacts: */
 		else {
 			int krar = kind_list_rarity[i], krar_boost, rar_boost;
@@ -1951,7 +1828,7 @@ static void init_artifact_list() {
 		strcpy(artifact_list_activation[i], string_exec_lua(0, buf));
 	}
 }
-void artifact_lore_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
+void artifact_lore_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN], bool to_chat) {
 	char buf[1024], *p1, *p2, *tmpc;
 	FILE *fff;
 	int l = 0, pl = -1, cl = strlen(cname);
@@ -1997,7 +1874,11 @@ void artifact_lore_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
 		strcpy(paste_lines[++pl], format("\377U%s", artifact_list_name[alidx]));
 		/* Glitch fix: Replace \377- by \377U so we don't fall back on charactermode-specific colour */
 		if ((tmpc = strstr(paste_lines[pl], "\377-"))) *(tmpc + 1) = 'U';
+		/* Display artifact name at the 'top' of the lore text/specs */
 		Term_putstr(5, 5, -1, TERM_L_UMBER, paste_lines[pl] + 2); /* no need for \377U */
+		/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+		if (Client_setup.k_char[artifact_list_kidx[alidx]] && !c_cfg.ascii_items)
+			Term_draw(5, 5, color_char_to_attr(artifact_list_name[alidx][1]), Client_setup.k_char[artifact_list_kidx[alidx]]);
 
 		/* fetch diz */
 		lpp = 1;
@@ -2311,7 +2192,7 @@ static void obj_highlight_flags(char *info, bool minus) {
 }
 /* assume/handle certain features: */
 #define USE_NEW_SHIELDS
-void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
+void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN], bool to_chat) {
 	char buf[1024], *p1, *p2, info[MSG_LEN], info_tmp[MSG_LEN], *tmpc;
 	cptr s_rarity = NULL;
 	FILE *fff;
@@ -2370,7 +2251,11 @@ void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
 		strcpy(paste_lines[++pl], format("\377U%s", artifact_list_name[alidx]));
 		/* Glitch fix: Replace \377- by \377U so we don't fall back on charactermode-specific colour */
 		if ((tmpc = strstr(paste_lines[pl], "\377-"))) *(tmpc + 1) = 'U';
+		/* Display artifact name at the 'top' of the lore text/specs */
 		Term_putstr(5, 5, -1, TERM_L_UMBER, paste_lines[pl] + 2); /* no need for \377U */
+		/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+		if (Client_setup.k_char[artifact_list_kidx[alidx]] && !c_cfg.ascii_items)
+			Term_draw(5, 5, color_char_to_attr(artifact_list_name[alidx][1]), Client_setup.k_char[artifact_list_kidx[alidx]]);
 
 		/* fetch stats: I/W/E/O/B/F/S lines */
 		tval = 0;
@@ -2482,7 +2367,7 @@ void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
 				p1 = p2;
 			    /* rarity */
 				p2 = strchr(p1, ':') + 1;
-				/* hack, 255 counts as diabled */
+				/* hack, 255 counts as disabled */
 				if (atoi(p1) == 255) {
 					/* overwrite previous rarity/depth information */
 					sprintf(info_tmp, "This artifact is unfindable. ");
@@ -2558,8 +2443,12 @@ void artifact_stats_aux(int aidx, int alidx, char paste_lines[18][MSG_LEN]) {
 					    a_val, v_hit < 0 ? "" : "+", v_hit, v_dam < 0 ? "" : "+", v_dam, a_key);
 					strcpy(info, info_tmp);
 					if (v_acx) {
-						strcpy(info_tmp, format(". AC bonus: \377%c[%s%d]\377%c",
-						    a_val, v_acx < 0 ? "" : "+", v_acx, a_key));
+						if (is_melee_weapon(tval) && (sflags1 & SFLG1_WEAPONS_NO_AC))
+							strcpy(info_tmp, format(". Parry bonus: \377%c[%s%d%%]\377%c",
+							    a_val, v_acx < 0 ? "" : "+", v_acx, a_key));
+						else
+							strcpy(info_tmp, format(". AC bonus: \377%c[%s%d]\377%c",
+							    a_val, v_acx < 0 ? "" : "+", v_acx, a_key));
 						strcat(info, info_tmp);
 					}
 				} else if (tval == TV_BOW) {
@@ -3036,6 +2925,9 @@ static void init_floor_mapping(void) {
 #ifdef BUFFER_GUIDE
 char guide_line[GUIDE_LINES_MAX][MAX_CHARS + 1]; //one extra char per line for newline char '\n'
 #endif
+#ifdef BUFFER_LOCAL_FILE
+char local_file_line[LOCAL_FILE_LINES_MAX][MAX_CHARS_WIDE + 1]; //one extra char per line for newline char '\n'
+#endif
 void init_guide(void) {
 	int i;
 
@@ -3054,7 +2946,7 @@ void init_guide(void) {
 		guide_errno = errno;
 		if (errno == ENOENT) {
 			c_msg_format("\377yThe file TomeNET-Guide.txt wasn't found in your TomeNET folder.");
-			c_message_add("\377y Try updating it with the TomeNET-Updater or download it manually.");
+			c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 		} else c_msg_format("\377yThe file TomeNET-Guide.txt couldn't be opened from your TomeNET folder (%d).", errno);
 		return;
 	}
@@ -3122,7 +3014,7 @@ void init_guide(void) {
 	/* empty file? */
 	if (guide_lastline == -1) {
 		c_message_add("\377yThe file TomeNET-Guide.txt seems to be empty.");
-		c_message_add("\377y Try updating it with the TomeNET-Updater or download it manually.");
+		c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 		return;
 	}
 
@@ -3183,7 +3075,8 @@ static void Input_loop(void) {
 	in_game = TRUE;
 	prev_cname[0] = 0; //(re)init
 
-#if 1 /* requires in_game == TRUE in handle_process_font_file() */
+#if 0 /* 0: moved to a hack 'fix_custom_font_after_startup'. */
+	/* requires in_game == TRUE in handle_process_font_file() */
 	/* ---- TODO: A little order glitch, that we workaround here - should fix this in a cleaner manner probably: ----     - C. Blue
 	        The visual modules (init_x11() / init_gcu() / init_windows()) are loaded BEFORE client_init() is called.
 	        That means the init_stuff()->init_file_paths() has't been done yet, and and custom fonts won't initialize their
@@ -3194,7 +3087,7 @@ static void Input_loop(void) {
 	/* Reload custom font prefs on main screen font change */
 	//WINDOWS: if (td == &data[0])
 	//POSIX: if (td == &screen)
-	handle_process_font_file();
+	//handle_process_font_file();
 #endif
 
 	for (;;) {
@@ -3535,7 +3428,10 @@ static void init_sound() {
    Purpose: Avoid need for client restart on switching audio packs live. */
 #ifdef USE_SOUND_2010
 int re_init_sound() {
-	int i, err;
+	int i;
+ #ifdef SOUND_SDL
+	int err;
+ #endif
 
 	/* Initialise this even if we don't use sound, just for its visual effect */
 	thunder_sound_idx = exec_lua(0, "return get_sound_index(\"thunder\")");
@@ -3553,15 +3449,17 @@ int re_init_sound() {
 			puts("ERROR: SDL audio has no init function.");
 			return(-1);
 		}
+ #ifdef SOUND_SDL
 		if ((err = re_init_sound_sdl()) == 0) {
- #ifdef DEBUG_SOUND
+  #ifdef DEBUG_SOUND
 			puts(format("USE_SOUND_2010: successfully loaded module %d.", i));
- #endif
+  #endif
 			break;
 		} else {
 			puts("ERROR: SDL audio failed to re-initialize.");
 			return err;
 		}
+ #endif
 	}
  #ifdef DEBUG_SOUND
 	puts("USE_SOUND_2010: done scanning modules");
@@ -3637,9 +3535,11 @@ void client_init(char *argv1, bool skip) {
 #endif
 #ifdef RETRY_LOGIN
 	bool rl_auto_relogin = FALSE;
+	term *old;
 #endif
 	FILE *fp;
 	char buf[1024];
+
 
 #if defined(USE_X11) || defined(USE_GCU)
 	/* Force creation of fresh .tomenetrc file in case none existed yet.
@@ -3706,27 +3606,32 @@ void client_init(char *argv1, bool skip) {
 		}
 	}
 
+ #if 0 /* this actually breaks entering 'localhost'! */
 	/* Fix "localhost" */
 	if (!strcmp(server_name, "localhost"))
-#endif
 		strcpy(server_name, host_name);
-
+ #endif
+#else
+	strcpy(server_name, host_name);
+#endif
 
 #ifdef RETRY_LOGIN
 	retry_contact:
 
 	/* clear all windows of previous text */
 	for (retries = 1; retries < ANGBAND_TERM_MAX; retries++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[retries]) continue;
 
+		/* Save current Term */
+		old = Term;
+
+		/* Clear a Term */
 		Term_activate(ang_term[retries]);
 		Term_clear();
 		Term_fresh();
 
-		/* Restore */
+		/* Restore current Term */
 		Term_activate(old);
 	}
 
@@ -3739,6 +3644,9 @@ void client_init(char *argv1, bool skip) {
 	rl_connection_destroyed = FALSE;
 	rl_connection_destructible = FALSE;
 	if (rl_auto_relogin) skip = TRUE;
+
+	/* Hack-fix custom font loading once more after this next login */
+	fix_custom_font_after_startup = TRUE;
 #endif
 
 	/* Get character name and pass */
@@ -3878,10 +3786,10 @@ void client_init(char *argv1, bool skip) {
 				quit("Sorry, the game is full.  Try again later.");
 				break;
 			case E_IN_USE:
-				quit("That nickname is already in use. If it is your nickname, wait 30 seconds and try again.");
+				quit("Login not possible because you are still logged in from another IP address.");
 				break;
 			case E_IN_USE_PC:
-				quit("You are still logged in from another PC. Please wait 30 seconds and try again.");
+				quit("You are still logged in by another PC user. Please wait 30 seconds and try again.");
 				break;
 			case E_IN_USE_DUP:
 				quit("You are already logging in from another instance of the game.");
@@ -3898,6 +3806,9 @@ void client_init(char *argv1, bool skip) {
 				break;
 			case E_BANNED:
 				quit("You are temporarily banned from connecting to this server!");
+				break;
+			case E_CLOSED:
+				quit("Server is closed for pending shutdown, please try again after it restarted.");
 				break;
 			default:
 				quit(format("Connection failed with status %d.", status));
@@ -4177,20 +4088,20 @@ void client_init(char *argv1, bool skip) {
  #endif
 
 		/* reset inventory */
-		for (bytes = 0; bytes < INVEN_TOTAL; bytes++) {
+		for (bytes = 0; bytes < INVEN_TOTAL; bytes++) { //abuse 'bytes' as counter
 			WIPE(&inventory[bytes], object_type);
 			inventory_name[bytes][0] = 0;
 			inventory_inscription[bytes] = 0;
 			inventory_inscription_len[bytes] = 0;
  #ifdef ENABLE_SUBINVEN
 			if (bytes > INVEN_PACK) continue;
-			for (retries = 0; retries <= SUBINVEN_PACK; retries++) {
+			for (retries = 0; retries <= SUBINVEN_PACK; retries++) { //abuse 'retries' as counter
 				subinventory[bytes][retries].tval = 0;
 				subinventory_name[bytes][retries][0] = 0;
 			}
  #endif
 		}
-		for (bytes = 0; bytes < INVEN_TOTAL - INVEN_WIELD; bytes++) equip_set[bytes] = 0;
+		for (bytes = 0; bytes < INVEN_TOTAL - INVEN_WIELD; bytes++) equip_set[bytes] = 0; //abuse 'bytes' as counter
 		item_newest = -1;
 
 		/* retuuurrrnnnn... */
@@ -4210,9 +4121,9 @@ bool ask_for_bigmap_generic(void) {
 
 	Term_clear();
 	Term_putstr(8, 3, -1, TERM_ORANGE, "Do you want \377Gdouble window size\377o aka 'big_map' option?");
-	Term_putstr(8, 5, -1, TERM_YELLOW, "  It is recommended to do this on desktops and normal laptops");
-	Term_putstr(8, 6, -1, TERM_YELLOW, "  but it may not fit on small netbook screens. You can change");
-	Term_putstr(8, 7, -1, TERM_YELLOW, "  this later in-game, in the options menu by pressing \377o= b\377y .");
+	Term_putstr(8, 5, -1, TERM_YELLOW, "It is recommended to do this on desktops and normal laptops");
+	Term_putstr(8, 6, -1, TERM_YELLOW, "but it may not fit on small netbook screens. You can change");
+	Term_putstr(8, 7, -1, TERM_YELLOW, "this later in-game, in the options menu by pressing \377o= b\377y .");
 	Term_putstr(8, 9, -1, TERM_ORANGE, "Press '\377Gy\377o' to double the screen size now, '\377Rn\377o' to not enable.");
 
 	while (TRUE) {
@@ -4235,9 +4146,8 @@ bool ask_for_bigmap_generic(void) {
 	Term_clear();
 	Term_putstr(8, 4, -1, TERM_YELLOW, "And one last thing:");
 	Term_putstr(8, 6, -1, TERM_YELLOW, "This game uses letters, numbers and symbols for 'graphics'.");
-	Term_putstr(8, 8, -1, TERM_YELLOW, "But if you prefer a more graphical representation,");
-	Term_putstr(8, 9, -1, TERM_YELLOW, "in the game press  \377o=  f\377y  and then look through the fonts");
-	Term_putstr(8,10, -1, TERM_YELLOW, "by pressing  \377o+\377y  repeatedly. Graphical fonts will come up!");
+	Term_putstr(8, 8, -1, TERM_YELLOW, "But if you prefer a true graphical representation, after logging");
+	Term_putstr(8, 9, -1, TERM_YELLOW, "in, press  \377o=  g\377y  and then  \377ov\377y  to enable a graphical tileset!");
 	ch = inkey();
 
 	Term_clear();

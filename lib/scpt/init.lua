@@ -8,6 +8,7 @@ _ALERT = function(s) print(s) end
 -- Beware of the scary undefined globals
 function safe_getglobal(x)
 	local v = rawget(globals(), x)
+
 	if v then
 		return v
 	else
@@ -19,13 +20,15 @@ settagmethod(tag(nil), "getglobal", safe_getglobal)
 
 -- A function for checking if a global is either not defined or not set to 0
 function def(x)
-        local v = rawget(globals(), x)
-        return (not v or v ~= 0)
+	local v = rawget(globals(), x)
+
+	return (not v or v ~= 0)
 end
 
 -- Same as def() except that the default value for undefined global can be set
 function def_hack(x, default)
 	local v = rawget(globals(), x)
+
 	if v then
 		return v~= 0
 	else
@@ -57,6 +60,7 @@ __audio_mus_max = getn(audio_bgm)
 pern_dofile(Ind, "races.lua")
 pern_dofile(Ind, "classes.lua")
 pern_dofile(Ind, "traits.lua")
+pern_dofile(Ind, "attributes.lua")
 pern_dofile(Ind, "bpr.lua")
 pern_dofile(Ind, "mimicry.lua")
 pern_dofile(Ind, "activations.lua")
@@ -68,6 +72,7 @@ pern_dofile(Ind, "cblue.lua")
 pern_dofile(Ind, "evil.lua")
 -- pern_dofile(Ind, "zz.lua") -- file isn't there? -the_sandman
 --pern_dofile(Ind, "jir.lua")
+--pern_dofile(Ind, "moltor.lua")
 pern_dofile(Ind, "it.lua")
 pern_dofile(Ind, "mikaelh.lua")
 
@@ -91,6 +96,9 @@ pern_dofile(Ind, "custom.lua")
 -- Super-experimental: Special lua functions called by the quests framework in q_info.txt.
 pern_dofile(Ind, "quests.lua")
 
+-- DM helper functions for "adventure module" files, see DM_MODULES - Kurzel
+pern_dofile(Ind, "module.lua")
+pern_dofile(Ind, "adventures.lua")
 
 -- Restore a good neat handler
 _ALERT = __old_ALERT

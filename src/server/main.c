@@ -259,9 +259,6 @@ int main(int argc, char *argv[]) {
 	/* Acquire the version strings */
 	version_build();
 
-	printf("%s\n", longVersion);
-	printf("%s\n", os_version);
-
 	/* Possibly move the server config files and the account file */
 	migrate_files();
 
@@ -282,6 +279,9 @@ int main(int argc, char *argv[]) {
 
 	/* Write PID */
 	writepid(buf);
+
+	s_printf("%s\n", longVersion);
+	s_printf("%s\n", os_version);
 
 	/* Tell the scripts that the server is up now */
 	update_check_file();

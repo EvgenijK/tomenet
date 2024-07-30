@@ -513,10 +513,10 @@ static int next_to_walls(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
 
-	if (f_info[zcave[y+1][x].feat].flags1 & FF1_WALL) k++;
-	if (f_info[zcave[y-1][x].feat].flags1 & FF1_WALL) k++;
-	if (f_info[zcave[y][x+1].feat].flags1 & FF1_WALL) k++;
-	if (f_info[zcave[y][x-1].feat].flags1 & FF1_WALL) k++;
+	if (f_info[zcave[y + 1][x].feat].flags1 & FF1_WALL) k++;
+	if (f_info[zcave[y - 1][x].feat].flags1 & FF1_WALL) k++;
+	if (f_info[zcave[y][x + 1].feat].flags1 & FF1_WALL) k++;
+	if (f_info[zcave[y][x - 1].feat].flags1 & FF1_WALL) k++;
 	return(k);
 }
 
@@ -622,8 +622,18 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 	/* Place the fountain */
 	if (randint(100) < 20) { /* 30 */
 		/* XXX Empty fountain doesn't need 'type', does it? */
+#ifdef DM_MODULES
+		if (in_module(wpos)) { // Just edit modules w/ fountains in sector000 tower
+			// Hack - Retain FEAT_FOUNTAIN so it persists thru module_save() - Kurzel
+			cave_set_feat(wpos, y, x, FEAT_FOUNTAIN);
+			// Make it drinkable...
+			if (!(cs_ptr = AddCS(c_ptr, CS_FOUNTAIN))) return;
+			cs_ptr->sc.fountain.type = SV_POTION_WATER;
+			cs_ptr->sc.fountain.rest = damroll(1, 5);
+		} else
+#endif
 		cave_set_feat(wpos, y, x, FEAT_EMPTY_FOUNTAIN);
-/*		c_ptr->special2 = 0; */
+		/*c_ptr->special2 = 0; */
 		return;
 	}
 
@@ -674,10 +684,10 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 		/* Some hacks: */
 		if (cs_ptr->sc.fountain.type <= SV_POTION_LAST)
 			switch (cs_ptr->sc.fountain.type) {
-/*			case SV_POTION_NEW_LIFE:
+			/*case SV_POTION_NEW_LIFE:
 				cs_ptr->sc.fountain.rest = 1;
-				break;
-*/			case SV_POTION_INC_STR:	case SV_POTION_INC_INT:
+				break;*/
+			case SV_POTION_INC_STR:	case SV_POTION_INC_INT:
 			case SV_POTION_INC_WIS:	case SV_POTION_INC_DEX:
 			case SV_POTION_INC_CON:	case SV_POTION_INC_CHR:
 			case SV_POTION_STAR_RESTORE_MANA:
@@ -723,7 +733,7 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 #endif	/* 0 */
 	}
 
-/*	c_ptr->special = svals[rand_int(maxsval)]; */
+	/*c_ptr->special = svals[rand_int(maxsval)]; */
 }
 
 /* Place a fountain of blood, for Vampires, as suggested by Mark -  C. Blue */
@@ -1707,7 +1717,8 @@ static void lake_level(struct worldpos *wpos) {
 					c_ptr->info &= ~(CAVE_ROOM | CAVE_ICKY);
 
 					/* No longer illuminated or known */
-					if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW))
+					if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)
+					    && !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP)))
 						c_ptr->info &= ~CAVE_GLOW;
 				}
 			}
@@ -1784,7 +1795,8 @@ static void destroy_level(struct worldpos *wpos) {
 					c_ptr->info &= ~(CAVE_ROOM | CAVE_ICKY);
 
 					/* No longer illuminated or known */
-					if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW))
+					if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)
+					    && !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP)))
 						c_ptr->info &= ~CAVE_GLOW;
 				}
 			}
@@ -1950,8 +1962,8 @@ static void place_floor_respectedly(worldpos *wpos, int y, int x) {
 	if (dun->no_penetr && zcave[y][x].info & CAVE_ICKY) return;
 #else /* ..and here it is: no harming of vault walls at all */
 	if (zcave[y][x].info & CAVE_ICKY) return; /* works fine */
-//	if (zcave[y][x].info & CAVE_NEST_PIT) return; /* no effect, because the limiting walls don't have the flag actually. Also, accessibility unclear? */
-//	if (zcave[y][x].info & CAVE_ROOM) return; /* lacks door generation! Rooms won't be accessible (although otherwise fine) */
+	//if (zcave[y][x].info & CAVE_NEST_PIT) return; /* no effect, because the limiting walls don't have the flag actually. Also, accessibility unclear? */
+	//if (zcave[y][x].info & CAVE_ROOM) return; /* lacks door generation! Rooms won't be accessible (although otherwise fine) */
 #endif
 	cave_set_feat(wpos, y, x, floor_type[rand_int(1000)]);
 }
@@ -2247,7 +2259,7 @@ static void recursive_river(worldpos *wpos, int x1,int y1, int x2, int y2,
 					if (distance(ty, tx, y, x) > width) cave_set_feat(wpos, ty, tx, feat2);
 					else cave_set_feat(wpos, ty, tx, feat1);
 
-					/* Lava terrain glows */
+					/* Lava terrain glows - redundant, done by cave_set_feat() as long as lava has GLOW flag in f_info? */
 					if ((feat1 == FEAT_DEEP_LAVA) ||
 					    (feat1 == FEAT_SHAL_LAVA))
 						zcave[ty][tx].info |= CAVE_GLOW;
@@ -2295,7 +2307,7 @@ static void add_river(worldpos *wpos, int feat1, int feat2) {
 	    feat2 == FEAT_SHAL_LAVA || feat2 == FEAT_DEEP_LAVA) {
 		l_ptr->flags1 |= LF1_LAVA;
 s_printf("adding river (%d) %d,%d\n", (l_ptr->flags1 & LF1_DEEP_LAVA) ? 1 : 0, feat1, feat2);
-//		feat1 = feat2 = FEAT_DEEP_LAVA;
+		//feat1 = feat2 = FEAT_DEEP_LAVA;
 	}
 
 	/* Hack -- Choose starting point */
@@ -2420,15 +2432,15 @@ static void build_type1(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Walls around the room */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -2534,29 +2546,29 @@ static void build_type2(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Place the walls around room "a" */
 	for (y = y1a - 1; y <= y2a + 1; y++) {
-		c_ptr = &zcave[y][x1a-1];
+		c_ptr = &zcave[y][x1a - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2a+1];
+		c_ptr = &zcave[y][x2a + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1a - 1; x <= x2a + 1; x++) {
-		c_ptr = &zcave[y1a-1][x];
+		c_ptr = &zcave[y1a - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2a+1][x];
+		c_ptr = &zcave[y2a + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
 	/* Place the walls around room "b" */
 	for (y = y1b - 1; y <= y2b + 1; y++) {
-		c_ptr = &zcave[y][x1b-1];
+		c_ptr = &zcave[y][x1b - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2b+1];
+		c_ptr = &zcave[y][x2b + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1b - 1; x <= x2b + 1; x++) {
-		c_ptr = &zcave[y1b-1][x];
+		c_ptr = &zcave[y1b - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2b+1][x];
+		c_ptr = &zcave[y2b + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -2659,29 +2671,29 @@ static void build_type3(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Place the walls around room "a" */
 	for (y = y1a - 1; y <= y2a + 1; y++) {
-		c_ptr = &zcave[y][x1a-1];
+		c_ptr = &zcave[y][x1a - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2a+1];
+		c_ptr = &zcave[y][x2a + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1a - 1; x <= x2a + 1; x++) {
-		c_ptr = &zcave[y1a-1][x];
+		c_ptr = &zcave[y1a - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2a+1][x];
+		c_ptr = &zcave[y2a + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
 	/* Place the walls around room "b" */
 	for (y = y1b - 1; y <= y2b + 1; y++) {
-		c_ptr = &zcave[y][x1b-1];
+		c_ptr = &zcave[y][x1b - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2b+1];
+		c_ptr = &zcave[y][x2b + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1b - 1; x <= x2b + 1; x++) {
-		c_ptr = &zcave[y1b-1][x];
+		c_ptr = &zcave[y1b - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2b+1][x];
+		c_ptr = &zcave[y2b + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -2858,15 +2870,15 @@ static void build_type4(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Outer Walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -2879,15 +2891,15 @@ static void build_type4(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* The inner walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_inner;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_inner;
 	}
 
@@ -3001,16 +3013,16 @@ static void build_type4(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		if (rand_int(3) == 0) {
 			/* Long horizontal walls */
 			for (x = xval - 5; x <= xval + 5; x++) {
-				c_ptr = &zcave[yval-1][x];
+				c_ptr = &zcave[yval - 1][x];
 				c_ptr->feat = feat_wall_inner;
-				c_ptr = &zcave[yval+1][x];
+				c_ptr = &zcave[yval + 1][x];
 				c_ptr->feat = feat_wall_inner;
 			}
 
 			/* Close off the left/right edges */
-			c_ptr = &zcave[yval][xval-5];
+			c_ptr = &zcave[yval][xval - 5];
 			c_ptr->feat = feat_wall_inner;
-			c_ptr = &zcave[yval][xval+5];
+			c_ptr = &zcave[yval][xval + 5];
 			c_ptr->feat = feat_wall_inner;
 
 			/* Secret doors (random top/bottom) */
@@ -3298,10 +3310,10 @@ static bool vault_aux_lesser_chapel(int r_idx) {
 	if (r_ptr->flags1 & (RF1_UNIQUE)) return(FALSE);
 
 	/* No Blade angels */
-	if (r_ptr->flags0 & RF0_NO_NEST) return(FALSE);
+	if (r_ptr->flags2 & RF2_NO_NEST) return(FALSE);
 
 	/* Require "priest" or Angel */
-//	if (!((r_ptr->d_char == 'A' && (r_ptr->level <= 70)) ||
+	//if (!((r_ptr->d_char == 'A' && (r_ptr->level <= 70)) ||
 	if (!((r_ptr->d_char == 'A') ||
 	    strstr((r_name + r_ptr->name), "riest") ||
 	    strstr((r_name + r_ptr->name), "aladin") ||
@@ -3333,7 +3345,7 @@ static bool vault_aux_lesser_kennel(int r_idx) {
 	if (r_ptr->flags1 & (RF1_UNIQUE)) return(FALSE);
 
 	/* Not too many Black Dogs */
-	if (r_ptr->flags0 & RF0_NO_NEST) return(FALSE);
+	if (r_ptr->flags2 & RF2_NO_NEST) return(FALSE);
 
 	/* Require a Zephyr Hound or a dog */
 	return((r_ptr->d_char == 'Z') || (r_ptr->d_char == 'C'));
@@ -3369,7 +3381,7 @@ static bool vault_aux_treasure(int r_idx) {
  */
 static bool vault_aux_clone(int r_idx) {
 	/* unsure - blades shouldn't happen, but should titans? */
-	if (r_info[r_idx].flags0 & RF0_NO_NEST) return(FALSE);
+	if (r_info[r_idx].flags2 & RF2_NO_NEST) return(FALSE);
 
 	return(r_idx == template_race);
 }
@@ -3381,7 +3393,7 @@ static bool vault_aux_clone(int r_idx) {
 static bool vault_aux_symbol(int r_idx) {
 	return((r_info[r_idx].d_char == (r_info[template_race].d_char))
 	    && !(r_info[r_idx].flags1 & RF1_UNIQUE)
-	    && !(r_info[r_idx].flags0 & RF0_NO_NEST));
+	    && !(r_info[r_idx].flags2 & RF2_NO_NEST));
 }
 
 
@@ -3476,7 +3488,7 @@ static bool vault_aux_lesser_giant(int r_idx) {
 	if (r_ptr->flags1 & RF1_UNIQUE) return(FALSE);
 
 	/* No Titans */
-	if (r_ptr->flags0 & RF0_NO_NEST) return(FALSE);
+	if (r_ptr->flags2 & RF2_NO_NEST) return(FALSE);
 
 	/* Hack -- Require "P" monsters */
 	if (!strchr("P", r_ptr->d_char)) return(FALSE);
@@ -3603,15 +3615,15 @@ static void build_type5(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Place the outer walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -3624,15 +3636,15 @@ static void build_type5(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* The inner walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_inner;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_inner;
 	}
 
@@ -3869,15 +3881,15 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* Place the outer walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_outer;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_outer;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_outer;
 	}
 
@@ -3902,15 +3914,15 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 
 	/* The inner walls */
 	for (y = y1 - 1; y <= y2 + 1; y++) {
-		c_ptr = &zcave[y][x1-1];
+		c_ptr = &zcave[y][x1 - 1];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y][x2+1];
+		c_ptr = &zcave[y][x2 + 1];
 		c_ptr->feat = feat_wall_inner;
 	}
 	for (x = x1 - 1; x <= x2 + 1; x++) {
-		c_ptr = &zcave[y1-1][x];
+		c_ptr = &zcave[y1 - 1][x];
 		c_ptr->feat = feat_wall_inner;
-		c_ptr = &zcave[y2+1][x];
+		c_ptr = &zcave[y2 + 1][x];
 		c_ptr->feat = feat_wall_inner;
 	}
 
@@ -4141,7 +4153,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 0; i < 8; i++) {
 			if (what[i] == 709) {
 				/* make one 'Hru' the top entry, all following entries weaker than 'Hru' */
-				for (j = 7; j >= 7-i; j--) what[j] = what[i+j-7];
+				for (j = 7; j >= 7 - i; j--) what[j] = what[i + j - 7];
 				break;
 			}
 		}
@@ -4150,7 +4162,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 1; i < 7; i++) {
 			if (what[i] == 709) {
 				/* Copy over the following entries (duplicating the last entry effectively) */
-				for (j = i; j >= 1; j--) what[j] = what[j-1];
+				for (j = i; j >= 1; j--) what[j] = what[j - 1];
 			}
 		}
 		/* Check for Greater Titan at positions below #2 or #3 (leaving out the last entry, shouldn't occur there really) */
@@ -4159,7 +4171,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 			if (what[i] == 702) {
 				/* Copy over the following entries (duplicating the last entry effectively) */
 				for (j = i; j >= 1; j--) {
-					what[j] = what[j-1];
+					what[j] = what[j - 1];
 			}
 		}
 		/* Check for Lesser Titan at positions below #2 or #3 (leaving out the last entry, shouldn't occur there really) */
@@ -4168,7 +4180,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 			if (what[i] == 634) {
 				/* Copy over the following entries (duplicating the last entry effectively) */
 				for (j = i; j >= 1; j--) {
-					what[j] = what[j-1];
+					what[j] = what[j - 1];
 			}
 		}
 	}
@@ -4180,7 +4192,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 0; i < 8; i++) {
 			if (what[i] == 709) {
 				/* make one 'Hru' the top entry, all following entries weaker than 'Hru' */
-				for (j = 7; j >= 7-i; j--) what[j] = what[i+j-7];
+				for (j = 7; j >= 7 - i; j--) what[j] = what[i + j - 7];
 				break;
 			}
 		}
@@ -4189,11 +4201,11 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 			if (what[i] == 702) {
 				if (what[7] == 709) { /* Is a 'Hru' at the top? */
 					/* make 'Greater Titan' the second to top entry, all following entries weaker than 'Greater Titan' */
-					for (j = 6; j >= 6-i; j--) what[j] = what[i+j-6];
+					for (j = 6; j >= 6 - i; j--) what[j] = what[i + j - 6];
 					break;
 				} else {
 					/* make one 'Greater Titan' the top entry, all following entries weaker than 'Greater Titan' */
-					for (j = 7; j >= 7-i; j--) what[j] = what[i+j-7];
+					for (j = 7; j >= 7 - i; j--) what[j] = what[i + j - 7];
 					break;
 				}
 			}
@@ -4204,15 +4216,15 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 				if (what[6] == 702) { /* Is a 'Greater Titan' already occupying the second to top position? */
 					/* Remove either 'Lesser Titan' or 'Greater Titan' since 6 of them would be too many */
 					if (magik(50)) what[i] = 702;
-					for (j = 6; j >= 6-i; j--) what[j] = what[i+j-6];
+					for (j = 6; j >= 6 - i; j--) what[j] = what[i + j - 6];
 					break;
 				} else if (what[7] == 702 || what[7] == 709) {
 					/* make one 'Lesser Titan' the second to top entry, all following entries weaker than 'Lesser Titan' */
-					for (j = 6; j >= 6-i; j--) what[j] = what[i+j-6];
+					for (j = 6; j >= 6 - i; j--) what[j] = what[i + j - 6];
 					break;
 				} else {
 					/* make one 'Lesser Titan' the top entry, all following entries weaker than 'Lesser Titan' */
-					for (j = 7; j >= 7-i; j--) what[j] = what[i+j-7];
+					for (j = 7; j >= 7 - i; j--) what[j] = what[i + j - 7];
 					break;
 				}
 			}
@@ -4226,7 +4238,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 0; i < 8; i++) {
 			if (what[i] == 709) {
 				/* make next entry the top entry, removing the 'Hru' */
-				for (j = 7; j >= i; j--) what[j] = what[i-1];
+				for (j = 7; j >= i; j--) what[j] = what[i - 1];
 				break;
 			}
 		}
@@ -4234,7 +4246,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 0; i < 8; i++) {
 			if (what[i] == 702) {
 				/* make next entry the top entry, removing the 'Greater Titan' */
-				for (j = 7; j >= i; j--) what[j] = what[i-1];
+				for (j = 7; j >= i; j--) what[j] = what[i - 1];
 				break;
 			}
 		}
@@ -4242,7 +4254,7 @@ static void build_type6(struct worldpos *wpos, int by0, int bx0, player_type *p_
 		for (i = 0; i < 8; i++) {
 			if (what[i] == 634) {
 				/* make next entry the top entry, removing the 'Lesser Titan' */
-				for (j = 7; j >= i; j--) what[j] = what[i-1];
+				for (j = 7; j >= i; j--) what[j] = what[i - 1];
 				break;
 			}
 		}
@@ -4352,7 +4364,7 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 	/* artificially add random-artifact restrictions: */
 	if (lev < 55 + rand_int(6) + rand_int(6)) resf |= RESF_NORANDART;
 	if (lev < 75 + rand_int(6) + rand_int(6)) eff_forbid_rand = 80;
-//	if (!(v_ptr->flags1 & VF1_NO_TELE)) eff_forbid_rand = 50; /* maybe too harsh, depends on amount of '8's in deep tele-ok-vaults */
+	//if (!(v_ptr->flags1 & VF1_NO_TELE)) eff_forbid_rand = 50; /* maybe too harsh, depends on amount of '8's in deep tele-ok-vaults */
 
 	if (v_ptr->flags1 & VF1_NO_TRUEARTS) resf |= RESF_NOTRUEART;
 	if (v_ptr->flags1 & VF1_NO_RANDARTS) resf |= RESF_NORANDART;
@@ -4370,8 +4382,8 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 		if (!(v_ptr->flags1 & VF1_NO_ROTATE) && magik(30)) rotate = TRUE;
 	}
 
-	cx = xval - ((rotate?ymax:xmax) / 2) * (mirrorlr?-1:1);
-	cy = yval - ((rotate?xmax:ymax) / 2) * (mirrorud?-1:1);
+	cx = xval - ((rotate ? ymax : xmax) / 2) * (mirrorlr ? -1 : 1);
+	cy = yval - ((rotate ? xmax : ymax) / 2) * (mirrorud ? -1 : 1);
 
 	/* At least 1/4 should be genetated */
 	if (!in_bounds_floor(l_ptr, cy, cx))
@@ -4403,10 +4415,10 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 			if (magik(eff_forbid_rand)) eff_resf |= RESF_NORANDART;
 
 			/* Extract the location */
-/*			x = xval - (xmax / 2) + dx;
-			y = yval - (ymax / 2) + dy;	*/
-			x = cx + (rotate?dy:dx) * (mirrorlr?-1:1);
-			y = cy + (rotate?dx:dy) * (mirrorud?-1:1);
+			/* x = xval - (xmax / 2) + dx;
+			y = yval - (ymax / 2) + dy; */
+			x = cx + (rotate ? dy : dx) * (mirrorlr ? -1 : 1);
+			y = cy + (rotate ? dx : dy) * (mirrorud ? -1 : 1);
 
 			/* FIXME - find a better solution */
 			/* Is this any better? */
@@ -4586,10 +4598,10 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 			if (magik(eff_forbid_rand)) eff_resf |= RESF_NORANDART;
 
 			/* Extract the location */
-/*			x = xval - (xmax / 2) + dx;
-			y = yval - (ymax / 2) + dy;	*/
-			x = cx + (rotate?dy:dx) * (mirrorlr?-1:1);
-			y = cy + (rotate?dx:dy) * (mirrorud?-1:1);
+			/* x = xval - (xmax / 2) + dx;
+			y = yval - (ymax / 2) + dy; */
+			x = cx + (rotate ? dy : dx) * (mirrorlr ? -1 : 1);
+			y = cy + (rotate ? dx : dy) * (mirrorud ? -1 : 1);
 
 			/* FIXME - find a better solution */
 			/* Is this any better? */
@@ -4687,8 +4699,8 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 				/* Extract the location */
 				/*x = xval - (xmax / 2) + dx;
 				y = yval - (ymax / 2) + dy; */
-				x = cx + (rotate?dy:dx) * (mirrorlr?-1:1);
-				y = cy + (rotate?dx:dy) * (mirrorud?-1:1);
+				x = cx + (rotate ? dy : dx) * (mirrorlr ? -1 : 1);
+				y = cy + (rotate ? dx : dy) * (mirrorud ? -1 : 1);
 
 				/* FIXME - find a better solution */
 				/* Is this any better? */
@@ -4870,7 +4882,7 @@ static void store_height(worldpos *wpos, int x, int y, int x0, int y0, byte val,
 	if (!(zcave = getcave(wpos))) return;
 
 	/* Only write to points that are "blank" */
-	if (zcave[y+ y0 - yhsize][x + x0 - xhsize].temp != 255) return;
+	if (zcave[y+ y0 - yhsize][x + x0 - xhsize].htemp != 255) return;
 
 	 /* If on boundary set val > cutoff so walls are not as square */
 	if (((x == 0) || (y == 0) || (x == xhsize * 2) || (y == yhsize * 2)) &&
@@ -4878,7 +4890,7 @@ static void store_height(worldpos *wpos, int x, int y, int x0, int y0, byte val,
 
 	/* Store the value in height-map format */
 	/* Meant to be temporary, hence no cave_set_feat */
-	zcave[y + y0 - yhsize][x + x0 - xhsize].temp = val;
+	zcave[y + y0 - yhsize][x + x0 - xhsize].htemp = val;
 
 	return;
 }
@@ -4948,7 +4960,11 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 	 */
 	u16b xstep, xhstep, ystep, yhstep, i, j, diagsize, xxsize, yysize;
 
-	cave_type **zcave;
+	cave_type **zcave, *c_ptr;
+
+	cave_type *l, *r, *u, *d;
+	cave_type *ul, *dl, *ur, *dr;
+	byte val;
 
 
 	if (!(zcave = getcave(wpos))) return;
@@ -4984,13 +5000,11 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 	/* Clear the section */
 	for (i = 0; i <= xsize; i++) {
 		for (j = 0; j <= ysize; j++) {
-			cave_type *c_ptr;
-
 			/* Access the grid */
 			c_ptr = &zcave[j + y0 - yhsize][i + x0 - xhsize];
 
 			/* 255 is a flag for "not done yet" */
-			c_ptr->temp = 255;
+			c_ptr->htemp = 255;
 
 			/* Clear icky flag because may be redoing the cave */
 			c_ptr->info &= ~(CAVE_ICKY);
@@ -5031,9 +5045,6 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 				if (xhstep / 256 > grd)
 					store_height(wpos, i / 256, j / 256, x0, y0, randint(maxsize), xhsize, yhsize, cutoff);
 				else {
-					cave_type *l, *r;
-					byte val;
-
 					/* Left point */
 					l = &zcave[j / 256 + y0 - yhsize][(i - xhstep) / 256 + x0 - xhsize];
 
@@ -5041,7 +5052,7 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 					r = &zcave[j / 256 + y0 - yhsize][(i + xhstep) / 256 + x0 - xhsize];
 
 					/* Average of left and right points + random bit */
-					val = (l->temp + r->temp) / 2 +
+					val = (l->htemp + r->htemp) / 2 +
 						  (randint(xstep / 256) - xhstep / 256) * roug / 16;
 
 					store_height(wpos, i / 256, j / 256, x0, y0, val,
@@ -5057,9 +5068,6 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 				if (xhstep / 256 > grd)
 					store_height(wpos, i / 256, j / 256, x0, y0, randint(maxsize), xhsize, yhsize, cutoff);
 				else {
-					cave_type *u, *d;
-					byte val;
-
 					/* Up point */
 					u = &zcave[(j - yhstep) / 256 + y0 - yhsize][i / 256 + x0 - xhsize];
 
@@ -5067,7 +5075,7 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 					d = &zcave[(j + yhstep) / 256 + y0 - yhsize][i / 256 + x0 - xhsize];
 
 					/* Average of up and down points + random bit */
-					val = (u->temp + d->temp) / 2 +
+					val = (u->htemp + d->htemp) / 2 +
 						  (randint(ystep / 256) - yhstep / 256) * roug / 16;
 
 					store_height(wpos, i / 256, j / 256, x0, y0, val,
@@ -5083,9 +5091,6 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 				if (xhstep / 256 > grd)
 					store_height(wpos, i / 256, j / 256, x0, y0, randint(maxsize), xhsize, yhsize, cutoff);
 				else {
-					cave_type *ul, *dl, *ur, *dr;
-					byte val;
-
 					/* Up-left point */
 					ul = &zcave[(j - yhstep) / 256 + y0 - yhsize][(i - xhstep) / 256 + x0 - xhsize];
 
@@ -5103,7 +5108,7 @@ static void generate_hmap(worldpos *wpos, int y0, int x0, int xsiz, int ysiz, in
 					 * reduce the effect of the square grid on the shape
 					 * of the fractal
 					 */
-					val = (ul->temp + dl->temp + ur->temp + dr->temp) / 4 +
+					val = (ul->htemp + dl->htemp + ur->htemp + dr->htemp) / 4 +
 					      (randint(xstep / 256) - xhstep / 256) *
 						  (diagsize / 16) / 256 * roug;
 
@@ -5131,7 +5136,7 @@ static bool hack_isnt_wall(worldpos *wpos, int y, int x, int cutoff) {
 	zcave[y][x].info |= (CAVE_ICKY);
 
 	/* If less than cutoff then is a floor */
-	if (zcave[y][x].temp <= cutoff) {
+	if (zcave[y][x].htemp <= cutoff) {
 		place_floor(wpos, y, x);
 		return(TRUE);
 	}
@@ -5407,7 +5412,7 @@ static void build_type10(worldpos *wpos, int by0, int bx0, player_type *p_ptr) {
 	ysize = randint(15) * 2 + 6;
 
 	/* Try to allocate space for room.  If fails, exit */
-	if (!room_alloc(wpos, xsize+1, ysize+1, FALSE, by0, bx0, &x0, &y0)) return;
+	if (!room_alloc(wpos, xsize + 1, ysize + 1, FALSE, by0, bx0, &x0, &y0)) return;
 
 	light = done = FALSE;
 	room = TRUE;
@@ -5768,10 +5773,10 @@ static void build_bubble_vault(worldpos *wpos, int x0, int y0, int xsize, int ys
 			 * SCSCSC: was feat_wall_outer
 			 */
 			if (((min2 - min1) <= 2) && (!(min1 < 3)))
-				place_filler(wpos, y+y0-yhsize, x+x0-xhsize);
+				place_filler(wpos, y + y0 - yhsize, x + x0 - xhsize);
 			/* Middle of a bubble */
 			else
-				place_floor(wpos, y+y0-yhsize, x+x0-xhsize);
+				place_floor(wpos, y + y0 - yhsize, x + x0 - xhsize);
 
 			/* Clean up rest of flags */
 			c_ptr->info |= (CAVE_ROOM | CAVE_ICKY);
@@ -6749,7 +6754,7 @@ static void build_type12(worldpos *wpos, int by0, int bx0, player_type *p_ptr) {
  *
  * static char maze[(MAX_HGT / 2) + 2][(MAX_WID / 2) + 2];
  */
-typedef char maze_row[(MAX_WID / 2) + 2];
+typedef signed char maze_row[(MAX_WID / 2) + 2];
 
 static void dig(maze_row *maze, int y, int x, int d) {
 	int k;
@@ -7549,13 +7554,13 @@ static bool possible_doorway(struct worldpos *wpos, int y, int x) {
 	/* Count the adjacent corridors */
 	if (next_to_corr(wpos, y, x) >= 2) {
 		/* Check Vertical */
-		if ((zcave[y-1][x].feat >= FEAT_MAGMA) &&
-		    (zcave[y+1][x].feat >= FEAT_MAGMA))
+		if ((zcave[y - 1][x].feat >= FEAT_MAGMA) &&
+		    (zcave[y + 1][x].feat >= FEAT_MAGMA))
 			return(TRUE);
 
 		/* Check Horizontal */
-		if ((zcave[y][x-1].feat >= FEAT_MAGMA) &&
-		    (zcave[y][x+1].feat >= FEAT_MAGMA))
+		if ((zcave[y][x - 1].feat >= FEAT_MAGMA) &&
+		    (zcave[y][x + 1].feat >= FEAT_MAGMA))
 			return(TRUE);
 	}
 
@@ -7571,39 +7576,39 @@ static int possible_doorway(struct worldpos *wpos, int y, int x) {
 	/* Count the adjacent corridors */
 	if (next_to_corr(wpos, y, x) >= 2) {
 		/* Hack -- avoid doors next to doors */
-		if (is_door(zcave[y-1][x].feat) ||
-			is_door(zcave[y+1][x].feat) ||
-			is_door(zcave[y][x-1].feat) ||
-			is_door(zcave[y][x+1].feat))
+		if (is_door(zcave[y - 1][x].feat) ||
+			is_door(zcave[y + 1][x].feat) ||
+			is_door(zcave[y][x - 1].feat) ||
+			is_door(zcave[y][x + 1].feat))
 			return(-1);
 
 		/* Check Vertical */
-		if ((zcave[y-1][x].feat >= FEAT_MAGMA) &&
-		    (zcave[y+1][x].feat >= FEAT_MAGMA))
+		if ((zcave[y - 1][x].feat >= FEAT_MAGMA) &&
+		    (zcave[y + 1][x].feat >= FEAT_MAGMA))
 			return(8);
 #if 1
-		if (in_bounds(y-2, x) &&
-			(zcave[y-2][x].feat >= FEAT_MAGMA) &&
-		    (zcave[y+1][x].feat >= FEAT_MAGMA))
+		if (in_bounds(y - 2, x) &&
+			(zcave[y - 2][x].feat >= FEAT_MAGMA) &&
+		    (zcave[y + 1][x].feat >= FEAT_MAGMA))
 			return(1);
-		if (in_bounds(y+2, x) &&
-			(zcave[y-1][x].feat >= FEAT_MAGMA) &&
-		    (zcave[y+2][x].feat >= FEAT_MAGMA))
+		if (in_bounds(y + 2, x) &&
+			(zcave[y - 1][x].feat >= FEAT_MAGMA) &&
+		    (zcave[y + 2][x].feat >= FEAT_MAGMA))
 			return(0);
 #endif	/* 0 */
 
 		/* Check Horizontal */
-		if ((zcave[y][x-1].feat >= FEAT_MAGMA) &&
-		    (zcave[y][x+1].feat >= FEAT_MAGMA))
+		if ((zcave[y][x - 1].feat >= FEAT_MAGMA) &&
+		    (zcave[y][x + 1].feat >= FEAT_MAGMA))
 			return(8);
 #if 1
-		if (in_bounds(y, x-2) &&
-			(zcave[y][x-2].feat >= FEAT_MAGMA) &&
-		    (zcave[y][x+1].feat >= FEAT_MAGMA))
+		if (in_bounds(y, x - 2) &&
+			(zcave[y][x - 2].feat >= FEAT_MAGMA) &&
+		    (zcave[y][x + 1].feat >= FEAT_MAGMA))
 			return(3);
-		if (in_bounds(y, x+2) &&
-			(zcave[y][x-1].feat >= FEAT_MAGMA) &&
-		    (zcave[y][x+2].feat >= FEAT_MAGMA))
+		if (in_bounds(y, x + 2) &&
+			(zcave[y][x - 1].feat >= FEAT_MAGMA) &&
+		    (zcave[y][x + 2].feat >= FEAT_MAGMA))
 			return(2);
 #endif	/* 0 */
 	}
@@ -8439,7 +8444,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		dun = &dun_body;
 		dun->l_ptr = getfloor(wpos);
 		dun->l_ptr->flags1 = LF1_NO_DESTROY;
-		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES;
+		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TRAPS;
 #ifdef SIMPLE_RI_MIRROR
 		dun->l_ptr->flags2 |= LF2_NO_RUN; /* Don't allow too easy kiting */
 #endif
@@ -8464,6 +8469,10 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		/* add the arena */
 		//keep objects that may be on the floor...... but get rid of monsters
 		x1 = y1 = 0;
+		if (p_ptr->temp_misc_1 & 0x80) {
+			pdf_hack_feat = FEAT_PERM_EXTRA_BOUND;
+			pdf_hack_feat_new = FEAT_PERM_EXTRA_BOUND_SPEC_ANICOL;
+		}
 		i = process_dungeon_file("t_arena_mirror.txt", wpos, &y1, &x1, SCREEN_HGT, SCREEN_WID, TRUE);
 		if (p_ptr->temp_misc_1 & 0x80) {
 			int startx, starty;
@@ -8486,7 +8495,12 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			new_level_down_x(wpos, startx);
 			new_level_down_y(wpos, starty);
 			s_printf("DF-way (%s(%s)L%d:%d)\n", p_ptr->name, p_ptr->accountname, p_ptr->lev, i);
-		} else s_printf("DF-mirror (%s(%s)L%d:%d)\n", p_ptr->name, p_ptr->accountname, p_ptr->lev, i);
+
+			pdf_hack_feat = -1;
+		} else {
+			dun->l_ptr->flags2 |= LF2_NO_MARTYR_SAC;
+			s_printf("DF-mirror (%s(%s)L%d:%d)\n", p_ptr->name, p_ptr->accountname, p_ptr->lev, i);
+		}
 		//wipe_m_list(&p_ptr->wpos);
 
 		/* reattach objects and monsters */
@@ -8506,7 +8520,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		dun = &dun_body;
 		dun->l_ptr = getfloor(wpos);
 		dun->l_ptr->flags1 = LF1_NO_DESTROY | LF1_NO_MAGIC;
-		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TELE;
+		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TELE | LF2_NO_TRAPS;
 		dun->l_ptr->monsters_generated = dun->l_ptr->monsters_spawned = dun->l_ptr->monsters_killed = 0;
 		//if (season_halloween && p_ptr && (p_ptr->prob_travel || p_ptr->ghost)) dun->l_ptr->flags1 |= LF1_FAST_DIVE;
 
@@ -8545,7 +8559,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		dun = &dun_body;
 		dun->l_ptr = getfloor(wpos);
 		dun->l_ptr->flags1 = LF1_NO_DESTROY;
-		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES;
+		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TRAPS;
 		dun->l_ptr->monsters_generated = dun->l_ptr->monsters_spawned = dun->l_ptr->monsters_killed = 0;
 		//if (season_halloween && p_ptr && (p_ptr->prob_travel || p_ptr->ghost)) dun->l_ptr->flags1 |= LF1_FAST_DIVE;
 
@@ -9042,8 +9056,8 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 
 	/* Actual maximum number of rooms on this level */
-/*	dun->row_rooms = MAX_HGT / BLOCK_HGT;
-	dun->col_rooms = MAX_WID / BLOCK_WID;	*/
+	/* dun->row_rooms = MAX_HGT / BLOCK_HGT;
+	dun->col_rooms = MAX_WID / BLOCK_WID; */
 
 	dun->row_rooms = dun->l_ptr->hgt / BLOCK_HGT;
 	dun->col_rooms = dun->l_ptr->wid / BLOCK_WID;
@@ -9245,8 +9259,8 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			dun->door_n = 0;
 
 			/* Hack -- connect the first room to the last room */
-			y = dun->cent[dun->cent_n-1].y;
-			x = dun->cent[dun->cent_n-1].x;
+			y = dun->cent[dun->cent_n - 1].y;
+			x = dun->cent[dun->cent_n - 1].x;
 
 			/* Connect all the rooms together */
 			for (i = 0; i < dun->cent_n; i++) {
@@ -9345,7 +9359,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			}
 
 			/* Hack -- add *more* downstairs for Highlander Tournament event */
-			if (sector00separation && in_highlander_dun(wpos) && dun_lev > COMFORT_PASSAGE_DEPTH) {
+			if (sector000separation && in_highlander_dun(wpos) && dun_lev > COMFORT_PASSAGE_DEPTH) {
 				/* Place 3 or 4 down stairs near some walls */
 				alloc_stairs(wpos, (d_ptr->flags1 & DF1_FLAT) ? FEAT_WAY_MORE : FEAT_MORE, rand_range(2, 4), 2, NULL);
 			}
@@ -9603,6 +9617,33 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			zcave[y][x].feat = FEAT_PERM_FILL;
 #endif
 
+#ifdef IDDC_REFUGES
+	/* Do this before placing a dungeon boss, so the boss doesn't accidentally get steamrolled and erased */
+	dun->l_ptr->refuge_x = 0;
+	if (in_irondeepdive(wpos) && !town && !((dun_lev % 20) % IDDC_REFUGE_INTERVAL)) {
+		int x1 = rand_int(dun->l_ptr->wid - 2 - 25) + 1, y1 = rand_int(dun->l_ptr->hgt - 2 - 17) + 1;
+
+		if (x1 < dun->l_ptr->wid - 1 - 25 && y1 < dun->l_ptr->hgt - 1 - 17) {
+			int x2, y2;
+
+			/* Bulldoze: Erase any monsters that were already placed here */
+			for (x2 = x1; x2 < x1 + 25; x2++) {
+				for (y2 = y1; y2 < y1 - 17; y2++) {
+					if (zcave[y2][x2].m_idx > 0) delete_monster_idx(zcave[y2][x2].m_idx, TRUE);
+				}
+			}
+
+			x2 = x1;
+			y2 = y1;
+			//i = process_dungeon_file("t_refuge.txt", wpos, &y1, &x1, 17, 25, TRUE);
+			i = process_dungeon_file("t_refuge.txt", wpos, &y1, &x1, dun->l_ptr->hgt - 1, dun->l_ptr->wid - 1, TRUE);
+			dun->l_ptr->refuge_x = x2 + 15;
+			dun->l_ptr->refuge_y = y2 + 9;
+		} else i = -99;
+		s_printf("IDDC-refuge %d (%d,%d) [%d,%d] <%d,%d> -> %d\n", dun_lev, x1, y1, dun->l_ptr->wid, dun->l_ptr->hgt, dun->l_ptr->refuge_x, dun->l_ptr->refuge_y, i);
+	}
+#endif
+
 	/* Possibly create dungeon boss aka FINAL_GUARDIAN.
 	   Rarity 1 in r_info.txt for those bosses now means:
 	   1 in <rarity> chance to generate the boss. - C. Blue */
@@ -9835,7 +9876,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 	/* Check for half void jump gates, resulting from partial vaults
 	   which contain void gates and were cut at the level border - C. Blue */
-/*..	*/
+/*..(already covered?) */
 
 
 	/* Log generation of low/mid-level terrifying floors just for the heck of it */
@@ -9848,9 +9889,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	if (in_valinor(wpos)
 	    /* No dungeon shops on final floor of a dungeon */
 	    || d_ptr->maxdepth == ABS(wpos->wz)
-	    /* No dungeon shops in sector00 dungeons */
-	    || in_sector00_dun(wpos)
-	    /* No dungeon shops in highlander dungeon (usually same as sector00 dungeon) */
+	    /* No dungeon shops in sector000 dungeons */
+	    || in_sector000_dun(wpos)
+	    /* No dungeon shops in highlander dungeon (usually same as sector000 dungeon) */
 	    || in_highlander_dun(wpos)
 	    /* No dungeon shops in AMC */
 	    || in_arena(wpos)
@@ -10361,7 +10402,7 @@ static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 				dx = (i < 2 ? x1 : x2);
 				dy = ((i % 2) ? y2 : y1);
 #endif	/* 1 */
-				x = ( i < 2  ? x1 : x1 + (x2 - x1) / 2);
+				x = (i < 2  ? x1 : x1 + (x2 - x1) / 2);
 				y = ((i % 2) ? y1 + (y2 - y1) / 2 : y1);
 				c_ptr = &zcave[y][x];
 
@@ -10600,7 +10641,7 @@ static void switchable_shop_grids(cave_type **zcave) {
 			for (x2 = x - 1; x2 <= x + 1; x2++) {
 				for (y2 = y - 1; y2 <= y + 1; y2++) {
 					if (!in_bounds(y2, x2)) continue;
-					zcave[y2][x2].info |= CAVE_SWITCH;
+					zcave[y2][x2].info2 |= CAVE2_SWITCH;
 				}
 			}
 		}
@@ -10630,7 +10671,7 @@ static void town_gen_hack(struct worldpos *wpos) {
 
 	int y, x, k, n;
 	int max_base_stores = MAX_BASE_STORES - 1; /* All stores except for the Rune Repository (#9) */
-//	int max_rooms = (max_st_idx > 72 ? 72 : max_st_idx), base_stores = MAX_BASE_STORES; <- not working, because the amount of buildings will be too small -> repeated-stores-glitch appears.
+	//int max_rooms = (max_st_idx > 72 ? 72 : max_st_idx), base_stores = MAX_BASE_STORES; <- not working, because the amount of buildings will be too small -> repeated-stores-glitch appears.
 	int max_rooms = 72, base_stores = max_base_stores;
 #ifdef NEW_TOWNGENHACK_METHOD
 	int posx[base_stores], posy[base_stores], pos[6 * 4];
@@ -10754,7 +10795,7 @@ static void town_gen_hack(struct worldpos *wpos) {
 #ifdef DEVEL_TOWN_COMPATIBILITY
 	/* -APD- place the auction house near the central stores */
 	auction_x = rand_int(5) + 3;
-	if ( (auction_x == 3) || (auction_x == 8) ) auction_y = rand_int(1) + 1;
+	if ((auction_x == 3) || (auction_x == 8)) auction_y = rand_int(1) + 1;
 	else auction_y = (rand_int(1) * 3) + 1; /* 1 or 4 */
 #endif
 #endif
@@ -10919,12 +10960,11 @@ static void town_gen_hack(struct worldpos *wpos) {
 			/* don't build "homes" in dungeon towns */
 			if (!(rooms[k] == STORE_HOUSE && dungeon_town)) {
  #ifdef DEVEL_TOWN_COMPATIBILITY
-				if ( (y != auction_y) || (x != auction_x) ) {
+				if ((y != auction_y) || (x != auction_x))
 					/* Build that store at the proper location */
 					build_store(wpos, rooms[k], y, x);
-				} else { /* auction time! */
+				else /* auction time! */
 					build_store(wpos, STORE_AUCTION, y, x);
-				}
  #else
 				build_store(wpos, rooms[k], y, x);
  #endif
@@ -10975,7 +11015,7 @@ static void town_gen_hack(struct worldpos *wpos) {
 
 static void town_gen(struct worldpos *wpos) {
 	int y, x, type = -1, i;
-	int xstart = 0, ystart = 0;	/* dummy, for now */
+	int xstart = 0, ystart = 0;
 
 	cave_type	*c_ptr;
 	cave_type	**zcave;
@@ -11007,7 +11047,7 @@ static void town_gen(struct worldpos *wpos) {
 		c_ptr->info |= (CAVE_GLOW | CAVE_MARK);*/
 
 		/* South wall */
-		c_ptr = &zcave[MAX_HGT-1][x];
+		c_ptr = &zcave[MAX_HGT - 1][x];
 
 		/* Clear previous contents, add "clear" perma-wall */
 		c_ptr->feat = FEAT_PERM_CLEAR;
@@ -11028,7 +11068,7 @@ static void town_gen(struct worldpos *wpos) {
 		c_ptr->info |= (CAVE_GLOW);*/
 
 		/* East wall */
-		c_ptr = &zcave[y][MAX_WID-1];
+		c_ptr = &zcave[y][MAX_WID - 1];
 
 		/* Clear previous contents, add "clear" perma-wall */
 		c_ptr->feat = FEAT_PERM_CLEAR;
@@ -11040,7 +11080,7 @@ static void town_gen(struct worldpos *wpos) {
 	/* XXX this will be changed very soon	- Jir -
 	 * It's no good hardcoding things like this.. */
 #if 1
-	if (type > 0 && type < 6) { /* the 5 fixed towns */
+	if (type > 0 && type < TOWNS) { /* the 5 fixed towns (aside from Bree, which is #0 and always at cfg.town_x/town_y aka (32,32)) */
 		/* Hack -- Use the "simple" RNG */
 		Rand_quick = TRUE;
 
@@ -11079,7 +11119,7 @@ static void town_gen(struct worldpos *wpos) {
 			   c_ptr->info |= (CAVE_GLOW | CAVE_MARK);*/
 
 			/* South wall */
-			c_ptr = &zcave[MAX_HGT-2][x];
+			c_ptr = &zcave[MAX_HGT - 2][x];
 
 			/* Clear previous contents, add "clear" perma-wall */
 			c_ptr->feat = FEAT_GRASS;
@@ -11100,7 +11140,7 @@ static void town_gen(struct worldpos *wpos) {
 			   c_ptr->info |= (CAVE_GLOW);*/
 
 			/* East wall */
-			c_ptr = &zcave[y][MAX_WID-2];
+			c_ptr = &zcave[y][MAX_WID - 2];
 
 			/* Clear previous contents, add "clear" perma-wall */
 			c_ptr->feat = FEAT_GRASS;
@@ -11136,15 +11176,12 @@ static void town_gen(struct worldpos *wpos) {
 			break;
 		default:
 			town_gen_hack(wpos);
-			return;
 		}
 	} else {
 		town_gen_hack(wpos);
-		return;
 	}
 #else
-	process_dungeon_file("t_info.txt", wpos, &ystart, &xstart,
-				MAX_HGT, MAX_WID, TRUE);
+	process_dungeon_file("t_info.txt", wpos, &ystart, &xstart, MAX_HGT, MAX_WID, TRUE);
 #endif
 
 	switchable_shop_grids(zcave);
@@ -11167,10 +11204,9 @@ void alloc_dungeon_level(struct worldpos *wpos) {
 	zcave = C_NEW(MAX_HGT, cave_type*);
 
 	/* Allocate each row */
-	for (i = 0; i < MAX_HGT; i++) {
+	for (i = 0; i < MAX_HGT; i++)
 		/* Allocate it */
 		C_MAKE(zcave[i], MAX_WID, cave_type);
-	}
 
 	if (wpos->wz) {
 		struct dun_level *dlp;
@@ -11180,7 +11216,11 @@ void alloc_dungeon_level(struct worldpos *wpos) {
 		dlp->cave = zcave;
 		dlp->creationtime = time(NULL);
 	} else {
-		w_ptr->cave = zcave;
+		w_ptr->surface.cave = zcave;
+
+		/* Unlike dungeon floors, worldmap surface sectors are always max sized. */
+		w_ptr->surface.wid = MAX_WID;
+		w_ptr->surface.hgt = MAX_HGT;
 
 		/* init ambient sfx */
 		w_ptr->ambient_sfx_dummy = FALSE;
@@ -11298,13 +11338,12 @@ void dealloc_dungeon_level(struct worldpos *wpos) {
 		d_ptr = (wpos->wz > 0 ? w_ptr->tower : w_ptr->dungeon);
 		dlp = &d_ptr->level[ABS(wpos->wz) - 1];
 		dlp->cave = NULL;
-	}
-	else w_ptr->cave = NULL;
+	} else w_ptr->surface.cave = NULL;
 }
 
 /* added 'force' to delete it even if someone is still inside,
    that player gets recalled to surface in that case. - C. Blue */
-static void del_dungeon(struct worldpos *wpos, bool tower, bool force) {
+static bool del_dungeon(struct worldpos *wpos, bool tower, bool force) {
 	struct dungeon_type *d_ptr;
 	int i, j;
 	struct worldpos twpos;
@@ -11318,7 +11357,7 @@ static void del_dungeon(struct worldpos *wpos, bool tower, bool force) {
 
 	if (!d_ptr) { /* just in case */
 		s_printf(" error: does not exist.\n");
-		return;
+		return(FALSE);
 	}
 
 	if (d_ptr->flags2 & DF2_DELETED) {
@@ -11376,7 +11415,7 @@ static void del_dungeon(struct worldpos *wpos, bool tower, bool force) {
 			if (d_ptr->level[i].ondepth) { /* someone is still inside! */
 				if (force) s_printf("Dungeon deletion: ondepth on floor %d - forcing out.\n", i);
 				else s_printf("Dungeon deletion: ondepth on floor %d - cancelling.\n", i);
-				if (!force) return;
+				if (!force) return(TRUE); //we still deleted the dungeon..half-way? TODO: fix this, ew
 				for (j = 1; j <= NumPlayers; j++) {
 					p_ptr = Players[j];
 					if (inarea(&p_ptr->wpos, &twpos)) {
@@ -11390,7 +11429,9 @@ static void del_dungeon(struct worldpos *wpos, bool tower, bool force) {
 				d_ptr->level[i].ondepth = 0;//obsolete?
 			}
 			if (d_ptr->level[i].cave) dealloc_dungeon_level(&twpos);
+#ifndef UNIQUES_KILLED_ARRAY
 			C_KILL(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
+#endif
 		}
 		/* free the floors all at once */
 		C_KILL(d_ptr->level, d_ptr->maxdepth, struct dun_level);
@@ -11410,14 +11451,15 @@ static void del_dungeon(struct worldpos *wpos, bool tower, bool force) {
 	/* Release the lock */
 	wild->flags &= ~(tower ? WILD_F_LOCKUP : WILD_F_LOCKDOWN);
 #endif
+	return(TRUE);
 }
 
-void rem_dungeon(struct worldpos *wpos, bool tower) {
+bool rem_dungeon(struct worldpos *wpos, bool tower) {
 	struct dungeon_type *d_ptr;
 	wilderness_type *wild = &wild_info[wpos->wy][wpos->wx];
 
 	d_ptr = (tower ? wild->tower : wild->dungeon);
-	if (!d_ptr) return;
+	if (!d_ptr) return(FALSE);
 #if 0
 	/* Lock so that dungeon cannot be overwritten while in use */
 	wild->flags |= (tower ? WILD_F_LOCKUP : WILD_F_LOCKDOWN);
@@ -11426,7 +11468,7 @@ void rem_dungeon(struct worldpos *wpos, bool tower) {
 	wild->flags &= ~(tower ? WILD_F_UP : WILD_F_DOWN);
 
 	d_ptr->flags2 |= DF2_DELETED;
-	del_dungeon(wpos, tower, TRUE);	/* Hopefully first time */
+	return(del_dungeon(wpos, tower, TRUE));	/* Hopefully first time */
 }
 
 /* 'type' refers to t_info[] */
@@ -11434,7 +11476,9 @@ void add_dungeon(struct worldpos *wpos, int baselevel, int maxdep, u32b flags1, 
 #ifdef RPG_SERVER
 	bool found_town = FALSE;
 #endif
+#if !defined(UNIQUES_KILLED_ARRAY) || defined(RPG_SERVER)
 	int i;
+#endif
 	wilderness_type *wild;
 	struct dungeon_type *d_ptr;
 	wild = &wild_info[wpos->wy][wpos->wx];
@@ -11532,7 +11576,7 @@ void add_dungeon(struct worldpos *wpos, int baselevel, int maxdep, u32b flags1, 
 			/* hack - exempt the Shores of Valinor! */
 			if (d_ptr->baselevel != 200) {
 				d_ptr->flags2 |= DF2_IRON | DF2_IRONRND1;
-//				d_ptr->flags1 |= DF1_NO_UP;
+				//d_ptr->flags1 |= DF1_NO_UP;
 			}
 		}
 	}
@@ -11550,11 +11594,129 @@ void add_dungeon(struct worldpos *wpos, int baselevel, int maxdep, u32b flags1, 
 #endif
 
 	C_MAKE(d_ptr->level, d_ptr->maxdepth, struct dun_level);
-	for (i = 0; i < d_ptr->maxdepth; i++) {
+#ifndef UNIQUES_KILLED_ARRAY
+	for (i = 0; i < d_ptr->maxdepth; i++)
 		C_MAKE(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
-	}
+#endif
 
 	s_printf("add_dungeon completed (type %d, %s).\n", type, tower ? "tower" : "dungeon");
+}
+
+/* Check if an existing dungeon is still large enough and has the correct parameters - does not erase dungeon knowledge (unlike deleting + re-adding would do). */
+void verify_dungeon(struct worldpos *wpos, int baselevel, int maxdep, u32b flags1, u32b flags2, u32b flags3, bool tower, int type, int theme, int quest, int quest_stage) {
+#ifdef RPG_SERVER
+	bool found_town = FALSE;
+#endif
+#if !defined(UNIQUES_KILLED_ARRAY) || defined(RPG_SERVER)
+	int i;
+#endif
+	wilderness_type *wild;
+	struct dungeon_type *d_ptr;
+	wild = &wild_info[wpos->wy][wpos->wx];
+
+	int old_maxdepth;
+
+	/* Hack -- override the specification */
+	if (type) tower = (d_info[type].flags1 & DF1_TOWER) ? TRUE : FALSE;
+
+	if (!(wild->flags & (tower ? WILD_F_UP : WILD_F_DOWN))) {
+		s_printf("verify_dungeon (type %d, %s) adds it again as it doesn't exist.\n", type, tower ? "tower" : "dungeon");
+		add_dungeon(wpos, baselevel, maxdep, flags1, flags2, flags3, tower, type, theme, quest, quest_stage);
+		return;
+	}
+	if (!(tower ? wild->tower : wild->dungeon)) {
+		s_printf("verify_dungeon (type %d, %s) adds it again as it doesn't exist.\n", type, tower ? "tower" : "dungeon");
+		add_dungeon(wpos, baselevel, maxdep, flags1, flags2, flags3, tower, type, theme, quest, quest_stage);
+		return;
+	}
+
+	d_ptr = (tower ? wild->tower : wild->dungeon);
+
+	old_maxdepth = d_ptr->maxdepth;
+
+	d_ptr->type = type;
+	d_ptr->theme = theme;
+	d_ptr->quest = quest;
+	d_ptr->quest_stage = quest_stage;
+
+	if (type) {
+		/* XXX: flags1, flags2 can be affected if specified so? */
+		d_ptr->baselevel = d_info[type].mindepth;
+		d_ptr->maxdepth = d_info[type].maxdepth - d_ptr->baselevel + 1;
+		d_ptr->flags1 = d_info[type].flags1 | flags1;
+		d_ptr->flags2 = d_info[type].flags2 | flags2 | DF2_RANDOM;
+		d_ptr->flags3 = d_info[type].flags3 | flags3;
+	} else {
+		d_ptr->baselevel = baselevel;
+		d_ptr->flags1 = flags1;
+		d_ptr->flags2 = flags2;
+		d_ptr->flags3 = flags3;
+		d_ptr->maxdepth = maxdep;
+	}
+	/* It's the Ironman Deep Dive Challenge? */
+	if (wpos->wx == WPOS_IRONDEEPDIVE_X && wpos->wy == WPOS_IRONDEEPDIVE_Y &&
+	    (tower ? (WPOS_IRONDEEPDIVE_Z > 0) : (WPOS_IRONDEEPDIVE_Z < 0))) {
+		/* Set special IDDC flags */
+		d_ptr->flags3 |= DF3_NO_DUNGEON_BONUS | DF3_EXP_20 | DF3_LUCK_PROG_IDDC;
+	}
+
+#ifdef RPG_SERVER /* Make towers/dungeons harder - C. Blue */
+	/* If this dungeon was originally intended to be 'real' ironman,
+	   don't make it EASIER by this! (by applying either IRONFIX or IRONRND flags) */
+	if (!(flags2 & DF2_IRON)) {
+		for (i = 0; i < numtowns; i++)
+			if (town[i].x == wpos->wx && town[i].y == wpos->wy) {
+				found_town = TRUE;
+				/* Bree has special rules: */
+				if (in_bree(wpos)) {
+					/* exempt training tower, since it's empty anyway
+					   (ie monster/item spawn is prevented) and we
+					   need it for "arena monster challenge" event */
+					if (tower) continue;
+
+					d_ptr->flags2 |= DF2_IRON;
+				} else {
+					/* any other town.. */
+					d_ptr->flags2 |= DF2_IRON | DF2_IRONFIX2;
+				}
+			}
+		if (!found_town) {
+			/* hack - exempt the Shores of Valinor! */
+			if (d_ptr->baselevel != 200) {
+				d_ptr->flags2 |= DF2_IRON | DF2_IRONRND1;
+				//d_ptr->flags1 |= DF1_NO_UP;
+			}
+		}
+	}
+#endif
+
+#if 0	/* unused - mikaelh */
+	for (i = 0; i < 10; i++) {
+		d_ptr->r_char[i] = '\0';
+		d_ptr->nr_char[i] = '\0';
+	}
+	if (race != (char*)NULL)
+		strcpy(d_ptr->r_char, race);
+	if (exclude != (char*)NULL)
+		strcpy(d_ptr->nr_char, exclude);
+#endif
+
+	if (old_maxdepth > d_ptr->maxdepth) {
+		s_printf("verify_dungeon (type %d, %s) : Shrinking dungeon from %d to %d floors.\n", type, tower ? "tower" : "dungeon", old_maxdepth, d_ptr->maxdepth);
+#ifndef UNIQUES_KILLED_ARRAY
+		for (i = d_ptr->maxdepth; i < old_maxdepth; i++)
+			C_KILL(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
+#endif
+		SHRINK(d_ptr->level, old_maxdepth, d_ptr->maxdepth, struct dun_level);
+	} else if (old_maxdepth < d_ptr->maxdepth) {
+		s_printf("verify_dungeon (type %d, %s) : Growing dungeon from %d to %d floors.\n", type, tower ? "tower" : "dungeon", old_maxdepth, d_ptr->maxdepth);
+		GROW(d_ptr->level, old_maxdepth, d_ptr->maxdepth, struct dun_level);
+#ifndef UNIQUES_KILLED_ARRAY
+		for (i = old_maxdepth; i < d_ptr->maxdepth; i++)
+			C_MAKE(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
+#endif
+	}
+	//else s_printf("verify_dungeon (type %d, %s) completed without size change.\n", type, tower ? "tower" : "dungeon");
 }
 
 /*
@@ -11746,13 +11908,149 @@ void generate_cave(struct worldpos *wpos, player_type *p_ptr) {
 	(void)num; //suppress 'unused' compiler warning
 }
 
+#ifdef DM_MODULES
+// Allow LUA to pass a wpos structure back to C ! - Kurzel
+struct worldpos make_wpos(int wx, int wy, int wz) {
+	struct worldpos wpos;
+
+	wpos.wx = wx;
+	wpos.wy = wy;
+	wpos.wz = wz;
+
+	return(wpos);
+}
+
+void summon_override(bool force) {
+	if (force) summon_override_checks = SO_ALL;
+	else summon_override_checks = SO_NONE;
+}
+
+u32b adventure_flags1(int wz) { // LOCALE_00, GE_DESCRIPTION -- adventures.lua
+	switch (wz) {
+	// Under Elmoth
+	case 2:
+		return (LF1_NO_GENO | LF1_NO_MAGIC_MAP | LF1_NO_DESTROY);
+	// Isle
+	case 3:
+		return (LF1_NO_GENO | LF1_NO_DESTROY);
+	// Unoccupied
+	default:
+		return (0);
+	}
+}
+
+u32b adventure_flags2(int wz) { // LOCALE_00, GE_DESCRIPTION -- adventures.lua
+	switch (wz) {
+	// Under Elmoth
+	case 2:
+		return (LF2_NO_DETECT | LF2_NO_ESP | LF2_NO_LIVE_SPAWN);
+	// Isle
+	case 3:
+		return (LF2_NO_LIVE_SPAWN);
+	// Unoccupied
+	default:
+		return (0);
+	}
+}
+
+// Generate an empty floor (minus 0-4 half panel sizes), for DMs - Kurzel
+void generate_cave_blank(worldpos *twpos, int W, int H, bool light) {
+	int x, y;
+	cave_type **zcave, *c_ptr;
+	struct worldpos pos, *wpos = &pos;
+
+	int meta_width = MAX_WID - W * (SCREEN_WID / 2);
+	int meta_height = MAX_HGT - H * (SCREEN_HGT / 2);
+	int meta_boundary = FEAT_PERM_SOLID;
+	// int meta_boundary = 1; // Floor - to draw your own / mix and match? crashes
+
+	struct wilderness_type *wild;
+
+
+	wpcopy(&pos,twpos); // copy of DM wpos, as DM wpos could / will change
+	if (!wpos->wz) return; // paranoia - no surface modules, yet
+	// PARANOIA - bad input from junk strings? default to smallest
+	if ((W < 0) || (W > 4)) W = 4;
+	if ((H < 0) || (H > 4)) H = 4;
+	// s_printf("BLANK (W,H): (%d,%d)\n",W,H);
+
+	/* Get it ready, remove everything, everybody, static it - Kurzel */
+	wipe_m_list(wpos); /* clear any (powerful) spawns */
+	wipe_o_list_safely(wpos); /* and objects too */
+	unstatic_level(wpos); // problem - this changes the DM wpos, see above
+	if (getcave(wpos)) dealloc_dungeon_level(wpos);
+	alloc_dungeon_level(wpos);
+	if (!(zcave = getcave(wpos))) return;
+	new_players_on_depth(wpos,1,TRUE);
+
+	/* Start with a blank cave */
+	for (y = 0; y < MAX_HGT; y++) {
+		/* Wipe a whole row at a time */
+		C_WIPE(zcave[y], MAX_WID, cave_type);
+	}
+
+	/* Fill it */
+	for (x = 0; x < MAX_WID; x++)
+		for (y = 0; y < MAX_HGT; y++) {
+			c_ptr = &zcave[y][x];
+			c_ptr->feat = FEAT_FLOOR;
+			if (light) c_ptr->info |= CAVE_GLOW;
+		}
+
+	/* Draw boundaries, handle smaller floors */
+
+	/* Oops, a dungeon floor is not just a cave, it is part of the world? - Kurzel */
+	wild = &wild_info[wpos->wy][wpos->wx];
+	if (wpos->wz > 0) { // paranoia - all modules are in_module(wpos) above PVPARENA_Z (for now)
+		wild->tower->level[wpos->wz - 1].flags1 = (in_module(wpos) ? adventure_flags1(wpos->wz) : 0);
+		wild->tower->level[wpos->wz - 1].flags2 = (in_module(wpos) ? adventure_flags2(wpos->wz) : (LF2_NO_LIVE_SPAWN)); // Summoning OK? Disabled actually. - Kurzel
+		wild->tower->level[wpos->wz - 1].monsters_generated = wild->tower->level[wpos->wz - 1].monsters_spawned = wild->tower->level[wpos->wz - 1].monsters_killed = 0;
+		/* Important - restrict out of bounds behavior, eg. recall/looking - Kurzel */
+		wild->tower->level[wpos->wz - 1].wid = meta_width;
+		wild->tower->level[wpos->wz - 1].hgt = meta_height;
+	} else {
+		wild->dungeon->level[ABS(wpos->wz) - 1].flags1 = (0);
+		wild->dungeon->level[ABS(wpos->wz) - 1].flags2 = (LF2_NO_LIVE_SPAWN); // Don't interrupt the architect, please. - Kurzel
+		wild->dungeon->level[ABS(wpos->wz) - 1].monsters_generated = wild->dungeon->level[ABS(wpos->wz) - 1].monsters_spawned = wild->dungeon->level[ABS(wpos->wz) - 1].monsters_killed = 0;
+		/* Important - restrict out of bounds behavior, eg. recall/looking - Kurzel */
+		wild->dungeon->level[ABS(wpos->wz) - 1].wid = meta_width;
+		wild->dungeon->level[ABS(wpos->wz) - 1].hgt = meta_height;
+	}
+
+	/* Fill rest of map with perma clear walls if specific size was given */
+	if (meta_width)
+		for (x = meta_width; x < MAX_WID; x++)
+			for (y = 0; y < MAX_HGT; y++)
+				zcave[y][x].feat = FEAT_PERM_FILL;
+	if (meta_height)
+		for (y = meta_height; y < MAX_HGT; y++)
+			for (x = 0; x < MAX_WID; x++)
+				zcave[y][x].feat = FEAT_PERM_FILL;
+
+	/* Replace FEAT_PERM_SOLID or whatever default boundary wall is used by a specific one? */
+	if (meta_boundary) {
+		int mx = meta_width ? meta_width : MAX_WID;
+		int my = meta_height ? meta_height : MAX_HGT;
+
+		for (x = 0; x < mx; x++) {
+			zcave[0][x].feat = meta_boundary;
+			zcave[my - 1][x].feat = meta_boundary;
+		}
+		for (y = 1; y < my - 1; y++) {
+			zcave[y][0].feat = meta_boundary;
+			zcave[y][mx - 1].feat = meta_boundary;
+		}
+		
+	}
+}
+#endif
+
 /* (Can ONLY be used on surface worldmap sectors.)
    Rebuilds a level, without re-adding dungeons, because this
    function assumes that the level has already been generated.
    Used for season change. - C. Blue */
 void regenerate_cave(struct worldpos *wpos) {
 	cave_type **zcave;
-
 	int i;
 	player_type *p_ptr;
 

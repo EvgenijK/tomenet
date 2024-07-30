@@ -8,6 +8,9 @@ __schools_num = 0
 __tmp_spells = {}
 __tmp_spells_num = 0
 
+-- for WIELD_BOOKS, bad hack :(
+__cur_inven_slot = -1
+
 
 -- define get_check2() for older clients
 if rawget(globals(), "get_check2") == nil then
@@ -152,9 +155,17 @@ end
 -- pgod? 100% sure it won't work
 --[[
 function get_god_level(i, sch)
---	local player = players(i)
-	if __schools[sch].gods[player.pgod] then
-		return (s_info[__schools[sch].gods[player.pgod].skill + 1].value * __schools[sch].gods[player.pgod].mul) / __schools[sch].gods[player.pgod].div
+--	local ply
+
+	-- client-side (0) or server-side (>=1) ?
+	if i ~= 0 then
+		ply = players(i)
+	else
+		ply = player
+	end
+
+	if __schools[sch].gods[ply.pgod] then
+		return (s_info[__schools[sch].gods[ply.pgod].skill + 1].value * __schools[sch].gods[ply.pgod].mul) / __schools[sch].gods[ply.pgod].div
 	else
 		return nil
 	end
@@ -162,12 +173,14 @@ end
 ]]
 
 -- Change this fct if I want to switch to learnable spells
-function get_level_school(i, s, max, min)
-	local lvl, sch, index, num, bonus
+function get_level_school(i, s, max, min, inven_slot)
+	local lvl, sch, index, num, bonus, ply
 
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
+		ply = players(i)
+	else
+		ply = player
 	end
 
 	lvl = 0
@@ -183,12 +196,12 @@ function get_level_school(i, s, max, min)
 		local r, p, ok = 0, 0, 0, 0
 
 		-- Take the basic skill value
-		r = player.s_info[(school(sch).skill) + 1].value
+		r = ply.s_info[(school(sch).skill) + 1].value
 
 		-- Are we under sorcery effect ?
 		p = 0
 		if __schools[sch].sorcery then
-			p = player.s_info[SKILL_SORCERY + 1].value
+			p = ply.s_info[SKILL_SORCERY + 1].value
 		end
 
 		-- Find the higher
@@ -205,7 +218,7 @@ function get_level_school(i, s, max, min)
 		num = num + 1
 	end
 
-	-- / 10 because otherwise we can overflow a s32b and we can use a u32b because the value can be negative
+	-- / 10 because otherwise we can overflow a s32b and we cannot use a u32b because the value can be negative
 	-- The loss of information should be negligible since 1 skill = 1000 internaly
 	lvl = (lvl / num) / 10
 	if not min then
@@ -214,12 +227,15 @@ function get_level_school(i, s, max, min)
 		lvl = lua_get_level(i, s, lvl, max, min, bonus)
 	end
 
+	-- for WIELD_BOOKS:
+	if (inven_slot == INVEN_WIELD and lvl > 0) then lvl = lvl + 1 end
+
 --	--Hack: Disruption Shield only for Istari. Not for Adventurer/Ranger.
 --	if spell(s).name == "Disruption Shield" then
---		if player.pclass == CLASS_RANGER then
+--		if ply.pclass == CLASS_RANGER then
 --			lvl = 0
 --		end
---		if player.pclass == CLASS_ADVENTURER then
+--		if ply.pclass == CLASS_ADVENTURER then
 --			lvl = 0
 --		end
 --	end
@@ -229,8 +245,11 @@ end
 
 -- The real get_level, works for schooled magic and for innate powers
 function get_level(i, s, max, min)
+	-- baaad hack, ugh - for WIELD_BOOKS - needed because get_level() is called from spell_spell and spell_info, which both do not have access to inven_slot!
+	local inven_slot = __cur_inven_slot
+
 	if type(s) == "number" then
-		return get_level_school(i, s, max, min)
+		return get_level_school(i, s, max, min, inven_slot)
 	else
 -- this shouldn't happen for now
 		return get_level_power(i, s, max, min)
@@ -279,34 +298,47 @@ function is_ok_spell2(i, s)
 end
 
 -- Get the amount of mana(or power) needed
-function get_mana(i, s)
---	local mana
+function get_mana(i, s, inven_slot)
+--	local mana, ply
 --	mana = spell(s).mana + get_level(i, s, spell(s).mana_max - spell(s).mana, 0)
 
 --	--under influence of Martyrdom, spells cost more mana:
---	if i ~= 0 then player = players(i) end
+--	if i ~= 0 then ply = players(i) else ply = player end
 --	--exempt Martyrdom itself from its double mana cost
---	if player.martyr > 0 and s ~= HMARTYR then mana = mana * 2 end
+--	if ply.martyr > 0 and s ~= HMARTYR then mana = mana * 2 end
 
 --	return mana
 
-	return spell(s).mana + get_level(i, s, spell(s).mana_max - spell(s).mana, 0)
+	-- for WIELD_BOOKS:
+	local __prev_inven_slot = __cur_inven_slot
+	__cur_inven_slot = inven_slot
+	local lcost = spell(s).mana + get_level(i, s, spell(s).mana_max - spell(s).mana, 0)
+	__cur_inven_slot = __prev_inven_slot
+
+	--round up? - we need to use this, because this function is also called for spell information when browsing, so it must not be random
+	if (inven_slot == INVEN_WIELD) then lcost = ((lcost * 80) + 99) / 100 end
+
+	return lcost
 end
 
 -- Return the amount of power(mana, piety, whatever) for the spell
 function get_power(i, s)
+	local ply
+
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
+		ply = players(i)
+	else
+		ply = player
 	end
 
 	if check_affect(s, "piety", FALSE) then
-		return player.grace
+		return ply.grace
 	else
-	    if player.cmp == nil then
-		return player.csp
+	    if ply.cmp == nil then
+		return ply.csp
 	    else
-		return player.cmp
+		return ply.cmp
 	    end
 	end
 end
@@ -341,7 +373,7 @@ function print_book2(i, inven_slot, sval, spl)
 --[[STOREBROWSE
 	if inven_slot ~= -1 then
 		--from inventory
-		book = get_inven_sval(Ind, inven_slot)
+		book = get_inven_sval(i, inven_slot)
 	else
 		--browsing within a store!
 		book = sval
@@ -349,7 +381,7 @@ function print_book2(i, inven_slot, sval, spl)
 ]]
 	if inven_slot >= 0 then
 		--from inventory
-		book = get_inven_sval(Ind, inven_slot)
+		book = get_inven_sval(i, inven_slot)
 	else
 		--browsing within a store!
 		book = sval
@@ -365,6 +397,8 @@ function print_book2(i, inven_slot, sval, spl)
 		school_book[book] = {spl}
 	end
 
+	__cur_inven_slot = inven_slot
+
 	-- Parse all spells
 	for index, s in school_book[book] do
 		local color = TERM_L_DARK
@@ -372,7 +406,7 @@ function print_book2(i, inven_slot, sval, spl)
 		local xx, sch_str
 
 		if is_ok_spell(i, s) then
-			if get_mana(i, s) > get_power(i, s) then color = TERM_ORANGE
+			if get_mana(i, s, inven_slot) > get_power(i, s) then color = TERM_ORANGE
 			else color = TERM_L_GREEN end
 		end
 
@@ -389,10 +423,12 @@ function print_book2(i, inven_slot, sval, spl)
 		end
 		sch_str = sch_str_lim(sch_str)
 
-		c_prt(color, format("%c) %-22s%-16s %3d %4s %3d%s %s", size + strbyte("a"), spell(s).name, sch_str, lvl, get_mana(i, s), spell_chance(i, s), "%", __spell_info[s]()), y, x)
+		c_prt(color, format("%c) %-22s%-16s %3d %4s %3d%s %s", size + strbyte("a"), spell(s).name, sch_str, lvl, get_mana(i, s, inven_slot), spell_chance(i, s, inven_slot), "%", __spell_info[s]()), y, x)
 		y = y + 1
 		size = size + 1
 	end
+
+	__cur_inven_slot = -1
 
 	prt(format("   %-22s%-14s Level Cost Fail Info", "Name", "School"), 1, x)
 	return y
@@ -440,6 +476,8 @@ function print_custom_tome(i, inven_slot)
 		custom_book[9] = get_inven_xtra(Ind, inven_slot, 9) - 1
 	end
 
+	__cur_inven_slot = inven_slot
+
 	-- Parse all spells
 	for index, s in custom_book do
 		local color = TERM_L_DARK
@@ -447,7 +485,7 @@ function print_custom_tome(i, inven_slot)
 		local xx, sch_str
 
 		if is_ok_spell(i, s) then
-			if get_mana(i, s) > get_power(i, s) then color = TERM_ORANGE
+			if get_mana(i, s, inven_slot) > get_power(i, s) then color = TERM_ORANGE
 			else color = TERM_L_GREEN end
 		end
 
@@ -464,10 +502,12 @@ function print_custom_tome(i, inven_slot)
 		end
 		sch_str = sch_str_lim(sch_str)
 
-		c_prt(color, format("%c) %-22s%-16s %3d %4s %3d%s %s", size + strbyte("a"), spell(s).name, sch_str, lvl, get_mana(i, s), spell_chance(i, s), "%", __spell_info[s]()), y, x)
+		c_prt(color, format("%c) %-22s%-16s %3d %4s %3d%s %s", size + strbyte("a"), spell(s).name, sch_str, lvl, get_mana(i, s, inven_slot), spell_chance(i, s, inven_slot), "%", __spell_info[s]()), y, x)
 		y = y + 1
 		size = size + 1
 	end
+
+	__cur_inven_slot = -1
 
 	prt(format("   %-22s%-14s Level Cost Fail Info", "Name", "School"), 1, x)
 	return y
@@ -520,7 +560,7 @@ function book_spells_num2(inven_slot, sval)
 		book = sval
 	end
 
-	-- Hack if the book is 255 it is a random book
+	-- Hack: if the book sval is 255 it is a spell scroll, which always has exactly 1 spell
 	if book == 255 then
 		return 1
 	end
@@ -649,43 +689,56 @@ function spell_in_custom_tome(inven_slot, spell)
 end
 
 -- Returns spell chance of failure for spell
-function spell_chance(i, s)
+function spell_chance(i, s, inven_slot)
 	local chance, s_ptr
-	local player, ls
+	local ply, ls
 
 	s_ptr = spell(s)
 
 	--hack: LIMIT_SPELLS uses top-level failrate here instead of worse one we had at lower level!
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
-		ls = player.limit_spells
-		player.limit_spells = 0
+		ply = players(i)
+		ls = ply.limit_spells
+		ply.limit_spells = 0
 	--client version recent enough to even know 'hack_force_spell_level'? (otherwise we'd get a lua error)
 	elseif (def_hack("hack_force_spell_level", nil)) then
 		ls = hack_force_spell_level
 		hack_force_spell_level = 0
 	end
 
+	local __prev_inven_slot = __cur_inven_slot
+	__cur_inven_slot = -1
+	local lev = get_level(i, s, 50)
+	__cur_inven_slot = inven_slot
+
 	-- Hack: "101" means 100% chance to succeed ('fail' is unsigned byte, so it'll be 157) - C. Blue
 	if (s_ptr.fail == 101) then
 		chance = 0
 	-- A new hack: "102" means greatly reduced fail chance (from 0 base fail chance) - C. Blue
 	elseif (s_ptr.fail == 102) then
-		chance = (lua_spell_chance(i, 0, get_level(i, s, 50), s_ptr.skill_level, get_mana(i, s), get_power(i, s), get_spell_stat(s)) + 5) / 6
+		chance = (lua_spell_chance(i, 0, lev, s_ptr.skill_level, get_mana(i, s, inven_slot), get_power(i, s), get_spell_stat(s)) + 5) / 6
 	else
 		-- Extract the base spell failure rate
-		chance = lua_spell_chance(i, s_ptr.fail, get_level(i, s, 50), s_ptr.skill_level, get_mana(i, s), get_power(i, s), get_spell_stat(s))
+		chance = lua_spell_chance(i, s_ptr.fail, lev, s_ptr.skill_level, get_mana(i, s, inven_slot), get_power(i, s), get_spell_stat(s))
 	end
+
+	__cur_inven_slot = __prev_inven_slot
 
 	--unhack: LIMIT_SPELLS
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
-		player.limit_spells = ls
+		ply = players(i)
+		ply.limit_spells = ls
 	--client version recent enough to even know 'hack_force_spell_level'? (otherwise we'd get a lua error)
 	elseif (def_hack("hack_force_spell_level", nil)) then
 		hack_force_spell_level = ls
+	end
+
+	--for WIELD_BOOKS:
+	if (inven_slot == INVEN_WIELD) then
+		chance = chance - 5 -- note: we allow going below the usual minimum chance (derived from adj_mag_fail) here
+		if (chance < 0) then chance = 0 end
 	end
 
 	-- Return the chance
@@ -719,20 +772,23 @@ end
 -- one question.. why this should be LUA anyway?
 -- because accessing lua table is so badly easier in lua
 function cast_school_spell(i, s, s_ptr, no_cost, other)
+	local ply
+
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
+		ply = players(i)
+	else
+		ply = player
 	end
 
 	local use = FALSE
 
-
 	-- No magic
-	if check_antimagic(Ind, get_spell_am(s)) == TRUE then
+	if check_antimagic(i, get_spell_am(s)) == TRUE then
 --Next line is already in the server sources.
 --		msg_print(i, "Your anti-magic field disrupts any magic attempts.")
-		local energy = level_speed(player.wpos);
-		player.energy = player.energy - energy
+		local energy = level_speed(ply.wpos);
+		ply.energy = ply.energy - energy
 		return 1 --continue ftk
 	end
 
@@ -742,17 +798,17 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 	-- if it costs something then some condition must be met
 	if not no_cost then
 		-- Require lite
-		if (check_affect(s, "blind")) and ((player.blind > 0) or (no_lite(Ind) == TRUE)) then
-			local energy = level_speed(player.wpos);
-			player.energy = player.energy - energy
+		if (check_affect(s, "blind")) and ((ply.blind > 0) or (no_lite(i) == TRUE)) then
+			local energy = level_speed(ply.wpos);
+			ply.energy = ply.energy - energy
 			msg_print(i, "You cannot see!")
 			return 0
 		end
 
 		-- Not when confused
-		if (check_affect(s, "confusion")) and (player.confused > 0) then
-			local energy = level_speed(player.wpos);
-			player.energy = player.energy - energy
+		if (check_affect(s, "confusion")) and (ply.confused > 0) then
+			local energy = level_speed(ply.wpos);
+			ply.energy = ply.energy - energy
 			msg_print(i, "You are too confused!")
 			return 0
 		end
@@ -765,25 +821,32 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 		end
 
 		-- Enough mana
-		if (get_mana(i, s) > get_power(i, s)) then
-			local energy = level_speed(player.wpos);
+		if (get_mana(i, s, other.book) > get_power(i, s)) then
+			local energy = level_speed(ply.wpos);
 			--withdraw a little bit of energy just to prevent command-spam
-			player.energy = player.energy - energy / 3
+			ply.energy = ply.energy - energy / 3
 			--if (get_check2("You do not have enough "..get_power_name(s)..", do you want to try anyway?", FALSE) == FALSE) then return end
 			msg_print(i, "You do not have enough mana to cast "..spell(s).name..".")
+			__cur_inven_slot = -1
 			return 0
 		end
 
 --[[		-- Sanity check for direction
-		if (need_direction(s) && other.direction == -1) then
+		if (need_direction(s) && other.dir == -1) then
 			msg_print(i, "Spell needs a direction.")
 			return
 		end
 ]]
 
 		-- Invoke the spell effect
-		if (magik(spell_chance(i, s)) == FALSE) then
-			local mp_cost = get_mana(i, s)
+		if (magik(spell_chance(i, s, other.book)) == FALSE) then
+			local mp_cost = get_mana(i, s, -1) --actually DON'T apply WIELD_BOOKS bonus here yet, we do it below, for fractional chance..
+			--allow fractions of MP, conferred as +1 being applied at appropriate chance. Never go below 1 MP cost though.
+			if (other.book == INVEN_WIELD and mp_cost > 1) then
+				local mp_costr = mod(mp_cost, 5)
+				mp_cost = (mp_cost * 80) / 100 --LUA will round down (int)
+				if (mp_costr ~= 0 and randint(5) > mp_costr) then mp_cost = mp_cost + 1 end
+			end
 
 			msg_print(i, "You successfully cast the spell "..spell(s).name..".")
 
@@ -792,6 +855,7 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 			adjust_power(i, s, -mp_cost)
 			use = TRUE
 
+			__cur_inven_slot = other.book
 			if (__spell_spell[s](other) ~= nil) then
 				--correct the situation - we have to do it this way round,
 				--so we were able to deduct MP before actually casting the spell above
@@ -799,6 +863,7 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 				--and refund the mana
 				adjust_power(i, s, mp_cost)
 			end
+			__cur_inven_slot = -1
 		else
 			local index, sch
 
@@ -810,11 +875,11 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 			msg_print(i, "\255yYou failed to get the spell "..spell(s).name.." off!")
 
 			-- Reduce mana
-			adjust_power(i, s, -get_mana(i, s))
+			adjust_power(i, s, -get_mana(i, s, other.book))
 
 			for index, sch in __spell_school[s] do
 				if __schools[sch].fail then
-					__schools[sch].fail(spell_chance(i, s))
+					__schools[sch].fail(spell_chance(i, s, other.book))
 				end
 			end
 			use  = TRUE
@@ -822,41 +887,46 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 	else
 		__spell_spell[s](other)
 	end
+	__cur_inven_slot = -1
 
 	if use == TRUE then
 		-- Take a turn
-		local energy = level_speed(player.wpos);
-		player.energy = player.energy - energy
+		local energy = level_speed(ply.wpos);
+		ply.energy = ply.energy - energy
 	end
 
-	player.redraw = bor(player.redraw, PR_MANA)
-	--player.window = bor(player.window, PW_PLAYER)
-	--player.window = bor(player.window, PW_SPELL)
+	ply.redraw = bor(ply.redraw, PR_MANA)
+	--ply.window = bor(ply.window, PW_PLAYER)
+	--ply.window = bor(ply.window, PW_SPELL)
 
 	return 1
 end
 
 
-function test_school_spell(i, s)
+function test_school_spell(i, s, inven_slot)
+	local ply
+
 	-- client-side (0) or server-side (>=1) ?
 	if i ~= 0 then
-		player = players(i)
+		ply = players(i)
+	else
+		ply = player
 	end
 
 	local use = FALSE
 
 	-- Require lite
-	if (check_affect(s, "blind")) and ((player.blind > 0) or (no_lite(Ind) == TRUE)) then
+	if (check_affect(s, "blind")) and ((ply.blind > 0) or (no_lite(i) == TRUE)) then
 		return 1
 	end
 
 	-- Not when confused
-	if (check_affect(s, "confusion")) and (player.confused > 0) then
+	if (check_affect(s, "confusion")) and (ply.confused > 0) then
 		return 2
 	end
 
 	-- Enough mana
-	if (get_mana(i, s) > get_power(i, s)) then
+	if (get_mana(i, s, inven_slot) > get_power(i, s)) then
 		return 3
 	end
 
@@ -872,6 +942,7 @@ end
 --There is also a safe C version of this function in object1.c.
 function get_spellbook_name_colour(i)
 	local s
+
 	s = __spell_school[i][1]
 	-- green for priests
 	if (s >= SCHOOL_HOFFENSE and s <= SCHOOL_HSUPPORT) then return TERM_GREEN end
@@ -957,7 +1028,9 @@ function pre_exec_spell_item(s)
 		if not __tmp_spells[s].get_item.inven then __tmp_spells[s].get_item.inven = FALSE end
 		if not __tmp_spells[s].get_item.equip then __tmp_spells[s].get_item.equip = FALSE end
 		if not __tmp_spells[s].get_item.floor then __tmp_spells[s].get_item.floor = FALSE end
+
 		local ret
+
 		ret, __pre_exec_item = get_item_aux(0, __tmp_spells[s].get_item.prompt, __tmp_spells[s].get_item.equip, __tmp_spells[s].get_item.inven, __tmp_spells[s].get_item.floor)
 		return ret
 	end

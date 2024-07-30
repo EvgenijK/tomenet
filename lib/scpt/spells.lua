@@ -110,9 +110,9 @@ SCHOOL_PPOWER = add_school {
 	["name"] = "Psycho-power",
 	["skill"] = SKILL_PPOWER,
 }
-SCHOOL_TCONTACT = add_school {
+SCHOOL_ATTUNEMENT = add_school {
 	["name"] = "Attunement",
-	["skill"] = SKILL_TCONTACT,
+	["skill"] = SKILL_ATTUNEMENT,
 }
 SCHOOL_MINTRUSION = add_school {
 	["name"] = "Mental intrusion",
@@ -176,7 +176,7 @@ pern_dofile(Ind, "dr_physical.lua")
 
 __lua_M_FIRST = __tmp_spells_num
 pern_dofile(Ind, "m_ppower.lua")
-pern_dofile(Ind, "m_tcontact.lua")
+pern_dofile(Ind, "m_attunement.lua")
 pern_dofile(Ind, "m_mintrusion.lua")
 __lua_M_LAST = __tmp_spells_num - 1
 
@@ -197,14 +197,14 @@ school_book[0] = { DISPERSEMAGIC, MANASHIELD, MANATHRUST_III, RECHARGE_III, }
 school_book[1] = { RESISTS_II, GLOBELIGHT_II, FIERYAURA_II, FIREBOLT_III, FIREWALL_II, FIREBALL_II, FIREFLASH_II, }
 -- The book of the blowing winds (9-13)
 --school_book[2] = { AIRWINGS, RESISTS_II, THUNDERSTORM, POISONBLOOD, NOXIOUSCLOUD_III, INVISIBILITY, LIGHTNINGBOLT_III, }
-school_book[2] = { AIRWINGS, RESISTS_II, THUNDERSTORM, NOXIOUSCLOUD_III, INVISIBILITY, LIGHTNINGBOLT_III, }
+school_book[2] = { THUNDERSTORM, AIRWINGS, RESISTS_II, INVISIBILITY, NOXIOUSCLOUD_III, VAPORMIRROR, LIGHTNINGBOLT_III, }
 -- The book of the impenetrable earth (14-17)
 school_book[3] = {
 --	STONESKIN, DIG, STONEPRISON, SHAKE, STRIKE_II,
 	DIG, RESISTS_II, STONEPRISON, SHAKE, STRIKE_II, ACIDBOLT_III,
 }
 -- The book of the everrunning wave (18-21)
-school_book[4] = { ENTPOTION, RESISTS_II, TIDALWAVE_II, ICESTORM_II, VAPOR_III, FROSTBOLT_III, WATERBOLT_III, FROSTBALL_II, }
+school_book[4] = { ENTPOTION, RESISTS_II, VAPORMIRROR, TIDALWAVE_II, ICESTORM_II, VAPOR_III, FROSTBOLT_III, WATERBOLT_III, FROSTBALL_II, }
 -- Create the book of translocation (22-27)
 school_book[5] = { BLINK, DISARM, TELEPORT, RECALL, PROBABILITY_TRAVEL, TELEKINESIS, TELEAWAY_II, }
 -- Create the book of the tree * SUMMONANIMAL requires pets first (28-32)
@@ -219,18 +219,14 @@ school_book[8] = { ESSENSESPEED, SLOWMONSTER_II, MAGELOCK_II, MASSWARP, }
 -- Create the book of the mind * CHARM requires pets first (46-48)
 --school_book[10] = { CONFUSE_II, TELEKINESIS, SENSEMONSTERS, STUN_II, }
 -- Create the book of hellflame * DRAIN, FLAMEOFUDUN missing (49-53)
-school_book[11] = { CONFUSE_II, STUN_II, GENOCIDE_I, GENOCIDE_II, DISEBOLT, HELLFIRE_II, WRAITHFORM, STOPWRAITH, }
+school_book[11] = { CONFUSE_II, GENOCIDE_I, STUN_II, GENOCIDE_II, DISEBOLT, HELLFIRE_II, WRAITHFORM, STOPWRAITH, }
 
 -- Priests / Paladins:
 
 -- Create the book of Holy Offense (54-60)
-if (def_hack("TEST_SERVER", nil)) then
-	school_book[12] = { HLITERAY, HGLOBELIGHT_II, HCURSE_III, HORBDRAIN_II, HEXORCISM_II, HRELSOULS_III, HDRAINCLOUD, EARTHQUAKE, HCURSEDD, }
-else
-	school_book[12] = { HLITERAY, HGLOBELIGHT_II, HCURSE_III, HORBDRAIN_II, HEXORCISM_II, HRELSOULS_III, HDRAINCLOUD, EARTHQUAKE, }
-end
+school_book[12] = { HLITERAY, HGLOBELIGHT_II, HCURSE_III, HORBDRAIN_II, HEXORCISM_II, HRELSOULS_III, HDRAINCLOUD, EARTHQUAKE, }
 -- Create the book of Holy Defense (61-65)
-school_book[13] = { HPROTEVIL, HBLESSING_III, DISPELMAGIC, HRUNEPROT, HRESISTS_III, HMARTYR, }
+school_book[13] = { DISPELMAGIC, HPROTEVIL, HBLESSING_III, HRUNEPROT, HRESISTS_III, HMARTYR, }
 -- Create the book of Holy Curing (66-72)
 school_book[14] = { HCURING_III, HSANITY, HCUREWOUNDS_II, HDELBB, HRESURRECT, HRESTORING, HDELCURSES_II, HHEALING_III, HHEALING2_III, }
 -- Create the book of Holy Support (73-79)
@@ -241,37 +237,32 @@ school_book[15] = { HDELFEAR, HDETECTEVIL, HSATISFYHUNGER, HGLOBELIGHT_II, HSANC
 -- Create the book of druidism: Arcane Lore (80-84)
 school_book[16] = { NATURESCALL, BAGIDENTIFY, WATERPOISON_III, REPLACEWALL, BANISHANIMALS, }
 -- Create the book of druidism: Physical Lore (85-89)
-school_book[17] = { FOCUS_II, HERBALTEA, QUICKFEET, HEALINGCLOUD_III, EXTRASTATS_II, }
+school_book[17] = { HERBALTEA, QUICKFEET, FOCUS_II, EXTRASTATS_II, HEALINGCLOUD_III, }
 
 -- Maiar:
 
 -- Divine Race Tome
-school_book[18] = { POWERBOLT_III, POWERBEAM_III, POWERBALL_III, RELOCATION, VENGEANCE, EMPOWERMENT, GATEWAY, INTENSIFY, POWERCLOUD, }
+school_book[18] = { RELOCATION, VENGEANCE, POWERBOLT_III, POWERBEAM_III, POWERBALL_III, EMPOWERMENT, GATEWAY, INTENSIFY, POWERCLOUD, }
 
 -- Mindcraft:
 
-if (def_hack("TEST_SERVER", nil)) then
-	school_book[19] = {MBASH, MDISARM, MBLINK, MTELEPORT, MTELETOWARDS, MFEEDBACK, MPYROKINESIS_II, MCRYOKINESIS_II, MTELEAWAY, MTELEKINESIS, MSHIELD, MFUSION,}
-	school_book[20] = {MCURE, MBOOST, MSELFKNOW, MIDENTIFY, MHASTE, MSENSEMON, MSANITY, MTELEKINESIS, MFUSION,}
-else
-	-- Create the book of mindcrafting: Psycho-power (-)
-	school_book[19] = { MBASH, MDISARM, MBLINK, MTELEPORT, MTELETOWARDS, MFEEDBACK, MPYROKINESIS_II, MCRYOKINESIS_II, MTELEAWAY, MTELEKINESIS, MSHIELD, }
-	-- Create the book of mindcrafting: Thought contact (aka Attunement)
-	school_book[20] = { MCURE, MBOOST, MSELFKNOW, MIDENTIFY, MHASTE, MSENSEMON, MSANITY, MTELEKINESIS, }
-end
+-- Create the book of mindcrafting: Psycho-power (-)
+school_book[19] = { MBASH, MDISARM, MBLINK, MTELEPORT, MTELETOWARDS, MFEEDBACK, MTELEAWAY, MTELEKINESIS, MPYROKINESIS_II, MCRYOKINESIS_II, MSHIELD, }
+-- Create the book of mindcrafting: Thought contact (aka Attunement)
+school_book[20] = { MCURE, MBOOST, MSELFKNOW, MIDENTIFY, MHASTE, MSENSEMON, MSANITY, MTELEKINESIS, }
 -- Create the book of mindcrafting: Mental intrusion (-)
-school_book[21] = { MSCARE_II, MCONFUSE_II, MSLEEP_II, MSLOWMONSTER_II, MPSISTORM_II, MMINDBLAST_III, MSILENCE, MIDENTIFY, MMAP, MCHARM, MSTOPCHARM, }
+school_book[21] = { MSCARE_II, MSILENCE, MCONFUSE_II, MIDENTIFY, MSLEEP_II, MMAP, MSLOWMONSTER_II, MPSISTORM_II, MMINDBLAST_III, MCHARM_III, MSTOPCHARM, }
 
 -- Create the Occult books:
 
-school_book[22] = { DETECTINVIS, OBLIND_I, POISONRES, OFEAR_II, OBLIND_II, OSLEEP_II, SHADOWGATE, OINVIS, CHAOSBOLT, DARKBOLT_III, ODRAINLIFE, DARKBALL } --shadow/ENABLE_DEATHKNIGHT (note: it has both Blindness and Darkness)
-school_book[23] = { ODELFEAR, MEDITATION, TRANCE, POSSESS, STOPPOSSESS, STARLIGHT_II, DETECTCREATURES, OCURSEDD_III, OLIGHTNINGBOLT_III, LITEBEAM_III, ODELCURSES_II, GUARDIANSPIRIT_II, RITES_II } --spirit
-school_book[24] = { TERROR_II, ODELFEAR2, OFIREBOLT_III, FIRERES, FLAMEWAVE_II, OEXTRASTATS, RAGE_II, CHAOSBOLT2, ORESTORING, LEVITATION, FIRESTORM, BLOODSACRIFICE } --ENABLE_HELLKNIGHT
-school_book[25] = { OSENSELIFE, OVERMINCONTROL, OSLOWMONSTER_II, OREGEN, OSUBJUGATION, NETHERBOLT, OUNLIFERES, ODRAINLIFE2, OIMBUE, OWRAITHSTEP } --ENABLE_DEATHKNIGHT
+school_book[22] = { OBLIND_I, DETECTINVIS, OBLINK, POISONRES, OFEAR_II, OBLIND_II, OLEVITATION, OSLEEP_II, SHADOWGATE, OINVIS, CHAOSBOLT, DISPERSION, STOPDISPERSION, ODRAINLIFE, DARKBOLT_III, DARKBALL } --shadow/ENABLE_DEATHKNIGHT
+school_book[23] = { ODELFEAR, MEDITATION, TRANCE, STARLIGHT_II, POSSESS_III, STOPPOSSESS, DETECTCREATURES, ODELCURSES_II, OCURSEDD_III, OLIGHTNINGBOLT_III, LITEBEAM_III, GUARDIANSPIRIT_II, RITES_II } --spirit
+school_book[24] = { ODELFEAR2, FIRERES, TERROR_II, OEXTRASTATS, CHAOSBOLT2, FLAMEWAVE_II, ORESTORING, LEVITATION, OFIREBOLT_III, RAGE_II, FIRESTORM, BLOODSACRIFICE } --ENABLE_HELLKNIGHT
+school_book[25] = { OSENSELIFE, OVERMINCONTROL, OSLOWMONSTER_II, OREGEN, OSUBJUGATION, NETHERBOLT, OUNLIFERES, ODRAINLIFE2, ANTIREGEN_II, OIMBUE, OWRAITHSTEP } --ENABLE_DEATHKNIGHT
 
 -- Handbooks:
 
--- Create the book of beginner's cantrip
+-- Create the book of beginner's cantrip (mage starter book)
 school_book[50] = { MANATHRUST_I, GLOBELIGHT_I, BLINK, DETECTMONSTERS, SENSEHIDDEN_I, ENTPOTION }
 -- Create the elementalist's handbook
 school_book[51] = {
@@ -289,11 +280,11 @@ school_book[54] = {
 }
 -- Create the destroyer's handbook
 school_book[55] = { TIDALWAVE_II, HELLFIRE_II, FIREBALL_II, SHAKE, THUNDERSTORM, HDRAINCLOUD, EARTHQUAKE, CHAOSBOLT, CHAOSBOLT2, FLAMEWAVE_II, NETHERBOLT } --todo: possibly add OUNLIFE spells, maybe to other books too
--- Create the handbook of novice etiquette
+-- Create the handbook of novice etiquette (priest starter book)
 school_book[56] = { HDELFEAR, HBLESSING_I, HCURING_I, HGLOBELIGHT_I, HDETECTEVIL, HHEALING_I}
 ---- Create the handbook for rogues (of deception)
 --school_book[57] = { BLINK, POISONFOG_III, OFEAR_II, OBLIND_II, DETECTINVIS, SENSEHIDDEN_II, REVEALWAYS, VISION_II, OINVIS, INVISIBILITY }
-school_book[57] = { BLINK, TELEPORT, OFEAR_II, OBLIND_II, OINVIS, SHADOWGATE }
+school_book[57] = { BLINK, OBLINK, TELEPORT, OFEAR_II, OBLIND_II, SHADOWGATE, OINVIS }
 ---- Create the handbook for dungeon masters & wizards (of dungeon keeping)
 school_book[58] = { TELEKINESIS, DIG, STONEPRISON, GROWTREE, DISARM, VISION_II, STARIDENTIFY, MANATHRUST_III, DISEBOLT, FIREBALL_II, FIREFLASH_II, RECHARGE_III, MAGELOCK_II }
 -- Create the handbook of revelation
@@ -302,7 +293,7 @@ school_book[59] = { MEDITATION, IDENTIFY_III, STARIDENTIFY, SENSEHIDDEN_II, DETE
 school_book[60] = {
     --TELEAWAY_I, MTELEAWAY,
     BLINK, TELEPORT, RECALL, TELEKINESIS, MBLINK, MTELEPORT, MTELETOWARDS, MTELEKINESIS, RELOCATION, GATEWAY, SHADOWGATE }
--- Create the handbook of first visions
+-- Create the handbook of first visions (shaman starter book)
 school_book[61] = { OCURSEDD_I, ODELFEAR, STARLIGHT_I, MEDITATION, OFEAR_I, DETECTINVIS, HDETECTEVIL, SENSEHIDDEN_I }
 
 -- Create the handbook of alleviation
@@ -310,7 +301,29 @@ school_book[62] = { ODELFEAR, HERBALTEA, MEDITATION, DISPELMAGIC, HCUREWOUNDS_II
 -- Create the handbook of manipulation
 school_book[63] = { MDISARM, MSILENCE, MSCARE_II, MCONFUSE_II, MSLEEP_II, MSLOWMONSTER_II, MTELEAWAY, MCHARM, MSTOPCHARM, MTELEKINESIS }
 -- Create the handbook of wind and weather
-school_book[64] = { THUNDERSTORM, AIRWINGS, TIDALWAVE_I, VAPOR_II, LIGHTNINGBOLT_II, ICESTORM_I, FROSTBALL_I, FROSTBOLT_II, WATERBOLT_II }
+school_book[64] = { THUNDERSTORM, AIRWINGS, TIDALWAVE_I, VAPOR_II, LIGHTNINGBOLT_II, ICESTORM_I, FROSTBALL_I, FROSTBOLT_II, WATERBOLT_II, VAPORMIRROR }
+
+-- Create the handbook of rough ideas (mindcrafter starter book)
+--school_book[65] = { MBOOST, MCURE,  MSCARE_I, MCONFUSE_I, MSLEEP_I, MMINDBLAST_I,  MBASH, MDISARM }
+--<MAYBE ENABLE> school_book[65] = { MCURE, MSCARE_I, MCONFUSE_I, MBASH }
+-- Create the handbook of simple tricks (rogue starter book)
+--school_book[66] = { BLINK, OFEAR_I, OBLIND_I, OSLEEP_I }
+--<MAYBE ENABLE>school_book[66] = { BLINK, OFEAR_I, OBLIND_I }
+--[[	--rangers use the same book as mages, just cant use manathrust (no HEALING_I nature spell in it, but not needed)
+-- Create the handbook of outdoor activity (ranger starter book)
+--school_book[67] = { GLOBELIGHT_I, BLINK, DETECTMONSTERS, HEALING_I, VAPOR_I, LIGHTNINGBOLT_I }
+school_book[67] = { GLOBELIGHT_I, BLINK, DETECTMONSTERS, HEALING_I, LIGHTNINGBOLT_I }
+]]
+--[[	--basically same as priest starter book?
+-- Create the handbook of commencing duty (paladin starter book)
+school_book[68] = { HDELFEAR, HBLESSING_I, HGLOBELIGHT_I, HDETECTEVIL, HSANCTUARY_I }
+]]
+--[[	--druids have only 3 early spells in total, and they are especially powerful early on - no point in druid starter book!
+-- Create the handbook of herbs and plants (druid starter book)
+school_book[69] = { FOCUS, HERBALTEA, WATERPOISON_I }
+]]
 
 -- Create the book of summoning
 school_book[68] = { UNSUMMON, PET_MIND_ATTACK, PET_MIND_GUARD, PET_MIND_FOLLOW }
+=======
+

@@ -198,6 +198,7 @@ player_class *class_info;
 player_trait *trait_info;
 
 //the +16 are just for some future-proofing, to avoid needing to update the client
+char attribute_diz[6][8][61];
 char race_diz[MAX_RACE + 16][12][61]; /* 50 chars, 1 terminator, 10 for colour codes! */
 char class_diz[MAX_CLASS + 16][12][61];
 char trait_diz[MAX_TRAIT + 16][12][61];
@@ -212,7 +213,7 @@ cptr ANGBAND_DIR_GAME;
 bool disable_numlock = FALSE;
 bool use_graphics = FALSE;
 #ifdef USE_GRAPHICS
-char graphic_tiles[256] = "\0";
+char graphic_tiles[256] = "16x22sv";
 #endif
 #ifdef USE_SOUND_2010
 bool use_sound = TRUE, use_sound_org = TRUE; //ought to be set via TOMENET_SOUND environment var in linux, probably (compare TOMENET_GRAPHICS) -C. Blue
@@ -315,6 +316,7 @@ bool s_RPG = FALSE, s_FUN = FALSE, s_ARCADE = FALSE, s_TEST = FALSE;
 bool s_RPG_ADMIN = FALSE, s_PARTY = FALSE;
 bool s_DED_IDDC = FALSE, s_DED_PVP = FALSE;
 bool s_NO_PK = FALSE, s_PVP_MAIA = FALSE;
+bool create_character_ok_pvp = TRUE, create_character_ok_iddc = TRUE;
 
 /* Server temporary feature flags */
 u32b sflags_TEMP = 0x0;
@@ -328,6 +330,8 @@ bool auto_inscription_force[MAX_AUTO_INSCRIPTIONS];
 #ifdef REGEX_SEARCH
 bool auto_inscription_invalid[MAX_AUTO_INSCRIPTIONS];
 #endif
+bool auto_inscription_subinven[MAX_AUTO_INSCRIPTIONS];//ENABLE_SUBINVEN
+bool auto_inscription_disabled[MAX_AUTO_INSCRIPTIONS];
 
 /* Monster health memory (health_redraw) */
 int mon_health_num;
@@ -406,17 +410,17 @@ generic_term_info term_prefs[10] = {
 	{ 0, -32000, -32000, 80, 24, "5x8" },
 	{ 0, -32000, -32000, 80, 24, "5x8" },
 	{ 0, -32000, -32000, 80, 24, "5x8" }
-#else /* fitting for full-hd */
-	{ 1, -32000, -32000, 80, 24, "9x15" },//TomeNET
-	{ 1, -32000, -32000, 80, 24, "8x13" },//Mirror
-	{ 1, -32000, -32000, 80, 24, "8x13" },//Recall
-	{ 1, -32000, -32000, 80, 22, "8x13" },//Choice
-	{ 1, -32000, -32000, 80, 17, "8x13" },//Term-4
-	{ 1, -32000, -32000, 80, 14, "8x13" },//Term-5
-	{ 0, -32000, -32000, 80, 24, "8x13" },
-	{ 0, -32000, -32000, 80, 24, "8x13" },
-	{ 0, -32000, -32000, 80, 24, "8x13" },
-	{ 0, -32000, -32000, 80, 24, "8x13" }
+#else /* fitting for full-hd -- note: client will start up on 1st time with all windows inaccessible until moved via "alt+space,m" if the coords are -32000 */
+	{ 1, 0, 0, 80, 24, "9x15" },//TomeNET
+	{ 1, 0, 0, 80, 24, "8x13" },//Mirror
+	{ 1, 0, 0, 80, 24, "8x13" },//Recall
+	{ 1, 0, 0, 80, 22, "8x13" },//Choice
+	{ 1, 0, 0, 80, 17, "8x13" },//Term-4 - inven
+	{ 1, 0, 0, 80, 14, "8x13" },//Term-5 - equip
+	{ 0, 0, 0, 80, 24, "8x13" },
+	{ 0, 0, 0, 80, 24, "8x13" },
+	{ 0, 0, 0, 80, 24, "8x13" },
+	{ 0, 0, 0, 80, 24, "8x13" }
 #endif
 };
 
@@ -426,18 +430,20 @@ bool request_abort = FALSE;
 
 /* For polymorphing by monster name
    and also for monster lore */
-char monster_list_name[MAX_R_IDX][80], monster_list_symbol[MAX_R_IDX][2];
-int monster_list_code[MAX_R_IDX], monster_list_idx = 0, monster_list_level[MAX_R_IDX];
-bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX];
+char monster_list_name[MAX_R_IDX][80], monster_list_symbol[MAX_R_IDX][2]; //note: [0] is the attr (just byte), [1] is the char. Todo maybe: Separate attr and char.
+int monster_list_code[MAX_R_IDX], monster_list_idx = 0, monster_list_level[MAX_R_IDX]; // 'code' is the r_info 'N:' index, aka r_idx
+bool monster_list_any[MAX_R_IDX], monster_list_breath[MAX_R_IDX], monster_list_unique[MAX_R_IDX];
 /* For artifact lore */
-char artifact_list_name[MAX_A_IDX][80];
-int artifact_list_code[MAX_A_IDX], artifact_list_rarity[MAX_A_IDX], artifact_list_idx = 0;
+char artifact_list_name[MAX_A_IDX][80]; //note: format of this is: 1st byte \377, 2nd byte attr, 3rd byte char, then "Lnn " and the actual artifact name
+int artifact_list_code[MAX_A_IDX], artifact_list_rarity[MAX_A_IDX], artifact_list_idx = 0; // 'code' is the a_info 'N:' index aka a_idx
+int artifact_list_kidx[MAX_A_IDX]; /* and this is the actual k_info 'N:' index aka k_idx, that constitutes the artifact's base item */
 bool artifact_list_specialgene[MAX_A_IDX];
 char artifact_list_activation[MAX_A_IDX][80];
 /* For artifact lore */
 char kind_list_name[MAX_K_IDX][80];
-int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx = 0;
-char kind_list_char[MAX_K_IDX], kind_list_attr[MAX_K_IDX];
+int kind_list_tval[MAX_K_IDX], kind_list_sval[MAX_K_IDX], kind_list_rarity[MAX_K_IDX], kind_list_idx = 0, kind_list_kidx[MAX_K_IDX];
+char kind_list_char[MAX_K_IDX];
+byte kind_list_attr[MAX_K_IDX];
 
 /* For screenshots, to unmap custom fonts back to normally readable characters */
 char monster_mapping_org[MAX_R_IDX + 1];
@@ -516,13 +522,16 @@ u32b client_color_map[CLIENT_PALETTE_SIZE] = {
 };
 #ifdef EXTENDED_BG_COLOURS
 u32b client_ext_color_map[TERMX_AMT][2] = {
-	{ 0xffffff, 0x112288 },	/* experimental TERMX_BLUE */
-	{ 0xffffff, 0x007700 },
-	{ 0xffffff, 0x770000 },
-	{ 0xffffff, 0x777700 },
-	{ 0xffffff, 0x555555 },
-	{ 0xffffff, 0xBBBBBB },
-	{ 0xffffff, 0x333388 },
+	//{"#0000ff", "#444444", },
+	//{"#ffffff", "#0000ff", },
+	//{"#666666", "#0000ff", },
+	{ 0xffffff, 0x112288 },	/* TERMX_BLUE */
+	{ 0xffffff, 0x007700 }, /* TERMX_GREEN */
+	{ 0xffffff, 0x770000 }, /* TERMX_RED */
+	{ 0xffffff, 0xAAAA00 }, /* TERMX_YELLOW */
+	{ 0xffffff, 0x555555 }, /* TERMX_GREY */
+	{ 0xffffff, 0xBBBBBB }, /* TERMX_WHITE */
+	{ 0xffffff, 0x333388 }, /* TERMX_PURPLE */
 };
 #endif
 u32b client_color_map_org[CLIENT_PALETTE_SIZE];
@@ -699,7 +708,7 @@ bool within_cmd_player = FALSE;
 int within_cmd_player_ticks;
 
 int NumPlayers = 0;
-char playerlist[1000][MAX_CHARS_WIDE * 2];
+char playerlist_name[MAX_PLAYERS_LISTED][NAME_LEN], playerlist[MAX_PLAYERS_LISTED][MAX_CHARS_WIDE];
 
 byte col_raindrop = TERM_BLUE, col_snowflake = TERM_WHITE, col_sandgrain = TERM_L_UMBER;
 char c_sandgrain = '+';
@@ -747,3 +756,6 @@ int food_warn_once_timer;
 int prev_huge_cmp = -1, prev_huge_mmp = -1;
 int prev_huge_csn = -1, prev_huge_msn = -1;
 int prev_huge_chp = -1, prev_huge_mhp = -1;
+
+bool fix_custom_font_after_startup = TRUE;
+int flick_global_x = 0, flick_global_y = 0, flick_global_time = 0; //time is for TERM_SRCLITE_TEMP

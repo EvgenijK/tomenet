@@ -43,6 +43,9 @@
 
 # C. Blue: Currently unused but good weapon names:
 # Lucerne Hammer, Lochaber Axe (both polearms)
+# Note about weight of weapons in TomeNET currently, also see comment at 'Mage Staff' item:
+# Weapons currently weigh 3x as much as in 'reality'. Armour weight seems realistic mostly.
+
 
 # Version stamp (required)
 
@@ -132,7 +135,7 @@ D:Drains constitution and inflicts damage.
 N:11:Restore Constitution
 G:,:d
 I:80:18:500
-W:10:0:1:350
+W:10:0:1:200
 A:10/1
 #D:Restores drained constitution.
 
@@ -183,7 +186,7 @@ A:8/1
 N:18:Restore Strength
 G:,:d
 I:80:17:500
-W:10:0:1:350
+W:10:0:1:200
 A:10/1
 #D:Restores drained strength.
 
@@ -272,7 +275,7 @@ F:INSTA_ART
 N:30:& Broken Dagger~
 G:|:D
 I:23:1:0
-W:0:0:5:1
+W:0:0:20:1
 A:0/2:5/2
 P:0:1d1:-2:-4:0
 F:SHOW_MODS
@@ -324,7 +327,7 @@ W:70:0:180:4000
 A:70/8
 P:0:5d5:5:5:0
 F:RES_CHAOS | CHAOTIC | SHOW_MODS | SHOULD2H
-F:IGNORE_FIRE | IGNORE_ACID | IGNORE_WATER | EVIL
+F:IGNORE_FIRE | IGNORE_ACID | IGNORE_WATER | UNBLESSED
 
 N:37:& Espadon~
 G:|:W
@@ -377,7 +380,7 @@ F:SHOW_MODS | COULD2H
 N:43:& Dagger~
 G:|:W
 I:23:4:0
-W:0:0:12:10
+W:0:0:24:10
 A:0/1:5/1:10/1:20/1
 P:0:1d4:0:0:0
 F:SHOW_MODS
@@ -409,7 +412,7 @@ F:SHOW_MODS
 N:47:& Broken Sword~
 G:|:D
 I:23:2:0
-W:0:0:30:2
+W:0:0:50:2
 A:0/2:5/2
 P:0:1d2:-2:-4:0
 F:SHOW_MODS
@@ -425,6 +428,7 @@ A:10/1
 P:0:2d4:0:0:0
 F:SHOW_MODS
 
+#note: Whip weight is currently inconsistent with the rest of the weapons, should be ~7 lbs. Just keeping it at 3.0 for 3-bpr breakpoint. - C. Blue
 N:49:& Whip~
 G:\:D
 I:21:2:0
@@ -672,7 +676,7 @@ D:This ranged weapon requires pebbles or shots as ammunition.
 N:78:& Arrow~
 G:{:U
 I:17:1:0
-W:3:0:2:1
+W:3:0:2:2
 A:3/1:15/1:50/1
 P:0:1d4:0:0:0
 F:SHOW_MODS
@@ -690,7 +694,7 @@ D:It is ammunition fit for bows and arrow trap kits.
 N:80:& Bolt~
 G:{:s
 I:18:1:0
-W:3:0:3:2
+W:3:0:4:3
 A:3/1:25/1:60/1
 P:0:1d5:0:0:0
 F:SHOW_MODS
@@ -699,7 +703,7 @@ D:It is ammunition fit for crossbows and bolt trap kits.
 N:81:& Seeker Bolt~
 G:{:r
 I:18:2:0
-W:60:0:4:30
+W:60:0:6:30
 A:60/2:70/2
 P:0:3d5:0:0:0
 F:SHOW_MODS
@@ -1027,7 +1031,7 @@ P:16:1d4:-2:0:0
 N:122:& Shield~ of Deflection
 G:):G
 I:34:10:0
-W:80:0:100:10000
+W:80:0:120:10000
 A:80/4
 $USE_NEW_SHIELDS$P:25:1d1:0:0:0
 $USE_NEW_SHIELDS!P:10:1d1:0:0:10
@@ -1107,7 +1111,7 @@ $NEW_SHIELDS_NO_AC$F:EASY_KNOW
 N:130:& Small Metal Shield~
 G:):s
 I:34:3:0
-W:10:0:65:50
+W:10:0:75:50
 A:14/1
 #$USE_NEW_SHIELDS$P:13:1d2:0:0:0
 $USE_NEW_SHIELDS$P:17:1d2:0:0:0
@@ -1785,21 +1789,21 @@ G:?:d
 I:70:33:0
 W:1:0:5:15
 A:1/1
-D:Temporarily increases armour class by +8 and hit chance by +4.
+D:Temporarily increases armour class by +6 and hit chance by +3.
 
 N:218:Holy Chant
 G:?:d
 I:70:34:0
 W:10:0:5:200
 A:10/1
-D:Temporarily increases armour class by +14 and hit chance by +7.
+D:Temporarily increases armour class by +10 and hit chance by +5.
 
 N:219:Holy Prayer
 G:?:d
 I:70:35:0
 W:25:0:5:1500
 A:25/1
-D:Temporarily increases armour class by +20 and hit chance by +10.
+D:Temporarily increases armour class by +16 and hit chance by +8.
 
 N:220:Word of Recall
 G:?:d
@@ -1807,7 +1811,7 @@ I:70:11:0
 W:5:0:5:150
 A:5/1
 D:Teleports you into or out of dungeons, to specific dungeon floors,
-D:or to a certain world map sector.
+D:or to specific world map sectors.
 
 N:221:*Destruction*
 G:?:d
@@ -2144,8 +2148,8 @@ W:3:0:4:250
 A:3/1
 P:0:1d1:0:0:0
 F:FOUNTAIN
-D:Temporarily removes fear and increases strength, hit points and damage,
-D:while it makes the user reckless, reducing his armour class.
+D:Temporarily puts you into berserk rage, removing fear and increasing strength,
+D:hit points and damage, while it makes you reckless, reducing your armour class.
 
 N:259:Boldness
 G:!:d
@@ -2441,7 +2445,7 @@ D:Casts a random magic spell.
 #N:293:& Steel Bolt~
 #G:{:W
 #I:18:5:0
-#W:3:0:4:10
+#W:3:0:5:10
 #A:25/2:60/2
 #P:0:2d5:0:0:0
 #F:SHOW_MODS
@@ -2754,77 +2758,85 @@ D:and cures stun and most cuts.
 
 ##### School Books #####
 
-$NEW_TOMES!N:330:& Tome~ of Magical Energy
-$NEW_TOMES$N:330:& Tome~ of Magical Energy
+N:330:& Tome~ of Magical Energy
 G:?:M
 I:111:0:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_MANA
+# for WIELD_BOOKS:
+F:REGEN_MANA
 
-$NEW_TOMES!N:331:& Tome~ of the Eternal Flame
-$NEW_TOMES$N:331:& Tome~ of the Eternal Flame
+N:331:& Tome~ of the Eternal Flame
 G:?:f
 I:111:1:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_FIRE | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_FIRE | SH_FIRE | BRAND_FIRE
 
-$NEW_TOMES!N:332:& Tome~ of the Blowing Wind
-$NEW_TOMES$N:332:& Tome~ of the Blowing Wind
+N:332:& Tome~ of the Blowing Wind
 G:?:e
 I:111:2:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_ELEC | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_COLD | SH_COLD | BRAND_COLD
 
-$NEW_TOMES!N:333:& Tome~ of the Impenetrable Earth
-$NEW_TOMES$N:333:& Tome~ of the Impenetrable Earth
+N:333:& Tome~ of the Impenetrable Earth
 G:?:H
 I:111:3:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_ACID | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_SHARDS | RES_ACID
 
-$NEW_TOMES!N:334:& Tome~ of the Everrunning Wave
-$NEW_TOMES$N:334:& Tome~ of the Everrunning Wave
+N:334:& Tome~ of the Everrunning Wave
 G:?:Y
 I:111:4:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_WATER
 
-$NEW_TOMES!N:335:& Tome~ of Translocation
-$NEW_TOMES$N:335:& Tome~ of Translocation
+N:335:& Tome~ of Translocation
 G:?:q
 I:111:5:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_TELE
 
-$NEW_TOMES!N:336:& Tome~ of the Tree
-$NEW_TOMES$N:336:& Tome~ of the Tree
+N:336:& Tome~ of the Tree
 G:?:u
 I:111:6:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:REGEN | RES_BLIND
 
-$NEW_TOMES!N:337:& Tome~ of Knowledge
-$NEW_TOMES$N:337:& Tome~ of Knowledge
+N:337:& Tome~ of Knowledge
 G:?:D
 I:111:7:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_CONF
 
 
 ##### Chests #####
@@ -2876,6 +2888,7 @@ G:~:s
 I:7:0:0
 W:0:0:250:0
 A:75/1
+F:EASY_KNOW
 
 
 ##### Various Stuff #####
@@ -3135,8 +3148,8 @@ D:and cures stun and most cuts.
 N:375:Detection
 G:-:d
 I:66:6:80
-W:30:0:15:5000
-A:30/8
+W:50:0:15:10000
+A:50/8
 P:0:1d1:0:0:0
 #D:Detects treasure, objects, traps, secret doors, stairs,
 D:Detects treasure, traps, secret doors, stairs,
@@ -3177,6 +3190,8 @@ $ENABLE_OCCULT$W:50:0:30:25000
 $ENABLE_OCCULT$A:50/50:100/50
 $ENABLE_OCCULT$P:0:1d1:0:0:0
 $ENABLE_OCCULT$F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+$ENABLE_OCCULT$F:RES_DARK
 
 $ENABLE_OCCULT$N:380:& Tome~ of Spirits
 $ENABLE_OCCULT$G:?:i
@@ -3185,6 +3200,8 @@ $ENABLE_OCCULT$W:50:0:30:25000
 $ENABLE_OCCULT$A:50/50:100/50
 $ENABLE_OCCULT$P:0:1d1:0:0:0
 $ENABLE_OCCULT$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE
+# for WIELD_BOOKS:
+$ENABLE_OCCULT$F:RES_LITE
 
 N:381:& Snowball~
 G:*:w
@@ -3218,6 +3235,8 @@ $ENABLE_OHERETICISM$W:50:0:30:25000
 $ENABLE_OHERETICISM$A:50/50:100/50
 $ENABLE_OHERETICISM$P:0:1d1:0:0:0
 $ENABLE_OHERETICISM$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE
+$ENABLE_OHERETICISM$# for WIELD_BOOKS:
+$ENABLE_OHERETICISM$F:RES_CHAOS
 
 
 # Extra weapons to buff some categories away from too high rarity
@@ -3233,7 +3252,7 @@ F:SHOW_MODS | MUST2H
 N:386:& Hatchet~
 G:/:u
 I:24:5:0
-W:3:0:70:85
+W:3:0:60:85
 A:3/1
 #:10/1
 P:0:2d3:0:0:0
@@ -3727,7 +3746,7 @@ G:=:d
 I:45:44:0
 W:25:0:2:2500
 A:25/2
-F:RES_SHARDS | EASY_KNOW
+F:RES_SHARDS
 D:Affects your armour class.
 
 N:432:Disenchantment Resistance
@@ -3830,12 +3849,16 @@ F:FOUNTAIN
 N:444:& Magic Bolt~
 G:{:b
 I:18:3:0
-W:10:0:3:100
+W:10:0:4:100
 A:15/2:30/2
 P:0:1d5:0:0:0
 F:SHOW_MODS | NO_ENCHANT
 D:It is ammunition fit for crossbows and bolt trap kits.
 D:It magically returns to you after you fired it.
+
+
+##### SURELY DEPRECATED? -> Items 445 to 479 reserved (old "terrain" objects) #####
+
 
 N:445:& Magic Shot~
 G:{:o
@@ -3866,6 +3889,8 @@ $ENABLE_OUNLIFE$W:50:0:30:25000
 $ENABLE_OUNLIFE$A:50/50:100/50
 $ENABLE_OUNLIFE$P:0:1d1:0:0:0
 $ENABLE_OUNLIFE$F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+$ENABLE_OUNLIFE$# for WIELD_BOOKS:
+$ENABLE_OUNLIFE$F:HOLD_LIFE
 
 
 $ENABLE_DEMOLITIONIST$N:448:& Grinding Tool~
@@ -3911,7 +3936,7 @@ P:0:4d7:0:0:0
 $ENABLE_SUBINVEN$N:452:& Alchemy Satchel~
 #$ENABLE_SUBINVEN$G:&:y
 $ENABLE_SUBINVEN$G:~:o
-$ENABLE_SUBINVEN$I:126:0:7
+$ENABLE_SUBINVEN$I:126:0:9
 $ENABLE_SUBINVEN$W:1:0:30:300
 #$ENABLE_SUBINVEN$A:127/0
 $ENABLE_SUBINVEN$A:10/10:20/20
@@ -4028,7 +4053,7 @@ D:It is ammunition fit for bows and arrow trap kits.
 N:466:& Silver Bolt~
 G:{:w
 I:18:4:0
-W:50:0:3:40
+W:50:0:4:40
 A:60/4:95/2
 P:0:2d5:0:0:0
 F:SHOW_MODS | KILL_UNDEAD | IGNORE_ACID | IGNORE_FIRE | IGNORE_WATER
@@ -4056,7 +4081,7 @@ W:10:0:3:600
 A:10/3
 F:REGEN | EASY_KNOW
 
-N:470:Infravision
+N:470:Infra-vision
 G:":d
 I:40:26:0
 W:5:0:3:200
@@ -4298,7 +4323,7 @@ F:INSTA_ART
 N:500:& Phial~
 G:~:y
 I:39:100:0
-W:20:0:10:15000
+W:10:0:10:15000
 P:0:1d1:0:0:0
 F:INSTA_ART
 
@@ -4440,9 +4465,41 @@ A:127/0
 F:HIDE_TYPE
 D:Prevents hit points, sanity or experience from dropping below zero.
 
-# HOLE 517-520 (1st hole)
-### Room for new objects added after 511 (Zangband 2.1.0): 512-575
+#turquoise recharge cell
+N:517:& Energy Cell~
+G:*:B
+I:11:2:0
+W:127:0:3:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW | ACTIVATE | EASY_USE
+D:A strange container of turquoise metal that has crackling energy stored inside.
 
+# Made for Mt Doom depths, pseudo-H.Adam.P.A.
+N:518:Heavy Adamantite Plate Armour~
+G:[:v
+I:37:40:0
+W:85:0:270:50000
+P:76:4d4:-6:0:10
+F:IGNORE_ACID | IGNORE_WATER | IGNORE_MANA | WINNERS_ONLY | FORCE_DEPTH | INSTA_ART
+
+#N:519:& Handbook~ of Simple Tricks
+#G:?:b
+#I:111:66:0
+#W:5:0:30:1500
+#A:5/30
+#P:0:1d1:0:0:0
+#F:IGNORE_WATER | EASY_KNOW
+
+$ENABLE_SUBINVEN$N:520:& Potion Belt~
+$ENABLE_SUBINVEN$G:~:B
+$ENABLE_SUBINVEN$I:126:3:5
+$ENABLE_SUBINVEN$W:1:0:50:1000
+#$ENABLE_SUBINVEN$A:127/0
+$ENABLE_SUBINVEN$A:10/10:20/20
+$ENABLE_SUBINVEN$P:0:1d1:0:0:0
+$ENABLE_SUBINVEN$F:EASY_KNOW
+$ENABLE_SUBINVEN$D:A utility belt that holds potions ready for you to quaff on demand.
 
 #521 and 522 cannot have EASY_KNOW because they may be cursed
 # ^ atm Anti-Magic amulet is never cursed, so EASY_KNOW now
@@ -4536,7 +4593,7 @@ F:EASY_KNOW | IGNORE_FIRE | LITE3 | LITE1 | RES_FEAR | SEE_INVIS | WHITE_LIGHT
 N:531:& Fur Cloak~
 G:(:W
 I:35:3:0
-W:12:0:30:300
+W:12:0:30:85
 A:12/2:30/2
 P:3:0d0:0:0:0
 F:IGNORE_WATER
@@ -4553,7 +4610,7 @@ F:IGNORE_WATER
 N:533:& Cleaver~
 G:/:s
 I:24:1:0
-W:2:0:50:45
+W:2:0:40:45
 A:2/1
 #:8/1
 P:0:1d5:0:0:0
@@ -4607,7 +4664,17 @@ P:0:4d10:0:0:0
 F:SHOW_MODS | MUST2H | KILL_DRAGON | IGNORE_ACID | IGNORE_FIRE
 # | BLESSED or | SLAY_EVIL ?
 
-# HOLE 539-541
+#N:539:& Handbook~ of Rough Ideas
+#G:?:y
+#I:111:65:0
+#W:5:0:30:1500
+#A:5/30
+#P:0:1d1:0:0:0
+#F:IGNORE_WATER | EASY_KNOW
+
+
+# HOLE 540-541
+
 
 N:542:& Club~
 G:\:u
@@ -4898,13 +4965,18 @@ P:0:1d1:0:0:0
 #
 # Mage staffs (for Sorcerers to wield.)
 
+#Notes regarding weight: it's possible that in DnD a mage staff weighs 4.0lbs. So since all TomeNET
+#weapons currently weigh 3x as much as in 'reality' (Todo: Fix ^^') that would be around 12.0 lbs.
+#We can give some leeway and assume an especially light staff, and go with 90,
+#which is actually same weight that is currently used for a Three Piece Rod.
 N:577:& Mage Staff~
 G:\:w
 I:6:1:0
-W:5:0:12:300
+W:5:0:90:300
 A:5/3:45/2
 P:0:1d4:0:0:0
 F:SHOW_MODS | MUST2H | REGEN_MANA
+#(Note regarding WIELD_DEVICES: Cheapest mdev staves are 200 Au atm.)
 
 # An extra ring, out of place
 
@@ -5481,7 +5553,54 @@ P:0:0d0:0:0:0
 #W:5:0:5:125
 #A:5/1:15/1:25/1:35/1:65/1:85/1:95/1
 
-# HOLE 655-660
+#red,green,yellow,blue,orange,purple ; copper,silver,golden
+N:655:& Red Gift Wrapping~
+G:~:R
+I:11:10:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:656:& Orange Gift Wrapping~
+G:~:o
+I:11:11:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:657:& Yellow Gift Wrapping~
+G:~:y
+I:11:12:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:658:& Green Gift Wrapping~
+G:~:G
+I:11:13:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:659:& Blue Gift Wrapping~
+G:~:B
+I:11:14:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:660:& Purple Gift Wrapping~
+G:~:v
+I:11:15:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
 
 # The Phial of Undeath -- see artifact list. He he he he...
 
@@ -5953,7 +6072,7 @@ W:25:0:110:500
 A:25/1:80/2
 P:0:2d7:0:0:0
 F:COULD2H
-F:SHOW_MODS | ANTIMAGIC_50 | NO_ENCHANT
+F:SHOW_MODS | ANTIMAGIC_50 | NO_ENCHANT | UNBLESSED
 F:IGNORE_DISEN | IGNORE_WATER
 
 #N:722:Numenorean for beginners (I)
@@ -6048,9 +6167,9 @@ $ENABLE_DEMOLITIONIST$A:127/0
 $ENABLE_DEMOLITIONIST$F:EASY_KNOW | ACTIVATE
 $ENABLE_DEMOLITIONIST$D:Ingredient used by proficient demolitionists for creating explosives.
 
-#metal hydroxide  -- note: for NO_RUST_NO_HYDROXIDE rename this to (Disabled):
-#$ENABLE_DEMOLITIONIST$N:734:& Dash~ of Caustic Metal Ash
-$ENABLE_DEMOLITIONIST$N:734:& Dash~ of Caustic Metal Ash (Disabled)
+#X_INFO_TXT_COLOURS
+$ENABLE_DEMOLITIONIST$$NO_RUST_NO_HYDROXIDE!N:734:& Dash~ of Caustic Metal Ash
+$ENABLE_DEMOLITIONIST$$NO_RUST_NO_HYDROXIDE$N:734:& Dash~ of Caustic Metal Ash (\{oDISABLED\{.)
 $ENABLE_DEMOLITIONIST$G:*:W
 $ENABLE_DEMOLITIONIST$I:48:6:0
 $ENABLE_DEMOLITIONIST$W:15:0:5:7
@@ -6058,9 +6177,8 @@ $ENABLE_DEMOLITIONIST$A:127/0
 $ENABLE_DEMOLITIONIST$F:EASY_KNOW | ACTIVATE
 $ENABLE_DEMOLITIONIST$D:Ingredient used by proficient demolitionists for creating explosives.
 
-#metal peroxide -- note: for NO_RUST_NO_HYDROXIDE rename this to metal hydroxide name above:
-#$ENABLE_DEMOLITIONIST$N:735:& Dash~ of Potent Caustic Metal Ash
-$ENABLE_DEMOLITIONIST$N:735:& Dash~ of Caustic Metal Ash
+$ENABLE_DEMOLITIONIST$$NO_RUST_NO_HYDROXIDE!N:735:& Dash~ of Potent Caustic Metal Ash
+$ENABLE_DEMOLITIONIST$$NO_RUST_NO_HYDROXIDE$N:735:& Dash~ of Caustic Metal Ash
 $ENABLE_DEMOLITIONIST$G:*:y
 $ENABLE_DEMOLITIONIST$I:48:7:0
 $ENABLE_DEMOLITIONIST$W:20:0:5:8
@@ -6122,7 +6240,54 @@ F:IGNORE_WATER | EASY_KNOW
 #A:12/1
 #P:0:1d1:0:0:0
 
-# HOLE 743-748
+#red,green,yellow,blue,orange,purple ; copper,silver,golden
+N:743:& Gift~, Wrapped in Red Paper
+G:&:R
+I:127:10:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:744:& Gift~, Wrapped in Orange Paper
+G:&:o
+I:127:11:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:745:& Gift~, Wrapped in Yellow Paper
+G:&:y
+I:127:12:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:746:& Gift~, Wrapped in Green Paper
+G:&:G
+I:127:13:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:747:& Gift~, Wrapped in Blue Paper
+G:&:B
+I:127:14:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
+
+N:748:& Gift~, Wrapped in Purple Paper
+G:&:v
+I:127:15:0
+W:0:0:1:5
+A:127/0
+P:0:1d1:0:0:0
+F:ACTIVATE
 
 ## Scroll
 #N:749:Spell
@@ -6167,14 +6332,15 @@ A:20/3
 F:LEVITATE | EASY_KNOW
 
 
-$NEW_TOMES!N:756:& Tome~ of the Time
-$NEW_TOMES$N:756:& Tome~ of the Time
+N:756:& Tome~ of the Time
 G:?:t
 I:111:8:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_ACID
+# for WIELD_BOOKS:
+F:RES_TIME
 
 $NEW_TOMES!N:757:& Spellbook~ of #
 $NEW_TOMES$N:757:& Spell Scroll~ of #
@@ -6188,49 +6354,52 @@ F:FULL_NAME | EASY_KNOW | IGNORE_WATER
 D:Spell scrolls can be reused infinitely.
 
 #removed Meta school (spells went to Mana and Nature)
-#$NEW_TOMES!N:758:& Tome~ of Meta Spells
-#$NEW_TOMES$N:758:& Tome~ of Meta Spells
+#N:758:& Tome~ of Meta Spells
 #G:?:F
 #I:111:9:0
 #W:50:0:30:25000
 #A:50/50:100/50
 #P:0:1d1:0:0:0
 #F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+#F:FREE_ACT
 
 #removed Mind school (spells went to Udun and Divination)
-#$NEW_TOMES!N:759:& Tome~ of the Mind
-#$NEW_TOMES$N:759:& Tome~ of the Mind
+#N:759:& Tome~ of the Mind
 #G:?:z
 #I:111:10:0
 #W:50:0:30:25000
 #A:50/50:100/50
 #P:0:1d1:0:0:0
 #F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+#F:RES_CONF
 
-#N:760:& Holy Tome~ of Eru Iluvatar
-#G:?:G
-#I:111:20:0
-#W:50:0:30:25000
-#A:50/4
-#P:0:1d1:0:0:0
-#F:FULL_NAME | EASY_KNOW | IGNORE_WATER
-#
-#N:761:& Holy Tome~ of Manwe Sulimo
-#G:?:B
-#I:111:21:0
-#W:50:0:30:25000
-#A:50/4
-#P:0:1d1:0:0:0
-#F:FULL_NAME | EASY_KNOW | IGNORE_WATER
-#
-#N:762:& War Tome~ of Tulkas
-#G:?:R
-#I:111:22:0
-#W:50:0:30:25000
-#A:50/4
-#P:0:1d1:0:0:0
-#F:FULL_NAME | EASY_KNOW | IGNORE_WATER
-#
+##N:760:& Holy Tome~ of Eru Iluvatar
+##G:?:G
+##I:111:20:0
+##W:50:0:30:25000
+##A:50/4
+##P:0:1d1:0:0:0
+##F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+##
+##N:761:& Holy Tome~ of Manwe Sulimo
+##G:?:B
+##I:111:21:0
+##W:50:0:30:25000
+##A:50/4
+##P:0:1d1:0:0:0
+##F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+##
+##N:762:& War Tome~ of Tulkas
+##G:?:R
+##I:111:22:0
+##W:50:0:30:25000
+##A:50/4
+##P:0:1d1:0:0:0
+##F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+##
+
 N:763:& Unholy Tome~ of the Hellflame
 G:?:X
 I:111:11:0
@@ -6238,14 +6407,17 @@ W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE
-#
-#N:764:& Corrupted Tome~ of Melkor
-#G:?:D
-#I:111:23:0
-#W:50:0:30:25000
-#A:50/4
-#P:0:1d1:0:0:0
-#F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:RES_FIRE | SH_FIRE | BRAND_FIRE
+
+##
+##N:764:& Corrupted Tome~ of Melkor
+##G:?:D
+##I:111:23:0
+##W:50:0:30:25000
+##A:50/4
+##P:0:1d1:0:0:0
+##F:FULL_NAME | EASY_KNOW | IGNORE_WATER
 
 # HOLE 765-769
 
@@ -6278,7 +6450,7 @@ I:23:32:2
 W:50:0:45:2000
 A:48/4:60/4:80/4
 P:0:3d4:-2:2:0
-F:RES_DARK | STEALTH
+F:RES_DARK | STEALTH | UNBLESSED
 F:IGNORE_ACID | IGNORE_WATER
 
 N:778:& Bluesteel Blade~
@@ -6351,7 +6523,7 @@ F:SPECIAL_GENE | FULL_NAME
 N:786:Climbing Set~
 G:`:B
 I:12:0:0
-W:40:0:80:20000
+W:40:0:80:15000
 A:40/3
 F:CLIMB | EASY_KNOW
 D:Arms and fingers are required to use this tool.
@@ -6547,11 +6719,16 @@ F:CRIT | HIDE_TYPE
 # (Pern)Mangband native items
 # Renumbering needed!		- Jir -
 
+# Greatly reduced base price and base level, to make it more worth forging low-level form rings as side hustle
 N:810:Polymorphing
 G:=:d
 I:45:60:0
-W:30:0:2:1000
-A:30/1
+#W:30:0:2:1000
+#A:30/1
+#W:5:0:2:250
+#A:5/2:15/2:30/1
+W:5:0:2:250
+A:5/1:15/1:30/1
 F:ACTIVATE | HIDE_TYPE | EASY_USE
 D:Those adept in mimicry can make use of this.
 
@@ -6790,7 +6967,25 @@ W:10:0:5:1250
 A:10/20:20/10
 D:Creates a golem provided you carry all required parts in your backpack.
 
-# HOLE 864-880
+# HOLE 864-878
+
+
+N:879:& White Dame~
+G:&:w
+I:13:17:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+
+N:880:& Black Dame~
+G:&:D
+I:13:18:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+
 
 N:881:House creation
 G:?:d
@@ -6798,9 +6993,6 @@ I:70:57:0
 W:127:0:5:25000
 A:127/0
 D:Multiple of these can be read at once for creating an even bigger house.
-
-
-##### Items 445 to 479 reserved (old "terrain" objects) #####
 
 
 ####
@@ -6811,7 +7003,7 @@ D:Multiple of these can be read at once for creating an even bigger house.
 N:882:& Orcish Shield~
 G:):D
 I:34:7:0
-W:40:0:100:15000
+W:40:0:120:15000
 A:40/4
 $USE_NEW_SHIELDS$P:20:1d3:0:0:0
 $USE_NEW_SHIELDS!P:5:1d3:0:0:5
@@ -6985,9 +7177,10 @@ D:Identifies all items you are carrying.
 N:900:Vermin Control
 G:?:d
 I:70:61:0
-W:15:0:5:2000
+W:15:0:5:1000
 A:15/4
 D:Stops natural breeders on your dungeon level from multiplying any further.
+D:This effects all existing breeders and all that get spawned in the future.
 
 N:901:Chauve-Souris
 G:!:d
@@ -7030,9 +7223,9 @@ I:12:4:0
 W:35:0:12:15000
 A:35/20
 F:EASY_KNOW
-$TOOL_NOTHEFT_COMBO!D:When equipped it protects your inventory items from thieves.
+$TOOL_NOTHEFT_COMBO!D:When equipped it protects your inventory items from thieves and traps.
 $TOOL_NOTHEFT_COMBO$D:When equipped it very efficiently protects the items in your
-$TOOL_NOTHEFT_COMBO$D:inventory as well as the money in your purse from thieves.
+$TOOL_NOTHEFT_COMBO$D:inventory and the money in your purse from thieves and traps.
 
 N:906:& Tarpaulin~
 G:`:D
@@ -7110,7 +7303,10 @@ A:15/2:30/1
 #D:Might sometimes also carry an inscription revealing a dungeon location.
 #NEW_WILDERNESS_MAP_SCROLLS:
 F:EASY_KNOW
-D:Read this to reveal a random world map sector and any dungeons there.
+D:Read this to reveal a random world map sector and notify of dungeons there.
+# Compare cmd6.c:
+D:To add a dungeon to the list of discovered ones, however, one must
+D:travel there in person and spot the entrance with one's own eyes.
 
 # from RFEs
 N:915:& Scourge~
@@ -7202,17 +7398,17 @@ D:Restores 1000 MP.
 
 # Tomes with Priest/Paladin prayers (svals 18,19 still free)
 
-$NEW_TOMES!N:922:& Tome~ of Holy Offense
-$NEW_TOMES$N:922:& Tome~ of Holy Offense
+N:922:& Tome~ of Holy Offense
 G:?:J
 I:111:12:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:LITE1
 
-$NEW_TOMES!N:923:& Tome~ of Holy Defense
-$NEW_TOMES$N:923:& Tome~ of Holy Defense
+N:923:& Tome~ of Holy Defense
 #G:?:S <-very similar to Astral Grimoire
 G:?:V
 I:111:13:0
@@ -7220,53 +7416,60 @@ W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE | IGNORE_ACID
+# for WIELD_BOOKS:
+F:HOLD_LIFE
 
-$NEW_TOMES!N:924:& Tome~ of Holy Curing
-$NEW_TOMES$N:924:& Tome~ of Holy Curing
+N:924:& Tome~ of Holy Curing
 G:?:g
 I:111:14:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:REGEN
 
-$NEW_TOMES!N:925:& Tome~ of Holy Support
-$NEW_TOMES$N:925:& Tome~ of Holy Support
+N:925:& Tome~ of Holy Support
 G:?:C
 I:111:15:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:SLOW_DIGEST
 
 # Tomes for Druid
 
-#$NEW_TOMES!N:950:& Tome~ of Druidism
-#$NEW_TOMES$N:950:& Tome~ of Druidism
+#N:950:& Tome~ of Druidism
 #G:?:G
 #I:111:16:0
 #W:50:0:30:37500
 #A:50/4
 #P:0:1d1:0:0:0
 #F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+## for WIELD_BOOKS:
+#F:REGEN
 
-$NEW_TOMES!N:950:& Tome~ of Arcane Lore
-$NEW_TOMES$N:950:& Tome~ of Arcane Lore
+N:950:& Tome~ of Arcane Lore
 G:?:K
 I:111:16:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:REGEN_MANA
 
-$NEW_TOMES!N:951:& Tome~ of Physical Lore
-$NEW_TOMES$N:951:& Tome~ of Physical Lore
+N:951:& Tome~ of Physical Lore
 G:?:G
 I:111:17:0
 W:50:0:30:25000
 A:50/50:100/50
 P:0:1d1:0:0:0
 F:FULL_NAME | EASY_KNOW | IGNORE_WATER
+# for WIELD_BOOKS:
+F:REGEN
 
 
 N:926:& Heavy Ball~
@@ -7813,7 +8016,7 @@ D:It is ammunition fit for bows and arrow trap kits.
 N:991:& Charred Bolt~
 G:{:D
 I:18:5:0
-W:3:0:1:0
+W:3:0:3:0
 A:127/0
 P:0:0d0:0:0:0
 F:SHOW_MODS
@@ -7860,6 +8063,8 @@ $ENABLE_MCRAFT$W:50:0:30:25000
 $ENABLE_MCRAFT$A:50/50:100/50
 $ENABLE_MCRAFT$P:0:1d1:0:0:0
 $ENABLE_MCRAFT$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE | IGNORE_ACID
+$ENABLE_MCRAFT$# for WIELD_BOOKS:
+$ENABLE_MCRAFT$F:FREE_ACT
 
 $ENABLE_MCRAFT$N:997:& Greater Crystal~ of Attunement
 $ENABLE_MCRAFT$G:*:i
@@ -7868,6 +8073,8 @@ $ENABLE_MCRAFT$W:50:0:30:25000
 $ENABLE_MCRAFT$A:50/50:100/50
 $ENABLE_MCRAFT$P:0:1d1:0:0:0
 $ENABLE_MCRAFT$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE | IGNORE_ACID
+$ENABLE_MCRAFT$# for WIELD_BOOKS:
+$ENABLE_MCRAFT$F:ESP_UNIQUE
 
 $ENABLE_MCRAFT$N:998:& Greater Crystal~ of Mental Intrusion
 $ENABLE_MCRAFT$G:*:P
@@ -7876,6 +8083,8 @@ $ENABLE_MCRAFT$W:50:0:30:25000
 $ENABLE_MCRAFT$A:50/50:100/50
 $ENABLE_MCRAFT$P:0:1d1:0:0:0
 $ENABLE_MCRAFT$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | IGNORE_FIRE | IGNORE_ACID
+$ENABLE_MCRAFT$# for WIELD_BOOKS:
+$ENABLE_MCRAFT$F:RES_CONF
 
 N:999:& Infernal Axe~
 G:/:R
@@ -7884,7 +8093,7 @@ W:65:0:360:2100
 A:65/8
 P:0:7d6:0:0:0
 #P:0:5d9:0:0:0
-F:SHOW_MODS | MUST2H | IGNORE_FIRE | IGNORE_ACID | BRAND_FIRE | EVIL
+F:SHOW_MODS | MUST2H | IGNORE_FIRE | IGNORE_ACID | BRAND_FIRE | UNBLESSED
 
 #Placeholder that prevents item corruption in case k_info.txt doesn't meet
 #saved items in the server's savefile anymore after having been edited. - C. Blue
@@ -7901,7 +8110,7 @@ $NEW_TOMES$N:1001:& Codex~
 $NEW_TOMES$G:?:W
 $NEW_TOMES$I:111:100:3
 $NEW_TOMES$W:10:0:20:1500
-$NEW_TOMES$A:10/30:30/30
+$NEW_TOMES$A:10/10:30/10
 $NEW_TOMES$P:0:1d1:0:0:0
 $NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE
 $NEW_TOMES$D:A codex can hold three spells of the user's choice.
@@ -7912,7 +8121,7 @@ $NEW_TOMES$G:?:W
 $NEW_TOMES$I:111:101:4
 #$NEW_TOMES$W:40:0:30:15000
 $NEW_TOMES$W:40:0:25:6000
-$NEW_TOMES$A:40/50:70/50
+$NEW_TOMES$A:40/30:70/30
 $NEW_TOMES$P:0:1d1:0:0:0
 $NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE
 $NEW_TOMES$D:A spellbook can hold four spells of the user's choice.
@@ -8149,7 +8358,7 @@ P:0:1d1:0:0:0
 D:A potion of fresh blood, it will go bad quickly.
 
 # The Smokin' Boots of Moltor, the Dwarven Archer
-N:1030:Smokin' Boots~
+N:1030:Smokin' Boots
 G:]:r
 I:30:9:0
 W:24:30:30:50000
@@ -8177,7 +8386,7 @@ F:INSTA_ART | TUNNEL | MUST2H
 N:1033:& Tomahawk~
 G:/:u
 I:24:3:0
-W:15:0:80:140
+W:15:0:75:140
 A:15/2
 P:0:2d4:0:0:0
 F:SHOW_MODS
@@ -8266,8 +8475,8 @@ F:FULL_NAME | EASY_KNOW
 #N:(No.):(name)
 #G:(appearence):(colour)
 #I:tval:sval:pval  [ie. TV_SHIELD, SV_SMALL_LEATHER_SHIELD, +0] (defines.h)
-#W:(depth):(rarity[arts only] 0..255):(weight):(price)
-#A:(depth)/(chance[1/value])   [multiple definitions are possible; chance=0 makes the item unfindable]
+#W:(level):(rarity[arts only] 0..255):(weight):(price)  --  depth, rarity and weight have no effect on INSTA_ARTs; price has effect while the item is not known, otherwise it gets overridden by a_ptr->price.
+#A:(depth)/(chance[1/value])   [multiple definitions are possible; chance=0 makes the item unfindable]  -- this line has no effect on INSTA_ARTs
 #P:(AC):(base dam.):(to-hit):(to-dam):(+AC)
 #F:(Flag) |...
 # Note that W and A lines are not in effect for INSTA_ARTs. Only a_info counts for those.

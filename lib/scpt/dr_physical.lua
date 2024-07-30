@@ -1,5 +1,6 @@
 function get_speed()
 	local spd
+
 --  22->35skill+10, 19->39skill+10, 17->42skill+10
 	spd = get_level(Ind, QUICKFEET, 17)
 	if spd > 10 then
@@ -19,7 +20,7 @@ HEALINGCLOUD_I = add_spell {
 	["level"] = 	18,
 	["mana"] = 	18,
 	["mana_max"] = 	18,
-	["fail"] = 	30,
+	["fail"] = 	-30,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
@@ -39,7 +40,7 @@ HEALINGCLOUD_II = add_spell {
 	["level"] = 	29,
 	["mana"] = 	32,
 	["mana_max"] = 	32,
-	["fail"] = 	-25,
+	["fail"] = 	-60,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
@@ -59,7 +60,7 @@ HEALINGCLOUD_III = add_spell {
 	["level"] = 	40,
 	["mana"] = 	60,
 	["mana_max"] = 	60,
-	["fail"] = 	-55,
+	["fail"] = 	-85,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
@@ -82,7 +83,7 @@ QUICKFEET = add_spell {
 	["level"] = 	13,
 	["mana"] = 	25,
 	["mana_max"] = 	25,
-	["fail"] = 	40,
+	["fail"] = 	-10,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
@@ -102,13 +103,14 @@ HERBALTEA = add_spell {
 	["school"] = 	{SCHOOL_DRUID_PHYSICAL},
 	["spell_power"] = 0,
 	["level"] = 	3,
-	["mana"] = 	20,
-	["mana_max"] = 	20,
+	["mana"] = 	15,
+	["mana_max"] = 	15,
 	["fail"] = 	20,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			local lvl
+
 			lvl = get_level(Ind, HERBALTEA, 50)
 
 			msg_print(Ind, "That tasted bitter sweet.")
@@ -168,14 +170,14 @@ EXTRASTATS_I = add_spell {
 	["level"] = 	15,
 	["mana"] = 	20,
 	["mana_max"] = 	20,
-	["fail"] = 	20,
+	["fail"] = 	-15,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			if (get_level(Ind, EXTRASTATS_I, 50) >= 5) then
-				do_xtra_stats(Ind, 1, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10))
+				do_xtra_stats(Ind, 1, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10), 0)
 			else
-				do_xtra_stats(Ind, 0, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10))
+				do_xtra_stats(Ind, 0, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10), 0)
 			end
 			end,
 	["info"] = 	function()
@@ -194,14 +196,14 @@ EXTRASTATS_II = add_spell {
 	["level"] = 	25,
 	["mana"] = 	40,
 	["mana_max"] = 	40,
-	["fail"] = 	-30,
+	["fail"] = 	-45,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			if (get_level(Ind, EXTRASTATS_II, 50) >= 11) then
-				do_xtra_stats(Ind, 3, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10))
+				do_xtra_stats(Ind, 3, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10), 0)
 			else
-				do_xtra_stats(Ind, 2, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10))
+				do_xtra_stats(Ind, 2, 1 + get_level(Ind, EXTRASTATS_I, 50) / 9, rand_int(5) + 17 + get_level(Ind, EXTRASTATS_I, 10), 0)
 			end
 			end,
 	["info"] = 	function()
@@ -229,6 +231,7 @@ FOCUS = add_spell {
 	["spell"] = 	function()
 			local lev = get_level(Ind, FOCUS, 35)
 			local dur = rand_int(5) + 15 + get_level(Ind, FOCUS, 10)
+
 			if lev < 1 then lev = 1 end
 			if lev > 10 then lev = 10 end
 			fire_ball(Ind, GF_EXTRA_TOHIT, 0, lev + (dur * 100), 1, " calls on your inner focus.")
@@ -236,6 +239,7 @@ FOCUS = add_spell {
 			end,
 	["info"] = 	function()
 			local lev = get_level(Ind, FOCUS, 35)
+
 			if lev < 1 then lev = 1 end
 			if lev > 10 then lev = 10 end
 			return "+" .. lev .. " dur d5+" .. (15 + get_level(Ind, FOCUS, 10))
@@ -252,12 +256,13 @@ FOCUS_II = add_spell {
 	["level"] = 	25,
 	["mana"] = 	20,
 	["mana_max"] = 	20,
-	["fail"] = 	-20,
+	["fail"] = 	-50,
 	["stat"] = 	A_WIS,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			local lev = get_level(Ind, FOCUS, 30)
 			local dur = rand_int(5) + 15 + get_level(Ind, FOCUS, 10)
+
 			if lev < 15 then lev = 15 end
 			if lev > 25 then lev = 25 end
 			fire_ball(Ind, GF_EXTRA_TOHIT, 0, lev + (dur * 100), 1, " calls on your inner focus.")
@@ -265,6 +270,7 @@ FOCUS_II = add_spell {
 			end,
 	["info"] = 	function()
 			local lev = get_level(Ind, FOCUS, 30)
+
 			if lev < 15 then lev = 15 end
 			if lev > 25 then lev = 25 end
 			return "+" .. lev .. " dur d5+" .. (15 + get_level(Ind, FOCUS, 10))

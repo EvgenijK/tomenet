@@ -51,6 +51,7 @@ static int find_realm_skill(int realm) {
 
 /*
  * Returns spell chance of failure for spell		-RAK-
+ * unused! as we use adj_int_pow[] now - C. BLue
  */
 static s16b spell_chance(int Ind, int realm, magic_type *s_ptr) {
 	player_type *p_ptr = Players[Ind];
@@ -540,10 +541,9 @@ static void do_mimic_power(int Ind, int power, int dir) {
 	break;
 //#define RF4_UNMAGIC		     0x00000002      /* Cancel player's timed spell */
     case 1:
-      break;
-//#define RF4_S_ANIMAL		    0x00000004  /* Summon animals */
+//#define RF4_TRAPS			0x00002000	/* Create Traps */
     case 2:
-	break;
+      break;
 //#define RF4_ROCKET		      0x00000008  /* TY: Rocket */
     case 3:
 //#define RF4_ARROW_1			0x00000010	/* Fire an arrow (light) */
@@ -751,8 +751,9 @@ static void do_mimic_power(int Ind, int power, int dir) {
 	//unlite_room(Ind, &p_ptr->wpos, p_ptr->py, p_ptr->px); --not really useful, instead let's buff it:
 	unlite_area(Ind, TRUE, 10, 3); //causes darkness damage around the player!
       break;
-// RF6_TRAPS			0x00002000	/* Create Traps */
+// RF6_S_ANIMAL		    0x00000004  /* Summon animals */
     case 77:
+	break;
 // RF6_FORGET			0x00004000	/* Cause amnesia */
     case 78:
 	p_ptr->current_spell = j;
@@ -765,13 +766,13 @@ static void do_mimic_power(int Ind, int power, int dir) {
 /* RF_0 ------------------------------------------------------------------------------------------------- */
 
 //#define RF0_BO_DISE
-    case 96+7:
+    case 96 + 3:
 //#define RF0_BA_DISE
-    case 96+8:
+    case 96 + 4:
 //#define RF0_BR_ICE
-    case 96+18:
+    case 96 + 24:
 //#define RF0_BR_WATER
-    case 96+19:
+    case 96 + 25:
 	p_ptr->current_spell = j;
 	get_aim_dir(Ind);
 	return;
@@ -872,6 +873,14 @@ void do_mimic_power_aux(int Ind, int dir) {
 //#define RF4_ARROW_1			0x00000010	/* Fire arrow(s) (light) */
 		/* XXX: ARROW_1 gives extra-shot to the player; we'd better
 		 * remove this 'innate' power? (see calc_body_bonus) */
+// RF4_TRAPS			0x00002000	/* Create Traps */
+    case 2:
+	sprintf(p_ptr->attacker, " cackles evilly");
+#if 0 /* Note: These traps would be exploitable for xp badly. */
+	//msg_print(Ind, "You cackle evilly.");
+	fire_ball(Ind, GF_MAKE_TRAP, dir, 1, 1 + rlev / 30, p_ptr->attacker);
+#endif
+	break;
     case 3:
 	sprintf(p_ptr->attacker, " fires a rocket for");
 	msg_print(Ind, "You fire a rocket.");
@@ -1024,7 +1033,7 @@ void do_mimic_power_aux(int Ind, int dir) {
     case 27:
 	sprintf(p_ptr->attacker, " breathes mana for");
 	msg_print(Ind, "You breathe mana.");
-	fire_ball(Ind, GF_MANA, dir, (((p_ptr->chp * 10) / MIMIC_DIV3) > 250) ? 250 : ((p_ptr->chp * 10) / MIMIC_DIV3) , rad, p_ptr->attacker);
+	fire_ball(Ind, GF_MANA, dir, (((p_ptr->chp * 10) / MIMIC_DIV3) > 300) ? 300 : ((p_ptr->chp * 10) / MIMIC_DIV3) , rad, p_ptr->attacker);
 	break;
 /* RF4_BR_DISI */
     case 28:
@@ -1139,13 +1148,13 @@ void do_mimic_power_aux(int Ind, int dir) {
     case 45:
 	break;
 /* RF5_BA_NUKE */
-    case 32+14:
+    case 32 + 14:
 	sprintf(p_ptr->attacker, " invokes radiation for");
 	msg_print(Ind, "You invoke radiation.");
 	fire_ball(Ind, GF_NUKE, dir, (rlev + damroll(10, 6)) + rlev_bonus, 2, p_ptr->attacker);
 	break;
 /* RF5_BA_CHAO */
-    case 32+15:
+    case 32 + 15:
 	sprintf(p_ptr->attacker, " invokes raw chaos for");
 	msg_print(Ind, "You invoke raw chaos.");
 	fire_ball(Ind, GF_CHAOS, dir, (rlev * 2) + damroll(10, 10) + rlev_bonus, 4, p_ptr->attacker);
@@ -1257,14 +1266,6 @@ void do_mimic_power_aux(int Ind, int dir) {
 	sprintf(p_ptr->attacker, " invokes a teleportation spell");
 	(void)fire_beam(Ind, GF_AWAY_ALL, dir, rlev, p_ptr->attacker);
 	break;
-// RF6_TRAPS			0x00002000	/* Create Traps */
-    case 77:
-	sprintf(p_ptr->attacker, " cackles evilly");
-#if 0 /* Note: These traps would be exploitable for xp badly. */
-	//msg_print(Ind, "You cackle evilly.");
-	fire_ball(Ind, GF_MAKE_TRAP, dir, 1, 1 + rlev / 30, p_ptr->attacker);
-#endif
-	break;
 // RF6_FORGET
     case 78:
 	sprintf(p_ptr->attacker, " tries to blank your mind");
@@ -1273,27 +1274,27 @@ void do_mimic_power_aux(int Ind, int dir) {
 
 //TODO: implement 96+ mimic spells, aka RF0_, aka innate_spells[3]
 /* RF0_BO_DISE */
-    case 96+7:
+    case 96 + 3:
 	sprintf(p_ptr->attacker, " casts a disenchantment bolt for");
 	msg_print(Ind, "You cast a disenchantment bolt.");
 	//fire_bolt(Ind, GF_DISENCHANT, dir, damroll(7, 8) + (rlev / 3) + rlev_bonus / 3, p_ptr->attacker);
 	fire_bolt(Ind, GF_DISENCHANT, dir, 25 + damroll(4, 5) + (rlev * 3) / 2 + rlev_bonus / 3, p_ptr->attacker);
 	break;
 // RF0_BA_DISE			0x00010000	/* Acid Bolt */
-    case 96+8:
+    case 96 + 4:
 	sprintf(p_ptr->attacker, " casts a disenchantment ball");
 	msg_print(Ind, "You cast a  disenchantment ball.");
 	//fire_ball(Ind, GF_DISENCHANT, dir, (rlev * 2) + damroll(10, 10) + rlev_bonus, 4, p_ptr->attacker);
 	fire_ball(Ind, GF_DISENCHANT, dir, 60 + damroll(10, 10) + rlev + rlev_bonus, rad, p_ptr->attacker);
 	break;
 // RF0_BR_ICE
-    case 96+18:
+    case 96 + 24:
 	sprintf(p_ptr->attacker, " breathes ice for");
 	msg_print(Ind, "You breathe ice.");
 	fire_ball(Ind, GF_ICE, dir, (((p_ptr->chp * 10) / MIMIC_DIV4) > 350) ? 350 : ((p_ptr->chp * 10) / MIMIC_DIV4) , rad, p_ptr->attacker);
 	break;
 // RF5_BR_WATER
-    case 96+19:
+    case 96 + 25:
 	sprintf(p_ptr->attacker, " breathes water for");
 	msg_print(Ind, "You breathe water.");
 	fire_ball(Ind, GF_WATER, dir, (((p_ptr->chp * 10) / MIMIC_DIV4) > 300) ? 300 : ((p_ptr->chp * 10) / MIMIC_DIV4) , rad, p_ptr->attacker);
@@ -1393,23 +1394,23 @@ void do_mimic_power_aux(int Ind, int dir) {
 #endif
 }
 
-void do_mimic_change(int Ind, int r_idx, bool force) {
+bool do_mimic_change(int Ind, int r_idx, bool force) {
 	player_type *p_ptr = Players[Ind];
 
 	if (p_ptr->body_monster == r_idx) {
 		//already using this form
 		Send_confirm(Ind, PKT_ACTIVATE_SKILL);
-		return;
+		return(FALSE);
 	}
 
 	/* Insufficient skill */
 	if (!force && r_info[r_idx].level > get_skill_scale(p_ptr, SKILL_MIMIC, 100)) {
 		msg_print(Ind, "You do need a higher mimicry skill to use that shape.");
 		Send_confirm(Ind, PKT_ACTIVATE_SKILL);
-		return;
+		return(FALSE);
 	}
 
-	if (!force && mimic_power_hindered(Ind)) return;
+	if (!force && mimic_power_hindered(Ind)) return(FALSE);
 
 #if 1
 	/* Corrupted Priest: Reverse all heavy-cursed boni for true demon form - the only time during which they too get flipped item boni. */
@@ -1480,6 +1481,7 @@ void do_mimic_change(int Ind, int r_idx, bool force) {
 	p_ptr->tim_mimic_what = 0;
 #endif
 #endif
+	return(TRUE);
 }
 
 void do_cmd_mimic(int Ind, int spell, int dir) {
@@ -1492,7 +1494,7 @@ void do_cmd_mimic(int Ind, int spell, int dir) {
 
 	/* should it..? */
 	//dun_level *l_ptr = getfloor(&p_ptr->wpos);
-	//(changed it to no_tele)	if (l_ptr && l_ptr->flags1 & LF1_NO_MAGIC) return;
+	//(changed it to no_tele)	if (l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC)) return;
 
 	if (!skill_mimic) {
 		Send_confirm(Ind, PKT_ACTIVATE_SKILL);
@@ -1713,6 +1715,11 @@ void do_cmd_mimic(int Ind, int spell, int dir) {
 void cast_school_spell(int Ind, int book, int spell, int dir, int item, int aux) {
 	player_type *p_ptr = Players[Ind];
 	object_type *o_ptr = &p_ptr->inventory[book];
+#ifdef ENABLE_XID_SPELL
+ #ifdef XID_REPEAT
+	object_type *i_ptr;
+ #endif
+#endif
 	int ftk_maybe;
 	int ftk_type;
 #ifdef ENABLE_XID_SPELL
@@ -1856,8 +1863,9 @@ void cast_school_spell(int Ind, int book, int spell, int dir, int item, int aux)
 #ifdef ENABLE_XID_SPELL
  #ifdef XID_REPEAT
 		/* hack: repeat ID-spell attempt until item is successfully identified */
-		if (rep && ftk_maybe && !object_known_p(Ind, &p_ptr->inventory[item])) {
+		if (rep && ftk_maybe && get_inven_item(Ind, item, i_ptr) && !object_known_p(Ind, i_ptr)) {
 			sockbuf_t *conn_q = get_conn_q(Ind);
+
 			p_ptr->command_rep = PKT_ACTIVATE_SKILL;
 			p_ptr->command_rep_active = TRUE;
 			Packet_printf(conn_q, "%c%c%hd%hd%c%hd%hd", PKT_ACTIVATE_SKILL, MKEY_SCHOOL, book, spell, dir, item, aux);

@@ -198,14 +198,17 @@ void tload(c_special *cs_ptr) {
 	rd_byte(&cs_ptr->sc.trap.t_idx);
 	rd_byte(&tmp8u);
 	cs_ptr->sc.trap.found = tmp8u;
+	if (s_older_than(4, 9, 3)) return;
+	rd_byte(&cs_ptr->sc.trap.clone);
 }
 
 void tsave(c_special *cs_ptr) {
 	wr_byte(cs_ptr->sc.trap.t_idx);
 	wr_byte(cs_ptr->sc.trap.found);
+	wr_byte(cs_ptr->sc.trap.clone);
 }
 void tsee(c_special *cs_ptr, char32_t *c, byte *a, int Ind) {
-//	printf("tsee %d\n", Ind);
+	//s_printf("tsee %d\n", Ind);
 }
 
 int thit(c_special *cs_ptr, int y, int x, int Ind) {
@@ -220,8 +223,8 @@ int thit(c_special *cs_ptr, int y, int x, int Ind) {
 			/* Message */
 			msg_print(Ind, "You triggered a trap!");
 
-			/* Pick a trap */
-			pick_trap(&p_ptr->wpos, p_ptr->py, p_ptr->px);
+			/* Mark trap as found */
+			trap_found(&p_ptr->wpos, p_ptr->py, p_ptr->px);
 		}
 		else if (magik(get_skill_scale(p_ptr, SKILL_DISARM, 90)
 					- UNAWARENESS(p_ptr)))
@@ -288,10 +291,10 @@ void betweensave(c_special *cs_ptr) {
 	wr_byte(cs_ptr->sc.between.fx);
 }
 void betweensee(c_special *cs_ptr, char32_t *c, byte *a, int Ind) {
-//	printf("tsee %d\n", Ind);
+	//s_printf("tsee %d\n", Ind);
 }
 int betweenhit(c_special *cs_ptr, int y, int x, int Ind) {
-//	printf("bhit: %d\n", Ind);
+	//s_printf("bhit: %d\n", Ind);
 	return(TRUE);
 }
 
@@ -310,7 +313,7 @@ void fountsave(c_special *cs_ptr) {
 }
 void fountsee(c_special *cs_ptr, char32_t *c, byte *a, int Ind) {
 	/* TODO: tell what kind if 'known' */
-//	printf("fountsee %d\n", Ind);
+	//s_printf("fountsee %d\n", Ind);
 }
 
 /*

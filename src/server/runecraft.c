@@ -24,13 +24,16 @@
  */
 bool rune_enchant(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
-	object_type *o_ptr = &p_ptr->inventory[item];
+	object_type *o_ptr, *r_ptr;
+	byte sval;
 
 	/* Not worn? */
-	if (INVEN_WIELD > item) {
-		msg_print(Ind, "You must be wearing that to attune the rune.");
+	if (item < INVEN_WIELD || item >= SUBINVEN_INVEN_MUL) {
+		msg_print(Ind, "You must be wearing that to attune the rune."); //yo
 		return(FALSE);
 	}
+
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	/* Artifact? */
 	if (o_ptr->name1) {
@@ -39,8 +42,9 @@ bool rune_enchant(int Ind, int item) {
 	}
 
 	/* One sigil per element! */
-	object_type *r_ptr = &p_ptr->inventory[p_ptr->current_activation];
-	byte sval = r_ptr->sval;
+	if (!get_inven_item(Ind, p_ptr->current_activation, &r_ptr)) return(FALSE);
+	sval = r_ptr->sval;
+
 	if (((p_ptr->inventory[INVEN_WIELD].sigil == sval) && item != INVEN_WIELD)
 	 || ((p_ptr->inventory[INVEN_ARM].sigil == sval) && item != INVEN_ARM)
 	 || ((p_ptr->inventory[INVEN_BODY].sigil == sval) && item != INVEN_BODY)
@@ -53,24 +57,22 @@ bool rune_enchant(int Ind, int item) {
 	}
 
 	/* Store the SVAL and SSEED */
-	o_ptr = &p_ptr->inventory[item];
 	o_ptr->sigil = sval;
 	/* Save RNG with a fresh cycle, see LCRNG() */
 	o_ptr->sseed = Rand_value * 1103515245 + 12345 + turn;
 
-	/* Fully ID and examine immediately */
-	identify_fully_item(Ind, item);
-
 	/* Erase the rune */
 	inven_item_increase(Ind, p_ptr->current_activation, -1);
+	inven_item_describe(Ind, p_ptr->current_activation);
+	inven_item_optimize(Ind, p_ptr->current_activation);
 
 #ifdef USE_SOUND_2010
 	/* Play a sound! */
 	sound(Ind, "item_rune", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
 
-	/* Clean up... */
-	inven_item_optimize(Ind, item);
+	/* Fully ID and examine immediately */
+	identify_fully_item(Ind, item);
 
 	return(TRUE);
 }

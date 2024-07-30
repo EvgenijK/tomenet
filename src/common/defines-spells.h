@@ -3,17 +3,17 @@
 
 /* Purpose: global constants and macro definitions for spells.pre lua file */
 
-#define PR_MANA		0x00000080L	/* Display Mana */
+#define PR_MANA		0x00000080U	/* Display Mana */
 
-#define PR_STATE	0x00100000L	/* Display Extra (State) */
+#define PR_STATE	0x00100000U	/* Display Extra (State) */
 
 /*
  * Number of effects
  */
-#define EFF_WAVE	0x00000001	/* A circle whose radius increase */
-#define EFF_STORM	0x00000004	/* The area follows the player */
-#define EFF_THINWAVE	0x00000080	/* Same as wave, but thickness 1 instead of 3 (hits each target only once instead of three times) */
-#define EFF_VORTEX	0x00000100	/* The area follows the target - Kurzel*/
+#define EFF_WAVE	0x00000001U	/* A circle whose radius increase */
+#define EFF_STORM	0x00000004U	/* The area follows the player */
+#define EFF_THINWAVE	0x00000080U	/* Same as wave, but thickness 1 instead of 3 (hits each target only once instead of three times) */
+#define EFF_VORTEX	0x00000100U	/* The area follows the target - Kurzel*/
 
 /* Generic temporary weapon branding, currently only used for melee weapons */
 #define TBRAND_ELEC		0x0001
@@ -217,6 +217,9 @@
 #define GF_CHARMIGNORE		161
 #define GF_STOP			162 /* special fx: scroll of rune of protection in a monster trap - C. Blue */
 #define GF_CAUSE		163 /* 'Curse' actually, the monster spell */
+#define GF_FLARE		164 /* Combination of LITE_WEAK and FIRE damage, for Flare Missile */
+#define GF_LIFE_SLOW		165
+#define GF_NO_REGEN		166
 
 #define GF_THUNDER		189 /* To replace the hacky 'triple-bolt' of the thunderstorm spell */
 #define GF_ANNIHILATION		192 /* To differentiate drain effect from hacky non-drain effect for wands */

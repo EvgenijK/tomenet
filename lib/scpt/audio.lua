@@ -536,6 +536,8 @@ audio_bgm = {
     "Lothlorien_winter_night",
     "Khazaddum_winter_day",
     "Khazaddum_winter_night",--(177)
+
+    "Jail_dungeon",
 }
 function get_music_name(idx)
     if audio_bgm[idx + 1] == nil then return "" end
@@ -544,6 +546,8 @@ function get_music_name(idx)
 end
 --just for do_cmd_options_mus_sdl():
 function get_music_index(name)
+    local i
+
     for i = 1, getn(audio_bgm) do
         if audio_bgm[i] == name then
             return(i - 1)

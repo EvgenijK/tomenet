@@ -63,14 +63,11 @@ bool WriteAccount(struct account *r_acc, bool new) {
 	path_build(buf, 1024, ANGBAND_DIR_SAVE, "tomenet.acc");
 	fp = fopen(buf, "rb+");
 
-	if (!fp) {
-		/* Attempt to create a new file */
-		fp = fopen(buf, "wb+");
-	}
+	/* Attempt to create a new file */
+	if (!fp) fp = fopen(buf, "wb+");
 
-	if (!fp) {
-		s_printf("Could not open tomenet.acc file! (errno = %d)\n", errno);
-	} else {
+	if (!fp) s_printf("Could not open tomenet.acc file! (errno = %d)\n", errno);
+	else {
 		while (!feof(fp) && !found) {
 			retval = fread(&c_acc, sizeof(struct account), 1, fp);
 			if (retval == 0) break; /* EOF reached, nothing read into c_acc - mikaelh */
@@ -82,20 +79,15 @@ bool WriteAccount(struct account *r_acc, bool new) {
 			if (!strcmp(c_acc.name, r_acc->name)) found = 1;
 		}
 		if (found) {
-			fseek(fp, -sizeof(struct account), SEEK_CUR);
-			if (fwrite(r_acc, sizeof(struct account), 1, fp) < 1) {
+			fseek(fp, -((signed int)sizeof(struct account)), SEEK_CUR);
+			if (fwrite(r_acc, sizeof(struct account), 1, fp) < 1)
 				s_printf("Writing to account file failed: %s\n", feof(fp) ? "EOF" : strerror(ferror(fp)));
-			}
 		}
 		if (new) {
-			if (delpos != -1L) {
-				fseek(fp, delpos, SEEK_SET);
-			} else {
-				fseek(fp, 0L, SEEK_END);
-			}
-			if (fwrite(r_acc, sizeof(struct account), 1, fp) < 1) {
+			if (delpos != -1L) fseek(fp, delpos, SEEK_SET);
+			else fseek(fp, 0L, SEEK_END);
+			if (fwrite(r_acc, sizeof(struct account), 1, fp) < 1)
 				s_printf("Writing to account file failed: %s\n", feof(fp) ? "EOF" : strerror(ferror(fp)));
-			}
 			found = 1;
 		}
 	}
@@ -401,13 +393,11 @@ u32b acc_get_guild_dna(char *name) {
 	return(acc.guild_dna);
 }
 
-int acc_set_deed_event(char *name, char deed_sval) {
+int acc_set_deed_event(char *name, byte deed_sval) {
 	struct account acc;
 
 	/* Read from disk */
-	if (!GetAccount(&acc, name, NULL, TRUE)) {
-		return(0);
-	}
+	if (!GetAccount(&acc, name, NULL, TRUE)) return(0);
 
 	acc.deed_event = deed_sval;
 
@@ -430,13 +420,11 @@ char acc_get_deed_event(char *name) {
 
 	return(acc.deed_event);
 }
-int acc_set_deed_achievement(char *name, char deed_sval) {
+int acc_set_deed_achievement(char *name, byte deed_sval) {
 	struct account acc;
 
 	/* Read from disk */
-	if (!GetAccount(&acc, name, NULL, TRUE)) {
-		return(0);
-	}
+	if (!GetAccount(&acc, name, NULL, TRUE)) return(0);
 
 	acc.deed_achievement = deed_sval;
 
@@ -565,7 +553,7 @@ bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass) {
 				/* Update the timestamp if the password is successfully verified - mikaelh */
 				if (val == 0) {
 					c_acc->acc_laston_real = c_acc->acc_laston = time(NULL);
-					fseek(fp, -sizeof(struct account), SEEK_CUR);
+					fseek(fp, -((signed int)sizeof(struct account)), SEEK_CUR);
 					if (fwrite(c_acc, sizeof(struct account), 1, fp) < 1) {
 						s_printf("Writing to account file failed: %s\n", feof(fp) ? "EOF" : strerror(ferror(fp)));
 					}
@@ -597,6 +585,11 @@ bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass) {
 		return(FALSE);
 	}
 
+	if (strlen(pass) > ACCFILE_PASSWD_LEN) {
+		s_printf("Password length must be at most %d.\n", ACCFILE_PASSWD_LEN);
+		return(FALSE);
+	}
+
 	/* No account found. Create trial account */
 	WIPE(c_acc, struct account);
 	c_acc->id = new_accid();
@@ -606,12 +599,12 @@ bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass) {
 		else
 			c_acc->flags = (ACC_TRIAL | ACC_NOSCORE);
 
-		strncpy(c_acc->name, name, 29);
-		c_acc->name[29] = '\0';
+		strncpy(c_acc->name, name, ACCFILE_NAME_LEN - 1);
+		c_acc->name[ACCFILE_NAME_LEN - 1] = '\0';
 
 		condense_name(buf, c_acc->name);
-		strncpy(c_acc->name_normalised, buf, 29);
-		c_acc->name_normalised[29] = '\0';
+		strncpy(c_acc->name_normalised, buf, ACCFILE_NAME_LEN - 1);
+		c_acc->name_normalised[ACCFILE_NAME_LEN - 1] = '\0';
 
 		strncpy(c_acc->pass, t_crypt(pass, name), sizeof(c_acc->pass));
 		c_acc->pass[sizeof(c_acc->pass) - 1] = '\0';
@@ -674,7 +667,7 @@ bool GetcaseAccount(struct account *c_acc, cptr name, char *correct_name, bool l
 				/* Update the timestamp if the password is successfully verified - mikaelh */
 				if (val == 0) {
 					c_acc->acc_laston_real = c_acc->acc_laston = time(NULL);
-					fseek(fp, -sizeof(struct account), SEEK_CUR);
+					fseek(fp, -((signed int)sizeof(struct account)), SEEK_CUR);
 					if (fwrite(c_acc, sizeof(struct account), 1, fp) < 1) {
 						s_printf("Writing to account file failed: %s\n", feof(fp) ? "EOF" : strerror(ferror(fp)));
 					}
@@ -709,12 +702,12 @@ bool GetcaseAccount(struct account *c_acc, cptr name, char *correct_name, bool l
 		else
 			c_acc->flags = (ACC_TRIAL | ACC_NOSCORE);
 
-		strncpy(c_acc->name, name, 29);
-		c_acc->name[29] = '\0';
+		strncpy(c_acc->name, name, ACCFILE_NAME_LEN - 1);
+		c_acc->name[ACCFILE_NAME_LEN - 1] = '\0';
 
 		condense_name(buf, c_acc->name);
-		strncpy(c_acc->name_normalised, buf, 29);
-		c_acc->name_normalised[29] = '\0';
+		strncpy(c_acc->name_normalised, buf, ACCFILE_NAME_LEN - 1);
+		c_acc->name_normalised[ACCFILE_NAME_LEN - 1] = '\0';
 
 		strncpy(c_acc->pass, t_crypt(pass, name), sizeof(c_acc->pass));
 		c_acc->pass[sizeof(c_acc->pass) - 1] = '\0';
@@ -995,6 +988,7 @@ static char *t_crypt(char *inbuf, cptr salt) {
 	static char out[64];
  #if 1 /* fix for len-1 names */
 	char setting[3];
+
 	/* only 1 character long salt? expand to 2 chars length */
 	if (!salt[1]) {
 		setting[0] = '.';
@@ -1067,6 +1061,7 @@ int check_account(char *accname, char *c_name, int *Ind) {
 	/* Make sure noone creates a character of the same name as another player's accountname!
 	   This is important for new feat of messaging to an account instead of character name. - C. Blue */
 	char c2_name[MAX_CHARS];
+
 	strcpy(c2_name, c_name);
 	//c2_name[0] = toupper(c2_name[0]);
 	bool acc1_success = GetAccount(&acc, accname, NULL, FALSE);
@@ -1179,17 +1174,36 @@ int check_account(char *accname, char *c_name, int *Ind) {
 		if (!ptr || ptr->account == a_id) {
 			/* Cannot create another character while being logged on, if not ACC_MULTI.
 			   Allow to login with the same name to 'resume connection' though. */
-			if (!(flags & ACC_MULTI)) {
-				/* check for login-timing exploit */
+			if (!(flags & ACC_MULTI)
+			    && c_name[0]) { /* For use in slash.c, for /convertexclusive */
+				player_type *p_ptr;
+
+				/* check for login-timing exploit (currently makes subsequent 'normal' check redundant). */
 				if ((i = check_multi_exploit(accname, c_name))) {
 					*Ind = -i;
 					return(-2);
 				}
 				/* check for normal ineligible multi-login attempts */
 				for (i = 1; i <= NumPlayers; i++) {
-					if (Players[i]->account == a_id && !(flags & ACC_MULTI) && strcmp(c_name, Players[i]->name)) {
+					p_ptr = Players[i];
+					if (p_ptr->account == a_id && !(flags & ACC_MULTI) && strcmp(c_name, p_ptr->name)) {
+#ifdef ALLOW_LOGIN_REPLACE_IN_TOWN
+						if (istown(&p_ptr->wpos)) {
+							s_printf("Replacing connection for: <%s> <%s@%s>\n", p_ptr->name, p_ptr->realname, p_ptr->addr);
+							Destroy_connection(p_ptr->conn, "replacing connection");
+							break;
+						} else {
+							*Ind = i;
+ #if 0 /* this is not thought out correctly: in nserver.c 'still has an alive connection' is sth we cannot really know, it might just be timing out instead! So, ... */
+							return(-10);
+ #else /* ...prefer -2, as it used to be before ALLOW_LOGIN_REPLACE_IN_TOWN: */
+							return(-2);
+ #endif
+						}
+#else
 						*Ind = i;
 						return(-2);
+#endif
 					}
 				}
 			}
@@ -1245,7 +1259,7 @@ static u32b new_accid() {
 	C_MAKE(t_map, MAX_ACCOUNTS / 8, char);
 	while (fread(&t_acc, sizeof(struct account), 1, fp)) {
 		if (t_acc.flags & ACC_DELD) continue;
-		t_map[t_acc.id / 8] |= (1U << (t_acc.id % 8));
+		t_map[t_acc.id / 8] |= ((char)(1U << (t_acc.id % 8)));
 		num_entries++;
 	}
 
@@ -1348,22 +1362,27 @@ static bool group_name_legal_characters(cptr name) {
 }
 
 static bool party_name_legal(int Ind, char *name) {
-	char *ptr, buf[NAME_LEN];
-	char buf2[NAME_LEN];
+	char *ptr, buf[NAME_LEN], buf2[NAME_LEN];
 
 	if (strlen(name) >= NAME_LEN) {
 		msg_format(Ind, "\377yParty name must not exceed %d characters!", NAME_LEN - 1);
 		return(FALSE);
 	}
 
-	strncpy(buf, name, NAME_LEN);
+	strncpy(buf2, name, NAME_LEN);
 	buf[NAME_LEN - 1] = '\0';
 	/* remove spaces at the beginning */
-	for (ptr = buf; ptr < buf + strlen(buf); ) {
+	for (ptr = buf2; ptr < buf2 + strlen(buf2); ) {
 		if (isspace(*ptr)) ptr++;
 		else break;
 	}
 	strcpy(buf, ptr);
+	/* name consisted only of spaces? */
+	if (!buf[0]) {
+		msg_print(Ind, "\377ySorry, names must not just consist of spaces.");
+		return(FALSE);
+	}
+
 	/* remove spaces at the end */
 	for (ptr = buf + strlen(buf); ptr-- > buf; ) {
 		if (isspace(*ptr)) *ptr = '\0';
@@ -1755,9 +1774,14 @@ int party_create(int Ind, cptr name) {
 	}
 
 	/* If he's party owner, it's name change */
-	if (streq(parties[p_ptr->party].owner, p_ptr->name)) {
+	if (p_ptr->party) {
 		if (parties[p_ptr->party].mode & PA_IRONTEAM) {
-			msg_print(Ind, "\377yYour party is an Iron Team. Choose '2) Create an Iron Team' instead.");
+			msg_print(Ind, "\377yYour party is an Iron Team. Choose '(2) Create or rename an iron team' instead.");
+			return(FALSE);
+		}
+
+		if (!streq(parties[p_ptr->party].owner, p_ptr->name)) {
+			msg_print(Ind, "\377yYou must be the party owner to rename the party.");
 			return(FALSE);
 		}
 
@@ -1830,10 +1854,10 @@ int party_create(int Ind, cptr name) {
 
 	/* Add the owner as a member */
 	p_ptr->party = index;
+	clockin(Ind, 2);
 	parties[index].members = 1;
 	p_ptr->iron_trade = parties[index].iron_trade;
 	p_ptr->iron_turn = turn;
-	clockin(Ind, 2);
 
 	/* Set the "creation time" */
 	parties[index].created = turn;
@@ -1856,6 +1880,27 @@ int party_create_ironteam(int Ind, cptr name) {
 	if ((p_ptr->mode & MODE_SOLO)) {
 		msg_print(Ind, "\377ySoloist characters may not create a party.");
 		return(FALSE);
+	}
+
+	/* If he's party owner, it's name change -- check that he is already in a party though! */
+	if (p_ptr->party) {
+		if (!(parties[p_ptr->party].mode & PA_IRONTEAM)) {
+			msg_print(Ind, "\377yYour party is not an Iron Team. Choose '(1) Create or rename a party' instead.");
+			return(FALSE);
+		}
+
+		if (!streq(parties[p_ptr->party].owner, p_ptr->name)) {
+			msg_print(Ind, "\377yYou must be the iron team's owner to rename the team.");
+			return(FALSE);
+		}
+
+		strcpy(parties[p_ptr->party].name, temp);
+
+		/* Tell the party about its new name */
+		party_msg_format(p_ptr->party, "\377%cYour iron team is now called '%s'.", COLOUR_CHAT_GUILD, temp);
+
+		Send_party(Ind, FALSE, FALSE);
+		return(TRUE);
 	}
 
 	/* Only newly created characters can create an iron team */
@@ -1927,10 +1972,10 @@ int party_create_ironteam(int Ind, cptr name) {
 
 	/* Add the owner as a member */
 	p_ptr->party = index;
+	clockin(Ind, 2);
 	parties[index].members = 1;
 	p_ptr->iron_trade = parties[index].iron_trade;
 	p_ptr->iron_turn = turn;
-	clockin(Ind, 2);
 
 	/* Set the "creation time" */
 	parties[index].created = turn;
@@ -2377,6 +2422,9 @@ int party_add(int adder, cptr name) {
 	    !on_irondeepdive(&p_ptr->wpos) &&
  #endif
 #endif
+#ifdef MODULE_ALLOW_INCOMPAT
+	    !in_module(&p_ptr->wpos) &&
+#endif
 	/* Everlasting and other chars cannot be in the same party */
 	    (compat_mode(parties[party_id].cmode, p_ptr->mode))) {
 		msg_format(adder, "\377yYou cannot form a party with %s characters.", compat_mode(parties[party_id].cmode, p_ptr->mode));
@@ -2409,9 +2457,9 @@ int party_add(int adder, cptr name) {
 
 	/* Set his party number */
 	p_ptr->party = party_id;
+	clockin(Ind, 2);
 	p_ptr->iron_trade = parties[party_id].iron_trade;
 	p_ptr->iron_turn = turn;
-	clockin(Ind, 2);
 
 	/* Resend info */
 	Send_party(Ind, FALSE, FALSE);
@@ -2439,7 +2487,7 @@ int party_add_self(int Ind, cptr party) {
 #endif
 	struct account acc;
 	bool success;
-#ifdef IRONDEEPDIVE_ALLOW_INCOMPAT
+#if defined(IRONDEEPDIVE_ALLOW_INCOMPAT) || defined(MODULE_ALLOW_INCOMPAT)
 	struct worldpos wpos_other = { -1, -1, -1};
 #endif
 
@@ -2472,7 +2520,7 @@ int party_add_self(int Ind, cptr party) {
 	ids = player_id_list(&id_list, acc.id);
 	for (i = 0; i < ids; i++) {
 		if (lookup_player_party(id_list[i]) == party_id) {
-#ifdef IRONDEEPDIVE_ALLOW_INCOMPAT
+#if defined(IRONDEEPDIVE_ALLOW_INCOMPAT) || defined(MODULE_ALLOW_INCOMPAT)
 			wpos_other = lookup_player_wpos(id_list[i]);
 #endif
 #ifdef IRON_TEAM_LEVEL9
@@ -2505,6 +2553,9 @@ int party_add_self(int Ind, cptr party) {
  #else
 	    !(on_irondeepdive(&p_ptr->wpos) && on_irondeepdive(&wpos_other)) &&
  #endif
+#endif
+#ifdef IRONDEEPDIVE_ALLOW_INCOMPAT
+			!(in_module(&p_ptr->wpos) && in_module(&wpos_other)) &&
 #endif
 	    compat_mode(p_ptr->mode, parties[party_id].cmode)) {
 		msg_format(Ind, "\377yYou cannot join %s parties.", compat_mode(p_ptr->mode, parties[party_id].cmode));
@@ -2552,9 +2603,9 @@ int party_add_self(int Ind, cptr party) {
 
 	/* Set his party number */
 	p_ptr->party = party_id;
+	clockin(Ind, 2);
 	p_ptr->iron_trade = parties[party_id].iron_trade;
 	p_ptr->iron_turn = turn;
-	clockin(Ind, 2);
 
 	/* Resend info */
 	Send_party(Ind, FALSE, FALSE);
@@ -2741,8 +2792,41 @@ void del_guild(int id) {
 	char temp[160];
 	int i;
 
-	/* Clear the guild hall */
+	/* log! (to track auto-disbanding of leaderless guilds) */
+	s_printf("DEL_GUILD: '%s' (%d)\n", guilds[id].name, id);
+	snprintf(temp, 160, "\374\377yThe guild '\377%c%s\377y' no longer exists.", COLOUR_CHAT_GUILD, guilds[id].name);
+
+	/* erase guild hall */
+#if 0 /* not needed, since there can only be one guild hall */
 	kill_houses(id, OT_GUILD);
+#else
+	if ((i = guilds[id].h_idx)) {
+		struct dna_type *dna;
+
+		i--; // (guild house index 0 means 'no house')
+		dna = houses[i].dna;
+
+		e_printf("(%s) %s (%d, %d) BACKUP-GUILD\n", showtime(), guilds[id].name, guilds[id].master, guilds[id].members); /* log to erasure.log file for compact overview */
+
+		/* save real estate.. */
+		if (!backup_one_estate(NULL, 0, 0, i, guilds[id].name))
+			s_printf("(Estate backup: Guild hall failed!)\n");
+		/* ..and rename estate file to indicate it's just a backup! */
+		else ef_rename(guilds[id].name);
+
+		dna->owner = 0L;
+		dna->creator = 0L;
+		dna->a_flags = ACF_NONE;
+		kill_house_contents(&houses[i]);
+
+		/* and in case it was suspended due to leaderlessness,
+		   so the next guild buying this house won't get a surprise.. */
+		houses[i].flags &= ~HF_GUILD_SUS;
+		fill_house(&houses[i], FILL_GUILD_SUS_UNDO, NULL);
+
+		guilds[id].h_idx = 0;//obsolete?
+	}
+#endif
 
 	/* delete pending guild notes */
 	for (i = 0; i < MAX_GUILDNOTES; i++) {
@@ -2756,13 +2840,6 @@ void del_guild(int id) {
 	/* erase guild bbs */
 	for (i = 0; i < BBS_LINES; i++) strcpy(gbbs_line[id][i], "");
 
-	/* log! (to track auto-disbanding of leaderless guilds) */
-	s_printf("DEL_GUILD: '%s' (%d)\n", guilds[id].name, id);
-
-	/* Tell everyone */
-	snprintf(temp, 160, "\374\377yThe guild '\377%c%s\377y' no longer exists.", COLOUR_CHAT_GUILD, guilds[id].name);
-	msg_broadcast(0, temp);
-
 	/* Clear the basic info */
 	guilds[id].members = 0; /* it should be zero anyway */
 	strcpy(guilds[id].name, "");
@@ -2770,29 +2847,11 @@ void del_guild(int id) {
 	guilds[id].flags = GFLG_NONE;
 	guilds[id].minlev = 0;
 
-	/* erase guild hall */
-#if 0 /* not needed, since there can only be one guild hall */
-	kill_houses(id, OT_GUILD);
-#else
-	if (guilds[id].h_idx) {
-		struct dna_type *dna = houses[guilds[id].h_idx - 1].dna;
-
-		dna->owner = 0L;
-		dna->creator = 0L;
-		dna->a_flags = ACF_NONE;
-		kill_house_contents(&houses[guilds[id].h_idx - 1]);
-
-		/* and in case it was suspended due to leaderlessness,
-		   so the next guild buying this house won't get a surprise.. */
-		houses[guilds[id].h_idx - 1].flags &= ~HF_GUILD_SUS;
-		fill_house(&houses[guilds[id].h_idx - 1], FILL_GUILD_SUS_UNDO, NULL);
-
-		guilds[id].h_idx = 0;//obsolete?
-	}
-#endif
-
 	/* Find and destroy the guild key! */
 	erase_guild_key(id);
+
+	/* Tell everyone */
+	msg_broadcast(0, temp);
 }
 void guild_timeout(int id) {
 	int i;
@@ -2825,8 +2884,10 @@ void guild_timeout(int id) {
  * Design improvement
  */
 void del_party(int id) {
-	int i;
+	int i, j;
 	bool sent = FALSE;
+	player_type *p_ptr;
+
 	/* Remove the party altogether */
 	kill_houses(id, OT_PARTY);
 
@@ -2853,11 +2914,20 @@ void del_party(int id) {
 				Send_party(i, FALSE, TRUE);
 				sent = TRUE;
 			}
-			Players[i]->party = 0;
+
+			p_ptr = Players[i];
+
+			/* Set his party number back to "neutral" */
+			p_ptr->party = 0;
 			clockin(i, 2);
+			p_ptr->iron_trade = 0;
+			for (j = 0; j < INVEN_TOTAL; j++)
+				p_ptr->inventory[j].iron_trade = 0;
+			/* and for client-side visual iddc-tradable marker, redraw: */
+			if (in_irondeepdive(&p_ptr->wpos)) p_ptr->window |= PW_INVEN | PW_EQUIP;
 
 			/* Re-check house permissions, to display doors in correct colour */
-			if (!Players[i]->wpos.wz) Players[i]->redraw |= PR_MAP;
+			if (!p_ptr->wpos.wz) p_ptr->redraw |= PR_MAP;
 
 			if (parties[id].mode & PA_IRONTEAM)
 				msg_print(i, "\374\377yYour iron team has been disbanded.");
@@ -3022,10 +3092,12 @@ int party_remove(int remover, cptr name) {
 
 	/* Set his party number back to "neutral" */
 	p_ptr->party = 0;
-	p_ptr->iron_trade = 0;
 	clockin(Ind, 2);
+	p_ptr->iron_trade = 0;
 	for (i = 0; i < INVEN_TOTAL; i++)
 		p_ptr->inventory[i].iron_trade = 0;
+	/* and for client-side visual iddc-tradable marker, redraw: */
+	if (in_irondeepdive(&p_ptr->wpos)) p_ptr->window |= PW_INVEN | PW_EQUIP;
 
 	/* Re-check house permissions, to display doors in correct colour */
 	if (!p_ptr->wpos.wz) p_ptr->redraw |= PR_MAP;
@@ -3151,10 +3223,12 @@ void party_leave(int Ind, bool voluntarily) {
 
 	/* Set him back to "neutral" */
 	p_ptr->party = 0;
-	p_ptr->iron_trade = 0;
 	clockin(Ind, 2);
+	p_ptr->iron_trade = 0;
 	for (i = 0; i < INVEN_TOTAL; i++)
 		p_ptr->inventory[i].iron_trade = 0;
+	/* and for client-side visual iddc-tradable marker, redraw: */
+	if (in_irondeepdive(&p_ptr->wpos)) p_ptr->window |= PW_INVEN | PW_EQUIP;
 
 	/* Re-check house permissions, to display doors in correct colour */
 	if (!p_ptr->wpos.wz) p_ptr->redraw |= PR_MAP;
@@ -4239,24 +4313,22 @@ hash_entry *lookup_player(int id) {
 /*
  * Get the player's level. (In the distant past, this stored the player's highest level.)
  */
-byte lookup_player_level(int id) {
+char lookup_player_level(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->level);
+	if ((ptr = lookup_player(id))) return(ptr->level);
 
 	/* Not found */
-	return(-1L);
+	return(-1);
 }
 /* Return a player's custom sort order of a character in his account overview screen */
-byte lookup_player_order(s32b id) {
+char lookup_player_order(s32b id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->order);
+	if ((ptr = lookup_player(id))) return(ptr->order);
 
 	/* Not found */
-	return(-1L);
+	return(-1);
 }
 void set_player_order(s32b id, byte order) {
 	hash_entry *ptr = lookup_player(id);
@@ -4266,34 +4338,32 @@ void set_player_order(s32b id, byte order) {
 /*
  * Get the player's highest level.
  */
-byte lookup_player_maxplv(int id) {
+char lookup_player_maxplv(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->max_plv);
+	if ((ptr = lookup_player(id))) return(ptr->max_plv);
 
 	/* Not found */
-	return(-1L);
+	return(-1);
 }
 
-byte lookup_player_admin(int id) {
+char lookup_player_admin(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->admin ? 1 : 0);
+	if ((ptr = lookup_player(id))) return(ptr->admin ? 1 : 0);
 
 	/* Not found */
-	return(-1L);
+	return(-1);
 }
 
 u16b lookup_player_type(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->race | (ptr->class <<8 ));
+	if ((ptr = lookup_player(id))) return(ptr->race | (ptr->class << 8));
 
 	/* Not found */
-	return(-1L);
+	//return(-1L); -- unsigned!
+	return(0);
 }
 
 /*
@@ -4322,11 +4392,11 @@ s32b lookup_player_guild(int id) {
 u32b lookup_player_guildflags(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->guild_flags);
+	if ((ptr = lookup_player(id))) return(ptr->guild_flags);
 
 	/* Not found */
-	return(-1L);
+	//return(-1L); -- unsigned!
+	return(0U);
 }
 
 /*
@@ -4358,11 +4428,10 @@ cptr lookup_player_name(int id) {
 /*
  * Get the player's character mode (needed for account overview screen only).
  */
-byte lookup_player_mode(int id) {
+u16b lookup_player_mode(int id) {
 	hash_entry *ptr;
 
-	if ((ptr = lookup_player(id)))
-		return(ptr->mode);
+	if ((ptr = lookup_player(id))) return(ptr->mode);
 
 	/* Not found */
 	return(255);
@@ -4535,6 +4604,7 @@ int lookup_player_id_messy(cptr name) {
 
 u32b lookup_player_account(int id) {
 	hash_entry *ptr;
+
 	if ((ptr = lookup_player(id)))
 		return(ptr->account);
 
@@ -4542,13 +4612,13 @@ u32b lookup_player_account(int id) {
 	return(0L);
 }
 
-byte lookup_player_winner(int id) {
+char lookup_player_winner(int id) {
 	hash_entry *ptr;
-	if ((ptr = lookup_player(id)))
-		return(ptr->winner);
+
+	if ((ptr = lookup_player(id))) return(ptr->winner);
 
 	/* Not found */
-	return(-1L);
+	return(-1);
 }
 
 void stat_player(char *name, bool on) {
@@ -4561,9 +4631,7 @@ void stat_player(char *name, bool on) {
 		slot = hash_slot(id);
 		ptr = hash_table[slot];
 		while (ptr) {
-			if (ptr->id == id) {
-				ptr->laston = on ? 0L : time(&ptr->laston);
-			}
+			if (ptr->id == id) ptr->laston = on ? 0L : time(&ptr->laston);
 			ptr = ptr->next;
 		}
 	}
@@ -4739,7 +4807,8 @@ void sf_delete(const char *name) {
 /* Back up a player save file instead of just deleting it */
 void sf_rename(const char *name, bool keep_copy) {
 	int i, k = 0;
-	char temp[128], fname[MAX_PATH_LENGTH], fname_new[MAX_PATH_LENGTH];
+	char temp[MAX_PATH_LENGTH], fname[MAX_PATH_LENGTH], fname_new[MAX_PATH_LENGTH];
+	struct stat filestat;
 
 	/* Extract "useful" letters */
 	for (i = 0; name[i]; i++) {
@@ -4755,7 +4824,20 @@ void sf_rename(const char *name, bool keep_copy) {
 
 	path_build(fname, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, temp);
 	path_build(fname_new, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "__bak__");
+
+	//TODO: Check if file already exists, if yes, add incrementing number to the file name
+
 	strcat(fname_new, temp); //note: might theoretically exceed MAX_PATH_LENGTH, but practically not really :-p
+
+	/* File already exists? Then add incrementing number to the file name */
+	i = 2;
+	strcpy(temp, fname_new);
+	while (stat(fname_new, &filestat) != -1) {
+		strcpy(fname_new, temp);
+		strcat(fname_new, format("_#%d", i++));
+	}
+	if (i > 2) s_printf("sf_rename: Added incremental backup savefile number %d\n", i - 1);
+
 	if (keep_copy) {
 		FILE *fp1 = NULL;
 		FILE *fp2 = NULL;
@@ -4835,8 +4917,9 @@ void sf_rename(const char *name, bool keep_copy) {
 /* Rename an estate savefile (without changing the owner's name, just a simple file rn) */
 void ef_rename(const char *name) {
 	int i, k = 0;
-	char temp[128], fname[MAX_PATH_LENGTH], fname_new[MAX_PATH_LENGTH];
+	char temp[MAX_PATH_LENGTH], fname[MAX_PATH_LENGTH], fname_new[MAX_PATH_LENGTH];
 	char epath[MAX_PATH_LENGTH];
+	struct stat filestat;
 
 	/* Extract "useful" letters */
 	for (i = 0; name[i]; i++) {
@@ -4853,7 +4936,18 @@ void ef_rename(const char *name) {
 	path_build(epath, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "estate");
 	path_build(fname, MAX_PATH_LENGTH, epath, temp);
 	path_build(fname_new, MAX_PATH_LENGTH, epath, "__bak__");
+
 	strcat(fname_new, temp); //note: might theoretically exceed MAX_PATH_LENGTH, but practically not really :-p
+
+	/* File already exists? Then add incrementing number to the file name */
+	i = 2;
+	strcpy(temp, fname_new);
+	while (stat(fname_new, &filestat) != -1) {
+		strcpy(fname_new, temp);
+		strcat(fname_new, format("_#%d", i++));
+	}
+	if (i > 2) s_printf("ef_rename: Added incremental backup savefile number %d (%s->%s)\n", i - 1, fname, fname_new);
+
 	rename(fname, fname_new);
 }
 
@@ -5030,9 +5124,9 @@ void scan_accounts() {
 #endif
 		}
 
-//		if (modified) WriteAccount(&acc, FALSE);
+		//if (modified) WriteAccount(&acc, FALSE);
 		if (modified) {
-			fseek(fp, -sizeof(struct account), SEEK_CUR);
+			fseek(fp, -((signed int)(sizeof(struct account))), SEEK_CUR);
 			if (fwrite(&acc, sizeof(struct account), 1, fp) < 1) {
 				s_printf("Writing to account file failed: %s\n", feof(fp) ? "EOF" : strerror(ferror(fp)));
 			}
@@ -5173,32 +5267,41 @@ void erase_player_hash(int slot, hash_entry **p_pptr, hash_entry **p_ptr) {
 	if (!acc) acc = "(no account)";
 	else accok = TRUE;
 
-	s_printf("Removing player: %s (%d, %s)\n", ptr->name, ptr->level, acc);
+	s_printf("Removing player: %s (%d(%d), %s)\n", ptr->name, ptr->level, ptr->max_plv, acc);
 
 #ifdef SAFETY_BACKUP_PLAYER
 	/* Not sure if hash table level is already updated to live player level, so double check here: */
-	j = ptr->level;
+	j = ptr->max_plv;
 	for (i = 1; i <= NumPlayers; i++) {
 		if (strcmp(Players[i]->name, ptr->name)) continue;
-		if (Players[i]->max_lev > j) {
-			s_printf("(max_lev %d > hash level %d)\n", Players[i]->max_lev, j);
-			j = Players[i]->max_lev;
+		if (Players[i]->max_plv > j) {
+			s_printf("(max_plv %d > hash max_plv %d)\n", Players[i]->max_plv, j);
+			j = Players[i]->max_plv;
 		}
 		break;
 	}
+
+	/* Strange bug, workaround.
+	   Wild susicion: Bug might stem from savegame already having been restored but the player didn't log in/clockin()
+	   the max_plv on it anew, then it got timeouted again, so now the max_plv in the database is still 1 aka default. */
+	if (j < ptr->level) {
+		s_printf("(BUG: hash max_plv %d < hash level %d)\n", j, ptr->level);
+		j = ptr->level;
+	}
+
 	if (j < SAFETY_BACKUP_PLAYER) {
 		e_printf("(%s) %s (%d, %s)\n", showtime(), ptr->name, ptr->level, acc); /* log to erasure.log file for compact overview */
-		s_printf("(Skipping safety backup (level %d < %d))\n", j, SAFETY_BACKUP_PLAYER);
+		s_printf("(Skipping safety backup (max_plv %d < %d))\n", j, SAFETY_BACKUP_PLAYER);
 	} else {
 		e_printf("(%s) %s (%d, %s) BACKUP\n", showtime(), ptr->name, ptr->level, acc); /* log to erasure.log file for compact overview */
-		s_printf("(Creating safety backup (level %d >= %d)\n", j, SAFETY_BACKUP_PLAYER);
+		s_printf("(Creating safety backup (max_plv %d >= %d)\n", j, SAFETY_BACKUP_PLAYER);
 
 		/* rename savefile to backup (side note: unlink() will fail to delete it then later) */
 		sf_rename(ptr->name, FALSE);
 		backup = TRUE;
 
 		/* save all real estate.. */
-		if (!backup_char_estate(0, ptr->id, ptr->id))
+		if (!backup_char_estate(0, ptr->id, ptr->name))
 			s_printf("(Estate backup: At least one house failed!)\n");
 		/* ..and rename estate file to indicate it's just a backup! */
 		ef_rename(ptr->name);
@@ -5299,7 +5402,8 @@ void checkexpiry(int Ind, int days) {
 		ptr = hash_table[slot];
 		while (ptr) {
 			expire = CHARACTER_EXPIRY_DAYS * 86400 - now + ptr->laston;
-			if (ptr->laston && expire < days * 86400) {
+			if (ptr->laston && expire < days * 86400
+			    && !(cfg.admins_never_expire && ptr->admin)) {
 				if (expire < 86400)
 					msg_format(Ind, "\377rPlayer %s (accid %d) will expire in less than a day!", ptr->name, ptr->account);
 				else if (expire < 7 * 86400)
@@ -5319,37 +5423,54 @@ void checkexpiry(int Ind, int days) {
  */
 void account_checkexpiry(int Ind) {
 	player_type *p_ptr = Players[Ind];
-	int slot, expire;
+	int i, expire;
 	hash_entry *ptr;
 	time_t now;
+	struct account acc;
+	int *id_list, ids;
+	bool success;
 
 #ifdef PLAYERS_NEVER_EXPIRE
 	return;
 #else
 	if (cfg.players_never_expire) return;
 #endif
+
 	now = time(NULL);
 
-	for (slot = 0; slot < NUM_HASH_ENTRIES; slot++) {
-		ptr = hash_table[slot];
-		while (ptr) {
-			if (p_ptr->id != ptr->id && p_ptr->account == ptr->account && ptr->laston) {
-				expire = CHARACTER_EXPIRY_DAYS * 86400 - now + ptr->laston;
+	success  = GetAccount(&acc, p_ptr->accountname, NULL, FALSE);
+	/* paranoia */
+	if (!success) {
+		/* uhh.. */
+		msg_print(Ind, "Sorry, character expiry check has failed.");
+		return;
+	}
 
-				if (expire < 86400)
+	ids = player_id_list(&id_list, acc.id);
+	for (i = 0; i < ids; i++) {
+		ptr = lookup_player(id_list[i]);
+		if (p_ptr->id != ptr->id && ptr->laston) {
+			expire = CHARACTER_EXPIRY_DAYS * 86400 - now + ptr->laston;
+			if (expire < 86400) {
+				if (cfg.admins_never_expire && ptr->admin)
+					msg_format(Ind, "\374\377y(Your character %s would be removed \377rvery soon\377y if it wasn't an admin.)", ptr->name, expire / 86400);
+				else
 					msg_format(Ind, "\374\377yYour character %s will be removed \377rvery soon\377y!", ptr->name, expire / 86400);
-				else if (expire < 60 * 86400)
+			} else if (expire < 60 * 86400) {
+				if (cfg.admins_never_expire && ptr->admin)
+					msg_format(Ind, "\374\377y(Your character %s would be removed in %d days if it wasn't an admin.)", ptr->name, expire / 86400);
+				else
 					msg_format(Ind, "\374\377yYour character %s will be removed in %d days.", ptr->name, expire / 86400);
 			}
-			ptr = ptr->next;
 		}
 	}
+	if (ids) C_KILL(id_list, ids, int);
 }
 
 /*
  * Add a name to the hash table.
  */
-void add_player_name(cptr name, int id, u32b account, byte race, byte class, byte mode, byte level, byte max_plv, u16b party, byte guild, u32b guild_flags, u16b xorder, time_t laston, byte admin, struct worldpos wpos, char houses, byte winner, byte order) {
+void add_player_name(cptr name, int id, u32b account, byte race, byte class, u16b mode, byte level, byte max_plv, u16b party, byte guild, u32b guild_flags, u16b xorder, time_t laston, byte admin, struct worldpos wpos, char houses, byte winner, byte order) {
 	int slot;
 	hash_entry *ptr;
 
@@ -5394,7 +5515,7 @@ void add_player_name(cptr name, int id, u32b account, byte race, byte class, byt
 /*
  * Verify a player's data against the hash table. - C. Blue
  */
-void verify_player(cptr name, int id, u32b account, byte race, byte class, byte mode, byte level, u16b party, byte guild, u32b guild_flags, u16b quest, time_t laston, byte admin, struct worldpos wpos, char houses, byte winner, byte order) {
+void verify_player(cptr name, int id, u32b account, byte race, byte class, u16b mode, byte level, u16b party, byte guild, u32b guild_flags, u16b quest, time_t laston, byte admin, struct worldpos wpos, char houses, byte winner, byte order) {
 	hash_entry *ptr = lookup_player(id);
 
 	/* For savegame conversion 4.2.0 -> 4.2.2: */
@@ -5782,6 +5903,11 @@ void account_change_password(int Ind, char *old_pass, char *new_pass) {
 
 	if (strlen(new_pass) < PASSWORD_MIN_LEN) {
 		msg_format(Ind, "\377RPassword length must be at least %d.", PASSWORD_MIN_LEN);
+		return;
+	}
+
+	if (strlen(new_pass) > ACCFILE_PASSWD_LEN) {
+		msg_format(Ind, "\377RPassword length must be at most %d.", ACCFILE_PASSWD_LEN);
 		return;
 	}
 

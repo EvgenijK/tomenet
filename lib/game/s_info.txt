@@ -34,7 +34,7 @@ V:4.0.0
 
 N:1:Combat
 D:Improves fighting and allows wearing heavier armour (Martial Arts excepted).
-D:Pseudo-ID weapons/armour faster; more detailed at 11, ranged at 31, magic at 41.
+D:Pseudo-ID weapon/armour/food faster. Detailed at 11, ranged at 31, curses at 41.
 A:14:Check parry/block chance
 I:1000:0
 
@@ -91,14 +91,15 @@ I:1000:0
 
 N:11:Backstabbing
 D:Backstab sleeping and fleeing monsters. Also increases Critical-strike skill.
-D:*** REQUIRES SWORD/POLEARM-TYPE WEAPONS OR MARTIAL ARTS***
+D:Requires sword/polearm-type weapons weighing up to 10.0 lbs, or Martial Arts.
 #D:Much more effective in the dark
 I:1000:0
 
 N:12:Magic
 D:Increases your max mana by +4 per point.
 #outdated (pre-lua): and spell-casting chance.
-D:Allows you to pseudo-id magical items faster and (at 11+) in more detail.
+D:Pseudo-ID magical items, curses and food faster and (at 11+) in more detail.
+#^not actually enchanted items (eg weapons), but items from treasure/magic classes mostly
 #A:4:Toggle fire-till-kill mode
 I:1000:0
 
@@ -160,10 +161,7 @@ I:1000:0
 #I:1000:0
 
 N:21:Sneakiness
-#D:General ability at your sneakiness skills, and improves perception
-#D:General ability at your sneakiness skills
-#D:It allows to act carefully and somewhat quickly
-D:Allows you to move faster and be more aware.
+D:Allows you to move faster and improves your searching abilities.
 D:Slightly reduces speed penalty while searching or being cloaked.
 I:1000:0
 
@@ -214,7 +212,7 @@ I:1000:0
 
 N:30:Aura of Death
 D:Aura that surrounds you, creating waves of plasma or ice when struck in close
-D:combat. At 40.000 grants plasma and ice brand to and ice brands to your melee.
+D:combat. At 40.000 grants alternating plasma and ice brand to your melee attacks.
 A:17:Control your aura of death
 I:1000:0
 
@@ -307,8 +305,9 @@ I:1000:0
 #F:HIDDEN
 
 N:46:Trapping
-D:Ability to set and pseudo-ID monster traps, disarm any traps and pick locks.
-D:Increases chance to not get hindered by monsters when trying to lay a trap.
+D:Ability to set and pseudo-ID traps (detailed at 11+), disarm traps, pick locks.
+D:Improves searching. Adjacent monsters interfere less when trying to lay a trap.
+#also improves chance to avoid traps on touching them
 A:10:Set trap
 I:1000:46
 F:MKEY_HARDCODE

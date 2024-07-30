@@ -927,7 +927,7 @@ void prt_hunger(int food) {
 				food_warn_once_timer = 50; /* deciseconds to glow (TERM_SELECTOR colour et al), before switching to normal, static colour */
 			}
 		} else food = food_prev; /* Just redraw, for switching from blinking to static colour for warn_once. */
-	}
+	} else if (food == -1) return; /* Catch timing issue, if we feed from starved state quickly, before the blinking ends, resulting in visual glitch of redrawing us as blinking-starved mistakenly. */
 
 	if (food < PY_FOOD_FAINT)
 		c_put_str(food_warn_once_timer ? TERM_SEL_RED : TERM_L_RED, "Starved", ROW_HUNGRY, COL_HUNGRY);
@@ -1120,14 +1120,15 @@ void prt_study(bool study) {
 }
 
 /* Prints blows/round in main window - important and changable stat! - C. Blue */
-void prt_bpr(byte bpr, byte attr) {
+void prt_bpr_wraith(byte bpr, byte attr, cptr bpr_str) {
 	int x, y;
 
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
 	/* hack: display active wraithform indicator instead */
-	if (bpr == 255) c_put_str(attr, "Wraith", ROW_BPR, COL_BPR);
+	if (bpr_str[0]) c_put_str(attr, bpr_str, ROW_BPR, COL_BPR);
+	else if (bpr == 255) c_put_str(attr, "Wraith", ROW_BPR, COL_BPR);
 	else c_put_str(attr, format("%2d BpR", bpr), ROW_BPR, COL_BPR);
 
 	/* restore cursor position */
@@ -1135,16 +1136,22 @@ void prt_bpr(byte bpr, byte attr) {
 }
 
 void prt_indicators(u32b indicators) {
-	prt_res_fire((indicators & IND_RES_FIRE) != 0);
-	prt_res_cold((indicators & IND_RES_COLD) != 0);
-	prt_res_elec((indicators & IND_RES_ELEC) != 0);
-	prt_res_acid((indicators & IND_RES_ACID) != 0);
-	prt_res_pois((indicators & IND_RES_POIS) != 0);
-	prt_res_divine((indicators & IND_RES_DIVINE) != 0);
-	prt_esp((indicators & IND_ESP) != 0);
+	prt_indicator_res_fire((indicators & IND_RES_FIRE) != 0);
+	prt_indicator_res_cold((indicators & IND_RES_COLD) != 0);
+	prt_indicator_res_elec((indicators & IND_RES_ELEC) != 0);
+	prt_indicator_res_acid((indicators & IND_RES_ACID) != 0);
+	prt_indicator_res_pois((indicators & IND_RES_POIS) != 0);
+	prt_indicator_res_divine((indicators & IND_RES_DIVINE) != 0);
+	prt_indicator_esp((indicators & IND_ESP) != 0);
+	prt_indicator_melee_brand((indicators & IND_MELEE_BRAND) != 0);
+	prt_indicator_regen((indicators & IND_REGEN) != 0);
+	prt_indicator_dispersion((indicators & IND_DISPERSION) != 0);
+	prt_indicator_charm((indicators & IND_CHARM) != 0);
+	if ((indicators & (IND_SHIELD1 | IND_SHIELD2 | IND_SHIELD3 | IND_SHIELD4 | IND_SHIELD5 | IND_SHIELD6 | IND_SHIELD7)) != 0) prt_indicator_shield(indicators);
+	else prt_indicator_shield(0);
 }
 
-void prt_res_fire(bool is_resisted) {
+void prt_indicator_res_fire(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1153,14 +1160,14 @@ void prt_res_fire(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_RED, "F", ROW_RESIST_FIRE, COL_RESIST_FIRE);
+	if (is_active) c_put_str(TERM_RED, "F", ROW_RESIST_FIRE, COL_RESIST_FIRE);
 	else c_put_str(TERM_RED, " ", ROW_RESIST_FIRE, COL_RESIST_FIRE);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_res_cold(bool is_resisted) {
+void prt_indicator_res_cold(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1169,14 +1176,14 @@ void prt_res_cold(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_WHITE, "C", ROW_RESIST_COLD, COL_RESIST_COLD);
+	if (is_active) c_put_str(TERM_WHITE, "C", ROW_RESIST_COLD, COL_RESIST_COLD);
 	else c_put_str(TERM_WHITE, " ", ROW_RESIST_COLD, COL_RESIST_COLD);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_res_elec(bool is_resisted) {
+void prt_indicator_res_elec(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1185,14 +1192,14 @@ void prt_res_elec(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_BLUE, "E", ROW_RESIST_ELEC, COL_RESIST_ELEC);
+	if (is_active) c_put_str(TERM_BLUE, "E", ROW_RESIST_ELEC, COL_RESIST_ELEC);
 	else c_put_str(TERM_BLUE, " ", ROW_RESIST_ELEC, COL_RESIST_ELEC);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_res_acid(bool is_resisted) {
+void prt_indicator_res_acid(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1201,14 +1208,14 @@ void prt_res_acid(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_SLATE, "A", ROW_RESIST_ACID, COL_RESIST_ACID);
+	if (is_active) c_put_str(TERM_SLATE, "A", ROW_RESIST_ACID, COL_RESIST_ACID);
 	else c_put_str(TERM_SLATE, " ", ROW_RESIST_ACID, COL_RESIST_ACID);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_res_pois(bool is_resisted) {
+void prt_indicator_res_pois(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1217,14 +1224,14 @@ void prt_res_pois(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_GREEN, "P", ROW_RESIST_POIS, COL_RESIST_POIS);
+	if (is_active) c_put_str(TERM_GREEN, "P", ROW_RESIST_POIS, COL_RESIST_POIS);
 	else c_put_str(TERM_GREEN, " ", ROW_RESIST_POIS, COL_RESIST_POIS);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_res_divine(bool is_resisted) {
+void prt_indicator_res_divine(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1233,14 +1240,14 @@ void prt_res_divine(bool is_resisted) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_resisted) c_put_str(TERM_VIOLET, "M", ROW_RESIST_MANA, COL_RESIST_MANA);
+	if (is_active) c_put_str(TERM_VIOLET, "M", ROW_RESIST_MANA, COL_RESIST_MANA);
 	else c_put_str(TERM_VIOLET, " ", ROW_RESIST_MANA, COL_RESIST_MANA);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 }
 
-void prt_esp(bool is_full_esp) {
+void prt_indicator_esp(bool is_active) {
 	int x, y;
 
 	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
@@ -1249,8 +1256,101 @@ void prt_esp(bool is_full_esp) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_full_esp) c_put_str(TERM_WHITE, "ESP", ROW_TEMP_ESP, COL_TEMP_ESP);
+	if (is_active) c_put_str(TERM_WHITE, "ESP", ROW_TEMP_ESP, COL_TEMP_ESP);
 	else c_put_str(TERM_WHITE, "   ", ROW_TEMP_ESP, COL_TEMP_ESP);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_melee_brand(bool is_active) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_active) c_put_str(TERM_YELLOW, "MB", ROW_TEMP_TBRAND, COL_TEMP_TBRAND);
+	else c_put_str(TERM_WHITE, "  ", ROW_TEMP_TBRAND, COL_TEMP_TBRAND);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_regen(bool is_active) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_active) c_put_str(TERM_L_GREEN, "HP+", ROW_TEMP_REGEN, COL_TEMP_REGEN);
+	else c_put_str(TERM_WHITE, "   ", ROW_TEMP_REGEN, COL_TEMP_REGEN);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_dispersion(bool is_active) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_active) c_put_str(TERM_SLATE, "Dis", ROW_DISPERSION, COL_DISPERSION);
+	else c_put_str(TERM_WHITE, "   ", ROW_DISPERSION, COL_DISPERSION);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_charm(bool is_active) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_active) c_put_str(TERM_L_BLUE, "Charm", ROW_CHARM, COL_CHARM);
+	else c_put_str(TERM_WHITE, "     ", ROW_CHARM, COL_CHARM);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_shield(u32b flags) {
+	int x, y;
+	byte a;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (!flags) c_put_str(TERM_WHITE, "   ", ROW_TEMP_SHIELD, COL_TEMP_SHIELD);
+	else {
+		/* Colour based on shield type? */
+		if (flags & IND_SHIELD1) /*p_ptr->tim_reflect*/ a = TERM_L_UMBER;
+		else if (flags & IND_SHIELD2) /*p_ptr->tim_lcage*/ a = TERM_L_BLUE;
+		else { // p_ptr->shield
+			if (flags & IND_SHIELD3) /*SHIELD_COUNTER*/ a = TERM_UMBER;
+			else if (flags & IND_SHIELD4) /*SHIELD_FIRE*/ a = TERM_RED;
+			else if (flags & IND_SHIELD5) /*SHIELD_ICE*/ a = TERM_WHITE;
+			else if (flags & IND_SHIELD6) /*SHIELD_PLASMA*/ a = TERM_L_RED;
+			else /*IND_SHIELD7*/ a = TERM_VIOLET; //'mystic shield'
+		}
+		 c_put_str(a, "Shl", ROW_TEMP_SHIELD, COL_TEMP_SHIELD);
+	}
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
@@ -1438,6 +1538,8 @@ void prt_extra_status(cptr status) {
    is same as if we had 450+ ms lag anyway, so no harm.*/
 /* Enable bright red colour for actual packet loss? */
 #define BRIGHTRED_PACKETLOSS
+/* (Mini) Lag-o-meter bars: Use 100/3ms steps (new, makes sense for EU vs APAC server) instead of 50ms steps (old, for 1 global server location only) */
+//#define STEPS33
 void prt_lagometer(int lag) {
 	int attr = TERM_L_GREEN;
 	int num;
@@ -1472,16 +1574,27 @@ void prt_lagometer(int lag) {
 		num = 10;
 	} else {
 #endif
+#ifndef STEPS33 /* 50ms steps */
 		num = lag / 50 + 1;
+#else /* 33.3ms steps */
+		num = (lag * 10 + 3) / 333 + 1;
+#endif
 		if (num > 10) num = 10;
 
 		/* hack: we have previous packet assumed to be lost? */
 		if (lag == 9999) num = 10;
 
+#ifndef STEPS33 /* 50ms steps; colours: <100, <200, <300, <400 */
 		if (num >= 9) attr = TERM_RED;
 		else if (num >= 7) attr = TERM_ORANGE;
 		else if (num >= 5) attr = TERM_YELLOW;
 		else if (num >= 3) attr = TERM_GREEN;
+#else /* 33.3ms steps; colours: <67, <133, <200, <300 */
+		if (num >= 10) attr = TERM_RED;
+		else if (num >= 7) attr = TERM_ORANGE;
+		else if (num >= 5) attr = TERM_YELLOW;
+		else if (num >= 3) attr = TERM_GREEN;
+#endif
 #ifdef BRIGHTRED_PACKETLOSS
 	}
 #endif
@@ -1553,6 +1666,11 @@ static void display_inven(void) {
 
 	char	o_name[ONAME_LEN];
 	char	tmp_val[80];
+#ifdef ENABLE_SUBINVEN
+	object_type *o2_ptr;
+	long int subwgt;
+#endif
+
 
 	/* Find the "final" slot */
 	for (i = 0; i < INVEN_PACK; i++) {
@@ -1579,10 +1697,15 @@ static void display_inven(void) {
 		/* Bracket the "index" --(-- */
 		tmp_val[1] = ')';
 
+		/* Clear the line */
+		Term_erase(0, i, 255);
+
 		/* Is this item acceptable? */
 		if (item_tester_okay(o_ptr)) {
 			/* Display the index */
-			Term_putstr(0, i, 3, TERM_WHITE, tmp_val);
+			if ((n = check_guard_inscription_str(inventory_name[i], 'W')) && inventory[i].number < n) Term_putstr(0, i, 3, TERM_ORANGE, tmp_val);
+			else if ((n = check_guard_inscription_str(inventory_name[i], 'G')) && inventory[i].number < n - 1) Term_putstr(0, i, 3, TERM_YELLOW, tmp_val);
+			else Term_putstr(0, i, 3, TERM_WHITE, tmp_val);
 		} else {
 			/* Grey out the index */
 			Term_putstr(0, i, 3, TERM_L_DARK, tmp_val);
@@ -1590,6 +1713,32 @@ static void display_inven(void) {
 
 		/* Describe the object */
 		strcpy(o_name, inventory_name[i]);
+
+		/* Display the weight if needed */
+		wgt = 0;
+		if (c_cfg.show_weights && o_ptr->weight) {
+			wgt = o_ptr->weight * o_ptr->number;
+#ifdef ENABLE_SUBINVEN
+			subwgt = 0;
+			/* Add weight of all items contained within */
+			if (o_ptr->tval == TV_SUBINVEN) {
+				for (n = 0; n < o_ptr->bpval; n++) {
+					o2_ptr = &subinventory[i][n];
+					if (!o2_ptr->tval) break;
+					subwgt += o2_ptr->weight * o2_ptr->number;
+				}
+				wgt += subwgt;
+
+				/* Add fill state to subinven bag name? */
+				strcat(o_name, format(" [%d/%d]", n, o_ptr->bpval));
+				//o_name[MSG_LEN] = 0; /* Ensure overflow protection */
+			}
+#endif
+			if (wgt < 10000) /* still fitting into 3 digits? */
+				(void)sprintf(tmp_val, "%3li.%1li lb ", wgt / 10, wgt % 10);
+			else
+				(void)sprintf(tmp_val, "%3lik%1li lb ", wgt / 10000, (wgt % 10000) / 1000);
+		}
 
 		/* Obtain length of description */
 		n = strlen(o_name);
@@ -1604,18 +1753,12 @@ static void display_inven(void) {
 		/* Clear the line with the (possibly indented) index */
 		Term_putstr(3, i, n, o_ptr->attr, o_name);
 #endif
-
-		/* Erase the rest of the line */
-		Term_erase(3 + n, i, 255);
-
-		/* Display the weight if needed */
-		if (c_cfg.show_weights && o_ptr->weight) {
-			wgt = o_ptr->weight * o_ptr->number;
-			if (wgt < 10000) /* still fitting into 3 digits? */
-				(void)sprintf(tmp_val, "%3li.%1li lb ", wgt / 10, wgt % 10);
+		if (wgt) {
+			/* We're in the IDDC and this item is untradable to party members? */
+			if (o_ptr->iron_trade)
+				Term_putstr(71, i - INVEN_WIELD, -1, TERM_SLATE, tmp_val);
 			else
-				(void)sprintf(tmp_val, "%3lik%1li lb ", wgt / 10000, (wgt % 10000) / 1000);
-			Term_putstr(71, i, -1, TERM_WHITE, tmp_val);
+				Term_putstr(71, i, -1, TERM_WHITE, tmp_val);
 		}
 	}
 
@@ -1626,6 +1769,178 @@ static void display_inven(void) {
 	}
 }
 
+#ifdef ENABLE_SUBINVEN
+/*
+ * Choice window "shadow" of the "show_subinven()" function.
+ */
+static void display_subinven(void) {
+	int n, islot;
+
+	char o_name[ONAME_LEN];
+	char tmp_val[80];
+#ifdef X_INFO_TXT_COLOURS
+	char *c;
+	int col_n;
+#endif
+
+	int i, k = 0, last_k = 0, z;
+	long int wgt;
+
+	object_type *o_ptr, *i_ptr = NULL;
+	int subinven_size, bagheader_x, bagheader_y, k_idx;
+
+
+	/* Determine, which subinventory to display:
+	   A) Potion Belt first, Magic Device bag next, Trap kit bag, then Satchel, last are Chests.
+	   B) Just display them in the order in inventory! (We do it this way for now.) */
+
+	for (islot = 0; islot < INVEN_PACK; islot++) {
+		if (inventory[islot].tval != TV_SUBINVEN) continue;
+
+		i_ptr = &inventory[islot];
+		subinven_size = i_ptr->bpval;
+
+		/* Describe the subinventory type itself in one extra line*/
+
+		/* i_ptr->k_idx is not transmitted, only tval,sval are. So we have to loop through all. */
+		i = i_ptr->attr; /* base init, to slay compiler warning (and was old way actually) */
+		for (k_idx = 0; k_idx < MAX_K_IDX; k_idx++)
+			if (kind_list_tval[k_idx] == i_ptr->tval && kind_list_sval[k_idx] == i_ptr->sval) {
+				i = color_char_to_attr(kind_list_attr[k_idx]);
+				break;
+			}
+
+		bagheader_y = last_k;
+		/* Add slot index label */
+		sprintf(o_name, "[%c]", index_to_label(islot));
+		Term_putstr(0, last_k, -1, i, o_name);
+		/* Erase the rest of the line (we haven't written anything to it yet, so don't need to check o_name length or anything) */
+		Term_erase(3, last_k, 255);
+
+		/* Add bag object name */
+		strcpy(o_name, inventory_name[islot]);
+		//o_name[0] = toupper(o_name[0]);
+		o_name[ONAME_LEN - 3] = 0; //prevent overflow
+		/* Obtain length of description */
+		n = strlen(o_name);
+		if (n > MAX_CHARS - 5) n = MAX_CHARS - 5;
+		Term_putstr(4, last_k, n, i_ptr->attr, o_name);
+		/* Erase the rest of the line */
+#ifdef X_INFO_TXT_COLOURS
+		col_n = 0;
+		c = o_name;
+		while ((c = strchr(c, '\377'))) { c++; col_n += 2; } /* Take colour codes into account! */
+		Term_erase(4 + n - col_n, last_k, 255);
+#else
+		Term_erase(4 + n, last_k, 255);
+#endif
+		/* account for this extra line */
+		last_k++;
+		bagheader_x = 4 + n;
+
+
+		/* Find the "final" slot */
+		z = 0;
+		for (i = 0; i < subinven_size; i++) {
+			o_ptr = &subinventory[islot][i];
+
+			/* Track non-empty slots */
+			if (o_ptr->tval) z = i + 1;
+		}
+
+		/* Display bag fill state */
+		sprintf(tmp_val, " (%d/%d):", z, subinven_size);
+		Term_putstr(bagheader_x, bagheader_y, -1, z == subinven_size ? TERM_ORANGE : i_ptr->attr, tmp_val);
+
+		/* Display a line if inventory is actually empty */
+		//if (!z) Term_putstr(0, last_k++, -1, (i_ptr->attr == TERM_L_DARK) ? TERM_L_DARK : TERM_L_WHITE,
+		if (!z) Term_putstr(0, last_k++, -1, TERM_L_DARK,
+		    (i_ptr->attr == TERM_L_DARK) ? /* Use colour sent by server as indicator for SUBINVEN_LIMIT_GROUP */
+		    "     (This container is of duplicate type and therefore unusable)               " :
+		    "     (empty)                                                                    ");
+		    //"     (This container is empty)                                                  ");
+
+		/* Display the inventory */
+		k = last_k;
+		for (i = 0; i < z; i++) {
+			/* Track total amount of lines displayed, for all the subinventories. */
+			k++;
+
+			o_ptr = &subinventory[islot][i];
+
+			/* Start with an empty "index" */
+			tmp_val[0] = tmp_val[1] = tmp_val[2] = tmp_val[3] = tmp_val[4] = ' ';
+
+			/* Terminate - Term_putstr could otherwise read past the end of the buffer
+			 * when it looks for a color code (valgrind complained about that). - mikaelh */
+			tmp_val[5] = '\0';
+
+			/* Prepare an "index" */
+			tmp_val[2] = index_to_label(i);
+
+			/* Bracket the "index" --(-- */
+			tmp_val[3] = ')';
+
+			/* Display the index */
+			if ((n = check_guard_inscription_str(subinventory_name[islot][i], 'W')) && subinventory[islot][i].number < n) Term_putstr(0, last_k + i, 5, TERM_ORANGE, tmp_val);
+			else if ((n = check_guard_inscription_str(subinventory_name[islot][i], 'G')) && subinventory[islot][i].number < n - 1) Term_putstr(0, last_k + i, 5, TERM_YELLOW, tmp_val);
+			else Term_putstr(0, last_k + i, 5, TERM_WHITE, tmp_val);
+
+			/* Describe the object */
+			strcpy(o_name, subinventory_name[islot][i]);
+
+			/* Obtain length of description */
+			n = strlen(o_name);
+			if (n > MAX_CHARS - 6) n = MAX_CHARS - 6; //cut off, can't read it anyway
+
+			Term_putstr(5, last_k + i, n, o_ptr->attr, o_name);
+
+			/* Erase the rest of the line */
+#ifdef X_INFO_TXT_COLOURS
+			col_n = 0;
+			c = o_name;
+			while ((c = strchr(c, '\377'))) { c++; col_n += 2; } /* Take colour codes into account! */
+			Term_erase(5 + n - col_n, last_k + i, 255);
+#else
+			Term_erase(5 + n, last_k + i, 255);
+#endif
+
+			/* Display the weight if needed */
+			if (c_cfg.show_weights && o_ptr->weight) {
+				wgt = o_ptr->weight * o_ptr->number;
+				if (wgt < 10000) /* still fitting into 3 digits? */
+					(void)sprintf(tmp_val, "%3li.%1li lb ", wgt / 10, wgt % 10);
+				else
+					(void)sprintf(tmp_val, "%3lik%1li lb ", wgt / 10000, (wgt % 10000) / 1000);
+
+				/* We're in the IDDC and this item is untradable to party members? */
+				if (o_ptr->iron_trade)
+					Term_putstr(71, last_k + i - INVEN_WIELD, -1, TERM_SLATE, tmp_val);
+				else
+					Term_putstr(71, last_k + i, -1, TERM_WHITE, tmp_val);
+			}
+		}
+		last_k = k;
+	}
+
+	/* No subinventories? */
+	if (!i_ptr) {
+		Term_putstr(0, 0, -1, TERM_L_DARK, "(You don't carry any special bags)");
+		Term_erase(34, 0, 255); /* Erase rest of the line */
+		k = 1;
+	}
+
+	/* Erase the rest of the window */
+	for (i = k; i < Term->hgt; i++) {
+		/* Erase the line */
+		Term_erase(0, i, 255);
+	}
+
+	/* hack: hide cursor */
+	Term->scr->cx = Term->wid;
+	Term->scr->cu = 1;
+}
+#endif
 
 /*
  * Choice window "shadow" of the "show_equip()" function.
@@ -1635,10 +1950,14 @@ static void display_inven(void) {
 static void display_equip(void) {
 	byte	a;
 	int	i, n;
-	long int	wgt;
+	long int wgt;
 	object_type *o_ptr;
 	char	o_name[ONAME_LEN];
 	char	tmp_val[80];
+#ifdef X_INFO_TXT_COLOURS
+	char *c;
+	int col_n;
+#endif
 
 	/* Find the "final" slot */
 	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
@@ -1681,7 +2000,14 @@ static void display_equip(void) {
 		Term_putstr(3, i - INVEN_WIELD, n, o_ptr->attr, o_name);
 
 		/* Erase the rest of the line */
+#if defined(X_INFO_TXT_COLOURS) || 1 /* 1: actually, runes on items use a colour code! So we might need this regardless */
+		col_n = 0;
+		c = o_name;
+		while ((c = strchr(c, '\377'))) { c++; col_n += 2; } /* Take colour codes into account! */
+		Term_erase(3 + n - col_n, i - INVEN_WIELD, 255);
+#else
 		Term_erase(3 + n, i - INVEN_WIELD, 255);
+#endif
 
 		/* Display the weight if needed */
 		if (c_cfg.show_weights && o_ptr->weight) {
@@ -1691,8 +2017,11 @@ static void display_equip(void) {
 			else
 				(void)sprintf(tmp_val, "%3lik%1li lb ", wgt / 10000, (wgt % 10000) / 1000);
 
+			/* We're in the IDDC and this item is untradable to party members? */
+			if (o_ptr->iron_trade)
+				Term_putstr(71, i - INVEN_WIELD, -1, TERM_SLATE, tmp_val);
 			/* for 'greyed out' flexibility hack */
-			if (o_ptr->attr == TERM_L_DARK)
+			else if (o_ptr->attr == TERM_L_DARK)
 				Term_putstr(71, i - INVEN_WIELD, -1, TERM_L_DARK, tmp_val);
 			else
 				Term_putstr(71, i - INVEN_WIELD, -1, c_cfg.equip_text_colour ? EQUIP_TEXT_COLOUR2 : EQUIP_TEXT_COLOUR, tmp_val);
@@ -1754,8 +2083,9 @@ void show_inven_header(void) {
 		if (o_ptr->tval == TV_SUBINVEN) {
 			object_type *o2_ptr;;
 
-			for (z = 0; z < o_ptr->pval; z++) {
+			for (z = 0; z < o_ptr->bpval; z++) {
 				o2_ptr = &subinventory[i][z];
+				if (!o2_ptr->tval) break;
 				totalwgt += o2_ptr->weight * o2_ptr->number;
 			}
 		}
@@ -1793,9 +2123,13 @@ void show_inven_header(void) {
  * Hack -- do not display "trailing" empty slots
  */
 void show_inven(void) {
-	int	i, j, k, l, z = 0;
+	int	i, j, k, l, z = 0, n;
 	int	col, len, lim;
 	long int wgt, totalwgt = 0;
+#ifdef ENABLE_SUBINVEN
+	object_type *o2_ptr;
+	long int subwgt;
+#endif
 
 	object_type *o_ptr;
 
@@ -1886,31 +2220,47 @@ void show_inven(void) {
 		/* Prepare and index --(-- */
 		sprintf(tmp_val, "%c)", index_to_label(i));
 
-		/* Clear the line with the (possibly indented) index */
-		put_str(tmp_val, j + 1, col);
-
-		/* Display the entry itself */
-		c_put_str(out_color[j], out_desc[j], j + 1, col + 3);
+		/* Display the index */
+		if ((n = check_guard_inscription_str(inventory_name[i], 'W')) && inventory[i].number < n) c_put_str(TERM_ORANGE, tmp_val, j + 1, col);
+		else if ((n = check_guard_inscription_str(inventory_name[i], 'G')) && inventory[i].number < n - 1) c_put_str(TERM_YELLOW, tmp_val, j + 1, col);
+		else put_str(tmp_val, j + 1, col);
 
 		/* Display the weight if needed */
+		wgt = 0;
 		if (c_cfg.show_weights && o_ptr->weight) {
 			wgt = o_ptr->weight * o_ptr->number;
+#ifdef ENABLE_SUBINVEN
+			subwgt = 0;
+			if (o_ptr->tval == TV_SUBINVEN) {
+				for (l = 0; l < o_ptr->bpval; l++) {
+					o2_ptr = &subinventory[i][l];
+					if (!o2_ptr->tval) break;
+					subwgt += o2_ptr->weight * o2_ptr->number;
+				}
+				totalwgt += subwgt;
+				wgt += subwgt;
+
+				/* Add fill state to subinven bag name? */
+				strcat(out_desc[j], format(" [%d/%d]", l, o_ptr->bpval));
+				out_desc[j][lim] = 0; /* Ensure overflow protection */
+			}
+#endif
 			if (wgt < 10000) /* still fitting into 3 digits? */
 				(void)sprintf(tmp_val, "%3li.%1li lb", wgt / 10, wgt % 10);
 			else
 				(void)sprintf(tmp_val, "%3lik%1li lb", wgt / 10000, (wgt % 10000) / 1000);
-			put_str(tmp_val, j + 1, 71);
 			totalwgt += wgt;
-#ifdef ENABLE_SUBINVEN
-			if (o_ptr->tval == TV_SUBINVEN) {
-				object_type *o2_ptr;;
+		}
 
-				for (z = 0; z < o_ptr->pval; z++) {
-					o2_ptr = &subinventory[i][z];
-					totalwgt += o2_ptr->weight * o2_ptr->number;
-				}
-			}
-#endif
+		/* Display the entry itself */
+		c_put_str(out_color[j], out_desc[j], j + 1, col + 3);
+
+		if (wgt) {
+			/* We're in the IDDC and this item is untradable to party members? */
+			if (o_ptr->iron_trade)
+				c_put_str(TERM_SLATE, tmp_val, j + 1, 71);
+			else
+				put_str(tmp_val, j + 1, 71);
 		}
 	}
 
@@ -1953,7 +2303,7 @@ void show_inven(void) {
 #ifdef ENABLE_SUBINVEN
 //todo: topline_icky is (wrongfully?) TRUE, so the totalwgt isn't shown!
 void show_subinven(int islot) {
-	int	i, j, k, l, z = 0;
+	int	i, j, k, l, z = 0, n;
 	int	col, len, lim;
 	long int wgt, totalwgt = 0;
 
@@ -1967,7 +2317,7 @@ void show_subinven(int islot) {
 	char	out_desc[23][ONAME_LEN];
 
 	object_type *i_ptr = &inventory[islot];
-	int subinven_size = i_ptr->pval;
+	int subinven_size = i_ptr->bpval;
 
 #ifdef USE_SOUND_2010
  #if 0 /* actually too spammy because the inventory is opened for a lot of fast-paced actions all the time. */
@@ -2059,7 +2409,9 @@ void show_subinven(int islot) {
 		sprintf(tmp_val, "%c)", index_to_label(i));
 
 		/* Clear the line with the (possibly indented) index */
-		put_str(tmp_val, j + 1, col);
+		if ((n = check_guard_inscription_str(subinventory_name[islot][i], 'W')) && subinventory[islot][i].number < n) c_put_str(TERM_ORANGE, tmp_val, j + 1, col);
+		else if ((n = check_guard_inscription_str(subinventory_name[islot][i], 'G')) && subinventory[islot][i].number < n - 1) c_put_str(TERM_YELLOW, tmp_val, j + 1, col);
+		else put_str(tmp_val, j + 1, col);
 
 		/* Display the entry itself */
 		c_put_str(out_color[j], out_desc[j], j + 1, col + 3);
@@ -2071,7 +2423,13 @@ void show_subinven(int islot) {
 				(void)sprintf(tmp_val, "%3li.%1li lb", wgt / 10, wgt % 10);
 			else
 				(void)sprintf(tmp_val, "%3lik%1li lb", wgt / 10000, (wgt % 10000) / 1000);
-			put_str(tmp_val, j + 1, 71);
+
+			/* We're in the IDDC and this item is untradable to party members? */
+			if (o_ptr->iron_trade)
+				c_put_str(TERM_SLATE, tmp_val, j + 1, 71);
+			else
+				put_str(tmp_val, j + 1, 71);
+
 			totalwgt += wgt;
 		}
 	}
@@ -2089,16 +2447,21 @@ void show_subinven(int islot) {
 	}
 
 	/* Mention the two basic commands for handling subinventories */
-	//c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - 't': unstow, 'a': container-dependant activate.", k, inventory[islot].pval), 0, 0);
-	if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, t: unstow, a: mix chemicals, x/d/k/{/}.", k, inventory[islot].pval), 0, 0);
-	else c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, t: unstow, x/d/k/{/}.", k, inventory[islot].pval), 0, 0);
+	//c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - 's': unstow, 'a': container-dependant activate.", k, inventory[islot].bpval), 0, 0);
+	if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, s: unstow, a: mix chemicals, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
+	else c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, s: unstow, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
 
 	/* Make a "shadow" below the list (only if needed) */
 	if (j && (j < 23)) prt("", j + 1, col ? col - 2 : col);
 
 	/* Notify if inventory is actually empty */
 	if (!k) {
-		prt("(This container is empty)", 1, SCREEN_PAD_LEFT);
+		/* Display a line if inventory is actually empty */
+		c_prt((i_ptr->attr == TERM_L_DARK) ? TERM_L_DARK : TERM_L_WHITE,
+		    (i_ptr->attr == TERM_L_DARK) ? /* Use colour sent by server as indicator for SUBINVEN_LIMIT_GROUP */
+		    "(This container is of duplicate type and therefore unusable)" :
+		    "(This container is empty)",
+		    1, SCREEN_PAD_LEFT);
 		/* Hack as if k was 1, to protect this 'is empty' text from weather particles etc, geez */
 		screen_line_icky = 1 + 1 + 1;
 	}
@@ -2226,8 +2589,11 @@ void show_equip(void) {
 			else
 				(void)sprintf(tmp_val, "%3lik%1li lb", wgt / 10000, (wgt % 10000) / 1000);
 
+			/* We're in the IDDC and this item is untradable to party members? */
+			if (o_ptr->iron_trade)
+				c_put_str(TERM_SLATE, tmp_val, j + 1, 71);
 			/* for 'greyed out' flexibility hack */
-			if (o_ptr->attr == TERM_L_DARK)
+			else if (o_ptr->attr == TERM_L_DARK)
 				c_put_str(TERM_L_DARK, tmp_val, j + 1, 71);
 			else
 				put_str(tmp_val, j + 1, 71);
@@ -2271,16 +2637,18 @@ void show_equip(void) {
  */
 static void fix_inven(void) {
 	int j;
+	term *old;
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] & PW_INVEN)) continue;
+
+		/* Save */
+		old = Term;
 
 		/* Activate */
 		Term_activate(ang_term[j]);
@@ -2307,22 +2675,63 @@ static void fix_inven(void) {
 	command_confirmed = PKT_UNDEFINED; //..we don't know which one (doesn't matter)
 }
 
+#ifdef ENABLE_SUBINVEN
+/*
+ * Display inventory in sub-windows
+ */
+static void fix_subinven(void) {
+	int j;
+	term *old;
+
+	/* Scan windows */
+	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
+		/* No window */
+		if (!ang_term[j]) continue;
+
+		/* No relevant flags */
+		if (!(window_flag[j] & PW_SUBINVEN)) continue;
+
+		/* Save */
+		old = Term;
+
+		/* Activate */
+		Term_activate(ang_term[j]);
+
+		/* Display inventory */
+		display_subinven();
+
+		/* Fresh */
+		Term_fresh();
+
+		/* Restore */
+		Term_activate(old);
+	}
+
+	//show_subinven(using_subinven);
+	//show_inven();
+
+	/* Assume that this could've been in response to a wield/takeoff/swap command we issued */
+	//command_confirmed = PKT_UNDEFINED; //..we don't know which one (doesn't matter)
+}
+#endif
 
 /*
  * Display equipment in sub-windows
  */
 static void fix_equip(void) {
 	int j;
+	term *old;
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] & PW_EQUIP)) continue;
+
+		/* Save */
+		old = Term;
 
 		/* Activate */
 		Term_activate(ang_term[j]);
@@ -2346,16 +2755,18 @@ static void fix_equip(void) {
  */
 static void fix_player(void) {
 	int j;
+	term *old;
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] & PW_PLAYER)) continue;
+
+		/* Save */
+		old = Term;
 
 		/* Activate */
 		Term_activate(ang_term[j]);
@@ -2384,19 +2795,22 @@ static void fix_message(void) {
 
 	cptr msg;
 	byte a;
+	term *old;
+
 
 	/* Display messages in different colors -Zz */
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] &
 		    (PW_MESSAGE | PW_CHAT | PW_MSGNOCHAT))) continue;
+
+		/* Save */
+		old = Term;
 
 		/* Activate */
 		Term_activate(ang_term[j]);
@@ -2468,16 +2882,18 @@ static void fix_message(void) {
 
 static void fix_lagometer(void) {
 	int j;
+	term *old;
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] & PW_LAGOMETER)) continue;
+
+		/* Save */
+		old = Term;
 
 		/* Activate */
 		Term_activate(ang_term[j]);
@@ -2494,26 +2910,37 @@ static void fix_lagometer(void) {
 }
 
 void fix_playerlist(void) {
-	int i, j;
+	int i, j, p, y = 0;
+	term *old;
 
 	/* Scan windows */
 	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
-		term *old = Term;
-
 		/* No window */
 		if (!ang_term[j]) continue;
 
 		/* No relevant flags */
 		if (!(window_flag[j] & PW_PLAYERLIST)) continue;
 
+		/* Save */
+		old = Term;
+
 		/* Activate */
 		Term_activate(ang_term[j]);
 
 		/* List players */
 		Term_clear();
-		prt("- [Players Online] -", 1, 30);
-		for (i = 0; i < NumPlayers; i++)
-			prt(playerlist[i], 3 + i, 30);
+		//prt(format("- [Players Online (%d)] -", NumPlayers), 1, 6);
+		if (NumPlayers == 1) 
+			c_prt(TERM_L_WHITE, " 1 Player Online:", 0, 1);
+		else
+			c_prt(TERM_L_WHITE, format(" %d Players Online%c", NumPlayers, NumPlayers ? ':' : '.'), 0, 1);
+		p = NumPlayers;
+		if (p > MAX_PLAYERS_LISTED) p = MAX_PLAYERS_LISTED;
+		for (i = 0; i < p; i++) {
+			if (!playerlist_name[i][0]) continue;
+			c_put_str(TERM_WHITE, playerlist[i], 2 + y, 1);
+			y++;
+		}
 
 		/* Fresh */
 		Term_fresh();
@@ -2522,6 +2949,60 @@ void fix_playerlist(void) {
 		Term_activate(old);
 	}
 }
+
+void check_for_playerlist(void) {
+	int j;
+
+	/* Scan windows */
+	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
+		/* No window */
+		if (!ang_term[j]) continue;
+
+		/* No relevant flags */
+		if (!(window_flag[j] & PW_PLAYERLIST)) continue;
+
+		/* Window set to invisible aka deactivated */
+		if (!term_get_visibility(j)) continue;
+
+		break;
+	}
+
+	Send_plistw_notify(j != ANGBAND_TERM_MAX);
+}
+
+
+/*
+ * Display last character sheet in sub-windows
+ */
+static void fix_player2(void) {
+	int j;
+	term *old;
+
+	/* Scan windows */
+	for (j = 0; j < ANGBAND_TERM_MAX; j++) {
+		/* No window */
+		if (!ang_term[j]) continue;
+
+		/* No relevant flags */
+		if (!(window_flag[j] & PW_PLAYER2)) continue;
+
+		/* Save */
+		old = Term;
+
+		/* Activate */
+		Term_activate(ang_term[j]);
+
+		/* Display character */
+		display_player(2);
+
+		/* Fresh */
+		Term_fresh();
+
+		/* Restore */
+		Term_activate(old);
+	}
+}
+
 
 /*
  * Hack -- pass color info around this file
@@ -2597,6 +3078,17 @@ static cptr likert(int x, int y, int max) {
  * Draws the lag-o-meter.
  */
 #define COLOURED_LAGOMETER
+#ifndef STEPS33
+ #define STEP_RED 400
+ #define STEP_ORANGE 300
+ #define STEP_YELLOW 200
+ #define STEP_GREEN 100
+#else
+ #define STEP_RED 300
+ #define STEP_ORANGE 200
+ #define STEP_YELLOW 133
+ #define STEP_GREEN 67
+#endif
 void display_lagometer(bool display_commands) {
 	int i, cnt, sum, cur, min, max, avg, x, y, packet_loss, height;
 	char tmp[80];
@@ -2612,7 +3104,7 @@ void display_lagometer(bool display_commands) {
  #endif
 	int cur_lag;
 	char *underscore, *underscore2, *underscore2a, c_graph[60 * 3 + 1];
-	char attrc = TERM_VIOLET; /* silyl compiler */
+	char attrc = 'v'; /* silyl compiler */
 	char attrc_prev = attrc0; /* assume best case at the top line */
 #endif
 
@@ -2681,10 +3173,10 @@ void display_lagometer(bool display_commands) {
 #else
  #if 0 /* doesn't take care of correct '_' colouring */
 		cur_lag = (max * (16 - y)) / 16;
-		if (cur_lag >= 400) attr = TERM_RED;
-		else if (cur_lag >= 300) attr = TERM_ORANGE;
-		else if (cur_lag >= 200) attr = TERM_YELLOW;
-		else if (cur_lag >= 100) attr = attr1;
+		if (cur_lag >= STEP_RED) attr = TERM_RED;
+		else if (cur_lag >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (cur_lag >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (cur_lag >= STEP_GREEN) attr = attr1;
 		else attr = attr0;
 		c_prt(attr, graph[y], 3 + y, 10);
  #else /* does take care */
@@ -2696,10 +3188,10 @@ void display_lagometer(bool display_commands) {
 			underscore2 = strchr(underscore, '_');
 			if (!underscore2) underscore2 = graph[y] + 60;
 			cur_lag = (max * (16 - y)) / 16;
-			if (cur_lag >= 400) attrc = 'r';
-			else if (cur_lag >= 300) attrc = 'o';
-			else if (cur_lag >= 200) attrc = 'y';
-			else if (cur_lag >= 100) attrc = attrc1;
+			if (cur_lag >= STEP_RED) attrc = 'r';
+			else if (cur_lag >= STEP_ORANGE) attrc = 'o';
+			else if (cur_lag >= STEP_YELLOW) attrc = 'y';
+			else if (cur_lag >= STEP_GREEN) attrc = attrc1;
 			else attrc = attrc0;
 			if (underscore2 - underscore) {
 				/* avoid 'skipping' a colour level, for better visuals ;) */
@@ -2730,10 +3222,10 @@ void display_lagometer(bool display_commands) {
 				if (underscore2a < underscore2) underscore2 = underscore2a;
 				for (underscore2a = underscore; underscore2a < underscore2; underscore2a++) {
 					cur_lag = ping_times[59 - (underscore2a - graph[y])];
-					if (cur_lag >= 400) attrc = 'r';
-					else if (cur_lag >= 300) attrc = 'o';
-					else if (cur_lag >= 200) attrc = 'y';
-					else if (cur_lag >= 100) attrc = attrc1;
+					if (cur_lag >= STEP_RED) attrc = 'r';
+					else if (cur_lag >= STEP_ORANGE) attrc = 'o';
+					else if (cur_lag >= STEP_YELLOW) attrc = 'y';
+					else if (cur_lag >= STEP_GREEN) attrc = attrc1;
 					else attrc = attrc0;
 					strcat(c_graph, format("\377%c%c", attrc, *underscore2a));
 				}
@@ -2781,10 +3273,10 @@ void display_lagometer(bool display_commands) {
 	prt("Cur:", 20, 2);
 	if (cur != -1) {
 		sprintf(tmp, "%5dms", cur);
-		if (cur >= 400) attr = TERM_RED;
-		else if (cur >= 300) attr = TERM_ORANGE;
-		else if (cur >= 200) attr = TERM_YELLOW;
-		else if (cur >= 100) attr = TERM_GREEN;
+		if (cur >= STEP_RED) attr = TERM_RED;
+		else if (cur >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (cur >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (cur >= STEP_GREEN) attr = TERM_GREEN;
 		else attr = TERM_L_GREEN;
 	}
 	else tmp[0] = '\0';
@@ -2793,10 +3285,10 @@ void display_lagometer(bool display_commands) {
 	prt("Avg:", 20, 17);
 	if (avg != -1) {
 		sprintf(tmp, "%5dms", avg);
-		if (avg >= 400) attr = TERM_RED;
-		else if (avg >= 300) attr = TERM_ORANGE;
-		else if (avg >= 200) attr = TERM_YELLOW;
-		else if (avg >= 100) attr = TERM_GREEN;
+		if (avg >= STEP_RED) attr = TERM_RED;
+		else if (avg >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (avg >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (avg >= STEP_GREEN) attr = TERM_GREEN;
 		else attr = TERM_L_GREEN;
 	}
 	else tmp[0] = '\0';
@@ -2806,10 +3298,10 @@ void display_lagometer(bool display_commands) {
 	prt("10-min cleaned avg:", 21, 2);
 	if (ping_avg != -1) {
 		sprintf(tmp, "%5dms", ping_avg);
-		if (ping_avg >= 400) attr = TERM_RED;
-		else if (ping_avg >= 300) attr = TERM_ORANGE;
-		else if (ping_avg >= 200) attr = TERM_YELLOW;
-		else if (ping_avg >= 100) attr = TERM_GREEN;
+		if (ping_avg >= STEP_RED) attr = TERM_RED;
+		else if (ping_avg >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (ping_avg >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (ping_avg >= STEP_GREEN) attr = TERM_GREEN;
 		else attr = TERM_L_GREEN;
 	}
 	else tmp[0] = '\0';
@@ -2819,10 +3311,10 @@ void display_lagometer(bool display_commands) {
 	prt("Min:", 20, 32);
 	if (min != -1) {
 		sprintf(tmp, "%5dms", min);
-		if (min >= 400) attr = TERM_RED;
-		else if (min >= 300) attr = TERM_ORANGE;
-		else if (min >= 200) attr = TERM_YELLOW;
-		else if (min >= 100) attr = TERM_GREEN;
+		if (min >= STEP_RED) attr = TERM_RED;
+		else if (min >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (min >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (min >= STEP_GREEN) attr = TERM_GREEN;
 		else attr = TERM_L_GREEN;
 	}
 	else tmp[0] = '\0';
@@ -2831,10 +3323,10 @@ void display_lagometer(bool display_commands) {
 	prt("Max:", 20, 47);
 	if (max != -1) {
 		sprintf(tmp, "%5dms", max);
-		if (max >= 400) attr = TERM_RED;
-		else if (max >= 300) attr = TERM_ORANGE;
-		else if (max >= 200) attr = TERM_YELLOW;
-		else if (max >= 100) attr = TERM_GREEN;
+		if (max >= STEP_RED) attr = TERM_RED;
+		else if (max >= STEP_ORANGE) attr = TERM_ORANGE;
+		else if (max >= STEP_YELLOW) attr = TERM_YELLOW;
+		else if (max >= STEP_GREEN) attr = TERM_GREEN;
 		else attr = TERM_L_GREEN;
 	}
 	else tmp[0] = '\0';
@@ -2936,7 +3428,7 @@ void display_player(int hist) {
 		else if (p_ptr->mode & MODE_HARD) {
 			if (p_ptr->lives == -1) c_put_str(TERM_SLATE, "Hard (extra hard, 3 lives)", y_rowmode, FIRST_COL);
 			else c_put_str(TERM_SLATE, format("Hard (extra hard, %d of 3 lives left)", p_ptr->lives), y_rowmode, FIRST_COL);
-		} else {/*(p_ptr->mode == MODE_NORMAL)*/
+		} else {/* !(p_ptr->mode & MODE_MASK) aka MODE_NORMAL */
 			if (p_ptr->lives == -1) c_put_str(TERM_WHITE, "Normal (3 lives)", y_rowmode, FIRST_COL);
 			else c_put_str(TERM_WHITE, format("Normal (%d of 3 lives left)", p_ptr->lives), y_rowmode, FIRST_COL);
 		}
@@ -2949,7 +3441,7 @@ void display_player(int hist) {
 		put_str(format("Social Class:\377B %6d", (int)p_ptr->sc), y_row1 + 3, SECOND_COL);
 
 		/* Display the stats */
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < C_ATTRIBUTES; i++) {
 			/* Special treatment of "injured" stats */
 			if (p_ptr->stat_use[i] < p_ptr->stat_top[i]) {
 				int value;
@@ -3284,7 +3776,7 @@ void display_player(int hist) {
 
 		/* Normal view (vertical columns of different stats) */
 		if (!csheet_horiz) {
-			int header_color[4][19];
+			int header_color[4][19], row;
 
 			for (i = 0; i < 4; i++)
 				for (j = 0; j < 19; j++)
@@ -3375,41 +3867,41 @@ void display_player(int hist) {
 
 				if (csheet_boni[i].cb[4] & CB5_RFEAR) { c_put_str(TERM_WHITE, "+", 1, 25 + i); header_color[1][0] = TERM_WHITE; }
 				if (csheet_boni[i].cb[4] & CB5_RPARA) { c_put_str(TERM_WHITE, "+", 2, 25 + i); header_color[1][1] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_STELE) { c_put_str(TERM_RED, "t", 3, 25 + i); if (header_color[1][2] == TERM_L_DARK || header_color[1][2] == TERM_WHITE) header_color[1][2] = TERM_RED; } //auto-tele; overrides the resist, no items with both
-				if (csheet_boni[i].cb[4] & CB5_RTELE) { c_put_str(TERM_WHITE, "+", 3, 25 + i); if (header_color[1][2] == TERM_L_DARK) header_color[1][2] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_ITELE) { c_put_str(TERM_L_RED, "N", 3, 25 + i); if (header_color[1][2] != TERM_L_RED) header_color[1][2] = TERM_L_RED; } //NO_TELE
-				if (csheet_boni[i].cb[4] & CB5_RSINV) { c_put_str(TERM_WHITE, "+", 4, 25 + i); if (header_color[1][3] == TERM_L_DARK) header_color[1][3] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_RINVS) { c_put_str(TERM_WHITE, "+", 5, 25 + i); header_color[1][4] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_RLIFE) { c_put_str(TERM_WHITE, "+", 6, 25 + i); header_color[1][5] = TERM_WHITE; }
-				if (csheet_boni[i].cb[13] & CB14_ILIFE) { c_put_str(TERM_L_UMBER, "*", 6, 25 + i); header_color[1][5] = TERM_L_UMBER; }
-				if (csheet_boni[i].cb[5] & CB6_RWRTH) { c_put_str(TERM_WHITE, "+", 7, 25 + i); header_color[1][6] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_RFFAL) { c_put_str(TERM_WHITE, "+", 8, 25 + i); header_color[1][7] = TERM_WHITE; }
-				if (csheet_boni[i].cb[12] & CB13_XSWIM) { c_put_str(TERM_L_BLUE, "~", 9, 25 + i); if (header_color[1][8] == TERM_L_DARK) header_color[1][8] = TERM_YELLOW; }
-				if (csheet_boni[i].cb[12] & CB13_XTREE) { c_put_str(TERM_GREEN, "#", 9, 25 + i); if (header_color[1][8] == TERM_L_DARK) header_color[1][8] = TERM_YELLOW; }
-				if ((csheet_boni[i].cb[12] & CB13_XTREE) && (csheet_boni[i].cb[12] & CB13_XSWIM)) c_put_str(TERM_YELLOW, "+", 9, 25 + i); //Almost flying~
+				if (csheet_boni[i].cb[5] & CB6_RLIFE) { c_put_str(TERM_WHITE, "+", 3, 25 + i); header_color[1][2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[13] & CB14_ILIFE) { c_put_str(TERM_L_UMBER, "*", 3, 25 + i); header_color[1][2] = TERM_L_UMBER; }
+				if (csheet_boni[i].cb[4] & CB5_STELE) { c_put_str(TERM_RED, "t", 4, 25 + i); if (header_color[1][3] == TERM_L_DARK || header_color[1][3] == TERM_WHITE) header_color[1][3] = TERM_RED; } //auto-tele; overrides the resist, no items with both
+				if (csheet_boni[i].cb[4] & CB5_RTELE) { c_put_str(TERM_WHITE, "+", 4, 25 + i); if (header_color[1][3] == TERM_L_DARK) header_color[1][3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_ITELE) { c_put_str(TERM_L_RED, "N", 4, 25 + i); if (header_color[1][3] != TERM_L_RED) header_color[1][3] = TERM_L_RED; } //NO_TELE
+				if (csheet_boni[i].cb[5] & CB6_RFFAL) { c_put_str(TERM_WHITE, "+", 5, 25 + i); header_color[1][4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[12] & CB13_XSWIM) { c_put_str(TERM_L_BLUE, "~", 6, 25 + i); if (header_color[1][5] == TERM_L_DARK) header_color[1][5] = TERM_YELLOW; }
+				if (csheet_boni[i].cb[12] & CB13_XTREE) { c_put_str(TERM_GREEN, "#", 6, 25 + i); if (header_color[1][5] == TERM_L_DARK) header_color[1][5] = TERM_YELLOW; }
+				if ((csheet_boni[i].cb[12] & CB13_XTREE) && (csheet_boni[i].cb[12] & CB13_XSWIM)) c_put_str(TERM_YELLOW, "+", 6, 25 + i); //Almost flying~
 				if (csheet_boni[i].cb[5] & CB6_RLVTN) {
-					c_put_str(TERM_WHITE, "+", 9, 25 + i); header_color[1][8] = TERM_WHITE;
+					c_put_str(TERM_WHITE, "+", 6, 25 + i); header_color[1][5] = TERM_WHITE;
 					//Levitation covers feather falling, similar to chaos/confusion but plausible? - Kurzel
-					if (!(csheet_boni[i].cb[5] & CB6_RFFAL)) { c_put_str(TERM_YELLOW, "+", 8, 25 + i); if (header_color[1][7] == TERM_L_DARK) header_color[1][7] = TERM_YELLOW; }
+					if (!(csheet_boni[i].cb[5] & CB6_RFFAL)) { c_put_str(TERM_YELLOW, "+", 5, 25 + i); if (header_color[1][4] == TERM_L_DARK) header_color[1][4] = TERM_YELLOW; }
 				}
-				if (csheet_boni[i].cb[5] & CB6_RCLMB) { c_put_str(TERM_WHITE, "+", 10, 25 + i); header_color[1][9] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_SRGHP) { c_put_str(TERM_RED, "-", 11, 25 + i); if (header_color[1][10] == TERM_L_DARK) header_color[1][10] = TERM_RED; }
-				if (csheet_boni[i].cb[5] & CB6_RRGHP) { c_put_str(TERM_WHITE, "+", 11, 25 + i); if (header_color[1][10] == TERM_L_DARK) header_color[1][10] = TERM_WHITE; if (header_color[1][10] == TERM_RED || header_color[1][10] == TERM_YELLOW) header_color[1][10] = TERM_YELLOW; } //yellow if both...
-				if (csheet_boni[i].cb[5] & CB6_SRGMP) { c_put_str(TERM_RED, "-", 12, 25 + i); if (header_color[1][11] == TERM_L_DARK) header_color[1][11] = TERM_RED; }
-				if (csheet_boni[i].cb[6] & CB7_RRGMP) { c_put_str(TERM_WHITE, "+", 12, 25 + i); if (header_color[1][11] == TERM_L_DARK) header_color[1][11] = TERM_WHITE; if (header_color[1][11] == TERM_RED || header_color[1][11] == TERM_YELLOW) header_color[1][11] = TERM_YELLOW; } //yellow if both...
-				if (csheet_boni[i].cb[6] & CB7_RFOOD) { c_put_str(TERM_WHITE, "+", 13, 25 + i); if (header_color[1][12] == TERM_L_DARK) header_color[1][12] = TERM_WHITE; }
-				if (p_ptr->prace == RACE_ENT || p_ptr->prace == RACE_VAMPIRE) { c_put_str(TERM_WHITE, "*", 13, 25 + 14); if (header_color[1][12] == TERM_L_DARK) header_color[1][12] = TERM_WHITE; } //Hack: Ents/Vamps require food but do not gorge! - Kurzel
-				if (csheet_boni[i].cb[6] & CB7_IFOOD) { c_put_str(TERM_L_UMBER, "*", 13, 25 + i); header_color[1][12] = TERM_L_UMBER; }
+				if (csheet_boni[i].cb[5] & CB6_RCLMB) { c_put_str(TERM_WHITE, "+", 7, 25 + i); header_color[1][6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_RSINV) { c_put_str(TERM_WHITE, "+", 8, 25 + i); if (header_color[1][7] == TERM_L_DARK) header_color[1][7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_RINVS) { c_put_str(TERM_WHITE, "+", 9, 25 + i); header_color[1][8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[6] & CB7_RREFL) { c_put_str(TERM_WHITE, "+", 10, 25 + i); header_color[1][9] = TERM_WHITE; }
+				if (csheet_boni[i].cb[5] & CB6_RWRTH) { c_put_str(TERM_WHITE, "+", 11, 25 + i); header_color[1][10] = TERM_WHITE; }
+				if (csheet_boni[i].cb[5] & CB6_SRGHP) { c_put_str(TERM_RED, "-", 12, 25 + i); if (header_color[1][11] == TERM_L_DARK) header_color[1][11] = TERM_RED; }
+				if (csheet_boni[i].cb[5] & CB6_RRGHP) { c_put_str(TERM_WHITE, "+", 12, 25 + i); if (header_color[1][11] == TERM_L_DARK) header_color[1][11] = TERM_WHITE; if (header_color[1][11] == TERM_RED || header_color[1][11] == TERM_YELLOW) header_color[1][11] = TERM_YELLOW; } //yellow if both...
+				if (csheet_boni[i].cb[5] & CB6_SRGMP) { c_put_str(TERM_RED, "-", 13, 25 + i); if (header_color[1][12] == TERM_L_DARK) header_color[1][12] = TERM_RED; }
+				if (csheet_boni[i].cb[6] & CB7_RRGMP) { c_put_str(TERM_WHITE, "+", 13, 25 + i); if (header_color[1][12] == TERM_L_DARK) header_color[1][12] = TERM_WHITE; if (header_color[1][12] == TERM_RED || header_color[1][12] == TERM_YELLOW) header_color[1][12] = TERM_YELLOW; } //yellow if both...
+				if (csheet_boni[i].cb[6] & CB7_RFOOD) { c_put_str(TERM_WHITE, "+", 14, 25 + i); if (header_color[1][13] == TERM_L_DARK) header_color[1][13] = TERM_WHITE; }
+				if (p_ptr->prace == RACE_ENT || p_ptr->prace == RACE_VAMPIRE) { c_put_str(TERM_WHITE, "*", 13, 25 + 14); if (header_color[1][13] == TERM_L_DARK) header_color[1][13] = TERM_WHITE; } //Hack: Ents/Vamps require food but do not gorge! - Kurzel
+				if (csheet_boni[i].cb[6] & CB7_IFOOD) { c_put_str(TERM_L_UMBER, "*", 14, 25 + i); header_color[1][13] = TERM_L_UMBER; }
 				if (csheet_boni[i].cb[6] & CB7_RVAMP) {
 					if ((i == 0) || (i == 1) || (i == 2) || (i == 12)
 					    || ((i == 14) && (!strcasecmp(c_p_ptr->body_name, "Vampiric mist") || !strcasecmp(c_p_ptr->body_name, "Vampire bat"))) //Hack: use * for 100% weapon/ammo or v-bat/mist forms
 					    || (i == 14 && race == RACE_VAMPIRE && get_skill(SKILL_NECROMANCY) == 50 && get_skill(SKILL_TRAUMATURGY) == 50)) { //Nasty hack: Assume that having full trauma+necro gives 100% vamp actually
-						c_put_str(TERM_WHITE, "*", 14, 25 + i); header_color[1][13] = TERM_WHITE;
-					} else { c_put_str(TERM_WHITE, "+", 14, 25 + i); header_color[1][13] = TERM_WHITE; }
+						c_put_str(TERM_WHITE, "*", 15, 25 + i); header_color[1][14] = TERM_WHITE;
+					} else { c_put_str(TERM_WHITE, "+", 15, 25 + i); header_color[1][14] = TERM_WHITE; }
 				}
-				if (p_ptr->fruit_bat == 1 && !strcasecmp(c_p_ptr->body_name, "Player")) { c_put_str(TERM_WHITE, "+", 14, 25 + 14); header_color[1][13] = TERM_WHITE; } //Mega Hack: Hardcode 50% vamp as a fruit bat! Maybe incorrect for mimics? - Kurzel
-				if (csheet_boni[i].cb[6] & CB7_RAUID) { c_put_str(TERM_WHITE, "+", 15, 25 + i); header_color[1][14] = TERM_WHITE; }
-				if (csheet_boni[i].cb[6] & CB7_RREFL) { c_put_str(TERM_WHITE, "+", 16, 25 + i); header_color[1][15] = TERM_WHITE; }
+				if (p_ptr->fruit_bat == 1 && !strcasecmp(c_p_ptr->body_name, "Player")) { c_put_str(TERM_WHITE, "+", 15, 25 + 14); header_color[1][14] = TERM_WHITE; } //Mega Hack: Hardcode 50% vamp as a fruit bat! Maybe incorrect for mimics? - Kurzel
+				if (csheet_boni[i].cb[6] & CB7_RAUID) { c_put_str(TERM_WHITE, "+", 16, 25 + i); header_color[1][15] = TERM_WHITE; }
 				if (csheet_boni[i].cb[6] & CB7_RAMSH) { c_put_str(TERM_YELLOW, "+", 17, 25 + i); header_color[1][16] = TERM_YELLOW; }
 				// AMFI (Numerical) goes here at [1][17] - Kurzel
 				if (csheet_boni[i].cb[6] & CB7_RAGGR) { c_put_str(TERM_RED, "+", 19, 25 + i); header_color[1][18] = TERM_RED; }
@@ -3642,43 +4134,43 @@ void display_player(int hist) {
 				}
 
 				/* ESP and slay flags, white for anything */
-				if (csheet_boni[i].cb[7] & CB8_ESPID) { c_put_str(TERM_WHITE, "e", 1, 65 + i); header_color[3][0] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_EANIM) { c_put_str(TERM_WHITE, "e", 2, 65 + i); header_color[3][1] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_SANIM) { c_put_str(TERM_WHITE, "s", 2, 65 + i); header_color[3][1] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_ESPID) { c_put_str(TERM_L_BLUE, "E", 1, 65 + i); header_color[3][0] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EANIM) { c_put_str(TERM_L_BLUE, "E", 2, 65 + i); header_color[3][1] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_SANIM) { c_put_str(TERM_YELLOW, "s", 2, 65 + i); header_color[3][1] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EANIM) && (csheet_boni[i].cb[7] & CB8_SANIM)) c_put_str(TERM_WHITE, "+", 2, 65 + i);
-				if (csheet_boni[i].cb[7] & CB8_EORCS) { c_put_str(TERM_WHITE, "e", 3, 65 + i); header_color[3][2] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_SORCS) { c_put_str(TERM_WHITE, "s", 3, 65 + i); header_color[3][2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EORCS) { c_put_str(TERM_L_BLUE, "E", 3, 65 + i); header_color[3][2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_SORCS) { c_put_str(TERM_YELLOW, "s", 3, 65 + i); header_color[3][2] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EORCS) && (csheet_boni[i].cb[7] & CB8_SORCS)) c_put_str(TERM_WHITE, "+", 3, 65 + i);
-				if (csheet_boni[i].cb[7] & CB8_ETROL) { c_put_str(TERM_WHITE, "e", 4, 65 + i); header_color[3][3] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_STROL) { c_put_str(TERM_WHITE, "s", 4, 65 + i); header_color[3][3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_ETROL) { c_put_str(TERM_L_BLUE, "E", 4, 65 + i); header_color[3][3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_STROL) { c_put_str(TERM_YELLOW, "s", 4, 65 + i); header_color[3][3] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_ETROL) && (csheet_boni[i].cb[7] & CB8_STROL)) c_put_str(TERM_WHITE, "+", 4, 65 + i);
-				if (csheet_boni[i].cb[7] & CB8_EGIAN) { c_put_str(TERM_WHITE, "e", 5, 65 + i); header_color[3][4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EGIAN) { c_put_str(TERM_L_BLUE, "E", 5, 65 + i); header_color[3][4] = TERM_WHITE; }
 
-				if (csheet_boni[i].cb[8] & CB9_SGIAN) { c_put_str(TERM_WHITE, "s", 5, 65 + i); header_color[3][4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SGIAN) { c_put_str(TERM_YELLOW, "s", 5, 65 + i); header_color[3][4] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EGIAN) && (csheet_boni[i].cb[8] & CB9_SGIAN)) c_put_str(TERM_WHITE, "+", 5, 65 + i);
-				if (csheet_boni[i].cb[8] & CB9_EDRGN) { c_put_str(TERM_WHITE, "e", 6, 65 + i); header_color[3][5] = TERM_WHITE; }
-				if (csheet_boni[i].cb[8] & CB9_SDRGN) { c_put_str(TERM_WHITE, "s", 6, 65 + i); header_color[3][5] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EDRGN) { c_put_str(TERM_L_BLUE, "E", 6, 65 + i); header_color[3][5] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SDRGN) { c_put_str(TERM_YELLOW, "s", 6, 65 + i); header_color[3][5] = TERM_WHITE; }
 				if (csheet_boni[i].cb[8] & CB9_KDRGN) { c_put_str(TERM_WHITE, "k", 6, 65 + i); header_color[3][5] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EDRGN) && (csheet_boni[i].cb[8] & CB9_SDRGN)) c_put_str(TERM_WHITE, "+", 6, 65 + i);
 				if ((csheet_boni[i].cb[8] & CB9_EDRGN) && (csheet_boni[i].cb[8] & CB9_KDRGN)) c_put_str(TERM_WHITE, "*", 6, 65 + i);
-				if (csheet_boni[i].cb[8] & CB9_EDEMN) { c_put_str(TERM_WHITE, "e", 7, 65 + i); header_color[3][6] = TERM_WHITE; }
-				if (csheet_boni[i].cb[8] & CB9_SDEMN) { c_put_str(TERM_WHITE, "s", 7, 65 + i); header_color[3][6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EDEMN) { c_put_str(TERM_L_BLUE, "E", 7, 65 + i); header_color[3][6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SDEMN) { c_put_str(TERM_YELLOW, "s", 7, 65 + i); header_color[3][6] = TERM_WHITE; }
 				if (csheet_boni[i].cb[8] & CB9_KDEMN) { c_put_str(TERM_WHITE, "k", 7, 65 + i); header_color[3][6] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EDEMN) && (csheet_boni[i].cb[8] & CB9_SDEMN)) c_put_str(TERM_WHITE, "+", 7, 65 + i);
 				if ((csheet_boni[i].cb[8] & CB9_EDEMN) && (csheet_boni[i].cb[8] & CB9_KDEMN)) c_put_str(TERM_WHITE, "*", 7, 65 + i);
-				if (csheet_boni[i].cb[8] & CB9_EUNDD) { c_put_str(TERM_WHITE, "e", 8, 65 + i); header_color[3][7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EUNDD) { c_put_str(TERM_L_BLUE, "E", 8, 65 + i); header_color[3][7] = TERM_WHITE; }
 
-				if (csheet_boni[i].cb[9] & CB10_SUNDD) { c_put_str(TERM_WHITE, "s", 8, 65 + i); header_color[3][7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_SUNDD) { c_put_str(TERM_YELLOW, "s", 8, 65 + i); header_color[3][7] = TERM_WHITE; }
 				if (csheet_boni[i].cb[9] & CB10_KUNDD) { c_put_str(TERM_WHITE, "k", 8, 65 + i); header_color[3][7] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EUNDD) && (csheet_boni[i].cb[9] & CB10_SUNDD)) c_put_str(TERM_WHITE, "+", 8, 65 + i);
 				if ((csheet_boni[i].cb[8] & CB9_EUNDD) && (csheet_boni[i].cb[9] & CB10_KUNDD)) c_put_str(TERM_WHITE, "*", 8, 65 + i);
-				if (csheet_boni[i].cb[9] & CB10_EEVIL) { c_put_str(TERM_WHITE, "e", 9, 65 + i); header_color[3][8] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_SEVIL) { c_put_str(TERM_WHITE, "s", 9, 65 + i); header_color[3][8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EEVIL) { c_put_str(TERM_L_BLUE, "E", 9, 65 + i); header_color[3][8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_SEVIL) { c_put_str(TERM_YELLOW, "s", 9, 65 + i); header_color[3][8] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[9] & CB10_EEVIL) && (csheet_boni[i].cb[9] & CB10_SEVIL)) c_put_str(TERM_WHITE, "+", 9, 65 + i);
-				if (csheet_boni[i].cb[9] & CB10_EDGRI) { c_put_str(TERM_WHITE, "e", 10, 65 + i); header_color[3][9] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_EGOOD) { c_put_str(TERM_WHITE, "e", 11, 65 + i); header_color[3][10] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_ENONL) { c_put_str(TERM_WHITE, "e", 12, 65 + i); header_color[3][11] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_EUNIQ) { c_put_str(TERM_WHITE, "e", 13, 65 + i); header_color[3][12] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EDGRI) { c_put_str(TERM_L_BLUE, "E", 10, 65 + i); header_color[3][9] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EGOOD) { c_put_str(TERM_L_BLUE, "E", 11, 65 + i); header_color[3][10] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_ENONL) { c_put_str(TERM_L_BLUE, "E", 12, 65 + i); header_color[3][11] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EUNIQ) { c_put_str(TERM_L_BLUE, "E", 13, 65 + i); header_color[3][12] = TERM_WHITE; }
 
 				if (csheet_boni[i].cb[10] & CB11_BFIRE) { c_put_str(TERM_WHITE, "b", 14, 65 + i); header_color[3][13] = TERM_WHITE; }
 				if (csheet_boni[i].cb[10] & CB11_AFIRE) { c_put_str(TERM_WHITE, "a", 14, 65 + i); header_color[3][13] = TERM_WHITE; }
@@ -3696,10 +4188,8 @@ void display_player(int hist) {
 				/* Footer */
 				color = csheet_boni[i].color;
 				symbol = (csheet_boni[i].symbol ? csheet_boni[i].symbol : ' ');
-				if (symbol > MAX_FONT_CHAR) fprintf(stderr, "Sorry graphical symbols for boni not supported yet\n");
-				sprintf(tmp, "%c", (char)symbol);
 				for (j = 0; j < 4; j++)
-					c_put_str(color, tmp, 20, 5 + j * 20 + i);
+					Term_draw(5 + j * 20 + i, 20, color, symbol);
 			}
 
 			/* AM field - body? skill or monster form */
@@ -3758,85 +4248,89 @@ void display_player(int hist) {
 			if (p_ptr->nimbus && p_ptr->nimbus == GF_GRAVITY) { if (header_color[1][7] != TERM_L_UMBER) header_color[1][7] = TERM_WHITE; } // FFAL
 
 			/* Row Headers */
-			c_put_str(header_color[0][0], "Fire:", 1, 0); //row, col
-			c_put_str(header_color[0][1], "Cold:", 2, 0);
-			c_put_str(header_color[0][2], "Elec:", 3, 0);
-			c_put_str(header_color[0][3], "Acid:", 4, 0);
-			c_put_str(header_color[0][4], "Pois:", 5, 0);
-			c_put_str(header_color[0][5], "Blnd:", 6, 0);
-			c_put_str(header_color[0][6], "Lite:", 7, 0);
-			c_put_str(header_color[0][7], "Dark:", 8, 0);
-			c_put_str(header_color[0][8], "Soun:", 9, 0);
-			c_put_str(header_color[0][9], "Shrd:", 10, 0);
-			c_put_str(header_color[0][10], "Nexu:", 11, 0);
-			c_put_str(header_color[0][11], "Neth:", 12, 0);
-			c_put_str(header_color[0][12], "Conf:", 13, 0);
-			c_put_str(header_color[0][13], "Chao:", 14, 0);
-			c_put_str(header_color[0][14], "Dise:", 15, 0);
-			c_put_str(header_color[0][15], "Watr:", 16, 0);
-			c_put_str(header_color[0][16], "Time:", 17, 0);
-			c_put_str(header_color[0][17], "Mana:", 18, 0);
-			c_put_str(header_color[0][18], "Mind:", 19, 0);
+			row = 1;
+			c_put_str(header_color[0][0], "Fire:", row++, 0); //row, col
+			c_put_str(header_color[0][1], "Cold:", row++,  0);
+			c_put_str(header_color[0][2], "Elec:", row++,  0);
+			c_put_str(header_color[0][3], "Acid:", row++,  0);
+			c_put_str(header_color[0][4], "Pois:", row++,  0);
+			c_put_str(header_color[0][5], "Blnd:", row++,  0);
+			c_put_str(header_color[0][6], "Lite:", row++,  0);
+			c_put_str(header_color[0][7], "Dark:", row++,  0);
+			c_put_str(header_color[0][8], "Soun:", row++,  0);
+			c_put_str(header_color[0][9], "Shrd:", row++,  0);
+			c_put_str(header_color[0][10], "Nexu:", row++,  0);
+			c_put_str(header_color[0][11], "Neth:", row++,  0);
+			c_put_str(header_color[0][12], "Conf:", row++,  0);
+			c_put_str(header_color[0][13], "Chao:", row++,  0);
+			c_put_str(header_color[0][14], "Dise:", row++,  0);
+			c_put_str(header_color[0][15], "Watr:", row++,  0);
+			c_put_str(header_color[0][16], "Time:", row++,  0);
+			c_put_str(header_color[0][17], "Mana:", row++,  0);
+			c_put_str(header_color[0][18], "Mind:", row++,  0);
 
-			c_put_str(header_color[1][0], "Fear:", 1, 20);
-			c_put_str(header_color[1][1], "Para:", 2, 20);
-			c_put_str(header_color[1][2], "Tele:", 3, 20);
-			c_put_str(header_color[1][3], "SInv:", 4, 20);
-			c_put_str(header_color[1][4], "Invs:", 5, 20);
-			c_put_str(header_color[1][5], "HLif:", 6, 20);
-			c_put_str(header_color[1][6], "Wrth:", 7, 20);
-			c_put_str(header_color[1][7], "FFal:", 8, 20);
-			c_put_str(header_color[1][8], "Lvtn:", 9, 20);
-			c_put_str(header_color[1][9], "Clmb:", 10, 20);
-			c_put_str(header_color[1][10], "RgHP:", 11, 20);
-			c_put_str(header_color[1][11], "RgMP:", 12, 20);
-			c_put_str(header_color[1][12], "Food:", 13, 20);
-			c_put_str(header_color[1][13], "Vamp:", 14, 20);
-			c_put_str(header_color[1][14], "AuID:", 15, 20);
-			c_put_str(header_color[1][15], "Refl:", 16, 20);
-			c_put_str(header_color[1][16], "AMSh:", 17, 20);
-			c_put_str(header_color[1][17], "AMFi:", 18, 20);
-			c_put_str(header_color[1][18], "Aggr:", 19, 20);
+			row = 1;
+			c_put_str(header_color[1][0], "Fear:", row++,  20);
+			c_put_str(header_color[1][1], "Para:", row++,  20);
+			c_put_str(header_color[1][2], "HLif:", row++,  20);
+			c_put_str(header_color[1][3], "Tele:", row++,  20);
+			c_put_str(header_color[1][4], "FFal:", row++,  20);
+			c_put_str(header_color[1][5], "Lvtn:", row++,  20);
+			c_put_str(header_color[1][6], "Clmb:", row++,  20);
+			c_put_str(header_color[1][7], "SInv:", row++,  20);
+			c_put_str(header_color[1][8], "Invs:", row++,  20);
+			c_put_str(header_color[1][9], "Refl:", row++,  20);
+			c_put_str(header_color[1][10], "Wrth:", row++,  20);
+			c_put_str(header_color[1][11], "RgHP:", row++,  20);
+			c_put_str(header_color[1][12], "RgMP:", row++,  20);
+			c_put_str(header_color[1][13], "Food:", row++,  20);
+			c_put_str(header_color[1][14], "Vamp:", row++,  20);
+			c_put_str(header_color[1][15], "AuID:", row++,  20);
+			c_put_str(header_color[1][16], "AMSh:", row++,  20);
+			c_put_str(header_color[1][17], "AMFi:", row++,  20);
+			c_put_str(header_color[1][18], "Aggr:", row++,  20);
 
-			c_put_str(header_color[2][0], "Spd :", 1, 40);
-			c_put_str(header_color[2][1], "Slth:", 2, 40);
-			c_put_str(header_color[2][2], "Srch:", 3, 40);
-			c_put_str(header_color[2][3], "Infr:", 4, 40);
-			c_put_str(header_color[2][4], "Lite:", 5, 40);
-			c_put_str(header_color[2][5], "Tunn:", 6, 40);
-			c_put_str(header_color[2][6], "Blow:", 7, 40);
-			c_put_str(header_color[2][7], "Crit:", 8, 40);
-			c_put_str(header_color[2][8], "Shot:", 9, 40);
-			c_put_str(header_color[2][9], "Mght:", 10, 40);
-			c_put_str(header_color[2][10], "MxHP:", 11, 40);
-			c_put_str(header_color[2][11], "MxMP:", 12, 40);
-			c_put_str(header_color[2][12], "Luck:", 13, 40);
-			c_put_str(header_color[2][13], "STR :", 14, 40);
-			c_put_str(header_color[2][14], "INT :", 15, 40);
-			c_put_str(header_color[2][15], "WIS :", 16, 40);
-			c_put_str(header_color[2][16], "DEX :", 17, 40);
-			c_put_str(header_color[2][17], "CON :", 18, 40);
-			c_put_str(header_color[2][18], "CHR :", 19, 40);
+			row = 1;
+			c_put_str(header_color[2][0], "Spd :", row++,  40);
+			c_put_str(header_color[2][1], "Slth:", row++,  40);
+			c_put_str(header_color[2][2], "Srch:", row++,  40);
+			c_put_str(header_color[2][3], "Infr:", row++,  40);
+			c_put_str(header_color[2][4], "Lite:", row++,  40);
+			c_put_str(header_color[2][5], "Tunn:", row++,  40);
+			c_put_str(header_color[2][6], "Blow:", row++,  40);
+			c_put_str(header_color[2][7], "Crit:", row++,  40);
+			c_put_str(header_color[2][8], "Shot:", row++,  40);
+			c_put_str(header_color[2][9], "Mght:", row++,  40);
+			c_put_str(header_color[2][10], "MxHP:", row++,  40);
+			c_put_str(header_color[2][11], "MxMP:", row++,  40);
+			c_put_str(header_color[2][12], "Luck:", row++,  40);
+			c_put_str(header_color[2][13], "STR :", row++,  40);
+			c_put_str(header_color[2][14], "INT :", row++,  40);
+			c_put_str(header_color[2][15], "WIS :", row++,  40);
+			c_put_str(header_color[2][16], "DEX :", row++,  40);
+			c_put_str(header_color[2][17], "CON :", row++,  40);
+			c_put_str(header_color[2][18], "CHR :", row++,  40);
 
-			c_put_str(header_color[3][0], "Spid:", 1, 60);
-			c_put_str(header_color[3][1], "Anim:", 2, 60);
-			c_put_str(header_color[3][2], "Orcs:", 3, 60);
-			c_put_str(header_color[3][3], "Trol:", 4, 60);
-			c_put_str(header_color[3][4], "Gian:", 5, 60);
-			c_put_str(header_color[3][5], "Drgn:", 6, 60);
-			c_put_str(header_color[3][6], "Demn:", 7, 60);
-			c_put_str(header_color[3][7], "Undd:", 8, 60);
-			c_put_str(header_color[3][8], "Evil:", 9, 60);
-			c_put_str(header_color[3][9], "Dgri:", 10, 60);
-			c_put_str(header_color[3][10], "Good:", 11, 60);
-			c_put_str(header_color[3][11], "Nonl:", 12, 60);
-			c_put_str(header_color[3][12], "Uniq:", 13, 60);
-			c_put_str(header_color[3][13], "Fire:", 14, 60);
-			c_put_str(header_color[3][14], "Cold:", 15, 60);
-			c_put_str(header_color[3][15], "Elec:", 16, 60);
-			c_put_str(header_color[3][16], "Acid:", 17, 60);
-			c_put_str(header_color[3][17], "Pois:", 18, 60);
-			c_put_str(header_color[3][18], "Vorp:", 19, 60);
+			row = 1;
+			c_put_str(header_color[3][0], "Spid:", row++,  60);
+			c_put_str(header_color[3][1], "Anim:", row++,  60);
+			c_put_str(header_color[3][2], "Orcs:", row++,  60);
+			c_put_str(header_color[3][3], "Trol:", row++,  60);
+			c_put_str(header_color[3][4], "Gian:", row++,  60);
+			c_put_str(header_color[3][5], "Drgn:", row++,  60);
+			c_put_str(header_color[3][6], "Demn:", row++,  60);
+			c_put_str(header_color[3][7], "Undd:", row++,  60);
+			c_put_str(header_color[3][8], "Evil:", row++,  60);
+			c_put_str(header_color[3][9], "Dgri:", row++,  60);
+			c_put_str(header_color[3][10], "Good:", row++,  60);
+			c_put_str(header_color[3][11], "Nonl:", row++,  60);
+			c_put_str(header_color[3][12], "Uniq:", row++,  60);
+			c_put_str(header_color[3][13], "Fire:", row++,  60);
+			c_put_str(header_color[3][14], "Cold:", row++,  60);
+			c_put_str(header_color[3][15], "Elec:", row++,  60);
+			c_put_str(header_color[3][16], "Acid:", row++,  60);
+			c_put_str(header_color[3][17], "Pois:", row++,  60);
+			c_put_str(header_color[3][18], "Vorp:", row++,  60);
 		}
 		/* Horizontal view (Horizontal rows of different stats) */
 		else {
@@ -3932,41 +4426,41 @@ void display_player(int hist) {
 
 				if (csheet_boni[i].cb[4] & CB5_RFEAR) { c_put_str(TERM_WHITE, "+", 6 + i, 1 + 19 + x_offset); header_color[0][19 + 0] = TERM_WHITE; }
 				if (csheet_boni[i].cb[4] & CB5_RPARA) { c_put_str(TERM_WHITE, "+", 6 + i, 2 + 19 + x_offset); header_color[0][19 + 1] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_STELE) { c_put_str(TERM_RED, "t", 6 + i, 3 + 19 + x_offset); if (header_color[0][19 + 2] == TERM_L_DARK || header_color[0][19 + 2] == TERM_WHITE) header_color[0][19 + 2] = TERM_RED; } //auto-tele; overrides the resist, no items with both
-				if (csheet_boni[i].cb[4] & CB5_RTELE) { c_put_str(TERM_WHITE, "+", 6 + i, 3 + 19 + x_offset); if (header_color[0][19 + 2] == TERM_L_DARK) header_color[0][19 + 2] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_ITELE) { c_put_str(TERM_L_RED, "N", 6 + i, 3 + 19 + x_offset); if (header_color[0][19 + 2] != TERM_L_RED) header_color[0][19 + 2] = TERM_L_RED; } //NO_TELE
-				if (csheet_boni[i].cb[4] & CB5_RSINV) { c_put_str(TERM_WHITE, "+", 6 + i, 4 + 19 + x_offset); if (header_color[0][19 + 3] == TERM_L_DARK) header_color[0][19 + 3] = TERM_WHITE; }
-				if (csheet_boni[i].cb[4] & CB5_RINVS) { c_put_str(TERM_WHITE, "+", 6 + i, 5 + 19 + x_offset); header_color[0][19 + 4] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_RLIFE) { c_put_str(TERM_WHITE, "+", 6 + i, 6 + 19 + x_offset); header_color[0][19 + 5] = TERM_WHITE; }
-				if (csheet_boni[i].cb[13] & CB14_ILIFE) { c_put_str(TERM_L_UMBER, "*", 6 + i, 6 + 19 + x_offset); header_color[0][19 + 5] = TERM_L_UMBER; }
-				if (csheet_boni[i].cb[5] & CB6_RWRTH) { c_put_str(TERM_WHITE, "+", 6 + i, 7 + 19 + x_offset); header_color[0][19 + 6] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_RFFAL) { c_put_str(TERM_WHITE, "+", 6 + i, 8 + 19 + x_offset); header_color[0][19 + 7] = TERM_WHITE; }
-				if (csheet_boni[i].cb[12] & CB13_XSWIM) { c_put_str(TERM_L_BLUE, "~", 6 + i, 9 + 19 + x_offset); if (header_color[0][19 + 8] == TERM_L_DARK) header_color[0][19 + 8] = TERM_YELLOW; }
-				if (csheet_boni[i].cb[12] & CB13_XTREE) { c_put_str(TERM_GREEN, "#", 6 + i, 9 + 19 + x_offset); if (header_color[0][19 + 8] == TERM_L_DARK) header_color[0][19 + 8] = TERM_YELLOW; }
-				if ((csheet_boni[i].cb[12] & CB13_XTREE) && (csheet_boni[i].cb[12] & CB13_XSWIM)) c_put_str(TERM_YELLOW, "+", 6 + i, 9 + 19 + x_offset); //Almost flying~
+				if (csheet_boni[i].cb[5] & CB6_RLIFE) { c_put_str(TERM_WHITE, "+", 6 + i, 3 + 19 + x_offset); header_color[0][19 + 2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[13] & CB14_ILIFE) { c_put_str(TERM_L_UMBER, "*", 6 + i, 3 + 19 + x_offset); header_color[0][19 + 2] = TERM_L_UMBER; }
+				if (csheet_boni[i].cb[4] & CB5_STELE) { c_put_str(TERM_RED, "t", 6 + i, 4 + 19 + x_offset); if (header_color[0][19 + 3] == TERM_L_DARK || header_color[0][19 + 3] == TERM_WHITE) header_color[0][19 + 3] = TERM_RED; } //auto-tele; overrides the resist, no items with both
+				if (csheet_boni[i].cb[4] & CB5_RTELE) { c_put_str(TERM_WHITE, "+", 6 + i, 4 + 19 + x_offset); if (header_color[0][19 + 3] == TERM_L_DARK) header_color[0][19 + 3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_ITELE) { c_put_str(TERM_L_RED, "N", 6 + i, 4 + 19 + x_offset); if (header_color[0][19 + 3] != TERM_L_RED) header_color[0][19 + 3] = TERM_L_RED; } //NO_TELE
+				if (csheet_boni[i].cb[5] & CB6_RFFAL) { c_put_str(TERM_WHITE, "+", 6 + i, 5 + 19 + x_offset); header_color[0][19 + 4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[12] & CB13_XSWIM) { c_put_str(TERM_L_BLUE, "~", 6 + i, 6 + 19 + x_offset); if (header_color[0][19 + 5] == TERM_L_DARK) header_color[0][19 + 5] = TERM_YELLOW; }
+				if (csheet_boni[i].cb[12] & CB13_XTREE) { c_put_str(TERM_GREEN, "#", 6 + i, 6 + 19 + x_offset); if (header_color[0][19 + 5] == TERM_L_DARK) header_color[0][19 + 5] = TERM_YELLOW; }
+				if ((csheet_boni[i].cb[12] & CB13_XTREE) && (csheet_boni[i].cb[12] & CB13_XSWIM)) c_put_str(TERM_YELLOW, "+", 6 + i, 6 + 19 + x_offset); //Almost flying~
 				if (csheet_boni[i].cb[5] & CB6_RLVTN) {
-					c_put_str(TERM_WHITE, "+", 6 + i, 9 + 19 + x_offset); header_color[0][19 + 8] = TERM_WHITE;
+					c_put_str(TERM_WHITE, "+", 6 + i, 6 + 19 + x_offset); header_color[0][19 + 5] = TERM_WHITE;
 					//Levitation covers feather falling, similar to chaos/confusion but plausible? - Kurzel
-					if (!(csheet_boni[i].cb[5] & CB6_RFFAL)) { c_put_str(TERM_YELLOW, "+", 6 + i, 8 + 19 + x_offset); if (header_color[0][19 + 7] == TERM_L_DARK) header_color[0][19 + 7] = TERM_YELLOW; }
+					if (!(csheet_boni[i].cb[5] & CB6_RFFAL)) { c_put_str(TERM_YELLOW, "+", 5 + i, 5 + 19 + x_offset); if (header_color[0][19 + 4] == TERM_L_DARK) header_color[0][19 + 4] = TERM_YELLOW; }
 				}
-				if (csheet_boni[i].cb[5] & CB6_RCLMB) { c_put_str(TERM_WHITE, "+", 6 + i, 10 + 19 + x_offset); header_color[0][19 + 9] = TERM_WHITE; }
-				if (csheet_boni[i].cb[5] & CB6_SRGHP) { c_put_str(TERM_RED, "-", 6 + i, 11 + 19 + x_offset); if (header_color[0][19 + 10] == TERM_L_DARK) header_color[0][19 + 10] = TERM_RED; }
-				if (csheet_boni[i].cb[5] & CB6_RRGHP) { c_put_str(TERM_WHITE, "+", 6 + i, 11 + 19 + x_offset); if (header_color[0][19 + 10] == TERM_L_DARK) header_color[0][19 + 10] = TERM_WHITE; if (header_color[0][19 + 10] == TERM_RED || header_color[0][19 + 10] == TERM_YELLOW) header_color[0][19 + 10] = TERM_YELLOW; } //yellow if both...
-				if (csheet_boni[i].cb[5] & CB6_SRGMP) { c_put_str(TERM_RED, "-", 6 + i, 12 + 19 + x_offset); if (header_color[0][19 + 11] == TERM_L_DARK) header_color[0][19 + 11] = TERM_RED; }
-				if (csheet_boni[i].cb[6] & CB7_RRGMP) { c_put_str(TERM_WHITE, "+", 6 + i, 12 + 19 + x_offset); if (header_color[0][19 + 11] == TERM_L_DARK) header_color[0][19 + 11] = TERM_WHITE; if (header_color[0][19 + 11] == TERM_RED || header_color[0][19 + 11] == TERM_YELLOW) header_color[0][19 + 11] = TERM_YELLOW; } //yellow if both...
-				if (csheet_boni[i].cb[6] & CB7_RFOOD) { c_put_str(TERM_WHITE, "+", 6 + i, 13 + 19 + x_offset); if (header_color[0][19 + 12] == TERM_L_DARK) header_color[0][19 + 12] = TERM_WHITE; }
-				if (p_ptr->prace == RACE_ENT || p_ptr->prace == RACE_VAMPIRE) { c_put_str(TERM_WHITE, "*", 6 + 14, 13 + 19 + x_offset); if (header_color[0][19 + 12] == TERM_L_DARK) header_color[0][19 + 12] = TERM_WHITE; } //Hack: Ents/Vamps require food but do not gorge! - Kurzel
-				if (csheet_boni[i].cb[6] & CB7_IFOOD) { c_put_str(TERM_L_UMBER, "*", 6 + i, 13 + 19 + x_offset); header_color[0][19 + 12] = TERM_L_UMBER; }
+				if (csheet_boni[i].cb[5] & CB6_RCLMB) { c_put_str(TERM_WHITE, "+", 6 + i, 7 + 19 + x_offset); header_color[0][19 + 6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_RSINV) { c_put_str(TERM_WHITE, "+", 6 + i, 8 + 19 + x_offset); if (header_color[0][19 + 7] == TERM_L_DARK) header_color[0][19 + 7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[4] & CB5_RINVS) { c_put_str(TERM_WHITE, "+", 6 + i, 9 + 19 + x_offset); header_color[0][19 + 8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[6] & CB7_RREFL) { c_put_str(TERM_WHITE, "+", 6 + i, 10 + 19 + x_offset); header_color[0][19 + 9] = TERM_WHITE; }
+				if (csheet_boni[i].cb[5] & CB6_RWRTH) { c_put_str(TERM_WHITE, "+", 6 + i, 11 + 19 + x_offset); header_color[0][19 + 10] = TERM_WHITE; }
+				if (csheet_boni[i].cb[5] & CB6_SRGHP) { c_put_str(TERM_RED, "-", 6 + i, 12 + 19 + x_offset); if (header_color[0][19 + 11] == TERM_L_DARK) header_color[0][19 + 11] = TERM_RED; }
+				if (csheet_boni[i].cb[5] & CB6_RRGHP) { c_put_str(TERM_WHITE, "+", 6 + i, 12 + 19 + x_offset); if (header_color[0][19 + 11] == TERM_L_DARK) header_color[0][19 + 11] = TERM_WHITE; if (header_color[0][19 + 11] == TERM_RED || header_color[0][19 + 11] == TERM_YELLOW) header_color[0][19 + 11] = TERM_YELLOW; } //yellow if both...
+				if (csheet_boni[i].cb[5] & CB6_SRGMP) { c_put_str(TERM_RED, "-", 6 + i, 13 + 19 + x_offset); if (header_color[0][19 + 12] == TERM_L_DARK) header_color[0][19 + 12] = TERM_RED; }
+				if (csheet_boni[i].cb[6] & CB7_RRGMP) { c_put_str(TERM_WHITE, "+", 6 + i, 13 + 19 + x_offset); if (header_color[0][19 + 12] == TERM_L_DARK) header_color[0][19 + 12] = TERM_WHITE; if (header_color[0][19 + 12] == TERM_RED || header_color[0][19 + 12] == TERM_YELLOW) header_color[0][19 + 12] = TERM_YELLOW; } //yellow if both...
+				if (csheet_boni[i].cb[6] & CB7_RFOOD) { c_put_str(TERM_WHITE, "+", 6 + i, 14 + 19 + x_offset); if (header_color[0][19 + 13] == TERM_L_DARK) header_color[0][19 + 13] = TERM_WHITE; }
+				if (p_ptr->prace == RACE_ENT || p_ptr->prace == RACE_VAMPIRE) { c_put_str(TERM_WHITE, "*", 6 + 14, 13 + 19 + x_offset); if (header_color[0][19 + 13] == TERM_L_DARK) header_color[0][19 + 13] = TERM_WHITE; } //Hack: Ents/Vamps require food but do not gorge! - Kurzel
+				if (csheet_boni[i].cb[6] & CB7_IFOOD) { c_put_str(TERM_L_UMBER, "*", 6 + i, 14 + 19 + x_offset); header_color[0][19 + 13] = TERM_L_UMBER; }
 				if (csheet_boni[i].cb[6] & CB7_RVAMP) {
 					if ((i == 0) || (i == 1) || (i == 2) || (i == 12)
 					    || ((i == 14) && (!strcasecmp(c_p_ptr->body_name, "Vampiric mist") || !strcasecmp(c_p_ptr->body_name, "Vampire bat"))) //Hack: use * for 100% weapon/ammo or v-bat/mist forms
 					    || (i == 14 && race == RACE_VAMPIRE && get_skill(SKILL_NECROMANCY) == 50 && get_skill(SKILL_TRAUMATURGY) == 50)) { //Nasty hack: Assume that having full trauma+necro gives 100% vamp actually
-						c_put_str(TERM_WHITE, "*", 6 + i, 14 + 19 + x_offset); header_color[0][19 + 13] = TERM_WHITE;
-					} else { c_put_str(TERM_WHITE, "+", 6 + i, 14 + 19 + x_offset); header_color[0][19 + 13] = TERM_WHITE; }
+						c_put_str(TERM_WHITE, "*", 6 + i, 15 + 19 + x_offset); header_color[0][19 + 14] = TERM_WHITE;
+					} else { c_put_str(TERM_WHITE, "+", 6 + i, 15 + 19 + x_offset); header_color[0][19 + 14] = TERM_WHITE; }
 				}
-				if (p_ptr->fruit_bat == 1 && !strcasecmp(c_p_ptr->body_name, "Player")) { c_put_str(TERM_WHITE, "+", 6 + 14, 14 + 19 + x_offset); header_color[0][19 + 13] = TERM_WHITE; } //Mega Hack: Hardcode 50% vamp as a fruit bat! Maybe incorrect for mimics? - Kurzel
-				if (csheet_boni[i].cb[6] & CB7_RAUID) { c_put_str(TERM_WHITE, "+", 6 + i, 15 + 19 + x_offset); header_color[0][19 + 14] = TERM_WHITE; }
-				if (csheet_boni[i].cb[6] & CB7_RREFL) { c_put_str(TERM_WHITE, "+", 6 + i, 16 + 19 + x_offset); header_color[0][19 + 15] = TERM_WHITE; }
+				if (p_ptr->fruit_bat == 1 && !strcasecmp(c_p_ptr->body_name, "Player")) { c_put_str(TERM_WHITE, "+", 6 + 14, 15 + 19 + x_offset); header_color[0][19 + 14] = TERM_WHITE; } //Mega Hack: Hardcode 50% vamp as a fruit bat! Maybe incorrect for mimics? - Kurzel
+				if (csheet_boni[i].cb[6] & CB7_RAUID) { c_put_str(TERM_WHITE, "+", 6 + i, 16 + 19 + x_offset); header_color[0][19 + 15] = TERM_WHITE; }
 				if (csheet_boni[i].cb[6] & CB7_RAMSH) { c_put_str(TERM_YELLOW, "+", 6 + i, 17 + 19 + x_offset); header_color[0][19 + 16] = TERM_YELLOW; }
 				// AMFI (Numerical) goes here at [1][17] - Kurzel
 				if (csheet_boni[i].cb[6] & CB7_RAGGR) { c_put_str(TERM_RED, "+", 6 + i, 19 + 19 + x_offset); header_color[0][19 + 18] = TERM_RED; }
@@ -4199,43 +4693,43 @@ void display_player(int hist) {
 				}
 
 				/* ESP and slay flags, white for anything */
-				if (csheet_boni[i].cb[7] & CB8_ESPID) { c_put_str(TERM_WHITE, "e", 6 + i, 1 + 19 * 3 + x_offset); header_color[0][19 * 3 + 0] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_EANIM) { c_put_str(TERM_WHITE, "e", 6 + i, 2 + 19 * 3 + x_offset); header_color[0][19 * 3 + 1] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_SANIM) { c_put_str(TERM_WHITE, "s", 6 + i, 2 + 19 * 3 + x_offset); header_color[0][19 * 3 + 1] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_ESPID) { c_put_str(TERM_L_BLUE, "E", 6 + i, 1 + 19 * 3 + x_offset); header_color[0][19 * 3 + 0] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EANIM) { c_put_str(TERM_L_BLUE, "E", 6 + i, 2 + 19 * 3 + x_offset); header_color[0][19 * 3 + 1] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_SANIM) { c_put_str(TERM_YELLOW, "s", 6 + i, 2 + 19 * 3 + x_offset); header_color[0][19 * 3 + 1] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EANIM) && (csheet_boni[i].cb[7] & CB8_SANIM)) c_put_str(TERM_WHITE, "+", 6 + i, 2 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[7] & CB8_EORCS) { c_put_str(TERM_WHITE, "e", 6 + i, 3 + 19 * 3 + x_offset); header_color[0][19 * 3 + 2] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_SORCS) { c_put_str(TERM_WHITE, "s", 6 + i, 3 + 19 * 3 + x_offset); header_color[0][19 * 3 + 2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EORCS) { c_put_str(TERM_L_BLUE, "E", 6 + i, 3 + 19 * 3 + x_offset); header_color[0][19 * 3 + 2] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_SORCS) { c_put_str(TERM_YELLOW, "s", 6 + i, 3 + 19 * 3 + x_offset); header_color[0][19 * 3 + 2] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EORCS) && (csheet_boni[i].cb[7] & CB8_SORCS)) c_put_str(TERM_WHITE, "+", 6 + i, 3 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[7] & CB8_ETROL) { c_put_str(TERM_WHITE, "e", 6 + i, 4 + 19 * 3 + x_offset); header_color[0][19 * 3 + 3] = TERM_WHITE; }
-				if (csheet_boni[i].cb[7] & CB8_STROL) { c_put_str(TERM_WHITE, "s", 6 + i, 4 + 19 * 3 + x_offset); header_color[0][19 * 3 + 3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_ETROL) { c_put_str(TERM_L_BLUE, "E", 6 + i, 4 + 19 * 3 + x_offset); header_color[0][19 * 3 + 3] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_STROL) { c_put_str(TERM_YELLOW, "s", 6 + i, 4 + 19 * 3 + x_offset); header_color[0][19 * 3 + 3] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_ETROL) && (csheet_boni[i].cb[7] & CB8_STROL)) c_put_str(TERM_WHITE, "+", 6 + i, 4 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[7] & CB8_EGIAN) { c_put_str(TERM_WHITE, "e", 6 + i, 5 + 19 * 3 + x_offset); header_color[0][19 * 3 + 4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[7] & CB8_EGIAN) { c_put_str(TERM_L_BLUE, "E", 6 + i, 5 + 19 * 3 + x_offset); header_color[0][19 * 3 + 4] = TERM_WHITE; }
 
-				if (csheet_boni[i].cb[8] & CB9_SGIAN) { c_put_str(TERM_WHITE, "s", 6 + i, 5 + 19 * 3 + x_offset); header_color[0][19 * 3 + 4] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SGIAN) { c_put_str(TERM_YELLOW, "s", 6 + i, 5 + 19 * 3 + x_offset); header_color[0][19 * 3 + 4] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[7] & CB8_EGIAN) && (csheet_boni[i].cb[8] & CB9_SGIAN)) c_put_str(TERM_WHITE, "+", 6 + i, 5 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[8] & CB9_EDRGN) { c_put_str(TERM_WHITE, "e", 6 + i, 6 + 19 * 3 + x_offset); header_color[0][19 * 3 + 5] = TERM_WHITE; }
-				if (csheet_boni[i].cb[8] & CB9_SDRGN) { c_put_str(TERM_WHITE, "s", 6 + i, 6 + 19 * 3 + x_offset); header_color[0][19 * 3 + 5] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EDRGN) { c_put_str(TERM_L_BLUE, "E", 6 + i, 6 + 19 * 3 + x_offset); header_color[0][19 * 3 + 5] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SDRGN) { c_put_str(TERM_YELLOW, "s", 6 + i, 6 + 19 * 3 + x_offset); header_color[0][19 * 3 + 5] = TERM_WHITE; }
 				if (csheet_boni[i].cb[8] & CB9_KDRGN) { c_put_str(TERM_WHITE, "k", 6 + i, 6 + 19 * 3 + x_offset); header_color[0][19 * 3 + 5] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EDRGN) && (csheet_boni[i].cb[8] & CB9_SDRGN)) c_put_str(TERM_WHITE, "+", 6 + i, 6 + 19 * 3 + x_offset);
 				if ((csheet_boni[i].cb[8] & CB9_EDRGN) && (csheet_boni[i].cb[8] & CB9_KDRGN)) c_put_str(TERM_WHITE, "*", 6 + i, 6 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[8] & CB9_EDEMN) { c_put_str(TERM_WHITE, "e", 6 + i, 7 + 19 * 3 + x_offset); header_color[0][19 * 3 + 6] = TERM_WHITE; }
-				if (csheet_boni[i].cb[8] & CB9_SDEMN) { c_put_str(TERM_WHITE, "s", 6 + i, 7 + 19 * 3 + x_offset); header_color[0][19 * 3 + 6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EDEMN) { c_put_str(TERM_L_BLUE, "E", 6 + i, 7 + 19 * 3 + x_offset); header_color[0][19 * 3 + 6] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_SDEMN) { c_put_str(TERM_YELLOW, "s", 6 + i, 7 + 19 * 3 + x_offset); header_color[0][19 * 3 + 6] = TERM_WHITE; }
 				if (csheet_boni[i].cb[8] & CB9_KDEMN) { c_put_str(TERM_WHITE, "k", 6 + i, 7 + 19 * 3 + x_offset); header_color[0][19 * 3 + 6] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EDEMN) && (csheet_boni[i].cb[8] & CB9_SDEMN)) c_put_str(TERM_WHITE, "+", 6 + i, 7 + 19 * 3 + x_offset);
 				if ((csheet_boni[i].cb[8] & CB9_EDEMN) && (csheet_boni[i].cb[8] & CB9_KDEMN)) c_put_str(TERM_WHITE, "*", 6 + i, 7 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[8] & CB9_EUNDD) { c_put_str(TERM_WHITE, "e", 6 + i, 8 + 19 * 3 + x_offset); header_color[0][19 * 3 + 7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[8] & CB9_EUNDD) { c_put_str(TERM_L_BLUE, "E", 6 + i, 8 + 19 * 3 + x_offset); header_color[0][19 * 3 + 7] = TERM_WHITE; }
 
-				if (csheet_boni[i].cb[9] & CB10_SUNDD) { c_put_str(TERM_WHITE, "s", 6 + i, 8 + 19 * 3 + x_offset); header_color[0][19 * 3 + 7] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_SUNDD) { c_put_str(TERM_YELLOW, "s", 6 + i, 8 + 19 * 3 + x_offset); header_color[0][19 * 3 + 7] = TERM_WHITE; }
 				if (csheet_boni[i].cb[9] & CB10_KUNDD) { c_put_str(TERM_WHITE, "k", 6 + i, 8 + 19 * 3 + x_offset); header_color[0][19 * 3 + 7] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[8] & CB9_EUNDD) && (csheet_boni[i].cb[9] & CB10_SUNDD)) c_put_str(TERM_WHITE, "+", 6 + i, 8 + 19 * 3 + x_offset);
 				if ((csheet_boni[i].cb[8] & CB9_EUNDD) && (csheet_boni[i].cb[9] & CB10_KUNDD)) c_put_str(TERM_WHITE, "*", 6 + i, 8 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[9] & CB10_EEVIL) { c_put_str(TERM_WHITE, "e", 6 + i, 9 + 19 * 3 + x_offset); header_color[0][19 * 3 + 8] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_SEVIL) { c_put_str(TERM_WHITE, "s", 6 + i, 9 + 19 * 3 + x_offset); header_color[0][19 * 3 + 8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EEVIL) { c_put_str(TERM_L_BLUE, "E", 6 + i, 9 + 19 * 3 + x_offset); header_color[0][19 * 3 + 8] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_SEVIL) { c_put_str(TERM_YELLOW, "s", 6 + i, 9 + 19 * 3 + x_offset); header_color[0][19 * 3 + 8] = TERM_WHITE; }
 				if ((csheet_boni[i].cb[9] & CB10_EEVIL) && (csheet_boni[i].cb[9] & CB10_SEVIL)) c_put_str(TERM_WHITE, "+", 6 + i, 9 + 19 * 3 + x_offset);
-				if (csheet_boni[i].cb[9] & CB10_EDGRI) { c_put_str(TERM_WHITE, "e", 6 + i, 10 + 19 * 3 + x_offset); header_color[0][19 * 3 + 9] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_EGOOD) { c_put_str(TERM_WHITE, "e", 6 + i, 11 + 19 * 3 + x_offset); header_color[0][19 * 3 + 10] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_ENONL) { c_put_str(TERM_WHITE, "e", 6 + i, 12 + 19 * 3 + x_offset); header_color[0][19 * 3 + 11] = TERM_WHITE; }
-				if (csheet_boni[i].cb[9] & CB10_EUNIQ) { c_put_str(TERM_WHITE, "e", 6 + i, 13 + 19 * 3 + x_offset); header_color[0][19 * 3 + 12] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EDGRI) { c_put_str(TERM_L_BLUE, "E", 6 + i, 10 + 19 * 3 + x_offset); header_color[0][19 * 3 + 9] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EGOOD) { c_put_str(TERM_L_BLUE, "E", 6 + i, 11 + 19 * 3 + x_offset); header_color[0][19 * 3 + 10] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_ENONL) { c_put_str(TERM_L_BLUE, "E", 6 + i, 12 + 19 * 3 + x_offset); header_color[0][19 * 3 + 11] = TERM_WHITE; }
+				if (csheet_boni[i].cb[9] & CB10_EUNIQ) { c_put_str(TERM_L_BLUE, "E", 6 + i, 13 + 19 * 3 + x_offset); header_color[0][19 * 3 + 12] = TERM_WHITE; }
 
 				if (csheet_boni[i].cb[10] & CB11_BFIRE) { c_put_str(TERM_WHITE, "b", 6 + i, 14 + 19 * 3 + x_offset); header_color[0][19 * 3 + 13] = TERM_WHITE; }
 				if (csheet_boni[i].cb[10] & CB11_AFIRE) { c_put_str(TERM_WHITE, "a", 6 + i, 14 + 19 * 3 + x_offset); header_color[0][19 * 3 + 13] = TERM_WHITE; }
@@ -4337,20 +4831,20 @@ void display_player(int hist) {
 
 			c_put_str_vert(header_color[0][19 + 0], "Fear", (row = (row + 1) % 6), ++col + x_offset);
 			c_put_str_vert(header_color[0][19 + 1], "Para", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 2], "Tele", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 3], "SInv", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 4], "Invs", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 5], "HLif", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 6], "Wrth", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 7], "FFal", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 8], "Lvtn", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 9], "Clmb", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 10], "RgHP", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 11], "RgMP", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 12], "Food", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 13], "Vamp", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 14], "AuID", (row = (row + 1) % 6), ++col + x_offset);
-			c_put_str_vert(header_color[0][19 + 15], "Refl", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 2], "HLif", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 3], "Tele", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 4], "FFal", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 5], "Lvtn", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 6], "Clmb", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 7], "SInv", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 8], "Invs", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 9], "Refl", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 10], "Wrth", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 11], "RgHP", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 12], "RgMP", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 13], "Food", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 14], "Vamp", (row = (row + 1) % 6), ++col + x_offset);
+			c_put_str_vert(header_color[0][19 + 15], "AuID", (row = (row + 1) % 6), ++col + x_offset);
 			c_put_str_vert(header_color[0][19 + 16], "AMSh", (row = (row + 1) % 6), ++col + x_offset);
 			c_put_str_vert(header_color[0][19 + 17], "AMFi", (row = (row + 1) % 6), ++col + x_offset);
 			c_put_str_vert(header_color[0][19 + 18], "Aggr", (row = (row + 1) % 6), ++col + x_offset);
@@ -4419,6 +4913,14 @@ void window_stuff(void) {
 		fix_inven();
 	}
 
+#ifdef ENABLE_SUBINVEN
+	/* Display inventory */
+	if (p_ptr->window & PW_SUBINVEN) {
+		p_ptr->window &= ~(PW_SUBINVEN);
+		fix_subinven();
+	}
+#endif
+
 	/* Display equipment */
 	if (p_ptr->window & PW_EQUIP) {
 		p_ptr->window &= (~PW_EQUIP);
@@ -4429,6 +4931,7 @@ void window_stuff(void) {
 	if (p_ptr->window & PW_PLAYER) {
 		p_ptr->window &= (~PW_PLAYER);
 		fix_player();
+		fix_player2();
 	}
 
 	/* Display messages */
@@ -4817,6 +5320,7 @@ void do_weather(bool no_weather) {
 		/* create weather elements, ie rain drops, snow flakes, sand grains */
 		if (weather_elements <= 1024 - intensity) {
 			for (i = 0; i < intensity; i++) {
+				/* NOTE: Basically same code in c-xtra1.c:do_weather(), dungeon.c:cloud_move(), wild.c:pos_in_weather() */
 				/* generate random starting pos */
 				x = rand_int(MAX_WID - 2) + 1;
 				y = rand_int(MAX_HGT - 1 + SKY_ALTITUDE) - SKY_ALTITUDE;
@@ -4850,6 +5354,7 @@ void do_weather(bool no_weather) {
 				}
 				/* clouds apply but we're not within their areas? discard */
 				if (with_clouds && outside_clouds)
+				//if (outside_clouds) ---TODO: Check code for correctness!
 					/* RAINY_TOMB - hack: except if in tomb screen */
 					if (!fullscreen_weather)
 						continue;

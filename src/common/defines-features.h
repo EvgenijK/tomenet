@@ -34,6 +34,13 @@
 /* Add extra fixed towns to "Ironman Deep Dive Challenge"? (at depths 1k and 3k),
    these are 'wild' like random towns and not as privileged (no withdrawal, no item staticness) */
 #define IRONDEEPDIVE_EXTRA_FIXED_TOWNS
+/* Further add extra 'refuge' mini-vaultlike areas (wide open though) for a short respite that allow selling loot and very basic purchases */
+#define IDDC_REFUGES
+#ifdef IDDC_REFUGES
+ /* Interval, within every 1000 ft aka between town lvels, at which refuges spawn. [10]
+    Sensible values: 10 (ie 500ft) or 7 (ie 350ft and 700 ft): */
+ #define IDDC_REFUGE_INTERVAL 7
+#endif
 /* Do artifacts time out especially quickly in the IDDC? */
 #define IDDC_ARTIFACT_FAST_TIMEOUT
 /* Can the first [two] speed rings be found especially easily in the IDDC? Or too much pampering? (0/[1]/2) */
@@ -57,6 +64,7 @@
 #define DUAL_WIELD		/* rogues (and others too now) may dual-wield 1-hand weapons */
 #define ENABLE_STANCES		/* combat stances for warriors */
 #define ALLOW_SHIELDLESS_DEFENSIVE_STANCE	/* Always allow defensive stance (less effective than with shield though) */
+#define DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION	/* Globally just cut ranged damage by 50% in defensive stance (physical, not spells) */
 
 #define ENABLE_CLOAKING		/* cloaking mode for rogues */
 #define NEW_DODGING		/* reworked dodging formulas to allow more armour weight while aligning it to rogues, keeping your ideas though, Adam ;) - C. Blue */
@@ -66,7 +74,11 @@
 #define ENABLE_MCRAFT		/* 'Mindcrafter' class - C. Blue */
 #define NEW_TOMES		/* customizable spellbooks */
 
-#define CLIENT_SIDE_WEATHER	/* server uses Send_weather() instead of displaying own weather animation */
+/* Server uses Send_weather() so the client draws the weather [NEW], instead of the server displaying its own weather animations for players [old]. */
+#define CLIENT_SIDE_WEATHER
+#ifdef CLIENT_SIDE_WEATHER
+ //#define CLIENT_WEATHER_GLOBAL	/* All worldmap sectors have the same weather at any time, no 'clouds' exist */
+#endif
 #define MAX_CLOUDS 1000
 
 #define EXTRA_LEVEL_FEELINGS	/* enable extra level feelings, remotely angband-style, warning about dangers */
@@ -82,7 +94,7 @@
 #define HOME_APPRAISAL		/* Displays player store price when inspecting an item at home */
 #define EXPORT_PLAYER_STORE_OFFERS	60	/* Export all player store items to an external list every n minutes [60] */
 
-#define WARNING_REST_TIMES	6	/* Warn this often about 'R'esting */
+#define WARNING_REST_TIMES	0	/* Warn this often about 'R'esting [0 = infinite, but still limited to newbie level range and stops for the current session once the player rests] */
 
 #ifndef WIN32 /* no fork() */
  #define ENABLE_GO_GAME		/* Allows players to play vs CPU games of Go/Weiqi/Baduk. - C. Blue */
@@ -257,18 +269,28 @@
 
 /* Do vampires not suffer Black Breath at all? */
 #define VAMPIRES_BB_IMMUNE
-/* Will negative boni on cursed items become (scaled) positive ones when wielded by vampires?
-   (0 = rather inconsistent method, 1 = recommended method) */
-#define VAMPIRES_INV_CURSED 1
-/* New specialty (super-experimental): Change cursed randarts into something useful? */
-#ifdef VAMPIRES_INV_CURSED
- #define INVERSE_CURSED_RANDARTS
-#endif
 /* Allow vampires to polymorph into vampiric mist at 40, obtaining some special feats? */
 #define VAMPIRIC_MIST
 
+/* Note about vampire istari, not getting access to all normal istar spells:
+   They currently cannot train Water or Nature school, Divination is at 75% and Fire Flash is unusable.
+   These are for compensation/balance, and also lore I guess: */
 /* Specialty: Do vampire istari gain access to occult Shadow school? */
 #define VAMP_ISTAR_SHADOW
+/* Specialty: Do vampire istari gain access to occult Unlife school? */
+#define VAMP_ISTAR_UNLIFE
+
+/* Will negative boni on cursed items become (scaled) positive ones when wielded by true vampires (RACE_VAMPIRE)
+   or hell knights (CLASS_HELLKNIGHT), provided the item is eligible (HEAVY_CURSE)? - C. Blue
+   (0 = rather inconsistent method, 1 = recommended method) */
+#define VAMPIRES_INV_CURSED 1
+#ifdef VAMPIRES_INV_CURSED
+ /* New specialty (super-experimental): Change cursed randarts too (into something useful)? */
+ #define INVERSE_CURSED_RANDARTS
+
+ /* Will randarts retain their positive abilities on flipping? (mostly for auto-id) */
+ #define INVERSE_CURSED_RETAIN
+#endif
 
 /* Allow ordering a specific item in a store */
 #define ENABLE_ITEM_ORDER
@@ -293,7 +315,7 @@
 #ifdef ENABLE_MERCHANT_MAIL
  //#define MERCHANT_MAIL_INFINITE /* If enabled, it'll bounce forever. [no] */
  #define MAX_MERCHANT_MAILS 100
- /* <this> x (MAX_MERCHANT_MAILS / cfg.fps) seconds  [36 -> 1 min] */
+ /* <this> x (MAX_MERCHANT_MAILS / cfg.fps) seconds  [36 -> 1 min, ie 36*100/60] */
  #define MERCHANT_MAIL_DURATION 36
  #ifdef TEST_SERVER
   #define MERCHANT_MAIL_TIMEOUT 36
@@ -362,11 +384,32 @@
 /* Restrict placing blast charges to within the IDDC, for debugging/testing purpose */
 //#define DEMOLITIONIST_BLAST_IDDC_ONLY
 
+/* Allow wielding spell books? (count as 2-handed item, count as bare-handed aka 'no item equipped and no martial arts applied' for attacking)
+   Spells cast from that book get boni:
+    -20% MP cost,
+    -5% fail rate,
+    +1 spell level (does not affect fail rate but does affect MP cost, but nowadays MP cost is fixed anyway, so no effect;
+                   does not affect spells that were not yet castable, similar to how the Spell-power skill works). */
+#define WIELD_BOOKS
+/* Allow wielding magic devices: Wands, Staves, Rods, in the manner of WIELD_BOOKS?
+   Boni:
+    30% reduced fail chance, flat on top,
+    20% chance to retain the charge/energy at the cost of MP (depending on the device level). */
+#define WIELD_DEVICES
+//(Note: If manareg gets added to any devices, it should probably depend on charges left. However, cheapest staff is 200 au while basic mstaff is 300 au.)
+
 
 
 /* ------------------------------------------------------------------------------------------------- */
 /* --------------------- TESTING/EXPERIMENTAL - This stuff is hot alpha/beta.. --------------------- */
 /* ------------------------------------------------------------------------------------------------- */
+
+/* Enable DM "adventure" modules, including save/load of entire cave floor files from the ] menu client-side.
+   Multiple modules could be loaded with the quest/event frameworks for detailed adventure sites. - Kurzel */
+#define DM_MODULES
+#ifdef DM_MODULES
+ #define DM_MODULES_DUNGEON_SIZE 9	/* Number of dungeon floors required to host all the modules */
+#endif
 
 /* Allow to press alt-wield (shift+W) to equip a digging tool into the weapon slot! (4.7.4b+ test).
    Note that digging tools must all receive MUST2H flag for this. - C. Blue */
@@ -384,12 +427,105 @@
    Problem: lotr.fandom.com/wiki/Religion -> Ilúvatarism and Melkorism. But even if vamp/hk pray to Melkor, they still will kill him -_-. */
 //#define ALTARS_2021
 
+/* One of the bigger things - add actual crafting to the game? - C. Blue
+    Goals:
+	Allow to gain basically any possible item in the game, therefore exchanging targetted grind vs some RNG result.
+	Depend on each other, with certain crafting results being ingredients in turn for some other item/craft.
+
+    Problems:
+	Loot drops are already fitting very well, crafting could dilute things too much.
+	    -> ppl can dismantle 'useless' loot they find, to obtain raw materials for crafting,
+	       giving every item a (small) purpose perhaps
+
+	Ingredient spam, mixed into loot, requiring extra space in inventory/houses etc.
+	    -> add a profession bag^^,
+	    -> keep # of ingredients strongly in check, but offer a decent variery ot intermediary-tier items that are used up in subsequent crafts maybe
+
+	Require stationary tools eg forge? Which symbol for those? & and % are interesting, but already overused, so just ':' left maybe.
+	    -> could be cool to require very special/hidden forges etc perhaps.
+	    -> not sure how this is solved in towns - every profession has its station? a bit cluttery. Maybe not all of them need one?
+
+	Everyone becomes a crafter? Need to spend skill points? Need to create an extra crafting char? (Same as for Stealing atm.)
+	Otoh it'd also not be good if everyone could be a crafter 'for free' anyway, diluting crafting a lot, instead of it being a perk of choice, to stand out.
+	    -> some items could be too hard for anyone to use except the crafter, or w/e, just get level 0'ed if really necessary.
+	    -> one char must be limited to one crafting profession
+	    -> profession skill goes from 0.000 to 50.000 so it aligns with charlevel, but needs a bigger ratio to require maybe just ~5 levels worth of skill points (25)
+	    -> specialty: while skill does increase your potential crafting level, there is a cLev that needs to be brought up to the skill-unlocked mLev of crafting,
+	       by actually performing crafting actions! Eg 20.000 blacksmithing, but your cur-skill is at 3.418 because you have only created 3 helmets so far ^^-
+	       The amount of work to put into it should increase polynomially, basically comparable to XP gain from monster-slaying, for the parallel 'game of crafting' vs 'game of monster-slaying'.
+
+    Crafts:
+	Blacksmith		requires Fletcher for hafted weapons,
+				Textile Worker for heavy armour and shields,
+				crafts swords etc w/o any supply chain items (just pure metal).
+
+	Textile Worker		cloth and leather armour,
+				inlays for heavy armour
+
+	Fletcher		ranged weapons,
+				staves (anything w/o metal warheads),
+				traps,
+				handles for heavy weapons
+
+	* maybe combine Textule and Fletcher? Seems not much to do @ cloth and leather armour really.. except if it includes DSMs maybe..
+	  could become weaver or plaiter..
+
+	Alchemist		crafts potions,
+				can create volatile runes,
+				uses volatile runes to craft scrolls and spells,
+				uses engraved runes to craft devices.
+
+	Rune scribe		crafts runes, both volatile and engraved,
+				can create scrolls and spells from volatile runes,
+				can create runemaster-usable rune stones (aka 'runes' in the game right now),
+				uses engraved runes to enchant items permanently
+
+	2 types of runes:
+		1) volatile runes (paper runes^^)
+			these are for scrolls, spells
+		2) engraved runes (on solid materials, rock, metal, wood)
+			these are for enchantments (items) and magic devices, and for runecraft
+
+    In-game symbols:
+	Much like for demolition: * for ingredients probably.
+	':' for stationary tools such as a forge perhaps. '%' and especially '&' would be nice but are overused,
+	or we move/switch those around a bit..
+
+    Tool items (pocketed, stationary), Ingredients/material items:
+	Blacksmithing
+	    hammer, forge
+	    metal bars, mithril bars, adamantite bars
+	Textileworking
+	    needle/cutter, loom
+	    cloth, leather
+	Fletchery
+	    slicer, workbench
+	    wood, leather
+	Alchemy
+	    mixing flask (potions), pen (scrolls/spells), laboratory
+	    paper/ink, various tinctures/essences
+	Runescript
+	    pen/chisel
+	    ink, paper/rocks, - (?)
+*/
+//#define CRAFTING_2023
+
 /* Work in progress // debug code - do not enable this!
    cmd_map(): Support initiating '2'/'8' map scrolling  while in 's'elector mode,
    by moving the X vertically out of the map
    (ie onto screen line 0 or 45 in 46-lines mode, aka big_map)?
    Note that retrieval from 'minimap_yoff' from server-side is just needed for this. - C. Blue */
 //#define WILDMAP_ALLOW_SELECTOR_SCROLLING
+
+/* Player login: Allow resuming from a different IP instead */
+#define ALLOW_RESUMING_FROM_NEW_IP
+/* Player login: Allow 'resuming' with a different character name, aka 'replacing',
+   provided the character to be kicked is in a valid location such as town, that doesn't require a timeout. */
+#define ALLOW_LOGIN_REPLACE_IN_TOWN
+
+/* Allow use of colour codes via \{x in *_info.txt files. Could have risky implications.
+   (However note, in equipment, colour codes are already used by rune sigils.) */
+#define X_INFO_TXT_COLOURS
 
 /* Enables pet behaviour */
 #define ENABLE_PETS
@@ -420,6 +556,13 @@
 
 /* Specific settings for test-server only */
 #ifdef TEST_SERVER
+ /* Allow subclassing ie. planned access to skills from a secondary class!
+   Enables role customization while preserving unique features of base classes.
+   Currently applies a big +200% XP penalty for 2/3 ratios from both classes. */
+ #define ENABLE_SUBCLASS
+ #define ENABLE_SUBCLASS_TITLE // show secondary title when long format is called for (eg. @ screen)
+ #define ENABLE_SUBCLASS_COLOR // alternate color in cave.c but not in @ screen (where title is seen)
+
  #define NEW_REMOVE_CURSE	/* rc has fail chance; allow projecting rc spell on others */
 
  #define ENABLE_ASSASSINATE	/* experimental fighting technique for rogues - devalues Backstabbing too much probably */
@@ -444,6 +587,9 @@
 
  /* Biggest can of worms evah: Inter-server portals */
  #define SERVER_PORTALS
+
+ /* Harsh weather gives us trouble of some sort? */
+ #define IRRITATING_WEATHER /* TODO: Fix weather code, see pos_in_weather() and two related code parts commented about there */
 #endif
 
 /* Specific settings for Arcade server only */
@@ -472,8 +618,9 @@
  #define DISTINCT_DARK
 
  /* Remove some hard-coding in the client options */
- #define CO_BIGMAP		7
- #define CO_PALETTE_ANIMATION	124
+ #define CO_BIGMAP			7
+ #define CO_FONT_MAP_SOLID_WALLS	8
+ #define CO_PALETTE_ANIMATION		124
 
  /* Blacken lower part of screen if we're mindlinked to a non-bigmap-target but
     are actually using bigmap-screen. */
@@ -484,10 +631,17 @@
  /* Atmospheric login screens, with animation, sound and music? */
  #define ATMOSPHERIC_INTRO
 
+/* 4.6.2: Allow to retry login, for re-entering invalid account/character names or after death. */
+ #define RETRY_LOGIN
+
  /* Buffer guide in RAM, to reduce searching times (especially on Windows OS, not really bad on Linux) */
  #define BUFFER_GUIDE
  #ifdef BUFFER_GUIDE
   #define GUIDE_LINES_MAX 35000 //note: the guide is currently 25074 lines long
+ #endif
+ #define BUFFER_LOCAL_FILE
+ #ifdef BUFFER_LOCAL_FILE
+  #define LOCAL_FILE_LINES_MAX 35000 //actually, r_info.txt is already 20640 lines long :o
  #endif
 
  /* Use regex.h to offer regexp in-game guide searching; and now also auto-inscription regexp matching */
@@ -502,6 +656,27 @@
  /* experimental: Allow things like SHIFT+ENTER in menus - C. Blue */
  #ifdef TEST_CLIENT
   #define ENABLE_SHIFT_SPECIALKEYS
+ #endif
+
+ /* Allow redefining black colour (#0) too, and allow redefining any colour to #000000 (aka allow redefining all colours completely and freely)? */
+ #define CUSTOMIZE_COLOURS_FREELY
+
+ /* Enable hack in inkey() to allow using right/left arrow keys and pos1/end inside a text input prompt.
+   Note that this hack is only active while inkey_interact_macros = TRUE or net_fd = -1 (client startup phase).
+   - net_fd is -1 in the TomeNET startup login screen and account overview screen.
+   And inkey_interact_macros is TRUE in...
+   - the macro menu, when prompted for file names.
+   - cmd_the_guide() and browse_local_file() - may currently be commented out or not, see comment there, change anytime if desired.
+   - cmd_spoilers().
+   - cmd_check_misc() (the knowledge menu).
+   - auto_inscriptions().
+   It is FALSE especially when typing in a chat message, so panic macros will still work if player is unexpectedly attacked by a monster while typing.
+  */
+ #define ALLOW_NAVI_KEYS_IN_PROMPT
+ #ifdef ALLOW_NAVI_KEYS_IN_PROMPT
+  /* During string input (chat messages!) navigational keys will actually override any macros put on them, not even normal macros on them will work.
+     Only some navigational keys will do this: Those that actually have a real function in string input.  */
+  #define SOME_NAVI_KEYS_DISABLE_MACROS_IN_PROMPTS
  #endif
 #endif
 
@@ -524,6 +699,11 @@
  #endif
  #ifndef USE_PARRYING
   #define USE_PARRYING
+ #endif
+ #ifdef USE_PARRYING
+  /* Chance +AC enchantment on weapons to a bonus in parry chance? Requires USE_PARRYING to be enabled. Also specifies the divisor*10 to translate +AC to +parry. [10]
+     A drawback currently: The player can always know his true parry chance via checking in 'm' menu, even if the weapon hasn't been identified yet. */
+  #define WEAPONS_NO_AC 10
  #endif
 #endif
 

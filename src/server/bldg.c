@@ -96,7 +96,7 @@ void show_building(int Ind, store_type *s_ptr) {
 	store_action_type *ba_ptr;
 	player_type *p_ptr = Players[Ind];
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < MAX_STORE_ACTIONS; i++) {
 		ba_ptr = &ba_info[st_ptr->actions[i]];
 
 		/* hack: some actions are admin-only (for testing purpose) */
@@ -972,10 +972,10 @@ static void town_history(void) {
 /*
  * compare_weapon_aux2 -KMW-
  */
-static void compare_weapon_aux2(object_type *o_ptr, int numblows, int r, int c, int mult, int bonus, char attr[80], u32b f1, u32b f2, u32b f3, byte color) {
+static void compare_weapon_aux2(object_type *o_ptr, int numblows, int r, int c, int mult, int bonus, char attr_str[80], u32b f1, u32b f2, u32b f3, byte color) {
 	char tmp_str[80];
 
-	c_put_str(color, attr, r, c);
+	c_put_str(color, attr_str, r, c);
 
 	if (o_ptr->tval == TV_BOW || is_ammo(o_ptr->tval))
 		strnfmt(tmp_str, 80, "Attack: %d-%d damage",
@@ -1840,9 +1840,9 @@ static void sell_quest_monster(void) {
 			(((r_ptr->flags1 & (RF1_DROP_4D2)) ? 8 : 0) +
 			 ((r_ptr->flags1 & (RF1_DROP_3D2)) ? 6 : 0) +
 			 ((r_ptr->flags1 & (RF1_DROP_2D2)) ? 4 : 0) +
-			 ((r_ptr->flags0 & (RF0_DROP_2))   ? 2 : 0) +
+			 ((r_ptr->flagsA & (RFA_DROP_2))   ? 2 : 0) +
 			 ((r_ptr->flags1 & (RF1_DROP_1D2)) ? 2 : 0) +
-			 ((r_ptr->flags0 & (RF0_DROP_1))   ? 1 : 0) +
+			 ((r_ptr->flagsA & (RFA_DROP_1))   ? 1 : 0) +
 			 ((r_ptr->flags1 & (RF1_DROP_90))  ? 1 : 0) +
 			 ((r_ptr->flags1 & (RF1_DROP_60))  ? 1 : 0));
 
@@ -1902,7 +1902,7 @@ void select_bounties(void) {
 		s16b val;
 
 		if (lev < 1) lev = 1;
-		if (lev >= MAX_DEPTH) lev = MAX_DEPTH-1;
+		if (lev >= MAX_DEPTH) lev = MAX_DEPTH - 1;
 
 		/* We don't want to duplicate entries in the list */
 		while (TRUE) {
@@ -2700,7 +2700,10 @@ bool bldg_process_command(int Ind, store_type *st_ptr, int action, int item, int
 				msg_print(Ind, "You need an up-to-date client to order an item.");
 				break;
 			}
-			Send_request_str(Ind, RID_ITEM_ORDER, "Which item would you like to order? (Or \"cancel\") ", "");
+			if (is_bookstore(p_ptr->store_num))
+				Send_request_str(Ind, RID_ITEM_ORDER, "Which item or spell would you like to order? (Or \"cancel\") ", "");
+			else
+				Send_request_str(Ind, RID_ITEM_ORDER, "Which item would you like to order? (Or \"cancel\") ", "");
 			break;
 #endif
 #ifdef ENABLE_MERCHANT_MAIL
@@ -2829,6 +2832,10 @@ bool bldg_process_command(int Ind, store_type *st_ptr, int action, int item, int
 			Send_request_str(Ind, RID_CONTACT_OWNER, "Your note: ", "");
 			break;
 #endif
+		case BACT_LIST_GUILDS: {
+			view_guild_roster(Ind);
+			break;
+			}
 		default:
 #if 0
 			if (process_hooks_ret(HOOK_BUILDING_ACTION, "d", "(d)", bact)) {
@@ -2927,7 +2934,7 @@ void do_cmd_bldg(void) {
 			break;
 		}
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < MAX_STORE_ACTIONS; i++) {
 			ba_ptr = &ba_info[st_info->actions[i]];
 
 			if (ba_ptr->letter) {

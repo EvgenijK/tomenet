@@ -15,6 +15,7 @@ void wr_u16b(u16b v);
 void wr_s16b(s16b v);
 void wr_u32b(u32b v);
 void wr_s32b(s32b v);
+void wr_u64b(u64b v);
 void wr_string(cptr str);
 static void write_buffer();
 
@@ -26,7 +27,7 @@ static void write_buffer();
 
 static FILE	*fff;		/* Current save "file" */
 
-static char	*fff_buf;	/* Savefile buffer */
+static byte	*fff_buf;	/* Savefile buffer */
 static int	fff_buf_pos;	/* Buffer position */
 
 #define MAX_BUF_SIZE	4096
@@ -88,6 +89,18 @@ void wr_s32b(s32b v) {
 	wr_u32b((u32b)v);
 }
 
+void wr_u64b(u64b v) {
+	sf_put(v & 0xFF);
+	sf_put((v >> 8) & 0xFF);
+	sf_put((v >> 16) & 0xFF);
+	sf_put((v >> 24) & 0xFF);
+
+	sf_put((v >> 32) & 0xFF);
+	sf_put((v >> 40) & 0xFF);
+	sf_put((v >> 48) & 0xFF);
+	sf_put((v >> 56) & 0xFF);
+}
+
 void wr_string(cptr str) {
 	while (*str) {
 		wr_byte(*str);
@@ -119,7 +132,7 @@ static void wr_item(object_type *o_ptr) {
 
 	wr_s32b(o_ptr->owner);
 	wr_s16b(o_ptr->level);
-	wr_byte(o_ptr->mode);
+	wr_u16b(o_ptr->mode);
 
 	wr_s16b(o_ptr->k_idx);
 
@@ -132,8 +145,14 @@ static void wr_item(object_type *o_ptr) {
 
 	wr_byte(o_ptr->tval);
 	wr_byte(o_ptr->sval);
+
 	wr_byte(o_ptr->tval2);
 	wr_byte(o_ptr->sval2);
+	wr_byte(o_ptr->number2);
+	if (o_ptr->note2) wr_string(quark_str(o_ptr->note2));
+	else wr_string("");
+	wr_byte(o_ptr->note2_utag);
+
 	wr_s32b(o_ptr->bpval);
 	wr_s32b(o_ptr->pval);
 	wr_s32b(o_ptr->pval2);
@@ -147,7 +166,7 @@ static void wr_item(object_type *o_ptr) {
 
 	wr_u16b(o_ptr->name1);
 	wr_u16b(o_ptr->name2);
-	wr_s32b(o_ptr->name3);
+	wr_u32b(o_ptr->name3);
 	wr_s32b(o_ptr->timeout);
 	wr_s32b(o_ptr->timeout_magic);
 	wr_s32b(o_ptr->recharging);
@@ -241,6 +260,42 @@ static void wr_item(object_type *o_ptr) {
 	wr_u16b(o_ptr->f_reidx);
 	wr_s16b(o_ptr->f_special);
 	wr_byte((unsigned char)o_ptr->f_reward);
+
+	/* item history tracking */
+	wr_u32b(o_ptr->slain_monsters);
+	wr_u32b(o_ptr->slain_uniques);
+	wr_u32b(o_ptr->slain_players);
+	wr_u32b(o_ptr->times_activated);
+	wr_u32b(o_ptr->time_equipped);
+	wr_u32b(o_ptr->time_carried);
+
+	wr_u32b(o_ptr->slain_orcs);
+	wr_u32b(o_ptr->slain_trolls);
+	wr_u32b(o_ptr->slain_giants);
+	wr_u32b(o_ptr->slain_animals);
+	wr_u32b(o_ptr->slain_dragons);
+	wr_u32b(o_ptr->slain_demons);
+	wr_u32b(o_ptr->slain_undead);
+	wr_u32b(o_ptr->slain_evil);
+
+	wr_byte(o_ptr->slain_bosses);
+	wr_byte(o_ptr->slain_nazgul);
+	wr_byte(o_ptr->slain_superuniques);
+	wr_byte(o_ptr->slain_sauron);
+	wr_byte(o_ptr->slain_morgoth);
+	wr_byte(o_ptr->slain_zuaon);
+
+	wr_u64b(o_ptr->done_damage);
+	wr_u64b(o_ptr->done_healing);
+	wr_u16b(o_ptr->got_damaged);
+	wr_u16b(o_ptr->got_repaired);
+	wr_u16b(o_ptr->got_enchanted);
+
+	/* custom lua scripts */
+	wr_s16b(o_ptr->custom_lua_carrystate);
+	wr_s16b(o_ptr->custom_lua_equipstate);
+	wr_s16b(o_ptr->custom_lua_destruction);
+	wr_s16b(o_ptr->custom_lua_usage);
 }
 
 /*
@@ -349,6 +404,11 @@ static void wr_monster(monster_type *m_ptr) {
 	wr_s16b(m_ptr->desty);
 	wr_s16b(m_ptr->determination);
 	wr_s16b(m_ptr->limit_hp);
+
+	wr_s16b(m_ptr->custom_lua_death);
+	wr_s16b(m_ptr->custom_lua_deletion);
+	wr_s16b(m_ptr->custom_lua_awoke);
+	wr_s16b(m_ptr->custom_lua_sighted);
 }
 
 /*
@@ -590,7 +650,7 @@ static void wr_guilds() {
 		wr_string(guilds[i].name);
 		wr_s32b(guilds[i].master);
 		wr_s32b(guilds[i].members);
-		wr_byte(guilds[i].cmode);
+		wr_u16b(guilds[i].cmode);
 		wr_u32b(guilds[i].flags);
 		wr_s16b(guilds[i].minlev);
 		for (j = 0; j < 5; j++)
@@ -611,10 +671,9 @@ static void wr_party(party_type *party_ptr) {
 	wr_s32b(party_ptr->created);
 
 	/* Save the modus and members */
-	wr_byte(party_ptr->mode);
-
+	wr_u16b(party_ptr->mode);
 	/* Save the creator's character mode */
-	wr_byte(party_ptr->cmode);
+	wr_u16b(party_ptr->cmode);
 
 	/* Iron Team max exp */
 	wr_s32b(party_ptr->experience);
@@ -651,7 +710,7 @@ static void wr_house(house_type *house) {
 	wr_byte(house->dx);
 	wr_byte(house->dy);
 	wr_u32b(house->dna->creator);
-	wr_byte(house->dna->mode);
+	wr_u16b(house->dna->mode);
 	wr_s32b(house->dna->owner);
 	wr_byte(house->dna->owner_type);
 	wr_byte(house->dna->a_flags);
@@ -671,8 +730,8 @@ static void wr_house(house_type *house) {
 		do {
 			i += 2;
 			wr_byte(house->coords.poly[i]);
-			wr_byte(house->coords.poly[i+1]);
-		} while (house->coords.poly[i] || house->coords.poly[i+1]);
+			wr_byte(house->coords.poly[i + 1]);
+		} while (house->coords.poly[i] || house->coords.poly[i + 1]);
 	}
 
 	wr_byte(house->colour);
@@ -696,7 +755,7 @@ static void wr_extra(int Ind) {
 
 	int i, j;
 	int k;
-	u16b tmp16u = 0;
+	u16b tmp16u = 0, restart_info = panic_save ? 0x0001 : 0x0000;
 	byte tmp8u = 0;
 
 	dungeon_type *d_ptr;
@@ -716,10 +775,15 @@ static void wr_extra(int Ind) {
 	/* Race/Class/Gender/Party */
 	wr_byte(p_ptr->prace);
 	wr_byte(p_ptr->pclass);
+#ifdef ENABLE_SUBCLASS
+	wr_byte(p_ptr->sclass);
+#else
+	wr_byte(0);
+#endif
 	wr_byte(p_ptr->ptrait);
 	wr_byte(p_ptr->male);
 	wr_u16b(p_ptr->party); /* changed to u16b to allow more parties - mikaelh */
-	wr_byte(p_ptr->mode);
+	wr_u16b(p_ptr->mode);
 
 	wr_byte(p_ptr->hitdie);
 	wr_s16b(p_ptr->expfact);
@@ -730,13 +794,15 @@ static void wr_extra(int Ind) {
 	wr_u16b(p_ptr->align_good);
 	wr_u16b(p_ptr->align_law);
 
-	/* Dump the stats (maximum and current) */
-	for (i = 0; i < 6; ++i) wr_s16b(p_ptr->stat_max[i]);
-	for (i = 0; i < 6; ++i) wr_s16b(p_ptr->stat_cur[i]);
+	/* hypothetically todo: write current C_ATTRIBUTES value */
 
 	/* Dump the stats (maximum and current) */
-	for (i = 0; i < 6; ++i) wr_s16b(p_ptr->stat_cnt[i]);
-	for (i = 0; i < 6; ++i) wr_s16b(p_ptr->stat_los[i]);
+	for (i = 0; i < C_ATTRIBUTES; ++i) wr_s16b(p_ptr->stat_max[i]);
+	for (i = 0; i < C_ATTRIBUTES; ++i) wr_s16b(p_ptr->stat_cur[i]);
+
+	/* Dump the stats (maximum and current) */
+	for (i = 0; i < C_ATTRIBUTES; ++i) wr_s16b(p_ptr->stat_cnt[i]);
+	for (i = 0; i < C_ATTRIBUTES; ++i) wr_s16b(p_ptr->stat_los[i]);
 
 	/* Dump the skills */
 	wr_u16b(MAX_SKILLS);
@@ -787,6 +853,16 @@ static void wr_extra(int Ind) {
 	tmp8u |= (p_ptr->event_participated ? 0x10 : 0x0);
 	tmp8u |= (p_ptr->IDDC_found_rndtown ? 0x20 : 0x0); //superfluous?
 	tmp8u |= (p_ptr->IDDC_logscum ? 0x40 : 0x0); //superfluous?
+	/* Save if we're currently in an IDDC refuge */
+	if (in_irondeepdive(&p_ptr->wpos)) {
+		cave_type **zcave = getcave(&p_ptr->wpos);
+
+		if (zcave) {
+			cave_type *c_ptr = &zcave[p_ptr->py][p_ptr->px];
+
+			if (c_ptr->info2 & CAVE2_REFUGE) tmp8u |= 0x80;
+		}
+	}
 	wr_byte(tmp8u);
 	wr_u16b(p_ptr->event_participated_flags);
 	wr_u16b(p_ptr->event_won_flags);
@@ -880,7 +956,7 @@ static void wr_extra(int Ind) {
 	wr_s16b(p_ptr->stun);
 	wr_s16b(p_ptr->poisoned);
 	wr_s16b(p_ptr->image);
-	wr_s16b(p_ptr->protevil);
+	wr_s16b(p_ptr->protevil + (p_ptr->protevil_own ? 10000 : 0));
 	wr_s16b(p_ptr->invuln);
 	wr_s16b(p_ptr->hero);
 	wr_s16b(p_ptr->shero);
@@ -897,10 +973,11 @@ static void wr_extra(int Ind) {
 	wr_s16b(p_ptr->tim_ffall);
 	wr_s16b(p_ptr->tim_regen);
 	wr_s16b(p_ptr->tim_regen_pow);
-	wr_s16b(p_ptr->blessed);
+	wr_s16b(p_ptr->tim_regen_cost);
+	wr_s16b(p_ptr->blessed + p_ptr->blessed_power * 100 + (p_ptr->blessed_own ? 10000 : 0));
 	wr_s16b(p_ptr->tim_invis);
 	wr_byte(p_ptr->go_level_top);//ENABLE_GO_GAME
-	wr_byte(p_ptr->tim_extra);
+	wr_byte(p_ptr->tim_wraithstep);
 	wr_s16b(p_ptr->see_infra);
 	wr_s16b(p_ptr->tim_infra);
 	wr_s16b(p_ptr->oppose_fire);
@@ -920,6 +997,8 @@ static void wr_extra(int Ind) {
 	wr_u16b(p_ptr->tim_pkill);
 	wr_s16b(p_ptr->tim_wraith);
 	wr_byte(p_ptr->wraith_in_wall);
+	wr_byte(p_ptr->dispersion);
+	wr_byte(p_ptr->dispersion_tim);
 	wr_byte(p_ptr->searching);
 	wr_byte(p_ptr->maximize);
 	wr_byte(p_ptr->preserve);
@@ -1009,7 +1088,7 @@ static void wr_extra(int Ind) {
 	wr_s16b(p_ptr->martyr_timeout);
 
 	/* Special stuff */
-	wr_u16b(panic_save);
+	wr_u16b(restart_info);
 	wr_u16b(p_ptr->total_winner);
 	wr_u16b(p_ptr->once_winner);
 	wr_byte(p_ptr->iron_winner);
@@ -1072,6 +1151,9 @@ static void wr_extra(int Ind) {
 	if (p_ptr->warning_technique_ranged == 1) tmp16u |= 0x02;
 	if (p_ptr->warning_drained == 1) tmp16u |= 0x04;
 	if (p_ptr->warning_blastcharge == 1) tmp16u |= 0x08;
+	/* and also save warnings that we just don't want to repeat, as they overlap with actual non-warning feedback messages anyway
+	   - or because the player has to act carefully on his own responsibility */
+	if (p_ptr->warning_sanity == 1) tmp16u |= 0x10;
 	wr_u16b(tmp16u);
 
 	wr_string(p_ptr->info_msg);
@@ -1085,7 +1167,10 @@ static void wr_extra(int Ind) {
 	wr_u32b(p_ptr->guild_flags);
 
 	/* Runecraft buff */
-	wr_u16b(p_ptr->tim_deflect);
+	wr_u16b(p_ptr->tim_reflect);
+
+	wr_byte(p_ptr->tim_lcage);
+	for (i = 0; i < 8; i++) wr_byte(0); //future use
 
 	/* for shuffling/dealing a deck of cards */
 	wr_u16b(p_ptr->cards_diamonds);
@@ -1178,11 +1263,24 @@ static void wr_hostilities(int Ind) {
 
 static void wr_floor(struct worldpos *wpos) {
 	int y, x, i;
-	byte prev_feature = 0xff, n;
-	u32b prev_info = 0xffffffff;
+	byte n;
+
 	unsigned char runlength;
+	/* init RLE control vars to some 'reserved' value, usually the highest we can express in their type,
+	   and set as rule that it may not be used by the scripts, so it stays distinguished as init-marker. */
+	byte prev_feature = 0xff;
+	u32b prev_info = 0xffffffff, prev_info2 = 0xffffffff;
+	s16b prev_custom_lua_tunnel_hand = (s16b)0xffff;
+	s16b prev_custom_lua_tunnel = (s16b)0xffff;
+	s16b prev_custom_lua_search = (s16b)0xffff;
+	byte prev_custom_lua_search_diff_minus = 0xff;
+	byte prev_custom_lua_search_diff_chance = 0xff;
+	s16b prev_custom_lua_newlivefeat = (s16b)0xffff;
+
 	struct c_special *cs_ptr;
 	cave_type *c_ptr, **zcave;
+	dun_level *l_ptr;
+
 
 	if (!(zcave = getcave(wpos))) return;
 #if DEBUG_LEVEL > 1
@@ -1214,16 +1312,17 @@ static void wr_floor(struct worldpos *wpos) {
 	wr_byte(level_rand_y(wpos));
 	wr_byte(level_rand_x(wpos));
 
-	{
-		dun_level *l_ptr = getfloor(wpos);
-		if (l_ptr) {
-			wr_u32b(l_ptr->id);
-			wr_u32b(l_ptr->flags1);
-			wr_u32b(l_ptr->flags2);
-			wr_byte(l_ptr->hgt);
-			wr_byte(l_ptr->wid);
-		}
-	}
+	l_ptr = getfloor(wpos);
+	if (l_ptr) { /* Paranoia */
+		wr_u32b(l_ptr->id);
+		wr_u32b(l_ptr->flags1);
+		wr_u32b(l_ptr->flags2);
+		wr_byte(l_ptr->hgt);
+		wr_byte(l_ptr->wid);
+		/* IDDC_REFUGES */
+		wr_byte(l_ptr->refuge_x);
+		wr_byte(l_ptr->refuge_y);
+	} else for (i = 0; i < 16; i++) wr_byte(0); //shouldn't happen!
 
 	/*** Simple "Run-Length-Encoding" of cave ***/
 	/* for each each row */
@@ -1236,19 +1335,38 @@ static void wr_floor(struct worldpos *wpos) {
 			c_ptr = &zcave[y][x];
 
 			/* if we are starting a new run */
-			if ((!runlength) || (c_ptr->feat != prev_feature) || (c_ptr->info != prev_info)
-					|| (runlength > 254))
-			{
+			if (!runlength || runlength > 254 ||
+			    c_ptr->feat != prev_feature || c_ptr->info != prev_info || c_ptr->info2 != prev_info2 ||
+			    prev_custom_lua_tunnel_hand != c_ptr->custom_lua_tunnel_hand ||
+			    prev_custom_lua_tunnel != c_ptr->custom_lua_tunnel ||
+			    prev_custom_lua_search != c_ptr->custom_lua_search ||
+			    prev_custom_lua_search_diff_minus != c_ptr->custom_lua_search_diff_minus ||
+			    prev_custom_lua_search_diff_chance != c_ptr->custom_lua_search_diff_chance ||
+			    prev_custom_lua_newlivefeat != c_ptr->custom_lua_newlivefeat) {
 				if (runlength) {
 					/* if we just finished a run, write it */
 					wr_byte(runlength);
 					wr_byte(prev_feature);
 					wr_u32b(prev_info);
+					wr_u32b(prev_info2);
+					wr_s16b(prev_custom_lua_tunnel_hand);
+					wr_s16b(prev_custom_lua_tunnel);
+					wr_s16b(prev_custom_lua_search);
+					wr_byte(prev_custom_lua_search_diff_minus);
+					wr_byte(prev_custom_lua_search_diff_chance);
+					wr_s16b(prev_custom_lua_newlivefeat);
 				}
 
 				/* start a new run */
 				prev_feature = c_ptr->feat;
 				prev_info = c_ptr->info;
+				prev_info2 = c_ptr->info2;
+				prev_custom_lua_tunnel_hand = c_ptr->custom_lua_tunnel_hand;
+				prev_custom_lua_tunnel = c_ptr->custom_lua_tunnel;
+				prev_custom_lua_search = c_ptr->custom_lua_search;
+				prev_custom_lua_search_diff_minus = c_ptr->custom_lua_search_diff_minus;
+				prev_custom_lua_search_diff_chance = c_ptr->custom_lua_search_diff_chance;
+				prev_custom_lua_newlivefeat = c_ptr->custom_lua_newlivefeat;
 				runlength = 1;
 			}
 			/* otherwise continue our current run */
@@ -1258,6 +1376,13 @@ static void wr_floor(struct worldpos *wpos) {
 		wr_byte(runlength);
 		wr_byte(prev_feature);
 		wr_u32b(prev_info);
+		wr_u32b(prev_info2);
+		wr_s16b(prev_custom_lua_tunnel_hand);
+		wr_s16b(prev_custom_lua_tunnel);
+		wr_s16b(prev_custom_lua_search);
+		wr_byte(prev_custom_lua_search_diff_minus);
+		wr_byte(prev_custom_lua_search_diff_chance);
+		wr_s16b(prev_custom_lua_newlivefeat);
 	}
 
 	/*** another scan for c_special ***/
@@ -1465,6 +1590,7 @@ static bool wr_savefile_new(int Ind) {
 	wr_u16b(tmp16u);
 	for (i = 0; i < tmp16u; i++) {
 		artifact_type *a_ptr = &a_info[i];
+
 		wr_byte(a_ptr->cur_num);
 		wr_byte(0);
 		wr_byte(0);
@@ -1597,14 +1723,11 @@ static bool save_player_aux(int Ind, char *name) {
 	int fd = -1;
 	int mode = 0644;
 
-
 	/* No file yet */
 	fff = NULL;
 
-
 	/* File type is "SAVE" */
 	FILE_TYPE(FILE_TYPE_SAVE);
-
 
 	/* Create the savefile */
 	fd = fd_make(name, mode);
@@ -1620,7 +1743,7 @@ static bool save_player_aux(int Ind, char *name) {
 		/* Successful open */
 		if (fff) {
 			/* Allocate a buffer */
-			fff_buf = C_NEW(MAX_BUF_SIZE, char);
+			fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 			fff_buf_pos = 0;
 
 			/* Write the savefile */
@@ -1637,15 +1760,82 @@ static bool save_player_aux(int Ind, char *name) {
 		if (!ok) (void)fd_kill(name);
 	}
 
-
 	/* Failure */
 	if (!ok) return(FALSE);
 
-	/* Successful save */
-	/*server_saved = TRUE;*/
-
 	/* Success */
 	return(TRUE);
+}
+
+static bool save_player_activitytime(int Ind, char *pname) {
+	bool ok = TRUE;
+	int fd = -1;
+	int mode = 0644;
+	char name[1024];
+	byte at[4];
+
+	/* No file yet */
+	fff = NULL;
+
+	/* File type is "SAVE" */
+	FILE_TYPE(FILE_TYPE_SAVE);
+
+	strcpy(name, format("%s.activitytime", pname));
+
+	/* Create the savefile */
+	fd_kill(name); //remove existing one first
+	fd = fd_make(name, mode);
+
+	/* File is okay */
+	if (fd >= 0) {
+		/* Close the "fd" */
+		(void)fd_close(fd);
+
+		/* Open the savefile */
+		fff = my_fopen(name, "wb");
+
+		/* Successful open */
+		if (fff) {
+			/* Allocate a buffer */
+			fff_buf = C_NEW(MAX_BUF_SIZE, byte);
+			fff_buf_pos = 0;
+
+			/* Write the savefile */
+			//wr_s32b(Players[Ind]->turns_active);
+			at[0] = (((unsigned int)Players[Ind]->turns_active) & 0xFF);
+			at[1] = (((unsigned int)(Players[Ind]->turns_active) >> 8) & 0xFF);
+			at[2] = (((unsigned int)(Players[Ind]->turns_active) >> 16) & 0xFF);
+			at[3] = (((unsigned int)(Players[Ind]->turns_active) >> 24) & 0xFF);
+			if (write(fd, at, 4) != 4) {
+				ok = FALSE;
+				s_printf("Activitytime file (save): Failed to write() for player <%s>.\n", pname);
+			}
+
+			/* Attempt to close it */
+			if (my_fclose(fff)) {
+				ok = FALSE;
+				s_printf("Activitytime file (save): Failed to close file for player <%s>.\n", pname);
+			}
+
+			/* Free the buffer */
+			C_FREE(fff_buf, MAX_BUF_SIZE, char);
+
+			//spammy, as characters are saved all the time while frequently while being online
+			//s_printf("Activitytime file (save): Saved for player <%s>: %d.\n", pname, Players[Ind]->turns_active);
+		} else {
+			ok = FALSE;
+
+			/* Remove "broken" files */
+			(void)fd_kill(name);
+
+			s_printf("Activitytime file (save): Failed to open file for player <%s>.\n", pname);
+		}
+	} else {
+		ok = FALSE;
+		s_printf("Activitytime file (save): Cannot get file handle for player <%s>.\n", pname);
+	}
+
+	return(ok);
 }
 
 
@@ -1658,18 +1848,12 @@ bool save_player(int Ind) {
 	int result = FALSE;
 	char safe[1024];
 
-
 #ifdef SET_UID
-
 # ifdef SECURE
-
 	/* Get "games" permissions */
 	beGames();
-
 # endif
-
 #endif
-
 
 	/* New savefile */
 	strcpy(safe, p_ptr->savefile);
@@ -1681,10 +1865,10 @@ bool save_player(int Ind) {
 	strcat(safe, "n");
 #endif /* VM */
 
-	/* Remove it */
+	/* Remove ".new" savefile */
 	fd_kill(safe);
 
-	/* Attempt to save the player */
+	/* Attempt to save the player, to "<savefile>.new" */
 	if (save_player_aux(Ind, safe)) {
 		char temp[1024];
 
@@ -1698,48 +1882,43 @@ bool save_player(int Ind) {
 		strcat(temp, "o");
 #endif /* VM */
 
-		/* Remove it */
+		/* Remove ".old" savefile */
 		fd_kill(temp);
 
-		/* Preserve old savefile */
+		/* Preserve old savefile: Rename already existing savefile to "<savefile>.old" */
 		fd_move(p_ptr->savefile, temp);
 
-		/* Activate new savefile */
+		/* Activate new savefile: Rename "<savefile>.new" to just the normal "<savefile>". */
 		fd_move(safe, p_ptr->savefile);
 
-		/* Remove preserved savefile */
+		/* Remove preserved savefile, "<savefile>.old" */
 		fd_kill(temp);
 
 		/* Hack -- Pretend the character was loaded */
 		/*character_loaded = TRUE;*/
 
 #ifdef VERIFY_SAVEFILE
-
 		/* Lock on savefile */
 		strcpy(temp, savefile);
 		strcat(temp, ".lok");
 
 		/* Remove lock file */
 		fd_kill(temp);
-
 #endif
 
 		/* Success */
 		result = TRUE;
+
+		/* Also save his (recent) activity time */
+		save_player_activitytime(Ind, p_ptr->savefile);
 	}
 
-
 #ifdef SET_UID
-
 # ifdef SECURE
-
 	/* Drop "games" permissions */
 	bePlayer();
-
 # endif
-
 #endif
-
 
 	/* Return the result */
 	return(result);
@@ -1757,6 +1936,130 @@ static bool file_exist(char *buf) {
 	else return(FALSE);
 }
 
+/* Checks saved player activity time, for automatic rollback detection and handling. - C. Blue
+   For this to work, it's important that in case of rollback, the existing .activitytime files must NOT be overwritten. */
+static void verify_player_activitytime(int Ind) {
+	int fd = -1;
+	char name[1024], pname[CNAME_LEN];
+	unsigned char at[4];
+	s32b atime = 0, at_diff;
+	player_type *p_ptr = Players[Ind];
+
+	/* No file yet */
+	fff = NULL;
+
+	/* File type is "SAVE" */
+	FILE_TYPE(FILE_TYPE_SAVE);
+
+	strcpy(pname, p_ptr->name);
+	strcpy(name, format("%s.activitytime", p_ptr->savefile));
+
+	/* Verify the existence of the savefile */
+	if (!file_exist(name)) {
+		s_printf("Activitytime file (load): Doesn't exist for player <%s>.)\n", pname);
+		return;
+	}
+
+	/* Open the savefile */
+	fd = fd_open(name, O_RDONLY);
+
+	/* No file */
+	if (fd < 0) {
+		s_printf("Activitytime file (load): Cannot be opened for player <%s>.\n", pname);
+		return;
+	}
+
+	/* Read the first four bytes */
+	if (fd_read(fd, (char*)(at), 4)) {
+		s_printf("Activitytime file (load): Cannot be read for player <%s>.\n", pname);
+
+		/* Close the file */
+		(void)fd_close(fd);
+
+		return;
+	}
+
+	/* Close the file */
+	(void)fd_close(fd);
+
+	atime = (s32b)(at[0] | (at[1] << 8) | (at[2] << 16) | (at[3] << 24));
+
+	/* For rollback detection */
+	at_diff = atime - p_ptr->turns_active;
+
+	/* Paranoia - negative difference, shouldn't happen */
+	if (at_diff < 0) {
+		s_printf("Activitytime file (load): WARNING - ignoring -diff for player <%s>: %d (d-savegame~-%02d:%02dh).\n", pname, atime, -at_diff / (cfg.fps * 3600), (-at_diff / (cfg.fps * 60)) % 60);
+		return;
+	}
+
+	//Hm, the save message is omitted as it is spammy; this one isn't, but we still don't really need this info, so just adding the 'if' for it, for important cases...
+	if (at_diff) //only log important occurances
+	s_printf("Activitytime file (load): Read for player <%s>: %d (d-savegame~%02d:%02dh).\n", pname, atime, at_diff / (cfg.fps * 3600), (at_diff / (cfg.fps * 60)) % 60);
+
+	/* If there is a *HUGE* difference, that might also point at turn overflow actually, instead of a rollback.
+	   Turn overflow Can happen every ~13 months at s32b and 60 cfg.fps.
+	   However, note that this time span is actual character _activity_, so it will cover much longer online-time spans.
+	   In that case, we assume that this is the former and adjust the difference. */
+	if (at_diff > cfg.fps * 3600 * 24 * 31 * 3) { // more than 3 months -> assume turn overflow
+		at_diff = 2147483647 - atime + p_ptr->turns_active;
+		s_printf("Probable turns_active overflow. Correcting activity-time discrepancy to %02d:%02dh.\n", at_diff / (cfg.fps * 3600), (at_diff / (cfg.fps * 60)) % 60);
+	}
+
+	if (at_diff) {
+		s32b au;
+		int lv, i;
+		object_type cheque;
+
+		/* Rollback detected! */
+
+		/* Ignore trivial rollbacks */
+		if (at_diff < cfg.fps * 3600 / 4) return; // less than 1/4 hour -> ignore
+
+		/* Reimburse based on character level and time lost, in minutes (cfg.fps * 60) */
+		if (at_diff > cfg.fps * 3600 * 24) at_diff = cfg.fps * 3600 * 24; //cap time at 24h (note that this is player ACTIVITY time, so it can accomodate for way longer rollbacks!)
+		lv = p_ptr->lev <= 50 ? p_ptr->lev * 10 : 500 + ((p_ptr->lev - 50) * 10) / 5;
+#if 0
+		/*   1h: 10->  6k, 20-> 24k, 30->  54k, 40->  96k, 50-> 150k
+		     6h: 10-> 36k, 20->144k, 30-> 324k, 40-> 576k, 50-> 900k
+		    12h: 10-> 72k, 20->288k, 30-> 648k, 40->1152k, 50->1800k
+		    24h: 10->144k, 20->576k, 30->1296k, 40->2304k, 50->3600k, 59(aka 99)->5149k */
+		au = ((lv * lv) / 1000) * (at_diff / (cfg.fps * 60));
+#else
+		/*   1h: 10->  2k, 20-> 16k, 30->  54k, 40-> 128k, 50-> 250k
+		     6h: 10-> 12k, 20-> 96k, 30-> 324k, 40-> 768k, 50->1500k
+		    12h: 10-> 24k, 20->192k, 30-> 648k, 40->1536k, 50->3000k
+		    24h: 10-> 48k, 20->384k, 30->1296k, 40->3072k, 50->6000k, 59(aka 99)->10265k */
+		au = ((lv * lv * lv) / 1000) / 30 * (at_diff / (cfg.fps * 60));
+#endif
+		s_printf("ROLLBACK DETECTED! Reimbursing player with %d Au - ", au);
+
+		/* Edge case: Giving gold to the player's inventory or bank account directly might not work if the sum would cause an s32b overflow,
+		   so we just send a cheque instead - also more stylish ^^. */
+		invcopy(&cheque, lookup_kind(TV_SCROLL, SV_SCROLL_CHEQUE));
+		ps_set_cheque_value(&cheque, au);
+		cheque.owner = p_ptr->id;
+		cheque.ident |= ID_NO_HIDDEN;
+		cheque.mode = p_ptr->mode;
+		cheque.level = 0;
+		cheque.note = quark_add("Rollback reimbursement");
+
+		/* Send it via merchants guild mail */
+		for (i = 0; i < MAX_MERCHANT_MAILS; i++) if (!mail_sender[i][0]) break;
+		if (i == MAX_MERCHANT_MAILS) { /* oops oO */
+			s_printf("ERROR (out of mail capacity).\n");
+			return;
+		}
+		mail_forge[i] = cheque;
+		strcpy(mail_sender[i], "SYSTEM");
+		strcpy(mail_target[i], p_ptr->name);
+		strcpy(mail_target_acc[i], p_ptr->accountname);
+		mail_duration[i] = (5 * cfg.fps) / MAX_MERCHANT_MAILS ; // 5 seconds
+		mail_COD[i] = FALSE;
+		mail_xfee[i] = 0;
+		s_printf("mail successful.\n");
+	}
+}
 
 /*
  * Attempt to Load a "savefile"
@@ -1974,11 +2277,11 @@ bool load_player(int Ind) {
 		    (version_minor != sf_minor) ||
 		    (version_patch != sf_patch)) {
 			/* Message */
-			printf("Converted a %d.%d.%d savefile.\n",
+			s_printf("Converted a %d.%d.%d savefile.\n",
 					sf_major, sf_minor, sf_patch);
 		}
 
-		/* Player is dead */
+		/* Player is dead -- TODO: check if this code isn't totally outdated, obsolete and wrong */
 		if (p_ptr->death) {
 			/* Player is no longer "dead" */
 			p_ptr->death = FALSE;
@@ -2001,8 +2304,8 @@ bool load_player(int Ind) {
 		}
 
 		p_ptr->body_changed = TRUE;
-
 		update_sanity_bars(p_ptr);
+		verify_player_activitytime(Ind); // Rollback detection and handling
 
 		/* Success */
 		return(TRUE);
@@ -2062,7 +2365,7 @@ static void wr_player_names(void) {
 			/* 3.4.2 server */
 			wr_byte(ptr->race);
 			wr_byte(ptr->class);
-			wr_byte(ptr->mode);
+			wr_u16b(ptr->mode);
 			wr_byte(ptr->level);
 			wr_byte(ptr->max_plv);
 			wr_u16b(ptr->party); /* changed to u16b to allow more parties */
@@ -2098,7 +2401,7 @@ static void wr_auctions()
 		auc_ptr = &auctions[i];
 		wr_byte(auc_ptr->status);
 		wr_byte(auc_ptr->flags);
-		wr_byte(auc_ptr->mode);
+		wr_u16b(auc_ptr->mode);
 		wr_s32b(auc_ptr->owner);
 		wr_item(&auc_ptr->item);
 		if (auc_ptr->desc)
@@ -2129,7 +2432,7 @@ static bool wr_server_savefile() {
 	int i;
 	u32b now;
 
-	byte tmp8u;
+	byte tmp8u, restart_info = 0x00;
 	u16b tmp16u;
 	u32b tmp32u;
 
@@ -2180,7 +2483,13 @@ static bool wr_server_savefile() {
 	wr_u16b(sf_saves);
 
 	/* Is this a panic save? - C. Blue */
-	if (panic_save) wr_byte(1); else wr_byte(0);
+	if (panic_save) restart_info |= 0x01;
+	/* Just for logging purpose, some unstatice flags: */
+	if (restart_unstatice_bree) restart_info |= 0x02;
+	if (restart_unstatice_towns) restart_info |= 0x04;
+	if (restart_unstatice_surface) restart_info |= 0x08;
+	if (restart_unstatice_dungeons) restart_info |= 0x10;
+	wr_byte(restart_info);
 
 	/* save server state regarding updates (lua) */
 	wr_s16b(updated_server);
@@ -2312,8 +2621,8 @@ static void new_wr_wild() {
 			w_ptr = &wild_info[y][x];
 			wr_wild(w_ptr);
 			if (w_ptr->flags & WILD_F_DOWN) {
-				wr_byte(w_ptr->up_x);
-				wr_byte(w_ptr->up_y);
+				wr_byte(w_ptr->surface.up_x);
+				wr_byte(w_ptr->surface.up_y);
 				wr_u16b(w_ptr->dungeon->id);
 				wr_u16b(w_ptr->dungeon->type);
 				wr_u16b(w_ptr->dungeon->baselevel);
@@ -2346,8 +2655,8 @@ static void new_wr_wild() {
 #endif
 			}
 			if (w_ptr->flags & WILD_F_UP) {
-				wr_byte(w_ptr->dn_x);
-				wr_byte(w_ptr->dn_y);
+				wr_byte(w_ptr->surface.dn_x);
+				wr_byte(w_ptr->surface.dn_y);
 				wr_u16b(w_ptr->tower->id);
 				wr_u16b(w_ptr->tower->type);
 				wr_u16b(w_ptr->tower->baselevel);
@@ -2386,40 +2695,51 @@ static void new_wr_wild() {
 static void new_wr_floors() {
 	struct worldpos cwpos;
 	wilderness_type *w_ptr;
+	struct dungeon_type *d_ptr;
 	int x, y, z;
+	bool omit;
 
-	cwpos.wz = 0;
 	for (y = 0; y < MAX_WILD_Y; y++) {
 		cwpos.wy = y;
 		for (x = 0; x < MAX_WILD_X; x++) {
 			cwpos.wx = x;
 			w_ptr = &wild_info[y][x];
+			cwpos.wz = 0;
 			save_guildhalls(&cwpos);
+
 			/*
 			 * One problem here; if a wilderness tower/dungeon exists, and
 			 * the surface is not static, stair/recall informations are lost
 			 * and cause crash/infinite-loop next time.		FIXME
 			 */
-			if (getcave(&cwpos) && players_on_depth(&cwpos)) wr_floor(&cwpos);
-			if (w_ptr->flags & WILD_F_DOWN) {
-				struct dungeon_type *d_ptr = w_ptr->dungeon;
+			omit = FALSE;
+			if (restart_unstatice_bree && x == cfg.town_x && y == cfg.town_y) {
+				omit = TRUE;
+				s_printf("wr_floors(): Omitting Bree.\n");
+			}
+			if (restart_unstatice_towns && istown(&cwpos)) {
+				omit = TRUE;
+				s_printf("wr_floors(): Omitting town (%d,%d).\n", x, y);
+			}
+			if (restart_unstatice_surface) omit = TRUE; /* No log message, too spammy */
+			if (!omit) if (getcave(&cwpos) && players_on_depth(&cwpos)) wr_floor(&cwpos);
 
-				for (z = 1; z <= d_ptr->maxdepth; z++) {
-					cwpos.wz = -z;
-					if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave)
-						wr_floor(&cwpos);
+			if (!restart_unstatice_dungeons) { /* No log message, too spammy */
+				if (w_ptr->flags & WILD_F_DOWN) {
+					d_ptr = w_ptr->dungeon;
+					for (z = 1; z <= d_ptr->maxdepth; z++) {
+						cwpos.wz = -z;
+						if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave) wr_floor(&cwpos);
+					}
+				}
+				if (w_ptr->flags & WILD_F_UP) {
+					d_ptr = w_ptr->tower;
+					for (z = 1; z <= d_ptr->maxdepth; z++) {
+						cwpos.wz = z;
+						if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave) wr_floor(&cwpos);
+					}
 				}
 			}
-			if (w_ptr->flags & WILD_F_UP) {
-				struct dungeon_type *d_ptr = w_ptr->tower;
-
-				for (z = 1; z <= d_ptr->maxdepth; z++) {
-					cwpos.wz = z;
-					if (d_ptr->level[z - 1].ondepth && d_ptr->level[z - 1].cave)
-						wr_floor(&cwpos);
-				}
-			}
-			cwpos.wz = 0;
 		}
 	}
 	wr_s16b(0x7fff);	/* this could fail if we had 32767^3 areas */
@@ -2453,7 +2773,7 @@ static bool save_server_aux(char *name) {
 		/* Successful open */
 		if (fff) {
 			/* Allocate a buffer */
-			fff_buf = C_NEW(MAX_BUF_SIZE, char);
+			fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 			fff_buf_pos = 0;
 
 			/* Write the savefile */
@@ -2560,7 +2880,7 @@ static bool load_server_info_classic(void) {
 		    (version_minor != sf_minor) ||
 		    (version_patch != sf_patch)) {
 			/* Message */
-			printf("Converted a %d.%d.%d server savefile.\n",
+			s_printf("Converted a %d.%d.%d server savefile.\n",
 					sf_major, sf_minor, sf_patch);
 		}
 
@@ -2614,7 +2934,7 @@ bool save_server_info() {
 	char safe[MAX_PATH_LENGTH];
 
 #if DEBUG_LEVEL > 1
-	printf("saving server info...\n");
+	s_printf("saving server info...\n");
 #endif
 	/* New savefile */
 	path_build(safe, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "server.new");
@@ -2834,7 +3154,7 @@ static bool save_quests_aux(char *name) {
 		(void)fd_close(fd);
 		fff = my_fopen(name, "wb");
 		if (fff) {
-			fff_buf = C_NEW(MAX_BUF_SIZE, char);
+			fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 			fff_buf_pos = 0;
 			if (save_quests_file()) ok = TRUE;
 			if (my_fclose(fff)) ok = FALSE;
@@ -2850,7 +3170,7 @@ void save_quests(void) {
 	char safe[MAX_PATH_LENGTH];
 
 #if DEBUG_LEVEL > 1
-	printf("saving quest info...\n");
+	s_printf("saving quest info...\n");
 #endif
 	path_build(safe, MAX_PATH_LENGTH, ANGBAND_DIR_SAVE, "quests.new");
 	fd_kill(safe);

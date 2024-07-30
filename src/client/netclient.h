@@ -28,6 +28,7 @@ int Receive_subinven(void);
 #endif
 int Receive_inven_wide(void);
 int Receive_equip(void);
+int Receive_equip_wide(void);
 int Receive_char_info(void);
 int Receive_various(void);
 int Receive_mimic(void);
@@ -47,7 +48,7 @@ int Receive_depth(void);
 int Receive_confused(void);
 int Receive_poison(void);
 int Receive_study(void);
-int Receive_bpr(void);
+int Receive_bpr_wraith(void);
 int Receive_food(void);
 int Receive_fear(void);
 int Receive_speed(void);

@@ -76,9 +76,7 @@ struct term_data
 	WINDOW *win;
 };
 
-#define MAX_TERM_DATA 4
-
-static term_data data[MAX_TERM_DATA];
+static term_data data[MAX_TERM_DATA_GCU];
 
 
 /*
@@ -472,7 +470,11 @@ static errr Term_xtra_gcu_alive(int v) {
 		mvcur(curscr->cury, curscr->curx, LINES - 1, 0);
 #else
 		/* this moves curses to bottom right corner */
+ #if 0
 		mvcur(curscr->_cury, curscr->_curx, LINES - 1, 0);
+ #else /* new ncurses version in 2024 makes these opaque */
+		mvcur(getcury(curscr), getcurx(curscr), LINES - 1, 0);
+ #endif
 #endif
 
 		/* Exit curses */
@@ -553,7 +555,11 @@ static void Term_nuke_gcu(term *t) {
 	mvcur(curscr->cury, curscr->curx, LINES - 1, 0);
 #else
 	/* This moves curses to bottom right corner */
+ #if 0
 	mvcur(curscr->_cury, curscr->_curx, LINES - 1, 0);
+ #else /* new ncurses version in 2024 makes these opaque */
+	mvcur(getcury(curscr), getcurx(curscr), LINES - 1, 0);
+ #endif
 #endif
 
 	/* Flush the curses buffer */
@@ -789,6 +795,7 @@ static errr Term_text_gcu(int x, int y, int n, byte a, cptr s) {
 	else
 #endif
 
+//TODO: support TERM_SRCLITE in term2attr() by setting flick_global_x/y here, via term_screen = &data[0].t or sth
 	a = term2attr(a);
 
 #ifdef A_COLOR
@@ -1117,6 +1124,23 @@ void gcu_restore_colours(void) {
 
 	for (i = 0; i < BASE_PALETTE_SIZE; i++) init_color(i, cor[i], cog[i], cob[i]);
 }
+
+#ifndef USE_X11
+/* Returns true if terminal window specified by term_idx is currently visible. */
+bool term_get_visibility(int term_idx) {
+	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return(false);
+
+	/* Only windows initialized in ang_term array are currently visible. */
+	return((bool)ang_term[term_idx]);
+}
+//TODO: Implement, if possible
+void set_palette(byte c, byte r, byte g, byte b) {
+}
+void get_palette(byte c, byte *r, byte *g, byte *b) {
+}
+void refresh_palette(void) {
+}
+#endif
 
 /* for big_map mode */
 void resize_main_window_gcu(int cols, int rows) {

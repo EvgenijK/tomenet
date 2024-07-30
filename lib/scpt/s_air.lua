@@ -74,10 +74,10 @@ LIGHTNINGBOLT_I = add_spell {
 	["name"] = 	"Lightning Bolt I",
 	["name2"] = 	"LBolt I",
 	["school"] = 	SCHOOL_AIR,
-	["level"] = 	6,
+	["level"] = 	2,
 	["mana"] = 	2,
 	["mana_max"] = 	2,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -85,6 +85,7 @@ LIGHTNINGBOLT_I = add_spell {
 	end,
 	["info"] = 	function()
 			local x, y
+
 			x, y = get_lightningbolt_dam(Ind, 1)
 			return "dam "..x.."d"..y
 	end,
@@ -107,6 +108,7 @@ LIGHTNINGBOLT_II = add_spell {
 	end,
 	["info"] = 	function()
 			local x, y
+
 			x, y = get_lightningbolt_dam(Ind, 15)
 			return "dam "..x.."d"..y
 	end,
@@ -129,6 +131,7 @@ LIGHTNINGBOLT_III = add_spell {
 	end,
 	["info"] = 	function()
 			local x, y
+
 			x, y = get_lightningbolt_dam(Ind, 0)
 			return "dam "..x.."d"..y
 	end,
@@ -146,7 +149,7 @@ AIRWINGS = add_spell {
 	["mana_max"] = 	30,
 	["fail"] = 	70,
 	["spell"] = 	function()
-			if get_level(Ind, AIRWINGS, 50) >= 16 then set_tim_lev(Ind, randint(10) + 5 + get_level(Ind, AIRWINGS, 25))
+			if get_level(Ind, AIRWINGS, 50) >= 15 then set_tim_lev(Ind, randint(10) + 5 + get_level(Ind, AIRWINGS, 25))
 			else set_tim_ffall(Ind, randint(10) + 5 + get_level(Ind, AIRWINGS, 25))
 			end
 	end,
@@ -155,7 +158,7 @@ AIRWINGS = add_spell {
 	end,
 	["desc"] = 	{
 			"Grants the power of feather falling.",
-			"At level 16 it grants the power of levitation."
+			"At level 15 it grants the power of levitation."
 	}
 }
 
@@ -188,6 +191,7 @@ POISONBLOOD = add_spell {
 	["fail"] = 	-30,
 	["spell"] = 	function()
 			local dur
+
 			dur = randint(30) + 25 + get_level(Ind, POISONBLOOD, 25)
 			set_oppose_pois(Ind, dur)
 			set_melee_brand(Ind, dur, TBRAND_POIS, 10, TRUE, FALSE)
@@ -212,10 +216,12 @@ THUNDERSTORM = add_spell {
 	["spell"] = 	function()
 			--hack: linear spell-power gain
 			local lev = (player.s_info[SKILL_SPELL + 1].value) / 2500
+
 			set_tim_thunder(Ind, randint(10) + 15 + get_level(Ind, THUNDERSTORM, 25), 5 + get_level(Ind, THUNDERSTORM, 14), 10 + get_level(Ind, THUNDERSTORM, 98) + lev)
 	end,
 	["info"] = 	function()
 			local lev = (player.s_info[SKILL_SPELL + 1].value) / 2500
+
 			return "dam "..(5 + get_level(Ind, THUNDERSTORM, 14)).."d"..(10 + get_level(Ind, THUNDERSTORM, 98) + lev).." dur "..(15 + get_level(Ind, THUNDERSTORM, 25)).."+d10"
 	end,
 	["desc"] = 	{
@@ -223,4 +229,24 @@ THUNDERSTORM = add_spell {
 			"throwing thunderbolts at random monsters in sight.",
 			"(Thunderbolts deal compound damage of electricity, sound and light.)"
 	}
+}
+
+VAPORMIRROR = add_spell {
+	["name"] = 	"Mirage Mirror",
+	["name2"] = 	"MMirr",
+	["school"] = 	{SCHOOL_AIR, SCHOOL_WATER },
+	["level"] = 	35,
+	["mana"] = 	50,
+	["mana_max"] = 	50,
+	["fail"] = 	-75,
+	["spell_power"] = 0,
+	["spell"] = 	function()
+			set_tim_reflect(Ind, randint(5) + 20 + get_level(Ind, VAPORMIRROR, 30))
+	end,
+	["info"] = 	function()
+			return "dur "..(20 + get_level(Ind, VAPORMIRROR, 30)).."+d5"
+	end,
+	["desc"] = 	{
+			"Creates a solid mirage from moisture in the air around you",
+			"that acts as a magical mirror and reflects projectiles.", }
 }

@@ -375,6 +375,7 @@ ODELCURSES_I = add_spell {
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 			local done
+
 			done = remove_curse(Ind)
 			if done == TRUE then msg_print(Ind, "The curse is broken!") end
 	end,
@@ -395,6 +396,7 @@ ODELCURSES_II = add_spell {
 	["stat"] = 	A_WIS,
 	["spell"] = 	function()
 			local done
+
 			done = remove_all_curse(Ind)
 			if done == TRUE then msg_print(Ind, "The curse is broken!") end
 	end,
@@ -444,8 +446,7 @@ POSSESS = add_spell {
 			fire_grid_bolt(Ind, GF_CHARMIGNORE, args.dir, 10 + get_level(Ind, POSSESS, 150), "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, POSSESS, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, POSSESS, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] =	{
 			"Tries to manipulate the mind of a monster",
@@ -468,8 +469,7 @@ POSSESS_II = add_spell {
 			fire_ball(Ind, GF_CHARMIGNORE, args.dir, 10 + get_level(Ind, POSSESS, 150), 3, "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, POSSESS, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, POSSESS, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] =	{
 			"Tries to manipulate the mind of your target and others around it",
@@ -492,8 +492,7 @@ POSSESS_III = add_spell {
 			project_los(Ind, GF_CHARMIGNORE, 10 + get_level(Ind, POSSESS, 150), "focusses")
 	end,
 	["info"] = 	function()
-			--return "power "..(10 + get_level(Ind, POSSESS, 150))
-			return ""
+			return "power "..(10 + get_level(Ind, POSSESS, 150)).." range 17" -- MAX_RANGE - 1
 	end,
 	["desc"] =	{
 			"Tries to manipulate the mind of all monsters in sight",
@@ -529,14 +528,15 @@ GUARDIANSPIRIT_I = add_spell {
 	["am"] = 	50,
 	["spell_power"] = 0,
 	["level"] = 	25,
-	["mana"] = 	50,
-	["mana_max"] = 	50,
+	["mana"] = 	20,
+	["mana_max"] = 	20,
 	["stat"] = 	A_WIS,
 	["fail"] = 	-30,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 			local dur = 20 + randint(10) + get_level(Ind, GUARDIANSPIRIT_I, 70)
-			set_protevil(Ind, dur)
+
+			set_protevil(Ind, dur, TRUE)
 			set_savingthrow(Ind, dur)
 	end,
 	["info"] = 	function()
@@ -554,14 +554,15 @@ GUARDIANSPIRIT_II = add_spell {
 	["am"] = 	50,
 	["spell_power"] = 0,
 	["level"] = 	45,
-	["mana"] = 	100,
-	["mana_max"] = 	100,
+	["mana"] = 	50,
+	["mana_max"] = 	50,
 	["stat"] = 	A_WIS,
 	["fail"] = 	-80,
 	["direction"] = FALSE,
 	["spell"] = 	function()
 		local dur = 20 + randint(10) + get_level(Ind, GUARDIANSPIRIT_I, 70)
-		set_protevil(Ind, dur)
+
+		set_protevil(Ind, dur, TRUE)
 		set_savingthrow(Ind, dur)
 		set_spirit_shield(Ind, 19 + get_level(Ind, GUARDIANSPIRIT_II, 95), dur)
 	end,

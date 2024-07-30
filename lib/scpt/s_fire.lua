@@ -59,10 +59,10 @@ FIREBOLT_I = add_spell {
 	["name"] = 	"Fire Bolt I",
 	["name2"] = 	"FBolt I",
 	["school"] = 	SCHOOL_FIRE,
-	["level"] = 	10,
+	["level"] = 	4,
 	["mana"] = 	3,
 	["mana_max"] = 	3,
-	["fail"] = 	-10,
+	["fail"] = 	-5,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -203,6 +203,7 @@ FIERYAURA_I = add_spell {
 	["fail"] = 	0,
 	["spell"] = 	function()
 		local type
+
 --		if (get_level(Ind, FIERYAURA, 50) >= 8) then
 --			type = SHIELD_GREAT_FIRE
 --		else
@@ -228,6 +229,7 @@ FIERYAURA_II = add_spell {
 	["fail"] = 	-55,
 	["spell"] = 	function()
 		local type
+
 --		if (get_level(Ind, FIERYAURA, 50) >= 8) then
 --			type = SHIELD_GREAT_FIRE
 --		else

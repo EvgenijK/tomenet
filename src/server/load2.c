@@ -15,6 +15,7 @@ void rd_u16b(u16b *ip);
 void rd_s16b(s16b *ip);
 void rd_u32b(u32b *ip);
 void rd_s32b(s32b *ip);
+void rd_u64b(u64b *ip);
 void rd_string(char *str, int max);
 
 /*
@@ -68,7 +69,7 @@ static FILE	*fff;
 /*
  * Local savefile buffer
  */
-static char	*fff_buf;
+static byte	*fff_buf;
 static int	fff_buf_pos = 0;
 #define MAX_BUF_SIZE	4096
 
@@ -206,6 +207,17 @@ void rd_u32b(u32b *ip) {
 void rd_s32b(s32b *ip) {
 	rd_u32b((u32b*)ip);
 }
+void rd_u64b(u64b *ip) {
+	(*ip) = sf_get();
+	(*ip) |= ((u64b)(sf_get()) << 8);
+	(*ip) |= ((u64b)(sf_get()) << 16);
+	(*ip) |= ((u64b)(sf_get()) << 24);
+
+	(*ip) |= ((u64b)(sf_get()) << 32);
+	(*ip) |= ((u64b)(sf_get()) << 40);
+	(*ip) |= ((u64b)(sf_get()) << 48);
+	(*ip) |= ((u64b)(sf_get()) << 56);
+}
 
 
 /*
@@ -229,7 +241,7 @@ void rd_string(char *str, int max) {
 	}
 
 	/* Terminate */
-	str[max-1] = '\0';
+	str[max - 1] = '\0';
 }
 
 
@@ -310,8 +322,10 @@ static void rd_item(object_type *o_ptr) {
 		if (older_than(4, 4, 14)) {
 			rd_s32b(&tmp32s);
 			o_ptr->mode = tmp32s;
-		}
-		else rd_byte(&o_ptr->mode);
+		} else if (older_than(4, 9, 12)) {
+			rd_byte(&tmpbyte);
+			o_ptr->mode = tmpbyte;
+		} else rd_u16b(&o_ptr->mode);
 	}
 
 	/* Kind (discarded though - Jir -) */
@@ -332,7 +346,15 @@ static void rd_item(object_type *o_ptr) {
 		rd_byte(&o_ptr->tval2);
 		rd_byte(&o_ptr->sval2);
 	}
-
+	if (!older_than(4, 9, 4)) rd_byte(&o_ptr->number2);
+	if (!older_than(4, 9, 5)) {
+		/* Inscription */
+		rd_string(note, 128);
+		/* Save the inscription */
+		if (note[0]) o_ptr->note2 = quark_add(note);
+		rd_byte(&tmpbyte);
+		o_ptr->note2_utag = tmpbyte;
+	}
 
 	/* Base pval */
 	rd_s32b(&o_ptr->bpval);
@@ -363,7 +385,7 @@ static void rd_item(object_type *o_ptr) {
 		if (o_ptr->name1 == 255) o_ptr->name1 = ART_RANDART;
 		o_ptr->name2 = old_name2;
 	}
-	rd_s32b(&o_ptr->name3);
+	rd_u32b(&o_ptr->name3);
 	if (!older_than(4, 6, 10)) {
 		rd_s32b(&o_ptr->timeout);
 		rd_s32b(&o_ptr->timeout_magic);
@@ -499,13 +521,6 @@ static void rd_item(object_type *o_ptr) {
 	rd_string(note, 128);
 	/* Save the inscription */
 	if (note[0]) o_ptr->note = quark_add(note);
-#if 0 /* done by o_ptr->xtra9 marker now */
-	/* hack: 'empty' inscription (startup items) cannot
-	   be saved this way, so we try to restore it now.. - collides with stolen goods! */
-	else if (o_ptr->discount == 100 && o_ptr->level == 0
-	    && object_value_real(0, o_ptr) <= 10000) /* avoid stolen-goods-level-0-hack collision */
-		o_ptr->note = quark_add("");
-#endif
 	if (!older_than(4, 4, 10)) {
 		rd_byte(&tmpbyte);
 		o_ptr->note_utag = tmpbyte;
@@ -560,6 +575,44 @@ static void rd_item(object_type *o_ptr) {
 		rd_s16b(&o_ptr->f_special);
 		rd_byte(&tmpbyte);
 		o_ptr->f_reward = (char)tmpbyte;
+	}
+
+	if (!older_than(4, 9, 10)) {
+		/* item history tracking */
+		rd_u32b(&o_ptr->slain_monsters);
+		rd_u32b(&o_ptr->slain_uniques);
+		rd_u32b(&o_ptr->slain_players);
+		rd_u32b(&o_ptr->times_activated);
+		rd_u32b(&o_ptr->time_equipped);
+		rd_u32b(&o_ptr->time_carried);
+
+		rd_u32b(&o_ptr->slain_orcs);
+		rd_u32b(&o_ptr->slain_trolls);
+		rd_u32b(&o_ptr->slain_giants);
+		rd_u32b(&o_ptr->slain_animals);
+		rd_u32b(&o_ptr->slain_dragons);
+		rd_u32b(&o_ptr->slain_demons);
+		rd_u32b(&o_ptr->slain_undead);
+		rd_u32b(&o_ptr->slain_evil);
+
+		rd_byte(&o_ptr->slain_bosses);
+		rd_byte(&o_ptr->slain_nazgul);
+		rd_byte(&o_ptr->slain_superuniques);
+		rd_byte(&o_ptr->slain_sauron);
+		rd_byte(&o_ptr->slain_morgoth);
+		rd_byte(&o_ptr->slain_zuaon);
+
+		rd_u64b(&o_ptr->done_damage);
+		rd_u64b(&o_ptr->done_healing);
+		rd_u16b(&o_ptr->got_damaged);
+		rd_u16b(&o_ptr->got_repaired);
+		rd_u16b(&o_ptr->got_enchanted);
+
+		/* custom lua scripts */
+		rd_s16b(&o_ptr->custom_lua_carrystate);
+		rd_s16b(&o_ptr->custom_lua_equipstate);
+		rd_s16b(&o_ptr->custom_lua_destruction);
+		rd_s16b(&o_ptr->custom_lua_usage);
 	}
 
 
@@ -636,6 +689,13 @@ static void rd_item(object_type *o_ptr) {
 	o_ptr->ac = k_ptr->ac;
 	o_ptr->dd = k_ptr->dd;
 	o_ptr->ds = k_ptr->ds;
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
+		int idx = lookup_kind(o_ptr->tval2, o_ptr->sval2);
+
+		o_ptr->ac = k_info[idx].ac;
+		o_ptr->dd = k_info[idx].dd;
+		o_ptr->ds = k_info[idx].ds;
+	}
 
 	/* Acquire standard weight */
 	o_ptr->weight = k_ptr->weight;
@@ -776,6 +836,8 @@ static void rd_item(object_type *o_ptr) {
 #else
 	if (o_ptr->tval == TV_POTION2 && o_ptr->sval == SV_POTION2_LEARNING && o_ptr->level) o_ptr->xtra1 = 1;
 #endif
+	/* Ensure old potions of invulnerability are level 0 - actually they should probably be made unusable like potions of learning. */
+	if (o_ptr->tval == TV_POTION && o_ptr->sval == SV_POTION_INVULNERABILITY && o_ptr->level) o_ptr->level = 0;
 
 #ifdef USE_NEW_SHIELDS
 	/* Cap all old shields' +ac - C. Blue */
@@ -984,6 +1046,12 @@ static void rd_monster(monster_type *m_ptr) {
 
 	/* Read the monster race */
 	rd_s16b(&m_ptr->r_idx);
+	/* Event monsters: Adjust temporary state checking variables to existance, to avoid spawning unwanted duplicates etc. */
+	if (season_xmas && m_ptr->r_idx == RI_SANTA2) santa_claus_timer = -1;
+	if (season_halloween && m_ptr->r_idx == RI_PUMPKIN) {
+		great_pumpkin_timer = -1;
+		great_pumpkin_duration = 60;
+	}
 
 	/* Read the other information */
 	rd_byte(&m_ptr->fy);
@@ -1040,6 +1108,12 @@ static void rd_monster(monster_type *m_ptr) {
 		rd_s16b(&m_ptr->desty);
 		rd_s16b(&m_ptr->determination);
 		rd_s16b(&m_ptr->limit_hp);
+	}
+	if (!s_older_than(4, 9, 8)) {
+		rd_s16b(&m_ptr->custom_lua_death);
+		rd_s16b(&m_ptr->custom_lua_deletion);
+		rd_s16b(&m_ptr->custom_lua_awoke);
+		rd_s16b(&m_ptr->custom_lua_sighted);
 	}
 }
 
@@ -1118,6 +1192,7 @@ static errr rd_store(store_type *st_ptr) {
 	byte num;
 	u16b own;
 
+
 	/* Read the basic info */
 	rd_s32b(&st_ptr->store_open);
 	rd_s16b(&st_ptr->insult_cur);
@@ -1177,6 +1252,8 @@ static void rd_bbs() {
 	if (!s_older_than(4, 4, 9)) {
 		/* read old parties */
 		rd_s16b(&parties);
+		if (parties < MAX_PARTIES) s_printf("Expanded party number from %d to %d.\n", parties, MAX_PARTIES);
+		else if (parties > MAX_PARTIES) s_printf("Reduced party number from %d to %d.\n", parties, MAX_PARTIES);
 		for (j = 0; j < parties; j++)
 			if (j < MAX_PARTIES) {
 				for (i = 0; i < saved_lines; i++)
@@ -1195,6 +1272,8 @@ static void rd_bbs() {
 			}
 		/* read old guilds */
 		rd_s16b(&guilds);
+		if (guilds < MAX_GUILDS) s_printf("Expanded guild number from %d to %d.\n", guilds, MAX_GUILDS);
+		else if (guilds > MAX_GUILDS) s_printf("Reduced guild number from %d to %d.\n", guilds, MAX_GUILDS);
 		for (j = 0; j < guilds; j++)
 			if (j < MAX_GUILDS) {
 				for (i = 0; i < saved_lines; i++)
@@ -1273,6 +1352,7 @@ static void rd_mail() {
 	object_type dummy_o;
 	byte tmp8u;
 
+
 #ifdef ENABLE_MERCHANT_MAIL
 	rd_s16b(&j);
 	for (i = 0; i < j; i++) {
@@ -1320,6 +1400,7 @@ static void rd_mail() {
 
 static void rd_xorders() {
 	int i;
+
 	rd_s16b(&questid);
 	for (i = 0; i < MAX_XORDERS; i++) {
 		rd_u16b(&xorders[i].active);
@@ -1428,6 +1509,8 @@ static void rd_quests() {
 static void rd_guilds() {
 	int i;
 	u16b tmp16u;
+	byte tmpbyte;
+
 	rd_u16b(&tmp16u);
 	if (tmp16u > MAX_GUILDS) {
 		s_printf("Too many guilds (%d)\n", tmp16u);
@@ -1436,14 +1519,18 @@ static void rd_guilds() {
 	for (i = 0; i < tmp16u; i++) {
 		if (!s_older_than(4, 5, 8)) rd_u32b(&guilds[i].dna);
 		else {
-			guilds[i].dna = rand_int(0xFFFF) << 16;
+			guilds[i].dna = (u32b)rand_int(0xFFFF) << 16;
 			guilds[i].dna += rand_int(0xFFFF);
 		}
 		rd_string(guilds[i].name, 80);
 		rd_s32b(&guilds[i].master);
 		rd_s32b(&guilds[i].members);
-		if (!s_older_than(4, 5, 2)) rd_byte(&guilds[i].cmode);
-		else {
+		if (!s_older_than(4, 5, 2)) {
+			if (s_older_than(4, 9, 12)) {
+				rd_byte(&tmpbyte);
+				guilds[i].cmode = tmpbyte;
+			} else rd_u16b(&guilds[i].cmode);
+		} else {
 			cptr name = NULL;
 
 			/* first entry is dummy anyway */
@@ -1480,6 +1567,7 @@ static void rd_guilds() {
  */
 static void rd_party(int n) {
 	party_type *party_ptr = &parties[n];
+	byte tmpbyte;
 
 	/* Party name */
 	rd_string(party_ptr->name, NAME_LEN);
@@ -1492,13 +1580,19 @@ static void rd_party(int n) {
 	rd_s32b(&party_ptr->created);
 
 	/* Party type and members */
-	if (!s_older_than(4, 1, 7))
-		rd_byte(&party_ptr->mode);
-	else
-		party_ptr->mode = 0;
+	if (!s_older_than(4, 1, 7)) {
+		if (s_older_than(4, 9, 12)) {
+			rd_byte(&tmpbyte);
+			party_ptr->mode = tmpbyte;
+		} else rd_u16b(&party_ptr->mode);
+	} else party_ptr->mode = 0;
 
-	if (!s_older_than(4, 5, 2)) rd_byte(&party_ptr->cmode);
-	else {
+	if (!s_older_than(4, 5, 2)) {
+		if (s_older_than(4, 9, 12)) {
+			rd_byte(&tmpbyte);
+			party_ptr->cmode = tmpbyte;
+		} else rd_u16b(&party_ptr->cmode);
+	} else {
 		/* first entry is dummy anyway; party in use at all? if not then we're done */
 		if (n == 0 || !party_ptr->members) party_ptr->cmode = 0;
 		else {
@@ -1543,6 +1637,7 @@ static void rd_house(int n) {
 	house_type *house_ptr = &houses[n];
 	cave_type **zcave;
 	object_type dump;
+	byte tmpbyte;
 
 	rd_byte(&house_ptr->x);
 	rd_byte(&house_ptr->y);
@@ -1550,7 +1645,12 @@ static void rd_house(int n) {
 	rd_byte(&house_ptr->dy);
 	MAKE(house_ptr->dna, struct dna_type);
 	rd_u32b(&house_ptr->dna->creator);
-	if (!s_older_than(4, 4, 14)) rd_byte(&house_ptr->dna->mode);
+	if (!s_older_than(4, 4, 14)) {
+		if (s_older_than(4, 9, 12)) {
+			rd_byte(&tmpbyte);
+			house_ptr->dna->mode = tmpbyte;
+		} else rd_u16b(&house_ptr->dna->mode);
+	}
 	rd_s32b(&house_ptr->dna->owner);
 	rd_byte(&house_ptr->dna->owner_type);
 #if 0 /* player hash is read _AFTER_ houses! So this is done via /fix-house-modes instead- C. Blue */
@@ -1585,7 +1685,7 @@ static void rd_house(int n) {
 			/* add dna to static levels */
 			if ((cs_ptr = GetCS(&zcave[house_ptr->dy][house_ptr->dx], CS_DNADOOR)))
 				cs_ptr->sc.ptr = house_ptr->dna;
-			else if ((cs_ptr = AddCS(&zcave[house_ptr->y+house_ptr->dy][house_ptr->x+house_ptr->dx], CS_DNADOOR)))
+			else if ((cs_ptr = AddCS(&zcave[house_ptr->y + house_ptr->dy][house_ptr->x + house_ptr->dx], CS_DNADOOR)))
 				cs_ptr->sc.ptr = house_ptr->dna;
 		}
 	}
@@ -1657,10 +1757,11 @@ static bool rd_extra(int Ind) {
 	char login_char_name[80];
 
 	byte tmp8u;
-	u16b tmp16u, panic;
+	u16b tmp16u, restart_info;
 	s16b tmp16s;
 	u32b tmp32u;
 	s32b tmp32s;
+
 
 	/* 'Savegame filename character conversion' exploit fix - C. Blue */
 	strcpy(login_char_name, p_ptr->name);
@@ -1681,11 +1782,8 @@ static bool rd_extra(int Ind) {
 	for (i = 0; i < 4; i++)
 		rd_string(p_ptr->history[i], 60);
 
-	if (older_than(4, 2, 7)) {
-		p_ptr->has_pet = 0; //assume no pet
-	} else {
-		rd_byte(&p_ptr->has_pet);
-	}
+	if (older_than(4, 2, 7)) p_ptr->has_pet = 0; //assume no pet
+	else rd_byte(&p_ptr->has_pet);
 
 	/* Divinity has been absorbed by traits (ptrait) now */
 	if (older_than(4, 4, 12)) {
@@ -1707,6 +1805,11 @@ static bool rd_extra(int Ind) {
 	if (older_than(4, 4, 28) && p_ptr->prace >= RACE_KOBOLD) p_ptr->prace++;
 #endif
 	rd_byte(&p_ptr->pclass);
+#ifdef ENABLE_SUBCLASS
+	if (!older_than(4, 9, 1)) rd_byte(&p_ptr->sclass);
+#else
+	if (!older_than(4, 9, 1)) rd_byte(&tmp8u);
+#endif
 	if (!older_than(4, 4, 11)) rd_byte(&p_ptr->ptrait);
 	if (older_than(4, 3, 5)) { /* class order changed: warrior now first class, so newbies won't choose adventurer */
 		if (p_ptr->pclass == CLASS_WARRIOR) p_ptr->pclass = CLASS_ADVENTURER;
@@ -1718,7 +1821,10 @@ static bool rd_extra(int Ind) {
 		p_ptr->party = tmp8u; /* convert the old byte to u16b - mikaelh */
 	}
 	else rd_u16b(&p_ptr->party);
-	rd_byte(&p_ptr->mode);
+	if (older_than(4, 9, 12)) {
+		rd_byte(&tmp8u);
+		p_ptr->mode = tmp8u;
+	} else rd_u16b(&p_ptr->mode);
 
 	/* Special Race/Class info */
 	rd_byte(&p_ptr->hitdie);
@@ -1733,13 +1839,15 @@ static bool rd_extra(int Ind) {
 	rd_u16b(&p_ptr->align_law);
 #endif	/* SAVEDATA_TRANSFER_KLUDGE */
 
-	/* Read the stat info */
-	for (i = 0; i < 6; i++) rd_s16b(&p_ptr->stat_max[i]);
-	for (i = 0; i < 6; i++) rd_s16b(&p_ptr->stat_cur[i]);
+	/* hypothetically todo: read C_ATTRIBUTES value */
 
-	/* Dump the stats (maximum and current) */
-	for (i = 0; i < 6; ++i) rd_s16b(&p_ptr->stat_cnt[i]);
-	for (i = 0; i < 6; ++i) rd_s16b(&p_ptr->stat_los[i]);
+	/* Read the stat info */
+	for (i = 0; i < C_ATTRIBUTES; i++) rd_s16b(&p_ptr->stat_max[i]);
+	for (i = 0; i < C_ATTRIBUTES; i++) rd_s16b(&p_ptr->stat_cur[i]);
+
+	/* Read the stats (maximum and current) */
+	for (i = 0; i < C_ATTRIBUTES; ++i) rd_s16b(&p_ptr->stat_cnt[i]);
+	for (i = 0; i < C_ATTRIBUTES; ++i) rd_s16b(&p_ptr->stat_los[i]);
 
 	/* Read the skills */
 	{
@@ -1832,6 +1940,7 @@ static bool rd_extra(int Ind) {
 		p_ptr->event_participated = tmp8u & 0x10;
 		p_ptr->IDDC_found_rndtown = tmp8u & 0x20; //superfluous?
 		p_ptr->IDDC_logscum = tmp8u & 0x40; //superfluous?
+		p_ptr->IDDC_refuge = tmp8u & 0x80;
 	} else if (p_ptr->max_exp) p_ptr->event_participated = TRUE;
 	//these are zero if read from old save file < 4,9,0 :
 	rd_u16b(&p_ptr->event_participated_flags);
@@ -1855,10 +1964,10 @@ static bool rd_extra(int Ind) {
 	p_ptr->max_lev = 1;
 #ifndef ALT_EXPRATIO
 	while ((p_ptr->max_lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->max_exp >= ((s64b)(((s64b)player_exp[p_ptr->max_lev-1] * (s64b)p_ptr->expfact) / 100L))))
+	    (p_ptr->max_exp >= ((s64b)(((s64b)player_exp[p_ptr->max_lev - 1] * (s64b)p_ptr->expfact) / 100L))))
 #else
 	while ((p_ptr->max_lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev-1]))
+	    (p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev - 1]))
 #endif
 	{
 		/* Gain a level */
@@ -1925,9 +2034,9 @@ static bool rd_extra(int Ind) {
 	p_ptr->lives = tmp8u;
 
 	/* hack, if save file was from an older version we need to convert it: */
-	if (cfg.lifes && !p_ptr->lives) p_ptr->lives = cfg.lifes+1;
+	if (cfg.lifes && !p_ptr->lives) p_ptr->lives = cfg.lifes + 1;
 	/* If the server's life amount was reduced, apply it to players */
-	if (cfg.lifes && (p_ptr->lives > cfg.lifes+1)) p_ptr->lives = cfg.lifes+1;
+	if (cfg.lifes && (p_ptr->lives > cfg.lifes + 1)) p_ptr->lives = cfg.lifes + 1;
 
 	if (!older_than(4, 2, 0)) {
 		rd_byte(&p_ptr->houses_owned);
@@ -1964,7 +2073,9 @@ static bool rd_extra(int Ind) {
 	rd_s16b(&p_ptr->stun);
 	rd_s16b(&p_ptr->poisoned);
 	rd_s16b(&p_ptr->image);
-	rd_s16b(&p_ptr->protevil);
+	rd_s16b(&tmp16s);
+	p_ptr->protevil = tmp16s % 10000;
+	p_ptr->protevil_own = tmp16s / 10000;
 	rd_s16b(&p_ptr->invuln);
 	rd_s16b(&p_ptr->hero);
 	rd_s16b(&p_ptr->shero);
@@ -1983,13 +2094,17 @@ static bool rd_extra(int Ind) {
 		rd_s16b(&p_ptr->tim_ffall);
 		rd_s16b(&p_ptr->tim_regen);
 		rd_s16b(&p_ptr->tim_regen_pow);
+		if (!older_than(4, 9, 7)) rd_s16b(&p_ptr->tim_regen_cost);
 	}
-	rd_s16b(&p_ptr->blessed);
+	rd_s16b(&tmp16s);
+	p_ptr->blessed = tmp16s % 100;
+	p_ptr->blessed_power = (tmp16s % 10000) / 100;
+	p_ptr->blessed_own = (tmp16s / 10000);
 	rd_s16b(&p_ptr->tim_invis);
 	rd_byte(&tmp8u);
 	p_ptr->go_level_top = tmp8u; //ENABLE_GO_GAME
 	if (p_ptr->go_level_top < p_ptr->go_level) p_ptr->go_level_top = p_ptr->go_level; //fix older save files
-	rd_byte(&p_ptr->tim_extra);
+	rd_byte(&p_ptr->tim_wraithstep);
 	rd_s16b(&p_ptr->see_infra);
 	rd_s16b(&p_ptr->tim_infra);
 	rd_s16b(&p_ptr->oppose_fire);
@@ -2010,6 +2125,8 @@ static bool rd_extra(int Ind) {
 	rd_u16b(&p_ptr->tim_pkill);
 	rd_s16b(&p_ptr->tim_wraith);
 	rd_byte((byte *)&p_ptr->wraith_in_wall);
+	if (!older_than(4, 9, 6)) rd_byte(&p_ptr->dispersion);
+	if (!older_than(4, 9, 13)) rd_byte(&p_ptr->dispersion_tim);
 	rd_byte(&p_ptr->searching);
 	rd_byte(&p_ptr->maximize);
 	rd_byte(&p_ptr->preserve);
@@ -2200,6 +2317,7 @@ static bool rd_extra(int Ind) {
 #if 0 /* ALT_EXPRATIO conversion: */
 if (p_ptr->updated_savegame == 0) {
     s64b i, i100, ief;
+
     i = (s64b)p_ptr->max_exp;
     i100 = (s64b)100;
     ief = (s64b)p_ptr->expfact;
@@ -2207,7 +2325,7 @@ if (p_ptr->updated_savegame == 0) {
     p_ptr->max_exp = (s32b)i;
     p_ptr->max_lev = 1;
     while ((p_ptr->max_lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	(p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev-1]))
+	(p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev - 1]))
     {
 	/* Gain a level */
 	p_ptr->max_lev++;
@@ -2254,8 +2372,8 @@ if (p_ptr->updated_savegame == 0) {
 	else p_ptr->martyr_timeout = 0;
 
 	/* Special stuff */
-	rd_u16b(&panic);
-	if (panic) {
+	rd_u16b(&restart_info);
+	if (restart_info & 0x0001) {
 		Players[Ind]->panic = TRUE;
 		s_printf("loaded a panic-saved player %s\n", Players[Ind]->name);
 	}
@@ -2383,12 +2501,13 @@ if (p_ptr->updated_savegame == 0) {
 		rd_u16b(&p_ptr->deaths);
 		rd_u16b(&p_ptr->soft_deaths);
 
-		/* array of 'warnings' and hints aimed at newbies */
+		/* array of 'warnings' and hints aimed at newbies or are redundant/pampering */
 		rd_u16b(&tmp16u);
 		if (tmp16u & 0x01) p_ptr->warning_technique_melee = 1;
 		if (tmp16u & 0x02) p_ptr->warning_technique_ranged = 1;
 		if (tmp16u & 0x04) p_ptr->warning_drained = 1;
 		if (tmp16u & 0x08) p_ptr->warning_blastcharge = 1;
+		if (tmp16u & 0x10) p_ptr->warning_sanity = 1;
 	} else {
 		/* auto-enable for now (MAX_AURAS) */
 		if (get_skill(p_ptr, SKILL_AURA_FEAR)) p_ptr->aura[AURA_FEAR] = TRUE;
@@ -2486,8 +2605,13 @@ if (p_ptr->updated_savegame == 0) {
 		rd_byte(&tmp8u);
 	}
 
-	if (!older_than(4, 5, 3)) rd_u16b(&p_ptr->tim_deflect);
-	else p_ptr->tim_deflect = 0;
+	if (!older_than(4, 5, 3)) rd_u16b(&p_ptr->tim_reflect);
+	else p_ptr->tim_reflect = 0;
+
+	if (!older_than(4, 9, 15)) {
+		rd_byte(&p_ptr->tim_lcage);
+		strip_bytes(8); //future use
+	} else p_ptr->tim_lcage = 0;
 
 	if (!older_than(4, 5, 28)) {
 		rd_u16b(&p_ptr->cards_diamonds);
@@ -2705,13 +2829,20 @@ static errr rd_floor(void) {
 	u16b max_y, max_x;
 
 	int i;
-	byte k, y, x;
+	byte k, y, x, n;
 	cave_type *c_ptr;
 	dun_level *l_ptr;
+	struct c_special *cs_ptr;
 
 	unsigned char runlength, feature;
 	u16b tmpinfo;
-	u32b info;
+	u32b info, info2;
+	s16b custom_lua_tunnel_hand = 0;
+	s16b custom_lua_tunnel = 0;
+	s16b custom_lua_search = 0;
+	byte custom_lua_search_diff_minus = 0;
+	byte custom_lua_search_diff_chance = 0;
+	s16b custom_lua_newlivefeat = 0;
 
 
 	/*** Depth info ***/
@@ -2720,8 +2851,7 @@ static errr rd_floor(void) {
 	rd_s16b(&wpos.wx);
 	rd_s16b(&wpos.wy);
 	rd_s16b(&wpos.wz);
-	if (wpos.wx == 0x7fff && wpos.wy == 0x7fff && wpos.wz == 0x7fff)
-		return(1);
+	if (wpos.wx == 0x7fff && wpos.wy == 0x7fff && wpos.wz == 0x7fff) return(1);
 	rd_u16b(&max_y);
 	rd_u16b(&max_x);
 
@@ -2750,18 +2880,28 @@ static errr rd_floor(void) {
 	rd_byte(&tmp);
 	new_level_rand_x(&wpos, tmp);
 
-	if (l_ptr) {
-		time_t now;
-		now = time(&now);
-		l_ptr->lastused = now; /* Hm, this means resetting a death-static floor timeout, so it's static for the full original duration once more.. well, no harm done probably. */
+	/* Before 4,9,11, l_ptr was always defined for all wpos.wz != 0, ie dungeons and towers; and always NULL for world surface. */
+	if (!s_older_than(4, 9, 11) || wpos.wz) {
+		if (l_ptr) { /* Paranoia */
+			time_t now;
 
-		if (!s_older_than(4, 5, 18)) rd_u32b(&l_ptr->id);
+			now = time(&now);
+			l_ptr->lastused = now; /* Hm, this means resetting a death-static floor timeout, so it's static for the full original duration once more.. well, no harm done probably. */
 
-		rd_u32b(&l_ptr->flags1);
-		if (!s_older_than(4, 5, 18)) rd_u32b(&l_ptr->flags2);
+			if (!s_older_than(4, 5, 18)) rd_u32b(&l_ptr->id);
 
-		rd_byte(&l_ptr->hgt);
-		rd_byte(&l_ptr->wid);
+			rd_u32b(&l_ptr->flags1);
+			if (!s_older_than(4, 5, 18)) rd_u32b(&l_ptr->flags2);
+
+			rd_byte(&l_ptr->hgt);
+			rd_byte(&l_ptr->wid);
+
+			if (!s_older_than(4, 9, 2)) {
+				/* IDDC_REFUGES */
+				rd_byte(&l_ptr->refuge_x);
+				rd_byte(&l_ptr->refuge_y);
+			}
+		} else strip_bytes(16); //shouldn't happen
 	}
 
 	/*** Run length decoding ***/
@@ -2777,6 +2917,15 @@ static errr rd_floor(void) {
 		else {
 			rd_u16b(&tmpinfo);
 			info = (u32b)tmpinfo;
+		}
+		if (!s_older_than(4, 9, 14)) rd_u32b(&info2);
+		if (!s_older_than(4, 9, 9)) {
+			rd_s16b(&custom_lua_tunnel_hand);
+			rd_s16b(&custom_lua_tunnel);
+			rd_s16b(&custom_lua_search);
+			rd_byte(&custom_lua_search_diff_minus);
+			rd_byte(&custom_lua_search_diff_chance);
+			rd_s16b(&custom_lua_newlivefeat);
 		}
 
 		/* Apply the RLE info */
@@ -2825,6 +2974,15 @@ static errr rd_floor(void) {
 
 			/* set flags */
 			c_ptr->info = info;
+			c_ptr->info2 = info2;
+
+			/* restore custom lua hacks */
+			c_ptr->custom_lua_tunnel_hand = custom_lua_tunnel_hand;
+			c_ptr->custom_lua_tunnel = custom_lua_tunnel;
+			c_ptr->custom_lua_search = custom_lua_search;
+			c_ptr->custom_lua_search_diff_minus = custom_lua_search_diff_minus;
+			c_ptr->custom_lua_search_diff_chance = custom_lua_search_diff_chance;
+			c_ptr->custom_lua_newlivefeat = custom_lua_newlivefeat;
 
 			/* increment our position */
 			x++;
@@ -2837,24 +2995,20 @@ static errr rd_floor(void) {
 	}
 
 	/*** another run for c_special ***/
-	{
-		struct c_special *cs_ptr;
-		byte n;
+	while (TRUE) {
+		rd_byte(&x);
+		rd_byte(&y);
+		rd_byte(&n);	/* Number of c_special to add */
 
-		while (TRUE) {
-			rd_byte(&x);
-			rd_byte(&y);
-			rd_byte(&n);	/* Number of c_special to add */
+		/* terminated? */
+		if (x == 255 && y == 255 && n == 255) break;
 
-			/* terminated? */
-			if (x == 255 && y == 255 && n == 255) break;
-
-			c_ptr = &zcave[y][x];
-			while (n--) {
-				rd_byte(&k);
-				cs_ptr = ReplaceCS(c_ptr, k);
-				csfunc[k].load(cs_ptr);
-			}
+		c_ptr = &zcave[y][x];
+		while (n) {
+			n--;
+			rd_byte(&k);
+			cs_ptr = ReplaceCS(c_ptr, k);
+			csfunc[k].load(cs_ptr);
 		}
 	}
 
@@ -2938,6 +3092,7 @@ static void rd_auctions() {
 	auction_type *auc_ptr;
 	bid_type *bid_ptr;
 	s32b tmp32s;
+	byte tmpbyte;
 
 	old_auction_alloc = auction_alloc;
 	if (!s_older_than(4, 4, 10)) rd_u32b(&auction_alloc);
@@ -2952,7 +3107,10 @@ static void rd_auctions() {
 		auc_ptr = &auctions[i];
 		rd_byte(&auc_ptr->status);
 		rd_byte(&auc_ptr->flags);
-		rd_byte(&auc_ptr->mode);
+		if (s_older_than(4, 9, 12)) {
+			rd_byte(&tmpbyte);
+			auc_ptr->mode = tmpbyte;
+		} else rd_u16b(&auc_ptr->mode);
 		rd_s32b(&auc_ptr->owner);
 		rd_item(&auc_ptr->item);
 		C_MAKE(auc_ptr->desc, 160, char);
@@ -3265,7 +3423,7 @@ static errr rd_savefile_new_aux(int Ind) {
 #endif
 
 	/* Hack -- no ghosts */
-	r_info[MAX_R_IDX-1].max_num = 0;
+	r_info[MAX_R_IDX - 1].max_num = 0;
 
 	/* Initialize a little more */
 	p_ptr->ignore = NULL;
@@ -3295,7 +3453,7 @@ errr rd_savefile_new(int Ind) {
 	if (!fff) return(-1);
 
 	/* Allocate a new buffer */
-	fff_buf = C_NEW(MAX_BUF_SIZE, char);
+	fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 	fff_buf_pos = MAX_BUF_SIZE;
 
 	/* Call the sub-function */
@@ -3341,7 +3499,7 @@ errr rd_server_savefile() {
 
 	char savefile[MAX_PATH_LENGTH];
 
-	byte tmp8u, panic = 0;
+	byte tmp8u, restart_info = 0;
 	u16b tmp16u;
 	s16b tmp16s;
 	u32b tmp32u;
@@ -3365,7 +3523,7 @@ errr rd_server_savefile() {
 	if (!fff) return(-1);
 
 	/* Allocate a new buffer */
-	fff_buf = C_NEW(MAX_BUF_SIZE, char);
+	fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 	fff_buf_pos = MAX_BUF_SIZE;
 
 	/* Read the version */
@@ -3400,8 +3558,29 @@ errr rd_server_savefile() {
 	rd_u16b(&sf_saves);
 
 	/* Was the last shutdown a panic save? - C. Blue */
-	if (!s_older_than(4, 2, 2)) rd_byte(&panic); /* no further use yet */
-	if (panic) s_printf("Last server shutdown was a panic save.\n");
+	if (!s_older_than(4, 2, 2)) rd_byte(&restart_info); /* no further use yet */
+	if (restart_info & 0x01) {
+		restart_panic = TRUE;
+		s_printf("Last server shutdown was a panic save.\n");
+	}
+	/* Two ways to implement this: 1) don't save the sectors in question, 2) don't load the sectors in question.
+	   Currenly we do it by method 1. So the job is already done and these restart_unstatice_... variables here must NOT be set. */
+	if (restart_info & 0x02) {
+		s_printf("Last server shutdown force-unstaticed Bree.\n");
+		//restart_unstatice_bree = TRUE;
+	}
+	if (restart_info & 0x04) {
+		s_printf("Last server shutdown force-unstaticed all surface towns.\n");
+		//restart_unstatice_towns = TRUE;
+	}
+	if (restart_info & 0x08) {
+		s_printf("Last server shutdown force-unstaticed all world surface.\n");
+		//restart_unstatice_surface = TRUE;
+	}
+	if (restart_info & 0x10) {
+		s_printf("Last server shutdown force-unstaticed Bree.\n");
+		//restart_unstatice_dungeons = TRUE;
+	}
 
 	/* read server state regarding any updates (for lua) - C. Blue */
 	if (!s_older_than(4, 3, 19)) {
@@ -3560,7 +3739,7 @@ errr rd_server_savefile() {
 	for (i = 1; i < m_max; i++) {
 		m_ptr = &m_list[i];
 		r_ptr = race_inf(m_ptr);
-		if (r_ptr->flags0 & RF0_ASTAR) {
+		if (r_ptr->flags7 & RF7_ASTAR) {
 			/* search for an available A* table to use */
 			for (j = 0; j < ASTAR_MAX_INSTANCES; j++) {
 				/* found an available instance? */
@@ -3641,7 +3820,8 @@ errr rd_server_savefile() {
 	/* Read the player name database if new enough */
 	{
 		char name[80];
-		byte level, max_plv, old_party, guild, race, class, mode;
+		byte level, max_plv, old_party, guild, race, class;
+		u16b mode;
 		u32b acct, guild_flags;
 		u16b party;
 		u16b xorder;
@@ -3666,7 +3846,12 @@ errr rd_server_savefile() {
 			if (s_older_than(4, 4, 28) && race >= RACE_KOBOLD) race++;
 #endif
 			rd_byte(&class);
-			if (!s_older_than(4, 2, 2)) rd_byte(&mode); else mode = 0;
+			if (!s_older_than(4, 2, 2)) {
+				if (s_older_than(4, 9, 12)) {
+					rd_byte(&tmp8u);
+					mode = tmp8u;
+				} else rd_u16b(&mode);
+			} else mode = 0;
 			rd_byte(&level);
 			if (s_older_than(4, 7, 6)) max_plv = level;
 			else rd_byte(&max_plv);
@@ -3695,7 +3880,7 @@ errr rd_server_savefile() {
 			// ACC_HOUSE_LIMIT
 			//see further below. We need to close the server save file first, to load player savefiles, so we can't do this here!
 			if (!s_older_than(4, 6, 3)) rd_byte(&houses);
-			else houses = -1;
+			else houses = 127; //hack: "re-count me!"
 
 			if (!s_older_than(4, 6, 8)) rd_byte(&winner);
 			else winner = 0;
@@ -3804,7 +3989,7 @@ errr rd_server_savefile() {
 	if (!s_older_than(4, 6, 8)) rd_mail();
 
 	/* Hack -- no ghosts */
-	r_info[MAX_R_IDX-1].max_num = 0;
+	r_info[MAX_R_IDX - 1].max_num = 0;
 
 	/* Free the buffer */
 	C_FREE(fff_buf, MAX_BUF_SIZE, char);
@@ -3825,8 +4010,8 @@ errr rd_server_savefile() {
 		ptr = hash_table[i];
 		/* Check all entries in this chain */
 		while (ptr) {
-			if (ptr->houses == -1) {
-				/* hack */
+			if (ptr->houses == 127) {
+				/* hack: re-count me! */
 				player_type *p_ptr;
 				time_t ttime;
 
@@ -3881,11 +4066,14 @@ errr rd_server_savefile() {
 }
 
 void new_rd_wild() {
-	int x, y, i;
+	int x, y;
+#ifndef UNIQUES_KILLED_ARRAY
+	int i;
+#endif
 #ifdef DUNGEON_VISIT_BONUS
 	int dungeons = 0;
 #endif
-	wilderness_type *wptr;
+	wilderness_type *w_ptr;
 	struct dungeon_type *d_ptr;
 	u32b tmp;
 
@@ -3893,12 +4081,12 @@ void new_rd_wild() {
 	rd_u32b(&tmp);	/* MAX_WILD_X */
 	for (y = 0; y < MAX_WILD_Y; y++) {
 		for (x = 0; x < MAX_WILD_X; x++) {
-			wptr = &wild_info[y][x];
-			rd_wild(wptr);
-			if (wptr->flags & WILD_F_DOWN) {
+			w_ptr = &wild_info[y][x];
+			rd_wild(w_ptr);
+			if (w_ptr->flags & WILD_F_DOWN) {
 				MAKE(d_ptr, struct dungeon_type);
-				rd_byte(&wptr->up_x);
-				rd_byte(&wptr->up_y);
+				rd_byte(&w_ptr->surface.up_x);
+				rd_byte(&w_ptr->surface.up_y);
 				rd_u16b(&d_ptr->id);
 				rd_u16b(&d_ptr->type);
 				rd_u16b(&d_ptr->baselevel);
@@ -3983,15 +4171,16 @@ void new_rd_wild() {
 #endif
 
 				C_MAKE(d_ptr->level, d_ptr->maxdepth, struct dun_level);
-				for (i = 0; i < d_ptr->maxdepth; i++) {
+#ifndef UNIQUES_KILLED_ARRAY /* see types.h, note about 'surface' in dun_level type. */
+				for (i = 0; i < d_ptr->maxdepth; i++)
 					C_MAKE(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
-				}
-				wptr->dungeon = d_ptr;
+#endif
+				w_ptr->dungeon = d_ptr;
 			}
-			if (wptr->flags & WILD_F_UP) {
+			if (w_ptr->flags & WILD_F_UP) {
 				MAKE(d_ptr, struct dungeon_type);
-				rd_byte(&wptr->dn_x);
-				rd_byte(&wptr->dn_y);
+				rd_byte(&w_ptr->surface.dn_x);
+				rd_byte(&w_ptr->surface.dn_y);
 				rd_u16b(&d_ptr->id);
 				rd_u16b(&d_ptr->type);
 				rd_u16b(&d_ptr->baselevel);
@@ -4076,10 +4265,11 @@ void new_rd_wild() {
 #endif
 
 				C_MAKE(d_ptr->level, d_ptr->maxdepth, struct dun_level);
-				for (i = 0; i < d_ptr->maxdepth; i++) {
+#ifndef UNIQUES_KILLED_ARRAY /* see types.h, note about 'surface' in dun_level type. */
+				for (i = 0; i < d_ptr->maxdepth; i++)
 					C_MAKE(d_ptr->level[i].uniques_killed, MAX_R_IDX, char);
-				}
-				wptr->tower = d_ptr;
+#endif
+				w_ptr->tower = d_ptr;
 			}
 		}
 	}
@@ -4126,6 +4316,7 @@ void load_guildhalls(struct worldpos *wpos) {
 	struct guildsave data;
 	char buf[1024];
 	char fname[30];
+
 	data.mode = 0;
 	for (i = 0; i < num_houses; i++) {
 		if ((houses[i].dna->owner_type == OT_GUILD) && (inarea(wpos, &houses[i].wpos))) {
@@ -4134,7 +4325,7 @@ void load_guildhalls(struct worldpos *wpos) {
 			s_printf("load guildhall %d\n", i);
 #endif
 			sprintf(fname, "guild%.4d.data", i);
-//			path_build(buf, 1024, ANGBAND_DIR_DATA, fname);
+			//path_build(buf, 1024, ANGBAND_DIR_DATA, fname);
 			path_build(buf, 1024, ANGBAND_DIR_SAVE, fname);/* moved this 'file spam' over to save... C. Blue */
 			gfp = fopen(buf, "rb");
 			if (gfp == (FILE*)NULL) continue;
@@ -4151,6 +4342,7 @@ void save_guildhalls(struct worldpos *wpos) {
 	struct guildsave data;
 	char buf[1024];
 	char fname[30];
+
 	data.mode = 1;
 	for (i = 0; i < num_houses; i++) {
 		if ((houses[i].dna->owner_type == OT_GUILD) && (inarea(wpos, &houses[i].wpos))) {
@@ -4159,7 +4351,7 @@ void save_guildhalls(struct worldpos *wpos) {
 			s_printf("save guildhall %d\n", i);
 #endif
 			sprintf(fname, "guild%.4d.data", i);
-//			path_build(buf, 1024, ANGBAND_DIR_DATA, fname);
+			//path_build(buf, 1024, ANGBAND_DIR_DATA, fname);
 			path_build(buf, 1024, ANGBAND_DIR_SAVE, fname); /* moved this 'file spam' over to save... C. Blue */
 			gfp = fopen(buf, "rb+");
 			if (gfp == (FILE*)NULL) {
@@ -4310,6 +4502,7 @@ void fix_max_depth_towerdungeon(int Ind) {
 }
 void condense_max_depth(player_type *p_ptr) {
 	int i, j, k, d;
+
 	/* moar fixing old bugginess: remove all 0,0,0 entries between valid entries
 	   (empty entries aka 0,0,0 should only occur tailing the other entries) */
 	for (i = 0; i < MAX_D_IDX * 2; i++) {
@@ -4380,6 +4573,7 @@ void excise_obsolete_max_depth(player_type *p_ptr) {
 }
 
 #ifdef SEAL_INVALID_OBJECTS
+/* Note: Sealing a questor item might have unforeseen consequences, maybe prohibit or erase? */
 static void seal_object(object_type *o_ptr) {
  #if 1 /* convert DDSM to EDSM */
 	if (o_ptr->tval == TV_DRAG_ARMOR && o_ptr->sval == SV_DRAGON_DEATH) {
@@ -4406,10 +4600,13 @@ static void unseal_object(object_type *o_ptr) {
 	o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
 	o_ptr->note = 0;
 	o_ptr->note_utag = 0;
+	o_ptr->tval2 = 0;
+	o_ptr->sval2 = 0;
 	s_printf("UNSEALING: %d, %d\n", o_ptr->tval, o_ptr->sval);
 }
 /* Seal or unseal an object as required,
    or return(FALSE) if object no longer exists - C. Blue */
+/* Note: Sealing a questor item might have unforeseen consequences, maybe prohibit or erase? */
 bool seal_or_unseal_object(object_type *o_ptr) {
 	/* Object does no longer exist? (for example now commented out, in k_info)
 	   - turn it into a 'seal' instead of deleting it! */
@@ -4448,6 +4645,8 @@ bool seal_or_unseal_object(object_type *o_ptr) {
 			o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
 			o_ptr->note = 0;
 			o_ptr->note_utag = 0;
+			o_ptr->tval2 = 0;
+			o_ptr->sval2 = 0;
 			return(TRUE);
 		}
  #endif
@@ -4549,7 +4748,7 @@ static errr load_quests_file() {
 	if (!fff) return(-1);
 
 	/* Allocate a new buffer */
-	fff_buf = C_NEW(MAX_BUF_SIZE, char);
+	fff_buf = C_NEW(MAX_BUF_SIZE, byte);
 	fff_buf_pos = MAX_BUF_SIZE;
 
 	/* Read the version */
@@ -4782,7 +4981,7 @@ void load_quests(void) {
 		if ((QUEST_SF_VERSION_MAJOR != qsf_major) ||
 		    (QUEST_SF_VERSION_MINOR != qsf_minor) ||
 		    (QUEST_SF_VERSION_PATCH != qsf_patch)) {
-			printf("Converted a %d.%d.%d quests savefile.\n",
+			s_printf("Converted a %d.%d.%d quests savefile.\n",
 			    qsf_major, qsf_minor, qsf_patch);
 		}
 		return; //TRUE;

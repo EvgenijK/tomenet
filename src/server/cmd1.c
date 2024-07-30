@@ -175,9 +175,6 @@ bool test_hit_melee(int chance, int ac, int vis) {
 	return(TRUE);
 }
 
-/* Check for rogueish melee skills eligibility, that is Critical-Strike and Backstabbing. Note that polearms are now allowed as a specialty (experimental). */
-#define rogue_armed_melee(o_ptr, p_ptr)	(((o_ptr)->tval == TV_SWORD || (o_ptr)->tval == TV_POLEARM) && (o_ptr)->weight <= 100 && !((p_ptr)->rogue_heavyarmor))
-
 /*
  * Critical hits (from objects thrown by player)
  * Factor in item weight, total plusses, and player level.
@@ -293,9 +290,6 @@ s16b critical_melee(int Ind, int weight, int plus, int dam, bool allow_skill_cri
 /*
  * Brands (including slay mods) the given damage depending on object type, hitting a given monster.
  *
- * Note that "flasks of oil" do NOT do fire damage, although they
- * certainly could be made to do so.  XXX XXX
- *
  * Note that most brands and slays are x3, except Slay Animal (x2),
  * Slay Evil (x2), and Kill dragon (x5).
  */
@@ -319,14 +313,15 @@ s16b tot_dam_aux(int Ind, object_type *o_ptr, int tdam, monster_type *m_ptr, boo
 	bool apply_monster_brands = TRUE;
 	int i, monster_brands = 0;
 	u32b monster_brand[6], monster_brand_chosen;
+
+	bool melee = !o_ptr || (!is_ammo(o_ptr->tval) && o_ptr->tval != TV_BOOMERANG);
+
+
 	monster_brand[1] = 0;
 	monster_brand[2] = 0;
 	monster_brand[3] = 0;
 	monster_brand[4] = 0;
 	monster_brand[5] = 0;
-
-	bool melee = !o_ptr || (!is_ammo(o_ptr->tval) && o_ptr->tval != TV_BOOMERANG);
-
 
 	if (Ind > 0) {
 		p_ptr = Players[Ind];
@@ -461,8 +456,8 @@ s16b tot_dam_aux(int Ind, object_type *o_ptr, int tdam, monster_type *m_ptr, boo
 			/* Extract the item flags */
 			object_flags(e_ptr, &ef1, &ef2, &ef3, &ef4, &ef5, &ef6, &eesp);
 
-			if (( (e_ptr->sval == SV_SHORT_BOW || e_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
-			   ( (e_ptr->sval == SV_LIGHT_XBOW || e_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
+			if (((e_ptr->sval == SV_SHORT_BOW || e_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
+			   ((e_ptr->sval == SV_LIGHT_XBOW || e_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
 			   (e_ptr->sval == SV_SLING && o_ptr->tval == TV_SHOT))
 				f1 |= ef1;
 		}
@@ -868,6 +863,7 @@ s16b tot_dam_aux(int Ind, object_type *o_ptr, int tdam, monster_type *m_ptr, boo
 		//else: impossible to reach as there is no shard-immunity
 	}
 
+#if 0
 #ifdef TEST_SERVER
 	msg_format(Ind, "bonus %d, tdam %d, mult %d, FAC-MUL %d, thr: %d, ammo: %d, MA: %d, weap: %d", bonus, tdam, mult, FACTOR_MULT,
 	    (tdam * (((mult - FACTOR_MULT) * 10L) / 4 + 10 * FACTOR_MULT)) / (10 * FACTOR_MULT),
@@ -878,6 +874,7 @@ s16b tot_dam_aux(int Ind, object_type *o_ptr, int tdam, monster_type *m_ptr, boo
 	else if (o_ptr && is_ammo(o_ptr->tval)) msg_print(Ind, "shot");
 	else if (!o_ptr || !o_ptr->k_idx) msg_print(Ind, "ma/bare");
 	else msg_print(Ind, "weapon");
+#endif
 #endif
 
 	/* If the object was thrown, reduce brand effect by 75%
@@ -902,9 +899,6 @@ s16b tot_dam_aux(int Ind, object_type *o_ptr, int tdam, monster_type *m_ptr, boo
 
 /*
  * Brands (including slay mods) the given damage depending on object type, hitting a given player.
- *
- * Note that "flasks of oil" do NOT do fire damage, although they
- * certainly could be made to do so.  XXX XXX
  */
 s16b tot_dam_aux_player(int Ind, object_type *o_ptr, int tdam, player_type *q_ptr, bool thrown) {
 	int mult = FACTOR_MULT, bonus = 0;
@@ -918,16 +912,16 @@ s16b tot_dam_aux_player(int Ind, object_type *o_ptr, int tdam, player_type *q_pt
 	bool apply_monster_brands = TRUE;
 	int i, monster_brands = 0;
 	u32b monster_brand[6], monster_brand_chosen;
+
+	bool melee = !o_ptr || (!is_ammo(o_ptr->tval) && o_ptr->tval != TV_BOOMERANG);
+	u32b q_flags3 = 0x0;
+
+
 	monster_brand[1] = 0;
 	monster_brand[2] = 0;
 	monster_brand[3] = 0;
 	monster_brand[4] = 0;
 	monster_brand[5] = 0;
-
-	bool melee = !o_ptr || (!is_ammo(o_ptr->tval) && o_ptr->tval != TV_BOOMERANG);
-
-	u32b q_flags3 = 0x0;
-
 
 	if (Ind > 0) {
 		p_ptr = Players[Ind];
@@ -1023,8 +1017,8 @@ s16b tot_dam_aux_player(int Ind, object_type *o_ptr, int tdam, player_type *q_pt
 			/* Extract the item flags */
 			object_flags(e_ptr, &ef1, &ef2, &ef3, &ef4, &ef5, &ef6, &eesp);
 
-			if (( (e_ptr->sval == SV_SHORT_BOW || e_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
-			   ( (e_ptr->sval == SV_LIGHT_XBOW || e_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
+			if (((e_ptr->sval == SV_SHORT_BOW || e_ptr->sval == SV_LONG_BOW) && o_ptr->tval == TV_ARROW) ||
+			   ((e_ptr->sval == SV_LIGHT_XBOW || e_ptr->sval == SV_HEAVY_XBOW) && o_ptr->tval == TV_BOLT) ||
 			   (e_ptr->sval == SV_SLING && o_ptr->tval == TV_SHOT))
 				f1 |= ef1;
 		}
@@ -1393,15 +1387,30 @@ s16b tot_dam_aux_player(int Ind, object_type *o_ptr, int tdam, player_type *q_pt
 	return(bonus + ((tdam * mult) / FACTOR_MULT));
 }
 
+int search_chance(player_type *p_ptr) {
+	/* Start with base search ability */
+	int chance = p_ptr->skill_srh;
+
+	/* Penalize various conditions */
+	if (p_ptr->blind || no_lite(p_ptr->Ind)) chance = chance / 10;
+	if (p_ptr->confused || p_ptr->image) chance = chance / 10;
+
+	return(chance);
+}
 /*
  * Searches for hidden things.                  -RAK-
  */
-
+/* Disallow discovering a secret AND a trap in one search attempt? Problem if enabled: Inconsistencies with detect_bounty(),
+   as there are 4 more things (7 total) it searches for, compared to just 3 here [DISABLED]: */
+//#define NO_COMBO_FINDINGS /* keep consistent with detect_bounty() ! Keep disabled, because it's not implemented in detect_bounty() atm! */
 void search(int Ind) {
 	player_type *p_ptr = Players[Ind];
-	int           y, x, chance;
-	cave_type    *c_ptr;
-	object_type  *o_ptr;
+	int y, x, chance;
+#ifdef NO_COMBO_FINDINGS
+	int findings, finding[3];
+#endif
+	cave_type *c_ptr;
+	object_type *o_ptr;
 	struct worldpos *wpos = &p_ptr->wpos;
 	cave_type **zcave;
 	struct c_special *cs_ptr;
@@ -1411,89 +1420,110 @@ void search(int Ind) {
 	/* Admin doesn't */
 	if (p_ptr->admin_dm) return;
 
-	/* Start with base search ability */
-	chance = p_ptr->skill_srh;
-
-	/* Penalize various conditions */
-	if (p_ptr->blind || no_lite(Ind)) chance = chance / 10;
-	if (p_ptr->confused || p_ptr->image) chance = chance / 10;
+	chance = search_chance(p_ptr);
 
 	/* Search the nearby grids, which are always in bounds */
 
 	for (y = (p_ptr->py - 1); y <= (p_ptr->py + 1); y++) {
 		for (x = (p_ptr->px - 1); x <= (p_ptr->px + 1); x++) {
+			/* Access the grid */
+			c_ptr = &zcave[y][x];
+
+			if (c_ptr->custom_lua_search < 0 && exec_lua(0, format("custom_search(%d,%d)", Ind, c_ptr->custom_lua_search))) return;
+			if (c_ptr->custom_lua_search_diff_minus) chance -= c_ptr->custom_lua_search_diff_minus;
+			if (c_ptr->custom_lua_search_diff_chance) chance = (chance * c_ptr->custom_lua_search_diff_chance) / 100;
+
 			/* Sometimes, notice things */
-			if (rand_int(100) < chance) {
-				/* Access the grid */
-				c_ptr = &zcave[y][x];
+			if (!magik(chance)) continue;
 
-				/* Access the object */
-				o_ptr = &o_list[c_ptr->o_idx];
+			/* Access the object */
+			o_ptr = &o_list[c_ptr->o_idx];
 
-				/* Secret door */
-				if (c_ptr->feat == FEAT_SECRET) {
-					struct c_special *cs_ptr;
-
-					/* Message */
-					msg_print(Ind, "You have found a secret door.");
-
-					/* Pick a door XXX XXX XXX */
-					c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
-
-					/* Clear mimic feature */
-					if ((cs_ptr = GetCS(c_ptr, CS_MIMIC)))
-						cs_erase(c_ptr, cs_ptr);
-
-					/* Notice */
-					note_spot_depth(wpos, y, x);
-
-					/* Redraw */
-					everyone_lite_spot(wpos, y, x);
-					/* Disturb */
-					disturb(Ind, 0, 0);
-				}
-
-				/* Invisible trap */
-//				if (c_ptr->feat == FEAT_INVIS)
-				if ((cs_ptr = GetCS(c_ptr, CS_TRAPS))) {
-					if (!cs_ptr->sc.trap.found) {
-						/* Pick a trap */
-						pick_trap(wpos, y, x);
-
-						if (c_ptr->o_idx && !c_ptr->m_idx) {
-							byte a = get_trap_color(Ind, cs_ptr->sc.trap.t_idx, c_ptr->feat);
-
-							/* Hack - Always show traps under items when detecting - mikaelh */
-							draw_spot_ovl(Ind, y, x, a, '^');
-						} else {
-							/* Normal redraw */
-							lite_spot(Ind, y, x);
-						}
-
-						/* Message */
-						msg_print(Ind, "You have found a trap.");
-
-						/* Disturb */
-						disturb(Ind, 0, 0);
-					}
-				}
-
-				/* Search chests */
-				else if (o_ptr->tval == TV_CHEST) {
-					/* Examine chests for traps */
-//					if (!object_known_p(Ind, o_ptr) && (t_info[o_ptr->pval]))
-					if (!object_known_p(Ind, o_ptr) && (o_ptr->pval)) {
-						/* Message */
-						msg_print(Ind, "You have discovered a trap on the chest!");
-
-						/* Know the trap */
-						object_known(o_ptr);
-
-						/* Notice it */
-						disturb(Ind, 0, 0);
-					}
-				}
+#ifdef NO_COMBO_FINDINGS
+			findings = 0;
+			/* Secret door */
+			if (c_ptr->feat == FEAT_SECRET) {
+				finding[findings] = 0;
+				findings++;
 			}
+			/* Invisible trap */
+			//if (c_ptr->feat == FEAT_INVIS) &&
+			if ((cs_ptr = GetCS(c_ptr, CS_TRAPS)) && !cs_ptr->sc.trap.found) {
+				finding[findings] = 1;
+				findings++;
+			}
+			/* Search chests */
+			if (o_ptr->tval == TV_CHEST /* Examine chests for traps */
+			    //&& !object_known_p(Ind, o_ptr) && t_info[o_ptr->pval])
+			    && !object_known_p(Ind, o_ptr) && o_ptr->pval) {
+				finding[findings] = 2;
+				findings++;
+			}
+			if (c_ptr->custom_lua_search > 0 && exec_lua(0, format("custom_search(%d,%d)", Ind, c_ptr->custom_lua_search))) return;
+			if (!findings) continue;
+
+			switch(finding[rand_int(findings)]) {
+			case 0:
+#else
+			/* Secret door */
+			if (c_ptr->feat == FEAT_SECRET) {
+#endif
+				/* Message */
+				msg_print(Ind, "You have found a secret door.");
+				/* Pick a door XXX XXX XXX */
+				c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
+				/* Clear mimic feature */
+				if ((cs_ptr = GetCS(c_ptr, CS_MIMIC))) cs_erase(c_ptr, cs_ptr);
+				/* Notice */
+				note_spot_depth(wpos, y, x);
+				/* Redraw */
+				everyone_lite_spot(wpos, y, x);
+				/* Disturb */
+				disturb(Ind, 0, 0);
+#ifdef NO_COMBO_FINDINGS
+				break;
+			case 1:
+#else
+			}
+			/* Invisible trap */
+			//if (c_ptr->feat == FEAT_INVIS) &&
+			if ((cs_ptr = GetCS(c_ptr, CS_TRAPS)) && !cs_ptr->sc.trap.found) {
+#endif
+				/* Mark trap as found */
+				trap_found(wpos, y, x);
+				/* Display it */
+				if (c_ptr->o_idx && !c_ptr->m_idx) {
+					byte a = get_trap_color(Ind, cs_ptr->sc.trap.t_idx, c_ptr->feat);
+
+					/* Hack - Always show traps under items when detecting - mikaelh */
+					draw_spot_ovl(Ind, y, x, a, p_ptr->f_char[FEAT_TRAP]);
+				} else {
+					/* Normal redraw */
+					lite_spot(Ind, y, x);
+				}
+				/* Message */
+				msg_print(Ind, "You have found a trap.");
+				/* Disturb */
+				disturb(Ind, 0, 0);
+#ifdef NO_COMBO_FINDINGS
+				break;
+			case 2:
+#else
+			}
+			/* Search chests */
+			else if (o_ptr->tval == TV_CHEST /* Examine chests for traps */
+			    //&& !object_known_p(Ind, o_ptr) && t_info[o_ptr->pval])
+			    && !object_known_p(Ind, o_ptr) && o_ptr->pval) {
+#endif
+				/* Message */
+				msg_print(Ind, "You have discovered a trap on the chest!");
+				/* Know the trap */
+				object_known(o_ptr);
+				/* Notice it */
+				disturb(Ind, 0, 0);
+			}
+
+			if (c_ptr->custom_lua_search > 0 && exec_lua(0, format("custom_search(%d,%d)", Ind, c_ptr->custom_lua_search))) return;
 		}
 	}
 }
@@ -1551,14 +1581,21 @@ void whats_under_your_feet(int Ind, bool force) {
 /* Try to put a newly acquired item into a specialized bag automatically.
    If the item was from the floor, o_idx must be specified, otherwise it must be -1.
    Returns TRUE if we have to set try_pickup = FALSE in carry() */
-bool auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_one) {
-	int i, num;
+bool auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_one, bool store_bought) {
+	int i, num, slot;
 	object_type *s_ptr, forge_one, *o_ptr_tmp = o_ptr;
 	player_type *p_ptr = Players[Ind];
-	bool delete_it, fully_stowed = FALSE;
+	bool delete_it, fully_stowed = FALSE, stowed_some = FALSE;
+
+	/* Don't auto-stow true artifacts;
+	   exception for true-art trapkits is possible, but would need to add subinvens to art-location and -erasure code first. */
+	if (true_artifact_p(o_ptr)) return(FALSE);
 
 	/* Don't auto-stow unidentified items */
 	if (!object_known_p(Ind, o_ptr) || !object_aware_p(Ind, o_ptr)) return(FALSE);
+
+	/* Don't auto-stow if player cannot access stowed items due to outdated client */
+	if (is_older_than(&p_ptr->version, 4, 8, 0, 0, 0, 0)) return(FALSE);
 
 	/* Hack number */
 	forge_one.tval = 0;
@@ -1583,17 +1620,17 @@ bool auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_o
 		/* Must fit the object type */
 		if (s_ptr->sval != sub_sval) continue;
 
+		/* Don't auto-stow if player cannot access stowed items due to outdated client */
+		if (s_ptr->sval == SV_SI_POTION_BELT && !is_newer_than(&p_ptr->version, 4, 9, 1, 0, 0, 0)) continue;
+
 		/* Player disabled auto-stow via bag inscription? */
-		if (check_guard_inscription(s_ptr->note, 'S') ||
-		    (check_guard_inscription(s_ptr->note, 'O') && !o_ptr->owner)) {
- #ifdef SUBINVEN_LIMIT_GROUP
-			break;
- #endif
-			continue;
-		}
+		if (!subinven_can_stack(Ind, o_ptr, i, store_bought)) continue;
 
 		/* Eligible subinventory found, try to move as much as possible */
-		if ((fully_stowed = subinven_stow_aux(Ind, o_ptr, i))) break; /* If complete stack was moved, we're done */
+		stowed_some = TRUE;
+		slot = subinven_stow_aux(Ind, o_ptr, i);
+		Send_item_newest(Ind, (i + 1) * 100 + ABS(slot) - 1);
+		if ((fully_stowed = (slot > 0))) break; /* If complete stack was moved, we're done */
  #ifdef SUBINVEN_LIMIT_GROUP
 		break;
  #endif
@@ -1631,6 +1668,16 @@ bool auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_o
 
 		return(TRUE);
 	} else if (!pick_one) {
+		if (check_guard_inscription(s_ptr->note, 'A') >= 1 ||
+		    check_guard_inscription(s_ptr->note, 'O') >= 1 ||
+		    check_guard_inscription(s_ptr->note, 'S') >= 1) {
+			/* As long as we did stow some, stop for now. If the player wants to pick up the
+			   rest of the stack, he'll have to reissue the pickup command.
+			   Reasoning: !An, !On, !Sn are usually used for managing restocking of the bag.
+			              Therefore it is unlikely that the player intends to pick up the
+			              remaining stack into his normal inventory. */
+			return(stowed_some);
+		}
 		/* There are still items left in the stack, and we didn't try to pick up just one,
 		   so additionally try now to pick up the rest of this pile normally */
 		//o_ptr = &o_list[o_idx];
@@ -1654,6 +1701,7 @@ bool auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_o
  *             2 = explicit pickup ('g' key)
  * 'pick_one': Only pick up one piece from a stack of same item type
  *             (currently not implemented for ammo)
+ * 'confirm':  Not implemented. Would ask the player if he really wants to.
  */
 /* Prevent characters in Bree from taking gold/items while they cannot drop
    them again due to being lower level than cfg.newbies_cannot_drop? */
@@ -1678,7 +1726,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 	/* stuff for 'pick_one' hack: */
 	int num_org;
 	bool try_pickup = TRUE;
-	bool delete_it;
+	bool delete_it = TRUE; /* usually, the item is fully picked up and therefore deleted from the floor */
 
 
 	if (!(zcave = getcave(wpos))) return;
@@ -1709,12 +1757,15 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 
 	/* Get the object */
 	o_ptr = &o_list[c_ptr->o_idx];
-	num_org = o_ptr->number;
+	num_org = o_ptr->number; /* Hack in case 'pick_one' or 'pick_some' are invoked */
 
 	if (nothing_test(o_ptr, p_ptr, &p_ptr->wpos, p_ptr->px, p_ptr->py, 9)) return; //was 1
 
+	/* Hack: !g inscription induces pick_one! (Only when picking up, not when just feeling/looking at the item) */
+	if (check_guard_inscription(o_ptr->note, 'g') && pickup) pick_one = TRUE;
+
 	/* Cannot pick up stuff in leaderless guild halls */
-	if ((zcave[p_ptr->py][p_ptr->px].info & CAVE_GUILD_SUS) &&
+	if ((zcave[p_ptr->py][p_ptr->px].info2 & CAVE2_GUILD_SUS) &&
 	    /* exception: Guild Keys can always be picked up, since they make you the new guild master
 	       and therefore end the 'leaderless' status of a guild. */
 	    !(o_ptr->tval == TV_KEY && o_ptr->sval == SV_GUILD_KEY))
@@ -1811,7 +1862,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		}
 #endif
 #ifdef IDDC_RESTRICTED_TRADING
-		if (o_ptr->owner && o_ptr->owner != p_ptr->id && in_irondeepdive(&p_ptr->wpos)) {
+		if (o_ptr->owner && o_ptr->owner != p_ptr->id && in_irondeepdive(&p_ptr->wpos) && !o_ptr->xtra3) { //xtra3: money from chests is exempt
 			msg_print(Ind, "\377yYou cannot transfer money in the Ironman Deep Dive Challenge.");
 			if (!is_admin(p_ptr)) return;
 		}
@@ -1857,10 +1908,11 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		msg_format(Ind, "You have found %d gold pieces worth of %s.", amount, o_name);
 #ifdef USE_SOUND_2010
 		sound(Ind, "pickup_gold", NULL, SFX_TYPE_COMMAND, FALSE);
+		inven_carried = TRUE;
 #endif
-		if ((c_ptr->info & CAVE_MINED) && !p_ptr->warning_tunnel_hidden) {
+		if ((c_ptr->info2 & CAVE2_MINED) && !p_ptr->warning_tunnel_hidden) {
 			msg_print(Ind, "\374\377yHINT: Mining hidden veins yields more than the right away spottable ones!");
-			c_ptr->info &= ~CAVE_MINED;
+			c_ptr->info2 &= ~CAVE2_MINED;
 			p_ptr->warning_tunnel_hidden = 1;
 		}
 /* #if DEBUG_LEVEL > 3 */
@@ -1933,6 +1985,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		    && p_ptr->id == o_ptr->owner && !p_ptr->ghost;
 		bool auto_load = check_guard_inscription(o_ptr->note, 'L')
 		    && p_ptr->id == o_ptr->owner && !p_ptr->ghost;
+		int pick_some = FALSE;
 
 		/* Hack -- disturb */
 		disturb(Ind, 0, 0);
@@ -1940,8 +1993,9 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		/* Describe the object */
 		if ((!pickup && !force_pickup) || forbidden) {
 			char pseudoid[13];
+			cptr feel;
 
-			strcpy(pseudoid, "");
+			pseudoid[0] = 0;
 			/* felt an (non-changing!) object of same kind before via pseudo-id? then remember.
 			   Note: currently all objects for which that is true are 'magic', hence we only
 			   use object_value_auxX_MAGIC() below. */
@@ -1950,11 +2004,13 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 			    && o_ptr->tval != TV_RING && o_ptr->tval != TV_AMULET) {
 				if (!object_felt_heavy_p(Ind, o_ptr)) {
 					/* only show pseudoid if its current inscription doesn't already tell us! */
-					if (!o_ptr->note || strcmp(quark_str(o_ptr->note), value_check_aux2_magic(o_ptr)))
+					feel = value_check_aux2_magic(o_ptr);
+					if (feel && (!o_ptr->note || strcmp(quark_str(o_ptr->note), feel)))
 						sprintf(pseudoid, " {%s}", value_check_aux2_magic(o_ptr));
 				} else {
+					feel = value_check_aux1_magic(o_ptr);
 					/* only show pseudoid if its current inscription doesn't already tell us! */
-					if (!o_ptr->note || strcmp(quark_str(o_ptr->note), value_check_aux1_magic(o_ptr)))
+					if (feel && (!o_ptr->note || strcmp(quark_str(o_ptr->note), feel)))
 						sprintf(pseudoid, " {%s}", value_check_aux1_magic(o_ptr));
 				}
 			}
@@ -2039,11 +2095,19 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 				if (lookup_player_party(o_ptr->owner) != p_ptr->party)
 					msg_print(Ind, "\377yYou cannot take items from outsiders.");
 				else
+ #ifdef TEST_SERVER /* debug */
+					msg_format(Ind, "\377yOwner found this before joining party (%d, %d, %d, %d).", p_ptr->iron_trade, o_ptr->iron_trade, p_ptr->iron_turn, o_ptr->iron_turn);
+ #else
 					msg_print(Ind, "\377yYou cannot take items whose owner found them before joining the party.");
+ #endif
 				if (!is_admin(p_ptr)) return;
 			}
 			else if (p_ptr->iron_turn > o_ptr->iron_turn) {
+ #ifdef TEST_SERVER /* debug */
+					msg_format(Ind, "\377yPredates you joining party (%d, %d, %d, %d).", p_ptr->iron_trade, o_ptr->iron_trade, p_ptr->iron_turn, o_ptr->iron_turn);
+ #else
 				msg_print(Ind, "\377yYou cannot take this item as it predates you joining the party.");
+ #endif
 				if (!is_admin(p_ptr)) return;
 			}
 		}
@@ -2135,16 +2199,6 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 			}
 		}
 
-/*#ifdef RPG_SERVER -- let's do this also for normal server */
-#if 1
-		/* Turn level 0 food into level 1 food - mikaelh */
-		if (o_ptr->owner && o_ptr->owner != p_ptr->id && o_ptr->level == 0 &&
-		    shareable_starter_item(o_ptr)) {
-			o_ptr->level = 1;
-			o_ptr->discount = 100;
-		}
-#endif
-
 		if ((k_info[o_ptr->k_idx].flags5 & TR5_WINNERS_ONLY) &&
 #ifdef FALLEN_WINNERSONLY
 		    !p_ptr->once_winner
@@ -2156,6 +2210,13 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 			if (!is_admin(p_ptr)) return;
 		}
 
+		/* Wrapped gifts: Totally enforce level restrictions */
+		if (o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END
+		    && o_ptr->owner && o_ptr->owner != p_ptr->id && p_ptr->lev < o_ptr->level) {
+			msg_print(Ind, "Your level must at least be the same as the gift in order to pick it up.");
+			if (!is_admin(p_ptr)) return;
+		}
+
 #ifdef ENABLE_DEMOLITIONIST
 		if (o_ptr->tval == TV_CHARGE && o_ptr->timeout) {
 			msg_print(Ind, "\377yYou must disarm the charge before picking it up!");
@@ -2163,9 +2224,19 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		}
 #endif
 
+/*#ifdef RPG_SERVER -- let's do this also for normal server */
+#if 1
+		/* Turn level 0 food into level 1 food - mikaelh */
+		if (o_ptr->owner && o_ptr->owner != p_ptr->id && o_ptr->level == 0 &&
+		    shareable_starter_item(o_ptr)) {
+			o_ptr->level = 1;
+			o_ptr->discount = 100;
+		}
+#endif
+
 /* the_sandman: item lvl restrictions are disabled in rpg */
 #ifndef RPG_SERVER
-		if ((o_ptr->owner) && (o_ptr->owner != p_ptr->id) &&
+		if (o_ptr->owner && o_ptr->owner != p_ptr->id &&
 		    (o_ptr->level > p_ptr->lev || o_ptr->level == 0) &&
 		    !in_irondeepdive(&p_ptr->wpos)) {
 			if (cfg.anti_cheeze_pickup) {
@@ -2200,9 +2271,13 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 				else msg_format(Ind, "You must be level %d or higher to pick up that artifact!", o_ptr->level);
 				if (!is_admin(p_ptr)) return;
 			}
-
+			else if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_GLASS_SHARD) {
+				msg_print(Ind, "You cannot seem to grasp the shard.");
+				if (!is_admin(p_ptr)) return;
+			}
 		}
 #endif
+
 		/* Save old inscription in case pickup fails */
 		old_note = o_ptr->note;
 		old_note_utag = o_ptr->note_utag;
@@ -2474,20 +2549,23 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		}
 
 #ifdef ENABLE_SUBINVEN
-		/* Try to put into a specialized bag automatically */
+		/* Try to put into a specialized bag automatically -- note that this currently means that apply_XID() isn't called (which cannot handle subinventory items atm anyway) */
 		switch (o_ptr->tval) {
 		case TV_CHEMICAL: /* DEMOLITIONIST stuff */
-			if (auto_stow(Ind, SV_SI_SATCHEL, o_ptr, c_ptr->o_idx, pick_one)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
+			if (auto_stow(Ind, SV_SI_SATCHEL, o_ptr, c_ptr->o_idx, pick_one, FALSE)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
 			break;
 		case TV_TRAPKIT:
-			if (auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, c_ptr->o_idx, pick_one)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
+			if (auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, c_ptr->o_idx, pick_one, FALSE)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
 			break;
 		case TV_ROD:
 			/* Note that this returns FALSE too if rod is of a flavour yet unknown to the player, covering that case on the fly! :) */
 			if (rod_requires_direction(Ind, o_ptr)) break;
 			/* Fall through */
 		case TV_STAFF:
-			if (auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, c_ptr->o_idx, pick_one)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
+			if (auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, c_ptr->o_idx, pick_one, FALSE)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
+			break;
+		case TV_POTION: case TV_POTION2: case TV_BOTTLE:
+			if (auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, c_ptr->o_idx, pick_one, FALSE)) try_pickup = pick_one = FALSE; //ensure to not trigger the number = 1 hack for pick_one (!)
 			break;
 		}
 #endif
@@ -2495,8 +2573,8 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		/* hack for 'pick_one' (needed for inven_carry_okay() too, or rather for the object_similar() check inside of it */
 		if (pick_one) o_ptr->number = 1;
 
-		/* Note that the pack is too full */
-		if (try_pickup && !inven_carry_okay(Ind, o_ptr, 0x0)) {
+		/* Note that the pack is too full - here we check for !Gn inscription for specific amount, via 0x20 tolerance marker */
+		if (try_pickup && !(pick_some = inven_carry_okay(Ind, o_ptr, (pickup == 2) ? 0x20 : 0x0))) {
 			msg_format(Ind, "You have no room for %s.", o_name);
 			Send_floor(Ind, o_ptr->tval);
 
@@ -2509,8 +2587,9 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 
 			return;
 		}
+
 		/* Actually ensure that there is at least one slot left in case we filled the whole inventory with CURSE_NO_DROP items */
-		if (try_pickup && !inven_carry_cursed_okay(Ind, o_ptr, 0x0)) {
+		if (try_pickup && pick_some == -1 && !inven_carry_cursed_okay(Ind, o_ptr, 0x0)) {
 			/* Give a somewhat misleading message, to not spoil him that he actually was protected */
 			msg_print(Ind, "A divine force stops you from picking up that item!");
 			s_printf("NO_PICKUP_CURSE_NO_DROP: Player '%s', item '%s'.\n", p_ptr->name, o_name);
@@ -2528,14 +2607,24 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 		/* Pick up the item (if requested and allowed) */
 		else if (try_pickup) {
 			int okay = TRUE;
+			object_type forge, *o_floor_ptr = o_ptr; //for creating a structure copy to 'forge' for 'pick_one'/'pick_some' hacks
 
-			object_type forge, *o_floor_ptr = o_ptr; //structure copy for hacking 'pick_one'
+			/* Use i as check just for 'normal picking up' (0) vs 'pickup specific amount' (>0) from now on,
+			   so we discard the third value here (-1) as we have already checked for 'no room' above (was '0')
+			   and therefore no longer need the distinction of -1 and 0. */
+			if (pick_some == -1) pick_some = 0;
+			else if (pick_some) o_ptr->number = pick_some;
 
 			/* hack 'pick_one' */
 			if (pick_one) {
 				forge = (*o_floor_ptr);
-				if (num_org == 1) delete_it = TRUE;
-				else delete_it = FALSE;
+				delete_it = (num_org == 1);
+				/* use the new temporary forge object for reference */
+				o_ptr = &forge;
+			/* We re-use/clone the 'pick_one' hack for the new pick_some aka !Gn inscription with n specified (and > 0) */
+			} else if (pick_some) {
+				forge = (*o_floor_ptr);
+				delete_it = (num_org == pick_some);
 				/* use the new temporary forge object for reference */
 				o_ptr = &forge;
 			} else delete_it = TRUE; //delete the object from the floor, sinc we fully picked it up (in case of stack of items)
@@ -2548,7 +2637,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 				snprintf(out_val, ONAME_LEN, "Pick up %s? ", o_name);
 				Send_pickup_check(Ind, out_val);
 
-				/* unhack 'pick_one' */
+				/* unhack 'pick_one'/'pick_some' */
 				o_floor_ptr->number = num_org;
 				return;
 			}
@@ -2558,11 +2647,17 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 			if (okay) {
 				int slot;
 
-				/* for pick_one: need to divide wand/staff charges - thanks Dj_Wolf */
+				/* For pick_one/pick_some (otherwise delete_it would be TRUE here):
+				   Need to divide wand/staff charges - thanks Dj_Wolf */
 				if (!delete_it && is_magic_device(o_ptr->tval)) {
-					o_floor_ptr->number = num_org; //temporarily unhack pick_one
-					divide_charged_item(o_ptr, o_floor_ptr, 1);
-					o_floor_ptr->number = 1; //rehack pick_one
+					o_floor_ptr->number = num_org; //temporarily unhack pick_one/pick_some
+					if (pick_one) {
+						divide_charged_item(o_ptr, o_floor_ptr, 1);
+						o_floor_ptr->number = 1; //rehack pick_one
+					} else if (pick_some) {
+						divide_charged_item(o_ptr, o_floor_ptr, pick_some);
+						o_floor_ptr->number = pick_some; //rehack pick_some
+					}
 				}
 
 				/* Check whether this item was requested by an item-retrieval quest */
@@ -2590,7 +2685,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 					if (value >= min_value)
 						s_printf("EXPENSIVE_ITEM: %s (%ld Au) found by %s(lv %d) at %d,%d,%d%s%s (dlv %d)\n",
 						    o_name_real, value, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz,
-						    (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", dlev);
+						    (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", dlev);
 #endif
 
 					if (true_artifact_p(o_ptr)) {
@@ -2598,7 +2693,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 						determine_artifact_timeout(o_ptr->name1, wpos);
 #if CHEEZELOG_LEVEL > 2
 						s_printf("%s Artifact %d found by %s(lv %d) at %d,%d,%d%s%s: %s\n",
-						    showtime(), o_ptr->name1, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
+						    showtime(), o_ptr->name1, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
 #endif
 						/* Log top arts (except Grond/Crown of course) - atm this excludes Razorback and Mediator */
 						if ((a_info[o_ptr->name1].level >= 100 || o_ptr->name1 == ART_DWARVEN_ALE)
@@ -2611,7 +2706,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 					}
 #if CHEEZELOG_LEVEL > 2
 					else if (o_ptr->name1 == ART_RANDART) s_printf("%s Randart found by %s(lv %d) at %d,%d,%d%s%s : %s\n",
-					    showtime(), p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
+					    showtime(), p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
 
 #endif
 					/* log the encounters of players with special heavy armour, just for informative purpose */
@@ -2697,11 +2792,11 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 				else {
 					if (true_artifact_p(o_ptr))
 						s_printf("%s Artifact %d picked up by %s(lv %d) at %d,%d,%d%s%s: %s\n",
-						    showtime(), o_ptr->name1, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
+						    showtime(), o_ptr->name1, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
  #if 0 /* pointless spam */
 					else if (o_ptr->name1 == ART_RANDART)
 						s_printf("%s Randart found by %s(lv %d) at %d,%d,%d%s%s : %s\n",
-						    showtime(), p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
+						    showtime(), p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
  #endif
 				}
 #endif
@@ -2709,7 +2804,7 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 				/* log special objects, except for seals */
 				if (o_ptr->tval == TV_SPECIAL && o_ptr->sval) {
 					s_printf("%s Special object '%s' sv=%d,x1=%d,x2=%d,q=%d,qs=%d picked up by %s(lv %d) at %d,%d,%d%s%s : %s\n",
-					    showtime(), o_name_real, o_ptr->sval, o_ptr->xtra1, o_ptr->xtra2, o_ptr->quest, o_ptr->quest_stage, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 & ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
+					    showtime(), o_name_real, o_ptr->sval, o_ptr->xtra1, o_ptr->xtra2, o_ptr->quest, o_ptr->quest_stage, p_ptr->name, p_ptr->lev, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, (c_ptr->info & CAVE_STCK) ? "N" : (c_ptr->info & CAVE_ICKY) ? "V" : "", (o_ptr->marked2 == ITEM_REMOVAL_NEVER) ? "G" : "", o_name_real);
 				}
 
 				can_use(Ind, o_ptr);
@@ -2723,8 +2818,12 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 
 				/* Carry the item */
 				o_ptr->quest_credited = TRUE; //hack: avoid double-crediting
+				/* 'Auto-load' throwing weapons? To make it fair, works on all weapons. Ez disarm-recovery possible! */
+				if (!(auto_load && is_weapon(o_ptr->tval) && object_known_p(Ind, o_ptr) && (slot = do_cmd_wield(Ind, -c_ptr->o_idx, 4)) != -1))
+				/* Normal pick-up */
 				slot = inven_carry(Ind, o_ptr);
 #ifdef USE_SOUND_2010
+				/* We already carried the item, don't play another (->redundant) sfx later! */
 				inven_carried = TRUE;
 #endif
 				o_ptr->quest_credited = FALSE; //unhack.
@@ -2813,8 +2912,15 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 					}
 				}
 
+				if (o_ptr->tval == TV_SUBINVEN) {
+					if (is_older_than(&p_ptr->version, 4, 8, 0, 0, 0, 0))
+						msg_print(Ind, "\377oYou need to use at least client version \377R4.8.0\377o to use this bag! Your current client won't work!");
+					if (o_ptr->sval == SV_SI_POTION_BELT && !is_newer_than(&p_ptr->version, 4, 9, 1, 0, 0, 0))
+						msg_print(Ind, "\377oYou need to use at least the \377RTEST client 4.9.1\377o or a higher client version to use this bag! Your current client won't work!");
+				}
+
 				/* Delete original */
-//				delete_object(wpos, p_ptr->py, p_ptr->px);
+				//delete_object(wpos, p_ptr->py, p_ptr->px);
 				if (delete_it) {
 					delete_object_idx(c_ptr->o_idx, FALSE);
 
@@ -2825,8 +2931,10 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 					Send_floor(Ind, 0);
 				} else if (pick_one) /* unhack 'pick_one' - we picked up one item off the pile */
 					o_floor_ptr->number = num_org - 1;
+				else if (pick_some)
+					o_floor_ptr->number = num_org - pick_some;
 			} else { /* not 'okay', currently dead code here, since it's always TRUE, but for paranoia's sake: */
-				/* unhack 'pick_one' */
+				/* unhack 'pick_one'/'pick_some' */
 				o_floor_ptr->number = num_org;
 			}
 		}
@@ -2840,11 +2948,9 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 	/* splash! harm equipments */
 	if (c_ptr->feat == FEAT_DEEP_WATER &&
 	    TOOL_EQUIPPED(p_ptr) != SV_TOOL_TARPAULIN &&
-//			magik(WATER_ITEM_DAMAGE_CHANCE))
-	    magik(3) && !p_ptr->levitate && !p_ptr->immune_water && !(p_ptr->resist_water && magik(50)))
-	{
-		if (!magik(get_skill_scale(p_ptr, SKILL_SWIM, 4900)))
-			inven_damage(Ind, set_water_destroy, 1);
+	    //magik(WATER_ITEM_DAMAGE_CHANCE))
+	    magik(3) && !p_ptr->levitate && !p_ptr->immune_water && !(p_ptr->resist_water && magik(50))) {
+		if (!magik(get_skill_scale(p_ptr, SKILL_SWIM, 4900))) inven_damage(Ind, set_water_destroy, 1);
 		equip_damage(Ind, GF_WATER);
 	}
 
@@ -2960,6 +3066,9 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 	long int kl;
 	player_type *q_ptr;
 	object_type *o_ptr = NULL;
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+	object_type forge_zero = { 0 }; /* Simulate an empty inventory slot, specifically 'wield' slot. */
+#endif
 	char q_name[NAME_LEN], hit_desc[MAX_CHARS_WIDE];
 	bool do_quake = FALSE;
 	struct worldpos *wpos = &p_ptr->wpos;
@@ -2972,10 +3081,8 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 	bool		stab_skill = (bs_skill != 0 && !p_ptr->rogue_heavyarmor);
 	bool		sleep_stab = TRUE, cloaked_stab = (p_ptr->cloaked == 1), shadow_stab = (p_ptr->shadow_running); /* can player backstab the monster? */
 	bool		backstab = FALSE, stab_fleeing = FALSE; /* does player backstab the player? */
-	bool		primary_wield = (p_ptr->inventory[INVEN_WIELD].k_idx != 0);
-	bool		secondary_wield = (p_ptr->inventory[INVEN_ARM].k_idx != 0 && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD);
-	bool		dual_wield = primary_wield && secondary_wield && p_ptr->dual_mode; /* Note: primary_wield && secondary_wield == p_ptr->dual_wield (from xtra1.c) actually. */
-	int		dual_stab = (dual_wield ? 1 : 0); /* organizer variable for dual-wield backstab */
+	bool		primary_wield, secondary_wield, dual_wield;
+	int		dual_stab;
 	bool		martial = FALSE;
 
 	int		vorpal_cut = 0;
@@ -2998,12 +3105,30 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 	int sfx = 0;
 #endif
 	u32b monster_effect[6], monster_effect_chosen;
+	u32b f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5 = 0, f6 = 0, esp = 0;
+
+
 	monster_effect[1] = 0;
 	monster_effect[2] = 0;
 	monster_effect[3] = 0;
 	monster_effect[4] = 0;
 	monster_effect[5] = 0;
-	u32b f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5 = 0, f6 = 0, esp = 0;
+
+	o_ptr = &p_ptr->inventory[INVEN_WIELD];
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200)
+		primary_wield = is_melee_item(o_ptr->tval2);
+	else
+		primary_wield = is_melee_item(o_ptr->tval);
+
+	o_ptr = &p_ptr->inventory[INVEN_ARM];
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200)
+		secondary_wield = (o_ptr->tval2 != 0 && o_ptr->tval2 != TV_SHIELD);
+	else
+		secondary_wield = (o_ptr->tval != 0 && o_ptr->tval != TV_SHIELD);
+
+	dual_wield = primary_wield && secondary_wield && p_ptr->dual_mode; /* Note: primary_wield && secondary_wield == p_ptr->dual_wield (from xtra1.c) actually. */
+	dual_stab = (dual_wield ? 1 : 0); /* organizer variable for dual-wield backstab */
+
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
@@ -3026,6 +3151,12 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 		}
 		return;
 	}
+#endif
+
+#ifdef ENABLE_OUNLIFE
+	/* Attacking on purpose terminates Wraithstep */
+	if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1) && !q_ptr->tim_wraith)
+		set_tim_wraith(Ind, 0);
 #endif
 
 	/* Restrict attacking in WRAITHFORM */
@@ -3146,7 +3277,7 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 			p_ptr->piercing_charged = FALSE;
 			p_ptr->piercing = 0;
 		} else {
-			p_ptr->cst -= 9;
+			use_stamina(p_ptr, 9);
 		}
 	}
 
@@ -3199,6 +3330,12 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 		}
 
 		o_ptr = &p_ptr->inventory[slot];
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+		/* We _are_ wielding an item, but it does _not_ count in any way for melee attacking?
+		   (Unlike for exaple a Mage Staff, which does count; it has dice and can be enchanted even.)
+		   Then hack it to point to an empty item (same as an empty wield slot): */
+		if (!primary_wield && slot == INVEN_WIELD && o_ptr->tval) o_ptr = &forge_zero;
+#endif
 
 		/* Manage backstabbing and 'flee-stabbing' */
 		//todo: vortices, oozes, elementals, constructs, undead, plants, swarms, some undead maybe, incorporeal undead if you aren't incorporeal
@@ -3238,6 +3375,17 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 		if (p_ptr->blind) chance >>= 1;
 
 		p_ptr->test_attacks++;
+
+		/* Shadow Dispersion: Take precedence even before AC check (aka test_hit_melee()) now. */
+		if (q_ptr->dispersion && q_ptr->cst) {
+			msg_format(Ind, "\377%c%s disperses around your attack!", COLOUR_BLOCK_PLY, q_name);
+			msg_format(0 - c_ptr->m_idx, "\377%cYou disperse around %s's attack!", COLOUR_DODGE_GOOD, p_ptr->name);
+			if (magik(q_ptr->dispersion)) use_stamina(q_ptr, 1);
+			continue;
+		}
+
+		/* TODO: Add 'outer' shields: Kinetic, Spirit, PfE, Invuln; right here. */
+
 		/* Test for hit */
 		pierced = FALSE;
 #ifndef PVP_AC_REDUCTION
@@ -3364,17 +3512,21 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 
 #ifdef USE_SOUND_2010
 			if (sfx == 0 && p_ptr->sfx_combat) {
-				if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) || o_ptr->tval == TV_MSTAFF))
+				if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) ||
+ #ifdef EQUIPPABLE_DIGGERS
+				    o_ptr->tval == TV_DIGGING ||
+ #endif
+				    o_ptr->tval == TV_MSTAFF))
 					switch (o_ptr->tval) {
 					case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					case TV_BLUNT:	if (o_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 							else sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 							break;
 					case TV_AXE: sound(Ind, "hit_axe", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
+					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
  #ifdef EQUIPPABLE_DIGGERS
 					case TV_DIGGING:
  #endif
-					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					}
 				else
@@ -3579,6 +3731,7 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 				if (vorpal_cut) msg_format(Ind, "Your weapon cuts deep into %s!", q_name);
 
 				k += o_ptr->to_d;
+				//if (p_ptr->combat_stance == 1) dam ... ; //cut o_ptr->to_d bonus too? ie melee equivalent to DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 
 				/* Apply the player damage boni */
 				k += p_ptr->to_d + p_ptr->to_d_melee;
@@ -3587,10 +3740,10 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 				with light weapons, which have low dice. So for gain
 				we need the full damage including all to-dam boni */
 #ifdef CRIT_UNBRANDED
-				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k - k2, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(Ind, o_ptr), TRUE);
+				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k - k2, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(o_ptr), TRUE);
 				k3 += k2;
 #else
-				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(Ind, o_ptr), TRUE);
+				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(o_ptr), TRUE);
 #endif
 				k2 = k; /* remember damage before crit */
 #ifdef CRIT_VS_BACKSTAB
@@ -3746,17 +3899,21 @@ static void py_attack_player(int Ind, int y, int x, byte old) {
 				/* hack: always play 'hit' sfx for final killing hit,
 				   so if we didn't play it already (we did so if sfx==0) then play it now instead. */
 				if (sfx && p_ptr->sfx_combat) {
-					if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) || o_ptr->tval == TV_MSTAFF))
+					if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) ||
+ #ifdef EQUIPPABLE_DIGGERS
+					    o_ptr->tval == TV_DIGGING ||
+ #endif
+					    o_ptr->tval == TV_MSTAFF))
 						switch (o_ptr->tval) {
 						case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						case TV_BLUNT:	if (o_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 								else sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 								break;
 						case TV_AXE: sound(Ind, "hit_axe", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
+						case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
  #ifdef EQUIPPABLE_DIGGERS
 						case TV_DIGGING:
  #endif
-						case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						}
 					else
@@ -4109,6 +4266,9 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 #endif
 	long int	kl;
 	object_type	*o_ptr = NULL;
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+	object_type forge_zero = { 0 }; /* Simulate an empty inventory slot, specifically 'wield' slot. */
+#endif
 	bool		do_quake = FALSE;
 
 	char		m_name[MNAME_LEN], m_name_raw[MNAME_LEN], hit_desc[MAX_CHARS_WIDE], mbname[MNAME_LEN];
@@ -4122,11 +4282,10 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 	bool		stab_skill = (bs_skill != 0 && !p_ptr->rogue_heavyarmor);
 	bool		sleep_stab = TRUE, cloaked_stab = (p_ptr->cloaked == 1), shadow_stab = (p_ptr->shadow_running); /* can player backstab the monster? */
 	bool		backstab = FALSE, stab_fleeing = FALSE; /* does player backstab the monster? */
-	bool		primary_wield = (p_ptr->inventory[INVEN_WIELD].k_idx != 0);
-	bool		secondary_wield = (p_ptr->inventory[INVEN_ARM].k_idx != 0 && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD);
-	bool		dual_wield = primary_wield && secondary_wield && p_ptr->dual_mode; /* Note: primary_wield && secondary_wield == p_ptr->dual_wield (from xtra1.c) actually. */
-	int		dual_stab = (dual_wield ? 1 : 0); /* organizer variable for dual-wield backstab */
-	bool		martial = FALSE, did_stun, did_knee, did_slow, weapon = primary_wield || secondary_wield;
+	bool		primary_wield, secondary_wield, dual_wield;
+	int		dual_stab;
+	bool		martial = FALSE, did_stun, did_knee, did_slow;
+	bool		weapon; //atm PvE only: Backstabbing can cause stun effect
 	int		block, parry;
 
 	int		vorpal_cut = 0;
@@ -4150,11 +4309,30 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 	bool apply_monster_effects = TRUE;
 	int i, monster_effects;
 	u32b monster_effect[6], monster_effect_chosen;
+
+
 	monster_effect[1] = 0;
 	monster_effect[2] = 0;
 	monster_effect[3] = 0;
 	monster_effect[4] = 0;
 	monster_effect[5] = 0;
+
+	o_ptr = &p_ptr->inventory[INVEN_WIELD];
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200)
+		primary_wield = is_melee_item(o_ptr->tval2);
+	else
+		primary_wield = is_melee_item(o_ptr->tval);
+
+	o_ptr = &p_ptr->inventory[INVEN_ARM];
+	if (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200)
+		secondary_wield = (o_ptr->tval2 != 0 && o_ptr->tval2 != TV_SHIELD);
+	else
+		secondary_wield = (o_ptr->tval != 0 && o_ptr->tval != TV_SHIELD);
+
+	dual_wield = primary_wield && secondary_wield && p_ptr->dual_mode; /* Note: primary_wield && secondary_wield == p_ptr->dual_wield (from xtra1.c) actually. */
+	dual_stab = (dual_wield ? 1 : 0); /* organizer variable for dual-wield backstab */
+	weapon = primary_wield || secondary_wield;
+
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
@@ -4163,7 +4341,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 	r_ptr = race_inf(m_ptr);
 	helpless = (m_ptr->csleep || m_ptr->stunned > 100 || m_ptr->confused);
 
-	if (m_ptr->status == M_STATUS_FRIENDLY) return;
+	if (m_ptr->status & M_STATUS_FRIENDLY) return;
 
 	if ((r_ptr->flags3 & RF3_UNDEAD) ||
 	    //(r_ptr->flags3 & RF3_DEMON) ||
@@ -4252,6 +4430,14 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 	/* Track a new monster */
 	if (p_ptr->mon_vis[c_ptr->m_idx]) health_track(Ind, c_ptr->m_idx);
 
+#ifdef ENABLE_OUNLIFE
+	/* Attacking on purpose terminates Wraithstep */
+	if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1) &&
+	    ((r_ptr->flags2 & RF2_KILL_WALL) || !(r_ptr->flags2 & RF2_PASS_WALL))) {
+		set_tim_wraith(Ind, 0);
+	}
+#endif
+
 	/* can't attack while in WRAITHFORM */
 	/* wraithed players can attack wraithed monsters - mikaelh */
 	if (p_ptr->tim_wraith && !is_admin(p_ptr) &&
@@ -4309,7 +4495,10 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 	stop_precision(Ind);
 	stop_shooting_till_kill(Ind);
 	/* Disturb the monster */
-	m_ptr->csleep = 0;
+	if (m_ptr->csleep) {
+		m_ptr->csleep = 0;
+		if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, c_ptr->m_idx, m_ptr->custom_lua_awoke));
+	}
 
 	/* Re-check piercing */
 	if (p_ptr->piercing_charged) {
@@ -4318,7 +4507,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 			p_ptr->piercing_charged = FALSE;
 			p_ptr->piercing = 0;
 		} else {
-			p_ptr->cst -= 9;
+			use_stamina(p_ptr, 9);
 			p_ptr->redraw |= PR_STAMINA;
 		}
 	}
@@ -4378,6 +4567,12 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 		}
 
 		o_ptr = &p_ptr->inventory[slot];
+#if defined(WIELD_BOOKS) || defined(WIELD_DEVICES)
+		/* We _are_ wielding an item, but it does _not_ count in any way for melee attacking?
+		   (Unlike for exaple a Mage Staff, which does count; it has dice and can be enchanted even.)
+		   Then hack it to point to an empty item (same as an empty wield slot): */
+		if (!primary_wield && slot == INVEN_WIELD && o_ptr->tval) o_ptr = &forge_zero;
+#endif
 
 		/* Manage backstabbing and 'flee-stabbing' */
 		if (stab_skill && /* Need appropriate melee weapon or martial arts to backstab */
@@ -4430,7 +4625,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 
 		p_ptr->test_attacks++;
 		/* Test for hit */
-		if (instakills(Ind) || backstab ||
+		if (p_ptr->instakills || backstab ||
 		    test_hit_melee(chance, m_ptr->ac, p_ptr->mon_vis[c_ptr->m_idx]) ||
 		    (p_ptr->piercing && !block && !parry)) {
 			/* handle 'piercing' countdown */
@@ -4443,17 +4638,21 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 
 #ifdef USE_SOUND_2010
 			if (sfx == 0 && p_ptr->sfx_combat) {
-				if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) || o_ptr->tval == TV_MSTAFF))
+				if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) ||
+ #ifdef EQUIPPABLE_DIGGERS
+				    o_ptr->tval == TV_DIGGING ||
+ #endif
+				    o_ptr->tval == TV_MSTAFF))
 					switch (o_ptr->tval) {
 					case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					case TV_BLUNT:	if (o_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 							else sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 							break;
 					case TV_AXE: sound(Ind, "hit_axe", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
+					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
  #ifdef EQUIPPABLE_DIGGERS
 					case TV_DIGGING:
  #endif
-					case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 					}
 				else
@@ -4524,7 +4723,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 
 				else if (ma_ptr->effect == MA_SLOW) {
 #if 0 /* less message order problems */
-					if (!((r_ptr->flags1 & RF1_NEVER_MOVE)
+					if (!((r_ptr->flags2 & RF2_NEVER_MOVE)
 					    || strchr("ANUjmeEv$,DdsbBFIJQSXclnw!=?+", r_ptr->d_char))) {
 						msg_format(Ind, "You kick %s in the ankle.", m_name);
 						special_effect = MA_SLOW;
@@ -4533,14 +4732,14 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 						//msg_format(Ind, ma_ptr->desc, m_name);
 					}
 #else
-					if (!((r_ptr->flags1 & RF1_NEVER_MOVE)
+					if (!((r_ptr->flags2 & RF2_NEVER_MOVE)
 					    || strchr("ANUjmeEv$,DdsbBFIJQSXclnw!=?+", r_ptr->d_char)))
 						special_effect = MA_SLOW;
 					sprintf(hit_desc, ma_ptr->desc, m_name);
 #endif
 				} else if (ma_ptr->effect == MA_ROYAL_SLOW) { /* works against U,D,d,J,c,n */
 #if 0 /* less message order problems */
-					if (!((r_ptr->flags1 & RF1_NEVER_MOVE)
+					if (!((r_ptr->flags2 & RF2_NEVER_MOVE)
 					    || strchr("ANjmeEv$,sbBFIQSXlw!=?+", r_ptr->d_char))) {
 						switch (m_name[strlen(m_name) - 1]) {
 						case 's': case 'x': case 'z':
@@ -4555,7 +4754,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 						//msg_format(Ind, ma_ptr->desc, m_name);
 					}
 #else
-					if (!((r_ptr->flags1 & RF1_NEVER_MOVE)
+					if (!((r_ptr->flags2 & RF2_NEVER_MOVE)
 					    || strchr("ANjmeEv$,sbBFIQSXlw!=?+", r_ptr->d_char)))
 						special_effect = MA_SLOW;
 					sprintf(hit_desc, ma_ptr->desc, m_name);
@@ -4573,7 +4772,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				k = tot_dam_aux(Ind, NULL, k, m_ptr, FALSE);
 				k2 = k - k2; /* remember difference between branded and unbranded dice */
 
-				if (!instakills(Ind)) {
+				if (!p_ptr->instakills) {
 					do_nazgul(Ind, &k, r_ptr, -1);
 					if (k == 0) k2 = 0;
 				}
@@ -4586,7 +4785,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 #else
 				k = tot_dam_aux(Ind, NULL, k, m_ptr, FALSE);
 
-				if (!instakills(Ind)) do_nazgul(Ind, &k, r_ptr, -1);
+				if (!p_ptr->instakills) do_nazgul(Ind, &k, r_ptr, -1);
 
 				/* Apply the player damage boni */
 				k += p_ptr->to_d + p_ptr->to_d_melee;
@@ -4737,6 +4936,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				if (vorpal_cut) msg_format(Ind, "Your weapon cuts deep into %s!", m_name);
 
 				k += o_ptr->to_d;
+				//if (p_ptr->combat_stance == 1) dam ... ; //cut o_ptr->to_d bonus too? ie melee equivalent to DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION
 
 				/* Does the weapon take damage from hitting acidic/fiery/aquatic monsters? */
 				for (i = 0; i < 4; i++) {
@@ -4772,7 +4972,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				}
 
 				/* heheheheheh */
-				if (!instakills(Ind)) do_nazgul(Ind, &k, r_ptr, slot);
+				if (!p_ptr->instakills) do_nazgul(Ind, &k, r_ptr, slot);
 
 				/* Apply the player damage boni */
 				/* (should this also cancelled by nazgul?(for now not)) */
@@ -4782,10 +4982,10 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				with light weapons, which have low dice. So for gain
 				we need the full damage including all to-dam boni */
 #ifdef CRIT_UNBRANDED
-				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k - k2, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(Ind, o_ptr), TRUE);
+				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k - k2, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(o_ptr), TRUE);
 				k3 += k2;
 #else
-				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(Ind, o_ptr), TRUE);
+				k3 = critical_melee(Ind, o_ptr->weight, o_ptr->to_h + p_ptr->to_h_melee, k, rogue_armed_melee(o_ptr, p_ptr), calc_crit_obj(o_ptr), TRUE);
 #endif
 #ifdef CRIT_VS_VORPAL
 				k2 = k; /* remember damage before crit */
@@ -4801,7 +5001,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 			} else {
 				k = tot_dam_aux(Ind, NULL, k, m_ptr, FALSE);
 
-				if (!instakills(Ind)) do_nazgul(Ind, &k, r_ptr, -1);
+				if (!p_ptr->instakills) do_nazgul(Ind, &k, r_ptr, -1);
 
 				/* Apply the player damage boni */
 				/* (should this also cancelled by nazgul? not for now) */
@@ -4889,7 +5089,7 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 			if (m_ptr->r_idx == RI_MIRROR) k = (k * MIRROR_REDUCE_DAM_TAKEN_MELEE + 99) / 100;
 
 			/* for admins: kill a target in one hit */
-			if (instakills(Ind)) k = m_ptr->hp + 1;
+			if (p_ptr->instakills) k = m_ptr->hp + 1;
 			else if (p_ptr->admin_godly_strike) {
 				p_ptr->admin_godly_strike--;
 				if (!(r_ptr->flags1 & RF1_UNIQUE)) k = m_ptr->hp + 1;
@@ -4994,17 +5194,21 @@ static void py_attack_mon(int Ind, int y, int x, byte old) {
 				/* hack: always play 'hit' sfx for final killing hit,
 				   so if we didn't play it already (we did so if sfx==0) then play it now instead. */
 				if (sfx && p_ptr->sfx_combat) {
-					if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) || o_ptr->tval == TV_MSTAFF))
+					if (o_ptr->k_idx && (is_melee_weapon(o_ptr->tval) ||
+ #ifdef EQUIPPABLE_DIGGERS
+					    o_ptr->tval == TV_DIGGING ||
+ #endif
+					    o_ptr->tval == TV_MSTAFF))
 						switch (o_ptr->tval) {
 						case TV_SWORD: sound(Ind, "hit_sword", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						case TV_BLUNT:	if (o_ptr->sval == SV_WHIP) sound(Ind, "hit_whip", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 								else sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE);
 								break;
 						case TV_AXE: sound(Ind, "hit_axe", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
+						case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
  #ifdef EQUIPPABLE_DIGGERS
 						case TV_DIGGING:
  #endif
-						case TV_POLEARM: sound(Ind, "hit_polearm", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						case TV_MSTAFF: sound(Ind, "hit_blunt", "hit_weapon", SFX_TYPE_ATTACK, FALSE); break;
 						}
 					else
@@ -5448,7 +5652,7 @@ void py_bash_mon(int Ind, int y, int x) {
 	/* Track a new monster */
 	if (p_ptr->mon_vis[c_ptr->m_idx]) health_track(Ind, c_ptr->m_idx);
 
-	if (m_ptr->status == M_STATUS_FRIENDLY) return;
+	if (m_ptr->status & M_STATUS_FRIENDLY) return;
 
 	/* is it a unique we already got kill credit for? */
 	if ((r_ptr->flags1 & RF1_UNIQUE) &&
@@ -5553,7 +5757,7 @@ void py_bash_mon(int Ind, int y, int x) {
 		return;
 	}
 #ifndef TEST_SERVER
-	p_ptr->cst -= 6;
+	use_stamina(p_ptr, 6);
 	p_ptr->redraw |= PR_STAMINA;
 	redraw_stuff(Ind);
 #endif
@@ -5566,7 +5770,10 @@ s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 	stop_precision(Ind);
 	stop_shooting_till_kill(Ind);
 	/* Disturb the monster */
-	m_ptr->csleep = 0;
+	if (m_ptr->csleep) {
+		m_ptr->csleep = 0;
+		if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, c_ptr->m_idx, m_ptr->custom_lua_awoke));
+	}
 
 	/* Calculate damage from shield weight (50..120,160 for AA) and strength */
 	k = 0;
@@ -5604,7 +5811,7 @@ s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 
 	p_ptr->test_attacks++;
 	/* Test for hit */
-	if (instakills(Ind) || !block ||
+	if (p_ptr->instakills || !block ||
 	    test_hit_melee(chance, m_ptr->ac / 3, p_ptr->mon_vis[c_ptr->m_idx])) {
 #ifdef USE_SOUND_2010
 		if (p_ptr->sfx_combat) sound(Ind, "bash", "hit_blunt", SFX_TYPE_ATTACK, FALSE);
@@ -5614,7 +5821,7 @@ s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 		sprintf(hit_desc, "You bash %s", m_name);
 
 		i = k; /* Nazgul won't reduce our damage */
-		if (!instakills(Ind)) do_nazgul(Ind, &i, r_ptr, -1);
+		if (!p_ptr->instakills) do_nazgul(Ind, &i, r_ptr, -1);
 
 		if (stun_effect && (k < m_ptr->hp)) {
 			/* Stun the monster */
@@ -5654,7 +5861,7 @@ s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 		if (m_ptr->r_idx == RI_MIRROR) k = (k * MIRROR_REDUCE_DAM_TAKEN_MELEE + 99) / 100;
 
 		/* for admins: kill a target in one hit */
-		if (instakills(Ind)) k = m_ptr->hp + 1;
+		if (p_ptr->instakills) k = m_ptr->hp + 1;
 		else if (p_ptr->admin_godly_strike) {
 			p_ptr->admin_godly_strike--;
 			if (!(r_ptr->flags1 & RF1_UNIQUE)) k = m_ptr->hp + 1;
@@ -5783,18 +5990,11 @@ void py_bash_py(int Ind, int y, int x) {
 #endif
 
 
+	/* Skip bashing our own grid */
+	if (p_ptr->px == x && p_ptr->py == y) return;
+
 	/* Hack -- suppress messages */
 	if (p_ptr->taciturn_messages) suppress_message = TRUE;
-
-	if (!(p_ptr->melee_techniques & MT_BASH)) {
-		msg_print(Ind, "You are not proficient in shield-bashing opponents.");
-		return;
-	}
-
-	if (!p_ptr->num_blow) {
-		msg_print(Ind, "You cannot attack.");
-		return;
-	}
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
@@ -5805,9 +6005,7 @@ void py_bash_py(int Ind, int y, int x) {
 	no_pk = ((zcave[p_ptr->py][p_ptr->px].info & CAVE_NOPK) ||
 	    (zcave[q_ptr->py][q_ptr->px].info & CAVE_NOPK));
 
-	/* Disturb the players */
 	disturb(Ind, 0, 0);
-	disturb(Ind2, 0, 0);
 
 	/* Extract name */
 	player_desc(Ind, q_name, Ind2, 0);
@@ -5819,13 +6017,32 @@ void py_bash_py(int Ind, int y, int x) {
 	/* wraithed players can attack wraithed monsters - mikaelh */
 	if (p_ptr->tim_wraith && !is_admin(p_ptr) && !q_ptr->tim_wraith) return;
 
-	p_ptr->energy -= level_speed(&p_ptr->wpos);
+	/* Don't allow moving AFK players around, unless they block stairs, gates, etc.
+	   (Note: This might also include not so important feats, but the PERMA+REMEMBER heuristic is quite good in general.) */
+	if (q_ptr->afk && (f_info[zcave[q_ptr->py][q_ptr->px].feat].flags1 & (FF1_PERMANENT | FF1_REMEMBER)) != (FF1_PERMANENT | FF1_REMEMBER)) {
+		msg_print(Ind, "You cannot push past AFK players who don't stand on special features.");
+		return;
+	}
 
-	if (!check_hostile(Ind, Ind2)) { /* only attack if player is hostile */
+	/* Only attack if player is hostile. Otherwise we just do a friendly place-switching here: */
+	if (cfg.use_pk_rules == PK_RULES_NEVER || !check_hostile(Ind, Ind2)) {
 		int ox = q_ptr->px, oy = q_ptr->py, nx = p_ptr->px, ny = p_ptr->py;
 
-		msg_format(Ind, "You swap positions with %s.", q_name);
-		msg_format(Ind2, "%^s swaps positions with you.", p_ptr->name);
+		p_ptr->energy -= level_speed(&p_ptr->wpos);
+		disturb(Ind2, 0, 0);
+
+		/* This intended act of pushing past isn't 'hostile' but also not 'nice' as you try to bash someone out of the way sort of,
+		   displacing him in the process which could even be dangerous (same is possible by just bumping into him in the opposite of
+		   his last executed movement direction though, so this is not always the only way to move someone else who might be afk),
+		   so we still do some weight check for success. - C. Blue */
+		if (adj_str_wgt[p_ptr->stat_ind[A_STR]] * 25 < q_ptr->wt + p_ptr->total_weight / 10) {
+			/* Note about wt and total_weight: Body weight (wt) is measured in lb while total item weight (inven+equip) is measured in lb * 10, as used in k_info.txt */
+			msg_format(Ind, "You are not strong enough to push past %s.", q_name);
+			return;
+		}
+
+		msg_format(Ind, "You push past %s.", q_name);
+		msg_format(Ind2, "%^s pushes past you.", p_ptr->name);
 
 		/* Update the new location */
 		zcave[ny][nx].m_idx = -Ind2;
@@ -5861,9 +6078,22 @@ void py_bash_py(int Ind, int y, int x) {
 		/* Handle stuff XXX XXX XXX */
 		handle_stuff(Ind);
 		handle_stuff(Ind2);
-
 		return;
 	}
+
+	/* --- Hostile shield-bash fighting technique --- */
+
+	if (!(p_ptr->melee_techniques & MT_BASH)) {
+		msg_print(Ind, "You are not proficient in shield-bashing opponents.");
+		return;
+	}
+
+#if 0 /* Bashing is not a weapon-based attack! */
+	if (!p_ptr->num_blow) {
+		msg_print(Ind, "You cannot attack.");
+		return;
+	}
+#endif
 
 	/* Handle player fear */
 	if (p_ptr->afraid) {
@@ -5897,15 +6127,18 @@ void py_bash_py(int Ind, int y, int x) {
 		msg_print(Ind, "Not enough stamina!");
 		return;
 	}
-	p_ptr->cst -= 6;
+	use_stamina(p_ptr, 6);
 	p_ptr->redraw |= PR_STAMINA;
 	redraw_stuff(Ind);
+
+	p_ptr->energy -= level_speed(&p_ptr->wpos);
+	disturb(Ind2, 0, 0);
 
 s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 
 	/* cloaking mode stuff */
-	break_cloaking(Ind2, 0);
 	break_cloaking(Ind, 0);
+	break_cloaking(Ind2, 0);
 	break_shadow_running(Ind);
 	stop_precision(Ind);
 	stop_precision(Ind2);
@@ -5962,7 +6195,7 @@ s_printf("TECHNIQUE_MELEE: %s - bash\n", p_ptr->name);
 
 	p_ptr->test_attacks++;
 	/* Test for hit */
-	if (instakills(Ind) || test_hit_melee(chance, (q_ptr->ac + q_ptr->to_a) > AC_CAP ? AC_CAP : q_ptr->ac + q_ptr->to_a, 1)) {
+	if (p_ptr->instakills || test_hit_melee(chance, (q_ptr->ac + q_ptr->to_a) > AC_CAP ? AC_CAP : q_ptr->ac + q_ptr->to_a, 1)) {
 #ifdef USE_SOUND_2010
 		if (p_ptr->sfx_combat) sound(Ind, "bash", "hit_blunt", SFX_TYPE_ATTACK, FALSE);
 #else
@@ -6073,7 +6306,7 @@ void py_attack(int Ind, int y, int x, byte old) {
 	struct worldpos *wpos = &p_ptr->wpos;
 
 	if (p_ptr->prace == RACE_VAMPIRE && p_ptr->body_monster == RI_VAMPIRIC_MIST) return;
-	if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags1 & RF1_NEVER_BLOW)) return;
+	if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags2 & RF2_NEVER_BLOW)) return;
 	if (!p_ptr->num_blow) return; //prevent div/0 in py_attack_..() routines
 
 	if (!(zcave = getcave(wpos))) return;
@@ -6133,7 +6366,7 @@ void spin_attack(int Ind) {
 	struct worldpos *wpos = &p_ptr->wpos;
 
 	if (!(zcave = getcave(wpos))) return;
-	if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags1 & RF1_NEVER_BLOW)) return;
+	if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags2 & RF2_NEVER_BLOW)) return;
 	if (!p_ptr->num_blow) return; /* paranoia */
 
 	/* In case we got here by weapon activation: */
@@ -6743,22 +6976,22 @@ static bool wraith_access_virtual(int Ind, int y, int x) {
 
 
 /* borrowed from ToME	- Jir - */
-/* 'comfortably': also check for things like lava if player isn't fire immune. - C. Blue */
+/* 'comfortably': also check for things like lava if player isn't fire immune. - C. Blue
+ * This function is a mess and needs cleaning up, especially with wraith step now.
+ * Why do we have all three flags WALL, NO_WALK, CAN_PASS and then still proceed PERMANENT on top of it even...? */
 bool player_can_enter(int Ind, byte feature, bool comfortably) {
 	player_type *p_ptr = Players[Ind];
 	bool pass_wall;
 	bool only_wall = FALSE;
 
 	/* Dungeon Master pass through everything (cept array boundary :) */
-	if (p_ptr->admin_dm && !(f_info[feature].flags2 & FF2_BOUNDARY))
-		return(TRUE);
+	if (p_ptr->admin_dm && !(f_info[feature].flags2 & FF2_BOUNDARY)) return(TRUE);
 
 	/* Special one-way doors for quests: Allow traversing if we're on a CAVE_ICKY grid. */
 	if (feature == FEAT_ESCAPE_DOOR || feature == FEAT_SICKBAY_DOOR) {
 		cave_type cave = getcave(&p_ptr->wpos)[p_ptr->py][p_ptr->px];
 
-		if ((cave.info & CAVE_ICKY) || (f_info[cave.feat].flags1 & FF1_PROTECTED))
-			return(TRUE);
+		if ((cave.info & CAVE_ICKY) || (f_info[cave.feat].flags1 & FF1_PROTECTED)) return(TRUE);
 		return(FALSE);
 	}
 
@@ -6781,64 +7014,73 @@ bool player_can_enter(int Ind, byte feature, bool comfortably) {
 #endif
 
 	switch (feature) {
-		case FEAT_DEEP_WATER:
-			if (comfortably &&
-			    //!(p_ptr->immune_water || p_ptr->res_water ||.
-			    !(p_ptr->can_swim || p_ptr->levitate || p_ptr->ghost || p_ptr->tim_wraith))
-				return(FALSE);
-			return(TRUE);	/* you can pass, but you may suffer dmg */
+	case FEAT_DEEP_WATER:
+		if (comfortably &&
+		    //!(p_ptr->immune_water || p_ptr->res_water ||.
+		    !(p_ptr->can_swim || p_ptr->levitate || p_ptr->ghost || p_ptr->tim_wraith))
+			break;
+		return(TRUE);	/* you can pass, but you may suffer dmg */
 
-		case FEAT_SHAL_LAVA:
-		case FEAT_DEEP_LAVA:
-		case FEAT_FIRE:
-		case FEAT_GREAT_FIRE:
-			if (comfortably && !p_ptr->immune_fire &&
-			    !(p_ptr->resist_fire && p_ptr->oppose_fire))
-				return(FALSE);
-			return(TRUE);	/* you can pass, but you may suffer dmg */
+	case FEAT_SHAL_LAVA:
+	case FEAT_DEEP_LAVA:
+	case FEAT_FIRE:
+	case FEAT_GREAT_FIRE:
+		if (comfortably && !p_ptr->immune_fire &&
+		    !(p_ptr->resist_fire && p_ptr->oppose_fire))
+			break;
+		return(TRUE);	/* you can pass, but you may suffer dmg */
 
-		case FEAT_DEAD_TREE:
-			if ((p_ptr->levitate) || pass_wall || p_ptr->town_pass_trees)
-			    return(TRUE);
-			else return(FALSE);
-		case FEAT_BUSH:
-		case FEAT_TREE:
-			/* 708 = Ent (passes trees), 83/142 novice ranger, 345 ranger, 637 ranger chieftain, 945 high-elven ranger */
-			if ((p_ptr->levitate) || (p_ptr->pass_trees) || pass_wall || p_ptr->town_pass_trees)
-				return(TRUE);
-			else return(FALSE);
+	case FEAT_DEAD_TREE:
+		if ((p_ptr->levitate) || pass_wall || p_ptr->town_pass_trees) return(TRUE);
+		break;
+	case FEAT_BUSH:
+	case FEAT_TREE:
+		/* 708 = Ent (passes trees), 83/142 novice ranger, 345 ranger, 637 ranger chieftain, 945 high-elven ranger */
+		if ((p_ptr->levitate) || (p_ptr->pass_trees) || pass_wall || p_ptr->town_pass_trees)
+			return(TRUE);
+		else break;
 #if 0
-		case FEAT_WALL_HOUSE:
-			if (!pass_wall || !wraith_access_virtual(Ind), xxx, yyy) return(FALSE);
-			else return(TRUE);
+	case FEAT_WALL_HOUSE:
+		if (!pass_wall || !wraith_access_virtual(Ind), xxx, yyy) return(FALSE);
+		return(TRUE);
 #endif
 
-		default:
-			if ((p_ptr->climb) && (f_info[feature].flags1 & FF1_CAN_CLIMB))
-				return(TRUE);
-			if ((p_ptr->levitate) &&
-			    ((f_info[feature].flags1 & FF1_CAN_LEVITATE) ||
-			    (f_info[feature].flags1 & FF1_CAN_FEATHER)))
-				return(TRUE);
-			else if (only_wall && (f_info[feature].flags1 & FF1_FLOOR))
-				return(FALSE);
-			else if ((p_ptr->feather_fall || p_ptr->tim_wraith) &&
-			    (f_info[feature].flags1 & FF1_CAN_FEATHER))
-				return(TRUE);
-			else if ((pass_wall || only_wall) &&
-			     (f_info[feature].flags1 & FF1_CAN_PASS))
-				return(TRUE);
-			else if (f_info[feature].flags1 & FF1_NO_WALK)
-				return(FALSE);
-			else if ((f_info[feature].flags1 & FF1_WEB) &&
-			    (!(r_info[p_ptr->body_monster].flags7 & RF7_SPIDER)))
-				return(FALSE);
+	default:
+		if ((p_ptr->climb) && (f_info[feature].flags1 & FF1_CAN_CLIMB)) return(TRUE);
+		if ((p_ptr->levitate) && ((f_info[feature].flags1 & FF1_CAN_LEVITATE) || (f_info[feature].flags1 & FF1_CAN_FEATHER))) return(TRUE);
 
-			else if ((f_info[feature].flags1 & FF1_WALL) && (!pass_wall || (f_info[feature].flags1 & FF1_PERMANENT)))
-				return(FALSE);
+		if (only_wall && (f_info[feature].flags1 & FF1_FLOOR)) break;
+		else if ((p_ptr->feather_fall || p_ptr->tim_wraith) && (f_info[feature].flags1 & FF1_CAN_FEATHER)) return(TRUE);
+
+		if ((pass_wall || only_wall) && (f_info[feature].flags1 & FF1_CAN_PASS)) return(TRUE);
+		/* Permanent walls that aren't specific 'terrain' (eg mountains): Cannot enter even in wraithform */
+		else if (f_info[feature].flags1 & FF1_WALL) {
+			if ((f_info[feature].flags1 & FF1_PERMANENT) && !(f_info[feature].flags1 & FF1_CAN_PASS)) return(FALSE);
+			if (!pass_wall || (f_info[feature].flags1 & FF1_PERMANENT)) break;
+		}
+		/* doors, etc */
+		if (f_info[feature].flags1 & FF1_NO_WALK) break;
+		else if ((f_info[feature].flags1 & FF1_WEB) && (!(r_info[p_ptr->body_monster].flags7 & RF7_SPIDER))) break;
+
+		return(TRUE);
 	}
 
-	return(TRUE);
+	/* Enter Wraithstep */
+	if (!comfortably && (p_ptr->tim_wraithstep & 0x1) && (p_ptr->tim_wraithstep & 0xF0)
+#if 0
+	     && !pass_wall &&
+	    !(f_info[feature].flags1 & FF1_FLOOR) && !((f_info[feature].flags1 & FF1_LOS) && !(f_info[feature].flags1 & FF1_WALL))
+#endif
+	    ) {
+		p_ptr->tim_wraithstep &= ~0xF0;
+		p_ptr->tim_wraith = 1;
+		p_ptr->redraw |= PR_BPR_WRAITH;
+		msg_format_near(Ind, "%s turns into a wraith!", p_ptr->name);
+		msg_print(Ind, "You turn into a wraith!");
+		return(TRUE);
+	}
+
+	return(FALSE);
 }
 
 /* Helper function for move_player():
@@ -6895,44 +7137,47 @@ static void moved_player(int Ind, player_type *p_ptr, cave_type **zcave, int ox,
 				s_printf("warning_staircase: %s\n", p_ptr->name);
 				//p_ptr->warning_staircase = 1;
 			}
-			if (!p_ptr->warning_staircase_oneway) {
+
+			if (!p_ptr->warning_staircase_iddc && on_irondeepdive(&p_ptr->wpos) &&
+			    ((WPOS_IRONDEEPDIVE_Z > 0 && (c_ptr->feat == FEAT_LESS || c_ptr->feat == FEAT_WAY_LESS)) ||
+			    (WPOS_IRONDEEPDIVE_Z < 0 && (c_ptr->feat == FEAT_MORE || c_ptr->feat == FEAT_WAY_MORE)))) {
+				msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon,");
+				msg_print(Ind, "\374\377y         this particular one being the 'Ironman Deep Dive Challenge'!");
+				if (p_ptr->mode & MODE_DED_IDDC)
+					msg_print(Ind, "\374\377y         If you enter, you cannot escape until you make it to the bottom!");
+				else
+					msg_print(Ind, "\374\377y         If you enter, you cannot escape until you reach Menegroth!");
+				s_printf("warning_staircase_iddc: %s\n", p_ptr->name);
+				p_ptr->warning_staircase_iddc = 1;
+			}
+			/* Give a special hint for the Halls of Mandos, so DED_IDDC people aren't nervous they got the wrong dungeon aka "did I turn off the stove?" */
+			else if (!p_ptr->warning_staircase_mandos && hallsofmandos_wpos_x == p_ptr->wpos.wx && hallsofmandos_wpos_y == p_ptr->wpos.wy
+			    && ((hallsofmandos_wpos_z > 0 && (c_ptr->feat == FEAT_LESS || c_ptr->feat == FEAT_WAY_LESS)) ||
+			    (hallsofmandos_wpos_z < 0 && (c_ptr->feat == FEAT_MORE || c_ptr->feat == FEAT_WAY_MORE)))) {
+				msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon,");
+				msg_print(Ind, "\374\377y         this particular one being the otherworldly Halls of Mandos!");
+				msg_print(Ind, "\374\377y         If you enter, you cannot escape until you make it to the bottom!");
+				s_printf("warning_staircase_mandos: %s\n", p_ptr->name);
+				p_ptr->warning_staircase_mandos = 1;
+			}
+			else if (!p_ptr->warning_staircase_oneway) {
 				if (d_ptr->flags2 & DF2_IRON) {
-					if (wpos->wx == WPOS_IRONDEEPDIVE_X && wpos->wy == WPOS_IRONDEEPDIVE_Y &&
-					    ((WPOS_IRONDEEPDIVE_Z > 0 && (c_ptr->feat == FEAT_LESS || c_ptr->feat == FEAT_WAY_LESS)) ||
-					    (WPOS_IRONDEEPDIVE_Z < 0 && (c_ptr->feat == FEAT_MORE || c_ptr->feat == FEAT_WAY_MORE)))) {
-						msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon,");
-						msg_print(Ind, "\374\377y         this particular one being the 'Ironman Deep Dive Challenge'!");
-						if (p_ptr->mode & MODE_DED_IDDC)
-							msg_print(Ind, "\374\377y         If you enter, you cannot escape until you make it to the bottom!");
-						else
-							msg_print(Ind, "\374\377y         If you enter, you cannot escape until you reach Menegroth!");
-#ifdef DED_IDDC_MANDOS
-					/* Give a special hint for the Halls of Mandos, so DED_IDDC people aren't nervous they got the wrong dungeon aka "did I turn off the stove?" */
-					} else if (wpos->wx == hallsofmandos_wpos_x && wpos->wy == hallsofmandos_wpos_y &&
-					    ((hallsofmandos_wpos_z > 0 && (c_ptr->feat == FEAT_LESS || c_ptr->feat == FEAT_WAY_LESS)) ||
-					    (hallsofmandos_wpos_z < 0 && (c_ptr->feat == FEAT_MORE || c_ptr->feat == FEAT_WAY_MORE)))) {
-						msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon,");
-						msg_print(Ind, "\374\377y         this particular one being the otherworldly Halls of Mandos!");
-						msg_print(Ind, "\374\377y         If you enter, you cannot escape until you make it to the bottom!");
-#endif
-					} else {
-						msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon!");
-						msg_print(Ind, "\374\377y         That means that you cannot escape until you reach the bottom and");
-						msg_print(Ind, "\374\377y         read a scroll of word-of-recall there! Also, death is \377opermanent\377y!");
-					}
-					s_printf("warning_staircase_oneway: %s\n", p_ptr->name);
+					msg_print(Ind, "\374\377oWARNING: \377yThe dark grey staircase indicates an 'Ironman' dungeon!");
+					msg_print(Ind, "\374\377y         That means that you cannot escape until you reach the bottom and");
+					msg_print(Ind, "\374\377y         read a scroll of word-of-recall there! Also, death is \377opermanent\377y!");
+					s_printf("warning_staircase_oneway(iron): %s\n", p_ptr->name);
 					p_ptr->warning_staircase_oneway = 1;
 				} else if (d_ptr->flags1 & DF1_NO_UP) {
 					msg_print(Ind, "\374\377oWARNING: \377yThe orange staircase indicates a 'No-up' dungeon!");
 					msg_print(Ind, "\374\377y         That means that you cannot take a staircase back up. You can");
 					msg_print(Ind, "\374\377y         only escape by reading a scroll of word-of-recall!");
-					s_printf("warning_staircase_oneway: %s\n", p_ptr->name);
+					s_printf("warning_staircase_oneway(no_up): %s\n", p_ptr->name);
 					p_ptr->warning_staircase_oneway = 1;
 				} else if (d_ptr->flags1 & DF1_FORCE_DOWN) {
 					msg_print(Ind, "\374\377oWARNING: \377yThe light red staircase indicates a 'Force-down' dungeon!");
 					msg_print(Ind, "\374\377y         That means that you cannot escape until you reach the bottom and");
 					msg_print(Ind, "\374\377y         read a scroll of word-of-recall there!");
-					s_printf("warning_staircase_oneway: %s\n", p_ptr->name);
+					s_printf("warning_staircase_oneway(force_down): %s\n", p_ptr->name);
 					p_ptr->warning_staircase_oneway = 1;
 				}
 			}
@@ -6966,8 +7211,8 @@ static void moved_player(int Ind, player_type *p_ptr, cave_type **zcave, int ox,
 				/* Message */
 				msg_print(Ind, "You triggered a trap!");
 
-				/* Pick a trap */
-				pick_trap(&p_ptr->wpos, y, x);
+				/* Mark trap as found */
+				trap_found(&p_ptr->wpos, y, x);
 			}
 #ifndef ARCADE_SERVER
 			else if (magik(get_skill_scale(p_ptr, SKILL_TRAPPING, 90) - UNAWARENESS(p_ptr))) {
@@ -7038,7 +7283,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 	un_afk_idle(Ind);
 
 	/* Can we move ? */
-	if (r_ptr->flags1 & RF1_NEVER_MOVE) {
+	if (r_ptr->flags2 & RF2_NEVER_MOVE) {
 		msg_print(Ind, "You cannot move by nature.");
 		disturb(Ind, 0, 0); /* Stop us in case we were running */
 		return;
@@ -7119,26 +7364,30 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 	c_ptr = &zcave[p_ptr->py][p_ptr->px];
 
 	/* Slip on icy floor */
-	if ((c_ptr->feat == FEAT_ICE || (c_ptr->info & CAVE_SLIPPERY)) && (!p_ptr->feather_fall && !p_ptr->levitate && !p_ptr->tim_wraith &&
+	if ((c_ptr->feat == FEAT_ICE || c_ptr->slippery >= 1000) && (!p_ptr->feather_fall && !p_ptr->levitate && !p_ptr->tim_wraith &&
 	    /* Except for /animals/monsters/ that are used to cold, especially Yeti and co */
 	    !(p_ptr->body_monster && //(r_info[p_ptr->body_monster].flags3 & (RF3_ANIMAL | RF3_IM_COLD)) == (RF3_ANIMAL | RF3_IM_COLD)))) {
 	    (r_info[p_ptr->body_monster].flags3 & RF3_IM_COLD)))) {
-		if (magik(70 - p_ptr->lev)) {
+		//if (magik(70 - p_ptr->lev)) {
+		//if (magik(55 - (p_ptr->lev > 50 ? 50 : p_ptr->lev) / 2 - (7 - 128 + adj_dex_th[p_ptr->stat_ind[A_DEX]]))) { //DEX adjustment: 0..27
+		if (magik(2 * (35 - (p_ptr->lev > 50 ? 50 : p_ptr->lev) / 3 - (4 - 128 + adj_dex_ta[p_ptr->stat_ind[A_DEX]])))) { //DEX adjustment: 0..18
 			iterations = 10;//not strictly needed here, but anyway
 			do {
 				i = randint(9);
 				y = p_ptr->py + ddy[i];
 				x = p_ptr->px + ddx[i];
 			} while (i == 5 && --iterations > 0);
-			if (c_ptr->info & CAVE_SLIPPERY) {
-				c_ptr->info &= ~CAVE_SLIPPERY;
-				msg_print(Ind, "You slip on the oily floor.");
+			if (c_ptr->slippery >= 1000) {
+				c_ptr->slippery -= 1000;
+				msg_print(Ind, "You slip on the oily floor."); //no confusion effect, unlike for monsters
 			} else msg_print(Ind, "You slip on the icy floor.");
-		}
+		} /* for now, don't decrease slipperyness if we didn't slip */
 #if 0
-		else
-			tmp = dir;
+		else tmp = dir;
 #endif
+
+		/* Fire/elec aura: burn up all the oil immediately; for now no fire effects or anything */
+		if (p_ptr->sh_fire || p_ptr->sh_elec) c_ptr->slippery = 0;
 	}
 
 	/* Update wilderness positions */
@@ -7153,9 +7402,9 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 
 		/* we have gone off the map */
 		if (!in_bounds(y, x)) {
-			/* Hack: Nobody leaves (0, 0) while sector00separation is on - mikaelh */
-			if (sector00separation && wpos->wx == WPOS_SECTOR00_X &&
-			    wpos->wy == WPOS_SECTOR00_Y && !is_admin(p_ptr)) {
+			/* Hack: Nobody leaves (0, 0) while sector000separation is on - mikaelh */
+			if (sector000separation && wpos->wx == WPOS_SECTOR000_X &&
+			    wpos->wy == WPOS_SECTOR000_Y && !is_admin(p_ptr)) {
 				return;
 			}
 
@@ -7191,9 +7440,9 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 				return;
 			}
 
-			/* Hack: Nobody enters (0, 0) while sector00separation is on - mikaelh */
-			if (sector00separation && nwpos.wx == WPOS_SECTOR00_X &&
-			    nwpos.wy == WPOS_SECTOR00_Y && !is_admin(p_ptr)) {
+			/* Hack: Nobody enters (0, 0) while sector000separation is on - mikaelh */
+			if (sector000separation && nwpos.wx == WPOS_SECTOR000_X &&
+			    nwpos.wy == WPOS_SECTOR000_Y && !is_admin(p_ptr)) {
 				p_ptr->px = oldx;
 				p_ptr->py = oldy;
 				return;
@@ -7247,7 +7496,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		int Ind2 = 0 - c_ptr->m_idx;
 		bool blocks_important_feat = FALSE; /* does the player block an important feature, like staircases in towns? - C. Blue
 						       always make them 'switch places' instead of bumping. */
-		bool remain_in_store = FALSE;
+		bool remain_in_store = FALSE, replace_in_store = FALSE;
 
 		switch (c_ptr->feat) {
 		case FEAT_SHOP:
@@ -7255,6 +7504,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 			if (GetCS(c_ptr, CS_SHOP)->sc.omni != 7
 			    && q_ptr->store_num != -1) { /* except if the player isn't actually shopping but just blocking the store entrance! */
 				if (!q_ptr->admin_dm) remain_in_store = TRUE; /* Player is genuinely shopping, don't swap him off the store grid! */
+				else replace_in_store = TRUE;
 				break;
 			}
 			/* Fall through */
@@ -7284,21 +7534,21 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		/* TODO: always swap when in party
 		 * this can allow one to pass through walls... :(
 		 */
-		else if ( (!p_ptr->ghost && !q_ptr->ghost &&
+		else if ((!p_ptr->ghost && !q_ptr->ghost &&
 		    ((ddy[q_ptr->last_dir] == -(ddy[dir]) &&
 		    ddx[q_ptr->last_dir] == (-ddx[dir]))) ||
 		    (player_in_party(p_ptr->party, Ind2) &&
-		    q_ptr->store_num == -1) )||
+		    q_ptr->store_num == -1)) ||
 		    (q_ptr->admin_dm) )
 #else
 		else if (((!p_ptr->ghost && !q_ptr->ghost &&
 		    (ddy[q_ptr->last_dir] == -(ddy[dir])) &&
 		    (ddx[q_ptr->last_dir] == (-ddx[dir])) &&
 		    !p_ptr->afk && !q_ptr->afk) ||
-		    q_ptr->admin_dm || blocks_important_feat || (c_ptr->info & CAVE_SWITCH))
+		    q_ptr->admin_dm || blocks_important_feat || (c_ptr->info2 & CAVE2_SWITCH))
 		    /* don't switch someone 'out' of a shop, except for the Inn
 		       or if the player isn't actually 'visiting' the shop but just glitched onto the grid: */
-		    && !remain_in_store
+		    && !remain_in_store && !replace_in_store
 //moved above	    && !(f_info[c_ptr->feat].flags1 & FF1_PERMANENT)) /* never swich places into perma wall (only case possible: if target player is admin) */
 		    && (f_info[c_ptr->feat].flags1 & FF1_SWITCH_MASK) /* never swich places into perma wall */
 		    && !(p_ptr->admin_dm && !(q_ptr->admin_dm || q_ptr->admin_wiz))) /* dm shouldn't switch with non-dms ever */
@@ -7308,7 +7558,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 			/* switch places only if BOTH have WRAITHFORM or NONE has it, well or if target is a DM */
 			if ((!(p_ptr->afk || q_ptr->afk) && /* dont move AFK players into trees to kill them */
 			    ((p_ptr->tim_wraith && q_ptr->tim_wraith) || (!p_ptr->tim_wraith && !q_ptr->tim_wraith)))
-			    || q_ptr->admin_dm || blocks_important_feat || (c_ptr->info & CAVE_SWITCH)) {
+			    || q_ptr->admin_dm || blocks_important_feat || (c_ptr->info2 & CAVE2_SWITCH)) {
 				store_exit(Ind);
 				store_exit(Ind2);
 
@@ -7420,7 +7670,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		/* Hack -- the dungeon master switches places with his monsters */
 		if (p_ptr->admin_dm &&
 		    /* except if he wields his scythe (uhoh!) */
-		    (!instakills(Ind) ||
+		    (!p_ptr->instakills ||
 		    /* except if he's not disabled auto-retaliation */
 		    (p_ptr->running && p_ptr->inventory[INVEN_WIELD].note &&
 		    strstr(quark_str(p_ptr->inventory[INVEN_WIELD].note), "@Ox")))) {
@@ -7459,7 +7709,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		else {
 			/* hack: admins who are running with their scythe won't perform a run-attack - C. Blue
 			   and hack: cloaked players who are running _while wraithed_ will stop running first, too. */
-			if ((instakills(Ind) || p_ptr->cloaked) && p_ptr->running) {
+			if ((p_ptr->instakills || p_ptr->cloaked) && p_ptr->running) {
 				disturb(Ind, 0, 0); /* stop running first */
 				return;
 			}
@@ -7505,7 +7755,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 			cs_ptr = cs_ptr->next;
 			if (!tcv) {
 				csmove = FALSE;
-				printf("csmove is false\n");
+				s_printf("csmove is false\n");
 			}
 		}
 	}
@@ -7514,7 +7764,9 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 	if (!player_can_enter(Ind, c_ptr->feat, FALSE) || !csmove) {
 		bool my_home = FALSE;
 
-		if (p_ptr->tim_wraith || p_ptr->ghost) {
+		if (p_ptr->tim_wraith || p_ptr->ghost ||
+		    (p_ptr->prace == RACE_VAMPIRE && p_ptr->lev >= 35) /* vampire mist QoL hack */
+		    ) {
 			if (c_ptr->feat == FEAT_WALL_HOUSE) {
 				if (!wraith_access_virtual(Ind, y, x)) {
 					msg_print(Ind, "The wall blocks your movement.");
@@ -7525,7 +7777,8 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 
 					return;
 				}
-				msg_print(Ind, "\377GYou pass through the house wall.");
+				if (p_ptr->tim_wraith || p_ptr->ghost) msg_print(Ind, "You pass through the house wall.");
+				else msg_print(Ind, "You swiftly change into vampiric mist to pass through the house wall."); /* Vampire race QoL */
 				my_home = TRUE;
 			}
 		}
@@ -7677,6 +7930,8 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 						msg_print(Ind, "There is a mountain blocking your way.");
 					} else if (c_ptr->feat == FEAT_ABYSS || c_ptr->feat == FEAT_ABYSS_BOUNDARY) {
 						msg_print(Ind, "There is an endless abyss blocking your way.");
+					} else if (c_ptr->feat == FEAT_GLIT_WATER) { // BOUNDARY flavor - Kurzel
+						msg_print(Ind, "There is endless glittering water blocking your way.");
 					} else if (c_ptr->feat == FEAT_CLOUDYSKY) {
 						msg_print(Ind, "There is an endless depth below the clouds, blocking your way.");
 					} else if (c_ptr->feat == FEAT_SICKBAY_DOOR) {
@@ -7731,19 +7986,12 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 		zcave[y][x].m_idx = 0 - Ind;
 
 		/* Spontaneous Searching */
-		if ((p_ptr->skill_fos >= 75) ||
-		    (0 == rand_int(76 - p_ptr->skill_fos))) {
-			search(Ind);
-		}
+		if ((p_ptr->skill_fos >= 75) || (0 == rand_int(76 - p_ptr->skill_fos))) search(Ind);
 
 		/* Continuous Searching */
 		if (p_ptr->searching) {
-			if (p_ptr->pclass == CLASS_ROGUE && !p_ptr->rogue_heavyarmor) {
-				//Radius of 5 ... 15 squares
-				detect_bounty(Ind, (p_ptr->lev / 5) + 5);
-			} else {
-				search(Ind);
-			}
+			if (p_ptr->pclass == CLASS_ROGUE && !p_ptr->rogue_heavyarmor) detect_bounty(Ind);
+			else search(Ind);
 		}
 
 		/* Handle "objects" */
@@ -7879,6 +8127,9 @@ int see_wall(int Ind, int dir, int y, int x) {
 
 	/* Ghosts run right through everything */
 	if ((p_ptr->ghost || p_ptr->tim_wraith)) return(FALSE);
+
+	/* Wraithstep initialization phase? */
+	if ((p_ptr->tim_wraithstep & 0x1) && (p_ptr->tim_wraithstep & 0xF0)) return(FALSE);
 
 #if 0
 	/* Do wilderness hack, keep running from one outside level to another */
@@ -8192,16 +8443,16 @@ static void run_init(int Ind, int dir) {
 
 	/* Check for walls */
 	/* When in the town/wilderness, don't break left/right. -APD- */
-	if (see_wall(Ind, cycle[i+1], p_ptr->py, p_ptr->px)) {
+	if (see_wall(Ind, cycle[i + 1], p_ptr->py, p_ptr->px)) {
 		/* if in the dungeon */
-//		if (p_ptr->wpos.wz)
+		//if (p_ptr->wpos.wz)
 		{
 			p_ptr->find_breakleft = TRUE;
 			shortleft = TRUE;
 		}
-	} else if (see_wall(Ind, cycle[i+1], row, col)) {
+	} else if (see_wall(Ind, cycle[i + 1], row, col)) {
 		/* if in the dungeon */
-//		if (p_ptr->wpos.wz)
+		//if (p_ptr->wpos.wz)
 		{
 			p_ptr->find_breakleft = TRUE;
 			deepleft = TRUE;
@@ -8209,16 +8460,16 @@ static void run_init(int Ind, int dir) {
 	}
 
 	/* Check for walls */
-	if (see_wall(Ind, cycle[i-1], p_ptr->py, p_ptr->px)) {
+	if (see_wall(Ind, cycle[i - 1], p_ptr->py, p_ptr->px)) {
 		/* if in the dungeon */
-//		if (p_ptr->wpos.wz)
+		//if (p_ptr->wpos.wz)
 		{
 			p_ptr->find_breakright = TRUE;
 			shortright = TRUE;
 		}
-	} else if (see_wall(Ind, cycle[i-1], row, col)) {
+	} else if (see_wall(Ind, cycle[i - 1], row, col)) {
 		/* if in the dungeon */
-//		if (p_ptr->wpos.wz)
+		//if (p_ptr->wpos.wz)
 		{
 			p_ptr->find_breakright = TRUE;
 			deepright = TRUE;
@@ -8228,7 +8479,7 @@ static void run_init(int Ind, int dir) {
 	if (p_ptr->find_breakleft && p_ptr->find_breakright) {
 		/* Not looking for open area */
 		/* In the town/wilderness, always in an open area */
-//		if (p_ptr->wpos.wz)
+		//if (p_ptr->wpos.wz)
 			p_ptr->find_openarea = FALSE;
 
 		/* Hack -- allow angled corridor entry */
@@ -8270,15 +8521,17 @@ static bool run_test(int Ind) {
 	    (r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC) ||
 	    (r_info[p_ptr->body_monster].flags3 & RF3_UNDEAD) ));
 
-	cave_type *c_ptr;
+	cave_type *c_ptr, **zcave;
 	byte *w_ptr;
-	cave_type **zcave;
 	struct c_special *cs_ptr;
+	bool unprotected;
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
 
 	/* XXX -- Ghosts never stop running */
 	if (p_ptr->ghost || p_ptr->tim_wraith) return(FALSE);
+
+	unprotected = !(f_info[zcave[p_ptr->py][p_ptr->px].feat].flags1 & FF1_PROTECTED);
 
 	/* No options yet */
 	option = 0;
@@ -8306,7 +8559,10 @@ static bool run_test(int Ind) {
 		w_ptr = &p_ptr->cave_flag[row][col];
 
 		/* unlit grids abort running */
-		if (!(c_ptr->info & (CAVE_LITE | CAVE_GLOW))) {
+		if (!(c_ptr->info & (CAVE_LITE | CAVE_GLOW))
+		    /* Except inside inns, which are assumed to be perma-lit! Otherwise the dark house walls during night would
+		       prevent the player from running along the inner walls of the inn if he didn't have a light source! - C. Blue */
+		    && unprotected) {
 			if (p_ptr->warning_run_lite != 10) {
 				p_ptr->warning_run_lite++;
 				if (p_ptr->warning_run_lite == 9) {
@@ -8328,7 +8584,7 @@ static bool run_test(int Ind) {
 			if (p_ptr->mon_vis[c_ptr->m_idx] &&
 			   (!(m_list[c_ptr->m_idx].special) &&
 			   r_info[m_list[c_ptr->m_idx].r_idx].level != 0))
-					return(TRUE);
+				return(TRUE);
 
 		}
 
@@ -8771,26 +9027,33 @@ bool remember_sense(int Ind, int slot, object_type *o_ptr) {
 		/* Also, rings and amulets aren't covered by auxX_magic, so we have to exempt them (null string!): */
 		if (o_ptr->tval != TV_RING && o_ptr->tval != TV_AMULET) {
 			char o_name[ONAME_LEN];
+			cptr feel;
 
 			object_desc(Ind, o_name, o_ptr, TRUE, 3);
 
 			if (!object_felt_heavy_p(Ind, o_ptr)) {
+				feel = value_check_aux2_magic(o_ptr);
 				/* at least give a notice */
-				msg_format(Ind, "You remember %s (%c) in your pack %s %s.",
-				    o_name, index_to_label(slot), ((o_ptr->number != 1) ? "were" : "was"), value_check_aux2_magic(o_ptr));
-				/* otherwise inscribe it textually */
-				if (!o_ptr->note) {
-					o_ptr->note = quark_add(value_check_aux2_magic(o_ptr));
-					o_ptr->auto_insc = TRUE;
+				if (feel) {
+					msg_format(Ind, "You remember %s (%c) in your pack %s %s.",
+					    o_name, index_to_label(slot), ((o_ptr->number != 1) ? "were" : "was"), feel);
+					/* otherwise inscribe it textually */
+					if (!o_ptr->note) {
+						o_ptr->note = quark_add(feel);
+						o_ptr->auto_insc = TRUE;
+					}
 				}
 			} else {
+				feel = value_check_aux1_magic(o_ptr);
 				/* at least give a notice */
-				msg_format(Ind, "You remember %s (%c) in your pack %s %s.",
-				    o_name, index_to_label(slot), ((o_ptr->number != 1) ? "were" : "was"), value_check_aux1_magic(o_ptr));
-				/* otherwise inscribe it textually */
-				if (!o_ptr->note) {
-					o_ptr->note = quark_add(value_check_aux1_magic(o_ptr));
-					o_ptr->auto_insc = TRUE;
+				if (feel) {
+					msg_format(Ind, "You remember %s (%c) in your pack %s %s.",
+					    o_name, index_to_label(slot), ((o_ptr->number != 1) ? "were" : "was"), feel);
+					/* otherwise inscribe it textually */
+					if (!o_ptr->note) {
+						o_ptr->note = quark_add(feel);
+						o_ptr->auto_insc = TRUE;
+					}
 				}
 			}
 			return(TRUE);

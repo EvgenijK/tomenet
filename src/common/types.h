@@ -222,24 +222,19 @@ struct object_kind {
 
 
 	byte k_attr;		/* Standard object attribute */
-	char32_t k_char;		/* Standard object character */
-
+	char32_t k_char;	/* Standard object character */
 
 	byte d_attr;		/* Default object attribute */
-	char32_t d_char;		/* Default object character */
-
+	char32_t d_char;	/* Default object character */
 
 	byte x_attr;		/* Desired object attribute */
-	char32_t x_char;		/* Desired object character */
+	char32_t x_char;	/* Desired object character */
 
 
 	bool has_flavor;	/* This object has a flavor */
-
 	bool easy_know;		/* This object is always known (if aware) */
 
-
 /*	bool aware;	*/	/* The player is "aware" of the item's effects */
-
 /*	bool tried;	*/	/* The player has "tried" one of the items */
 
 	u32b esp;		/* ESP flags */
@@ -439,6 +434,7 @@ struct monster_race {
 	u32b flags9;			/* Flags 9 (drops info) */
 
 	u32b flags0;			/* Flags 10 (extra spells) */
+	u32b flagsA;			/* Flags A (extra basic flags) */
 #endif
 
 	monster_blow blow[4];	/* Up to four blows per round */
@@ -458,7 +454,6 @@ struct monster_race {
 
 
 	s32b max_num;			/* Maximum population allowed per level */
-
 	s32b cur_num;			/* Monster population on current level */
 
 	s32b r_sights;			/* Count sightings of this monster */
@@ -581,11 +576,10 @@ struct trap_kind{
 typedef struct c_special c_special;
 struct c_special{
 	unsigned char type;
-	union	/* 32bits -> 64bits (rune) */
-	{
-		void *ptr;		/* lazy - refer to other arrays or sth */
-		s32b omni;		/* needless of other arrays? k, add here! */
-		struct { byte t_idx; bool found; } trap;
+	union { /* 32bits -> 64bits (rune) */
+		void *ptr; /* lazy - refer to other arrays or sth */
+		s32b omni; /* needless of other arrays? k, add here! */
+		struct { byte t_idx; bool found; byte clone;} trap;
 		struct { byte fy, fx; } between; /* or simply 'dpos'? */
 		struct { byte wx, wy; s16b wz; } wpos;	/* XXX */
 		struct { byte type, rest; bool known; } fountain;
@@ -606,9 +600,10 @@ struct sfunc {
 };
 
 struct cave_type {
-	u32b info;		/* Hack -- cave flags */
+	u32b info, info2;	/* Hack -- cave flags */
 	byte feat;		/* Hack -- feature type */
-	byte feat_org;		/* Feature type backup (todo: for wall-created grids to revert to original feat when tunneled!) */
+	byte feat_org;		/* UNUSED -- Feature type backup (TODO: for wall-created grids to revert to original feat when tunneled! Add to save/load!) */
+
 	u16b o_idx;		/* Item index (in o_list) or zero */
 	s16b m_idx;		/* Monster index (in m_list) or zero */
 				/* or negative if a player */
@@ -634,8 +629,19 @@ struct cave_type {
 #ifdef HOUSE_PAINTING
 	byte colour;	/* colour that overrides the usual colour of a feature */
 #endif
+	byte htemp;		/* Temporary value for cave building process in generate_hmap() */
+	u16b slippery;		/* Slippery for this/1000 turns */
+#if 0 /* todo: replace CAVE_LITE etc flags by actual light counters here, to allow for faster handling of static light sources */
+	byte light_white;	/* Amount of white light shone onto this grid */
+	byte light_fiery;	/* Amount of fiery light shone onto this grid */
+#endif
 
-	byte temp;		/* Temporary value for cave building process in generate_hmap() */
+	s16b custom_lua_tunnel_hand;		/* only if dug manually (excluding quiet_borer aka mimic forms); negative value: just the attempt is enough. */
+	s16b custom_lua_tunnel;			/* any kind of tunneling success; negative value: just the attempt is enough. */
+	s16b custom_lua_search;			/* cave is now searchable, trigger when searched successfully; negative value: just the attempt is enough. */
+	byte custom_lua_search_diff_minus;	/* search difficulty, 0..100 subtracted from chance */
+	byte custom_lua_search_diff_chance;	/* search difficulty, 0..100% multiplied by chance */
+	s16b custom_lua_newlivefeat;		/* when cave's feat is terraformed/changed */
 };
 
 /* ToME parts, arranged */
@@ -643,7 +649,8 @@ struct cave_type {
 /* Lasting spell effects(clouds, ..) */
 typedef struct effect_type effect_type;
 struct effect_type {
-	s32b who;		/* Who caused this effect (0-id if player) */
+	int who;		/* Who caused this effect, PROJECTOR_xxx, player (-p_ptr->Ind) or monster (m_idx). */
+	s32b who_id;		/* Who caused this effect (0...'p_ptr->id' if player) */
 	worldpos wpos;		/* Where in the world */
 
 	s16b interval;		/* How quickly does it tick (10 = normal, once per 10 frames at 0 ft depth) */
@@ -691,8 +698,165 @@ struct object_type {
 
 	byte tval;			/* Item type (from kind) */
 	byte sval;			/* Item sub-type (from kind) */
-	byte tval2;			/* normally unused (except for item-invalid-seal) */
-	byte sval2;			/* normally unused (except for item-invalid-seal) */
+	byte tval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte sval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte number2;			/* normally unused (except for gifts) */
+	u32b note2;			/* Inscription index */
+	char note2_utag;		/* Added for making pseudo-id overwrite unique loot tags */
+
+	s32b bpval;			/* Base item extra-parameter */
+	s32b pval;			/* Extra enchantment item extra-parameter (name1 or name2) */
+	s32b pval2;			/* Item extra-parameter for some special items - this was only used in old, disabled code. Using it now for INVERSE_CURSED_RANDARTS */
+	s32b pval3;			/* Item extra-parameter for some special items - this was unused. Using it now for INVERSE_CURSED_RANDARTS - C. Blue */
+
+	/* VAMPIRES_INV_CURSED */
+	s32b pval_org, bpval_org;
+	s16b to_h_org, to_d_org, to_a_org;
+
+	/* Used for temporarily augmented equipment. (Runecraft) */
+	s32b sigil;			/* Element index (+1) for r_projection (common/tables.c) boni lookup. Zero if no sigil. */
+	s32b sseed;			/* RNG Seed used to determine the boni (if random). Zero if not randomized. */
+
+	byte discount;			/* Discount (if any) */
+	byte number;			/* Number of items */
+	s16b weight;			/* Item weight */
+
+	u16b name1;			/* Artifact type, if any */
+	u16b name2;			/* Ego-Item type, if any */
+	u16b name2b;			/* 2e Ego-Item type, if any */
+	u32b name3;			/* Randart seed, if any (now it's common with ego-items -Jir-) */
+	u16b name4;			/* Index of randart name in file 'randarts.txt', solely for fun set bonus - C. Blue */
+	byte attr;			/* colour in inventory (for client) */
+
+	u16b mode;			/* Mode of player who found it */
+
+	s16b xtra1;			/* Extra info type, for various purpose */
+	s16b xtra2;			/* Extra info index */
+	/* more info added for self-made spellbook feature Adam suggested - C. Blue */
+	s16b xtra3;			/* Extra info */
+	s16b xtra4;			/* Extra info */
+	s16b xtra5;			/* Extra info */
+	s16b xtra6;			/* Extra info */
+	s16b xtra7;			/* Extra info */
+	s16b xtra8;			/* Extra info */
+	s16b xtra9;			/* Extra info -- marks starter items as such. (This would collide if there ever existed a custom book with 9 spells in it.) */
+
+	char uses_dir;			/* Client-side: Uses a direction or not? (for rods) */
+
+#ifdef PLAYER_STORES
+	byte ps_idx_x;			/* Index or x-coordinate of player store item in the original house */
+	byte ps_idx_y;			/* y-coordinate of player store item in the original house */
+	s64b appraised_value;		/* HOME_APPRAISAL: object_value(Ind_seller, o_ptr); */
+#endif
+
+	s16b to_h;			/* Plusses to hit */
+	s16b to_d;			/* Plusses to damage */
+	s16b to_a;			/* Plusses to AC */
+
+	s16b ac;			/* Normal AC */
+	byte dd, ds;			/* Damage dice/sides */
+
+	u16b ident;			/* Special flags */
+	s32b timeout;			/* Timeout Counter: amount of fuel left until it is depleted. */
+	s32b timeout_magic;		/* Timeout Counter: amount of power left until it is depleted, can be discharged. */
+	s32b recharging;		/* Auto-recharge-state of auto-recharging items (rods and activatable items). */
+
+	s32b marked;			/* Object is marked (for deletion after a certain time) */
+	byte marked2;			/* additional parameters */
+	/* for new quest_info: */
+	bool questor;			/* further quest_info flags are referred to when required, no need to copy all of them here */
+	s16b quest, quest_stage, questor_idx;	/* It's an item for a quest (either the questor item or an item that needs to be retrieved for a quest goal).
+		//IMPORTAAAAAAANT:	   Hack: 0 = no quest; n = quest + 1. So we don't have to initialise all items to -1 here :-p */
+	byte questor_invincible;	/* invincible to players/monsters? */
+	bool quest_credited;		/* ugly hack for inven_carry() usage within carry(), to avoid double-crediting */
+
+	u32b note;			/* Inscription index */
+	char note_utag;			/* Added for making pseudo-id overwrite unique loot tags */
+
+#if 0	/* from pernA.. consumes memory, but quick. shall we? */
+	u16b art_name;			/* Artifact name (random artifacts) */
+
+	u32b art_flags1;		/* Flags, set 1  Alas, these were necessary */
+	u32b art_flags2;		/* Flags, set 2  for the random artifacts of*/
+	u32b art_flags3;		/* Flags, set 3  Zangband */
+	u32b art_flags4;		/* Flags, set 4  PernAngband */
+	u32b art_flags5;		/* Flags, set 5  PernAngband */
+	u32b art_esp;			/* Flags, set esp  PernAngband */
+#endif	/* 0 */
+
+	byte inven_order;		/* Inventory position if held by a player,
+					   only use is in xtra2.c when pack is ang_sort'ed */
+
+	u16b next_o_idx;		/* Next object in stack (if any) */
+	u16b held_m_idx;		/* Monster holding us (if any) */
+	bool auto_insc;			/* Request client-side auto-inscription after item has changed? */
+	char stack_pos;			/* Position in stack: Use to limit stack size */
+
+	s16b cheeze_dlv, cheeze_plv, cheeze_plv_carry;	/* anti-cheeze */
+
+	u16b housed;			/* <house index + 1> or 0 for not currently inside a house */
+	bool changed;			/* dummy flag to refresh item if o_name changed, but memory copy didn't */
+	bool NR_tradable;		/* for ALLOW_NR_CROSS_ITEMS */
+	bool no_soloist;		/* item may not be picked up by Soloists. Used for "unpersonalized" event rewards eg Santa drops. */
+	byte temp;			/* any local hacks:
+					    0x01 is used to force-update an equipment slot (by simply causing memcmp to not match anymore due to the flipped bit!).
+					    0x02 is used for !W inscription to set the alarm for this object,
+					    0x04 too, for preventing the !W induced alarm if the object was dropped by the player.
+					*/
+	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
+	s32b iron_trade;		/* Needed for the last survivor after a party was erased: Former party of the last player who picked it up */
+	/* ..and for IDDC_RESTRICTED_TRADING : */
+	s32b iron_turn;			/* Turn when it was picked up, to compare with player's party-join turn. */
+
+	/* For replacing the 255 - iy monster-trap hack, and also no more setting iy and ix to 0 for monster-inventory items */
+	byte embed;			/* 1: Object is contained within a feat (trapkit/trapload in a monster trap); note that 'Object is held in a monster's inventory' is already indicated by held_m_idx instead. */
+
+	/* For item history tracking */
+	s32b id;			/* Item's unique ID (mhh) */
+	s32b f_id;			/* Original finder */
+	char f_name[CNAME_LEN];		/* Original finder's name */
+	s32b f_turn;			/* Found when, in-game? */
+	time_t f_time;			/* Found when, real-time? */
+	struct worldpos f_wpos;		/* Found at this wpos */
+	char f_dun;			/* Found in this dungeon type (d_info index, negative for IRONDEEPDIVE_MIXED_TYPES) */
+	byte f_player;			/* Received from a player / taken from a player's death loot oO */
+	s32b f_player_turn;		/* ^ when? */
+	u16b f_ridx, f_reidx;		/* Found from this [ego] monster */
+	s16b f_special;			/* Found from digging (1000+feat), or in a chest (sval), bought from a store(-idx), player store(-1000).. */
+	char f_reward;			/* Received as event(>0)/quest(<0) reward? */
+
+	/* not yet implemented, for future tracking */
+	u32b slain_monsters, slain_uniques, slain_players, times_activated, time_equipped, time_carried; //time in seconds is enough for ~130+ years
+	u32b slain_orcs, slain_trolls, slain_giants, slain_animals, slain_dragons, slain_demons, slain_undead, slain_evil;
+	byte slain_bosses, slain_nazgul, slain_superuniques, slain_sauron, slain_morgoth, slain_zuaon; //these don't respawn, so byte is fine
+	u64b done_damage, done_healing;
+	u16b got_damaged, got_repaired, got_enchanted;
+
+	s16b custom_lua_carrystate;	/* Runs custom lua script on acquiring/losing it */
+	s16b custom_lua_equipstate;	/* Runs custom lua script on equipping/unequipping it */
+	s16b custom_lua_destruction;	/* Runs custom lua script on item destruction */
+	s16b custom_lua_usage;		/* Runs custom lua script on whatever this item can be used for via command: activation, quaff, read, eat.. */
+};
+typedef struct object_type_v7 object_type_v7;
+struct object_type_v7 {
+	s32b owner;			/* Player id that found it */
+	s32b killer;			/* Player id that killed the monster/opened the chest/etc causing the item to drop (for handling Soloist mode) */
+	s16b level;			/* Level req */
+
+	s16b k_idx;			/* Kind index (zero if "dead") */
+	s16b h_idx;			/* inside house? (-1 if not) */
+
+	struct worldpos wpos;		/* worldmap position (6 x s16b) */
+	byte iy;			/* Y-position on map, or zero */
+	byte ix;			/* X-position on map, or zero */
+
+	byte tval;			/* Item type (from kind) */
+	byte sval;			/* Item sub-type (from kind) */
+	byte tval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte sval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte number2;			/* normally unused (except for gifts) */
+	u32b note2;			/* Inscription index */
+	char note2_utag;		/* Added for making pseudo-id overwrite unique loot tags */
 
 	s32b bpval;			/* Base item extra-parameter */
 	s32b pval;			/* Extra enchantment item extra-parameter (name1 or name2) */
@@ -788,7 +952,312 @@ struct object_type {
 	bool changed;			/* dummy flag to refresh item if o_name changed, but memory copy didn't */
 	bool NR_tradable;		/* for ALLOW_NR_CROSS_ITEMS */
 	bool no_soloist;		/* item may not be picked up by Soloists. Used for "unpersonalized" event rewards eg Santa drops. */
-	byte temp;			/* any local hacks */
+	byte temp;			/* any local hacks:
+					    0x01 is used to force-update an equipment slot (by simply causing memcmp to not match anymore due to the flipped bit!).
+					    0x02 is used for !W inscription to set the alarm for this object,
+					    0x04 too, for preventing the !W induced alarm if the object was dropped by the player.
+					*/
+	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
+	s32b iron_trade;		/* Needed for the last survivor after a party was erased: Former party of the last player who picked it up */
+	/* ..and for IDDC_RESTRICTED_TRADING : */
+	s32b iron_turn;			/* Turn when it was picked up, to compare with player's party-join turn. */
+
+	/* For replacing the 255 - iy monster-trap hack, and also no more setting iy and ix to 0 for monster-inventory items */
+	byte embed;			/* 1: Object is contained within a feat (trapkit/trapload in a monster trap); note that 'Object is held in a monster's inventory' is already indicated by held_m_idx instead. */
+
+	/* For item history tracking */
+	s32b id;			/* Item's unique ID (mhh) */
+	s32b f_id;			/* Original finder */
+	char f_name[CNAME_LEN];		/* Original finder's name */
+	s32b f_turn;			/* Found when, in-game? */
+	time_t f_time;			/* Found when, real-time? */
+	struct worldpos f_wpos;		/* Found at this wpos */
+	char f_dun;			/* Found in this dungeon type (d_info index, negative for IRONDEEPDIVE_MIXED_TYPES) */
+	byte f_player;			/* Received from a player / taken from a player's death loot oO */
+	s32b f_player_turn;		/* ^ when? */
+	u16b f_ridx, f_reidx;		/* Found from this [ego] monster */
+	s16b f_special;			/* Found from digging (1000+feat), or in a chest (sval), bought from a store(-idx), player store(-1000).. */
+	char f_reward;			/* Received as event(>0)/quest(<0) reward? */
+
+	/* not yet implemented, for future tracking */
+	u32b slain_monsters, slain_uniques, slain_players, times_activated, time_equipped, time_carried; //time in seconds is enough for ~130+ years
+	u32b slain_orcs, slain_trolls, slain_giants, slain_animals, slain_dragons, slain_demons, slain_undead, slain_evil;
+	byte slain_bosses, slain_nazgul, slain_superuniques, slain_sauron, slain_morgoth, slain_zuaon; //these don't respawn, so byte is fine
+	u64b done_damage, done_healing;
+	u16b got_damaged, got_repaired, got_enchanted;
+
+	s16b custom_lua_carrystate;	/* Runs custom lua script on acquiring/losing it */
+	s16b custom_lua_equipstate;	/* Runs custom lua script on equipping/unequipping it */
+	s16b custom_lua_destruction;	/* Runs custom lua script on item destruction */
+	s16b custom_lua_usage;		/* Runs custom lua script on whatever this item can be used for via command: activation, quaff, read, eat.. */
+};
+typedef struct object_type_v6 object_type_v6;
+struct object_type_v6 {
+	s32b owner;			/* Player id that found it */
+	s32b killer;			/* Player id that killed the monster/opened the chest/etc causing the item to drop (for handling Soloist mode) */
+	s16b level;			/* Level req */
+
+	s16b k_idx;			/* Kind index (zero if "dead") */
+	s16b h_idx;			/* inside house? (-1 if not) */
+
+	struct worldpos wpos;		/* worldmap position (6 x s16b) */
+	byte iy;			/* Y-position on map, or zero */
+	byte ix;			/* X-position on map, or zero */
+
+	byte tval;			/* Item type (from kind) */
+	byte sval;			/* Item sub-type (from kind) */
+	byte tval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte sval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte number2;			/* normally unused (except for gifts) */
+	u32b note2;			/* Inscription index */
+	char note2_utag;		/* Added for making pseudo-id overwrite unique loot tags */
+
+	s32b bpval;			/* Base item extra-parameter */
+	s32b pval;			/* Extra enchantment item extra-parameter (name1 or name2) */
+	s32b pval2;			/* Item extra-parameter for some special items - this was only used in old, disabled code. Using it now for INVERSE_CURSED_RANDARTS */
+	s32b pval3;			/* Item extra-parameter for some special items - this was unused. Using it now for INVERSE_CURSED_RANDARTS - C. Blue */
+
+	/* VAMPIRES_INV_CURSED */
+	s32b pval_org, bpval_org;
+	s16b to_h_org, to_d_org, to_a_org;
+
+	/* Used for temporarily augmented equipment. (Runecraft) */
+	s32b sigil;			/* Element index (+1) for r_projection (common/tables.c) boni lookup. Zero if no sigil. */
+	s32b sseed;			/* RNG Seed used to determine the boni (if random). Zero if not randomized. */
+
+	byte discount;			/* Discount (if any) */
+	byte number;			/* Number of items */
+	s16b weight;			/* Item weight */
+
+	u16b name1;			/* Artifact type, if any */
+	u16b name2;			/* Ego-Item type, if any */
+	u16b name2b;			/* 2e Ego-Item type, if any */
+	s32b name3;			/* Randart seed, if any (now it's common with ego-items -Jir-) */
+	u16b name4;			/* Index of randart name in file 'randarts.txt', solely for fun set bonus - C. Blue */
+	byte attr;			/* colour in inventory (for client) */
+
+	byte mode;			/* Mode of player who found it */
+
+	s16b xtra1;			/* Extra info type, for various purpose */
+	s16b xtra2;			/* Extra info index */
+	/* more info added for self-made spellbook feature Adam suggested - C. Blue */
+	s16b xtra3;			/* Extra info */
+	s16b xtra4;			/* Extra info */
+	s16b xtra5;			/* Extra info */
+	s16b xtra6;			/* Extra info */
+	s16b xtra7;			/* Extra info */
+	s16b xtra8;			/* Extra info */
+	s16b xtra9;			/* Extra info -- marks starter items as such. (This would collide if there ever existed a custom book with 9 spells in it.) */
+
+	char uses_dir;			/* Client-side: Uses a direction or not? (for rods) */
+
+#ifdef PLAYER_STORES
+	byte ps_idx_x;			/* Index or x-coordinate of player store item in the original house */
+	byte ps_idx_y;			/* y-coordinate of player store item in the original house */
+	s64b appraised_value;		/* HOME_APPRAISAL: object_value(Ind_seller, o_ptr); */
+#endif
+
+	s16b to_h;			/* Plusses to hit */
+	s16b to_d;			/* Plusses to damage */
+	s16b to_a;			/* Plusses to AC */
+
+	s16b ac;			/* Normal AC */
+	byte dd, ds;			/* Damage dice/sides */
+
+	u16b ident;			/* Special flags */
+	s32b timeout;			/* Timeout Counter: amount of fuel left until it is depleted. */
+	s32b timeout_magic;		/* Timeout Counter: amount of power left until it is depleted, can be discharged. */
+	s32b recharging;		/* Auto-recharge-state of auto-recharging items (rods and activatable items). */
+
+	s32b marked;			/* Object is marked (for deletion after a certain time) */
+	byte marked2;			/* additional parameters */
+	/* for new quest_info: */
+	bool questor;			/* further quest_info flags are referred to when required, no need to copy all of them here */
+	s16b quest, quest_stage, questor_idx;	/* It's an item for a quest (either the questor item or an item that needs to be retrieved for a quest goal).
+		//IMPORTAAAAAAANT:	   Hack: 0 = no quest; n = quest + 1. So we don't have to initialise all items to -1 here :-p */
+	byte questor_invincible;	/* invincible to players/monsters? */
+	bool quest_credited;		/* ugly hack for inven_carry() usage within carry(), to avoid double-crediting */
+
+	u32b note;			/* Inscription index */
+	char note_utag;			/* Added for making pseudo-id overwrite unique loot tags */
+
+#if 0	/* from pernA.. consumes memory, but quick. shall we? */
+	u16b art_name;			/* Artifact name (random artifacts) */
+
+	u32b art_flags1;		/* Flags, set 1  Alas, these were necessary */
+	u32b art_flags2;		/* Flags, set 2  for the random artifacts of*/
+	u32b art_flags3;		/* Flags, set 3  Zangband */
+	u32b art_flags4;		/* Flags, set 4  PernAngband */
+	u32b art_flags5;		/* Flags, set 5  PernAngband */
+	u32b art_esp;			/* Flags, set esp  PernAngband */
+#endif	/* 0 */
+
+	byte inven_order;		/* Inventory position if held by a player,
+					   only use is in xtra2.c when pack is ang_sort'ed */
+
+	u16b next_o_idx;		/* Next object in stack (if any) */
+	u16b held_m_idx;		/* Monster holding us (if any) */
+	bool auto_insc;			/* Request client-side auto-inscription after item has changed? */
+	char stack_pos;			/* Position in stack: Use to limit stack size */
+
+	s16b cheeze_dlv, cheeze_plv, cheeze_plv_carry;	/* anti-cheeze */
+
+	u16b housed;			/* <house index + 1> or 0 for not currently inside a house */
+	bool changed;			/* dummy flag to refresh item if o_name changed, but memory copy didn't */
+	bool NR_tradable;		/* for ALLOW_NR_CROSS_ITEMS */
+	bool no_soloist;		/* item may not be picked up by Soloists. Used for "unpersonalized" event rewards eg Santa drops. */
+	byte temp;			/* any local hacks:
+					    0x01 is used to force-update an equipment slot (by simply causing memcmp to not match anymore due to the flipped bit!).
+					    0x02 is used for !W inscription to set the alarm for this object,
+					    0x04 too, for preventing the !W induced alarm if the object was dropped by the player.
+					*/
+	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
+	s32b iron_trade;		/* Needed for the last survivor after a party was erased: Former party of the last player who picked it up */
+	/* ..and for IDDC_RESTRICTED_TRADING : */
+	s32b iron_turn;			/* Turn when it was picked up, to compare with player's party-join turn. */
+
+	/* For replacing the 255 - iy monster-trap hack, and also no more setting iy and ix to 0 for monster-inventory items */
+	byte embed;			/* 1: Object is contained within a feat (trapkit/trapload in a monster trap); note that 'Object is held in a monster's inventory' is already indicated by held_m_idx instead. */
+
+	/* For item history tracking */
+	s32b id;			/* Item's unique ID (mhh) */
+	s32b f_id;			/* Original finder */
+	char f_name[CNAME_LEN];		/* Original finder's name */
+	s32b f_turn;			/* Found when, in-game? */
+	time_t f_time;			/* Found when, real-time? */
+	struct worldpos f_wpos;		/* Found at this wpos */
+	char f_dun;			/* Found in this dungeon type (d_info index, negative for IRONDEEPDIVE_MIXED_TYPES) */
+	byte f_player;			/* Received from a player / taken from a player's death loot oO */
+	s32b f_player_turn;		/* ^ when? */
+	u16b f_ridx, f_reidx;		/* Found from this [ego] monster */
+	s16b f_special;			/* Found from digging (1000+feat), or in a chest (sval), bought from a store(-idx), player store(-1000).. */
+	char f_reward;			/* Received as event(>0)/quest(<0) reward? */
+#if 0 /* for future tracking */
+	u32b slain_monsters, slain_uniques, slain_players, times_activated, time_equipped, time_carried; //time in seconds is enough for ~130+ years
+	u32b slain_orcs, slain_trolls, slain_giants, slain_animals, slain_dragons, slain_demons, slain_undead, slain_evil;
+	byte slain_bosses, slain_nazgul, slain_superuniques, slain_sauron, slain_morgoth, slain_zuaon; //these don't respawn, so byte is fine
+	u64b done_damage, done_healing;
+	u16b got_damaged, got_repaired, got_enchanted;
+#endif
+};
+
+typedef struct object_type_v5 object_type_v5;
+struct object_type_v5 {
+	s32b owner;			/* Player id that found it */
+	s32b killer;			/* Player id that killed the monster/opened the chest/etc causing the item to drop (for handling Soloist mode) */
+	s16b level;			/* Level req */
+
+	s16b k_idx;			/* Kind index (zero if "dead") */
+	s16b h_idx;			/* inside house? (-1 if not) */
+
+	struct worldpos wpos;		/* worldmap position (6 x s16b) */
+	byte iy;			/* Y-position on map, or zero */
+	byte ix;			/* X-position on map, or zero */
+
+	byte tval;			/* Item type (from kind) */
+	byte sval;			/* Item sub-type (from kind) */
+	byte tval2;			/* normally unused (except for item-invalid-seal and gifts) */
+	byte sval2;			/* normally unused (except for item-invalid-seal and gifts) */
+
+	s32b bpval;			/* Base item extra-parameter */
+	s32b pval;			/* Extra enchantment item extra-parameter (name1 or name2) */
+	s32b pval2;			/* Item extra-parameter for some special items - this was only used in old, disabled code. Using it now for INVERSE_CURSED_RANDARTS */
+	s32b pval3;			/* Item extra-parameter for some special items - this was unused. Using it now for INVERSE_CURSED_RANDARTS - C. Blue */
+
+	/* VAMPIRES_INV_CURSED */
+	s32b pval_org, bpval_org;
+	s16b to_h_org, to_d_org, to_a_org;
+
+	/* Used for temporarily augmented equipment. (Runecraft) */
+	s32b sigil;			/* Element index (+1) for r_projection (common/tables.c) boni lookup. Zero if no sigil. */
+	s32b sseed;			/* RNG Seed used to determine the boni (if random). Zero if not randomized. */
+
+	byte discount;			/* Discount (if any) */
+	byte number;			/* Number of items */
+	s16b weight;			/* Item weight */
+
+	u16b name1;			/* Artifact type, if any */
+	u16b name2;			/* Ego-Item type, if any */
+	u16b name2b;			/* 2e Ego-Item type, if any */
+	s32b name3;			/* Randart seed, if any (now it's common with ego-items -Jir-) */
+	u16b name4;			/* Index of randart name in file 'randarts.txt', solely for fun set bonus - C. Blue */
+	byte attr;			/* colour in inventory (for client) */
+
+	byte mode;			/* Mode of player who found it */
+
+	s16b xtra1;			/* Extra info type, for various purpose */
+	s16b xtra2;			/* Extra info index */
+	/* more info added for self-made spellbook feature Adam suggested - C. Blue */
+	s16b xtra3;			/* Extra info */
+	s16b xtra4;			/* Extra info */
+	s16b xtra5;			/* Extra info */
+	s16b xtra6;			/* Extra info */
+	s16b xtra7;			/* Extra info */
+	s16b xtra8;			/* Extra info */
+	s16b xtra9;			/* Extra info -- marks starter items as such. (This would collide if there ever existed a custom book with 9 spells in it.) */
+
+	char uses_dir;			/* Client-side: Uses a direction or not? (for rods) */
+
+#ifdef PLAYER_STORES
+	byte ps_idx_x;			/* Index or x-coordinate of player store item in the original house */
+	byte ps_idx_y;			/* y-coordinate of player store item in the original house */
+	s64b appraised_value;		/* HOME_APPRAISAL: object_value(Ind_seller, o_ptr); */
+#endif
+
+	s16b to_h;			/* Plusses to hit */
+	s16b to_d;			/* Plusses to damage */
+	s16b to_a;			/* Plusses to AC */
+
+	s16b ac;			/* Normal AC */
+	byte dd, ds;			/* Damage dice/sides */
+
+	u16b ident;			/* Special flags */
+	s32b timeout;			/* Timeout Counter: amount of fuel left until it is depleted. */
+	s32b timeout_magic;		/* Timeout Counter: amount of power left until it is depleted, can be discharged. */
+	s32b recharging;		/* Auto-recharge-state of auto-recharging items (rods and activatable items). */
+
+	s32b marked;			/* Object is marked (for deletion after a certain time) */
+	byte marked2;			/* additional parameters */
+	/* for new quest_info: */
+	bool questor;			/* further quest_info flags are referred to when required, no need to copy all of them here */
+	s16b quest, quest_stage, questor_idx;	/* It's an item for a quest (either the questor item or an item that needs to be retrieved for a quest goal).
+		//IMPORTAAAAAAANT:	   Hack: 0 = no quest; n = quest + 1. So we don't have to initialise all items to -1 here :-p */
+	byte questor_invincible;	/* invincible to players/monsters? */
+	bool quest_credited;		/* ugly hack for inven_carry() usage within carry(), to avoid double-crediting */
+
+	u32b note;			/* Inscription index */
+	char note_utag;			/* Added for making pseudo-id overwrite unique loot tags */
+
+#if 0	/* from pernA.. consumes memory, but quick. shall we? */
+	u16b art_name;			/* Artifact name (random artifacts) */
+
+	u32b art_flags1;		/* Flags, set 1  Alas, these were necessary */
+	u32b art_flags2;		/* Flags, set 2  for the random artifacts of*/
+	u32b art_flags3;		/* Flags, set 3  Zangband */
+	u32b art_flags4;		/* Flags, set 4  PernAngband */
+	u32b art_flags5;		/* Flags, set 5  PernAngband */
+	u32b art_esp;			/* Flags, set esp  PernAngband */
+#endif	/* 0 */
+
+	byte inven_order;		/* Inventory position if held by a player,
+					   only use is in xtra2.c when pack is ang_sort'ed */
+
+	u16b next_o_idx;		/* Next object in stack (if any) */
+	u16b held_m_idx;		/* Monster holding us (if any) */
+	bool auto_insc;			/* Request client-side auto-inscription after item has changed? */
+	char stack_pos;			/* Position in stack: Use to limit stack size */
+
+	s16b cheeze_dlv, cheeze_plv, cheeze_plv_carry;	/* anti-cheeze */
+
+	u16b housed;			/* <house index + 1> or 0 for not currently inside a house */
+	bool changed;			/* dummy flag to refresh item if o_name changed, but memory copy didn't */
+	bool NR_tradable;		/* for ALLOW_NR_CROSS_ITEMS */
+	bool no_soloist;		/* item may not be picked up by Soloists. Used for "unpersonalized" event rewards eg Santa drops. */
+	byte temp;			/* any local hacks:
+					    0x01 is used to force-update an equipment slot (by simply causing memcmp to not match anymore due to the flipped bit!).
+					    0x02 is used for !W inscription to set the alarm for this object,
+					    0x04 too, for preventing the !W induced alarm if the object was dropped by the player.
+					*/
 	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
 	s32b iron_trade;		/* Needed for the last survivor after a party was erased: Former party of the last player who picked it up */
 	/* ..and for IDDC_RESTRICTED_TRADING : */
@@ -1606,6 +2075,14 @@ struct monster_type {
 
 	bool no_esp_phase;		/* for WEIRD_MIND esp flickering */
 	s16b stuck;			/* energy to track spellcasting possibility after monster was just stuck in terrain or between other monsters */
+
+	byte clone_trapping;		/* Traps laid out by this monster will have diminishing returns in XP gain for disarming (eg for Robin Hood in the IDDC) */
+	byte hold_hp_regen, hold_hp_regen_perc;
+
+	s16b custom_lua_death;		/* Runs custom lua script on death */
+	s16b custom_lua_deletion;	/* Runs custom lua script on deletion */
+	s16b custom_lua_awoke;		/* Runs custom lua script on waking up (only the 1st time) */
+	s16b custom_lua_sighted;	/* Runs custom lua script on LoS to player (only the 1st time) */
 };
 
 typedef struct monster_ego monster_ego;
@@ -1634,19 +2111,20 @@ struct monster_ego {
 
 	/* Ego flags */
 	u32b flags1;			/* Flags 1 */
-	u32b flags2;			/* Flags 1 */
-	u32b flags3;			/* Flags 1 */
-	u32b flags7;			/* Flags 1 */
-	u32b flags8;			/* Flags 1 */
-	u32b flags9;			/* Flags 1 */
-	u32b flags0;			/* Flags 1 */
+	u32b flags2;			/* Flags 2 */
+	u32b flags3;			/* Flags 3 */
+	u32b flags7;			/* Flags 7 */
+	u32b flags8;			/* Flags 8 */
+	u32b flags9;			/* Flags 9 */
+	u32b flagsA;			/* Flags A */
+
 	u32b hflags1;			/* Flags 1 */
-	u32b hflags2;			/* Flags 1 */
-	u32b hflags3;			/* Flags 1 */
-	u32b hflags7;			/* Flags 1 */
-	u32b hflags8;			/* Flags 1 */
-	u32b hflags9;			/* Flags 1 */
-	u32b hflags0;			/* Flags 1 */
+	u32b hflags2;			/* Flags 2 */
+	u32b hflags3;			/* Flags 3 */
+	u32b hflags7;			/* Flags 7 */
+	u32b hflags8;			/* Flags 8 */
+	u32b hflags9;			/* Flags 9 */
+	u32b hflagsA;			/* Flags A */
 
 	/* Monster flags */
 	u32b mflags1;			/* Flags 1 (general) */
@@ -1659,6 +2137,7 @@ struct monster_ego {
 	u32b mflags8;			/* Flags 8 (wilderness info) */
 	u32b mflags9;			/* Flags 9 (drops info) */
 	u32b mflags0;			/* Flags 10 (extra spells) */
+	u32b mflagsA;			/* Flags A (extra basic) */
 
 	/* Negative Flags, to be removed from the monster flags */
 	u32b nflags1;			/* Flags 1 (general) */
@@ -1671,6 +2150,7 @@ struct monster_ego {
 	u32b nflags8;			/* Flags 8 (wilderness info) */
 	u32b nflags9;			/* Flags 9 (drops info) */
 	u32b nflags0;			/* Flags 10 (extra spells) */
+	u32b nflagsA;			/* Flags A (extra basic) */
 
 	s16b level;			/* Level of creature */
 	s16b rarity;			/* Rarity of creature */
@@ -1885,11 +2365,17 @@ struct dun_level {
 	byte hgt;		/* Vault height */
 	byte wid;		/* Vault width */
 /*	char feeling[80] */	/* feeling description */
+#ifndef UNIQUES_KILLED_ARRAY /* normal method (note that the memory allocations for this just use the constant 'MAX_R_IDX' anyway) */
 	char *uniques_killed;
-
+#else /* new method for when wilderness_type got 'surface' added, for easier allocation instead of headache */
+	char uniques_killed[MAX_R_IDX];
+#endif
 	cave_type **cave;	/* Leave this the last entry (for aesthetic reason) */
 
 	int fake_town_num;	/* for dungeon stores: which town we abuse the stores from */
+
+	/* for IDDC_REFUGES */
+	byte refuge_x, refuge_y;
 
 	/* for obtaining statistical IDDC information: */
 	int monsters_generated, monsters_spawned, monsters_killed;
@@ -1956,19 +2442,16 @@ struct wilderness_type {
 	u32b flags;	/* various */
 	struct dungeon_type *tower;
 	struct dungeon_type *dungeon;
-	s16b ondepth;
-	time_t lastused;
-	time_t total_static_time;
-	cave_type **cave;
-	byte up_x, up_y;
-	byte dn_x, dn_y;
-	byte rn_x, rn_y;
+
+	struct dun_level surface;	/* To also use dungeon floor flags LF1/LF2, although not all of those are applicable */
+
 	s32b own;	/* King owning the wild */
 
 	/* client-side worldmap-sector-specific weather:
 	   (possible ideas for future: transmit x,y,wid,hgt weather frame
 	   for current level too instead of always using full size gen.) */
-	int weather_type, weather_wind, weather_wind_vertical, weather_intensity, weather_speed;
+	int weather_type, weather_wind, weather_wind_vertical; /* weather_wind_vertical: only used for IRRITATING_WEATHER to counter player movement speed */
+	int weather_intensity, weather_speed; /* weather_intensity: Just visually, how many weather elements to draw on screen aka density; weather_speed: Just visually, how fast elements move. */
 	bool weather_updated;	/* notice any change in local weather (like a PR_ flag would do) */
 	int clouds_to_update;	/* number of clouds that were changed since last update (for efficiency) */
 	bool cloud_updated[10];	/* 'has cloud been changed?' */
@@ -2016,9 +2499,8 @@ struct store_info_type {
 	byte table_num;			/* Number of items */
 	s16b max_obj;			/* Number of items this store can hold */
 
-	u16b owners[6];			/* List of owners(refers to ow_info) */
-
-	u16b actions[6];		/* Actions(refers to ba_info) */
+	u16b owners[MAX_STORE_OWNERS];			/* List of owners(refers to ow_info) */
+	u16b actions[MAX_STORE_ACTIONS];		/* Actions(refers to ba_info) */
 
 	byte d_attr;			/* Default building attribute */
 	char32_t d_char;			/* Default building character */
@@ -2027,6 +2509,7 @@ struct store_info_type {
 	char32_t x_char;			/* Desired building character */
 
 	u32b flags1;			/* Flags */
+	u32b flags2;			/* Flags */
 };
 
 /*
@@ -2040,7 +2523,7 @@ struct store_action_type {
 	char letter;			/* Action letter */
 	s16b action;			/* Action code */
 	s16b action_restr;		/* Action restriction */
-	byte flags;		/* Client flags */
+	byte flags;			/* Client flags */
 };
 
 
@@ -2199,8 +2682,8 @@ typedef struct party_type {
 	char owner[NAME_LEN];	/* Owner's name */
 	s32b members;		/* Number of people in the party */
 	s32b created;		/* Creation (or disband-tion) time */
-	byte cmode;		/* Party creator's character mode */
-	byte mode;		/* 'Iron Team' or normal party? (C. Blue) */
+	u16b cmode;		/* Party creator's character mode */
+	u16b mode;		/* 'Iron Team' or normal party? (C. Blue) */
 	s32b experience;	/* For 'Iron Teams': Max experienc of members. */
 	u32b flags;		/* Party rules flags */
 	s32b iron_trade;	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
@@ -2232,7 +2715,7 @@ typedef struct guild_type {
 	char name[NAME_LEN];
 	s32b master;		/* Guildmaster unique player ID */
 	s32b members;		/* Number of guild members */
-	byte cmode;		/* Guild creator's character mode */
+	u16b cmode;		/* Guild creator's character mode */
 	u32b flags;		/* Guild rules flags */
 	s16b minlev;		/* minimum level to join */
 	char adder[5][NAME_LEN];	/* Guild may have up to 5 people who can add besides the guild master */
@@ -2284,7 +2767,7 @@ struct house_type {
 
 struct dna_type{
 	u32b creator;		/* Unique ID of creator/house admin */
-	byte mode;		/* Creator's p_ptr->mode (normal, everlasting, pvp..) */
+	u16b mode;		/* Creator's p_ptr->mode (normal, everlasting, pvp..) */
 	s32b owner;		/* Player/Party/Class/Race ID */
 	byte owner_type;	/* OT_xxxx */
 	byte a_flags;		/* Combination of ACF_xxxx */
@@ -2395,7 +2878,7 @@ struct skill_type {
 	s16b father;				/* Father in the skill tree */
 	s16b order;				/* Order in the tree */
 
-	u32b flags1;				/* Skill flags */
+	u32b flags1;				/* Skill flags -- actually just 'byte' type on client-side, or rather, we only transmit the first byte. */
 	byte tval;	/* tval associated */
 };
 
@@ -2581,8 +3064,9 @@ struct player_type {
 	byte pclass;			/* Class index */
 	byte ptrait;
 	byte male;			/* Sex of character */
-//FREE
-	byte oops;			/* Unused */
+#ifdef ENABLE_SUBCLASS
+	byte sclass;			/* Secondary class index - Kurzel */
+#endif
 
 	skill_player s_info[MAX_SKILLS]; /* Player skills */
 	s16b skill_points;		/* number of skills assignable */
@@ -2807,7 +3291,7 @@ struct player_type {
 	bool easy_disarm_montraps;
 	bool easy_tunnel;
 	bool clear_inscr;
-	bool auto_inscribe;
+	bool auto_inscr_server;
 	bool taciturn_messages;
 	bool last_words;
 	bool limit_chat;
@@ -2859,14 +3343,14 @@ struct player_type {
 	s16b screen_hgt;
 
 	/* What he should be seeing */
-	cave_view_type scr_info_guard_before[MAX_WINDOW_WID+1]; /* overflow protection */
+	cave_view_type scr_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection */
 	cave_view_type scr_info[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
-	cave_view_type scr_info_guard_after[MAX_WINDOW_WID+1]; /* overflow protection */
+	cave_view_type scr_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection */
 
 	/* Overlay layer used for detection */
-	cave_view_type ovl_info_guard_before[MAX_WINDOW_WID+1]; /* overflow protection */
+	cave_view_type ovl_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection */
 	cave_view_type ovl_info[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
-	cave_view_type ovl_info_guard_after[MAX_WINDOW_WID+1]; /* overflow protection */
+	cave_view_type ovl_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection */
 
 	s32b mimic_seed;		/* seed for random mimic immunities etc. */
 	char mimic_immunity;		/* preferred immunity when mimicking (overrides mimic_seed); hack in 4.7.3a: use remaining bits for chosen breath element */
@@ -2987,11 +3471,13 @@ struct player_type {
 	byte xtrastat_tim;		/* timed temp +stats */
 	byte xtrastat_pow;		/* power */
 	s16b xtrastat_which;		/* which */
+	bool xtrastat_demonic;
 
 	s16b focus_time;		/* focus */
 	s16b focus_val;
 
 	s16b protevil;			/* Timed -- Protection */
+	bool protevil_own;
 	s16b zeal;			/* timed EA bonus */
 	s16b zeal_power;
 	byte hate_prolong;		/* For dark Zeal version 'Boundless Hate', feedback with Traumaturgy */
@@ -3017,12 +3503,16 @@ struct player_type {
 	s16b shield_power_opt2;		/* Timed -- Shield Spell Power */
 	s16b tim_regen;			/* Timed extra regen */
 	s16b tim_regen_pow;		/* Timed extra regen power */
+	s16b tim_regen_cost;		/* Timed extra regen power MP cost (mp2hp spell only) */
 	s16b blessed;			/* Timed -- Blessed */
 	s16b blessed_power;		/* Timed -- Blessed */
+	bool blessed_own;		/* Our own spell vs external source */
 	s16b tim_invis;			/* Timed -- See Invisible */
 	s16b tim_infra;			/* Timed -- Infra Vision */
 	s16b tim_wraith;		/* Timed -- Wraithform */
-	byte tim_extra;			/* Timed -- Extra info flags */
+	byte dispersion;		/* Dispersion in shadowy form - cost or 0 if inactive */
+	byte dispersion_tim;		/* Dispersion spell duration */
+	byte tim_wraithstep;		/* Timed -- Extra info flags */
 	u16b tim_jail;			/* Timed -- Jailed */
 	u16b tim_susp;			/* Suspended sentence (dungeon) */
 	u16b house_num;			/* Added for easier jail-leaving handling: House index of jail we're in */
@@ -3205,7 +3695,7 @@ struct player_type {
 	bool hold_life;			/* Resist life draining */
 	u32b telepathy;			/* Telepathy */
 	bool slow_digest;		/* Slower digestion */
-	bool bless_blade;		/* Blessed blade */
+	bool blessed_weapon;		/* Blessed melee weapon */
 	byte xtra_might;		/* Extra might bow */
 	bool impact;			/* Earthquake blows */
 	bool auto_id;			/* Pickup = Id */
@@ -3279,7 +3769,7 @@ struct player_type {
 
 	player_list_type *blood_bond;	/* Norc is now happy :) */
 
-	byte mode;			/* Difficulty MODE */
+	u16b mode;			/* Difficulty MODE */
 
 #if 1
 	s32b esp_link;			/* Mental link */
@@ -3535,7 +4025,8 @@ struct player_type {
 	u16b FTK_m_flags;
 	u16b FTK_energy;
 
-	u16b tim_deflect;
+	u16b tim_reflect;
+	byte tim_lcage;
 
 	struct worldpos wpos_old;	/* used for dungeon-visit-boni, nether-realm cross-mode and ironman deep dive challenge stuff */
 
@@ -3549,9 +4040,9 @@ struct player_type {
 	bool aura[MAX_AURAS];		/* allow toggling auras for possibly more tactical utilization - C. Blue */
 
 	/* for C_BLUE_AI, new thingy: Monsters that are able to ignore a "tank" player */
-	int heal_turn[20 + 1];		/* records the amount of healing the player received for each of 20 consecutive turns */
+	u32b heal_turn[20 + 1];		/* records the amount of healing the player received for each of 20 consecutive turns */
 	u32b heal_turn_20, heal_turn_10, heal_turn_5;
-	int dam_turn[20 + 1];		/* records the amount of damage the player dealt for each of 20 consecutive turns */
+	u32b dam_turn[20 + 1];		/* records the amount of damage the player dealt for each of 20 consecutive turns */
 	u32b dam_turn_20, dam_turn_10, dam_turn_5;
 
 	/* for PvP mode: keep track of kills/progress for adding a reward or something - C. Blue */
@@ -3559,13 +4050,17 @@ struct player_type {
 	int free_mimic, pvp_prevent_tele, pvp_prevent_phase;
 	long heal_effect;
 	bool no_heal;			/* for special events */
-	bool no_hp_regen;		/* for anti_undead/anti_demon soft version, for mimicked forms */
+	bool no_hp_regen, no_mp_regen;	/* for anti_undead/anti_demon soft version, for mimicked forms */
+	byte hold_hp_regen, hold_hp_regen_perc;
 
 	/* for client-side weather */
 	bool panel_changed;
 	int custom_weather;		/* used /cw command */
 	int joke_weather;		/* personal rain^^ */
 	bool no_weather;
+#ifdef IRRITATING_WEATHER
+	char weather_influence;		/* irritating effects of really bad weather */
+#endif
 
 	/* buffer for anti-cheeze system, just to reduce file access to tomenet.acc */
 	s32b cheeze_value, cheeze_self_value;
@@ -3593,6 +4088,9 @@ struct player_type {
 	int admin_godly_strike, admin_set_defeat;
 	bool admin_invuln, admin_invinc, admin_immort; /* Amulets of Invulnerability/Invincibility */
 	char admin_parm[MAX_CHARS];	/* optional special admin command parameter (hacky o_O) */
+	/* Admin-item specific item powers - C. Blue */
+	bool player_sees_dm;
+	byte instakills;
 
 	u32b test_count, test_dam, test_heal, test_turn, test_turn_idle;
 	u32b test_hurt; /* total damage we <should have> received, ignoring safe zones, invuln and admin_invuln. */
@@ -3614,7 +4112,7 @@ struct player_type {
 	/* note: a sort of "warning_skills" is already implemented, in a different manner */
 	char warning_cloak, warning_macros, warning_numpadmove;
 	char warning_ammotype, warning_ai_annoy;
-	char warning_fountain, warning_voidjumpgate, warning_staircase, warning_worldmap, warning_dungeon, warning_staircase_oneway;
+	char warning_fountain, warning_voidjumpgate, warning_staircase, warning_worldmap, warning_dungeon, warning_staircase_oneway, warning_staircase_iddc, warning_staircase_mandos;
 	/* For the 4.4.8.1.0.0 lua update crash bug */
 	char warning_lua_update, warning_lua_count;
 	char warning_tunnel, warning_tunnel2, warning_tunnel3, warning_tunnel4, warning_tunnel_hidden, warning_trap, warning_tele, warning_fracexp;
@@ -3626,6 +4124,8 @@ struct player_type {
 	//not for now, unnecessary spam: , warning_xpdrained, 10% gain while drained
 	char warning_sellunid, warning_edmt, warning_stealing;
 	char warning_powins, warning_drop_town, warning_subinven, warning_limitbottles, warning_ingredients, warning_id;
+	char warning_sanity;
+	char warning_secret_area;
 
 #ifdef USE_SOUND_2010
 	int music_current, musicalt_current, musicalt2_current, music_monster; //background music currently playing for him/her; an overriding monster music
@@ -3685,6 +4185,7 @@ struct player_type {
 	bool IDDC_found_rndtown;	/* prevent multiple random towns within one 'interval' */
 	bool IDDC_logscum;		/* prevent log-scumming instead of proceeding downwards */
 	byte IDDC_flags;		/* added for IDDC special hack: Make it easier to find up to two speed rings */
+	bool IDDC_refuge;
 	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
 	s32b iron_trade;		/* Needed for the last survivor after a party was erased: Former party of the last player who picked it up */
 	/* ..and for IDDC_RESTRICTED_TRADING : */
@@ -3768,6 +4269,9 @@ struct player_type {
 	u32b buffed_pc;
 	u64b total_damage_melee, total_damage_ranged, total_damage_devices, total_damage_magic, total_heal_consumables, total_heal_devices, total_heal_magic;
 #endif
+
+	bool player_list_window; /* Has configured one of his subwindows to be a live-updated player list window */
+	bool ascii_feats, ascii_items, ascii_monsters, ascii_uniques;
 };
 
 /* For Monk martial arts */
@@ -3798,6 +4302,7 @@ struct rule_type {
 	u32b mflags8;
 	u32b mflags9;
 	u32b mflags0;
+	u32b mflagsA;
 
 	char32_t r_char[10];			/* Monster race allowed */
 };
@@ -3927,6 +4432,7 @@ struct server_opts {
 
 	s16b store_turns;
 	s16b dun_store_turns;
+	s16b book_store_turns_perc;
 	char resting_rate;
 	char party_xp_boost;
 
@@ -4062,7 +4568,7 @@ struct client_opts {
 	bool safe_macros;
 	bool auto_untag;
 	bool clear_inscr;
-	bool auto_inscribe;
+	bool auto_inscr_server;
 	bool stack_force_notes;
 	bool stack_force_costs;
 	bool stack_allow_items;
@@ -4201,6 +4707,10 @@ struct client_opts {
 	bool clone_to_stdout;
 	bool clone_to_file;
 	bool mp_huge_bar, sn_huge_bar, hp_huge_bar;
+	bool load_form_macros;
+	bool auto_inscr_off;
+	bool ascii_feats, ascii_items, ascii_monsters, ascii_uniques;
+	bool no_flicker;
 };
 
 /*
@@ -4224,14 +4734,14 @@ struct c_store_extra {
 	s32b max_cost;			/* Purse limit */
 
 	/* list of command */
-	u16b actions[6];		/* Actions(refers to ba_info) */
-	u16b bact[6];		/* ba_ptr->action */
-	char action_name[6][40];
-	char action_attr[6];
-	u16b action_restr[6];
-	char letter[6];
-	s16b cost[6];
-	byte flags[6];
+	u16b actions[MAX_STORE_ACTIONS];		/* Actions(refers to ba_info) */
+	u16b bact[MAX_STORE_ACTIONS];		/* ba_ptr->action */
+	char action_name[MAX_STORE_ACTIONS][40];
+	byte action_attr[MAX_STORE_ACTIONS];
+	u16b action_restr[MAX_STORE_ACTIONS];
+	char letter[MAX_STORE_ACTIONS];
+	s16b cost[MAX_STORE_ACTIONS];
+	byte flags[MAX_STORE_ACTIONS];
 
 	/* Store attr and char */
 	byte store_attr;
@@ -4280,20 +4790,22 @@ struct school_type {
    schedule. Timing is possible too. Might want to make use of AT_... sequences. */
 typedef struct global_event_type global_event_type;
 struct global_event_type {
-	int getype;			/* Type of the event (or quest) */
+	int getype;		/* Type of the event (or quest) */
+	struct worldpos beacon_wpos[128];	/* Exit beacon wpos, arbitrary amount, basically: Each participant could have his own floor, in the same event, competing! Or a level 127 dungeon could have a beacon on each floor! */
+	s16b beacon_parm[128];			/* Each beacon can have an optional parameter to be evaluated on player taking the beacon. */
 	bool paused;		/* Is the event currently paused? (special admin command) */
-	s32b paused_turns;		/* Keeps track of turns the event was actually frozen */
+	s32b paused_turns;	/* Keeps track of turns the event was actually frozen */
 	s32b state[64];		/* progress (zero'ed on event start) */
 	s32b extra[64];		/* extra info (zero'ed on event start) */
 	s32b participant[MAX_GE_PARTICIPANTS];	/* player IDs */
-	s32b creator;       	/* Player ID or 0L */
+	s32b creator;		/* Player ID or 0L */
 	long int announcement_time;	/* for how many seconds the event will be announced until it actually starts */
 	long int signup_time;	/* for how many seconds the event will allow signing up:
 				   -1 = this event doesn't allow signing up at all!
 				   0 = same as announcement_time, ie during the announcement phase
 				   >0 = designated time instead of announcement_time. */
 	bool first_announcement;	/* just keep track of first advertisement, and add additional info that time */
-	s32b start_turn;	  	/* quest started */
+	s32b start_turn;	/* quest started */
 	s32b end_turn;		/* quest will end */
 	time_t started;		/* quest started */
 	time_t ending;		/* quest will end */
@@ -4317,7 +4829,7 @@ typedef struct auction_type auction_type;
 struct auction_type {
 	byte		status;			/* Status: setup, bidding, finished or cancelled */
 	byte		flags;			/* Flags: payments */
-	byte		mode;			/* Owner mode: Non-everlasting or everlasting */
+	u16b		mode;			/* Owner mode: Non-everlasting or everlasting */
 	s32b		owner;			/* Owner */
 	object_type	item;			/* Auctioned item */
 	char		*desc;			/* Item description */
@@ -4384,7 +4896,7 @@ struct hash_entry {
 	struct worldpos wpos;
 
 	/* new in savegame version 4.2.2 (4.2.0c server) - C. Blue */
-	byte mode;			/* Character mode (for account overview screen) */
+	u16b mode;			/* Character mode (for account overview screen) */
 
 	/* new in 3.4.2 */
 	byte level;			/* Player level. (In the very distant past: Player maximum level.) */

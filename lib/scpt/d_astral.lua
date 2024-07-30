@@ -72,6 +72,7 @@ POWERBOLT_I = add_spell {
 			"Neutral: conjures up a bolt of lightning.",
 		}
 }
+__lua_POWERBOLT = POWERBOLT_I
 POWERBOLT_II = add_spell {
 	["name"] = 	"Power Bolt II",
 	["name2"] = 	"PBolt II",
@@ -199,7 +200,6 @@ POWERBEAM_II = add_spell {
 	["desc"] = 	{
 			"Enlightened: conjures up a powerful beam of light.",
 			"Corrupted: conjures up a powerful darkness beam.",
-			"Neutral: conjures up a beam of lightning.",
 		}
 }
 POWERBEAM_III = add_spell {
@@ -433,7 +433,7 @@ INTENSIFY = add_spell {
 
 			if (players(Ind).ptrait == TRAIT_ENLIGHTENED) then
 				project_los(Ind, GF_OLD_SLOW, alev * 3, "")
-				do_divine_xtra_res(Ind, randint(10) + alev)
+				do_divine_xtra_res(Ind, randint(10) + 5 + alev / 2)
 			elseif (players(Ind).ptrait == TRAIT_CORRUPTED) then
 				do_divine_crit(Ind, 2 + ((alev - 45) / 5), randint(5) + (alev * 2) / 3)
 			end
@@ -442,7 +442,7 @@ INTENSIFY = add_spell {
 			local alev = get_astral_lev(Ind)
 
 			if (players(Ind).ptrait == TRAIT_ENLIGHTENED) then
-				return "pow "..(alev * 3).." dur d10+"..alev
+				return "pow "..(alev * 3).." dur 5+d10+"..(alev / 2)
 			elseif (players(Ind).ptrait == TRAIT_CORRUPTED) then
 				return "pow +"..(2 + ((alev - 45) / 5)).." dur d5+"..((alev * 2) / 3)
 			else

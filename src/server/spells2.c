@@ -51,6 +51,7 @@
    can read what they supposedly do. */
 //#define DETECT_ABSENCE
 
+
 #ifdef ENABLE_MAIA
 /*
  * For angelic beings, this spell will gather any party
@@ -342,7 +343,7 @@ bool create_garden(int Ind, int chance) {
 				if (randint(100) < chance) {
 					/* Delete the object (if any) */
 					delete_object(wpos, y, x, TRUE);
-					cave_set_feat_live(&p_ptr->wpos, y, x, magik(50)?FEAT_TREE:FEAT_BUSH);
+					cave_set_feat_live(&p_ptr->wpos, y, x, magik(50) ? FEAT_TREE : FEAT_BUSH);
 					//c_ptr->feat = feat;
 				}
 			}
@@ -429,9 +430,14 @@ bool do_focus(int Ind, int p, int v) {
  * At the moment it is +1 for every 7.
  * Druidry. - the_sandman
  */
-bool do_xtra_stats(int Ind, int s, int p, int v) {
+bool do_xtra_stats(int Ind, int s, int p, int v, bool demonic) {
 	player_type *p_ptr = Players[Ind];
 	bool notice = (FALSE);
+
+	if (p_ptr->suscep_evil && demonic) {
+		msg_print(Ind, "\375\377yDemonic Strength has no effect while using a good-aligned form!");
+		return(FALSE);
+	}
 
 	/* Hack -- Force good values */
 	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
@@ -462,6 +468,7 @@ bool do_xtra_stats(int Ind, int s, int p, int v) {
 	}
 
 	p_ptr->xtrastat_tim = v;
+	p_ptr->xtrastat_demonic = demonic;
 
 	/* Nothing to notice */
 	if (!notice) return(FALSE);
@@ -676,7 +683,7 @@ bool do_shadow_gate(int Ind, int range) {
  *   set 'autoeffect' to TRUE if you want to do forced healing without
  *   any implications.
  */
-bool hp_player(int Ind, int num, bool quiet, bool autoeffect) {
+s16b hp_player(int Ind, int num, bool quiet, bool autoeffect) {
 	player_type *p_ptr = Players[Ind];
 
 	// The "number" that the character is displayed as before healing
@@ -762,7 +769,7 @@ bool hp_player(int Ind, int num, bool quiet, bool autoeffect) {
 #endif
 	}
 
-	return(TRUE);
+	return(num);
 }
 
 
@@ -1142,7 +1149,7 @@ void wizard_lock(int Ind, int dir) {
 	if (c_ptr->feat >= FEAT_DOOR_HEAD && c_ptr->feat < (FEAT_DOOR_HEAD + 7)) {
 		if (c_ptr->feat == FEAT_DOOR_HEAD) {
 			msg_print(Ind, "The door locks!");
-			c_ptr->info |= CAVE_MAGELOCK;
+			c_ptr->info2 |= CAVE2_MAGELOCK;
 		} else msg_print(Ind, "The door appears stronger!");
 		c_ptr->feat++;
 	} else if (c_ptr->feat != (FEAT_DOOR_HEAD + 7))
@@ -1606,7 +1613,7 @@ void self_knowledge(int Ind) {
 	if (f1 & TR1_STEALTH) fprintf(fff, "Your stealth is affected by your equipment.\n");
 	if (f1 & TR1_SEARCH) fprintf(fff, "Your searching ability is affected by your equipment.\n");
 	if (f5 & TR5_DISARM) fprintf(fff, "Your disarming ability is affected by your equipment.\n");
-	if (f1 & TR1_INFRA) fprintf(fff, "Your infravision is affected by your equipment.\n");
+	if (f1 & TR1_INFRA) fprintf(fff, "Your infra-vision is affected by your equipment.\n");
 	if (f1 & TR1_TUNNEL) fprintf(fff, "Your digging ability is affected by your equipment.\n");
 	if (f1 & TR1_SPEED) fprintf(fff, "Your speed is affected by your equipment.\n");
 	if (f1 & TR1_BLOWS) fprintf(fff, "Your melee attack speed is affected by your equipment.\n");
@@ -1756,12 +1763,12 @@ bool detect_treasure(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the current panel */
-//	for (y = p_ptr->panel_row_min; y <= p_ptr->panel_row_max; y++)
+	//for (y = p_ptr->panel_row_min; y <= p_ptr->panel_row_max; y++)
 	for (y = py - rad; y <= py + rad; y++) {
-//		for (x = p_ptr->panel_col_min; x <= p_ptr->panel_col_max; x++)
+		//for (x = p_ptr->panel_col_min; x <= p_ptr->panel_col_max; x++)
 		for (x = px - rad; x <= px + rad; x++) {
 			/* Reject locations outside of dungeon */
 			if (!in_bounds_floor(l_ptr, y, x)) continue;
@@ -1770,6 +1777,8 @@ bool detect_treasure(int Ind, int rad) {
 			if (distance(py, px, y, x) > rad) continue;
 
 			c_ptr = &zcave[y][x];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
+
 			w_ptr = &p_ptr->cave_flag[y][x];
 
 			o_ptr = &o_list[c_ptr->o_idx];
@@ -1845,7 +1854,7 @@ bool floor_detect_treasure(int Ind) {
 	if (!(l_ptr = getfloor(wpos))) return(FALSE); /* doesn't work on surface levels (wpos.wz == 0) */
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the whole level */
 	for (y = 0; y < l_ptr->hgt; y++) {
@@ -1854,6 +1863,7 @@ bool floor_detect_treasure(int Ind) {
 			if (!in_bounds_floor(l_ptr, y, x)) continue;
 
 			c_ptr = &zcave[y][x];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			w_ptr = &p_ptr->cave_flag[y][x];
 			o_ptr = &o_list[c_ptr->o_idx];
 
@@ -1917,7 +1927,7 @@ bool detect_magic(int Ind, int rad) {
 
 	struct worldpos *wpos = &p_ptr->wpos;
 	dun_level *l_ptr;
-//	int py = p_ptr->py, px = p_ptr->px;
+	//int py = p_ptr->py, px = p_ptr->px;
 
 	int	i, j, tv;
 	bool	detect = FALSE;
@@ -1927,6 +1937,7 @@ bool detect_magic(int Ind, int rad) {
 
 	cave_type **zcave;
 
+
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
 
@@ -1934,7 +1945,7 @@ bool detect_magic(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the current panel */
 	//for (i = p_ptr->panel_row_min; i <= p_ptr->panel_row_max; i++)
@@ -1949,6 +1960,7 @@ bool detect_magic(int Ind, int rad) {
 
 			/* Access the grid and object */
 			c_ptr = &zcave[i][j];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			o_ptr = &o_list[c_ptr->o_idx];
 
 			/* Nothing there */
@@ -1963,10 +1975,9 @@ bool detect_magic(int Ind, int rad) {
 			    is_magic_device(tv) ||
 			    (tv == TV_SCROLL) || (tv == TV_POTION) ||
 			    ((o_ptr->to_a > 0) || (o_ptr->to_h + o_ptr->to_d > 0)))
-			{
-				/* Note new items */
-				if (!(p_ptr->obj_vis[c_ptr->o_idx]))
 				{
+				/* Note new items */
+				if (!(p_ptr->obj_vis[c_ptr->o_idx])) {
 					/* Detect */
 					detect = TRUE;
 
@@ -1996,12 +2007,15 @@ bool detect_creatures_xxx(int Ind, u32b match_flag) {
 	cptr desc_monsters = "weird monsters";
 
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos);
 
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
+	/* paranoia */
+	if (!zcave) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -2029,6 +2043,7 @@ bool detect_creatures_xxx(int Ind, u32b match_flag) {
 
 		/* Detect evil monsters */
 		if (!panel_contains(y, x)) continue;
+		if (zcave[y][x].info2 & CAVE2_SCRT) continue;
 
 		/* Detect evil monsters */
 		if (!match_flag || /* hack: all */
@@ -2059,6 +2074,8 @@ bool detect_creatures_xxx(int Ind, u32b match_flag) {
 
 		int py = q_ptr->py;
 		int px = q_ptr->px;
+
+		if (zcave[py][px].info2 & CAVE2_SCRT) continue;
 
 		/* Skip disconnected players */
 		if (q_ptr->conn == NOT_CONNECTED) continue;
@@ -2101,7 +2118,7 @@ bool detect_creatures_xxx(int Ind, u32b match_flag) {
 		if (!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 
 		/* Never detect the dungeon master! */
-		if (q_ptr->admin_dm && !player_sees_dm(Ind)) continue;
+		if (q_ptr->admin_dm && !p_ptr->player_sees_dm) continue;
 
 		/* Skip visible players */
 		if (p_ptr->play_vis[i]) continue;
@@ -2195,12 +2212,16 @@ bool detect_invisible(int Ind) {
 	bool flag = FALSE;
 
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos);
+
 
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
+	/* paranoia */
+	if (!zcave) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -2221,6 +2242,8 @@ bool detect_invisible(int Ind) {
 
 		/* Skip monsters not on this depth */
 		if (!inarea(&m_ptr->wpos, &p_ptr->wpos)) continue;
+
+		if (zcave[fy][fx].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all invisible monsters */
 		if (panel_contains(fy, fx) && (r_ptr->flags2 & RF2_INVISIBLE)) {
@@ -2268,7 +2291,9 @@ bool detect_invisible(int Ind) {
 		if (!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 
 		/* Skip the dungeon master */
-		if (q_ptr->admin_dm && !player_sees_dm(Ind)) continue;
+		if (q_ptr->admin_dm && !p_ptr->player_sees_dm) continue;
+
+		if (zcave[py][px].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all invisible players */
 		if (panel_contains(py, px) && q_ptr->invis)  {
@@ -2326,12 +2351,16 @@ bool detect_creatures(int Ind) {
 	bool	flag = FALSE;
 
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos);
+
 
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
+	/* paranoia */
+	if (!zcave) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -2352,6 +2381,8 @@ bool detect_creatures(int Ind) {
 
 		/* Skip monsters not on this depth */
 		if (!inarea(&m_ptr->wpos, &p_ptr->wpos)) continue;
+
+		if (zcave[fy][fx].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all non-invisible monsters */
 		if (panel_contains(fy, fx) && (!(r_ptr->flags2 & RF2_INVISIBLE))) {
@@ -2391,10 +2422,12 @@ bool detect_creatures(int Ind) {
 		if (!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 
 		/* Never detect the dungeon master! */
-		if (q_ptr->admin_dm && !player_sees_dm(Ind)) continue;
+		if (q_ptr->admin_dm && !p_ptr->player_sees_dm) continue;
 
 		/* Skip visible players */
 		if (p_ptr->play_vis[i]) continue;
+
+		if (zcave[py][px].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all non-invisible players */
 		if (panel_contains(py, px) && !q_ptr->invis) {
@@ -2448,12 +2481,15 @@ bool detect_noise(int Ind) {
 	int	i;
 	bool	flag = FALSE;
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos);
 
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
+	/* paranoia */
+	if (!zcave) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -2471,6 +2507,8 @@ bool detect_noise(int Ind) {
 		if (p_ptr->mon_vis[i]) continue;
 		/* Skip monsters not on this depth */
 		if (!inarea(&m_ptr->wpos, &p_ptr->wpos)) continue;
+
+		if (zcave[fy][fx].info2 & CAVE2_SCRT) continue;
 
 		/* Specialties for noise-detection: don't detect monsters in noiseless state */
 		if (m_ptr->csleep && r_ptr->d_char != 'E' && //elementals always give off some sort of noise ;)
@@ -2514,12 +2552,14 @@ bool detect_noise(int Ind) {
 		/* Skip players not on this depth */
 		if (!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 		/* Never detect the dungeon master! */
-		if (q_ptr->admin_dm && !player_sees_dm(Ind)) continue;
+		if (q_ptr->admin_dm && !p_ptr->player_sees_dm) continue;
 		/* Skip visible players */
 		if (p_ptr->play_vis[i]) continue;
 
 		/* Specialties for noise-detection */
 		if (p_ptr->skill_stl >= 14 /*30*/) continue; //don't detect Heroic/Legendary stealth
+
+		if (zcave[py][px].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all non-invisible players */
 		if (panel_contains(py, px) && !q_ptr->invis) {
@@ -2570,12 +2610,15 @@ bool detect_living(int Ind) {
 	int	i;
 	bool	flag = FALSE;
 	dun_level *l_ptr = getfloor(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos);
 
 	/* anti-exploit */
 	if (!local_panel(Ind)) return(FALSE);
+	/* paranoia */
+	if (!zcave) return(FALSE);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -2599,6 +2642,8 @@ bool detect_living(int Ind) {
 		   This makes sense but they are often treated as an exception in the code,
 		   eg for vampirism application. */
 		if ((r_ptr->flags3 & (RF3_NONLIVING | RF3_UNDEAD | RF3_DEMON)) || r_ptr->d_char == 'A') continue;
+
+		if (zcave[fy][fx].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all monsters */
 		if (panel_contains(fy, fx)) {
@@ -2631,12 +2676,14 @@ bool detect_living(int Ind) {
 		/* Skip players not on this depth */
 		if (!inarea(&p_ptr->wpos, &q_ptr->wpos)) continue;
 		/* Never detect the dungeon master! */
-		if (q_ptr->admin_dm && !player_sees_dm(Ind)) continue;
+		if (q_ptr->admin_dm && !p_ptr->player_sees_dm) continue;
 		/* Skip visible players */
 		if (p_ptr->play_vis[i]) continue;
 
 		/* Life force specialty! */
 		if (p_ptr->prace == RACE_VAMPIRE) continue;
+
+		if (zcave[py][px].info2 & CAVE2_SCRT) continue;
 
 		/* Detect all players */
 		if (panel_contains(py, px)) {
@@ -2699,40 +2746,53 @@ bool detection(int Ind, int rad) {
 	return(detect);
 }
 
-#if 1
 /*
  * Detect bounty, a rogue's skill
  */
-bool detect_bounty(int Ind, int rad) {
+#define NEW_BOUNTY_CHANCE /* use the normal search chance for bounty detection too, so there's an incentive to improve and not every rogue is equal at the same level. */
+//#define NO_COMBO_FINDINGS /* keep consistent with search() ! -- NOT IMPLEMENTED HERE atm, so keep [DISABLED]! */
+void detect_bounty(int Ind) {
 	player_type *p_ptr = Players[Ind];
 
-	// 10 ... 60 % of auto-detecting "stuff"
-	int chance = (p_ptr->lev) + 10;
+	//Radius of 5 ... 15 squares
+	int rad = (p_ptr->lev / 5) + 5;
 
-	struct worldpos *wpos = &p_ptr->wpos;
-	dun_level *l_ptr;
+	int normal_chance = search_chance(p_ptr);
+#ifdef NEW_BOUNTY_CHANCE
+	int bounty_chance = normal_chance >> 1;
+#else
+	int bounty_chance = (p_ptr->lev / 2) + 5; // 5 ... 30 % of auto-detecting "stuff"
+#endif
+	int chance;
+	bool detect = FALSE, detect_trap = FALSE;
+	bool range;
 
 	int i, j, t_idx = 0;
-
-	bool	detect = FALSE;
-	bool	detect_trap = FALSE;
-
+	struct worldpos *wpos = &p_ptr->wpos;
+	dun_level *l_ptr;
 	cave_type  *c_ptr;
 	byte *w_ptr;
 	cave_type **zcave;
 	struct c_special *cs_ptr;
+	object_type *o_ptr;
 
-	object_type	*o_ptr;
+
+//msg_format(Ind, "src=%d,bou=%d", normal_chance, bounty_chance);
 
 	/* anti-exploit */
-	if (!local_panel(Ind)) return(FALSE);
+	if (!local_panel(Ind)) {
+		search(Ind); //fall back to normal search instead of doing nothing, maybe
+		return;
+	}
 
-	if (!(zcave = getcave(wpos))) return(FALSE);
+	if (!(zcave = getcave(wpos))) return;
 
+	/* If the floor/circumstances don't allow range-searching, fall back to normal search()-style searching! */
 	l_ptr = getfloor(wpos);
-	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
-
+	if ((l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) || (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT))) {
+		search(Ind);
+		return;
+	}
 
 	/* Scan the current panel */
 	for (i = p_ptr->py - rad; i <= p_ptr->py + rad; i++) {
@@ -2745,22 +2805,44 @@ bool detect_bounty(int Ind, int rad) {
 
 			/* Access the grid */
 			c_ptr = &zcave[i][j];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
+
 			w_ptr = &p_ptr->cave_flag[i][j];
+
+			/* Within normal search() radius aka 'adjacent grids' use the normal search-chance if it's better than our bounty-ranged-detection-chance,
+                           (or it would be inconsistent and disadvantageous to be worse at searching now than non-rogues with the same skill_srh). */
+			if (distance(p_ptr->py, p_ptr->px, i, j) <= 1) {
+				range = FALSE;
+#ifdef NEW_BOUNTY_CHANCE
+				chance = normal_chance;
+#else
+				chance = (normal_chance > bounty_chance ? normal_chance : bounty_chance);
+#endif
+
+				/* Emulate search() behaviour for adjacent grids: If we succeed the roll, we can find a secret door AND a trap (chest or floor) together! */
+				if (!magik(chance)) continue;
+				chance = 100;
+			} else {
+				range = TRUE;
+				chance = bounty_chance;
+			}
 
 			o_ptr = &o_list[c_ptr->o_idx];
 
 			detect_trap = FALSE;
 
-			/* Detect traps on chests */
-			if ((c_ptr->o_idx) && (o_ptr->tval == TV_CHEST)
-			    && p_ptr->obj_vis[c_ptr->o_idx] && (o_ptr->pval)
-			    && !object_known_p(Ind, o_ptr) && magik(chance)) {
-				/* Message =-p */
-				msg_print(Ind, "You have discovered a trap on the chest!");
-				/* Know the trap */
-				object_known(o_ptr);
-				/* Notice it */
-//				disturb(Ind, 0, 0);
+			/* Detect secret doors */
+			if (c_ptr->feat == FEAT_SECRET && magik(chance)) {
+				struct c_special *cs_ptr;
+
+				/* Clear mimic feature */
+				if ((cs_ptr = GetCS(c_ptr, CS_MIMIC))) cs_erase(c_ptr, cs_ptr);
+				/* Find the door XXX XXX XXX */
+				c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
+
+				/* Memorize the door */
+				*w_ptr |= CAVE_MARK;
+				/* Obvious */
 				detect = TRUE;
 			}
 
@@ -2769,8 +2851,8 @@ bool detect_bounty(int Ind, int rad) {
 				t_idx = cs_ptr->sc.trap.t_idx;
 
 				if (!cs_ptr->sc.trap.found) {
-					/* Pick a trap */
-					pick_trap(wpos, i, j);
+					/* Mark trap as found */
+					trap_found(wpos, i, j);
 				}
 
 				/* Hack -- memorize it */
@@ -2781,8 +2863,28 @@ bool detect_bounty(int Ind, int rad) {
 				detect_trap = TRUE;
 			}
 
+			/* Detect traps on chests */
+			else if (c_ptr->o_idx && o_ptr->tval == TV_CHEST
+			    && p_ptr->obj_vis[c_ptr->o_idx] && o_ptr->pval
+			    && !object_known_p(Ind, o_ptr) && magik(chance)) {
+				/* Message =-p */
+				msg_print(Ind, "You have discovered a trap on the chest!");
+				/* Know the trap */
+				object_known(o_ptr);
+				/* Notice it */
+				//disturb(Ind, 0, 0);
+				detect = TRUE;
+			}
+
+			/* ----- Some extra stuff that normal search() doesn't search for: ----- */
+#ifdef NEW_BOUNTY_CHANCE
+			chance = (range ? bounty_chance : normal_chance);
+#else
+			chance = (range ? bounty_chance : (normal_chance > bounty_chance ? normal_chance : bounty_chance));
+#endif
+
 			/* PvP: Detect hostile monster-traps */
-			if ((cs_ptr = GetCS(c_ptr, CS_MON_TRAP))) {
+			if ((cs_ptr = GetCS(c_ptr, CS_MON_TRAP)) && magik(chance)) {
 				object_type *kit_o_ptr = &o_list[cs_ptr->sc.montrap.trap_kit];
 				int p;
 
@@ -2791,24 +2893,20 @@ bool detect_bounty(int Ind, int rad) {
 					if (p == Ind) continue;
 					if (kit_o_ptr->owner == Players[p]->id) break;
 				}
-
 				if (p != NumPlayers + 1 && !cs_ptr->sc.montrap.found && check_hostile(Ind, p)) {
-					if (magik(chance)) {
-						cs_ptr->sc.montrap.found = TRUE;
-						note_spot_depth(wpos, i, j);
-						everyone_lite_spot(wpos, i, j);
-					}
+					cs_ptr->sc.montrap.found = TRUE;
+					note_spot_depth(wpos, i, j);
+					everyone_lite_spot(wpos, i, j);
 				}
 
 				/* Hack -- memorize it */
 				*w_ptr |= CAVE_MARK;
-
 				/* Obvious */
 				detect = TRUE;
 				detect_trap = TRUE;
 			}
 			/* PvP: Detect hostile runes */
-			if ((cs_ptr = GetCS(c_ptr, CS_RUNE))) {
+			if ((cs_ptr = GetCS(c_ptr, CS_RUNE)) && magik(chance)) {
 				int p;
 
 				/* is the runemaster online? Otherwise not hostile as we cannot know */
@@ -2816,49 +2914,25 @@ bool detect_bounty(int Ind, int rad) {
 					if (p == Ind) continue;
 					if (cs_ptr->sc.rune.id == Players[p]->id) break;
 				}
-
 				if (p != NumPlayers + 1 && !cs_ptr->sc.rune.found && check_hostile(Ind, p)) {
-					if (magik(chance)) {
-						cs_ptr->sc.rune.found = TRUE;
-						note_spot_depth(wpos, i, j);
-						everyone_lite_spot(wpos, i, j);
-					}
+					cs_ptr->sc.rune.found = TRUE;
+					note_spot_depth(wpos, i, j);
+					everyone_lite_spot(wpos, i, j);
 				}
 
 				/* Hack -- memorize it */
 				*w_ptr |= CAVE_MARK;
-
 				/* Obvious */
 				detect = TRUE;
 				detect_trap = TRUE;
 			}
 
-			/* Detect secret doors */
-			if (c_ptr->feat == FEAT_SECRET && magik(chance)) {
-				struct c_special *cs_ptr;
-
-				/* Clear mimic feature */
-				if ((cs_ptr = GetCS(c_ptr, CS_MIMIC)))
-					cs_erase(c_ptr, cs_ptr);
-
-				/* Find the door XXX XXX XXX */
-				c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
-
-				/* Memorize the door */
-				*w_ptr |= CAVE_MARK;
-
-				/* Obvious */
-				detect = TRUE;
-			}
-
 			// You feel a gust of air from nearby ...
 			if (((c_ptr->feat == FEAT_LESS) || (c_ptr->feat == FEAT_MORE) ||
 			    (c_ptr->feat == FEAT_WAY_LESS) || (c_ptr->feat == FEAT_WAY_MORE))
-				&& magik(chance)) {
-
+			    && magik(chance)) {
 				/* Memorize the stairs */
 				*w_ptr |= CAVE_MARK;
-
 				/* Obvious */
 				detect = TRUE;
 			}
@@ -2867,17 +2941,19 @@ bool detect_bounty(int Ind, int rad) {
 			if (c_ptr->feat == FEAT_SHOP && magik(chance)) {
 				/* Memorize the stairs */
 				*w_ptr |= CAVE_MARK;
-
 				/* Obvious */
 				detect = TRUE;
 			}
+
+			/* ----- Evaluate findings some more: ----- */
+
 			if (detect) lite_spot(Ind, i, j);
 			if (detect_trap) {
 				if (c_ptr->o_idx && !c_ptr->m_idx) {
 					byte a = get_trap_color(Ind, t_idx, c_ptr->feat);
 
 					/* Hack - Always show traps under items when detecting - mikaelh */
-					draw_spot_ovl(Ind, i, j, a, '^');
+					draw_spot_ovl(Ind, i, j, a, p_ptr->f_char[FEAT_TRAP]);
 				} else {
 					/* Normal redraw */
 					lite_spot(Ind, i, j);
@@ -2885,9 +2961,8 @@ bool detect_bounty(int Ind, int rad) {
 			}
 		}
 	}
-	return(detect);
+	return;
 }
-#endif
 
 /*
  * Detect all objects on the current panel		-RAK-
@@ -2914,12 +2989,12 @@ bool detect_object(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the current panel */
-//	for (i = p_ptr->panel_row_min; i <= p_ptr->panel_row_max; i++)
+	//for (i = p_ptr->panel_row_min; i <= p_ptr->panel_row_max; i++)
 	for (i = p_ptr->py - rad; i <= p_ptr->py + rad; i++) {
-//		for (j = p_ptr->panel_col_min; j <= p_ptr->panel_col_max; j++)
+		//for (j = p_ptr->panel_col_min; j <= p_ptr->panel_col_max; j++)
 		for (j = p_ptr->px - rad; j <= p_ptr->px + rad; j++) {
 			/* Reject locations outside of dungeon */
 			if (!in_bounds_floor(l_ptr, i, j)) continue;
@@ -2928,7 +3003,7 @@ bool detect_object(int Ind, int rad) {
 			if (distance(p_ptr->py, p_ptr->px, i, j) > rad) continue;
 
 			c_ptr = &zcave[i][j];
-
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			o_ptr = &o_list[c_ptr->o_idx];
 
 			/* Nothing here */
@@ -2975,7 +3050,7 @@ bool detect_treasure_object(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the current panel */
 	//for (y = p_ptr->panel_row_min; y <= p_ptr->panel_row_max; y++)
@@ -2989,13 +3064,13 @@ bool detect_treasure_object(int Ind, int rad) {
 			if (distance(py, px, y, x) > rad) continue;
 
 			c_ptr = &zcave[y][x];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			w_ptr = &p_ptr->cave_flag[y][x];
 
 			/* Magma/Quartz + Known Gold */
 			if ((c_ptr->feat == FEAT_MAGMA_K) ||
 			    (c_ptr->feat == FEAT_QUARTZ_K) ||
-			    (c_ptr->feat == FEAT_SANDWALL_K))
-			{
+			    (c_ptr->feat == FEAT_SANDWALL_K)) {
 				/* Notice detected gold */
 				if (!(*w_ptr & CAVE_MARK)) {
 					/* Detect */
@@ -3012,8 +3087,7 @@ bool detect_treasure_object(int Ind, int rad) {
 			/* Notice embedded gold */
 			if ((c_ptr->feat == FEAT_MAGMA_H) ||
 			    (c_ptr->feat == FEAT_QUARTZ_H) ||
-			    (c_ptr->feat == FEAT_SANDWALL_H))
-			{
+			    (c_ptr->feat == FEAT_SANDWALL_H)) {
 				/* Expose the gold */
 				c_ptr->feat += 0x02;
 
@@ -3058,7 +3132,7 @@ bool detect_trap(int Ind, int rad) {
 
 	struct worldpos *wpos = &p_ptr->wpos;
 	dun_level *l_ptr;
-//	int	py = p_ptr->py, px = p_ptr->px;
+	//int py = p_ptr->py, px = p_ptr->px;
 
 	int	i, j, t_idx;
 	bool	detect = FALSE;
@@ -3078,7 +3152,7 @@ bool detect_trap(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Clear previously detected stuff */
 	clear_ovl(Ind);
@@ -3096,6 +3170,7 @@ bool detect_trap(int Ind, int rad) {
 
 			/* Access the grid */
 			c_ptr = &zcave[i][j];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			w_ptr = &p_ptr->cave_flag[i][j];
 
 			/* Hack - traps on undetected doors cannot be found */
@@ -3116,8 +3191,8 @@ bool detect_trap(int Ind, int rad) {
 				t_idx = cs_ptr->sc.trap.t_idx;
 
 				if (!cs_ptr->sc.trap.found) {
-					/* Pick a trap */
-					pick_trap(wpos, i, j);
+					/* Mark trap as found */
+					trap_found(wpos, i, j);
 
 					/* New trap detected */
 					detect = TRUE;
@@ -3133,7 +3208,7 @@ bool detect_trap(int Ind, int rad) {
 					byte a = get_trap_color(Ind, t_idx, c_ptr->feat);
 
 					/* Hack - Always show traps under items when detecting - mikaelh */
-					draw_spot_ovl(Ind, i, j, a, '^');
+					draw_spot_ovl(Ind, i, j, a, p_ptr->f_char[FEAT_TRAP]);
 				} else {
 					/* Normal redraw */
 					lite_spot(Ind, i, j);
@@ -3208,7 +3283,7 @@ bool detect_sdoor(int Ind, int rad) {
 	l_ptr = getfloor(wpos);
 
 	if (l_ptr && (l_ptr->flags2 & LF2_NO_DETECT)) return(FALSE);
-	if (in_sector00(&p_ptr->wpos) && (sector00flags2 & LF2_NO_DETECT)) return(FALSE);
+	if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_DETECT)) return(FALSE);
 
 	/* Scan the panel */
 	//for (i = p_ptr->panel_row_min; i <= p_ptr->panel_row_max; i++)
@@ -3223,6 +3298,7 @@ bool detect_sdoor(int Ind, int rad) {
 
 			/* Access the grid and object */
 			c_ptr = &zcave[i][j];
+			if (c_ptr->info2 & CAVE2_SCRT) continue;
 			w_ptr = &p_ptr->cave_flag[i][j];
 
 			/* Hack -- detect secret doors */
@@ -3334,7 +3410,9 @@ void stair_creation(int Ind) {
  * Hook to specify "weapon"
  */
 static bool item_tester_hook_weapon(object_type *o_ptr) {
-	switch (o_ptr->tval) {
+	int tval = (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0200)) ? o_ptr->tval2 : o_ptr->tval;
+
+	switch (tval) {
 	case TV_TRAPKIT:/* <- and now new.. :) this allows cursing/enchanting shot/arrow/bolt trap kits! */
 		if (!is_firearm_trapkit(o_ptr->sval)) return(FALSE);
 		/* Fall through */
@@ -3352,9 +3430,9 @@ static bool item_tester_hook_weapon(object_type *o_ptr) {
 		return(TRUE);
 	/* Special object hack */
 	case TV_SPECIAL:
-		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0300)) return(FALSE); //0x0100: weapon, 0x0200: 2h-weapon
+		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0100)) return(FALSE);
 		/* Paranoia - check for valid equipment slot */
-		if (o_ptr->xtra4 < INVEN_WIELD || o_ptr->xtra4 > INVEN_TOOL) return(FALSE);
+		if (o_ptr->tval2 != INVEN_WIELD) return(FALSE);
 		/* Equippable special object */
 		return(TRUE);
 	}
@@ -3367,7 +3445,9 @@ static bool item_tester_hook_weapon(object_type *o_ptr) {
  * Hook to specify "armour"
  */
 static bool item_tester_hook_armour(object_type *o_ptr) {
-	switch (o_ptr->tval) {
+	int tval = (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0200)) ? o_ptr->tval2 : o_ptr->tval;
+
+	switch (tval) {
 	case TV_DRAG_ARMOR:
 	case TV_HARD_ARMOR:
 	case TV_SOFT_ARMOR:
@@ -3378,13 +3458,13 @@ static bool item_tester_hook_armour(object_type *o_ptr) {
 	case TV_BOOTS:
 	case TV_GLOVES:
 	/* and now new.. :) */
-	//nope, not enchantable -- case TV_TRAPKIT:
+	//nope, not enchantable to-a, only to-h/d -- case TV_TRAPKIT:
 		return(TRUE);
 	/* Special object hack */
 	case TV_SPECIAL:
-		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0C00)) return(FALSE); //0x0400: shield, 0x0800: armour
+		if (o_ptr->sval != SV_CUSTOM_OBJECT || !(o_ptr->xtra3 & 0x0100)) return(FALSE);
 		/* Paranoia - check for valid equipment slot */
-		if (o_ptr->xtra4 < INVEN_WIELD || o_ptr->xtra4 > INVEN_TOOL) return(FALSE);
+		if (o_ptr->tval2 != INVEN_ARM && (o_ptr->tval2 < INVEN_BODY || o_ptr->tval2 > INVEN_FEET)) return(FALSE);
 		/* Equippable special object */
 		return(TRUE);
 	}
@@ -3588,7 +3668,7 @@ bool enchant(int Ind, object_type *o_ptr, int n, int eflag) {
 	return(TRUE);
 }
 
-bool create_artifact(int Ind, bool nolife) {
+void create_artifact(int Ind, bool nolife) {
 	player_type *p_ptr = Players[Ind];
 
 	/* just in case */
@@ -3599,8 +3679,6 @@ bool create_artifact(int Ind, bool nolife) {
 	p_ptr->current_artifact = TRUE;
 	p_ptr->current_artifact_nolife = nolife;
 	get_item(Ind, ITH_NONE);
-
-	return(TRUE);
 }
 
 bool create_artifact_aux(int Ind, int item) {
@@ -3612,10 +3690,7 @@ bool create_artifact_aux(int Ind, int item) {
 	s32b old_owner;/* anti-cheeze :) */
 	u32b resf = make_resf(p_ptr);
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	old_owner = o_ptr->owner;
 
@@ -3627,18 +3702,21 @@ bool create_artifact_aux(int Ind, int item) {
 	    (o_ptr->tval == TV_SPECIAL)) /* <- must be checked here, not in randart_make() due to seals, see randart_make(). */
 	     && !is_admin(p_ptr)) {
 		msg_print(Ind, "\376\377yThe item appears unchanged!");
+		s_printf("ART_CREATION failed: %s (1): %s\n", p_ptr->name, o_name);
 		return(FALSE);
 	}
 	if (o_ptr->name1) {
 		msg_print(Ind, "\376\377yThe creation fails due to the powerful magic of the target object!");
+		s_printf("ART_CREATION failed: %s (2): %s\n", p_ptr->name, o_name);
 		return(FALSE);
 	}
 	if (o_ptr->name2 || o_ptr->name2b) {
 		msg_print(Ind, "\376\377yThe creation fails due to the strong magic of the target object!");
+		s_printf("ART_CREATION failed: %s (3): %s\n", p_ptr->name, o_name);
 		return(FALSE);
-		o_ptr->name2 = 0;
-		o_ptr->name2b = 0;
-		msg_print(Ind, "The strong magic of that object dissolves!");
+		//o_ptr->name2 = 0;
+		//o_ptr->name2b = 0;
+		//msg_print(Ind, "The strong magic of that object dissolves!");
 	}
 	if (o_ptr->number > 1) {
 		/*msg_print(Ind, "The creation fails because the magic is split to multiple targets!");
@@ -3671,6 +3749,7 @@ bool create_artifact_aux(int Ind, int item) {
 			o_ptr->name3 = 0L;
 
 			msg_print(Ind, "The item appears unchanged!");
+			s_printf("ART_CREATION failed: %s (4): %s\n", p_ptr->name, o_name);
 			return(FALSE);
 		}
 
@@ -3697,14 +3776,19 @@ bool create_artifact_aux(int Ind, int item) {
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
 
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
 	/* Art creation finished */
-	p_ptr->current_artifact = FALSE;
+	p_ptr->current_artifact = 0;
 	p_ptr->current_artifact_nolife = FALSE;
 
 	/* Log it (security) */
 	/* Description */
 	object_desc(Ind, o_name, o_ptr, FALSE, 3);
-	s_printf("ART_CREATION succeeded: %s\n", o_name);
+	s_printf("ART_CREATION succeeded: %s: %s\n", p_ptr->name, o_name);
 
 	/* Did we use up an item? (minus 1 art scroll) */
 	if (p_ptr->using_up_item >= 0) {
@@ -3718,6 +3802,7 @@ bool create_artifact_aux(int Ind, int item) {
 
 bool curse_spell(int Ind) {	// could be void
 	player_type *p_ptr = Players[Ind];
+
 	clear_current(Ind);
 	get_item(Ind, ITH_NONE);
 	p_ptr->current_curse = TRUE;	/* This is awful. I intend to change it */
@@ -3726,12 +3811,13 @@ bool curse_spell(int Ind) {	// could be void
 
 bool curse_spell_aux(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
-	object_type *o_ptr = &p_ptr->inventory[item];
+	object_type *o_ptr;
 	char o_name[ONAME_LEN];
+
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	p_ptr->current_curse = FALSE;
 	object_desc(Ind, o_name, o_ptr, FALSE, 0);
-
 
 	if (artifact_p(o_ptr) && (randint(10) < 8)) {
 		msg_print(Ind, "The artifact resists your attempts.");
@@ -3775,6 +3861,11 @@ bool curse_spell_aux(int Ind, int item) {
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP);
 
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
 	return(TRUE);
 }
 
@@ -3813,17 +3904,13 @@ bool enchant_spell_aux(int Ind, int item, int num_hit, int num_dam, int num_ac, 
 	object_type *o_ptr;
 	char o_name[ONAME_LEN];
 
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
+
 	/* Assume enchant weapon */
 	item_tester_hook = item_tester_hook_weapon;
 
 	/* Enchant armor if requested */
 	if (num_ac) item_tester_hook = item_tester_hook_armour;
-
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
-
 
 	if (!item_tester_hook(o_ptr) || !is_enchantable(o_ptr)) {
 		msg_print(Ind, "Sorry, you cannot enchant that item.");
@@ -3844,7 +3931,7 @@ bool enchant_spell_aux(int Ind, int item, int num_hit, int num_dam, int num_ac, 
 	    ((o_ptr->number > 1) ? "" : "s"));
 
 	/* Enchant */
-	flags |= (item >= INVEN_WIELD ? ENCH_EQUIP : 0x0);
+	flags |= ((item >= INVEN_WIELD && item < SUBINVEN_INVEN_MUL) ? ENCH_EQUIP : 0x0);
 	if (enchant(Ind, o_ptr, num_hit, ENCH_TOHIT | flags)) okay = TRUE;
 	if (enchant(Ind, o_ptr, num_dam, ENCH_TODAM | flags)) okay = TRUE;
 	if (enchant(Ind, o_ptr, num_ac, ENCH_TOAC | flags)) okay = TRUE;
@@ -3901,6 +3988,11 @@ bool enchant_spell_aux(int Ind, int item, int num_hit, int num_dam, int num_ac, 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
 
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
 	/* Something happened */
 	return(TRUE);
 }
@@ -3943,11 +4035,7 @@ bool ident_spell_aux(int Ind, int item) {
 
 	XID_paranoia(p_ptr);
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
-
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	/* Identify it fully */
 	object_aware(Ind, o_ptr);
@@ -3993,14 +4081,19 @@ bool ident_spell_aux(int Ind, int item) {
 
 	/* Did we use up an item? */
 	if (p_ptr->using_up_item >= 0) {
-//		inven_item_describe(Ind, p_ptr->using_up_item); /* maybe not when IDing */
+		//inven_item_describe(Ind, p_ptr->using_up_item); /* maybe not when IDing */
 		inven_item_optimize(Ind, p_ptr->using_up_item);
 		p_ptr->using_up_item = -1;
 	}
 
 	p_ptr->current_identify = 0;
 
-	if (item >= 0) p_ptr->inventory[item].auto_insc = TRUE;
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
+	if (item >= 0) o_ptr->auto_insc = TRUE;
 
 	/* Something happened */
 	return(TRUE);
@@ -4044,13 +4137,7 @@ bool identify_fully_item(int Ind, int item) {
 
 	XID_paranoia(p_ptr);
 
-	/* Get the item (in the pack) */
-	if (item >= 0)
-		o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else
-		o_ptr = &o_list[0 - item];
-
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	/* Identify it fully */
 	object_aware(Ind, o_ptr);
@@ -4067,6 +4154,10 @@ bool identify_fully_item(int Ind, int item) {
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -4101,7 +4192,7 @@ bool identify_fully_item(int Ind, int item) {
 	p_ptr->current_star_identify = 0;
 
 	/* extra: in case the item wasn't normally identified yet but right away *id*ed, apply this too.. */
-	if (item >= 0) p_ptr->inventory[item].auto_insc = TRUE;
+	if (item >= 0) o_ptr->auto_insc = TRUE;
 
 	/* Success */
 	return(TRUE);
@@ -4113,10 +4204,7 @@ bool identify_fully_item_quiet(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
 	object_type *o_ptr;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	/* Identify it fully */
 	object_aware(Ind, o_ptr);
@@ -4130,6 +4218,10 @@ bool identify_fully_item_quiet(int Ind, int item) {
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
 
 	/* Did we use up an item? */
 	if (p_ptr->using_up_item >= 0) {
@@ -4166,7 +4258,7 @@ bool identify_fully_object_quiet(int Ind, object_type *o_ptr) {
 
 	/* Did we use up an item? */
 	if (p_ptr->using_up_item >= 0) {
-//		inven_item_describe(Ind, p_ptr->using_up_item); /* maybe not for *ID* */
+		//inven_item_describe(Ind, p_ptr->using_up_item); /* maybe not for *ID* */
 		inven_item_optimize(Ind, p_ptr->using_up_item);
 		p_ptr->using_up_item = -1;
 
@@ -4180,6 +4272,54 @@ bool identify_fully_object_quiet(int Ind, object_type *o_ptr) {
 	p_ptr->current_star_identify = 0;
 
 	/* Success */
+	return(TRUE);
+}
+
+
+static bool recharge_antiriad(int Ind, int item, int num) {
+	player_type *p_ptr = Players[Ind];
+	object_type *o_ptr;
+
+	item_tester_hook = NULL;
+
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
+
+	if (o_ptr->name1 != ART_ANTIRIAD && o_ptr->name1 != ART_ANTIRIAD_DEPLETED) {
+		msg_print(Ind, "You cannot recharge that item.");
+		get_item(Ind, ITH_NONE);
+		return(FALSE);
+	}
+
+	if (p_ptr->using_up_item < 0) return(FALSE); //paranoia
+	if (p_ptr->inventory[p_ptr->using_up_item].tval != TV_JUNK || p_ptr->inventory[p_ptr->using_up_item].sval != SV_ENERGY_CELL) return(FALSE); //paranoia?
+
+	msg_print(Ind, "The Sacred Armour of Antiriad is reenergized!");
+	inven_item_increase(Ind, p_ptr->using_up_item, -1);
+	inven_item_describe(Ind, p_ptr->using_up_item);
+	inven_item_optimize(Ind, p_ptr->using_up_item);
+	p_ptr->using_up_item = -1;
+	o_ptr->name1 = ART_ANTIRIAD;
+	o_ptr->weight = a_info[o_ptr->name1].weight;
+	/* Combine / Reorder the pack (later) */
+	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
+
+	/* Re-power the suit */
+	o_ptr->timeout = 7500 + randint(499);
+	if (item == INVEN_BODY) p_ptr->update |= PU_BONUS; //handle_stuff(Ind); mh~
+
+	determine_artifact_timeout(ART_ANTIRIAD, &p_ptr->wpos);
+
+	/* Window stuff */
+	p_ptr->window |= (PW_INVEN | PW_EQUIP);
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
+	/* We no longer have a recharge in progress */
+	p_ptr->current_recharge = 0;
+
+	/* Successful renenergization */
 	return(TRUE);
 }
 
@@ -4203,10 +4343,13 @@ bool item_tester_hook_recharge(object_type *o_ptr) {
 	return(FALSE);
 }
 
-
 bool recharge(int Ind, int num) {
 	player_type *p_ptr = Players[Ind];
 
+	/* Special marker hack? */
+	if (num >= 10000) get_item(Ind, ITH_NONE);
+	else
+	/* Normal recharging routine */
 	get_item(Ind, ITH_RECHARGE);
 
 	/* Clear any other pending actions - mikaelh */
@@ -4250,14 +4393,12 @@ bool recharge_aux(int Ind, int item, int pow) {
 	int i, t, lev, dr;
 	object_type *o_ptr;
 
+	/* Special hack marker */
+	if (pow >= 10000) return(recharge_antiriad(Ind, item, pow));
 
 	/* Only accept legal items */
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 	item_tester_hook = item_tester_hook_recharge;
-
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
 
 	if (!item_tester_hook(o_ptr)) {
 		msg_print(Ind, "You cannot recharge that item.");
@@ -4394,6 +4535,8 @@ bool recharge_aux(int Ind, int item, int pow) {
 			/* Hack -- we no longer think the item is empty */
 			o_ptr->ident &= ~ID_EMPTY;
 			note_toggle_empty(o_ptr, FALSE);
+
+			apply_XID(Ind, o_ptr, item);
 		}
 	}
 
@@ -4413,6 +4556,11 @@ bool recharge_aux(int Ind, int item, int pow) {
 	/* We no longer have a recharge in progress */
 	p_ptr->current_recharge = 0;
 
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
+
 	/* Something was done */
 	return(TRUE);
 }
@@ -4425,7 +4573,7 @@ bool project_los_wall(int Ind, int typ, int dam, int time, int interval, char *a
 	struct worldpos *wpos = &p_ptr->wpos;
 	int		i, x, y;
 	int		flg = PROJECT_NORF | PROJECT_JUMP | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL | PROJECT_STAY | PROJECT_NODF | PROJECT_NODO;
-  bool		obvious = FALSE;
+	bool		obvious = FALSE;
 	char		pattacker[80];
 
 	if (Ind) snprintf(pattacker, 80, "%s%s", Players[Ind]->name, attacker);
@@ -4698,6 +4846,7 @@ void aggravate_monsters(int Ind, int who) {
 			if (m_ptr->csleep) {
 				/* Wake up */
 				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, i, m_ptr->custom_lua_awoke));
 				sleep = TRUE;
 			}
 		}
@@ -4758,6 +4907,7 @@ void wakeup_monsters(int Ind, int who) {
 			if (m_ptr->csleep) {
 				/* Wake up */
 				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, i, m_ptr->custom_lua_awoke));
 				sleep = TRUE;
 			}
 		}
@@ -4775,10 +4925,11 @@ void wakeup_monsters_somewhat(int Ind, int who) {
 	player_type *p_ptr = Players[Ind];
 	int i;
 	bool sleep = FALSE;
+	monster_type *m_ptr;
 
 	/* Aggravate everyone nearby */
 	for (i = 1; i < m_max; i++) {
-		monster_type *m_ptr = &m_list[i];
+		m_ptr = &m_list[i];
 
 		/* Paranoia -- Skip dead monsters */
 		if (!m_ptr->r_idx) continue;
@@ -4802,6 +4953,7 @@ void wakeup_monsters_somewhat(int Ind, int who) {
 				if (m_ptr->csleep <= 0) {
 					m_ptr->csleep = 0;
 					sleep = TRUE;
+					if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, i, m_ptr->custom_lua_awoke));
 				}
 			}
 		}
@@ -4840,7 +4992,10 @@ static void throw_dirt_aux(int Ind, int m_idx) {
 	r_ptr = race_inf(m_ptr);
 	monster_desc(Ind, m_name, m_idx, 0);
 
-	m_ptr->csleep = 0; //wake up from this
+	if (m_ptr->csleep) {
+		m_ptr->csleep = 0; //wake up from this
+		if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, m_idx, m_ptr->custom_lua_awoke));
+	}
 
 	/* Monster is unaffected? */
 	if (!blindable_monster(r_ptr)) {
@@ -4872,6 +5027,11 @@ void throw_dirt(int Ind) {
 	cave_type **zcave, *c_ptr;
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return;
+
+#ifdef ENABLE_OUNLIFE
+	/* Wraithstep gets auto-cancelled on forced interaction with solid environment */
+	if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1)) set_tim_wraith(Ind, 0);
+#endif
 
 	if (CANNOT_OPERATE_SPECTRAL) {
 		msg_print(Ind, "You cannot throw sand without a material body!");
@@ -5080,6 +5240,7 @@ void taunt_monsters(int Ind) {
 			if (m_ptr->csleep) {
 				m_ptr->csleep = 0;
 				sleep = TRUE;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, i, m_ptr->custom_lua_awoke));
 			}
 #endif
 
@@ -5103,10 +5264,11 @@ void taunt_monsters(int Ind) {
 /* Need it for detonation pots in potion_smash_effect - C. Blue */
 void aggravate_monsters_floorpos(worldpos *wpos, int x, int y) {
 	int i;
+	monster_type *m_ptr;
 
 	/* Aggravate everyone nearby */
 	for (i = 1; i < m_max; i++) {
-		monster_type	*m_ptr = &m_list[i];
+		m_ptr = &m_list[i];
 
 		/* Paranoia -- Skip dead monsters */
 		if (!m_ptr->r_idx) continue;
@@ -5124,6 +5286,7 @@ void aggravate_monsters_floorpos(worldpos *wpos, int x, int y) {
 			if (m_ptr->csleep) {
 				/* Wake up */
 				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, i, m_ptr->custom_lua_awoke));
 			}
 		}
 	}
@@ -5144,7 +5307,7 @@ void wake_minions(int Ind, int who) {
 	int i;
 
 	bool sleep = FALSE;
-//	bool speed = FALSE;
+	//bool speed = FALSE;
 
 
 	monster_desc(Ind, mw_name, who, 0x00);
@@ -5206,6 +5369,7 @@ void wake_minions(int Ind, int who) {
 				/* Wake up */
 				m_ptr->csleep = 0;
 				sleep = TRUE;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, i, m_ptr->custom_lua_awoke));
 			}
 		}
 #if 0
@@ -5250,7 +5414,7 @@ bool genocide_aux(int Ind, worldpos *wpos, char typ) {
 	cave_type **zcave;
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
-	if (l_ptr && l_ptr->flags1 & LF1_NO_GENO) return(FALSE);
+	if (l_ptr && (l_ptr->flags1 & LF1_NO_GENO)) return(FALSE);
 
 	bypass_invuln = TRUE;
 
@@ -5349,7 +5513,7 @@ bool genocide(int Ind) {
 	cave_type **zcave;
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
-	if (l_ptr && l_ptr->flags1 & LF1_NO_GENO) return(FALSE);	// double check..
+	if (l_ptr && (l_ptr->flags1 & LF1_NO_GENO)) return(FALSE);	// double check..
 
 	/* Search all monsters and find the closest */
 	for (i = 1; i < m_max; i++) {
@@ -5415,7 +5579,7 @@ bool obliteration(int who) {
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
 	l_ptr = getfloor(wpos);
-	if (l_ptr && l_ptr->flags1 & LF1_NO_GENO) return(FALSE);
+	if (l_ptr && (l_ptr->flags1 & LF1_NO_GENO)) return(FALSE);
 
 	bypass_invuln = TRUE;
 
@@ -5602,7 +5766,7 @@ void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, byte 
 	cave_type **zcave;
 
 	if (!(zcave = getcave(wpos))) return;
-	if (l_ptr && l_ptr->flags1 & LF1_NO_DESTROY) return;
+	if (l_ptr && (l_ptr->flags1 & LF1_NO_DESTROY)) return;
 
 	/* among others, make sure town areas aren't affected.. */
 	if (!allow_terraforming(wpos, FEAT_WALL_EXTRA)) return;
@@ -5706,11 +5870,14 @@ void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, byte 
 			if ((cs_ptr = GetCS(c_ptr, CS_KEYDOOR))) continue;
 
 			/* Lose light and knowledge */
-			c_ptr->info &= ~(CAVE_GLOW);
+			if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)
+			    && !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP)))
+				c_ptr->info &= ~CAVE_GLOW;
+
 			everyone_forget_spot(wpos, y, x);
 
 			/* Hack -- Skip the epicenter */
-			if ((y == y1) && (x == x1)) continue;
+			if (y == y1 && x == x1) continue;
 
 			/* Destroy "valid" grids */
 			//if ((cave_valid_bold(zcave, y, x)) && !(c_ptr->info & CAVE_ICKY))
@@ -5818,9 +5985,7 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 
 	/* Clear the "maximal blast" area */
 	for (y = 0; y < 32; y++) {
-		for (x = 0; x < 32; x++) {
-			map[y][x] = FALSE;
-		}
+		for (x = 0; x < 32; x++) map[y][x] = FALSE;
 	}
 
 	/* No one has taken any damage from this earthquake yet - mikaelh */
@@ -5873,7 +6038,9 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 #endif
 
 			/* Lose light */
-			c_ptr->info &= ~(CAVE_GLOW);
+			if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)
+			    && !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP)))
+				c_ptr->info &= ~CAVE_GLOW;
 
 			/* This can be really annoying and frustrating - mikaelh */
 			//everyone_forget_spot(wpos, y, x);
@@ -6081,7 +6248,7 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 					sn = 0;
 
 					/* Monster can move to escape the wall */
-					if (!(r_ptr->flags1 & RF1_NEVER_MOVE)) {
+					if (!(r_ptr->flags2 & RF2_NEVER_MOVE)) {
 						/* Look for safety */
 						for (i = 0; i < 8; i++) {
 							/* Access the grid */
@@ -6119,7 +6286,10 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 					damage = (sn ? damroll(4, 8) : 200);
 
 					/* Monster is certainly awake */
-					m_ptr->csleep = 0;
+					if (m_ptr->csleep) {
+						m_ptr->csleep = 0;
+						if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke));
+					}
 
 					/* Apply damage directly */
 					m_ptr->hp -= damage;
@@ -6326,6 +6496,7 @@ static void cave_temp_room_lite(int Ind) {
 			if (m_ptr->csleep && (rand_int(100) < chance)) {
 				/* Wake up! */
 				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, c_ptr->m_idx, m_ptr->custom_lua_awoke));
 
 				/* Notice the "waking up" */
 				if (p_ptr->mon_vis[c_ptr->m_idx]) {
@@ -6380,7 +6551,9 @@ static void cave_temp_room_unlite(int Ind) {
 		c_ptr->info &= ~CAVE_TEMP;
 
 		/* Darken the grid */
-		if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)) c_ptr->info &= ~CAVE_GLOW;
+		if (!(f_info[c_ptr->feat].flags2 & FF2_GLOW)
+		    && !(c_ptr->info & (CAVE_GLOW_HACK | CAVE_GLOW_HACK_LAMP)))
+			c_ptr->info &= ~CAVE_GLOW;
 
 		/* Hack -- Forget "boring" grids */
 		//if (c_ptr->feat <= FEAT_INVIS)
@@ -6512,7 +6685,10 @@ static void global_cave_temp_room_lite(worldpos *wpos) {
 			if (r_ptr->flags2 & RF2_SMART) chance = 100;
 
 			/* Sometimes monsters wake up */
-			if (m_ptr->csleep && (rand_int(100) < chance)) m_ptr->csleep = 0;
+			if (m_ptr->csleep && (rand_int(100) < chance)) {
+				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke));
+			}
 		}
 
 		/* Note */
@@ -7041,7 +7217,7 @@ bool cast_fireworks(worldpos *wpos, int x, int y, int typ) {
 	/* Fireworks flies lower inside dungeons */
 	if (wpos->wz && !(d_ptr && d_ptr->type == DI_CLOUD_PLANES)) project_time = 4 + 4;
 	else project_time = 8 + 8; /* X units to rise into the air, X units to explode */
-	//if (project_time_effect == EFF_FIREWORKS3) project_time += 2 + 2;
+	//if (project_time_effect & EFF_FIREWORKS3) project_time += 2 + 2;
 #endif
 
 	return(project(PROJECTOR_EFFECT, 0, wpos, y, x, 0, typ, flg, pattacker)); /* typ -> colour */
@@ -7308,6 +7484,33 @@ bool fire_bolt(int Ind, int typ, int dir, int dam, char *attacker) {
 
 	return(project_hook(Ind, typ, dir, dam, flg, pattacker));
 }
+/* Especially added for runecraft shots, just to distinguish the extreme damage output, via flag, for certain special situations */
+bool fire_bolt_x(int Ind, int typ, int dir, int dam, char *attacker) {
+	char pattacker[80];
+	int flg = PROJECT_STOP | PROJECT_KILL | PROJECT_ITEM | PROJECT_GRID | PROJECT_EVSG | PROJECT_XDAM;
+	snprintf(pattacker, 80, "%s%s", Players[Ind]->name, attacker);
+
+#ifdef USE_SOUND_2010
+	switch (typ) {
+	case GF_SHOT: //hmm, magic or combat sfx for these mimic powers?..
+		if (Players[Ind]->sfx_combat) sound(Ind, "fire_shot", NULL, SFX_TYPE_COMMAND, FALSE);
+		break;
+	case GF_ARROW:
+		if (Players[Ind]->sfx_combat) sound(Ind, "fire_arrow", NULL, SFX_TYPE_COMMAND, FALSE);
+		break;
+	case GF_BOLT:
+		if (Players[Ind]->sfx_combat) sound(Ind, "fire_bolt", NULL, SFX_TYPE_COMMAND, FALSE);
+		break;
+	case GF_BOULDER:
+		if (Players[Ind]->sfx_combat) sound(Ind, "throw_boulder", NULL, SFX_TYPE_COMMAND, FALSE);
+		break;
+	default:
+		if (Players[Ind]->sfx_magicattack) sound(Ind, "cast_bolt", NULL, SFX_TYPE_COMMAND, FALSE);
+	}
+#endif
+
+	return(project_hook(Ind, typ, dir, dam, flg, pattacker));
+}
 
 /*
  * Cast a beam spell
@@ -7326,7 +7529,9 @@ bool fire_beam(int Ind, int typ, int dir, int dam, char *attacker) {
 }
 
 /*
- * Cast a shot spell
+ * Cast a shot spell -- currently this is only used by runecraft, and constitutes over the top damage output.
+ *                      To convey this to specific special situations, we utilize fire_bolt_x()
+ *                      which differs from normal fire_bolt() simply in applying the PROJECT_XDAM notifier flag,
  * Stop if we hit a monster, as a "bolt"
  * Fire N bolts at up to N clustered monsters, approximate "cone" - Kurzel
  */
@@ -7399,7 +7604,7 @@ bool fire_shot(int Ind, int typ, int dir, int dx, int dy, int rad, int num, char
 		/* Fire the bolts, skip dead targets */
 		if (g) { //fix div/0, ask Kurzel about details regarding target_who/col/row settings, for now just adding this 'else' branch here to mitigate.
 			d = 0;
-			for (i = 0; i < num+d; i++) {
+			for (i = 0; i < num + d; i++) {
 				j = (i % g);
 				p_ptr->target_col = x = gx[j];
 				p_ptr->target_row = y = gy[j];
@@ -7408,7 +7613,7 @@ bool fire_shot(int Ind, int typ, int dir, int dx, int dy, int rad, int num, char
 					if (++d > g) break;
 					else continue;
 				}
-				if (fire_bolt(Ind, typ, dir, damroll(dx,dy), attacker)) obvious = TRUE;
+				if (fire_bolt_x(Ind, typ, dir, damroll(dx,dy), attacker)) obvious = TRUE;
 			}
 			p_ptr->target_who = tw;
 			p_ptr->target_col = gx[0];
@@ -7420,7 +7625,7 @@ bool fire_shot(int Ind, int typ, int dir, int dx, int dy, int rad, int num, char
 		}
 	} else {
 		for (i = 0; i < num; i++) {
-			if (fire_bolt(Ind, typ, dir, damroll(dx,dy), attacker)) obvious = TRUE;
+			if (fire_bolt_x(Ind, typ, dir, damroll(dx,dy), attacker)) obvious = TRUE;
 		}
 	}
 
@@ -7630,9 +7835,16 @@ bool fire_grid_beam(int Ind, int typ, int dir, int dam, char *attacker) {
 /* TODO: the result should be affected by skills (and not plev) */
 
 bool lite_line(int Ind, int dir, int dam, bool starlight) {
-	int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
+	if (dir == 5 && !target_okay(Ind)) {
+		player_type *p_ptr = Players[Ind];
+		int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
 
-	return(project_hook(Ind, starlight? GF_STARLITE : GF_LITE_WEAK, dir, dam, flg, ""));
+		return(project(0 - Ind, 0, &p_ptr->wpos, p_ptr->py, p_ptr->px, dam, starlight ? GF_STARLITE : GF_LITE_WEAK, flg, ""));
+	} else {
+		int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
+
+		return(project_hook(Ind, starlight ? GF_STARLITE : GF_LITE_WEAK, dir, dam, flg, ""));
+	}
 }
 
 bool drain_life(int Ind, int dir, int dam) {
@@ -7649,21 +7861,42 @@ bool annihilate(int Ind, int dir, int dam) {
 }
 
 bool wall_to_mud(int Ind, int dir) {
-	int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
+	if (dir == 5 && !target_okay(Ind)) {
+		player_type *p_ptr = Players[Ind];
+		int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
 
-	return(project_hook(Ind, GF_KILL_WALL, dir, 20 + randint(30), flg, ""));
+		return(project(0 - Ind, 0, &p_ptr->wpos, p_ptr->py, p_ptr->px, 20 + randint(30), GF_KILL_WALL, flg, ""));
+	} else {
+		int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL | PROJECT_NODF | PROJECT_NODO;
+
+		return(project_hook(Ind, GF_KILL_WALL, dir, 20 + randint(30), flg, ""));
+	}
 }
 
 bool destroy_trap_door(int Ind, int dir) {
-	int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
+	if (dir == 5 && !target_okay(Ind)) {
+		player_type *p_ptr = Players[Ind];
+		int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
 
-	return(project_hook(Ind, GF_KILL_TRAP_DOOR, dir, 0, flg, ""));
+		return(project(0 - Ind, 0, &p_ptr->wpos, p_ptr->py, p_ptr->px, 0, GF_KILL_TRAP_DOOR, flg, ""));
+	} else {
+		int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
+
+		return(project_hook(Ind, GF_KILL_TRAP_DOOR, dir, 0, flg, ""));
+	}
 }
 
 bool disarm_trap_door(int Ind, int dir) {
-	int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
+	if (dir == 5 && !target_okay(Ind)) {
+		player_type *p_ptr = Players[Ind];
+		int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
 
-	return(project_hook(Ind, GF_KILL_TRAP, dir, 0, flg, ""));
+		return(project(0 - Ind, 0, &p_ptr->wpos, p_ptr->py, p_ptr->px, 0, GF_KILL_TRAP, flg, ""));
+	} else {
+		int flg = PROJECT_NORF | PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM | PROJECT_NODF | PROJECT_NODO;
+
+		return(project_hook(Ind, GF_KILL_TRAP, dir, 0, flg, ""));
+	}
 }
 
 bool heal_monster(int Ind, int dir) {
@@ -7764,11 +7997,11 @@ bool door_creation(int Ind) {
 	return(project(0 - Ind, 1, &p_ptr->wpos, p_ptr->py, p_ptr->px, 0, GF_MAKE_DOOR, flg, ""));
 }
 
-bool trap_creation(int Ind, int mod, int rad) {
+bool trap_creation(int Ind, int mod, int rad, int clone_trapping) {
 	player_type *p_ptr = Players[Ind];
 	int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_ITEM | PROJECT_HIDE | PROJECT_NODF | PROJECT_NODO;
 
-	return(project(0 - Ind, rad, &p_ptr->wpos, p_ptr->py, p_ptr->px, mod, GF_MAKE_TRAP, flg, ""));
+	return(project(0 - Ind, rad, &p_ptr->wpos, p_ptr->py, p_ptr->px, mod + (clone_trapping * 1000), GF_MAKE_TRAP, flg, ""));
 }
 
 bool destroy_doors_touch(int Ind, int rad) {
@@ -8104,7 +8337,7 @@ void house_creation(int Ind, bool floor, bool jail) {
 	char buildargs[3];
 
 	/* set master_move_hook : a bit like a setuid really ;) */
-	printf("floor: %d jail: %d\n",floor,jail);
+	s_printf("floor: %d jail: %d\n", floor, jail);
 
 	/* No building in town */
 	if (wpos->wz) {
@@ -8271,6 +8504,7 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 
 	/* Assume no sleeping */
 	m_ptr->csleep = 0;
+	//if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke)); //not really needed here?
 
 	/* STR */
 	for (j = 0; j < 4; j++) {
@@ -8283,7 +8517,7 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 	m_ptr->org_maxhp = m_ptr->maxhp;
 
 #ifdef MONSTER_ASTAR
-	if (r_ptr->flags0 & RF0_ASTAR) {
+	if (r_ptr->flags7 & RF7_ASTAR) {
 		/* search for an available A* table to use */
 		for (j = 0; j < ASTAR_MAX_INSTANCES; j++) {
 			/* found an available instance? */
@@ -8427,6 +8661,7 @@ bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
 
 	/* Assume no sleeping */
 	m_ptr->csleep = 0;
+	//if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke)); //not really needed here?
 
 	/* STR */
 	for (j = 0; j < 4; j++) {
@@ -8777,6 +9012,8 @@ void golem_creation(int Ind, int max) {
 
 	/* Assume no sleeping */
 	m_ptr->csleep = 0;
+	//if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, c_ptr->m_idx, m_ptr->custom_lua_awoke)); //not really needed here?
+
 	wpcopy(&m_ptr->wpos, &p_ptr->wpos);
 
 	/* No "damage" yet */
@@ -8915,6 +9152,7 @@ bool heal_insanity(int Ind, int val) {
 
 bool do_vermin_control(int Ind) {
 	dun_level *l_ptr = getfloor(&Players[Ind]->wpos);
+
 	if (l_ptr && !(l_ptr->flags1 & LF1_NO_MULTIPLY)) {
 		l_ptr->flags1 |= LF1_NO_MULTIPLY;
 		msg_print(Ind, "You feel less itchy.");
@@ -8923,9 +9161,11 @@ bool do_vermin_control(int Ind) {
 	return(FALSE);
 }
 
-void activate_rune(int Ind) {
+void activate_rune(int Ind, int item) {
 	player_type *p_ptr = Players[Ind];
+
 	clear_current(Ind);
+	p_ptr->current_activation = item;
 	p_ptr->current_rune = TRUE;
 	get_item(Ind, ITH_RUNE_ENCHANT);
 	return;
@@ -8954,14 +9194,10 @@ void tome_creation_aux(int Ind, int item) {
 	char		o_name[ONAME_LEN];
 	s16b		*xtra;
 
-	/* Get the item (in the pack) */
-	if (item >= 0) o_ptr = &p_ptr->inventory[item];
-	/* Get the item (on the floor) */
-	else o_ptr = &o_list[0 - item];
-	/* Get the item (in the pack) */
-	if (p_ptr->using_up_item >= 0) o2_ptr = &p_ptr->inventory[p_ptr->using_up_item];
-	/* Get the item (on the floor) */
-	else o2_ptr = &o_list[0 - p_ptr->using_up_item];
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+
+	/* Get the item - in the pack ONLY, because -1 is a marker hack here for 'no item'! */
+	if (p_ptr->using_up_item < 0 || !get_inven_item(Ind, p_ptr->using_up_item, &o2_ptr)) return;
 
 	/* severe error: custom book no longer there */
 	if (o_ptr->tval != TV_BOOK || !is_custom_tome(o_ptr->sval)) {
@@ -9099,6 +9335,11 @@ void tome_creation_aux(int Ind, int item) {
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN);
 	p_ptr->notice |= (PN_REORDER);
+
+#ifdef ENABLE_SUBINVEN /* TODO: PW_SUBINVEN */
+	/* Redraw subinven item */
+	if (item >= SUBINVEN_INVEN_MUL) display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+#endif
 
 	/* Something happened */
 	return;
@@ -9327,14 +9568,14 @@ void mix_chemicals(int Ind, int item) {
 	byte lo = 0, wa = 0, sw = 0, ac = 0; //lamp oil (flask), water (potion), salt water (potion), acid(?)/vitriol TV_CHEMICAL
 
 #ifdef ENABLE_SUBINVEN
-	if (item < 100) {
-		if (p_ptr->current_activation >= 100) return; //don't allow mixing item from satchel with item from inven
+	if (item < SUBINVEN_INVEN_MUL) {
+		if (p_ptr->current_activation >= SUBINVEN_INVEN_MUL) return; //don't allow mixing item from satchel with item from inven
 		o_ptr = &p_ptr->inventory[p_ptr->current_activation]; /* Ingredient #2 */
 		o2_ptr = &p_ptr->inventory[item]; /* Ingredient #1 */
 	} else {
-		if (p_ptr->current_activation < 100) return; //don't allow mixing item from satchel with item from inven
-		o_ptr = &p_ptr->subinventory[p_ptr->current_activation / 100 - 1][p_ptr->current_activation % 100]; /* Ingredient #2 */
-		o2_ptr = &p_ptr->subinventory[item / 100 - 1][item % 100]; /* Ingredient #1 */
+		if (p_ptr->current_activation < SUBINVEN_INVEN_MUL) return; //don't allow mixing item from satchel with item from inven
+		o_ptr = &p_ptr->subinventory[p_ptr->current_activation / SUBINVEN_INVEN_MUL - 1][p_ptr->current_activation % SUBINVEN_INVEN_MUL]; /* Ingredient #2 */
+		o2_ptr = &p_ptr->subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL]; /* Ingredient #1 */
 	}
 #endif
 
@@ -9531,9 +9772,9 @@ void mix_chemicals(int Ind, int item) {
 			    && as + mh + me + mc + vi + ru + lo + wa + sw + ac == 0) {
 				q_ptr->tval = TV_SCROLL;
 				q_ptr->sval = SV_SCROLL_FIREWORK;
-				// random for now..
-				q_ptr->xtra1 = rand_int(3); //size
-				q_ptr->xtra2 = rand_int(FIREWORK_COLOURS); //colour
+				if (o2_ptr->sval == SV_SCROLL_FIRE) q_ptr->xtra1 = 2; //big one
+				else q_ptr->xtra1 = rand_int(3); //random size
+				q_ptr->xtra2 = rand_int(FIREWORK_COLOURS); //random colour for now
 				q_ptr->level = 1;
 				msg_print(Ind, "You create harmless fireworks from the flash bomb mixture..");
 				i = -2;
@@ -9723,9 +9964,9 @@ void mix_chemicals(int Ind, int item) {
 	i = inven_carry(Ind, q_ptr);
 #ifdef ENABLE_SUBINVEN
 	/* If both ingredients were from a satchel, try to place the result there too, if it's TV_CHEMICAL. */
-	if (p_ptr->current_activation >= 100 && item >= 100 && q_ptr->tval == TV_CHEMICAL) {
+	if (p_ptr->current_activation >= SUBINVEN_INVEN_MUL && item >= SUBINVEN_INVEN_MUL && q_ptr->tval == TV_CHEMICAL) {
 		//do_cmd_subinven_move(Ind, islot);
-		if (subinven_move_aux(Ind, i, item / 100 - 1)) return; /* Includes message */
+		if (subinven_move_aux(Ind, i, item / SUBINVEN_INVEN_MUL - 1, MAX_STACK_SIZE - 1)) return; /* Includes message */
 	}
 #endif
 	if (i != -1) msg_format(Ind, "You have %s (%c).", o_name, index_to_label(i));
@@ -9849,16 +10090,18 @@ void mixture_flavour(object_type *o_ptr, char *flavour) {
 }
 /* Grind metallic objects to poweder for use as ingredient */
 void grind_chemicals(int Ind, int item) {
-	player_type *p_ptr = Players[Ind];
-	object_type *o_ptr = &p_ptr->inventory[item]; /* Metallic object */
-	object_type forge, *q_ptr = &forge; /* Resulting metal powder */
+	object_type *o_ptr;
+	object_type forge, *q_ptr = &forge; /* Resulting metal powder/wood chips */
 	char o_name[ONAME_LEN];
-	int i, tv = o_ptr->tval, sv = o_ptr->sval;
+	int i, tv, sv;
 	bool metal, wood;
 
+	if (!get_inven_item(Ind, item, &o_ptr)) return; /* Metallic/wooden object */
+	tv = o_ptr->tval;
+	sv = o_ptr->sval;
 
 	/* Safety mechanism in case we're crafing via inscriptions and make a..mistake */
-	if (item >= INVEN_WIELD) {
+	if (item >= INVEN_WIELD && item < SUBINVEN_INVEN_MUL) {
 		msg_print(Ind, "The item must be in your inventory in order to dismantle it.");
 		return;
 	}
@@ -9933,6 +10176,9 @@ void grind_chemicals(int Ind, int item) {
 		q_ptr->iron_turn = o_ptr->iron_turn;
 
 		/* Give us the result */
+#ifdef ENABLE_SUBINVEN
+		if (auto_stow(Ind, SV_SI_SATCHEL, q_ptr, -1, FALSE, FALSE)) return;
+#endif
 		i = inven_carry(Ind, q_ptr);
 		if (i != -1) {
 			object_desc(Ind, o_name, &forge, TRUE, 3);
@@ -9971,6 +10217,9 @@ void grind_chemicals(int Ind, int item) {
 		q_ptr->iron_turn = o_ptr->iron_turn;
 
 		/* Give us the result */
+#ifdef ENABLE_SUBINVEN
+		if (auto_stow(Ind, SV_SI_SATCHEL, q_ptr, -1, FALSE, FALSE)) return;
+#endif
 		i = inven_carry(Ind, q_ptr);
 		if (i != -1) {
 			object_desc(Ind, o_name, &forge, TRUE, 3);
@@ -10059,19 +10308,18 @@ bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown) {
 }
 /* Set direction (if applicable) and light the fuse at given length on a trap, arming it */
 void arm_charge_dir_and_fuse(object_type *o2_ptr, int dir) {
-	char *c;
 	int fuse;
 
-	/* Set 'dir' if any (for fire-wall charge) (NOTE: This collides with inventory_loss_starteritems marker ^^) */
+	/* Set 'dir' if any (for fire-wall charge) */
 	o2_ptr->xtra9 = dir;
 
 	/* Hack: Allow setting custom fuse length via '!Fxx' inscription! */
-	if (o2_ptr->note && (c = strchr(quark_str(o2_ptr->note), '!')) && (c[1] == 'F')) {
-		fuse = atoi(c + 2);
-
-		/* Limits: Fuse duration must be between 1s and 15s */
+	if (o2_ptr->note && (fuse = check_guard_inscription(o2_ptr->note, 'F'))) {
+		fuse--; //unhack value
+		/* Limits: Fuse duration must be between 0s and 15s. */
 		if (fuse > 15) fuse = 15;
-		if (fuse < 1) fuse = 1;
+		if (fuse == 0) fuse = -1; /* hack: encode instant boom as '-1', as 0 stands for 'unlit'. */
+		else if (fuse < 0) fuse = 15; /* catch user errors leniently */
 	}
 	/* Otherwise use default fuse length */
 	else fuse = o2_ptr->pval;
@@ -10291,7 +10539,7 @@ void detonate_charge(int o_idx) {
 				    || c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
 					continue;
 				cave_set_feat_live(wpos, y2, x2, FEAT_RUBBLE);
-				c_ptr->info |= CAVE_NOYIELD;
+				c_ptr->info2 |= CAVE2_NOYIELD;
 			}
 		}
 		break;
@@ -10363,6 +10611,260 @@ void detonate_charge(int o_idx) {
 }
 #endif
 
+/* Remotely similar to sealing/unsealing.
+   NOTE: WINNERS_ONLY items are currently not checked.
+         This isn't exploitable, as they cannot be wielded anyway, but should perhaps get added.
+         Code locs: Store buying/stealing (store.c), telekinesis (xtra2.c), picking up the gift (cmd1.c). */
+void wrap_gift(int Ind, int item) {
+	player_type *p_ptr = Players[Ind];
+	object_type *o_ptr, *ow_ptr, forge;
+	bool empty = (item == p_ptr->current_activation);
+
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+	if (!get_inven_item(Ind, p_ptr->current_activation, &ow_ptr)) return;
+
+	s_printf("GIFTWRAPPING: %d, %d", o_ptr->tval, o_ptr->sval);
+
+	if (o_ptr->questor || ow_ptr->questor) {
+		msg_print(Ind, "You cannot use questor items for gift wrapping.");
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(1)\n");
+		return;
+	}
+
+	/* Most items with live-timeouts cannot be wrapped */
+	if ((o_ptr->tval == TV_GAME && o_ptr->sval == SV_SNOWBALL) ||
+	    (o_ptr->tval == TV_POTION && o_ptr->sval == SV_POTION_BLOOD)) {
+		msg_print(Ind, "For sanitary reasons, perishable goods may not be gift-wrapped."); //>,>'
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(2)\n");
+		return;
+	}
+
+	/* severe error: gift wrapping no longer there */
+	if (ow_ptr->tval != TV_JUNK || ow_ptr->sval < SV_GIFT_WRAPPING_START || ow_ptr->sval > SV_GIFT_WRAPPING_END) {
+		/* completely start from scratch (have to re-'activate') */
+		msg_print(Ind, "The gift wrapping's inventory location was changed, please retry!");
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(3)\n");
+		return;
+	}
+
+	if (!o_ptr->level) {
+		msg_print(Ind, "You cannot wrap zero-level items.");
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(4)\n");
+		return;
+	}
+
+	if (cursed_p(o_ptr)) {
+		msg_print(Ind, "Oops, the item accidentally ripped the gift wrapping."); //=p
+		/* One gift wrapping gone */
+		inven_item_increase(Ind, p_ptr->current_activation, -o_ptr->number);
+		inven_item_describe(Ind, p_ptr->current_activation);
+		inven_item_optimize(Ind, p_ptr->current_activation);
+
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(7)\n");
+		return;
+	}
+
+	/* Don't wrap an already wrapped gift (or seals), it'll kill the item info */
+	if (o_ptr->tval == TV_SPECIAL) {
+		/* maybe just forbid all TV_SPECIAL items */
+		if (o_ptr->sval == SV_SEAL) {
+			msg_print(Ind, "Sorry, you cannot wrap magic seals.");
+			clear_current(Ind); /* <- not required actually */
+			s_printf("..failed(5)\n");
+			return;
+		} else if (o_ptr->sval == SV_CUSTOM_OBJECT) {
+			msg_print(Ind, "Sorry, you cannot wrap custom objects.");
+			clear_current(Ind); /* <- not required actually */
+			s_printf("..failed(5)\n");
+			return;
+		} else if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) {
+			msg_print(Ind, "Sorry, you cannot wrap already wrapped gifts.");
+			clear_current(Ind); /* <- not required actually */
+			s_printf("..failed(6)\n");
+			return;
+		}
+	}
+
+#if 0
+	/* Don't use the wrapping on itself */
+	if (empty) {
+		msg_print(Ind, "You cannot create empty gifts.");
+		clear_current(Ind); /* <- not required actually */
+		s_printf("..failed(0)\n");
+		return;
+	}
+#else
+	/* Create an empty gift D: */
+	if (empty) {
+		if (o_ptr->number == 1) msg_print(Ind, "You make an empty gift.");
+		else msg_print(Ind, "You take one gift wrapping and wrap the remaining ones with it.");
+		s_printf("..success (EMPTY)\n");
+
+		forge = *o_ptr;
+
+		/* One gift wrapping gone */
+		inven_item_increase(Ind, p_ptr->current_activation, -o_ptr->number);
+		inven_item_describe(Ind, p_ptr->current_activation);
+		inven_item_optimize(Ind, p_ptr->current_activation);
+
+		o_ptr = &forge;
+
+		o_ptr->tval2 = o_ptr->tval;
+		o_ptr->sval2 = o_ptr->sval;
+		o_ptr->number2 = o_ptr->number - 1;
+		o_ptr->note2 = o_ptr->note;
+		o_ptr->note2_utag = o_ptr->note_utag;
+
+		o_ptr->tval = TV_SPECIAL;
+		/* (sval stays the same) */
+		o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
+		o_ptr->weight = o_ptr->weight * o_ptr->number; /* Potential stack will be shrunk to just 1 item in next line, and the one gift wrapping paper we used is included */
+		o_ptr->number = 1; // one gift may contain a stack of items, but in turn, gifts aren't stackable of course
+		o_ptr->note = ow_ptr->note;
+		o_ptr->note_utag = ow_ptr->note_utag;
+
+#ifdef USE_SOUND_2010
+		sound(Ind, "read_scroll", NULL, SFX_TYPE_COMMAND, FALSE);
+#endif
+
+		/* Overwrite 'item' to reuse it, as we don't need it anymore */
+		item = inven_carry(Ind, &forge);
+		if (item >= 0) {
+			char o_name[ONAME_LEN];
+
+			object_desc(Ind, o_name, &forge, TRUE, 3);
+			msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+		}
+		p_ptr->window |= PW_INVEN;
+		handle_stuff(Ind);
+		return;
+	} else
+#endif
+	s_printf("..success\n");
+#ifdef USE_SOUND_2010
+	sound(Ind, "read_scroll", NULL, SFX_TYPE_COMMAND, FALSE);
+#endif
+
+	o_ptr->tval2 = o_ptr->tval;
+	o_ptr->sval2 = o_ptr->sval;
+	o_ptr->number2 = o_ptr->number;
+	o_ptr->note2 = o_ptr->note;
+	o_ptr->note2_utag = o_ptr->note_utag;
+
+	o_ptr->tval = TV_SPECIAL;
+	o_ptr->sval = p_ptr->inventory[p_ptr->current_activation].sval;
+	o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
+	o_ptr->weight = o_ptr->weight * o_ptr->number + ow_ptr->weight; /* Potential stack will be shrunk to just 1 item in next line, and gift wrapping paper is added */
+	o_ptr->number = 1; // one gift may contain a stack of items, but in turn, gifts aren't stackable of course
+	o_ptr->note = ow_ptr->note;
+	o_ptr->note_utag = ow_ptr->note_utag;
+
+	/* One gift wrapping gone */
+	inven_item_increase(Ind, p_ptr->current_activation, -1);
+	inven_item_describe(Ind, p_ptr->current_activation);
+
+	/* Don't just unhack the tval,sval etc, but actually erase and re-insert the item newly,
+	   Because this way, we put it into the correct inventory slot. */
+	forge = *o_ptr;
+	inven_item_increase(Ind, item, -1);
+	if (p_ptr->current_activation > item) {
+		inven_item_optimize(Ind, p_ptr->current_activation);
+		inven_item_optimize(Ind, item);
+	} else {
+		inven_item_optimize(Ind, item);
+		inven_item_optimize(Ind, p_ptr->current_activation);
+	}
+	/* Overwrite 'item' to reuse it, as we don't need it anymore */
+	item = inven_carry(Ind, &forge);
+	if (item >= 0) {
+		char o_name[ONAME_LEN];
+
+		object_desc(Ind, o_name, &forge, TRUE, 3);
+		msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+	}
+	p_ptr->window |= PW_INVEN;
+	handle_stuff(Ind);
+}
+void unwrap_gift(int Ind, int item) {
+	player_type *p_ptr = Players[Ind];
+	object_type *o_ptr, forge;
+
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
+
+	s_printf("GIFTUNWRAPPING: %s: %d, %d\n", p_ptr->name, o_ptr->tval, o_ptr->sval);
+#ifdef USE_SOUND_2010
+	sound(Ind, "read_scroll", NULL, SFX_TYPE_COMMAND, FALSE);
+#endif
+
+	/* Don't just unhack the tval,sval etc, but actually erase and re-insert the item newly,
+	   Because this way, we put it into the correct inventory slot. */
+	forge = *o_ptr;
+	inven_item_increase(Ind, item, -1);
+	//inven_item_describe(Ind, item); -- pft, we know it's no longer gift-wrapped
+	inven_item_optimize(Ind, item);
+	o_ptr = &forge;
+
+	o_ptr->weight = (o_ptr->weight - k_info[lookup_kind(TV_JUNK, o_ptr->sval)].weight) / o_ptr->number2; /* Gift wrapping paper is removed, stack of items may appear instead of just one item. */
+	o_ptr->tval = o_ptr->tval2;
+	o_ptr->sval = o_ptr->sval2;
+	o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
+	o_ptr->number = o_ptr->number2;
+	o_ptr->note = o_ptr->note2;
+	o_ptr->note_utag = o_ptr->note2_utag;
+
+	o_ptr->tval2 = 0;
+	o_ptr->sval2 = 0;
+	o_ptr->number2 = 0;
+	o_ptr->note2 = 0;
+	o_ptr->note2_utag = 0;
+
+	/* Handle empty gifts */
+	if (!forge.number) {
+		msg_print(Ind, " it was empty.");
+		p_ptr->window |= PW_INVEN;
+		handle_stuff(Ind);
+		return;
+	}
+	/* Overwrite 'item' to reuse it, as we don't need it anymore */
+	item = inven_carry(Ind, &forge);
+	if (item >= 0) {
+		char o_name[ONAME_LEN];
+
+		object_desc(Ind, o_name, &forge, TRUE, 3);
+		msg_format(Ind, "You have %s (%c).", o_name, index_to_label(item));
+	}
+	p_ptr->window |= PW_INVEN;
+	handle_stuff(Ind);
+}
+/* Keep in mind that gift_ptr and contents_ptr are allowed to point to the same object,
+   and it's our job to bend contents_ptr to our statically cloned object correctly. */
+void peek_gift(object_type *gift_ptr, object_type **contents_ptr) {
+	static object_type forge, *o_ptr = &forge;
+
+	forge = *gift_ptr;
+
+	o_ptr->weight = (o_ptr->weight - k_info[lookup_kind(TV_JUNK, o_ptr->sval)].weight) / o_ptr->number2; /* Gift wrapping paper is removed, stack of items may appear instead of just one item. */
+	o_ptr->tval = o_ptr->tval2;
+	o_ptr->sval = o_ptr->sval2;
+	o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
+	o_ptr->number = o_ptr->number2;
+	o_ptr->note = o_ptr->note2;
+	o_ptr->note_utag = o_ptr->note2_utag;
+
+	o_ptr->tval2 = 0;
+	o_ptr->sval2 = 0;
+	o_ptr->number2 = 0;
+	o_ptr->note2 = 0;
+	o_ptr->note2_utag = 0;
+
+	*contents_ptr = &forge;
+}
+
 /* Returns FALSE if we notice any effect, TRUE if we don't (for UNMAGIC). */
 bool do_mstopcharm(int Ind) {
 	player_type *p_ptr = Players[Ind];
@@ -10372,6 +10874,8 @@ bool do_mstopcharm(int Ind) {
 
 	if (p_ptr->mcharming == 0) return(FALSE); /* optimization */
 	p_ptr->mcharming = 0;
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	for (m = m_top - 1; m >= 0; m--) {
 		m_ptr = &m_list[m_fast[m]];
@@ -10379,6 +10883,7 @@ bool do_mstopcharm(int Ind) {
 		m_ptr->charmedignore = 0;
 		notice = TRUE;
 	}
+
 	if (notice) msg_print(Ind, "Your charm spell breaks!");
 	return(notice);
 }
@@ -10454,6 +10959,7 @@ u32b mod_ball_spell_flags(int typ, u32b flags) {
 	case GF_UNBREATH:
 	case GF_THUNDER:
 	case GF_ANNIHILATION:
+	case GF_NO_REGEN:
 		return(flags | PROJECT_LODF);
 	/* very powerful 'force' stuff */
 	case GF_FORCE:

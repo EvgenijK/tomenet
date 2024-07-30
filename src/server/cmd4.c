@@ -31,19 +31,19 @@
     o1 + o2 = ULTRA_COMPACT_PLAYERLIST */
 /* use more compact @-list to get more information displayed?
    NOTE: Requires ABUNDANT_TITLES! (in do_write_others_attributes()) */
-#define COMPACT_PLAYERLIST
+ #define COMPACT_PLAYERLIST
 /* if COMPACT_PLAYERLIST is enabled, this will switch to an even denser layout,
    which in exchange displays the hostnames to all players again (tradition). */
-#define COMPACT_ALT
+ #define COMPACT_ALT
 
 /* use ultra compact @-list that uses only 2 lines per entry.
    NOTE: COMPACT_PLAYERLIST must be disabled when using this! */
-//#define ULTRA_COMPACT_PLAYERLIST
+ //#define ULTRA_COMPACT_PLAYERLIST
 
 /* print compressed gender in 1st line. If disabled, gender might instead get
    printed in the 2nd line, depending on the actual display mode.
    This can be optionally added to either COMPACT_PLAYERLIST or ULTRA_COMPACT_PLAYERLIST. */
-//#define COMPACT_GENDER
+ //#define COMPACT_GENDER
 #endif
 
 /* Allow to inspect light source and ammo quiver too while target wears mummy wrapping? */
@@ -86,13 +86,14 @@ void do_cmd_check_artifacts(int Ind, int line, char *srcstr) {
 	player_type *p_ptr = Players[Ind], *q_ptr;
 	bool admin = is_admin(p_ptr);
 	bool shown = FALSE;
+	bool antiriad = FALSE;
 
 	object_type forge, *o_ptr;
 	artifact_type *a_ptr;
 	char fmt[16];
 	char buf[MAX_CHARS];
 #ifdef COLOURED_ARTS
-	char cattr;
+	byte cattr;
 #endif
 
 
@@ -128,6 +129,12 @@ void do_cmd_check_artifacts(int Ind, int line, char *srcstr) {
 
 		/* Skip disabled (or bugged, if that happens) artifacts */
 		if (a_ptr->cur_num == 1 && !a_ptr->carrier && !admin) continue;
+
+		/* Hack for Antiriad, which are two artifacts in one */
+		if (k == ART_ANTIRIAD || k == ART_ANTIRIAD_DEPLETED) {
+			if (antiriad) continue;
+			antiriad = TRUE;
+		}
 
 		/* Assume okay */
 		okay[k] = TRUE;
@@ -227,8 +234,8 @@ void do_cmd_check_artifacts(int Ind, int line, char *srcstr) {
 				else if (timeout < (60 * 2) / divisor) sprintf(timeleft, "\377r%3dm", timeout);
 				else if (timeout < (60 * 24 * 2) / divisor) sprintf(timeleft, "\377y%3dh", timeout / 60);
 				else if (timeout < (long_timeout * 24 * (FLUENT_ARTIFACT_WEEKS * 7 - 1)) / divisor)
-					sprintf(timeleft, "\377s%3dd", timeout / 60 / 24);
-				else sprintf(timeleft, "\377G%3dd", timeout / 60 / 24); /* indicate very recently found arts */
+					sprintf(timeleft, "\377s%3dd", timeout / 60 / 24); /* silyl compiler warning */
+				else sprintf(timeleft, "\377G%3dd", timeout / 60 / 24); /* indicate very recently found arts -- silyl compiler warning */
 
 				if (a_ptr->cur_num != 1 && !multiple_artifact_p(&forge)) c = 'r';
 				else if (admin_artifact_p(&forge)) c = 'y';
@@ -371,7 +378,7 @@ void do_cmd_check_artifacts(int Ind, int line, char *srcstr) {
 void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 	monster_race *r_ptr;
 
-	int i, j, kk;
+	int i, j, kk, unseen = 0, slain = 0;
 	byte ok;
 	bool full;
 
@@ -419,37 +426,42 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 		r_ptr = &r_info[k];
 
 		/* Only print Uniques */
-		if (r_ptr->flags1 & RF1_UNIQUE) {
-			/* Only display known uniques */
-			//if (r_ptr->r_sights && mon_allowed(r_ptr))
-			if (!r_ptr->r_sights || !mon_allowed_view(r_ptr)) continue;
+		if (!(r_ptr->flags1 & RF1_UNIQUE)) continue;
 
-			/* count all (known) uniques */
-			idx[total++] = k;
+		/* Only display known uniques */
+		//if (!r_ptr->r_sights || !mon_allowed(r_ptr))
+		//if ((!r_ptr->r_sights) || !mon_allowed_view(r_ptr)) continue;
+		if ((!r_ptr->r_sights && !admin) || !mon_allowed_view(r_ptr)) continue;
+
+		if (!r_ptr->r_sights) unseen++;
+		if (r_ptr->r_tkills) slain++;
+
+		/* count all (known) uniques */
+		idx[total++] = k;
+
+		/* also count Nazgul */
+		if (r_ptr->flags7 & RF7_NAZGUL) nazgul_total++;
+
+		/* also count dungeon bosses */
+		if (r_ptr->flags8 & RF8_FINAL_GUARDIAN) bosses_total++;
+
+		if (p_ptr->r_killed[k] == 1) {
+			killed++;
+			/* remember highest unique the viewing player actually killed */
+			if (own_highest_level <= r_ptr->level) {
+				own_highest = k;
+				own_highest_level = r_ptr->level;
+			}
 
 			/* also count Nazgul */
-			if (r_ptr->flags7 & RF7_NAZGUL) nazgul_total++;
+			if (r_ptr->flags7 & RF7_NAZGUL) nazgul_killed++;
 
 			/* also count dungeon bosses */
-			if (r_ptr->flags0 & RF0_FINAL_GUARDIAN) bosses_total++;
-
-			if (p_ptr->r_killed[k] == 1) {
-				killed++;
-				/* remember highest unique the viewing player actually killed */
-				if (own_highest_level <= r_ptr->level) {
-					own_highest = k;
-					own_highest_level = r_ptr->level;
-				}
-
-				/* also count Nazgul */
-				if (r_ptr->flags7 & RF7_NAZGUL) nazgul_killed++;
-
-				/* also count dungeon bosses */
-				if (r_ptr->flags0 & RF0_FINAL_GUARDIAN) bosses_killed++;
-			}
+			if (r_ptr->flags8 & RF8_FINAL_GUARDIAN) bosses_killed++;
 		}
 	}
 
+	if (admin) fprintf(fff, "\377b%d total uniques, %d seen (vs %d), %d slain (vs %d).\n", total, total - unseen, unseen, slain, total - slain);
 	if (!own_highest) {
 		if (!(pt_ptr->uniques_alive))
 			fprintf(fff, "\377U  (You haven't killed any unique monster so far.)\n\n");
@@ -496,9 +508,9 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 			if (mode == 1 && p_ptr->r_killed[k] == 1) continue;
 
 			/* Hm - arbitrary break points I guess: 70 (Glaurung/Tiamat), 90 (Ancalagon), 95 (Gothmog, but why not just 90 then), 98 (Super-uniques + Morgoth only) */
-			//if (mode == 2 && !(r_ptr->flags7 & RF7_NAZGUL) && !(r_ptr->flags0 & RF0_FINAL_GUARDIAN) && r_ptr->level < 70) continue;
+			//if (mode == 2 && !(r_ptr->flags7 & RF7_NAZGUL) && !(r_ptr->flags8 & RF8_FINAL_GUARDIAN) && r_ptr->level < 70) continue;
 			/* Bosses only, including 'super uniques' for now */
-			if (mode == 2 && !(r_ptr->flags7 & RF7_NAZGUL) && !(r_ptr->flags0 & RF0_FINAL_GUARDIAN) && r_ptr->level != 100) continue; /* 100: Morgoth doesn't have a specific flag */
+			if (mode == 2 && !(r_ptr->flags7 & RF7_NAZGUL) && !(r_ptr->flags8 & RF8_FINAL_GUARDIAN) && r_ptr->level != 100) continue; /* 100: Morgoth doesn't have a specific flag */
 
 			/* Output color byte */
 			c_out = (p_ptr->r_killed[k] == 1 || kk) ? 'w' : 'D';
@@ -512,15 +524,17 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 			/* different colour for uniques higher than Morgoth (the 'boss') */
 			//if (r_ptr->level > 100) fprintf(fff, "\377s%s was slain by", r_name + r_ptr->name); else
 			if (!(pt_ptr->uniques_alive)) {
-				if (k == RI_MORGOTH) fprintf(fff, "\377v%s (L100)\377%c was slain by", r_name + r_ptr->name, c_out);
-				else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) fprintf(fff, "\377y%s (L%d)\377%c was slain by", r_name + r_ptr->name, r_ptr->level, c_out);
-				else if ((r_ptr->flags7 & RF7_NAZGUL)) fprintf(fff, "\377o%s (L%d)\377%c was slain by", r_name + r_ptr->name, r_ptr->level, c_out);
-				else fprintf(fff, "%s (L%d) was slain by", r_name + r_ptr->name, r_ptr->level);
-			} else {
 				if (k == RI_MORGOTH) fprintf(fff, "\377v%s (L100)\377%c", r_name + r_ptr->name, c_out);
-				else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) fprintf(fff, "\377y%s (L%d)\377%c", r_name + r_ptr->name, r_ptr->level, c_out);
+				else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) fprintf(fff, "\377y%s (L%d)\377%c", r_name + r_ptr->name, r_ptr->level, c_out);
 				else if ((r_ptr->flags7 & RF7_NAZGUL)) fprintf(fff, "\377o%s (L%d)\377%c", r_name + r_ptr->name, r_ptr->level, c_out);
 				else fprintf(fff, "%s (L%d)", r_name + r_ptr->name, r_ptr->level);
+				if (r_ptr->r_sights) fprintf(fff, " was slain by"); else fprintf(fff, " \377rhasn't been seen.");
+			} else {
+				if (k == RI_MORGOTH) fprintf(fff, "\377v%s (L100)\377%c", r_name + r_ptr->name, c_out);
+				else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) fprintf(fff, "\377y%s (L%d)\377%c", r_name + r_ptr->name, r_ptr->level, c_out);
+				else if ((r_ptr->flags7 & RF7_NAZGUL)) fprintf(fff, "\377o%s (L%d)\377%c", r_name + r_ptr->name, r_ptr->level, c_out);
+				else fprintf(fff, "%s (L%d)", r_name + r_ptr->name, r_ptr->level);
+				if (!r_ptr->r_sights) fprintf(fff, " \377rhasn't been seen.");
 			}
 
 			for (i = 1; i <= NumPlayers; i++) {
@@ -574,6 +588,7 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 
 					/* first player name entry for this unique? add ':' and go to next line */
 					if (!ok) {
+						if (!r_ptr->r_sights) fprintf(fff, " \377DAdmin-kills:\n"); else
 						fprintf(fff, ":\n");
 						ok = TRUE;
 					}
@@ -601,6 +616,7 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 
 					/* first player name entry for this unique? add ':' and go to next line */
 					if (!ok) {
+						if (!r_ptr->r_sights) fprintf(fff, " Admin-kills:\n"); else
 						fprintf(fff, ":\n");
 						ok = TRUE;
 					}
@@ -622,7 +638,7 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 			}
 
 			/* not killed by anybody yet? */
-			if (!(pt_ptr->uniques_alive)) {
+			if (!(pt_ptr->uniques_alive) && r_ptr->r_sights) {
 				if (!ok) {
 					if (r_ptr->r_tkills) fprintf(fff, " somebody.");
 					else fprintf(fff, " \377Dnobody.");
@@ -678,10 +694,13 @@ void do_cmd_check_uniques(int Ind, int line, char *srcstr, int mode, int Ind2) {
 #define ANTI_MAXPLV_EXPLOIT
 //#define ANTI_MAXPLV_EXPLOIT_SOFTLEV
 #define ANTI_MAXPLV_EXPLOIT_SOFTEXP
-static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, char attr, bool admin) {
+static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, byte attr, bool admin) {
 	player_type *p_ptr = Players[Ind];
 	int modify_number = 0, compaction = (p_ptr->player_list ? 2 : 0) + (p_ptr->player_list2 ? 1 : 0);
 	cptr p = "";
+#ifdef ENABLE_SUBCLASS_TITLE
+	cptr p2 = "";
+#endif
 	char info_chars[4];
 	bool text_pk = FALSE, text_silent = FALSE, text_afk = FALSE, text_ignoring_chat = FALSE, text_allow_dm_chat = FALSE;
 	bool iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
@@ -737,6 +756,9 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 
 	/* Prepare title at this point already */
 	p = get_ptitle(q_ptr, FALSE);
+#ifdef ENABLE_SUBCLASS_TITLE
+	p2 = get_ptitle2(q_ptr, FALSE);
+#endif
 
 	if (compaction == 1 || compaction == 2) { /* #ifdef COMPACT_PLAYERLIST */
 		if (compaction != 2) { /* #ifndef COMPACT_ALT */
@@ -760,7 +782,11 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 
 			fprintf(fff, "%s, %sL%d \377%c", q_ptr->name, attr_p, q_ptr->lev, attr);
 
+#ifdef ENABLE_SUBCLASS_TITLE
+			fprintf(fff, "%s%s%s%s", get_prace2(q_ptr), p, (q_ptr->sclass) ? " " : "", p2);
+#else
 			fprintf(fff, "%s%s", get_prace2(q_ptr),  p);
+#endif
 
 			/* PK */
 			if (cfg.use_pk_rules == PK_RULES_DECLARE) {
@@ -896,7 +922,11 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 			fprintf(fff, "%s, %sL%d\377%c %s ", q_ptr->name, attr_p, q_ptr->lev, attr, q_ptr->male ? "Male" : "Female");
   #endif
 
+#ifdef ENABLE_SUBCLASS_TITLE
+			fprintf(fff, "%s%s%s%s", get_prace2(q_ptr), p, (q_ptr->sclass) ? " " : "", p2);
+#else
 			fprintf(fff, "%s%s", get_prace2(q_ptr),  p);
+#endif
 
 			/* PK */
 			if (cfg.use_pk_rules == PK_RULES_DECLARE) {
@@ -1026,6 +1056,9 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 
 			fprintf(fff, "%s", get_prace2(q_ptr));
 			fprintf(fff, "%s", class_info[q_ptr->pclass].title);
+#ifdef ENABLE_SUBCLASS_TITLE
+			if (q_ptr->sclass) fprintf(fff, "%s", class_info[q_ptr->sclass - 1].title);
+#endif
 
 			/* location */
 			if (attr == 'G' || attr == 'B' || admin
@@ -1044,20 +1077,21 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 				char col = '\0';
 
 				if (admin && attr != 'G' && q_ptr->wpos.wz && !isdungeontown(&q_ptr->wpos) &&
-				    (q_ptr->wpos.wz || (in_sector00(&q_ptr->wpos) && sector00separation))) {
+				    (q_ptr->wpos.wz || (in_sector000(&q_ptr->wpos) && sector000separation))) {
 					int lv = getlevel(&q_ptr->wpos);
 					struct dungeon_type *d_ptr = getdungeon(&q_ptr->wpos);
 
 					if (lv >= 126 || d_ptr->type == DI_MT_DOOM || (lv >= 98 && !q_ptr->total_winner && q_ptr->r_killed[RI_SAURON] == 1)) col = 'R';
+					else if (d_ptr->type == DI_DEATH_FATE || (!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) col = 'y';
 					/* extended hack: see orange colour for 'engaged' characters, ie not in town and not afk */
 					else if (!q_ptr->afk) col = 'o';
 				}
-				if (col) fprintf(fff, ", %s%c%s%s", "\377", col, wpos_format_compact(Ind, &q_ptr->wpos), "\377-");
+				if (col) fprintf(fff, ", \377%c%s\377-", col, wpos_format_compact(Ind, &q_ptr->wpos));
 				else fprintf(fff, ", %s", wpos_format_compact(Ind, &q_ptr->wpos));
 #endif
   #endif
 
-				fprintf(fff, " [%d,%d]", q_ptr->panel_row, q_ptr->panel_col);
+				fprintf(fff, " [%d,%d]", q_ptr->panel_col, q_ptr->panel_row);
 
 				/* Quest flag */
 				//fprintf(fff, " %c", (q_ptr->xorder_id ? 'X' : ' '));
@@ -1220,7 +1254,7 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 			/* Print a message */
   #if 0
 			fprintf(fff, "  %s the %s%s %s (%s%sLv %d, %s)",
-					q_ptr->name, (q_ptr->mode == MODE_HARD)?"hellish ":"",
+					q_ptr->name, (q_ptr->mode & MODE_HARD) ? "hellish " : "",
 					race_info[q_ptr->prace].title, class_info[q_ptr->pclass].title,
 					(q_ptr->total_winner)?
 					    ((p_ptr->mode & (MODE_HARD | MODE_NO_GHOST))?
@@ -1273,7 +1307,11 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
 				else fprintf(fff, "Swordswoman ");
 				break; //Judge for Highlander games
 			default:
-				fprintf(fff, "%s", class_info[q_ptr->pclass].title); break;
+				fprintf(fff, "%s", class_info[q_ptr->pclass].title);
+#ifdef ENABLE_SUBCLASS_TITLE
+				if (q_ptr->sclass) fprintf(fff, "%s", class_info[q_ptr->sclass - 1].title);
+#endif
+        break;
 			}
 
 			if (q_ptr->mode & MODE_PVP) fprintf(fff, " Gladiator");
@@ -1305,7 +1343,11 @@ static void do_write_others_attributes(int Ind, FILE *fff, player_type *q_ptr, c
     #else
 			fprintf(fff, "  %s the ", q_ptr->name);
     #endif
+    #ifdef ENABLE_SUBCLASS_TITLE
+			fprintf(fff, "%s%s%s%s", get_prace2(q_ptr), p, (q_ptr->sclass) ? " " : "", p2);
+    #else
 			fprintf(fff, "%s%s", get_prace2(q_ptr),  p);
+    #endif
    #endif
 			if (q_ptr->mode & MODE_PVP) fprintf(fff, " Gladiator");
 
@@ -1536,7 +1578,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 					if (admin)
 #ifdef ADMIN_EXTRA_STATISTICS
  #ifdef USE_SOUND_2010
-						fprintf(fff, "%s [%d,%d] (%s)%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col, q_ptr->hostname,
+						fprintf(fff, "%s [%d,%d] (%s)%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row, q_ptr->hostname,
 						    !q_ptr->exp_bar ?
   #if 0
 						    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
@@ -1546,7 +1588,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 						    (q_ptr->audio_mus ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
   #endif
  #else
-						fprintf(fff, "%s [%d,%d] (%s)%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col, q_ptr->hostname
+						fprintf(fff, "%s [%d,%d] (%s)%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row, q_ptr->hostname
  #endif
  #if 0
 						    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1556,14 +1598,14 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #endif
 						    );
 #else
-						fprintf(fff, "%s [%d,%d] (%s)", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col, q_ptr->hostname);
+						fprintf(fff, "%s [%d,%d] (%s)", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row, q_ptr->hostname);
 #endif
 					else
   #endif
-						fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col);
+						fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row);
 
 					/* Print questing flag */
-					if (q_ptr->xorder_id) fprintf(fff, " X");
+					//if (q_ptr->xorder_id) fprintf(fff, " X");
 				}
 				/* If both are in IDDC, display depth, for easier floor management */
 				else if (iddc && in_irondeepdive(&p_ptr->wpos)) fprintf(fff, "%s", wpos_format(-Ind, &q_ptr->wpos));
@@ -1633,7 +1675,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 					if (admin)
 #ifdef ADMIN_EXTRA_STATISTICS
  #ifdef USE_SOUND_2010
-						fprintf(fff, "%s [%d,%d]%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col,
+						fprintf(fff, "%s [%d,%d]%s%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row,
 						    !q_ptr->exp_bar ?
   #if 0
 						    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
@@ -1643,7 +1685,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 						    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
   #endif
  #else
-						fprintf(fff, "%s [%d,%d]%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col
+						fprintf(fff, "%s [%d,%d]%s%s", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row
  #endif
  #if 0
 						    , q_ptr->custom_font ? "\377wf\377-" : "", ""
@@ -1653,12 +1695,12 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #endif
 						    );
 #else
-						fprintf(fff, "%s [%d,%d]", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col);
+						fprintf(fff, "%s [%d,%d]", wpos_format(Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row);
 #endif
-					else fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col);
+					else fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row);
 
 					/* Print questing flag */
-					if (q_ptr->xorder_id) fprintf(fff, " X");
+					//if (q_ptr->xorder_id) fprintf(fff, " X");
 				}
 				/* If both are in IDDC, display depth, for easier floor management */
 				else if (iddc && in_irondeepdive(&p_ptr->wpos)) fprintf(fff, "%s", wpos_format(-Ind, &q_ptr->wpos));
@@ -1772,7 +1814,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 				    || ((p_ptr->pkill & PKILL_SET) && (q_ptr->pkill & PKILL_SET))
 #endif
 				    ) && !admin) {
-					fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_row, q_ptr->panel_col);
+					fprintf(fff, "%s [%d,%d]", wpos_format(-Ind, &q_ptr->wpos), q_ptr->panel_col, q_ptr->panel_row);
 				}
 				/* Print extra info if these people are in the same party */
 				/* Hack -- always show extra info to dungeon master */
@@ -1784,7 +1826,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 					if (admin) fprintf(fff, "%s", wpos_format(Ind, &q_ptr->wpos));
 					else fprintf(fff, "%s", wpos_format(-Ind, &q_ptr->wpos));
 
-					fprintf(fff, " [%d,%d]", q_ptr->panel_row, q_ptr->panel_col);
+					fprintf(fff, " [%d,%d]", q_ptr->panel_col, q_ptr->panel_row);
 #ifdef ADMIN_EXTRA_STATISTICS
  #ifdef USE_SOUND_2010
 					if (admin) fprintf(fff, "%s%s%s",
@@ -1812,7 +1854,7 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 				else if (iddc && in_irondeepdive(&p_ptr->wpos)) fprintf(fff, "%s", wpos_format(-Ind, &q_ptr->wpos));
 
 				/* Quest flag */
-				fprintf(fff, " %c", (q_ptr->xorder_id ? 'X' : ' '));
+				//fprintf(fff, " %c", (q_ptr->xorder_id ? 'X' : ' '));
 
 				if ((!q_ptr->afk) || !strlen(q_ptr->afk_msg)) {
 					if (!q_ptr->info_msg[0]) fprintf(fff, "\n\n");
@@ -1873,347 +1915,107 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 	fd_kill(file_name);
 }
 
-void write_player_info(int Ind, char *pinfo) {
-#if 0 /* wip */
-
+void write_player_info(int Ind, int i, char *pinfo) {
+	char buf[MSG_LEN], buf2[MSG_LEN], *c;
 	player_type *p_ptr = Players[Ind], *q_ptr;
 	int k;
 
 	bool admin = is_admin(p_ptr);
-	char flag_str[12];
 	bool iddc;
-	bool big_map = (p_ptr->screen_hgt != SCREEN_HGT); //BIG_MAP is currently turned on for this player?
 
-	/* Scan the player races */
-	for (k = 1; k <= NumPlayers; k++) {
+	FILE *fff;
+	char file_name[MAX_PATH_LENGTH];
+
+
+	/* init */
+	pinfo[0] = 0;
+
+	k = i;
+	{
 		q_ptr = Players[k];
-		flag_str[0] = '\0';
 		byte attr = 'w';
 
-		/* Only print connected players */
-		if (q_ptr->conn == NOT_CONNECTED)
-			continue;
-
-		/* don't display the dungeon master if the secret_dungeon_master
-		 * option is set
-		 */
-		if (q_ptr->admin_dm &&
-		   (cfg.secret_dungeon_master) && !admin) continue;
+		if (q_ptr->conn == NOT_CONNECTED) return;
+		if (q_ptr->admin_dm && (cfg.secret_dungeon_master) && !admin) return;
 
 		iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
 
-
-
-
-		/*** Determine color ***/
-		/* Print self in green */
 		if (Ind == k) attr = 'G';
-		/* Print other PvP-mode chars in orange */
 		else if ((p_ptr->mode & MODE_PVP) && (q_ptr->mode & MODE_PVP)) attr = COLOUR_MODE_PVP;
-		/* Print party members in blue */
 		else if (p_ptr->party && p_ptr->party == q_ptr->party) attr = 'B';
-		/* Print hostile players in red */
 		else if (check_hostile(Ind, k)) attr = 'r';
- #ifdef IDDC_CHAR_COLOUR_INDICATOR
+#ifdef IDDC_CHAR_COLOUR_INDICATOR
 		if (attr == 'w' && iddc) attr = 's';
- #endif
+#endif
 
+		{
+			bool tmp_c1 = p_ptr->player_list, tmp_c2 = p_ptr->player_list2;
 
+			if (path_temp(file_name, MAX_PATH_LENGTH)) return;
+			fff = my_fopen(file_name, "wb");
+			if (fff == (FILE*)NULL) return;
 
+			p_ptr->player_list = TRUE; p_ptr->player_list2 = TRUE; /* ULTRA_COMPACT_PLAYERLIST */
+			do_write_others_attributes(Ind, fff, q_ptr, attr, is_admin(p_ptr));
+			p_ptr->player_list = tmp_c1; p_ptr->player_list2 = tmp_c2; /* restore */
 
-		//do_write_others_attributes(Ind, fff, q_ptr, attr, is_admin(p_ptr));   ---> :
-
-	player_type *p_ptr = Players[Ind];
-	int modify_number = 0, compaction = (p_ptr->player_list ? 2 : 0) + (p_ptr->player_list2 ? 1 : 0);
-	cptr p = "";
-	char info_chars[4];
-	bool text_pk = FALSE, text_silent = FALSE, text_afk = FALSE, text_ignoring_chat = FALSE, text_allow_dm_chat = FALSE;
-	bool iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
-	bool iddc0 = in_irondeepdive(&p_ptr->wpos) || (p_ptr->mode & MODE_DED_IDDC);
-	bool cant_iddc = !iddc && q_ptr->max_exp;
-	bool cant_iddc0 = !iddc0 && p_ptr->max_exp;
-	char attr_p[3];
-
-	bool wont_get_exp;
- #ifdef ANTI_MAXPLV_EXPLOIT
-  #ifdef ANTI_MAXPLV_EXPLOIT_SOFTLEV
-	int diff = (q_ptr->max_lev + q_ptr->max_plv - p_ptr->max_lev - p_ptr->max_plv) / 2 - ((MAX_PARTY_LEVEL_DIFF + 1) * 3) / 2;
-  #else
-   #ifndef ANTI_MAXPLV_EXPLOIT_SOFTEXP
-	int diff = (q_ptr->max_lev + q_ptr->max_plv - p_ptr->max_lev - p_ptr->max_plv) / 2 - (MAX_PARTY_LEVEL_DIFF + 1);
-   #endif
-  #endif
- #endif
-
-	/* NOTE: This won't work well with ANTI_MAXPLV_EXPLOIT_SOFTEXP code.
-	   NOTE2: Some of these rules might produce asymmetrical colouring,
-		  because they ask 'will _I_ get exp from _his_ kills'. */
-	wont_get_exp =
-	    ((p_ptr->total_winner && !(q_ptr->total_winner || q_ptr->once_winner)) ||
-	    (q_ptr->total_winner && !(p_ptr->total_winner || p_ptr->once_winner)) ||
- #ifdef ANTI_MAXPLV_EXPLOIT
-  #if defined(ANTI_MAXPLV_EXPLOIT_SOFTLEV) || !defined(ANTI_MAXPLV_EXPLOIT_SOFTEXP)
-	    (!p_ptr->total_winner && diff > 0) ||
-  #endif
- #endif
-	    (p_ptr->total_winner && ABS(p_ptr->max_lev - q_ptr->max_lev) > MAX_KING_PARTY_LEVEL_DIFF) ||
-	    (!p_ptr->total_winner && ABS(p_ptr->max_lev - q_ptr->max_lev) > MAX_PARTY_LEVEL_DIFF));
-
- #ifdef KING_PARTY_FREE_THRESHOLD
-	if (KING_PARTY_FREE_THRESHOLD && p_ptr->total_winner && q_ptr->total_winner && p_ptr->max_lev >= KING_PARTY_FREE_THRESHOLD && q_ptr->max_lev >= KING_PARTY_FREE_THRESHOLD) wont_get_exp = FALSE;
- #endif
-
-	attr_p[0] = 0;
-	if (attr == 'w') {
-		/* display level in light blue for partyable players */
-		if (!wont_get_exp &&
-		    !((p_ptr->mode & MODE_SOLO) || (q_ptr->mode & MODE_SOLO))
-		    !compat_pmode(Ind, q_ptr->Ind, FALSE) &&
-		    !((iddc && cant_iddc0) || (iddc0 && cant_iddc))) /* if one of them is in iddc and the other cant go there, we cant party */
-			strcpy(attr_p, "\377B");
- #ifdef IDDC_CHAR_COLOUR_INDICATOR
-		if (iddc) attr = 's';
- #endif
-	} else if (attr == 'B') {
-		/* display level in grey for party members out of our exp-sharing range. */
-		if (wont_get_exp) strcpy(attr_p, "\377s");
-	}
-
-	/* Prepare title at this point already */
-	p = get_ptitle(q_ptr, FALSE);
-
-	char flag_str[12];
-
-	/* Print a message */
-	fprintf(fff, " ");
-	if (is_admin(q_ptr)) fprintf(fff, "\377b");
-	else if (q_ptr->mode & MODE_PVP) fprintf(fff, "\377%c", COLOUR_MODE_PVP);
-	else if (q_ptr->ghost) fprintf(fff, "\377r");
-	else if (q_ptr->total_winner) fprintf(fff, "\377v");
-	else fprintf(fff, "\377%c", attr);
-
- #ifdef COMPACT_GENDER
-	fprintf(fff, "%s,\377%c %c.%sL%d\377%c ", q_ptr->name, attr, q_ptr->male ? 'm' : 'f', attr_p, q_ptr->lev, attr);
- #else
-	fprintf(fff, "%s, %sL%d\377%c ", q_ptr->name, attr_p, q_ptr->lev, attr);
- #endif
-
-	fprintf(fff, "%s", get_prace2(q_ptr));
-	fprintf(fff, "%s", class_info[q_ptr->pclass].title);
-
-	/* location */
-	if (attr == 'G' || attr == 'B' || admin
- #ifdef IDDC_CHAR_POSITION_INDICATOR
-	    || iddc
- #endif
-	    ) {
-		// BAD HACK: just replacing 'Ind' by number constants..
- #if 0 /* 'The Sacred Land of Mountains' <- too long for this ultra compact scheme! */
-		if (admin) fprintf(fff, ", %s", wpos_format(1, &q_ptr->wpos));
-		else fprintf(fff, ", %s", wpos_format(-1, &q_ptr->wpos));
- #else /* ..so give everyone exact wpos, like otherwise only admins get */
-  #if 0 /* normal */
-		fprintf(fff, ", %s", wpos_format_compact(Ind, &q_ptr->wpos));
-  #else /* hack: admins see coloured depth, colour indicating how close to game bosses [Sauron/Morgoth/Tik and beyond] they are */
-		char col = '\0';
-
-		if (admin && attr != 'G' && !isdungeontown(&q_ptr->wpos) &&
-		    (q_ptr->wpos.wz || (in_sector00(&q_ptr->wpos) && sector00separation))) {
-			int lv = getlevel(&q_ptr->wpos);
-			struct dungeon_type *d_ptr = getdungeon(&q_ptr->wpos);
-
-			if (lv >= 126 || d_ptr->type == DI_MT_DOOM || (lv >= 98 && !q_ptr->total_winner && q_ptr->r_killed[RI_SAURON] == 1)) col = 'R';
-			/* extended hack: see orange colour for 'engaged' characters, ie not in town and not afk */
-			else if (!q_ptr->afk) col = 'o';
-		}
-		if (col) fprintf(fff, ", %s%c%s%s", "\377", col, wpos_format_compact(Ind, &q_ptr->wpos), "\377-");
-		else fprintf(fff, ", %s", wpos_format_compact(Ind, &q_ptr->wpos));
-  #endif
- #endif
-
-		fprintf(fff, " [%d,%d]", q_ptr->panel_row, q_ptr->panel_col);
-
-		/* Quest flag */
-		//fprintf(fff, " %c", (q_ptr->xorder_id ? 'X' : ' '));
-	}
-
-	/* PK */
-	if (cfg.use_pk_rules == PK_RULES_DECLARE) {
-		text_pk = TRUE;
- #ifdef KURZEL_PK
-		if (q_ptr->pkill & PKILL_SET) fprintf(fff, "\377R (PK");
-		else text_pk = FALSE;
- #else
-		if (q_ptr->pkill & (PKILL_SET | PKILL_KILLER))
-			fprintf(fff, " (PK");
-		else if (!(q_ptr->pkill & PKILL_KILLABLE))
-			fprintf(fff, " (SAFE");
-		else if (!(q_ptr->tim_pkill))
-			fprintf(fff, q_ptr->lev < 5 ? " (New" : " (Kill");
-		else
-			text_pk = FALSE;
- #endif
-	}
-	if (q_ptr->limit_chat) {
-		text_silent = TRUE;
-		if (text_pk)
-			fprintf(fff, ", Silent");
-		else
-			fprintf(fff, " (Silent");
-	}
-
-	/* AFK */
-	if (q_ptr->afk) {
-		text_afk = TRUE;
-		if (text_pk || text_silent) {
-				fprintf(fff, ", AFK");
-		} else {
-				fprintf(fff, " (AFK");
+			fprintf(fff, "\n");
 		}
 	}
-	/* Ignoring normal chat (sees only private & party messages) */
-	if (q_ptr->ignoring_chat) {
-		text_ignoring_chat = TRUE;
-		if (text_pk || text_silent || text_afk) {
-			fprintf(fff, ", %s", q_ptr->ignoring_chat == 1 ? "Private" : "*Private*");
-		} else {
-			fprintf(fff, " (%s", q_ptr->ignoring_chat == 1 ? "Private" : "*Private*");
-		}
-	}
-	if (q_ptr->admin_dm_chat) {
-		text_allow_dm_chat = TRUE;
-		if (text_pk || text_silent || text_afk || text_ignoring_chat) {
-			fprintf(fff, ", Chat");
-		} else {
-			fprintf(fff, " (Chat");
-		}
-	}
-	if (text_pk || text_silent || text_afk || text_ignoring_chat || text_allow_dm_chat) fprintf(fff, ")");
 
+	my_fclose(fff);
 
-	/* 2nd line */
-	if (q_ptr->inval) {
-		if (q_ptr->v_unknown && admin) strcpy(flag_str, "\377yI\377rU");
-		else if (q_ptr->v_test_latest && admin) strcpy(flag_str, "\377yI\377oT");
-		else if (q_ptr->v_test && admin) strcpy(flag_str, "\377yI\377ot");
-		else if (q_ptr->v_outdated) strcpy(flag_str, "\377yI\377DO");
-		else if (!q_ptr->v_latest && admin) strcpy(flag_str, "\377yI\377sL");
-		else strcpy(flag_str, "\377yI ");
-	} else {
-		if (q_ptr->v_unknown && admin) strcpy(flag_str, "\377rU ");
-		else if (q_ptr->v_test_latest && admin) strcpy(flag_str, "\377oT ");
-		else if (q_ptr->v_test && admin) strcpy(flag_str, "\377ot ");
-		else if (q_ptr->v_outdated) strcpy(flag_str, "\377DO ");
-		else if (!q_ptr->v_latest && admin) strcpy(flag_str, "\377sL ");
-		else strcpy(flag_str, "  ");
-	}
-	fprintf(fff, "\n %s\377", flag_str);
+	fff = my_fopen(file_name, "rb");
+	if (!fff) return;
+	/* Read up to 2 lines and concatenate them into 1 line */
 
-
-	if (q_ptr->fruit_bat == 1)
-		strcpy(info_chars, format("\377%cb", color_attr_to_char(q_ptr->cp_ptr->color)));
-	else
-		strcpy(info_chars, format("\377%c@", color_attr_to_char(q_ptr->cp_ptr->color)));
-
-	switch (q_ptr->mode & MODE_MASK) { // TODO: give better modifiers
-		default:
-		case MODE_NORMAL:
-			fprintf(fff, "W");
-			break;
-		case MODE_EVERLASTING:
-			fprintf(fff, "B");
-			break;
-		case MODE_PVP:
-			fprintf(fff, "%c", COLOUR_MODE_PVP);
-			break;
-		case (MODE_HARD | MODE_NO_GHOST):
-			fprintf(fff, "r");
-			break;
-		case (MODE_SOLO | MODE_NO_GHOST):
-			fprintf(fff, "s");
-			break;
-		case MODE_HARD:
-			fprintf(fff, "s");//deprecated
-			break;
-		case MODE_NO_GHOST:
-			fprintf(fff, "D");
-			break;
+	if (my_fgets(fff, buf, MSG_LEN, FALSE)) {
+		my_fclose(fff);
+		return;
 	}
 
-	fprintf(fff, "*%s\377U", info_chars);
-	//fprintf(fff, " (%s@%s)", q_ptr->accountname, q_ptr->hostname);
-	fprintf(fff, " (%s@%s)", q_ptr->accountname, q_ptr->hostname);
-
- #ifndef COMPACT_GENDER
-	fprintf(fff, ", %s", q_ptr->male ? "Male" : "Female");
- #endif
-
-	/* overlapping AFK msg with guild/party names */
-	if ((!q_ptr->afk) || !strlen(q_ptr->afk_msg)) {
-		if (!q_ptr->info_msg[0]) {
-			if (q_ptr->guild)
-				fprintf(fff, ", \377y[\377%c%s\377y]\377U", COLOUR_CHAT_GUILD, guilds[q_ptr->guild].name);
-			if (q_ptr->party) {
-				if (!q_ptr->guild) fprintf(fff, ", Party:");
-				if (admin) { /* colourize (non-iron) party names for admins, for easy visual overview */
-					char pcol[3];
-
-					pcol[0] = '\377'; pcol[2] = 0;
-					pcol[1] = color_attr_to_char(parties[q_ptr->party].attr);
-					if (parties[q_ptr->party].mode & PA_IRONTEAM_CLOSED)
-						fprintf(fff, " \377D<%s%s\377D>\377U",
-						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : pcol,
-						    parties[q_ptr->party].name);
-					else
-						fprintf(fff, " '%s%s\377U'",
-						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : pcol,
-						    parties[q_ptr->party].name);
-				} else {
-					if (parties[q_ptr->party].mode & PA_IRONTEAM_CLOSED)
-						fprintf(fff, " \377D<%s%s\377D>\377U",
-						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
-						    parties[q_ptr->party].name);
-					else
-						fprintf(fff, " '%s%s\377U'",
-						    (parties[q_ptr->party].mode & PA_IRONTEAM) ? "\377s" : "",
-						    parties[q_ptr->party].name);
-				}
-			}
-		} else fprintf(fff, "  \377U(%s\377U)", q_ptr->info_msg);
- #ifdef SHOW_SOLOIST_TAG
-		if (q_ptr->mode & MODE_SOLO) fprintf(fff, " \377D(Soloist)\377U");
- #endif
-	} else fprintf(fff, "  \377u(%s\377u)", q_ptr->afk_msg);
+	if (my_fgets(fff, buf2, MSG_LEN, FALSE)) {
+		my_fclose(fff);
+		return;
+	}
 
 
+	/* Process line 1: */
+
+	/* Truncate trailing '(AFK)' state */
+	if ((c = strstr(buf, " (AFK)"))) *c = 0;
+
+	/* If there's a 2nd comma ie more info, just trim/discard all of it */
+	c = strchr(buf, ',');
+	if (c && (c = strchr(c + 1, ','))) *c = 0;
 
 
+	/* Process line 2: */
+
+	/* Trim left side a bit, to omit 'I'/'O' tags for invalid/outdated, or the empty spaces if none of both. */
+	c = buf2 + 1; //starts on a space;
+	if (*c == '\377') c += 3; // \yI
+	else c++; // make sure we start on only ONE space
+	if (*c == '\377') { // \DO or \oT (mutually exclusive,as 'T' is not applied depending on VERSION_BUILD or TEST flag, but just on version being > than 'latest')
+		c += 2; // pseudo-move the space from the beginning of the line to our location, so we always come out of these two 'if' clauses with starting on a space.. -_-' */
+		*c = ' ';
+	}
 
 
+	/* Build final line from line 1 and 2: */
 
- #ifdef ADMIN_EXTRA_STATISTICS
-  #ifdef USE_SOUND_2010
-		if (admin) fprintf(fff, "%s%s%s",
-		    !q_ptr->exp_bar ?
-   #if 0
-		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G+\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y+\377-" : "")) :
-		    (q_ptr->audio_mus >= __audio_mus_max ? "\377G*\377-" : (q_ptr->audio_sfx >= __audio_sfx_max ? "\377y*\377-" : "\377B-\377-"))
-   #else
-		    (q_ptr->audio_mus > 0 ? "\377G+\377-" : (q_ptr->audio_sfx > 4 ? "\377y+\377-" : "")) :
-		    (q_ptr->audio_mus > 0 ? "\377G*\377-" : (q_ptr->audio_sfx > 4 ? "\377y*\377-" : "\377B-\377-"))
-   #endif
-  #else
-		if (admin) fprintf(fff, "%s%s"
-  #endif
-  #if 0
-		    , q_ptr->custom_font ? "\377wf\377-" : "", ""
-  #else /* combine custom font and OS type O_o */
-				    , q_ptr->custom_font ? "\377w" : "\377D"
-				    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OS
-  #endif
-		    );
- #endif
-#endif /* 0 -- wip */
+	/* Actually start with the mode/char icon part, then follow up with the first line, finally the rest of the 2nd line */
+	strncpy(pinfo, c, 7);
+	strcpy(pinfo + 7, buf);
+	strcat(pinfo, c + 7);
+
+	/* terminate after the "(<hostname>)" */
+	if ((c = strchr(pinfo, ')'))) *(c + 1) = 0;
+
+	/* Ensure conforming to %I specs of Send_playerlist() aka same size as MAX_CHARS_WIDE, used over there */
+	pinfo[ONAME_LEN - 1] = 0;
+
+	my_fclose(fff);
 }
 
  /*
@@ -2422,7 +2224,7 @@ void do_cmd_knowledge_dungeons(int Ind) {
 	for (y = 0; y < MAX_WILD_Y; y++) {
 		for (x = 0; x < MAX_WILD_X; x++) {
 			if (!admin && !(p_ptr->wild_map[(x + y * MAX_WILD_X) / 8] & (1U << ((x + y * MAX_WILD_X) % 8)))) continue;
-			if (!x && !y && !admin) continue; /* Skip sector00 event stuff */
+			if (x == WPOS_SECTOR000_X && y == WPOS_SECTOR000_Y && !admin) continue; /* Skip sector00 event stuff */
 
 			d_ptr = wild_info[y][x].tower;
 			if (d_ptr &&
@@ -2771,9 +2573,13 @@ void do_cmd_check_server_settings(int Ind) {
 		fprintf(fff, "Inactive characters or accounts will not be deleted.\n");
 	} else {
 		fprintf(fff, "Inactive characters will be deleted after %d days.\n", CHARACTER_EXPIRY_DAYS);
-		fprintf(fff, "Accounts without characters will be deleted after %d days.\n", ACCOUNT_EXPIRY_DAYS);
+		fprintf(fff, "Player accounts without characters will be deleted after %d days.\n", ACCOUNT_EXPIRY_DAYS);
+		if (is_admin(p_ptr) && cfg.admins_never_expire) fprintf(fff, "\377UAdmin characters (dungeon masters/wizards) never expire, however.!\n");
+#ifdef SAFETY_BACKUP_PLAYER
+		fprintf(fff, "Characters that are at least level %d will be backed up (houses included).\n", SAFETY_BACKUP_PLAYER);
+#endif
 	}
-	fprintf(fff, "Game speed(FPS): %d (%+d%%)\n", cfg.fps, ((cfg.fps - 60) * 100) / 60);
+	fprintf(fff, "Game speed (FPS): %d (%+d%%)\n", cfg.fps, ((cfg.fps - 60) * 100) / 60);
 	fprintf(fff, "\n");
 
 	/* level preservation */
@@ -2803,13 +2609,13 @@ void do_cmd_check_server_settings(int Ind) {
 
 	fprintf(fff, "\n");
 
-	fprintf(fff, "Characters' running speed is boosted (x%d, ie. %+d%%).\n", cfg.running_speed, (cfg.running_speed - 5) * 100 / 5);
-	fprintf(fff, "While 'resting', HP/MP recovers %d times quicker (%+d%%)\n", cfg.resting_rate, ((cfg.resting_rate - 3) * 100) / 3);
+	fprintf(fff, "Characters' running speed is boosted x%d (%+d%% default running boost).\n", cfg.running_speed, (cfg.running_speed - 5) * 100 / 5);
+	fprintf(fff, "While 'resting', HP/MP recovers %d times quicker (%+d%% default regen boost)\n", cfg.resting_rate, ((cfg.resting_rate - 3) * 100) / 3);
 
 	fprintf(fff, "Characters share XP if their max levels (before restorable drain) differ by..\n");
 	fprintf(fff, " at most %d for non-winners.\n", MAX_PARTY_LEVEL_DIFF);
 	fprintf(fff, " at most %d for winners.\n", MAX_KING_PARTY_LEVEL_DIFF);
-	fprintf(fff, " any amount without limit, as long as they are all at least level %d.\n", KING_PARTY_FREE_THRESHOLD);
+	fprintf(fff, " any amount without limit for winners, if they are all at least level %d.\n", KING_PARTY_FREE_THRESHOLD);
 
 	if ((k = cfg.party_xp_boost))
 		fprintf(fff, "Party members get boosted exp (+%d internal modifier).\n", k);
@@ -3127,6 +2933,15 @@ void do_cmd_check_server_settings(int Ind) {
 	if (cfg.door_bump_open & BUMP_OPEN_HOUSE)
 		fprintf(fff, "You can 'walk through' your house door.\n");
 
+#ifdef IDDC_REFUGES
+	if (p_ptr->depth_in_feet) {
+		fprintf(fff, "\nThe Ironman Deep Dive Challenge has refuge hubs every -%3dft,", 50 * IDDC_REFUGE_INTERVAL);
+		fprintf(fff, "\n within each -1000ft interval.\n");
+	} else {
+		fprintf(fff, "\nThe Ironman Deep Dive Challenge has refuge hubs every %d floors,", IDDC_REFUGE_INTERVAL);
+		fprintf(fff, "\n within each 20-floor interval.\n");
+	}
+#endif
 
 	/* Administrative */
 	if (is_admin(p_ptr)) {
@@ -3140,11 +2955,12 @@ void do_cmd_check_server_settings(int Ind) {
 		/* Output color byte */
 		//fprintf(fff, "%c\n", 'w');
 
-		if (cfg.admins_never_expire) fprintf(fff, "Admin characters (dungeon wizards/masters) never expire.\n");
+		//if (cfg.admins_never_expire) fprintf(fff, "Admin characters (dungeon wizards/masters) never expire.\n"); //done above
 
 		fprintf(fff, "dun_unusual: %d (default = 200)\n", cfg.dun_unusual);
 		fprintf(fff, "Stores change their inventory every ~%d seconds.\n", (cfg.store_turns * 10) / cfg.fps);
 		fprintf(fff, "Dungeon Stores change their inventory every ~%d seconds.\n", (cfg.dun_store_turns * 10) / cfg.fps);
+		fprintf(fff, "Book Stores change their inventory at %d%% turns.\n", cfg.book_store_turns_perc);
 
 		fprintf(fff, "starting town: location [%d, %d], baselevel(%d)\n", cfg.town_x, cfg.town_y, cfg.town_base);
 
@@ -3434,26 +3250,32 @@ void do_cmd_show_houses(int Ind, bool local, bool own, s32b id) {
 		a = access_door_colour(Ind, h_ptr->dna);
 		fprintf(fff, "\377%c", color_attr_to_char(a));
 
-		if (!admin)
+		if (admin)
+			/* admin sees fine door x,y instead of rough subsector [x,y] */
+			fprintf(fff, "%3d) %4d <%3d,%2d> (%d,%d)", total, i,
+			    h_ptr->dx, h_ptr->dy, h_ptr->wpos.wx, h_ptr->wpos.wy);
+		else if (p_ptr->privileged >= 2)
+			/* very privileged char can see actual house index (added for fixing bugged houses of specific players) */
+			fprintf(fff, "%3d) [%4d] [%d,%d] in %s", total, i,
+			    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
+			    wpos_format_compact(Ind, &h_ptr->wpos));
+		else
 #if 1 /* compress even more, for non-admins, or they have too wide a line for house tag */
-		fprintf(fff, "%3d) [%d,%d] (%d,%d)", total,
-		    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
-		    h_ptr->wpos.wx, h_ptr->wpos.wy);
-		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+			fprintf(fff, "%3d) [%d,%d] (%2d,%2d)", total,
+			    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
+			    h_ptr->wpos.wx, h_ptr->wpos.wy);
+			    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
 #elif 0 /* compress a bit, too wide line for house tag otherwise */
-		fprintf(fff, "%3d) [%d,%d] %s", total,
-		    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
-		    wpos_format_compact(Ind, &h_ptr->wpos));
-		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+				fprintf(fff, "%3d) [%d,%d] %s", total,
+			    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
+			    wpos_format_compact(Ind, &h_ptr->wpos));
+			    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
 #else
-		fprintf(fff, "%3d)   [%d,%d] in %s", total,
-		    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
-		    wpos_format_compact(Ind, &h_ptr->wpos));
-		    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
+			fprintf(fff, "%3d)   [%d,%d] in %s", total,
+			    h_ptr->dx * 5 / MAX_WID, h_ptr->dy * 5 / MAX_HGT,
+			    wpos_format_compact(Ind, &h_ptr->wpos));
+			    //h_ptr->wpos.wz*50, h_ptr->wpos.wx, h_ptr->wpos.wy);
 #endif
-		else /* admin sees fine door x,y instead of rough subsector [x,y] */
-		fprintf(fff, "%3d) <%d,%d> (%d,%d)", total,
-		    h_ptr->dx, h_ptr->dy, h_ptr->wpos.wx, h_ptr->wpos.wy);
 
 		if (dna->creator == p_ptr->dna) {
 			s32b price = house_price_player(dna->price, p_ptr->stat_ind[A_CHR]);
@@ -3509,7 +3331,11 @@ void do_cmd_show_houses(int Ind, bool local, bool own, s32b id) {
 
 		case OT_PARTY:
 			name = parties[dna->owner].name;
-			if (strlen(name)) fprintf(fff, " of party '%s'", name);
+			if (admin) {
+				if (strlen(name)) fprintf(fff, " oP '%s'", name);
+			} else {
+				if (strlen(name)) fprintf(fff, " of party '%s'", name);
+			}
  #if 0	// nothig so far.
 			else {
 				s_printf("Found old party houses. ID: %d\n", houses[i].dna->owner);
@@ -3519,18 +3345,30 @@ void do_cmd_show_houses(int Ind, bool local, bool own, s32b id) {
 			break;
 		case OT_CLASS:
 			name = class_info[dna->owner].title;
-			if (strlen(name)) fprintf(fff, " of class %s", name);
+			if (admin) {
+				if (strlen(name)) fprintf(fff, " oC %s", name);
+			} else {
+				if (strlen(name)) fprintf(fff, " of class %s", name);
+			}
 			break;
 		case OT_RACE:
 			name = race_info[dna->owner].title;
-			if (strlen(name)) fprintf(fff, " of race %s", name);
+			if (admin) {
+				if (strlen(name)) fprintf(fff, " oR %s", name);
+			} else {
+				if (strlen(name)) fprintf(fff, " of race %s", name);
+			}
 			break;
 		case OT_GUILD:
 			name = guilds[dna->owner].name;
-			if (strlen(name)) fprintf(fff, " of guild '%s'", name);
+			if (admin) {
+				if (strlen(name)) fprintf(fff, " oG '%s'", name);
+			} else {
+				if (strlen(name)) fprintf(fff, " of guild '%s'", name);
+			}
 			break;
 		}
-#endif	// 0
+#endif
 
 		fprintf(fff, "\n");
 	}
@@ -3761,7 +3599,7 @@ void do_cmd_knowledge_traps(int Ind) {
 }
 
 /*
- * Display motd, same as /motd command
+ * Display motd, same as /motd command, but as a file, invoked from ~ knowledge menu.
  */
 void show_motd2(int Ind) {
 	player_type *p_ptr = Players[Ind];
@@ -3781,7 +3619,7 @@ void show_motd2(int Ind) {
 	/* Scan the lines */
 	for (k = 0; k < MAX_ADMINNOTES; k++) {
 		if (!strcmp(admin_note[k], "")) continue;
-		fprintf(fff, "\375\377sMotD: %s\n", admin_note[k]);
+		fprintf(fff, "\377s %s\n", admin_note[k]);
 		shown = TRUE;
 	}
 	fprintf(fff, "\n");
@@ -4015,17 +3853,17 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 	do_cmd_time(Ind);
 
 	if (!(p_ptr->mode & (MODE_EVERLASTING | MODE_PVP | MODE_NO_GHOST)))
-		msg_format(Ind, "You have %d %s left.", p_ptr->lives-1-1, p_ptr->lives-1-1 > 1 ? "resurrections" : "resurrection");
+		msg_format(Ind, "You have %d %s left.", p_ptr->lives-1-1, p_ptr->lives - 1 - 1 > 1 ? "resurrections" : "resurrection");
 
 #ifdef ENABLE_INSTANT_RES
 	if (p_ptr->insta_res) {
  #ifdef INSTANT_RES_EXCEPTION
-		if (in_netherrealm(&p_ptr->wpos)) msg_print(Ind, "Instant Resurrection does not work in the Nether Realm!");
+		if (in_netherrealm(&p_ptr->wpos)) msg_print(Ind, "\377RInstant Resurrection does not work in the Nether Realm!");
 		else
  #endif
 		if (p_ptr->wpos.wz) {
 			instant_res_cost = dlev * dlev * 10 + 10;
-			msg_format(Ind, "Instant Resurrection is active. (Would cost \377%c%d Au\377w at your current depth.)", (instant_res_cost > p_ptr->au + p_ptr->balance) ? 'R' : 'w', instant_res_cost);
+			msg_format(Ind, "\377GInstant Resurrection is active.\377w (Would cost \377%c%d Au\377w at your current depth.)", (instant_res_cost > p_ptr->au + p_ptr->balance) ? 'R' : 'G', instant_res_cost);
 		} else {
 			/* Start sqrt() approx with first estimate */
 			int l = 13 + p_ptr->lev / 5, k = 0, m = 200, lp = l;
@@ -4033,9 +3871,9 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 			instant_res_cost = (p_ptr->au + p_ptr->balance - 10) / 10;
 			/* Special case */
  #if 0
-			if (instant_res_cost < 0) msg_print(Ind, "Instant Resurrection is active. (But you haven't got sufficient funds.)");
+			if (instant_res_cost < 0) msg_print(Ind, "\377GInstant Resurrection is active.\377w (But you have \377Rinsufficient\377w funds.)");
  #else //optimize (luls): no need to calc dlev 0 insta-res, since it gives the same msg atm.
-			if (instant_res_cost < 1) msg_print(Ind, "Instant Resurrection is active. (But you haven't got sufficient funds.)");
+			if (instant_res_cost < 1) msg_print(Ind, "\377GInstant Resurrection is active.\377w (But you have \377Rinsufficient\377w funds.)");
  #endif
 			else {
 				/* Cap at dlev 200 */
@@ -4050,13 +3888,13 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 						l = (l + k) / 2;
 					} else break;
 				}
-				if (l == 200) msg_print(Ind, "Instant Resurrection is active. (Your funds suffice for any dungeon level.)");
+				if (l == 200) msg_print(Ind, "\377GInstant Resurrection is active.\377w (Your funds suffice for any dungeon level.)");
  #if 0 //true, but silyl and not very exact..
-				else if (!l) msg_print(Ind, "Instant Resurrection is active. (Your funds suffice only for the Bree area.)");
+				else if (!l) msg_print(Ind, "\377GInstant Resurrection is active.\377w (Your funds suffice only for the Bree area.)");
  #else //better maybe
-				else if (!l) msg_print(Ind, "Instant Resurrection is active. (But you haven't got sufficient funds.)");
+				else if (!l) msg_print(Ind, "\377GInstant Resurrection is active.\377w (But you have \377Rinsufficient\377w funds.)");
  #endif
-				else msg_format(Ind, "Instant Resurrection is active. (Your funds suffice for dungeon level %d.)", l);
+				else msg_format(Ind, "\377GInstant Resurrection is active.\377w (Your funds suffice for dungeon level %d.)", l);
 			}
 		}
 	}
@@ -4203,63 +4041,7 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 	/* show intercept chance if we have intercept skill or MA skill (which gives +intercept chance) -- moved to MKEY_INTERCEPT, set by these two skills */
 	//if (get_skill(p_ptr, SKILL_INTERCEPT) || get_skill(p_ptr, SKILL_MARTIAL_ARTS)) check_intercept(Ind);
 
-#if 0 /* this is already displayed to the left */
-	/* Insanity warning (better message needed!) */
-	if (p_ptr->csane < p_ptr->msane / 8)
-		msg_print(Ind, "\377rYou can hardly resist the temptation to cry out!");
-	else if (p_ptr->csane < p_ptr->msane / 4)
-		msg_print(Ind, "\377yYou feel insanity about to grasp your mind..");
-	else if (p_ptr->csane < p_ptr->msane / 2)
-		msg_print(Ind, "\377yYou feel insanity creep into your mind..");
-	else
-		msg_print(Ind, "\377wYou are sane.");
-#endif
-
-#if 0 /* deprecated, new one below.. */
-	if (p_ptr->body_monster) {
-		monster_race *r_ptr = &r_info[p_ptr->body_monster];
-		msg_format(Ind, "You %shave a head.", r_ptr->body_parts[BODY_HEAD] ? "" : "don't ");
-		msg_format(Ind, "You %shave arms.", r_ptr->body_parts[BODY_ARMS] ? "" : "don't ");
-		msg_format(Ind, "You can %s use weapons.", r_ptr->body_parts[BODY_WEAPON] ? "" : "not");
-		msg_format(Ind, "You can %s wear %s.", r_ptr->body_parts[BODY_FINGER] ? "" : "not", r_ptr->body_parts[BODY_FINGER] == 1 ? "a ring" : "rings");
-		msg_format(Ind, "You %shave a torso.", r_ptr->body_parts[BODY_TORSO] ? "" : "don't ");
-		msg_format(Ind, "You %shave legs/suitable feet for shoes.", r_ptr->body_parts[BODY_LEGS] ? "" : "don't ");
-	} else if (p_ptr->fruit_bat) {
-		msg_print(Ind, "You have a head.");
-		msg_print(Ind, "You can wear rings.");
-		msg_print(Ind, "You don't have a torso, but you can wear cloaks.");
-	}
-#endif
-#if 0 /* another one.. */
-	bool i_ringr = TRUE, i_ringl = TRUE, i_neck = TRUE, i_head = TRUE, i_outer = TRUE;
-	bool i_light = TRUE, i_arms = TRUE, i_tool = TRUE, i_wield = TRUE, i_bow = TRUE;
-	bool i_ammo = TRUE, i_hands = TRUE, i_feet = TRUE, i_body = TRUE;
-
-	if (p_ptr->fruit_bat) {
-		i_wield = i_bow = i_ammo = i_hands i_feet = i_body = FALSE;
-	}
-	if (p_ptr->body_monster) {
-		if (!r_ptr->body_parts[BODY_WEAPON]) i_wield = i_bow = FALSE;
-		if (r_ptr->body_parts[BODY_FINGER] <= 1) i_ringl = FALSE;
-		if (!r_ptr->body_parts[BODY_FINGER]) i_ringr = FALSE;
-		if (!r_ptr->body_parts[BODY_HEAD]) i_neck = i_head = FALSE;
-		if (!r_ptr->body_parts[BODY_WEAPON] &&
-		    !r_ptr->body_parts[BODY_FINGER] &&
-		    !r_ptr->body_parts[BODY_HEAD] &&
-		    !r_ptr->body_parts[BODY_ARMS])
-			i_light = FALSE;
-		if (!r_ptr->body_parts[BODY_TORSO]) i_body = i_outer = i_ammo = FALSE;
-		if (!r_ptr->body_parts[BODY_ARMS]) i_arms = FALSE;
-		if (!r_ptr->body_parts[BODY_WEAPON] &&
-		    !r_ptr->body_parts[BODY_ARMS])
-			i_tool = FALSE;
-		if (!r_ptr->body_parts[BODY_FINGER] &&
-		    !r_ptr->body_parts[BODY_ARMS])
-			i_hands = FALSE;
-		if (!r_ptr->body_parts[BODY_LEGS]) i_feet = FALSE;
-	}
-#endif
-#if 1 /* just use item_tester_hook_wear() to prevent duplicate stuff.. */
+	/* just use item_tester_hook_wear() to prevent duplicate stuff.. */
 	if (p_ptr->body_monster &&
 	    p_ptr->pclass != CLASS_DRUID && p_ptr->prace != RACE_VAMPIRE &&
 	    (p_ptr->pclass != CLASS_SHAMAN || !mimic_shaman_fulleq(r_info[p_ptr->body_monster].d_char))) {
@@ -4309,21 +4091,24 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 		if (!item_tester_hook_wear(Ind, INVEN_AMMO)) msg_print(Ind, "  you cannot carry ammunition.");
 		if (!item_tester_hook_wear(Ind, INVEN_TOOL)) msg_print(Ind, "  you cannot use tools.");
 	}
-#endif
 
 	if (p_ptr->pclass == CLASS_DRUID) { /* compare mimic_druid in defines.h */
-		if (lev >= 5) msg_print(Ind, "\377GYou know how to change into a Cave Bear (#160) and Panther (#198)");
-		if (lev >= 10) msg_print(Ind, "\377GYou know how to change into a Grizzly Bear (#191) and Yeti (#154)");
-		if (lev >= 15) msg_print(Ind, "\377GYou know how to change into a Griffon (#279) and Sasquatch (#343)");
-		if (lev >= 20) msg_print(Ind, "\377GYou know how to change into a Werebear (#414), Great Eagle (#335), Aranea (#963) and Great White Shark (#898)");
-		if (lev >= 25) msg_print(Ind, "\377GYou know how to change into a Wyvern (#334) and Multi-hued Hound (#513)");
-		if (lev >= 30) msg_print(Ind, "\377GYou know how to change into a 5-h-Hydra (#440), Minotaur (#641) and Giant Squid (#482)");
-		if (lev >= 35) msg_print(Ind, "\377GYou know how to change into a 7-h-Hydra (#614), Elder Aranea (#964) and Plasma Hound (#726)");
-		if (lev >= 40) msg_print(Ind, "\377GYou know how to change into an 11-h-Hydra (#688), Giant Roc (#640) and Lesser Kraken (740)");
-		if (lev >= 45) msg_print(Ind, "\377GYou know how to change into a Maulotaur (#723) and Winged Horror (#704)");// and Behemoth (#716)");
-		if (lev >= 50) msg_print(Ind, "\377GYou know how to change into a Gorm (#1069), Jabberwock (#778) and Greater Kraken (#775)");// and Leviathan (#782)");
-		if (lev >= 55) msg_print(Ind, "\377GYou know how to change into a Horned Serpent (#1131)");
-		if (lev >= 60) msg_print(Ind, "\377GYou know how to change into a Firebird (#1127)");
+		if (lev >= 5) {
+			msg_print(Ind, "\377BAs a druid you have learned how to shapeshift into a...");
+			msg_format(Ind, "\377B Cave Bear (#160) and Panther (#198)%s", lev >= 10 ? "," : "");
+		}
+		if (lev >= 10) msg_format(Ind, "\377B Grizzly Bear (#191) and Yeti (#154)%s", lev >= 15 ? "," : ".");
+		if (lev >= 15) msg_format(Ind, "\377B Griffon (#279) and Sasquatch (#343)%s", lev >= 20 ? "," : ".");
+		if (lev >= 20) msg_format(Ind, "\377B Werebear (#414), Great Eagle (#335), Aranea (#963), Great White Shark (#898)%s", lev >= 25 ? "," : ".");
+		if (lev >= 25) msg_format(Ind, "\377B Wyvern (#334) and Multi-hued Hound (#513)%s", lev >= 30 ? "," : ".");
+		if (lev >= 30) msg_format(Ind, "\377B 5-h-Hydra (#440), Minotaur (#641) and Giant Squid (#482)%s", lev >= 35 ? "," : ".");
+		if (lev >= 35) msg_format(Ind, "\377B 7-h-Hydra (#614), Elder Aranea (#964) and Plasma Hound (#726)%s", lev >= 40 ? "," : ".");
+		if (lev >= 40) msg_format(Ind, "\377B an 11-h-Hydra (#688), Giant Roc (#640) and Lesser Kraken (740)%s", lev >= 45 ? "," : ".");
+		if (lev >= 45) msg_format(Ind, "\377B Maulotaur (#723) and Winged Horror (#704)%s", lev >= 50 ? "," : ".");// and Behemoth (#716)");
+		if (lev >= 50) msg_format(Ind, "\377B Gorm (#1069), Jabberwock (#778) and Greater Kraken (#775)%s", lev >= 55 ? "," : ".");// and Leviathan (#782)");
+		/* Don't spam just 1 line for 1 single form -_- */
+		if (lev >= 60) msg_print(Ind, "\377B Horned Serpent (#1131) and Firebird (#1127).");
+		else if (lev >= 55) msg_print(Ind, "\377B Horned Serpent (#1131).");
 	}
 
 	if (p_ptr->tim_mimic)
@@ -4331,9 +4116,9 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 		    r_name + r_info[p_ptr->tim_mimic_what].name, p_ptr->tim_mimic_what, p_ptr->tim_mimic);
 
 	if (p_ptr->prace == RACE_VAMPIRE) {
-		if (lev >= 20) msg_print(Ind, "\377GYou are able to turn into a vampire bat (#391).");
+		if (lev >= 20) msg_print(Ind, "\377BYou are able to change into a vampire bat (#391).");
 #ifdef VAMPIRIC_MIST
-		if (lev >= 35) msg_print(Ind, "\377GYou are able to turn into vampiric mist (#365).");
+		if (lev >= 35) msg_print(Ind, "\377BYou are able to change into vampiric mist (#365).");
 #endif
 	}
 
@@ -4404,6 +4189,7 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 
 		switch (cfg.runlevel) {
 		case 2051: msg_print(Ind, "\377y* XtremelyLow-server-shutdown command pending *"); break;
+		case 2052: msg_print(Ind, "\377y* XXtremelyLow-server-shutdown command pending *"); break;
 		case 2048: msg_print(Ind, "\377y* Empty-server-shutdown command pending *"); break;
 		case 2047: msg_print(Ind, "\377y* Low-server-shutdown command pending *"); break;
 		case 2046: msg_print(Ind, "\377y* VeryLow-server-shutdown command pending *"); break;
@@ -4423,6 +4209,7 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 			else
 				msg_format(Ind, "\374\377I*** \377RServer termination in %d seconds (auto-recall). \377I***", shutdown_recall_timer);
 			break;
+		case 2041: msg_print(Ind, "\377y* UltraLow-server-shutdown command pending *"); break;
 		}
 	}
 

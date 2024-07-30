@@ -2537,6 +2537,9 @@ void init_spells(s16b new_size)
 static errr init_other(void) {
 	//int i, k, n;
 
+	BREE_WPOS.wx = cfg.town_x;
+	BREE_WPOS.wy = cfg.town_y;
+	BREE_WPOS.wz = 0;
 
 	/*** Prepare the "dungeon" information ***/
 
@@ -2842,13 +2845,11 @@ void init_swearing() {
 
 	do {
 		if (fscanf(fp, "%s%d\n", swear[i].word, &swear[i].level) == EOF) {
-			if (!feof(fp)) {
-				s_printf("Failed to read swearing.txt: %s\n", strerror(ferror(fp)));
-			}
-		}
-		//printf("%d %s %d\n", i, swear[i].word, swear[i].level);
-		i++;
+			if (!feof(fp)) s_printf("Failed to read swearing.txt: %s\n", strerror(ferror(fp)));
+		} else i++;
+		//s_printf("%d %s %d\n", i, swear[i].word, swear[i].level);
 	} while (!feof(fp) && i < MAX_SWEAR - 1);
+	if (!feof(fp)) s_printf("Too large swearing.txt, exceeding %d - 1 elements.\n", MAX_SWEAR);
 
 	/* obsolete: (if enabled, swear_add stuff must be placed into server_startup_post, not server_startup) - C. Blue
 	   still enabling this though, for re-initialising swearing while server runs. */
@@ -2869,11 +2870,9 @@ void init_swearing() {
 	do {
 		//if (fscanf(fp, "%s\n", nonswear[i]) == EOF) {
 		if (!fgets(nonswear[i], NAME_LEN, fp)) {
-			if (!feof(fp))
-				s_printf("Failed to read nonswearing.txt: %s\n", strerror(ferror(fp)));
-		}
-		/* get rid of '\n' char */
-		else {
+			if (!feof(fp)) s_printf("Failed to read nonswearing.txt: %s\n", strerror(ferror(fp)));
+		} else if (*nonswear[i]) {
+			/* get rid of '\n' char */
 			nonswear[i][strlen(nonswear[i]) - 1] = '\0';
 			/* translate 'affix' placeholder */
 			nonswear_affix[i] = 0;
@@ -2889,11 +2888,11 @@ void init_swearing() {
 				nonswear[i][strlen(nonswear[i]) - 1] = '\0';
 				nonswear_affix[i] += 2;
 			}
+			i++;
 		}
-
-		//printf("%d %s %d\n", i, swear[i].word, swear[i].level);
-		i++;
+		//s_printf("%d %s %d\n", i, swear[i].word, swear[i].level);
 	} while (!feof(fp) && i < MAX_NONSWEAR - 1);
+	if (!feof(fp)) s_printf("Too large nonswearing.txt, exceeding %d - 1 elements.\n", MAX_NONSWEAR);
 
 	/* obsolete: (if enabled, swear_set stuff must be placed into server_startup_post, not server_startup) - C. Blue
 	   still enabling this though, for re-initialising swearing while server runs. */
@@ -2954,7 +2953,7 @@ static errr init_alloc(void) {
 	/* Collect the level indexes */
 	for (i = 1; i < 256; i++) {
 		/* Group by level */
-		num[i] += num[i-1];
+		num[i] += num[i - 1];
 	}
 
 	/* Paranoia */
@@ -2986,7 +2985,7 @@ static errr init_alloc(void) {
 				p = (10000 / k_ptr->chance[j]);
 
 				/* Skip entries preceding our locale */
-				y = (x > 0) ? num[x-1] : 0;
+				y = (x > 0) ? num[x - 1] : 0;
 
 				/* Skip previous entries at this locale */
 				z = y + aux[x];
@@ -3051,7 +3050,7 @@ static errr init_alloc(void) {
 	/* Collect the level indexes */
 	for (i = 1; i < 256; i++) {
 		/* Group by level */
-		num[i] += num[i-1];
+		num[i] += num[i - 1];
 	}
 
 	/* Paranoia */
@@ -3088,7 +3087,7 @@ static errr init_alloc(void) {
 			p = p * mon_allowed_chance(r_ptr) / 100;
 
 			/* for more efficiency: no dungeon bosses, done now in level-generation routine - C. Blue */
-			if (r_ptr->flags0 & RF0_FINAL_GUARDIAN) {
+			if (r_ptr->flags8 & RF8_FINAL_GUARDIAN) {
 				/* exception: Sauron in the IDDC/Halls of Mandos (real check is done in place_monster_one() anyway..) */
 				if (i != RI_SAURON) p = 0;
 			}
@@ -3097,7 +3096,7 @@ static errr init_alloc(void) {
 			if (p == 0) continue;
 
 			/* Skip entries preceding our locale */
-			y = (x > 0) ? num[x-1] : 0;
+			y = (x > 0) ? num[x - 1] : 0;
 
 			/* Skip previous entries at this locale */
 			z = y + aux[x];
@@ -3137,13 +3136,14 @@ static errr init_alloc(void) {
 	/*** Create unique monster mask arrays ***/
 	C_MAKE(allow_uniques, MAX_R_IDX, char);
 	C_MAKE(reject_uniques, MAX_R_IDX, char);
+	C_MAKE(orcs_only, MAX_R_IDX, char);
 
 	for (i = 1; i < MAX_R_IDX; i++) {
 		/* Get the i'th race */
 		r_ptr = &r_info[i];
 
-		if (r_ptr->flags1 & RF1_UNIQUE)
-			reject_uniques[i] = TRUE;
+		if (r_ptr->flags1 & RF1_UNIQUE) reject_uniques[i] = orcs_only[i] = TRUE;
+		if (r_ptr->d_char != 'o') orcs_only[i] = TRUE;
 	}
 
 	/* Success */
@@ -3347,6 +3347,8 @@ static void set_server_option(char * option, char * value) {
 		cfg.store_turns = atoi(value);
 	else if (!strcmp(option, "DUN_STORE_TURNS"))
 		cfg.dun_store_turns = atoi(value);
+	else if (!strcmp(option, "BOOK_STORE_TURNS_PERC"))
+		cfg.book_store_turns_perc = atoi(value);
 	else if (!strcmp(option, "PUBLIC_RFE"))
 		cfg.public_rfe = str_to_boolean(value);
 	else if (!strcmp(option, "AUTO_PURGE"))
@@ -3414,7 +3416,7 @@ static void set_server_option(char * option, char * value) {
 	else if (!strcmp(option, "LEAK_INFO"))
 		cfg.leak_info = atoi(value);
 
-	else printf("Error : unrecognized tomenet.cfg option %s\n", option);
+	else s_printf("Error : unrecognized tomenet.cfg option %s\n", option);
 }
 
 
@@ -3443,7 +3445,7 @@ static void load_server_cfg_aux(FILE * cfg) {
 	/* Read in lines until we hit EOF */
 	while (fgets(line, 256, cfg) != NULL) {
 		// Chomp off the end of line character
-		line[strlen(line) - 1] = '\0';
+		if (*line) line[strlen(line) - 1] = '\0';
 
 		/* Parse the line that has been read in */
 		// If the line begins with a # or is empty, ignore it
@@ -3469,17 +3471,15 @@ static void load_server_cfg_aux(FILE * cfg) {
 
 			/* Set the option or value */
 			if (!option) option = newword;
-			else if ((!value) && (newword[0] != '='))
-			{
+			else if ((!value) && (newword[0] != '=')) {
 				value = newword;
 				/* Hack -- ignore "" around values */
 				if (value[0] == '"') value++;
-				if (value[strlen(value) - 1] == '"') value[strlen(value) - 1] = '\0';
+				if (*value && value[strlen(value) - 1] == '"') value[strlen(value) - 1] = '\0';
 			}
 
 			// If we have a completed option and value, then try to set it
-			if (option && value)
-			{
+			if (option && value) {
 				set_server_option(option, value);
 				break;
 			}
@@ -3500,8 +3500,8 @@ bool load_server_cfg(void) {
 
 	/* Failure */
 	if (cfg_file == (FILE*)NULL) {
-		//printf("Error : cannot open file tomenet.cfg\n");
-		printf("Error : cannot open file '%s'\n", MANGBAND_CFG);
+		//s_printf("Error : cannot open file tomenet.cfg\n");
+		s_printf("Error : cannot open file '%s'\n", MANGBAND_CFG);
 		return(FALSE);
 	}
 
@@ -3604,7 +3604,7 @@ void init_some_arrays(void) {
 			/* No nazguls */
 			    (r_ptr->flags7 & RF7_NAZGUL) ||
 			/* Dungeon bosses probably shouldn't respawn */
-			    (r_ptr->flags0 & RF0_FINAL_GUARDIAN) ||
+			    (r_ptr->flags8 & RF8_FINAL_GUARDIAN) ||
 			/* Special-dropping uniques neither? */
 			    //(r_ptr->flags1 & RF1_DROP_CHOSEN) || */
 			/* --- QUESTOR is currently NOT used!! - C. Blue */

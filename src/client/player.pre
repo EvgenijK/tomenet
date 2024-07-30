@@ -133,7 +133,6 @@ struct player_type {
 	byte pclass;			/* Class index */
 	byte ptrait;			/* Trait index */
 	byte male;			/* Sex of character */
-	byte oops;			/* Unused */
 
 	skill_player s_info[MAX_SKILLS]; /* Player skills */
 	s16b skill_points;      /* number of skills assignable */
@@ -263,7 +262,7 @@ struct player_type {
 	bool easy_disarm_montraps;
 	bool easy_tunnel;
 	bool clear_inscr;
-	bool auto_inscribe;
+	bool auto_inscr_server;
 	bool taciturn_messages;
 	bool last_words;
 	/* bool speak_unique; */
@@ -480,7 +479,7 @@ struct player_type {
 	bool hold_life;		/* Resist life draining */
 	bool telepathy;		/* Telepathy */
 	bool slow_digest;	/* Slower digestion */
-	bool bless_blade;	/* Blessed blade */
+	bool blessed_weapon;	/* Blessed melee weapon equipped */
 	bool xtra_might;	/* Extra might bow */
 	bool impact;		/* Earthquake blows */
 	bool auto_id;		/* Pickup = Id */
@@ -532,7 +531,7 @@ struct player_type {
 
 	player_list_type *blood_bond; /* Norc is now happy :) */
 
-	byte mode; /* Difficulty MODE */
+	u16b mode; /* Difficulty MODE */
 
 	s32b esp_link; /* Mental link */
 	byte esp_link_type;

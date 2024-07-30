@@ -45,7 +45,7 @@ function playloop_startup(timestamp, h, m, s, dwd, dd, dm, dy)
 	--[[automatically fix season if required, for example if server
 	    was down for 24+ hours while a season change date occured.
 	    see cron_24h() for details and to keep values synchronized.]]
-	if false then
+	if (1 == 0) then
 		-- seasons follow northern hemisphere seasons in real-time
 
 		if (season ~= 0) then -- spring
@@ -191,7 +191,7 @@ function cron_24h(timestamp, h, m, s, dwd, dd, dm, dy)
 	--[[season changes (averaged, may in reality vary +/- 1 day:
 	    spring 1. march, summer 1. june,
 	    autumn 23. september, winter 22. december ]]
-	if false then
+	if (1 == 0) then
 		-- seasons follow northern hemisphere seasons in real-time
 
 		if (dd == 1 and dm == 3) then lua_season_change(0, 0) end -- spring
@@ -229,7 +229,60 @@ function beta(Ind, code)
 	--msg_print(Ind, "beta="..code)
 end
 
---For usable custom objects:
+-- For usable custom objects:
 function custom_object(Ind, item, dir)
+end
+-- For usable custom objects, emulate k_info diz. Index is 1..n.
+function custom_object_diz(index)
+end
 
+--[[ For chests:
+  xtra1 = call on acivate trap, xtra2 = call on opening, xtra3: 0x1 = destroy on trap trigger, 0x2 = destroy on ruination by trap trigger, 0x4 = destroy on opening, 0x8 = skip normal trap routines
+  xtra4 = number of objects to drop + 1 (ie 1 = no drops!), xtra5 = cash to drop per pile (usual +/-20% random modifier included).
+  <index> is xtra1 (for trap) or xtra2 (for open) respectively. ]]
+function custom_chest_trap(Ind, index)
+end
+function custom_chest_open(Ind, index, small, number)
+end
+
+-- Custom monsters:
+function custom_monster_death(Ind, m_idx, index)
+end
+function custom_monster_deletion(m_idx, index)
+end
+-- Ind can be 0 for generic waking effects.
+function custom_monster_awoke(Ind, m_idx, index)
+end
+function custom_monster_sighted(Ind, m_idx, index)
+end
+
+-- Custom grids:
+function custom_tunnel_hand(Ind, index)
+end
+function custom_tunnel(Ind, index)
+end
+function custom_search(Ind, index)
+end
+function custom_newlivefeat(old_feat, new_feat, index)
+end
+
+-- Custom objects:
+-- Ind can be negative if the item is carried/dropped by a monster instead of a player.
+-- o_idx is 0 if it's now not an item on the floor (but in player/monster inventory) - ie when the item was picked up.
+-- This function is called right _before_ item is destroyed or timed out, so o_idx or slot can still be valid.
+-- slot > 0: inven slot where we carry it now; 0: item was used up/consumed by player, -1: dropped, -2: thrown, -3: fired, -4: destroyed, -5: timed out; -6: stolen by trap, -7: by monster, -8: by player
+function custom_object_carrystate(Ind, o_idx, slot, index)
+end
+-- slot = 0..<INVEN_TOTAL: slot where it now resides
+function custom_object_equipstate(Ind, slot, index)
+end
+-- Ind can be 0 if the item is currently not carried by a player but on the floor; Ind < 0: currently carried by a monster
+-- This function is called right _before_ item is destroyed, so o_idx or slot can still be valid.
+-- o_idx is 0 if the item wasn't on the floor. slot is 0 if the item wasn't in player/monster inventory.
+function custom_object_destruction(Ind, o_idx, slot, index)
+end
+-- o_idx is 0 if the item wasn't on the floor (but in player inventory)
+-- slot is 0 if the item wasn't in player inventory (but on the floor)
+-- Usage: 0 = activate, 1 = read, 2 = quaff, 3 = eat, 4 = aim, 5 = use, 6 = zap, 7 = disarm-attempt, 8 = disarm-failed, 9 = disarmed, 10 = opened, 11 = bashed
+function custom_object_usage(Ind, o_idx, slot, usage, index)
 end

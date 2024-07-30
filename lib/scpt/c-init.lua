@@ -1,9 +1,15 @@
 -- $Id: c-init.lua,v 1.8 2002/09/03 14:01:38 darkgod Exp $
 -- Client side LUA initialization of TomeNET
 
+-- Ensure backward client compatibility for renaming of this skill
+if SKILL_TCONTACT ~= nil then
+    SKILL_ATTUNEMENT=SKILL_TCONTACT
+end
+
 -- Beware of the scary undefined globals
 function safe_getglobal(x)
 	local v = rawget(globals(), x)
+
 	if v then
 		return v
 	else
@@ -17,12 +23,14 @@ settagmethod(tag(nil), "getglobal", safe_getglobal)
 -- The default value in case the global isn't set is true
 function def(x)
 	local v = rawget(globals(), x)
+
 	return (not v or v ~= 0)
 end
 
 -- Same as def() except that the default value for undefined global can be set
 function def_hack(x, default)
 	local v = rawget(globals(), x)
+
 	if v then
 		return v~= 0
 	else
@@ -54,6 +62,7 @@ pern_dofile(Ind, "runecraft.lua")
 pern_dofile(Ind, "races.lua")
 pern_dofile(Ind, "classes.lua")
 pern_dofile(Ind, "traits.lua")
+pern_dofile(Ind, "attributes.lua")
 --done in init_lua() already, for early access
 --pern_dofile(Ind, "guide.lua")
 pern_dofile(Ind, "bpr.lua")

@@ -148,10 +148,12 @@
 #endif
 
 /* death_type definitions */
+#define DEATH_NONE	-1 /* no death set yet (init state) */
 #define DEATH_PERMA	0
 #define DEATH_INSANITY	1
 #define DEATH_GHOST	2
-#define DEATH_QUIT	3 /* suicide/retirement */
+#define DEATH_QUIT_SUI	3 /* suicide */
+#define DEATH_QUIT_RET	4 /* retirement */
 
 
 /* If during certain events, remember his/her account ID, for handing out a reward
@@ -173,13 +175,13 @@ static void buffer_account_for_event_deed(player_type *p_ptr, int death_type) {
 		switch (p_ptr->global_event_type[j]) {
 		case GE_HIGHLANDER:
 			if (p_ptr->global_event_progress[j][0] < 5) break; /* only rewarded if already in deathmatch phase! */
-			if (death_type >= DEATH_QUIT) break; /* no reward for suiciding! */
+			if (death_type == DEATH_QUIT_SUI || death_type == DEATH_QUIT_RET) break; /* no reward for suiciding! */
 			/* hand out the reward: */
 			ge_contender_buffer_deed[i] = SV_DEED2_HIGHLANDER;
 			return;
 		case GE_DUNGEON_KEEPER:
 			if (p_ptr->global_event_progress[j][0] < 1) break; /* only rewarded if actually already in the labyrinth! */
-			if (death_type >= DEATH_QUIT) break; /* no reward for suiciding! */
+			if (death_type == DEATH_QUIT_SUI || death_type == DEATH_QUIT_RET) break; /* no reward for suiciding! */
 			/* hand out the reward: */
 			ge_contender_buffer_deed[i] = SV_DEED2_DUNGEONKEEPER;
 			return;
@@ -310,6 +312,9 @@ bool set_tim_regen(int Ind, int v, int p) {
 	/* Disturb */
 	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -317,7 +322,7 @@ bool set_tim_regen(int Ind, int v, int p) {
 	return(TRUE);
 }
 /* Variant of set_tim_regen() that drains MP to replenish HP, for Unlife school: */
-bool set_tim_mp2hp(int Ind, int v, int p) {
+bool set_tim_mp2hp(int Ind, int v, int p, int c) {
 	player_type *p_ptr = Players[Ind];
 	bool notice = FALSE;
 
@@ -346,12 +351,16 @@ bool set_tim_mp2hp(int Ind, int v, int p) {
 	/* Use the value */
 	p_ptr->tim_regen = v;
 	p_ptr->tim_regen_pow = -p;
+	p_ptr->tim_regen_cost = c;
 
 	/* Nothing to notice */
 	if (!notice) return(FALSE);
 
 	/* Disturb */
 	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -621,6 +630,108 @@ bool set_tim_esp(int Ind, int v) {
 
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS | PU_MONSTERS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
+	/* Handle stuff */
+	handle_stuff(Ind);
+
+	/* Result */
+	return(TRUE);
+}
+
+/* Magical mirror from water and air, forming a solid mirage in the air, granting REFLECTING. */
+bool set_tim_reflect(int Ind, int v) {
+	player_type *p_ptr = Players[Ind];
+	bool notice = FALSE;
+
+	/* Hack -- Force good values */
+	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
+
+	/* Open */
+	if (v) {
+		if (!p_ptr->tim_reflect) {
+			/* Mutually exclusive - we're not an elemental backlash reactive shield spell,
+			   but our shield is still using the same 'area' as these and works reactively in a very similar way! */
+			if (p_ptr->shield) set_shield(Ind, 0, 0, SHIELD_NONE, 0, 0);
+			if (p_ptr->tim_lcage) set_tim_lcage(Ind, 0);
+
+			msg_print(Ind, "Moisture starts glittering and solidifying in the air!");
+			notice = TRUE;
+		}
+	}
+
+	/* Shut */
+	else {
+		if (p_ptr->tim_reflect) {
+			msg_print(Ind, "The air around you loses its mirroring effects.");
+			notice = TRUE;
+		}
+	}
+
+	/* Use the value */
+	p_ptr->tim_reflect = v;
+
+	/* Nothing to notice */
+	if (!notice) return(FALSE);
+
+	/* Disturb */
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* Recalculate boni */
+	p_ptr->update |= (PU_BONUS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
+	/* Handle stuff */
+	handle_stuff(Ind);
+
+	/* Result */
+	return(TRUE);
+}
+
+/* Rerouting cage of lightning (Arcane Lore addition?) */
+bool set_tim_lcage(int Ind, int v) {
+	player_type *p_ptr = Players[Ind];
+	bool notice = FALSE;
+
+	/* Hack -- Force good values */
+	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
+
+	/* Open */
+	if (v) {
+		if (!p_ptr->tim_lcage) {
+			/* Mutually exclusive - we're not an elemental backlash reactive shield spell,
+			   but our shield is still using the same 'area' as these and works reactively in a very similar way! */
+			if (p_ptr->shield) set_shield(Ind, 0, 0, SHIELD_NONE, 0, 0);
+			if (p_ptr->tim_reflect) set_tim_reflect(Ind, 0);
+
+			msg_print(Ind, "Lightning sparks and bends around you, forming a cage!");
+			notice = TRUE;
+		}
+	}
+
+	/* Shut */
+	else {
+		if (p_ptr->tim_lcage) {
+			msg_print(Ind, "The lightning around you dissipates.");
+			notice = TRUE;
+		}
+	}
+
+	/* Use the value */
+	p_ptr->tim_lcage = v;
+
+	/* Nothing to notice */
+	if (!notice) return(FALSE);
+
+	/* Disturb */
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* Recalculate boni */
+	p_ptr->update |= (PU_BONUS);
 
 	/* Redraw indicator */
 	p_ptr->redraw2 |= (PR2_INDICATORS);
@@ -929,6 +1040,9 @@ bool set_melee_brand(int Ind, int v, u16b t, int p, bool cast, bool weapons_only
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS | PU_MONSTERS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -1195,7 +1309,7 @@ bool set_tim_manashield(int Ind, int v) {
 }
 
 /*
- * Set "p_ptr->tim_traps", notice observable changes
+ * Set "p_ptr->tim_traps", notice observable changes -- currently unused!
  */
 bool set_tim_traps(int Ind, int v) {
 	player_type *p_ptr = Players[Ind];
@@ -1289,7 +1403,7 @@ bool set_invis(int Ind, int v, int p) {
 }
 
 /*
- * Set "p_ptr->fury", notice observable changes
+ * Set "p_ptr->fury", notice observable changes (Fury, gets overridden by Berserk)
  */
 bool set_fury(int Ind, int v) {
 	player_type *p_ptr = Players[Ind];
@@ -1416,7 +1530,7 @@ bool set_tim_wraith(int Ind, int v) {
 				p_ptr->redraw |= PR_BPR_WRAITH;
 			}
 		}
-		p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+		p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 #if 0	// I can't remember what was it for..
 		// but for sure it's wrong
 //it was probably for the old hack to prevent wraithing in/around town and breaking into houses that way - C. Blue
@@ -1435,8 +1549,8 @@ bool set_tim_wraith(int Ind, int v) {
 
 			zcave = getcave(&p_ptr->wpos);
 
-			/* prevent running out of wraithform if we have a permanent source -> refresh it */
 			if (zcave && in_bounds(p_ptr->py, p_ptr->px)) {
+				/* prevent running out of wraithform if we have a permanent source -> refresh it */
 				if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags2 & RF2_PASS_WALL)) v = 10000;
 				else {
 					/* if a worn item grants wraith form, don't let it run out */
@@ -1456,11 +1570,12 @@ bool set_tim_wraith(int Ind, int v) {
 						if (f3 & (TR3_WRAITH)) {
 							//p_ptr->wraith_form = TRUE;
 							v = 10000;
-							p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+							p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 							break;
 						}
 					}
 				}
+				/* We don't have a permanent source */
 				if (v != 10000) {
 					msg_format_near(Ind, "%s loses %s wraith powers.", p_ptr->name, p_ptr->male ? "his":"her");
 					msg_print(Ind, "You lose your wraith powers.");
@@ -1470,7 +1585,7 @@ bool set_tim_wraith(int Ind, int v) {
 					/* That will hopefully prevent game hinging when loading */
 					if (cave_floor_bold(zcave, p_ptr->py, p_ptr->px)) p_ptr->wraith_in_wall = FALSE;
 
-					p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
+					p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 				}
 			}
 			else v = 1;
@@ -1505,81 +1620,40 @@ bool set_tim_wraithstep(int Ind, int v) {
 	if (!(zcave = getcave(&p_ptr->wpos))) return(FALSE);
 
 	/* Hack -- Force good values */
-	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
+	v = (v > 15) ? 15 : (v < 0) ? 0 : v;
 
 	/* Open */
 	if (v) {
 		if (!p_ptr->tim_wraith) {
 			if ((zcave[p_ptr->py][p_ptr->px].info & CAVE_STCK) ||
 			    (l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC))) {
-				msg_print(Ind, "You feel different for a moment.");
-				v = 0;
+				//msg_print(Ind, "You feel different for a moment.");
+				msg_print(Ind, "You fail to become immaterial here.");
+				return(FALSE);
 			} else {
-				msg_format_near(Ind, "%s turns into a wraith!", p_ptr->name);
-				msg_print(Ind, "You turn into a wraith!");
+				msg_print(Ind, "The boundary to the immaterium weakens for you.");
 				notice = TRUE;
-
 				p_ptr->wraith_in_wall = TRUE;
 				p_ptr->redraw |= PR_BPR_WRAITH;
 			}
+		} else {
+			msg_print(Ind, "You are already immaterial.");
+			return(FALSE);
 		}
-		p_ptr->tim_extra |= 0x1; //hack: mark as wraithstep, to distinguish from normal wraithform
+
+		/* Use the value */
+		p_ptr->tim_wraithstep = 0x10 * v + 0x1;
 	}
 
 	/* Shut */
 	else {
-		if (p_ptr->tim_wraith) {
-			/* In town it only runs out if you are not on a wall
-			 * To prevent breaking into houses */
-			/* important! check for illegal spaces */
-			cave_type **zcave;
-
-			zcave = getcave(&p_ptr->wpos);
-
-			/* prevent running out of wraithform if we have a permanent source -> refresh it */
-			if (zcave && in_bounds(p_ptr->py, p_ptr->px)) {
-				if (p_ptr->body_monster && (r_info[p_ptr->body_monster].flags2 & RF2_PASS_WALL)) v = 10000;
-				else {
-					/* if a worn item grants wraith form, don't let it run out */
-					u32b f1, f2, f3, f4, f5, f6, esp;
-					object_type *o_ptr;
-					int i;
-
-					/* Scan the usable inventory */
-					for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
-						o_ptr = &p_ptr->inventory[i];
-
-						/* Skip missing items */
-						if (!o_ptr->k_idx) continue;
-
-						/* Extract the item flags */
-						object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
-						if (f3 & (TR3_WRAITH)) {
-							//p_ptr->wraith_form = TRUE;
-							v = 10000;
-							p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
-							break;
-						}
-					}
-				}
-				if (v != 10000) {
-					msg_format_near(Ind, "%s loses %s wraith powers.", p_ptr->name, p_ptr->male ? "his":"her");
-					msg_print(Ind, "You lose your wraith powers.");
-					p_ptr->redraw |= PR_BPR_WRAITH;
-					notice = TRUE;
-
-					/* That will hopefully prevent game hinging when loading */
-					if (cave_floor_bold(zcave, p_ptr->py, p_ptr->px)) p_ptr->wraith_in_wall = FALSE;
-
-					p_ptr->tim_extra &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
-				}
-			}
-			else v = 1;
+		if ((p_ptr->tim_wraithstep & 0x1) && (p_ptr->tim_wraithstep & 0xF0)) {
+			msg_print(Ind, "The boundary to the immaterium returns to normal.");
+			p_ptr->redraw |= PR_BPR_WRAITH;
+			notice = TRUE;
+			p_ptr->tim_wraithstep &= ~0x1; //hack: mark as normal wraithform, to distinguish from wraithstep
 		}
 	}
-
-	/* Use the value */
-	p_ptr->tim_wraith = v;
 
 	/* Nothing to notice */
 	if (!notice) return(FALSE);
@@ -1639,6 +1713,71 @@ bool set_blind(int Ind, int v) { /* bad status effect */
 		if (p_ptr->blind) {
 			msg_format_near(Ind, "%s can see again.", p_ptr->name);
 			msg_print(Ind, "You can see again.");
+			notice = TRUE;
+		}
+	}
+
+	/* Use the value */
+	p_ptr->blind = v;
+
+	/* Nothing to notice */
+	if (!notice) return(FALSE);
+
+	/* Disturb */
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* Forget stuff */
+	p_ptr->update |= (PU_UN_VIEW | PU_UN_LITE);
+
+	/* Update stuff */
+	p_ptr->update |= (PU_VIEW | PU_LITE | PU_BONUS);
+
+	/* Update the monsters */
+	p_ptr->update |= (PU_MONSTERS);
+
+	/* Redraw map */
+	p_ptr->redraw |= (PR_MAP);
+
+	/* Redraw the "blind" */
+	p_ptr->redraw |= (PR_BLIND);
+
+	/* Window stuff */
+	p_ptr->window |= (PW_OVERHEAD);
+
+	/* Handle stuff */
+	handle_stuff(Ind);
+
+	/* Result */
+	return(TRUE);
+}
+/* Same as set_blind() just without messages to the affected player. */
+bool set_blind_quiet(int Ind, int v) { /* bad status effect */
+	player_type *p_ptr = Players[Ind];
+	bool notice = FALSE;
+
+	if (p_ptr->martyr && v) return(FALSE);
+
+	/* the admin wizard can not be blinded */
+	if (p_ptr->admin_wiz && v > p_ptr->blind) return(1);
+
+	/* Hack -- Force good values */
+	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
+
+	/* Open */
+	if (v) {
+		if (!p_ptr->blind) {
+			disturb(Ind, 1, 0); /* stop running and searching */
+			msg_format_near(Ind, "%s gropes around blindly!", p_ptr->name);
+			notice = TRUE;
+		}
+
+		break_shadow_running(Ind);
+	}
+
+	/* Shut */
+	else {
+		if (p_ptr->blind) {
+			msg_format_near(Ind, "%s can see again.", p_ptr->name);
 			notice = TRUE;
 		}
 	}
@@ -2196,15 +2335,26 @@ bool set_shield(int Ind, int v, int p, s16b o, s16b d1, s16b d2) {
 	/* Open */
 	if (v) {
 		if (!p_ptr->shield) {
+			/* Mutually exclusive - we're not an elemental backlash reactive shield spell,
+			   but our shield is still using the same 'area' as these and works reactively in a very similar way! */
+			if (p_ptr->tim_reflect) set_tim_reflect(Ind, 0);
+			if (p_ptr->tim_lcage) set_tim_lcage(Ind, 0);
+
 			switch (o) {
-				case SHIELD_ICE:
-					msg_print(Ind, "You are shielded by grinding ice!");
+			case SHIELD_COUNTER:
+				msg_print(Ind, "You are shielded by floating shards of rock!");
 				break;
-				case SHIELD_PLASMA:
-					msg_print(Ind, "You are shielded by searing plasma!");
+			case SHIELD_FIRE:
+				msg_print(Ind, "You are shielded by burning fire!");
 				break;
-				default:
-					msg_print(Ind, "A mystic shield forms around your body!");
+			case SHIELD_ICE:
+				msg_print(Ind, "You are shielded by grinding ice!");
+				break;
+			case SHIELD_PLASMA:
+				msg_print(Ind, "You are shielded by searing plasma!");
+				break;
+			default:
+				msg_print(Ind, "A mystic shield forms around your body!");
 				break;
 			}
 			notice = TRUE;
@@ -2215,14 +2365,20 @@ bool set_shield(int Ind, int v, int p, s16b o, s16b d1, s16b d2) {
 	else {
 		if (p_ptr->shield) {
 			switch (o) {
-				case SHIELD_ICE:
-					msg_print(Ind, "\377WYou are no longer shielded by \377Bice.");
+			case SHIELD_COUNTER:
+				msg_print(Ind, "\377WYou are no longer shielded by \377ufloating shards of rock\377W.");
 				break;
-				case SHIELD_PLASMA:
-					msg_print(Ind, "\377WYou are no longer shielded by \377Rplasma.");
+			case SHIELD_FIRE:
+				msg_print(Ind, "\377WYou are no longer shielded by \377rburning fire\377W.");
 				break;
-				default:
-					msg_print(Ind, "Your mystic shield crumbles away.");
+			case SHIELD_ICE:
+				msg_print(Ind, "\377WYou are no longer shielded by \377Bice\377W.");
+				break;
+			case SHIELD_PLASMA:
+				msg_print(Ind, "\377WYou are no longer shielded by \377Rplasma\377W.");
+				break;
+			default:
+				msg_print(Ind, "\377WYour mystic shield crumbles away.");
 				break;
 			}
 			notice = TRUE;
@@ -2247,6 +2403,9 @@ bool set_shield(int Ind, int v, int p, s16b o, s16b d1, s16b d2) {
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
+
 	/* Handle stuff */
 	handle_stuff(Ind);
 
@@ -2256,10 +2415,14 @@ bool set_shield(int Ind, int v, int p, s16b o, s16b d1, s16b d2) {
 
 /*
  * Set "p_ptr->blessed", notice observable changes
+ * 'own': FALSE if from external source aka scroll; TRUE if via Holy School prayer that we cast.
+ *        own spells will work even with evil/undead mimic forms.
  */
-bool set_blessed(int Ind, int v) {
+bool set_blessed(int Ind, int v, bool own) {
 	player_type *p_ptr = Players[Ind];
 	bool notice = FALSE;
+
+	if (!own && (p_ptr->suscep_good || p_ptr->suscep_life)) return(FALSE);
 
 	/* Hack -- Force good values */
 	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
@@ -2285,6 +2448,7 @@ bool set_blessed(int Ind, int v) {
 
 	/* Use the value */
 	p_ptr->blessed = v;
+	p_ptr->blessed_own = own;
 
 	/* Nothing to notice */
 	if (!notice) return(FALSE);
@@ -2294,6 +2458,54 @@ bool set_blessed(int Ind, int v) {
 
 	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
+
+	/* Handle stuff */
+	handle_stuff(Ind);
+
+	/* Result */
+	return(TRUE);
+}
+
+bool set_dispersion(int Ind, byte v, byte d) {
+	player_type *p_ptr = Players[Ind];
+	bool notice = FALSE;
+
+	/* Hack -- Force good values */
+	v = (v > 127) ? 127 : (v < 0) ? 0 : v;
+
+	/* Open */
+	if (v) {
+		if (!p_ptr->dispersion) {
+			msg_format_near(Ind, "%s turns into a shadowy, dispersing form.", p_ptr->name);
+			msg_print(Ind, "You enter a shadowy form, dispersing on any harmful impact.");
+			notice = TRUE;
+		}
+	}
+
+	/* Shut */
+	else {
+		if (p_ptr->dispersion) {
+			msg_format_near(Ind, "%s no longer has a shadowy form.", p_ptr->name);
+			msg_print(Ind, "You leave your shadowy form, no longer dispersing.");
+			notice = TRUE;
+		}
+	}
+
+	/* Use the value */
+	p_ptr->dispersion = v;
+	p_ptr->dispersion_tim = d;
+
+	/* Nothing to notice */
+	if (!notice) return(FALSE);
+
+	/* Disturb */
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* Recalculate boni */
+	p_ptr->update |= (PU_BONUS);
+
+	/* Redraw indicator */
+	p_ptr->redraw2 |= (PR2_INDICATORS);
 
 	/* Handle stuff */
 	handle_stuff(Ind);
@@ -2343,7 +2555,7 @@ bool set_res_fear(int Ind, int v) {
 }
 
 /*
- * Set "p_ptr->hero", notice observable changes
+ * Set "p_ptr->hero", notice observable changes (Heroism)
  */
 bool set_hero(int Ind, int v) {
 	player_type *p_ptr = Players[Ind];
@@ -2393,7 +2605,7 @@ bool set_hero(int Ind, int v) {
 
 
 /*
- * Set "p_ptr->shero", notice observable changes
+ * Set "p_ptr->shero", notice observable changes (Berserk Rage, overrides Fury)
  */
 bool set_shero(int Ind, int v) {
 	player_type *p_ptr = Players[Ind];
@@ -2498,10 +2710,18 @@ bool set_melee_sprint(int Ind, int v) {
 
 /*
  * Set "p_ptr->protevil", notice observable changes
+ * 'own': FALSE if from external source aka scroll; TRUE if via Holy School prayer that we cast.
+ *        own spells will work even with evil/undead mimic forms.
  */
-bool set_protevil(int Ind, int v) {
+bool set_protevil(int Ind, int v, bool own) {
 	player_type *p_ptr = Players[Ind];
 	bool notice = FALSE;
+
+#if 0	/* Actually, after some reading work, it seems it might be allowed! See SV_SCROLL_PROTECTION_FROM_EVIL notes. - C. Blue */
+	if (p_ptr->suscep_good) return(FALSE); /* Never work, even if cast by ourselves via prayer */
+#else
+	if (!own && p_ptr->suscep_good) return(FALSE);
+#endif
 
 	/* Hack -- Force good values */
 	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
@@ -2524,6 +2744,7 @@ bool set_protevil(int Ind, int v) {
 
 	/* Use the value */
 	p_ptr->protevil = v;
+	p_ptr->protevil_own = own;
 
 	/* Nothing to notice */
 	if (!notice) return(FALSE);
@@ -3511,6 +3732,9 @@ bool set_kinetic_shield(int Ind, int v) {
 	/* Open */
 	if (v) {
 		if (!p_ptr->kinetic_shield) {
+			/* Mutually exclusive */
+			if (p_ptr->spirit_shield) set_spirit_shield(Ind, 0, 0);
+
 			msg_print(Ind, "\376\377wYou create a kinetic barrier.");
 			notice = TRUE;
 		} else if (p_ptr->kinetic_shield > 10 && v <= 10) {
@@ -3591,6 +3815,9 @@ bool set_spirit_shield(int Ind, int power, int v) {
 	/* Open */
 	if (v) {
 		if (!p_ptr->spirit_shield) {
+			/* Mutually exclusive */
+			if (p_ptr->kinetic_shield) set_kinetic_shield(Ind, 0);
+
 			p_ptr->spirit_shield_pow = power;
 			msg_print(Ind, "\376\377wYou feel the spirits watching over you.");
 			notice = TRUE;
@@ -3776,52 +4003,6 @@ bool do_divine_xtra_res(int Ind, int v) {
 #endif
 
 /*
- * Set "p_ptr->tim_deflect", notice observable changes
- */
-bool set_tim_deflect(int Ind, int v) {
-	player_type *p_ptr = Players[Ind];
-	bool notice = FALSE;
-
-	/* Hack -- Force good values */
-	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
-
-	/* Open */
-	if (v) {
-		if (!p_ptr->tim_deflect) {
-			msg_print(Ind, "A deflective shield forms around your body!");
-			notice = TRUE;
-		}
-	}
-
-	/* Shut */
-	else {
-		if (p_ptr->tim_deflect) {
-			msg_print(Ind, "Your deflective shield crumbles away.");
-			notice = TRUE;
-		}
-	}
-
-
-	/* Use the value */
-	p_ptr->tim_deflect = v;
-
-	/* Nothing to notice */
-	if (!notice) return(FALSE);
-
-	/* Disturb */
-	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
-
-	/* Recalculate boni */
-	p_ptr->update |= (PU_BONUS);
-
-	/* Handle stuff */
-	handle_stuff(Ind);
-
-	/* Result */
-	return(TRUE);
-}
-
-/*
  * Set "p_ptr->sh_fire/cold/elec", notice observable changes
  */
 bool set_sh_fire_tim(int Ind, int v) {
@@ -3936,8 +4117,13 @@ bool set_sh_elec_tim(int Ind, int v) {
 	return(TRUE);
 }
 
-void set_shroud(int Ind, int v, int p) {
+/* Shadow Shroud: Grants AC bonus while standing on unlit floor grid.
+   Cannot coexist with 'reactive shield' magic though;
+   however, the only currently available spell of that sort is Fiery Shield.
+   Currently unused. */
+bool set_shroud(int Ind, int v, int p) {
 	player_type *p_ptr = Players[Ind];
+	bool notice = FALSE;
 
 	/* Hack -- Force good values */
 	v = (v > cfg.spell_stack_limit) ? cfg.spell_stack_limit : (v < 0) ? 0 : v;
@@ -3950,7 +4136,7 @@ void set_shroud(int Ind, int v, int p) {
 			p_ptr->shroud_power = p;
 
 			p_ptr->unlit_grid = no_real_lite(Ind);
-			if (p_ptr->unlit_grid) calc_boni(Ind);
+			if (p_ptr->unlit_grid) notice = TRUE;
 		} else {
 			bool old_unlit_grid = p_ptr->unlit_grid;
 
@@ -3958,12 +4144,28 @@ void set_shroud(int Ind, int v, int p) {
 			p_ptr->shroud_power = p;
 
 			p_ptr->unlit_grid = no_real_lite(Ind);
-			if (p_ptr->unlit_grid != old_unlit_grid) calc_boni(Ind);
+			if (p_ptr->unlit_grid != old_unlit_grid) notice = TRUE;
 		}
 	} else {
-		p_ptr->shrouded = 0;
-		p_ptr->shroud_power = 0;
+		if (p_ptr->shrouded) {
+			p_ptr->shrouded = 0;
+			p_ptr->shroud_power = 0;
+
+			p_ptr->unlit_grid = no_real_lite(Ind);
+			if (p_ptr->unlit_grid) notice = TRUE;
+		}
 	}
+
+	/* Nothing to notice */
+	if (!notice) return(FALSE);
+	/* Disturb */
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+	/* Recalculate boni */
+	p_ptr->update |= (PU_BONUS);
+	/* Handle stuff */
+	handle_stuff(Ind);
+	/* Result */
+	return(TRUE);
 }
 
 
@@ -4550,7 +4752,7 @@ static void check_training(int Ind) {
 
 	if (train < 1) return;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < C_ATTRIBUTES; i++) {
 		value = p_ptr->stat_cur[i];
 		value2 = p_ptr->stat_ind[i];
 		chance = train;
@@ -4649,10 +4851,10 @@ void check_experience(int Ind) {
 	/* Lose levels while possible */
 #ifndef ALT_EXPRATIO
 	while ((p_ptr->lev > 1) &&
-	    (p_ptr->exp < ((s64b)((s64b)player_exp[p_ptr->lev-2] * (s64b)p_ptr->expfact / 100L))))
+	    (p_ptr->exp < ((s64b)((s64b)player_exp[p_ptr->lev - 2] * (s64b)p_ptr->expfact / 100L))))
 #else
 	while ((p_ptr->lev > 1) &&
-	    (p_ptr->exp < (s64b)player_exp[p_ptr->lev-2]))
+	    (p_ptr->exp < (s64b)player_exp[p_ptr->lev - 2]))
 #endif
 	{
 		/* Lose a level */
@@ -4666,10 +4868,10 @@ void check_experience(int Ind) {
 	/* Remember maximum level (the one displayed if life levels were restored right now) */
 #ifndef ALT_EXPRATIO
 	while ((p_ptr->max_lev > 1) &&
-	    (p_ptr->max_exp < ((s64b)((s64b)player_exp[p_ptr->max_lev-2] * (s64b)p_ptr->expfact / 100L))))
+	    (p_ptr->max_exp < ((s64b)((s64b)player_exp[p_ptr->max_lev - 2] * (s64b)p_ptr->expfact / 100L))))
 #else
 	while ((p_ptr->max_lev > 1) &&
-	    (p_ptr->max_exp < (s64b)player_exp[p_ptr->max_lev-2]))
+	    (p_ptr->max_exp < (s64b)player_exp[p_ptr->max_lev - 2]))
 #endif
 	{
 		/* Lose a level */
@@ -4682,10 +4884,10 @@ void check_experience(int Ind) {
 	/* Gain levels while possible */
 #ifndef ALT_EXPRATIO
 	while ((p_ptr->lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->exp >= ((s64b)(((s64b)player_exp[p_ptr->lev-1] * (s64b)p_ptr->expfact) / 100L))))
+	    (p_ptr->exp >= ((s64b)(((s64b)player_exp[p_ptr->lev - 1] * (s64b)p_ptr->expfact) / 100L))))
 #else
 	while ((p_ptr->lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->exp >= (s64b)player_exp[p_ptr->lev-1]))
+	    (p_ptr->exp >= (s64b)player_exp[p_ptr->lev - 1]))
 #endif
 	{
 		if (p_ptr->inval && p_ptr->lev >= 25) {
@@ -4710,7 +4912,7 @@ void check_experience(int Ind) {
 			if (in_irondeepdive(&p_ptr->wpos)) {
 				int s, drained_attrs = 0, drained_attr[6];
 
-				for (s = 0; s < 6; s++)
+				for (s = 0; s < C_ATTRIBUTES; s++)
 					if (p_ptr->stat_cur[s] != p_ptr->stat_max[s])
 						drained_attr[drained_attrs++] = s;
 				if (drained_attrs) res_stat(Ind, drained_attr[rand_int(drained_attrs)]);
@@ -4725,7 +4927,7 @@ void check_experience(int Ind) {
 			distribution so that characters gain 250..300
 			skill points in total (TLRanger..YeekWarrior)*/
 			for (i = 50; i < 69; i++) {
-				if ((((s64b)player_exp[i-1] * (s64b)p_ptr->expfact) / 100L) > 21240000) break;
+				if ((((s64b)player_exp[i - 1] * (s64b)p_ptr->expfact) / 100L) > 21240000) break;
 			}
 			i--;/* i now contains the maximum reachable level for
 			    this character, due to exp cap 21240000 */
@@ -4778,10 +4980,10 @@ void check_experience(int Ind) {
 	/* Remember maximum level (the one displayed if life levels were restored right now) */
 #ifndef ALT_EXPRATIO
 	while ((p_ptr->max_lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->max_exp >= ((s64b)(((s64b)player_exp[p_ptr->max_lev-1] * (s64b)p_ptr->expfact) / 100L))))
+	    (p_ptr->max_exp >= ((s64b)(((s64b)player_exp[p_ptr->max_lev - 1] * (s64b)p_ptr->expfact) / 100L))))
 #else
 	while ((p_ptr->max_lev < (is_admin(p_ptr) ? PY_MAX_LEVEL : PY_MAX_PLAYER_LEVEL)) &&
-	    (p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev-1]))
+	    (p_ptr->max_exp >= (s64b)player_exp[p_ptr->max_lev - 1]))
 #endif
 	{
 		/* Gain a level */
@@ -4822,6 +5024,9 @@ void check_experience(int Ind) {
 		clockin(Ind, 1);
 	}
 
+	/* Update his level in everyone's player-list subwindow */
+	if (reglv || newlv) Send_playerlist(0, Ind, 2);
+
 	if (!newlv) {
 		/* Handle stuff */
 		handle_stuff(Ind);
@@ -4833,9 +5038,9 @@ void check_experience(int Ind) {
 	/* Message */
 	msg_format(Ind, "\374\377GWelcome to level %d. You have %d skill points.", p_ptr->lev, p_ptr->skill_points);
 	if (!is_admin(p_ptr)) {
-		if (p_ptr->lev == 99) l_printf("%s \\{U*** \\{g%s has attained level 99 \\{U***\n", showdate(), p_ptr->name);
-		else if (p_ptr->lev >= 90) l_printf("%s \\{g%s has attained level %d\n", showdate(), p_ptr->name, p_ptr->lev);
-		else if (old_lev < 80 && p_ptr->lev >= 80) l_printf("%s \\{g%s has attained level 80\n", showdate(), p_ptr->name);
+		if (p_ptr->lev == 99) l_printf("%s \\{U*** \\{G%s has attained level 99 \\{U***\n", showdate(), p_ptr->name);
+		else if (p_ptr->lev >= 90) l_printf("%s \\{G%s has attained level %d\n", showdate(), p_ptr->name, p_ptr->lev);
+		else if (old_lev < 80 && p_ptr->lev >= 80) l_printf("%s \\{G%s has attained level 80\n", showdate(), p_ptr->name);
 		else if (old_lev < 70 && p_ptr->lev >= 70) l_printf("%s \\{g%s has attained level 70\n", showdate(), p_ptr->name);
 		else if (old_lev < 60 && p_ptr->lev >= 60) l_printf("%s \\{g%s has attained level 60\n", showdate(), p_ptr->name);
 	}
@@ -5121,6 +5326,7 @@ void check_experience(int Ind) {
 					//msg_print(Ind, "\377RYou don't deserve to live.");
 					msg_print(Ind, "\377RYour indecision proves you aren't ready yet to stay in this realm!");
 					strcpy(p_ptr->died_from, "indecisiveness");
+					s_printf("MAIA-INITFAIL(init): %s killed 0+0.\n", p_ptr->name);
 					p_ptr->died_from_ridx = 0;
 					p_ptr->deathblow = 0;
 					p_ptr->death = TRUE;
@@ -5137,6 +5343,7 @@ void check_experience(int Ind) {
 				if (p_ptr->r_killed[RI_CANDLEBEARER] != 0 && p_ptr->r_killed[RI_DARKLING] != 0) {
 					msg_print(Ind, "\377RYour indecision proves you aren't ready yet to stay in this realm!");
 					strcpy(p_ptr->died_from, "indecisiveness");
+					s_printf("MAIA-INITFAIL(init): %s killed %d+%d.\n", p_ptr->name, p_ptr->r_killed[RI_CANDLEBEARER], p_ptr->r_killed[RI_DARKLING]);
 					p_ptr->died_from_ridx = 0;
 					p_ptr->deathblow = 0;
 					p_ptr->death = TRUE;
@@ -5768,8 +5975,8 @@ bool monster_death(int Ind, int m_idx) {
 
 	int	number = 0;
 
-	char buf[160], m_name[MAX_CHARS], o_name[ONAME_LEN];
-	cptr titlebuf;
+	char buf[MAX_CHARS_WIDE], m_name[MAX_CHARS], o_name[ONAME_LEN];
+	char titlebuf[MAX_CHARS_WIDE];
 
 	dungeon_type *d_ptr = getdungeon(&p_ptr->wpos);
 
@@ -5785,6 +5992,7 @@ bool monster_death(int Ind, int m_idx) {
 	bool is_Sauron = (m_ptr->r_idx == RI_SAURON);
 	bool is_ZuAon = (m_ptr->r_idx == RI_ZU_AON);
 	bool is_Pumpkin = (m_ptr->r_idx == RI_PUMPKIN);
+	bool is_Santa = (m_ptr->r_idx == RI_SANTA1 || m_ptr->r_idx == RI_SANTA2);
 	int credit_idx = r_ptr->dup_idx ? r_ptr->dup_idx : m_ptr->r_idx;
 	int r_idx = m_ptr->r_idx;
 	//bool visible = (p_ptr->mon_vis[m_idx] || (r_ptr->flags1 & RF1_UNIQUE));
@@ -5829,9 +6037,20 @@ bool monster_death(int Ind, int m_idx) {
 	if (m_ptr->charmedignore) {
 		int Ind = find_player(m_ptr->charmedignore);
 
-		if (Ind) Players[Ind]->mcharming--;
+		if (Ind) {
+			player_type *p_ptr = Players[Ind];
+
+			p_ptr->mcharming--;
+			if (!p_ptr->mcharming) {
+				p_ptr->redraw2 |= (PR2_INDICATORS); /* Redraw indicator */
+				msg_print(Ind, "Your charm spell breaks!");
+			}
+		}
 		m_ptr->charmedignore = 0;
 	}
+
+	/* Custom LUA hacks? */
+	if (m_ptr->custom_lua_death) exec_lua(0, format("custom_monster_death(%d,%d,%d)", Ind, m_idx, m_ptr->custom_lua_death));
 
 	if (m_ptr->special) s_printf("MONSTER_DEATH: Golem of '%s' by '%s'.\n", lookup_player_name(m_ptr->owner), p_ptr->name);
 #ifdef RPG_SERVER
@@ -5901,8 +6120,7 @@ bool monster_death(int Ind, int m_idx) {
 			strcpy(great_pumpkin_killer2, p_ptr->accountname);
 		}
 	} else if (season_xmas) {
-		if ((r_idx == RI_SANTA1 || r_idx == RI_SANTA2)
-		    && !m_ptr->clone) {
+		if (is_Santa && !m_ptr->clone) {
 			msg_broadcast_format(0, "\374\377L**\377oSanta dropped the presents near %s!\377L**", p_ptr->name);
 #ifdef TOMENET_WORLDS
 			if (cfg.worldd_events) world_msg(format("\374\377L**\377oSanta dropped the presents near %s!\377L**", p_ptr->name));
@@ -5926,7 +6144,11 @@ bool monster_death(int Ind, int m_idx) {
 		char tmp[MSG_LEN];
 
 		if (cfg.unikill_format)
+#ifdef ENABLE_SUBCLASS_TITLE
+			sprintf(tmp, "\374\377c**\377s%s%s%s %s has defeated %s mirror image.\377c**", get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE), p_ptr->name, p_ptr->male ? "his" : "her");
+#else
 			sprintf(tmp, "\374\377c**\377s%s %s has defeated %s mirror image.\377c**", get_ptitle(q_ptr, FALSE), p_ptr->name, p_ptr->male ? "his" : "her");
+#endif
 		else
 			sprintf(tmp, "\374\377c**\377s%s has defeated %s mirror image.\377c**", p_ptr->name, p_ptr->male ? "his" : "her");
 
@@ -6106,7 +6328,7 @@ bool monster_death(int Ind, int m_idx) {
 #ifdef DED_IDDC_MANDOS
 	    && !in_hallsofmandos(&p_ptr->wpos)
 #endif
-	    && r_ptr->mexp) /* Allow kills in Bree */
+	    && r_ptr->mexp) /* Allow normal townie kills in Bree */
 		return(FALSE);
 	/* clones don't drop treasure or complete quests.. */
 	if (m_ptr->clone) {
@@ -6117,7 +6339,7 @@ bool monster_death(int Ind, int m_idx) {
 				dun_level *l_ptr = getfloor(&p_ptr->wpos);
 
 				l_ptr->flags1 |= LF1_IRON_RECALL;
-				floor_msg_format(&p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
+				floor_msg_format(0, &p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
 			}
 		}
 
@@ -6127,7 +6349,8 @@ bool monster_death(int Ind, int m_idx) {
 	/* ..neither do cheezed kills */
 	if (henc_cheezed &&
 	    !is_Morgoth && /* make exception for Morgoth, so hi-lvl fallen kings can re-king */
-	    !is_Pumpkin /* allow a mixed hunting group */
+	    !is_Pumpkin && /* allow a mixed hunting group */
+	    !is_Santa /* allow a mixed hunting group */
 #ifndef NO_HENC_CHEEZED_LOOT
 	    /* ..however, never have henc'ed unique monsters drop loot, since kill credit won't be given for them, so could repeatedly loot them */
 	    && (m_ptr->questor || (r_ptr->flags1 & RF1_UNIQUE))
@@ -6141,9 +6364,9 @@ bool monster_death(int Ind, int m_idx) {
 	/* Determine how much we can drop */
 	if ((r_ptr->flags1 & RF1_DROP_60) && (rand_int(100) < 60)) number++;
 	if ((r_ptr->flags1 & RF1_DROP_90) && (rand_int(100) < 90)) number++;
-	if (r_ptr->flags0 & RF0_DROP_1) number++;
+	if (r_ptr->flags1 & RF1_DROP_1) number++;
 	if (r_ptr->flags1 & RF1_DROP_1D2) number += damroll(1, 2);
-	if (r_ptr->flags0 & RF0_DROP_2) number += 2;
+	if (r_ptr->flags1 & RF1_DROP_2) number += 2;
 	if (r_ptr->flags1 & RF1_DROP_2D2) number += damroll(2, 2);
 	if (r_ptr->flags1 & RF1_DROP_3D2) number += damroll(3, 2);
 	if (r_ptr->flags1 & RF1_DROP_4D2) number += damroll(4, 2);
@@ -6157,6 +6380,10 @@ bool monster_death(int Ind, int m_idx) {
 		tmp_luck += 20;
 		/* luck caps at 40 */
 		if (tmp_luck > 40) tmp_luck = 40;
+	} else if (is_Santa) {
+		/* Hack: Abuse unique quark marker to generate presents */
+		local_quark = quark_add(r_name + r_ptr->name);
+		unique_quark = local_quark;
 	}
 
 	/* Questors: Usually drop no items, except if specified */
@@ -6368,17 +6595,17 @@ bool monster_death(int Ind, int m_idx) {
 				/* hack to allow custom test l00t drop for admins: */
 				if (is_admin(p_ptr)) {
 					/* the hack works by using weapon's inscription! */
-					char *k_tval, *k_sval;
+					char *k_tval_p, *k_sval_p;
 
 					if (p_ptr->inventory[INVEN_WIELD].tval &&
 					    p_ptr->inventory[INVEN_WIELD].note &&
-					    (k_tval = strchr(quark_str(p_ptr->inventory[INVEN_WIELD].note), '%')) &&
-					    (k_sval = strchr(k_tval, ':'))
+					    (k_tval_p = strchr(quark_str(p_ptr->inventory[INVEN_WIELD].note), '%')) &&
+					    (k_sval_p = strchr(k_tval_p, ':'))
 					    ) {
 						resf_drops |= RESF_DEBUG_ITEM;
 						/* extract tval:sval */
 						/* abuse luck parameter for this */
-						tmp_luck = lookup_kind(atoi(k_tval + 1), atoi(k_sval + 1));
+						tmp_luck = lookup_kind(atoi(k_tval_p + 1), atoi(k_sval_p + 1));
 						/* catch invalid items */
 						if (!tmp_luck) resf_drops &= ~RESF_DEBUG_ITEM;
 					}
@@ -6515,12 +6742,12 @@ bool monster_death(int Ind, int m_idx) {
 					object_type forge;
 					int s_chem =
 #ifdef NO_RUST_NO_HYDROXIDE
-					    randint(9);
+					    randint(CHEMICALS_NUM);
 
 					if (s_chem >= SV_METAL_HYDROXIDE) s_chem++;
 					if (s_chem >= SV_RUST) s_chem++;
 #else
-					    randint(11);
+					    randint(CHEMICALS_NUM);
 #endif
 
 					invcopy(&forge, lookup_kind(TV_CHEMICAL, s_chem));
@@ -6605,7 +6832,11 @@ bool monster_death(int Ind, int m_idx) {
 #endif
 
 	/* Rogues can harvest poison for their Apply Poison technique */
-	if ((p_ptr->melee_techniques & MT_POISON) && (r_ptr->flags4 & RF4_BR_POIS) && r_ptr->weight >= 4000 && !p_ptr->IDDC_logscum) { // Dragon-league basically, but also Aklash (exactly 4000)!
+	if ((p_ptr->melee_techniques & MT_POISON) && (r_ptr->flags4 & RF4_BR_POIS) && !p_ptr->IDDC_logscum
+	    && (r_ptr->weight >= 4000 /* Dragon-league basically, but also Aklash (exactly 4000)! */
+	     || (r_ptr->weight >= 400 &&
+	      ((r_ptr->d_char != 'w' && r_ptr->d_char != 'I' && r_ptr->d_char != 'Z') || (!(r_ptr->flags7 & RF7_MULTIPLY) && !(r_ptr->flags1 & RF1_FRIENDS)))))
+	    ) {
 		/* Actually require weapons though so martial arts rogues don't get potion spammed for nothing */
 		if ((p_ptr->inventory[INVEN_WIELD].k_idx || (p_ptr->inventory[INVEN_ARM].k_idx && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD)) &&
 		    !p_ptr->suppress_ingredients && rand_int(7) < 3 * r_ptr->weight / 1000) {
@@ -6659,15 +6890,17 @@ bool monster_death(int Ind, int m_idx) {
 	if (p_ptr->prace == RACE_MAIA && !p_ptr->ptrait) {
 		switch (r_idx) {
 		case RI_CANDLEBEARER:
-			if (p_ptr->r_killed[RI_DARKLING] != 0)
+			if (p_ptr->r_killed[RI_DARKLING] != 0) {
 				msg_print(Ind, "\377rYour presence in the realm is forfeit!");
-			else if (p_ptr->r_killed[RI_CANDLEBEARER] == 0)
+				s_printf("MAIA-INITFAIL(kill): %s killed %d+%d.\n", p_ptr->name, p_ptr->r_killed[RI_CANDLEBEARER], p_ptr->r_killed[RI_DARKLING]);
+			} else if (p_ptr->r_killed[RI_CANDLEBEARER] == 0)
 				msg_print(Ind, "\377yYou have stepped on the path to corruption..");
 			break;
 		case RI_DARKLING:
-			if (p_ptr->r_killed[RI_CANDLEBEARER] != 0)
+			if (p_ptr->r_killed[RI_CANDLEBEARER] != 0) {
 				msg_print(Ind, "\377rYour presence in the realm is forfeit!");
-			else if (p_ptr->r_killed[RI_DARKLING] == 0)
+				s_printf("MAIA-INITFAIL(kill): %s killed %d+%d.\n", p_ptr->name, p_ptr->r_killed[RI_CANDLEBEARER], p_ptr->r_killed[RI_DARKLING]);
+			} else if (p_ptr->r_killed[RI_DARKLING] == 0)
 				msg_print(Ind, "\377yYou have stepped on the path to enlightenment..");
 			break;
 		}
@@ -6714,15 +6947,14 @@ bool monster_death(int Ind, int m_idx) {
 			/* There is a 1 in (m_ptr->level - kill count)^2 chance of learning form straight away
 			 * to make it easier (at least statistically) getting forms in the iron server. Plus,
 			 * mimicked speed and hp are lowered already anyway.	- the_sandman */
-			if ( ( r_info[r_idx].level - p_ptr->r_mimicry[credit_idx] > 0 ) &&
-			     ( (randint((r_info[r_idx].level - p_ptr->r_mimicry[credit_idx]) *
-			    (r_info[r_idx].level - p_ptr->r_mimicry[credit_idx])) == 1))) {
-				    /* Instant form learning! */
+			if ((r_info[r_idx].level - p_ptr->r_mimicry[credit_idx] > 0) &&
+			     ((randint((r_info[r_idx].level - p_ptr->r_mimicry[credit_idx]) *
+			    (r_info[r_idx].level - p_ptr->r_mimicry[credit_idx])) == 1)))
+				/* Instant form learning! */
 				p_ptr->r_mimicry[credit_idx] = r_info[credit_idx].level;
-			} else {
+			else
 				/* Normal form-learning process: +1 credit */
 				p_ptr->r_mimicry[credit_idx]++;
-			}
 
 			/* (Note: There is no PvP mode on RPG-server) */
 #else
@@ -6795,7 +7027,13 @@ bool monster_death(int Ind, int m_idx) {
 		/* give credit to the killer by default */
 if (cfg.unikill_format) {
 	/* let's try with titles before the name :) -C. Blue */
-		titlebuf = get_ptitle(q_ptr, FALSE);
+		strcpy(titlebuf, get_ptitle(q_ptr, FALSE));
+#ifdef ENABLE_SUBCLASS_TITLE
+		if (q_ptr->sclass) {
+			strcat(titlebuf, " ");
+			strcat(titlebuf, get_ptitle2(q_ptr, FALSE));
+		}
+#endif
 
 		if (is_Morgoth)
 			snprintf(buf, sizeof(buf), "\374\377v**\377L%s was slain by %s %s.\377v**", r_name_get(m_ptr), titlebuf, p_ptr->name);
@@ -6803,7 +7041,7 @@ if (cfg.unikill_format) {
 		else if (is_ZuAon)
 			snprintf(buf, sizeof(buf), "\374\377x**\377c%s was slain by %s %s.\377x**", r_name_get(m_ptr), titlebuf, p_ptr->name);
 #endif
-		else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) {
+		else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 #ifdef IDDC_BOSS_COL
 			if (in_iddc) snprintf(buf, sizeof(buf), "\374\377D**\377c%s was slain by %s %s.\377D**", r_name_get(m_ptr), titlebuf, p_ptr->name);
 			else
@@ -6822,7 +7060,7 @@ if (cfg.unikill_format) {
 			else if (is_ZuAon)
 				snprintf(buf, sizeof(buf), "\374\377x**\377c%s was slain by %s.\377x**", r_name_get(m_ptr), p_ptr->name);
 #endif
-			else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) {
+			else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 #ifdef IDDC_BOSS_COL
 				if (in_iddc) snprintf(buf, sizeof(buf), "\374\377D**\377c%s was slain by %s.\377D**", r_name_get(m_ptr), p_ptr->name);
 				else
@@ -6837,7 +7075,7 @@ if (cfg.unikill_format) {
 			else if (is_ZuAon)
 				snprintf(buf, sizeof(buf), "\374\377x**\377c%s was slain by fusion %s-%s.\377x**", r_name_get(m_ptr), p_ptr->name, p_ptr2->name);
 #endif
-			else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) {
+			else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 #ifdef IDDC_BOSS_COL
 				if (in_iddc) snprintf(buf, sizeof(buf), "\374\377D**\377c%s was slain by fusion %s-%s.\377D**", r_name_get(m_ptr), p_ptr->name, p_ptr2->name);
 				else
@@ -6851,15 +7089,14 @@ if (cfg.unikill_format) {
 		   level, and the level is not 0 (the town)  */
 		if (p_ptr->party) {
 			for (i = 1; i <= NumPlayers; i++) {
-				if ( (Players[i]->party == p_ptr->party) && (inarea(&Players[i]->wpos, &p_ptr->wpos)) && (i != Ind) && (p_ptr->wpos.wz) )
-				{
+				if ((Players[i]->party == p_ptr->party) && (inarea(&Players[i]->wpos, &p_ptr->wpos)) && (i != Ind) && (p_ptr->wpos.wz)) {
 					if (is_Morgoth)
 						snprintf(buf, sizeof(buf), "\374\377v**\377L%s was slain by %s of %s.\377v**", r_name_get(m_ptr), p_ptr->name, parties[p_ptr->party].name);
 #ifdef ZU_AON_FLASHY_MSG
 					else if (is_ZuAon)
 						snprintf(buf, sizeof(buf), "\374\377x**\377c%s was slain by %s of %s.\377x**", r_name_get(m_ptr), p_ptr->name, parties[p_ptr->party].name);
 #endif
-					else if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) {
+					else if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 #ifdef IDDC_BOSS_COL
 						if (in_iddc) snprintf(buf, sizeof(buf), "\374\377D**\377c%s was slain by %s of %s.\377D**", r_name_get(m_ptr), p_ptr->name, parties[p_ptr->party].name);
 						else
@@ -6910,7 +7147,7 @@ if (cfg.unikill_format) {
 			/* Log superunique kills to its own file */
 #if 0
 			/* The Living Lightning is considered to be just a 'normal' dungeon boss. What about Bahamut? (Atm he is one) */
-			if (is_ZuAon || (!is_Sauron && !is_Morgoth && !(r_ptr->flags0 & RF0_FINAL_GUARDIAN) && r_ptr->level >= 98))
+			if (is_ZuAon || (!is_Sauron && !is_Morgoth && !(r_ptr->flags8 & RF8_FINAL_GUARDIAN) && r_ptr->level >= 98))
 				su_print(format("%s was slain by %s.\n", r_name_get(m_ptr), p_ptr->name));
 #else
 			/* The Living Lightning, even though a dungeon boss, is now considered a SU too,
@@ -6940,7 +7177,7 @@ if (cfg.unikill_format) {
 			/* Allow exceptional recalling.. */
 			l_ptr->flags1 |= LF1_IRON_RECALL;
 			/* ..and notify everyone on the level about it */
-			floor_msg_format(&p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
+			floor_msg_format(0, &p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
 		}
 	}
 	else if (is_Sauron) {
@@ -6954,7 +7191,7 @@ if (cfg.unikill_format) {
 			dun_level *l_ptr = getfloor(&p_ptr->wpos);
 
 			l_ptr->flags1 |= LF1_IRON_RECALL;
-			floor_msg_format(&p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
+			floor_msg_format(0, &p_ptr->wpos, "\374\377gYou don't sense a magic barrier here!");
 		}
 
 		/* for The One Ring.. */
@@ -6975,7 +7212,7 @@ if (cfg.unikill_format) {
 	}
 
 	/* Dungeon bosses often drop a dungeon-set true artifact (for now 1 in 3 chance) */
-	if ((r_ptr->flags0 & RF0_FINAL_GUARDIAN)) {
+	if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 		bool no_art = TRUE;
 
 		msg_format(Ind, "\374\377UYou have conquered %s!", d_name +
@@ -7620,6 +7857,7 @@ if (cfg.unikill_format) {
 				/* No winner arts for this.. */
 				if (a_ptr->flags5 & TR5_WINNERS_ONLY) continue;
 
+				/* (ART_ANTIRIAD is ruled out via HEAVY_CURSE check already, so no DI_MT_DOOM check is needed) */
 
 				/* SUCCESS */
 
@@ -7847,6 +8085,15 @@ if (cfg.unikill_format) {
 			/* hack ego power */
 			qq_ptr->name2 = EGO_RISTARI;
 			qq_ptr->name2b = 0;
+			drop_near(TRUE, 0, qq_ptr, -1, wpos, y, x);
+
+			/* recharge cell */
+			object_wipe(qq_ptr);
+			invcopy(qq_ptr, lookup_kind(TV_JUNK, SV_ENERGY_CELL));
+			qq_ptr->number = 1;
+			qq_ptr->note = local_quark;
+			qq_ptr->note_utag = strlen(quark_str(local_quark));
+			apply_magic(wpos, qq_ptr, 150, TRUE, TRUE, TRUE, TRUE, RESF_NONE);
 			drop_near(TRUE, 0, qq_ptr, -1, wpos, y, x);
 
 		/* dungeon boss, but drops multiple items */
@@ -8124,10 +8371,11 @@ if (cfg.unikill_format) {
 		/* Get local object */
 		qq_ptr = &forge;
 
-		/* Prepare to make some Firestone */
+		/* Prepare to make some Firework */
 		invcopy(qq_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_FIREWORK));
 		qq_ptr->number = 1;
 		apply_magic(wpos, qq_ptr, -1, TRUE, TRUE, FALSE, FALSE, RESF_NONE);
+		qq_ptr->level = 1;
 
 		s_printf("NEWYEARSEVE: Dropped fireworks (%d,%d) for '%s'.\n", qq_ptr->xtra1, qq_ptr->xtra2, p_ptr->name);
 		drop_near(TRUE, 0, qq_ptr, -1, wpos, y, x);
@@ -8314,6 +8562,7 @@ void kill_houses(int id, byte type) {
 
 	for (i = 0; i < num_houses; i++) {
 		struct dna_type *dna = houses[i].dna;
+
 		if (dna->owner == id && dna->owner_type == type) {
 			dna->owner = 0L;
 			dna->creator = 0L;
@@ -8448,7 +8697,7 @@ void merchant_mail_death(const char pname[CNAME_LEN]) {
 }
 #endif
 
-/* Deletes a ghost-dead player, cleans up his business, and disconnects him.
+/* Deletes a ghost-dead player, cleans up his business, sends chardump info and disconnects him.
    static_floor: TRUE if player ghost-dies or his ghost is destroyed.
                  FALSE for non-final death or suicide.
    NOTE:
@@ -8456,18 +8705,43 @@ void merchant_mail_death(const char pname[CNAME_LEN]) {
 static void erase_player(int Ind, int death_type, bool static_floor) {
 	player_type *p_ptr = Players[Ind];
 	char buf[1024];
-	int i;
-	int *id_list, ids;
+	int i, k;
+#ifdef SAFETY_BACKUP_PLAYER
+	int j;
+#endif
+	int *id_list, ids, pid = p_ptr->id;
+	global_event_type *ge;
+
+	s_printf("Called erase_player(%d) = '%s' (%s)\n", Ind, p_ptr->name, p_ptr->accountname);
+
+	/* Remove ID from any ongoing events in case a new/same player takes ID */
+	for (i = 0; i < MAX_GLOBAL_EVENTS; i++) {
+		ge = &global_event[i];
+		if (!ge->getype) continue;
+		for (k = 0; k < MAX_GE_PARTICIPANTS; k++) {
+			if (ge->participant[k] == p_ptr->id) {
+				ge->participant[k] = 0;
+				s_printf("%s EVENT_UNPARTICIPATE (0): '%s' (%d) -> #%d '%s'(%d) [%d]\n", showtime(), p_ptr->name, Ind, i, ge->title, ge->getype, k);
+				p_ptr->global_event_type[i] = 0;
+			}
+		}
+	}
 
 #ifdef SAFETY_BACKUP_PLAYER
-	int j = p_ptr->max_lev;
+	j = p_ptr->max_plv;
+
+	/* (Paranoia, this is just for erase_player_hash() where this bug actually occured) Strange bug, workaround */
+	if (j < p_ptr->max_lev) {
+		s_printf("(BUG: max_plv %d < max_lev %d)\n", j, p_ptr->max_lev);
+		j = p_ptr->max_lev;
+	}
 
 	if (j < SAFETY_BACKUP_PLAYER) {
 		e_printf("(%s) %s (%d, %s)\n", showtime(), p_ptr->name, p_ptr->lev, p_ptr->accountname); /* log to erasure.log file for compact overview */
-		s_printf("(Skipping safety backup (level %d < %d))\n", j, SAFETY_BACKUP_PLAYER);
+		s_printf("(Skipping safety backup (max_plv %d < %d))\n", j, SAFETY_BACKUP_PLAYER);
 	} else {
 		e_printf("(%s) %s (%d, %s) BACKUP\n", showtime(), p_ptr->name, p_ptr->lev, p_ptr->accountname); /* log to erasure.log file for compact overview */
-		s_printf("(Creating safety backup (level %d >= %d)\n", j, SAFETY_BACKUP_PLAYER);
+		s_printf("(Creating safety backup (max_plv %d >= %d)\n", j, SAFETY_BACKUP_PLAYER);
 
 		/* rename savefile to backup (side note: unlink() will fail to delete it then later) */
 		//sf_rename(p_ptr->name, FALSE);
@@ -8475,7 +8749,7 @@ static void erase_player(int Ind, int death_type, bool static_floor) {
 		sf_rename(p_ptr->name, TRUE);
 
 		/* save all real estate.. */
-		if (!backup_char_estate(0, p_ptr->id, p_ptr->id))
+		if (!backup_char_estate(0, p_ptr->id, p_ptr->name))
 			s_printf("(Estate backup: At least one house failed!)\n");
 		/* ..and rename estate file to indicate it's just a backup! */
 		ef_rename(p_ptr->name);
@@ -8579,19 +8853,28 @@ static void erase_player(int Ind, int death_type, bool static_floor) {
 		C_KILL(id_list, ids, int);
 	}
 
-
 	/* Remove him from the player name database */
 	delete_player_name(p_ptr->name);
 
 	/* Put him on the high score list */
-	if (!p_ptr->noscore && !(p_ptr->mode & (MODE_PVP | MODE_EVERLASTING)))
-		add_high_score(Ind);
+	if (!p_ptr->noscore && !(p_ptr->mode & (MODE_PVP | MODE_EVERLASTING))) add_high_score(Ind);
 
 	/* Format string for death reason */
-	if (death_type == DEATH_QUIT) strcpy(buf, "Committed suicide");
+	if (death_type == DEATH_QUIT_SUI) strcpy(buf, "Committed suicide");
+	else if (death_type == DEATH_QUIT_RET) strcpy(buf, "Retired");
 	else if (!strcmp(p_ptr->died_from, "It") || !strcmp(p_ptr->died_from, "insanity") || p_ptr->image)
 		snprintf(buf, sizeof(buf), "Killed by %s (%d pts)", p_ptr->really_died_from, total_points(Ind));
 	else snprintf(buf, sizeof(buf), "Killed by %s (%d pts)", p_ptr->died_from, total_points(Ind));
+
+	/* NOTE: Net_output1() can possibly result in a "write error" if something is wrong with the player's connection.
+	   The write error would excise him from the player database prematurely, so Ind indices would shift.
+	   For that reason, there must NOT be any more operations on Ind of this player after this, or a wrong player
+	   might get affected instead! - C. Blue */
+	if (death_type == DEATH_GHOST) Send_chardump(Ind, "-ghost");
+	else Send_chardump(Ind, "-death");
+	Net_output1(Ind);
+	/* Catch connection destruction from Net_output1(): */
+	if (p_ptr->id != pid) return; /* Already destroyed, don't destroy another (wrong) player's connection! */
 
 	/* Get rid of him */
 	Destroy_connection(p_ptr->conn, buf);
@@ -8658,7 +8941,7 @@ static void inven_death_damage(int Ind, int verbose) {
   #endif
  #endif
 		/* protect starter items? this is mainly for starter spell books.. */
-		if (!inventory_loss_starteritems && o_ptr->xtra9 == 1) continue;
+		if (!inventory_loss_starteritems && (o_ptr->mode & MODE_STARTER_ITEM)) continue;
 
 		if (magik(DEATH_PACK_ITEM_LOST)) {
 			k = o_ptr->number;
@@ -8811,7 +9094,7 @@ static void display_diz_death(int Ind) {
 
 	if (streq(p_ptr->died_from, "It") ||
 	    streq(p_ptr->died_from, "insanity") ||
-	    streq(p_ptr->died_from, "poison") || streq(p_ptr->died_from, "disease")
+	    streq(p_ptr->died_from, "poison") || streq(p_ptr->died_from, "disease") || streq(p_ptr->died_from, "a fatal wound")
 	    || streq(p_ptr->died_from, "indecisiveness")
 	    || streq(p_ptr->died_from, "indetermination")
 	    || streq(p_ptr->died_from, "starvation")
@@ -8887,13 +9170,12 @@ void player_death(int Ind) {
 	//int inven_sort_map[INVEN_TOTAL];
 	//wilderness_type *wild;
 	bool hell = TRUE, secure = FALSE, ge_secure = FALSE, pvp = ((p_ptr->mode & MODE_PVP) != 0), erase = FALSE, insanity = streq(p_ptr->died_from, "insanity"), penalty = FALSE;
-	cptr titlebuf;
-	int death_type = -1; /* keep track of the way (s)he died, for buffer_account_for_event_deed() */
+	char titlebuf[MAX_CHARS], logtitlebuf[MAX_CHARS];
+	int death_type = DEATH_NONE; /* keep track of the way (s)he died, for buffer_account_for_event_deed() */
 #ifdef TOMENET_WORLDS
 	bool world_broadcast = TRUE;
 #endif
 	bool just_fruitbat_transformation = (p_ptr->fruit_bat == -1);
-	bool retire = FALSE;
 	bool in_iddc = in_irondeepdive(&p_ptr->wpos);
 	object_type *inventory_copy = C_NEW(INVEN_TOTAL, object_type);
 
@@ -8936,7 +9218,18 @@ void player_death(int Ind) {
 	}
 
 	/* prepare player's title */
-	titlebuf = get_ptitle(p_ptr, FALSE);
+	strcpy(titlebuf, get_ptitle(p_ptr, FALSE));
+#ifdef ENABLE_SUBCLASS_TITLE
+	if (p_ptr->sclass) {
+		strcat(titlebuf, " ");
+		strcat(titlebuf, get_ptitle2(p_ptr, FALSE));
+	}
+#endif
+
+	/* For the log file and therefore also for the "recent deaths" list:
+	   Actually add th class title before the player's name. */
+	strcpy(logtitlebuf, titlebuf);
+	strcat(logtitlebuf, " ");
 
 	break_cloaking(Ind, 0);
 	break_shadow_running(Ind);
@@ -8966,8 +9259,9 @@ void player_death(int Ind) {
 
 #ifdef RPG_SERVER
 	if (p_ptr->wpos.wz != 0) {
-		for (i = m_top-1; i >= 0; i--) {
+		for (i = m_top - 1; i >= 0; i--) {
 			monster_type *m_ptr = &m_list[i];
+
 			if (m_ptr->owner == p_ptr->id && m_ptr->pet) {
 				m_ptr->pet = 0; //default behaviour!
 				m_ptr->owner = 0;
@@ -8986,9 +9280,58 @@ void player_death(int Ind) {
 	if (d_ptr) {
 		if (d_ptr->flags2 & DF2_NO_DEATH) secure = TRUE;
 		if (d_ptr->type == DI_DEATH_FATE || (!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) {
+			int x, y, oidx;
+			cave_type **zcave = getcave(&p_ptr->wpos);
+			object_type *o_ptr;
+			bool found = FALSE;
+
 			/* ok, be lenient about mirror fight, but still.. */
 			secure = TRUE;
 			penalty = TRUE;
+#if 1 /* Global message? */
+			/* Note: AMC defeat msg uses \376 instead of \374, but mirror-success msg is actually \374 so this one too for now. */
+			msg_broadcast_format(0, "\374\377A** %s was defeated by %s mirror image! **", p_ptr->name, p_ptr->male ? "His" : "Her");
+			//s_printf("MIRROR_RESULT: %s (%d) was defeated (%d damage).\n", p_ptr->name, p_ptr->lev, p_ptr->deathblow);
+#endif
+
+			/* Remove permanent stasis */
+			if (p_ptr->paralyzed == 255) {
+				p_ptr->paralyzed = 0;
+				p_ptr->redraw |= PR_STATE;
+				/* (no message) */
+			}
+
+			/* Make sure to have it cost 1 shard, so the leniency of allowing to survive
+			   a lost fight now cannot be abused to collect shards via cheap blood-gating. */
+
+			/* 1/2 - Scan him */
+			for (i = 0; i <= INVEN_PACK; i++) {
+				o_ptr = &p_ptr->inventory[i];
+				if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_GLASS_SHARD) {
+					msg_format(Ind, "\377o%s shatters...", o_ptr->number != 1 ? "One of your glass shards" : "Your glass shard");
+					inven_item_increase(Ind, i, -1);
+					inven_item_describe(Ind, i);
+					inven_item_optimize(Ind, i);
+					found = TRUE;
+					break;
+				}
+			}
+
+			/* 2/2 - Scan the floor -- obsolete as you cannot drop items in DF anyway */
+			if (!found && l_ptr && zcave) {
+				for (x = 1; x < l_ptr->wid - 1; x++) {
+					for (y = 1; y < l_ptr->hgt - 1; y++) {
+						oidx = zcave[y][x].o_idx;
+						if (!oidx) continue;
+						o_ptr = &o_list[oidx];
+						if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_GLASS_SHARD && o_ptr->owner == p_ptr->id) {
+							floor_item_increase(oidx, -1);
+							floor_item_optimize(oidx);
+						}
+					}
+				}
+			}
+
 		}
 	}
 
@@ -9087,6 +9430,9 @@ void player_death(int Ind) {
 		msg_layout = 'L';
 	}
 
+	/* Remove all pending player actions, in case we died while being paralyzed and the command queue is full of stuff (quaff, read, etc) */
+	Handle_clear_buffer(Ind);
+
 	/* Hack -- amulet of life saving */
 	if (!p_ptr->suicided && !erase && (secure ||
 	    (p_ptr->inventory[INVEN_NECK].k_idx &&
@@ -9155,10 +9501,10 @@ void player_death(int Ind) {
 					}
 				}
 				if (k) { /* usual */
-					msg_broadcast_format(0, "\376\377A** %s has defeated %s! **", m_name_extra, p_ptr->name);
+					msg_broadcast_format(0, "\374\377A** %s has defeated %s! **", m_name_extra, p_ptr->name);
 					s_printf("EVENT_RESULT: %s has defeated %s (%d) (%d damage).\n", m_name_extra, p_ptr->name, p_ptr->lev, p_ptr->deathblow);
 				} else { /* can happen if monster dies first, then player dies to monster DoT */
-					msg_broadcast_format(0, "\376\377A** %s didn't survive! **", p_ptr->name);
+					msg_broadcast_format(0, "\374\377A** %s didn't survive! **", p_ptr->name);
 					s_printf("EVENT_RESULT: %s (%d) was defeated (%d damage).\n", p_ptr->name, p_ptr->lev, p_ptr->deathblow);
 				}
 				recall_player(Ind, "\377oYou die.. at least it felt like you did..!");
@@ -9253,29 +9599,28 @@ void player_death(int Ind) {
 	if (p_ptr->global_event_temp & PEVF_NOGHOST_00) hell = TRUE;
 	/* or instead teleport them to surface */
 	/* added wpos checks due to weirdness. -Molt */
-	if (p_ptr->wpos.wx != WPOS_SECTOR00_X && p_ptr->wpos.wy != WPOS_SECTOR00_Y && (p_ptr->global_event_temp & PEVF_SAFEDUN_00)) {
+	if (p_ptr->wpos.wx != WPOS_SECTOR000_X && p_ptr->wpos.wy != WPOS_SECTOR000_Y && (p_ptr->global_event_temp & PEVF_SAFEDUN_00)) {
 		s_printf("Somethin weird with %s. GET is %d\n", p_ptr->name, p_ptr->global_event_temp);
 		msg_broadcast(0, "Uh oh, somethin's not right here.");
 	}
-	if ((p_ptr->global_event_temp & PEVF_SAFEDUN_00) && p_ptr->csane >= 0 && in_sector00_dun(&p_ptr->wpos) && !p_ptr->suicided) {
+	if ((p_ptr->global_event_temp & PEVF_SAFEDUN_00) && p_ptr->csane >= 0 && in_sector000_dun(&p_ptr->wpos) && !p_ptr->suicided) {
 		s_printf("DEBUG_TOURNEY: player %s revived.\n", p_ptr->name);
-		s_printf("%s (%d%s) was pseudo-killed by %s for %d damage at %d, %d, %d.\n", p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->really_died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+		s_printf("%s - %s%s (%d%s) was pseudo-killed by %s for %d damage at %d, %d, %d.\n", showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->really_died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 
 		if (p_ptr->poisoned) (void)set_poisoned(Ind, 0, 0);
 		if (p_ptr->diseased) (void)set_diseased(Ind, 0, 0);
 		if (p_ptr->cut) (void)set_cut(Ind, 0, 0);
 		(void)set_food(Ind, PY_FOOD_FULL - 1);
 
-		if (!sector00downstairs) p_ptr->global_event_temp &= ~PEVF_SAFEDUN_00; /* no longer safe from death */
+		if (!sector000downstairs) p_ptr->global_event_temp &= ~PEVF_SAFEDUN_00; /* no longer safe from death */
 		p_ptr->recall_pos.wx = 0;
 		p_ptr->recall_pos.wy = 0;
 		p_ptr->recall_pos.wz = 0;
-		p_ptr->global_event_temp |= PEVF_PASS_00; /* pass through sector00separation */
 		p_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
 		recall_player(Ind, "");
 
 		/* Allow him to find the stairs quickly for re-entering highlander dungeon */
-		wiz_lite(Ind);
+		wiz_lite_extra(Ind);
 
 		/* Teleport him */
 		teleport_player(Ind, 200, TRUE);
@@ -9292,7 +9637,7 @@ void player_death(int Ind) {
 		p_ptr->update |= (PU_BONUS);
 
 		/* Inform him about his situation */
-		if (!sector00downstairs) msg_print(Ind, "\377oYou were defeated too early and have to sit out the remaining time!");
+		if (!sector000downstairs) msg_print(Ind, "\377oYou were defeated too early and have to sit out the remaining time!");
 		else msg_print(Ind, "\377oYou were defeated too early, find the staircase and re-enter the dungeon!");
 
 		p_ptr->soft_deaths++;
@@ -9351,7 +9696,7 @@ void player_death(int Ind) {
  #endif
 
 			/* Log it */
-			s_printf("%s%s - %s (%d%s) was defeated by %s for %d damage at %d, %d, %d. (INSTARES)\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+			s_printf("%s%s - %s%s (%d%s) was defeated by %s for %d damage at %d, %d, %d. (INSTARES)\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 			if (!strcmp(p_ptr->died_from, "It") || insanity || p_ptr->image)
 				s_printf("(%s was really defeated by %s.)\n", p_ptr->name, p_ptr->really_died_from);
 
@@ -9760,22 +10105,18 @@ void player_death(int Ind) {
 			//todo: use 'died_from' (insanity-blinking-style):
 			msg_format(Ind, "\374\377%c**\377rYou have been destroyed by \377oI\377Gn\377bs\377Ba\377sn\377Ri\377vt\377yy\377r.\377%c**", msg_layout, msg_layout);
 
-s_printf("CHARACTER_TERMINATION: INSANITY race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+			s_printf("CHARACTER_TERMINATION: INSANITY race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
 
 			if (cfg.unikill_format)
 			snprintf(buf, sizeof(buf), "\374\377%c**\377r%s %s (%d) was destroyed by \377m%s\377r.\377%c**", msg_layout, titlebuf, p_ptr->name, p_ptr->lev, p_ptr->died_from, msg_layout);
 			else
 			snprintf(buf, sizeof(buf), "\374\377%c**\377r%s (%d) was destroyed by \377m%s\377r.\377%c**", msg_layout, p_ptr->name, p_ptr->lev, p_ptr->died_from, msg_layout);
-			s_printf("%s%s - %s (%d%s) was destroyed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+			s_printf("%s%s - %s%s (%d%s) was destroyed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 			if (!strcmp(p_ptr->died_from, "It") || !strcmp(p_ptr->died_from, "insanity") || p_ptr->image)
 				s_printf("(%s was really destroyed by %s.)\n", p_ptr->name, p_ptr->really_died_from);
 
-			death_type = DEATH_INSANITY;
-			if (p_ptr->ghost) {
-				death_type = DEATH_GHOST;
-				Send_chardump(Ind, "-ghost");
-			} else Send_chardump(Ind, "-death");
-			Net_output1(Ind);
+			if (p_ptr->ghost) death_type = DEATH_GHOST;
+			else death_type = DEATH_INSANITY;
 		} else if (p_ptr->ghost) {
 			/* Tell him */
 			msg_format(Ind, "\374\377a**\377rYour ghost was destroyed by %s.\377a**", p_ptr->died_from);
@@ -9789,7 +10130,14 @@ s_printf("CHARACTER_TERMINATION: INSANITY race=%s ; class=%s ; trait=%s ; %d dea
 			/* No last_words from death.txt, because we already are a ghost ie dead.. */
 #endif
 
-s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+#ifdef ENABLE_SUBCLASS_TITLE
+			if (p_ptr->sclass)
+				s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; subclass=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, class_info[p_ptr->sclass - 1].title, p_ptr->deaths);
+			else
+				s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+#else
+			s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+#endif
 
 			if (cfg.unikill_format) {
 				switch (p_ptr->name[strlen(p_ptr->name) - 1]) {
@@ -9808,7 +10156,7 @@ s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d de
 					snprintf(buf, sizeof(buf), "\374\377a**\377r%s's (%d) ghost was destroyed by %s.\377a**", p_ptr->name, p_ptr->lev, p_ptr->died_from);
 				}
 			}
-			s_printf("%s%s - %s's (%d%s) ghost was destroyed by %s for %d damage on %d, %d, %d.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+			s_printf("%s%s - %s%s's (%d%s) ghost was destroyed by %s for %d damage on %d, %d, %d.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 			if (!strcmp(p_ptr->died_from, "It") || !strcmp(p_ptr->died_from, "insanity") || p_ptr->image)
 				s_printf("(%s's ghost was really destroyed by %s.)\n", p_ptr->name, p_ptr->really_died_from);
 
@@ -9835,11 +10183,11 @@ s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d de
 				char funky_msg[20];
 
 				switch (randint(5)) {
-				case 1:strcpy(funky_msg, "wasted");break;
-				case 2:strcpy(funky_msg, "crushed");break;
-				case 3:strcpy(funky_msg, "shredded");break;
-				case 4:strcpy(funky_msg, "torn up");break;
-				case 5:strcpy(funky_msg, "crushed");break; /* again :) */
+				case 1: strcpy(funky_msg, "wasted");break;
+				case 2: strcpy(funky_msg, "crushed");break;
+				case 3: strcpy(funky_msg, "shredded");break;
+				case 4: strcpy(funky_msg, "torn up");break;
+				case 5: strcpy(funky_msg, "crushed");break; /* again :) */
 				}
 				msg_format(Ind, "\374\377%c**\377rYou have been %s by %s.\377%c**", msg_layout, funky_msg, p_ptr->died_from, msg_layout);
 				if (cfg.unikill_format) {
@@ -9896,15 +10244,13 @@ s_printf("CHARACTER_TERMINATION: GHOSTKILL race=%s ; class=%s ; trait=%s ; %d de
 #ifdef MORGOTH_FUNKY_KILL_MSGS
 			}
 #endif
-			s_printf("%s%s - %s (%d%s) was killed and destroyed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+			s_printf("%s%s - %s%s (%d%s) was killed and destroyed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 			if (!strcmp(p_ptr->died_from, "It") || !strcmp(p_ptr->died_from, "insanity") || p_ptr->image)
 				s_printf("(%s was really killed and destroyed by %s.)\n", p_ptr->name, p_ptr->really_died_from);
 
-s_printf("CHARACTER_TERMINATION: %s race=%s ; class=%s ; trait=%s ; %d deaths\n", pvp ? "PVP" : "NOGHOST", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+			s_printf("CHARACTER_TERMINATION: %s race=%s ; class=%s ; trait=%s ; %d deaths\n", pvp ? "PVP" : "NOGHOST", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
 
 			death_type = DEATH_PERMA;
-			Send_chardump(Ind, "-death");
-			Net_output1(Ind);
 		}
 #ifdef TOMENET_WORLDS
 		world_player(p_ptr->id, p_ptr->name, FALSE, TRUE);
@@ -10116,7 +10462,7 @@ s_printf("CHARACTER_TERMINATION: %s race=%s ; class=%s ; trait=%s ; %d deaths\n"
 				snprintf(buf, sizeof(buf), "\374\377r%s (%d) was vaporized by %s.", p_ptr->name, p_ptr->lev, p_ptr->died_from);
 			}
 		}
-		s_printf("%s%s - %s (%d%s) was killed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+		s_printf("%s%s - %s%s (%d%s) was killed by %s for %d damage at %d, %d, %d.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""), p_ptr->died_from, p_ptr->deathblow, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
 		if (!strcmp(p_ptr->died_from, "It") || !strcmp(p_ptr->died_from, "insanity") || p_ptr->image)
 			s_printf("(%s was really killed by %s.)\n", p_ptr->name, p_ptr->really_died_from);
 
@@ -10130,10 +10476,9 @@ s_printf("CHARACTER_TERMINATION: NORMAL race=%s ; class=%s ; trait=%s ; %d death
 			snprintf(buf, sizeof(buf), "\374\377sThe Iron Champion %s (%d) has retired to a warm, sunny climate.", p_ptr->name, p_ptr->lev);
 			if (!is_admin(p_ptr)) l_printf("%s \\{s%s (%d) retired as an Iron Champion\n", showdate(), p_ptr->name, p_ptr->lev);
 		}
-		s_printf("%s%s - %s (%d%s) retired to a warm, sunny climate.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
-		retire = TRUE;
-		death_type = DEATH_QUIT;
-s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+		s_printf("%s%s - %s%s (%d%s) retired to a warm, sunny climate.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
+		death_type = DEATH_QUIT_RET;
+		s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
 	}
 	else if (!p_ptr->total_winner) {
 		/* assume newb_suicide option for world broadcasts */
@@ -10145,11 +10490,11 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 		snprintf(buf, sizeof(buf), "\374\377D%s (%d) committed suicide.", p_ptr->name, p_ptr->lev);
 		/* Avoid death log spam with pvp min lev suicides */
 		if ((p_ptr->mode & MODE_PVP) && p_ptr->max_plv == MIN_PVP_LEVEL)
-			s_printf("%s - %s (%d%s) committed pvp-suicide.\n", showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : "")); /* just so the death-log script won't trigger on 'committed suicide' */
+			s_printf("%s - %s%s (%d%s) committed pvp-suicide.\n", showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : "")); /* just so the death-log script won't trigger on 'committed suicide' */
 		else
-			s_printf("%s - %s (%d%s) committed suicide.\n", showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
-		death_type = DEATH_QUIT;
-s_printf("CHARACTER_TERMINATION: SUICIDE race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+			s_printf("%s - %s%s (%d%s) committed suicide.\n", showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
+		death_type = DEATH_QUIT_SUI;
+		s_printf("CHARACTER_TERMINATION: SUICIDE race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
 	} else {
 		if (in_valinor(&p_ptr->wpos)) {
 			snprintf(buf, sizeof(buf), "\374\377vThe unbeatable %s (%d) has retired to the shores of valinor.", p_ptr->name, p_ptr->lev);
@@ -10158,14 +10503,13 @@ s_printf("CHARACTER_TERMINATION: SUICIDE race=%s ; class=%s ; trait=%s ; %d deat
 			snprintf(buf, sizeof(buf), "\374\377vThe unbeatable %s (%d) has retired to a warm, sunny climate.", p_ptr->name, p_ptr->lev);
 			if (!is_admin(p_ptr)) l_printf("%s \\{v%s (%d) retired to a warm, sunny climate\n", showdate(), p_ptr->name, p_ptr->lev);
 		}
-		s_printf("%s%s - %s (%d%s) retired to a warm, sunny climate.\n", FORMATDEATH, showtime(), p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
-		retire = TRUE;
-		death_type = DEATH_QUIT;
-s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
+		s_printf("%s%s - %s%s (%d%s) retired to a warm, sunny climate.\n", FORMATDEATH, showtime(), logtitlebuf, p_ptr->name, p_ptr->lev, p_ptr->admin_dm ? " DM" : (p_ptr->admin_wiz ? " DW" : ""));
+		death_type = DEATH_QUIT_RET;
+		s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d deaths\n", race_info[p_ptr->prace].title, class_info[p_ptr->pclass].title, trait_info[p_ptr->ptrait].title, p_ptr->deaths);
 	}
 
 	if (is_admin(p_ptr)) {
-		if (death_type == -1) snprintf(buf, sizeof(buf), "\376\377D%s enters a ghostly state.", p_ptr->name);
+		if (death_type == DEATH_NONE) snprintf(buf, sizeof(buf), "\376\377D%s enters a ghostly state.", p_ptr->name);
 		else snprintf(buf, sizeof(buf), "\376\377D%s bids farewell to this plane.", p_ptr->name);
 	}
 
@@ -10173,7 +10517,7 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 	/* handle the secret_dungeon_master option */
 	if ((!p_ptr->admin_dm) || (!cfg.secret_dungeon_master)) {
 		/* handle newbie suicide option by manually doing 'msg_broadcast': */
-		if (death_type == DEATH_QUIT) {
+		if (death_type == DEATH_QUIT_SUI || death_type == DEATH_QUIT_RET) { //as if retirement... impossible, as you cannot king at max_plv 1.
 			/* Tell every player */
 			for (i = 1; i <= NumPlayers; i++) {
 				if (Players[i]->conn == NOT_CONNECTED) continue;
@@ -10217,12 +10561,6 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 
 		/* prevent suicide spam, if set in cfg */
 		check_roller(Ind);
-
-		if (!p_ptr->ghost) {
-			if (retire) Send_chardump(Ind, "-retirement");
-			else Send_chardump(Ind, "-death");
-			Net_output1(Ind);
-		}
 
 		erase_player(Ind, death_type, FALSE);
 
@@ -10292,18 +10630,21 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 	p_ptr->safe_sane = FALSE;
 
 #if (MAX_PING_RECVS_LOGGED > 0)
-	/* Print last ping reception times */
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	s_printf("PING_RECEIVED:");
-	/* Starting from latest */
-	for (i = 0; i < MAX_PING_RECVS_LOGGED; i++) {
-		j = (p_ptr->pings_received_head - i + MAX_PING_RECVS_LOGGED) % MAX_PING_RECVS_LOGGED;
-		if (p_ptr->pings_received[j].tv_sec) {
-			s_printf(" %s", timediff(&p_ptr->pings_received[j], &now));
+	{
+		/* Print last ping reception times */
+		struct timeval now;
+
+		gettimeofday(&now, NULL);
+		s_printf("PING_RECEIVED:");
+		/* Starting from latest */
+		for (i = 0; i < MAX_PING_RECVS_LOGGED; i++) {
+			j = (p_ptr->pings_received_head - i + MAX_PING_RECVS_LOGGED) % MAX_PING_RECVS_LOGGED;
+			if (p_ptr->pings_received[j].tv_sec) {
+				s_printf(" %s", timediff(&p_ptr->pings_received[j], &now));
+			}
 		}
+		s_printf("\n");
 	}
-	s_printf("\n");
 #endif
 
 	/* Turn him into a ghost */
@@ -10311,7 +10652,7 @@ s_printf("CHARACTER_TERMINATION: RETIREMENT race=%s ; class=%s ; trait=%s ; %d d
 #ifdef USE_SOUND_2010
 	handle_music(Ind); //possibly ghostly music!
 #endif
-	/* Prevent accidental floating up/downwards depending on client option. - C. Blue */
+	/* Prevent accidental floating up/downwards as a ghost, thereby losing the floor, depending on client option. - C. Blue */
 	if (p_ptr->safe_float) p_ptr->safe_float_turns = 5;
 
 	/* Hack -- drop bones :) */
@@ -10683,16 +11024,17 @@ void resurrect_player(int Ind, int loss_factor) {
 	/* Tell him his remaining lifes */
 	if (!(p_ptr->mode & MODE_EVERLASTING)
 	    && !(p_ptr->mode & MODE_PVP)) {
-		if (p_ptr->lives > 1+1) p_ptr->lives--;
+		if (p_ptr->lives > 1 + 1) p_ptr->lives--;
 		if (cfg.lifes) {
-			if (p_ptr->lives == 1+1)
+			if (p_ptr->lives == 1 + 1)
 				msg_print(Ind, "\376\377GYou have no more resurrections left!");
 			else {
-				if (p_ptr->lives-1-1 == 1) msg_print(Ind, "\376\377GYou have 1 resurrection left.");
-				else msg_format(Ind, "\376\377GYou have %d resurrections left.", p_ptr->lives-1-1);
+				if (p_ptr->lives - 1 - 1 == 1) msg_print(Ind, "\376\377GYou have 1 resurrection left.");
+				else msg_format(Ind, "\376\377GYou have %d resurrections left.", p_ptr->lives - 1 - 1);
 			}
 		}
 	}
+	s_printf("RESURRECTED: %s at (%d,%d,%d) for -%d%% -> lives=%d.\n", p_ptr->name, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, loss_factor, p_ptr->lives);
 
 	/* Bonus service: Also restore drained exp (for newbies, especially) */
 	restore_level(Ind);
@@ -10868,16 +11210,95 @@ void kill_xorder(int Ind) {
 		create_reward(Ind, o_ptr, getlevel(&p_ptr->wpos), getlevel(&p_ptr->wpos), great, verygreat, resf, 3000);
 		if (!o_ptr->note) o_ptr->note = quark_add(temp);
 		o_ptr->note_utag = strlen(temp);
-		o_ptr->iron_trade = p_ptr->iron_trade;
-		o_ptr->iron_turn = turn;
-		inven_carry(Ind, o_ptr);
 #else
 		acquirement_direct(Ind, o_ptr, &p_ptr->wpos, great, verygreat, resf);
-		//s_printf("object rewarded %d,%d,%d\n", o_ptr->tval, o_ptr->sval, o_ptr->k_idx);
+		//s_printf("object awarded %d,%d,%d\n", o_ptr->tval, o_ptr->sval, o_ptr->k_idx);
+#endif
+
+#if 1
+		/* New: Sometimes generate consumables instead */
+		//if (!great && !rand_int(2)) { /* instead of basic (non-ego) enchanted armour/weapon */
+		if (object_value_real(0, o_ptr) < 1000 && rand_int(3)) {
+			/* basic consumables */
+			switch (rand_int(2)) {
+			case 0:
+				switch (rand_int(in_irondeepdive(&p_ptr->wpos) ? 11 : 12)) {
+				case 0: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_PHASE_DOOR)); o_ptr->number = 5 + rand_int(4); break;
+				case 1: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_TRAP_DOOR_DESTRUCTION)); o_ptr->number = 3 + rand_int(3); break;
+				case 2: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_MONSTER_CONFUSION)); o_ptr->number = 3 + rand_int(2); break;
+				case 3: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_MAPPING)); o_ptr->number = 5 + rand_int(4); break;
+				case 4: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_IDENTIFY)); o_ptr->number = 5 + rand_int(4); break;
+
+				case 5: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_ARMOR)); o_ptr->number = 2 + rand_int(3); break;
+				case 6: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_WEAPON_TO_HIT)); o_ptr->number = 2 + rand_int(2); break;
+				case 7: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_WEAPON_TO_DAM)); o_ptr->number = 2 + rand_int(2); break;
+
+				case 8: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_PROTECTION_FROM_EVIL)); o_ptr->number = 1; break;
+				case 9: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_TELEPORT)); o_ptr->number = 1; break;
+				case 10: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_VERMIN_CONTROL)); o_ptr->number = 1; break;
+
+				case 11: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_WORD_OF_RECALL)); o_ptr->number = 1 + rand_int(2); break;
+				}
+				break;
+			case 1:
+				switch (rand_int(4)) {
+				case 0:
+					switch (rand_int(2)) {
+					case 0: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_SLOW_POISON)); o_ptr->number = 2 + rand_int(2); break;
+					case 1: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_CURE_POISON)); o_ptr->number = 2 + rand_int(2); break;
+					}
+					break;
+				case 1:
+					switch (rand_int(2)) {
+					case 0: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_HEROISM)); o_ptr->number = 3 + rand_int(2); break;
+					case 1: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_BERSERK_STRENGTH)); o_ptr->number = 1 + rand_int(2); break;
+					}
+					break;
+				case 2: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_CURE_SERIOUS)); o_ptr->number = 4 + rand_int(3); break;
+				case 3: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_CURE_CRITICAL)); o_ptr->number = 2 + rand_int(2); break;
+				}
+				break;
+			}
+			apply_magic(&o_ptr->wpos, o_ptr, avg, FALSE, FALSE, FALSE, FALSE, RESF_NONE);
+		//} else if (great && !verygreat && !rand_int(4)) { /* verygreat: guaranteed non-trivial (resfire) ego */
+		} else if (object_value_real(0, o_ptr) < 3000 && !rand_int(3)) {
+			/* great consumables / bigger stacks of basic consumables */
+			switch (rand_int(2)) {
+			case 0:
+				switch (rand_int(8)) {
+				case 1: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_ARMOR)); o_ptr->number = 6 + rand_int(3); break;
+				case 2: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_WEAPON_TO_HIT)); o_ptr->number = 6 + rand_int(3); break;
+				case 3: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_ENCHANT_WEAPON_TO_DAM)); o_ptr->number = 6 + rand_int(3); break;
+
+				case 4: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_PROTECTION_FROM_EVIL)); o_ptr->number = 1 + rand_int(2); break;
+				case 5: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_TELEPORT)); o_ptr->number = 2 + rand_int(2); break;
+				case 6: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_VERMIN_CONTROL)); o_ptr->number = 1 + rand_int(2); break;
+
+				case 7: invcopy(o_ptr, lookup_kind(TV_SCROLL, SV_SCROLL_RUNE_OF_PROTECTION)); o_ptr->number = 1 + rand_int(2); break;
+				}
+				break;
+			case 1:
+				switch (rand_int(7)) {
+				case 0: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_CURE_CRITICAL)); o_ptr->number = 9 + rand_int(4); break;
+
+				case 1: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_RESTORE_MANA)); o_ptr->number = 2 + rand_int(2); break;
+				case 2: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_SPEED)); o_ptr->number = 2 + rand_int(2); break;
+				case 3: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_HEALING)); o_ptr->number = 2 + rand_int(2); break;
+				case 4: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_RESISTANCE)); o_ptr->number = 2 + rand_int(2); break;
+
+				case 5: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_ENLIGHTENMENT)); o_ptr->number = 1; break;
+				case 6: invcopy(o_ptr, lookup_kind(TV_POTION, SV_POTION_CURING)); o_ptr->number = 1; break;
+				}
+				break;
+			}
+			apply_magic(&o_ptr->wpos, o_ptr, avg, FALSE, FALSE, FALSE, FALSE, RESF_NONE);
+		}
+#endif
+
 		o_ptr->iron_trade = p_ptr->iron_trade;
 		o_ptr->iron_turn = turn;
+		s_printf("object awarded %d,%d,%d (x%d)\n", o_ptr->tval, o_ptr->sval, o_ptr->k_idx, o_ptr->number);
 		inven_carry(Ind, o_ptr);
-#endif
 		unique_quark = 0;
 	}
 
@@ -10934,7 +11355,8 @@ bool add_xorder(int Ind, int target, u16b type, u16b num, u16b flags) {
 	else
 		msg_print(j, "\376\377oYou have been given a extermination order\377y!");
 	//msg_format(j, "\377oFind and kill \377y%d \377g%s%s\377y!", num, r_name+r_info[type].name, flags & QUEST_GUILD?"":" \377obefore any other player");
-	msg_format(j, "\376\377oFind and kill \377y%d \377g%s\377o (level %d)!", num, r_name + r_info[type].name, r_info[type].level);
+	if (is_admin(p_ptr)) msg_format(j, "\376\377oFind and kill \377y%d \377g%s\377o (level %d, %d)!", num, r_name + r_info[type].name, r_info[type].level, type);
+	else msg_format(j, "\376\377oFind and kill \377y%d \377g%s\377o (level %d)!", num, r_name + r_info[type].name, r_info[type].level);
 	msg_format(Ind, "\376\377oThe remaining time to carry it out is \377y%d\377o minutes.", MAX_XORDER_TURNS / (cfg.fps * 60));
 	xorders[i].active++;
 
@@ -11010,7 +11432,7 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 			break;
 		default:
 			msg_print(Ind, "\377yPlease visit your local town hall or seat of ruling to receive an order!");
-			return(FALSE);
+			if (!is_admin(p_ptr)) return(FALSE);
 		}
 	}
 
@@ -11048,7 +11470,8 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 
 	get_mon_num_hook = xorder_aux;
 	xorder_aux_extra = p_ptr->total_winner;
-	get_mon_num_prep(0, NULL);
+	if (!strcmp(p_ptr->name, "Goblin Slayer")) get_mon_num_prep(0, orcs_only); /* Kurzel - Goblins Only! */
+	else get_mon_num_prep(0, reject_uniques);
 	i = 3 + rand_int(3);
 
 	r = 0;
@@ -11061,9 +11484,7 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 		/* To keep Goblin Slayer check in check: */
 		if (lev < 0) break;
 	} while (((lev - 5) > r_info[r].level && lev >= 5) ||
-	    (r_info[r].flags1 & RF1_UNIQUE) ||
 	    (r_info[r].flags7 & RF7_MULTIPLY) ||
-	    ((!strcmp(p_ptr->name, "Goblin Slayer") && r_info[r].d_char != 'o')) || /* Kurzel - Goblins Only! */
 	    !r_info[r].level); /* "no town quests" ;) */
 	    //r_info[r].level <= 2); /* no Training Tower quests */
 
@@ -11153,7 +11574,7 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 	}
 #endif
 
-	if (m_ptr->status == M_STATUS_FRIENDLY) return(FALSE);
+	if (m_ptr->status & M_STATUS_FRIENDLY) return(FALSE);
 
 	if (m_ptr->r_idx == RI_BLUE) {
 		if (m_ptr->extra > 1) return(FALSE); //paranoia?
@@ -11197,7 +11618,15 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 	if (m_ptr->charmedignore) {
 		int Ind = find_player(m_ptr->charmedignore);
 
-		if (Ind) Players[Ind]->mcharming--;
+		if (Ind) {
+			player_type *p_ptr = Players[Ind];
+
+			p_ptr->mcharming--;
+			if (!p_ptr->mcharming) {
+				p_ptr->redraw2 |= (PR2_INDICATORS); /* Redraw indicator */
+				msg_print(Ind, "Your charm spell breaks!");
+			}
+		}
 		m_ptr->charmedignore = 0;
 	}
 
@@ -11288,10 +11717,22 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 	}
 
 	/* Wake it up */
-	m_ptr->csleep = 0;
+	if (m_ptr->csleep) {
+		m_ptr->csleep = 0;
+		if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, m_idx, m_ptr->custom_lua_awoke));
+	}
 
 	/* Some monsters are immune to death */
-	if (r_ptr->flags7 & RF7_NO_DEATH) return(FALSE);
+	if (r_ptr->flags7 & RF7_NO_DEATH) {
+		if (p_ptr->instakills == 2) {
+			monster_death(Ind, m_idx); /* override NO_DEATH! but without any credit (xp/form), just loot */
+			delete_monster_idx(m_idx, FALSE);
+		}
+		return(FALSE);
+	}
+
+	/* record the data for use in C_BLUE_AI */
+	p_ptr->dam_turn[0] += (m_ptr->hp < dam) ? m_ptr->hp : dam;
 
 	/* for when a quest giver turned non-invincible */
 #if 0
@@ -11315,9 +11756,6 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 
 	/* Hurt it */
 	m_ptr->hp -= dam;
-
-	/* record the data for use in C_BLUE_AI */
-	p_ptr->dam_turn[0] += (m_ptr->hp < dam) ? m_ptr->hp : dam;
 
 	/* It is dead now */
 	if (m_ptr->hp < 0) {
@@ -11737,7 +12175,10 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 		/* Recall even invisible uniques or winners */
 		if (p_ptr->mon_vis[m_idx] || (r_ptr->flags1 & RF1_UNIQUE)) {
 			/* Count kills in all lives */
-			if (!is_admin(p_ptr)) r_ptr->r_tkills++;
+			if (!is_admin(p_ptr)) {
+				if (!r_ptr->r_tkills && (r_ptr->flags1 & RF1_UNIQUE)) s_printf("Unique 1st kill: %d by %s (%s).\n", m_ptr->r_idx, p_ptr->name, p_ptr->accountname);
+				r_ptr->r_tkills++;
+			}
 
 			/* Hack -- Auto-recall */
 			recent_track(m_ptr->r_idx);
@@ -11847,9 +12288,9 @@ void monster_death_mon(int am_idx, int m_idx) {
 	/* Determine how much we can drop */
 	if ((r_ptr->flags1 & RF1_DROP_60) && (rand_int(100) < 60)) number++;
 	if ((r_ptr->flags1 & RF1_DROP_90) && (rand_int(100) < 90)) number++;
-	if (r_ptr->flags0 & RF0_DROP_1) number++;
+	if (r_ptr->flags1 & RF1_DROP_1) number++;
 	if (r_ptr->flags1 & RF1_DROP_1D2) number += damroll(1, 2);
-	if (r_ptr->flags0 & RF0_DROP_2) number += 2;
+	if (r_ptr->flags1 & RF1_DROP_2) number += 2;
 	if (r_ptr->flags1 & RF1_DROP_2D2) number += damroll(2, 2);
 	if (r_ptr->flags1 & RF1_DROP_3D2) number += damroll(3, 2);
 	if (r_ptr->flags1 & RF1_DROP_4D2) number += damroll(4, 2);
@@ -11969,11 +12410,14 @@ bool mon_take_hit_mon(int am_idx, int m_idx, int dam, bool *fear, cptr note) {
 	update_health(m_idx);
 
 	/* Wake it up */
-	m_ptr->csleep = 0;
+	if (m_ptr->csleep) {
+		m_ptr->csleep = 0;
+		if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, m_idx, m_ptr->custom_lua_awoke));
+	}
 
 	/* Some monsters are immune to death */
 	if (r_ptr->flags7 & RF7_NO_DEATH) return(FALSE);
-	if (m_ptr->status == M_STATUS_FRIENDLY) return(FALSE);
+	if (m_ptr->status & M_STATUS_FRIENDLY) return(FALSE);
 
 	/* Hurt it */
 	m_ptr->hp -= dam;
@@ -12357,6 +12801,7 @@ cptr look_mon_desc(int m_idx, bool check_immortal) {
 	if (r_ptr->flags3 & RF3_DEMON) living = FALSE;
 	if (strchr("Egv", r_ptr->d_char)) living = FALSE;
 
+	if (m_ptr->charmedignore) return("\377Bcharmed\377-");
 
 	/* Healthy monsters */
 	if (m_ptr->hp >= m_ptr->maxhp) {
@@ -12433,7 +12878,7 @@ void ang_sort_aux(int Ind, vptr u, vptr v, int p, int q) {
 	ang_sort_aux(Ind, u, v, p, b);
 
 	/* Recurse right side */
-	ang_sort_aux(Ind, u, v, b+1, q);
+	ang_sort_aux(Ind, u, v, b + 1, q);
 }
 
 void ang_sort_extra_aux(int Ind, vptr u, vptr v, vptr w, int p, int q) {
@@ -12471,7 +12916,7 @@ void ang_sort_extra_aux(int Ind, vptr u, vptr v, vptr w, int p, int q) {
 	ang_sort_extra_aux(Ind, u, v, w, p, b);
 
 	/* Recurse right side */
-	ang_sort_extra_aux(Ind, u, v, w, b+1, q);
+	ang_sort_extra_aux(Ind, u, v, w, b + 1, q);
 }
 
 
@@ -12485,7 +12930,7 @@ void ang_sort_extra_aux(int Ind, vptr u, vptr v, vptr w, int p, int q) {
  */
 void ang_sort(int Ind, vptr u, vptr v, int n) {
 	/* Sort the array */
-	ang_sort_aux(Ind, u, v, 0, n-1);
+	ang_sort_aux(Ind, u, v, 0, n - 1);
 }
 
 /* Added this for further sorting the all monsters that are *closest* to
@@ -12493,7 +12938,7 @@ void ang_sort(int Ind, vptr u, vptr v, int n) {
    waking up sleeping ones. Suggested by Caine/Ifrit - C. Blue */
 void ang_sort_extra(int Ind, vptr u, vptr v, vptr w, int n) {
 	/* Sort the array */
-	ang_sort_extra_aux(Ind, u, v, w, 0, n-1);
+	ang_sort_extra_aux(Ind, u, v, w, 0, n - 1);
 }
 
 /* returns our max times 100 divided by our current...*/
@@ -12530,22 +12975,22 @@ static void wounded_player_target_sort(int Ind, vptr sx, vptr sy, vptr id, int n
 	byte swpb;
 
 	/* num equals our max index */
-	num = n-1;
+	num = n - 1;
 
 	while (num > 0) {
 		for (c = 0; c < num; c++) {
-			if (player_wounded(idx[c+1]) > player_wounded(idx[c])) {
+			if (player_wounded(idx[c + 1]) > player_wounded(idx[c])) {
 				swp = idx[c];
-				idx[c] = idx[c+1];
-				idx[c+1] = swp;
+				idx[c] = idx[c + 1];
+				idx[c + 1] = swp;
 
 				swpb = x[c];
-				x[c] = x[c+1];
-				x[c+1] = swpb;
+				x[c] = x[c + 1];
+				x[c + 1] = swpb;
 
 				swpb = y[c];
-				y[c] = y[c+1];
-				y[c+1] = swpb;
+				y[c] = y[c + 1];
+				y[c + 1] = swpb;
 			}
 		}
 	num--;
@@ -12822,7 +13267,7 @@ bool target_able(int Ind, int m_idx) {
 #endif
 		if (r_ptr->flags7 & RF7_NO_TARGET) return(FALSE);
 
-		if (m_ptr->status == M_STATUS_FRIENDLY) return(FALSE);
+		if (m_ptr->status & M_STATUS_FRIENDLY) return(FALSE);
 
 		/* Assume okay */
 		return(TRUE);
@@ -13148,9 +13593,17 @@ bool target_set(int Ind, int dir) {
 			} else if (p_ptr->target_idx[i] < 0) {
 				q_ptr = Players[0 - p_ptr->target_idx[i]];
 				if (q_ptr->body_monster) {
+ #ifdef ENABLE_SUBCLASS_TITLE
+					snprintf(out_val, sizeof(out_val), "%s the %s (%s%s%s)", q_ptr->name, r_name + r_info[q_ptr->body_monster].name, get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE));
+ #else
 					snprintf(out_val, sizeof(out_val), "%s the %s (%s)", q_ptr->name, r_name + r_info[q_ptr->body_monster].name, get_ptitle(q_ptr, FALSE));
+ #endif
 				} else {
+ #ifdef ENABLE_SUBCLASS_TITLE
+					snprintf(out_val, sizeof(out_val), "%s the %s%s%s%s", q_ptr->name, get_prace2(q_ptr), get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE));
+ #else
 					snprintf(out_val, sizeof(out_val), "%s the %s%s", q_ptr->name, get_prace2(q_ptr), get_ptitle(q_ptr, FALSE));
+ #endif
 				}
 			}
 			//strcpy(out_val, "[<dir>, t, q] ");
@@ -13508,10 +13961,8 @@ bool get_aim_dir(int Ind) {
 }
 
 
-bool get_item(int Ind, signed char tester_hook) { //paranoia @ 'signed' char =-p
+void get_item(int Ind, signed char tester_hook) { //paranoia @ 'signed' char =-p
 	Send_item_request(Ind, tester_hook);
-
-	return(TRUE);
 }
 
 /*
@@ -13556,67 +14007,72 @@ void set_recall_depth(player_type * p_ptr, object_type * o_ptr) {
 	if (inscription == NULL) return;
 
 	/* scan the inscription for @R */
-	while (*inscription != '\0') {
-		if (*inscription == '@') {
+	while (*inscription) {
+		inscription++;
+		if (*(inscription - 1) != '@' || *inscription != 'R') continue;
+
+		/* a valid @R has been located, check subsequent character */
+		inscription++;
+		if (!(*inscription)) break; /* was just '@R' */
+
+		/* @RW for World(Wilderness) travel */
+		/* It would be also amusing to limit the distance.. */
+		if ((*inscription == 'W') || (*inscription == 'X')) {
+			unsigned char * next;
+
 			inscription++;
-
-			/* a valid @R has been located */
-			if (*inscription == 'R') {
-				inscription++;
-				/* @RW for World(Wilderness) travel */
-				/* It would be also amusing to limit the distance.. */
-				if ((*inscription == 'W') || (*inscription == 'X')) {
-					unsigned char * next;
-
-					inscription++;
-					p_ptr->recall_pos.wx = atoi((char *)inscription) % MAX_WILD_X;
-					p_ptr->recall_pos.wz = 0;
-					next = (unsigned char *)strchr((char *)inscription,',');
-					if (next) {
-						if (++next) p_ptr->recall_pos.wy = atoi((char*)next) % MAX_WILD_Y;
-					}
-				}
-				else if (*inscription == 'Y') {
-					inscription++;
-					p_ptr->recall_pos.wy = atoi((char*)inscription) % MAX_WILD_Y;
-					p_ptr->recall_pos.wz = 0;
-				}
-#if 1
-				/* @RT for inter-Town travels (not fully implemented yet) */
-				else if (*inscription == 'T') {
-					inscription++;
-					p_ptr->recall_pos.wx = p_ptr->town_x;
-					p_ptr->recall_pos.wy = p_ptr->town_y;
-					p_ptr->recall_pos.wz = 0;
-				}
-#endif
-				else {
-					int tmp = 0;
-
-					if (*inscription == 'Z') inscription++;
-
-					/* convert the inscription into a level index */
-					if ((tmp = atoi((char*)inscription) /
-							(p_ptr->depth_in_feet ? 50 : 1)))
-						p_ptr->recall_pos.wz = tmp;
-
-					/* catch user mistake: missing W in @RWx,y */
-					while (*inscription != '\0') {
-						if (*inscription == ',') {
-							p_ptr->recall_pos.wz = 0;
-							return;
-						}
-						inscription++;
-					}
-				}
+			p_ptr->recall_pos.wx = atoi((char *)inscription) % MAX_WILD_X;
+			p_ptr->recall_pos.wz = 0;
+			next = (unsigned char *)strchr((char *)inscription,',');
+			if (next) {
+				if (++next) p_ptr->recall_pos.wy = atoi((char*)next) % MAX_WILD_Y;
 			}
 		}
-		inscription++;
+		else if (*inscription == 'Y') {
+			inscription++;
+			p_ptr->recall_pos.wy = atoi((char*)inscription) % MAX_WILD_Y;
+			p_ptr->recall_pos.wz = 0;
+		}
+#if 1
+		/* @RT for inter-Town travels (not fully implemented yet) */
+		else if (*inscription == 'T') {
+			inscription++;
+			p_ptr->recall_pos.wx = p_ptr->town_x;
+			p_ptr->recall_pos.wy = p_ptr->town_y;
+			p_ptr->recall_pos.wz = 0;
+		}
+#endif
+		else {
+			int tmp = 0;
+
+			if (*inscription == 'Z') {
+				inscription++; /* @RZ<depth> = @R<depth>, is this some old deprecated syntax compability code? */
+				if (!(*inscription)) break;
+			}
+
+			/* convert the inscription into a level index */
+			if ((tmp = atoi((char*)inscription) / (p_ptr->depth_in_feet ? 50 : 1))) p_ptr->recall_pos.wz = tmp;
+
+			/* catch user mistake: missing W in @RWx,y */
+			while (*inscription) {
+				if (*inscription == ',') {
+					p_ptr->recall_pos.wz = 0;
+					return;
+				}
+				inscription++;
+			}
+		}
 	}
 
 	/* sanity check or crash */
 	if (p_ptr->recall_pos.wx < 0) p_ptr->recall_pos.wx = 0;
 	if (p_ptr->recall_pos.wy < 0) p_ptr->recall_pos.wy = 0;
+	if (p_ptr->recall_pos.wx >= MAX_WILD_X) p_ptr->recall_pos.wx = MAX_WILD_X - 1;
+	if (p_ptr->recall_pos.wy >= MAX_WILD_Y) p_ptr->recall_pos.wy = MAX_WILD_Y - 1;
+#if 0 /* MAX_DUNGEON_DEPTH is actually unused */
+	if (p_ptr->recall_pos.wz < -MAX_DUNGEON_DEPTH) p_ptr->recall_pos.wz = -MAX_DUNGEON_DEPTH;
+	if (p_ptr->recall_pos.wz > MAX_DUNGEON_DEPTH) p_ptr->recall_pos.wz = MAX_DUNGEON_DEPTH;
+#endif
 }
 
 bool set_recall_timer(int Ind, int v) {
@@ -13707,7 +14163,7 @@ bool set_recall(int Ind, int v, object_type *o_ptr) {
 
 void telekinesis_aux(int Ind, int item) {
 	player_type *p_ptr = Players[Ind], *p2_ptr;
-	object_type *q_ptr, *o_ptr = p_ptr->current_telekinesis;
+	object_type *q_ptr, *o_ptr = p_ptr->current_telekinesis; /* q_ptr is the item to transport, o_ptr the one inscribed @P<targetplayername> */
 	int Ind2;
 	char *inscription, *scan;
 #ifdef TELEKINESIS_GETITEM_SERVERSIDE
@@ -13715,14 +14171,7 @@ void telekinesis_aux(int Ind, int item) {
 #endif
 
 	p_ptr->current_telekinesis = NULL;
-
-	/* Get the item (in the pack) */
-	if (item >= 0) {
-		q_ptr = &p_ptr->inventory[item];
-	} else { /* Get the item (on the floor) */
-		msg_print(Ind, "You must carry the object to teleport it.");
-		return;
-	}
+	if (!get_inven_item(Ind, item, &q_ptr)) return;
 
 	Ind2 = get_player(Ind, o_ptr);
 	if (!Ind2) return;
@@ -13779,7 +14228,7 @@ void telekinesis_aux(int Ind, int item) {
 			if (!is_admin(p_ptr)) return;
 		}
  #ifdef IDDC_NO_TRADE_CHEEZE /* new anti-cheeze hack: abuse NR_tradable for this */
-		if (in_irondeepdive(&p_ptr->wpos) && o_ptr->NR_tradable) {
+		if (in_irondeepdive(&p_ptr->wpos) && q_ptr->NR_tradable) {
 			msg_format(Ind, "\377yYou may not send items you brought from outside this dungeon until you reach at least floor %d.", IDDC_NO_TRADE_CHEEZE);
 			if (!is_admin(p_ptr)) return;
 		}
@@ -13801,7 +14250,7 @@ void telekinesis_aux(int Ind, int item) {
 
 	/* the_sandman: item lvl restrictions are disabled in rpg */
 #ifndef RPG_SERVER
-	if ((q_ptr->owner) && (q_ptr->owner != p2_ptr->id) &&
+	if (q_ptr->owner && q_ptr->owner != p2_ptr->id &&
 	    (q_ptr->level > p2_ptr->lev || q_ptr->level == 0)) {
 		if (cfg.anti_cheeze_telekinesis) {
 			msg_print(Ind, "The target isn't powerful enough yet to receive that item!");
@@ -13825,6 +14274,21 @@ void telekinesis_aux(int Ind, int item) {
 		msg_print(Ind, "Only royalties are powerful enough to receive that item!");
 		if (!is_admin(p_ptr)) return;
 	}
+
+#if 0
+	/* Wrapped gifts: Totally enforce level restrictions */
+	if (q_ptr->tval == TV_SPECIAL && q_ptr->sval >= SV_GIFT_WRAPPING_START && q_ptr->sval <= SV_GIFT_WRAPPING_END
+	    && q_ptr->owner && q_ptr->owner != p2_ptr->id && p2_ptr->lev < q_ptr->level) {
+		msg_print(Ind, "The taget's level must meet the gift's level to receive it.");
+		return;
+	}
+#else
+	/* Wrapped gifts: Must be given manually (>'')> */
+	if (q_ptr->tval == TV_SPECIAL && q_ptr->sval >= SV_GIFT_WRAPPING_START && q_ptr->sval <= SV_GIFT_WRAPPING_END) {
+		msg_print(Ind, "Gifts cannot be sent via telekinesis.");
+		if (!is_admin(p_ptr)) return;
+	}
+#endif
 
 	if (cfg.anti_arts_send && artifact_p(q_ptr) && !is_admin(p_ptr)) {
 		msg_print(Ind, "The artifact resists telekinesis!");
@@ -13853,6 +14317,11 @@ void telekinesis_aux(int Ind, int item) {
 	if (p2_ptr->store_num != -1) {
 		msg_print(Ind, "Target player is currently shopping.");
 		return;
+	}
+
+	if (q_ptr->tval == TV_JUNK && q_ptr->sval == SV_GLASS_SHARD) {
+		msg_print(Ind, "The shard seems to be unaffected by telekinesis magic.");
+		if (!is_admin(p_ptr)) return;
 	}
 
 	/* You cannot send artifact */
@@ -14060,9 +14529,9 @@ void blood_bond(int Ind, object_type *o_ptr) {
 	p2_ptr = Players[Ind2];
 
 	/* not during pvp-only or something (Highlander Tournament) */
-	if (sector00separation &&
-	    ((p_ptr->wpos.wx == WPOS_SECTOR00_X && p_ptr->wpos.wy == WPOS_SECTOR00_Y) ||
-	    (p2_ptr->wpos.wx == WPOS_SECTOR00_X && p2_ptr->wpos.wy == WPOS_SECTOR00_Y))) {
+	if (sector000separation &&
+	    ((p_ptr->wpos.wx == WPOS_SECTOR000_X && p_ptr->wpos.wy == WPOS_SECTOR000_Y) ||
+	    (p2_ptr->wpos.wx == WPOS_SECTOR000_X && p2_ptr->wpos.wy == WPOS_SECTOR000_Y))) {
 		msg_print(Ind, "You cannot blood bond right now.");
 		return;
 	}
@@ -14196,7 +14665,7 @@ bool do_scroll_life(int Ind) {
 
 	for (y = -1; y <= 1; y++) {
 		for (x = -1; x <= 1; x++) {
-			c_ptr = &zcave[p_ptr->py+y][p_ptr->px+x];
+			c_ptr = &zcave[p_ptr->py + y][p_ptr->px + x];
 			if (c_ptr->m_idx < 0) {
 				q_ptr = Players[0 - c_ptr->m_idx];
 				if (q_ptr->ghost) {
@@ -14233,7 +14702,7 @@ bool do_restoreXP_other(int Ind) {
 	if (!(zcave = getcave(&p_ptr->wpos))) return(FALSE);
 	for (y = -1; y <= 1; y++) {
 		for (x = -1; x <= 1; x++) {
-			c_ptr = &zcave[p_ptr->py+y][p_ptr->px+x];
+			c_ptr = &zcave[p_ptr->py + y][p_ptr->px + x];
 
 			if (c_ptr->m_idx < 0) {
 				if (Players[0 - c_ptr->m_idx]->exp < Players[0 - c_ptr->m_idx]->max_exp) {
@@ -14260,7 +14729,7 @@ void unstatic_level(struct worldpos *wpos) {
 		if (Players[i]->conn == NOT_CONNECTED) continue;
 		if (Players[i]->st_anchor) {
 			Players[i]->st_anchor = 0;
-			msg_print(GetInd[Players[i]->id], "Your space/time anchor breaks");
+			msg_print(i, "Your space/time anchor breaks");
 		}
 	}
 	for (i = 1; i <= NumPlayers; i++) {
@@ -14386,7 +14855,7 @@ bool master_level(int Ind, char * parms) {
 			}
 		} else { /* Custom tower/dungeon */
 			if (parms[3] == 't' && !(wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].flags & WILD_F_UP)) {
-				printf("tower: flags %x,%x,%x\n", f1, f2, f3);
+				s_printf("tower: flags %x,%x,%x\n", f1, f2, f3);
 				if ((zcave = getcave(&p_ptr->wpos))) {
 					zcave[p_ptr->py][p_ptr->px].feat = FEAT_LESS;
 					if (zcave[p_ptr->py][p_ptr->px].info & CAVE_JAIL) {
@@ -14400,7 +14869,7 @@ bool master_level(int Ind, char * parms) {
 				new_level_down_x(&p_ptr->wpos, p_ptr->px);
 			}
 			if (parms[3] == 'd' && !(wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].flags & WILD_F_DOWN)) {
-				printf("dungeon: flags %x,%x,%x\n", f1, f2, f3);
+				s_printf("dungeon: flags %x,%x,%x\n", f1, f2, f3);
 				if ((zcave = getcave(&p_ptr->wpos))) {
 					zcave[p_ptr->py][p_ptr->px].feat = FEAT_MORE;
 					if (zcave[p_ptr->py][p_ptr->px].info & CAVE_JAIL) {
@@ -14429,22 +14898,22 @@ bool master_level(int Ind, char * parms) {
 				p_ptr->recall_pos.wy = p_ptr->wpos.wy;
 				p_ptr->recall_pos.wz = 0;
 				recall_player(Ind, "");
-				rem_dungeon(&p_ptr->wpos, FALSE);
+				(void)rem_dungeon(&p_ptr->wpos, FALSE);
 			} else {
 				p_ptr->recall_pos.wx = p_ptr->wpos.wx;
 				p_ptr->recall_pos.wy = p_ptr->wpos.wy;
 				p_ptr->recall_pos.wz = 0;
 				recall_player(Ind, "");
-				rem_dungeon(&p_ptr->wpos, TRUE);
+				(void)rem_dungeon(&p_ptr->wpos, TRUE);
 			}
 		} else { /* or the one whose entrance staircase we're standing on */
 			switch (zcave[p_ptr->py][p_ptr->px].feat) {
 			case FEAT_MORE:
-				rem_dungeon(&p_ptr->wpos, FALSE);
+				(void)rem_dungeon(&p_ptr->wpos, FALSE);
 				zcave[p_ptr->py][p_ptr->px].feat = FEAT_GRASS;
 				break;
 			case FEAT_LESS:
-				rem_dungeon(&p_ptr->wpos, TRUE);
+				(void)rem_dungeon(&p_ptr->wpos, TRUE);
 				zcave[p_ptr->py][p_ptr->px].feat = FEAT_GRASS;
 				break;
 			default:
@@ -14480,6 +14949,37 @@ bool master_level(int Ind, char * parms) {
 			dealloc_dungeon_level(&twpos);
 
 		break; }
+
+#ifdef DM_MODULES
+	/* Kurzel - save/load a module file (or create a blank to begin with) */
+	case 'S': {
+		exec_lua(Ind, format("return module_save(%d, %d, %d, \"%s\")",
+			p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, &parms[1]));
+	break; }
+	case 'L': {
+		exec_lua(Ind, format("return module_load(%d, %d, %d, \"%s\", 0)",
+			p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz, &parms[1]));
+	break; }
+	case 'B': {
+		int W = (&parms[1])[0] - 48; // '1' -> 1
+		int H = (&parms[1])[2] - 48; // '1' -> 1
+		generate_cave_blank(&p_ptr->wpos, 5-W, 5-H, 0);
+	break; }
+	/* Place entrance location from <, > or random entry (eg. WoR) */
+	case '>': {
+		new_level_up_x(&p_ptr->wpos,p_ptr->px);
+		new_level_up_y(&p_ptr->wpos,p_ptr->py);
+	break; }
+	case '<': {
+		new_level_down_x(&p_ptr->wpos,p_ptr->px);
+		new_level_down_y(&p_ptr->wpos,p_ptr->py);
+	break; }
+	case '+': {
+		new_level_rand_x(&p_ptr->wpos,p_ptr->px);
+		new_level_rand_y(&p_ptr->wpos,p_ptr->py);
+	break; }
+#endif
+
 	/* default -- do nothing. */
 	default: break;
 	}
@@ -14560,7 +15060,6 @@ bool master_build(int Ind, char * parms) {
 	cave_type **zcave;
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return(FALSE);
-
 	if (!is_admin(p_ptr) && (!player_is_king(Ind)) && (!guild_build(Ind))) return(FALSE);
 
 	/* extract arguments, otherwise build a wall of type new_feat */
@@ -14581,7 +15080,8 @@ bool master_build(int Ind, char * parms) {
 	if ((cs_ptr = GetCS(c_ptr, CS_DNADOOR))) return(FALSE);
 
 	/* This part to be rewritten for stacked CS */
-	c_ptr->feat = new_feat;
+	cave_set_feat(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
+	// cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
 	if (c_ptr->feat == FEAT_HOME) {
 		struct c_special *cs_ptr;
 		/* new special door creation (with keys) */
@@ -14600,8 +15100,7 @@ bool master_build(int Ind, char * parms) {
 		if (cs_ptr) cs_ptr->sc.ptr = key;
 		else KILL(key, struct key_type);
 		p_ptr->master_move_hook = NULL;	/*buggers up if not*/
-	}
-	if (c_ptr->feat == FEAT_SIGN) {
+	} else if (c_ptr->feat == FEAT_SIGN) {
 		struct c_special *cs_ptr;
 		struct floor_insc *sign;
 
@@ -14757,6 +15256,9 @@ bool master_summon(int Ind, char * parms) {
 	static char summon_type = 0; /* what kind to summon -- x right here, group at random location, etc */
 	static char summon_parms = 0; /* arguments to previous byte */
 	static u16b r_idx = 0; /* which monser to actually summon, from previous variables */
+#ifdef DM_MODULES
+	static u16b e_idx = 0; /* ego is possible */
+#endif
 	unsigned char size = 0;  /* how many monsters to actually summon */
 
 	if (!is_admin(p_ptr) && (!player_is_king(Ind))) return(FALSE);
@@ -14765,12 +15267,23 @@ bool master_summon(int Ind, char * parms) {
 
 	/* extract arguments.  If none are found, summon previous type. */
 	if (parms) {
+#ifdef DM_MODULES
+		e_idx = 0; // Paranoia - reset static from last call? - Kurzel
+		char *ptr;
+
+#endif
 		/* the first character specifies the type of monster */
 		summon_type = parms[0];
 		summon_parms = parms[1];
 		monster_type = parms[2];
 		/* Hack -- since monster_parms is a string, throw it on the end */
 		strcpy(monster_parms, &parms[3]);
+#ifdef DM_MODULES
+		e_idx = 0; // Paranoia - reset static from last call? - Kurzel
+		ptr = strchr(monster_parms, ' '); // Locate first space, if any
+		if (ptr) e_idx = atoi(&ptr[1]); // Convert a string after the space
+		if (e_idx <= 0) e_idx = 0; // Ignore bad atoi() conversions
+#endif
 	}
 
 	switch (summon_type) {
@@ -14782,6 +15295,10 @@ bool master_summon(int Ind, char * parms) {
 			r_idx = master_summon_aux_monster_type(Ind, monster_type, monster_parms);
 
 			/* summon the monster, if we have a valid one */
+#ifdef DM_MODULES
+			if (e_idx) summon_detailed_race(&p_ptr->wpos, p_ptr->py, p_ptr->px, r_idx, e_idx, 0, 1);
+			else
+#endif
 			if (r_idx) summon_specific_race(&p_ptr->wpos, p_ptr->py, p_ptr->px, r_idx, 0, 1);
 		}
 		break;

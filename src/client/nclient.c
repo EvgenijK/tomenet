@@ -246,7 +246,7 @@ static void Receive_init(void) {
 	receive_tbl[PKT_CONFUSED]	= Receive_confused;
 	receive_tbl[PKT_POISON]		= Receive_poison;
 	receive_tbl[PKT_STUDY]		= Receive_study;
-	receive_tbl[PKT_BPR]		= Receive_bpr;
+	receive_tbl[PKT_BPR]		= Receive_bpr_wraith;
 	receive_tbl[PKT_FOOD]		= Receive_food;
 	receive_tbl[PKT_FEAR]		= Receive_fear;
 	receive_tbl[PKT_SPEED]		= Receive_speed;
@@ -338,6 +338,7 @@ static void Receive_init(void) {
 #endif
 	receive_tbl[PKT_SPECIAL_LINE_POS]	= Receive_special_line_pos;
 	receive_tbl[PKT_VERSION]		= Receive_version;
+	receive_tbl[PKT_EQUIP_WIDE]	= Receive_equip_wide;
 }
 
 
@@ -914,6 +915,7 @@ void Receive_login(void) {
 	}
 	existing_characters = i;
 
+	create_character_ok_pvp = create_character_ok_iddc = FALSE;
 	ded_pvp_shown = ded_pvp;
 	ded_iddc_shown = ded_iddc;
 	for (n = max_cpa - i; n > 0; n--) {
@@ -922,11 +924,13 @@ void Receive_login(void) {
 				if (ded_pvp_shown < max_ded_pvp_chars) {
 					c_put_str(TERM_SLATE, "<free PvP-exclusive slot>", offset + i + n - 1, COL_CHARS);
 					ded_pvp_shown++;
+					create_character_ok_pvp = TRUE;
 					continue;
 				}
 				if (ded_iddc_shown < max_ded_iddc_chars) {
 					c_put_str(TERM_SLATE, "<free IDDC-exclusive slot>", offset + i + n - 1, COL_CHARS);
 					ded_iddc_shown++;
+					create_character_ok_iddc = TRUE;
 					continue;
 				}
 			}
@@ -945,6 +949,7 @@ void Receive_login(void) {
 			}
 		}
 		c_put_str(TERM_SLATE, "<free slot>", offset + i + n - 1, COL_CHARS);
+		create_character_ok_pvp = create_character_ok_iddc = TRUE;
 	}
 
 	offset += max_cpa + 1;
@@ -962,7 +967,9 @@ void Receive_login(void) {
 			/* hack: no weird modi on first client startup!
 			   To find out whether it's 1st or not we check firstrun and # of existing characters.
 			   However, we just don't display the choice, but it's still choosable by pressing the key anyway except for firstrun! */
-			if (!firstrun || existing_characters)
+			if ((!firstrun || existing_characters)
+			    /* We have still exclusive slots left? */
+			    && (create_character_ok_pvp || create_character_ok_iddc))
 				c_put_str(CHARSCREEN_COLOUR, "E) Create a new slot-exclusive character (IDDC or PvP only)", offset + 1, 2);
 		}
 	} else {
@@ -1203,7 +1210,7 @@ int Net_setup(void) {
 					class_info[i].c_adj[4] = b5 - 50;
 					class_info[i].c_adj[5] = b6 - 50;
 					if (is_newer_than(&server_version, 4, 4, 3, 1, 0, 0))
-						for (j = 0; j < 6; j++) {
+						for (j = 0; j < C_ATTRIBUTES; j++) {
 							Packet_scanf(&cbuf, "%c", &b1);
 							class_info[i].min_recommend[j] = b1;
 						}
@@ -1427,8 +1434,7 @@ int Net_flush(void) {
  * Return the socket filedescriptor for use in a select(2) call.
  */
 int Net_fd(void) {
-	if (!initialized || c_quit)
-		return(-1);
+	if (!initialized || c_quit) return(-1);
 #ifdef RETRY_LOGIN
 	/* prevent inkey() from crashing/causing Sockbuf_read() errors ("no read from non-readable socket..") */
 	if (rl_connection_state != 1) return(-1);
@@ -1504,15 +1510,15 @@ unsigned char Net_login() {
  */
 int Net_start(int sex, int race, int class) {
 	int i;
-	//int n;
 	int type, result;
-	char fname[1024];
+	char fname[1024] = { 0 }; //init for GCU-only mode: there is no font name available
 
 	Sockbuf_clear(&wbuf);
-	//n =
 	Packet_printf(&wbuf, "%c", PKT_PLAY);
 
+#if defined(WINDOWS) || defined(USE_X11)
 	get_screen_font_name(fname);
+#endif
 
 	if (is_atleast(&server_version, 4, 8, 1, 2, 0, 0))
 #ifdef USE_GRAPHICS
@@ -1525,12 +1531,15 @@ int Net_start(int sex, int race, int class) {
 	else Packet_printf(&wbuf, "%hd%hd%hd", sex, race, class);
 
 	/* Send the desired stat order */
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < C_ATTRIBUTES; i++)
 		Packet_printf(&wbuf, "%hd", stat_order[i]);
 
 	/* Send the options */
-	if (is_newer_than(&server_version, 4, 5, 8, 1, 0, 1)) {
+	if (is_newer_than(&server_version, 4, 9, 1, 0, 0, 0)) {
 		for (i = 0; i < OPT_MAX; i++)
+			Packet_printf(&wbuf, "%c", Client_setup.options[i]);
+	} else if (is_newer_than(&server_version, 4, 5, 8, 1, 0, 1)) {
+		for (i = 0; i < OPT_MAX_154; i++)
 			Packet_printf(&wbuf, "%c", Client_setup.options[i]);
 	} else if (is_newer_than(&server_version, 4, 5, 5, 0, 0, 0)) {
 		for (i = 0; i < OPT_MAX_COMPAT; i++)
@@ -1551,15 +1560,12 @@ int Net_start(int sex, int race, int class) {
 	/* Send the "unknown" redefinitions */
 	for (i = 0; i < TV_MAX; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.u_attr[i], Client_setup.u_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.u_attr[i], Client_setup.u_char[i]);
-		}
 
-		if ( max_char < Client_setup.u_char[i] ) {
-			max_char = Client_setup.u_char[i];
-		}
+		if (max_char < Client_setup.u_char[i]) max_char = Client_setup.u_char[i];
 	}
 
 	/* Send the "feature" redefinitions */
@@ -1568,15 +1574,12 @@ int Net_start(int sex, int race, int class) {
 
 	for (i = 0; i < limit; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.f_attr[i], Client_setup.f_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.f_attr[i], Client_setup.f_char[i]);
-		}
 
-		if ( max_char < Client_setup.f_char[i] ) {
-			max_char = Client_setup.f_char[i];
-		}
+		if (max_char < Client_setup.f_char[i]) max_char = Client_setup.f_char[i];
 	}
 
 	/* Send the "object" redefinitions */
@@ -1585,15 +1588,12 @@ int Net_start(int sex, int race, int class) {
 
 	for (i = 0; i < limit; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.k_attr[i], Client_setup.k_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.k_attr[i], Client_setup.k_char[i]);
-		}
 
-		if ( max_char < Client_setup.k_char[i] ) {
-			max_char = Client_setup.k_char[i];
-		}
+		if (max_char < Client_setup.k_char[i]) max_char = Client_setup.k_char[i];
 	}
 
 	/* Send the "monster" redefinitions */
@@ -1602,26 +1602,20 @@ int Net_start(int sex, int race, int class) {
 
 	for (i = 0; i < limit; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.r_attr[i], Client_setup.r_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.r_attr[i], Client_setup.r_char[i]);
-		}
 
-		if ( max_char < Client_setup.r_char[i] ) {
-			max_char = Client_setup.r_char[i];
-		}
+		if (max_char < Client_setup.r_char[i]) max_char = Client_setup.r_char[i];
 	}
 
 	/* Calculate and update minimum character transfer bytes */
 	Client_setup.char_transfer_bytes = 0;
-	for ( ; max_char != 0; max_char >>= 8 ) {
-		Client_setup.char_transfer_bytes += 1;
-	}
+	for ( ; max_char != 0; max_char >>= 8) Client_setup.char_transfer_bytes += 1;
 #endif
 
-	if (Sockbuf_flush(&wbuf) == -1)
-		quit("Can't send start play packet");
+	if (Sockbuf_flush(&wbuf) == -1) quit("Can't send start play packet");
 
 	/* Wait for data to arrive */
 	SetTimeout(5, 0);
@@ -1692,9 +1686,13 @@ static int Net_packet(void) {
 #endif	/* DEBUG_LEVEL */
 		if (receive_tbl[type] == NULL) {
 			errno = 0;
-#ifndef WIN32 /* suppress annoying msg boxes in windows clients, when unknown-packet-errors occur. */
-			plog(format("Received unknown packet type (%d, %d), dropping",
-				type, prev_type));
+#if 0
+ #ifndef WIN32 /* suppress annoying msg boxes in windows clients, when unknown-packet-errors occur. -- why just on Windows? */
+			//plog(format("Received unknown packet type (%d, %d), dropping", type, prev_type));
+ #endif
+#else
+			Send_unknownpacket(type, prev_type);
+			c_msg_format("\377RReceived unknown packet type (%d, %d), dropping", type, prev_type);
 #endif
 			/* hack: redraw after a packet was dropped, to make sure we didn't miss something important */
 			Send_redraw(0);
@@ -1834,6 +1832,8 @@ int Receive_reply(int *replyto, int *result) {
 	return(1);
 }
 
+/* Always try to re-login, that basically means: Include server updates/terminations */
+//#define ALWAYS_RETRY_LOGIN
 int Receive_quit(void) {
 	unsigned char pkt;
 	char reason[MAX_CHARS_WIDE];
@@ -1847,22 +1847,35 @@ int Receive_quit(void) {
 		errno = 0;
 		plog("Can't read quit packet");
 	} else {
-		if (Packet_scanf(&rbuf, "%s", reason) <= 0)
-			strcpy(reason, "unknown reason");
+		if (Packet_scanf(&rbuf, "%s", reason) <= 0) strcpy(reason, "unknown reason");
 		errno = 0;
+
+#ifdef RETRY_LOGIN
+ #ifndef ALWAYS_RETRY_LOGIN
+		/* Try to relogin if we manually quit via arg-less slash command */
+		if (!strcmp(reason, "client quit")) {
+ #endif
+			rl_connection_destructible = TRUE;
+			rl_connection_state = 2;
+ #ifndef ALWAYS_RETRY_LOGIN
+		}
+ #endif
+#endif
 
 		/* Hack -- tombstone */
 		if (strstr(reason, "Killed by") ||
 		    strstr(reason, "Committed suicide")) {
-#ifdef RETRY_LOGIN
+			/* TERAHACK -- what does it do exactly, please? >_>" */
+			initialized = FALSE;
+
+#if !defined(ALWAYS_RETRY_LOGIN) && defined(RETRY_LOGIN)
 			rl_connection_destructible = TRUE;
 			rl_connection_state = 2;
 #endif
-			/* TERAHACK */
-			initialized = FALSE;
 
 			c_close_game(reason);
 		}
+
 		quit(format("%s", reason));
 	}
 	return(-1);
@@ -1982,7 +1995,10 @@ int Receive_hp(void) {
 	if (c_cfg.hp_bar) bar = TRUE;
 
 	/* ..Display hack for temporarily boosted HP -_- */
-	if (cur > 10000) {
+	if (cur > 5000 /* Checking for > 10000 can cause bugs if our HP drop < 0 aka when we die, while under boosted effect!
+			  So we ensure leeway of exactly the middle, +/-5000, to reach the 10000 hack:
+			  On the one hand allow having up to <5k HP and on the other hand allow taking up to <5k damage below 0 HP on death. */
+	    ) {
 		cur -= 10000;
 		hp_boosted = TRUE;
 	} else hp_boosted = FALSE;
@@ -2075,14 +2091,15 @@ int Receive_apply_auto_insc(void) {
 	char ch, slot;
 
 	if ((n = Packet_scanf(&rbuf, "%c%c", &ch, &slot)) <= 0) return(n);
-	apply_auto_inscriptions((int)slot, FALSE);
+	(void)apply_auto_inscriptions_aux((int)slot, -1, FALSE);
 	return(1);
 }
 
 int Receive_inven(void) {
 	int n;
 	char ch;
-	char pos, attr, tval, sval, uses_dir = 0;
+	char pos, uses_dir = 0;
+	byte attr, tval, sval;
 	s16b wgt, amt, pval, name1 = 0;
 	char name[ONAME_LEN], *insc;
 #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
@@ -2112,13 +2129,16 @@ int Receive_inven(void) {
 		/* I hated it too much I swapped them	- Jir - */
 	inventory[pos - 'a'].sval = sval;
 	inventory[pos - 'a'].tval = tval;
-	inventory[pos - 'a'].pval = pval;
+	if ((tval == TV_BOOK && is_custom_tome(sval)) || tval == TV_SUBINVEN) /* ENABLE_SUBINVEN */
+		inventory[pos - 'a'].bpval = pval;
+	else inventory[pos - 'a'].pval = pval;
 	inventory[pos - 'a'].name1 = name1;
 	inventory[pos - 'a'].attr = attr;
 	inventory[pos - 'a'].weight = wgt;
 	inventory[pos - 'a'].number = amt;
 	inventory[pos - 'a'].uses_dir = uses_dir & 0x1;
 	inventory[pos - 'a'].ident = uses_dir & 0x6; //new hack in 4.7.1.2+ for ITH_ID/ITH_STARID
+	inventory[pos - 'a'].iron_trade = uses_dir & 0x8;
 
 #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
 	/* Strip "@&" markers, as these are a purely server-side thing */
@@ -2145,9 +2165,15 @@ int Receive_inven(void) {
 	} else inventory_inscription[pos - 'a'] = 0;
 
 	strncpy(inventory_name[pos - 'a'], name, ONAME_LEN - 1);
+	inventory_name[pos - 'a'][ONAME_LEN - 1] = 0;
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN);
+
+#ifdef ENABLE_SUBINVEN
+	/* Update subinven subterm too if it's a bag */
+	if (tval == TV_SUBINVEN) p_ptr->window |= PW_SUBINVEN;
+#endif
 
 	return(1);
 }
@@ -2156,7 +2182,8 @@ int Receive_inven(void) {
 int Receive_subinven(void) {
 	int n, ipos;
 	char ch;
-	char iposc, pos, attr, tval, sval, uses_dir = 0;
+	char iposc, pos, uses_dir = 0;
+	byte tval, sval, attr;
 	s16b wgt, amt, pval, name1 = 0;
 	char name[ONAME_LEN], *insc;
  #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
@@ -2177,13 +2204,16 @@ int Receive_subinven(void) {
 		/* I hated it too much I swapped them	- Jir - */
 	subinventory[ipos][pos - 'a'].sval = sval;
 	subinventory[ipos][pos - 'a'].tval = tval;
-	subinventory[ipos][pos - 'a'].pval = pval;
+	if ((tval == TV_BOOK && is_custom_tome(sval)) || tval == TV_SUBINVEN) /* ENABLE_SUBINVEN */
+		subinventory[ipos][pos - 'a'].bpval = pval;
+	else subinventory[ipos][pos - 'a'].pval = pval;
 	subinventory[ipos][pos - 'a'].name1 = name1;
 	subinventory[ipos][pos - 'a'].attr = attr;
 	subinventory[ipos][pos - 'a'].weight = wgt;
 	subinventory[ipos][pos - 'a'].number = amt;
 	subinventory[ipos][pos - 'a'].uses_dir = uses_dir & 0x1;
 	subinventory[ipos][pos - 'a'].ident = uses_dir & 0x6; //new hack in 4.7.1.2+ for ITH_ID/ITH_STARID
+	subinventory[ipos][pos - 'a'].iron_trade = uses_dir & 0x8;
 
  #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
 	/* Strip "@&" markers, as these are a purely server-side thing */
@@ -2210,10 +2240,13 @@ int Receive_subinven(void) {
 	} else subinventory_inscription[ipos][pos - 'a'] = 0;
 
 	strncpy(subinventory_name[ipos][pos - 'a'], name, ONAME_LEN - 1);
+	subinventory_name[ipos][pos - 'a'][ONAME_LEN - 1] = 0;
 
 	//problem: update subinventory live. eg after activation-consumption, but also after unstow w/ latency?
 	//maybe this, bad style?
 	if (using_subinven != -1) show_subinven(ipos);
+
+	p_ptr->window |= (PW_SUBINVEN);
 
 	return(1);
 }
@@ -2223,7 +2256,8 @@ int Receive_subinven(void) {
 int Receive_inven_wide(void) {
 	int n;
 	char ch;
-	char pos, attr, tval, sval, *insc, ident = 0;
+	char pos, *insc, ident = 0;
+	byte attr, tval, sval;
 	s16b xtra1, xtra2, xtra3, xtra4, xtra5, xtra6, xtra7, xtra8, xtra9;
 	byte xtra1b, xtra2b, xtra3b, xtra4b, xtra5b, xtra6b, xtra7b, xtra8b, xtra9b;
 	s16b wgt, amt, pval, name1 = 0;
@@ -2232,7 +2266,7 @@ int Receive_inven_wide(void) {
 	char tmp[ONAME_LEN];
 #endif
 
-//add uses_dir, for SV_CUSTOM_OBJECT
+	/* hack in 4.9.0.7, no protocol change needed :) Instead of uses_dir, we encode everything into ident this time, both are %c (for SV_CUSTOM_OBJECT and for iron_trade) */
 	if (is_newer_than(&server_version, 4, 7, 1, 1, 0, 0)) {
 		if ((n = Packet_scanf(&rbuf, "%c%c%c%hu%hd%c%c%hd%hd%hd%hd%hd%hd%hd%hd%hd%hd%hd%I%c", &ch, &pos, &attr, &wgt, &amt, &tval, &sval, &pval, &name1,
 		    &xtra1, &xtra2, &xtra3, &xtra4, &xtra5, &xtra6, &xtra7, &xtra8, &xtra9, name, &ident)) <= 0)
@@ -2273,12 +2307,16 @@ int Receive_inven_wide(void) {
 		/* I hated it too much I swapped them	- Jir - */
 	inventory[pos - 'a'].sval = sval;
 	inventory[pos - 'a'].tval = tval;
-	inventory[pos - 'a'].pval = pval;
+	if ((tval == TV_BOOK && is_custom_tome(sval)) || tval == TV_SUBINVEN) /* ENABLE_SUBINVEN */
+		inventory[pos - 'a'].bpval = pval;
+	else inventory[pos - 'a'].pval = pval;
 	inventory[pos - 'a'].name1 = name1;
 	inventory[pos - 'a'].attr = attr;
 	inventory[pos - 'a'].weight = wgt;
 	inventory[pos - 'a'].number = amt;
-	inventory[pos - 'a'].ident = ident;
+	inventory[pos - 'a'].uses_dir = ident & 0x1;
+	inventory[pos - 'a'].ident = ident & 0x6; //new hack in 4.7.1.2+ for ITH_ID/ITH_STARID
+	inventory[pos - 'a'].iron_trade = ident & 0x8;
 
 	inventory[pos - 'a'].xtra1 = xtra1;
 	inventory[pos - 'a'].xtra2 = xtra2;
@@ -2315,6 +2353,7 @@ int Receive_inven_wide(void) {
 	} else inventory_inscription[pos - 'a'] = 0;
 
 	strncpy(inventory_name[pos - 'a'], name, ONAME_LEN - 1);
+	inventory_name[pos - 'a'][ONAME_LEN - 1] = 0;
 
 	/* Window stuff */
 	p_ptr->window |= (PW_INVEN);
@@ -2357,7 +2396,8 @@ char *equipment_slot_names[] = {
 int Receive_equip(void) {
 	int n;
 	char ch;
-	char pos, attr, tval, sval, uses_dir;
+	char pos, uses_dir;
+	byte attr, tval, sval;
 	s16b wgt, amt, pval, name1 = 0;
 	char name[ONAME_LEN];
 #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
@@ -2383,7 +2423,9 @@ int Receive_equip(void) {
 
 	inventory[pos - 'a' + INVEN_WIELD].sval = sval;
 	inventory[pos - 'a' + INVEN_WIELD].tval = tval;
-	inventory[pos - 'a' + INVEN_WIELD].pval = pval;
+	if ((tval == TV_BOOK && is_custom_tome(sval)) || tval == TV_SUBINVEN) /* ENABLE_SUBINVEN */
+		inventory[pos - 'a' + INVEN_WIELD].bpval = pval;
+	else inventory[pos - 'a' + INVEN_WIELD].pval = pval;
 	inventory[pos - 'a' + INVEN_WIELD].name1 = name1;
 	inventory[pos - 'a' + INVEN_WIELD].attr = attr;
 	inventory[pos - 'a' + INVEN_WIELD].weight = wgt;
@@ -2391,6 +2433,7 @@ int Receive_equip(void) {
 	inventory[pos - 'a' + INVEN_WIELD].uses_dir = uses_dir & 0x1;
 	inventory[pos - 'a' + INVEN_WIELD].ident = uses_dir & 0x6; //new hack in 4.7.1.2+ for ITH_ID/ITH_STARID
 	equip_set[pos - 'a'] = (uses_dir & 0xF0) >> 4;
+	inventory[pos - 'a' + INVEN_WIELD].iron_trade = uses_dir & 0x8;
 
 #if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
 	/* Strip "@&" markers, as these are a purely server-side thing */
@@ -2409,6 +2452,84 @@ int Receive_equip(void) {
 		strcpy(inventory_name[pos - 'a' + INVEN_WIELD], equipment_slot_names[pos - 'a']);
 	else
 		strncpy(inventory_name[pos - 'a' + INVEN_WIELD], name, ONAME_LEN - 1);
+	inventory_name[pos - 'a' + INVEN_WIELD][ONAME_LEN - 1] = 0;
+
+	/* new hack for '(unavailable)' equipment slots: handle INVEN_ARM slot a bit cleaner: */
+	if (pos == 'a') {
+		if (!strcmp(name, "(unavailable)")) equip_no_weapon = TRUE;
+		else equip_no_weapon = FALSE;
+	} else if (pos == 'b' && equip_no_weapon && !strcmp(name, "(nothing)"))
+		strcpy(inventory_name[INVEN_ARM], "(shield)");
+
+	/* Window stuff */
+	p_ptr->window |= (PW_EQUIP);
+
+	return(1);
+}
+
+/* Added for WIELD_BOOKS */
+int Receive_equip_wide(void) {
+	int n;
+	char ch;
+	char pos, uses_dir;
+	byte attr, tval, sval;
+	s16b xtra1, xtra2, xtra3, xtra4, xtra5, xtra6, xtra7, xtra8, xtra9;
+	s16b wgt, amt, pval, name1 = 0;
+	char name[ONAME_LEN];
+#if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
+	char tmp[ONAME_LEN];
+#endif
+
+	if ((n = Packet_scanf(&rbuf, "%c%c%c%hu%hd%c%c%hd%hd%c%I%hd%hd%hd%hd%hd%hd%hd%hd%hd",
+	    &ch, &pos, &attr, &wgt, &amt, &tval, &sval, &pval, &name1, &uses_dir, name,
+	    &xtra1, &xtra2, &xtra3, &xtra4, &xtra5, &xtra6, &xtra7, &xtra8, &xtra9)) <= 0)
+		return(n);
+
+	/* Check that the equipment slot is valid - mikaelh */
+	if (pos < 'a' || pos > 'n') return(0);
+
+	inventory[pos - 'a' + INVEN_WIELD].sval = sval;
+	inventory[pos - 'a' + INVEN_WIELD].tval = tval;
+	if ((tval == TV_BOOK && is_custom_tome(sval)) || tval == TV_SUBINVEN) /* ENABLE_SUBINVEN */
+		inventory[pos - 'a' + INVEN_WIELD].bpval = pval;
+	else inventory[pos - 'a' + INVEN_WIELD].pval = pval;
+	inventory[pos - 'a' + INVEN_WIELD].name1 = name1;
+	inventory[pos - 'a' + INVEN_WIELD].attr = attr;
+	inventory[pos - 'a' + INVEN_WIELD].weight = wgt;
+	inventory[pos - 'a' + INVEN_WIELD].number = amt;
+	inventory[pos - 'a' + INVEN_WIELD].uses_dir = uses_dir & 0x1;
+	inventory[pos - 'a' + INVEN_WIELD].ident = uses_dir & 0x6; //new hack in 4.7.1.2+ for ITH_ID/ITH_STARID
+	equip_set[pos - 'a'] = (uses_dir & 0xF0) >> 4;
+	inventory[pos - 'a' + INVEN_WIELD].iron_trade = uses_dir & 0x8;
+
+	inventory[pos - 'a' + INVEN_WIELD].xtra1 = xtra1;
+	inventory[pos - 'a' + INVEN_WIELD].xtra2 = xtra2;
+	inventory[pos - 'a' + INVEN_WIELD].xtra3 = xtra3;
+	inventory[pos - 'a' + INVEN_WIELD].xtra4 = xtra4;
+	inventory[pos - 'a' + INVEN_WIELD].xtra5 = xtra5;
+	inventory[pos - 'a' + INVEN_WIELD].xtra6 = xtra6;
+	inventory[pos - 'a' + INVEN_WIELD].xtra7 = xtra7;
+	inventory[pos - 'a' + INVEN_WIELD].xtra8 = xtra8;
+	inventory[pos - 'a' + INVEN_WIELD].xtra9 = xtra9;
+
+#if defined(POWINS_DYNAMIC) && defined(POWINS_DYNAMIC_CLIENTSIDE)
+	/* Strip "@&" markers, as these are a purely server-side thing */
+	while ((insc = strstr(name, "@&"))) {
+		strcpy(tmp, insc + 2);
+		strcpy(insc, tmp);
+	}
+	/* Strip "@^" markers, as these are a purely server-side thing */
+	while ((insc = strstr(name, "@&"))) {
+		strcpy(tmp, insc + 2);
+		strcpy(insc, tmp);
+	}
+#endif
+
+	if (!strcmp(name, "(nothing)"))
+		strcpy(inventory_name[pos - 'a' + INVEN_WIELD], equipment_slot_names[pos - 'a']);
+	else
+		strncpy(inventory_name[pos - 'a' + INVEN_WIELD], name, ONAME_LEN - 1);
+	inventory_name[pos - 'a' + INVEN_WIELD][ONAME_LEN - 1] = 0;
 
 	/* new hack for '(unavailable)' equipment slots: handle INVEN_ARM slot a bit cleaner: */
 	if (pos == 'a') {
@@ -2507,6 +2628,14 @@ int Receive_various(void) {
 	p_ptr->wt = wgt;
 	p_ptr->age = age;
 	p_ptr->sc = sc;
+
+	if (c_cfg.load_form_macros && strcmp(c_p_ptr->body_name, buf)) {
+		char tmp[MAX_CHARS];
+
+		if (strcmp(buf, "Player")) sprintf(tmp, "%s%c%s.prf", cname, PRF_BODY_SEPARATOR, buf);
+		else sprintf(tmp, "%s.prf", cname);
+		(void)process_pref_file(tmp);
+	}
 	strcpy(c_p_ptr->body_name, buf);
 
 	/*printf("Received various info: height %d, weight %d, age %d, sc %d\n", hgt, wgt, age, sc);*/
@@ -2582,7 +2711,7 @@ int Receive_skill_init(void) {
 	int n;
 	char ch;
 	u16b i;
-	u16b father, mkey, order;
+	s16b father, mkey, order;
 	char name[MSG_LEN], desc[MSG_LEN], act[MSG_LEN];
 	u32b flags1;
 	byte tval;
@@ -2633,7 +2762,7 @@ int Receive_skill_info(void) {
 	char ch;
 	s32b val;
 	int i, mod, dev, mkey;
-	char flags1;
+	byte flags1;
 
 	if (is_newer_than(&server_version, 4, 4, 4, 1, 0, 0)) {
 		if ((n = Packet_scanf(&rbuf, "%c%d%d%d%d%c%d", &ch, &i, &val, &mod, &dev, &flags1, &mkey)) <= 0) return(n);
@@ -2829,8 +2958,14 @@ int Receive_char(void) {
 #endif
 		//for gcu: Term_xtra(TERM_XTRA_SHAPE, 2);
 
+#if defined(TEST_CLIENT) && defined(EXTENDED_BG_COLOURS)
+		/* Highlight player by using a background colour */
+		a = TERMX_YELLOW;
+#else
+		/* Highlight player by placing the cursor under/around him */
 		Term_set_cursor(1);
 		Term_gotoxy(x, y);
+#endif
 
 		/* for X11:
 		Term_curs_x11() ->
@@ -2862,6 +2997,8 @@ int Receive_message(void) {
 	if (!strncmp(buf + 6, "Note from ", 10) || (got_note && buf[2] == ' ')) {
 		FILE *fp;
 		char path[1024];
+		time_t ct = time(NULL);
+		struct tm* ctl = localtime(&ct);
 
 		path_build(path, 1024, ANGBAND_DIR_USER, format("notes-%s.txt", nick));
 		fp = fopen(path, "a");
@@ -2893,7 +3030,7 @@ int Receive_message(void) {
 				c2++;
 			}
 
-			fprintf(fp, "%s\n", buf2);
+			fprintf(fp, "[%04d/%02d/%02d - %02d:%02d] %s\n", 1900 + ctl->tm_year, ctl->tm_mon + 1, ctl->tm_mday, ctl->tm_hour, ctl->tm_min, buf2);
 			fclose(fp);
 		}
 		got_note = TRUE;
@@ -2947,11 +3084,13 @@ int Receive_message(void) {
 		char *we_sent_p = strchr(buf, '[');
 
 		if (we_sent_p) {
-			char we_sent_buf[NAME_LEN + 1 + 10];
+			char we_sent_buf[NAME_LEN + 1 + 10], *we_sent_p_end;
 
 			strncpy(we_sent_buf, we_sent_p + 1, NAME_LEN + 1 + 10);
 			we_sent_buf[NAME_LEN + 10] = '\0';
-			if (strchr(we_sent_buf, ']')) {
+			if ((we_sent_p_end = strchr(we_sent_buf, ']'))
+			    && we_sent_p_end - we_sent_p <= NAME_LEN /* Prevent buffer overflow if the [...] wasn't a name but some longer text that was just within brackets for some reason */
+			    ) {
 				char exact_name[NAME_LEN + 1], *en_p = exact_name;
 
 				/* we found SOME name, so don't test it again */
@@ -3219,15 +3358,19 @@ int Receive_study(void) {
 	return(1);
 }
 
-int Receive_bpr(void) {
+int Receive_bpr_wraith(void) {
 	int n;
-	char ch;
+	char ch, bpr_str[20];
 	byte bpr, attr;
 
-	if ((n = Packet_scanf(&rbuf, "%c%c%c", &ch, &bpr, &attr)) <= 0) return(n);
+	if (is_older_than(&server_version, 4, 9, 1, 0, 0, 1)) {
+		if ((n = Packet_scanf(&rbuf, "%c%c%c", &ch, &bpr, &attr)) <= 0) return(n);
+	} else {
+		if ((n = Packet_scanf(&rbuf, "%c%c%c%s", &ch, &bpr, &attr, bpr_str)) <= 0) return(n);
+	}
 
 	if (screen_icky) Term_switch(0);
-	prt_bpr(bpr, attr);
+	prt_bpr_wraith(bpr, attr, bpr_str);
 	if (screen_icky) Term_switch(0);
 	return(1);
 }
@@ -3548,6 +3691,12 @@ int Receive_line_info(void) {
 	char *stored_sbuf_ptr = rbuf.ptr;
 
 	if ((n = Packet_scanf(&rbuf, "%c%hd", &ch, &y)) <= 0) return(n);
+
+	/* Bad hack to fix the timing issue of sometimes not loading a custom font's prf file: */
+	if (fix_custom_font_after_startup) {
+		fix_custom_font_after_startup = FALSE;
+		handle_process_font_file();
+	}
 
 	if (screen_icky && ch != PKT_MINI_MAP) Term_switch(0);
 
@@ -3901,10 +4050,13 @@ int Receive_special_other(void) {
 int Receive_store_action(void) {
 	int n;
 	short bact, action, cost;
-	char ch, pos, name[MAX_CHARS], letter, attr;
-	byte flag;
+	char ch, pos, name[MAX_CHARS], letter;
+	byte attr, flag;
 
 	if ((n = Packet_scanf(&rbuf, "%c%c%hd%hd%s%c%c%hd%c", &ch, &pos, &bact, &action, name, &attr, &letter, &cost, &flag)) <= 0) return(n);
+
+	/* Newer server? (Or just incompatible?) */
+	if (pos >= MAX_STORE_ACTIONS) return(1);
 
 	c_store.bact[(int)pos] = bact;
 	c_store.actions[(int)pos] = action;
@@ -3922,8 +4074,8 @@ int Receive_store_action(void) {
 
 int Receive_store(void) {
 	int n, price;
-	char ch, pos, name[ONAME_LEN], tval, sval, powers[MAX_CHARS_WIDE];
-	byte attr;
+	char ch, pos, name[ONAME_LEN], powers[MAX_CHARS_WIDE];
+	byte attr, tval, sval;
 	s16b wgt, num, pval;
 
 	if (is_atleast(&server_version, 4, 7, 3, 0, 0, 0)) {
@@ -3957,8 +4109,8 @@ int Receive_store(void) {
 
 int Receive_store_wide(void) {
 	int n, price;
-	char ch, pos, name[ONAME_LEN], tval, sval;
-	byte attr;
+	char ch, pos, name[ONAME_LEN];
+	byte attr, tval, sval;
 	s16b wgt, num, pval;
 	s16b xtra1, xtra2, xtra3, xtra4, xtra5, xtra6, xtra7, xtra8, xtra9;
 	byte xtra1b, xtra2b, xtra3b, xtra4b, xtra5b, xtra6b, xtra7b, xtra8b, xtra9b;
@@ -4012,11 +4164,11 @@ int Receive_store_wide(void) {
 /* For new SPECIAL store flag, stores that don't have inventory - C. Blue */
 int Receive_store_special_str(void) {
 	int n;
-	char ch, line, col, attr;
+	char ch, line, col;
+	byte attr;
 	char str[MAX_CHARS];
 
-	if ((n = Packet_scanf(&rbuf, "%c%c%c%c%s", &ch, &line, &col, &attr, str)) <= 0)
-		return(n);
+	if ((n = Packet_scanf(&rbuf, "%c%c%c%c%s", &ch, &line, &col, &attr, str)) <= 0) return(n);
 	if (!shopping) return(1);
 
 	c_put_str(attr, str, line, col);
@@ -4031,11 +4183,11 @@ int Receive_store_special_str(void) {
 /* For new SPECIAL store flag, stores that don't have inventory - C. Blue */
 int Receive_store_special_char(void) {
 	int n;
-	char ch, line, col, attr;
+	char ch, line, col;
+	byte attr;
 	char c, str[2];
 
-	if ((n = Packet_scanf(&rbuf, "%c%c%c%c%c", &ch, &line, &col, &attr, &c)) <= 0)
-		return(n);
+	if ((n = Packet_scanf(&rbuf, "%c%c%c%c%c", &ch, &line, &col, &attr, &c)) <= 0) return(n);
 	if (!shopping) return(1);
 
 	str[0] = c;
@@ -4070,7 +4222,7 @@ int Receive_store_special_clr(void) {
 
 int Receive_store_info(void) {
 	int n, max_cost;
-	char ch, owner_name[MAX_CHARS] , store_name[MAX_CHARS];
+	char ch, owner_name[MAX_CHARS], store_name[MAX_CHARS];
 	s16b num_items;
 	byte store_attr = TERM_SLATE;
 	char store_char = '?';
@@ -4266,6 +4418,7 @@ int Receive_music(void) {
 	if (!music(m)) { if (!music(m2)) music(m3); }
 #endif
 
+flick_global_time = ticks;
 	return(1);
 }
 int Receive_music_vol(void) {
@@ -4404,8 +4557,9 @@ int Receive_boni_col(void) {
 
 int Receive_special_line(void) {
 	int n, p;
-	char ch, attr, ab, ap;
+	char ch, ab, ap;
 	s32b max, line;
+	byte attr;
 	char buf[ONAME_LEN]; /* Allow colour codes! (was: MAX_CHARS, which is just 80) */
 	int x, y, phys_line;
 #ifdef REGEX_SEARCH
@@ -4416,6 +4570,7 @@ int Receive_special_line(void) {
 		if ((n = Packet_scanf(&rbuf, "%c%d%d%c%I", &ch, &max, &line, &attr, buf)) <= 0) return(n);
 	} else {
 		s16b old_max, old_line;
+
 		if ((n = Packet_scanf(&rbuf, "%c%hd%hd%c%I", &ch, &old_max, &old_line, &attr, buf)) <= 0) return(n);
 		max = old_max;
 		line = old_line;
@@ -4544,7 +4699,8 @@ int Receive_special_line_pos(void) {
 
 int Receive_floor(void) {
 	int n;
-	char ch, tval;
+	char ch;
+	byte tval;
 
 	if ((n = Packet_scanf(&rbuf, "%c%c", &ch, &tval)) <= 0) return(n);
 
@@ -4594,6 +4750,8 @@ int Receive_party(void) {
 	strcpy(party_info_members, pmembers);
 	strcpy(party_info_owner, powner);
 
+	if (chat_mode == CHAT_MODE_PARTY && !party_info_name[0]) chat_mode = CHAT_MODE_NORMAL;
+
 	/* Check for iron team state */
 	if (!strncmp(party_info_name, "Iron Team", 9)) party_info_mode = PA_IRONTEAM; /* Normal (open) iron team */
 	else if (!strncmp(party_info_name + 2, "Iron Team", 9)) party_info_mode = (PA_IRONTEAM | PA_IRONTEAM_CLOSED); /* Prefixed colour code indicates 'closed' iron team */
@@ -4642,6 +4800,8 @@ int Receive_guild(void) {
 	strcpy(guild_info_name, gname);
 	strcpy(guild_info_members, gmembers);
 	strcpy(guild_info_owner, gowner);
+
+	if (chat_mode == CHAT_MODE_GUILD && !guild_info_name[0]) chat_mode = CHAT_MODE_NORMAL;
 
 	/* Re-show party info */
 	if (party_mode) {
@@ -4932,10 +5092,14 @@ int Receive_encumberment(void) {
 		if ((n = Packet_scanf(&rbuf, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c", &ch, &cumber_armor, &awkward_armor, &cumber_glove, &heavy_wield, &heavy_shield, &heavy_shoot,
 		    &icky_wield, &awkward_wield, &easy_wield, &cumber_weight, &monk_heavyarmor, &rogue_heavyarmor, &awkward_shoot)) <= 0)
 			return(n);
+		heavy_swim = 0;
+		heavy_tool = 0;
 	} else {
 		if ((n = Packet_scanf(&rbuf, "%c%c%c%c%c%c%c%c%c%c%c%c%c", &ch, &cumber_armor, &awkward_armor, &cumber_glove, &heavy_wield, &heavy_shield, &heavy_shoot,
 		    &icky_wield, &awkward_wield, &easy_wield, &cumber_weight, &monk_heavyarmor, &awkward_shoot)) <= 0)
 			return(n);
+		heavy_swim = 0;
+		heavy_tool = 0;
 		rogue_heavyarmor = 0;
 	}
 
@@ -5199,8 +5363,7 @@ int Receive_inventory_revision(void) {
 
 #if 0 /* moved to Receive_inven...() - cleaner and works much better (ID and *ID*) */
 	/* AUTOINSCRIBE - moved to Receive_inventory_revision() */
-	for (v = 0; v < INVEN_PACK; v++)
-		apply_auto_inscriptions(v, FALSE);
+	apply_auto_inscriptions(-1);
 #endif
 
 	return(1);
@@ -5261,6 +5424,8 @@ void apply_auto_pickup(char *item_name) {
 
 		/* skip empty auto-inscriptions */
 		if (!match[0]) continue;
+		/* skip disabled auto-inscriptions */
+		if (auto_inscription_disabled[i]) continue;
 
 		/* do nothing if match is not set to auto-pickup (for items we dont want to pickup nor destroy, mainly for chests) */
 		if (!(c_cfg.auto_pickup && auto_inscription_autopickup[i]) && !(c_cfg.auto_destroy && auto_inscription_autodestroy[i]) && !dau) continue;
@@ -5354,48 +5519,82 @@ void apply_auto_pickup(char *item_name) {
 }
 
 /* Apply client-side auto-inscriptions - C. Blue
-   'force': overwrite existing non-trivial inscription. */
-void apply_auto_inscriptions(int slot, bool force) {
+   'insc_idx': -1 to apply all auto-inscriptions, otherwise only apply one particular auto-inscription.
+   'force': overwrite existing non-trivial inscription.
+   Returns 'TRUE' if the item is now inscribed, no matter whether by us or already before we tried, else FALSE. */
+bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 	int i;
 	char *ex, ex_buf[ONAME_LEN];
 	char *ex2, ex_buf2[ONAME_LEN];
 	char *match, tag_buf[ONAME_LEN];
-	bool auto_inscribe, found;
+	bool auto_inscribe, found, has_insc = FALSE;
 #ifdef REGEX_SEARCH
 	int ires = -999;
 	regex_t re_src;
 	regmatch_t pmatch[REGEX_ARRAY_SIZE + 1];
 #endif
+	int start, stop;
+	cptr iname;
+	int iinsc, iilen;
+#ifdef ENABLE_SUBINVEN
+	int sslot = -1;
+#endif
 
-	/* skip empty items */
-	if (!inventory[slot].tval) return;
+	if (c_cfg.auto_inscr_off) return(FALSE);
+
+#ifdef ENABLE_SUBINVEN
+	if (slot >= SUBINVEN_INVEN_MUL) {
+		sslot = slot / SUBINVEN_INVEN_MUL - 1;
+		slot %= SUBINVEN_INVEN_MUL;
+
+		/* skip empty items */
+		if (!subinventory[sslot][slot].tval) return(FALSE);
+
+		iname = subinventory_name[sslot][slot];
+		iinsc = subinventory_inscription[sslot][slot];
+		iilen = subinventory_inscription_len[sslot][slot];
+	} else
+#endif
+	{
+		/* skip empty items */
+		if (!inventory[slot].tval) return(FALSE);
+
+		iname = inventory_name[slot];
+		iinsc = inventory_inscription[slot];
+		iilen = inventory_inscription_len[slot];
+	}
+
+	start = (insc_idx == -1 ? 0 : insc_idx);
+	stop = (insc_idx == -1 ? MAX_AUTO_INSCRIPTIONS : insc_idx + 1);
 
 	/* haaaaack: check for existing inscription! */
 	auto_inscribe = FALSE;
 	/* look for 1st '{' which must be level requirements on ANY item */
-	ex = strstr(inventory_name[slot], "{");
-	if (ex == NULL) return; /* paranoia - should always be FALSE */
+	ex = strstr(iname, "{");
+	if (ex == NULL) return(FALSE); /* paranoia - should always be FALSE */
 	strcpy(ex_buf, ex + 1);
 	/* look for 2nd '{' which MUST be an inscription */
 	ex = strstr(ex_buf, "{");
 
+	if (ex) has_insc = TRUE;
+
 	/* Add "fake-artifact" inscriptions using '#' */
-	if (inventory_inscription[slot]) {
+	if (iinsc) {
 		if (ex == NULL) {
 			strcat(ex_buf, "{#"); /* create a 'real' inscription from this fake-name inscription */
 			/* hack 'ex' to make this special inscription known */
 			ex = ex_buf + strlen(ex_buf) - 2;
 			/* add the fake-name inscription */
 			i = strlen(ex_buf);
-			strncat(ex_buf, inventory_name[slot] + inventory_inscription[slot], inventory_inscription_len[slot]);
-			ex_buf[i + inventory_inscription_len[slot]] = '\0'; /* terminate string after strncat() */
+			strncat(ex_buf, iname + iinsc, iilen);
+			ex_buf[i + iilen] = '\0'; /* terminate string after strncat() */
 			strcat(ex_buf, "}");
 		} else {
 			ex_buf[strlen(ex_buf) - 1] = '\0'; /* cut off final '}' */
 			strcat(ex_buf, "#"); /* add the fake-name inscription */
 			i = strlen(ex_buf);
-			strncat(ex_buf, inventory_name[slot] + inventory_inscription[slot], inventory_inscription_len[slot]);
-			ex_buf[i + inventory_inscription_len[slot]] = '\0'; /* terminate string after strncat() */
+			strncat(ex_buf, iname + iinsc, iilen);
+			ex_buf[i + iilen] = '\0'; /* terminate string after strncat() */
 			strcat(ex_buf, "}"); /* restore final '}' */
 		}
 	}
@@ -5410,43 +5609,49 @@ void apply_auto_inscriptions(int slot, bool force) {
 		/* if so, auto-inscribe it instead */
 		auto_inscribe = TRUE;
 	}
- #if 0 /* is '!' UNavailable? */
+#if 0 /* is '!' UNavailable? */
 	/* already has a real inscription? -> can't auto-inscribe */
-	if (!auto_inscribe) return;
- #else
+	if (!auto_inscribe) return(has_insc);
+#else
 	/* save for checking for already existing target inscription */
 	if (ex && strlen(ex) > 2) {
 		strncpy(tag_buf, ex + 1, strlen(ex) - 2);
 		tag_buf[strlen(ex) - 2] = '\0'; /* terminate */
 	}
 	else strcpy(tag_buf, ""); /* initialise as empty */
- #endif
+#endif
 
 	/* look for matching auto-inscription */
-	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
+	for (i = start; i < stop; i++) {
 		match = auto_inscription_match[i];
 		/* skip empty auto-inscriptions */
 		if (!match[0]) continue;
- #if 0 /* disallow empty inscription? */
+#if 0 /* disallow empty inscription? */
 		if (!auto_inscription_tag[i][0]) continue;
- #endif
+#endif
+		/* skip disabled auto-inscriptions */
+		if (auto_inscription_disabled[i]) continue;
+#ifdef ENABLE_SUBINVEN
+		/* skip bag-only auto-inscriptions if not in a bag */
+		if (auto_inscription_subinven[i] && sslot == -1) continue;
+#endif
 
- #if 1 /* is '!' available? */
+#if 1 /* is '!' available? */
 		/* if item already has an inscription, only allow to overwrite it if 'forced'. */
 		if (!auto_inscribe) {
-  #if 0 /* legacy '!' marker, deprecated */
+ #if 0 /* legacy '!' marker, deprecated */
 		/* if auto-inscription begins with '!', which stands for 'always overwrite' */
 			if (match[0] != '!') continue;
 			else match++;
 			/* already carrying this very inscription? don't need to inscribe it AGAIN then */
 			if (!strcmp(auto_inscription_tag[i], tag_buf)) continue;
 		} else if (match[0] == '!') match++;
-  #else
+ #else
 			if (!auto_inscription_force[i]) continue;
 			if (!strcmp(auto_inscription_tag[i], tag_buf)) continue;
 		}
-  #endif
  #endif
+#endif
 
 		/* 'all items' super wildcard? - this only works for auto-pickup/destroy, not for auto-inscribing */
 		if (!strcmp(match, "#")) continue;
@@ -5461,7 +5666,7 @@ void apply_auto_inscriptions(int slot, bool force) {
 				//too spammy when auto-inscribing the whole inventory -- c_msg_format("\377yInvalid regular expression (%d) in auto-inscription #%d.", ires, i);
 				continue;
 			}
-			if (regexec(&re_src, inventory_name[slot], REGEX_ARRAY_SIZE, pmatch, 0)) {
+			if (regexec(&re_src, iname, REGEX_ARRAY_SIZE, pmatch, 0)) {
 				regfree(&re_src);
 				continue;
 			}
@@ -5480,12 +5685,12 @@ void apply_auto_inscriptions(int slot, bool force) {
 #endif
 		{
 			/* found a matching inscription? */
- #if 0 /* no '#' wildcard allowed */
-			if (strstr(inventory_name[slot], match)) break;
- #else /* '#' wildcard allowed: a random number (including 0) of random chars */
+#if 0 /* no '#' wildcard allowed */
+			if (strstr(iname, match)) break;
+#else /* '#' wildcard allowed: a random number (including 0) of random chars */
 			/* prepare */
 			strcpy(ex_buf, match);
-			ex2 = inventory_name[slot];
+			ex2 = (char*)iname;
 			found = FALSE;
 
 			do {
@@ -5515,12 +5720,12 @@ void apply_auto_inscriptions(int slot, bool force) {
 				}
 			} while (TRUE);
 		}
- #endif
+#endif
 
 		if (found) break;
 	}
 	/* no match found? */
-	if (i == MAX_AUTO_INSCRIPTIONS) return;
+	if (i == stop) return(has_insc);
 
 	/* send the new inscription */
 	/* security hack: avoid infinite looping */
@@ -5530,8 +5735,15 @@ void apply_auto_inscriptions(int slot, bool force) {
 	    /* These last three are actually NOT empty inscriptions, so they don't really need checking here: */
 	    strcmp(auto_inscription_tag[i], "cursed") &&
 	    strcmp(auto_inscription_tag[i], "on sale") &&
-	    strcmp(auto_inscription_tag[i], "stolen"))
+	    strcmp(auto_inscription_tag[i], "stolen")) {
+#ifdef ENABLE_SUBINVEN
+		Send_inscribe((sslot + 1) * SUBINVEN_INVEN_MUL + slot, auto_inscription_tag[i]);
+#else
 		Send_inscribe(slot, auto_inscription_tag[i]);
+#endif
+		return(TRUE);
+	}
+	return(has_insc);
 }
 
 int Receive_account_info(void) {
@@ -5691,11 +5903,70 @@ int Receive_indicators(void) {
 }
 
 int Receive_playerlist(void) {
-	int i, n;
-	char ch;
+	int i, n, mode;
+	char ch, tmp_n[NAME_LEN], tmp[MAX_CHARS_WIDE];
 
-	if ((n = Packet_scanf(&rbuf, "%c%d", &ch, &NumPlayers)) <= 0) return(n);
-	for (i = 0; i < NumPlayers; i++) Packet_scanf(&rbuf, "%s", playerlist[i]);
+	if ((n = Packet_scanf(&rbuf, "%c%d", &ch, &mode)) <= 0) return(n);
+
+	switch (mode) {
+	case 0:
+		/* clear */
+		for (i = 0; i < MAX_PLAYERS_LISTED; i++) playerlist_name[i][0] = 0;
+		NumPlayers = 0;
+		break;
+	case 1:
+		/* Implies 'clear' */
+		for (i = 0; i < MAX_PLAYERS_LISTED; i++) playerlist_name[i][0] = 0;
+		i = 0;
+		/* Receive complete list (initial login) */
+		while (TRUE) {
+			Packet_scanf(&rbuf, "%s%I", tmp_n, tmp);
+			if (!tmp_n[0]) break;
+
+			if (i < MAX_PLAYERS_LISTED) {
+				strcpy(playerlist_name[i], tmp_n);
+				strcpy(playerlist[i], tmp);
+				i++;
+			}
+		}
+		NumPlayers = i;
+		break;
+	case 2:
+		/* Add/update a specific player */
+		Packet_scanf(&rbuf, "%s%I", tmp_n, tmp);
+		for (i = 0; i < MAX_PLAYERS_LISTED; i++) {
+			/* update */
+			if (streq(playerlist_name[i], tmp_n)) {
+				strcpy(playerlist[i], tmp);
+				break;
+			}
+			/* add */
+			if (!playerlist_name[i][0]) {
+				strcpy(playerlist_name[i], tmp_n);
+				strcpy(playerlist[i], tmp);
+				NumPlayers++;
+				break;
+			}
+		}
+		break;
+	case 3:
+		/* Remove player */
+		Packet_scanf(&rbuf, "%s", tmp_n);
+		for (i = 0; i < NumPlayers; i++) {
+			if (strcmp(playerlist_name[i], tmp_n)) continue;
+
+			/* Slide the rest down */
+			for (n = i; n < NumPlayers - 1; n++) {
+				strcpy(playerlist_name[n], playerlist_name[n + 1]);
+				strcpy(playerlist[n], playerlist[n + 1]);
+			}
+
+			playerlist_name[n][0] = 0;
+			NumPlayers--;
+			break;
+		}
+		break;
+	}
 
 	fix_playerlist();
 
@@ -5885,7 +6156,7 @@ int Send_observe(int item) {
 #ifdef ENABLE_SUBINVEN
 	if (using_subinven != -1) {
 		/* Hacky encoding */
-		if ((n = Packet_printf(&wbuf, "%c%hd", PKT_OBSERVE, item + (using_subinven + 1) * 100)) <= 0) return(n);
+		if ((n = Packet_printf(&wbuf, "%c%hd", PKT_OBSERVE, item + (using_subinven + 1) * SUBINVEN_INVEN_MUL)) <= 0) return(n);
 		return(1);
 	}
 #endif
@@ -6081,9 +6352,7 @@ int Send_spell(int item, int spell) {
 int Send_activate_skill(int mkey, int book, int spell, int dir, int item, int aux) {
 	int n;
 
-	if ((n = Packet_printf(&wbuf, "%c%c%hd%hd%c%hd%hd", PKT_ACTIVATE_SKILL,
-					mkey, book, spell, dir, item, aux)) <= 0)
-		return(n);
+	if ((n = Packet_printf(&wbuf, "%c%c%hd%hd%c%hd%hd", PKT_ACTIVATE_SKILL, mkey, book, spell, dir, item, aux)) <= 0) return(n);
 	return(1);
 }
 
@@ -6266,8 +6535,11 @@ int Send_options(void) {
 
 	if ((n = Packet_printf(&wbuf, "%c", PKT_OPTIONS)) <= 0) return(n);
 	/* Send each option */
-	if (is_newer_than(&server_version, 4, 5, 8, 1, 0, 1)) {
+	if (is_newer_than(&server_version, 4, 9, 1, 0, 0, 0)) {
 		for (i = 0; i < OPT_MAX; i++)
+			Packet_printf(&wbuf, "%c", Client_setup.options[i]);
+	} else 	if (is_newer_than(&server_version, 4, 5, 8, 1, 0, 1)) {
+		for (i = 0; i < OPT_MAX_154; i++)
 			Packet_printf(&wbuf, "%c", Client_setup.options[i]);
 	} else if (is_newer_than(&server_version, 4, 5, 5, 0, 0, 0)) {
 		for (i = 0; i < OPT_MAX_COMPAT; i++)
@@ -6370,18 +6642,26 @@ int Send_change_password(char *old_pass, char *new_pass) {
 }
 
 #ifdef ENABLE_SUBINVEN
-int Send_subinven_move(int item) {
+int Send_subinven_move(int item, int amt) {
 	int n;
 
 	if (!is_newer_than(&server_version, 4, 7, 4, 4, 0, 0)) return(1);
-	if ((n = Packet_printf(&wbuf, "%c%hd", PKT_SI_MOVE, item)) <= 0) return(n);
+	if (is_older_than(&server_version, 4, 9, 2, 0, 0, 0)) {
+		if ((n = Packet_printf(&wbuf, "%c%hd", PKT_SI_MOVE, item)) <= 0) return(n); //discard amt, always move full stack
+	} else {
+		if ((n = Packet_printf(&wbuf, "%c%hd%hd", PKT_SI_MOVE, item, amt)) <= 0) return(n);
+	}
 	return(1);
 }
-int Send_subinven_remove(int item) {
-	int n, islot = item / 100 - 1;
+int Send_subinven_remove(int item, int amt) {
+	int n, islot = item / SUBINVEN_INVEN_MUL - 1;
 
 	if (!is_newer_than(&server_version, 4, 7, 4, 4, 0, 0)) return(1);
-	if ((n = Packet_printf(&wbuf, "%c%hd%hd", PKT_SI_REMOVE, (short int)islot, (short int)(item % 100))) <= 0) return(n);
+	if (is_older_than(&server_version, 4, 9, 2, 0, 0, 0)) {
+		if ((n = Packet_printf(&wbuf, "%c%hd%hd", PKT_SI_REMOVE, (short int)islot, (short int)(item % SUBINVEN_INVEN_MUL))) <= 0) return(n); //discard amt, always move full stack
+	} else {
+		if ((n = Packet_printf(&wbuf, "%c%hd%hd%hd", PKT_SI_REMOVE, (short int)islot, (short int)(item % SUBINVEN_INVEN_MUL), amt)) <= 0) return(n);
+	}
 	return(1);
 }
 #endif
@@ -6390,7 +6670,46 @@ int Send_version(void) {
 	int n;
 
 	if (!is_newer_than(&server_version, 4, 8, 0, 0, 0, 0)) return(1);
-	if ((n = Packet_printf(&wbuf, "%c%s%s", PKT_VERSION, longVersion, os_version)) <= 0) return(n);
+	if (!is_newer_than(&server_version, 4, 9, 1, 0, 0, 0)) {
+		if ((n = Packet_printf(&wbuf, "%c%s%s", PKT_VERSION, longVersion, os_version)) <= 0) return(n);
+	} else {
+		int cnt, sum, min, max, i, avg;
+
+		/* Find min and max and calculate avg */
+		cnt = sum = 0;
+		min = max = -1;
+		for (i = 0; i < 60; i++) {
+			if (ping_times[i] > 0) {
+				if (min == -1) min = ping_times[i];
+				else if (ping_times[i] < min) min = ping_times[i];
+
+				if (max == -1) max = ping_times[i];
+				else if (ping_times[i] > max) max = ping_times[i];
+
+				cnt++;
+				sum += ping_times[i];
+			}
+		}
+		if (cnt) avg = sum / cnt;
+		else avg = -1;
+
+		if ((n = Packet_printf(&wbuf, "%c%s%s%d", PKT_VERSION, longVersion, os_version, avg)) <= 0) return(n);
+	}
+	return(1);
+}
+
+int Send_plistw_notify(bool on) {
+	int n;
+
+	if (is_older_than(&server_version, 4, 9, 0, 7, 0, 0)) return(1);
+	if ((n = Packet_printf(&wbuf, "%c%c", PKT_PLISTW_NOTIFY, on)) <= 0) return(n);
+	return(1);
+}
+
+int Send_unknownpacket(int type, int prev_type) {
+	int n;
+
+	if ((n = Packet_printf(&wbuf, "%c%d%d", PKT_UNKNOWNPACKET, type, prev_type)) <= 0) return(n);
 	return(1);
 }
 
@@ -6721,6 +7040,12 @@ void do_ping(void) {
  #ifdef WINDOWS
   #include <process.h>	/* use spawn() instead of normal system() (WINE bug/Win inconsistency even maybe) */
  #endif
+
+ /* Enable debug mode? */
+ #ifdef TEST_CLIENT
+  //#define DEBUG_PING
+ #endif
+
 /* Note: At this early stage of the game (viewing meta server list) do_keepalive() and do_ping() are not yet called,
    so this function must be called in do_flicker() or update_ticks() instead, of which update_ticks() is preferable
    as its calling frequency is fixed and predictable (100ms).
@@ -6731,7 +7056,7 @@ static void do_meta_pings(void) {
 #ifdef WINDOWS
 	char buf[1024]; /* if we use windows-specific ReadFile() we might read the whole file at once */
 #else
-	char buf[MAX_CHARS]; /* read line by line */
+	char buf[MAX_CHARS_WIDE]; /* read line by line */
 #endif
 	static FILE *fff;
 	static char alt = 1, reload_metalist = 0; /* <- Only truly needed static var, the rest is static just for execution time optimization */
@@ -6843,6 +7168,9 @@ static void do_meta_pings(void) {
   #endif
  #else /* assume POSIX */
 			r = system(format("ping -c 1 -w 1 %s > %s &", meta_pings_server_name[i], path));
+  #ifdef DEBUG_PING
+printf("SENT  i=%d : <ping -c 1 -w 1 %s > %s &>\n", i, meta_pings_server_name[i], path);
+  #endif
 			(void)r; //slay compiler warning;
  #endif
 		}
@@ -6905,13 +7233,21 @@ if (exit_code != STILL_ACTIVE) {
 			/* Parse OS specific 'ping' command response; win: 'time=NNNms', posix: 'time=NNN.NN ms',
 			   BUT.. have to watch out that "time" label can be OS-language specific!
 			   For that reason we first look for 'ttl' (posix) and 'TTL' (windows) which are always the same. */
-			while (my_fgets(fff, buf, MAX_CHARS) == 0) {
+			while (my_fgets(fff, buf, MAX_CHARS_WIDE) == 0) {
+  #ifdef DEBUG_PING
+printf("REPLY i=%d : <%s>\n", i, buf);
+  #endif
 				meta_pings_stuck[i] = FALSE; /* Yay, we can read the results finally.. */
 
 //printf("p[%d: <%s>\n", i, buf);
 				if (!my_strcasestr(buf, "ttl")) continue;
 				no_ttl_line = FALSE;
 
+#if 0
+/* 0'ed for WINDOWS because: TheScar had a strange Windows build or settings which result in garbled encoding if the ping line was caused by ping-wrap.exe,
+while it causes normal ungarbled encoding if the ping line was entered in a terminal manually o_O.
+The garabage would include "ms", while leaving "=" symbols untouched, and interestingly "TTL" also is untouched, so we parse for the 2nd "=" instead as a workaround.
+Also, cyrillic systems seem to use other letters for 'ms' instead, so we cannot use that. "TTL" is same though for some reason. */
 				/* We found a line containing a response time. Now we look for 'ms' and go backwards till '='. */
 				c = strstr(buf, "ms");
 				if (!c) continue; //should be paranoia at this point
@@ -6921,7 +7257,21 @@ if (exit_code != STILL_ACTIVE) {
 				}
 				if (c == buf) break; /* Paranoia - Supa safety 1/2 */
 				c++; //yuck
-
+#else /* ..so as mentioned above, we parse for "n=" */
+ #ifndef WINDOWS
+				/* Go back to '=' from end of the line, and we are at the ping time on POSIX */
+				c = &buf[strlen(buf) - 1];
+ #else
+				/* Look for the '=' before the 'TTL', which designates the ping time on Windows */
+				c = my_strcasestr(buf, "ttl"); /* we already know that this exists, or we wouldn't be here, so no further check needed.. hey, look, a black swan, neat! */
+ #endif
+				while (*c != '=') {
+					c--;
+					if (c == buf) break; /* Paranoia - Supa safety 1/2 */
+				}
+				if (c == buf) break; /* Paranoia - Supa safety 1/2 */
+				c++; //yuck
+#endif
 				/* Grab result */
 				r = atoi(c);
 				break;
@@ -7111,57 +7461,45 @@ int Send_client_setup(void) {
 	/* Send the "unknown" redefinitions */
 	for (i = 0; i < TV_MAX; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.u_attr[i], Client_setup.u_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.u_attr[i], Client_setup.u_char[i]);
-		}
 
-		if ( max_char < Client_setup.u_char[i] ) {
-			max_char = Client_setup.u_char[i];
-		}
+		if (max_char < Client_setup.u_char[i]) max_char = Client_setup.u_char[i];
 	}
 
 	/* Send the "feature" redefinitions */
 	for (i = 0; i < MAX_F_IDX; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.f_attr[i], Client_setup.f_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.f_attr[i], Client_setup.f_char[i]);
-		}
 
-		if ( max_char < Client_setup.f_char[i] ) {
-			max_char = Client_setup.f_char[i];
-		}
+		if (max_char < Client_setup.f_char[i]) max_char = Client_setup.f_char[i];
 	}
 
 	/* Send the "object" redefinitions */
 	for (i = 0; i < MAX_K_IDX; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.k_attr[i], Client_setup.k_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.k_attr[i], Client_setup.k_char[i]);
-		}
 
-		if ( max_char < Client_setup.k_char[i] ) {
-			max_char = Client_setup.k_char[i];
-		}
+		if (max_char < Client_setup.k_char[i]) max_char = Client_setup.k_char[i];
 	}
 
 	/* Send the "monster" redefinitions */
 	for (i = 0; i < MAX_R_IDX; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
-		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0)) {
+		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.r_attr[i], Client_setup.r_char[i]);
-		} else {
+		else
 			Packet_printf(&wbuf, "%c%c", Client_setup.r_attr[i], Client_setup.r_char[i]);
-		}
 
-		if ( max_char < Client_setup.r_char[i] ) {
-			max_char = Client_setup.r_char[i];
-		}
+		if (max_char < Client_setup.r_char[i]) max_char = Client_setup.r_char[i];
 	}
 
 	/* Calculate and update minimum character transfer bytes */
@@ -7241,14 +7579,16 @@ int Send_audio(void) {
 
 int Send_font(void) {
 	int n;
-	char fname[1024];
+	char fname[1024] = { 0 }; //init for GCU-only mode: there is no font name available
 
 	if (is_older_than(&server_version, 4, 8, 1, 2, 0, 0)) return(-1);
 
 	//&graphics_tile_wid, &graphics_tile_hgt)) {
 	//td->font_wid; td->font_hgt;
 
+#if defined(WINDOWS) || defined(USE_X11)
 	get_screen_font_name(fname);
+#endif
 #ifdef USE_GRAPHICS
 	if ((n = Packet_printf(&wbuf, "%c%hd%s%s", PKT_FONT, use_graphics, graphic_tiles, fname)) <= 0) return(n);
 #else

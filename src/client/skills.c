@@ -191,12 +191,11 @@ static void print_skills(int table[MAX_SKILLS][2], int max, int sel, int start) 
 	Term_get_size(&wid, &hgt);
 
 	if (c_cfg.rogue_like_commands)
-		Term_putstr(0, 0, -1, TERM_WHITE, " === TomeNET Skills Screen ===  [help:\377R?\377- move:\377sj\377-,\377sk\377-,\377sg\377-,\377sG\377-,\377s#\377-,\377ss\377- fold:\377s<CR>\377-,\377sc\377-,\377so\377- train:\377sl\377-]");
+		Term_putstr(0, 0, -1, TERM_WHITE, " Character Skills   [help:\377R?\377- move:\377sj\377-,\377sk\377-,\377sg\377-,\377sG\377-,\377s#\377-,\377ss\377- fold:\377s<CR>\377-,\377sc\377-,\377so\377- train:\377sl\377-,\377sarrow-right\377-]");
 	else
-		Term_putstr(0, 0, -1, TERM_WHITE, " === TomeNET Skills Screen ===  [help:\377R?\377- move:\377s2\377-,\377s8\377-,\377sg\377-,\377sG\377-,\377s#\377-,\377ss\377- fold:\377s<CR>\377-,\377sc\377-,\377so\377- train:\377s6\377-]");
+		Term_putstr(0, 0, -1, TERM_WHITE, " Character Skills   [help:\377R?\377- move:\377s2\377-,\377s8\377-,\377sg\377-,\377sG\377-,\377s#\377-,\377ss\377- fold:\377s<CR>\377-,\377sc\377-,\377so\377- train:\377s6\377-,\377sarrow-right\377-]");
 
-	Term_putstr(0, 1, -1, (p_ptr->skill_points) ? TERM_L_BLUE : TERM_SLATE,
-	      format(" Skill points left: %-5d       \377wType \377s/undoskills\377- in chat if you made a mistake.", p_ptr->skill_points));
+	Term_putstr(0, 1, -1, TERM_WHITE, format(" Skill points left: \377%c%-5d   \377wType \377R/undoskills\377- in chat immediately after mistake.", (p_ptr->skill_points) ? 'B': 's', p_ptr->skill_points));
 	print_desc_aux((char*)s_info[table[sel][0]].desc, 2, 0);
 
 	for (j = start; j < start + (hgt - 4); j++) {
@@ -564,7 +563,7 @@ static int do_cmd_activate_skill_aux() {
 			/* Take a screenshot */
 			xhtml_screenshot("screenshot????", FALSE);
 		} else if (which == '*' || which == '?' || which == ' ') {
-			mode = (mode)?FALSE:TRUE;
+			mode = (mode) ? FALSE : TRUE;
 			if (!mode && term_saved) {
 				Term_load();
 				term_saved = FALSE;
@@ -703,45 +702,9 @@ bool item_tester_hook_weapon(object_type *o_ptr) {
 }
 /* this actually tests for spell scrolls, not the custom tome itself */
 bool item_tester_hook_custom_tome(object_type *o_ptr) {
-#if 0
-	bool free = TRUE;
-#endif
-
 	/* check for correct book type */
 	if (o_ptr->tval != TV_BOOK || o_ptr->sval != SV_SPELLBOOK) return(FALSE);
 	return(TRUE);
-
-#if 0
-	/* and even check for blank pages left */
- #if 0 /* we don't know bpval! */
-	switch (o_ptr->bpval) {
-	case 0: i = 0; break;
-	case 1: if (o_ptr->xtra1) i = 0; break;
-	case 2: if (o_ptr->xtra2) i = 0; break;
-	case 3: if (o_ptr->xtra3) i = 0; break;
-	case 4: if (o_ptr->xtra4) i = 0; break;
-	case 5: if (o_ptr->xtra5) i = 0; break;
-	case 6: if (o_ptr->xtra6) i = 0; break;
-	case 7: if (o_ptr->xtra7) i = 0; break;
-	case 8: if (o_ptr->xtra8) i = 0; break;
-	default: if (o_ptr->xtra9) i = 0; break;
-	}
- #else /* hard-code, ouch */
-	switch (o_ptr->sval) {
-	case 100:
-		if (o_ptr->xtra3) free = FALSE;
-		break;
-	case 101:
-		if (o_ptr->xtra4) free = FALSE;
-		break;
-	case 102:
-		if (o_ptr->xtra5) free = FALSE;
-		break;
-	}
- #endif
-
-	return free;
-#endif
 }
 bool item_tester_hook_armour_no_shield(object_type *o_ptr) {
 	return(is_armour(o_ptr->tval) && o_ptr->tval != TV_SHIELD);
@@ -785,7 +748,7 @@ void do_trap(int item_kit) {
 	}
 
 #ifdef ENABLE_SUBINVEN
-	if (item_kit >= 100) o_ptr = &subinventory[item_kit / 100 - 1][item_kit % 100];
+	if (item_kit >= SUBINVEN_INVEN_MUL) o_ptr = &subinventory[item_kit / SUBINVEN_INVEN_MUL - 1][item_kit % SUBINVEN_INVEN_MUL];
 	else
 #endif
 	if (!o_ptr) o_ptr = &inventory[item_kit];
@@ -845,6 +808,7 @@ void do_activate_skill(int x_idx, int item) {
 	char out_val[160];
 	int dir = 0;
 	s32b spell = 0L;
+
 	if (s_info[x_idx].flags1 & SKF1_MKEY_HARDCODE) {
 		switch (s_info[x_idx].action_mkey) {
 		case MKEY_MIMICRY:
@@ -914,7 +878,9 @@ void do_activate_skill(int x_idx, int item) {
 	} else if (s_info[x_idx].flags1 & SKF1_MKEY_SPELL) {
 		if (item < 0) {
 			item_tester_tval = s_info[x_idx].tval;
-			if (!c_get_item(&item, "Cast from which book? ", (USE_INVEN | NO_FAIL_MSG))) {
+			if (!c_get_item(&item, "Cast from which book? ", (USE_INVEN |
+			    USE_EQUIP | /* for WIELD_BOOKS */
+			    NO_FAIL_MSG))) {
 				if (item == -2) c_msg_print("You have no books that you can cast from.");
 				return;
 			}

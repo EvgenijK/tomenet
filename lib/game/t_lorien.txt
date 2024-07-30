@@ -16,40 +16,40 @@ F:x:96:3
 ############### Quest 10 - Spiders of Mirkwood ###############
 ## Quest 10 taken, entrance is quest entrance
 #?:[EQU $QUEST10 1]
-#F:y:8:3:0:0:0:0:0:10
+#F:y:8:3:0:0:0:0:0:0:10
 #?:1
 
 ###################### Buildings ########################
 
 # The Mirror
-F:a:74:3:0:0:0:0:0:23
+F:a:74:3:0:0:0:0:0:0:23
 
 # Castle: Plot Lorien
-F:B:75:3:0:0:0:0:0:2
+F:B:75:3:0:0:0:0:0:0:2
 
 # Seat of Ruling
-F:b:74:3:0:0:0:0:0:24
+F:b:74:3:0:0:0:0:0:0:24
 
 # Inn
-F:c:74:3:0:0:0:0:0:11
+F:c:74:3:0:0:0:0:0:0:11
 
 # Beastmaster Shanty
-F:d:74:3:0:0:0:0:0:16
+F:d:74:3:0:0:0:0:0:0:16
 
 # Fighters Hall
-F:f:74:3:0:0:0:0:0:17
+F:f:74:3:0:0:0:0:0:0:17
 
 # Wizards Spire
-F:g:74:3:0:0:0:0:0:25
+F:g:74:3:0:0:0:0:0:0:25
 
 # Priests Circle
-F:h:74:3:0:0:0:0:0:26
+F:h:74:3:0:0:0:0:0:0:26
 
 # Rangers Guild allows Ranger
-F:i:74:3:0:0:0:0:0:21
+F:i:74:3:0:0:0:0:0:0:21
 
 # Weyr
-F:j:74:3:0:0:0:0:0:22
+F:j:74:3:0:0:0:0:0:0:22
 
 # Altars
 F:k:161:3
@@ -57,78 +57,78 @@ F:l:162:3
 F:m:163:3
 
 # Merchants Guild
-F:o:74:3:0:0:0:0:0:56
+F:o:74:3:0:0:0:0:0:0:56
 
 F:+:231:3
 F:P:232:3
 
 # Town Layout
-D:######################################################################################################################################################################################################
-D:#tTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTTtTT                                   .              ,    ,                ,,                         , ,             ,                 #
-D:#TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTtTTtTTTT                                    .                                                                                               , #
-D:#TTttTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTtttTTTTTTTTTTTTT     ,                                  .                                                                                                 #
-D:#TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT                               ,,           , .                                        ,      ,                                               , #
-D:#TTTTTTTTTTTTTttTTTTTTTTTTTTTTTTTTTTTTTT                   ,,     ,                                ,               ,                ,,          ,              ,               , ,              ,    #
-D:#TTTTTTTTTTTTTTTTTTTTTTTTTTttT           ,            ,                  ,     ,                   ,        ,                                     ,                                                  #
-D:#TTTTTTTTTTtttTTTTTTTTTTTT           ,                             ,                               ,x                                          ,                                 ,                   #
-D:#TTTTTTTTTTTTTTTTTTTTTTT                                                                           ,                              >            ,                ,        ,                           #
-D:#TTTTtTTTTTTTTTTTTTTTTt               ,,     ,                                                     ,     ,    ,,                            ,                              ,                ,        #
-D:#TTTTTTTTTTTTTTTTTTTTTT          ,            ,                                                    ,                       ,                                                                         #
-D:#TTTTTTTTTTTTTTTTTTTTT                         ,  ,                  ,                             ,    -TTTt     ,    ,                ,,                         , ,             ,                 #
-D:#TTTTTTTTTTTTTTTTTt                      ,                                                       --,-- --TTtTTT                                                                                    , #
-D:#TTTTTTttTTTT               ,              ,                                                  ##---,---##TTTTTttTTT                                                                                  #
-D:#tTTTTt                      ,                                                             ,,####,-,-,####TTTTTTTTtTTTTTTTTTT                                                                      , #
-D:#               ,              ,                                                 ###   ,,,,,,###1,,,,,h###TTTTTTTTTTTTTTTTTTTTTTTTT                                                                  #
-D:#                           ,                            ,              ###  ,, #####,,,,,,,,####,-,-,####TTTTTTTTTTTTTTTTTTTTTTTT          ,      ,                                               , #
-D:#                   ,,     ,                                           #####,,,,#####---------##---,---##tTTTTTTTTTTTTTTTTTT        ,,          ,              ,               , ,              ,    #
-D:#           ,                            ,    ,                     ,,,#####,,,,#####TtT#####-##---,---##TTTTTTTTtTT                              ,                                                  #
-D:#           ,                  ,                   #              #,---#####TTTT##o##TTT#PP######,-,-,####TTTTTTTTTTTT                         ,                                 ,                   #
-D:#               ,,     ,                          ###            ###----#g#-TTtT-,.,-TT-+PPP####c,,,,,9###TTTTTTTTTTT                       ,                              ,                ,        #
-D:#                           ,                      ####  ,     ####TTTT-,,,-TTTT--,,-tT-#########,-,-,####TTttTTTTTT                        ,      ,                                               , #
-D:#                   ,,     ,                        ##############TTttT--,-TTTTTT-,-TTT-T#4#--##T--,---##TTTTTTtTTTTTT              ,,          ,              ,               , ,              ,    #
-D:#           ,                            ,    ,     ##############,------,-tTTTTT-,-TTT--,,,--TTTT-,---##TTTTTTTtTTTTTT                           ,                                                  #
-D:#           ,                  ,                     ###########j,,,,,,,,,,,,,,---,--TT---,--TTtTT-,--####TTT---TTTTTTT                        ,                                 ,                   #
-D:#          ,            ,                           #####B########,------,----,,,,,,,,,,,,,,,,,,,,,,,,d###TTT-y-tTTTTTt    ,                                                                         #
-D:#                         ,  ,                      ##############TTTTt--,--t----------------------,-,####--,,--TTTTTT ,                ,,                         , ,             ,                 #
-D:#                      ,                          ,####TTTtTTTT####TTTT-,,,-TTTTt---tTTTTT--tTTTTT-,-TT##--,-----,                                                                                 , #
-D:#               ,              ,                  ###TTTTTTTTTTTT###TTT-#6#-TTTTT-###TTTT###TTTTtT-,-TTTT-,---###,,###tTTTT                                                                          #
-D:#           ,                  ,                 TT#TTTTTTTTTTTTTT#TTT--###-tTTTTT###TTTt###TTTTT--,--TT,,--T##########TTTTTTTTTTTtt                        ,                                 ,      #
-D:#                                               tTTTTTTTTTTTTTTTTTTTTTT#####TTTTtT#7#TTTT#i#TTT-,,,,,,,,,--TT##########TTTTTTttTtTTTTTTTTt          ,                ,        ,                      #
-D:#               ,,     ,                     tTTTTTTTTTTTTTTTTTTttTTTTTT###TTTTT--,,,----,,,TT--,--,---,-,-TTT#3#--###-------TTTTTTTTTTTTTTTTTTTTTTTTTT               ,                              #
-D:#          ,            ,               TTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTtTT---,------,----,,--,---,----TT,,,---,--#####,--TTTTtTTTTTTTTTtTTTTTTTTTTTTT                                          #
-D:#                         ,  ,  TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,--,,,,,,,,,,,,,--,,,--,-------,--,-,-##qqq##--TTTTTTTTTTTTTTTTTTtTTtTTTTTTT         ,,                         , ,  #
-D:#                      ,    TTtTTTTTTTTTTTTTTTTTTTTTTTTTTTttTTTTTTTTTTTTTTTTT,,-,,,,-----------,,,,b,,,,,,,,,,,,,,,,,,,8qqqq#--TTTTTTTTTTTTTTTTTtTTTTTTTTTT                                          #
-D:#               ,          TTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT-,--,TTTTTTtTTtTTTTTT-,,,-------------,---##qqq##--TTTTTTTTTTTtttTTTTTTT                                                 #
-D:#                          TTTTTTTttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTT--,--TTTtTTTTTTTTTtTTTT-,---VVV-------,,,---#####--TTTTTTTTTTTT                ,    ,                                     #
-D:#                   ,,      TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTt----,----TTtTTTTTTTTTTTTT-,-VWWWV--TTTT-#2#----------TTTTt         ,,          ,              ,               , ,           #
-D:#           ,                   TTTTTtTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTt---VV,VV---TTTTTTTTTTTTTTT-,-VWWVV-TTTTT#####TTTTTTTT-TTT,,,,                          ,                                     #
-D:#          ,            ,               ttTTTTTTTTTTTTTTTTTTTT     TTTT---VVW,WVV---TTTTTTTTTTTTTt-,-VVVV-TTTTTT#####TTtTTTTT-TTTT--,,,                                                              #
-D:#                         ,  ,                 tTTTTTTTTTTTTTT    TTTTl---VWWaWVV---mTTTTTTtTTTTTT-,,-----TTTTTTT###TTT,  tTT--------,,           ,,                         , ,             ,       #
-D:#                                                    TTtTTTTTTTT  TTTTT---VVWWWVV---TTTTTTTTTTTtt----,,,-TTTTTTTTTTTTTT    TTTtTTT--,,           ,                ,        ,                         #
-D:#               ,,     ,                                 TTTTTT    tTTTT---VVVVV---TTt,,,,,,,,,,,,,,,-,-TTTTTTT,   tt           ,,,,,           ,                              ,                ,    #
-D:#                                                                   TtTTT---------TTT-,--------------,,,TTTTTTTTT                              ,                ,        ,                           #
-D:#                      ,                          ,                    ---TT---TTTTTT-,---tTTTTTTTTTT#5#TTTTTTTTTTT                                                                                , #
-D:#               ,              ,                                     --- TTTTkTTTTTTT-,-TTTTTttTTTTTT###TTTTTtTTTTtT                                                                                 #
-D:#                           ,                            ,                TTTTTTTTTTT,,,TTTTTTTTTTTTT###TTttTTTTTT                          ,      ,                                               , #
-D:#                   ,,     ,                                              tTTTTTTTTTT###TTTTTTTTtTTTTTTTTTTTTTT    ,                ,,          ,              ,               , ,              ,    #
-D:#           ,                            ,    ,                          TTTTTTTTTTT#####TTTTTTTTTTTTTTTt   ,                                     ,                                                  #
-D:#           ,                  ,                                   ,   TTTTTTTTTTTTT#####TTTTTTTT                                              ,                                 ,                   #
-D:#                                                                        TttTTTTTTTTT###TTTTTTt                                                ,                ,        ,                           #
-D:#               ,,     ,                                                    TTTTTtTTTTttTTTTTT           ,    ,,                            ,                              ,                ,        #
-D:#          ,            ,                                                                                                  ,                                                                         #
-D:#                         ,  ,                                       ,                                            ,    ,                ,,                         , ,             ,                 #
-D:#                           ,                            ,                          ,,           ,                                          ,      ,                                               , #
-D:#                   ,,     ,                                                                                       ,                ,,          ,              ,               , ,              ,    #
-D:#           ,                            ,    ,                          ,     ,                            ,                                     ,                                                  #
-D:#           ,                  ,                                   ,                                                                           ,                                 ,                   #
-D:#                                                                                                                                              ,                ,        ,                           #
-D:#               ,,     ,                                                                                 ,    ,,                            ,                              ,                ,        #
-D:#                      ,                          ,                                                                                                                                                , #
-D:#               ,              ,                                                                                                                                                                     #
-D:#                           ,                            ,                          ,,           ,                                          ,      ,                                               , #
-D:#                   ,,     ,                                                                                       ,                ,,          ,              ,               , ,              ,    #
-D:#                                                                                                                                                                                                    #
-D:######################################################################################################################################################################################################
+D:&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+D:&tTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTTtTT                                   .              ,    ,                ,,                         , ,             ,                 &
+D:&TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTtTTtTTTT                                    .                                                                                               , &
+D:&TTttTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTtttTTTTTTTTTTTTT     ,                                  .                                                                                                 &
+D:&TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT                               ,,           , .                                        ,      ,                                               , &
+D:&TTTTTTTTTTTTTttTTTTTTTTTTTTTTTTTTTTTTTT                   ,,     ,                                ,               ,                ,,          ,              ,               , ,              ,    &
+D:&TTTTTTTTTTTTTTTTTTTTTTTTTTttT           ,            ,                  ,     ,                   ,        ,                                     ,                                                  &
+D:&TTTTTTTTTTtttTTTTTTTTTTTT           ,                             ,                               ,x                                          ,                                 ,                   &
+D:&TTTTTTTTTTTTTTTTTTTTTTT                                                                           ,                              >            ,                ,        ,                           &
+D:&TTTTtTTTTTTTTTTTTTTTTt               ,,     ,                                                     ,     ,    ,,                            ,                              ,                ,        &
+D:&TTTTTTTTTTTTTTTTTTTTTT          ,            ,                                                    ,                       ,                                                                         &
+D:&TTTTTTTTTTTTTTTTTTTTT                         ,  ,                  ,                             ,    -TTTt     ,    ,                ,,                         , ,             ,                 &
+D:&TTTTTTTTTTTTTTTTTt                      ,                                                       --,-- --TTtTTT                                                                                    , &
+D:&TTTTTTttTTTT               ,              ,                                                  ##---,---##TTTTTttTTT                                                                                  &
+D:&tTTTTt                      ,                                                             ,,####,-,-,####TTTTTTTTtTTTTTTTTTT                                                                      , &
+D:&               ,              ,                                                 ###   ,,,,,,###1,,,,,h###TTTTTTTTTTTTTTTTTTTTTTTTT                                                                  &
+D:&                           ,                            ,              ###  ,, #####,,,,,,,,####,-,-,####TTTTTTTTTTTTTTTTTTTTTTTT          ,      ,                                               , &
+D:&                   ,,     ,                                           #####,,,,#####---------##---,---##tTTTTTTTTTTTTTTTTTT        ,,          ,              ,               , ,              ,    &
+D:&           ,                            ,    ,                     ,,,#####,,,,#####TtT#####-##---,---##TTTTTTTTtTT                              ,                                                  &
+D:&           ,                  ,                   #              #,---#####TTTT##o##TTT#PP######,-,-,####TTTTTTTTTTTT                         ,                                 ,                   &
+D:&               ,,     ,                          ###            ###----#g#-TTtT-,.,-TT-+PPP####c,,,,,9###TTTTTTTTTTT                       ,                              ,                ,        &
+D:&                           ,                      ####  ,     ####TTTT-,,,-TTTT--,,-tT-#########,-,-,####TTttTTTTTT                        ,      ,                                               , &
+D:&                   ,,     ,                        ##############TTttT--,-TTTTTT-,-TTT-T#4#--##T--,---##TTTTTTtTTTTTT              ,,          ,              ,               , ,              ,    &
+D:&           ,                            ,    ,     ##############,------,-tTTTTT-,-TTT--,,,--TTTT-,---##TTTTTTTtTTTTTT                           ,                                                  &
+D:&           ,                  ,                     ###########j,,,,,,,,,,,,,,---,--TT---,--TTtTT-,--####TTT---TTTTTTT                        ,                                 ,                   &
+D:&          ,            ,                           #####B########,------,----,,,,,,,,,,,,,,,,,,,,,,,,d###TTT-y-tTTTTTt    ,                                                                         &
+D:&                         ,  ,                      ##############TTTTt--,--t----------------------,-,####--,,--TTTTTT ,                ,,                         , ,             ,                 &
+D:&                      ,                          ,####TTTtTTTT####TTTT-,,,-TTTTt---tTTTTT--tTTTTT-,-TT##--,-----,                                                                                 , &
+D:&               ,              ,                  ###TTTTTTTTTTTT###TTT-#6#-TTTTT-###TTTT###TTTTtT-,-TTTT-,---###,,###tTTTT                                                                          &
+D:&           ,                  ,                 TT#TTTTTTTTTTTTTT#TTT--###-tTTTTT###TTTt###TTTTT--,--TT,,--T##########TTTTTTTTTTTtt                        ,                                 ,      &
+D:&                                               tTTTTTTTTTTTTTTTTTTTTTT#####TTTTtT#7#TTTT#i#TTT-,,,,,,,,,--TT##########TTTTTTttTtTTTTTTTTt          ,                ,        ,                      &
+D:&               ,,     ,                     tTTTTTTTTTTTTTTTTTTttTTTTTT###TTTTT--,,,----,,,TT--,--,---,-,-TTT#3#--###-------TTTTTTTTTTTTTTTTTTTTTTTTTT               ,                              &
+D:&          ,            ,               TTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTtTT---,------,----,,--,---,----TT,,,---,--#####,--TTTTtTTTTTTTTTtTTTTTTTTTTTTT                                          &
+D:&                         ,  ,  TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,--,,,,,,,,,,,,,--,,,--,-------,--,-,-##qqq##--TTTTTTTTTTTTTTTTTTtTTtTTTTTTT         ,,                         , ,  &
+D:&                      ,    TTtTTTTTTTTTTTTTTTTTTTTTTTTTTTttTTTTTTTTTTTTTTTTT,,-,,,,-----------,,,,b,,,,,,,,,,,,,,,,,,,8qqqq#--TTTTTTTTTTTTTTTTTtTTTTTTTTTT                                          &
+D:&               ,          TTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT-,--,TTTTTTtTTtTTTTTT-,,,-------------,---##qqq##--TTTTTTTTTTTtttTTTTTTT                                                 &
+D:&                          TTTTTTTttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtTTTT--,--TTTtTTTTTTTTTtTTTT-,---VVV-------,,,---#####--TTTTTTTTTTTT                ,    ,                                     &
+D:&                   ,,      TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTt----,----TTtTTTTTTTTTTTTT-,-VWWWV--TTTT-#2#----------TTTTt         ,,          ,              ,               , ,           &
+D:&           ,                   TTTTTtTTTTTTTTTTTTTTTTTTTtTTTTTTTTTTTTTt---VV,VV---TTTTTTTTTTTTTTT-,-VWWVV-TTTTT#####TTTTTTTT-TTT,,,,                          ,                                     &
+D:&          ,            ,               ttTTTTTTTTTTTTTTTTTTTT     TTTT---VVW,WVV---TTTTTTTTTTTTTt-,-VVVV-TTTTTT#####TTtTTTTT-TTTT--,,,                                                              &
+D:&                         ,  ,                 tTTTTTTTTTTTTTT    TTTTl---VWWaWVV---mTTTTTTtTTTTTT-,,-----TTTTTTT###TTT,  tTT--------,,           ,,                         , ,             ,       &
+D:&                                                    TTtTTTTTTTT  TTTTT---VVWWWVV---TTTTTTTTTTTtt----,,,-TTTTTTTTTTTTTT    TTTtTTT--,,           ,                ,        ,                         &
+D:&               ,,     ,                                 TTTTTT    tTTTT---VVVVV---TTt,,,,,,,,,,,,,,,-,-TTTTTTT,   tt           ,,,,,           ,                              ,                ,    &
+D:&                                                                   TtTTT---------TTT-,--------------,,,TTTTTTTTT                              ,                ,        ,                           &
+D:&                      ,                          ,                    ---TT---TTTTTT-,---tTTTTTTTTTT#5#TTTTTTTTTTT                                                                                , &
+D:&               ,              ,                                     --- TTTTkTTTTTTT-,-TTTTTttTTTTTT###TTTTTtTTTTtT                                                                                 &
+D:&                           ,                            ,                TTTTTTTTTTT,,,TTTTTTTTTTTTT###TTttTTTTTT                          ,      ,                                               , &
+D:&                   ,,     ,                                              tTTTTTTTTTT###TTTTTTTTtTTTTTTTTTTTTTT    ,                ,,          ,              ,               , ,              ,    &
+D:&           ,                            ,    ,                          TTTTTTTTTTT#####TTTTTTTTTTTTTTTt   ,                                     ,                                                  &
+D:&           ,                  ,                                   ,   TTTTTTTTTTTTT#####TTTTTTTT                                              ,                                 ,                   &
+D:&                                                                        TttTTTTTTTTT###TTTTTTt                                                ,                ,        ,                           &
+D:&               ,,     ,                                                    TTTTTtTTTTttTTTTTT           ,    ,,                            ,                              ,                ,        &
+D:&          ,            ,                                                                                                  ,                                                                         &
+D:&                         ,  ,                                       ,                                            ,    ,                ,,                         , ,             ,                 &
+D:&                           ,                            ,                          ,,           ,                                          ,      ,                                               , &
+D:&                   ,,     ,                                                                                       ,                ,,          ,              ,               , ,              ,    &
+D:&           ,                            ,    ,                          ,     ,                            ,                                     ,                                                  &
+D:&           ,                  ,                                   ,                                                                           ,                                 ,                   &
+D:&                                                                                                                                              ,                ,        ,                           &
+D:&               ,,     ,                                                                                 ,    ,,                            ,                              ,                ,        &
+D:&                      ,                          ,                                                                                                                                                , &
+D:&               ,              ,                                                                                                                                                                     &
+D:&                           ,                            ,                          ,,           ,                                          ,      ,                                               , &
+D:&                   ,,     ,                                                                                       ,                ,,          ,              ,               , ,              ,    &
+D:&                                                                                                                                                                                                    &
+D:&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 P:13:99
 

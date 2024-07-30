@@ -44,6 +44,7 @@ int get_magic_power_lua(int *sn, magic_power *powers, int max_powers, char *info
 	return(get_magic_power(sn, powers, max_powers, magic_power_info_lua, plev, cast_stat));
 }
 
+/* unused */
 bool lua_spell_success(magic_power *spell, int stat, char *oups_fct) {
 	int             chance;
 	int             minfail = 0;
@@ -537,6 +538,11 @@ void lua_s_print(cptr logstr) {
 	s_printf("%s", logstr);
 }
 
+/* Write a time-stamped string to an external file. - Added for AI experiments - C. Blue */
+void lua_x_print(cptr logstr) {
+	x_printf("%s", logstr);
+}
+
 void lua_add_anote(char *anote) {
 	int i;
 
@@ -559,11 +565,18 @@ void lua_del_anotes(void) {
 }
 void lua_broadcast_motd(void) {
 	int p, i;
+	bool first = TRUE;
 
-	for (i = 0; i < MAX_ADMINNOTES; i++)
-		if (strcmp(admin_note[i], ""))
+	for (i = 0; i < MAX_ADMINNOTES; i++) {
+		if (!strcmp(admin_note[i], "")) continue;
+		if (first) {
+			first = FALSE;
 			for (p = 1; p <= NumPlayers; p++)
-				msg_format(p, "\375\377sMotD: %s", admin_note[i]);
+				msg_print(p, "\375\377sMotD:");
+		}
+		for (p = 1; p <= NumPlayers; p++)
+			msg_format(p, "\375\377s %s", admin_note[i]);
+	}
 
 	if (server_warning[0])
 		for (p = 1; p <= NumPlayers; p++)
@@ -681,9 +694,9 @@ void lua_recalc_char(int Ind) {
 	while (--tries) {
 		/* Roll the hitpoint values */
 		for (i = 1; i < PY_MAX_LEVEL; i++) {
-//			j = randint(p_ptr->hitdie);
+			//j = randint(p_ptr->hitdie);
 			j = 2 + randint(p_ptr->hitdie - 4);
-			p_ptr->player_hp[i] = p_ptr->player_hp[i-1] + j;
+			p_ptr->player_hp[i] = p_ptr->player_hp[i - 1] + j;
 		}
 		/* XXX Could also require acceptable "mid-level" hitpoints */
 
@@ -814,6 +827,11 @@ inline char *lua_get_last_chat_line() {
 /* Return the last person who said the last chat line */
 char *lua_get_last_chat_owner() {
 	return(last_chat_owner);
+}
+
+/* Return the last person's account name who said the last chat line */
+char *lua_get_last_chat_account() {
+	return(last_chat_account);
 }
 
 /* Reset all towns */
@@ -1057,6 +1075,7 @@ void lua_arts_fix(int Ind) {
 /* Display a player's global_event status */
 void lua_get_pgestat(int Ind, int n) {
 	player_type *p_ptr = Players[Ind];
+
 	msg_format(Ind, "%s: #%d, type %d, signup %ld, started %ld,",
 		    p_ptr->name, n, p_ptr->global_event_type[n], (long)p_ptr->global_event_signup[n], (long)p_ptr->global_event_started[n]);
 	msg_format(Ind, "  progress: %d,%d,%d,%d", p_ptr->global_event_progress[n][0], p_ptr->global_event_progress[n][1],
@@ -1314,7 +1333,7 @@ bool lua_mimic_humanoid(int r_idx) {
 void swear_add(char *word, int level) {
 	int i;
 
-	for (i = 0; i < MAX_SWEAR; i++) {
+	for (i = 0; i < MAX_SWEAR - 1; i++) {
 		if (swear[i].word[0]) continue;
 		strcpy(swear[i].word, word);
 		swear[i].level = level;
@@ -1331,7 +1350,7 @@ int swear_get_level(int i) {
 void nonswear_add(char *word, int affix) {
 	int i;
 
-	for (i = 0; i < MAX_NONSWEAR; i++) {
+	for (i = 0; i < MAX_NONSWEAR - 1; i++) {
 		if (nonswear[i][0]) continue;
 		strcpy(nonswear[i], word);
 		nonswear_affix[i] = affix;

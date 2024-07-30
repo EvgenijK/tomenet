@@ -461,7 +461,8 @@
  * OPTION: Allow the use of "sound" in various places.
  */
 
-/* New sound system 'USE_SOUND_2010' in place, utilizing SDL and allowing for topkek dynamic audio ;) - C. Blue */
+/* I added a new sound system 'USE_SOUND_2010' utilizing SDL and allowing for topkek dynamic audio ;)
+   and migrated to SDL2 in summer 2022. - C. Blue */
 #define USE_SOUND
 #define USE_SOUND_2010
 
@@ -601,6 +602,8 @@
 #define DEFAULT_X11_FONT_TERM_5		DEFAULT_X11_FONT
 #define DEFAULT_X11_FONT_TERM_6		DEFAULT_X11_FONT
 #define DEFAULT_X11_FONT_TERM_7		DEFAULT_X11_FONT
+#define DEFAULT_X11_FONT_TERM_8		DEFAULT_X11_FONT
+#define DEFAULT_X11_FONT_TERM_9		DEFAULT_X11_FONT
 
 
 

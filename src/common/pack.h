@@ -270,6 +270,9 @@
 #define PKT_SPECIAL_LINE_POS	206
 #define PKT_VERSION		207
 #define PKT_FONT		208	/* Main screen font */
+#define PKT_EQUIP_WIDE		209
+#define PKT_PLISTW_NOTIFY	210
+#define PKT_UNKNOWNPACKET	211
 
 
 /*
@@ -291,6 +294,7 @@
 #define E_VERSION_UNKNOWN	0x0D
 #define E_LENGTH	0x0E
 #define E_IN_USE_PC	0x0F
+#define E_CLOSED	0x10
 #ifdef CLIENT_SIDE /* RETRY_LOGIN: */
  #define E_RETRY_CONTACT	0xFF
  #define E_RETRY_LOGIN		0xFE

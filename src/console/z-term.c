@@ -516,32 +516,32 @@ byte flick_colour(byte attr) {
 	case TERM_BNWM:
 		switch (randint(3)) {
 		case 1: return TERM_L_DARK;
-		case 2: return TERM_L_SLATE;
+		case 2: return TERM_WHITE;
 		case 3: return flick_colour(TERM_HOLYFIRE);
 		}
 	case TERM_BNWSR:
 		switch (randint(3)) {
 		case 1: return TERM_L_DARK;
-		case 2: return TERM_L_SLATE;
+		case 2: return TERM_WHITE;
 		case 3: return TERM_BLUE;
 		}
 	case TERM_BNWKS:
 		switch (randint(3)) {
 		case 1: return TERM_L_DARK;
-		case 2: return TERM_L_SLATE;
+		case 2: return TERM_WHITE;
 		case 3: return flick_colour(TERM_PSI);
 		}
 	case TERM_BNWKS2:
 		switch (randint(3)) {
 		case 1: return TERM_L_DARK;
-		case 2: return TERM_L_SLATE;
+		case 2: return TERM_WHITE;
 		case 3: return TERM_ORANGE;
 		}
 	/* flickering from 'pvp' flag? */
 	case TERM_PVPBB:
 		switch (randint(3)) {
 		case 1: return TERM_L_DARK;
-		case 2: return TERM_L_SLATE;
+		case 2: return TERM_SLATE;
 		case 3: return TERM_YELLOW;
 		}
 	case TERM_PVP:
@@ -561,9 +561,9 @@ byte flick_colour(byte attr) {
 		else
 		return((randint(2) == 1) ? TERM_L_RED : TERM_ORANGE);
 */		switch (randint(3)) {
-		case 1:return TERM_VIOLET;
-		case 2:return TERM_L_RED;
-		case 3:return TERM_ORANGE;
+		case 1: return TERM_VIOLET;
+		case 2: return TERM_L_RED;
+		case 3: return TERM_ORANGE;
 		}
 	}
 	if (attr == TERM_SHIELDI) {
@@ -587,13 +587,13 @@ byte flick_colour(byte attr) {
 			return(randint(15));
 			break;	/* unnecessary breaks ;) */
 		case TERM_FIRE:
-			return(randint(7)>6?TERM_YELLOW:rand_int(3)>1?TERM_RED:TERM_L_RED);
+			return(randint(7) > 6 ? TERM_YELLOW : rand_int(3) > 1 ? TERM_RED : TERM_L_RED);
 			break;
 		case TERM_POIS:
-			return(randint(5)>3?TERM_GREEN:TERM_L_GREEN);
+			return(randint(5) > 3 ? TERM_GREEN : TERM_L_GREEN);
 			break;
 		case TERM_COLD:
-			return(randint(5)>3?TERM_WHITE:TERM_L_WHITE);
+			return(randint(5) > 3 ? TERM_WHITE : TERM_L_WHITE);
 			break;
 		case TERM_ELEC:
 			return(randint(7) > 6 ? TERM_WHITE : (randint(4) == 1 ? TERM_L_BLUE : TERM_BLUE));
@@ -632,7 +632,8 @@ extern term *ang_term[];
 
 void flicker() {
 	int y, x, i;
-	char ch, attr;
+	char ch;
+	byte attr;
 	term *tterm, *old;
 
 	old = Term;
@@ -642,9 +643,9 @@ void flicker() {
 		Term_activate(tterm);
 		for (y = 0; y < tterm->hgt; y++) {
 			for (x = 0; x < tterm->wid; x++) {
-				if (tterm->scr->a[y][x] < TERM_MULTI) continue;
+				if (tterm->scr->a[y][x] < BASE_PALETTE_SIZE) continue;
 #ifdef EXTENDED_COLOURS_PALANIM
-				if (tterm->scr->a[y][x] >= TERMA_DARK && tterm->scr->a[y][x] <= TERMA_L_UMBER) continue;
+				if (tterm->scr->a[y][x] >= TERMA_OFFSET && tterm->scr->a[y][x] < TERMA_OFFSET + BASE_PALETTE_SIZE) continue;
 #endif
 				ch = tterm->scr->c[y][x];
 				attr = flick_colour(tterm->scr->a[y][x]);
@@ -785,7 +786,7 @@ static void Term_fresh_row_text_wipe(int y) {
 			}
 			/* Save the new color */
 #ifdef EXTENDED_COLOURS_PALANIM
-			if (na >= TERMA_DARK && na <= TERMA_L_UMBER) fa = na - TERMA_OFFSET + 16; /* Translate to actual extended terminal colour (16..31) */
+			if (na >= TERMA_OFFSET && na < TERMA_OFFSET + BASE_PALETTE_SIZE) fa = na - TERMA_OFFSET + 16; /* Translate to actual extended terminal colour (16..31) */
 			else
 #endif
 			if (na >= TERM_MULTI) fa = flick_colour(na);

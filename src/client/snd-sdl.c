@@ -51,13 +51,18 @@
 #define USER_VOLUME_MUS
 
 #ifdef SOUND_AL_SDL
+ // port from SDL to AL? Future stuff, if SDL3 still sux (or we want full 3d head model sfx)
+#elif 0
+ #include <SDL/SDL.h>
+ #include <SDL/SDL_mixer.h>
+ #include <SDL/SDL_thread.h>
+#elif 1
+ /* This works for SDL2 on Arm64, Linux and MinGW (i686-w64-mingw32) */
+ #include <SDL.h>
+ #include <SDL_mixer.h>
+ #include <SDL_thread.h>
 #else
-/*
-#include <SDL/SDL.h>
-#include <SDL/SDL_mixer.h>
-#include <SDL/SDL_thread.h>
-*/
-/* This is the way recommended by the SDL web page */
+ /* This is the way recommended by the SDL web page (this was from SDL1-times though) -- this was used till almost end of jan 2024 */
  #include "SDL.h"
  #include "SDL_mixer.h"
  #include "SDL_thread.h"
@@ -703,9 +708,13 @@ static bool sound_sdl_init(bool no_cache) {
 		/* no event name given? */
 		if (!search) continue;
 		*search = 0;
+		search++;
 		/* Event name (key): Trim spaces/tabs */
-		while (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t') search[strlen(search) - 1] = 0;
-		while (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t') search[strlen(search) - 1] = 0;
+		while (*buffer && (buffer[strlen(buffer) - 1] == ' ' || buffer[strlen(buffer) - 1] == '\t')) buffer[strlen(buffer) - 1] = 0;
+		if (!(*buffer)) continue; /* No key (aka event) name given */
+		/* File name (value): Trim spaces/tabs */
+		while (*search && (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t')) search[strlen(search) - 1] = 0;
+		if (!(*search)) continue; /* No value (aka name) given for the key */
 
 		/* Set the event name */
 		cfg_name = buffer;
@@ -723,7 +732,7 @@ static bool sound_sdl_init(bool no_cache) {
 		}
 
 		/* Songs: Trim spaces/tabs */
-		c = search + 1;
+		c = search;
 		while (*c == ' ' || *c == '\t') c++;
 		sample_list = c;
 
@@ -1011,9 +1020,13 @@ static bool sound_sdl_init(bool no_cache) {
 		/* no event name given? */
 		if (!search) continue;
 		*search = 0;
+		search++;
 		/* Event name (key): Trim spaces/tabs */
-		while (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t') search[strlen(search) - 1] = 0;
-		while (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t') search[strlen(search) - 1] = 0;
+		while (*buffer && (buffer[strlen(buffer) - 1] == ' ' || buffer[strlen(buffer) - 1] == '\t')) buffer[strlen(buffer) - 1] = 0;
+		if (!(*buffer)) continue; /* No key (aka event) name given */
+		/* File name (value): Trim spaces/tabs */
+		while (*search && (search[strlen(search) - 1] == ' ' || search[strlen(search) - 1] == '\t')) search[strlen(search) - 1] = 0;
+		if (!(*search)) continue; /* No value (aka name) given for the key */
 
 		/* Set the event name */
 		cfg_name = buffer;
@@ -1031,7 +1044,7 @@ static bool sound_sdl_init(bool no_cache) {
 		}
 
 		/* Songs: Trim spaces/tabs */
-		c = search + 1;
+		c = search;
 		while (*c == ' ' || *c == '\t') c++;
 		song_list = c;
 
@@ -1277,7 +1290,7 @@ static bool sound_sdl_init(bool no_cache) {
 static bool play_sound(int event, int type, int vol, s32b player_id, int dist_x, int dist_y) {
 	Mix_Chunk *wave = NULL;
 	int s, vols = 100;
-	bool test = FALSE;
+	bool test = FALSE, real_event = (event >= 0 && event < SOUND_MAX_2010);
 
 #ifdef DISABLE_MUTED_AUDIO
 	if (!cfg_audio_master || !cfg_audio_sound) return(TRUE); /* claim that it 'succeeded' */
@@ -1285,7 +1298,7 @@ static bool play_sound(int event, int type, int vol, s32b player_id, int dist_x,
 
 #ifdef USER_VOLUME_SFX
 	/* Apply user-defined custom volume modifier */
-	if (samples[event].volume) vols = samples[event].volume;
+	if (real_event && samples[event].volume) vols = samples[event].volume;
 #endif
 
 	/* hack: */
@@ -1303,7 +1316,7 @@ static bool play_sound(int event, int type, int vol, s32b player_id, int dist_x,
 			return(found);
 		}
 		/* stop sound of this type? */
-		else {
+		else if (real_event) {
 			for (s = 0; s < cfg_max_channels; s++) {
 				if (channel_sample[s] == event && channel_player_id[s] == player_id) {
 					Mix_FadeOutChannel(s, 450); //250..450 (more realistic timing vs smoother sound (avoid final 'spike'))
@@ -1315,7 +1328,11 @@ static bool play_sound(int event, int type, int vol, s32b player_id, int dist_x,
 	}
 
 	/* Paranoia */
-	if (event < 0 || event >= SOUND_MAX_2010) return(FALSE);
+	if (!real_event) return(FALSE);
+
+	if (type == SFX_TYPE_AMBIENT_LOCAL) {
+		//todo
+	}
 
 	if (samples[event].disabled) return(TRUE); /* claim that it 'succeeded' */
 
@@ -1617,6 +1634,9 @@ static void clear_channel(int c) {
 	}
 
 	if (c == ambient_channel) {
+		/* Note (1/2): -fsanitize=threads gives a warning here that setting this to -1 may collide with it being checked for -1 in ambient_handle_fading(), compare there.
+		   However, first, this warning doesn't seem to make sense.
+		   Second, there is a years old SDL bug apparently, that has Mix_HasFinished() return 0 after it was already faded out, if looping is true. */
 		ambient_channel = -1;
 		return;
 	}
@@ -1630,6 +1650,7 @@ static void clear_channel(int c) {
 	if (channel_type[c] == SFX_TYPE_WEATHER)
 		Mix_Volume(c, CALC_MIX_VOLUME(cfg_audio_sound, cfg_audio_sound_volume, 100));
 
+	if (channel_sample[c] == -1) return;
 	samples[channel_sample[c]].current_channel = -1;
 	channel_sample[c] = -1;
 }
@@ -2031,7 +2052,7 @@ void weather_handle_fading(void) {
 	}
 }
 
-/* Overlay an ambient sound effect */
+/* Overlay a global, looping, ambient sound effect */
 static void play_sound_ambient(int event) {
 	Mix_Chunk *wave = NULL;
 	int s, new_ac, vols = 100;
@@ -2213,6 +2234,9 @@ static void play_sound_ambient(int event) {
 void ambient_handle_fading(void) {
 	int vols = 100;
 
+	/* Note (2/2): -fsanitize=threads gives a warning here that checking this for -1 may collide with it being set to -1 in clear_channel(), compare there.
+	   However, first, this warning doesn't seem to make sense.
+	   Second, there is a years old SDL bug apparently, that has Mix_HasFinished() return 0 after it was already faded out, if looping is true. */
 	if (ambient_channel == -1) { //paranoia
 		ambient_fading = 0;
 		return;
@@ -2508,7 +2532,7 @@ static void fadein_next_music(void) {
 	/* Catch music_next == -1, this can now happen with shuffle_music or play_all option, since songs are no longer looped if it's enabled */
 	if ((c_cfg.shuffle_music || c_cfg.play_all) && music_next == -1) {
 		int tries, mcs;
-		int n, initials = 0, noinit_map[MAX_SONGS], ni = 0;
+		int n, noinit_map[MAX_SONGS], ni = 0;
 
 		/* We're not currently playing any music? -- This can happen when we quickly exit the game and return to music-less account screen
 		   and would cause a segfault when trying to access songs[-1]: */
@@ -2521,10 +2545,7 @@ static void fadein_next_music(void) {
 
 		/* don't sequence-shuffle 'initial' songs */
 		for (n = 0; n < songs[music_cur].num; n++) {
-			if (songs[music_cur].initial[n]) {
-				initials++;
-				continue;
-			}
+			if (songs[music_cur].initial[n]) continue;
 			noinit_map[ni] = n;
 			ni++;
 		}
@@ -4246,7 +4267,9 @@ void update_jukebox_timepos(void) {
 	   That means in case you install SDL2_mixer manually into /usr/local instead of /usr, you'll have to edit the makefile and replace sdl2-config calls with the
 	   correctl7 prefixed paths to /usr/local/lib and /usr/loca/include instead of /usr/lib and /usr/include. -_-
 	   Or you overwrite your repo version at /usr prefix instead. I guess best is to just wait till the SDL2_mixer package is in the official repository.. */
-	i = (int)Mix_GetMusicPosition(songs[music_cur].wavs[music_cur_song]); //catches when we reach end of song and restart playing at 0s
+	if (music_cur != -1 && music_cur_song != -1)
+		i = (int)Mix_GetMusicPosition(songs[music_cur].wavs[music_cur_song]); //catches when we reach end of song and restart playing at 0s
+	else i = 0;
 	if (curmus_timepos != -1) curmus_timepos = i;
 	/* Update jukebox song time stamp */
 	if (curmus_y != -1) Term_putstr(curmus_x + 34 + 7, curmus_y, -1, curmus_attr, format("%02d:%02d", i / 60, i % 60));

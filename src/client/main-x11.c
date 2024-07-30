@@ -47,7 +47,7 @@
  *
  *   3) Due to the workings of the init routines, many colors
  *   may also be dealt with by their actual pixel values.  Note that
- *   the pixel with all bits set is "zg = (1<<metadpy->depth)-1", which
+ *   the pixel with all bits set is "zg = (1 << metadpy->depth) - 1", which
  *   is not necessarily either black or white.
  */
 
@@ -97,9 +97,9 @@ typedef struct infofnt infofnt;
  */
 
 struct metadpy {
-	Display	*dpy;
-	Screen	*screen;
-	Window	root;
+	Display		*dpy;
+	Screen		*screen;
+	Window		root;
 	Colormap	cmap;
 
 	char		*name;
@@ -110,12 +110,12 @@ struct metadpy {
 	uint		height;
 	uint		depth;
 
-	Pixell	black;
-	Pixell	white;
+	Pixell		black;
+	Pixell		white;
 
-	Pixell	bg;
-	Pixell	fg;
-	Pixell	zg;
+	Pixell		bg;
+	Pixell		fg;
+	Pixell		zg;
 
 	uint		mono:1;
 	uint		color:1;
@@ -153,24 +153,24 @@ struct metadpy {
 
 struct infowin {
 	Window		win;
-	long			mask;
+	long		mask;
 
-	s16b			x, y;
-	s16b			w, h;
-	u16b			b;
+	s16b		x, y;
+	s16b		w, h;
+	u16b		b;
 
-	byte			byte1;
+	byte		byte1;
 
-	uint			mapped:1;
-	uint			redraw:1;
-	uint			resize:1;
+	uint		mapped:1;
+	uint		redraw:1;
+	uint		resize:1;
 
-	uint			nuke:1;
+	uint		nuke:1;
 
-	uint			flag1:1;
-	uint			flag2:1;
-	uint			flag3:1;
-	uint			flag4:1;
+	uint		flag1:1;
+	uint		flag2:1;
+	uint		flag3:1;
+	uint		flag4:1;
 };
 
 
@@ -192,14 +192,14 @@ struct infowin {
  */
 
 struct infoclr {
-	GC			gc;
+	GC		gc;
 
 	Pixell		fg;
 	Pixell		bg;
 
-	uint			code:4;
-	uint			stip:1;
-	uint			nuke:1;
+	uint		code:4;
+	uint		stip:1;
+	uint		nuke:1;
 };
 
 
@@ -222,7 +222,7 @@ struct infoclr {
  */
 
 struct infofnt {
-	XFontStruct	*info;
+	XFontStruct		*info;
 
 	cptr			name;
 
@@ -236,6 +236,9 @@ struct infofnt {
 	uint			nuke:1;
 };
 
+
+// (prototype)
+static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue);
 
 
 
@@ -275,19 +278,19 @@ struct infofnt {
 /**** Available Macros ****/
 
 /* Init an infowin by giving father as an (info_win*) (or NULL), and data */
-#define Infowin_init_dad(D,X,Y,W,H,B,FG,BG) \
+#define Infowin_init_dad(D, X, Y, W, H, B, FG, BG) \
 	Infowin_init_data(((D) ? ((D)->win) : (Window)(None)), \
-	                  X,Y,W,H,B,FG,BG)
+	                  X, Y, W, H, B, FG, BG)
 
 
 /* Init a top level infowin by pos,size,bord,Colors */
-#define Infowin_init_top(X,Y,W,H,B,FG,BG) \
-	Infowin_init_data(None,X,Y,W,H,B,FG,BG)
+#define Infowin_init_top(X, Y, W, H, B, FG, BG) \
+	Infowin_init_data(None, X, Y, W, H, B, FG, BG)
 
 
 /* Request a new standard window by giving Dad infowin and X,Y,W,H */
-#define Infowin_init_std(D,X,Y,W,H,B) \
-	Infowin_init_dad(D,X,Y,W,H,B,Metadpy->bg,Metadpy->bg)
+#define Infowin_init_std(D, X, Y, W, H, B) \
+	Infowin_init_dad(D, X, Y, W, H, B, Metadpy->bg,Metadpy->bg)
 
 
 /* Set the current Infowin */
@@ -314,17 +317,17 @@ struct infofnt {
 
 /**** Available Macros (Requests) ****/
 
-#define Infoclr_init_ppo(F,B,O,M) \
-	Infoclr_init_data(F,B,O,M)
+#define Infoclr_init_ppo(F, B, O, M) \
+	Infoclr_init_data(F, B, O, M)
 
-#define Infoclr_init_cco(F,B,O,M) \
-	Infoclr_init_ppo(Infoclr_Pixell(F),Infoclr_Pixell(B),O,M)
+#define Infoclr_init_cco(F, B, O , M) \
+	Infoclr_init_ppo(Infoclr_Pixell(F), Infoclr_Pixell(B), O, M)
 
-#define Infoclr_init_ppn(F,B,O,M) \
-	Infoclr_init_ppo(F,B,Infoclr_Opcode(O),M)
+#define Infoclr_init_ppn(F, B, O, M) \
+	Infoclr_init_ppo(F, B, Infoclr_Opcode(O), M)
 
-#define Infoclr_init_ccn(F,B,O,M) \
-	Infoclr_init_cco(F,B,Infoclr_Opcode(O),M)
+#define Infoclr_init_ccn(F, B, O, M) \
+	Infoclr_init_cco(F, B, Infoclr_Opcode(O), M)
 
 
 /* SHUT: x-infoclr.h */
@@ -485,6 +488,12 @@ static errr Metadpy_init_2(Display *dpy, cptr name) {
 	m->bg = m->black;
 	m->fg = m->white;
 
+#ifdef CUSTOMIZE_COLOURS_FREELY
+	/* Actually use fg-colour of index #0 (usually black) as the bg colour. */
+	Pixell pixel = create_pixel(m->dpy, (client_color_map[0] & 0xFF0000) >> 16, (client_color_map[0] & 0x00FF00) >> 8, client_color_map[0] & 0x0000FF);
+	m->bg = pixel;
+#endif
+
 	/* Calculate the Maximum allowed Pixel value.  */
 	m->zg = (1 << m->depth) - 1;
 
@@ -539,10 +548,12 @@ static errr Infowin_set_name(cptr name) {
 	XTextProperty tp;
 	char buf[128];
 	char *bp = buf;
+
 	strcpy(buf, name);
 	st = XStringListToTextProperty(&bp, 1, &tp);
 	if (st) XSetWMName(Metadpy->dpy, Infowin->win, &tp);
 	XFree(tp.value);
+
 	return(0);
 }
 
@@ -718,15 +729,11 @@ static Pixell Infoclr_Pixell(cptr name) {
 
 		/* Attempt to parse 'name' into 'scrn' */
 		if (!(XParseColor(Metadpy->dpy, Metadpy->cmap, name, &scrn)))
-		{
 			plog_fmt("Warning: Couldn't parse color '%s'\n", name);
-		}
 
 		/* Attempt to Allocate the Parsed color */
 		if (!(XAllocColor (Metadpy->dpy, Metadpy->cmap, &scrn)))
-		{
 			plog_fmt("Warning: Couldn't allocate color '%s'\n", name);
-		}
 
 		/* The Pixel was Allocated correctly */
 		else return(scrn.pixel);
@@ -866,9 +873,7 @@ static errr Infofnt_init_data(cptr name) {
 	info = XLoadQueryFont(Metadpy->dpy, name);
 
 	/* The load failed, try to recover */
-	if (!info) {
-		return(-1);
-	}
+	if (!info) return(-1);
 
 
 	/*** Init the font ***/
@@ -1030,19 +1035,17 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len) {
 	/* Monotize the font */
 	if (Infofnt->mono) {
 		/* Do each character */
-		for (i = 0; i < len; ++i) {
+		for (i = 0; i < len; ++i)
 			/* Note that the Infoclr is set up to contain the Infofnt */
 			XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 			                 x + i * Infofnt->wid + Infofnt->off, y, str + i, 1);
-		}
 	}
 
 	/* Assume monospaced font */
-	else {
+	else
 		/* Note that the Infoclr is set up to contain the Infofnt */
 		XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 		                 x, y, str, len);
-	}
 
 	/* Success */
 	return(0);
@@ -1161,6 +1164,16 @@ void resize_main_window_x11(int cols, int rows);
 void resize_window_x11(int term_idx, int cols, int rows);
 static term_data* term_idx_to_term_data(int term_idx);
 
+/* Cache for prepared graphical tiles */
+#define TILE_CACHE_SIZE	256
+
+struct tile_cache_entry {
+    Pixmap tilePreparation;
+    char32_t c;
+    byte a;
+    bool is_valid;
+};
+
 /*
  * A structure for each "term"
  */
@@ -1179,6 +1192,11 @@ struct term_data {
 	Pixmap bgmask;
 	Pixmap fgmask;
 	Pixmap tilePreparation;
+
+#ifdef TILE_CACHE_SIZE
+	int cache_position;
+	struct tile_cache_entry tile_cache[TILE_CACHE_SIZE];
+#endif
 
 #endif
 };
@@ -1222,10 +1240,12 @@ static term_data term_4;
 static term_data term_5;
 static term_data term_6;
 static term_data term_7;
+static term_data term_8;
+static term_data term_9;
 
-static term_data *x11_terms_term_data[ANGBAND_TERM_MAX] = {&screen, &mirror, &recall, &choice, &term_4, &term_5, &term_6, &term_7};
-static char *x11_terms_font_env[ANGBAND_TERM_MAX] = {"TOMENET_X11_FONT_SCREEN", "TOMENET_X11_FONT_MIRROR", "TOMENET_X11_FONT_RECALL", "TOMENET_X11_FONT_CHOICE", "TOMENET_X11_FONT_TERM_4", "TOMENET_X11_FONT_TERM_5", "TOMENET_X11_FONT_TERM_6", "TOMENET_X11_FONT_TERM_7"};
-static char *x11_terms_font_default[ANGBAND_TERM_MAX] = {DEFAULT_X11_FONT_SCREEN, DEFAULT_X11_FONT_MIRROR, DEFAULT_X11_FONT_RECALL, DEFAULT_X11_FONT_CHOICE, DEFAULT_X11_FONT_TERM_4, DEFAULT_X11_FONT_TERM_5, DEFAULT_X11_FONT_TERM_6, DEFAULT_X11_FONT_TERM_7};
+static term_data *x11_terms_term_data[ANGBAND_TERM_MAX] = {&screen, &mirror, &recall, &choice, &term_4, &term_5, &term_6, &term_7, &term_8, &term_9};
+static char *x11_terms_font_env[ANGBAND_TERM_MAX] = {"TOMENET_X11_FONT_SCREEN", "TOMENET_X11_FONT_MIRROR", "TOMENET_X11_FONT_RECALL", "TOMENET_X11_FONT_CHOICE", "TOMENET_X11_FONT_TERM_4", "TOMENET_X11_FONT_TERM_5", "TOMENET_X11_FONT_TERM_6", "TOMENET_X11_FONT_TERM_7", "TOMENET_X11_FONT_TERM_8", "TOMENET_X11_FONT_TERM_9"};
+static char *x11_terms_font_default[ANGBAND_TERM_MAX] = {DEFAULT_X11_FONT_SCREEN, DEFAULT_X11_FONT_MIRROR, DEFAULT_X11_FONT_RECALL, DEFAULT_X11_FONT_CHOICE, DEFAULT_X11_FONT_TERM_4, DEFAULT_X11_FONT_TERM_5, DEFAULT_X11_FONT_TERM_6, DEFAULT_X11_FONT_TERM_7, DEFAULT_X11_FONT_TERM_8, DEFAULT_X11_FONT_TERM_9};
 
 /*
  * Set the size hints of Infowin
@@ -1408,8 +1428,9 @@ static void react_keypress(XEvent *xev) {
  */
 static void resize_window_x11_timers_handle(void) {
 	struct timeval now = {0, 0};
+	int t_idx;
 
-	for (int t_idx = 0; t_idx < ANGBAND_TERM_MAX; t_idx++) {
+	for (t_idx = 0; t_idx < ANGBAND_TERM_MAX; t_idx++) {
 		term_data *td = term_idx_to_term_data(t_idx);
 
 		if (td->resize_timer.tv_usec != 0 || td->resize_timer.tv_sec != 0) {
@@ -1446,11 +1467,35 @@ static errr CheckEvent(bool wait) {
 
 	int t_idx = -1;
 
+
 	/* Handle all window resize timers. */
 	resize_window_x11_timers_handle();
 
 	/* Do not wait unless requested */
-	if (!wait && !XPending(Metadpy->dpy)) return(1);
+	if (!wait) {
+		/* The XPending() call caused an X11 error once:
+
+		X Error of failed request:  BadMatch (invalid parameter attributes)
+		  Major opcode of failed request:  42 (X_SetInputFocus)
+		  Serial number of failed request:  12
+		  Current serial number in output stream:  12
+
+		It was suggested that this can happen due to asynchronous vs synchronous clashes in bad X11 code and to rememdy this, XSync() can be added.
+		I don't know if this really works, and the bug is hard to reproduce (timing issues with windows being drawable or not perhaps):
+
+		Also see here:
+		https://www.ultraengine.com/community/blogs/entry/2690-the-year-of-the-linux-desktop-is-here/
+		quote:
+		"The way around this is to call XMapWindow and then wait on the event queue until a MapNotify event for that window occurs,
+		adding all other events into a list that can be evaluated on the next call to WaitEvent().
+		The time elapsed is checked inside the loop in case something weird happens and the desired event is never received"
+
+		*/
+		XSync(Metadpy->dpy, 0);
+
+		/* This caused the X11 error above in rare circumstances. Shouldn't matter during actual gameplay though, only if window states change. */
+		if (!XPending(Metadpy->dpy)) return(1);
+	}
 
 	/* Load the Event */
 	XNextEvent(Metadpy->dpy, xev);
@@ -1566,6 +1611,32 @@ static errr CheckEvent(bool wait) {
 		td = &term_7;
 		iwin = td->outer;
 		t_idx = 7;
+	}
+
+	/* Other window, inner window */
+	else if (term_term_8 && xev->xany.window == term_8.inner->win) {
+		td = &term_8;
+		iwin = td->inner;
+		t_idx = 8;
+	}
+	/* Other window, outer window */
+	else if (term_term_8 && xev->xany.window == term_8.outer->win) {
+		td = &term_8;
+		iwin = td->outer;
+		t_idx = 8;
+	}
+
+	/* Other window, inner window */
+	else if (term_term_9 && xev->xany.window == term_9.inner->win) {
+		td = &term_9;
+		iwin = td->inner;
+		t_idx = 9;
+	}
+	/* Other window, outer window */
+	else if (term_term_9 && xev->xany.window == term_9.outer->win) {
+		td = &term_9;
+		iwin = td->outer;
+		t_idx = 9;
 	}
 
 
@@ -1748,6 +1819,17 @@ static void free_graphics(term_data *td) {
 		XFreePixmap(Metadpy->dpy, td->tilePreparation);
 		td->tilePreparation = None;
 	}
+#ifdef TILE_CACHE_SIZE
+	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+		if (td->tile_cache[i].tilePreparation) {
+			XFreePixmap(Metadpy->dpy, td->tile_cache[i].tilePreparation);
+			td->tile_cache[i].tilePreparation = None;
+			td->tile_cache[i].c = 0xffffffff;
+			td->tile_cache[i].a = 0xff;
+			td->tile_cache[i].is_valid = 0;
+		}
+	}
+#endif
 }
 #endif
 
@@ -1803,6 +1885,8 @@ static errr term_data_nuke(term_data *td) {
 /* Saves terminal window position, dimensions and font for term_idx to term_prefs.
  * Note: The term_prefs visibility is not handled here. */
 static void term_data_to_term_prefs(int term_idx) {
+	int cols, rows;
+
 	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return;
 	term_data *td = term_idx_to_term_data(term_idx);
 
@@ -1811,8 +1895,8 @@ static void term_data_to_term_prefs(int term_idx) {
 	term_prefs[term_idx].y = td->outer->y;
 
 	/* Update dimensions. */
-	int cols = td->inner->w / td->fnt->wid;
-	int rows = td->inner->h / td->fnt->hgt;
+	cols = td->inner->w / td->fnt->wid;
+	rows = td->inner->h / td->fnt->hgt;
 	term_prefs[term_idx].columns = cols;
 	term_prefs[term_idx].lines = rows;
 
@@ -1823,6 +1907,16 @@ static void term_data_to_term_prefs(int term_idx) {
 	}
 }
 
+/* For saving all window layout while client is still running (from within = menu) */
+void all_term_data_to_term_prefs(void) {
+	int n;
+
+	for (n = 0; n < ANGBAND_TERM_MAX; n++) {
+		if (!term_get_visibility(n)) continue;
+		term_data_to_term_prefs(n);
+	}
+}
+
 /*
  * Handle destruction of a term.
  * Here we should properly destroy all windows and resources for terminal.
@@ -1830,13 +1924,12 @@ static void term_data_to_term_prefs(int term_idx) {
  */
 static void Term_nuke_x11(term *t) {
 	term_data *td = (term_data*)(t->data);
+	int term_idx;
 
 	/* special hack: this window was invisible, but we just toggled it to become visible on next client start. */
-	if (!td->fnt) {
-		return;
-	}
+	if (!td->fnt) return;
 
-	int term_idx = term_data_to_term_idx(td);
+	term_idx = term_data_to_term_idx(td);
 	if (term_idx < 0) {
 		fprintf(stderr, "Error getting terminal index from term_data\n");
 		return;
@@ -1948,6 +2041,13 @@ static errr Term_curs_x11(int x, int y) {
  * Draw a number of characters (XXX Consider using "cpy" mode)
  */
 static errr Term_text_x11(int x, int y, int n, byte a, cptr s) {
+	/* Catch use in chat instead of as feat attr, or we crash :-s
+	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
+	if (Term && Term->data == &screen && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+		flick_global_x = x;
+		flick_global_y = y;
+	} else flick_global_x = 0;
+
 	a = term2attr(a);
 
 	/* Draw the text in Xor */
@@ -1994,6 +2094,13 @@ int graphics_image_tpr; /* Tiles per row. */
  * Draw some graphical characters.
  */
 static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
+	/* Catch use in chat instead of as feat attr, or we crash :-s
+	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
+	if (Term && Term->data == &screen && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+		flick_global_x = x;
+		flick_global_y = y;
+	} else flick_global_x = 0;
+
 	a = term2attr(a);
 
 	/* Draw the tile in Xor. */
@@ -2019,20 +2126,49 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 	}
 
 	term_data *td = (term_data*)(Term->data);
-
-	/* Prepare tile to preparation pixmap. */
 	x *= Infofnt->wid;
 	y *= Infofnt->hgt;
+
+#ifdef TILE_CACHE_SIZE
+	struct tile_cache_entry *entry = NULL;
+	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+		entry = &td->tile_cache[i];
+		if (entry->c == c && entry->a == a && entry->is_valid) {
+			/* Copy cached tile to window. */
+			XCopyArea(Metadpy->dpy, entry->tilePreparation, td->inner->win, Infoclr->gc,
+				0, 0,
+				td->fnt->wid, td->fnt->hgt,
+				x, y);
+
+			/* Success */
+			return(0);
+		}
+	}
+
+	// Replace cache entries in FIFO order
+	entry = &td->tile_cache[td->cache_position++];
+	if (td->cache_position >= TILE_CACHE_SIZE) {
+		td->cache_position = 0;
+	}
+	Pixmap tilePreparation = entry->tilePreparation;
+	entry->c = c;
+	entry->a = a;
+	entry->is_valid = 1;
+#else
+	Pixmap tilePreparation = td->tilePreparation;
+#endif
+
+	/* Prepare tile to preparation pixmap. */
 	int x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->fnt->wid;
 	int y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->fnt->hgt;
-	XCopyPlane(Metadpy->dpy, td->fgmask, td->tilePreparation, Infoclr->gc,
+	XCopyPlane(Metadpy->dpy, td->fgmask, tilePreparation, Infoclr->gc,
 			x1, y1,
 			td->fnt->wid, td->fnt->hgt,
 			0, 0,
 			1);
 	XSetClipMask(Metadpy->dpy, Infoclr->gc, td->bgmask);
 	XSetClipOrigin(Metadpy->dpy, Infoclr->gc, 0 - x1, 0 - y1);
-	XPutImage(Metadpy->dpy, td->tilePreparation,
+	XPutImage(Metadpy->dpy, tilePreparation,
 			Infoclr->gc,
 			td->tiles,
 		  x1, y1,
@@ -2041,7 +2177,7 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 	XSetClipMask(Metadpy->dpy, Infoclr->gc, None);
 
 	/* Copy prepared tile to window. */
-	XCopyArea(Metadpy->dpy, td->tilePreparation, td->inner->win, Infoclr->gc,
+	XCopyArea(Metadpy->dpy, tilePreparation, td->inner->win, Infoclr->gc,
 		  0, 0,
 		  td->fnt->wid, td->fnt->hgt,
 		  x, y);
@@ -2070,9 +2206,7 @@ static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
 
 	/* Attempt to Allocate the Parsed color. */
 	if (!(XAllocColor(dpy, cmap, &xcolour)))
-	{
 		quit_fmt("Couldn't allocate bitmap color '%s'\n", cname);
-	}
 
 	return(xcolour.pixel);
 }
@@ -2096,11 +2230,10 @@ typedef struct BITMAPFILEHEADER {
 /*
  * The Win32 "BITMAPINFOHEADER" type.
  */
-typedef struct BITMAPINFOHEADER
-{
+typedef struct BITMAPINFOHEADER {
 	u32b biSize;           // Size of this header (in bytes).
-	u32b biWidth;          // width of bitmap in pixels.
-	u32b biHeight;         // height of bitmap in pixels (if positive, bottom-up, with origin in lower left corner, if negative, top-down, with origin in upper left corner).
+	s32b biWidth;          // width of bitmap in pixels.
+	s32b biHeight;         // height of bitmap in pixels (if positive, bottom-up, with origin in lower left corner, if negative, top-down, with origin in upper left corner).
 	u16b biPlanes;         // No. of planes for the target device, this is always 1.
 	u16b biBitCount;       // No. of bits per pixel.
 	u32b biCompresion;     // 0 or 3 - uncompressed. THIS PROGRAM CONSIDERS ONLY UNCOMPRESSED BMP images.
@@ -2114,8 +2247,7 @@ typedef struct BITMAPINFOHEADER
 /*
  * The Win32 "RGBQUAD" type.
  */
-typedef struct RGBQUAD
-{
+typedef struct RGBQUAD {
 	unsigned char r,g,b;
 	unsigned char filler;
 } RGBQUAD;
@@ -2142,17 +2274,15 @@ typedef struct RGBQUAD
  * Function will not free memory if allready allocated in data_return input variable.
  */
 static errr ReadBMPData(char *Name, char **data_return,  int *width_return, int *height_return) {
-
 	FILE *f;
 	BITMAPFILEHEADER fileheader;
 	BITMAPINFOHEADER infoheader;
 	vptr fileheaderhack = (vptr)((char *)(&fileheader) + sizeof(fileheader.bfAlign));
 
 	/* Open the BMP file. */
-	if (NULL == (f = fopen(Name, "r"))) {
+	if (NULL == (f = fopen(Name, "r")))
 		/* No such file. */
 		return(ReadBMPNoFile);
-	}
 
 	/* Read the "BITMAPFILEHEADER". */
 	if (1 != fread(fileheaderhack, sizeof(fileheader) - sizeof(fileheader.bfAlign), 1, f)) {fclose(f); return(ReadBMPReadErrorOrUnexpectedEOF);}
@@ -2166,8 +2296,8 @@ static errr ReadBMPData(char *Name, char **data_return,  int *width_return, int 
 	if (0 != fseek(f, fileheader.bfOffBytes, SEEK_SET)) {fclose(f); return(ReadBMPUnexpectedEOF);}
 
 	char *data;
-	C_MAKE(data, infoheader.biWidth*infoheader.biHeight*4, char);
-	memset(data, 0, infoheader.biWidth*infoheader.biHeight*4);
+	C_MAKE(data, infoheader.biWidth*infoheader.biHeight * 4, char);
+	memset(data, 0, infoheader.biWidth*infoheader.biHeight * 4);
 	errr err = 0;
 
 	/* Every line is padded, to have multiple o 4 bytes. */
@@ -2215,7 +2345,7 @@ static errr ReadBMPData(char *Name, char **data_return,  int *width_return, int 
  * Function will not free memory if allready allocated in bgmask_return/fgmask_return input variable.
  */
 static void createMasksFromData(char* data, int width, int height, char **bgmask_return, char **fgmask_return) {
-	int masks_size = width * height / 8 + (width*height%8 == 0 ? 0 : 1);
+	int masks_size = width * height / 8 + (width * height % 8 == 0 ? 0 : 1);
 
 	char *bgmask;
 	C_MAKE(bgmask, masks_size, char);
@@ -2227,17 +2357,17 @@ static void createMasksFromData(char* data, int width, int height, char **bgmask
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			u32b bit = y*width + x;
-			byte r = data[4*(x+y*width)];
-			byte g = data[4*(x+y*width)+1];
-			byte b = data[4*(x+y*width)+2];
+			u32b bit = y * width + x;
+			byte r = data[4 * (x + y * width)];
+			byte g = data[4 * (x + y * width) + 1];
+			byte b = data[4 * (x + y * width) + 2];
 
-			if (r != 0 || g != 0 || b != 0) {
-				bgmask[bit/8] |= 1 << (bit%8);
-			}
+			if (r != 0 || g != 0 || b != 0)
+				bgmask[bit / 8] |= 1 << (bit % 8);
+
 			if (r == 255 && g == 0 && b == 255) {
-				fgmask[bit/8] |= 1 << (bit%8);
-				bgmask[bit/8] &= ~((char)1 << (bit%8));
+				fgmask[bit / 8] |= 1 << (bit % 8);
+				bgmask[bit / 8] &= ~((char)1 << (bit % 8));
 			}
 		}
 	}
@@ -2255,15 +2385,13 @@ static void createMasksFromData(char* data, int width, int height, char **bgmask
  */
 static XImage *ResizeImage(Display *disp, XImage *Im,
                            int ix, int iy, int ox, int oy,
-                           char *bgbits, char *fgbits, Pixmap *bgmask_return, Pixmap *fgmask_return)
-{
+                           char *bgbits, char *fgbits, Pixmap *bgmask_return, Pixmap *fgmask_return) {
 	int width1, height1, width2, height2;
 	int x1, x2, y1, y2, Tx, Ty;
 	int *px1, *px2, *dx1, *dx2;
 	int *py1, *py2, *dy1, *dy2;
 
 	XImage *Tmp;
-
 	char *Data;
 
 
@@ -2317,22 +2445,22 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 
 	Ty = *dy1;
 
-	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) {
+	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
 		Tx = *dx1;
 
-		for (x1 = 0, x2 = 0; (x1 < width1) && (x2 < width2); ) {
+		for (x1 = 0, x2 = 0; (x1 < width1) && (x2 < width2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
 			XPutPixel(Tmp, x2, y2, XGetPixel(Im, x1, y1));
 			u32b maskbitno = (x1 + (y1 * width1));
 			u32b newmaskbitno = (x2 + (y2 * paddedWidth2));
-			bool bgbit = bgbits[maskbitno/8] & (1<<(maskbitno%8));
+			bool bgbit = bgbits[maskbitno / 8] & (1 << (maskbitno % 8));
 
-			if (bgbit) bgmask_data[newmaskbitno/8] |= 1<<(newmaskbitno%8);
-			else bgmask_data[newmaskbitno/8] &= ~(1<<(newmaskbitno%8));
+			if (bgbit) bgmask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
+			else bgmask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
 
-			bool fgbit = fgbits[maskbitno/8] & (1<<(maskbitno%8));
+			bool fgbit = fgbits[maskbitno / 8] & (1 << (maskbitno % 8));
 
-			if (fgbit) fgmask_data[newmaskbitno/8] |= 1<<(newmaskbitno%8);
-			else fgmask_data[newmaskbitno/8] &= ~(1<<(newmaskbitno%8));
+			if (fgbit) fgmask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
+			else fgmask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
 
 			(*px1)++;
 
@@ -2369,9 +2497,10 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 	term *t = &td->t;
 
 	int wid, hgt, num;
-	int win_cols, win_lines;
+	int win_cols, win_lines, wid_outer, hgt_outer;
 	cptr n;
 	int topx, topy; /* 0, 0 default */
+
 
 	/* Use values from .tomenetrc;
 	   Environment variables (see further below) may override those. */
@@ -2457,16 +2586,28 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 		n = getenv("TOMENET_X11_HGT_TERM_7");
 		if (n) win_lines = atoi(n);
 	}
+	if (!strcmp(name, ang_term_name[8])) {
+		n = getenv("TOMENET_X11_WID_TERM_8");
+		if (n) win_cols = atoi(n);
+		n = getenv("TOMENET_X11_HGT_TERM_8");
+		if (n) win_lines = atoi(n);
+	}
+	if (!strcmp(name, ang_term_name[9])) {
+		n = getenv("TOMENET_X11_WID_TERM_9");
+		if (n) win_cols = atoi(n);
+		n = getenv("TOMENET_X11_HGT_TERM_9");
+		if (n) win_lines = atoi(n);
+	}
 
 	/* Reset timers just to be sure. */
-	td->resize_timer.tv_sec=0;
-	td->resize_timer.tv_usec=0;
+	td->resize_timer.tv_sec = 0;
+	td->resize_timer.tv_usec = 0;
 
 	/* Hack -- Assume full size windows */
 	wid = win_cols * td->fnt->wid;
 	hgt = win_lines * td->fnt->hgt;
-	int wid_outer = wid + (2 * DEFAULT_X11_INNER_BORDER_WIDTH);
-	int hgt_outer = hgt + (2 * DEFAULT_X11_INNER_BORDER_WIDTH);
+	wid_outer = wid + (2 * DEFAULT_X11_INNER_BORDER_WIDTH);
+	hgt_outer = hgt + (2 * DEFAULT_X11_INNER_BORDER_WIDTH);
 
 	/* Create a top-window. */
 	MAKE(td->outer, infowin);
@@ -2497,6 +2638,14 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 	td->bgmask = None;
 	td->fgmask = None;
 	td->tilePreparation = None;
+#ifdef TILE_CACHE_SIZE
+	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+		td->tile_cache[i].tilePreparation = None;
+		td->tile_cache[i].c = 0xffffffff;
+		td->tile_cache[i].a = 0xff;
+		td->tile_cache[i].is_valid = 0;
+	}
+#endif
 #endif /* USE_GRAPHICS */
 
 	/* Initialize the term (full size) */
@@ -2530,6 +2679,14 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 		td->tilePreparation = XCreatePixmap(
 				Metadpy->dpy, Metadpy->root,
 				td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+
+#ifdef TILE_CACHE_SIZE
+		for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+			td->tile_cache[i].tilePreparation = XCreatePixmap(
+				Metadpy->dpy, Metadpy->root,
+				td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+		}
+#endif
 
 		if (td->tiles != NULL && td->tilePreparation != None) {
 			/* Graphics hook */
@@ -2621,31 +2778,36 @@ static char color_name[CLIENT_PALETTE_SIZE][8] = {
 };
 #ifdef EXTENDED_BG_COLOURS
  /* Format: (fg, bg) */
- static char color_ext_name[TERMX_AMT][2][8] = {	/* TERMX_BLUE */
+ static char color_ext_name[TERMX_AMT][2][8] = {
 	//{"#0000ff", "#444444", },
 	//{"#ffffff", "#0000ff", },
 	//{"#666666", "#0000ff", },
-	{"#aaaaaa", "#112288", },
-	{"#aaaaaa", "#007700", },
-	{"#aaaaaa", "#770000", },
-	{"#aaaaaa", "#777700", },
-	{"#aaaaaa", "#555555", },
-	{"#aaaaaa", "#BBBBBB", },
-	{"#aaaaaa", "#333388", },
+	{"#aaaaaa", "#112288", },	/* TERMX_BLUE */
+	{"#aaaaaa", "#007700", },	/* TERMX_GREEN */
+	{"#aaaaaa", "#770000", },	/* TERMX_RED */
+	{"#aaaaaa", "#AAAA00", },	/* TERMX_YELLOW */
+	{"#aaaaaa", "#555555", },	/* TERMX_GREY */
+	{"#aaaaaa", "#BBBBBB", },	/* TERMX_WHITE */
+	{"#aaaaaa", "#333388", },	/* TERMX_PURPLE */
 };
 #endif
 static void enable_common_colormap_x11() {
 	int i;
+	unsigned long c;
+#ifdef EXTENDED_BG_COLOURS
+	unsigned long b;
+#endif
 
 	for (i = 0; i < CLIENT_PALETTE_SIZE; i++) {
-		unsigned long c = client_color_map[i];
+		c = client_color_map[i];
 
 		sprintf(color_name[i], "#%06lx", c & 0xffffffL);
 	}
 
 #ifdef EXTENDED_BG_COLOURS
 	for (i = 0; i < TERMX_AMT; i++) {
-		unsigned long c = client_ext_color_map[i][0], b = client_ext_color_map[i][1];
+		c = client_ext_color_map[i][0];
+		b = client_ext_color_map[i][1];
 
 		sprintf(color_ext_name[i][0], "#%06lx", c & 0xffffffL);
 		sprintf(color_ext_name[i][1], "#%06lx", b & 0xffffffL);
@@ -2674,6 +2836,8 @@ static term_data* term_idx_to_term_data(int term_idx) {
 	case 5: td = &term_5; break;
 	case 6: td = &term_6; break;
 	case 7: td = &term_7; break;
+	case 8: td = &term_8; break;
+	case 9: td = &term_9; break;
 	}
 
 	return(td);
@@ -2688,6 +2852,8 @@ static int term_data_to_term_idx(term_data *td) {
 	if (td == &term_5) return 5;
 	if (td == &term_6) return 6;
 	if (td == &term_7) return 7;
+	if (td == &term_8) return 8;
+	if (td == &term_9) return 9;
 	return(-1);
 }
 
@@ -2695,6 +2861,9 @@ static int term_data_to_term_idx(term_data *td) {
  * Initialization of i-th X11 terminal window.
  */
 static errr x11_term_init(int term_id) {
+	cptr fnt_name;
+	errr err;
+
 	if (term_id < 0 || term_id >= ANGBAND_TERM_MAX) {
 		fprintf(stderr, "Terminal index %d out of bounds\n", term_id);
 		return(1);
@@ -2707,7 +2876,7 @@ static errr x11_term_init(int term_id) {
 	}
 
 	/* Check environment for X11 terminal font. */
-	cptr fnt_name = getenv(x11_terms_font_env[term_id]);
+	fnt_name = getenv(x11_terms_font_env[term_id]);
 	/* Check environment for "base" font. */
 	if (!fnt_name) fnt_name = getenv("TOMENET_X11_FONT");
 	/* Use loaded (from config file) or predefined default font. */
@@ -2716,11 +2885,9 @@ static errr x11_term_init(int term_id) {
 	if (!fnt_name) fnt_name = x11_terms_font_default[term_id];
 
 	/* Initialize the terminal window, allow resizing, for font changes. */
-	errr err = term_data_init(term_id, x11_terms_term_data[term_id], FALSE, ang_term_name[term_id], fnt_name);
+	err = term_data_init(term_id, x11_terms_term_data[term_id], FALSE, ang_term_name[term_id], fnt_name);
 	/* Store created terminal with X11 term data to ang_term array, even if term_data_init failed, but only if there is one. */
-	if (Term && term_data_to_term_idx(Term->data) == term_id) {
-		ang_term[term_id] = Term;
-	}
+	if (Term && term_data_to_term_idx(Term->data) == term_id) ang_term[term_id] = Term;
 
 	if (err) {
 		fprintf(stderr, "Error initializing term_data for X11 terminal with index %d\n", term_id);
@@ -2741,10 +2908,28 @@ static errr x11_term_init(int term_id) {
 errr init_x11(void) {
 	int i;
 	cptr dpy_name = "";
+	char script_path[4096] = { 0 };
+	FILE *fp = NULL;
 
 	/* Init the Metadpy if possible */
 	if (Metadpy_init_name(dpy_name)) return(-1);
 
+	/* Check if set-font-path.sh script exists and run it - mikaelh */
+	if (*path) {
+		/* Custom 'lib' directory specified via -P option */
+		snprintf(script_path, sizeof(script_path), "%s/xtra/posix_extra_fonts/set-font-path.sh", path);
+	} else {
+		snprintf(script_path, sizeof(script_path), "lib/xtra/posix_extra_fonts/set-font-path.sh");
+	}
+	//printf("script_path = %s\n", script_path);
+	fp = fopen(script_path, "r");
+	if (fp) {
+		fclose(fp);
+		//printf("Calling external script %s\n", script_path);
+		if (system(script_path) != 0) {
+			fprintf(stderr, "Failed to run external script %s\n", script_path);
+		}
+	}
 
 	/* set OS-specific resize_main_window() hook */
 	resize_main_window = resize_main_window_x11;
@@ -2854,7 +3039,7 @@ errr init_x11(void) {
 			/* Allocate color for each pixel and rewrite in image */
 			for (y = 0; y < height; y++) {
 				for (x = 0; x < width; x++) {
-					XPutPixel(graphics_image, x, y, create_pixel(Metadpy->dpy, data[4*(x+y*width)], data[4*(x+y*width)+1], data[4*(x+y*width)+2]));
+					XPutPixel(graphics_image, x, y, create_pixel(Metadpy->dpy, data[4 * (x + y * width)], data[4 * (x + y * width) + 1], data[4 * (x + y * width) + 2]));
 				}
 			}
 		}
@@ -2868,10 +3053,8 @@ errr init_x11(void) {
 		if (i == 0 || term_prefs[i].visible) {
 			if (x11_term_init(i) != 0) {
 				fprintf(stderr, "Error initializing X11 terminal window with index %d\n", i);
-				if (i == 0) {
-					/* Can't run without main screen. */
-					return(1);
-				}
+				/* Can't run without main screen. */
+				if (i == 0) return(1);
 			}
 		}
 	}
@@ -2892,6 +3075,7 @@ errr init_x11(void) {
 /* Turn off num-lock if it's on */
 void turn_off_numlock_X11(void) {
 	Display* disp = XOpenDisplay(NULL);
+
 	if (disp == NULL) return; /* Error */
 
 	XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, XK_Num_Lock), True, 0);
@@ -2916,6 +3100,7 @@ static void term_force_font(int term_idx, cptr fnt_name);
 void change_font(int s) {
 	/* use main window font for measuring */
 	char tmp[128] = "";
+
 	if (screen.fnt->name) strcpy(tmp, screen.fnt->name);
 	else strcpy(tmp, DEFAULT_X11_FONT);
 
@@ -2994,18 +3179,18 @@ void change_font(int s) {
 }
 static void term_force_font(int term_idx, cptr fnt_name) {
 	term_data *td = term_idx_to_term_data(term_idx);
+	int cols, rows, wid_outer, hgt_outer;
 
 	/* non-visible window has no fnt-> .. */
 	if (!term_get_visibility(term_idx)) return;
-
 
 	/* special hack: this window was invisible, but we just toggled
 	   it to become visible on next client start. - C. Blue */
 	if (!td->fnt) return;
 
 	/* Determine "proper" number of rows/cols */
-	int cols = ((td->outer->w - (2 * td->inner->b)) / td->fnt->wid);
-	int rows = ((td->outer->h - (2 * td->inner->b)) / td->fnt->hgt);
+	cols = ((td->outer->w - (2 * td->inner->b)) / td->fnt->wid);
+	rows = ((td->outer->h - (2 * td->inner->b)) / td->fnt->hgt);
 
 	/* Create and initialize font. */
 	infofnt *new_font;
@@ -3030,8 +3215,8 @@ static void term_force_font(int term_idx, cptr fnt_name) {
 	td->fnt = new_font;
 
 	/* Desired size of "outer" window */
-	int wid_outer = (cols * td->fnt->wid) + (2 * td->inner->b);
-	int hgt_outer = (rows * td->fnt->hgt) + (2 * td->inner->b);
+	wid_outer = (cols * td->fnt->wid) + (2 * td->inner->b);
+	hgt_outer = (rows * td->fnt->hgt) + (2 * td->inner->b);
 
 	/* Resize the windows if any "change" is needed */
 	if ((td->outer->w != wid_outer) || (td->outer->h != hgt_outer)) {
@@ -3058,6 +3243,14 @@ static void term_force_font(int term_idx, cptr fnt_name) {
 			td->tilePreparation = XCreatePixmap(
 					Metadpy->dpy, Metadpy->root,
 					td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+
+#ifdef TILE_CACHE_SIZE
+			for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+				td->tile_cache[i].tilePreparation = XCreatePixmap(
+					Metadpy->dpy, Metadpy->root,
+					td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+			}
+#endif
 
 			if (td->tiles == NULL || td->tilePreparation == None) {
 				quit_fmt("Couldn't prepare images after font resize in terminal %d\n", term_idx);
@@ -3097,9 +3290,7 @@ void terminal_window_real_coords_x11(int term_idx, int *ret_x, int *ret_y) {
 
 	/* special hack: this window was invisible, but we just toggled
 	   it to become visible on next client start. - C. Blue */
-	if (!td->fnt) {
-		*ret_x = *ret_y = 0;
-	}
+	if (!td->fnt) *ret_x = *ret_y = 0;
 
 	iwin = td->outer;
 	Infowin_set(iwin);
@@ -3147,10 +3338,12 @@ void terminal_window_real_coords_x11(int term_idx, int *ret_x, int *ret_y) {
  */
 void resize_window_x11(int term_idx, int cols, int rows) {
 	bool rounding_down;
+	term_data *td;
+	int wid_inner, hgt_inner, wid_outer, hgt_outer;
 
 	/* The 'term_idx_to_term_data()' returns '&screen' if 'term_idx' is out of bounds and it is not desired to resize screen terminal window in that case, so validate before. */
 	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return;
-	term_data *td = term_idx_to_term_data(term_idx);
+	td = term_idx_to_term_data(term_idx);
 
 	/* Clear timer. */
 	if (td->resize_timer.tv_sec > 0 || td->resize_timer.tv_usec > 0) {
@@ -3165,25 +3358,23 @@ void resize_window_x11(int term_idx, int cols, int rows) {
 	if (td == &screen && rounding_down && screen_hgt == SCREEN_HGT) rows = MAX_SCREEN_HGT + SCREEN_PAD_Y;
 
 	/* Calculate dimensions in pixels. */
-	int wid_inner = cols * td->fnt->wid;
-	int hgt_inner = rows * td->fnt->hgt;
-	int wid_outer = wid_inner + (2 * td->inner->b);
-	int hgt_outer = hgt_inner + (2 * td->inner->b);
+	wid_inner = cols * td->fnt->wid;
+	hgt_inner = rows * td->fnt->hgt;
+	wid_outer = wid_inner + (2 * td->inner->b);
+	hgt_outer = hgt_inner + (2 * td->inner->b);
 
 	/* Save current Infowin. */
 	infowin *iwin = Infowin;
 
 	/* Resize the outer window if dimensions differ. */
 	Infowin_set(td->outer);
-	if ((Infowin->w != wid_outer) || (Infowin->h != hgt_outer)) {
+	if ((Infowin->w != wid_outer) || (Infowin->h != hgt_outer))
 		Infowin_resize(wid_outer, hgt_outer);
-	}
 
 	/* Resize the inner window if dimensions differ. */
 	Infowin_set(td->inner);
-	if (Infowin->w != wid_inner || Infowin->h != hgt_inner) {
+	if (Infowin->w != wid_inner || Infowin->h != hgt_inner)
 		Infowin_resize(wid_inner, hgt_inner);
-	}
 
 	/* Restore saved Infowin. */
 	Infowin_set(iwin);
@@ -3250,10 +3441,8 @@ void resize_window_x11(int term_idx, int cols, int rows) {
 		}
 	}
 
-	if (in_game) {
-		/* Ask for a redraw. */
-		cmd_redraw();
-	}
+	/* Ask for a redraw. */
+	if (in_game) cmd_redraw();
 }
 
 /* Resizes main terminal window to dimensions in input. */
@@ -3268,13 +3457,16 @@ bool ask_for_bigmap(void) {
 
 const char* get_font_name(int term_idx) {
 	term_data *td = term_idx_to_term_data(term_idx);
+
 	if (td->fnt) return td->fnt->name;
 	if (strlen(term_prefs[term_idx].font)) return term_prefs[term_idx].font;
 	return x11_terms_font_default[term_idx];
 }
 
 void set_font_name(int term_idx, char* fnt) {
-	if (term_idx < 0 || term_idx >=ANGBAND_TERM_MAX) {
+	term_data *td;
+
+	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) {
 		fprintf(stderr, "Terminal index %d is out of bounds for set_font_name\n", term_idx);
 		return;
 	}
@@ -3291,7 +3483,7 @@ void set_font_name(int term_idx, char* fnt) {
 	term_force_font(term_idx, fnt);
 
 	/* Redraw the terminal for which the font was forced. */
-	term_data *td = term_idx_to_term_data(term_idx);
+	td = term_idx_to_term_data(term_idx);
 	if (&td->t != Term) {
 		/* Terminal for which the font was forced is not activated. Activate, redraw and activate the terminal before. */
 		term *old_term = Term;
@@ -3337,15 +3529,15 @@ void term_toggle_visibility(int term_idx) {
 	term_prefs[term_idx].visible = true;
 
 	/* Mark all windows for content refresh. */
-	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER | PW_MSGNOCHAT | PW_MESSAGE | PW_CHAT | PW_MINIMAP);//PW_LAGOMETER is called automatically, no need.
+	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER | PW_MSGNOCHAT | PW_MESSAGE | PW_CHAT | PW_MINIMAP | PW_SUBINVEN);//PW_LAGOMETER is called automatically, no need.
 }
 
 /* Returns true if terminal window specified by term_idx is currently visible. */
 bool term_get_visibility(int term_idx) {
-	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return false;
+	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return(false);
 
 	/* Only windows initialized in ang_term array are currently visible. */
-	return (bool)ang_term[term_idx];
+	return((bool)ang_term[term_idx]);
 }
 
 /* automatically store name+password to ini file if we're a new player? */
@@ -3484,11 +3676,52 @@ void set_palette(byte c, byte r, byte g, byte b) {
 #ifdef PALANIM_OPTIMIZED
 	/* Check for refresh market at the end of a palette data transmission */
 	if (c == 127 || c == 128) {
+ #if 0 /* todo: fix/implement live-updating of 'bg' colour (tethered to colour #0) */
+ #ifdef CUSTOMIZE_COLOURS_FREELY
+	/* Handle change of colour #0, which also serves as the designated bg colour now */
+	//if (!c) {
+	if (TRUE) {
+		Pixell pixel = create_pixel(Metadpy->dpy, (client_color_map[0] & 0xFF0000) >> 16, (client_color_map[0] & 0x00FF00) >> 8, client_color_map[0] & 0x0000FF);
+		Metadpy->bg = pixel;
+		Metadpy_update(1, 1, 1);
+
+	int i;
+	Infoclr_init_ccn ("fg", "bg", "xor", 0);
+
+	/* Prepare the colors (including "black") */
+	for (i = 0; i < CLIENT_PALETTE_SIZE; ++i) {
+		cptr cname = color_name[0];
+
+		MAKE(clr[i], infoclr);
+		Infoclr_set(clr[i]);
+		if (Metadpy->color) cname = color_name[i];
+		else if (i) cname = color_name[1];
+		Infoclr_init_ccn (cname, "bg", "cpy", 0);
+	}
+
+ #ifdef EXTENDED_BG_COLOURS
+	/* Prepare the extended background-using colors */
+	for (i = 0; i < TERMX_AMT; ++i) {
+		cptr cname = color_name[0], cname2 = color_name[0];
+
+		MAKE(clr[CLIENT_PALETTE_SIZE + i], infoclr);
+		Infoclr_set(clr[CLIENT_PALETTE_SIZE + i]);
+		if (Metadpy->color) {
+			cname = color_ext_name[i][0];
+			cname2 = color_ext_name[i][1];
+		}
+		Infoclr_init_ccn (cname, cname2, "cpy", 0);
+	}
+ #endif
+	}
+ #endif
+ #endif
+
 		/* Refresh aka redraw the main window with new colour */
 		if (!term_get_visibility(0)) return;
 		if (term_prefs[0].x == -32000 || term_prefs[0].y == -32000) return;
 		Term_activate(&term_idx_to_term_data(0)->t);
-		Term_redraw_section(0, 0, Term->wid-1, Term->hgt-1);
+		Term_redraw_section(0, 0, Term->wid - 1, Term->hgt - 1);
 		Term_activate(&old_td->t);
 		return;
 	}
@@ -3591,7 +3824,7 @@ void refresh_palette(void) {
 }
 
 /* Get list of available misc fonts, e.g. "5x8", "6x9", "6x13" or "6x13bold". */
-int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length) {
+int get_misc_fonts(char *output_list, int max_misc_fonts, int max_font_name_length, int max_fonts) {
 	regex_t re;
 	char **list;
 	int fonts_found = 0, fonts_match = 0, i, j;
@@ -3608,12 +3841,12 @@ int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length) {
 		while (fgets(tmp, 256, fff)) {
 			if (strncmp(tmp, "REGEXP=", 7)) continue;
 			tmp[strlen(tmp) - 1] = 0; //remove trailing \n
-			status = regcomp(&re, tmp + 7, REG_EXTENDED|REG_NOSUB|REG_ICASE);
+			status = regcomp(&re, tmp + 7, REG_EXTENDED | REG_NOSUB | REG_ICASE);
 			break;
 		}
 		fclose(fff);
 	}
-	if (status == -999) status = regcomp(&re, "^[0-9]+x[0-9]+[a-z]?[a-z]?(bold)?$", REG_EXTENDED|REG_NOSUB|REG_ICASE);
+	if (status == -999) status = regcomp(&re, "^[0-9]+x[0-9]+[a-z]?[a-z]?(bold)?$", REG_EXTENDED | REG_NOSUB | REG_ICASE);
 
 	if (status != 0) {
 		fprintf(stderr, "regcomp returned %d\n", status);
@@ -3626,7 +3859,7 @@ int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length) {
 		regfree(&re);
 		return(0);
 	}
-	for (i = 0; i < fonts_found && fonts_match < max_fonts; i++) {
+	for (i = 0; i < fonts_found && fonts_match < max_misc_fonts; i++) {
 		status = regexec(&re, list[i], 0, NULL, 0);
 		if (status) continue;
 		if (strlen(list[i]) >= max_font_name_length) continue;
@@ -3641,13 +3874,36 @@ int get_misc_fonts(char *output_list, int max_fonts, int max_font_name_length) {
 		if (!is_duplicate) {
 			strcpy(&output_list[fonts_match * max_font_name_length], list[i]);
 			fonts_match++;
+			if (fonts_match == max_misc_fonts) c_msg_format("Warning: Number of (misc) fonts exceeds max of %d. Ignoring the rest.", max_fonts);
 		}
 	}
 	regfree(&re);
 	XFreeFontNames(list);
 
 	/* done */
-	return fonts_match;
+	return(fonts_match);
+}
+
+void set_window_title_x11(int term_idx, cptr title) {
+	term_data *td;
+
+	/* The 'term_idx_to_term_data()' returns '&screen' if 'term_idx' is out of bounds and it is not desired to resize screen terminal window in that case, so validate before. */
+	if (term_idx < 0 || term_idx >= ANGBAND_TERM_MAX) return;
+
+	/* Trying to change title in this state causes a crash */
+	if (!term_get_visibility(term_idx)) return;
+	if (term_prefs[term_idx].x == -32000 || term_prefs[term_idx].y == -32000) return;
+
+	td = term_idx_to_term_data(term_idx);
+
+	/* Save current Infowin. */
+	infowin *iwin = Infowin;
+
+	Infowin_set(td->outer);
+	Infowin_set_name(ang_term_name[term_idx]);
+
+	/* Restore saved Infowin. */
+	Infowin_set(iwin);
 }
 
 #endif // USE_X11

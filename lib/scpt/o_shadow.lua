@@ -12,12 +12,12 @@ OFEAR_I = add_spell {
 	["stat"] = 	A_WIS,
 	["direction"] = TRUE,
 	["spell"] = 	function(args)
-		fire_bolt(Ind, GF_TURN_ALL, args.dir, 5 + get_level(Ind, OFEAR_I, 65), "hisses")
+		fire_ball(Ind, GF_TURN_ALL, 0, 5 + get_level(Ind, OFEAR_I, 65), 1, "hisses")
 	end,
 	["info"] = 	function()
 		return "power "..(5 + get_level(Ind, OFEAR_I, 65))
 	end,
-	["desc"] = { "Temporarily scares a target.", }
+	["desc"] = { "Temporarily scares all adjacent creatures.", }
 }
 __lua_OFEAR = OFEAR_I
 OFEAR_II = add_spell {
@@ -63,7 +63,7 @@ OBLIND_II = add_spell {
 	["name2"] = 	"Dark",
 	["school"] = 	{SCHOOL_OSHADOW},
 	["spell_power"] = 0,
-	["level"] = 	17,
+	["level"] = 	16,
 	["mana"] = 	13,
 	["mana_max"] = 	13,
 	["fail"] = 	-30,
@@ -150,10 +150,10 @@ DARKBOLT_I = add_spell {
 	["name2"] = 	"SBolt I",
 	["school"] = 	{SCHOOL_OSHADOW},
 	["spell_power"] = 0,
-	["level"] = 	10,
+	["level"] = 	6,
 	["mana"] = 	3,
 	["mana_max"] = 	3,
-	["fail"] = 	-10,
+	["fail"] = 	-6,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -197,7 +197,7 @@ DARKBOLT_III = add_spell {
 	["level"] = 	40,
 	["mana"] = 	12,
 	["mana_max"] = 	12,
-	["fail"] = 	-70,
+	["fail"] = 	-80,
 	["direction"] = TRUE,
 	["ftk"] = 	1,
 	["spell"] = 	function(args)
@@ -223,6 +223,7 @@ POISONRES = add_spell {
 	["fail"] = 	-10,
 	["spell"] = 	function()
 		local dur
+
 		dur = randint(15) + 20 + get_level(Ind, POISONRES, 25)
 		set_melee_brand(Ind, dur, TBRAND_POIS, 10, TRUE, TRUE)
 		fire_ball(Ind, GF_TBRAND_POIS, 0, dur, 2, " calls perilous shadows imbuing you.")
@@ -241,6 +242,25 @@ POISONRES = add_spell {
 	}
 }
 
+OBLINK = add_spell {
+	["name"] = 	"Retreat",
+	["name2"] = 	"Retr",
+	["school"] = 	{SCHOOL_OSHADOW},
+	["level"] = 	8,
+	["mana"] = 	5,
+	["mana_max"] = 	5,
+	["fail"] = 	-7,
+	["spell"] = 	function()
+		local dist = 3 + get_level(Ind, OBLINK, 69) / 17
+
+		retreat_player(Ind, dist)
+	end,
+	["info"] = 	function()
+		return "distance "..(3 + get_level(Ind, OBLINK, 69) / 17)
+	end,
+	["desc"] = 	{ "Fade away from your current target, if any.", },
+}
+
 SHADOWGATE = add_spell {
 	["name"] = 	"Shadow Gate",
 	["name2"] = 	"SGate",
@@ -248,9 +268,9 @@ SHADOWGATE = add_spell {
 	["am"] = 	75,
 	["spell_power"] = 0,
 	["level"] = 	26,
-	["mana"] = 	20,
-	["mana_max"] = 	20,
-	["fail"] = 	-30,
+	["mana"] = 	6,
+	["mana_max"] = 	6,
+	["fail"] = 	-50,
 	["spell"] = 	function()
 		--begin at ANNOY_DISTANCE as a minimum, to overcome
 		do_shadow_gate(Ind, 4 + get_level(Ind, SHADOWGATE, 12))
@@ -261,6 +281,29 @@ SHADOWGATE = add_spell {
 	["desc"] = 	{ "Teleports you to the nearest opponent in line of sight.", }
 }
 
+OLEVITATION = add_spell {
+	["name"] = 	"Shadow Stream",
+	["name2"] = 	"Stream",
+	["school"] = 	{SCHOOL_OSHADOW},
+	["level"] = 	18,
+	["mana"] = 	14,
+	["mana_max"] = 	14,
+	["fail"] = 	-20,
+	["spell"] = 	function()
+		if get_level(Ind, OLEVITATION, 50) >= 10 then set_tim_lev(Ind, randint(10) + 10 + get_level(Ind, OLEVITATION, 25))
+		else set_tim_ffall(Ind, randint(10) + 10 + get_level(Ind, OLEVITATION, 25))
+		end
+	end,
+	["info"] = 	function()
+		return "dur "..(10 + get_level(Ind, OLEVITATION, 25)).."+d10"
+	end,
+	["desc"] = 	{
+		"Grants you feather falling.",
+		"At level 10 it grants you levitation on a stream of shadows."
+	}
+}
+
+-- Grants invisibility (and the 'Shrouded' effect on unlit grids, currently disabled)
 OINVIS = add_spell {
 	["name"] = 	"Shadow Shroud",
 	["name2"] = 	"Shroud",
@@ -272,11 +315,13 @@ OINVIS = add_spell {
 	["fail"] = 	-40,
 	["spell"] = 	function()
 		local dur = randint(20) + 15 + get_level(Ind, OINVIS, 50)
+
 		set_invis(Ind, dur, 20 + get_level(Ind, OINVIS, 50))
 		--set_shroud(Ind, dur, 10 + get_level(Ind, OINVIS, 50) / 2)
 	end,
 	["info"] = 	function()
-		return "dur "..(15 + get_level(Ind, OINVIS, 50)).."+d20 power "..(20 + get_level(Ind, OINVIS, 50)).."/"..(10 + get_level(Ind, OINVIS, 50) / 2)
+		return "dur "..(15 + get_level(Ind, OINVIS, 50)).."+d20 power "..(20 + get_level(Ind, OINVIS, 50))
+		--.."/"..(10 + get_level(Ind, OINVIS, 50) / 2)
 	end,
 	["desc"] = 	{
 		"Grants invisibility.",
@@ -287,6 +332,7 @@ OINVIS = add_spell {
 
 function get_chaosbolt_dam(Ind)
 	local lev
+
 	lev = get_level(Ind, CHAOSBOLT, 50) + 21
 	return 0 + (lev * 3) / 5, 1 + lev
 end
@@ -307,10 +353,51 @@ CHAOSBOLT = add_spell {
 	end,
 	["info"] = 	function()
 		local x, y
+
 		x, y = get_chaosbolt_dam(Ind)
 		return "dam "..x.."d"..y
 	end,
 	["desc"] = 	{ "Channels the powers of chaos into a bolt.", }
+}
+
+DISPERSION = add_spell {
+	["name"] = 	"Dispersion",
+	["name2"] = 	"Disp",
+	["school"] = 	{SCHOOL_OSHADOW},
+	["level"] = 	33,
+	["mana"] = 	40,
+	["mana_max"] = 	40,
+	["fail"] = 	-60,
+	["stat"] = 	A_WIS,
+	["spell"] = 	function()
+		set_dispersion(Ind, 50 - get_level(Ind, DISPERSION, 72), 35 + get_level(Ind, DISPERSION, 30));
+	end,
+	["info"] = 	function()
+		return "dur "..(35 + get_level(Ind, DISPERSION, 30))..", 1 ST cost: "..(50 - get_level(Ind, DISPERSION, 72)).."%"
+	end,
+	["desc"] = 	{
+		"Evade melee and bolt attacks by dispersing into shadow form",
+		"at a certain chance per evaded attack to deplete 1 point of stamina.",
+		"The spell will automatically end if your stamina is depleted.",
+		"Stamina will not regenerate while Dispersion is active.",
+	}
+}
+STOPDISPERSION = add_spell {
+	["name"] = 	"Stop Dispersion",
+	["name2"] = 	"SDisp",
+	["school"] = 	{SCHOOL_OSHADOW},
+	["level"] = 	33,
+	["mana"] = 	0,
+	["mana_max"] = 	0,
+	["fail"] = 	101,
+	["stat"] = 	A_WIS,
+	["spell"] = 	function()
+		set_dispersion(Ind, 0, 0);
+	end,
+	["info"] = 	function()
+		return ""
+	end,
+	["desc"] = 	{ "Stop dispersion into shadow form.", }
 }
 
 ODRAINLIFE = add_spell {
@@ -343,7 +430,7 @@ DARKBALL = add_spell {
 	["level"] = 	42,
 	["mana"] = 	35,
 	["mana_max"] = 	35,
-	["fail"] = 	-70,
+	["fail"] = 	-90,
 	["direction"] = TRUE,
 	["ftk"] = 	2,
 	["spell"] = 	function(args)

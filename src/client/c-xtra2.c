@@ -101,8 +101,8 @@ static void copy_to_clipboard_multiline(cptr msg_raw, cptr *message_recall, int 
 				if (end) break;
 			}
 		}
-		(void)copy_to_clipboard(xmsg);
-	} else (void)copy_to_clipboard((char*)msg_raw);
+		(void)copy_to_clipboard(xmsg, FALSE);
+	} else (void)copy_to_clipboard((char*)msg_raw, FALSE);
 }
 #endif
 
@@ -532,7 +532,7 @@ void do_cmd_messages(void) {
 #ifdef COPY_MULTILINE
 			copy_to_clipboard_multiline(msg_raw, message_recall, i, s, n, -1);
 #else
-			(void)copy_to_clipboard((char*)msg_raw);
+			(void)copy_to_clipboard((char*)msg_raw, FALSE);
 #endif
 			continue;
 		}
@@ -937,7 +937,7 @@ void do_cmd_messages_important(void) {
 #ifdef COPY_MULTILINE
 			copy_to_clipboard_multiline(msg_raw, message_important, i, -1, n, nn);
 #else
-			(void)copy_to_clipboard((char*)msg_raw);
+			(void)copy_to_clipboard((char*)msg_raw, FALSE);
 #endif
 			continue;
 		}
@@ -1035,7 +1035,7 @@ void dump_messages_aux(FILE *fff, int lines, int mode, bool ignore_color) {
 	/* Dump up to 20 lines of messages */
 	for (j = 0; j + s < MIN(n, lines); j++) {
 		msg2 = msg;
-		msg = message_recall[MIN(n, lines) - (j+s) - 1];
+		msg = message_recall[MIN(n, lines) - (j + s) - 1];
 
 		/* Handle repeated messages */
 		if (msg == msg2) {

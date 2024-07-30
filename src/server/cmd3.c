@@ -150,6 +150,7 @@ void inven_takeoff(int Ind, int item, int amt, bool called_from_wield, bool forc
 	/* Handles overflow */
 	pack_overflow(Ind);
 
+	if (o_ptr->custom_lua_equipstate) exec_lua(0, format("custom_object_equipstate(%d,%d,%d)", Ind, posn, o_ptr->custom_lua_equipstate));
 
 	/* Describe the result */
 	if (amt < o_ptr->number)
@@ -355,7 +356,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 
 
 	/* Access the slot to be dropped */
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return(-1);
 
 	/* Not too many */
 	if (amt > o_ptr->number) amt = o_ptr->number;
@@ -374,7 +375,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 
 #ifdef VAMPIRES_INV_CURSED
  #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
  #endif
 	if (item >= INVEN_WIELD) {
 		if (p_ptr->prace == RACE_VAMPIRE) reverse_cursed(o_ptr);
@@ -416,7 +417,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 	stop_shooting_till_kill(Ind);
 
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) act = "Dropped";
+	if (item >= SUBINVEN_INVEN_MUL) act = "Dropped";
 	else
 #endif
 	/* What are we "doing" with the object */
@@ -440,7 +441,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 
 #if POLY_RING_METHOD == 0
  #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
  #endif
 	/* Polymorph back */
 	/* XXX this can cause strange things for players with mimicry skill.. */
@@ -461,7 +462,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 #endif
 
 #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
 #endif
 	/* Check if item gave WRAITH form */
 	if ((k_info[o_ptr->k_idx].flags3 & TR3_WRAITH) && p_ptr->tim_wraith && item >= INVEN_WIELD) {
@@ -472,7 +473,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 	}
 
 #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
 #endif
 	/* Artifacts */
 	if (o_ptr->name1) {
@@ -493,7 +494,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 
 #ifdef ENABLE_STANCES
  #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
  #endif
 	/* take care of combat stances */
  #ifndef ALLOW_SHIELDLESS_DEFENSIVE_STANCE
@@ -523,7 +524,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 	}
 
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) ;
+	if (item >= SUBINVEN_INVEN_MUL) ;
 	else
 #endif
 	/* Reset temporary brand enchantments */
@@ -568,6 +569,8 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 			} else q_ptr->questor[o_ptr->questor_idx].mo_idx = o_idx;
 		}
 	}
+
+	if (o_ptr->custom_lua_carrystate) exec_lua(0, format("custom_object_carrystate(%d,%d,-1,%d)", Ind, o_idx, o_ptr->custom_lua_carrystate));
 
 	return(o_idx);
 }
@@ -738,8 +741,9 @@ void do_takeoff_impossible(int Ind) {
  * 4 = don't equip if slot is already occupied (ie don't replace by taking off an item)
  * 8 = swap the two weapon slots (4.7.3+)
  * Note: Rings make an exception in 4: First ring always goes in second ring slot.
+ * Returns -1 on failure, else the 'slot' into which the item was successfully equipped.
  */
-void do_cmd_wield(int Ind, int item, u16b alt_slots) {
+int do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	player_type *p_ptr = Players[Ind];
 
 	int slot, slot_base, num = 1, takeoff_slot = 0;
@@ -768,21 +772,21 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		/* Prevent chaos for now >_< */
 		if (p_ptr->inventory[INVEN_WIELD].tval == TV_SPECIAL || p_ptr->inventory[INVEN_ARM].tval == TV_SPECIAL) {
 			msg_print(Ind, "Cannot quick-swap special objects. Please use wear/wield and take-off commands.");
-			return;
+			return(-1);
 		}
 
 		/* paranoia? could probably be caused by bad timing, disarming, etc */
 		if (!(slot1 && slot2)) {
 			msg_print(Ind, "Swapping weapons failed, as you no longer wield two weapons.");
 			Send_confirm(Ind, PKT_WIELD3);
-			return;
+			return(-1);
 		}
 
 		/* Cannot swap a shield into main hand slot */
 		if (slot2 && p_ptr->inventory[INVEN_ARM].tval == TV_SHIELD) {
 			msg_print(Ind, "Shields must remain in the secondary weapon slot.");
 			Send_confirm(Ind, PKT_WIELD3);
-			return;
+			return(-1);
 		}
 
 		/* Cannot swap any cursed item */
@@ -805,7 +809,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 
 			/* Cancel the command */
 			Send_confirm(Ind, PKT_WIELD3);
-			return;
+			return(-1);
 		}
 
 		msg_print(Ind, "You swap hands of two weapons.");
@@ -878,7 +882,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		/* ---- copy-paste end. ---- */
 
 		Send_confirm(Ind, PKT_WIELD3);
-		return;
+		return(-1);
 	}
 
 	/* Catch items that we have already equipped -
@@ -886,7 +890,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	   and it looks kinda bad to get repeated 'You are ...' messages for something already in place. */
 	if (item > INVEN_PACK) {
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	/* Restrict the choices */
@@ -899,7 +903,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	} else { /* Get the item (on the floor) */
 		if (-item >= o_max) {
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return; /* item doesn't exist */
+			return(-1); /* item doesn't exist */
 		}
 
 		o_ptr = &o_list[0 - item];
@@ -915,7 +919,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	if (check_guard_inscription(o_ptr->note, 'w')) {
 		msg_print(Ind, "The item's inscription prevents it.");
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	/* Check the slot */
@@ -927,12 +931,12 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	if (!item_tester_hook_wear(Ind, slot)) {
 		msg_print(Ind, "You may not wield that item.");
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	if (!can_use_verbose(Ind, o_ptr)) {
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	/* Costumes allowed during halloween and xmas */
@@ -940,7 +944,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		if ((o_ptr->tval == TV_SOFT_ARMOR) && (o_ptr->sval == SV_COSTUME)) {
 			msg_print(Ind, "It's not that time of the year anymore.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		}
 	}
 
@@ -963,7 +967,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
  #endif
 	    ) {
 		msg_print(Ind, "Only royalties are powerful enough to use that item!");
-		if (!is_admin(p_ptr)) return;
+		if (!is_admin(p_ptr)) return(-1);
 	}
 #endif
 
@@ -1010,7 +1014,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		object_desc(Ind, o_name, &(p_ptr->inventory[slot]), FALSE, 0);
 		msg_format(Ind, "Take off your %s first.", o_name);
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	/* Prevent wielding into a cursed slot */
@@ -1034,7 +1038,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 
 		/* Cancel the command */
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	}
 
 	/* Two handed weapons can't be wielded with a shield */
@@ -1048,17 +1052,17 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		else
 			msg_format(Ind, "You cannot wield your %s with a shield.", o_name);
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 #else /* b) take off the left-hand item too */
 		if (check_guard_inscription(p_ptr->inventory[INVEN_ARM].note, 't')) {
 			msg_print(Ind, "Your secondary item's inscription prevents taking it off.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		};
 		if (cursed_p(&p_ptr->inventory[INVEN_ARM]) && !is_admin(p_ptr)) {
 			msg_print(Ind, "Hmmm, the secondary item you're wielding seems to be cursed.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		}
 		/* if we don't wield a main weapon, we can use the temporary object for the arm-object, taking it off later.. */
 		if (!p_ptr->inventory[INVEN_WIELD].k_idx) takeoff_slot = INVEN_ARM;
@@ -1067,9 +1071,9 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 			if (item >= 0) {
 				item = replay_inven_changes(Ind, item);
 				o_ptr = &(p_ptr->inventory[item]);
-				if (item == 0xFF) {
+				if (item == 0x7FFF) {
 					Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-					return; //item is gone, shouldn't happen
+					return(-1); //item is gone, shouldn't happen
 				}
 			}
 		}
@@ -1083,17 +1087,17 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 		object_desc(Ind, o_name, o_ptr, FALSE, 0);
 		msg_format(Ind, "You cannot wield your %s with a secondary weapon.", o_name);
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 #else /* b) take off the secondary weapon */
 		if (check_guard_inscription(p_ptr->inventory[INVEN_ARM].note, 't')) {
 			msg_print(Ind, "Your secondary weapon's inscription prevents taking it off.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		};
 		if (cursed_p(&p_ptr->inventory[INVEN_ARM]) && !is_admin(p_ptr)) {
 			msg_print(Ind, "Hmmm, the secondary weapon you're wielding seems to be cursed.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		}
 		/* if we don't wield a main weapon, we can use the temporary object for the arm-object, taking it off later.. */
 		if (!p_ptr->inventory[INVEN_WIELD].k_idx) takeoff_slot = INVEN_ARM;
@@ -1102,9 +1106,9 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 			if (item >= 0) {
 				item = replay_inven_changes(Ind, item);
 				o_ptr = &(p_ptr->inventory[item]);
-				if (item == 0xFF) {
+				if (item == 0x7FFF) {
 					Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-					return; //item is gone, shouldn't happen
+					return(-1); //item is gone, shouldn't happen
 				}
 			}
 		}
@@ -1121,17 +1125,17 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 			object_desc(Ind, o_name, o_ptr, FALSE, 0);
 			msg_format(Ind, "You cannot wield your %s with a two-handed weapon.", o_name);
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 #else /* Take off 2h weapon when equipping a shield */
 			if (check_guard_inscription(p_ptr->inventory[INVEN_WIELD].note, 't')) {
 				msg_print(Ind, "Your weapon's inscription prevents taking it off.");
 				Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-				return;
+				return(-1);
 			};
 			if (cursed_p(&p_ptr->inventory[INVEN_WIELD]) && !is_admin(p_ptr)) {
 				msg_print(Ind, "Hmmm, the weapon you're wielding seems to be cursed.");
 				Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-				return;
+				return(-1);
 			}
 			/* if we don't wield a secondary weapon or a shield, we can use the temporary object for the arm-object, taking it off later.. */
 			if (!p_ptr->inventory[INVEN_ARM].k_idx) takeoff_slot = INVEN_WIELD;
@@ -1140,9 +1144,9 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 				if (item >= 0) {
 					item = replay_inven_changes(Ind, item);
 					o_ptr = &(p_ptr->inventory[item]);
-					if (item == 0xFF) {
+					if (item == 0x7FFF) {
 						Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-						return; //item is gone, shouldn't happen
+						return(-1); //item is gone, shouldn't happen
 					}
 				}
 			}
@@ -1176,7 +1180,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	if (check_guard_inscription(x_ptr->note, 't') && !highlander) {
 		msg_print(Ind, "The inscription of your equipped item prevents it.");
 		Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-		return;
+		return(-1);
 	};
 
 
@@ -1187,7 +1191,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	{
 		/* Verify with the player */
 		if (other_query_flag &&
-		    !get_check(Ind, "Your pack may overflow.  Continue? ")) return;
+		    !get_check(Ind, "Your pack may overflow.  Continue? ")) return(-1);
 	}
 #endif
 
@@ -1209,20 +1213,25 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 			take_hit(Ind, 10000, "the Massive Iron Crown of Morgoth", 0);
 			bypass_invuln = FALSE;
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		}
 		/* Attempting to wield Grond isn't so bad. */
 		if (o_ptr->name1 == ART_GROND) {
 			msg_print(Ind, "You are far too weak to wield the mighty Grond.");
 			Send_confirm(Ind, (alt_slots & 0x2) ? PKT_WIELD2 : PKT_WIELD);
-			return;
+			return(-1);
 		}
 	}
+
+#if 1
+	/* Activation tax */
+	if (o_ptr->name1 == ART_ANTIRIAD && o_ptr->timeout > 1) o_ptr->timeout--;
+#endif
 
 	/* display some warnings if the item will severely conflict with Martial Arts skill */
 	if (get_skill(p_ptr, SKILL_MARTIAL_ARTS)) {
 		if ((is_melee_weapon(o_ptr->tval) ||
-		    (o_ptr->tval == TV_SPECIAL && o_ptr->xtra4 == INVEN_WIELD) ||
+		    (o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x0100) && o_ptr->tval2 == INVEN_WIELD) ||
 		    o_ptr->tval == TV_MSTAFF ||
 #ifndef ENABLE_MA_BOOMERANG
 		    o_ptr->tval == TV_BOOMERANG ||
@@ -1242,6 +1251,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	}
 
 	process_hooks(HOOK_WIELD, "d", Ind);
+	if (o_ptr->custom_lua_equipstate) exec_lua(0, format("custom_object_equipstate(%d,%d,%d)", Ind, slot, o_ptr->custom_lua_equipstate));
 
 	/* Take a turn */
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
@@ -1256,6 +1266,9 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	tmp_obj = *o_ptr;
 	if (slot == INVEN_AMMO) num = o_ptr->number;
 	tmp_obj.number = num;
+
+	//WIELD_DEVICES: Can only wield ONE at a time, so have to split stacks
+	if (is_magic_device(o_ptr->tval)) divide_charged_item(&tmp_obj, o_ptr, 1);
 
 	/* Decrease the item (from the pack) */
 	if (item >= 0) {
@@ -1283,6 +1296,7 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	} else {
 		/* Hack for exchanging a 2h-weapon with a shield (or secondary weapon), while the primary wield slot is empty */
 		object_type *ot_ptr;
+
 		if (!takeoff_slot) takeoff_slot = slot;
 		ot_ptr = &(p_ptr->inventory[takeoff_slot]);
 
@@ -1479,8 +1493,9 @@ void do_cmd_wield(int Ind, int item, u16b alt_slots) {
 	p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
 
 	/* warning messages, mostly for newbies */
-	if (p_ptr->warning_bpr3 == 0 && slot == INVEN_WIELD)
-		p_ptr->warning_bpr3 = 2;
+	if (p_ptr->warning_bpr3 == 0 && slot == INVEN_WIELD) p_ptr->warning_bpr3 = 2;
+
+	return(slot);
 }
 
 
@@ -1581,7 +1596,7 @@ void do_cmd_drop(int Ind, int item, int quantity) {
 	cave_type **zcave = getcave(&p_ptr->wpos);
 
 	/* Access the object from the item index */
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
 
@@ -1645,7 +1660,7 @@ void do_cmd_drop(int Ind, int item, int quantity) {
 	    )) override = 1;
 
 #ifdef ENABLE_SUBINVEN
-	if (item < 100)
+	if (item < SUBINVEN_INVEN_MUL)
 #endif
 	/* Cannot remove cursed items */
 	if (cursed_p(o_ptr)) {
@@ -1760,25 +1775,31 @@ void do_cmd_drop(int Ind, int item, int quantity) {
 	}
 
 #if (STARTEQ_TREATMENT > 1)
+	/* Items belonging to and then being dropped by a character whose level is < cfg.newbies_cannot_drop become unsalable. */
  #ifndef RPG_SERVER
 	if (o_ptr->owner == p_ptr->id && p_ptr->max_plv < cfg.newbies_cannot_drop && !is_admin(p_ptr) &&
-	    o_ptr->tval != TV_GAME && o_ptr->tval != TV_KEY && o_ptr->tval != TV_SPECIAL) {
-		/* not for basic arrows, a bit too silyl compared to the annoyment/newbie confusion */
-		if (!is_ammo(o_ptr->tval) || o_ptr->name1 || o_ptr->name2) o_ptr->level = 0;
-		o_ptr->xtra9 = 1; //mark as unsellable
+	    o_ptr->tval != TV_GAME && o_ptr->tval != TV_KEY && o_ptr->tval != TV_SPECIAL && o_ptr->tval != TV_CHEST) {
+		/* Not for basic arrows, a bit too silyl compared to the annoyment/newbie confusion.
+                   Basically, we want to turn everything level 0 that he could buy in town shops and then drop for someone else to pick up and utilize/monetize. */
+		if ((!is_ammo(o_ptr->tval) || o_ptr->name1 || o_ptr->name2) && o_ptr->tval != TV_CHEST) o_ptr->level = 0;
+		o_ptr->mode |= MODE_STARTER_ITEM; //hack: mark as unsellable
 	}
  #else
 	if (o_ptr->owner == p_ptr->id && p_ptr->max_plv < 2 && !is_admin(p_ptr) &&
 	    o_ptr->tval != TV_GAME && o_ptr->tval != TV_KEY && o_ptr->tval != TV_SPECIAL) {
-		/* not for basic arrows, a bit too silyl compared to the annoyment/newbie confusion */
-		if (!is_ammo(o_ptr->tval) || o_ptr->name1 || o_ptr->name2) o_ptr->level = 0;
-		o_ptr->xtra9 = 1; //mark as unsellable
+		/* Not for basic arrows, a bit too silyl compared to the annoyment/newbie confusion
+		   Basically, we want to turn everything level 0 that he could buy in town shops and then drop for someone else to pick up and utilize/monetize. */
+		if ((!is_ammo(o_ptr->tval) || o_ptr->name1 || o_ptr->name2) && o_ptr->tval != TV_CHEST) o_ptr->level = 0;
+		o_ptr->mode |= MODE_STARTER_ITEM; //hack: mark as unsellable
 	}
  #endif
 #endif
 
 	/* Take a partial turn */
 	p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+	/* Mark as forcibly dropped, to suppress !W triggering */
+	o_ptr->temp |= 0x04;
 
 	/* Drop (some of) the item */
 	inven_drop(TRUE, Ind, item, quantity, FALSE);
@@ -1875,7 +1896,7 @@ bool do_cmd_destroy(int Ind, int item, int quantity) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
 
 	/* Get the item (in the pack, or when called by /dis or /xdis on the floor!) */
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
 	/* Describe the object */
 	old_number = o_ptr->number;
@@ -2040,6 +2061,11 @@ bool do_cmd_destroy(int Ind, int item, int quantity) {
 	if (o_ptr->tval == TV_SUBINVEN && item >= 0 && quantity >= o_ptr->number) empty_subinven(Ind, item, FALSE);
 #endif
 
+	/* Mark as forcibly dropped, to suppress !W triggering */
+	o_ptr->temp |= 0x04;
+
+	if (o_ptr->custom_lua_destruction) exec_lua(0, format("custom_object_destruction(%d,0,%d,%d)", Ind, item, o_ptr->custom_lua_destruction));
+
 	/* Eliminate the item (from the pack) */
 	if (item >= 0) {
 		inven_item_increase(Ind, item, -quantity);
@@ -2081,9 +2107,9 @@ void do_cmd_observe(int Ind, int item) {
 			}
 
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
-		sub = item / 100 - 1;
-		i = item % 100;
+	if (item >= SUBINVEN_INVEN_MUL) {
+		sub = item / SUBINVEN_INVEN_MUL - 1;
+		i = item % SUBINVEN_INVEN_MUL;
 
 		o_ptr = Ind_t ? &(Players[Ind_t]->subinventory[sub][i]) : &(p_ptr->subinventory[sub][i]);
 
@@ -2146,7 +2172,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 			}
 		} else if (o_ptr->sval != SV_SPELLBOOK) { /* Predefined book (handbook or tome) */
 			int i, num = 0, spell;
-			char out_val[160];
+			char out_val[MAX_CHARS];
 
 			/* Find amount of spells in this book */
 			sprintf(out_val, "return book_spells_num2(%d, %d)", -1, o_ptr->sval);
@@ -2171,7 +2197,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 			}
 		}
 
-		if (strlen(powins) != l && powins[strlen(powins) - 1] == ',') powins[strlen(powins) - 1] = 0;
+		if (*powins && strlen(powins) != l && powins[strlen(powins) - 1] == ',') powins[strlen(powins) - 1] = 0;
 		/* Don't show actual magical properties of books */
 		return;
 	}
@@ -2240,6 +2266,9 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	}
 
 	/* -- bpval/pval mods -- */
+	/* For Witan boots, that have intrinsic -Stealth, for visual consistency list Stl first,
+	   as the bpval (-Stealth) is displayed before the pval (+speed) too */
+	if (o_ptr->tval == TV_BOOTS && o_ptr->sval == SV_PAIR_OF_WITAN_BOOTS) strcat(powins, "Stl");
 	if (f1 & (TR1_LIFE)) strcat(powins, "HP");
 	if (f1 & (TR1_MANA)) strcat(powins, "MP");
 	//if (f1 & (TR1_SPELL)) strcat(powins, "Sp");
@@ -2247,7 +2276,9 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	if (f1 & (TR1_BLOWS)) strcat(powins, "Att");
 	if (f5 & (TR5_CRIT)) strcat(powins, "Crt");
 	if (f1 & (TR1_STEALTH)) {
-		if (o_ptr->tval != TV_TRAPKIT) strcat(powins, "Stl");
+		if (o_ptr->tval != TV_TRAPKIT &&
+		    !(o_ptr->tval == TV_BOOTS && o_ptr->sval == SV_PAIR_OF_WITAN_BOOTS))
+			strcat(powins, "Stl");
 	}
 #if 0
 #ifdef ART_WITAN_STEALTH
@@ -2281,7 +2312,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 		if (f2 & (TR2_IM_WATER)) i_w = TRUE;
 		if (f2 & (TR2_IM_NETHER)) i_n = TRUE;
 		if ((tmp = (i_f || i_c || i_e || i_a || i_p || i_w || i_n))) {
-			if (strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+			if (*powins && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 			strcat(powins, "*");
 			if (i_f) strcat(powins, "F");
 			if (i_c) strcat(powins, "C");
@@ -2297,7 +2328,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	{
 		if (!(i_f && i_c && i_e && i_a)) {
 			if ((f2 & TR2_RES_FIRE) && (f2 & TR2_RES_COLD) && (f2 & TR2_RES_ELEC) && (f2 & TR2_RES_ACID)) {
-				if (!tmp && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+				if (!tmp && *powins && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 				strcat(powins, "Base");
 			} else {
 				i_f = (f2 & TR2_RES_FIRE) && !(f2 & TR2_IM_FIRE);
@@ -2305,7 +2336,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 				i_e = (f2 & TR2_RES_ELEC) && !(f2 & TR2_IM_ELEC);
 				i_a = (f2 & TR2_RES_ACID) && !(f2 & TR2_IM_ACID);
 				if (i_f | i_c | i_e | i_a) {
-					if (!tmp && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+					if (!tmp && *powins && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 					if (i_f) strcat(powins, "f");
 					if (i_c) strcat(powins, "c");
 					if (i_e) strcat(powins, "e");
@@ -2358,7 +2389,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	/* Specialty: Trap kits use TRAP2_ flags instead of normal TR2_ flags,
 	   and they probably fit best at this position here: */
 	if (o_ptr->tval == TV_TRAPKIT) {
-		if (strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+		if (strlen(powins) != l && *powins && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 		if (f2 & TRAP2_AUTOMATIC_99) strcat(powins, "*Auto*");
 		else if (f2 & TRAP2_AUTOMATIC_5) strcat(powins, "Auto");
 		/* These are already a given from the item name */
@@ -2387,7 +2418,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 		tmp = tmpf1 || tmpf2 || tmpf3;
 	}
 	if (tmp) {
-		if (strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+		if (strlen(powins) != l && *powins && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 
 		if (f3 & (TR3_SH_ELEC | TR3_SH_COLD | TR3_SH_FIRE)) strcat(powins, "A");
 		if (f3 & TR3_SH_ELEC) strcat(powins, "E");
@@ -2420,10 +2451,10 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	}
 	if (esp) {
 		if (esp & ESP_ALL) {
-			if (strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+			if (strlen(powins) != l && *powins && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 			strcat(powins, "ESP");
 		} else if (!redux) {
-			if (!tmp && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+			if (!tmp && *powins && strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 			strcat(powins, "~");
 			if (esp & ESP_SPIDER) strcat(powins, "S");
 			if (esp & ESP_ORC) strcat(powins, "o");
@@ -2508,7 +2539,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 #endif
 		if (am < 0) am = 0;
 
-		if (strlen(powins) != l && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
+		if (strlen(powins) != l && *powins && powins[strlen(powins) - 1] != ',') strcat(powins, ",");
 		strcat(powins, format("%d%%", am));
 	}
 }
@@ -2518,7 +2549,7 @@ bool check_power_inscribe(int Ind, object_type *o_ptr, char *o_name_old, cptr in
 	const char *pi_pos_src = inscription;
 
 	bool redux = FALSE;
-	char o_name[ONAME_LEN], powins[1024], *pir_pos; //even more than just MAX_CHARS_WIDE, let's play it safe..
+	char o_name[ONAME_LEN], powins[POW_INSCR_LEN], *pir_pos; //even more than just MAX_CHARS_WIDE, let's play it safe..
 	player_type *p_ptr;
 
 
@@ -2607,7 +2638,7 @@ void do_cmd_uninscribe(int Ind, int item) {
 	object_type *o_ptr;
 
 	/* Get the item (in the pack) */
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	/* Nothing to remove */
 	if (!o_ptr->note) {
@@ -2620,9 +2651,11 @@ void do_cmd_uninscribe(int Ind, int item) {
 		msg_print(Ind, "Cannot uninscribe shirts.");
 		return;
 	}
-	if ((o_ptr->tval == TV_SPECIAL ||
-	    (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE)
-	    ) && !is_admin(p_ptr)) {
+
+	/* No custom objects, seals, cheques */
+	if (((o_ptr->tval == TV_SPECIAL && (o_ptr->sval == SV_CUSTOM_OBJECT || o_ptr->sval == SV_SEAL)) ||
+	    (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE))
+	    && !is_admin(p_ptr)) {
 		msg_print(Ind, "Cannot uninscribe this item.");
 		return;
 	}
@@ -2634,9 +2667,20 @@ void do_cmd_uninscribe(int Ind, int item) {
 	o_ptr->note = 0;
 	o_ptr->note_utag = 0;
 
+	/* Hack */
+	if (p_ptr->instakills) p_ptr->update |= PU_BONUS;
+
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
-		display_subinven_aux(Ind, item / 100 - 1, item % 100);
+	/* Todo: PN_COMBINE aka combine_pack() for subinven */
+	if (item >= SUBINVEN_INVEN_MUL) {
+		display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+
+		/* Combine the pack */
+		p_ptr->notice |= (PN_COMBINE);
+
+		/* Window stuff */
+		//p_ptr->window |= (PW_INVEN | PW_EQUIP); --todo: implement PW_SUBINVEN --- done in combine_pack() for now
+
 		return;
 	}
 #endif
@@ -2653,25 +2697,27 @@ void do_cmd_uninscribe(int Ind, int item) {
  * Inscribe an object with a comment
  */
 void do_cmd_inscribe(int Ind, int item, cptr inscription) {
-	char tmp[MSG_LEN];
+	char tmp[INSCR_LEN];
 	player_type *p_ptr = Players[Ind];
 	object_type *o_ptr;
-	char o_name[ONAME_LEN], modins[MAX_CHARS];
+	char o_name[ONAME_LEN], modins[INSCR_LEN];
 	const char *qins;
 	char *c;
 
 	/* Get the item (in the pack) */
-	get_inven_item(Ind, item, &o_ptr);
+	if (!get_inven_item(Ind, item, &o_ptr)) return;
 
 	/* small hack, make shirt logos permanent */
 	if (o_ptr->tval == TV_SOFT_ARMOR && o_ptr->sval == SV_SHIRT && !is_admin(p_ptr)) {
 		msg_print(Ind, "Cannot inscribe shirts.");
 		return;
 	}
-	if ((o_ptr->tval == TV_SPECIAL ||
-	    (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE)
-	    ) && !is_admin(p_ptr)) {
-		msg_print(Ind, "Cannot inscribe this item.");
+
+	/* No custom objects, seals, cheques */
+	if (((o_ptr->tval == TV_SPECIAL && (o_ptr->sval == SV_CUSTOM_OBJECT || o_ptr->sval == SV_SEAL)) ||
+	    (o_ptr->tval == TV_SCROLL && o_ptr->sval == SV_SCROLL_CHEQUE))
+	    && !is_admin(p_ptr)) {
+		msg_print(Ind, "Cannot uninscribe this item.");
 		return;
 	}
 
@@ -2703,8 +2749,8 @@ void do_cmd_inscribe(int Ind, int item, cptr inscription) {
 
 		/* Redraw the updated item */
 #ifdef ENABLE_SUBINVEN
-		if (item >= 100) {
-			display_subinven_aux(Ind, item / 100 - 1, item % 100);
+		if (item >= SUBINVEN_INVEN_MUL) {
+			display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
 			return;
 		}
 #endif
@@ -2719,6 +2765,9 @@ void do_cmd_inscribe(int Ind, int item, cptr inscription) {
 	/* Message */
 	msg_format(Ind, "Inscribing %s.", o_name);
 	msg_print(Ind, NULL);
+
+	/* Hack */
+	if (p_ptr->instakills) p_ptr->update |= PU_BONUS;
 
 	/* hack to fix auto-inscriptions: convert empty inscription to a #-type inscription */
 	if (inscription[0] == '\0') inscription = "#";
@@ -2815,7 +2864,7 @@ void do_cmd_inscribe(int Ind, int item, cptr inscription) {
 				}
 
 				/* new: trim trailing spaces, if anything was deleted */
-				if (delete) while (modins[strlen(modins) - 1] == ' ') modins[strlen(modins) - 1] = 0;
+				if (delete && *modins) while (modins[strlen(modins) - 1] == ' ') modins[strlen(modins) - 1] = 0;
 			}
 			/* append? */
 			if (append) {
@@ -2839,8 +2888,16 @@ void do_cmd_inscribe(int Ind, int item, cptr inscription) {
 		msg_print(Ind, "\377yNote: Retaliator-inscriptions are spelled with the letter O, not the number 0.");
 
 #ifdef ENABLE_SUBINVEN
-	if (item >= 100) {
-		display_subinven_aux(Ind, item / 100 - 1, item % 100);
+	/* Todo: PN_COMBINE aka combine_pack() for subinven */
+	if (item >= SUBINVEN_INVEN_MUL) {
+		display_subinven_aux(Ind, item / SUBINVEN_INVEN_MUL - 1, item % SUBINVEN_INVEN_MUL);
+
+		/* Combine the pack */
+		p_ptr->notice |= (PN_COMBINE);
+
+		/* Window stuff */
+		//p_ptr->window |= (PW_INVEN | PW_EQUIP); --todo: implement PW_SUBINVEN --- done in combine_pack() for now
+
 		return;
 	}
 #endif
@@ -2872,14 +2929,11 @@ void do_cmd_steal_from_monster(int Ind, int dir) {
 	byte num = 0;
 	bool done = FALSE;
 	int monst_list[23];
+ #ifdef ENABLE_OUNLIFE
+	monster_race *r_ptr;
+ #endif
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return;
-
-	/* Ghosts cannot steal ; not in WRAITHFORM */
-	if (CANNOT_OPERATE_SPECTRAL) {
-		msg_print(Ind, "You cannot steal things in your immaterial form!");
-		return;
-	}
 
 	/* Only works on adjacent monsters */
 	if (!get_rep_dir(&dir)) return;
@@ -2893,6 +2947,20 @@ void do_cmd_steal_from_monster(int Ind, int dir) {
 	}
 
 	m_ptr = &m_list[c_ptr->m_idx];
+
+ #ifdef ENABLE_OUNLIFE
+	/* Wraithstep gets auto-cancelled on forced interaction with non-wraithed monsters */
+	r_ptr = race_inf(m_ptr);
+	if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1) &&
+	    ((r_ptr->flags2 & RF2_KILL_WALL) || !(r_ptr->flags2 & RF2_PASS_WALL)))
+		set_tim_wraith(Ind, 0);
+ #endif
+
+	/* Ghosts cannot steal ; not in WRAITHFORM */
+	if (CANNOT_OPERATE_SPECTRAL) {
+		msg_print(Ind, "You cannot steal things in your immaterial form!");
+		return;
+	}
 
 	break_shadow_running(Ind);
 	stop_precision(Ind);
@@ -2923,7 +2991,7 @@ void do_cmd_steal_from_monster(int Ind, int dir) {
 
 	/* Repeat until done */
 	while (!done) {
-		char tmp_val[80];
+		char tmp_val[MAX_CHARS];
 		char which = ' ';
 
 		/* Build the prompt */
@@ -2989,7 +3057,10 @@ void do_cmd_steal_from_monster(int Ind, int dir) {
 			energy_use = 100;
 
 			/* Wake up */
-			m_ptr->csleep = 0;
+			if (m_ptr->csleep) {
+				m_ptr->csleep = 0;
+				if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", Ind, c_ptr->m_idx, m_ptr->custom_lua_awoke));
+			}
 
 			/* Speed up because monsters are ANGRY when you try to thief them */
 			if (m_ptr->mspeed < m_ptr->speed + 15) m_ptr->speed += 5;
@@ -3064,13 +3135,6 @@ void do_cmd_steal(int Ind, int dir) {
 	/* May not steal from yourself */
 	if (!dir || dir == 5) return;
 
-	/* Ghosts cannot steal */
-	/* not in WRAITHFORM either */
-	if (CANNOT_OPERATE_SPECTRAL) {
-		msg_print(Ind, "You cannot steal things in your immaterial form!");
-		return;
-	}
-
 	/* Make sure we have enough room */
 	if (p_ptr->inven_cnt >= INVEN_PACK) {
 		msg_print(Ind, "You have no room to steal anything.");
@@ -3080,12 +3144,29 @@ void do_cmd_steal(int Ind, int dir) {
 	/* Examine target grid */
 	c_ptr = &zcave[p_ptr->py + ddy[dir]][p_ptr->px + ddx[dir]];
 
-	/* May only steal from players */
+	/* >= 0 instead of ==0: May only steal from players */
 	if (c_ptr->m_idx >= 0) {
 		msg_print(Ind, "You see nothing there to steal from.");
 		return;
 	}
+	/* Steal from monster? */
 	else if (c_ptr->m_idx > 0) {
+		monster_race *r_ptr = race_inf(&m_list[c_ptr->m_idx]);
+
+#ifdef ENABLE_OUNLIFE
+		/* Attacking on purpose terminates Wraithstep */
+		if (p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1) &&
+		    ((r_ptr->flags2 & RF2_KILL_WALL) || !(r_ptr->flags2 & RF2_PASS_WALL)))
+			set_tim_wraith(Ind, 0);
+#endif
+
+		/* Ghosts cannot steal */
+		/* not in WRAITHFORM either */
+		if (CANNOT_OPERATE_SPECTRAL) {
+			msg_print(Ind, "You cannot steal things in your immaterial form!");
+			return;
+		}
+
 		do_cmd_steal_from_monster(Ind, dir);
 		return;
 	}
@@ -3121,6 +3202,18 @@ void do_cmd_steal(int Ind, int dir) {
 	/* No transactions from different mode */
 	if (compat_pmode(Ind, 0 - c_ptr->m_idx, FALSE)) {
 		msg_format(Ind, "You cannot steal from %s players.", compat_pmode(Ind, 0 - c_ptr->m_idx, FALSE));
+		return;
+	}
+
+#ifdef ENABLE_OUNLIFE
+	/* Wraithstep gets auto-cancelled on forced interaction with solid environment */
+	if (!q_ptr->tim_wraith && p_ptr->tim_wraith && (p_ptr->tim_wraithstep & 0x1)) set_tim_wraith(Ind, 0);
+#endif
+
+	/* Ghosts cannot steal */
+	/* not in WRAITHFORM either */
+	if (!q_ptr->tim_wraith && p_ptr->tim_wraith && CANNOT_OPERATE_SPECTRAL) {
+		msg_print(Ind, "You cannot steal things in your immaterial form!");
 		return;
 	}
 
@@ -3576,7 +3669,7 @@ static void do_cmd_refill_lamp(int Ind, int item) {
 		return;
 	}
 
-	if (check_guard_inscription(o_ptr->note, 'F')) {
+	if (check_guard_inscription(o_ptr->note, 'F') || check_guard_inscription(o_ptr->note, 'k')) {
 		msg_print(Ind, "The item's incription prevents it.");
 		return;
 	}
@@ -3731,7 +3824,7 @@ static void do_cmd_refill_torch(int Ind, int item) {
 		return;
 	}
 
-	if (check_guard_inscription(o_ptr->note, 'F')) {
+	if (check_guard_inscription(o_ptr->note, 'F') || check_guard_inscription(o_ptr->note, 'k')) {
 		msg_print(Ind, "The item's incription prevents it.");
 		return;
 	}
@@ -3838,10 +3931,12 @@ bool do_auto_refill(int Ind) {
 	/* Get the light */
 	o_ptr = &(p_ptr->inventory[INVEN_LITE]);
 
+#if 0 /* The light we're wielding shouldn't care about !F inscription, as that one is only for preventing destroying a light by using it to refuel _the_ light we're wielding */
 	if (check_guard_inscription(o_ptr->note, 'F')) {
 		//msg_print(Ind, "The item's incription prevents it.");
 		return(FALSE);
 	}
+#endif
 
 	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
 
@@ -3854,7 +3949,7 @@ bool do_auto_refill(int Ind) {
 			j_ptr = &(p_ptr->inventory[i]);
 			if (!item_tester_hook(j_ptr)) continue;
 			if (artifact_p(j_ptr) || ego_item_p(j_ptr)) continue;
-			if (check_guard_inscription(j_ptr->note, 'F')) continue;
+			if (check_guard_inscription(j_ptr->note, 'F') || check_guard_inscription(j_ptr->note, 'k')) continue;
 
 			do_cmd_refill_lamp(Ind, i);
 			return(TRUE);
@@ -3870,7 +3965,7 @@ bool do_auto_refill(int Ind) {
 			j_ptr = &(p_ptr->inventory[i]);
 			if (!item_tester_hook(j_ptr)) continue;
 			if (artifact_p(j_ptr) || ego_item_p(j_ptr)) continue;
-			if (check_guard_inscription(j_ptr->note, 'F')) continue;
+			if (check_guard_inscription(j_ptr->note, 'F') || check_guard_inscription(j_ptr->note, 'k')) continue;
 
 			do_cmd_refill_torch(Ind, i);
 			return(TRUE);
@@ -3934,7 +4029,7 @@ static bool do_cmd_look_accept(int Ind, int y, int x) {
 #if 0
 		player_type *q_ptr = Players[-c_ptr->m_idx];
 
-		if ((!q_ptr->admin_dm || player_sees_dm(Ind)) &&
+		if ((!q_ptr->admin_dm || p_ptr->player_sees_dm) &&
 		    (player_has_los_bold(Ind, y, x) || p_ptr->telepathy))
 #endif
 			return(TRUE);
@@ -4172,10 +4267,10 @@ void do_cmd_look(int Ind, int dir) {
 	c_ptr = &zcave[y][x];
 
 	/* Another player */
-	if (c_ptr->m_idx < 0 && p_ptr->play_vis[0-c_ptr->m_idx] &&
-	    (!Players[0-c_ptr->m_idx]->admin_dm || player_sees_dm(Ind))) {
+	if (c_ptr->m_idx < 0 && p_ptr->play_vis[0 - c_ptr->m_idx] &&
+	    (!Players[0 - c_ptr->m_idx]->admin_dm || p_ptr->player_sees_dm)) {
 		char extrainfo[MAX_CHARS] = { 0 };
-		char attr;
+		byte attr;
 
 		q_ptr = Players[0 - c_ptr->m_idx];
 		/* If we are soloist, we just display everyone in white anyway, what gives.. */
@@ -4209,15 +4304,31 @@ void do_cmd_look(int Ind, int dir) {
 
 		/* Format string */
 		if ((q_ptr->inventory[INVEN_BODY].tval == TV_SOFT_ARMOR) && (q_ptr->inventory[INVEN_BODY].sval == SV_COSTUME)) {
+#ifdef ENABLE_SUBCLASS_TITLE
+			snprintf(out_val, sizeof(out_val), "\377%c%s the %s (%s%s%s)%s", attr, q_ptr->name, r_name + r_info[q_ptr->inventory[INVEN_BODY].bpval].name, get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE), extrainfo);
+#else
 			snprintf(out_val, sizeof(out_val), "\377%c%s the %s (%s)%s", attr, q_ptr->name, r_name + r_info[q_ptr->inventory[INVEN_BODY].bpval].name, get_ptitle(q_ptr, FALSE), extrainfo);
+#endif
 		} else if (q_ptr->body_monster) {
+#ifdef ENABLE_SUBCLASS_TITLE
+			snprintf(out_val, sizeof(out_val), "\377%c%s the %s (%s%s%s)%s", attr, q_ptr->name, r_name + r_info[q_ptr->body_monster].name, get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE), extrainfo);
+#else
 			snprintf(out_val, sizeof(out_val), "\377%c%s the %s (%s)%s", attr, q_ptr->name, r_name + r_info[q_ptr->body_monster].name, get_ptitle(q_ptr, FALSE), extrainfo);
+#endif
 		} else {
 #if 0 /* use normal race_info.title */
+ #ifdef ENABLE_SUBCLASS_TITLE
+			snprintf(out_val, sizeof(out_val), "\377%c%s the %s %s%s%s%s", attr, q_ptr->name, race_info[q_ptr->prace].title, get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE), extrainfo);
+ #else
 			snprintf(out_val, sizeof(out_val), "\377%c%s the %s %s%s", attr, q_ptr->name, race_info[q_ptr->prace].title, get_ptitle(q_ptr, FALSE), extrainfo);
+ #endif
 			//, class_info[q_ptr->pclass].title
 #else /* use special_prace_lookup */
+ #ifdef ENABLE_SUBCLASS_TITLE
+			snprintf(out_val, sizeof(out_val), "\377%c%s the %s%s%s%s%s", attr, q_ptr->name, get_prace2(q_ptr), get_ptitle(q_ptr, FALSE), (q_ptr->sclass) ? " " : "", get_ptitle2(q_ptr, FALSE), extrainfo);
+ #else
 			snprintf(out_val, sizeof(out_val), "\377%c%s the %s%s%s", attr, q_ptr->name, get_prace2(q_ptr), get_ptitle(q_ptr, FALSE), extrainfo);
+ #endif
 #endif
 		}
 	/* A monster */
@@ -4245,6 +4356,9 @@ void do_cmd_look(int Ind, int dir) {
 		/* a unique which the looker already killed? */
 		if ((r_info[m_ptr->r_idx].flags1 & RF1_UNIQUE) && p_ptr->r_killed[m_ptr->r_idx] == 1) done_unique = TRUE;
 		else done_unique = FALSE;
+
+		/* also abuse done_unique for visually marking 100% clones, if we have divi to 'know' that. Those give absolutely no credit/loot of any sorts. */
+		if (divi && m_ptr->clone == 100) done_unique = TRUE;
 
 		/* Track health */
 		health_track(Ind, c_ptr->m_idx);
@@ -4384,7 +4498,7 @@ void do_cmd_look(int Ind, int dir) {
 			name = "signpost \377D(bump to read)\377w";
 
 		if (feat == FEAT_GRAND_MIRROR)
-			name = "A grand mirror stands before you. Your reflection seems to stare at you..";
+			name = "grand mirror stands before you. Your reflection seems to stare at you..";
 
 		/* Message */
 		if (strlen(info)) snprintf(out_val, sizeof(out_val), "%s%s%s (%s)", p1, p2, name, info);
@@ -4752,27 +4866,34 @@ void do_cmd_query_symbol(int Ind, char sym) {
 #endif // 0
 
 #ifdef ENABLE_SUBINVEN
-/* Attempt to stow as much as possible of an object (stack) from OUTSIDE our inventory into a subinventory container.
+/* Attempt to stow as much as possible of an object (stack) from OUTSIDE our inventory into a specific (sslot) subinventory container.
    Increases player's total_weight. Does not delete source item if moved, just reduces its number (down to 0).
-   Returns TRUE if fully stowed. */
-bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
+   Returns <slot+1> if fully stowed, <-slot-1> if partially stowed, otherwise 0. (Note: There is no function subinven_stow() actually.). */
+s16b subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 	player_type *p_ptr = Players[Ind];
 	object_type *s_ptr = &p_ptr->inventory[sslot];
 	object_type *o_ptr, forge_copy, forge_part, *i_ptr_tmp = i_ptr;
-	int i, inum = i_ptr->number, xnum;
+	int i, inum, inum_org = i_ptr->number, xnum, Gnum, slot = -1;
 	char o_name[ONAME_LEN];
 	u32b f3 = 0x0, dummy;
 
 	/* Look for free spaces or spaces to merge with */
 	for (i = 0; i < s_ptr->bpval; i++) {
+		inum = i_ptr->number;
 		o_ptr = &p_ptr->subinventory[sslot][i];
 		if (o_ptr->tval) {
 			/* Slot has no more stacking capacity? */
-			if (o_ptr->number == 99) continue;
+			if (o_ptr->number == MAX_STACK_SIZE - 1) continue;
 
 			forge_part.tval = 0;
 			/* Hack 'number' to allow merging stacks partially */
-			xnum = 99 - o_ptr->number;
+			xnum = MAX_STACK_SIZE - 1 - o_ptr->number;
+			/* For !Gn inscription, super hack to modify xnum further if required */
+			i_ptr->number = xnum;
+			Gnum = object_similar(Ind, o_ptr, i_ptr, 0x4 | 0x20);
+			i_ptr->number = inum;
+			if (Gnum > 0 && Gnum < xnum) xnum = Gnum;
+			/* Hack it! */
 			if (i_ptr->number > xnum) {
 				/* need to divide wand/staff charges */
 				if (is_magic_device(i_ptr->tval)) {
@@ -4786,7 +4907,7 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 				} else i_ptr->number = xnum; /* Hack 'number' */
 			}
 			/* Merge partially or fully */
-			if (object_similar(Ind, o_ptr, i_ptr, 0x4)) {
+			if (Gnum) {
 				/* Check whether this item was requested by an item-retrieval quest.
 				   Note about quest_credited check: inven_carry() is also called by carry(),
 				   resulting in double crediting otherwise! */
@@ -4799,6 +4920,7 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
  #ifdef USE_SOUND_2010
 				sound_item(Ind, o_ptr->tval, o_ptr->sval, "drop_");
  #endif
+				slot = i;
 
 				/* Magic device? */
 				if (forge_part.tval) {
@@ -4814,6 +4936,15 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 				display_subinven_aux(Ind, sslot, i);
 				/* That was the rest of the stack? Done. */
 				if (!i_ptr->number) break;
+
+				/* For !X0 (X being one from A,O,S) inscriptions, actually stop even if there is still a rest left:
+				   If the player wants to pick up the rest of the stack, he'll have to reissue the pickup command.
+				   Reasoning: !A0, !O0, !S0 are usually used for managing restocking of the bag.
+				              Therefore it is unlikely that the player intends to pick up the
+				              remaining stack into his normal inventory. */
+				if (check_guard_inscription(s_ptr->note, 'A') == 1 ||
+				    check_guard_inscription(s_ptr->note, 'O') == 1 ||
+				    check_guard_inscription(s_ptr->note, 'S') == 1) break;
 			} else { /* Couldn't use this slot at all */
 				/* Magic device? */
 				if (forge_part.tval) {
@@ -4826,7 +4957,7 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 		} else {
 			/* Fully move to a free slot. Done. */
 			*o_ptr = *i_ptr;
-			o_ptr->marked = 0;
+			o_ptr->marked = 0; //why change marked/marked2?...paranoia?
 			o_ptr->marked2 = ITEM_REMOVAL_NORMAL;
 
 			/* Check whether this item was requested by an item-retrieval quest
@@ -4851,7 +4982,7 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 
 			/* Auto-inscriber */
 #ifdef AUTO_INSCRIBER
-			if (p_ptr->auto_inscribe) auto_inscribe(Ind, o_ptr, 0);
+			if (p_ptr->auto_inscr_server) auto_inscribe(Ind, o_ptr, 0);
 #endif
 
 			object_flags(o_ptr, &dummy, &dummy, &f3, &dummy, &dummy, &dummy, &dummy);
@@ -4872,6 +5003,7 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
  #ifdef USE_SOUND_2010
 			sound_item(Ind, o_ptr->tval, o_ptr->sval, "drop_");
  #endif
+			slot = i;
 
 			i_ptr->number = 0; /* Mark for erasure */
 			/* Manually do this here for now: Update subinven slot for client. */
@@ -4881,42 +5013,104 @@ bool subinven_stow_aux(int Ind, object_type *i_ptr, int sslot) {
 	}
 
 	/* No free space at all? */
-	if (inum == i_ptr->number) return(FALSE);
+	if (inum_org == i_ptr->number) return(FALSE);
 
 	/* Assume object got added from outside to our inventory. */
-	p_ptr->total_weight += (inum - i_ptr->number) * i_ptr->weight;
+	p_ptr->total_weight += (inum_org - i_ptr->number) * i_ptr->weight;
 
 	/* Managed to merge fully? Erase source object then. */
 	if (!i_ptr->number) {
 		/* Fully moved */
-		return(TRUE);
+		return(slot + 1);
 	}
 
 	/* Still not fully moved */
-	return(FALSE);
+	return(slot != -1 ? -slot - 1 : 0);
+}
+
+/* Just check if this object can stack with an existing item in this subinventory.
+   For !X0: Return TRUE only if there is an existing stack that has any space left (even if only for partial merging).
+   For !X1: Return TRUE too if there is no existing stack that has space left, but there is an object_similar() item in the bag at least.
+   (...with 'X' being one of A,S,O) */
+bool subinven_can_stack(int Ind, object_type *i_ptr, int sslot, bool store_bought) {
+	player_type *p_ptr = Players[Ind];
+	object_type *s_ptr = &p_ptr->inventory[sslot], *o_ptr;
+	int i, inum = i_ptr->number, xnum, Gnum, maxG;
+	bool new_stack = FALSE, allow_new_stack = FALSE;
+	int a, o, s;
+
+	/* Player disabled auto-stow via bag inscription? */
+	a = check_guard_inscription(s_ptr->note, 'A');
+	o = check_guard_inscription(s_ptr->note, 'O');
+	if (i_ptr->owner) o = 0; /* Allow again */
+	s = check_guard_inscription(s_ptr->note, 'S');
+	if (store_bought) s = 0; /* Allow again */
+
+	/* Assume it's not accepted to use multiple 'pure' (without 0/1 parm) !A, !O or !S inscriptions on the same item */
+
+	/* Don't auto-stow items in here at all! */
+	if (a == -1 || o == -1 || s == -1) return(FALSE);
+	/* Allowed to auto-stow in any case? */
+	if (!a && !o && !s) return(TRUE);
+
+	/* Check for !X1 aka 'allow creating a new stack, as long as we have a similar object in the bag already'. */
+	allow_new_stack = (a == 2 || o == 2 || s == 2);
+
+	/* Look for free spaces or spaces to merge with */
+	for (i = 0; i < s_ptr->bpval; i++) {
+		o_ptr = &p_ptr->subinventory[sslot][i];
+		if (!o_ptr->tval) break;
+
+		/* Slot has no more stacking capacity ie has reached max stack size? */
+		if (o_ptr->number == MAX_STACK_SIZE - 1 ||
+		    ((maxG = check_guard_inscription(o_ptr->note, 'G')) && o_ptr->number >= maxG - 1)) {
+			if (!allow_new_stack) continue;
+			if (!object_similar(Ind, o_ptr, i_ptr, 0x4 | 0x20 | 0x100)) continue;
+			new_stack = TRUE; /* At this point, object_similar() must've returned the '-1' hack for 'create a new stack' via 0x100 tolerance. */
+			continue;
+		}
+		/* Hack 'number' to allow merging stacks partially */
+		xnum = MAX_STACK_SIZE - 1 - o_ptr->number;
+		/* For !Gn inscription, super hack to modify xnum further if required */
+		i_ptr->number = xnum;
+		Gnum = object_similar(Ind, o_ptr, i_ptr, 0x4 | 0x20);
+		i_ptr->number = inum;
+		/* Stack aka merge partially or fully */
+		if (Gnum) return(TRUE);
+	}
+	return(new_stack && i < s_ptr->bpval); /* Can only create a new stack if there is at least one free slot left in the bag. */
 }
 
 /* Attempt to move as much as possible of an inventory item stack into a subinventory container.
    Keeps total weight constant. Deletes source inventory item on successful complete move.
    Returns TRUE if fully stowed. */
-bool subinven_move_aux(int Ind, int islot, int sslot) {
+bool subinven_move_aux(int Ind, int islot, int sslot, int amt) {
 	player_type *p_ptr = Players[Ind];
 	object_type *i_ptr = &p_ptr->inventory[islot];
 	object_type *s_ptr = &p_ptr->inventory[sslot];
 	object_type *o_ptr;
-	int i, inum = i_ptr->number, wgt = p_ptr->total_weight;
+	int i, inum = i_ptr->number, wgt = p_ptr->total_weight, Gnum;
 	char o_name[ONAME_LEN];
+
+	/* Don't stow if player cannot access stowed items due to outdated client */
+	if (is_older_than(&p_ptr->version, 4, 8, 0, 0, 0, 0)) return(FALSE);
+	/* Don't stow if player cannot access stowed items due to outdated client */
+	if (s_ptr->sval == SV_SI_POTION_BELT && !is_newer_than(&p_ptr->version, 4, 9, 1, 0, 0, 0)) return(FALSE);
 
 	/* Look for free spaces or spaces to merge with */
 	for (i = 0; i < s_ptr->bpval; i++) {
 		o_ptr = &p_ptr->subinventory[sslot][i];
 		if (o_ptr->tval) {
 			/* Slot has no more stacking capacity? */
-			if (o_ptr->number == 99) continue;
+			if (o_ptr->number == MAX_STACK_SIZE - 1) continue;
 			/* Hack 'number' to allow merging stacks partially */
-			if (i_ptr->number + o_ptr->number > 99) i_ptr->number = 99 - o_ptr->number;
+			if (amt + o_ptr->number >= MAX_STACK_SIZE) i_ptr->number = MAX_STACK_SIZE - 1 - o_ptr->number;
+			else i_ptr->number = amt; /* ..or else hack 'number' to match the full desired amount to move */
+			/* For !Gn inscription, super hack to modify xnum further if required */
+			Gnum = object_similar(Ind, o_ptr, i_ptr, 0x4 | 0x20);
+			if (Gnum > 0 && Gnum < i_ptr->number) i_ptr->number = Gnum;
 			/* Merge partially or fully */
-			if (object_similar(Ind, o_ptr, i_ptr, 0x4)) {
+			if (Gnum) {
 				object_absorb(Ind, o_ptr, i_ptr);
 				/* Describe the object */
 				object_desc(Ind, o_name, o_ptr, TRUE, 3);
@@ -4924,15 +5118,18 @@ bool subinven_move_aux(int Ind, int islot, int sslot) {
  #ifdef USE_SOUND_2010
 				sound_item(Ind, o_ptr->tval, o_ptr->sval, "drop_");
  #endif
-
-				i_ptr->number = inum - i_ptr->number; /* Unhack 'number' */
+				amt -= i_ptr->number; /* Decreate amount to still move accordingly */
+				i_ptr->number = inum - i_ptr->number; /* Unhack 'number' (and decrease the now moved amount) */
 				/* Manually do this here for now: Update subinven slot for client. */
 				display_subinven_aux(Ind, sslot, i);
 				/* That was the rest of the stack? Done. */
-				if (!i_ptr->number) break;
+				if (!amt) break;
+				/* Continue with remaining, still unstowed partial amount */
+				inum = i_ptr->number;
 			} else /* Couldn't use this slot at all */
 				i_ptr->number = inum; /* Unhack 'number' */
 		} else {
+			i_ptr->number = amt; /* Hack 'number' to match the full desired amount to move */
 			/* Fully move to a free slot. Done. */
 			*o_ptr = *i_ptr;
 			o_ptr->marked = 0;
@@ -4943,8 +5140,7 @@ bool subinven_move_aux(int Ind, int islot, int sslot) {
  #ifdef USE_SOUND_2010
 			sound_item(Ind, o_ptr->tval, o_ptr->sval, "drop_");
  #endif
-
-			i_ptr->number = 0; /* Mark for erasure */
+			i_ptr->number = inum - amt; /* Unhack 'number'; if it's 0 that marks the source item for erasure */
 			/* Manually do this here for now: Update subinven slot for client. */
 			display_subinven_aux(Ind, sslot, i);
 			break;
@@ -4996,14 +5192,17 @@ bool subinven_move_aux(int Ind, int islot, int sslot) {
 }
 /* Tries to move the item or item stack in one inventory slot completely into
    the first available and eligible subinventory. */
-void do_cmd_subinven_move(int Ind, int islot) {
+void do_cmd_subinven_move(int Ind, int islot, int amt) {
 	player_type *p_ptr = Players[Ind];
 	object_type *i_ptr, *s_ptr;
-	int amt, i, t;
+	int max, i, t;
  #ifdef SUBINVEN_LIMIT_GROUP
 	int prev_type = -1;
  #endif
-	bool all = FALSE;
+	bool all = FALSE, any_bag = FALSE, eligible_bag = FALSE, client_outdated = FALSE;
+
+	/* Don't stow if player cannot access stowed items due to outdated client */
+	if (is_older_than(&p_ptr->version, 4, 8, 0, 0, 0, 0)) return;
 
 	/* Error checks */
 	if (islot < 0) return;
@@ -5044,15 +5243,19 @@ void do_cmd_subinven_move(int Ind, int islot) {
 		return;
 	}
 
-	amt = i_ptr->number;
+	max = i_ptr->number;
+	if (amt < 1) amt = 1;
+	else if (amt > max) amt = max;
 
 	/* Message */
-	//msg_format(Ind, "You drop %d pieces of %s.", amt, k_name + k_info[tmp_obj.k_idx].name);
+	//msg_format(Ind, "You drop %d pieces of %s.", max, k_name + k_info[tmp_obj.k_idx].name);
 
 	for (i = 0; i < INVEN_PACK; i++) {
 		s_ptr = &p_ptr->inventory[i];
 		/* Scan for existing subinventories */
 		if (s_ptr->tval != TV_SUBINVEN) break; /* This assumes that subinvens are always the top-most items of the inventory! */
+
+		any_bag = TRUE;
 		t = get_subinven_group(s_ptr->sval);
  #ifdef SUBINVEN_LIMIT_GROUP
 		if (t == prev_type) continue; /* This assumes that subinvens are sorted by svals, which is true for all inventory items actually. */
@@ -5062,30 +5265,49 @@ void do_cmd_subinven_move(int Ind, int islot) {
 		/* Check item to move against valid tvals to be put into specific container (subinventory) types */
 		case SV_SI_GROUP_CHEST_MIN:
 			/* Allow all storable items in chests */
+			eligible_bag = TRUE;
 			break;
 		case SV_SI_SATCHEL:
 			if (i_ptr->tval != TV_CHEMICAL) continue;
+			eligible_bag = TRUE;
 			break;
 		case SV_SI_TRAPKIT_BAG:
 			if (i_ptr->tval != TV_TRAPKIT) continue;
+			eligible_bag = TRUE;
 			break;
 		case SV_SI_MDEVP_WRAPPING:
  #if 1
 			/* Extra hint for unidentified rods, instead of simply claiming that there is no bag space (as no chest is found and wrapping isn't eligible for unid'ed rods): */
 			if (i_ptr->tval == TV_ROD && !object_aware_p(Ind, i_ptr)) {
 				/* The reason is that rod_requires_direction() will always return(TRUE) for unknown rods anyway. */
-				msg_print(Ind, "The rod's type must be known in order to stow it in your antistatic wrapping!");
+				msg_print(Ind, "Rod types must be known in order to stow it in your antistatic wrapping!");
+				continue;
+			}
+			if (i_ptr->tval == TV_ROD && object_aware_p(Ind, i_ptr) && rod_requires_direction(Ind, i_ptr)) {
+				msg_print(Ind, "Rods must be non-directional in order to stow it in your antistatic wrapping!");
 				continue;
 			}
  #endif
-			/* Note that unknown rods will automatically return(TRUE) for requiring direction, even if they really don't. */
+			/* Note that unknown/unaware rods will automatically return(TRUE) for requiring direction, even if they really don't. */
 			if (i_ptr->tval != TV_STAFF && (i_ptr->tval != TV_ROD || rod_requires_direction(Ind, i_ptr))) continue;
+			eligible_bag = TRUE;
+			break;
+		case SV_SI_POTION_BELT:
+			if (i_ptr->tval != TV_POTION && i_ptr->tval != TV_POTION2 && i_ptr->tval != TV_BOTTLE) continue;
+
+			/* Don't stow if player cannot access stowed items due to outdated client */
+			if (!is_newer_than(&p_ptr->version, 4, 9, 1, 0, 0, 0)) {
+				client_outdated = TRUE;
+				continue;
+			}
+
+			eligible_bag = TRUE;
 			break;
 		default:
 			continue;
 		}
 		/* Eligible subinventory found, try to move as much as possible */
-		if (subinven_move_aux(Ind, islot, i)) {
+		if (subinven_move_aux(Ind, islot, i, amt)) {
 			/* Successfully moved ALL items! We're done. */
 			all = TRUE;
 			break;
@@ -5094,13 +5316,22 @@ void do_cmd_subinven_move(int Ind, int islot) {
 		//break;  -- replaced by 'continue;' further above
  #endif
 	}
+	if (client_outdated) msg_print(Ind, "\377yYou need to use at least the \377RTEST client 4.9.1\377o or a higher client version to use your Potion Belt, or it won't be accessible!");
+	if (!any_bag) {
+		msg_print(Ind, "\377yYou don't have any bags to stow items.");
+		return;
+	}
+	if (!eligible_bag) {
+		msg_print(Ind, "\377yNo eligible bag found to stow that type of item.");
+		return;
+	}
 
 	/* Moved anything at all?
 	   Keep in mind that on moving all the object is now something different as it has been excised!
 	   So we cannot reference to it anymore in that case and use 'all' instead. */
 	if (all) ;//kind of spammy - msg_print(Ind, "You stow all of it.");
-	else if (amt - i_ptr->number == 0) {
-		msg_print(Ind, "No free bag space to stow that item.");
+	else if (max - i_ptr->number == 0) {
+		msg_print(Ind, "\377yNo free bag space to stow that item.");
 		return;
 	} else msg_print(Ind, "You have at least enough bag space to stow some of it.");
 
@@ -5116,14 +5347,21 @@ void do_cmd_subinven_move(int Ind, int islot) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 }
 /* This function assumes that there IS inventory space to move to. */
-void subinven_remove_aux(int Ind, int islot, int slot) {
+void subinven_remove_aux(int Ind, int islot, int slot, int amt) {
 	player_type *p_ptr = Players[Ind];
-	object_type *o_ptr, *s_ptr;
+	object_type *i_ptr, *s_ptr, forge, *o_ptr = &forge;
 	int i;
 	char o_name[ONAME_LEN];
 
 	s_ptr = &p_ptr->inventory[islot];
-	o_ptr = &p_ptr->subinventory[islot][slot];
+	i_ptr = &p_ptr->subinventory[islot][slot];
+
+	/* Fully move to a free slot. Done. */
+	*o_ptr = *i_ptr;
+	o_ptr->number = amt; /* Hack 'number' to match the full desired amount to move */
+	o_ptr->marked = 0; //why change marked/marked2?...paranoia?
+	o_ptr->marked2 = ITEM_REMOVAL_NORMAL;
+	i_ptr->number -= amt; /* Unhack 'number'; if it's 0 that marks the source item for erasure */
 
 	p_ptr->total_weight -= o_ptr->number * o_ptr->weight;
 
@@ -5138,8 +5376,14 @@ void subinven_remove_aux(int Ind, int islot, int slot) {
  #endif
 	}
 
+	/* Not all of the stack was moved, so the slot still exists */
+	if (i_ptr->number) {
+		display_subinven_aux(Ind, islot, slot); /* Update remaining stack size */
+		return;
+	}
+
 	/* Erase object in subinven, slide followers */
-	o_ptr->tval = o_ptr->k_idx = o_ptr->number = 0;
+	i_ptr->tval = i_ptr->k_idx = i_ptr->number = 0;
  #if 1
 	/* -- This is partial code from inven_item_optimize() -- */
 
@@ -5149,7 +5393,6 @@ void subinven_remove_aux(int Ind, int islot, int slot) {
 		p_ptr->subinventory[islot][i] = p_ptr->subinventory[islot][i + 1];
 		display_subinven_aux(Ind, islot, i);
 	}
-
 	/* Erase the "final" slot */
 	invwipe(&p_ptr->subinventory[islot][i]);
 	display_subinven_aux(Ind, islot, i);
@@ -5169,7 +5412,7 @@ void subinven_remove_aux(int Ind, int islot, int slot) {
 
 	verify_subinven_size(Ind, islot, TRUE);
 }
-void do_cmd_subinven_remove(int Ind, int islot, int slot) {
+void do_cmd_subinven_remove(int Ind, int islot, int slot, int amt) {
 	player_type *p_ptr = Players[Ind];
 	object_type *s_ptr, *o_ptr;
 
@@ -5181,7 +5424,9 @@ void do_cmd_subinven_remove(int Ind, int islot, int slot) {
 	o_ptr = &p_ptr->subinventory[islot][slot];
 	if (!o_ptr->tval) return;
 
-	subinven_remove_aux(Ind, islot, slot);
+	if (amt < 1) amt = 1;
+	else if (amt > o_ptr->number) amt = o_ptr->number;
+	subinven_remove_aux(Ind, islot, slot, amt);
 
 	//break_cloaking(Ind, 5);
 	//break_shadow_running(Ind);
