@@ -4952,6 +4952,7 @@ bool summon_specific_race_somewhere(struct worldpos *wpos, int r_idx, int s_clon
 	return(FALSE);
 }
 
+/* Not used */
 int summon_detailed_one(struct worldpos *wpos, int y1, int x1, int r_idx, int ego, bool slp, int s_clone) {
 	int i, y, x;
 	int tries = 0;
