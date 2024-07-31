@@ -527,6 +527,12 @@
    (However note, in equipment, colour codes are already used by rune sigils.) */
 #define X_INFO_TXT_COLOURS
 
+/* Enables pet behaviour */
+#define ENABLE_PETS
+
+#ifdef ENABLE_PETS
+ #define ENABLE_SUMMONING /* Enables summoning skills and spells */
+#endif
 
 
 /* ------------------------------------------------------------------------- */

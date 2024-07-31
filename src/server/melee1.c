@@ -3524,7 +3524,7 @@ static int mon_check_hit(int m_idx, int power, int level) {
 bool monster_attack_normal(int tm_idx, int m_idx) {
 	/* Targer */
 	monster_type *tm_ptr = &m_list[tm_idx];
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 	monster_race *tr_ptr = race_inf(tm_ptr);
 	int exp_gain;
 #endif
@@ -3548,7 +3548,7 @@ bool monster_attack_normal(int tm_idx, int m_idx) {
 
 	/* Extract the effective monster level */
 	rlev = ((r_ptr->level >= 1) ? r_ptr->level : 1);
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 	exp_gain = tr_ptr->mexp / 2;
 	//exp_gain = race_inf(tm_ptr)->level;
 #endif
@@ -3641,7 +3641,7 @@ bool monster_attack_normal(int tm_idx, int m_idx) {
 				/* Cancel stun */
 				else do_stun = 0;
 			}
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 			if (dead && m_ptr->pet) {
 				char monster_name[MNAME_LEN];
 

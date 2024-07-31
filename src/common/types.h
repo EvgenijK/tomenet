@@ -118,8 +118,8 @@ struct worldspot {
 /* cavespot consists of coordinates within a cave */
 typedef struct cavespot cavespot;
 struct cavespot {
-	s16b x;
-	s16b y;
+	int x;
+	int y;
 };
 
 
