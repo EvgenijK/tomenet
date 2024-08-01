@@ -827,37 +827,36 @@ char pet_creation(int Ind, int r_idx) { //put the sanity tests here and call pla
 }
 
 
+/* Remove all player pet(s) */
+int remove_pets(int Ind) {
+    int i, j;
+    player_type *p_ptr = Players[Ind];
+    monster_type *m_ptr;
 
- /* Remove all player pet(s) */
- int remove_pets(int Ind) {
-   int i, j;
-   player_type *p_ptr = Players[Ind];
-   monster_type *m_ptr;
-	
-   //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
+    //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
 
-   /* Process the monsters */
-   for (i = m_top - 1; i >= 0; i--) {
-     /* Access the index */
-     j = m_fast[i];
+    /* Process the monsters */
+    for (i = m_top - 1; i >= 0; i--) {
+        /* Access the index */
+        j = m_fast[i];
 
-     /* Access the monster */
-     m_ptr = &m_list[j];
+        /* Access the monster */
+        m_ptr = &m_list[j];
 
-     /* Excise "dead" monsters */
-     if (!m_ptr->r_idx) continue;
+        /* Excise "dead" monsters */
+        if (!m_ptr->r_idx) continue;
 
-     if (m_ptr->owner != Players[Ind]->id) continue;
+        if (m_ptr->owner != Players[Ind]->id) continue;
 
-     delete_monster_idx(j, FALSE);
-     p_ptr->has_pet = 0;
-   }
-   return (0);
- }
+        delete_monster_idx(j, FALSE);
+        p_ptr->has_pet = 0;
+    }
+    return (0);
+}
 
 void summon_pet(int Ind, int r_idx) {
     pet_creation(Ind, r_idx);
- }
+}
  
 void unsummon_pets(int Ind) {
     remove_pets(Ind);
@@ -868,54 +867,54 @@ monster_type *get_m_ptr_fast(int m_idx) {
     return &m_list[m_fast[m_idx]];
 }
 
- void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
-   if (!m_ptr->pet) return;
+void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
+    if (!m_ptr->pet) return;
 
-   switch (pet_mind) {
-   case PET_ATTACK:
-     if (m_ptr->mind & pet_mind) {
-       msg_print(Ind, "Your pets stop going for your target.");
-       m_ptr->mind &= ~pet_mind;
-     } else {
-       msg_print(Ind, "Your pets approach your target!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   case PET_GUARD:
-     if (m_ptr->mind & pet_mind) {
-       m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pets stop following you around.");
-     } else {
-       msg_print(Ind, "Your pets start following you around!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   case PET_FOLLOW:
-     if (m_ptr->mind & pet_mind) {
-       m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pets stop being on guard.");
-     } else {
-       msg_print(Ind, "Your pets seem to be on guard now!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   }
- }
+    switch (pet_mind) {
+    case PET_ATTACK:
+        if (m_ptr->mind & pet_mind) {
+            msg_print(Ind, "Your pets stop going for your target.");
+            m_ptr->mind &= ~pet_mind;
+        } else {
+            msg_print(Ind, "Your pets approach your target!");
+            m_ptr->mind |= pet_mind;
+        }
+    break;
+    case PET_GUARD:
+        if (m_ptr->mind & pet_mind) {
+            m_ptr->mind &= ~pet_mind;
+            msg_print(Ind, "Your pets stop following you around.");
+        } else {
+            msg_print(Ind, "Your pets start following you around!");
+            m_ptr->mind |= pet_mind;
+        }
+    break;
+    case PET_FOLLOW:
+        if (m_ptr->mind & pet_mind) {
+            m_ptr->mind &= ~pet_mind;
+            msg_print(Ind, "Your pets stop being on guard.");
+        } else {
+            msg_print(Ind, "Your pets seem to be on guard now!");
+            m_ptr->mind |= pet_mind;
+        }
+    break;
+    }
+}
 
- void toggle_all_pets_mind(int Ind, byte pet_mind) {
-   int i;
-   monster_type *m_ptr;
-   
-   /* Process the monsters */
-   for (i = m_top - 1; i >= 0; i--) {
-     /* Access the monster */
-     m_ptr = get_m_ptr_fast(i);
+void toggle_all_pets_mind(int Ind, byte pet_mind) {
+    int i;
+    monster_type *m_ptr;
 
-     /* Excise "dead" monsters */
-     if (!m_ptr->r_idx) continue;
+    /* Process the monsters */
+    for (i = m_top - 1; i >= 0; i--) {
+        /* Access the monster */
+        m_ptr = get_m_ptr_fast(i);
 
-     if (m_ptr->owner != Players[Ind]->id) continue;
+        /* Excise "dead" monsters */
+        if (!m_ptr->r_idx) continue;
 
-     toggle_pet_mind(Ind, m_ptr, pet_mind);
-   }
- }
+        if (m_ptr->owner != Players[Ind]->id) continue;
+
+        toggle_pet_mind(Ind, m_ptr, pet_mind);
+    }
+}

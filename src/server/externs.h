@@ -2794,5 +2794,5 @@ extern int remove_pets(int Ind);
 extern void unsummon_pets(int Ind);
 extern void toggle_all_pets_mind(int Ind, byte pet_mind);
 extern monster_type *get_m_ptr_fast(int m_idx);
-extern  void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind);
+extern void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind);
 #endif
