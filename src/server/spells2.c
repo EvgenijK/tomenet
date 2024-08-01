@@ -8867,45 +8867,6 @@ bool summon_cyber(int Ind, int s_clone, int clone_summoning) {
 	return(ok);
 }
 
- monster_type *get_m_ptr_fast(int m_idx) {
-   return &m_list[m_fast[m_idx]];
- }
-
- void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {
-   if (!m_ptr->pet) return;
-
-   switch (pet_mind) {
-   case PET_ATTACK:
-     if (m_ptr->mind & pet_mind) {
-       msg_print(Ind, "Your pet stop going for your target.");
-       m_ptr->mind &= ~pet_mind;
-     } else {
-       msg_print(Ind, "Your pet approach your target!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   case PET_GUARD:
-     if (m_ptr->mind & pet_mind) {
-       m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pet stop being on guard.");
-     } else {
-       msg_print(Ind, "Your pet seem to be on guard now!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   case PET_FOLLOW:
-     if (m_ptr->mind & pet_mind) {
-       m_ptr->mind &= ~pet_mind;
-       msg_print(Ind, "Your pet stop following you around.");
-     } else {
-       msg_print(Ind, "Your pet start following you around!");
-       m_ptr->mind |= pet_mind;
-     }
-     break;
-   }
- }
- 
-   
 /* Heal insanity. */
 bool heal_insanity(int Ind, int val) {
 	player_type *p_ptr = Players[Ind];
