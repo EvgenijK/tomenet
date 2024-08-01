@@ -1,3 +1,5 @@
+#define SERVER
+
 #include "angband.h"
 
 /* from melee2.c */

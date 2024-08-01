@@ -1133,9 +1133,7 @@ extern bool place_monster(struct worldpos *wpos, int y, int x, bool slp, bool gr
 #ifdef DM_MODULES
 extern int place_monster_ego(struct worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning);
 #endif
-#ifdef RPG_SERVER
-extern bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx);
-#endif
+
 extern bool alloc_monster(struct worldpos *wpos, int dis, int slp);
 extern int alloc_monster_specific(struct worldpos *wpos, int r_idx, int dis, int slp);
 extern bool summon_specific(struct worldpos *wpos, int y1, int x1, int lev, int s_clone, int type, int allow_sidekicks, int clone_summoning);
@@ -1710,16 +1708,12 @@ extern bool blindable_monster(monster_race *r_ptr);
 extern int divide_spell_damage(int dam, int div, int typ);
 
 /* spells2.c */
-extern void summon_pet(int Ind, int max);
 extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_idx);
 extern bool swap_position(int Ind, int lty, int ltx);
 extern void grow_trees(int Ind, int rad);
 extern bool heal_insanity(int Ind, int val);
 extern bool summon_cyber(int Ind, int s_clone, int clone_summoning);
 extern void golem_creation(int Ind, int max);
-#ifdef RPG_SERVER
-extern char pet_creation(int Ind);
-#endif
 extern s16b hp_player(int Ind, int num, bool quiet, bool autoeffect);
 extern void warding_glyph(int Ind);
 extern void flash_bomb(int Ind);
@@ -2790,3 +2784,13 @@ extern byte global_temp_x[TEMP_MAX];
 extern bool restart_panic, restart_unstatice_bree, restart_unstatice_towns, restart_unstatice_surface, restart_unstatice_dungeons;
 extern int pdf_hack_feat, pdf_hack_feat_new, pdf_hack_mon, pdf_hack_mon_new;
 extern u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHROOM_FIELDS], mushroom_field_x[MAX_MUSHROOM_FIELDS], mushroom_field_y[MAX_MUSHROOM_FIELDS], mushroom_fields;
+
+#ifdef ENABLE_PETS
+/* pets_module.c */
+extern bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx);
+extern char pet_creation(int Ind, int r_idx);
+extern void summon_pet(int Ind, int max);
+extern int remove_pets(int Ind);
+extern void unsummon_pets(int Ind);
+extern void toggle_all_pets_mind(int Ind, byte pet_mind);
+#endif
