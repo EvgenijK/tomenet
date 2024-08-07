@@ -2,7 +2,167 @@
 
 #include "angband.h"
 
-/* from melee2.c */
+/*
+ * 1. Pet creation
+ * 1.1 placing
+ * 1.2 making pet "monster"
+ * 2. Pet destruction
+ * 2.1 pet removal
+ * 2.2 pet death
+ * 2.3 other pet disapperance occasions
+ * 3. Pet behavior
+ * 3.1 moving with player
+ * 3.2 attaking hostile monsters/players
+ * 
+ */
+
+
+/* Pet creation */
+static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
+static bool canPlayerSummonPet(int Ind);
+static cavespot get_position_near_player(int Ind);
+static int make_pet_from_monster(int m_idx, int owner_ind);
+static bool link_pet_to_player(int Ind, int m_idx);
+static bool can_place_pet(cave_type **zcave, struct cavespot cave_position);
+
+void summon_pet_on_player(int Ind, int r_idx) {
+    pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
+}
+
+// some functions ideas for future use
+// void summon_pet_on_target(int Ind, int r_idx) {
+//     pet_creation(Ind, r_idx);
+// }
+// void summon_pet_on_monster(int Ind, int r_idx) {
+//     pet_creation(Ind, r_idx);
+// }
+// void summon_pet_on_other_player(int Ind, int r_idx) {
+//     pet_creation(Ind, r_idx);
+// }
+// void summon_pet_on_place(int Ind, int r_idx) {
+//     pet_creation(Ind, r_idx);
+// }
+
+/* Add some loop for checking near tiles */
+static cavespot get_position_near_player(int Ind) {
+    struct cavespot cave_position;
+    cave_position.y = Players[Ind]->py;
+    cave_position.x = Players[Ind]->px + 1;  /* E of player */ 
+
+    return cave_position;
+}
+
+static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position) {
+    int m_idx;
+
+    int x = cave_position.x;
+    int y = cave_position.y;
+
+    if (! canPlayerSummonPet(owner_ind)) return(0);
+
+    summon_override_checks = SO_ALL; /* needed? */
+    m_idx = place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0);
+    summon_override_checks = SO_NONE;
+
+    if (!m_idx) return(0);
+
+    make_pet_from_monster(m_idx, owner_ind);
+
+    s_printf("New pet created!");
+
+    return(1);
+}
+
+static int make_pet_from_monster(int m_idx, int owner_ind) {
+    monster_type *m_ptr = &m_list[m_idx];
+
+    /* special pet value */
+    link_pet_to_player(owner_ind, m_idx);
+    m_ptr->pet = 1;
+    m_ptr->mind = PET_NONE;
+
+    /* Update the monster */
+    update_mon(m_idx, TRUE);
+
+    return m_idx;    
+}
+
+/* Links pet monster to the player */
+static bool link_pet_to_player(int owner_ind, int m_idx) {
+    monster_type *m_ptr = &m_list[m_idx];
+
+    m_ptr->owner = Players[owner_ind]->id;
+
+    // TODO - add list of pets in player and add pet in that list here
+
+    return(1);
+}
+
+/* 
+ * Put here all checks
+ * TODO - implement pets quantity limits 
+ */
+static bool canPlayerSummonPet(int Ind) {
+//    if (!Players[Ind]->has_pet) return FALSE:
+    return TRUE;
+}
+
+static bool can_place_pet(cave_type **zcave, struct cavespot cave_position) {
+    int x = cave_position.x;
+    int y = cave_position.y;
+
+    /* Verify location */
+    if (!in_bounds(y, x)) return(0);
+
+    /* Require empty space */
+    if (!cave_empty_bold(zcave, y, x)) return(0);
+    
+    /* Hack -- no creation on glyph of warding */
+    if (zcave[y][x].feat == FEAT_GLYPH) return(0);
+    if (zcave[y][x].feat == FEAT_RUNE) return(0);
+
+    return 1;
+}
+
+
+/* Pet destruction */    
+
+int remove_pets(int Ind);
+ 
+void unsummon_pets(int Ind) {
+    remove_pets(Ind);
+}
+
+/* Remove all player pet(s) */
+int remove_pets(int Ind) {
+    int i, j;
+    player_type *p_ptr = Players[Ind];
+    monster_type *m_ptr;
+
+    //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
+
+    /* Process the monsters */
+    for (i = m_top - 1; i >= 0; i--) {
+        /* Access the index */
+        j = m_fast[i];
+
+        /* Access the monster */
+        m_ptr = &m_list[j];
+
+        /* Excise "dead" monsters */
+        if (!m_ptr->r_idx) continue;
+
+        if (m_ptr->owner != Players[Ind]->id) continue;
+
+        delete_monster_idx(j, FALSE);
+        p_ptr->has_pet = 0;
+    }
+    return (0);
+}
+
+
+
+/* Pet behavior */
 
 /*
  * Choose "logical" directions for pet movement
@@ -219,7 +379,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
  * the golem handler. (i have plans for the pet system)
  * - the_sandman
  */
-static void process_monster_pet(int Ind, int m_idx) {
+void process_monster_pet(int Ind, int m_idx) {
 	//player_type *p_ptr;
 	monster_type	*m_ptr = &m_list[m_idx];
 	monster_race    *r_ptr = race_inf(m_ptr);
@@ -653,219 +813,11 @@ cave_midx_debug(wpos, oy, ox, c_ptr->m_idx); //DEBUG
 }
 
 
-/* from spells2.c */
-bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
-	int		Ind, j;
-	cave_type	*c_ptr;
-
-	monster_type	*m_ptr;
-	monster_race	*r_ptr = &r_info[r_idx];
-
-	char buf[80];
-
-	cave_type **zcave;
-
-
-	if (!(zcave = getcave(wpos))) return(0);
-	/* Verify location */
-	if (!in_bounds(y, x)) return(0);
-	/* Require empty space */
-	if (!cave_empty_bold(zcave, y, x)) return(0);
-	/* Hack -- no creation on glyph of warding */
-	if (zcave[y][x].feat == FEAT_GLYPH) return(0);
-	if (zcave[y][x].feat == FEAT_RUNE) return(0);
-
-	/* Paranoia */
-	if (!r_idx) return(0);
-
-	/* Paranoia */
-	if (!r_ptr->name) return(0);
-
-	/* Update r_ptr due to possible r_idx changes */
-	r_ptr = &r_info[r_idx];
-
-	/* No uniques, obviously */
-	if (r_ptr->flags1 & RF1_UNIQUE) return(0);
-
-	/* No breeders */
-	if (r_ptr->flags7 & RF7_MULTIPLY) return(0);
-
-	c_ptr = &zcave[y][x];
-
-	/* Make a new monster */
-	c_ptr->m_idx = m_pop();
-
-	/* Mega-Hack -- catch "failure" */
-	if (!c_ptr->m_idx) return(0);
-
-	/* Get a new monster record */
-	m_ptr = &m_list[c_ptr->m_idx];
-
-	/* Save the race */
-	m_ptr->r_idx = r_idx;
-
-	/* Place the monster at the location */
-	m_ptr->fy = y;
-	m_ptr->fx = x;
-	wpcopy(&m_ptr->wpos, wpos);
-
-	m_ptr->special = m_ptr->questor = 0;
-
-	/* Hack -- Count the monsters on the level */
-	r_ptr->cur_num++;
-
-	/* Assign maximal hitpoints */
-	if (r_ptr->flags1 & RF1_FORCE_MAXHP)
-		m_ptr->maxhp = maxroll(r_ptr->hdice, r_ptr->hside);
-	else
-		m_ptr->maxhp = damroll(r_ptr->hdice, r_ptr->hside);
-
-	/* And start out fully healthy */
-	m_ptr->hp = m_ptr->maxhp;
-
-	/* Extract the monster base speed */
-	m_ptr->speed = r_ptr->speed;
-	/* set cur speed to base speed */
-	m_ptr->mspeed = m_ptr->speed;
-
-	/* Extract base ac and  other things */
-	m_ptr->ac = r_ptr->ac;
-
-	for (j = 0; j < 4; j++) {
-		m_ptr->blow[j].effect = r_ptr->blow[j].effect;
-		m_ptr->blow[j].method = r_ptr->blow[j].method;
-		m_ptr->blow[j].d_dice = r_ptr->blow[j].d_dice;
-		m_ptr->blow[j].d_side = r_ptr->blow[j].d_side;
-	}
-	m_ptr->level = r_ptr->level;
-	m_ptr->exp = MONSTER_EXP(m_ptr->level);
-	m_ptr->owner = 0;
-
-	/* Give a random starting energy */
-	m_ptr->energy = rand_int(100);
-
-	/* No "damage" yet */
-	m_ptr->stunned = 0;
-	m_ptr->confused = 0;
-	m_ptr->monfear = 0;
-
-	/* No knowledge */
-	m_ptr->cdis = 0;
-
-	/* special pet value */
-	m_ptr->owner = Players[owner_id]->id;
-	m_ptr->pet = 1;
-	m_ptr->mind = PET_NONE;
-
-	for (Ind = 1; Ind <= NumPlayers; Ind++) {
-		if (Players[Ind]->conn == NOT_CONNECTED)
-			continue;
-
-		Players[Ind]->mon_los[c_ptr->m_idx] = 0;
-		Players[Ind]->mon_vis[c_ptr->m_idx] = 0;
-	}
-
-	if (getlevel(wpos) >= (m_ptr->level + 8)) {
-		m_ptr->exp = MONSTER_EXP(m_ptr->level + ((getlevel(wpos) - m_ptr->level - 5) / 3));
-		monster_check_experience(c_ptr->m_idx, TRUE);
-	}
-
-	strcpy(buf, (r_name + r_ptr->name));
-
-	/* Update the monster */
-	update_mon(c_ptr->m_idx, TRUE);
-
-	/* Assume no sleeping */
-	m_ptr->csleep = 0;
-
-	/* STR */
-	for (j = 0; j < 4; j++) {
-		m_ptr->blow[j].org_d_dice = r_ptr->blow[j].d_dice;
-		m_ptr->blow[j].org_d_side = r_ptr->blow[j].d_side;
-	}
-	/* DEX */
-	m_ptr->org_ac = m_ptr->ac;
-	/* CON */
-	m_ptr->org_maxhp = m_ptr->maxhp;
-
-	return(TRUE);
-}
-
-/* TODO - implement pets quantity limits */
-bool canPlayerSummonPet(int Ind) {
-//    if (!Players[Ind]->has_pet)
-//    {
-//        return FALSE:
-//    }
-    return TRUE;
-}
-
-/* Create a servant ! -- The_sandman */
-char pet_creation(int Ind, int r_idx) { //put the sanity tests here and call place_pet
-    bool pet_placed;
-
-    if (! canPlayerSummonPet(Ind)) {
-        return(0);
-    }
-
-    pet_placed = place_pet(
-       Ind,
-       &(Players[Ind]->wpos),
-       Players[Ind]->py,
-       Players[Ind]->px + 1,  /* E of player */
-       r_idx
-    );
-
-    if (!pet_placed) {
-        return(0);
-    }
-
-    Players[Ind]->has_pet = 1;
-    s_printf("New pet created:");
-
-    return(1);
-}
-
-
-/* Remove all player pet(s) */
-int remove_pets(int Ind) {
-    int i, j;
-    player_type *p_ptr = Players[Ind];
-    monster_type *m_ptr;
-
-    //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
-
-    /* Process the monsters */
-    for (i = m_top - 1; i >= 0; i--) {
-        /* Access the index */
-        j = m_fast[i];
-
-        /* Access the monster */
-        m_ptr = &m_list[j];
-
-        /* Excise "dead" monsters */
-        if (!m_ptr->r_idx) continue;
-
-        if (m_ptr->owner != Players[Ind]->id) continue;
-
-        delete_monster_idx(j, FALSE);
-        p_ptr->has_pet = 0;
-    }
-    return (0);
-}
-
-void summon_pet(int Ind, int r_idx) {
-    pet_creation(Ind, r_idx);
-}
- 
-void unsummon_pets(int Ind) {
-    remove_pets(Ind);
-}
-
-
-monster_type *get_m_ptr_fast(int m_idx) {
+/* Some helpers */
+static monster_type *get_m_ptr_fast(int m_idx) {
     return &m_list[m_fast[m_idx]];
 }
+
 
 void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
     if (!m_ptr->pet) return;

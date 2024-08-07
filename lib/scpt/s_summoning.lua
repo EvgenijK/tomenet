@@ -11,7 +11,7 @@ SUMMON_I = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-		  summon_pet(Ind,  33)
+		  summon_pet_on_player(Ind,  33)
 	end,
 	["info"] = 	function()
 		 	local lev
@@ -32,7 +32,7 @@ SUMMON_II = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-		  summon_pet(Ind,  196)
+		  summon_pet_on_player(Ind,  196)
 	end,
 	["info"] = 	function()
 		 	local lev
@@ -53,7 +53,7 @@ SUMMON_III = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-		  summon_pet(Ind,  1073)
+		  summon_pet_on_player(Ind,  1073)
 	end,
 	["info"] = 	function()
 		 	local lev
@@ -74,7 +74,7 @@ SUMMON_GREAT = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-		  summon_pet(Ind,  1073)
+		  summon_pet_on_player(Ind,  1073)
 	end,
 	["info"] = 	function()
 		 	local lev

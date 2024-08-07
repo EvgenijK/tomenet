@@ -12371,13 +12371,13 @@ void process_monsters(void) {
 
 			suppress_message = FALSE;
 		}
-		//#ifdef RPG_SERVER
+		#ifdef ENABLE_PETS
 		else if (m_ptr->pet) { //pet
 			int p = find_player(m_ptr->owner);
 
 			process_monster_pet(p, i);
 		}
-		//#endif
+		#endif
 		else { //golem
 			int p = find_player(m_ptr->owner);
 

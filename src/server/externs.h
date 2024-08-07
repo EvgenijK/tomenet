@@ -2787,12 +2787,11 @@ extern u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHRO
 
 #ifdef ENABLE_PETS
 /* pets_module.c */
-extern bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx);
-extern char pet_creation(int Ind, int r_idx);
-extern void summon_pet(int Ind, int max);
+extern void summon_pet_on_player(int Ind, int r_idx);
+
 extern int remove_pets(int Ind);
 extern void unsummon_pets(int Ind);
 extern void toggle_all_pets_mind(int Ind, byte pet_mind);
-extern monster_type *get_m_ptr_fast(int m_idx);
 extern void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind);
+extern void process_monster_pet(int Ind, int m_idx);
 #endif

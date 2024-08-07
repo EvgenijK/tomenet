@@ -27,7 +27,6 @@
 
 
 static void do_slash_brief_help(int Ind);
-//char pet_creation(int Ind);
 //static int lInd = 0;
 
 
@@ -2139,12 +2138,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #endif
 			return;
 		}
-#ifdef RPG_SERVER /* too dangerous on the pm server right now - mikaelh */
-/* Oops, meant to be on RPG only for now. forgot to add it. thanks - the_sandman */
+#ifdef ENABLE_PETS
  #if 0 //moved the old code here.
 		else if (prefix(messagelc, "/pet")) {
 			if (tk && prefix(token[1], "force")) {
-				summon_pet(Ind, 1);
+				summon_pet_on_player(Ind, 1);
 				msg_print(Ind, "You summon a pet");
 			} else {
 				msg_print(Ind, "Pet code is under working; summoning is bad for your server's health.");
@@ -2162,7 +2160,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 //				msg_print(Ind, "\377rYou cannot have anymore pets!");
 //				return;
 //			}
-//			if (pet_creation(Ind))
+//			if (summon_pet_on_player(Ind, 1))
 //				msg_print(Ind, "\377USummoning a pet.");
 //			else
 //				msg_print(Ind, "\377rYou already have a pet!");
@@ -2170,7 +2168,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 //		}
 #endif
 		else if (prefix(messagelc, "/unpet")) {
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) return;
 			msg_print(Ind, "\377RYou abandon your pet! You cannot have anymore pets!");
 //			if (Players[Ind]->wpos.wz != 0) {
