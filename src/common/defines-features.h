@@ -64,7 +64,8 @@
 #define DUAL_WIELD		/* rogues (and others too now) may dual-wield 1-hand weapons */
 #define ENABLE_STANCES		/* combat stances for warriors */
 #define ALLOW_SHIELDLESS_DEFENSIVE_STANCE	/* Always allow defensive stance (less effective than with shield though) */
-#define DEFENSIVE_STANCE_GLOBAL_RANGED_REDUCTION	/* Globally just cut ranged damage by 50% in defensive stance (physical, not spells) */
+#define DEFENSIVE_STANCE_FIXED_RANGED_REDUCTION	/* Globally just cut _TOTAL_ ranged damage by 50% in defensive stance (physical, not spells) */
+#define DEFENSIVE_STANCE_TOTAL_MELEE_REDUCTION		/* Globally just cut _TOTAL_ melee damage by nn% in defensive stance, depending on stance level */
 
 #define ENABLE_CLOAKING		/* cloaking mode for rogues */
 #define NEW_DODGING		/* reworked dodging formulas to allow more armour weight while aligning it to rogues, keeping your ideas though, Adam ;) - C. Blue */
@@ -644,7 +645,8 @@
   #define LOCAL_FILE_LINES_MAX 35000 //actually, r_info.txt is already 20640 lines long :o
  #endif
 
- /* Use regex.h to offer regexp in-game guide searching; and now also auto-inscription regexp matching */
+ /* Use regex.h to offer regexp in-game guide searching; and now also auto-inscription regexp matching.
+    (Turning this off will also prevent REGEX_URL, in c-util.c.) */
  #define REGEX_SEARCH
 
  /* Enable bookmarking feature? */

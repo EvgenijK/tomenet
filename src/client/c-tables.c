@@ -188,7 +188,7 @@ cptr window_flag_desc[NR_OPTIONS_SHOWN] = {
 option_type option_info[OPT_MAX] = { // there is room for 22 options per page on the (non-bigmap) screen
     //page 1 - 0
 	{ &c_cfg.rogue_like_commands,	FALSE,	1,	0, 0, TRUE,
-	    "rogue_like_commands",	"Rogue-like keymap (for covering lack of a numpad)" },
+	    "rogue_like_commands",	"Rogue-like keyset (for covering lack of a numpad)" },
 	{ &c_cfg.newbie_hints,		TRUE,	1,	0, 1, TRUE,
 	    "newbie_hints",		"Display hints/warnings for new players" },
 	{ &c_cfg.censor_swearing,	TRUE,	1,	0, 2, TRUE,
@@ -300,7 +300,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
     //todo: fix/implement good cursor on *nix/osx
 	{ &c_cfg.hilite_player,		FALSE,	6,	0, 45, TRUE,
 	    "highlight_player",		"Highlight own character icon with the cursor" },
-	{ &c_cfg.consistent_players,	FALSE,	6,	0, 46, TRUE,
+	{ &c_cfg.consistent_players,	FALSE,	7,	0, 46, TRUE,
 	    "consistent_players",	"Use consistent symbols and colours for players" },
 
 	{ &c_cfg.recall_flicker,	TRUE,	6,	0, 47, TRUE,
@@ -577,8 +577,11 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "ascii_monsters",		"Disable font-specific mapping for all monsters" },
 	{ &c_cfg.ascii_uniques,		FALSE,	7,	0, 157, TRUE,
 	    "ascii_uniques",		"Disable font-specific mapping for unique monsters" },
+
 	{ &c_cfg.no_flicker,		FALSE,	6,	0, 158, TRUE,
 	    "no_flicker",		"Disable all fast colour animations" },
+	{ &c_cfg.stun_huge_bar,		FALSE,	6,	0, 159, TRUE,
+	    "stun_huge_bar",		"Show stun status as huge bar (big_map only)" },
 };
 
 cptr melee_techniques[16] = {

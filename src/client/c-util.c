@@ -11,8 +11,10 @@
  #include <dirent.h> /* we now need it for scanning for audio packs too */
 //#endif
 
+#ifdef REGEX_SEARCH
 /* For extract_url(): able to utilize regexps? */
-#define REGEX_URL
+ #define REGEX_URL
+#endif
 
 #if defined(REGEX_SEARCH) || defined(REGEX_URL)
  #include <regex.h>
@@ -1722,7 +1724,7 @@ char roguelike_commands(char command) {
 	/* Oops, audio mixer */
 	case KTRL('F'): return(KTRL('U'));
 	case KTRL('V'): return(KTRL('N'));
-	//case KTRL('X'): return(KTRL('C')); --we use ctrl+x for ghost powers and are out of keys, so this just doesn't exist in rogue-like key set :/
+	//case KTRL('X'): return(KTRL('C')); --we use ctrl+x for ghost powers and are out of keys, so this just doesn't exist in rogue-like keyset :/
 
 	/* Hack -- Commit suicide */
 	/* ..instead display fps */
@@ -7089,7 +7091,7 @@ Chain_Macro:
 						Term_putstr(5, 15, -1, TERM_L_GREEN, "    d\377g) invoke '/dress' command (optionally with a tag)");
 						Term_putstr(5, 16, -1, TERM_L_GREEN, "    b\377g) invoke '/bed' command (optionally with a tag)");
 						Term_putstr(5, 18, -1, TERM_GREEN, "Note: This macro depends on your current 'rogue_like_commands' option");
-						Term_putstr(5, 19, -1, TERM_GREEN, "      setting and will not work anymore if you change the keymap.");
+						Term_putstr(5, 19, -1, TERM_GREEN, "      setting and will not work anymore if you change the keyset.");
 						/* Hack: Hide the cursor */
 						Term->scr->cx = Term->wid;
 						Term->scr->cu = 1;
@@ -8368,12 +8370,18 @@ void auto_inscriptions(void) {
 #else
 				strcpy(match_buf, format("\377%c>\377w", c));
 #endif
+#ifdef REGEX_SEARCH
 				if (auto_inscription_invalid[cur_idx]) strcat(match_buf, "\377R");
+#endif
 				strcat(match_buf, auto_inscription_match[cur_idx]);
 				strcpy(tag_buf, auto_inscription_tag[cur_idx]);
 				sprintf(fff, "\377%c%3d %-59s %s%s\377%c>%-19s", auto_inscription_force[cur_idx] ? AUTOINS_FORCE_COL : 'w', cur_idx + 1, match_buf, /* spacing = AUTOINS_MATCH_LEN + 7 */
 				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : " "),
+#ifdef REGEX_SEARCH
 				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting.. */
+#else
+				    "",
+#endif
 				    c, tag_buf);
 
 #ifdef INTEGRATED_SELECTOR
@@ -8405,12 +8413,18 @@ void auto_inscriptions(void) {
  #else
 				strcpy(match_buf, format("\377%c>\377w", c));
  #endif
+ #ifdef REGEX_SEARCH
 				if (auto_inscription_invalid[cur_idx]) strcat(match_buf, "\377R");
+ #endif
 				strcat(match_buf, auto_inscription_match[cur_idx]);
 				strcpy(tag_buf, auto_inscription_tag[cur_idx]);
 				sprintf(fff, "\377%c%3d %-59s %s%s\377%c>%-19s", auto_inscription_force[cur_idx] ? AUTOINS_FORCE_COL : 'w', cur_idx + 1, match_buf, /* spacing = AUTOINS_MATCH_LEN + 7 */
 				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : " "),
+ #ifdef REGEX_SEARCH
 				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting.. */
+ #else
+				    "",
+ #endif
 				    c, tag_buf);
 
  #ifdef AUTOINS_DIS_SUB_MATCH
@@ -11926,7 +11940,7 @@ void interact_audio(void) {
 			Term_putstr(item_x[1], y_toggle, -1, TERM_WHITE, format(" [%s]", cfg_audio_music ? "\377GX\377w" : " "));
 			if (c_cfg.rogue_like_commands)
 				//Term_putstr(item_x[1], y_toggle + 3, -1, TERM_SLATE, "CTRL+X"); out of keys, we need this for ghost powers -_-
-				Term_putstr(item_x[1], y_toggle + 3, -1, TERM_SLATE, "CTRL+C"); //just display the normal-map key, as it actually works inside the mixer in rl-keymap mode too
+				Term_putstr(item_x[1], y_toggle + 3, -1, TERM_SLATE, "CTRL+C"); //just display the normal-set key, as it actually works inside the mixer in rl-keyset mode too
 			else
 				Term_putstr(item_x[1], y_toggle + 3, -1, TERM_SLATE, "CTRL+C");
 			Term_putstr(item_x[2], y_toggle, -1, TERM_WHITE, format(" [%s]", cfg_audio_sound ? "\377GX\377w" : " "));
@@ -11991,7 +12005,7 @@ void interact_audio(void) {
 			redraw = FALSE;
 			break;
 		case KTRL('U'):
-		case KTRL('F'): /* <- rogue-like keymap */
+		case KTRL('F'): /* <- rogue-like keyset */
 		case ESCAPE:
 			quit = TRUE; /* hack to leave loop */
 			break;
@@ -12635,14 +12649,21 @@ void check_immediate_options(int i, bool yes, bool playing) {
 	    option_info[i].o_var == &c_cfg.hp_huge_bar) ||
 	    (option_info[i].o_var == &c_cfg.font_map_solid_walls &&
 	    (c_cfg.mp_huge_bar || c_cfg.sn_huge_bar || c_cfg.hp_huge_bar))) {
+		if (screen_icky) Term_switch(0);
+
+		clear_huge_bars();
+
+		/* Actually redraw any stun "background bar" first, as it's in the background visually... */
+		if (p_ptr->stun) prt_stun(p_ptr->stun);
+
 		/* Reset static vars for hp/sp/mp for drawing huge bars to enforce redrawing */
 		prev_huge_cmp = prev_huge_csn = prev_huge_chp = -1;
-		if (screen_icky) Term_switch(0);
-		clear_huge_bars();
+
 		/* Avoid div/0 if client just logged in with a character, which also initializes the options and calls us */
 		if (p_ptr->mmp) draw_huge_bar(0, &prev_huge_cmp, p_ptr->cmp, &prev_huge_mmp, p_ptr->mmp);
 		if (p_ptr->msane) draw_huge_bar(1, &prev_huge_csn, p_ptr->csane, &prev_huge_msn, p_ptr->msane);
 		if (p_ptr->mhp) draw_huge_bar(2, &prev_huge_chp, p_ptr->chp, &prev_huge_mhp, p_ptr->mhp);
+
 		if (screen_icky) Term_switch(0);
 	}
 	if (option_info[i].o_var == &c_cfg.sn_huge_bar && c_cfg.sn_huge_bar && is_older_than(&server_version, 4, 8, 1, 3, 0, 0))
