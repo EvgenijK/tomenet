@@ -1785,6 +1785,19 @@ static bool rd_extra(int Ind) {
 	if (older_than(4, 2, 7)) p_ptr->has_pet = 0; //assume no pet
 	else rd_byte(&p_ptr->has_pet);
 
+#ifdef ENABLE_PETS
+	if (older_than(5, 0, 0)) { // assume no pets
+		p_ptr->pet_indexes = 0; 
+		p_ptr->pets_count = 0;
+	} else {
+		// TODO (dont know how to do it right now)
+
+		// read pets count
+
+		// read pets
+	}
+#endif
+
 	/* Divinity has been absorbed by traits (ptrait) now */
 	if (older_than(4, 4, 12)) {
 		/* Divinity support in savefile now on all servers - mikaelh */
