@@ -2151,21 +2151,21 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
  #endif
-//		else if (prefix(messagelc, "/pet")) {
-//			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) {
-//				msg_print(Ind, "\377rPet system is disabled.");
-//				return;
-//			}
-//			if (Players[Ind]->has_pet == 2) {
-//				msg_print(Ind, "\377rYou cannot have anymore pets!");
-//				return;
-//			}
-//			if (summon_pet_on_player(Ind, 1))
-//				msg_print(Ind, "\377USummoning a pet.");
-//			else
-//				msg_print(Ind, "\377rYou already have a pet!");
-//			return;
-//		}
+		else if (prefix(messagelc, "/pet")) {
+			if (!admin) {
+				return;
+			}
+
+			if (k > 0) {
+				if (summon_pet_on_player(Ind, k))
+					msg_print(Ind, "\377USummoning a pet.");
+				else
+					msg_print(Ind, "\377rYou cannot have a pet!");
+			} else {
+				msg_print(Ind, "\377oUsage: /pet (monster race index)");
+			}
+			return;
+		}
 #endif
 		else if (prefix(messagelc, "/unpet")) {
 #ifdef ENABLE_PETS

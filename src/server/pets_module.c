@@ -3,6 +3,8 @@
 #include "angband.h"
 
 /*
+ * Plan:
+ * 
  * 1. Pet creation
  * 1.1 placing
  * 1.2 making pet "monster"
@@ -14,8 +16,13 @@
  * 3.1 moving with player
  * 3.2 attaking hostile monsters/players
  * 
+ * pet saving (load2.c)
+ *  - "logout" pet with player, spawn next to him when login back
+ *  - player can "stable" pets in his houses, on that case they didnt "logout", but stay in the world (are they "holding" the floor then?)
+ * 
+ * - update slash command "/pet"  -> "/pet <moster_id>"
+ *
  */
-
 
 /* Pet creation */
 static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
