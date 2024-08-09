@@ -1786,16 +1786,16 @@ static bool rd_extra(int Ind) {
 	else rd_byte(&p_ptr->has_pet);
 
 #ifdef ENABLE_PETS
-	if (older_than(5, 0, 0)) { // assume no pets
-		p_ptr->pet_indexes = 0; 
-		p_ptr->pets_count = 0;
-	} else {
-		// TODO (dont know how to do it right now)
+	// if (older_than(5, 0, 0)) { // assume no pets
+	// 	p_ptr->pet_indexes = 0; 
+	// 	p_ptr->pets_count = 0;
+	// } else {
+	// 	// TODO (dont know how to do it right now)
 
-		// read pets count
+	// 	// read pets count
 
-		// read pets
-	}
+	// 	// read pets
+	// }
 #endif
 
 	/* Divinity has been absorbed by traits (ptrait) now */

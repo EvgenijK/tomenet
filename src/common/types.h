@@ -3932,8 +3932,8 @@ struct player_type {
 	//superseded by mutedchat -- bool muted; /* Being an ass? - the_sandman */
 	byte has_pet;			/* Pet limiter */
 #ifdef ENABLE_PETS
-	int pets_count;
-	int *pet_indexes; /* Player pets */
+	// int pets_count;
+	// int *pet_indexes; /* Player pets */
 #endif
 	/* Is the player auto-retaliating? (required for hack that fixes a lock bug) */
 	bool auto_retaliating;
