@@ -3930,11 +3930,7 @@ struct player_type {
 	byte paging;			/* Player being paged by others? (Beep counter) */
 	byte ignoring_chat;		/* Ignoring normal chat? (Will only see private & party messages then) */
 	//superseded by mutedchat -- bool muted; /* Being an ass? - the_sandman */
-	byte has_pet;			/* Pet limiter */
-#ifdef ENABLE_PETS
-	// int pets_count;
-	// int *pet_indexes; /* Player pets */
-#endif
+	byte has_pet;			/* Pet limiter */ /* TODO add new PETS code here */
 	/* Is the player auto-retaliating? (required for hack that fixes a lock bug) */
 	bool auto_retaliating;
 	bool auto_retaliaty;		/* TRUE for code-wise duration of autorataliation
