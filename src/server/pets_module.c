@@ -25,15 +25,15 @@
  */
 
 /* Pet creation */
-static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
+static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
 static bool canPlayerSummonPet(int Ind);
 static cavespot get_position_near_player(int Ind);
 static int make_pet_from_monster(int m_idx, int owner_ind);
 static bool link_pet_to_player(int Ind, int m_idx);
 static bool can_place_pet(cave_type **zcave, struct cavespot cave_position);
 
-void summon_pet_on_player(int Ind, int r_idx) {
-    pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
+int summon_pet_on_player(int Ind, int r_idx) {
+    return pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
 }
 
 // some functions ideas for future use
@@ -59,7 +59,7 @@ static cavespot get_position_near_player(int Ind) {
     return cave_position;
 }
 
-static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position) {
+static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position) {
     int m_idx;
 
     int x = cave_position.x;
@@ -77,7 +77,7 @@ static bool pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct
 
     s_printf("New pet created!");
 
-    return(1);
+    return m_idx;
 }
 
 static int make_pet_from_monster(int m_idx, int owner_ind) {

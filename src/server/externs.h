@@ -2787,7 +2787,7 @@ extern u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHRO
 
 #ifdef ENABLE_PETS
 /* pets_module.c */
-extern void summon_pet_on_player(int Ind, int r_idx);
+extern int summon_pet_on_player(int Ind, int r_idx);
 
 extern int remove_pets(int Ind);
 extern void unsummon_pets(int Ind);
