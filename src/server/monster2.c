@@ -4952,49 +4952,6 @@ bool summon_specific_race_somewhere(struct worldpos *wpos, int r_idx, int s_clon
 	return(FALSE);
 }
 
-/* Not used */
-int summon_detailed_one(struct worldpos *wpos, int y1, int x1, int r_idx, int ego, bool slp, int s_clone) {
-	int i, y, x;
-	int tries = 0;
-
-	cave_type **zcave;
-
-	if (!(zcave = getcave(wpos))) return(FALSE);
-
-	/* Look for a location */
-	for (i = 0; i < 20; ++i) {
-		/* Pick a distance */
-		int d = (i / 15) + 1;
-
-		/* Pick a location */
-		scatter(wpos, &y, &x, y1, x1, d, 0);
-
-		/* Require "empty" floor grid */
-		/* Changed for summoning on mountains */
-		if (!cave_empty_bold(zcave, y, x)) continue;
-		/* Hack -- no summon on glyph of warding */
-		if (zcave[y][x].feat == FEAT_GLYPH) continue;
-		if (zcave[y][x].feat == FEAT_RUNE) continue;
-
-		/* Okay */
-		break;
-	}
-
-	/* Failure */
-	if (i == 20) return(FALSE);
-	
-#ifdef USE_SOUND_2010
-	sound_near_site(y, x, wpos, 0, "summon", NULL, SFX_TYPE_MISC, FALSE);
-#endif
-
-	if (place_monster_one(wpos, y, x, r_idx, ego, FALSE, slp, s_clone == 101 ? 100 : s_clone, s_clone == 101 ? 1000 : 0) != 0)
-		return(FALSE);
-
-	/* Success */
-	return(zcave[y][x].m_idx);
-}
-
-
 /* summon a single monster in every detail in a random location */
 int summon_detailed_one_somewhere(struct worldpos *wpos, int r_idx, int ego, bool slp, int s_clone) {
 	int		     y, x;
