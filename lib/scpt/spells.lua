@@ -325,5 +325,4 @@ school_book[69] = { FOCUS, HERBALTEA, WATERPOISON_I }
 
 -- Create the book of summoning
 school_book[68] = { UNSUMMON, PET_MIND_ATTACK, PET_MIND_GUARD, PET_MIND_FOLLOW }
-=======
 
