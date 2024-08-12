@@ -2789,8 +2789,7 @@ extern u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHRO
 /* pets_module.c */
 extern int summon_pet_on_player(int Ind, int r_idx);
 
-extern int remove_pets(int Ind);
-extern void unsummon_pets(int Ind);
+extern bool unsummon_pets(int Ind);
 extern void toggle_all_pets_mind(int Ind, byte pet_mind);
 extern void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind);
 extern void process_monster_pet(int Ind, int m_idx);

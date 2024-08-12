@@ -2139,18 +2139,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 #ifdef ENABLE_PETS
- #if 0 //moved the old code here.
-		else if (prefix(messagelc, "/pet")) {
-			if (tk && prefix(token[1], "force")) {
-				summon_pet_on_player(Ind, 1);
-				msg_print(Ind, "You summon a pet");
-			} else {
-				msg_print(Ind, "Pet code is under working; summoning is bad for your server's health.");
-				msg_print(Ind, "If you still want to summon one, type \377o/pet force\377w.");
-			}
-			return;
-		}
- #endif
 		else if (prefix(messagelc, "/pet")) {
 			if (!admin) {
 				return;
@@ -2162,33 +2150,28 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				else
 					msg_print(Ind, "\377rYou cannot have a pet!");
 			} else {
-				msg_print(Ind, "\377oUsage: /pet (monster race index)");
+				msg_print(Ind, "\377oUsage: /pet (monster race index) (TODO: player_ind)");
 			}
 			return;
 		}
-#endif
 		else if (prefix(messagelc, "/unpet")) {
-#ifdef ENABLE_PETS
-			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) return;
-			msg_print(Ind, "\377RYou abandon your pet! You cannot have anymore pets!");
-//			if (Players[Ind]->wpos.wz != 0) {
-				for (i = m_top - 1; i >= 0; i--) {
-					monster_type *m_ptr = &m_list[i];
+			if (!admin) {
+				return;
+			}
 
-					if (!m_ptr->pet) continue;
-					if (find_player(m_ptr->owner) == Ind) {
-						m_ptr->pet = 0; //default behaviour!
-						m_ptr->owner = 0;
-						Players[Ind]->has_pet = 0; //spec value
-						i = -1; //quit early
-					}
-				}
-//			} else {
-//				msg_print(Ind, "\377yYou cannot abandon your pet while the whole town is looking!");
-//			}
-#endif
+			if (k > 0) {
+				if (unsummon_pets(Ind))
+					msg_print(Ind, "\377RYou abandon your pets!");
+				else
+					msg_print(Ind, "\377rYou cannot have a pet!");
+			} else {
+				msg_print(Ind, "\377oUsage: /unpet (TODO: playet_ind) (TODO: pet_ind)");
+			}
+
 			return;
 		}
+#endif
+
 		/* added shuffling >_> - C. Blue */
 		else if (prefix(messagelc, "/shuffle")) { /* usage: /shuffle [<32|52> [# of jokers]] */
 			/* Notes:

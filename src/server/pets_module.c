@@ -134,14 +134,18 @@ static bool can_place_pet(cave_type **zcave, struct cavespot cave_position) {
 
 /* Pet destruction */    
 
-int remove_pets(int Ind);
+bool remove_pets(int Ind);
  
-void unsummon_pets(int Ind) {
-    remove_pets(Ind);
+bool unsummon_pets(int Ind) {
+    return remove_pets(Ind);
 }
 
-/* Remove all player pet(s) */
-int remove_pets(int Ind) {
+/* 
+ * Remove all player pets
+ * TODO - make use of player_type->pets list for speed up
+ * 
+ */
+bool remove_pets(int Ind) {
     int i, j;
     player_type *p_ptr = Players[Ind];
     monster_type *m_ptr;
@@ -164,7 +168,7 @@ int remove_pets(int Ind) {
         delete_monster_idx(j, FALSE);
         p_ptr->has_pet = 0;
     }
-    return (0);
+    return TRUE;
 }
 
 
