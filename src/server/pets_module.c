@@ -28,7 +28,7 @@
 static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
 static bool canPlayerSummonPet(int Ind);
 static cavespot get_position_near_player(int Ind);
-static int make_pet_from_monster(int m_idx, int owner_ind);
+static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_position, int owner_ind);
 static bool link_pet_to_player(int Ind, int m_idx);
 static bool can_place_pet(cave_type **zcave, struct cavespot cave_position);
 
@@ -60,33 +60,57 @@ static cavespot get_position_near_player(int Ind) {
 }
 
 static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position) {
-    int m_idx;
-
+	int m_idx = 0;
     int x = cave_position.x;
     int y = cave_position.y;
 
     if (! canPlayerSummonPet(owner_ind)) return(0);
 
     summon_override_checks = SO_ALL; /* needed? */
-    m_idx = place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0);
+    if (! place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0)) {
+		s_printf("Something went wrong, you couldn't summon a pet!");
+	}
     summon_override_checks = SO_NONE;
 
-    if (!m_idx) return(0);
 
-    make_pet_from_monster(m_idx, owner_ind);
+
+	m_idx = make_pet_from_monster(wpos, cave_position, owner_ind);
+
+
+    if (!m_idx) {
+		s_printf("Something went wrong, you couldn't summon a pet!");
+		return(0);
+	}
+
 
     s_printf("New pet created!");
 
     return m_idx;
 }
 
-static int make_pet_from_monster(int m_idx, int owner_ind) {
-    monster_type *m_ptr = &m_list[m_idx];
+static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_position, int owner_ind) {
+    monster_type *m_ptr;
+	cave_type **zcave;
+	int temp;
+	int m_idx = 0;
+	int x = cave_position.x;
+    int y = cave_position.y;
+
+	if (!(zcave = getcave(wpos))) return(0);
+
+
+	/* trying to get newly created monster */
+	if ((temp = zcave[y][x].m_idx) <= 0) {
+		s_printf("You faild to take control on summoned monster, it's wild now!");
+		return 0;
+	}
+	m_ptr = &m_list[temp];
 
     /* special pet value */
     link_pet_to_player(owner_ind, m_idx);
     m_ptr->pet = 1;
     m_ptr->mind = PET_NONE;
+	m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
 
     /* Update the monster */
     update_mon(m_idx, TRUE);

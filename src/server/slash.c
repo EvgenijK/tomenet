@@ -2163,7 +2163,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				if (unsummon_pets(Ind))
 					msg_print(Ind, "\377RYou abandon your pets!");
 				else
-					msg_print(Ind, "\377rYou cannot have a pet!");
+					msg_print(Ind, "\377rYou cannot have a pet?");
 			} else {
 				msg_print(Ind, "\377oUsage: /unpet (TODO: playet_ind) (TODO: pet_ind)");
 			}
