@@ -6,8 +6,8 @@
  * Plan:
  * 
  * 1. Pet creation
- * 1.1 placing
- * 1.2 making pet "monster"
+ * 1.1 + placing
+ * 1.2 + making pet "monster"
  * 2. Pet destruction
  * 2.1 pet removal
  * 2.2 pet death
@@ -26,11 +26,9 @@
 
 /* Pet creation */
 static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position);
-static bool canPlayerSummonPet(int Ind);
 static cavespot get_position_near_player(int Ind);
 static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_position, int owner_ind);
 static bool link_pet_to_player(int Ind, int m_idx);
-static bool can_place_pet(cave_type **zcave, struct cavespot cave_position);
 
 int summon_pet_on_player(int Ind, int r_idx) {
     return pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
@@ -53,18 +51,38 @@ int summon_pet_on_player(int Ind, int r_idx) {
 /* Add some loop for checking near tiles */
 static cavespot get_position_near_player(int Ind) {
     struct cavespot cave_position;
-    cave_position.y = Players[Ind]->py;
-    cave_position.x = Players[Ind]->px + 1;  /* E of player */ 
+    cave_type **zcave = getcave(&(Players[Ind]->wpos));
+
+    int max_distance = 9;
+    int max_tries = 20;
+    int x;
+    int y;
+
+    for (int distance = 1; distance < max_distance; ++distance) {
+        x = Players[Ind]->py;
+        y = Players[Ind]->px;
+
+        for (int tries = 0; tries < max_tries; ++tries) {
+            scatter(&(Players[Ind]->wpos), &y, &x, Players[Ind]->py, Players[Ind]->px, distance, TRUE);
+
+            if (cave_empty_bold(zcave, y, x)) {
+                break;
+            }
+        }
+        if (cave_empty_bold(zcave, y, x)) {
+            break;
+        }
+    }
+    cave_position.y = y;
+    cave_position.x = x;
 
     return cave_position;
 }
 
 static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct cavespot cave_position) {
-	int m_idx = 0;
+	int m_idx;
     int x = cave_position.x;
     int y = cave_position.y;
-
-    if (! canPlayerSummonPet(owner_ind)) return(0);
 
     summon_override_checks = SO_ALL; /* needed? */
     if (! place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0)) {
@@ -72,10 +90,7 @@ static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct 
 	}
     summon_override_checks = SO_NONE;
 
-
-
 	m_idx = make_pet_from_monster(wpos, cave_position, owner_ind);
-
 
     if (!m_idx) {
 		s_printf("Something went wrong, you couldn't summon a pet!");
@@ -91,26 +106,30 @@ static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct 
 static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_position, int owner_ind) {
     monster_type *m_ptr;
 	cave_type **zcave;
-	int temp;
 	int m_idx = 0;
 	int x = cave_position.x;
     int y = cave_position.y;
 
 	if (!(zcave = getcave(wpos))) return(0);
 
+    /* trying to get newly created monster */
+    if ((m_idx = zcave[y][x].m_idx) <= 0) {
+        s_printf("You failed to take control on summoned monster, it's wild now!");
+        return 0;
+    }
+    m_ptr = &m_list[m_idx];
 
-	/* trying to get newly created monster */
-	if ((temp = zcave[y][x].m_idx) <= 0) {
-		s_printf("You faild to take control on summoned monster, it's wild now!");
-		return 0;
-	}
-	m_ptr = &m_list[temp];
+    /* Hack: create new race (scrapped from golem creation)  */
+    MAKE(m_ptr->r_ptr, monster_race);
+    /* Copy old race to the new one */
+    *(m_ptr->r_ptr) = r_info[m_ptr->r_idx];
+    /* QUESTION - do i need to do something with old m_ptr->r_ptr after stop using it for that monste?r */
 
     /* special pet value */
     link_pet_to_player(owner_ind, m_idx);
     m_ptr->pet = 1;
     m_ptr->mind = PET_NONE;
-	m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
+    m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
 
     /* Update the monster */
     update_mon(m_idx, TRUE);
@@ -129,34 +148,7 @@ static bool link_pet_to_player(int owner_ind, int m_idx) {
     return(1);
 }
 
-/* 
- * Put here all checks
- * TODO - implement pets quantity limits 
- */
-static bool canPlayerSummonPet(int Ind) {
-//    if (!Players[Ind]->has_pet) return FALSE:
-    return TRUE;
-}
-
-static bool can_place_pet(cave_type **zcave, struct cavespot cave_position) {
-    int x = cave_position.x;
-    int y = cave_position.y;
-
-    /* Verify location */
-    if (!in_bounds(y, x)) return(0);
-
-    /* Require empty space */
-    if (!cave_empty_bold(zcave, y, x)) return(0);
-    
-    /* Hack -- no creation on glyph of warding */
-    if (zcave[y][x].feat == FEAT_GLYPH) return(0);
-    if (zcave[y][x].feat == FEAT_RUNE) return(0);
-
-    return 1;
-}
-
-
-/* Pet destruction */    
+/* Pet destruction */
 
 bool remove_pets(int Ind);
  
