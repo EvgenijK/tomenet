@@ -392,14 +392,8 @@ void delete_monster_idx(int i, bool unfound_arts) {
 	}
 
 #ifdef ENABLE_PETS
-    if (m_ptr->pet) {
-        if (m_ptr->owner) {
-            msg_format(m_ptr->owner, "\377RYour %s has died! You feel sad.", r_name_get(m_ptr)); // lets try
-            msg_print(m_ptr->owner, "\377RYour pet has died! You feel sad.");
-        }
-
-        unlink_pet_from_owner(i);
-    }
+	/* Do it for any monster in case it lost its m_ptr->pet or m_ptr->owner */
+	unlink_pet_from_owner(i);
 #endif
 
 	/* Monster is gone */

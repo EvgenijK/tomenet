@@ -2139,6 +2139,21 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 #ifdef ENABLE_PETS
+		else if (prefix(messagelc, "/pettame")) {
+			if (!admin) {
+				return;
+			}
+
+			if (k > 0) {
+				if (make_pet_from_wild_monster(k, Ind))
+					msg_print(Ind, "\377UTaming a monster");
+				else
+					msg_print(Ind, "\377rYou cannot have a pet!");
+			} else {
+				msg_print(Ind, "\377oUsage: /pettame (m_idx)");
+			}
+			return;
+		}
 		else if (prefix(messagelc, "/pet")) {
 			if (!admin) {
 				return;
