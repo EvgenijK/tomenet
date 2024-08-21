@@ -380,12 +380,7 @@ void delete_monster_idx(int i, bool unfound_arts) {
 	for (Ind = 1; Ind <= NumPlayers; Ind++) {
 		/* Skip this player if he isn't playing */
 		if (Players[Ind]->conn == NOT_CONNECTED) continue;
-#ifdef RPG_SERVER
-		if (Players[Ind]->id == m_ptr->owner && m_ptr->pet) {
-			msg_print(Ind, "\377RYour pet has died! You feel sad.");
-			Players[Ind]->has_pet = 0;
-		}
-#endif
+
 		Players[Ind]->mon_vis[i] = FALSE;
 		Players[Ind]->mon_los[i] = FALSE;
 
@@ -396,6 +391,16 @@ void delete_monster_idx(int i, bool unfound_arts) {
 		if (i == Players[Ind]->health_who) health_track(Ind, 0);
 	}
 
+#ifdef ENABLE_PETS
+    if (m_ptr->pet) {
+        if (m_ptr->owner) {
+            msg_format(m_ptr->owner, "\377RYour %s has died! You feel sad.", r_name_get(m_ptr)); // lets try
+            msg_print(m_ptr->owner, "\377RYour pet has died! You feel sad.");
+        }
+
+        unlink_pet_from_owner(i);
+    }
+#endif
 
 	/* Monster is gone */
 	/* Make sure the level is allocated, it won't be if we are

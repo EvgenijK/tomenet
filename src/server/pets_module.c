@@ -29,24 +29,17 @@ static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct 
 static cavespot get_position_near_player(int Ind);
 static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_position, int owner_ind);
 static bool link_pet_to_player(int Ind, int m_idx);
+static bool can_player_have_more_pets(int Ind);
 
 int summon_pet_on_player(int Ind, int r_idx) {
     return pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
 }
 
-// some functions ideas for future use
-// void summon_pet_on_target(int Ind, int r_idx) {
-//     pet_creation(Ind, r_idx);
-// }
-// void summon_pet_on_monster(int Ind, int r_idx) {
-//     pet_creation(Ind, r_idx);
-// }
-// void summon_pet_on_other_player(int Ind, int r_idx) {
-//     pet_creation(Ind, r_idx);
-// }
-// void summon_pet_on_place(int Ind, int r_idx) {
-//     pet_creation(Ind, r_idx);
-// }
+// some functions ideas for future use:
+// void summon_pet_on_target(int Ind, int r_idx);
+// void summon_pet_on_monster(int Ind, int r_idx);
+// void summon_pet_on_other_player(int Ind, int r_idx);
+// void summon_pet_on_place(int Ind, int r_idx);
 
 /* Add some loop for checking near tiles */
 static cavespot get_position_near_player(int Ind) {
@@ -127,7 +120,6 @@ static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_pos
 
     /* special pet value */
     link_pet_to_player(owner_ind, m_idx);
-    m_ptr->pet = 1;
     m_ptr->mind = PET_NONE;
     m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
 
@@ -141,32 +133,65 @@ static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_pos
 static bool link_pet_to_player(int owner_ind, int m_idx) {
     monster_type *m_ptr = &m_list[m_idx];
 
+    if (!can_player_have_more_pets(owner_ind)) {
+        return(1);
+    }
+
     m_ptr->owner = Players[owner_ind]->id;
+    Players[owner_ind]->pets[Players[owner_ind]->pets_count] = m_idx;
+    m_ptr->pet = Players[owner_ind]->pets_count;
+    Players[owner_ind]->pets_count++;
 
-    // TODO - add list of pets in player and add pet in that list here
+    return(0);
+}
 
-    return(1);
+static bool can_player_have_more_pets(int Ind) {
+    if (Players[Ind]->pets_count >= MAX_PLAYER_PETS) {
+        s_printf("Maximum pets limit reached");
+        return(FALSE);
+    }
+
+    return TRUE;
 }
 
 /* Pet destruction */
-
-bool remove_pets(int Ind);
+static bool remove_player_pets(int Ind);
  
 bool unsummon_pets(int Ind) {
-    return remove_pets(Ind);
+    return remove_player_pets(Ind);
 }
 
-/* 
+/*
  * Remove all player pets
  * TODO - make use of player_type->pets list for speed up
- * 
+ *
  */
-bool remove_pets(int Ind) {
-    int i, j;
+static bool remove_player_pets(int Ind) {
     player_type *p_ptr = Players[Ind];
     monster_type *m_ptr;
 
-    //   if (!Players[Ind]->has_pet) return (0); /* Potential improvement (more memory needed though) */
+     for (int i = p_ptr->pets_count; i > 0; --i) {
+        if (! p_ptr->pets[i]) continue;
+
+        /* Access the monster */
+        m_ptr = &m_list[p_ptr->pets[i]];
+
+        /* Excise "dead" monsters */
+        if (!m_ptr->r_idx) continue;
+
+        /* Just in case... */
+        if (m_ptr->owner != Players[Ind]->id) continue;
+
+        delete_monster_idx(p_ptr->pets[i], FALSE);
+    }
+
+    return TRUE;
+}
+
+/* Delete all pets from all players, and also orphans */
+void remove_all_pets() {
+    int i, j;
+    monster_type *m_ptr;
 
     /* Process the monsters */
     for (i = m_top - 1; i >= 0; i--) {
@@ -179,15 +204,43 @@ bool remove_pets(int Ind) {
         /* Excise "dead" monsters */
         if (!m_ptr->r_idx) continue;
 
-        if (m_ptr->owner != Players[Ind]->id) continue;
+        if (!m_ptr->pet) continue;
 
         delete_monster_idx(j, FALSE);
-        p_ptr->has_pet = 0;
     }
-    return TRUE;
 }
 
+void unlink_pet_from_owner(int m_idx) {
+    player_type *p_ptr;
+    monster_type *m_ptr = &m_list[m_idx];
 
+    if (!m_ptr->pet) return;
+
+    if (!m_ptr->owner) {
+        m_ptr->pet = 0;
+        return;
+    }
+
+    p_ptr = Players[m_ptr->owner];
+    if (!p_ptr) {
+        m_ptr->owner = 0;
+        m_ptr->pet = 0;
+        return;
+    }
+
+
+    int m_idx_last_player_pet = p_ptr->pets[p_ptr->pets_count - 1];
+    monster_type *m_ptr_last_player_pet = &m_list[m_idx_last_player_pet];
+
+    p_ptr->pets[m_ptr->pet - 1] = p_ptr->pets[p_ptr->pets_count - 1];
+    p_ptr->pets[p_ptr->pets_count - 1] = 0;
+    p_ptr->pets_count--;
+
+    m_ptr_last_player_pet->pet = m_ptr->pet;
+
+    m_ptr->owner = 0;
+    m_ptr->pet = 0;
+}
 
 /* Pet behavior */
 

@@ -2160,14 +2160,28 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 
 			if (k > 0) {
-				if (unsummon_pets(Ind))
+				if (unsummon_pets(k))
+					msg_print(Ind, "\377RYou abandon other player pets!");
+				else
+					msg_print(Ind, "\377rSomething went wrong?");
+			} else {
+			       if (unsummon_pets(Ind))
 					msg_print(Ind, "\377RYou abandon your pets!");
 				else
-					msg_print(Ind, "\377rYou cannot have a pet?");
-			} else {
-				msg_print(Ind, "\377oUsage: /unpet (TODO: playet_ind) (TODO: pet_ind)");
+					msg_print(Ind, "\377rSomething wen wrong");
+		       
 			}
 
+			return;
+		}
+		else if (prefix(messagelc, "/removeallpets")) {
+			if (!admin) {
+				return;
+			}
+
+			remove_all_pets();
+
+		
 			return;
 		}
 #endif

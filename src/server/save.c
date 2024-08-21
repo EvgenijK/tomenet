@@ -770,7 +770,11 @@ static void wr_extra(int Ind) {
 	for (i = 0; i < 4; i++)
 		wr_string(p_ptr->history[i]);
 
-	wr_byte(p_ptr->has_pet); //pet pet
+    /* ENABLE_PETS*/
+    wr_s16b(p_ptr->pets_count);
+    for (i = 0; i < p_ptr->pets_count; i++) {
+        wr_u32b(p_ptr->pets[i]);
+    }
 
 	/* Race/Class/Gender/Party */
 	wr_byte(p_ptr->prace);

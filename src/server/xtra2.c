@@ -6057,7 +6057,7 @@ bool monster_death(int Ind, int m_idx) {
 	else if (m_ptr->pet) s_printf("MONSTER_DEATH: Pet of '%s' by '%s'\n", lookup_player_name(m_ptr->owner), p_ptr->name);
 #endif
 
-	//#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 	/* Pet death. Update and inform the owner -the_sandman */
 	if (m_ptr->pet) {
 		for (i = NumPlayers; i > 0; i--) {
@@ -6070,13 +6070,13 @@ bool monster_death(int Ind, int m_idx) {
 				default:
 					msg_format(Ind, "\374\377RYou have killed %s's pet!", Players[i]->name);
 				}
-				Players[i]->has_pet = 0;
+                /* TODO - make use of player_type->pets list for speed up */
 				FREE(m_ptr->r_ptr, monster_race); //no drop, no exp.
 				return(FALSE);
 			}
 		}
 	}
-	//#endif
+#endif
 
 	if (cfg.henc_strictness && !p_ptr->total_winner &&
 	    /* p_ptr->lev more logical but harsh: */
