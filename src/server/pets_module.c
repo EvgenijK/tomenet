@@ -5,12 +5,12 @@
 /*
  * Plan:
  * 
- * 1. Pet creation
+ * 1. +Pet creation
  * 1.1 + placing
  * 1.2 + making pet "monster"
- * 2. Pet destruction
- * 2.1 pet removal
- * 2.2 pet death
+ * 2. +Pet destruction
+ * 2.1 +pet removal
+ * 2.2 +pet death
  * 2.3 other pet disapperance occasions
  * 3. Pet behavior
  * 3.1 moving with player
@@ -238,7 +238,7 @@ void remove_all_pets() {
         remove_player_pets(i);
     }
 
-    /* Try to find orphan pets, ie without owner or pet */
+    /* Try to find orphan pets, ie without m_ptr->owner or m_ptr->pet */
     for (i = m_top - 1; i >= 0; i--) {
         /* Access the index */
         j = m_fast[i];
@@ -334,7 +334,13 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 
                 if (!c_ptr->m_idx) continue;
 
-                if (c_ptr->m_idx > 0) {
+                /* we dont need to move into friendly pets */
+                if (!(!m_list[c_ptr->m_idx].pet || (m_list[c_ptr->m_idx].owner && (m_list[c_ptr->m_idx].owner != m_ptr->owner) && check_hostile(find_player(m_ptr->owner), find_player(m_list[c_ptr->m_idx].owner)))
+                )) {
+                       continue;
+                }
+
+                if (c_ptr->m_idx > 0) { 
                     if (max_hp < m_list[c_ptr->m_idx].maxhp) {
                         max_hp = m_list[c_ptr->m_idx].maxhp;
                         tm_idx = c_ptr->m_idx;
@@ -871,14 +877,19 @@ void process_monster_pet(int Ind, int m_idx) {
 		/* a monster is in the way */
 		else if (do_move && c_ptr->m_idx > 0) {
 			/* attack it ! */
-			if (m_ptr->owner != y_ptr->owner || (y_ptr->owner && check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner))))
-			//if (m_ptr->owner != y_ptr->owner || !(y_ptr->pet && y_ptr->owner && !check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner))))
-				monster_attack_normal(c_ptr->m_idx, m_idx);
 
-			/* assume no movement */
-			do_move = FALSE;
-			/* take a turn */
-			do_turn = TRUE;
+            /* Hostile(not a pet or a pet of hostile player) - attack */
+			if (!y_ptr->pet || (y_ptr->owner && (m_ptr->owner != y_ptr->owner) && check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner)))
+            ) {
+				monster_attack_normal(c_ptr->m_idx, m_idx);
+                /* assume no movement */
+                do_move = FALSE;
+            }
+            /* assume no movement */
+            do_move = TRUE;
+            /* take a turn */
+            do_turn = TRUE;
+
 		}
 
 
