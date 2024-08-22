@@ -2793,7 +2793,6 @@ extern void remove_all_pets();
 extern int make_pet_from_wild_monster(int m_idx, int owner_ind);
 
 extern bool unsummon_pets(int Ind);
-extern void toggle_all_pets_mind(int Ind, byte pet_mind);
-extern void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind);
+extern void set_player_pets_mind(int Ind, byte pet_mind);
 extern void process_monster_pet(int Ind, int m_idx);
 #endif

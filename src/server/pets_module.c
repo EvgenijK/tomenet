@@ -11,10 +11,10 @@
  * 2. +Pet destruction
  * 2.1 +pet removal
  * 2.2 +pet death
- * 2.3 other pet disapperance occasions
+ * 2.3 + other pet disapperance occasions
  * 3. Pet behavior
- * 3.1 moving with player
- * 3.2 attaking hostile monsters/players
+ * 3.1 +moving with player
+ * 3.2 +attaking hostile monsters/players
  * 
  * pet saving (load2.c)
  *  - "logout" pet with player, spawn next to him when login back
@@ -34,12 +34,6 @@ static bool can_player_have_more_pets(int Ind);
 int summon_pet_on_player(int Ind, int r_idx) {
     return pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
 }
-
-// some functions ideas for future use:
-// void summon_pet_on_target(int Ind, int r_idx);
-// void summon_pet_on_monster(int Ind, int r_idx);
-// void summon_pet_on_other_player(int Ind, int r_idx);
-// void summon_pet_on_place(int Ind, int r_idx);
 
 /* Add some loop for checking near tiles */
 static cavespot get_position_near_player(int Ind) {
@@ -78,12 +72,13 @@ static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct 
     int y = cave_position.y;
 
     summon_override_checks = SO_ALL; /* needed? */
-    int monster_placed = place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0);
+    int monster_placed = ! place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0);
     msg_format(owner_ind, "\377RMonster placed: %d", monster_placed); // DEBUG
-    if (monster_placed) {
-		s_printf("Something went wrong, you couldn't summon a pet! (1)");
-	}
     summon_override_checks = SO_NONE;
+    if (! monster_placed) {
+        s_printf("Something went wrong, you couldn't summon a pet! (1)");
+        return(0);
+    }
 
 	m_idx = make_pet_from_monster(wpos, cave_position, owner_ind);
     msg_format(owner_ind, "\377RDEBUG: %d", m_idx); // DEBUG
@@ -988,54 +983,50 @@ static monster_type *get_m_ptr_fast(int m_idx) {
 }
 
 
-void toggle_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
+void set_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
     if (!m_ptr->pet) return;
 
     switch (pet_mind) {
     case PET_ATTACK:
         if (m_ptr->mind & pet_mind) {
-            msg_print(Ind, "Your pets stop going for your target.");
+            msg_print(Ind, "Your pet stop going for your target.");
             m_ptr->mind &= ~pet_mind;
         } else {
-            msg_print(Ind, "Your pets approach your target!");
+            msg_print(Ind, "Your pet approach your target!");
             m_ptr->mind |= pet_mind;
         }
     break;
     case PET_GUARD:
         if (m_ptr->mind & pet_mind) {
+            msg_print(Ind, "Your pet stop being on guard.");
             m_ptr->mind &= ~pet_mind;
-            msg_print(Ind, "Your pets stop following you around.");
         } else {
-            msg_print(Ind, "Your pets start following you around!");
+            msg_print(Ind, "Your pet seem to be on guard now!");
             m_ptr->mind |= pet_mind;
         }
     break;
     case PET_FOLLOW:
         if (m_ptr->mind & pet_mind) {
             m_ptr->mind &= ~pet_mind;
-            msg_print(Ind, "Your pets stop being on guard.");
+            msg_print(Ind, "Your pet stop following you around.");
         } else {
-            msg_print(Ind, "Your pets seem to be on guard now!");
+            msg_print(Ind, "Your pet start following you around!");
             m_ptr->mind |= pet_mind;
         }
     break;
     }
 }
 
-void toggle_all_pets_mind(int Ind, byte pet_mind) {
-    int i;
+void set_player_pets_mind(int Ind, byte pet_mind) {
     monster_type *m_ptr;
+    player_type *p_ptr = Players[Ind];
 
-    /* Process the monsters */
-    for (i = m_top - 1; i >= 0; i--) {
+    for (int i = 0; i < p_ptr->pets_count ; i++) {
+        if (! p_ptr->pets[i]) continue;
+
         /* Access the monster */
-        m_ptr = get_m_ptr_fast(i);
+        m_ptr = &m_list[p_ptr->pets[i]];
 
-        /* Excise "dead" monsters */
-        if (!m_ptr->r_idx) continue;
-
-        if (m_ptr->owner != Players[Ind]->id) continue;
-
-        toggle_pet_mind(Ind, m_ptr, pet_mind);
+        set_pet_mind(Ind, m_ptr, pet_mind);
     }
 }

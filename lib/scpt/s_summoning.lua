@@ -98,7 +98,9 @@ UNSUMMON = add_spell {
 	["spell"] = 	function(args)
 			unsummon_pets(Ind)
 	end,
-	["info"] = 	{ "Unsummon your pet", },
+	["info"] = 	function()
+			return ""
+	end,
 	["desc"] = 	{ "Unsummon your pet", }
 }
 
@@ -113,11 +115,15 @@ PET_MIND_ATTACK = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-			toggle_all_pets_mind(Ind, PET_ATTACK)
+			set_player_pets_mind(Ind, PET_ATTACK)
 	end,
-	["info"] = 	{ "", },
-	["desc"] = 	{ "", }
+	["info"] = 	function()
+			return ""
+	end,
+	["desc"] = 	{ "some desc", }
 }
+
+
 
 PET_MIND_GUARD = add_spell {
 	["name"] = 	"Pet guard",
@@ -130,10 +136,12 @@ PET_MIND_GUARD = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-			toggle_all_pets_mind(Ind, PET_GUARD)
+			set_player_pets_mind(Ind, PET_GUARD)
 	end,
-	["info"] = 	{ "", },
-	["desc"] = 	{ "", }
+	["info"] = 	function()
+			return ""
+	end,
+	["desc"] = 	{ "some desc", }
 }
 
 PET_MIND_FOLLOW = add_spell {
@@ -147,8 +155,10 @@ PET_MIND_FOLLOW = add_spell {
 	["direction"] = FALSE,
 	["ftk"] = 0,
 	["spell"] = 	function(args)
-			toggle_all_pets_mind(Ind, PET_FOLLOW)
+			set_player_pets_mind(Ind, PET_FOLLOW)
 	end,
-	["info"] = 	{ "", },
-	["desc"] = 	{ "", }
+	["info"] = 	function()
+			return ""
+	end,
+	["desc"] = 	{ "some desc", }
 }
