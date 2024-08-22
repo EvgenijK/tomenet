@@ -207,7 +207,7 @@ static bool remove_player_pets(int Ind) {
     player_type *p_ptr = Players[Ind];
     monster_type *m_ptr;
 
-    for (int i = p_ptr->pets_count - 1; i >= 0; --i) {
+    for (int i = p_ptr->pets_count - 1; i >= 0; i--) {
         if (! p_ptr->pets[i]) { 
             p_ptr->pets_count--; /* Some clearing */
             continue;
@@ -225,6 +225,9 @@ static bool remove_player_pets(int Ind) {
 
         delete_monster_idx(p_ptr->pets[i], FALSE);
     }
+
+    /* Just to be shure */
+    p_ptr->pets_count = 0;
 
     return TRUE;
 }
@@ -277,14 +280,19 @@ void unlink_pet_from_owner(int m_idx) {
         return;
     }
 
-    int m_idx_last_player_pet = p_ptr->pets[p_ptr->pets_count - 1];
-    monster_type *m_ptr_last_player_pet = &m_list[m_idx_last_player_pet];
-
-    p_ptr->pets[m_ptr->pet - 1] = p_ptr->pets[p_ptr->pets_count - 1];
+    if (m_ptr->pet < p_ptr->pets_count) {
+        int m_idx_last_player_pet = p_ptr->pets[p_ptr->pets_count - 1];
+        monster_type *m_ptr_last_player_pet = &m_list[m_idx_last_player_pet];
+        m_ptr_last_player_pet->pet = m_ptr->pet;
+        
+        p_ptr->pets[m_ptr->pet - 1] = p_ptr->pets[p_ptr->pets_count - 1];
+    }
+    
     p_ptr->pets[p_ptr->pets_count - 1] = 0;
     p_ptr->pets_count--;
 
-    m_ptr_last_player_pet->pet = m_ptr->pet;
+    if (p_ptr->pets_count < 0) p_ptr->pets_count = 0;
+
 
     m_ptr->owner = 0;
     m_ptr->pet = 0;
@@ -876,17 +884,39 @@ void process_monster_pet(int Ind, int m_idx) {
 		}
 		/* a monster is in the way */
 		else if (do_move && c_ptr->m_idx > 0) {
-			/* attack it ! */
+            monster_race *z_ptr = race_inf(y_ptr);
 
             /* Hostile(not a pet or a pet of hostile player) - attack */
 			if (!y_ptr->pet || (y_ptr->owner && (m_ptr->owner != y_ptr->owner) && check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner)))
             ) {
+                /* attack it ! */
 				monster_attack_normal(c_ptr->m_idx, m_idx);
                 /* assume no movement */
                 do_move = FALSE;
+            } else if (/* Push past weaker pets (needed to solve situation of infinite loop of pets swapping each other) */
+                y_ptr->pet &&
+                (m_ptr->owner == y_ptr->owner || !check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner))) &&
+                (r_ptr->mexp > z_ptr->mexp) && //TODO: check monster body weight too?
+                (cave_floor_bold(zcave, m_ptr->fy, m_ptr->fx))
+            ) {
+                /* Allow movement */
+                do_move = TRUE;
+                #ifdef OLD_MONSTER_LORE
+                                /* Monster pushed past another monster */
+                                did_move_body = TRUE;
+                #endif
+                /* XXX XXX XXX Message */
+                /* Monster wants to move but is blocked by another monster */
+            } else {
+                do_move = FALSE;
+
+                /* finally: 'stuck' monsters no longer retain full energy to retry casting in each frame. */
+#ifndef SIMPLE_ANTISTUCK
+                m_ptr->stuck = level_speed(&m_ptr->wpos);
+#else
+                do_turn = TRUE;
+#endif
             }
-            /* assume no movement */
-            do_move = TRUE;
             /* take a turn */
             do_turn = TRUE;
 
