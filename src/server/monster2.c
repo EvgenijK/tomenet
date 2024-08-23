@@ -650,6 +650,24 @@ void compact_monsters(int size, bool purge) {
 				}
 			}
 
+#ifdef ENABLE_PETS
+            /* Pets: keep p_ptr->pets information consistent */
+            if (m_list[i].owner) {
+                int myInd = find_player(m_list[i].owner);
+                player_type *p_ptr = Players[myInd];
+                if (p_ptr) {
+                    if (!m_list[i].pet) {
+                        p_ptr->pets_count++;
+                        m_list[i].pet = p_ptr->pets_count;
+                    }
+
+                    p_ptr->pets[m_list[i].pet - 1] = i;
+                } else {
+                    m_list[i].pet = 0;
+                    m_list[i].owner = 0;
+                }
+            }
+#endif
 #ifdef MONSTER_ASTAR
 			/* Reassign correct A* index */
 			if (m_list[i].r_idx /* alive monster? */
