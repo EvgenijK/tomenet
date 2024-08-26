@@ -35,7 +35,6 @@ int summon_pet_on_player(int Ind, int r_idx) {
     return pet_creation(Ind, r_idx, &(Players[Ind]->wpos), get_position_near_player(Ind));
 }
 
-/* Add some loop for checking near tiles */
 static cavespot get_position_near_player(int Ind) {
     struct cavespot cave_position;
     cave_type **zcave = getcave(&(Players[Ind]->wpos));
@@ -73,22 +72,20 @@ static int pet_creation(int owner_ind, int r_idx, struct worldpos *wpos, struct 
 
     summon_override_checks = SO_ALL; /* needed? */
     int monster_placed = ! place_monster_one(wpos, y, x, r_idx, 0, 0, 0, 0, 0);
-    msg_format(owner_ind, "\377RMonster placed: %d", monster_placed); // DEBUG
     summon_override_checks = SO_NONE;
+
     if (! monster_placed) {
-        s_printf("Something went wrong, you couldn't summon a pet! (1)");
+        msg_format(owner_ind, "\377RYour summon failed!");
         return(0);
     }
 
 	m_idx = make_pet_from_monster(wpos, cave_position, owner_ind);
-    msg_format(owner_ind, "\377RDEBUG: %d", m_idx); // DEBUG
 
     if (!m_idx) {
-		s_printf("Something went wrong, you couldn't control your pet! (2)");
 		return(0);
 	}
 
-    s_printf("New pet created!");
+    msg_format(owner_ind, "\377GYou summoned %s", r_name_get(&m_list[m_idx]));
 
     return m_idx;
 }
@@ -104,7 +101,8 @@ static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_pos
 
     /* trying to get newly created monster */
     if ((m_idx = zcave[y][x].m_idx) <= 0) {
-        s_printf("You failed to take control on summoned monster, it's wild now!");
+        msg_format(owner_ind, "\377RYou failed to take control on summoned monster, it's wild now!");
+        s_printf("PET_DEBUG: couldn't find newly created monster by zcave[y][x].m_idx");
         return 0;
     }
     m_ptr = &m_list[m_idx];
@@ -113,20 +111,21 @@ static int make_pet_from_monster(struct worldpos *wpos, struct cavespot cave_pos
     MAKE(m_ptr->r_ptr, monster_race);
     /* Copy old race to the new one */
     *(m_ptr->r_ptr) = r_info[m_ptr->r_idx];
-    /* QUESTION - do i need to do something with old m_ptr->r_ptr after stop using it for that monste?r */
 
-    msg_format(owner_ind, "\377RMaking new pet from monster: %s", r_name_get(m_ptr)); // DEBUG
+    s_printf("PET_DEBUG: Making new pet from monster: %d", m_idx); // DEBUG
 
-    /* special pet value */
+    /* special pet values */
     link_pet_to_player(owner_ind, m_idx);
     m_ptr->mind = PET_FOLLOW;
     m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
 
-    msg_format(owner_ind, "\377RMaking new pet completed! m_idx: %d, pets_count: %d, m_prt->pet: %d", 
+    s_printf("PET_DEBUG: Making new pet completed! m_idx: %d, player pets_count: %d, monster pet value: %d", 
         m_idx, Players[owner_ind]->pets_count, m_ptr->pet); // DEBUG
 
     /* Update the monster */
     update_mon(m_idx, TRUE);
+
+    msg_format(owner_ind, "\377GYou summon %s", r_name_get(m_ptr));
 
     return m_idx;
 }
@@ -136,24 +135,34 @@ int make_pet_from_wild_monster(int m_idx, int owner_ind) {
     monster_type *m_ptr;
 
     m_ptr = &m_list[m_idx];
+
+
+    if (!m_ptr) {
+        msg_format(owner_ind, "\377RYou failed to tame a monster!");
+        s_printf("PET_DEBUG: couldn't find monster by m_idx for taming");
+        return 0;
+    }
+
     /* Hack: create new race (scrapped from golem creation)  */
     MAKE(m_ptr->r_ptr, monster_race);
     /* Copy old race to the new one */
     *(m_ptr->r_ptr) = r_info[m_ptr->r_idx];
     /* QUESTION - do i need to do something with old m_ptr->r_ptr after stop using it for that monste?r */
 
-    msg_format(owner_ind, "\377RMaking new pet from monster: %s", r_name_get(m_ptr)); // DEBUG
+    s_printf("PET_DEBUG: Making new pet from monster: %d", m_idx); // DEBUG
 
     /* special pet value */
     link_pet_to_player(owner_ind, m_idx);
-    m_ptr->mind = PET_NONE;
+    m_ptr->mind = PET_FOLLOW;
     m_ptr->r_ptr->flags8 |= RF8_ALLOW_RUNNING;
 
-    msg_format(owner_ind, "\377RMaking new pet completed! m_idx: %d, pets_count: %d, m_prt->pet: %d", 
+    s_printf("PET_DEBUG: Making new pet completed! m_idx: %d, player pets_count: %d, monster pet value: %d", 
         m_idx, Players[owner_ind]->pets_count, m_ptr->pet); // DEBUG
 
     /* Update the monster */
     update_mon(m_idx, TRUE);
+
+    msg_format(owner_ind, "\377GYou tame %s", r_name_get(m_ptr));
 
     return m_idx;    
 }
@@ -169,18 +178,11 @@ static void link_pet_to_player(int owner_ind, int m_idx) {
     p_ptr->pets[p_ptr->pets_count] = m_idx;
     p_ptr->pets_count++;
     m_ptr->pet = p_ptr->pets_count;
-
-    msg_format(owner_ind, "\377RLinking pet to player: m_idx: %d", m_idx); // DEBUG
-    msg_format(owner_ind, "\377RLinking pet to player: m_ptr->owner: %d", m_ptr->owner); // DEBUG
-    msg_format(owner_ind, "\377RLinking pet to player: m_ptr->pet: %d", m_ptr->pet); // DEBUG
-    msg_format(owner_ind, "\377RLinking pet to player: m_idx: %d", p_ptr->pets[m_ptr->pet - 1]); // DEBUG
-    msg_format(owner_ind, "\377RLinking pet to player: m_idx: %d", m_idx); // DEBUG
-
 }
 
 static bool can_player_have_more_pets(int Ind) {
     if (Players[Ind]->pets_count >= MAX_PLAYER_PETS) {
-        s_printf("Maximum pets limit reached");
+        s_printf("PET_DEBUG: maximum pets limit reached for player(Ind): %d", Ind);
         return(FALSE);
     }
 
