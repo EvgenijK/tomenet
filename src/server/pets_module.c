@@ -314,10 +314,15 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
     if (Ind > 0) p_ptr = Players[Ind];
     else p_ptr = NULL;
 
-    /* Lets find a target */
-    if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who))) {
+    
+    if ((m_ptr->mind & PET_ATTACK)
+        && (p_ptr != NULL)
+        && TARGET_BEING(p_ptr->target_who)
+        && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who))
+    ) {
+        /* attack player target */
         target_idx = p_ptr->target_who;
-    } else { // if (m_ptr->mind & PET_GUARD)
+    } else {
         int sx, sy;
         s32b max_hp = 0;
 
@@ -340,11 +345,16 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
                 if (!c_ptr->m_idx) continue;
 
                 /* we dont need to move into friendly pets */
-                if (!(!m_list[c_ptr->m_idx].pet || (m_list[c_ptr->m_idx].owner && (m_list[c_ptr->m_idx].owner != m_ptr->owner) && check_hostile(find_player(m_ptr->owner), find_player(m_list[c_ptr->m_idx].owner)))
-                )) {
-                       continue;
+                int is_hostile_pet = m_list[c_ptr->m_idx].owner 
+                        && (m_list[c_ptr->m_idx].owner != m_ptr->owner) 
+                        && check_hostile(find_player(m_ptr->owner), find_player(m_list[c_ptr->m_idx].owner));
+                        
+                int is_same_owner = m_list[c_ptr->m_idx].owner && (m_list[c_ptr->m_idx].owner == m_ptr->owner);
+                
+                if (is_same_owner || (m_list[c_ptr->m_idx].pet && !is_hostile_pet)) {
+                    continue;
                 }
-
+                
                 if (c_ptr->m_idx > 0) { 
                     if (max_hp < m_list[c_ptr->m_idx].maxhp) {
                         max_hp = m_list[c_ptr->m_idx].maxhp;
@@ -358,9 +368,16 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
                 }
             }
     }
-    /* Nothing else to do ? */
-    if ((p_ptr != NULL) && !target_idx && (m_ptr->mind & PET_FOLLOW))
+
+    /* suppress moving into target (but range attacks are ok) */
+    if (m_ptr->mind & PET_GUARD) {
+        target_idx = 0;
+    }
+    
+    /* follow player if there is nothing to do */
+    if ((m_ptr->mind & PET_FOLLOW) && !target_idx && (p_ptr != NULL)) {
         target_idx = -Ind;
+    }
 
     if (!target_idx) return(FALSE);
 
@@ -890,6 +907,7 @@ void process_monster_pet(int Ind, int m_idx) {
 				monster_attack_normal(c_ptr->m_idx, m_idx);
                 /* assume no movement */
                 do_move = FALSE;
+                do_turn = TRUE;
             } else if (/* Push past weaker pets (needed to solve situation of infinite loop of pets swapping each other) */
                 y_ptr->pet &&
                 (m_ptr->owner == y_ptr->owner || !check_hostile(find_player(m_ptr->owner), find_player(y_ptr->owner))) &&
@@ -904,6 +922,7 @@ void process_monster_pet(int Ind, int m_idx) {
                 #endif
                 /* XXX XXX XXX Message */
                 /* Monster wants to move but is blocked by another monster */
+                do_turn = TRUE;
             } else {
                 do_move = FALSE;
 
@@ -915,7 +934,7 @@ void process_monster_pet(int Ind, int m_idx) {
 #endif
             }
             /* take a turn */
-            do_turn = TRUE;
+            
 
 		}
 
