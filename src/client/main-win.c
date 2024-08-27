@@ -1143,7 +1143,7 @@ void save_prefs(void) {
 #endif
 
 #ifdef USE_GRAPHICS
-	strcpy(buf, use_graphics ? "1" : "0");
+	strcpy(buf, use_graphics_new == UG_2MASK ? "2" : (use_graphics_new ? "1" : "0"));
 	WritePrivateProfileString("Base", "Graphics", buf, ini_file);
 	WritePrivateProfileString("Base", "GraphicTiles", graphic_tiles, ini_file);
 #endif
@@ -1305,12 +1305,15 @@ static void load_prefs(void) {
 
 #ifdef USE_GRAPHICS
 	/* Extract the "use_graphics" flag */
-	use_graphics = (GetPrivateProfileInt("Base", "Graphics", 0, ini_file) != 0);
+ #ifdef GRAPHICS_BG_MASK
+	use_graphics_new = use_graphics = GetPrivateProfileInt("Base", "Graphics", 0, ini_file) % 3; //max UG_2MASK
+ #else
+	use_graphics_new = use_graphics = (GetPrivateProfileInt("Base", "Graphics", 0, ini_file) != 0);
+ #endif
 	GetPrivateProfileString("Base", "GraphicTiles", DEFAULT_TILENAME, graphic_tiles, 255, ini_file);
 	/* Convert to lowercase. */
-	for (int i =0; i < 256; i++) {
+	for (int i =0; i < 256; i++)
 		graphic_tiles[i] = tolower(graphic_tiles[i]);
-	}
 #endif
 
 #ifdef USE_SOUND
@@ -2298,6 +2301,102 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 	/* Success */
 	return(0);
 }
+#ifdef GRAPHICS_BG_MASK
+static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, char32_t c_back) {
+ #if 1 /* use fallback hook until 2mask routines are complete? */
+	return (Term_pict_win(x, y, a, c));
+ #else
+#ifdef USE_GRAPHICS
+	/* Catch use in chat instead of as feat attr, or we crash :-s
+	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top check: main screen top chat line) */
+	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+		flick_global_x = x;
+		flick_global_y = y;
+	} else flick_global_x = 0;
+
+	a = term2attr(a);
+
+	COLORREF bgColor, fgColor;
+	bgColor = RGB(0, 0, 0);
+	fgColor = RGB(0, 0, 0);
+
+ #ifdef PALANIM_SWAP
+	if (a < CLIENT_PALETTE_SIZE) a = (a + BASE_PALETTE_SIZE) % CLIENT_PALETTE_SIZE;
+ #endif
+
+	/* Background/Foreground color */
+ #ifndef EXTENDED_COLOURS_PALANIM
+  #ifndef EXTENDED_BG_COLOURS
+	fgColor = win_clr[a & 0x0F];
+  #else
+	fgColor = win_clr[a & 0x1F];
+	//bgColor = PALETTEINDEX(win_clr_bg[a & 0x0F]); //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+	bgColor = win_clr_bg[a & 0x1F]; //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+  #endif
+ #else
+  #ifndef EXTENDED_BG_COLOURS
+	fgColor = win_clr[a & 0x1F];
+  #else
+	fgColor = win_clr[a & 0x3F];
+	//bgColor = PALETTEINDEX(win_clr_bg[a & 0x1F]); //verify correctness
+	bgColor = win_clr_bg[a & 0x3F]; //verify correctness
+  #endif
+ #endif
+
+	term_data *td = (term_data*)(Term->data);
+
+	/* Location of window cell */
+	x = x * td->font_wid + td->size_ow1;
+	y = y * td->font_hgt + td->size_oh1;
+
+	int x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->font_wid;
+	int y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->font_hgt;
+
+	HDC hdc = myGetDC(td->w);
+
+	/* Paint background rectangle .*/
+	RECT rectBg = { 0, 0, td->font_wid, td->font_hgt };
+	RECT rectFg = { td->font_wid, 0, 2*td->font_wid, td->font_hgt };
+	HBRUSH brushBg = CreateSolidBrush(bgColor);
+	HBRUSH brushFg = CreateSolidBrush(fgColor);
+	FillRect(td->hdcTilePreparation, &rectBg, brushBg);
+	FillRect(td->hdcTilePreparation, &rectFg, brushFg);
+	DeleteObject(brushBg);
+	DeleteObject(brushFg);
+
+
+	//BitBlt(hdc, 0, 0, 2*9, 15, hdcTilePreparation, 0, 0, SRCCOPY);
+
+	BitBlt(td->hdcTilePreparation, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcFgMask, x1, y1, SRCAND);
+	BitBlt(td->hdcTilePreparation, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcTiles, x1, y1, SRCPAINT);
+
+	//BitBlt(hdc, 0, 15, 2*9, 15, td->hdcTilePreparation, 0, 0, SRCCOPY);
+
+	BitBlt(td->hdcTilePreparation, 0, 0, td->font_wid, td->font_hgt, td->hdcBgMask, x1, y1, SRCAND);
+	BitBlt(td->hdcTilePreparation, 0, 0, td->font_wid, td->font_hgt, td->hdcTilePreparation, td->font_wid, 0, SRCPAINT);
+
+	//BitBlt(hdc, 0, 15, 5*9, 15, td->hdcBgMask, 0, 0, SRCCOPY);
+	//BitBlt(hdc, 0, 2*15, 5*9, 15, td->hdcFgMask, 0, 0, SRCCOPY);
+	//
+	/* Copy the picture from the tile preparation memory to the window */
+	BitBlt(hdc, x, y, td->font_wid, td->font_hgt, td->hdcTilePreparation, 0, 0, SRCCOPY);
+
+ #ifndef OPTIMIZE_DRAWING
+	ReleaseDC(td->w, hdc);
+ #endif
+
+#else /* #ifdef USE_GRAPHICS */
+
+	/* Just erase this grid */
+	return(Term_wipe_win(x, y, 1));
+
+#endif
+
+	/* Success */
+	return(0);
+ #endf
+}
+#endif
 
 
 /*
@@ -2459,6 +2558,9 @@ static void term_data_link(term_data *td) {
 		recreateGraphicsObjects(td);
 
 		/* Graphics hook */
+ #ifdef GRAPHICS_BG_MASK
+		if (use_graphics == UG_2MASK) t->pict_hook_2mask = Term_pict_win_2mask;
+ #endif
 		t->pict_hook = Term_pict_win;
 
 		/* use "term_pict" for "graphic" data */
@@ -2566,8 +2668,8 @@ static void init_windows(void) {
 	if (use_graphics) {
 		BITMAP bm;
 		char filename[1024];
-
 		HDC hdc = GetDC(NULL);
+
 		if (GetDeviceCaps(hdc, BITSPIXEL) < 24)
 			quit("Using graphic tiles needs a device content with at least 24 bits per pixel.");
 		ReleaseDC(NULL, hdc);
@@ -2930,7 +3032,14 @@ static void process_menus(WORD wCmd) {
 			//reset_visuals();
 
 			/* Toggle "graphics" */
-			use_graphics = !use_graphics;
+			/* Hack: Never switch graphics settings, especially UG_2MASK, live,
+			   as it will cause instant packet corruption due to missing server-client synchronisation.
+			   So we just switch the savegame-affecting 'use_graphics_new' instead of actual 'use_graphics'. */
+#ifdef GRAPHICS_BG_MASK
+			use_graphics_new = (use_graphics_new + 1) % 3;
+#else
+			use_graphics_new = !use_graphics_new;
+#endif
 
 			/* Access the "graphic" mappings */
 			handle_process_font_file();
@@ -3982,6 +4091,9 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 	u32b seed;
 
 
+	/* Set the system suffix */
+	ANGBAND_SYS = "win";
+
 	/* Get temp path for version-building below */
 	init_temp_path();
 	/* make version strings. */
@@ -4043,6 +4155,9 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 	paletted = ((GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) ? TRUE : FALSE);
 	ReleaseDC(NULL, hdc);
 
+	/* As this spawns an ugly shell window on Windows, do it here before we even init the windows */
+	check_guide_checksums(FALSE);
+
 	/* Prepare the windows */
 	init_windows();
 
@@ -4050,9 +4165,6 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 	plog_aux = hook_plog;
 	quit_aux = hook_quit;
 	core_aux = hook_quit;
-
-	/* Set the system suffix */
-	ANGBAND_SYS = "win";
 
 	/* We are now initialized */
 	initialized = TRUE;

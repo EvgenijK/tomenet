@@ -85,6 +85,8 @@ extern void kick_ip(int Ind_kicker, char *ip_kickee, char *reason, bool msg);
 extern void kick_char(int Ind_kicker, int Ind_kickee, char *reason);
 extern connection_t **Conn;
 extern char* get_conn_userhost(int ind);
+extern char* get_conn_host(int ind);
+extern char* get_conn_ip(int ind);
 extern char *get_player_ip(int Ind);
 extern bool get_conn_state_ok(int Ind);
 extern void do_quit(int ind, bool tellclient);
@@ -567,7 +569,11 @@ extern bool no_real_lite(int Ind);
 extern byte get_trap_color(int Ind, int t_idx, int feat);
 extern byte get_monster_trap_color(int Ind, int o_idx, int feat);
 extern void get_object_visual(char32_t *cp, byte *ap, object_type *o_ptr, player_type *p_ptr);
+#ifdef GRAPHICS_BG_MASK
+extern void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, byte *ap_back, char32_t *cp_back, bool palanim);
+#else
 extern void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim);
+#endif
 extern void move_cursor_relative(int row, int col);
 extern void print_rel(char c, byte a, int y, int x);
 extern void note_spot(int Ind, int y, int x);
@@ -585,7 +591,11 @@ extern void everyone_clear_ovl_spot(struct worldpos *wpos, int y, int x);
 extern void everyone_forget_spot(struct worldpos *wpos, int y, int x);
 extern cave_type **getcave(struct worldpos *wpos);
 extern void lite_spot(int Ind, int y, int x);
+#ifdef GRAPHICS_BG_MASK
+extern void draw_spot_ovl(int Ind, int y, int x, byte a, char32_t c, byte a_back, char32_t c_back);
+#else
 extern void draw_spot_ovl(int Ind, int y, int x, byte a, char32_t c);
+#endif
 extern void clear_ovl_spot(int Ind, int y, int x);
 extern void clear_ovl(int Ind);
 extern void prt_map(int Ind, bool scr_only);
@@ -896,6 +906,8 @@ extern bool stale_level(struct worldpos *wpos, int grace);
 extern int recall_depth_idx(struct worldpos *wpos, player_type *p_ptr);
 extern int get_recall_depth(struct worldpos *wpos, player_type *p_ptr);
 extern void erase_effects(int effect);
+extern int food_consumption(int Ind);
+extern int food_consumption_legacy(int Ind);
 
 #ifdef CLIENT_SIDE_WEATHER
  #ifndef CLIENT_WEATHER_GLOBAL
@@ -1231,7 +1243,17 @@ extern int Send_cut(int Ind, int cut);
 extern int Send_stun(int Ind, int stun);
 extern int Send_direction(int Ind);
 extern int Send_message(int Ind, cptr msg);
+#ifdef GRAPHICS_BG_MASK
+extern int Send_char(int Ind, int x, int y, byte a_fore, char32_t c_fore, byte a_back, char32_t c_back);
+extern int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc, byte *sa_back, char32_t *sc_back);
+extern int Send_mini_map_pos(int Ind, int x, int y, int y_offset, byte a, char32_t c);
+#else
 extern int Send_char(int Ind, int x, int y, byte a, char32_t c);
+extern int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc);
+extern int Send_mini_map_pos(int Ind, int x, int y, int y_offset, byte a, char32_t c);
+#endif
+extern int Send_line_info(int Ind, int y, bool scr_only);
+extern int Send_line_info_forward(int Ind, int Ind_src, int y);
 extern int Send_spell_info(int Ind, int realm, int book, int i, cptr out_val);
 extern int Send_powers_info(int Ind);
 extern int Send_technique_info(int Ind); /* for MKEY_MELEE and MKEY_RANGED */
@@ -1239,10 +1261,6 @@ extern int Send_item_request(int Ind, signed char tester_hook); //paranoia @ 'si
 extern int Send_spell_request(int Ind, int item);
 extern int Send_state(int Ind, bool paralyzed, bool searching, bool resting);
 extern int Send_flush(int Ind);
-extern int Send_line_info(int Ind, int y, bool scr_only);
-extern int Send_line_info_forward(int Ind, int Ind_src, int y);
-extern int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc);
-extern int Send_mini_map_pos(int Ind, int x, int y, int y_offset, byte a, char32_t c);
 extern int Send_store(int ind, char pos, byte attr, int wgt, int number, int price, cptr name, byte tval, byte sval, s16b pval, char *powers);
 extern int Send_store_wide(int ind, char pos, byte attr, int wgt, int number, int price, cptr name, byte tval, byte sval, s16b pval,
     s16b xtra1, s16b xtra2, s16b xtra3, s16b xtra4, s16b xtra5, s16b xtra6, s16b xtra7, s16b xtra8, s16b xtra9);
@@ -1497,7 +1515,7 @@ extern char acc_get_deed_event(char *name);
 extern int acc_set_deed_achievement(char *name, byte deed_sval);
 extern char acc_get_deed_achievement(char *name);
 extern void sf_delete(const char *name);
-extern bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass);
+extern bool GetAccount(struct account *c_acc, cptr name, char *pass, bool leavepass, char *hostname, char *addr);
 extern bool GetcaseAccount(struct account *c_acc, cptr name, char *correct_name, bool leavepass);
 extern bool GetAccountID(struct account *c_acc, u32b id, bool leavepass);
 extern bool Admin_GetAccount(struct account *c_acc, cptr name);
@@ -2233,7 +2251,7 @@ extern bool set_image(int Ind, int v);
 extern bool set_fast(int Ind, int v, int p);
 extern bool set_slow(int Ind, int v);
 extern bool set_tim_thunder(int Ind, int v, int p1, int p2);
-extern bool set_tim_regen(int Ind, int v, int p);
+extern bool set_tim_regen(int Ind, int v, int p, int c);
 extern bool set_tim_mp2hp(int Ind, int v, int p, int c);
 extern bool set_tim_ffall(int Ind, int v);
 extern bool set_tim_lev(int Ind, int v);
@@ -2784,6 +2802,8 @@ extern byte global_temp_x[TEMP_MAX];
 extern bool restart_panic, restart_unstatice_bree, restart_unstatice_towns, restart_unstatice_surface, restart_unstatice_dungeons;
 extern int pdf_hack_feat, pdf_hack_feat_new, pdf_hack_mon, pdf_hack_mon_new;
 extern u16b mushroom_field_wx[MAX_MUSHROOM_FIELDS], mushroom_field_wy[MAX_MUSHROOM_FIELDS], mushroom_field_x[MAX_MUSHROOM_FIELDS], mushroom_field_y[MAX_MUSHROOM_FIELDS], mushroom_fields;
+
+extern char list_invalid_name[MAX_LIST_INVALID][ACCNAME_LEN], list_invalid_host[MAX_LIST_INVALID][HOSTNAME_LEN], list_invalid_addr[MAX_LIST_INVALID][MAX_CHARS], list_invalid_date[MAX_LIST_INVALID][24];
 
 #ifdef ENABLE_PETS
 /* pets_module.c */

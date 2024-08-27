@@ -2038,7 +2038,7 @@ static byte multi_hued_attr(monster_race *r_ptr) {
 	 * (otherwise, Dragonriders are all red)
 	 */
 #if 0
-	if (!m_ptr->special && !m_ptr->questor && p_ptr->use_r_gfx) a = p_ptr->r_attr[m_ptr->r_idx];
+	if (!m_ptr->special && !m_ptr->questor && p_ptr->custom_mapping) a = p_ptr->r_attr[m_ptr->r_idx];
 	else a = r_ptr->d_attr;
 #endif	/* 0 */
 	a = r_ptr->d_attr;
@@ -2062,13 +2062,13 @@ static void get_monster_visual(int Ind, monster_type *m_ptr, monster_race *r_ptr
 	 */
 	/* Desired attr */
 	/* a = r_ptr->x_attr; */
-	if (m_ptr && !m_ptr->special && !m_ptr->questor && p_ptr->use_r_gfx) a = p_ptr->r_attr[m_ptr->r_idx];
+	if (m_ptr && !m_ptr->special && !m_ptr->questor && p_ptr->custom_mapping) a = p_ptr->r_attr[m_ptr->r_idx];
 	else a = r_ptr->d_attr;
 	/* else a = m_ptr->r_ptr->d_attr; */
 
 	/* Desired char */
 	/* c = r_ptr->x_char; */
-	if (m_ptr && !m_ptr->special && !m_ptr->questor && p_ptr->use_r_gfx
+	if (m_ptr && !m_ptr->special && !m_ptr->questor && p_ptr->custom_mapping
 	    && !(((p_ptr->ascii_uniques && (r_ptr->flags1 & RF1_UNIQUE)) || p_ptr->ascii_monsters)))
 		c = p_ptr->r_char[m_ptr->r_idx];
 	else c = r_ptr->d_char;
@@ -2889,14 +2889,17 @@ void get_object_visual(char32_t *cp, byte *ap, object_type *o_ptr, player_type *
  * "x_ptr->xxx", is quicker than "x_info[x].xxx", if this is incorrect
  * then a whole lot of code should be changed...  XXX XXX
  */
+#ifdef GRAPHICS_BG_MASK
+void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, byte *ap_back, char32_t *cp_back, bool palanim) {
+#else
 void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
+#endif
 	player_type *p_ptr = Players[Ind];
 
 	cave_type *c_ptr;
 	byte *w_ptr;
 
 	feature_type *f_ptr;
-
 	int feat;
 
 	byte a;
@@ -3063,6 +3066,14 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 #else
 				a = TERM_CONF; /* animated colour */
 #endif
+
+#ifdef GRAPHICS_BG_MASK
+			/* Remember the background terrain */
+			*cp_back = *cp;
+			*ap_back = *ap;
+#endif
+
+			/* --- Entities/objects (players, traps, shops) --- */
 
 			/* Hack to display monster traps */
 			/* Illusory wall masks everythink */
@@ -3231,8 +3242,11 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 #endif
 					}
 				}
-			}
-			else {
+#ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+#endif
+			} else {
 				a = manipulate_cave_colour(c_ptr, &p_ptr->wpos, x, y, a, palanim);
 
 				/* Handle "blind" */
@@ -3241,11 +3255,18 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 					a = TERM_L_DARK;
 					palanim = FALSE;
 				}
+#ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+#endif
 			}
 
 #if 1
 			/* Use palette-animated colours if available (even if we don't apply manipulation here) */
 			if (palanim && !keep && a < BASE_PALETTE_SIZE) a += TERMA_OFFSET;
+#ifdef GRAPHICS_BG_MASK
+			if (palanim && !keep && *ap_back < BASE_PALETTE_SIZE) *ap_back += TERMA_OFFSET;
+#endif
 #endif
 
 			/* The attr */
@@ -3265,6 +3286,12 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			/* (*cp) = f_ptr->f_char; */
 			if (!p_ptr->ascii_feats) (*cp) = p_ptr->f_char[FEAT_NONE];
 			else (*cp) = f_info[FEAT_NONE].f_char;
+
+#ifdef GRAPHICS_BG_MASK
+			/* Remember the background terrain */
+			*cp_back = *cp;
+			*ap_back = *ap;
+#endif
 		}
 	}
 
@@ -3303,6 +3330,14 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 				(*cp) = p_ptr->f_char_solid[feat];
 				a = p_ptr->f_attr_solid[feat];
 			}
+
+#ifdef GRAPHICS_BG_MASK
+			/* Remember the background terrain */
+			*cp_back = *cp;
+			*ap_back = *ap;
+#endif
+
+			/* --- Entities (players, traps, shops) --- */
 
 			/* Add trap color - Illusory wall masks everythink */
 			/* Hack to display detected traps */
@@ -3464,6 +3499,10 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 					}
 #endif
 				}
+#ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+#endif
 			}
 			else {
 				a = manipulate_cave_colour(c_ptr, &p_ptr->wpos, x, y, a, palanim);
@@ -3500,14 +3539,27 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 						break;
 					}
 				}
+#ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+#endif
 			}
 
 			/* Display vault walls in a more distinguishable colour, if desired */
-			if (p_ptr->permawalls_shade && (feat == FEAT_PERM_INNER || feat == FEAT_PERM_OUTER)) a = TERM_L_UMBER;
+			if (p_ptr->permawalls_shade && (feat == FEAT_PERM_INNER || feat == FEAT_PERM_OUTER)) {
+				a = TERM_L_UMBER;
+#ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+#endif
+			}
 
 #if 1
 			/* Use palette-animated colours if available (even if we don't apply manipulation here) */
 			if (palanim && !keep && a < BASE_PALETTE_SIZE) a += TERMA_OFFSET;
+#ifdef GRAPHICS_BG_MASK
+			if (palanim && !keep && *ap_back < BASE_PALETTE_SIZE) *ap_back += TERMA_OFFSET;
+#endif
 #endif
 
 			/* The attr */
@@ -3551,11 +3603,16 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			(*ap) = spell_color(effects[c_ptr->effect].type);
 #else /* allow 'transparent' spells */
 			a = spell_color(effects[c_ptr->effect].type);
-			if (a != 127) (*ap) = a;
+			if (a != 127) {
+				(*ap) = a;
+ #ifdef GRAPHICS_BG_MASK
+				/* Update the background terrain colour */
+				*ap_back = a;
+ #endif
+			}
 #endif
 		}
 
-#if 1
 		/* Multi-hued attr */
 		/* TODO: this should be done in client-side too, so that
 		 * they shimmer when player isn't moving.
@@ -3572,8 +3629,12 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 #endif
 
 			(*ap) = a;
+#ifdef GRAPHICS_BG_MASK
+			/* Update the background terrain colour */
+			*ap_back = a;
+#endif
 		}
-#if 1
+
 		/* Give staircases different colours depending on dungeon flags -C. Blue :) */
 		if ((feat == FEAT_MORE) || (feat == FEAT_WAY_MORE) ||
 		    (feat == FEAT_WAY_LESS) || (feat == FEAT_LESS)) {
@@ -3595,7 +3656,7 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 				get_staircase_colour(d_ptr, ap);
 			}
 
- #if 1 /* experimental (IDDC_OCCUPIED_FLOOR) */
+#if 1 /* experimental (IDDC_OCCUPIED_FLOOR) */
 			/* Specialty in IDDC: Colour staircase out of the ordinary to indicate that someone is currently on the upcoming floor.
 			   Idea: Allow people to wait until a floor has reset, so they don't waste an already emptied floor. */
 			if (in_irondeepdive(&tpos)) {
@@ -3620,9 +3681,14 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 					}
 				}
 			}
- #endif
+#endif
 
- #ifdef GLOBAL_DUNGEON_KNOWLEDGE
+#ifdef GRAPHICS_BG_MASK
+			/* Update the background terrain colour */
+			*ap_back = *ap;
+#endif
+
+#ifdef GLOBAL_DUNGEON_KNOWLEDGE
 			/* player has seen the entrance on the actual main screen -> add it to global exploration history knowledge */
 			if (!is_admin(p_ptr) && d_ptr && !(d_ptr->known & 0x1)) {
 				d_ptr->known |= 0x1;
@@ -3632,9 +3698,8 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 				l_printf("%s \\{B%s discovered a dungeon: %s\n", showdate(), p_ptr->name, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
 				msg_broadcast_format(Ind, "\374\377B%s discovered a dungeon: %s!", p_ptr->name, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
 			}
- #endif
-		}
 #endif
+		}
 
 #ifdef HOUSE_PAINTING
 		if (feat == FEAT_WALL_HOUSE && c_ptr->colour) {
@@ -3651,13 +3716,21 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			if (c_ptr->colour > 100) (*ap) = c_ptr->colour - 100 - 1;
 			else (*ap) = c_ptr->colour - 1;
  #endif
+ #ifdef GRAPHICS_BG_MASK
+			/* Update the background terrain colour */
+			*ap_back = *ap;
+ #endif
 		}
 #endif
 
 		/* jails */
-		if (c_ptr->info & CAVE_JAIL) (*ap) = TERM_L_DARK;
-
+		if (c_ptr->info & CAVE_JAIL) {
+			(*ap) = TERM_L_DARK;
+#ifdef GRAPHICS_BG_MASK
+			/* Update the background terrain colour */
+			*ap_back = *ap;
 #endif
+		}
 	}
 
 	/* Hack -- rare random hallucination, except on outer dungeon walls */
@@ -4145,6 +4218,21 @@ void lite_spot(int Ind, int y, int x) {
 
 		byte a;
 		char32_t c;
+#ifdef GRAPHICS_BG_MASK
+		byte a_back;
+		char32_t c_back;
+#endif
+
+#ifdef GRAPHICS_BG_MASK
+		/* Call map_info in advance just to initialize the background feat, to plaster the "@" on in case we're seeing ourselves */
+ #ifdef EXTENDED_COLOURS_PALANIM
+		bool palanim = palette_affects(Ind);
+ #else
+		bool palanim = FALSE;
+ #endif
+
+		map_info(Ind, y, x, &a, &c, &a_back, &c_back, palanim);
+#endif
 
 		/* Handle "player" seeing himself/herself */
 		if ((y == p_ptr->py) && (x == p_ptr->px)) {
@@ -4277,14 +4365,14 @@ void lite_spot(int Ind, int y, int x) {
 			if (p_ptr->team) {
 				if (magik(25)) { /* chance for showing him/her which team (s)he's in - mikaelh */
 					switch (p_ptr->team) {
-						case 1:
-							a = TERM_L_RED;
-							break;
-						case 2:
-							a = TERM_L_BLUE;
-							break;
-						default:
-							break;
+					case 1:
+						a = TERM_L_RED;
+						break;
+					case 2:
+						a = TERM_L_BLUE;
+						break;
+					default:
+						break;
 					}
 				}
 				else if ((has_ball(p_ptr) != -1) && magik(25)) a = TERM_ORANGE; /* game ball carrier has orange flickering - mikaelh */
@@ -4386,20 +4474,21 @@ void lite_spot(int Ind, int y, int x) {
 			/* >4.5.4: Mark that it is the player himself */
 			if (p_ptr->hilite_player) is_us = TRUE;
 		}
-
+#ifndef GRAPHICS_BG_MASK
 		/* Normal (not player coords) */
 		else {
-#ifdef EXTENDED_COLOURS_PALANIM
+ #ifdef EXTENDED_COLOURS_PALANIM
 			bool palanim = palette_affects(Ind);
-#else
+ #else
 			bool palanim = FALSE;
-#endif
+ #endif
 			/* Examine the grid */
 			map_info(Ind, y, x, &a, &c, palanim);
 		}
+#endif
 
 		/* Hack -- fake monochrome */
-		if (!use_color)  a = TERM_WHITE;
+		if (!use_color) a = TERM_WHITE;
 
 		dispx = x - p_ptr->panel_col_prt;
 		dispy = y - p_ptr->panel_row_prt;
@@ -4407,16 +4496,29 @@ void lite_spot(int Ind, int y, int x) {
 		/* Only draw if different than buffered */
 		if (p_ptr->scr_info[dispy][dispx].c != c ||
 		    p_ptr->scr_info[dispy][dispx].a != a ||
+#ifdef GRAPHICS_BG_MASK
+		    p_ptr->scr_info_back[dispy][dispx].c != c_back ||
+		    p_ptr->scr_info_back[dispy][dispx].a != a_back ||
+#endif
 		    (x == p_ptr->px && y == p_ptr->py && !p_ptr->afk) /* let's try disabling this when AFK to save bandwidth - mikaelh */
 		    /* for clearing overlay that displays auto-updating things (monsters who meanwhile moved away): clear it as soon as it comes into LOS */
 		    || ((p_ptr->cave_flag[y][x] & CAVE_AOVL) && (p_ptr->cave_flag[y][x] & CAVE_VIEW) && (p_ptr->cave_flag[y][x] & CAVE_LITE))) {
 			/* Modify screen buffer */
 			p_ptr->scr_info[dispy][dispx].c = c;
 			p_ptr->scr_info[dispy][dispx].a = a;
+#ifdef GRAPHICS_BG_MASK
+			p_ptr->scr_info_back[dispy][dispx].c = c_back;
+			p_ptr->scr_info_back[dispy][dispx].a = a_back;
+#endif
 
 			/* Compare against the overlay buffer */
 			if ((p_ptr->ovl_info[dispy][dispx].c != c) ||
-			    (p_ptr->ovl_info[dispy][dispx].a != a)) {
+			    (p_ptr->ovl_info[dispy][dispx].a != a)
+#ifdef GRAPHICS_BG_MASK
+			    || (p_ptr->ovl_info_back[dispy][dispx].c != c_back) ||
+			    (p_ptr->ovl_info_back[dispy][dispx].a != a_back)
+#endif
+			    ) {
 				/* Old cfg.hilite_player implementation has been disabled after 4.6.1.1 because it interferes with custom fonts */
 #if 0
 				if (!is_newer_than(&p_ptr->version, 4, 6, 1, 1, 0, 1)) {
@@ -4427,12 +4529,21 @@ void lite_spot(int Ind, int y, int x) {
 #endif
 
 				/* Tell client to redraw this grid */
+#ifdef GRAPHICS_BG_MASK
+				Send_char(Ind, dispx, dispy, a, c, a_back, c_back);
+#else
 				Send_char(Ind, dispx, dispy, a, c);
+#endif
+				// DYNAMIC_MINI_MAP (while in dungeon and not shopping): y, x, a, c - use priority-condensing code from display_map() to send a specific minimap char in addition to the normal map's Send_char() with a newly added PKT_ type
 			}
 
 			/* Clear the overlay buffer */
 			p_ptr->ovl_info[dispy][dispx].c = 0;
 			p_ptr->ovl_info[dispy][dispx].a = 0;
+#ifdef GRAPHICS_BG_MASK
+			p_ptr->ovl_info_back[dispy][dispx].c = 0;
+			p_ptr->ovl_info_back[dispy][dispx].a = 0;
+#endif
 			p_ptr->cave_flag[y][x] &= ~CAVE_AOVL;
 		}
 	}
@@ -4442,7 +4553,11 @@ void lite_spot(int Ind, int y, int x) {
 /*
  * Draw something on the overlay layer.
  */
+#ifdef GRAPHICS_BG_MASK
+void draw_spot_ovl(int Ind, int y, int x, byte a, char32_t c, byte a_back, char32_t c_back) {
+#else
 void draw_spot_ovl(int Ind, int y, int x, byte a, char32_t c) {
+#endif
 	player_type *p_ptr = Players[Ind];
 
 	/* Redraw if on screen */
@@ -4463,15 +4578,29 @@ void draw_spot_ovl(int Ind, int y, int x, byte a, char32_t c) {
 
 		/* Only draw if different than buffered */
 		if (p_ptr->ovl_info[dispy][dispx].c != c ||
-		    p_ptr->ovl_info[dispy][dispx].a != a) {
+		    p_ptr->ovl_info[dispy][dispx].a != a
+#ifdef GRAPHICS_BG_MASK
+		    || (c_back &&
+		    (p_ptr->ovl_info_back[dispy][dispx].c != c_back ||
+		    p_ptr->ovl_info_back[dispy][dispx].a != a_back))
+#endif
+		    ) {
 			/* Modify internal buffer */
 			p_ptr->ovl_info[dispy][dispx].c = c;
 			p_ptr->ovl_info[dispy][dispx].a = a;
+#ifdef GRAPHICS_BG_MASK
+			p_ptr->ovl_info_back[dispy][dispx].c = c_back;
+			p_ptr->ovl_info_back[dispy][dispx].a = a_back;
+#endif
 
 			p_ptr->cave_flag[y][x] |= CAVE_AOVL;
 
 			/* Tell client to redraw this grid */
+#ifdef GRAPHICS_BG_MASK
+			Send_char(Ind, dispx, dispy, a, c, a_back, c_back);
+#else
 			Send_char(Ind, dispx, dispy, a, c);
+#endif
 		}
 	}
 }
@@ -4490,17 +4619,34 @@ void clear_ovl_spot(int Ind, int y, int x) {
 		dispx = x - p_ptr->panel_col_prt;
 		dispy = y - p_ptr->panel_row_prt;
 
-		if (p_ptr->ovl_info[dispy][dispx].c) {
+		if (p_ptr->ovl_info[dispy][dispx].c
+#ifdef GRAPHICS_BG_MASK
+		//unnecessary?    || p_ptr->ovl_info_back[dispy][dispx].c
+#endif
+		    ) {
 			/* Check if the overlay buffer is different from the screen buffer */
 			if ((p_ptr->ovl_info[dispy][dispx].a != p_ptr->scr_info[dispy][dispx].a) ||
-			    (p_ptr->ovl_info[dispy][dispx].c != p_ptr->scr_info[dispy][dispx].c)) {
+			    (p_ptr->ovl_info[dispy][dispx].c != p_ptr->scr_info[dispy][dispx].c)
+#ifdef GRAPHICS_BG_MASK
+			    || (p_ptr->ovl_info_back[dispy][dispx].a != p_ptr->scr_info_back[dispy][dispx].a) ||
+			    (p_ptr->ovl_info_back[dispy][dispx].c != p_ptr->scr_info_back[dispy][dispx].c)
+#endif
+			    ) {
 				/* Clear the overlay buffer */
 				p_ptr->ovl_info[dispy][dispx].c = 0;
 				p_ptr->ovl_info[dispy][dispx].a = 0;
+#ifdef GRAPHICS_BG_MASK
+				p_ptr->ovl_info_back[dispy][dispx].c = 0;
+				p_ptr->ovl_info_back[dispy][dispx].a = 0;
+#endif
 
 				/* Clear the screen buffer to force redraw */
 				p_ptr->scr_info[dispy][dispx].c = 0;
 				p_ptr->scr_info[dispy][dispx].a = 0;
+#ifdef GRAPHICS_BG_MASK
+				p_ptr->scr_info_back[dispy][dispx].c = 0;
+				p_ptr->scr_info_back[dispy][dispx].a = 0;
+#endif
 
 				p_ptr->cave_flag[y][x] &= ~CAVE_AOVL;
 
@@ -4510,6 +4656,10 @@ void clear_ovl_spot(int Ind, int y, int x) {
 				/* Clear the overlay buffer */
 				p_ptr->ovl_info[dispy][dispx].c = 0;
 				p_ptr->ovl_info[dispy][dispx].a = 0;
+#ifdef GRAPHICS_BG_MASK
+				p_ptr->ovl_info_back[dispy][dispx].c = 0;
+				p_ptr->ovl_info_back[dispy][dispx].a = 0;
+#endif
 
 				p_ptr->cave_flag[y][x] &= ~CAVE_AOVL;
 
@@ -4556,6 +4706,10 @@ void prt_map(int Ind, bool scr_only) {
 	int dispx, dispy;
 	byte a;
 	char32_t c;
+#ifdef GRAPHICS_BG_MASK
+	byte a_back;
+	char32_t c_back;
+#endif
 
 #ifdef EXTENDED_COLOURS_PALANIM
 	bool palanim = palette_affects(Ind);
@@ -4568,10 +4722,16 @@ void prt_map(int Ind, bool scr_only) {
 
 	/* First clear the old stuff */
 	memset(p_ptr->scr_info, 0, sizeof(p_ptr->scr_info));
+#ifdef GRAPHICS_BG_MASK
+	memset(p_ptr->scr_info_back, 0, sizeof(p_ptr->scr_info_back));
+#endif
 
 	if (!scr_only) {
 		/* Clear the overlay buffer */
 		memset(p_ptr->ovl_info, 0, sizeof(p_ptr->ovl_info));
+#ifdef GRAPHICS_BG_MASK
+		memset(p_ptr->ovl_info_back, 0, sizeof(p_ptr->ovl_info_back));
+#endif
 	}
 
 	/* Dump the map */
@@ -4581,7 +4741,11 @@ void prt_map(int Ind, bool scr_only) {
 		/* Scan the columns of row "y" */
 		for (x = p_ptr->panel_col_min; x <= p_ptr->panel_col_max; x++) {
 			/* Determine what is there */
+#ifdef GRAPHICS_BG_MASK
+			map_info(Ind, y, x, &a, &c, &a_back, &c_back, palanim);
+#else
 			map_info(Ind, y, x, &a, &c, palanim);
+#endif
 
 			/* Hack -- fake monochrome */
 			if (!use_color) a = TERM_WHITE;
@@ -4591,6 +4755,10 @@ void prt_map(int Ind, bool scr_only) {
 			/* Redraw that grid of the map */
 			p_ptr->scr_info[dispy][dispx].c = c;
 			p_ptr->scr_info[dispy][dispx].a = a;
+#ifdef GRAPHICS_BG_MASK
+			p_ptr->scr_info_back[dispy][dispx].c = c_back;
+			p_ptr->scr_info_back[dispy][dispx].a = a_back;
+#endif
 		}
 
 		/* Send that line of info */
@@ -4609,9 +4777,17 @@ void prt_map(int Ind, bool scr_only) {
 			/* Note: Clearing scr and ovl isn't required */
 			p_ptr->scr_info[y][x].c = p_ptr->ovl_info[y][x].c = ' ';
 			p_ptr->scr_info[y][x].a = p_ptr->ovl_info[y][x].a = TERM_DARK;
+  #ifdef GRAPHICS_BG_MASK
+			p_ptr->scr_info_back[y][x].c = p_ptr->ovl_info_back[y][x].c = ' ';
+			p_ptr->scr_info_back[y][x].a = p_ptr->ovl_info_back[y][x].a = TERM_DARK;
+  #endif
  #endif
 			/* Clear wrongly sent map grid - most of these will be overwritten by the status bar anyway, but some aren't. */
+ #ifdef GRAPHICS_BG_MASK
+			Send_char(Ind, x, y, TERM_DARK, ' ', TERM_DARK, ' ');
+ #else
 			Send_char(Ind, x, y, TERM_DARK, ' ');
+ #endif
 		}
 	}
 #endif
@@ -4829,16 +5005,28 @@ void display_map(int Ind, int *cy, int *cx) {
 
 	byte ta;
 	char32_t tc;
+#ifdef GRAPHICS_BG_MASK
+	byte ta_back;
+	char32_t tc_back;
+#endif
 
 	byte tp;
 
 	byte ma[MAP_HGT + 2][MAP_WID + 2];
 	char32_t mc[MAP_HGT + 2][MAP_WID + 2];
+#ifdef GRAPHICS_BG_MASK
+	byte ma_back[MAP_HGT + 2][MAP_WID + 2];
+	char32_t mc_back[MAP_HGT + 2][MAP_WID + 2] = { 0 };
+#endif
 
 	byte mp[MAP_HGT + 2][MAP_WID + 2];
 
 	byte sa[80];
 	char32_t sc[80];
+#ifdef GRAPHICS_BG_MASK
+	byte sa_back[80];
+	char32_t sc_back[80];
+#endif
 
 	bool old_floor_lighting;
 	bool old_wall_lighting;
@@ -4857,6 +5045,9 @@ void display_map(int Ind, int *cy, int *cx) {
 	memset(ma, TERM_WHITE, sizeof(ma));
 	for (yt = 0; yt < MAP_HGT + 2; yt++)
 		for (xt = 0; xt < MAP_WID + 2; xt++)
+#ifdef GRAPHICS_BG_MASK
+			mc_back[yt][xt] =
+#endif
 			mc[yt][xt] = ' ';
 
 	/* No priority */
@@ -4870,7 +5061,11 @@ void display_map(int Ind, int *cy, int *cx) {
 			y = j / RATIO + 1;
 
 			/* Extract the current attr/char at that map location */
+#ifdef GRAPHICS_BG_MASK
+			map_info(Ind, j, i, &ta, &tc, &ta_back, &tc_back, FALSE);
+#else
 			map_info(Ind, j, i, &ta, &tc, FALSE);
+#endif
 
 			/* Extract the priority of that attr/char */
 			tp = priority(ta, tc);
@@ -4894,6 +5089,7 @@ void display_map(int Ind, int *cy, int *cx) {
 						tc = '0' + num;
 					}
 				}
+				//GRAPHICS_BG_MASK: pft, not for now, just print our "@" or "X" (selector) w/o background...
 				Send_mini_map_pos(Ind, x + (80 - MAP_WID - 2) / 2, y, 0, ta, tc);
 			}
 /* duplicate code end */
@@ -4901,9 +5097,12 @@ void display_map(int Ind, int *cy, int *cx) {
 			if (mp[y][x] < tp) {
 				/* Save the char */
 				mc[y][x] = tc;
-
 				/* Save the attr */
 				ma[y][x] = ta;
+#ifdef GRAPHICS_BG_MASK
+				mc_back[y][x] = tc_back;
+				ma_back[y][x] = ta_back;
+#endif
 
 				/* Save priority */
 				mp[y][x] = tp;
@@ -4952,14 +5151,26 @@ void display_map(int Ind, int *cy, int *cx) {
 			/* Put the character into the screen buffer */
 			sa[x] = ta;
 			sc[x] = tc;
+ #ifdef GRAPHICS_BG_MASK
+			sa_back[x] = ma_back[y][x];
+			sc_back[x] = mc_back[y][x];
+ #endif
 #else /* add a symmetrical 'border' to the left and right side of the map */
 			sa[x + (80 - MAP_WID - 2) / 2] = ta;
 			sc[x + (80 - MAP_WID - 2) / 2] = tc;
+ #ifdef GRAPHICS_BG_MASK
+			sa_back[x + (80 - MAP_WID - 2) / 2] = ma_back[y][x];
+			sc_back[x + (80 - MAP_WID - 2) / 2] = mc_back[y][x];
+ #endif
 #endif
 		}
 
 		/* Send that line of info */
+#ifdef GRAPHICS_BG_MASK
+		Send_mini_map(Ind, y, sa, sc, sa_back, sc_back);
+#else
 		Send_mini_map(Ind, y, sa, sc);
+#endif
 	}
 
 
@@ -5246,11 +5457,20 @@ static void wild_display_map(int Ind, char mode) {
 		}
 
 		/* Send that line of info */
+#ifdef GRAPHICS_BG_MASK
+		Send_mini_map(Ind, y, sa, sc, 0, 0); //the worldmap doesn't use background graphics, just simple foreground-only symbols
+#else
 		Send_mini_map(Ind, y, sa, sc);
+#endif
 	}
 
 	/* Indicate 'finished sending', so the client can add some extra info to the map */
-	if (is_atleast(&p_ptr->version, 4, 7, 1, 2, 0, 0)) Send_mini_map(Ind, -1, 0, 0);
+	if (is_atleast(&p_ptr->version, 4, 7, 1, 2, 0, 0))
+#ifdef GRAPHICS_BG_MASK
+		Send_mini_map(Ind, -1, 0, 0, 0, 0);
+#else
+		Send_mini_map(Ind, -1, 0, 0);
+#endif
 
 	/* Restore lighting effects */
 	p_ptr->floor_lighting = old_floor_lighting;

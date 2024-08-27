@@ -33,8 +33,8 @@
 # with special compilers.
 #
 # If you are able to construct "main-xxx.c" and/or "Makefile.xxx"
-# files for a currently unsupported system, please send them to me
-# (benh@voicenet.com) for inclusion in future versions.
+# files for a currently unsupported system, please send them to
+# c_blue@gmx.net for inclusion in future versions.
 #
 # This Makefile comes with "default" dependancies that may be obsolete.
 #
@@ -243,10 +243,15 @@ LIBS = -lkernel32 -luser32 -lwsock32 -lgdi32 -lcomdlg32 -lwinmm -lSDL -lSDL_mixe
 #LIBS = -lkernel32 -luser32 -lwsock32 -lgdi32 -lcomdlg32 -lwinmm
 
 
+
+## Test for OS type -- not for Windows targets
+#CFLAGS += $(shell ./os-check.sh)
+
 # Compile a client with 'test client' version/tag
-tomenet.test.exe: CFLAGS += -DTEST_CLIENT -O0
+tomenet.test.exe: CFLAGS += -DTEST_CLIENT -O0 -DCLIENT_SIDE
 tomenet.test.exe: PPFLAGS = -DTEST_CLIENT
 
+tomenet.exe: CFLAGS = -DCLIENT_SIDE
 
 # Lua
 SRCS += $(LUASRCS)

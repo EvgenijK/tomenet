@@ -51,8 +51,8 @@
 # with special compilers.
 #
 # If you are able to construct "main-xxx.c" and/or "Makefile.xxx"
-# files for a currently unsupported system, please send them to me
-# (benh@voicenet.com) for inclusion in future versions.
+# files for a currently unsupported system, please send them to
+# c_blue@gmx.net for inclusion in future versions.
 #
 # This Makefile comes with "default" dependancies that may be obsolete.
 #
@@ -414,13 +414,18 @@ LDFLAGS += -Wl,-z,relro -Wl,-z,now
 #CFLAGS = -Wall -pipe -g -DUSE_X11 -DUSE_GCU -DSOLARIS -I/usr/openwin/include
 #LIBS = -L/usr/openwin/lib -R/usr/openwin/lib -lX11 -lsocket -lnsl -lcurses
 
+
+
+## Test for OS type
+CFLAGS += $(shell ./os-check.sh)
+
 # Normal (non-test) client uses optimizations
-tomenet: CFLAGS += -g -O2 -DSOUND_SDL `sdl2-config --cflags` -DUSE_X11 -I${X11BASE}/include
+tomenet: CFLAGS += -g -O2 -DSOUND_SDL `sdl2-config --cflags` -DUSE_X11 -I${X11BASE}/include -DCLIENT_SIDE
 tomenet: LIBS += -L${X11BASE}/lib -lX11 `sdl2-config --libs` -lSDL2_mixer
 # Compile a client with 'test client' version/tag
 #tomenet.test: CFLAGS += -DTEST_CLIENT -g3 -O0
 #disable 3 warning spams: 'accessing n bytes in a region of size m', '_FORTIFY_SOURCE requires compiling with optimization', 'directive writing up to 159 bytes into a region of size'
-tomenet.test: CFLAGS += -DTEST_CLIENT -g3 -O0 -Wno-stringop-overflow -Wno-cpp -Wno-format-overflow -DSOUND_SDL `sdl2-config --cflags` -DUSE_X11 -I${X11BASE}/include
+tomenet.test: CFLAGS += -DTEST_CLIENT -g3 -O0 -Wno-stringop-overflow -Wno-cpp -Wno-format-overflow -DSOUND_SDL `sdl2-config --cflags` -DUSE_X11 -I${X11BASE}/include -DCLIENT_SIDE
 tomenet.test: PPFLAGS = -DTEST_CLIENT -DSOUND_SDL `sdl2-config --cflags` 
 tomenet.test: LIBS += -L${X11BASE}/lib -lX11 `sdl2-config --libs` -lSDL2_mixer
 # Server is compiled with optimizations

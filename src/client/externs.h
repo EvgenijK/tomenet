@@ -332,7 +332,7 @@ extern cptr ANGBAND_DIR_SCPT;
 extern cptr ANGBAND_DIR_GAME;
 
 extern bool disable_numlock;
-extern bool use_graphics;
+extern byte use_graphics, use_graphics_new;
 #ifdef USE_GRAPHICS
 extern char graphic_tiles[256];
 #endif
@@ -573,6 +573,7 @@ extern void save_birth_file(cptr name, bool touch);
 extern void load_birth_file(cptr name);
 extern bool within_cmd_player;
 extern int within_cmd_player_ticks;
+extern void check_guide_checksums(bool forced);
 
 /* c-init.c */
 extern void init_stuff(void);
@@ -601,6 +602,7 @@ extern bool verified_item;
 extern int hack_force_spell_level;
 
 /* c-util.c */
+extern bool my_fexists(const char *fname);
 extern void move_cursor(int row, int col);
 extern void flush(void);
 extern void flush_now(void);
@@ -780,7 +782,11 @@ extern bool weather_panel_changed;
 #if 1 //RAINY_TOMB
 extern byte panel_map_a[MAX_WINDOW_WID][MAX_WINDOW_HGT]; //bigger to allow fullscreen_weather for RAINY_TOMB
 extern char32_t panel_map_c[MAX_WINDOW_WID][MAX_WINDOW_HGT];
-#else
+ #ifdef GRAPHICS_BG_MASK
+extern byte panel_map_a_back[MAX_WINDOW_WID][MAX_WINDOW_HGT]; //bigger to allow fullscreen_weather for RAINY_TOMB
+extern char32_t panel_map_c_back[MAX_WINDOW_WID][MAX_WINDOW_HGT];
+ #endif
+#else /* deprecated: */
 extern byte panel_map_a[MAX_SCREEN_WID][MAX_SCREEN_HGT];
 extern char32_t panel_map_c[MAX_SCREEN_WID][MAX_SCREEN_HGT];
 #endif
@@ -1129,9 +1135,6 @@ extern int re_init_sound();
  #endif
 
 extern bool skip_received_music;
-
-//z-files.h:
-//extern bool my_fexists(const char *fname);
 #endif
 extern bool wind_noticable;
 extern int weather_particles_seen;
@@ -1208,6 +1211,7 @@ extern bool player_pref_files_loaded;
 #endif
 
 extern int guide_lastline, guide_errno;
+extern bool guide_outdated;
 #ifdef BUFFER_GUIDE
 extern char guide_line[GUIDE_LINES_MAX][MAX_CHARS + 1];
 #endif

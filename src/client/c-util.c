@@ -1063,6 +1063,8 @@ static char inkey_aux(void) {
 			/* Hack for auto-pressing spacebar while in player-list */
 			if (within_cmd_player && ticks - within_cmd_player_ticks >= 50) {
 				within_cmd_player_ticks = ticks;
+				/* hack: -- TODO: Remove/restrict it so it doesn't interfere with inkey() checks that just _wait_ for any actual keypress,
+				   as those will be auto-confirmed by this; maybe use the existing if (k == 1) check after inkey() in peruse_file(). */
 				ch = 1; //refresh our current player list view
 				break;
 			}
@@ -1073,8 +1075,9 @@ static char inkey_aux(void) {
 			/* If we received a 'max_line' value from the net,
 			   break if inkey_max_line flag was set */
 			if (inkey_max_line != inkey_max_line_set) {
-				/* hack: */
-				ch = 1;
+				/* hack: -- TODO: Remove/restrict it so it doesn't interfere with inkey() checks that just _wait_ for any actual keypress,
+				   as those will be auto-confirmed by this; maybe use the existing if (k == 1) check after inkey() in peruse_file(). */
+				ch = 1; //refresh the max line number to orange colour if we reached the end of the document perused
 				break;
 			}
 
@@ -2024,6 +2027,10 @@ static void c_prt_n(byte attr, char *str, int y, int x, int n) {
 static void extract_url(char *buf_esc, char *buf_prev, int end_of_name) {
 	char *c, *c2, *be = NULL;
 
+	/* Hack: Double-tapping 'copy_to_clipboard' tries to extract an URL.
+	   So ignore the first tap here. */
+	if (strcmp(buf_prev, buf_esc)) return;
+
 //c_msg_format("1: %s", buf_esc);
 //c_msg_format("2: %s", buf_prev);
 
@@ -2043,9 +2050,7 @@ c_msg_format("%c/%c/%c/%c - %c/%c/%c/%c - %c/%c/%c/%c - %c/%c/%c/%c",
 		if (be == buf_esc + strlen(buf_esc) - 1) be = NULL; //catch '/me' messages where the ']' is at the very end of the message
 		if (!be) be = buf_esc; else be++;
 	}
-
-	/* Hack: Double-tapping 'copy2clipboard' tries to extract an URL */
-	if (!be[0] || strcmp(buf_prev, buf_esc)) return;
+	if (!be[0]) return;
 
 	/* First try a simple method for easy to recognize ULRs */
 	if ((c = strstr(be, "http")) || (c2 = strstr(be, "www."))) {
@@ -2270,7 +2275,7 @@ void copy_to_clipboard(char *buf, bool chat_input) {
 
 	extract_url(buf_esc, buf_prev, end_of_name);
 
-	r = system(format("echo -n $'%s' | xclip -sel clip", buf_esc));
+	r = system(format("echo -n '%s' | xclip -sel clip", buf_esc));
 	if (r) c_message_add("Copy failed, make sure xclip is installed.");
 	else strcpy(buf_prev, buf_esc);
 #endif
@@ -5164,7 +5169,7 @@ void interact_macros(void) {
 			if (!askfor_aux(tmp, 70, 0)) continue;
 
 			/* Process the given filename */
-			(void)process_pref_file(tmp);
+			if (process_pref_file(tmp) == -1) c_msg_format("\377yError: Can't read pref file '%s'!\n", tmp);
 
 			/* Pref files may change settings, so reload the keymap - mikaelh */
 			keymap_init();
@@ -5184,7 +5189,7 @@ void interact_macros(void) {
 			if (!askfor_aux(tmp, 70, 0)) continue;
 
 			/* Process the given filename */
-			(void)process_pref_file(tmp);
+			if (process_pref_file(tmp) == -1) c_msg_format("\377yError: Can't read pref file '%s'!\n", tmp);
 
 			/* Pref files may change settings, so reload the keymap - mikaelh */
 			keymap_init();
@@ -10046,7 +10051,8 @@ static void do_cmd_options_tilesets(void) {
 		Term_putstr(0, 0, -1, TERM_WHITE, "  \377y-\377w/\377y+\377w,\377y=\377w select prev/next tileset, \377yENTER\377w enter a specific tileset name");
 		Term_putstr(1, 3, -1, TERM_WHITE, format("%d graphical tileset%s available, \377yl\377w to list in message window", fonts, fonts == 1 ? "" : "s"));
 
-		Term_putstr(1, 5, -1, TERM_WHITE, format("Graphical tilesets are currently %s ('v' to toggle).", use_graphics ? "\377Genabled\377-" : "\377sdisabled\377-"));
+		//GRAPHICS_BG_MASK @ UG_2MASK:
+		Term_putstr(1, 5, -1, TERM_WHITE, format("Graphical tilesets are currently %s ('v' to toggle).", use_graphics_new == UG_2MASK ? "\377Genabled (dual)" : (use_graphics_new ? "\377Genabled\377-" : "\377sdisabled\377-")));
 
 		/* Tilesets are atm a global setting, not depending on terminal window */
 		Term_putstr(1, 7, -1, TERM_WHITE, format("Currently selected tileset: '\377B%s\377-'", graphic_tiles));
@@ -10086,8 +10092,21 @@ static void do_cmd_options_tilesets(void) {
 			break;
 
 		case 'v':
-			use_graphics = !use_graphics;
-			if (use_graphics) c_msg_print("\377yGraphical tileset usage \377Genabled\377-. Requires client restart.");
+			/* Hack: Never switch graphics settings, especially UG_2MASK, live,
+			   as it will cause instant packet corruption due to missing server-client synchronisation.
+			   So we just switch the savegame-affecting 'use_graphics_new' instead of actual 'use_graphics'. */
+#ifdef GRAPHICS_BG_MASK
+ #ifdef TEST_CLIENT
+			use_graphics_new = (use_graphics_new + 1) % 3;
+ #else
+			use_graphics_new = (use_graphics_new + 1) % 2;
+ #endif
+			if (use_graphics_new == UG_2MASK) c_msg_print("\377yGraphical tileset usage \377Genabled (dual)\377-. Requires client restart.");
+			else
+#else
+			use_graphics_new = !use_graphics_new;
+#endif
+			if (use_graphics_new) c_msg_print("\377yGraphical tileset usage \377Genabled\377-. Requires client restart.");
 			else c_msg_print("\377yGraphical tileset usage \377sdisabled\377-. Requires client restart.");
 			break;
 
@@ -11087,12 +11106,12 @@ void do_cmd_options(void) {
 		Term_putstr(2, l++, -1, TERM_WHITE, "(\377yc\377w)   Colour palette and colour blindness options");
 		l++;
 
-		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UA\377w) Account Options");
-		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UI\377w) Install sound/music pack from 7z-file you placed in your TomeNET folder");
+		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UA\377w)   Account Options");
+		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UI\377w)   Install sound/music pack from 7z-file you placed in your TomeNET folder");
 #ifdef WINDOWS
-		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UU\377w) Update the TomeNET Guide (downloads and reinits the Guide).");
+		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UC\377w/\377UU\377w) Check / Update the TomeNET Guide (downloads and reinits the Guide)");
 #else
-		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UU\377w) Update the TomeNET Guide (requires 'wget' package to be installed).");
+		Term_putstr(2, l++, -1, TERM_WHITE, "(\377UC\377w/\377UU\377w) Check / Update the TomeNET Guide (requires 'wget' package installed)");
 #endif
 
 		/* hide cursor */
@@ -11233,15 +11252,21 @@ void do_cmd_options(void) {
 			sprintf(tmp, "%s.opt", cname);
 
 			/* Ask for a file */
-			if (!askfor_aux(tmp, 70, 0))
-				continue;
+			if (!askfor_aux(tmp, 70, 0)) continue;
 
 			/* Process the given filename */
-			(void)process_pref_file(tmp);
+			if (process_pref_file(tmp) == -1) c_msg_format("\377yError: Can't read options file '%s'!\n", tmp);
 		}
 
 		/* Account options */
 		else if (k == 'A') do_cmd_options_acc();
+
+		/* Check the TomeNET Guide for outdatedness */
+		else if (k == 'C') {
+			check_guide_checksums(TRUE);
+			if (guide_outdated) c_msg_print("\377yYour guide is outdated. You can update it right now by pressing: \377sU");
+			else c_msg_print("\377GYour guide is up to date.");
+		}
 
 		/* Update the TomeNET Guide */
 		else if (k == 'U') {
@@ -11249,20 +11274,41 @@ void do_cmd_options(void) {
 #ifdef WINDOWS
 			char _latest_install[1024];
 
+			remove("TomeNET-Guide.txt.old");
+			rename("TomeNET-Guide.txt", "TomeNET-Guide.txt.old");
+			/* Check if renaming failed -> we don't have write access! */
+			if (my_fexists("TomeNET-Guide.txt")) {
+				c_msg_print("\377oFailed to backup current Guide. Maybe file is write-protected.");
+				c_msg_print("\377o Although bad practice, you could try running TomeNET as administrator.");
+				continue;
+			}
+
 			strcpy(_latest_install, "https://www.tomenet.eu/TomeNET-Guide.txt"); //argh, note that wget.exe doesn't support https protocol! need to use http
-			remove("TomeNET-Guide.txt");
 			res = _spawnl(_P_WAIT, "updater\\wget.exe", "wget.exe", "--dot-style=mega", _latest_install, NULL);
-			if (res != 0) c_msg_print("\377oFailed to download the Guide.");
-			else {
+			if (res != 0) {
+				c_msg_print("\377oFailed to download the Guide.");
+				c_msg_print("\377o Although bad practice, you could try running TomeNET as administrator.");
+				/* Reinstantiate our version */
+				rename("TomeNET-Guide.txt.old", "TomeNET-Guide.txt");
+			} else {
 				c_msg_print("\377gSuccessfully updated the Guide.");
 				init_guide();
+				check_guide_checksums(TRUE);
+				if (guide_outdated) c_msg_print("\377yYour guide is still outdated. This shouldn't happen.");
 				//c_msg_format("Guide reinitialized. (errno %d,lastline %d,endofcontents %d,chapters %d)", guide_errno, guide_lastline, guide_endofcontents, guide_chapters);
 			}
 #else
 			FILE *fp;
 			char out_val[3];
 
-			remove("TomeNET-Guide.txt");
+			remove("TomeNET-Guide.txt.old");
+			rename("TomeNET-Guide.txt", "TomeNET-Guide.txt.old");
+			/* Check if renaming failed -> we don't have write access! */
+			if (my_fexists("TomeNET-Guide.txt")) {
+				c_msg_print("\377oFailed to backup current Guide. Maybe file is write-protected.");
+				continue;
+			}
+
 			(void)system("wget --connect-timeout=3 https://www.tomenet.eu/TomeNET-Guide.txt"); //something changed in the web server's cfg; curl still works fine, but now wget needs the timeout setting; wget.exe for Windows still works!
 
 			fp = fopen("TomeNET-Guide.txt", "r");
@@ -11275,13 +11321,22 @@ void do_cmd_options(void) {
 				}
 				fclose(fp);
 				res = (out_val[0] < 32);
-				if (res != 0) c_msg_print("\377oFailed to update the Guide.");
-				else {
+				if (res != 0) {
+					c_msg_print("\377oFailed to update the Guide.");
+					/* Reinstantiate our version */
+					rename("TomeNET-Guide.txt.old", "TomeNET-Guide.txt");
+				} else {
 					c_msg_print("\377gSuccessfully updated the Guide.");
 					init_guide();
+					check_guide_checksums(TRUE);
+					if (guide_outdated) c_msg_print("\377yYour guide is still outdated. This shouldn't happen.");
 					//c_msg_format("Guide reinitialized. (errno %d,lastline %d,endofcontents %d,chapters %d)", guide_errno, guide_lastline, guide_endofcontents, guide_chapters);
 				}
-			} else c_msg_print("\377oFailed to download the Guide.");
+			} else {
+				c_msg_print("\377oFailed to download the Guide.");
+				/* Reinstantiate our version */
+				rename("TomeNET-Guide.txt.old", "TomeNET-Guide.txt");
+			}
 #endif
 		}
 
@@ -11589,6 +11644,10 @@ void c_close_game(cptr reason) {
 	int x, y;
 	byte *scr_aa;
 	char32_t *scr_cc;
+ #ifdef GRAPHICS_BG_MASK
+	byte *scr_aa_back;
+	char32_t *scr_cc_back;
+ #endif
 #endif
 	char tmp[MAX_CHARS];
 	bool c_cfg_tmp = c_cfg.topline_no_msg;
@@ -11640,9 +11699,17 @@ void c_close_game(cptr reason) {
 		for (y = 0; y < screen_hgt + SCREEN_PAD_TOP + SCREEN_PAD_BOTTOM - 1; y++) {
 			scr_aa = Term->scr->a[y + 1]; //+1 : leave first line blank for message prompts
 			scr_cc = Term->scr->c[y + 1];
+ #ifdef GRAPHICS_BG_MASK
+			scr_aa_back = Term->scr_back->a[y + 1]; //+1 : leave first line blank for message prompts
+			scr_cc_back = Term->scr_back->c[y + 1];
+ #endif
 			for (x = 0; x < screen_wid + SCREEN_PAD_LEFT + SCREEN_PAD_RIGHT; x++) {
 				panel_map_a[x][y] = scr_aa[x];
 				panel_map_c[x][y] = scr_cc[x];
+ #ifdef GRAPHICS_BG_MASK
+				panel_map_a_back[x][y] = scr_aa_back[x];
+				panel_map_c_back[x][y] = scr_cc_back[x];
+ #endif
 			}
 		}
 
@@ -11682,6 +11749,7 @@ void c_close_game(cptr reason) {
 					    1 + weather_element_y[k] - weather_panel_y,
 					    panel_map_a[weather_element_x[k] - weather_panel_x][weather_element_y[k] - weather_panel_y],
 					    panel_map_c[weather_element_x[k] - weather_panel_x][weather_element_y[k] - weather_panel_y]);
+					//todo maybe: GRAPHICS_BG_MASK
 				}
 			}
 			Term_fresh();
@@ -11691,6 +11759,7 @@ void c_close_game(cptr reason) {
 					Term_draw(x, y,
 					    panel_map_a[x][y - 1],
 					    panel_map_c[x][y - 1]);
+					//todo maybe: GRAPHICS_BG_MASK
 				}
 			}
  #ifdef USE_SOUND_2010
@@ -12549,7 +12618,7 @@ void check_immediate_options(int i, bool yes, bool playing) {
 		}
 		/* terminal will break with "^B" visuals if font_map_solid_walls is on, so disable it always: */
 		if (option_info[i].o_var == &c_cfg.font_map_solid_walls) {
-			c_msg_print("\377yOption 'font_map_solid_walls' is not supported on GCU client.");
+			if (playing) c_msg_print("\377yOption 'font_map_solid_walls' is not supported on GCU client."); //playing: otherwise 4x spam on login, like this only 1x
 			c_cfg.font_map_solid_walls = FALSE;
 			(*option_info[i].o_var) = FALSE;
 			Client_setup.options[i] = FALSE;
@@ -12616,6 +12685,7 @@ void check_immediate_options(int i, bool yes, bool playing) {
 				    PANEL_Y + weather_element_y[i] - weather_panel_y,
 				    panel_map_a[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y],
 				    panel_map_c[weather_element_x[i] - weather_panel_x][weather_element_y[i] - weather_panel_y]);
+				//todo maybe: GRAPHICS_BG_MASK
 			}
 		}
 		if (screen_icky) Term_switch(0);
@@ -12751,7 +12821,7 @@ static void handle_process_graphics_file(void) {
 	 * The grafics redefinition can use tile indexing from 0 and
 	 * there is no need to update graphics files after MAX_FONT_CHAR is changed. */
 	char_map_offset = MAX_FONT_CHAR + 1;
-	if (process_pref_file(fname) == -1) printf("Can't read graphics preferences file: %s\n", fname);
+	if (process_pref_file(fname) == -1) printf("ERROR: Can't read graphics preferences file: %s\n", fname);
 	char_map_offset = 0;
 }
 #endif
@@ -13339,4 +13409,16 @@ int check_guard_inscription_str(cptr ax, char what) {
 		}
 	}
 	return(FALSE);
+}
+
+bool my_fexists(const char *fname) {
+	FILE *fd;
+
+	/* Try to open it */
+	fd = fopen(fname, "rb");
+	/* It worked */
+	if (fd != NULL) {
+		fclose(fd);
+		return(TRUE);
+	} else return(FALSE);
 }

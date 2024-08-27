@@ -1500,9 +1500,12 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 	char file_name[MAX_PATH_LENGTH];
 
 	bool admin = is_admin(p_ptr);
-	char flag_str[12];
+	char flag_str[12], version[5];
 	bool iddc;
 	bool big_map = (p_ptr->screen_hgt != SCREEN_HGT); //BIG_MAP is currently turned on for this player?
+
+	connection_t *connp;
+
 
 	/* Temporary file */
 	if (path_temp(file_name, MAX_PATH_LENGTH)) return;
@@ -1520,12 +1523,26 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
 		/* Only print connected players */
 		if (q_ptr->conn == NOT_CONNECTED) continue;
 
+		connp = Conn[q_ptr->conn];
+
 		/* don't display the dungeon master if the secret_dungeon_master
 		 * option is set
 		 */
 		if (q_ptr->admin_dm) {
 			admins++;
 			if (cfg.secret_dungeon_master && !admin) continue;
+		}
+
+		switch(q_ptr->version.os) {
+		case OS_WIN32: strcpy(version, "W\377-"); break;
+		case OS_GCU: strcpy(version, "G\377-"); break;
+		case OS_X11: strcpy(version, "X\377-"); break;
+		case OS_GCU_X11: strcpy(version, "L\377-"); break;
+		case OS_OSX: strcpy(version, "O\377-"); break;
+		case OS_ANDROID: strcpy(version, "A\377-"); break;
+		case OS_IPHONE: strcpy(version, "I\377-"); break;
+		case OS_IPAD: strcpy(version, "P\377-"); break;
+		default: strcpy(version, "?\377-"); break;
 		}
 
 		iddc = in_irondeepdive(&q_ptr->wpos) || (q_ptr->mode & MODE_DED_IDDC);
@@ -1593,8 +1610,8 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #if 0
 						    , q_ptr->custom_font ? "\377wf\377-" : "", ""
  #else /* combine custom font and OS type O_o */
-						    , q_ptr->custom_font ? "\377w" : "\377D"
-						    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OSX ? "O\377-" : "\377-"))))
+						    , connp->use_graphics == UG_2MASK ? "\377G" : (connp->use_graphics ? "\377g" : (q_ptr->custom_font ? "\377w" : "\377D"))
+						    , version
  #endif
 						    );
 #else
@@ -1690,8 +1707,8 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #if 0
 						    , q_ptr->custom_font ? "\377wf\377-" : "", ""
  #else /* combine custom font and OS type O_o */
-						    , q_ptr->custom_font ? "\377w" : "\377D"
-						    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OSX ? "O\377-" : "\377-"))))
+						    , connp->use_graphics == UG_2MASK ? "\377G" : (connp->use_graphics ? "\377g" : (q_ptr->custom_font ? "\377w" : "\377D"))
+						    , version
  #endif
 						    );
 #else
@@ -1748,8 +1765,8 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #if 0
 				    , q_ptr->custom_font ? "\377wf\377-" : "", ""
  #else /* combine custom font and OS type O_o */
-						    , q_ptr->custom_font ? "\377w" : "\377D"
-						    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OSX ? "O\377-" : "\377-"))))
+						    , connp->use_graphics == UG_2MASK ? "\377G" : (connp->use_graphics ? "\377g" : (q_ptr->custom_font ? "\377w" : "\377D"))
+						    , version
  #endif
 				    );
 #endif
@@ -1844,8 +1861,8 @@ void do_cmd_check_players(int Ind, int line, char *srcstr) {
  #if 0
 					    , q_ptr->custom_font ? "\377wf\377-" : "", ""
  #else /* combine custom font and OS type O_o */
-					    , q_ptr->custom_font ? "\377w" : "\377D"
-					    , q_ptr->version.os == OS_WIN32 ? "W\377-" : (q_ptr->version.os == OS_GCU ? "G\377-" : (q_ptr->version.os == OS_X11 ? "X\377-" : (q_ptr->version.os == OS_GCU_X11 ? "L\377-" : (q_ptr->version.os == OS_OSX ? "O\377-" : "\377-"))))
+					    , connp->use_graphics == UG_2MASK ? "\377G" : (connp->use_graphics ? "\377g" : (q_ptr->custom_font ? "\377w" : "\377D"))
+					    , version
  #endif
 					    );
 #endif
@@ -2041,8 +2058,7 @@ void do_cmd_check_player_equip(int Ind, int line) {
 		bool hidden = FALSE, hidden_diz = FALSE;
 
 		/* Only print connected players */
-		if (q_ptr->conn == NOT_CONNECTED)
-			continue;
+		if (q_ptr->conn == NOT_CONNECTED) continue;
 
 		/* don't display the dungeon master if the secret_dungeon_master
 		 * option is set
@@ -4189,7 +4205,7 @@ void do_cmd_check_extra_info(int Ind, bool admin) {
 
 		switch (cfg.runlevel) {
 		case 2051: msg_print(Ind, "\377y* XtremelyLow-server-shutdown command pending *"); break;
-		case 2052: msg_print(Ind, "\377y* XXtremelyLow-server-shutdown command pending *"); break;
+		case 2053: msg_print(Ind, "\377y* XXtremelyLow-server-shutdown command pending *"); break;
 		case 2048: msg_print(Ind, "\377y* Empty-server-shutdown command pending *"); break;
 		case 2047: msg_print(Ind, "\377y* Low-server-shutdown command pending *"); break;
 		case 2046: msg_print(Ind, "\377y* VeryLow-server-shutdown command pending *"); break;

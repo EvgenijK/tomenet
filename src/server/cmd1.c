@@ -1496,7 +1496,11 @@ void search(int Ind) {
 					byte a = get_trap_color(Ind, cs_ptr->sc.trap.t_idx, c_ptr->feat);
 
 					/* Hack - Always show traps under items when detecting - mikaelh */
+#ifdef GRAPHICS_BG_MASK
+					draw_spot_ovl(Ind, y, x, a, p_ptr->f_char[FEAT_TRAP], 0, 0);
+#else
 					draw_spot_ovl(Ind, y, x, a, p_ptr->f_char[FEAT_TRAP]);
+#endif
 				} else {
 					/* Normal redraw */
 					lite_spot(Ind, y, x);
@@ -2874,7 +2878,7 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 							   reduce the nonsense to 1 extra house per Account.. */
 							struct account acc;
 
-							bool success = GetAccount(&acc, p_ptr->accountname, NULL, FALSE);
+							bool success = GetAccount(&acc, p_ptr->accountname, NULL, FALSE, NULL, NULL);
 
 							/* paranoia */
 							if (success) {

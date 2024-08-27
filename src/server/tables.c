@@ -1452,8 +1452,8 @@ player_race race_info[MAX_RACE] = {
 		2,  5,  3,  1, 6,  11, -1,  5,
 		10,  110,
 		24, 16,
-		66,  6, 130, 15,
-		62,  6, 100, 10,
+		71,  6, 160, 20,
+		62,  4, 125, 15,
 		2,
 		CF_ALL,
 		110,
@@ -1491,8 +1491,8 @@ player_race race_info[MAX_RACE] = {
 		5,  9,  6,  2, 8,  12, -5, 15,
 		9,  120,
 		75, 75,
-		60,  4, 100,  6,
-		54,  4, 80,  6,
+		71,  5, 145,  15,
+		58,  4, 100,  10,
 		3,
 		CF_ALL,
 		120,
@@ -1583,8 +1583,8 @@ player_race race_info[MAX_RACE] = {
 		10, 18, 12,  3, 6,  13, -8, 12,
 		9,  125,
 		50, 40,
-		42,  3, 90,  6,
-		39,  3, 75,  3,
+		42,  2, 90,  6,
+		39,  2, 75,  3,
 		4,
 		CF_ALL,
 		120,
@@ -1645,8 +1645,8 @@ player_race race_info[MAX_RACE] = {
 		-3, -3, -3,  -1,  0, 7, 12, -5,
 		11,  115, // lowered from 110 to 100
 		11,  4,
-		66,  1, 150,  5,
-		62,  1, 120,  5,
+		75,  3, 185,  10,
+		69,  2, 155,  6,
 		3,
 		CF_ALL,
 		50,
@@ -1690,7 +1690,7 @@ player_race race_info[MAX_RACE] = {
 		-5, -8, -8, -2,  -1, 5, 20, -10,
 		12,  135,
 		20, 10,
-		96, 10, 250, 50,
+		96, 10, 250, 50, //weight: byte limit -_-
 		84,  8, 225, 40,
 		3,
 		CF_ALL,
@@ -1731,8 +1731,8 @@ player_race race_info[MAX_RACE] = {
 		4,  3,  5,  0, 3, 13, 15, 10,
 		10,  160,//170
 		50, 20,
-		82, 5, 190, 20,
-		78,  6, 180, 15,
+		82, 6, 190, 20,
+		78, 4, 180, 15,
 		0,
 		CF_ALL,
 		105,
@@ -1765,8 +1765,8 @@ player_race race_info[MAX_RACE] = {
 		4,  20, 20,  3,  3, 14, 10, 25,
 		10,  200,//230
 		100, 30,
-		90, 10, 190, 20,
-		82, 10, 180, 15,
+		75, 6, 160, 15,
+		67, 4, 120, 10,
 		4,
 		CF_ALL,
 		125,
@@ -1823,8 +1823,8 @@ player_race race_info[MAX_RACE] = {
 		0,  0,  0,  0,  0,  10,  0,  0,
 		8,  80, /* 8, 35 */ /* 80% for the new RPG_SERVER originally */
 		14,  6,
-		57,  5, 130,  8,
-		53,  4, 115,  6,
+		57,  4, 130,  8,
+		53,  3, 115,  6,
 		0,
 		CF_ALL,
 		50,
@@ -1895,8 +1895,8 @@ player_race race_info[MAX_RACE] = {
 		-4, 0, 20, -6, 5, 4, 5, -20,
 		14, 280,//320
 		255, 70,
-		240,  6, 255, 25, //dnd Treant: 30ft, 4500 lbs, luls. But can also be 15-25 ft. Wgt still silyl, even 5-digits.
-		180,  4, 255, 20,
+		240,  12, 255, 30, //dnd Treant: 30ft, 4500 lbs, luls. But can also be 15-25 ft. Wgt still silyl, even 5-digits.
+		180,  10, 255, 25, //...also: byte limits -_-
 		0,
 		//No archer, rogue
 		CF_ALL & ~CFR & ~CFA,
@@ -1967,8 +1967,9 @@ player_race race_info[MAX_RACE] = {
 		0,  7,  10,  -5,  10,  10,  15,  5,
 		12,  300,//350
 		14,  6,
-		108,  6, 255, 25, //Dnd 4e: Average Height: 6´ 2˝–6´ 8˝. BUT..also: 5 1/2..up to 9"+ oO.
-		66,  4, 220, 20, //Dnd: Average Weight: 220–320 lb
+		//height: varies too much: 66..108 luls, let's just pick a sensible range arbitrarily, from 4e
+		84,  8, 255, 25, //Dnd 4e: Average Height: 6´ 2˝–6´ 8˝. BUT..also: 5 1/2..up to 9"+ oO.
+		73,  6, 220, 20, //Dnd: Average Weight: 220–320 lb    ...byte limits -_-
 		5,
 		CF_ALL,
 		95,
@@ -2015,8 +2016,8 @@ player_race race_info[MAX_RACE] = {
 		10,  5,  0,  4, 15,  15, -5, 10,
 		8,  115,
 		11,  4,
-		66,  1, 150,  5,
-		62,  1, 120,  5,
+		35,  1, 45,  3,
+		25,  1, 35,  2,
 		5,
 		CF_ALL,
 		120,
@@ -2047,8 +2048,8 @@ player_race race_info[MAX_RACE] = {
 		7,  3, 6,  4, 10, 6, 15, 15,
 		10,  140,//150
 		100, 30,
-		90, 10, 180, 20,
-		82, 10, 180, 15,
+		64, 5, 140, 15,
+		54, 4, 100, 10,
 		8,
 		// no Paladins
 		CF_ALL & ~CFL,
@@ -2111,8 +2112,8 @@ player_race race_info[MAX_RACE] = {
 		-2,  3, 20,  2,  -4, 13, 10, -10,
 		11,  240,//270
 		100, 30,
-		82, 5, 190, 20,	//copy-paste from Dunadain for now
-		78,  6, 180, 15,
+		72,  6, 180, 25, //same as human
+		66,  4, 150, 20,
 		15,
 		//No paladin,druid,priest,shaman/mimic
 #ifdef ENABLE_DEATHKNIGHT
@@ -2223,8 +2224,8 @@ player_race race_info[MAX_RACE] = {
 		3, 20, 3, 0,  5, 1, 15, 5,
 		11, 400,//too low == bad since you need the quest mobs
 		255, 250,
-		72,  16, 150, 55,
-		66,  8, 130, 40,
+		71,  6, 160, 15, //copy-paste from half-elf, as they can be human or elf in appearance
+		62,  4, 125, 10,
 		10,
 		/* Warrior and archer are disabled since they do not have MP */
 		/* ENABLE_HELLKNIGHT/ENABLE_CPRIEST note: These shouldn't have flags to be allowed, since they cannot be 'created' on birth: */

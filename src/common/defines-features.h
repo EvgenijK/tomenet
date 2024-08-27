@@ -518,6 +518,12 @@
    Note that retrieval from 'minimap_yoff' from server-side is just needed for this. - C. Blue */
 //#define WILDMAP_ALLOW_SELECTOR_SCROLLING
 
+/* Work in progress: Make the dedicated minimap subterm switch - C. Blue
+   Mirror map while shopping (status quo, ie clone of the main screen),
+   Condensed map while in dungeon (the same that is currently staticly available via shift+M while in dungeon),
+   World map while on the world surface including town and not shopping (same as ~0 displays on the main screen). */
+#define DYNAMIC_MINI_MAP
+
 /* Player login: Allow resuming from a different IP instead */
 #define ALLOW_RESUMING_FROM_NEW_IP
 /* Player login: Allow 'resuming' with a different character name, aka 'replacing',
@@ -527,6 +533,21 @@
 /* Allow use of colour codes via \{x in *_info.txt files. Could have risky implications.
    (However note, in equipment, colour codes are already used by rune sigils.) */
 #define X_INFO_TXT_COLOURS
+
+/* When graphics are used, enable a 2nd mask colour for background masking:
+   Black (0x000000) in a non-f_info.txt-graphics will let the otherwise displayed f_info.txt graphics shine through (100% alpha transparency). - C. Blue
+   (Notes: Affected server functions: Send_char(), Send_line_info(), Send_line_info_forward().) */
+//#ifdef TEST_SERVER
+#if defined(USE_GRAPHICS) || !defined(CLIENT_SIDE) /* !clientside: The server doesn't itself use graphics, but has to provide the calculation-capabilities for graphics-enabled clients */
+#define GRAPHICS_BG_MASK /* Enable 2nd mask for background masking */
+#ifdef GRAPHICS_BG_MASK
+/* Constants for use_graphics client setting */
+#define UG_NONE	0
+#define UG_NORMAL	1
+#define UG_2MASK	2
+#endif
+#endif
+//#endif
 
 /* Enables pet behaviour */
 #define ENABLE_PETS
@@ -586,7 +607,34 @@
  /* Just for debugging - unbind savegames from accounts */
  #define IGNORE_SAVEGAME_MISMATCH
 
- /* Biggest can of worms evah: Inter-server portals */
+ /* Biggest can of worms evah: Inter-server portals - C. Blue
+    Work in progress: Hypothetical inter-server portals, eg allowing someone from EU to party with someone on APAC and vice versa,
+    under however quite strong restrictions (prevent duplicate artifacts etc)
+    Very rough brainstorming of first ideas:
+
+    Every time you want to far-travel on a character...
+    On the home server:
+     - use /portal <world server name> command on a character ->
+     - a fixed combination of <origin server name><account name> is built, with an interconnect character that isn't allowed normally so players cannot fake this. (eg "APAC^Dude".)
+     - character savefile gets flagged as 'locked' with the world server static index number, until we receive the 'return ok' or 'return err' confirmation from the remote server we will now be travelling to.
+     - player gets disconnected (so the command should only work in town)
+     - save file is copied to a temp location
+     - save file copy is hacked: the char name is modified to something not user-selectable eg: <charname>-#<static world server index>
+     - save file copy is sent to the destination server, and the remote server prepares a special account/charname combo for just this one char, based on the strings we built earlier for acc and cname.
+     ([OPTIONALLY?:] and the server is notified of our local (source) account name) and the remote server remembers our source server, to notify it when we want to return.
+     - if the remote account has no more space for adding another character, the remote server returns an error message and 'return err' to unlock our character again.
+     - the client is notified by the home (origin) server to auto-disconnect and auto-connect to the destination server
+    On the remove server:
+     - we get auto-logged in
+     - we can do anything such as buying/selling houses, but we can enter houses and access player stores.
+     - we cannot join guilds but we can join parties. We are forcedly perma-guildless while on remote server and our party membership is reset on far-travelling, and will be auto-restored to our original party on returning to our home server.
+     - we cannot trade true artifacts while on remote (so we won't cause duplicates when we return).
+     - when we're done, we can return via /return command, simply (only in town) ->
+     - character savefile gets flagged as 'pseudo-deleted' (it can be overwritten when the original server sends us here again next time) so it can no longer be used here.
+     - player gets disconnected (so only in town)
+     - save file is sent back with 'return ok' marker to its origin server.
+     - original server overwrites the locked save file with this new version it receives, and corrects the name to normal name again (no #<idx> server marker), and unlocks the savefile (clearing its 'locked' flag).
+ */
  #define SERVER_PORTALS
 
  /* Harsh weather gives us trouble of some sort? */

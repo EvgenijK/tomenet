@@ -211,7 +211,7 @@ cptr ANGBAND_DIR_XTRA;
 cptr ANGBAND_DIR_GAME;
 
 bool disable_numlock = FALSE;
-bool use_graphics = FALSE;
+byte use_graphics = FALSE, use_graphics_new = FALSE;
 #ifdef USE_GRAPHICS
 char graphic_tiles[256] = "16x22sv";
 #endif
@@ -297,7 +297,11 @@ bool weather_panel_changed = FALSE; /* view got updated anyway by switching pane
 #if 1 /* RAINY_TOMB */
 byte panel_map_a[MAX_WINDOW_WID][MAX_WINDOW_HGT];
 char32_t panel_map_c[MAX_WINDOW_WID][MAX_WINDOW_HGT];
-#else
+ #ifdef GRAPHICS_BG_MASK
+byte panel_map_a_back[MAX_WINDOW_WID][MAX_WINDOW_HGT];
+char32_t panel_map_c_back[MAX_WINDOW_WID][MAX_WINDOW_HGT];
+ #endif
+#else /* deprecated: */
 byte panel_map_a[MAX_SCREEN_WID][MAX_SCREEN_HGT];
 char32_t panel_map_c[MAX_SCREEN_WID][MAX_SCREEN_HGT];
 #endif
@@ -678,6 +682,7 @@ bool player_pref_files_loaded = FALSE;
 
 /* For in-client guide search */
 int guide_lastline, guide_errno;
+bool guide_outdated = FALSE;
 char guide_race[64][MAX_CHARS];
 char guide_class[64][MAX_CHARS];
 char guide_skill[128][MAX_CHARS];

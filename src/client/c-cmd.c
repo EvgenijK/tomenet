@@ -7757,6 +7757,8 @@ void cmd_message(void) {
 		} else if (!strcasecmp(buf, "/reinit_guide")) { /* Undocumented: Re-init the guide (update buffered guide info if guide was changed while client is still running). */
 			init_guide();
 			c_msg_format("Guide reinitialized. (errno %d,lastline %d,endofcontents %d,chapters %d)", guide_errno, guide_lastline, guide_endofcontents, guide_chapters);
+			check_guide_checksums(TRUE);
+			if (guide_outdated) c_msg_print("\377yYour guide is outdated. You can update it in-game now by pressing: \377s= U");
 			inkey_msg = FALSE;
 			return;
 		} else if (!strcasecmp(buf, "/reinit_audio")) { /* Undocumented: Re-init the audio system. Same as pressing CTRL+R in the mixer UI. */
@@ -8269,14 +8271,14 @@ void cmd_load_pref(void) {
 	while (0 == (err = my_fgets2(fp, &buf2, &n, &fmt))) {
 		/* Process the line */
 		if (process_pref_file_aux(buf2, fmt)) //printf("Error in '%s' parsing '%s'.\n", buf2, buf);
-			c_message_add(format("\377yError in '%s' parsing '%s'.\n", buf2, buf));
+			c_message_add(format("\377yError in '%s' parsing '%s'.", buf2, buf));
 		mem_free(buf2);
 	}
 	if (err == 2) {
 		printf("Grave error: Couldn't allocate memory when parsing '%s'.\n", buf);
 		//plog(format("!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!\n", name));
 		/* Maybe this is safer than plog(), if the player is in the dungeon and in a dire situation when this happens.. */
-		c_message_add(format("\377y!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!\n", buf));
+		c_message_add(format("\377y!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!", buf));
 	}
 	my_fclose(fp);
 

@@ -5841,7 +5841,7 @@ void monster_drop_carried_objects(int m_idx, monster_type *m_ptr) {
 		res = drop_near(TRUE, 0, q_ptr, -1, &m_ptr->wpos, m_ptr->fy, m_ptr->fx);
 		/* the_sandman - Perhaps we can filter out the nothings here? */
 		//if (!strcmp(o_name, "(nothing)")) {
-		s_printf("MDCO: %s (%d) %s\n", m_name, res, o_name);
+		s_printf("MDCO: %s (%d, (%d,%d,%d)) %s\n", m_name, res, m_ptr->wpos.wx, m_ptr->wpos.wy, m_ptr->wpos.wz, o_name);
 	}
 
 	/* Forget objects */
@@ -7210,15 +7210,15 @@ else s_printf("\n");
 		/* not restricting for now */
 	}
 
+#ifdef HYDRA_REGENERATION
+	/* Experimental - Hydras are super-regenerators aka regrowing heads */
+	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M') r_ptr->flags2 |= RF2_REGENERATE_TH;
+	else
+#endif
 #ifdef TROLL_REGENERATION
 	/* Experimental - Trolls are super-regenerators (hard-coded) */
 	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'T' && p_ptr->body_monster != RI_HALF_TROLL) r_ptr->flags2 |= RF2_REGENERATE_T2;
 	else if (p_ptr->prace == RACE_HALF_TROLL || p_ptr->body_monster == RI_HALF_TROLL) r_ptr->flags2 |= RF2_REGENERATE_TH;
-	else
-#endif
-#ifdef HYDRA_REGENERATION
-	/* Experimental - Hydras are super-regenerators aka regrowing heads */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M') r_ptr->flags2 |= RF2_REGENERATE_TH;
 	else
 #endif
 	;

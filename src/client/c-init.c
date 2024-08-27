@@ -215,8 +215,10 @@ void initialize_main_pref_files(void) {
 		(*option_info[CO_BIGMAP].o_var) = FALSE;
 		Client_setup.options[CO_BIGMAP] = FALSE;
 #else
+ #if 0 /* 0'ed: New (2024): support BIG_MAP on GCU! */
 		/* And new way (no longer a toggleable option): */
 		global_c_cfg_big_map = FALSE;
+ #endif
 #endif
 
 		/* Hack for now: Palette animation seems to cause segfault on login in command-line client */
@@ -3048,6 +3050,11 @@ void init_guide(void) {
 	guide_spells = exec_lua(0, "return guide_spells");
 	for (i = 0; i < guide_spells; i++)
 		strcpy(guide_spell[i], string_exec_lua(0, format("return guide_spell[%d]", i + 1)));
+
+#if 0 /* Actually check for outdated guide via sha256sum. This costs a bit of time on Windows as we need to call wget.exe and sha256sum.exe. But it's only done on initial login or when explicitely requested, so it should be 100% fine. */
+	check_guide_checksums(FALSE);
+	if (guide_outdated) c_msg_print("\377yYour guide is outdated. You can update it in-game now by pressing: \377s= U");
+#endif
 }
 
 
@@ -3615,6 +3622,9 @@ void client_init(char *argv1, bool skip) {
 	strcpy(server_name, host_name);
 #endif
 
+	/* Before 'retry_contact:' so we only see this once on login and not on every relog (character switch): */
+	if (guide_outdated) c_msg_print("\377yYour guide is outdated. You can update it in-game now by pressing: \377s= U");
+
 #ifdef RETRY_LOGIN
 	retry_contact:
 
@@ -3754,10 +3764,16 @@ void client_init(char *argv1, bool skip) {
 	/* If server is older than 4.8.1, then it doesn't support 32bit characters, so turn off graphics if turned on. */
 	if (use_graphics && is_older_than(&server_version, 4, 8, 1, 0, 0, 0)) {
 		plog_fmt("Server doesn't support graphics. Graphics turned off.");
-		use_graphics = FALSE;
+		use_graphics_new = use_graphics = FALSE;
 		/* TODO Turn off higher_pict for every terminal and free graphics data? */
 		/* Currently not needed, cause if graphics is off, no picture redefinitions are allowed. */
 	}
+ #ifdef GRAPHICS_BG_MASK
+	else if (use_graphics == UG_2MASK && is_older_than(&server_version, 4, 9, 2, 1, 0, 0)) {
+		plog_fmt("Server doesn't support 2-mask graphics. Switching to standard graphics.");
+		use_graphics_new = use_graphics = UG_NORMAL;
+	}
+ #endif
 #endif
 
 	if (BIG_MAP_fallback) {
@@ -3940,12 +3956,14 @@ void client_init(char *argv1, bool skip) {
 		resize_main_window(CL_WINDOW_WID, CL_WINDOW_HGT);
 	}
  #endif
+ #if 0 /* 0'ed: New (2024): support BIG_MAP on GCU! */
 	/* If command-line client reads from same config file as X11 one it might
 	   read a big-map-enabled screen_hgt, so reset it: */
 	if (!strcmp(ANGBAND_SYS, "gcu")) {
 		screen_hgt = SCREEN_HGT;
 		global_c_cfg_big_map = FALSE;
 	}
+ #endif
 #endif
 
 	/* Initiate character creation? */

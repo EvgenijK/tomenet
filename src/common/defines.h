@@ -41,9 +41,9 @@
 #define VERSION_MAJOR		4
 #define VERSION_MINOR		9
 #define VERSION_PATCH		2
-#define VERSION_EXTRA		0
+#define VERSION_EXTRA		1
 #define VERSION_BRANCH		0
-#define VERSION_BUILD		0
+#define VERSION_BUILD		1
 
 /* MAJOR/MINOR/PATCH version that counts as 'latest' (should be 0-15).
    If a player is online with a version > this && <= current version (VERSION_)
@@ -112,6 +112,9 @@
 #define OS_X11		3
 #define OS_GCU_X11	4
 #define OS_OSX		5
+#define OS_ANDROID	6
+#define OS_IPHONE	7
+#define OS_IPAD		8
 
 /* Set new VERSION_OS (after 4.4.8.1.0.0) for client - C. Blue */
 #ifdef CLIENT_SIDE
@@ -119,6 +122,12 @@
   #define VERSION_OS		OS_WIN32
  #elif defined(OSX)
   #define VERSION_OS		OS_OSX
+ #elif defined(ANDROID)
+  #define VERSION_OS		OS_ANDROID	/* (practically implies OS_GCU atm and therefore specializes it) */
+ #elif defined(IPHONE)
+  #define VERSION_OS		OS_IPHONE
+ #elif defined(IPAD)
+  #define VERSION_OS		OS_IPAD
  #elif defined(USE_X11) && defined(USE_GCU)
   #define VERSION_OS		OS_GCU_X11
  #elif defined(USE_GCU)
@@ -221,7 +230,7 @@
 #define PASSWORD_MIN_LEN	6
 /* Note: These two are [20], but in fact user_name(), real_name, getlocalhostname() all cap at 16 - TODO maybe: fix */
 #define REALNAME_LEN		20 /* realname is replaced by "PLAYER" anyway */
-#define HOSTNAME_LEN		20
+#define HOSTNAME_LEN		20 /* TODO: In the in-game @ list the hostname is currently not truncated at HOSTNAME_LEN - 1 as it is in Contact(), ensure consistency. */
 
 /* Minimum length of account and character names */
 #define ACC_CHAR_MIN_LEN	2
@@ -293,6 +302,9 @@
  #define MAX_TERM_DATA_GCU 4	/* POSIX GCU version */
 
  #define NR_OPTIONS_SHOWN	11 /* # of possible sub-window types, see window_flag_desc[]) */
+
+ /* Maximum icky screens stackable (aka available to save/load on top of each other) [4] */
+ #define MAX_ICKY_SCREENS 4
 #endif
 
 
@@ -311,7 +323,7 @@
  //#define MAX_SCREEN_WID		(SCREEN_WID * 3)	/* For experimental screen-size code testing in the future */
  #define MAX_SCREEN_WID		SCREEN_WID
 #endif
-#define MAX_SCREEN_HGT		(SCREEN_HGT * 2)
+#define MAX_SCREEN_HGT		(SCREEN_HGT * 2)	/* This is BIG_MAP mode aka double main window map size. */
 
 /* (BIG_MAP) Padding of on-screen map, because of chat line, status bars, etc */
 #define SCREEN_PAD_LEFT		13
@@ -321,18 +333,22 @@
 #define SCREEN_PAD_X		(SCREEN_PAD_LEFT + SCREEN_PAD_RIGHT)
 #define SCREEN_PAD_Y		(SCREEN_PAD_TOP + SCREEN_PAD_BOTTOM)
 
+/* Traditional non-bigmap size of main window (term 0) */
+#define WINDOW_WID	(SCREEN_WID + SCREEN_PAD_X)
+#define WINDOW_HGT	(SCREEN_HGT + SCREEN_PAD_Y)
+
 /* (BIG_MAP) Maximum possible main window size */
-#define MAX_WINDOW_WID	(MAX_SCREEN_WID + SCREEN_PAD_LEFT + SCREEN_PAD_RIGHT)
-#define MAX_WINDOW_HGT	(MAX_SCREEN_HGT + SCREEN_PAD_TOP + SCREEN_PAD_BOTTOM)
+#define MAX_WINDOW_WID	(MAX_SCREEN_WID + SCREEN_PAD_X)
+#define MAX_WINDOW_HGT	(MAX_SCREEN_HGT + SCREEN_PAD_Y)
 
 #ifdef CLIENT_SIDE
  /* For resizing the main window while client runs */
- #define CL_WINDOW_WID	(screen_wid + SCREEN_PAD_LEFT + SCREEN_PAD_RIGHT)
- #define CL_WINDOW_HGT	(screen_hgt + SCREEN_PAD_TOP + SCREEN_PAD_BOTTOM)
+ #define CL_WINDOW_WID	(screen_wid + SCREEN_PAD_X)
+ #define CL_WINDOW_HGT	(screen_hgt + SCREEN_PAD_Y)
 #else
  /* For handling client functions depending on BIG_MAP */
- #define CL_WINDOW_WID	(Players[Ind]->screen_wid + SCREEN_PAD_LEFT + SCREEN_PAD_RIGHT)
- #define CL_WINDOW_HGT	(Players[Ind]->screen_hgt + SCREEN_PAD_TOP + SCREEN_PAD_BOTTOM)
+ #define CL_WINDOW_WID	(Players[Ind]->screen_wid + SCREEN_PAD_X)
+ #define CL_WINDOW_HGT	(Players[Ind]->screen_hgt + SCREEN_PAD_Y)
 #endif
 
 /*
@@ -730,20 +746,18 @@
 #define MESSAGE_BUF	262143
 
 
-/*
- * Maximum value storable in a "byte" (hard-coded)
- */
+/* Maximum value storable in a "byte" (hard-coded) */
 #define MAX_UCHAR	255
 
-/*
- * Maximum value storable in a "s16b" (hard-coded)
- */
+/* Maximum value storable in a "s16b" (hard-coded) */
 #define MAX_SHORT	32767
 
-/*
- * Maximum path length
- */
+/* Maximum path length */
 #define MAX_PATH_LENGTH	128
+
+
+/* Maximum amount of invalid account names to keep in memory for admin QoL review without requiring to look through tomenet.log. */
+#define MAX_LIST_INVALID	1024
 
 
 /* The four seasons - C. Blue */

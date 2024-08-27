@@ -2910,7 +2910,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				/* no text given */
 				if (!lookup_player_id(message2 + 6)) {
 					/* character name not found, try to match account name instead */
-					if (!GetAccount(&acc, message2 + 6, NULL, FALSE)) {
+					if (!GetAccount(&acc, message2 + 6, NULL, FALSE, NULL, NULL)) {
 						msg_print(Ind, "\377oNo character or account of that name exists.");
 						/* automatically delete old messages that we have written to this receipient which no longer exists */
 						strcpy(tname, message2 + 6);
@@ -2946,7 +2946,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				tpname[0] = 0;
 				if (!lookup_player_id(message2 + 6)) {
 					/* character name not found, try to match account name instead */
-					if (!GetAccount(&acc, message2 + 6, NULL, FALSE)) {
+					if (!GetAccount(&acc, message2 + 6, NULL, FALSE, NULL, NULL)) {
 						msg_print(Ind, "\377oNo character or account of that name exists.");
 						return;
 					}
@@ -3022,7 +3022,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			/* Store a new note from this player to the specified player */
 
 			/* does target account exist? -- paranoia at this point! */
-			if (!GetAccount(&acc, tname, NULL, FALSE)) {
+			if (!GetAccount(&acc, tname, NULL, FALSE, NULL, NULL)) {
 				msg_print(Ind, "\377oError: Player's account not found.");
 				return;
 			}
@@ -5776,7 +5776,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			msg_format(Ind, "\377sUptime: %d days %d hours %d minutes %d seconds", days, hours, minutes, seconds);
 			return;
 #ifdef SERVER_PORTALS
-		} else if (prefix(messagelc, "/initportal")) { /* initialize inter-server portal */
+		} else if (prefix(messagelc, "/portal")) { /* initialize/use inter-server portal */
 			return;
 #endif
 		} else if (prefix(messagelc, "/split")) { /* split up an item stack, auto-append-inscribing the split up part !G */
@@ -5871,7 +5871,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 				return;
 			}
-			if (prefix(messagelc, "/inval")) {
+			else if (prefix(messagelc, "/inval")) {
 				if (!tk) {
 					msg_print(Ind, "Usage: /inval <player name>");
 					return;
@@ -5888,6 +5888,14 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					s_printf("ATTEMPT_INVAL_ADMIN: %s -> %s\n", p_ptr->name, message3);
 					break;
 				}
+				return;
+			}
+			else if (prefix(messagelc, "/linv")) { /* List new invalid account names that tried to log in meanwhile */
+				for (i = 0; i < MAX_LIST_INVALID; i++) {
+					if (!list_invalid_name[i][0]) break;
+					msg_format(Ind, "  #%d) %s %s@%s (%s)", i, list_invalid_date[i], list_invalid_name[i], list_invalid_host[i], list_invalid_addr[i]);
+				}
+				if (!i) msg_print(Ind, "No invalid accounts recorded.");
 				return;
 			}
 		}
@@ -6005,7 +6013,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 			else if (prefix(messagelc, "/shutxxlow")) {
 				msg_admins(0, "\377y* Shutting down when dungeons are empty and extremely few (2) players are on *");
-				cfg.runlevel = 2052;
+				cfg.runlevel = 2053;
 				return;
 			}
 			else if (prefix(messagelc, "/shutulow")) {
@@ -7666,11 +7674,20 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 #endif
-			else if (prefix(messagelc, "/log")) {
+			else if (prefix(messagelc, "/log") && !prefix(messagelc, "/log_u")) {
 				char path[MAX_PATH_LENGTH];
 
+				//(segfaults inspecting an item for example) -- strcpy(p_ptr->infofile, message3); //abuse this as temp storage
 				path_build(path, MAX_PATH_LENGTH, ANGBAND_DIR_DATA, "tomenet.log");
 				do_cmd_check_other_prepare(Ind, path, "Server Log File");
+				return;
+			}
+			else if (prefix(messagelc, "/linv")) { /* List new invalid account names that tried to log in meanwhile */
+				for (i = 0; i < MAX_LIST_INVALID; i++) {
+					if (!list_invalid_name[i][0]) break;
+					msg_format(Ind, "  #%d) %s %s@%s (%s)", i, list_invalid_date[i], list_invalid_name[i], list_invalid_host[i], list_invalid_addr[i]);
+				}
+				if (!i) msg_print(Ind, "No invalid accounts recorded.");
 				return;
 			}
 			/* Respawn monsters on the floor
@@ -10832,6 +10849,86 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 				return;
 			}
+			/* curses an item */
+			else if (prefix(messagelc, "/curse")) {
+				object_type *o_ptr;
+
+				if (!tk) {
+					msg_print(Ind, "No inventory slot specified.");
+					return; /* no inventory slot specified */
+				}
+				if (k < 1 || k > INVEN_TOTAL) {
+					msg_format(Ind, "Inventory slot must be between 1 and %d", INVEN_TOTAL);
+					return; /* invalid inventory slot index */
+				}
+				k--; /* start at index 1, easier for user */
+				if (!p_ptr->inventory[k].tval) {
+					msg_print(Ind, "Specified inventory slot is empty.");
+					return; /* inventory slot empty */
+				}
+				o_ptr = &p_ptr->inventory[k];
+
+				o_ptr->ident |= (ID_CURSED);
+				/* Note: All curse-types (eg TR3_HEAVY_CURSE) are a kind-/artifact-flags, so these will remain on the item
+				   'in the background' even while it's uncursed, and if the item is now re-cursed via this command
+				   then the curse-specific flags will also automatically apply again. */
+#ifdef VAMPIRES_INV_CURSED
+				if (k >= INVEN_WIELD) {
+					if (p_ptr->prace == RACE_VAMPIRE) inverse_cursed(o_ptr);
+ #ifdef ENABLE_HELLKNIGHT
+					else if (p_ptr->pclass == CLASS_HELLKNIGHT) inverse_cursed(o_ptr); //them too!
+ #endif
+ #ifdef ENABLE_CPRIEST
+					else if (p_ptr->pclass == CLASS_CPRIEST && p_ptr->body_monster == RI_BLOODTHIRSTER) inverse_cursed(o_ptr);
+ #endif
+				}
+#endif
+				o_ptr->ident |= ID_SENSE | ID_SENSED_ONCE; /* Hack -- Assume felt */
+				note_toggle_cursed(o_ptr, TRUE);
+				p_ptr->update |= PU_BONUS;
+				p_ptr->window |= PW_INVEN | PW_EQUIP;
+				return;
+			}
+			/* uncurses an item */
+			else if (prefix(messagelc, "/uncurse")) {
+				object_type *o_ptr;
+
+				if (!tk) {
+					msg_print(Ind, "No inventory slot specified.");
+					return; /* no inventory slot specified */
+				}
+				if (k < 1 || k > INVEN_TOTAL) {
+					msg_format(Ind, "Inventory slot must be between 1 and %d", INVEN_TOTAL);
+					return; /* invalid inventory slot index */
+				}
+				k--; /* start at index 1, easier for user */
+				if (!p_ptr->inventory[k].tval) {
+					msg_print(Ind, "Specified inventory slot is empty.");
+					return; /* inventory slot empty */
+				}
+				o_ptr = &p_ptr->inventory[k];
+
+				o_ptr->ident &= ~ID_CURSED;
+				/* Note: All curse-types (eg TR3_HEAVY_CURSE) are a kind-/artifact-flags, so these will remain on the item
+				   'in the background' even while it's uncursed, and if the item is now re-cursed via "/curse" command
+				   then the curse-specific flags will also automatically apply again. */
+#ifdef VAMPIRES_INV_CURSED
+				if (k >= INVEN_WIELD) {
+					if (p_ptr->prace == RACE_VAMPIRE) reverse_cursed(o_ptr);
+ #ifdef ENABLE_HELLKNIGHT
+					else if (p_ptr->pclass == CLASS_HELLKNIGHT) reverse_cursed(o_ptr); //them too!
+ #endif
+ #ifdef ENABLE_CPRIEST
+					else if (p_ptr->pclass == CLASS_CPRIEST && p_ptr->body_monster == RI_BLOODTHIRSTER) reverse_cursed(o_ptr);
+ #endif
+				}
+#endif
+				o_ptr->ident |= ID_SENSE | ID_SENSED_ONCE; /* Hack -- Assume felt */
+				note_toggle_cursed(o_ptr, FALSE);
+				p_ptr->update |= PU_BONUS;
+				p_ptr->window |= PW_INVEN | PW_EQUIP;
+				return;
+			}
 			else if (prefix(messagelc, "/ai")) { /* returns/resets all AI flags and states of monster currently looked at (NOT the one targetted) - C. Blue */
 				monster_type *m_ptr;
 				int m_idx;
@@ -12652,7 +12749,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if (!GetAccount(&acc, message3, NULL, FALSE)) {
+				if (!GetAccount(&acc, message3, NULL, FALSE, NULL, NULL)) {
 					msg_print(Ind, "Couldn't find that account.");
 					return;
 				}
@@ -13160,7 +13257,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (prefix(messagelc, "/accountorder")) { /* Initialize character ordering for the whole account database */
 				struct account acc;
 
-				if (!GetAccount(&acc, message3, NULL, FALSE)) {
+				if (!GetAccount(&acc, message3, NULL, FALSE, NULL, NULL)) {
 					msg_print(Ind, "\377oNo account of that name exists.");
 					return;
 				}
@@ -13174,7 +13271,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (prefix(messagelc, "/showaccountorder")) { /* Initialize character ordering for the whole account database */
 				struct account acc;
 
-				if (!GetAccount(&acc, message3, NULL, FALSE)) {
+				if (!GetAccount(&acc, message3, NULL, FALSE, NULL, NULL)) {
 					msg_print(Ind, "\377oNo account of that name exists.");
 					return;
 				}
@@ -13524,6 +13621,22 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_format(Ind, "..cycled column %d.", wx);
 				}
 				msg_print(Ind, "...done!");
+				return;
+			}
+			/* Check player's food consumption rate */
+			else if (prefix(messagelc, "/food")) {
+				if (!tk) {
+					msg_print(Ind, "\377oUsage: /food <character name>");
+					return;
+				}
+
+				j = name_lookup_loose(Ind, message3, FALSE, TRUE, FALSE);
+				if (!j) {
+					msg_print(Ind, "\377yCharacter not online.");
+					return;
+				}
+
+				msg_format(Ind, "Rate of player '%s' is %d (old system: %d).", Players[j]->name, food_consumption(j), food_consumption_legacy(j));
 				return;
 			}
 		}

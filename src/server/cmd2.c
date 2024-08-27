@@ -2142,7 +2142,7 @@ static bool chown_door(int Ind, struct dna_type *dna, char *args, int x, int y) 
 			object_type *o_ptr;
 			s32b id;
 
-			if (!GetAccount(&acc, p_ptr->accountname, NULL, FALSE)) { /* paranoia */
+			if (!GetAccount(&acc, p_ptr->accountname, NULL, FALSE, NULL, NULL)) { /* paranoia */
 				/* uhh.. */
 				msg_print(Ind, "Your account is corrupted, please contact an admin.");
 				return(FALSE);
@@ -7190,7 +7190,11 @@ void do_cmd_fire(int Ind, int dir) {
 					p_ptr->scr_info[dispy][dispx].a = missile_attr;
 
 					/* Tell the client */
+#ifdef GRAPHICS_BG_MASK
+					Send_char(i, dispx, dispy, missile_attr, missile_char, 0, 0);
+#else
 					Send_char(i, dispx, dispy, missile_attr, missile_char);
+#endif
 
 					/* Flush and wait */
 					if (cur_dis % (boomerang ? 2 : tmul)) Send_flush(i);
@@ -8012,7 +8016,11 @@ void do_cmd_fire(int Ind, int dir) {
 					p_ptr->scr_info[dispy][dispx].a = missile_attr;
 
 					/* Tell the client */
+#ifdef GRAPHICS_BG_MASK
+					Send_char(i, dispx, dispy, missile_attr, missile_char, 0, 0);
+#else
 					Send_char(i, dispx, dispy, missile_attr, missile_char);
+#endif
 
 					/* Flush and wait */
 					if (cur_dis % (boomerang ? 2 : tmul)) Send_flush(i);
@@ -8061,7 +8069,11 @@ void do_cmd_fire(int Ind, int dir) {
 				p_ptr->scr_info[dispy][dispx].a = missile_attr;
 
 				/* Tell the client */
+#ifdef GRAPHICS_BG_MASK
+				Send_char(i, dispx, dispy, missile_attr, missile_char, 0, 0);
+#else
 				Send_char(i, dispx, dispy, missile_attr, missile_char);
+#endif
 
 				/* Flush once */
 				Send_flush(i);
@@ -8615,7 +8627,11 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 				p_ptr->scr_info[dispy][dispx].a = missile_attr;
 
 				/* Tell the client */
+#ifdef GRAPHICS_BG_MASK
+				Send_char(i, dispx, dispy, missile_attr, missile_char, 0, 0);
+#else
 				Send_char(i, dispx, dispy, missile_attr, missile_char);
+#endif
 
 				/* Flush and wait */
 				if (cur_dis % 2) Send_flush(i);
@@ -8996,7 +9012,11 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 				p_ptr->scr_info[dispy][dispx].a = missile_attr;
 
 				/* Tell the client */
+#ifdef GRAPHICS_BG_MASK
+				Send_char(i, dispx, dispy, missile_attr, missile_char, 0, 0);
+#else
 				Send_char(i, dispx, dispy, missile_attr, missile_char);
+#endif
 
 				/* Flush once */
 				Send_flush(i);
@@ -9585,7 +9605,10 @@ return;
 	/* Don't allow cloaking while inside a store */
 	if (p_ptr->store_num != -1) return;
 
-	if (p_ptr->pclass != CLASS_ROGUE) return;
+	if (p_ptr->pclass != CLASS_ROGUE) {
+		msg_format(Ind, "\377yOnly rogues can use cloaking.");
+		return;
+	}
 
     if (!p_ptr->cloaked) {
 	if (p_ptr->lev < LEARN_CLOAKING_LEVEL) {

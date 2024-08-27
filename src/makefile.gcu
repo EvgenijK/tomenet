@@ -6,9 +6,8 @@
 
 # --------------------------------- READ THIS ---------------------------------
 #
-# Currently, only 4 target builds are supported for building the client:
-#
-#  -DUSE_GCU for a linux ncurses command-line client
+#  -DUSE_GCU for a linux ncurses command-line client,
+#  specifially allows building on Android devices.
 #
 # Additionally, -DSOUND_SDL and the according sdl2-config call for both compiler
 # and linker flags and linking against -lSDL2_mixer should be added so the
@@ -21,17 +20,9 @@
 # or possibly for "Atari" or "Amiga" computers with "Curses" ports,
 # see below for more information.
 #
-# Note that "main-win.c", the visual module for Windows,
-# must be compiled in a special way, see elsewhere.
-#
 # If you are able to construct "main-xxx.c" and/or "Makefile.xxx"
-# files for a currently unsupported system, please send them to me
-# (benh@voicenet.com) for inclusion in future versions.
-#
-# This Makefile comes with "default" dependancies that may be obsolete.
-#
-# You may want to run "make depend" if you are planning on changing
-# anything.
+# files for a currently unsupported system, please send them to
+# c_blue@gmx.net for inclusion in future versions.
 #
 
 
@@ -312,11 +303,16 @@ CFLAGS += -fstack-protector -D_FORTIFY_SOURCE=2 -fPIE
 LDFLAGS += -Wl,-z,relro -Wl,-z,now
 
 
+
+## Test for OS type
+CFLAGS += $(shell ./os-check.sh)
+
 # Compile a client with 'test client' version/tag
-tomenet.test: CFLAGS += -DTEST_CLIENT -g3 -O0 -Wno-stringop-overflow -Wno-cpp -Wno-format-overflow
+tomenet.test: CFLAGS += -DTEST_CLIENT -g3 -O0 -Wno-stringop-overflow -Wno-cpp -Wno-format-overflow -DCLIENT_SIDE
 #disable 3 warning spams: 'accessing n bytes in a region of size m', '_FORTIFY_SOURCE requires compiling with optimization', 'directive writing up to 159 bytes into a region of size'
 tomenet.test: PPFLAGS = -DTEST_CLIENT
 
+tomenet: CFLAGS = -DCLIENT_SIDE
 
 # Server is compiled with optimizations
 tomenet.server: CFLAGS += -g -O2

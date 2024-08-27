@@ -1107,7 +1107,7 @@ errr process_pref_file(cptr name) {
 	/* Build the filename */
 	path_build(buf, 1024, ANGBAND_DIR_USER, name);
 
-printf("processing prf file %s\n", name);
+	if (strcmp(ANGBAND_SYS, "gcu")) printf("Processing prf file '%s'.\n", name); //in GCU-only client this lands across the curses terminals instead of the console, pointless
 	/* Open the file */
 	fp = my_fopen(buf, "r");
 
@@ -1119,14 +1119,17 @@ printf("processing prf file %s\n", name);
 		/* Process the line */
 		if (process_pref_file_aux(buf2, fmt)) {
 			/* Useful error message */
-			printf("Error in '%s' parsing '%s'.\n", buf2, name);
+			if (rl_connection_state == 1) c_msg_format("\377yError in '%s' parsing '%s'.", buf2, name);
+			if (strcmp(ANGBAND_SYS, "gcu")) printf("Error in '%s' parsing '%s'.\n", buf2, name);
+			//else if (rl_connection_state != 1) plog(format("Error in '%s' parsing '%s'.\n", buf2, name)); //too annoying if prf file contains a bunch of outdated options as residue from older game versions
 		}
 
 		mem_free(buf2);
 	}
 	if (err == 2) {
-		printf("Grave error: Couldn't allocate memory when parsing '%s'.\n", name);
-		plog(format("!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!\n", name));
+		if (strcmp(ANGBAND_SYS, "gcu")) printf("Grave error: Couldn't allocate memory when parsing '%s'.\n", name);
+		//plog(format("!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!\n", name)); //might be deadly if it happens in live game ^^' so instead just:
+		c_msg_format("\377R!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!", name);
 	}
 
 	/* Close the file */
@@ -2533,4 +2536,72 @@ void load_birth_file(cptr name) {
 
 	/* Update an outdated dna file version? */
 	if (update) save_birth_file(name, TRUE);
+}
+
+/* Check if our guide is outdated -- only do this once on initial client startup, not on every relog (retry_contact).
+   Also do this when explicitely requested (eg via =U or /reinit_guide). */
+#ifdef WINDOWS
+ #include <process.h> /* for _spawnl() */
+#endif
+void check_guide_checksums(bool forced) {
+	FILE *fp;
+	char buf[MAX_CHARS_WIDE], buf2[MAX_CHARS_WIDE], *c;
+
+	/* TODO: Make this a .tomenetrc / tomenet.ini switch */
+#ifdef WINDOWS
+ #if 1	/* 1: Don't check guide checksums on client startup. \
+	      Disabled now as nobody has the required sha256sum.exe/bat files in their 'updater' folder anyway. Reenable on next release. */
+	/* (guide_outdated remains FALSE) */
+	if (!forced) return;
+ #endif
+#else /* Assume POSIX - We assume that sha256sum is probably available on POSIX, so this could be worth using already. */
+ #if 1	/* 1: Don't check guide checksums on client startup. We have = C now, so this isn't that important anymore. */
+	/* (guide_outdated remains FALSE) */
+	if (!forced) return;
+ #endif
+#endif
+
+	/* Do we have sha256sum tool? */
+#ifdef WINDOWS
+	if (!my_fexists("updater\\sha256sum.bat"))
+	//if (access("updater\\sha256sum.bat", F_OK))
+#else /* assume POSIX */
+	if (system("sha256sum"))
+#endif
+	{
+		//printf("Warning: No sha256sum found, cannot auto-check guide for outdatedness.\n"); --could be spammy
+		guide_outdated = FALSE;
+		return;
+	}
+
+	buf2[0] = buf[0] = 0;
+#ifdef WINDOWS
+	(void)_spawnl(_P_WAIT, "updater\\sha256sum.bat", "updater\\sha256sum.bat", NULL);
+#else /* assume POSIX */
+	(void)system("sha256sum TomeNET-Guide.txt > TomeNET-Guide.sha256.local");
+#endif
+	fp = fopen("TomeNET-Guide.sha256.local", "r");
+	if (fp) {
+		fgets(buf2, MAX_CHARS_WIDE, fp);
+		fclose(fp);
+	}
+	remove("TomeNET-Guide.sha256.local");
+	if ((c = strchr(buf2, ' '))) *c = 0; //cut off file name, only keep the actual hash
+#ifdef WINDOWS
+	(void)_spawnl(_P_WAIT, "updater\\wget.exe", "wget.exe", "--dot-style=mega", "https://www.tomenet.eu/TomeNET-Guide.sha256", NULL);
+#else /* assume POSIX */
+	(void)system("wget --connect-timeout=3 https://www.tomenet.eu/TomeNET-Guide.sha256");
+#endif
+	fp = fopen("TomeNET-Guide.sha256", "r");
+	if (fp) {
+		fgets(buf, MAX_CHARS_WIDE, fp);
+		fclose(fp);
+	}
+	remove("TomeNET-Guide.sha256");
+	if ((c = strchr(buf, ' '))) *c = 0; //cut off file name, only keep the actual hash
+	//printf("old <%s>, new <%s>\n", buf2, buf);
+	guide_outdated = strcmp(buf2, buf);
+
+	//Must be disabled if we ever call check_guide_checksums() before the window system is initialized (eg early on in main()), or segfault:
+	//if (guide_outdated) c_msg_print("\377yYour guide is outdated. You can update it in-game now by pressing: \377s= U");
 }

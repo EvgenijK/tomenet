@@ -2918,12 +2918,15 @@ struct account {
 	char houses;	/* for account-wide house limit (installed after increasing the # of generic character slots above 8) */
 	unsigned char runtime;	/* increments on each server (re)start simply, to track server instance */
 
+	char hostname[HOSTNAME_LEN];	/* last used hostname */
+	char addr[MAX_CHARS];		/* last used IP address */
+
 	/* for future use */
 	unsigned char unused1;
 	unsigned char unused2;
 	unsigned char unused3;
 };
-/* Used for updating tomenet.acc structure: */
+/* Used for updating tomenet.acc structure: -- MAKE SURE YOU EDIT src/account/account.h ACCORDINGLY to reflect current struct account! */
 struct account_old {
 	u32b id;	/* account id */
 	u32b flags;	/* account flags */
@@ -2943,6 +2946,12 @@ struct account_old {
 	u32b guild_dna;	/* auto-rejoin its guild after a char perma-died */
 
 	char houses;	/* for account-wide house limit (installed after increasing the # of generic character slots above 8) */
+	unsigned char runtime;	/* increments on each server (re)start simply, to track server instance */
+
+	/* for future use */
+	unsigned char unused1;
+	unsigned char unused2;
+	unsigned char unused3;
 };
 
 typedef struct version_type version_type;
@@ -3023,7 +3032,7 @@ struct player_type {
 	bool initial_options_sync;
 	bool rogue_like_commands;
 
-	s32b id;			/* Unique ID to each player */
+	s32b id;			/* Unique ID to each player. Ranges from 1 (starter 'player_id' on new server) to MAX_ID (65536). Also the size of array GetInd[]. With MAX_ID + 1 being object owner marker for 'perma-deceased'. */
 	u32b account;			/* account group id */
 	u32b dna;			/* DNA - psuedo unique to each player life */
 	s32b turn;			/* Player's birthday */
@@ -3343,14 +3352,20 @@ struct player_type {
 	s16b screen_hgt;
 
 	/* What he should be seeing */
-	cave_view_type scr_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection */
+	cave_view_type scr_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection -- UNUSED */
 	cave_view_type scr_info[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
-	cave_view_type scr_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection */
+#ifdef GRAPHICS_BG_MASK
+	cave_view_type scr_info_back[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
+#endif
+	cave_view_type scr_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection -- UNUSED */
 
 	/* Overlay layer used for detection */
-	cave_view_type ovl_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection */
+	cave_view_type ovl_info_guard_before[MAX_WINDOW_WID + 1]; /* overflow protection -- UNUSED */
 	cave_view_type ovl_info[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
-	cave_view_type ovl_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection */
+#ifdef GRAPHICS_BG_MASK
+	cave_view_type ovl_info_back[MAX_WINDOW_HGT][MAX_WINDOW_WID]; /* Hard-coded Y*X display */
+#endif
+	cave_view_type ovl_info_guard_after[MAX_WINDOW_WID + 1]; /* overflow protection -- UNUSED */
 
 	s32b mimic_seed;		/* seed for random mimic immunities etc. */
 	char mimic_immunity;		/* preferred immunity when mimicking (overrides mimic_seed); hack in 4.7.3a: use remaining bits for chosen breath element */
@@ -3808,7 +3823,7 @@ struct player_type {
 	char afk_msg[MAX_CHARS];	/* afk reason */
 	char info_msg[MAX_CHARS];	/* public info message (display gets overridden by an afk reason, if specified) */
 //CHECK
-	bool use_r_gfx;			/* hack - client uses gfx? */
+	bool custom_mapping;		/* hack - client uses custom font mapping? */
 	bool custom_font;		/* Did player client upload custom attr/char mappings? */
 	player_list_type *afk_noticed;	/* Only display AFK messages once in private conversations */
 
