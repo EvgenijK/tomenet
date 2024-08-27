@@ -308,16 +308,16 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
     int y, ay, x, ax;
     int move_val = 0;
 
-    int tm_idx = 0;
+    int target_idx = 0;
     int y2, x2;
 
     if (Ind > 0) p_ptr = Players[Ind];
     else p_ptr = NULL;
 
     /* Lets find a target */
-    if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who)))
-        tm_idx = p_ptr->target_who;
-    else { // if (m_ptr->mind & PET_GUARD)
+    if ((p_ptr != NULL) && (m_ptr->mind & PET_ATTACK) && TARGET_BEING(p_ptr->target_who) && (p_ptr->target_who > 0 || check_hostile(Ind, -p_ptr->target_who))) {
+        target_idx = p_ptr->target_who;
+    } else { // if (m_ptr->mind & PET_GUARD)
         int sx, sy;
         s32b max_hp = 0;
 
@@ -348,26 +348,26 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
                 if (c_ptr->m_idx > 0) { 
                     if (max_hp < m_list[c_ptr->m_idx].maxhp) {
                         max_hp = m_list[c_ptr->m_idx].maxhp;
-                        tm_idx = c_ptr->m_idx;
+                        target_idx = c_ptr->m_idx;
                     }
                 } else {
                     if ((max_hp < Players[-c_ptr->m_idx]->mhp) && (m_ptr->owner != Players[-c_ptr->m_idx]->id)) {
                         max_hp = Players[-c_ptr->m_idx]->mhp;
-                        tm_idx = c_ptr->m_idx;
+                        target_idx = c_ptr->m_idx;
                     }
                 }
             }
     }
     /* Nothing else to do ? */
-    if ((p_ptr != NULL) && !tm_idx && (m_ptr->mind & PET_FOLLOW))
-        tm_idx = -Ind;
+    if ((p_ptr != NULL) && !target_idx && (m_ptr->mind & PET_FOLLOW))
+        target_idx = -Ind;
 
-    if (!tm_idx) return(FALSE);
+    if (!target_idx) return(FALSE);
 
-    if (!(inarea(&m_ptr->wpos, (tm_idx > 0) ? &m_list[tm_idx].wpos : &Players[-tm_idx]->wpos))) return(FALSE);
+    if (!(inarea(&m_ptr->wpos, (target_idx > 0) ? &m_list[target_idx].wpos : &Players[-target_idx]->wpos))) return(FALSE);
 
-    y2 = (tm_idx > 0)?m_list[tm_idx].fy:Players[-tm_idx]->py;
-    x2 = (tm_idx > 0)?m_list[tm_idx].fx:Players[-tm_idx]->px;
+    y2 = (target_idx > 0) ? m_list[target_idx].fy : Players[-target_idx]->py;
+    x2 = (target_idx > 0) ? m_list[target_idx].fx : Players[-target_idx]->px;
 
     /* Extract the "pseudo-direction" */
     y = m_ptr->fy - y2;
