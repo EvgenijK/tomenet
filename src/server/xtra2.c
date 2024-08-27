@@ -12348,11 +12348,11 @@ void monster_death_mon(int am_idx, int m_idx) {
 
 			/* Place Gold */
 			if (do_gold && (!do_item || (rand_int(100) < 50)))
-				place_gold(m_ptr->owner, wpos, ny, nx, 1, 0);
+				place_gold(find_player(m_ptr->owner), wpos, ny, nx, 1, 0);
 			/* Place Object */
 			else {
 				place_object_restrictor = RESF_NONE;
-				place_object(m_ptr->owner, wpos, ny, nx, good, great, FALSE, RESF_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
+				place_object(find_player(m_ptr->owner), wpos, ny, nx, good, great, FALSE, RESF_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
 			}
 
 			/* Reset the object level */
