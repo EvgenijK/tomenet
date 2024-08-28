@@ -528,6 +528,58 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
     return(TRUE);
 }
 
+void hande_pet_stun(int m_idx) {
+    monster_type *m_ptr = &m_list[m_idx];
+    monster_race *r_ptr = race_inf(m_ptr);
+    
+    if (m_ptr->stunned) {
+		int d = 1;
+
+		/* make a "saving throw" against stun */
+		if (rand_int(5000) <= r_ptr->level * r_ptr->level) {
+			/* recover fully */
+			d = m_ptr->stunned;
+		}
+
+		/* hack -- recover from stun */
+		if (m_ptr->stunned > d) {
+			/* recover somewhat */
+			m_ptr->stunned -= d;
+		}
+		/* fully recover */
+		else {
+			/* recover fully */
+			m_ptr->stunned = 0;
+		}
+
+		/* still stunned */
+		if (m_ptr->stunned)  {
+			m_ptr->energy -= level_speed(&m_ptr->wpos);
+			return;
+		}
+	}
+}
+
+void handle_pet_confusion(int m_idx) {
+    monster_type *m_ptr = &m_list[m_idx];
+    monster_race *r_ptr = race_inf(m_ptr);
+    
+    if (m_ptr->confused && !(r_ptr->flags3 & RF3_NO_CONF)) {
+		/* amount of "boldness" */
+		int d = randint(r_ptr->level / 10 + 1);
+
+		/* still confused */
+		if (m_ptr->confused > d) {
+			/* reduce the confusion */
+			m_ptr->confused -= d;
+		}
+		/* recovered */
+		else {
+			/* no longer confused */
+			m_ptr->confused = 0;
+		}
+	}
+}
 
 /* the pet handler. note that at the moment it _may_ be almost
  * identical to the golem's handler, except for some little
@@ -541,7 +593,7 @@ void process_monster_pet(int Ind, int m_idx) {
 	monster_race    *r_ptr = race_inf(m_ptr);
 	struct worldpos *wpos = &m_ptr->wpos;
 
-	int			i, d, oy, ox, ny, nx;
+	int			i, direction, origin_y, origin_x, ny, nx;
 
 	int			mm[8];
 
@@ -576,54 +628,12 @@ void process_monster_pet(int Ind, int m_idx) {
 	else p_ptr = NULL;
 #endif
 
-	/* handle "stun" */
-	if (m_ptr->stunned) {
-		int d = 1;
-
-		/* make a "saving throw" against stun */
-		if (rand_int(5000) <= r_ptr->level * r_ptr->level) {
-			/* recover fully */
-			d = m_ptr->stunned;
-		}
-
-		/* hack -- recover from stun */
-		if (m_ptr->stunned > d) {
-			/* recover somewhat */
-			m_ptr->stunned -= d;
-		}
-		/* fully recover */
-		else {
-			/* recover fully */
-			m_ptr->stunned = 0;
-		}
-
-		/* still stunned */
-		if (m_ptr->stunned)  {
-			m_ptr->energy -= level_speed(&m_ptr->wpos);
-			return;
-		}
-	}
-
-	/* handle confusion */
-	if (m_ptr->confused && !(r_ptr->flags3 & RF3_NO_CONF)) {
-		/* amount of "boldness" */
-		int d = randint(r_ptr->level / 10 + 1);
-
-		/* still confused */
-		if (m_ptr->confused > d) {
-			/* reduce the confusion */
-			m_ptr->confused -= d;
-		}
-		/* recovered */
-		else {
-			/* no longer confused */
-			m_ptr->confused = 0;
-		}
-	}
+	hande_pet_stun(m_idx);
+	handle_pet_confusion(m_idx);
 
 	/* get the origin */
-	oy = m_ptr->fy;
-	ox = m_ptr->fx;
+	origin_y = m_ptr->fy;
+	origin_x = m_ptr->fx;
 
 	/* hack -- assume no movement */
 	mm[0] = mm[1] = mm[2] = mm[3] = 0;
@@ -662,14 +672,14 @@ void process_monster_pet(int Ind, int m_idx) {
 	/* take a zero-terminated array of "directions" */
 	for (i = 0; mm[i]; i++) {
 		/* get the direction */
-		d = mm[i];
+		direction = mm[i];
 
 		/* hack -- allow "randomized" motion */
-		if (d == 5) d = ddd[rand_int(8)];
+		if ( direction == 5) direction = ddd[rand_int(8)];
 
 		/* get the destination */
-		ny = oy + ddy[d];
-		nx = ox + ddx[d];
+		ny = origin_y + ddy[direction];
+		nx = origin_x + ddx[direction];
 
 		/* access that cave grid */
 		c_ptr = &zcave[ny][nx];
@@ -943,13 +953,13 @@ void process_monster_pet(int Ind, int m_idx) {
 			do_turn = TRUE;
 
 			/* hack -- update the old location */
-			zcave[oy][ox].m_idx = c_ptr->m_idx;
+			zcave[origin_y][origin_x].m_idx = c_ptr->m_idx;
 
 			/* mega-hack -- move the old monster, if any */
 			if (c_ptr->m_idx > 0) {
 				/* move the old monster */
-				y_ptr->fy = oy;
-				y_ptr->fx = ox;
+				y_ptr->fy = origin_y;
+				y_ptr->fx = origin_x;
 
 				/* update the old monster */
 				update_mon(c_ptr->m_idx, TRUE);
@@ -964,9 +974,9 @@ void process_monster_pet(int Ind, int m_idx) {
 
 			/* update the monster */
 			update_mon(m_idx, TRUE);
-cave_midx_debug(wpos, oy, ox, c_ptr->m_idx); //DEBUG
+cave_midx_debug(wpos, origin_y, origin_x, c_ptr->m_idx); //DEBUG
 			/* redraw the old grid */
-			everyone_lite_spot(wpos, oy, ox);
+			everyone_lite_spot(wpos, origin_y, origin_x );
 
 			/* redraw the new grid */
 			everyone_lite_spot(wpos, ny, nx);
@@ -1005,31 +1015,33 @@ static monster_type *get_m_ptr_fast(int m_idx) {
 void set_pet_mind(int Ind, monster_type *m_ptr, byte pet_mind) {  
     if (!m_ptr->pet) return;
 
+    char *monster_name = r_name_get(m_ptr);
+    
     switch (pet_mind) {
     case PET_ATTACK:
         if (m_ptr->mind & pet_mind) {
-            msg_print(Ind, "Your pet stop going for your target.");
+            msg_format(Ind, "Your %s stop going for your target.", monster_name);
             m_ptr->mind &= ~pet_mind;
         } else {
-            msg_print(Ind, "Your pet approach your target!");
+            msg_format(Ind, "Your %s approach your target!", monster_name);
             m_ptr->mind |= pet_mind;
         }
     break;
     case PET_GUARD:
         if (m_ptr->mind & pet_mind) {
-            msg_print(Ind, "Your pet stop being on guard.");
+            msg_format(Ind, "Your %s stop being on guard.", monster_name);
             m_ptr->mind &= ~pet_mind;
         } else {
-            msg_print(Ind, "Your pet seem to be on guard now!");
+            msg_format(Ind, "Your %s seem to be on guard now!", monster_name);
             m_ptr->mind |= pet_mind;
         }
     break;
     case PET_FOLLOW:
         if (m_ptr->mind & pet_mind) {
             m_ptr->mind &= ~pet_mind;
-            msg_print(Ind, "Your pet stop following you around.");
+            msg_format(Ind, "Your %s stop following you around.", monster_name);
         } else {
-            msg_print(Ind, "Your pet start following you around!");
+            msg_format(Ind, "Your %s start following you around!", monster_name);
             m_ptr->mind |= pet_mind;
         }
     break;
@@ -1054,7 +1066,7 @@ void set_player_pets_mind(int Ind, byte pet_mind) {
 void print_pets_info(int Ind) {
     monster_type *m_ptr;
     player_type *p_ptr = Players[Ind];
-    
+
     if (!p_ptr->pets_count) {
         msg_print(Ind, "\377GYou dont have any pets");
         return;
