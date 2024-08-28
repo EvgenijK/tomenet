@@ -2154,6 +2154,16 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 			return;
 		}
+		else if (prefix(messagelc, "/petinfo")) {
+            
+			if (k > 0 && admin) {
+                print_pets_info(k);
+			} else {
+				print_pets_info(Ind);
+			}
+			
+			return;
+		}
 		else if (prefix(messagelc, "/pet")) {
 			if (!admin) {
 				return;

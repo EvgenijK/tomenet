@@ -2811,6 +2811,7 @@ extern int summon_pet_on_player(int Ind, int r_idx);
 extern void unlink_pet_from_owner(int m_idx);
 extern void remove_all_pets();
 extern int make_pet_from_wild_monster(int m_idx, int owner_ind);
+extern void print_pets_info(int Ind);
 
 extern bool unsummon_pets(int Ind);
 extern void set_player_pets_mind(int Ind, byte pet_mind);

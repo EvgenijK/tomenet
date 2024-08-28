@@ -930,12 +930,10 @@ void process_monster_pet(int Ind, int m_idx) {
 #ifndef SIMPLE_ANTISTUCK
                 m_ptr->stuck = level_speed(&m_ptr->wpos);
 #else
+                /* take a turn */
                 do_turn = TRUE;
 #endif
             }
-            /* take a turn */
-            
-
 		}
 
 
@@ -1049,5 +1047,35 @@ void set_player_pets_mind(int Ind, byte pet_mind) {
         m_ptr = &m_list[p_ptr->pets[i]];
 
         set_pet_mind(Ind, m_ptr, pet_mind);
+    }
+}
+
+/* Some other useful functions */
+void print_pets_info(int Ind) {
+    monster_type *m_ptr;
+    player_type *p_ptr = Players[Ind];
+    
+    if (!p_ptr->pets_count) {
+        msg_print(Ind, "\377GYou dont have any pets");
+        return;
+    } else {
+        if (p_ptr->pets_count == 1) 
+            msg_format(Ind, "\377GYou have %d pet:", p_ptr->pets_count);
+        else 
+            msg_format(Ind, "\377GYou have %d pets:", p_ptr->pets_count);
+    }
+    
+    for (int i = 0; i < p_ptr->pets_count ; i++) {
+        if (! p_ptr->pets[i]) continue;
+
+        /* Access the monster */
+        m_ptr = &m_list[p_ptr->pets[i]];
+        
+        if (is_admin(p_ptr)) {
+            msg_format(Ind, "\377G%d | %s(%d): %d/%d HP", i, r_name_get(m_ptr), p_ptr->pets[i], m_ptr->hp , m_ptr->maxhp);
+        } else {
+            msg_format(Ind, "\377G%d | %s: %d/%d HP", i, r_name_get(m_ptr), m_ptr->hp , m_ptr->maxhp);
+        }
+
     }
 }
