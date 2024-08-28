@@ -305,11 +305,11 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
     player_type *p_ptr;
     monster_type *m_ptr = &m_list[m_idx];
 
-    int y, ay, x, ax;
+    int distance_to_target_y, abs_distance_to_target_y, distance_to_target_x, abs_distance_to_target_x;
     int move_val = 0;
 
     int target_idx = 0;
-    int y2, x2;
+    int targer_y, target_x;
 
     if (Ind > 0) p_ptr = Players[Ind];
     else p_ptr = NULL;
@@ -383,33 +383,33 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
 
     if (!(inarea(&m_ptr->wpos, (target_idx > 0) ? &m_list[target_idx].wpos : &Players[-target_idx]->wpos))) return(FALSE);
 
-    y2 = (target_idx > 0) ? m_list[target_idx].fy : Players[-target_idx]->py;
-    x2 = (target_idx > 0) ? m_list[target_idx].fx : Players[-target_idx]->px;
+    targer_y = (target_idx > 0) ? m_list[target_idx].fy : Players[-target_idx]->py;
+    target_x = (target_idx > 0) ? m_list[target_idx].fx : Players[-target_idx]->px;
 
     /* Extract the "pseudo-direction" */
-    y = m_ptr->fy - y2;
-    x = m_ptr->fx - x2;
+    distance_to_target_y = m_ptr->fy - targer_y;
+    distance_to_target_x = m_ptr->fx - target_x;
 
     /* Extract the "absolute distances" */
-    ax = ABS(x);
-    ay = ABS(y);
+    abs_distance_to_target_x = ABS( distance_to_target_x );
+    abs_distance_to_target_y = ABS( distance_to_target_y );
 
     /* Do something weird */
-    if (y < 0) move_val += 8;
-    if (x > 0) move_val += 4;
+    if ( distance_to_target_y < 0) move_val += 8;
+    if ( distance_to_target_x > 0) move_val += 4;
 
     /* Prevent the diamond maneuvre */
-    if (ay > (ax << 1)) {
+    if ( abs_distance_to_target_y > ( abs_distance_to_target_x << 1)) {
         move_val++;
         move_val++;
-    } else if (ax > (ay << 1))
+    } else if ( abs_distance_to_target_x > ( abs_distance_to_target_y << 1))
         move_val++;
 
     /* Extract some directions */
     switch (move_val) {
         case 0:
             mm[0] = 9;
-            if (ay > ax) {
+            if ( abs_distance_to_target_y > abs_distance_to_target_x ) {
                 mm[1] = 8;
                 mm[2] = 6;
                 mm[3] = 7;
@@ -424,7 +424,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
         case 1:
         case 9:
             mm[0] = 6;
-            if (y < 0) {
+            if ( distance_to_target_y < 0) {
                 mm[1] = 3;
                 mm[2] = 9;
                 mm[3] = 2;
@@ -439,7 +439,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
         case 2:
         case 6:
             mm[0] = 8;
-            if (x < 0) {
+            if ( distance_to_target_x < 0) {
                 mm[1] = 9;
                 mm[2] = 7;
                 mm[3] = 6;
@@ -453,7 +453,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
             break;
         case 4:
             mm[0] = 7;
-            if (ay > ax) {
+            if ( abs_distance_to_target_y > abs_distance_to_target_x ) {
                 mm[1] = 8;
                 mm[2] = 4;
                 mm[3] = 9;
@@ -468,7 +468,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
         case 5:
         case 13:
             mm[0] = 4;
-            if (y < 0) {
+            if ( distance_to_target_y < 0) {
                 mm[1] = 1;
                 mm[2] = 7;
                 mm[3] = 2;
@@ -482,7 +482,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
             break;
         case 8:
             mm[0] = 3;
-            if (ay > ax) {
+            if ( abs_distance_to_target_y > abs_distance_to_target_x ) {
                 mm[1] = 2;
                 mm[2] = 6;
                 mm[3] = 1;
@@ -497,7 +497,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
         case 10:
         case 14:
             mm[0] = 2;
-            if (x < 0) {
+            if ( distance_to_target_x < 0) {
                 mm[1] = 3;
                 mm[2] = 1;
                 mm[3] = 6;
@@ -511,7 +511,7 @@ static bool get_moves_pet(int Ind, int m_idx, int *mm) {
             break;
         case 12:
             mm[0] = 1;
-            if (ay > ax) {
+            if ( abs_distance_to_target_y > abs_distance_to_target_x ) {
                 mm[1] = 2;
                 mm[2] = 4;
                 mm[3] = 3;
