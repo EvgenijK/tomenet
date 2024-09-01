@@ -1,7 +1,7 @@
 .==========================================================================+--.
 |                              TomeNET Guide                               |
 +==========================================================================+-
-| Latest update: 26. August 2024 - written by C. Blue (c_blue@gmx.net)     |
+| Latest update: 1. September 2024 - written by C. Blue (c_blue@gmx.net)   |
 | for TomeNET version v4.9.2 - official websites are:                      :
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
@@ -80,10 +80,11 @@ Contents
     (3.2a)  The encumberment bar
     (3.3)   Chat, chat messages and chat modes
     (3.4)   Inventory and equipment
-    (3.4a)  Start-up equipment & how to use it
-    (3.4b)  Item basics
-    (3.4c)  Item trading rules and exceptions
-    (3.4d)  Money
+    (3.4a)  Subinventory aka Bags
+    (3.4b)  Start-up equipment & how to use it
+    (3.4c)  Item basics
+    (3.4d)  Item trading rules and exceptions
+    (3.4e)  Money
     (3.5)   Preparing the first time for fighting enemies
     (3.6)   Creating basic macros & inscribing items, predefined macros
     (3.7)   Creating macros for ranged attacks & abilities (spells)
@@ -246,6 +247,10 @@ More information about character and account timeout at (3.12).
 
 If you are using Linux, you will find additional information about how to
 compile the game under '(2.1) Installing/updating TomeNET (Windows/Linux/OSX)'.
+
+If you use a foreign IME setting, eg korean or japanese, switch it to US-EN IME
+(compare problem 54 in the troubleshooting section (9.8)) or you might not be
+able to use most keys aside from arrow keys for basic movement.
 
 -Get the latest client from the project's main official site www.tomenet.eu.
  or from  https://muuttuja.org/tomenet/ (Mikael's site, which features a
@@ -553,6 +558,11 @@ page. It will colour prices and XP alternatingly in 3-digit columns.
 (0.2) Command reference & keysets
 ---------------------------------
 Can be different depending on OS / configuration.
+
+If you use a foreign IME setting, eg korean or japanese, switch it to US-EN IME
+(compare problem 54 in the troubleshooting section (9.8)) or you might not be
+able to use most keys aside from arrow keys for basic movement.
+
 This chapter consists of three subsections:
 Command keys, Text editing keys, Slash commands.
 
@@ -1969,7 +1979,7 @@ They all start with a slash '/' hence they're called slash commands:
 
             If you specify '*' for all slots, it will skip all items that
             already have an inscription except for trivial pseudo- or 'on sale'
-            inscriptions.
+            or 'stolen' or 'handmade' inscriptions.
 
             If you want to specify a custom inscription instead of using '!k'
             you have to either specify an inventory slot (a-w) or write a '*'
@@ -3661,10 +3671,19 @@ your OS (especially Windows).
 If you choose an archive file instead, extract it to a new directory and make
 sure the pathnames are preserved.
 Then just run..
+
 Windows:        'TomeNET.exe' (or double-click the desktop TomeNET icon,
                                provided you used the installer download.)
+
+                If you use a foreign IME setting, eg korean or japanese, switch
+                it to US-EN IME (compare problem 54 in the troubleshooting
+                section (9.8)) or you might not be able to use most keys aside
+                from arrow keys for basic movement.
+
 Linux:          the 'tomenet' binary.
+
 OS X:           'TomeNET.command' (which prepares and runs 'tomenet'.)
+
 
 Updating via reinstallation:
 ----------------------------
@@ -3692,6 +3711,7 @@ If you install a TomeNET version that comes with sound or music pack over an
 existing installation that doesn't have one of these, you will end up with
 an audio-wise "upgraded" installation that now features sound and/or music
 as it should (depending on what you installed).
+
 
 Updating via the TomeNET-Updater:
 ---------------------------------
@@ -3775,6 +3795,10 @@ system but was created purely on Linux.
 If you used the ZIP archive instead of the installer, 7-zip is recommended for
 extracting it. It's a free and open source zip-tool of outstanding performance
 that works on all platforms. Grab it from https://www.7-zip.org/ .
+
+If you use a foreign IME setting, eg korean or japanese, switch it to US-EN IME
+(compare problem 54 in the troubleshooting section (9.8)) or you might not be
+able to use most keys aside from arrow keys for basic movement.
 
 There is also a manual in your TomeNET folder, the file is called
 "TomeNET-Guide.txt". Double-click to read it. It is recommended to not open it
@@ -4502,6 +4526,10 @@ and if you do so then your Steam status will show that you are playing TomeNET!
 
 (2.4) Starting TomeNET and getting to play on an internet server
 ----------------------------------------------------------------
+If you use a foreign IME setting, eg korean or japanese, switch it to US-EN IME
+(compare problem 54 in the troubleshooting section (9.8)) or you might not be
+able to use most keys aside from arrow keys for basic movement.
+
 If you used the installer you will have a TomeNET icon on your desktop to
 start the game (and another icon for the TomeNET Updater).
 
@@ -5143,14 +5171,30 @@ Tilesets also have two designated 'mask colours':
   colour.
   For example a tile depicting an orc would display the mask colour in umber
   (ie brown) if it was a hill orc or in light green if it was a cave orc.
-- (No effect yet in 4.9.2 - work in progress:)
-  A 'background mask' defined by colour R=0,G=0,B=0 (hex 0x000000) aka black.
-  Tiles will let the terrain graphics shine through (100% transparency) in all
-  foreground pixels that are black.
-  Entities and objects will be treated as 'foreground tile' and terrain will be
-  treated as 'background tile'. So you could for example see an orc standing on
-  a grass tile, with some green goodness being visible around him, or you could
-  see an adamantite helm that is obviously lying in some lava.
+- (Currently no effect, as all grids in TomeNET always have black background:)
+   A 'background mask' defined by colour R=0,G=0,B=0 (hex 0x000000) aka black.
+  Currently, TomeNET always uses black background colour for any grid it draws.
+  However, should this change, then anything that is painted in 0x000000 in the
+  graphical tile will also change its colour to the grid's background colour.
+  (Example: A fountain in ASCII is currently a white '_' on black background.
+  If background colours were enabled in the future, it could be a white '_' on
+  blue background. In that case, if you switched from ASCII to a graphical
+  tileset that maps fountains to a picture, all black pixels in that fountain
+  tile would also change to appear in blue.)
+- No effect in clients not newer than 4.9.2:
+  A 'dual-background mask' defined by colour R=10,G=16,B=10 (hex 0x0A100A),
+  ie a very dark green.
+  Graphical tiles that usually take precedence over terrain, such as objects,
+  any traps, monsters, players etc. can use this colour to become transparent
+  for the background terrain.
+  Terrain graphics, which are considered 'background graphics' will be visible
+  in these pixels and therefore merged with the foreground.
+  So you could for example see a dagger lying in a pool of water.
+  Note that in = g the 'dual' graphics mode must be enabled for this to work
+  and the server has to support it too.
+  If you use a dual-mode tileset with normal graphics settings instead, this is
+  not a problem as it is 'backward compatible' and will interpret the dual-mask
+  colour (ie 0x0A100A) instead as pure black (0x000000) automatically.
 
 Svechnik (aka 'EvgenijK' on github) has worked on a major graphical tileset
 that can be found on his github, including instructions on how to use it:
@@ -5943,29 +5987,35 @@ haul back to town to sell it, you could just equip it anyway to just use that
 weapon slot in your equipment as a +1 extension of your inventory, and then
 teleport back to town right away (via a scroll of Word of Recall).
 
-Subinventory:
--------------
+
+(3.4a) Subinventory aka Bags
+----------------------------
 Starting in game version 4.8.0, there are 'container' items, bags and chests,
 that provide a small inventory in themselves, thereby extending your total
 inventory space.
 However, you can only ever use one of each bag type at the same time.
 
-To stow items from your inventory into a subinventory, press 'i' first to
+To stow items from your inventory into subinventory, press 'i' first to
 invoke your inventory, then 's' to stow an item or stack of items.
 
-Subinventories can be browsed via 'b' (same key as used for browsing books).
-While browsing a subinventory, you can press 's' to unstow an item or stack,
+Subinventory can be browsed via 'b' (same key as used for browsing books).
+While browsing subinventory, you can press 's' to unstow an item or stack,
 putting it back into your (normal) inventory.
 Alternatively, just for a quick check of contents, you can inspect (SHIFT+i) a
 subinventory container. You cannot interact with the contents this way though.
 
-If you drop or destroy a subinventory container item, all items will be removed
+To make your complete subinventory (ie the contents of all your bags) visible
+at any time, you can enable a new terminal window for it via  = w  which is
+indexed as "Display subinventory". To enable more terminal windows, go to = f
+and press 'v' on a selected inactive terminal to toggle its visibility.
+
+If you drop or destroy subinventory container item, all items will be removed
 from it and placed into your inventory. Items that don't fit in will be dropped
 to the ground instead.
 If you carry two containers of the same category, you will only be able to use
 one of them.
 
-There are four categories of subinventories:
+There are four categories of subinventory containers:
 
 - Chest
   Using chests is not very feasible as their weight is usually very high and
@@ -6030,7 +6080,7 @@ use the '@' (call by item name) feature in the item prompt.
 Since the macro wizard actually creates call-by-name macros anyway, you can
 just use it if you are unsure.
 
-A few generic commands are always available in any subinventory:
+A few generic commands are always available from within subinventory:
   - Chat (:).
   - Screenshot (CTRL+T).
   - Inspect item (x).
@@ -6054,7 +6104,7 @@ There are also inscriptions that can be put onto these bags (don't mix them):
   !S1 ..and only if they are at least similar to existing items.
 
 
-(3.4a) Start-up equipment
+(3.4b) Start-up equipment
 ------------------------
 Every new player has some items right from the beginning, in the past those
 came stored in the inventory but nowadays they are immediately equipped.
@@ -6089,7 +6139,7 @@ equipment. It's the "Gazette". Press 'r' to read it. It may contain some notes
 about the server or hints for newbies.
 
 
-(3.4b) Item basics
+(3.4c) Item basics
 ------------------
 When you've logged in and look at your inventory (your backpack, basically),
 ie the items your character starts with, you will see various item names that
@@ -6287,7 +6337,7 @@ powers when you find one, you will have to use *identify* on it to find out.
 For more information on item types see (5.7).
 
 
-(3.4c) Item trading rules and exceptions
+(3.4d) Item trading rules and exceptions
 ----------------------------------------
 The following item sharing rules apply to a standard server configuration.
 It is possible that a server runs certain alterations of some aspects.
@@ -6352,7 +6402,7 @@ As soon as a character leaves the worldmap sector of the Nether Realm, the
 items lose their ability to be traded between incompatible character modes.
 
 
-(3.4d) Money
+(3.4e) Money
 ------------
 Your money is displayed as pieces of gold in TomeNET, traditionally abbreviated
 to 'Au' for latin 'Aurum', meaning 'gold'. 'Au' is also the chemical symbol for
@@ -7344,7 +7394,7 @@ based macros could be seen as more clean (these macros use the @[<KEY>]<NUMBER>
 format with the key being optional, also called a 'tag' or tag-based macros).
 
 If your client version is 4.9.1 or older, the name-based macro is also be the
-only way that works with subinventories (such as potion belt, or antistatic
+only way that works with subinventory (such as potion belt, or antistatic
 wrapping, etc), newer versions can use tag-based macros fine.
 
 The text specified can either be an item name, as it appears in your inventory,
@@ -8055,7 +8105,7 @@ ask Mugash if he can buy a 'Scroll of Life' and revive you in the dungeon
 after he killed off all mobs, to avoid him touching your items and becoming
 the owner.
 
-For more information on item basics see (3.4b) and for more advanced item
+For more information on item basics see (3.4c) and for more advanced item
 details see (5.7).
 
 
@@ -9164,7 +9214,7 @@ For more information, see (4.13), Ironman Challenge.
  -Instant resurrection does not work in the Nether Realm.
  -It is possible for everlasting and non-everlasting characters who usually
   cannot form a party to actually team up in the Nether Realm! This is called a
-  cross-mode party, for more information see (3.4c).
+  cross-mode party, for more information see (3.4d).
 
 (*****) Halls of Mandos details:
  -Halls of Mandos are Ironman (no-ghost) and you cannot leave until you reach
@@ -15263,7 +15313,7 @@ Tunnelling might reveal special floor features, items or gold (walls that are
 displayed as a '*' symbol will reveal cash worth of gems or precious metal, but
 those walls might not always show it until you use 'Treasure Detection' or
 'Treasure Location' magic), see 'Digging' skill in (7.2) for details.
-Also see (3.4b) for more information on digging tool mods.
+Also see (3.4c) for more information on digging tool mods.
 
 If you haven't got a digging tool equipped, or if it's just a basic shovel (+1)
 then wielding a sword or especially an axe can work as pseudo-digger when you
@@ -17976,7 +18026,7 @@ stated.
                                 For hacking away spider webs, certain polearms
                                 used for slashing (scythes and sickles) may
                                 help too, at least as well as swords or axes.
-                                See (3.4b) for more information on digging
+                                See (3.4c) for more information on digging
                                 tools and (5.17) for technical details on
                                 digging.
 
@@ -22038,7 +22088,7 @@ All Unlife spells are Wisdom-based.)
                     Required skill level for first spell level: 8.
 
     Retreat         Swiftly jump backwards from your current adjacent target,
-                    if any. Note that while this is actually ignores a lot of
+                    if any. Note that while this actually ignores a lot of
                     anti-teleport effects, it does get cancelled by no-teleport
                     floor grids, eg those inside no-teleport vaults, because
                     the still air on these will prevent your shadowy moves.
@@ -23510,7 +23560,7 @@ Parties:
     you will be prompted to rename the party. Only the party owner can do this.
 
     Specialty: Everlasting and non-everlasting players can team up while
-               inside the Nether Realm and trade loot, see (3.4c) and (4.5c).
+               inside the Nether Realm and trade loot, see (3.4d) and (4.5c).
 
 -Create or rename an 'Iron Team' party
     Allows you to create an iron team if you aren't in one yet, or rename your
@@ -23533,7 +23583,7 @@ Parties:
     If you aren't in a party, you will see "Add yourself to party" instead!
     This will allow you to add this character to a party, provided that at
     least one of your other characters is already a member of it.
-    This does not work for cross-adding to nether realm parties (see (3.4c)
+    This does not work for cross-adding to nether realm parties (see (3.4d)
     and (4.5c)).
     It only works for cross-adding to IDDC parties if your already partied
     character is currently in the IDDC.
@@ -26995,6 +27045,10 @@ PROBLEM 54: I cannot select a server from the meta server list, it seems my key
             presses get ignored.
 Solution:   If you are using a non-english keyboard layout with asian or
             cyrillic letters, switch it to english layout.
+            Usually it's an IME (Microsoft Input Method Editor) setting. Eg if
+            you had set it to korean, you might only be able to use arrow keys
+            in the game, but not keys like ":" to chat or "?" for help. Switch
+            it to for example EN-US IME (US English) and you should be fine.
 
 PROBLEM 55: Editing config files of all kinds (ini/prf/opt/ins..) doesn't seem
             to have any effect.

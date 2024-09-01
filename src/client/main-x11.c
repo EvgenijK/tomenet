@@ -1174,7 +1174,7 @@ struct tile_cache_entry {
     char32_t c;
     byte a;
 #ifdef GRAPHICS_BG_MASK
-    Pixmap tilePreparation2; //todo: perform all operations on just 'tilePreparation' so this becomes superfluous
+    Pixmap tilePreparation2;
     char32_t c_back;
     byte a_back;
 #endif
@@ -1200,7 +1200,7 @@ struct term_data {
 	Pixmap fgmask;
 #ifdef GRAPHICS_BG_MASK
 	Pixmap bg2mask;
-	Pixmap tilePreparation2; //todo: perform all operations on just 'tilePreparation' so this becomes superfluous
+	Pixmap tilePreparation2;
 #endif
 	Pixmap tilePreparation;
 
@@ -2282,13 +2282,10 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	entry = NULL;
 	for (i = 0; i < TILE_CACHE_SIZE; i++) {
 		entry = &td->tile_cache[i];
-		if (entry->c == c && entry->a == a
- #ifdef GRAPHICS_BG_MASK
-		    && entry->c_back == c_back && entry->a_back == a_back
- #endif
+		if (entry->c == c && entry->a == a && entry->c_back == c_back && entry->a_back == a_back
 		    && entry->is_valid) {
 			/* Copy cached tile to window. */
-			XCopyArea(Metadpy->dpy, entry->tilePreparation, td->inner->win, Infoclr->gc,
+			XCopyArea(Metadpy->dpy, entry->tilePreparation2, td->inner->win, Infoclr->gc, // NOTE that tilePreparation2 holds the final tile, NOT tilePreparation!
 				0, 0,
 				td->fnt->wid, td->fnt->hgt,
 				x, y);
@@ -2393,7 +2390,7 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	XSetClipMask(Metadpy->dpy, Infoclr->gc, td->bg2mask);
 	XSetClipOrigin(Metadpy->dpy, Infoclr->gc, 0 - x1, 0 - y1);
 //	XPutImage(Metadpy->dpy, tilePreparation, Infoclr->gc, tilePreparation2, 0, 0, 0, 0, td->fnt->wid, td->fnt->hgt);
-	XCopyArea(Metadpy->dpy, tilePreparation, tilePreparation2, Infoclr->gc, 0, 0, td->fnt->wid, td->fnt->hgt, 0, 0);
+	XCopyArea(Metadpy->dpy, tilePreparation, tilePreparation2, Infoclr->gc, 0, 0, td->fnt->wid, td->fnt->hgt, 0, 0);	// NOTE that tilePreparation2 holds the final tile, NOT tilePreparation! (Compare tile-caching!)
 	XSetClipMask(Metadpy->dpy, Infoclr->gc, None);
 #endif
 
@@ -2571,6 +2568,7 @@ static void createMasksFromData(char* data, int width, int height, char **bgmask
 	int masks_size = width * height / 8 + (width * height % 8 == 0 ? 0 : 1);
 	u32b bit;
 	byte r, g, b;
+	int x, y;
 
 	char *bgmask;
 	C_MAKE(bgmask, masks_size, char);
@@ -2580,17 +2578,24 @@ static void createMasksFromData(char* data, int width, int height, char **bgmask
 	C_MAKE(fgmask, masks_size, char);
 	memset(fgmask, 0, masks_size);
 
-	for (int y = 0; y < height; y++) {
-		for (int x = 0; x < width; x++) {
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
 			bit = y * width + x;
 			r = data[4 * (x + y * width)];
 			g = data[4 * (x + y * width) + 1];
 			b = data[4 * (x + y * width) + 2];
 
-			if (r != 0 || g != 0 || b != 0)
+			/* Ensure non-GRAPHICS_BG_MASK backward compatibility with 2mask-ready tilesets that use the dual-mask colour! */
+			if (r == GFXMASK_BG2_R && g == GFXMASK_BG2_G && b == GFXMASK_BG2_B) {
+				r = data[4 * (x + y * width)] = GFXMASK_BG_R;
+				g = data[4 * (x + y * width) + 1] = GFXMASK_BG_G;
+				b = data[4 * (x + y * width) + 2] = GFXMASK_BG_B;
+			}
+
+			if (r != GFXMASK_BG_R || g != GFXMASK_BG_G || b != GFXMASK_BG_B)
 				bgmask[bit / 8] |= 1 << (bit % 8);
 
-			if (r == 255 && g == 0 && b == 255) {
+			if (r == GFXMASK_FG_R && g == GFXMASK_FG_G && b == GFXMASK_FG_B) {
 				fgmask[bit / 8] |= 1 << (bit % 8);
 				bgmask[bit / 8] &= ~((char)1 << (bit % 8));
 			}
@@ -2606,6 +2611,7 @@ static void createMasksFromData_2mask(char* data, int width, int height, char **
 	int masks_size = width * height / 8 + (width * height % 8 == 0 ? 0 : 1);
 	u32b bit;
 	byte r, g, b;
+	int x, y;
 
 	char *bgmask;
 	C_MAKE(bgmask, masks_size, char);
@@ -2623,23 +2629,32 @@ static void createMasksFromData_2mask(char* data, int width, int height, char **
 	memset(bg2mask, 0, masks_size);
 #endif
 
-	for (int y = 0; y < height; y++) {
-		for (int x = 0; x < width; x++) {
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
 			bit = y * width + x;
 			r = data[4 * (x + y * width)];
 			g = data[4 * (x + y * width) + 1];
 			b = data[4 * (x + y * width) + 2];
 
-			if (r != 0 || g != 0 || b != 0) {
+			/* We're not in dual-mask mode? Translate 2mask pixels back to normal bgmask: */
+			if (use_graphics != UG_2MASK &&
+			    r == GFXMASK_BG2_R && g == GFXMASK_BG2_G && b == GFXMASK_BG2_B) {
+				r = data[4 * (x + y * width)] = GFXMASK_BG_R;
+				g = data[4 * (x + y * width) + 1] = GFXMASK_BG_G;
+				b = data[4 * (x + y * width) + 2] = GFXMASK_BG_B;
+			}
+
+			if (r != GFXMASK_BG_R || g != GFXMASK_BG_G || b != GFXMASK_BG_B)
 				bgmask[bit / 8] |= 1 << (bit % 8);
+
+			if (r != GFXMASK_BG2_R || g != GFXMASK_BG2_G || b != GFXMASK_BG2_B)
 #ifdef BG2MASK_INV
 				bg2mask[bit / 8] &= ~((char)1 << (bit % 8));
 #else
 				bg2mask[bit / 8] |= 1 << (bit % 8);
 #endif
-			}
 
-			if (r == 255 && g == 0 && b == 255) {
+			if (r == GFXMASK_FG_R && g == GFXMASK_FG_G && b == GFXMASK_FG_B) {
 				fgmask[bit / 8] |= 1 << (bit % 8);
 				bgmask[bit / 8] &= ~((char)1 << (bit % 8));
 			}
@@ -3273,14 +3288,14 @@ static term_data* term_idx_to_term_data(int term_idx) {
 static int term_data_to_term_idx(term_data *td) {
 	if (td == &screen) return(0);
 	if (td == &mirror) return(1);
-	if (td == &recall) return 2;
-	if (td == &choice) return 3;
-	if (td == &term_4) return 4;
-	if (td == &term_5) return 5;
-	if (td == &term_6) return 6;
-	if (td == &term_7) return 7;
-	if (td == &term_8) return 8;
-	if (td == &term_9) return 9;
+	if (td == &recall) return(2);
+	if (td == &choice) return(3);
+	if (td == &term_4) return(4);
+	if (td == &term_5) return(5);
+	if (td == &term_6) return(6);
+	if (td == &term_7) return(7);
+	if (td == &term_8) return(8);
+	if (td == &term_9) return(9);
 	return(-1);
 }
 
@@ -3903,15 +3918,15 @@ void resize_main_window_x11(int cols, int rows) {
 }
 
 bool ask_for_bigmap(void) {
-	return ask_for_bigmap_generic();
+	return(ask_for_bigmap_generic());
 }
 
 const char* get_font_name(int term_idx) {
 	term_data *td = term_idx_to_term_data(term_idx);
 
-	if (td->fnt) return td->fnt->name;
-	if (strlen(term_prefs[term_idx].font)) return term_prefs[term_idx].font;
-	return x11_terms_font_default[term_idx];
+	if (td->fnt) return(td->fnt->name);
+	if (strlen(term_prefs[term_idx].font)) return(term_prefs[term_idx].font);
+	return(x11_terms_font_default[term_idx]);
 }
 
 void set_font_name(int term_idx, char* fnt) {

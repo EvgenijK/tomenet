@@ -164,14 +164,16 @@ bool potion_smash_effect(int who, worldpos *wpos, int y, int x, int o_sval) {
 			cave_type **zcave;
 
 			if (!(zcave = getcave(wpos))) return(TRUE); //paranoia
-			if (zcave[y][x].feat == FEAT_ICE_WALL) {
-				if (!rand_int(3)) {
-					if (who < 0 && who > PROJECTOR_UNUSUAL) msg_print(-who, "The ice wall melts.");
+			if (!(f_info[zcave[y][x].feat].flags2 & FF2_NO_TFORM) && !(zcave[y][x].info & CAVE_NO_TFORM) && allow_terraforming(wpos, FEAT_NONE)) {
+				if (zcave[y][x].feat == FEAT_ICE_WALL) {
+					if (!rand_int(3)) {
+						if (who < 0 && who > PROJECTOR_UNUSUAL) msg_print(-who, "The ice wall melts.");
+						cave_set_feat_live(wpos, y, x, FEAT_SHAL_WATER);
+					}
+				} else if (zcave[y][x].feat == FEAT_ICE) {
+					if (who < 0 && who > PROJECTOR_UNUSUAL) msg_print(-who, "The ice melts.");
 					cave_set_feat_live(wpos, y, x, FEAT_SHAL_WATER);
 				}
-			} else if (zcave[y][x].feat == FEAT_ICE) {
-				if (who < 0 && who > PROJECTOR_UNUSUAL) msg_print(-who, "The ice melts.");
-				cave_set_feat_live(wpos, y, x, FEAT_SHAL_WATER);
 			}
 		}
 #if 0 /* in traps they deal blind, why conf? */
@@ -4637,6 +4639,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	case GF_ACID:
 	//case GF_ACID_BLIND: --too weak
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		/* Destroy trees */
 		if (c_ptr->feat == FEAT_TREE || c_ptr->feat == FEAT_BUSH) {
 #if 0 /* no msg spam maybe */
@@ -4661,6 +4664,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		break;
 
 	case GF_NUKE:
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		/* damage organic material */
 		if (c_ptr->feat == FEAT_GRASS || c_ptr->feat == FEAT_IVY ||
@@ -4678,6 +4682,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		//fall through
 	case GF_SHARDS:
 	case GF_FORCE:
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		/* Shred certain feats */
 		if (c_ptr->feat == FEAT_WEB || c_ptr->feat == FEAT_FLOWER /* :( */)
@@ -4711,7 +4716,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		/* Beware of the houses in town */
 		if ((wpos->wz == 0) && (c_ptr->info & CAVE_ICKY)) break;
 		/* Not if it's an open house door - mikaelh */
-		if (feat == FEAT_HOME_OPEN) break;
+		if ((f_info[feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 
 		/* Attempt to terraform */
 		if (!cave_set_feat_live(wpos, y, x, FEAT_WALL_EXTRA)) break;
@@ -4755,6 +4760,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		/* Light up oil patches! */
 		if (c_ptr->slippery >= 1000) light_oil(zcave, wpos, x, y, 0);
 
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 
 		switch (c_ptr->feat) {
@@ -4788,6 +4794,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		/* Light up oil patches! */
 		if (c_ptr->slippery >= 1000) light_oil(zcave, wpos, x, y, 0);
 
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 
 		switch (c_ptr->feat) {
@@ -5114,6 +5121,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	case GF_KILL_WALL: {
 		byte feat = twall_erosion(wpos, y, x, FEAT_FLOOR);
 
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		/* Non-walls (etc) */
 		if (cave_los(zcave, y, x)) break;
@@ -5266,6 +5274,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 
 	/* Make doors */
 	case GF_MAKE_DOOR:
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		/* Require a "naked" floor grid */
 		if (!cave_naked_bold(zcave, y, x)) break;
@@ -5377,6 +5386,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	case GF_KILL_GLYPH: {
 		byte feat = twall_erosion(wpos, y, x, FEAT_DIRT);
 
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) && !(c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		if (c_ptr->feat == FEAT_GLYPH || c_ptr->feat == FEAT_RUNE)
 			cave_set_feat_live(wpos, y, x, feat);
@@ -5397,6 +5407,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		bool old_rand = Rand_quick;
 		u32b tmp_seed = Rand_value;
 
+		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) && !(c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_SHAL_WATER)) break;
 		/* "Permanent" features will stay */
 		if ((f_info[c_ptr->feat].flags1 & FF1_PERMANENT)) break;
@@ -12702,7 +12713,8 @@ msg_format(-who, "_ x=%d,y=%d,x2=%d,y2=%d",x,y,x2,y2);
 		/* Check: Fire vs Trees */
 #if 0
 		// This causes bolts and beams to skip grids or add extra grids - Kurzel
-		if (allow_terraforming(wpos, FEAT_TREE)) {
+		if (allow_terraforming(wpos, FEAT_TREE) &&
+		    !(f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) && !(c_ptr->info & CAVE_NO_TFORM)) break;
 			switch (c_ptr->feat) {
 			case FEAT_TREE: terrain_resistance = 50; break;
 			case FEAT_IVY: terrain_resistance = 0; break;
@@ -13251,8 +13263,8 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 				    (c_ptr2->feat != FEAT_DIRT) &&
 				    (c_ptr2->feat != FEAT_HOME_OPEN) &&
 				    (c_ptr2->feat != FEAT_HOME) &&
-				    allow_terraforming(wpos, FEAT_TREE)
-				    && (typ == GF_DISINTEGRATE || c_ptr2->feat != FEAT_MON_TRAP)) { /* Experimental: Let monster traps survive! Idea: Allow multi-detonation-potion-traps. */
+				    allow_terraforming(wpos, FEAT_TREE) &&
+				    (typ == GF_DISINTEGRATE || c_ptr2->feat != FEAT_MON_TRAP)) { /* Experimental: Let monster traps survive! Idea: Allow multi-detonation-potion-traps. */
 					struct c_special *cs_ptr;
 
 					/* Cleanup Runemaster Glyphs - Kurzel */

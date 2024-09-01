@@ -570,7 +570,7 @@ c_msg_format("cmd_map SEL - wx,wy=%d,%d; mmsx,mmsy=%d,%d, mmpx,mmpy=%d,%d, y_off
 #endif
 
 		while (TRUE) {
-			/* Remember the grid below our grid-selection marker */
+			/* Remember the grid below our grid-selection marker -- NO! This can copy the marker itself accidentally, if done here on EVERY keypress! Todo: fix/move to correct pos. */
 			if (sel) {
 				minimap_selattr = Term->scr->a[minimap_sely][minimap_selx];
 				minimap_selchar = Term->scr->c[minimap_sely][minimap_selx];
@@ -1714,7 +1714,7 @@ void cmd_zap_rod(void) {
 		if (subinventory[item / SUBINVEN_INVEN_MUL - 1][item % SUBINVEN_INVEN_MUL].uses_dir == 0) {
 			/* (also called if server is outdated, since uses_dir will be 0 then) */
 			Send_zap(item);
-		} else { /* Actually directional rods are not allowed to be used from within a subinventory, but anyway.. */
+		} else { /* Actually directional rods are not allowed to be used from within subinventory, but anyway.. */
 			if (!get_dir(&dir)) return;
 			Send_zap_dir(item, dir);
 		}
@@ -3413,14 +3413,10 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 				if (!strcasecmp(buf, "tc")) strcpy(buf, "treasure class");
 				/* Expand 'am' to 'Anti-Magic' */
 				if (!strcasecmp(buf, "am")) strcpy(buf, "anti-magic");
-				/* Bag/Bags redirect to 'Subinventory' */
+				/* Bag/Bags redirect to own subchapter */
 				if (!strcasecmp(buf, "bag") || !strcasecmp(buf, "bags") || my_strcasestr(buf, "container") ||
-				    my_strcasestr(buf, "subinv") || my_strcasestr(buf, "sub-inv") || my_strcasestr(buf, "sub inv")) {
-					strcpy(buf, "Subinventory:");
-					fallback = TRUE;
-					fallback_uppercase = 4;
-					continue;
-				}
+				    my_strcasestr(buf, "subinv") || my_strcasestr(buf, "sub-inv") || my_strcasestr(buf, "sub inv"))
+					strcpy(buf, "Subinventory aka Bags");
 				/* Expand 'Update' to 'Updating' */
 				if (!strcasecmp(buf, "update")) strcpy(buf, "updating");
 

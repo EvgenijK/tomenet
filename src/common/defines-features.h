@@ -539,13 +539,28 @@
    (Notes: Affected server functions: Send_char(), Send_line_info(), Send_line_info_forward().) */
 //#ifdef TEST_SERVER
 #if defined(USE_GRAPHICS) || !defined(CLIENT_SIDE) /* !clientside: The server doesn't itself use graphics, but has to provide the calculation-capabilities for graphics-enabled clients */
-#define GRAPHICS_BG_MASK /* Enable 2nd mask for background masking */
-#ifdef GRAPHICS_BG_MASK
-/* Constants for use_graphics client setting */
-#define UG_NONE	0
-#define UG_NORMAL	1
-#define UG_2MASK	2
-#endif
+ /* Masks for USE_GRAPHICS: */
+ /* Colours for foreground-colour mask */
+ #define GFXMASK_FG_R	255
+ #define GFXMASK_FG_G	0
+ #define GFXMASK_FG_B	255
+ /* Colours for background-colour mask */
+ #define GFXMASK_BG_R	0
+ #define GFXMASK_BG_G	0
+ #define GFXMASK_BG_B	0
+ /* Colours for dual-background-graphics mask - must be known even if GRAPHICS_BG_MASK is not enabled, so client remains backward compatible with 2mask-ready tilesets! */
+ #define GFXMASK_BG2_R	10
+ #define GFXMASK_BG2_G	16
+ #define GFXMASK_BG2_B	10
+
+ #define GRAPHICS_BG_MASK /* Enable 2nd mask for background masking. */
+ /* TODO: Allow using mapped graphics tiles for weather particles, fireworks, etc. */
+ #ifdef GRAPHICS_BG_MASK
+  /* Constants for use_graphics client setting */
+  #define UG_NONE	0
+  #define UG_NORMAL	1
+  #define UG_2MASK	2
+ #endif
 #endif
 //#endif
 

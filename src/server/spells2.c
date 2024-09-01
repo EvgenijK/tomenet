@@ -257,38 +257,37 @@ void do_autokinesis_to(int Ind, int dis) {
 void grow_trees(int Ind, int rad) {
 	player_type *p_ptr = Players[Ind];
 	int a, i, j;
+	cave_type **zcave = getcave(&p_ptr->wpos);
 
-	if (!allow_terraforming(&p_ptr->wpos, FEAT_TREE)) return;
+	if (!zcave || !allow_terraforming(&p_ptr->wpos, FEAT_TREE)) return;
 
 #ifdef USE_SOUND_2010
 	sound(Ind, "grow_trees", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
 
 	for (a = 0; a < rad * rad + 11; a++) {
-		cave_type **zcave = getcave(&p_ptr->wpos);
-
 		i = (rand_int((rad * 2) + 1) - rad + rand_int((rad * 2) + 1) - rad) / 2;
 		j = (rand_int((rad * 2) + 1) - rad + rand_int((rad * 2) + 1) - rad) / 2;
 
 		if (!in_bounds(p_ptr->py + j, p_ptr->px + i)) continue;
 		if (distance(p_ptr->py, p_ptr->px, p_ptr->py + j, p_ptr->px + i) > rad) continue;
 
-		if (cave_naked_bold(zcave, p_ptr->py + j, p_ptr->px + i) &&
-		    (zcave[p_ptr->py + j][p_ptr->px + i].feat != FEAT_HOME_OPEN)) /* HACK - not on open house door - mikaelh */
-		{
-			cave_set_feat_live(&p_ptr->wpos, p_ptr->py + j, p_ptr->px + i, magik(50) ? FEAT_TREE : FEAT_BUSH);
-#if 1
-			/* Redraw - the trees might block view and cause wall shading etc! */
-			for (i = 1; i <= NumPlayers; i++) {
-				/* If he's not playing, skip him */
-				if (Players[i]->conn == NOT_CONNECTED) continue;
-				/* If he's not here, skip him */
-				if (!inarea(&p_ptr->wpos, &Players[i]->wpos)) continue;
+		if (!cave_naked_bold(zcave, p_ptr->py + j, p_ptr->px + i) ||
+		    (f_info[zcave[p_ptr->py + j][p_ptr->px + i].feat].flags2 & FF2_NO_TFORM) ||
+		    (zcave[p_ptr->py + j][p_ptr->px + i].info & CAVE_NO_TFORM)) continue;
 
-				Players[i]->update |= (PU_VIEW | PU_LITE | PU_FLOW); //PU_DISTANCE, PU_TORCH, PU_MONSTERS??; PU_FLOW needed? both VIEW and LITE needed?
-			}
-#endif
+		cave_set_feat_live(&p_ptr->wpos, p_ptr->py + j, p_ptr->px + i, magik(50) ? FEAT_TREE : FEAT_BUSH);
+#if 1
+		/* Redraw - the trees might block view and cause wall shading etc! */
+		for (i = 1; i <= NumPlayers; i++) {
+			/* If he's not playing, skip him */
+			if (Players[i]->conn == NOT_CONNECTED) continue;
+			/* If he's not here, skip him */
+			if (!inarea(&p_ptr->wpos, &Players[i]->wpos)) continue;
+
+			Players[i]->update |= (PU_VIEW | PU_LITE | PU_FLOW); //PU_DISTANCE, PU_TORCH, PU_MONSTERS??; PU_FLOW needed? both VIEW and LITE needed?
 		}
+#endif
 	}
 }
 
@@ -795,9 +794,10 @@ void warding_glyph(int Ind) {
 	cave_type **zcave;
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return;
-	if (!allow_terraforming(&p_ptr->wpos, FEAT_GLYPH) && !is_admin(p_ptr)) return;
 
-	if (!cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, FEAT_GLYPH))
+	if (!allow_terraforming(&p_ptr->wpos, FEAT_GLYPH) && !is_admin(p_ptr)) return;
+	if ((f_info[zcave[p_ptr->py][p_ptr->px].feat].flags2 & FF2_NO_TFORM) || (zcave[p_ptr->py][p_ptr->px].info & CAVE_NO_TFORM) ||
+	    !cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, FEAT_GLYPH))
 		msg_print(Ind, "\377yThe glyph fails to get placed here!");
 }
 
@@ -3502,8 +3502,10 @@ void stair_creation(int Ind) {
 	/* Access the player grid */
 	c_ptr = &zcave[p_ptr->py][p_ptr->px];
 
-	/* XXX XXX XXX */
-	if (!cave_valid_bold(zcave, p_ptr->py, p_ptr->px)) {
+	if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) {
+		msg_print(Ind, "The floor resists the spell.");
+		return;
+	} else if (!cave_valid_bold(zcave, p_ptr->py, p_ptr->px)) {
 		msg_print(Ind, "The object resists the spell.");
 		return;
 	}
@@ -5990,6 +5992,7 @@ void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, byte 
 			/* Delete the monster (if any) */
 			if (c_ptr->m_idx > 0) {
 				monster_race *r_ptr = race_inf(&m_list[c_ptr->m_idx]);
+
 				if (!(r_ptr->flags9 & RF9_IM_TELE)) delete_monster(wpos, y, x, TRUE);
 				else continue;
 			}
@@ -6476,7 +6479,7 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 			/* Access the cave grid */
 			c_ptr = &zcave[yy][xx];
 
-			/* Paranoia -- never affect player */
+			/* Paranoia -- never entomb player */
 			if (c_ptr->m_idx < 0) continue;
 
 			/* Destroy location (if valid) */
@@ -6514,7 +6517,7 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 	}
 }
 
-/* Wipe everything */
+/* Wipe everything -- admin terraform function, does not happen in normal gameplay. */
 void wipe_spell(struct worldpos *wpos, int cy, int cx, int r) {
 	int		yy, xx, dy, dx;
 	cave_type	*c_ptr;
@@ -6555,6 +6558,7 @@ void wipe_spell(struct worldpos *wpos, int cy, int cx, int r) {
 			/* Delete monsters */
 			if (c_ptr->m_idx > 0) {
 				monster_race *r_ptr = race_inf(&m_list[c_ptr->m_idx]);
+
 				if (!(r_ptr->flags9 & RF9_IM_TELE)) delete_monster(wpos, yy, xx, TRUE);
 				else continue;
 			}
@@ -10165,8 +10169,9 @@ bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown) {
 		}
 	//}
 
-	if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) ||
-	    (c_ptr->info & CAVE_PROT)) {
+	if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) || (c_ptr->info & CAVE_PROT) ||
+	    (f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM) // allow_terraforming(wpos, FEAT_NONE) ||
+	    ) {
 		msg_print(Ind, "\377yYou cannot arm charges while on this special floor.");
 		return(FALSE);
 	}
@@ -10230,6 +10235,11 @@ void arm_charge(int Ind, int item, int dir) {
 	/* Take half a turn maybe? No idea */
 	p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
 	if (interfere(Ind, 50 - get_skill_scale(p_ptr, SKILL_CALMNESS, 35))) return;
+
+	if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) { // || !allow_terraforming(wpos, FEAT_NONE)) {
+		msg_print(Ind, "\377yYou cannot set a charge here.");
+		return;
+	}
 
 	/* Hack: We just abuse monster traps for charges too and place a montrap/rune-like glyph on the floor.. */
 	if (!(cs_ptr = AddCS(c_ptr, CS_MON_TRAP))) {
@@ -10412,6 +10422,7 @@ void detonate_charge(int o_idx) {
 				if (magik(40)) continue; /* Scattered rubble */
 				c_ptr = &zcave[y2][x2];
 				if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) || (c_ptr->info & CAVE_PROT)) continue;
+				if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) continue;// || !allow_terraforming(wpos, FEAT_NONE))
 				if (!cave_clean_bold(zcave, y2, x2) || c_ptr->special
 				    || c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
 					continue;
@@ -10477,6 +10488,7 @@ void detonate_charge(int o_idx) {
 				if (!rand_int(2)) continue; /* Somewhat irregular course, a 'vein' */
 				c_ptr = &zcave[y2][x2];
 				if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) || (c_ptr->info & CAVE_PROT)) continue;
+				if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) continue;// || !allow_terraforming(wpos, FEAT_NONE))
 				if (!cave_clean_bold(zcave, y2, x2) || c_ptr->special
 				    || c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
 					continue;
@@ -10537,7 +10549,7 @@ void wrap_gift(int Ind, int item) {
 	if (cursed_p(o_ptr)) {
 		msg_print(Ind, "Oops, the item accidentally ripped the gift wrapping."); //=p
 		/* One gift wrapping gone */
-		inven_item_increase(Ind, p_ptr->current_activation, -o_ptr->number);
+		inven_item_increase(Ind, p_ptr->current_activation, -1);
 		inven_item_describe(Ind, p_ptr->current_activation);
 		inven_item_optimize(Ind, p_ptr->current_activation);
 
@@ -10583,12 +10595,6 @@ void wrap_gift(int Ind, int item) {
 		s_printf("..success (EMPTY)\n");
 
 		forge = *o_ptr;
-
-		/* One gift wrapping gone */
-		inven_item_increase(Ind, p_ptr->current_activation, -o_ptr->number);
-		inven_item_describe(Ind, p_ptr->current_activation);
-		inven_item_optimize(Ind, p_ptr->current_activation);
-
 		o_ptr = &forge;
 
 		o_ptr->tval2 = o_ptr->tval;
@@ -10604,6 +10610,15 @@ void wrap_gift(int Ind, int item) {
 		o_ptr->number = 1; // one gift may contain a stack of items, but in turn, gifts aren't stackable of course
 		o_ptr->note = ow_ptr->note;
 		o_ptr->note_utag = ow_ptr->note_utag;
+		/* Remove silly 'on sale' inscription on gift wrapping */
+		if (o_ptr->note &&
+		    (streq(quark_str(o_ptr->note), "on sale") || streq(quark_str(o_ptr->note), "stolen")))
+			o_ptr->note = o_ptr->note_utag = 0;
+
+		/* All gift wrappings gone */
+		inven_item_increase(Ind, p_ptr->current_activation, -ow_ptr->number);
+		inven_item_describe(Ind, p_ptr->current_activation);
+		inven_item_optimize(Ind, p_ptr->current_activation);
 
 #ifdef USE_SOUND_2010
 		sound(Ind, "read_scroll", NULL, SFX_TYPE_COMMAND, FALSE);
@@ -10638,8 +10653,13 @@ void wrap_gift(int Ind, int item) {
 	o_ptr->k_idx = lookup_kind(o_ptr->tval, o_ptr->sval);
 	o_ptr->weight = o_ptr->weight * o_ptr->number + ow_ptr->weight; /* Potential stack will be shrunk to just 1 item in next line, and gift wrapping paper is added */
 	o_ptr->number = 1; // one gift may contain a stack of items, but in turn, gifts aren't stackable of course
+	/* Gift retains any inscription the gift wrapping originally had */
 	o_ptr->note = ow_ptr->note;
 	o_ptr->note_utag = ow_ptr->note_utag;
+	/* Remove silly 'on sale' inscription on gift wrapping */
+	if (o_ptr->note &&
+	    (streq(quark_str(o_ptr->note), "on sale") || streq(quark_str(o_ptr->note), "stolen")))
+		o_ptr->note = o_ptr->note_utag = 0;
 
 	/* One gift wrapping gone */
 	inven_item_increase(Ind, p_ptr->current_activation, -1);
@@ -10684,6 +10704,15 @@ void unwrap_gift(int Ind, int item) {
 	inven_item_increase(Ind, item, -1);
 	//inven_item_describe(Ind, item); -- pft, we know it's no longer gift-wrapped
 	inven_item_optimize(Ind, item);
+
+	/* Handle empty gifts */
+	if (!forge.number2) {
+		msg_print(Ind, " it was empty.");
+		p_ptr->window |= PW_INVEN;
+		handle_stuff(Ind);
+		return;
+	}
+
 	o_ptr = &forge;
 
 	o_ptr->weight = (o_ptr->weight - k_info[lookup_kind(TV_JUNK, o_ptr->sval)].weight) / o_ptr->number2; /* Gift wrapping paper is removed, stack of items may appear instead of just one item. */
@@ -10700,13 +10729,6 @@ void unwrap_gift(int Ind, int item) {
 	o_ptr->note2 = 0;
 	o_ptr->note2_utag = 0;
 
-	/* Handle empty gifts */
-	if (!forge.number) {
-		msg_print(Ind, " it was empty.");
-		p_ptr->window |= PW_INVEN;
-		handle_stuff(Ind);
-		return;
-	}
 	/* Overwrite 'item' to reuse it, as we don't need it anymore */
 	item = inven_carry(Ind, &forge);
 	if (item >= 0) {

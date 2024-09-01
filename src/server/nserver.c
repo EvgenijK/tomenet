@@ -7314,12 +7314,15 @@ int Send_char(int Ind, int x, int y, byte a_fore, char32_t c_fore) {
 			char *unm_c_ptr_back;
 #endif
 
-			if (NULL != (unm_c_ptr_fore = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_fore))) c2_fore = (char32_t)*unm_c_ptr_fore;
-			else if (NULL != (unm_c_ptr_fore = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_fore))) c2_fore = (char32_t)*unm_c_ptr_fore;
+			/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+			if (connp2->use_graphics == UG_NONE) {
+				if (NULL != (unm_c_ptr_fore = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_fore))) c2_fore = (char32_t)*unm_c_ptr_fore;
+				else if (NULL != (unm_c_ptr_fore = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_fore))) c2_fore = (char32_t)*unm_c_ptr_fore;
 #ifdef GRAPHICS_BG_MASK
-			if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) c2_back = (char32_t)*unm_c_ptr_back;
-			else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) c2_back = (char32_t)*unm_c_ptr_back;
+				if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) c2_back = (char32_t)*unm_c_ptr_back;
+				else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) c2_back = (char32_t)*unm_c_ptr_back;
 #endif
+			}
 
 #ifdef GRAPHICS_BG_MASK
 			if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
@@ -7781,20 +7784,47 @@ int Send_line_info(int Ind, int y, bool scr_only) {
 			}
 
 			if (Ind2) {
-				/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
-				   Maybe todo: also unmap attr? */
-				unm_c_idx = c;
-				if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
-				else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
-				else cu = c;
+				/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+				if (connp2->use_graphics == UG_NONE) {
+					/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
+					   Maybe todo: also unmap attr? */
+					unm_c_idx = c;
+					if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
+					else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
+					else cu = c;
+#ifdef GRAPHICS_BG_MASK
+					unm_c_idx_back = c_back;
+					if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
+					else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
+					else cu_back = c_back;
+#endif
+				} else {
+					cu = c;
+#ifdef GRAPHICS_BG_MASK
+					cu_back = c_back;
+#endif
+				}
 
 #ifdef GRAPHICS_BG_MASK
-				unm_c_idx_back = c_back;
-				if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
-				else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
-				else cu_back = c_back;
+				if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+					/* Transfer only the relevant bytes, according to client setup.*/
+					char *pcu_f = (char*)&cu, *pcu_b = (char*)&cu_back;
 
-				if (FALSE && connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+					switch (connp2->Client_setup.char_transfer_bytes) {
+					case 0:
+					case 1:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c", pcu_f[0], TERM_RESERVED_RLE, pcu_b[0], a_back, a, n);
+						break;
+					case 2:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pcu_f[1], pcu_f[0], TERM_RESERVED_RLE, pcu_b[1], pcu_b[0], a_back, a, n);
+						break;
+					case 3:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c%c%c", pcu_f[2], pcu_f[1], pcu_f[0], TERM_RESERVED_RLE, pcu_b[2], pcu_b[1], pcu_b[0], a_back, a, n);
+						break;
+					case 4:
+					default:
+						Packet_printf(&connp2->c, "%u%c%u%c%c%c", cu, TERM_RESERVED_RLE, cu_back, a_back, a, n);
+					}
 				} else
 #endif
 				/* 4.8.1 and newer clients use 32bit character size. */
@@ -7934,19 +7964,26 @@ int Send_line_info(int Ind, int y, bool scr_only) {
 			}
 
 			if (Ind2) {
-				/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
-				   Maybe todo: also unmap attr? */
-				unm_c_idx = c;
-				if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
-				else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
-				else cu = c;
-
+				/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+				if (connp2->use_graphics == UG_NONE) {
+					/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
+					   Maybe todo: also unmap attr? */
+					unm_c_idx = c;
+					if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
+					else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx))) cu = (char32_t)*unm_c_ptr;
+					else cu = c;
 #ifdef GRAPHICS_BG_MASK
-				unm_c_idx_back = c_back;
-				if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
-				else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
-				else cu_back = c_back;
+					unm_c_idx_back = c_back;
+					if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->r_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
+					else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr->f_char_mod, unm_c_idx_back))) cu_back = (char32_t)*unm_c_ptr_back;
+					else cu_back = c_back;
 #endif
+				} else {
+					cu = c;
+#ifdef GRAPHICS_BG_MASK
+					cu_back = c_back;
+#endif
+				}
 
 				if (!is_newer_than(&connp2->version, 4, 4, 3, 0, 0, 5)) {
 					/* Remove 0x40 (TERM_PVP) if the client is old */
@@ -7956,7 +7993,25 @@ int Send_line_info(int Ind, int y, bool scr_only) {
 						/* Use RLE format as an escape sequence, should attr actually be ever '0xFF' so we can still use it.
 						   However, since 0xff is clearly reserved for RLE, this probably won't happen anyway? But we handle it here if it does: */
 #ifdef GRAPHICS_BG_MASK
-						if (FALSE && connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+						if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+							/* Transfer only the relevant bytes, according to client setup.*/
+							char *pcu_f = (char*)&cu, *pcu_b = (char*)&cu_back;
+
+							switch (connp2->Client_setup.char_transfer_bytes) {
+							case 0:
+							case 1:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c", pcu_f[0], TERM_RESERVED_RLE, pcu_b[0], a_back, a, 1);
+								break;
+							case 2:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pcu_f[1], pcu_f[0], TERM_RESERVED_RLE, pcu_b[1], pcu_b[0], a_back, a, 1);
+								break;
+							case 3:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c%c%c", pcu_f[2], pcu_f[1], pcu_f[0], TERM_RESERVED_RLE, pcu_b[2], pcu_b[1], pcu_b[0], a_back, a, 1);
+								break;
+							case 4:
+							default:
+								Packet_printf(&connp2->c, "%u%c%u%c%c%c", cu, TERM_RESERVED_RLE, cu_back, a_back, a, 1);
+							}
 						} else
 #endif
 						/* 4.8.1 and newer clients use 32bit character size. */
@@ -7985,7 +8040,25 @@ int Send_line_info(int Ind, int y, bool scr_only) {
 					} else {
 						/* Normal output */
 #ifdef GRAPHICS_BG_MASK
-						if (FALSE && connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+						if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+							/* Transfer only the relevant bytes, according to client setup.*/
+							char *pcu_f = (char*)&cu, *pcu_b = (char*)&cu_back;
+
+							switch (connp2->Client_setup.char_transfer_bytes) {
+							case 0:
+							case 1:
+								Packet_printf(&connp2->c, "%c%c%c%c", pcu_f[0], a, pcu_b[0], a_back);
+								break;
+							case 2:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c", pcu_f[1], pcu_f[0], a, pcu_b[1], pcu_b[0], a_back);
+								break;
+							case 3:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pcu_f[2], pcu_f[1], pcu_f[0], a, pcu_b[2], pcu_b[1], pcu_b[0], a_back);
+								break;
+							case 4:
+							default:
+								Packet_printf(&connp2->c, "%u%c%u%c", cu, a, cu_back, a_back);
+							}
 						} else
 #endif
 						/* 4.8.1 and newer clients use 32bit character size. */
@@ -8060,16 +8133,19 @@ int Send_line_info_forward(int Ind, int Ind_src, int y) {
 		c_back = p_ptr2->scr_info_back[y][x].c;
 		a_back = p_ptr2->scr_info_back[y][x].a;
 #endif
-		/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
-		   Maybe todo: also unmap attr? */
-		unm_c_idx = c;
-		if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c = (char32_t)*unm_c_ptr;
-		else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c = (char32_t)*unm_c_ptr;
+		/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+		if (connp->use_graphics == UG_NONE) {
+			/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
+			   Maybe todo: also unmap attr? */
+			unm_c_idx = c;
+			if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c = (char32_t)*unm_c_ptr;
+			else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c = (char32_t)*unm_c_ptr;
 #ifdef GRAPHICS_BG_MASK
-		unm_c_idx_back = c_back;
-		if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c_back = (char32_t)*unm_c_ptr_back;
-		else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c_back = (char32_t)*unm_c_ptr_back;
+			unm_c_idx_back = c_back;
+			if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c_back = (char32_t)*unm_c_ptr_back;
+			else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c_back = (char32_t)*unm_c_ptr_back;
 #endif
+		}
 
 #ifdef EXTENDED_TERM_COLOURS
 		if (old_colours) {
@@ -8099,16 +8175,19 @@ int Send_line_info_forward(int Ind, int Ind_src, int y) {
 			c1_back = p_ptr2->scr_info_back[y][x1].c;
 			a1_back = p_ptr2->scr_info_back[y][x1].a;
 #endif
-			/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
-			   Maybe todo: also unmap attr? */
-			unm_c_idx = c1;
-			if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
-			else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
+			/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+			if (connp->use_graphics == UG_NONE) {
+				/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
+				   Maybe todo: also unmap attr? */
+				unm_c_idx = c1;
+				if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
+				else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
 #ifdef GRAPHICS_BG_MASK
-			unm_c_idx_back = c1_back;
-			if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
-			else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
+				unm_c_idx_back = c1_back;
+				if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
+				else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
 #endif
+			}
 
 			while (c1 == c && a1 == a
 #ifdef GRAPHICS_BG_MASK
@@ -8125,16 +8204,20 @@ int Send_line_info_forward(int Ind, int Ind_src, int y) {
 				c1_back = p_ptr2->scr_info_back[y][x1].c;
 				a1_back = p_ptr2->scr_info_back[y][x1].a;
 #endif
-				/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
-				   Maybe todo: also unmap attr? */
-				unm_c_idx = c1;
-				if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
-				else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
+
+				/* Unmapping while using gfx can cause visual bg-colour glitch? todo: fix this mess */
+				if (connp->use_graphics == UG_NONE) {
+					/* Try to unmap custom font settings, so screen isn't garbage for someone without the same mapping.
+					   Maybe todo: also unmap attr? */
+					unm_c_idx = c1;
+					if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
+					else if (NULL != (unm_c_ptr = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx))) c1 = (char32_t)*unm_c_ptr;
 #ifdef GRAPHICS_BG_MASK
-				unm_c_idx_back = c1_back;
-				if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
-				else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
+					unm_c_idx_back = c1_back;
+					if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->r_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
+					else if (NULL != (unm_c_ptr_back = u32b_char_dict_get(p_ptr2->f_char_mod, unm_c_idx_back))) c1_back = (char32_t)*unm_c_ptr_back;
 #endif
+				}
 			}
 		}
 
@@ -8348,6 +8431,10 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 		/* Obtain the char/attr pair */
 		c = sc[x];
 		a = sa[x];
+#ifdef GRAPHICS_BG_MASK
+		c_back = sc_back[x];
+		a_back = sa_back[x];
+#endif
 
 		/* Start looking here */
 		x1 = x + 1;
@@ -8356,7 +8443,11 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 		n = 1;
 
 		/* Count repetitions of this grid */
-		while (x1 < 80 && sc[x1] == c && sa[x1] == a) {
+		while (x1 < 80 && sc[x1] == c && sa[x1] == a
+#ifdef GRAPHICS_BG_MASK
+		    && sc_back[x1] == c_back && sa_back[x1] == a_back
+#endif
+		    ) {
 			/* Increment count and column */
 			n++;
 			x1++;
@@ -8365,7 +8456,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 		/* RLE if there at least 2 similar grids in a row */
 		if (n >= 2) {
 #ifdef GRAPHICS_BG_MASK
-			if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+			if (connp->use_graphics == UG_2MASK && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+				/* Transfer only the relevant bytes, according to client setup.*/
+				char *pc = (char*)&c, *pc_b = (char*)&c_back;
+
+				switch (connp->Client_setup.char_transfer_bytes) {
+				case 0:
+				case 1:
+					Packet_printf(&connp->c, "%c%c%c%c%c%c", pc[0], TERM_RESERVED_RLE, pc_b[0], a_back, a, n);
+					break;
+				case 2:
+					Packet_printf(&connp->c, "%c%c%c%c%c%c%c%c", pc[1], pc[0], TERM_RESERVED_RLE, pc_b[1], pc_b[0], a_back, a, n);
+					break;
+				case 3:
+					Packet_printf(&connp->c, "%c%c%c%c%c%c%c%c%c%c", pc[2], pc[1], pc[0], TERM_RESERVED_RLE, pc_b[2], pc_b[1], pc_b[0], a_back, a, n);
+					break;
+				case 4:
+				default:
+					Packet_printf(&connp->c, "%u%c%u%c%c%c", c, TERM_RESERVED_RLE, c_back, a_back, a, n);
+				}
 			} else
 #endif
 			/* 4.8.1 and newer clients use 32bit character size. */
@@ -8400,7 +8509,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 
 			if (Ind2) {
 #ifdef GRAPHICS_BG_MASK
-				if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+				if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+					/* Transfer only the relevant bytes, according to client setup.*/
+					char *pc = (char*)&c, *pc_b = (char*)&c_back;
+
+					switch (connp2->Client_setup.char_transfer_bytes) {
+					case 0:
+					case 1:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c", pc[0], TERM_RESERVED_RLE, pc_b[0], a_back, a, n);
+						break;
+					case 2:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pc[1], pc[0], TERM_RESERVED_RLE, pc_b[1], pc_b[0], a_back, a, n);
+						break;
+					case 3:
+						Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c%c%c", pc[2], pc[1], pc[0], TERM_RESERVED_RLE, pc_b[2], pc_b[1], pc_b[0], a_back, a, n);
+						break;
+					case 4:
+					default:
+						Packet_printf(&connp2->c, "%u%c%u%c%c%c", c, TERM_RESERVED_RLE, c_back, a_back, a, n);
+					}
 				} else
 #endif
 				/* 4.8.1 and newer clients use 32bit character size. */
@@ -8446,7 +8573,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 					/* Use RLE format as an escape sequence, should attr actually be ever '0xFF' so we can still use it.
 					   However, since 0xff is clearly reserved for RLE, this probably won't happen anyway? But we handle it here if it does: */
 #ifdef GRAPHICS_BG_MASK
-					if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+					if (connp->use_graphics == UG_2MASK && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+						/* Transfer only the relevant bytes, according to client setup.*/
+						char *pc = (char*)&c, *pc_b = (char*)&c_back;
+
+						switch (connp->Client_setup.char_transfer_bytes) {
+						case 0:
+						case 1:
+							Packet_printf(&connp->c, "%c%c%c%c%c%c", pc[0], TERM_RESERVED_RLE, pc_b[0], a_back, a, 1);
+							break;
+						case 2:
+							Packet_printf(&connp->c, "%c%c%c%c%c%c%c%c", pc[1], pc[0], TERM_RESERVED_RLE, pc_b[1], pc_b[0], a_back, a, 1);
+							break;
+						case 3:
+							Packet_printf(&connp->c, "%c%c%c%c%c%c%c%c%c%c", pc[2], pc[1], pc[0], TERM_RESERVED_RLE, pc_b[2], pc_b[1], pc_b[0], a_back, a, 1);
+							break;
+						case 4:
+						default:
+							Packet_printf(&connp->c, "%u%c%u%c%c%c", c, TERM_RESERVED_RLE, c_back, a_back, a, 1);
+						}
 					} else
 #endif
 					/* 4.8.1 and newer clients use 32bit character size. */
@@ -8474,7 +8619,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 					}
 				} else { /* Normal output */
 #ifdef GRAPHICS_BG_MASK
-					if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+					if (connp->use_graphics == UG_2MASK && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+						/* Transfer only the relevant bytes, according to client setup.*/
+						char *pc_f = (char*)&c, *pc_b = (char*)&c_back;
+
+						switch (connp->Client_setup.char_transfer_bytes) {
+						case 0:
+						case 1:
+							Packet_printf(&connp->c, "%c%c%c%c", pc_f[0], a, pc_b[0], a_back);
+							break;
+						case 2:
+							Packet_printf(&connp->c, "%c%c%c%c%c%c", pc_f[1], pc_f[0], a, pc_b[1], pc_b[0], a_back);
+							break;
+						case 3:
+							Packet_printf(&connp->c, "%c%c%c%c%c%c%c%c", pc_f[2], pc_f[1], pc_f[0], a, pc_b[2], pc_b[1], pc_b[0], a_back);
+							break;
+						case 4:
+						default:
+							Packet_printf(&connp->c, "%u%c%u%c", c, a, c_back, a_back);
+						}
 					} else
 #endif
 					/* 4.8.1 and newer clients use 32bit character size. */
@@ -8512,7 +8675,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 						/* Use RLE format as an escape sequence, should attr actually be ever '0xFF' so we can still use it.
 						   However, since 0xff is clearly reserved for RLE, this probably won't happen anyway? But we handle it here if it does: */
 #ifdef GRAPHICS_BG_MASK
-						if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+						if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+							/* Transfer only the relevant bytes, according to client setup.*/
+							char *pc_f = (char*)&c, *pc_b = (char*)&c_back;
+
+							switch (connp2->Client_setup.char_transfer_bytes) {
+							case 0:
+							case 1:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c", pc_f[0], TERM_RESERVED_RLE, pc_b[0], a_back, a, 1);
+								break;
+							case 2:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pc_f[1], pc_f[0], TERM_RESERVED_RLE, pc_b[1], pc_b[0], a_back, a, 1);
+								break;
+							case 3:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c%c%c", pc_f[2], pc_f[1], pc_f[0], TERM_RESERVED_RLE, pc_b[2], pc_b[1], pc_b[0], a_back, a, 1);
+								break;
+							case 4:
+							default:
+								Packet_printf(&connp2->c, "%u%c%u%c%c%c", c, TERM_RESERVED_RLE, c_back, a_back, a, 1);
+							}
 						} else
 #endif
 						/* 4.8.1 and newer clients use 32bit character size. */
@@ -8540,7 +8721,25 @@ int Send_mini_map(int Ind, int y, byte *sa, char32_t *sc) {
 						}
 					} else { /* Normal output */
 #ifdef GRAPHICS_BG_MASK
-						if (FALSE && is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+						if (connp2->use_graphics == UG_2MASK && is_atleast(&connp2->version, 4, 9, 2, 1, 0, 0)) {
+							/* Transfer only the relevant bytes, according to client setup.*/
+							char *pc_f = (char*)&c, *pc_b = (char*)&c_back;
+
+							switch (connp2->Client_setup.char_transfer_bytes) {
+							case 0:
+							case 1:
+								Packet_printf(&connp2->c, "%c%c%c%c", pc_f[0], a, pc_b[0], a_back);
+								break;
+							case 2:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c", pc_f[1], pc_f[0], a, pc_b[1], pc_b[0], a_back);
+								break;
+							case 3:
+								Packet_printf(&connp2->c, "%c%c%c%c%c%c%c%c", pc_f[2], pc_f[1], pc_f[0], a, pc_b[2], pc_b[1], pc_b[0], a_back);
+								break;
+							case 4:
+							default:
+								Packet_printf(&connp2->c, "%u%c%u%c", c, a, c_back, a_back);
+							}
 						} else
 #endif
 						/* 4.8.1 and newer clients use 32bit character size. */
@@ -8608,6 +8807,8 @@ s_printf("wx,wy=%d,%d, tx,ty=%d,%d\n", p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->tm
 	/* Packet header */
 #ifdef GRAPHICS_BG_MASK
 	if (is_atleast(&connp->version, 4, 9, 2, 1, 0, 0)) {
+		// same as non-bgmask for now
+		Packet_printf(&connp->c, "%c%hd%hd%hd%c%u", PKT_MINI_MAP_POS, xs, ys, y_offset, a, c);
 	} else
 #endif
 	/* 4.8.1 and newer clients use 32bit character size. */

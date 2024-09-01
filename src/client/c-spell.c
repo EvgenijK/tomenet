@@ -1272,7 +1272,7 @@ void browse_school_spell(int item, int book, int pval) {
 
 	/* Build a prompt (accept all spells) */
 	if (num)
-		strnfmt(out_val2, 78, "(Spells %c-%c, ESC=exit) which spell? ", I2A(0), I2A(num - 1));
+		strnfmt(out_val2, 78, "(Spells %c-%c, Paste to chat %c-%c, ESC=exit) which spell? ", I2A(0), I2A(num - 1), I2A(0) - 'a' + 'A', I2A(num - 1) - 'a' + 'A');
 	else
 		strnfmt(out_val2, 78, "No spells available - ESC=exit");
 
@@ -1311,6 +1311,16 @@ void browse_school_spell(int item, int book, int pval) {
 
 		/* Restore the screen */
 		/* Term_load(); */
+
+		/* Specialty: We use 'ask' aka upper-case spell letter here to paste the spell entry to chat. */
+		if (ask) {
+			/* Display a list of spells */
+			sprintf(out_val, "print_spell_chat(spell_x2(%d, %d, %d, %d), %d)", item, sval, pval, i, item);
+			exec_lua(0, out_val);
+			sprintf(out_val, "print_spell_desc_chat(spell_x2(%d, %d, %d, %d))", item, sval, pval, i);
+			exec_lua(0, out_val);
+			continue;
+		}
 
 		/* Display a list of spells */
 		sprintf(out_val, "return print_book2(0, %d, %d, %d)", item, sval, pval);

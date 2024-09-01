@@ -337,7 +337,11 @@ struct _term_data {
 	HWND     w;
 
 #ifdef USE_GRAPHICS
-	HDC hdcTiles,hdcBgMask, hdcFgMask;
+	HDC hdcTiles, hdcBgMask, hdcFgMask;
+ #ifdef GRAPHICS_BG_MASK
+	HDC hdcBg2Mask;
+	HDC hdcTilePreparation2;
+ #endif
 	HDC hdcTilePreparation;
 #endif
 
@@ -378,14 +382,20 @@ struct _term_data {
 HBITMAP g_hbmTiles = NULL;
 HBITMAP g_hbmBgMask = NULL;
 HBITMAP g_hbmFgMask = NULL;
+ #ifdef GRAPHICS_BG_MASK
+HBITMAP g_hbmBg2Mask = NULL;
+ #endif
 
 /* These variables are computed at image load (in 'init_windows'). */
 int graphics_tile_wid, graphics_tile_hgt;
 int graphics_image_tpr; /* Tiles per row. */
 
-/* Copied and repurposed from: http://winprog.org/tutorial/transparency.html */
-HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent) {
+/* Copied and repurposed from: http://winprog.org/tutorial/transparency.html
+   NOTE: This function actually blackens (or whitens, if 'inverse') any recognized mask pixel in the _original_ image!
+         So while the mask is created, it is sort of 'cut out' of the original image, leaving blackness (whiteness) behind. */
+HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent, bool inverse) {
 	BITMAP bm;
+	COLORREF MaskColor0 = RGB(0, 0, 0), MaskColor1 = RGB(255, 255, 255);
 	GetObject(hbmColour, sizeof(BITMAP), &bm);
 
 	/* Create 32bpp mask bitmap. */
@@ -412,14 +422,26 @@ HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent) {
 	//SetBkColor(hdcMem, clrSaveBk);
 
 	/* The commented code above, which is in all tutorials on net doesn't work for mingw for unknown reasons. Let's use more classical and slower approach. */
-	for (int y = 0; y < bm.bmHeight; y++) {
+	if (!inverse) for (int y = 0; y < bm.bmHeight; y++) {
 		for (int x = 0; x < bm.bmWidth; x++) {
 			COLORREF p = GetPixel(hdcMem, x, y);
+
 			if (p == crTransparent) {
 				/* Set mask pixel. */
-				SetPixel(hdcMem2, x, y, RGB(255, 255, 255));
+				SetPixel(hdcMem2, x, y, MaskColor1);
 				/* Erase origin pixel */
-				SetPixel(hdcMem, x, y, RGB(0, 0, 0));
+				SetPixel(hdcMem, x, y, MaskColor0);
+			}
+		}
+	} else for (int y = 0; y < bm.bmHeight; y++) {
+		for (int x = 0; x < bm.bmWidth; x++) {
+			COLORREF p = GetPixel(hdcMem, x, y);
+
+			if (p == crTransparent) {
+				/* Set mask pixel. */
+				SetPixel(hdcMem2, x, y, MaskColor0);
+				/* Erase origin pixel */
+				SetPixel(hdcMem, x, y, MaskColor1);
 			}
 		}
 	}
@@ -430,7 +452,7 @@ HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent) {
 	DeleteDC(hdcMem);
 	DeleteDC(hdcMem2);
 
-	return hbmMask;
+	return(hbmMask);
 }
 
 /* Resize an bitmap with it's bg/fg masks.
@@ -438,7 +460,11 @@ HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent) {
  * It's your responsibility to free returned HBITMAP, hbmBgMask_return and hbmFgMask_return after usage.
  * Function will not free resources if already allocated in hbmBgMask_return or hbmFgMask_return input variable.
  */
+#ifdef GRAPHICS_BG_MASK
+static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy, HBITMAP hbmBgMask, HBITMAP hbmFgMask, HBITMAP hbmBg2Mask, HBITMAP *hbmBgMask_return, HBITMAP *hbmFgMask_return, HBITMAP *hbmBg2Mask_return) {
+#else
 static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy, HBITMAP hbmBgMask, HBITMAP hbmFgMask, HBITMAP *hbmBgMask_return, HBITMAP *hbmFgMask_return) {
+#endif
 	BITMAP bm;
 	GetObject(hbm, sizeof(BITMAP), &bm);
 
@@ -461,6 +487,12 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 	HDC hdcMemResBgMask = CreateCompatibleDC(NULL);
 	HDC hdcMemResFgMask = CreateCompatibleDC(NULL);
 
+#ifdef GRAPHICS_BG_MASK
+	HBITMAP hbmResBg2Mask = CreateBitmap(width2, height2, 1, 32, NULL);
+	HDC hdcMemBg2Mask = CreateCompatibleDC(NULL);
+	HDC hdcMemResBg2Mask = CreateCompatibleDC(NULL);
+#endif
+
 	/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
 	HBITMAP hbmOldMemTiles = SelectObject(hdcMemTiles, g_hbmTiles);
 	HBITMAP hbmOldMemBgMask = SelectObject(hdcMemBgMask, g_hbmBgMask);
@@ -470,7 +502,12 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 	HBITMAP hbmOldMemResBgMask = SelectObject(hdcMemResBgMask, hbmResBgMask);
 	HBITMAP hbmOldMemResFgMask = SelectObject(hdcMemResFgMask, hbmResFgMask);
 
-#if 1
+#ifdef GRAPHICS_BG_MASK
+	HBITMAP hbmOldMemBg2Mask = SelectObject(hdcMemBg2Mask, g_hbmBg2Mask);
+	HBITMAP hbmOldMemResBg2Mask = SelectObject(hdcMemResBg2Mask, hbmResBg2Mask);
+#endif
+
+#if 1 /* use StretchBlt instead of SetPixel-loops */
 	/* StretchBlt is much faster on native Windows - mikaelh */
 	SetStretchBltMode(hdcMemResTiles, COLORONCOLOR);
 	SetStretchBltMode(hdcMemResBgMask, COLORONCOLOR);
@@ -478,12 +515,18 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 	StretchBlt(hdcMemResTiles, 0, 0, width2, height2, hdcMemTiles, 0, 0, width1, height1, SRCCOPY);
 	StretchBlt(hdcMemResBgMask, 0, 0, width2, height2, hdcMemBgMask, 0, 0, width1, height1, SRCCOPY);
 	StretchBlt(hdcMemResFgMask, 0, 0, width2, height2, hdcMemFgMask, 0, 0, width1, height1, SRCCOPY);
+ #ifdef GRAPHICS_BG_MASK
+	SetStretchBltMode(hdcMemResBg2Mask, COLORONCOLOR);
+	StretchBlt(hdcMemResBg2Mask, 0, 0, width2, height2, hdcMemBg2Mask, 0, 0, width1, height1, SRCCOPY);
+ #endif
 #else
 
 	/* I like more this classical and slower approach, as the commented StretchBlt code above. In my opinion, it makes nicer resized pictures.*/
 	int x1, x2, y1, y2, Tx, Ty;
 	int *px1, *px2, *dx1, *dx2;
 	int *py1, *py2, *dy1, *dy2;
+
+
 	if (ix >= ox) {
 		px1 = &x1;
 		px2 = &x2;
@@ -518,6 +561,9 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 			SetPixel(hdcMemResTiles, x2, y2, GetPixel(hdcMemTiles, x1, y1));
 			SetPixel(hdcMemResBgMask, x2, y2, GetPixel(hdcMemBgMask, x1, y1));
 			SetPixel(hdcMemResFgMask, x2, y2, GetPixel(hdcMemFgMask, x1, y1));
+ #ifdef GRAPHICS_BG_MASK
+			SetPixel(hdcMemResBg2Mask, x2, y2, GetPixel(hdcMemBg2Mask, x1, y1));
+ #endif
 
 			(*px1)++;
 
@@ -547,18 +593,32 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 	SelectObject(hdcMemResBgMask, hbmOldMemResBgMask);
 	SelectObject(hdcMemResFgMask, hbmOldMemResFgMask);
 
+#ifdef GRAPHICS_BG_MASK
+	SelectObject(hdcMemBg2Mask, hbmOldMemBg2Mask);
+	SelectObject(hdcMemResBg2Mask, hbmOldMemResBg2Mask);
+#endif
+
 	/* Release the created memory DC. */
 	DeleteDC(hdcMemTiles);
 	DeleteDC(hdcMemBgMask);
 	DeleteDC(hdcMemFgMask);
+#ifdef GRAPHICS_BG_MASK
+	DeleteDC(hdcMemBg2Mask);
+#endif
 
 	DeleteDC(hdcMemResTiles);
 	DeleteDC(hdcMemResBgMask);
 	DeleteDC(hdcMemResFgMask);
+#ifdef GRAPHICS_BG_MASK
+	DeleteDC(hdcMemResBg2Mask);
+#endif
 
 	(*hbmBgMask_return) = hbmResBgMask;
 	(*hbmFgMask_return) = hbmResFgMask;
-	return hbmResTiles;
+#ifdef GRAPHICS_BG_MASK
+	(*hbmBg2Mask_return) = hbmResBg2Mask;
+#endif
+	return(hbmResTiles);
 }
 
 static void releaseCreatedGraphicsObjects(term_data *td) {
@@ -580,16 +640,37 @@ static void releaseCreatedGraphicsObjects(term_data *td) {
 		DeleteDC(td->hdcFgMask);
 		td->hdcFgMask = NULL;
 	}
+ #ifdef GRAPHICS_BG_MASK
+	if (td->hdcTilePreparation2 != NULL) {
+		DeleteDC(td->hdcTilePreparation2);
+		td->hdcTilePreparation2 = NULL;
+	}
+	if (td->hdcBg2Mask != NULL) {
+		DeleteDC(td->hdcBg2Mask);
+		td->hdcBg2Mask = NULL;
+	}
+ #endif
 }
 
+/* Called on term_data_link() (initial term creation+initialization) and on term_font_force() (any font change): */
 static void recreateGraphicsObjects(term_data *td) {
 	releaseCreatedGraphicsObjects(td);
 
-	HBITMAP hbmTilePreparation = CreateBitmap(2*td->font_wid, td->font_hgt, 1, 32, NULL);
-	HBITMAP hbmBgMask,hbmFgMask;
+	HBITMAP hbmTilePreparation = CreateBitmap(2 * td->font_wid, td->font_hgt, 1, 32, NULL);
+ #ifdef GRAPHICS_BG_MASK
+	HBITMAP hbmTilePreparation2 = CreateBitmap(2 * td->font_wid, td->font_hgt, 1, 32, NULL);
+	HBITMAP hbmBgMask, hbmFgMask, hbmBg2Mask;
+	HBITMAP hbmTiles = ResizeTilesWithMasks(g_hbmTiles, graphics_tile_wid, graphics_tile_hgt, td->font_wid, td->font_hgt, g_hbmBgMask, g_hbmFgMask, g_hbmBg2Mask, &hbmBgMask, &hbmFgMask, &hbmBg2Mask);
+ #else
+	HBITMAP hbmBgMask, hbmFgMask;
 	HBITMAP hbmTiles = ResizeTilesWithMasks(g_hbmTiles, graphics_tile_wid, graphics_tile_hgt, td->font_wid, td->font_hgt, g_hbmBgMask, g_hbmFgMask, &hbmBgMask, &hbmFgMask);
+ #endif
 
-	if (hbmTiles == NULL || hbmBgMask == NULL || hbmFgMask == NULL || hbmTilePreparation == NULL)
+	if (hbmTiles == NULL || hbmBgMask == NULL || hbmFgMask == NULL || hbmTilePreparation == NULL
+ #ifdef GRAPHICS_BG_MASK
+	    || hbmBg2Mask == NULL || hbmTilePreparation2 == NULL
+ #endif
+	    )
 		quit("Resizing tiles or masks failed.\n");
 
 	/* Get device content for current window. */
@@ -600,23 +681,39 @@ static void recreateGraphicsObjects(term_data *td) {
 	td->hdcTiles = CreateCompatibleDC(hdc);
 	td->hdcBgMask = CreateCompatibleDC(hdc);
 	td->hdcFgMask = CreateCompatibleDC(hdc);
+ #ifdef GRAPHICS_BG_MASK
+	td->hdcTilePreparation2 = CreateCompatibleDC(hdc);
+	td->hdcBg2Mask = CreateCompatibleDC(hdc);
+ #endif
 
 	/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
 	HBITMAP hbmOldTilePreparation = SelectObject(td->hdcTilePreparation, hbmTilePreparation);
 	HBITMAP hbmOldTiles = SelectObject(td->hdcTiles, hbmTiles);
 	HBITMAP hbmOldBgMask = SelectObject(td->hdcBgMask, hbmBgMask);
 	HBITMAP hbmOldFgMask = SelectObject(td->hdcFgMask, hbmFgMask);
+ #ifdef GRAPHICS_BG_MASK
+	HBITMAP hbmOldTilePreparation2 = SelectObject(td->hdcTilePreparation2, hbmTilePreparation2);
+	HBITMAP hbmOldBg2Mask = SelectObject(td->hdcBg2Mask, hbmBg2Mask);
+ #endif
 
 	/* Delete the default HBITMAPs here, the above created tiles & masks should be deleted when the HDCs are released. */
 	DeleteBitmap(hbmOldTilePreparation);
 	DeleteBitmap(hbmOldTiles);
 	DeleteBitmap(hbmOldBgMask);
 	DeleteBitmap(hbmOldFgMask);
+ #ifdef GRAPHICS_BG_MASK
+	DeleteBitmap(hbmOldTilePreparation2);
+	DeleteBitmap(hbmOldBg2Mask);
+ #endif
 
 	/* Release */
 	ReleaseDC(td->w, hdc);
 
-	if (td->hdcTiles == NULL || td->hdcBgMask == NULL || td->hdcFgMask == NULL || td->hdcTilePreparation == NULL)
+	if (td->hdcTiles == NULL || td->hdcBgMask == NULL || td->hdcFgMask == NULL || td->hdcTilePreparation == NULL
+ #ifdef GRAPHICS_BG_MASK
+	    || td->hdcBg2Mask == NULL || td->hdcTilePreparation2 == NULL
+ #endif
+	    )
 		quit("Creating device content handles for tiles, tile preparation or masks failed.\n");
 }
 
@@ -1847,9 +1944,9 @@ static HDC myGetDC(HWND hWnd) {
 		/* Foreground color not set */
 		old_attr = -1;
 	}
-	return oldDC;
+	return(oldDC);
 #else
-	return GetDC(hWnd);
+	return(GetDC(hWnd));
 #endif
 }
 
@@ -2303,10 +2400,21 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 }
 #ifdef GRAPHICS_BG_MASK
 static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, char32_t c_back) {
- #if 1 /* use fallback hook until 2mask routines are complete? */
-	return (Term_pict_win(x, y, a, c));
+ #if 0 /* use fallback hook until 2mask routines are complete? */
+	return(Term_pict_win(x, y, a, c));
  #else
 #ifdef USE_GRAPHICS
+	term_data *td;
+	int x1, y1, x1b, y1b;
+	COLORREF bgColor, fgColor;
+	HDC hdc;
+
+	RECT rectBg;
+	RECT rectFg;
+	HBRUSH brushBg;
+	HBRUSH brushFg;
+
+
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top check: main screen top chat line) */
 	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
@@ -2315,16 +2423,28 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	} else flick_global_x = 0;
 
 	a = term2attr(a);
-
-	COLORREF bgColor, fgColor;
-	bgColor = RGB(0, 0, 0);
-	fgColor = RGB(0, 0, 0);
+	a_back = term2attr(a_back);
 
  #ifdef PALANIM_SWAP
 	if (a < CLIENT_PALETTE_SIZE) a = (a + BASE_PALETTE_SIZE) % CLIENT_PALETTE_SIZE;
+	if (a_back < CLIENT_PALETTE_SIZE) a_back = (a_back + BASE_PALETTE_SIZE) % CLIENT_PALETTE_SIZE;
  #endif
 
+	td = (term_data*)(Term->data);
+
+	/* Location of window cell */
+	x = x * td->font_wid + td->size_ow1;
+	y = y * td->font_hgt + td->size_oh1;
+
+	hdc = myGetDC(td->w);
+
+
+	/* --- Foreground (main) graphical tile --- */
+
 	/* Background/Foreground color */
+	bgColor = RGB(0, 0, 0); //this 0-init not really needed?
+	fgColor = RGB(0, 0, 0);
+
  #ifndef EXTENDED_COLOURS_PALANIM
   #ifndef EXTENDED_BG_COLOURS
 	fgColor = win_clr[a & 0x0F];
@@ -2343,58 +2463,101 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
   #endif
  #endif
 
-	term_data *td = (term_data*)(Term->data);
+	/* Note about the graphics tiles image (stored in hdcTiles):
+	   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
+	   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
 
-	/* Location of window cell */
-	x = x * td->font_wid + td->size_ow1;
-	y = y * td->font_hgt + td->size_oh1;
-
-	int x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->font_wid;
-	int y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->font_hgt;
-
-	HDC hdc = myGetDC(td->w);
+	x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->font_wid;
+	y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->font_hgt;
 
 	/* Paint background rectangle .*/
-	RECT rectBg = { 0, 0, td->font_wid, td->font_hgt };
-	RECT rectFg = { td->font_wid, 0, 2*td->font_wid, td->font_hgt };
-	HBRUSH brushBg = CreateSolidBrush(bgColor);
-	HBRUSH brushFg = CreateSolidBrush(fgColor);
+	rectBg = (RECT){ 0, 0, td->font_wid, td->font_hgt }; //uhh, C99 ^^'
+	rectFg = (RECT){ td->font_wid, 0, 2 * td->font_wid, td->font_hgt };
+	brushBg = CreateSolidBrush(bgColor);
+	brushFg = CreateSolidBrush(fgColor);
 	FillRect(td->hdcTilePreparation, &rectBg, brushBg);
 	FillRect(td->hdcTilePreparation, &rectFg, brushFg);
 	DeleteObject(brushBg);
 	DeleteObject(brushFg);
 
 
-	//BitBlt(hdc, 0, 0, 2*9, 15, hdcTilePreparation, 0, 0, SRCCOPY);
-
 	BitBlt(td->hdcTilePreparation, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcFgMask, x1, y1, SRCAND);
 	BitBlt(td->hdcTilePreparation, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcTiles, x1, y1, SRCPAINT);
-
-	//BitBlt(hdc, 0, 15, 2*9, 15, td->hdcTilePreparation, 0, 0, SRCCOPY);
 
 	BitBlt(td->hdcTilePreparation, 0, 0, td->font_wid, td->font_hgt, td->hdcBgMask, x1, y1, SRCAND);
 	BitBlt(td->hdcTilePreparation, 0, 0, td->font_wid, td->font_hgt, td->hdcTilePreparation, td->font_wid, 0, SRCPAINT);
 
-	//BitBlt(hdc, 0, 15, 5*9, 15, td->hdcBgMask, 0, 0, SRCCOPY);
-	//BitBlt(hdc, 0, 2*15, 5*9, 15, td->hdcFgMask, 0, 0, SRCCOPY);
-	//
-	/* Copy the picture from the tile preparation memory to the window */
-	BitBlt(hdc, x, y, td->font_wid, td->font_hgt, td->hdcTilePreparation, 0, 0, SRCCOPY);
+
+	/* --- Background (terrain) graphical tile --- */
+
+	/* Background/Foreground color */
+	bgColor = RGB(0, 0, 0); //this 0-init not really needed?
+	fgColor = RGB(0, 0, 0);
+
+ #ifndef EXTENDED_COLOURS_PALANIM
+  #ifndef EXTENDED_BG_COLOURS
+	fgColor = win_clr[a_back & 0x0F];
+  #else
+	fgColor = win_clr[a_back & 0x1F];
+	//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x0F]); //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+	bgColor = win_clr_bg[a_back & 0x1F]; //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+  #endif
+ #else
+  #ifndef EXTENDED_BG_COLOURS
+	fgColor = win_clr[a_back & 0x1F];
+  #else
+	fgColor = win_clr[a_back & 0x3F];
+	//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x1F]); //verify correctness
+	bgColor = win_clr_bg[a_back & 0x3F]; //verify correctness
+  #endif
+ #endif
+
+	/* Note about the graphics tiles image (stored in hdcTiles):
+	   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
+	   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
+
+	x1b = ((c_back - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->font_wid;
+	y1b = ((c_back - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->font_hgt;
+
+	/* Paint background rectangle .*/
+	rectBg = (RECT){ 0, 0, td->font_wid, td->font_hgt }; //uhh, C99 ^^'
+	rectFg = (RECT){ td->font_wid, 0, 2 * td->font_wid, td->font_hgt };
+	brushBg = CreateSolidBrush(bgColor);
+	brushFg = CreateSolidBrush(fgColor);
+	FillRect(td->hdcTilePreparation2, &rectBg, brushBg);
+	FillRect(td->hdcTilePreparation2, &rectFg, brushFg);
+	DeleteObject(brushBg);
+	DeleteObject(brushFg);
+
+
+	BitBlt(td->hdcTilePreparation2, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcFgMask, x1b, y1b, SRCAND);
+	BitBlt(td->hdcTilePreparation2, td->font_wid, 0, td->font_wid, td->font_hgt, td->hdcTiles, x1b, y1b, SRCPAINT);
+
+	BitBlt(td->hdcTilePreparation2, 0, 0, td->font_wid, td->font_hgt, td->hdcBgMask, x1b, y1b, SRCAND);
+	BitBlt(td->hdcTilePreparation2, 0, 0, td->font_wid, td->font_hgt, td->hdcTilePreparation2, td->font_wid, 0, SRCPAINT);
+
+
+	/* --- Merge the foreground tile onto the background tile, using the bg2Mask from the foreground tile --- */
+
+	BitBlt(td->hdcTilePreparation2, 0, 0, td->font_wid, td->font_hgt, td->hdcBg2Mask, x1, y1, SRCAND);
+	BitBlt(td->hdcTilePreparation2, 0, 0, td->font_wid, td->font_hgt, td->hdcTilePreparation, td->font_wid, 0, SRCPAINT);
+
+
+	/* --- Copy the picture from the (bg) tile preparation memory to the window --- */
+	BitBlt(hdc, x, y, td->font_wid, td->font_hgt, td->hdcTilePreparation2, 0, 0, SRCCOPY);
 
  #ifndef OPTIMIZE_DRAWING
 	ReleaseDC(td->w, hdc);
  #endif
 
-#else /* #ifdef USE_GRAPHICS */
-
+#else /* #ifdef USE_GRAPHICS -> no graphics available */
 	/* Just erase this grid */
 	return(Term_wipe_win(x, y, 1));
-
 #endif
 
 	/* Success */
 	return(0);
- #endf
+ #endif
 }
 #endif
 
@@ -2709,8 +2872,24 @@ static void init_windows(void) {
 		}
 
 		/* Create masks. */
-		g_hbmBgMask = CreateBitmapMask(g_hbmTiles, RGB(0, 0, 0));
-		g_hbmFgMask = CreateBitmapMask(g_hbmTiles, RGB(255, 0, 255));
+ #ifdef GRAPHICS_BG_MASK
+		if (use_graphics == UG_2MASK) {
+			/* BgMask processing must be first, as it specifically recognizes all "black" pixels
+			   and all CreateBBM calls actually create "additional" black pixels. */
+			g_hbmBgMask = CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_BG_R, GFXMASK_BG_G, GFXMASK_BG_B), FALSE);
+			g_hbmFgMask = CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_FG_R, GFXMASK_FG_G, GFXMASK_FG_B), FALSE);
+			g_hbmBg2Mask = CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_BG2_R, GFXMASK_BG2_G, GFXMASK_BG2_B), FALSE);
+		} else
+ #endif
+		/* actually always process the bg2mask even if not running 2mask mode,
+		   just to change BG2 colours in a 2mask-ready tileset to just black. This ensures tileset "backward compatibility". */
+		{
+			/* Note the order: First, we set the unused bg2mask to black... */
+			(void)CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_BG2_R, GFXMASK_BG2_G, GFXMASK_BG2_B), FALSE);
+			/* so it instead becomes part of the bgmask now. */
+			g_hbmBgMask = CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_BG_R, GFXMASK_BG_G, GFXMASK_BG_B), FALSE);
+			g_hbmFgMask = CreateBitmapMask(g_hbmTiles, RGB(GFXMASK_FG_R, GFXMASK_FG_G, GFXMASK_FG_B), FALSE);
+		}
 	}
 #endif
 
@@ -3390,7 +3569,7 @@ LRESULT FAR PASCAL AngbandWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
 
 	/* Oops */
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	return(DefWindowProc(hWnd, uMsg, wParam, lParam));
 }
 
 
@@ -3583,7 +3762,7 @@ LRESULT FAR PASCAL AngbandListProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			break;
 	}
 
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	return(DefWindowProc(hWnd, uMsg, wParam, lParam));
 }
 
 
@@ -3990,7 +4169,7 @@ static int cmd_get_number(char *str, int *number) {
 	/* Find the next space */
 	for (; str[i] != ' ' && str[i] != '\0'; i++);
 
-	return i;
+	return(i);
 }
 
 /*
@@ -4027,7 +4206,7 @@ static int cmd_get_string(char *str, char *dest, int n, bool quoted) {
 	if (len >= 0)
 		dest[len] = '\0';
 
-	return end + 1;
+	return(end + 1);
 }
 
 /* Turn off the num-lock key by toggling it if it's currently on. */
@@ -4433,13 +4612,13 @@ bool ask_for_bigmap(void) {
 		return(TRUE);
 	return(FALSE);
 #else
-	return ask_for_bigmap_generic();
+	return(ask_for_bigmap_generic());
 #endif
 }
 
 const char* get_font_name(int term_idx) {
 	if (data[term_idx].font_file) return(data[term_idx].font_file);
-	else return DEFAULT_FONTNAME;
+	else return(DEFAULT_FONTNAME);
 }
 void set_font_name(int term_idx, char* fnt) {
 	char fnt2[256], *fnt_ptr = fnt;
@@ -4452,7 +4631,7 @@ void term_toggle_visibility(int term_idx) {
 	data[term_idx].visible = !data[term_idx].visible;
 }
 bool term_get_visibility(int term_idx) {
-	return data[term_idx].visible;
+	return(data[term_idx].visible);
 }
 
 /* automatically store name+password to ini file if we're a new player? */
