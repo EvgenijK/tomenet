@@ -819,7 +819,7 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 	int i, j, k;
 	int n1, n2;
 
-	char *zz[16];
+	char *zz[16], tmp[1024];
 
 	/* We use our own macro__buf - mikaelh */
 	static char *macro__buf = NULL;
@@ -853,8 +853,14 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 		default: return(0); //just discard all other lines
 		}
 
+	/* For all kinds of visual mappings (R/K/F/U/@/Z):
+	   Allow specifying animation steps and within each (or for a static step w/o animation) allow randomization, eg
+	   MAPCHAR:A-Anim1,Rchance1..m%:tile1..m,A-Anim2,Rchance1..n%:tile1..n% etc, or just
+	   MAPCHAR:Rcance1..m%:tile1..m for a non-animated mapping that still picks a random tile out of several choices. */
+
 	/* Process "R:<num>:<a>/<c>" -- attr/char for monster races */
-	if (buf[0] == 'R') {
+	switch(buf[0]) {
+	case 'R':
 		if (tokenize(buf + 2, 3, zz) == 3) {
 			i = (huge)strtol(zz[0], NULL, 0);
 			i += 12;	/* gfx-fix by Tanix */
@@ -872,11 +878,10 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			}
 			return(0);
 		}
-	}
-
+		break;
 
 	/* Process "K:<num>:<a>/<c>"  -- attr/char for object kinds */
-	else if (buf[0] == 'K') {
+	case 'K':
 		if (tokenize(buf + 2, 3, zz) == 3) {
 			i = (huge)strtol(zz[0], NULL, 0);
 			n1 = strtol(zz[1], NULL, 0);
@@ -890,11 +895,10 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			if (n2) Client_setup.k_char[i] = n2;
 			return(0);
 		}
-	}
-
+		break;
 
 	/* Process "F:<num>:<a>/<c>" -- attr/char for terrain features */
-	else if (buf[0] == 'F') {
+	case 'F':
 		if (tokenize(buf + 2, 3, zz) == 3) {
 			i = (huge)strtol(zz[0], NULL, 0);
 			n1 = strtol(zz[1], NULL, 0);
@@ -911,11 +915,10 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			}
 			return(0);
 		}
-	}
-
+		break;
 
 	/* Process "U:<tv>:<a>/<c>" -- attr/char for unaware items */
-	else if (buf[0] == 'U') {
+	case 'U':
 		if (tokenize(buf + 2, 3, zz) == 3) {
 			j = (huge)strtol(zz[0], NULL, 0);
 			n1 = strtol(zz[1], NULL, 0);
@@ -929,14 +932,58 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			if (n2) Client_setup.u_char[j] = n2;
 			return(0);
 		}
-	}
+		break;
 
+	/* Process "@:[<gender>],[<race>],[<class>],[<trait>],[<levelrange>],[<CHPrange>]:<a>/<c>" -- attr/char for player characters:
+	   All parameters are optional (which is required as we'd hit 50k+ tiles ^^");
+	   gender = m/f, race = RACE_xxx, class = CLASS_xxx, trait = TRAIT_xxx (draconian lineage or enlightened/corrupted maia),
+	   levelranges: 0: 1-9, 1: 10-19, 2: 20-29, 3: 30-39, 4: 40-49, 5: 50-59, 6: 60-69, 7: 70-79, 8: 80-89, 9: 90-98, 10: 99+ (admin characters can be 100),
+	   CHPrange: -: negative HP aka died, 0-7: same as when ascii '@' turns into a number, F: full HP aka '@' in ascii. */
+	case '@':
+#if 0 //todo: implement
+		if (tokenize(buf + 2, 3, zz) == 3) {
+			j = (huge)strtol(zz[0], NULL, 0);
+			n1 = strtol(zz[1], NULL, 0);
+			n2 = strtol(zz[2], NULL, 0) + char_map_offset;
+			if (j > 100) return(0);
+#ifdef USE_GRAPHICS
+			if (!use_graphics)
+#endif
+				if (n2 > MAX_FONT_CHAR) return(1);
+			if (n1) Client_setup.u_attr[j] = n1;
+			if (n2) Client_setup.u_char[j] = n2;
+			return(0);
+		}
+#endif
+		break;
+
+	/* Process "Z:<type>,[<subtype>]:<a>/<c>" -- attr/char for effects (both, client-side: weather, server-side: fireworks):
+	   type: 0 = rain, 1 = snow, 2 = sandstorm (all client-side),
+	         3 = fireworks launch, 4 = fireworks explosion (all server-side);
+	   subtype (optional):
+	         for types 0/1/2: 0 = no wind, 1 = west wind, 2 = east wind, 3 = strong west wind, 4 = strong east wind. */
+	case 'Z':
+#if 0 //todo: implement
+		if (tokenize(buf + 2, 3, zz) == 3) {
+			j = (huge)strtol(zz[0], NULL, 0);
+			n1 = strtol(zz[1], NULL, 0);
+			n2 = strtol(zz[2], NULL, 0) + char_map_offset;
+			if (j > 100) return(0);
+#ifdef USE_GRAPHICS
+			if (!use_graphics)
+#endif
+				if (n2 > MAX_FONT_CHAR) return(1);
+			if (n1) Client_setup.u_attr[j] = n1;
+			if (n2) Client_setup.u_char[j] = n2;
+			return(0);
+		}
+#endif
+		break;
 
 	/* Process "E:<tv>:<a>/<c>" -- attr/char for equippy chars */
-	else if (buf[0] == 'E') {
+	case 'E':
 		/* Do nothing */
 		return(0);
-
 #if 0
 		if (tokenize(buf + 2, 3, zz) == 3) {
 			j = (byte)strtol(zz[0], NULL, 0) % 128;
@@ -947,92 +994,10 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			return(0);
 		}
 #endif
-	}
-
-	/* Process "A:<str>" -- save an "action" for later */
-	else if (buf[0] == 'A') {
-		/* Free the previous action */
-		if (macro__buf) C_FREE(macro__buf, strlen(macro__buf) + 1, char);
-
-		/* Allocate enough space for the ascii string - mikaelh */
-		macro__buf = mem_alloc(strlen(buf));
-
-		text_to_ascii(macro__buf, buf + 2);
-		return(0);
-	}
-
-	/* Process "P:<str>" -- create normal macro */
-	else if (buf[0] == 'P') {
-		char tmp[1024];
-
-		text_to_ascii(tmp, buf + 2);
-		key_autoconvert(tmp, fmt);
-
-		//hack
-		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
-
-		macro_add(tmp, macro__buf, FALSE, FALSE);
-		return(0);
-	}
-
-	/* Process "H:<str>" -- create hybrid macro */
-	else if (buf[0] == 'H') {
-		char tmp[1024];
-
-		text_to_ascii(tmp, buf + 2);
-		key_autoconvert(tmp, fmt);
-
-		//hack
-		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
-
-		macro_add(tmp, macro__buf, FALSE, TRUE);
-		return(0);
-	}
-
-	/* Process "C:<str>" -- create command macro */
-	else if (buf[0] == 'C') {
-		char tmp[1024];
-
-		text_to_ascii(tmp, buf + 2);
-		key_autoconvert(tmp, fmt);
-
-		//hack
-		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
-
-		macro_add(tmp, macro__buf, TRUE, FALSE);
-		return(0);
-	}
-
-	/* Process "D:<str>" -- delete a macro */
-	else if (buf[0] == 'D') {
-		char tmp[1024];
-
-		text_to_ascii(tmp, buf + 2);
-
-		//hack
-		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
-
-		macro_del(tmp);
-		return(0);
-	}
-
-
-	/* Process "S:<key>:<key>:<dir>" -- keymap */
-	else if (buf[0] == 'S') {
-		if (tokenize(buf + 2, 3, zz) == 3) {
-			i = strtol(zz[0], NULL, 0) & 0x7F;
-			j = strtol(zz[0], NULL, 0) & 0x7F;
-			k = strtol(zz[0], NULL, 0) & 0x7F;
-			if ((k > 9) || (k == 5)) k = 0;
-			keymap_cmds[i] = j;
-			keymap_dirs[i] = k;
-			return(0);
-		}
-	}
-
+		break;
 
 	/* Process "V:<num>:<kv>:<rv>:<gv>:<bv>" -- visual info */
-	else if (buf[0] == 'V') {
+	case 'V':
 		/* Do nothing */
 		return(0);
 
@@ -1044,11 +1009,77 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 			color_table[i][3] = (byte)strtol(zz[4], NULL, 0);
 			return(0);
 		}
-	}
+		break;
 
+	/* Process "A:<str>" -- save an "action" for later */
+	case 'A':
+		/* Free the previous action */
+		if (macro__buf) C_FREE(macro__buf, strlen(macro__buf) + 1, char);
+
+		/* Allocate enough space for the ascii string - mikaelh */
+		macro__buf = mem_alloc(strlen(buf));
+
+		text_to_ascii(macro__buf, buf + 2);
+		return(0);
+
+	/* Process "P:<str>" -- create normal macro */
+	case 'P':
+		text_to_ascii(tmp, buf + 2);
+		key_autoconvert(tmp, fmt);
+
+		//hack
+		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
+
+		macro_add(tmp, macro__buf, FALSE, FALSE);
+		return(0);
+
+	/* Process "H:<str>" -- create hybrid macro */
+	case 'H':
+		text_to_ascii(tmp, buf + 2);
+		key_autoconvert(tmp, fmt);
+
+		//hack
+		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
+
+		macro_add(tmp, macro__buf, FALSE, TRUE);
+		return(0);
+
+	/* Process "C:<str>" -- create command macro */
+	case 'C':
+		text_to_ascii(tmp, buf + 2);
+		key_autoconvert(tmp, fmt);
+
+		//hack
+		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
+
+		macro_add(tmp, macro__buf, TRUE, FALSE);
+		return(0);
+
+	/* Process "D:<str>" -- delete a macro */
+	case 'D':
+		text_to_ascii(tmp, buf + 2);
+
+		//hack
+		if (macro_trigger_exclusive[0] && strcmp(macro_trigger_exclusive, tmp)) return(0);
+
+		macro_del(tmp);
+		return(0);
+
+	/* Process "S:<key>:<key>:<dir>" -- keymap */
+	case 'S':
+		if (tokenize(buf + 2, 3, zz) == 3) {
+			i = strtol(zz[0], NULL, 0) & 0x7F;
+			j = strtol(zz[0], NULL, 0) & 0x7F;
+			k = strtol(zz[0], NULL, 0) & 0x7F;
+			if ((k > 9) || (k == 5)) k = 0;
+			keymap_cmds[i] = j;
+			keymap_dirs[i] = k;
+			return(0);
+		}
+		break;
 
 	/* Process "X:<str>" -- turn option off */
-	else if (buf[0] == 'X') {
+	case 'X':
 		for (i = 0; option_info[i].o_desc; i++) {
 			if (option_info[i].o_var &&
 			    option_info[i].o_text &&
@@ -1059,10 +1090,10 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 				return(0);
 			}
 		}
-	}
+		break;
 
 	/* Process "Y:<str>" -- turn option on */
-	else if (buf[0] == 'Y') {
+	case 'Y':
 		for (i = 0; option_info[i].o_desc; i++) {
 			if (option_info[i].o_var &&
 			    option_info[i].o_text &&
@@ -1073,18 +1104,18 @@ errr process_pref_file_aux(char *buf, byte fmt) {
 				return(0);
 			}
 		}
-	}
+		break;
 
 	/* Process "W:<num>:<use>" -- specify window action */
-	else if (buf[0] == 'W') {
+	case 'W':
 		if (tokenize(buf + 2, 2, zz) == 2) {
 			i = (byte)strtol(zz[0], NULL, 0);
 			window_flag[i] = 1L << ((byte)strtol(zz[1], NULL, 0));
 			check_for_playerlist();
 			return(0);
 		}
+		break;
 	}
-
 
 	/* Failure */
 	return(1);
