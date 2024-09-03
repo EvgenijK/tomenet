@@ -1,4 +1,4 @@
-/* $Id$ */
+//* $Id$ */
 /* File: spells2.c */
 
 /* Purpose: Spell code (part 2) */
@@ -8573,7 +8573,8 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 		m_ptr->blow[j].d_side = r_ptr->blow[j].d_side;
 	}
 	m_ptr->level = r_ptr->level;
-	m_ptr->exp = MONSTER_EXP(m_ptr->level);
+	m_ptr->exp = MONSTER_EXP(m_ptr->level);	m_ptr->owner = Players[owner_id]->id;
+	m_ptr->pet = 1;
 	m_ptr->owner = 0;
 
 	/* Hack -- small racial variety */
@@ -8668,166 +8669,6 @@ extern bool place_foe(int owner_id, struct worldpos *wpos, int y, int x, int r_i
 
 	return(TRUE);
 }
-#ifdef RPG_SERVER
-bool place_pet(int owner_id, struct worldpos *wpos, int y, int x, int r_idx) {
-	int		Ind, j;
-	cave_type	*c_ptr;
-
-	monster_type	*m_ptr;
-	monster_race	*r_ptr = &r_info[r_idx];
-
-	char buf[80];
-
-	cave_type **zcave;
-
-
-	if (!(zcave = getcave(wpos))) return(0);
-	/* Verify location */
-	if (!in_bounds(y, x)) return(0);
-	/* Require empty space */
-	if (!cave_empty_bold(zcave, y, x)) return(0);
-	/* Hack -- no creation on glyph of warding */
-	if (zcave[y][x].feat == FEAT_GLYPH) return(0);
-	if (zcave[y][x].feat == FEAT_RUNE) return(0);
-
-	/* Paranoia */
-	if (!r_idx) return(0);
-
-	/* Paranoia */
-	if (!r_ptr->name) return(0);
-
-	/* Update r_ptr due to possible r_idx changes */
-	r_ptr = &r_info[r_idx];
-
-	/* No uniques, obviously */
-	if (r_ptr->flags1 & RF1_UNIQUE) return(0);
-
-	/* No breeders */
-	if (r_ptr->flags7 & RF7_MULTIPLY) return(0);
-
-	c_ptr = &zcave[y][x];
-
-	/* Make a new monster */
-	c_ptr->m_idx = m_pop();
-
-	/* Mega-Hack -- catch "failure" */
-	if (!c_ptr->m_idx) return(0);
-
-	/* Get a new monster record */
-	m_ptr = &m_list[c_ptr->m_idx];
-
-	/* Save the race */
-	m_ptr->r_idx = r_idx;
-
-	/* Place the monster at the location */
-	m_ptr->fy = y;
-	m_ptr->fx = x;
-	wpcopy(&m_ptr->wpos, wpos);
-
-	m_ptr->special = m_ptr->questor = 0;
-
-	/* Hack -- Count the monsters on the level */
-	r_ptr->cur_num++;
-
-	/* Assign maximal hitpoints */
-	if (r_ptr->flags1 & RF1_FORCE_MAXHP)
-		m_ptr->maxhp = maxroll(r_ptr->hdice, r_ptr->hside);
-	else
-		m_ptr->maxhp = damroll(r_ptr->hdice, r_ptr->hside);
-
-	/* And start out fully healthy */
-	m_ptr->hp = m_ptr->maxhp;
-
-	/* Extract the monster base speed */
-	m_ptr->speed = r_ptr->speed;
-	/* set cur speed to base speed */
-	m_ptr->mspeed = m_ptr->speed;
-
-	/* Extract base ac and  other things */
-	m_ptr->ac = r_ptr->ac;
-
-	for (j = 0; j < 4; j++) {
-		m_ptr->blow[j].effect = r_ptr->blow[j].effect;
-		m_ptr->blow[j].method = r_ptr->blow[j].method;
-		m_ptr->blow[j].d_dice = r_ptr->blow[j].d_dice;
-		m_ptr->blow[j].d_side = r_ptr->blow[j].d_side;
-	}
-	m_ptr->level = r_ptr->level;
-	m_ptr->exp = MONSTER_EXP(m_ptr->level);
-	m_ptr->owner = 0;
-
-	/* Give a random starting energy */
-	m_ptr->energy = rand_int(100);
-
-	/* No "damage" yet */
-	m_ptr->stunned = 0;
-	m_ptr->confused = 0;
-	m_ptr->monfear = 0;
-
-	/* No knowledge */
-	m_ptr->cdis = 0;
-
-	/* special pet value */
-	m_ptr->owner = Players[owner_id]->id;
-	m_ptr->pet = 1;
-
-	for (Ind = 1; Ind <= NumPlayers; Ind++) {
-		if (Players[Ind]->conn == NOT_CONNECTED)
-			continue;
-
-		Players[Ind]->mon_los[c_ptr->m_idx] = 0;
-		Players[Ind]->mon_vis[c_ptr->m_idx] = 0;
-	}
-
-	if (getlevel(wpos) >= (m_ptr->level + 8)) {
-		m_ptr->exp = MONSTER_EXP(m_ptr->level + ((getlevel(wpos) - m_ptr->level - 5) / 3));
-		monster_check_experience(c_ptr->m_idx, TRUE);
-	}
-
-	strcpy(buf, (r_name + r_ptr->name));
-
-	/* Update the monster */
-	update_mon(c_ptr->m_idx, TRUE);
-
-	/* Assume no sleeping */
-	m_ptr->csleep = 0;
-	//if (m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke)); //not really needed here?
-
-	/* STR */
-	for (j = 0; j < 4; j++) {
-		m_ptr->blow[j].org_d_dice = r_ptr->blow[j].d_dice;
-		m_ptr->blow[j].org_d_side = r_ptr->blow[j].d_side;
-	}
-	/* DEX */
-	m_ptr->org_ac = m_ptr->ac;
-	/* CON */
-	m_ptr->org_maxhp = m_ptr->maxhp;
-
-	return(TRUE);
-}
-
-/* Create a servant ! -- The_sandman */
-char pet_creation(int Ind) { //put the sanity tests here and call place_pet
-	int id = 955; //green dr for now
-	/* bleh, green dr is too powerful, lets do spiders. i'm fond of spiders. */
-	int lev = Players[Ind]->lev;
-
-	if (lev < 5) id = (randint(2) > 1 ? 60 /*cave S*/ : 62 /*wild cat*/);
-	else if (lev < 10) id = 127; //wood S
-	else if (lev < 15) id = 277; //mirkwood S
-	else if (lev < 20) id = 963; //aranea
-	else id = 964; //elder aranea
-
-	if (!Players[Ind]->has_pet) {
-		place_pet(Ind,
-		   &(Players[Ind]->wpos), Players[Ind]->py, Players[Ind]->px + 1,  /* E of player */
-		   id);
-		Players[Ind]->has_pet = 1;
-		return(1);
-	}
-	return(0);
-}
-#endif
 
 /* Create a mindless servant ! */
 void golem_creation(int Ind, int max) {

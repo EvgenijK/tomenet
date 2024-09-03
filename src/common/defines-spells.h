@@ -46,6 +46,11 @@
 #define SHIELD_COUNTER		0x0001
 #define SHIELD_FIRE		0x0002
 
+/* Pet defines */
+#define PET_NONE		0x00
+#define PET_ATTACK		0x01
+#define PET_FOLLOW		0x02
+#define PET_GUARD		0x04
 
 /*
  * Spell types used by project(), and related functions.

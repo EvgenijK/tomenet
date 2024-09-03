@@ -95,7 +95,7 @@
 /* For savefile purpose only */
 #define SF_VERSION_MAJOR	4
 #define SF_VERSION_MINOR	9
-#define SF_VERSION_PATCH	15
+#define SF_VERSION_PATCH	16
 #define SF_VERSION_EXTRA	0 /* <- not used in version checks! */
 
 /* For quests savefile purpose only */
@@ -8072,6 +8072,12 @@ extern int PlayerUID;
 #define GOLEM_FOLLOW		0x02
 #define GOLEM_GUARD		0x04
 
+/* Pet defines */
+#define PET_NONE		0x00
+#define PET_ATTACK		0x01
+#define PET_FOLLOW		0x02
+#define PET_GUARD		0x04
+
 /* Mind defines (non-golem/pet monsters that have AI_HYBRID) - C. Blue */
 #define HYBRID_NORMAL		0x0
 #define HYBRID_ANNOY		0x1
@@ -8771,7 +8777,7 @@ extern int PlayerUID;
 
 /* for future use, so no client update will be required */
 #define SKILL_SOULFEASTING	102	/* could switch with SKILL_NECROMANCY if ever needed */
-#define SKILL_SUMMONING		103
+#define SKILL_SUMMONING		103	/* Using it now */
 #define SKILL_TAMING		104
 
 //hole 105-108
@@ -9601,3 +9607,7 @@ extern int PlayerUID;
 
 /* For debugging - fixed */
 //#define __GRID_DEBUG(Ind, wpos, feat, location, info)	if ((feat) == FEAT_XPROTECT && !in_trainingtower(wpos)) s_printf("__GRID_DEBUG: %s, %d - (%d) '%s' (%d,%d,%d)\n", location, info, Ind, (Ind) > 0 ? Players[Ind]->name : "-", (wpos)->wx, (wpos)->wy, (wpos)->wz);
+
+#ifdef ENABLE_PETS
+#define MAX_PLAYER_PETS 100
+#endif

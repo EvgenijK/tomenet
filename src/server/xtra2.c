@@ -6059,7 +6059,7 @@ bool monster_death(int Ind, int m_idx) {
 	else if (m_ptr->pet) s_printf("MONSTER_DEATH: Pet of '%s' by '%s'\n", lookup_player_name(m_ptr->owner), p_ptr->name);
 #endif
 
-#ifdef RPG_SERVER
+#ifdef ENABLE_PETS
 	/* Pet death. Update and inform the owner -the_sandman */
 	if (m_ptr->pet) {
 		for (i = NumPlayers; i > 0; i--) {
@@ -6072,7 +6072,7 @@ bool monster_death(int Ind, int m_idx) {
 				default:
 					msg_format(Ind, "\374\377RYou have killed %s's pet!", Players[i]->name);
 				}
-				Players[i]->has_pet = 0;
+                /* TODO - make use of player_type->pets list for speed up */
 				FREE(m_ptr->r_ptr, monster_race); //no drop, no exp.
 				return(FALSE);
 			}
@@ -12321,11 +12321,11 @@ void monster_death_mon(int am_idx, int m_idx) {
 
 			/* Place Gold */
 			if (do_gold && (!do_item || (rand_int(100) < 50)))
-				place_gold(m_ptr->owner, wpos, ny, nx, 1, 0);
+				place_gold(find_player(m_ptr->owner), wpos, ny, nx, 1, 0);
 			/* Place Object */
 			else {
 				place_object_restrictor = RESF_NONE;
-				place_object(m_ptr->owner, wpos, ny, nx, good, great, FALSE, RESF_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
+				place_object(find_player(m_ptr->owner), wpos, ny, nx, good, great, FALSE, RESF_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
 			}
 
 			/* Reset the object level */

@@ -380,12 +380,7 @@ void delete_monster_idx(int i, bool unfound_arts) {
 	for (Ind = 1; Ind <= NumPlayers; Ind++) {
 		/* Skip this player if he isn't playing */
 		if (Players[Ind]->conn == NOT_CONNECTED) continue;
-#ifdef RPG_SERVER
-		if (Players[Ind]->id == m_ptr->owner && m_ptr->pet) {
-			msg_print(Ind, "\377RYour pet has died! You feel sad.");
-			Players[Ind]->has_pet = 0;
-		}
-#endif
+
 		Players[Ind]->mon_vis[i] = FALSE;
 		Players[Ind]->mon_los[i] = FALSE;
 
@@ -396,6 +391,10 @@ void delete_monster_idx(int i, bool unfound_arts) {
 		if (i == Players[Ind]->health_who) health_track(Ind, 0);
 	}
 
+#ifdef ENABLE_PETS
+	if (m_ptr->pet || m_ptr->owner)
+		unlink_pet_from_owner(i);
+#endif
 
 	/* Monster is gone */
 	/* Make sure the level is allocated, it won't be if we are
@@ -651,6 +650,24 @@ void compact_monsters(int size, bool purge) {
 				}
 			}
 
+#ifdef ENABLE_PETS
+            /* Pets: keep p_ptr->pets information consistent */
+            if (m_list[i].owner) {
+                int myInd = find_player(m_list[i].owner);
+                player_type *p_ptr = Players[myInd];
+                if (p_ptr) {
+                    if (!m_list[i].pet) {
+                        p_ptr->pets_count++;
+                        m_list[i].pet = p_ptr->pets_count;
+                    }
+
+                    p_ptr->pets[m_list[i].pet - 1] = i;
+                } else {
+                    m_list[i].pet = 0;
+                    m_list[i].owner = 0;
+                }
+            }
+#endif
 #ifdef MONSTER_ASTAR
 			/* Reassign correct A* index */
 			if (m_list[i].r_idx /* alive monster? */

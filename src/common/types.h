@@ -118,8 +118,8 @@ struct worldspot {
 /* cavespot consists of coordinates within a cave */
 typedef struct cavespot cavespot;
 struct cavespot {
-	s16b x;
-	s16b y;
+	int x;
+	int y;
 };
 
 
@@ -1937,7 +1937,7 @@ typedef struct monster_type monster_type;
 struct monster_type {
 	monster_race *r_ptr;		/* Used for special monsters and questors */
 	bool special;			/* Does it use a special r_info ? */
-	byte pet;			/* Special pet value (not an ID). 0 = not a pet. 1 = is a pet. */
+	byte pet;			/* Special pet value (not an ID). 0 = not a pet. 1 = is a pet. */ /* 0 - not a pet, [1-MAX_PLAYER_PETS] - index in p_ptr->pets of its owner +1 */
 
 	s16b r_idx;			/* Monster race index */
 
@@ -3945,7 +3945,11 @@ struct player_type {
 	byte paging;			/* Player being paged by others? (Beep counter) */
 	byte ignoring_chat;		/* Ignoring normal chat? (Will only see private & party messages then) */
 	//superseded by mutedchat -- bool muted; /* Being an ass? - the_sandman */
-	byte has_pet;			/* Pet limiter */
+    /* ENABLE_PETS */
+	byte has_pet;			/* Pet limiter */ /* TODO - Unused after pets implementation, can be removed */
+	s16b pets_count;
+    u32b pets[MAX_PLAYER_PETS]; /* Indexes of pets from m_list */
+
 	/* Is the player auto-retaliating? (required for hack that fixes a lock bug) */
 	bool auto_retaliating;
 	bool auto_retaliaty;		/* TRUE for code-wise duration of autorataliation

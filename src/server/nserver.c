@@ -10909,7 +10909,7 @@ static int Receive_run(int ind) {
 		/* Check for monsters in sight */
 		for (i = 1; i < m_max; i++) {
 			/* Check this monster */
-			if (p_ptr->mon_los[i] && !m_list[i].csleep && !m_list[i].special
+			if (p_ptr->mon_los[i] && !m_list[i].csleep && !m_list[i].special && !m_list[i].pet
 			    /* not for Bree townies, Santa, Halloween townies, Target dummy */
 			    && !((r_ptr = race_inf(&m_list[i]))->flags8 & RF8_ALLOW_RUNNING)) {
 				// Treat this as a walk request

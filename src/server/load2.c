@@ -1782,8 +1782,17 @@ static bool rd_extra(int Ind) {
 	for (i = 0; i < 4; i++)
 		rd_string(p_ptr->history[i], 60);
 
-	if (older_than(4, 2, 7)) p_ptr->has_pet = 0; //assume no pet
-	else rd_byte(&p_ptr->has_pet);
+    if (older_than(4, 9, 16)) {
+        if (older_than(4, 2, 7)) p_ptr->has_pet = 0; //assume no pet
+        else rd_byte(&p_ptr->has_pet);
+
+        p_ptr->pets_count = 0; // assume no pets
+    } else {
+        rd_s16b(&p_ptr->pets_count);
+        for (i = 0; i < p_ptr->pets_count; ++i) {
+            rd_u32b(&p_ptr->pets[i]);
+        }
+    }
 
 	/* Divinity has been absorbed by traits (ptrait) now */
 	if (older_than(4, 4, 12)) {

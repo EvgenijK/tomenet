@@ -27,7 +27,6 @@
 
 
 static void do_slash_brief_help(int Ind);
-char pet_creation(int Ind);
 //static int lInd = 0;
 
 
@@ -2141,58 +2140,79 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #endif
 			return;
 		}
-#ifdef RPG_SERVER /* too dangerous on the pm server right now - mikaelh */
-/* Oops, meant to be on RPG only for now. forgot to add it. thanks - the_sandman */
- #if 0 //moved the old code here.
-		else if (prefix(messagelc, "/pet")) {
-			if (tk && prefix(token[1], "force")) {
-				summon_pet(Ind, 1);
-				msg_print(Ind, "You summon a pet");
-			} else {
-				msg_print(Ind, "Pet code is under working; summoning is bad for your server's health.");
-				msg_print(Ind, "If you still want to summon one, type \377o/pet force\377w.");
-			}
-			return;
-		}
- #endif
-		else if (prefix(messagelc, "/pet")) {
-			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) {
-				msg_print(Ind, "\377rPet system is disabled.");
+#ifdef ENABLE_PETS
+		else if (prefix(messagelc, "/pettame")) {
+			if (!admin) {
 				return;
 			}
-			if (Players[Ind]->has_pet == 2) {
-				msg_print(Ind, "\377rYou cannot have anymore pets!");
-				return;
-			}
-			if (pet_creation(Ind))
-				msg_print(Ind, "\377USummoning a pet.");
-			else
-				msg_print(Ind, "\377rYou already have a pet!");
-			return;
-		}
-#endif
-		else if (prefix(messagelc, "/unpet")) {
-#ifdef RPG_SERVER
-			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) return;
-			msg_print(Ind, "\377RYou abandon your pet! You cannot have anymore pets!");
-//			if (Players[Ind]->wpos.wz != 0) {
-				for (i = m_top - 1; i >= 0; i--) {
-					monster_type *m_ptr = &m_list[i];
 
-					if (!m_ptr->pet) continue;
-					if (find_player(m_ptr->owner) == Ind) {
-						m_ptr->pet = 0; //default behaviour!
-						m_ptr->owner = 0;
-						Players[Ind]->has_pet = 0; //spec value
-						i = -1; //quit early
-					}
-				}
-//			} else {
-//				msg_print(Ind, "\377yYou cannot abandon your pet while the whole town is looking!");
-//			}
-#endif
+			if (k > 0) {
+				if (make_pet_from_wild_monster(k, Ind))
+					msg_print(Ind, "\377UTaming a monster");
+				else
+					msg_print(Ind, "\377rYou cannot have a pet!");
+			} else {
+				msg_print(Ind, "\377oUsage: /pettame (m_idx)");
+			}
 			return;
 		}
+		else if (prefix(messagelc, "/petinfo")) {
+            
+			if (k > 0 && admin) {
+                print_pets_info(k);
+			} else {
+				print_pets_info(Ind);
+			}
+			
+			return;
+		}
+		else if (prefix(messagelc, "/pet")) {
+			if (!admin) {
+				return;
+			}
+
+			if (k > 0) {
+				if (summon_pet_on_player(Ind, k))
+					msg_print(Ind, "\377USummoning a pet.");
+				else
+					msg_print(Ind, "\377rYou cannot have a pet!");
+			} else {
+				msg_print(Ind, "\377oUsage: /pet (monster race index) (TODO: player_ind)");
+			}
+			return;
+		}
+		else if (prefix(messagelc, "/unpet")) {
+			if (!admin) {
+				return;
+			}
+
+			if (k > 0) {
+				if (unsummon_pets(k))
+					msg_print(Ind, "\377RYou abandon other player pets!");
+				else
+					msg_print(Ind, "\377rSomething went wrong?");
+			} else {
+			       if (unsummon_pets(Ind))
+					msg_print(Ind, "\377RYou abandon your pets!");
+				else
+					msg_print(Ind, "\377rSomething wen wrong");
+		       
+			}
+
+			return;
+		}
+		else if (prefix(messagelc, "/removeallpets")) {
+			if (!admin) {
+				return;
+			}
+
+			remove_all_pets();
+
+		
+			return;
+		}
+#endif
+
 		/* added shuffling >_> - C. Blue */
 		else if (prefix(messagelc, "/shuffle")) { /* usage: /shuffle [<32|52> [# of jokers]] */
 			/* Notes:

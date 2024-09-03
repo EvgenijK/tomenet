@@ -50,6 +50,8 @@ __update_table = {
 	"scpt/o_spirit.lua",
 	"scpt/o_hereticism.lua",
 	"scpt/o_unlife.lua",
+
+	"scpt/s_summoning.lua",
 }
 
 function update_client()

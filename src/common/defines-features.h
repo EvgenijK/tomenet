@@ -564,6 +564,13 @@
 #endif
 //#endif
 
+/* Enables pet behaviour */
+#define ENABLE_PETS
+
+#ifdef ENABLE_PETS
+ #define ENABLE_SUMMONING /* Enables summoning skills and spells */
+#endif
+
 
 /* ------------------------------------------------------------------------- */
 /* --------------------- Server-type dependant features -------------------- */

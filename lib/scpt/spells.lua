@@ -142,6 +142,12 @@ SCHOOL_OUNLIFE = add_school {
 	["skill"] = SKILL_OUNLIFE,
 }
 
+-- Summoning
+SCHOOL_SUMMON = add_school {
+	["name"] = "Summoning",
+	["skill"] = SKILL_SUMMONING,
+}
+
 
 -- Put some spells
 
@@ -181,6 +187,7 @@ pern_dofile(Ind, "o_spirit.lua")
 pern_dofile(Ind, "o_hereticism.lua")
 pern_dofile(Ind, "o_unlife.lua")
 
+pern_dofile(Ind, "s_summoning.lua")
 
 -- Tomes / Greater crystals
 
@@ -315,3 +322,7 @@ school_book[68] = { HDELFEAR, HBLESSING_I, HGLOBELIGHT_I, HDETECTEVIL, HSANCTUAR
 -- Create the handbook of herbs and plants (druid starter book)
 school_book[69] = { FOCUS, HERBALTEA, WATERPOISON_I }
 ]]
+
+-- Create the book of summoning
+school_book[68] = { UNSUMMON, PET_MIND_ATTACK, PET_MIND_GUARD, PET_MIND_FOLLOW }
+

@@ -603,6 +603,13 @@ I:1000:0
 F:MKEY_HARDCODE
 F:HIDDEN
 
+N:103:Summoning
+D:Ability to summon creatures to help you.
+D:Spells use the intelligence stat.
+A:11:Cast a spell
+I:1000:0
+F:MKEY_HARDCODE
+
 #
 # Skill interactions
 #
@@ -856,6 +863,8 @@ f:Climbing:Health%25
 #martial arts improves dodging! making up for low ac (important for NR)
 f:Martial Arts:Dodging%20
 
+f:Summoning:Magic%7
+E:Summoning:Anti-magic
 
 ################################## SKILL TREE ################################
 
@@ -948,6 +957,7 @@ T:Blood Magic:Traumaturgy
 T:Blood Magic:Aura of Fear
 T:Blood Magic:Shivering Aura
 T:Blood Magic:Aura of Death
+T:Blood Magic:Summoning
 
 T:Main:Anti-magic
 

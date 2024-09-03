@@ -1694,6 +1694,16 @@ if (!season_newyearseve) {
 #else
 		if (streq(m, "ENABLE_SUBINVEN") && negation) invalid = TRUE;
 #endif
+#ifndef ENABLE_PETS
+		if (streq(m, "ENABLE_PETS") && !negation) invalid = TRUE;
+#else
+		if (streq(m, "ENABLE_PETS") && negation) invalid = TRUE;
+#endif
+#ifndef ENABLE_SUMMONING
+		if (streq(m, "ENABLE_SUMMONING") && !negation) invalid = TRUE;
+#else
+		if (streq(m, "ENABLE_SUMMONING") && negation) invalid = TRUE;
+#endif
 #ifndef TOOL_NOTHEFT_COMBO
 		if (streq(m, "TOOL_NOTHEFT_COMBO") && !negation) invalid = TRUE;
 #else
@@ -1725,6 +1735,8 @@ if (!season_newyearseve) {
 		    strcmp(m, "DEMOLITIONIST_IDDC_ONLY") &&
 		    strcmp(m, "NO_RUST_NO_HYDROXIDE") &&
 		    strcmp(m, "ENABLE_SUBINVEN") &&
+		    strcmp(m, "ENABLE_PETS") &&
+		    strcmp(m, "ENABLE_SUMMONING") &&		    
 		    strcmp(m, "TOOL_NOTHEFT_COMBO") &&
 			TRUE)
 			invalid = TRUE;
