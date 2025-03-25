@@ -2827,6 +2827,7 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 
 	Ty = *dy1;
 
+	// resize is here 1
 	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
 		Tx = *dx1;
 
@@ -2935,6 +2936,7 @@ static XImage *ResizeImage_2mask(Display *disp, XImage *Im,
 
 	Ty = *dy1;
 
+    // resize is here 2
 	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
 		Tx = *dx1;
 

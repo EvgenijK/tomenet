@@ -704,7 +704,7 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 	}
 
 	Ty = *dy1;
-
+	// resize is here (win)
 	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) {
 		Tx = *dx1;
 
