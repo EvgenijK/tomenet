@@ -2877,9 +2877,7 @@ static XImage *ResizeImage_2mask(
     )
 {
 	int originalImageWidth, originalImageHeight, targetWidth, targetHeight;
-	int originalLoopX, targetLoopX, originalLoopY, targetLoopY, Tx, Ty;
-	int *pointerToBiggerLoopX, *pointerToLesserLoopX, *pointerToBiggerWidth, *pointerToLesserWidth;
-	int *pointerToBiggerLoopY, *pointerToLesserLoopY, *pointerToBiggerHeight, *pointerToLesserHeight;
+	int originalLoopX, targetLoopX, originalLoopY, targetLoopY;
 
 	XImage *targetImage;
 	char *targetImageData;
@@ -2914,38 +2912,15 @@ static XImage *ResizeImage_2mask(
 	C_MAKE(bg2mask_data, new_masks_size, char);
 	memset(bg2mask_data, 0, new_masks_size);
 
-	if (tileWidth >= fontWidth) {
-		pointerToBiggerLoopX = &originalLoopX;
-		pointerToLesserLoopX = &targetLoopX;
-		pointerToBiggerWidth = &tileWidth;
-		pointerToLesserWidth = &fontWidth;
-	} else {
-		pointerToBiggerLoopX = &targetLoopX;
-		pointerToLesserLoopX = &originalLoopX;
-		pointerToBiggerWidth = &fontWidth;
-		pointerToLesserWidth = &tileWidth;
-	}
-
-	if (tileHeight >= fontHeight) {
-		pointerToBiggerLoopY = &originalLoopY;
-		pointerToLesserLoopY = &targetLoopY;
-		pointerToBiggerHeight = &tileHeight;
-		pointerToLesserHeight = &fontHeight;
-	} else {
-		pointerToBiggerLoopY = &targetLoopY;
-		pointerToLesserLoopY = &originalLoopY;
-		pointerToBiggerHeight = &fontHeight;
-		pointerToLesserHeight = &tileHeight;
-	}
-
-	Ty = *pointerToBiggerHeight;
-
     // resize is here 2
-    // why not using while loop to exclude compiler wornings?
-	for (originalLoopY = 0, targetLoopY = 0; (originalLoopY < originalImageHeight) && (targetLoopY < targetHeight); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
-		Tx = *pointerToBiggerWidth;
+	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
+		float originalY = (targetLoopY) * originalImageHeight / targetHeight;
+		originalLoopY = (int) originalY;
 
-		for (originalLoopX = 0, targetLoopX = 0; (originalLoopX < originalImageWidth) && (targetLoopX < targetWidth); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
+		for (targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
+			float originalX = (targetLoopX) * originalImageWidth / targetWidth;
+			originalLoopX = (int) originalX;
+
 			XPutPixel(targetImage, targetLoopX, targetLoopY, XGetPixel(originalImage, originalLoopX, originalLoopY));
 			u32b maskbitno = (originalLoopX + (originalLoopY * originalImageWidth));
 			u32b newmaskbitno = (targetLoopX + (targetLoopY * targetWidthPadded));
@@ -2964,22 +2939,6 @@ static XImage *ResizeImage_2mask(
 
 			if (bg2bit) bg2mask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
 			else bg2mask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
-
-			(*pointerToBiggerLoopX)++;
-
-			Tx -= *pointerToLesserWidth;
-			if (Tx <= 0) {
-				Tx += *pointerToBiggerWidth;
-				(*pointerToLesserLoopX)++;
-			}
-		}
-
-		(*pointerToBiggerLoopY)++;
-
-		Ty -= *pointerToLesserHeight;
-		if (Ty <= 0) {
-			Ty += *pointerToBiggerHeight;
-			(*pointerToLesserLoopY)++;
 		}
 	}
 
