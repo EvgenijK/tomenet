@@ -2827,6 +2827,7 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 
 	Ty = *dy1;
 
+	// resize is here 1
 	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
 		Tx = *dx1;
 
@@ -2868,34 +2869,36 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 	return(Tmp);
 }
  #else
-static XImage *ResizeImage_2mask(Display *disp, XImage *Im,
-                           int ix, int iy, int ox, int oy,
-                           char *bgbits, char *fgbits, char *bg2bits, Pixmap *bgmask_return, Pixmap *fgmask_return, Pixmap *bg2mask_return) {
-	int width1, height1, width2, height2;
-	int x1, x2, y1, y2, Tx, Ty;
-	int *px1, *px2, *dx1, *dx2;
-	int *py1, *py2, *dy1, *dy2;
+static XImage *ResizeImage_2mask(
+    Display *display, XImage *originalImage, // TODO - is it whole tileset image or just one tile?
+    int tileWidth, int tileHeight, int fontWidth, int fontHeight,
+    char *bgbits, char *fgbits, char *bg2bits,
+    Pixmap *bgmask_return, Pixmap *fgmask_return, Pixmap *bg2mask_return
+    )
+{
+	int originalImageWidth, originalImageHeight, targetWidth, targetHeight;
+	int originalLoopX, targetLoopX, originalLoopY, targetLoopY;
 
-	XImage *Tmp;
-	char *Data;
-
-
-	width1 = Im->width;
-	height1 = Im->height;
-
-	width2 = ox * width1 / ix;
-	height2 = oy * height1 / iy;
-
-	Data = (char *)malloc(width2 * height2 * Im->bits_per_pixel / 8);
-
-	Tmp = XCreateImage(
-			disp, DefaultVisual(disp, DefaultScreen(disp)), Im->depth, ZPixmap, 0,
-			Data, width2, height2, Im->bits_per_pixel, 0);
+	XImage *targetImage;
+	char *targetImageData;
 
 
-	int linePadBits = 8;
-	int paddedWidth2 = width2 + ((linePadBits - (width2 % linePadBits)) % linePadBits);
-	int new_masks_size = paddedWidth2 * height2 / 8;
+	originalImageWidth = originalImage->width;
+	originalImageHeight = originalImage->height;
+
+	targetWidth = fontWidth * originalImageWidth / tileWidth;
+	targetHeight = fontHeight * originalImageHeight / tileHeight;
+
+	targetImageData = (char *)malloc(targetWidth * targetHeight * originalImage->bits_per_pixel / 8);
+
+	targetImage = XCreateImage(
+			display, DefaultVisual(display, DefaultScreen(display)), originalImage->depth, ZPixmap, 0,
+			targetImageData, targetWidth, targetHeight, originalImage->bits_per_pixel, 0);
+
+
+	int linePadBits = 8; // TODO - why 8?
+	int targetWidthPadded = targetWidth + ((linePadBits - (targetWidth % linePadBits)) % linePadBits);
+	int new_masks_size = targetWidthPadded * targetHeight / 8;
 
 	char *bgmask_data;
 	C_MAKE(bgmask_data, new_masks_size, char);
@@ -2909,39 +2912,18 @@ static XImage *ResizeImage_2mask(Display *disp, XImage *Im,
 	C_MAKE(bg2mask_data, new_masks_size, char);
 	memset(bg2mask_data, 0, new_masks_size);
 
-	if (ix >= ox) {
-		px1 = &x1;
-		px2 = &x2;
-		dx1 = &ix;
-		dx2 = &ox;
-	} else {
-		px1 = &x2;
-		px2 = &x1;
-		dx1 = &ox;
-		dx2 = &ix;
-	}
+    // resize is here 2
+	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
+		float originalY = (targetLoopY) * originalImageHeight / targetHeight;
+		originalLoopY = (int) originalY;
 
-	if (iy >= oy) {
-		py1 = &y1;
-		py2 = &y2;
-		dy1 = &iy;
-		dy2 = &oy;
-	} else {
-		py1 = &y2;
-		py2 = &y1;
-		dy1 = &oy;
-		dy2 = &iy;
-	}
+		for (targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
+			float originalX = (targetLoopX) * originalImageWidth / targetWidth;
+			originalLoopX = (int) originalX;
 
-	Ty = *dy1;
-
-	for (y1 = 0, y2 = 0; (y1 < height1) && (y2 < height2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
-		Tx = *dx1;
-
-		for (x1 = 0, x2 = 0; (x1 < width1) && (x2 < width2); ) { /* Wrong compiler warning, the loop vars _are_ modified via px/dx/py/dy */
-			XPutPixel(Tmp, x2, y2, XGetPixel(Im, x1, y1));
-			u32b maskbitno = (x1 + (y1 * width1));
-			u32b newmaskbitno = (x2 + (y2 * paddedWidth2));
+			XPutPixel(targetImage, targetLoopX, targetLoopY, XGetPixel(originalImage, originalLoopX, originalLoopY));
+			u32b maskbitno = (originalLoopX + (originalLoopY * originalImageWidth));
+			u32b newmaskbitno = (targetLoopX + (targetLoopY * targetWidthPadded));
 
 			bool bgbit = bgbits[maskbitno / 8] & (1 << (maskbitno % 8));
 
@@ -2957,30 +2939,14 @@ static XImage *ResizeImage_2mask(Display *disp, XImage *Im,
 
 			if (bg2bit) bg2mask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
 			else bg2mask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
-
-			(*px1)++;
-
-			Tx -= *dx2;
-			if (Tx <= 0) {
-				Tx += *dx1;
-				(*px2)++;
-			}
-		}
-
-		(*py1)++;
-
-		Ty -= *dy2;
-		if (Ty <= 0) {
-			Ty += *dy1;
-			(*py2)++;
 		}
 	}
 
-	Window root_win = DefaultRootWindow(disp);
-	(*bgmask_return) = XCreateBitmapFromData(disp, root_win, bgmask_data, width2, height2);
-	(*fgmask_return) = XCreateBitmapFromData(disp, root_win, fgmask_data, width2, height2);
-	(*bg2mask_return) = XCreateBitmapFromData(disp, root_win, bg2mask_data, width2, height2);
-	return(Tmp);
+	Window root_window = DefaultRootWindow(display);
+	(*bgmask_return) = XCreateBitmapFromData(display, root_window, bgmask_data, targetWidth, targetHeight);
+	(*fgmask_return) = XCreateBitmapFromData(display, root_window, fgmask_data, targetWidth, targetHeight);
+	(*bg2mask_return) = XCreateBitmapFromData(display, root_window, bg2mask_data, targetWidth, targetHeight);
+	return(targetImage);
 }
  #endif
 
