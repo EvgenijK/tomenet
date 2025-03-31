@@ -35,6 +35,8 @@
 // gettimeofday() requires <sys/time.h>
 #include <sys/time.h>
 
+#include <math.h>
+
 /*
  * Notes on Colors:
  *
@@ -2872,19 +2874,20 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 
 typedef struct pixelCoordinates pixelCoordinates;
 struct pixelCoordinates {
-	int x;
-    int y;
-}
+  int x;
+  int y;
+};
 
-pixelCoordinates correctPixelCoordinates(int x, int y, int maxX, int maxY) {
-	struct pixelCoordinates correctedPixelCoordinates;
-    correctedPixelCoordinates.x = 0;
-	correctedPixelCoordinates.y = 0;
+pixelCoordinates correctPixelCoordinates(int x, int y, int minX, int minY, int maxX, int maxY) {
+    struct pixelCoordinates correctedPixelCoordinates;
+    correctedPixelCoordinates.x = x;
+    correctedPixelCoordinates.y = y;
 
-	if (x < 0) correctedPixelCoordinates.x = 0;
-	if (x >= maxX) correctedPixelCoordinates.x = maxX - 1;
-    if (y < 0) correctedPixelCoordinates.y = 0;
-    if (y >= maxY) correctedPixelCoordinates.y = maxY - 1;
+    if (x < minX) correctedPixelCoordinates.x = minX;
+    if (x > maxX) correctedPixelCoordinates.x = maxX;
+
+    if (y < minY) correctedPixelCoordinates.y = minY;
+    if (y > maxY) correctedPixelCoordinates.y = maxY;
 
     return correctedPixelCoordinates;
 }
@@ -2936,32 +2939,42 @@ static XImage *ResizeImage_2mask(
 	unsigned long newPixel,
 		topLeftPixel, topRightPixel, bottomRightPixel, bottomLeftPixel;
 	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
-		float originalY = (targetLoopY) * originalImageHeight / targetHeight - 0.5;
+		float originalY = (targetLoopY + 1) * originalImageHeight / targetHeight - 0.5;
 		float fractionOfY = originalY - floor(originalY);
 		originalLoopY = (int) originalY;
 
+		int tileYCount = targetLoopY / fontHeight;
+
 		for (targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
-			float originalX = (targetLoopX) * originalImageWidth / targetWidth - 0.5;
+			float originalX = (targetLoopX + 1) * originalImageWidth / targetWidth - 0.5;
 			float fractionOfX = originalX - floor(originalX);
 			originalLoopX = (int) originalX;
+			
+			int tileXCount = targetLoopX / fontWidth;
+
+			int originalTileStartY = tileYCount * tileHeight;
+			int originalTileEndY = (tileYCount + 1) * tileHeight - 1;
+
+			int originalTileStartX = tileXCount * tileWidth;
+			int originalTileEndX = (tileXCount + 1) * tileWidth - 1;
 
 			// get 4 pixels in variables
 
 			// top left
 			pixelCoordinates topLeftPixelCoordinates;
-			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, targetWidth, targetHeight);
+			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
 			topLeftPixel = XGetPixel(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
 			// top right
 			pixelCoordinates topRightPixelCoordinates;
-			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, targetWidth, targetHeight);
+			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
 			topRightPixel = XGetPixel(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
 			// bottom left
 			pixelCoordinates bottomLeftPixelCoordinates;
-			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, targetWidth, targetHeight);
+			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
 			bottomLeftPixel = XGetPixel(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
 			// bottom right
 			pixelCoordinates bottomRightPixelCoordinates;
-			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, targetWidth, targetHeight);
+			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
 			bottomRightPixel = XGetPixel(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
 
 
@@ -2970,9 +2983,9 @@ static XImage *ResizeImage_2mask(
 			// set new pixel color
 			// put new pixel in target image
 
-			XPutPixel(targetImage, targetLoopX, targetLoopY, XGetPixel(originalImage, originalLoopX, originalLoopY));
+			XPutPixel(targetImage, targetLoopX, targetLoopY, XGetPixel(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y));
 
-			u32b maskbitno = (originalLoopX + (originalLoopY * originalImageWidth));
+			u32b maskbitno = (topLeftPixelCoordinates.x + (topLeftPixelCoordinates.y * originalImageWidth));
 			u32b newmaskbitno = (targetLoopX + (targetLoopY * targetWidthPadded));
 
 			bool bgbit = bgbits[maskbitno / 8] & (1 << (maskbitno % 8));
