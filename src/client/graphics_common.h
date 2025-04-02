@@ -27,6 +27,7 @@ void set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color);
 unsigned long rgb_to_hex(uint8_t red, uint8_t green, uint8_t blue);
 float linear_interpolation(float ratio, int valueLeft, int valueRight);
 float bilinear_interpolation(float ratio_x, float ratio_y, int value_11, int value_12, int value_21, int value_22);
+float quadratic_interpolation(float x, float x0, float f0, float x1, float f1, float x2, float f2);
 
 RGB pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, RGB p11, RGB p12, RGB p21, RGB p22);
 RGB hex_to_rgb(unsigned long hex_color);

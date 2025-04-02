@@ -114,6 +114,47 @@ float bilinear_interpolation(float ratio_x, float ratio_y, int value_11, int val
     return linear_interpolation(ratio_y, f1, f2);
 }
 
+float quadratic_interpolation(float x, float x0, float f0, float x1, float f1, float x2, float f2) {
+    float L0, L1, L2;
+
+    // Lagrange basis polynomials
+    L0 = ((x - x1) * (x - x2)) / ((x0 - x1) * (x0 - x2));
+    L1 = ((x - x0) * (x - x2)) / ((x1 - x0) * (x1 - x2));
+    L2 = ((x - x0) * (x - x1)) / ((x2 - x0) * (x2 - x1));
+
+    // Interpolated value
+    return L0 * f0 + L1 * f1 + L2 * f2;
+}
+
+float bi_quadratic_interpolation(
+        float x, float y,
+        float x1, float x2,  float x3,
+        float y1, float y2,  float y3,
+        float f00, float f01, float f02,
+        float f10, float f11, float f12,
+        float f20, float f21, float f22
+        ) {
+
+    float F1, F2, F3;
+
+    F1 = quadratic_interpolation(x, x1, f00, x2, f01, x3, f02);
+    F2 = quadratic_interpolation(x, x1, f10, x2, f11, x3, f12);
+    F3 = quadratic_interpolation(x, x1, f20, x2, f21, x3, f22);
+
+    return quadratic_interpolation(y, y1, F1, y2, F2, y3, F3);
+}
+
+RGB pixel_bi_quadratic_interpolation(int x,  int y,
+                                     RGB p00, RGB p01, RGB p02,
+                                     RGB p10, RGB p11, RGB p12,
+                                     RGB p20, RGB p21, RGB p22
+                                     )
+{
+    RGB newColor = {0, 0, 0};
+
+    return newColor;
+}
+
 RGB pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, RGB p11, RGB p12, RGB p21, RGB p22)
 {
     RGB newColor;
