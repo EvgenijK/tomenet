@@ -1233,6 +1233,7 @@ struct term_data {
 #ifdef USE_GRAPHICS
 
 	XImage *tiles;
+	XImage *graphics_fgmask_new;
 	Pixmap bgmask;
 	Pixmap fgmask;
  #ifdef GRAPHICS_BG_MASK
@@ -1838,6 +1839,10 @@ static void free_graphics(term_data *td) {
 		XDestroyImage(td->tiles);
 		td->tiles = NULL;
 	}
+	if (td->graphics_fgmask_new) {
+		XDestroyImage(td->graphics_fgmask_new);
+		td->graphics_fgmask_new = NULL;
+	}
 	if (td->bgmask) {
 		XFreePixmap(Metadpy->dpy, td->bgmask);
 		td->bgmask = None;
@@ -2130,12 +2135,231 @@ static errr Term_text_x11(int x, int y, int n, byte a, cptr s) {
 
 #ifdef USE_GRAPHICS /* huge block */
 
+typedef struct pixelCoordinates pixelCoordinates;
+struct pixelCoordinates {
+  int x;
+  int y;
+};
+
+pixelCoordinates correctPixelCoordinates(int x, int y, int minX, int minY, int maxX, int maxY) {
+    struct pixelCoordinates correctedPixelCoordinates;
+    correctedPixelCoordinates.x = x;
+    correctedPixelCoordinates.y = y;
+
+    if (x < minX) correctedPixelCoordinates.x = minX;
+    if (x > maxX) correctedPixelCoordinates.x = maxX;
+
+    if (y < minY) correctedPixelCoordinates.y = minY;
+    if (y > maxY) correctedPixelCoordinates.y = maxY;
+
+    return correctedPixelCoordinates;
+}
+
+typedef struct {
+	unsigned char red;
+	unsigned char green;
+	unsigned char blue;
+} RGB;
+
+// Function to get the RGB values of a pixel in an XImage
+RGB get_pixel_rgb(XImage *image, int x, int y) {
+	RGB pixel_rgb = {0, 0, 0}; // Initialize to black
+
+	// Check for out-of-bounds coordinates
+	if (x < 0 || x >= image->width || y < 0 || y >= image->height) {
+		fprintf(stderr, "Error: Pixel coordinates out of bounds.\n");
+		return pixel_rgb; // Return black if out of bounds
+	}
+
+	int bytes_per_pixel = image->bits_per_pixel / 8;
+	int offset = (y * image->bytes_per_line) + (x * bytes_per_pixel);
+
+	if (bytes_per_pixel == 1) { // Grayscale - treat as equal R, G, and B
+		unsigned char gray_value = image->data[offset];
+		pixel_rgb.red = gray_value;
+		pixel_rgb.green = gray_value;
+		pixel_rgb.blue = gray_value;
+	} else if (bytes_per_pixel == 3) { // RGB
+		// Assuming RGB format (R, G, B)
+		pixel_rgb.red = image->data[offset + 2];
+		pixel_rgb.green = image->data[offset + 1];
+		pixel_rgb.blue = image->data[offset + 0];
+	} else if (bytes_per_pixel == 4) { // RGBA (or BGRA - might need adjustment)
+		// Assuming ARGB (might need to swap R and B if it's BGRA)
+		pixel_rgb.red = image->data[offset + 2];
+		pixel_rgb.green = image->data[offset + 1];
+		pixel_rgb.blue = image->data[offset + 0];
+
+		// Note: You could also get the alpha value from image->data[offset + 3];
+	} else {
+		fprintf(stderr, "Error: Unsupported pixel depth.\n");
+	}
+
+	return pixel_rgb;
+}
+
+void set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color) {
+	int bytes_per_pixel = image->bits_per_pixel / 8; // Bytes per pixel (1 for grayscale, 3 or 4 for RGB/RGBA)
+	int offset;
+
+	// Boundary checks
+	if (x < 0 || x >= image->width || y < 0 || y >= image->height) {
+		fprintf(stderr, "Error: Pixel coordinates out of bounds.\n");
+		return; // Or handle the error in a different way
+	}
+
+	// Calculate the offset into the image data
+	offset = (y * image->bytes_per_line) + (x * bytes_per_pixel);  // Careful calculation
+
+	// Set the pixel color based on the color depth
+	if (bytes_per_pixel == 1) { // Grayscale
+		// For grayscale, 'pixel_color' is usually a single byte (0-255)
+		// However, Xlib uses unsigned long for colors.  If 'pixel_color'
+		// is a byte, it's okay as it'll be properly cast.
+		image->data[offset] = (char)pixel_color;  // Cast to char for byte-wise assignment
+
+	} else if (bytes_per_pixel == 3) { // RGB
+		// Assume RGB format (e.g., 0xRRGGBB)
+		image->data[offset + 0] = (pixel_color >> 16) & 0xFF; // Red
+		image->data[offset + 1] = (pixel_color >> 8) & 0xFF;  // Green
+		image->data[offset + 2] = pixel_color & 0xFF;        // Blue
+
+	} else if (bytes_per_pixel == 4) { // RGBA
+		// Assume RGBA format (e.g., 0xAARRGGBB or ARGB - order depends on the system)
+		//  This example assumes ARGB, but your system might be different.  Double-check.
+		image->data[offset + 0] = (pixel_color >> 16) & 0xFF; // Red
+		image->data[offset + 1] = (pixel_color >> 8) & 0xFF;  // Green
+		image->data[offset + 2] = pixel_color & 0xFF;        // Blue
+		image->data[offset + 3] = (pixel_color >> 24) & 0xFF; // Alpha
+
+	} else {
+		fprintf(stderr, "Error: Unsupported pixel depth.\n");
+		return;  // Or handle the error
+	}
+}
+
+unsigned long rgb_to_hex(uint8_t red, uint8_t green, uint8_t blue) {
+	return ((unsigned long)red << 16) | ((unsigned long)green << 8) | blue;
+}
+
+
+float linear_interpolation(float ratio, int valueLeft, int valueRight)
+{
+	return (1 - ratio) * valueLeft + ratio * valueRight;
+}
+
+float bilinear_interpolation(float ratio_x, float ratio_y, int value_11, int value_12, int value_21, int value_22)
+{
+	float f1 = linear_interpolation(ratio_x, value_11, value_12);
+	float f2 = linear_interpolation(ratio_x, value_21, value_22);
+
+	return linear_interpolation(ratio_y, f1, f2);
+}
+
+RGB pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, RGB p11, RGB p12, RGB p21, RGB p22)
+{
+	RGB newColor;
+	newColor.blue = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.blue, p12.blue, p21.blue, p22.blue);
+	newColor.green = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.green, p12.green, p21.green, p22.green);
+	newColor.red = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.red, p12.red, p21.red, p22.red);
+
+	return newColor;
+}
+
+RGB hex_to_rgb(unsigned long hex_color) {
+	RGB rgb;
+	rgb.red   = (hex_color >> 16) & 0xFF;
+	rgb.green = (hex_color >> 8) & 0xFF;
+	rgb.blue  = hex_color & 0xFF;
+
+	// rgbColor.r = ((hexValue >> 16) & 0xFF) / 255.0;  // Extract the RR byte
+	// rgbColor.g = ((hexValue >> 8) & 0xFF) / 255.0;   // Extract the GG byte
+	// rgbColor.b = ((hexValue) & 0xFF) / 255.0;        // Extract the BB byte
+
+
+	return rgb;
+}
+
+bool isRGBColorsEqual(RGB rgb1, RGB rgb2)
+{
+	return (rgb1.red == rgb2.red) && (rgb1.green == rgb2.green) && (rgb1.blue == rgb2.blue);
+}
+
+
+RGB get_pixel_color_or_black_if_its_mask_color(RGB pixel_color)
+{
+	RGB fgColor;
+	fgColor.red = 252;
+	fgColor.green = 0;
+	fgColor.blue = 251;
+	// fgColor.red = 251; // 252
+	// fgColor.green = 0;
+	// fgColor.blue = 252; // 251
+
+	RGB transparancyColor;
+	transparancyColor.red = 29;
+	transparancyColor.green = 33;
+	transparancyColor.blue = 28;
+
+	RGB bgColor;
+	bgColor.red = 62;
+	bgColor.green = 61;
+	bgColor.blue = 0;
+
+	RGB black;
+	black.red = 0;
+	black.green = 0;
+	black.blue = 0;
+
+	if (isRGBColorsEqual(pixel_color, bgColor)) pixel_color = black;
+
+	if (isRGBColorsEqual(pixel_color, transparancyColor)) pixel_color = black;
+
+	if (isRGBColorsEqual(pixel_color, fgColor)) pixel_color = black;
+
+	return pixel_color;
+}
+
+RGB get_pixel_color_if_fg_mask_or_black(RGB pixel_color)
+{
+	RGB fgColor;
+	fgColor.red = 252;
+	fgColor.green = 0;
+	fgColor.blue = 251;
+
+	RGB black;
+	black.red = 0;
+	black.green = 0;
+	black.blue = 0;
+
+	if (! isRGBColorsEqual(pixel_color, fgColor)) pixel_color = black;
+
+	return pixel_color;
+}
+
+RGB get_rgb_from_pixel(Display *display, unsigned long pixel) {
+	RGB rgb = {0, 0, 0}; // Initialize to black
+	XColor color;
+
+	color.pixel = pixel;
+	XQueryColor(display, DefaultColormapOfScreen(DefaultScreenOfDisplay(display)), &color);
+
+	// XQueryColor returns values in the range 0-65535.  Scale to 0-255.
+	rgb.red   = (uint8_t)(color.red   / 256);
+	rgb.green = (uint8_t)(color.green / 256);
+	rgb.blue  = (uint8_t)(color.blue  / 256);
+
+
+	return rgb;
+}
+
 /* Directory with graphics tiles files (should be lib/xtra/grapics). */
 static cptr ANGBAND_DIR_XTRA_GRAPHICS;
 /* Loaded tiles image and masks. */
 XImage *graphics_image = None;
 char *graphics_bgmask = NULL;
 char *graphics_fgmask = NULL;
+// XImage *graphics_fgmask_new = None;
  #ifdef GRAPHICS_BG_MASK
 char *graphics_bg2mask = NULL;
  #endif
@@ -2249,17 +2473,55 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 	/* Prepare tile to preparation pixmap. */
 	x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * td->fnt->wid;
 	y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * td->fnt->hgt;
-	XCopyPlane(Metadpy->dpy, td->fgmask, tilePreparation, Infoclr->gc,
-		   x1, y1,
-		   td->fnt->wid, td->fnt->hgt,
-		   0, 0,
-		   1);
-	XSetClipMask(Metadpy->dpy, Infoclr->gc, td->bgmask);
-	XSetClipOrigin(Metadpy->dpy, Infoclr->gc, 0 - x1, 0 - y1);
+
+	char *preparedTileData = (char *)malloc(td->fnt->wid * td->fnt->hgt * td->tiles->bits_per_pixel / 8);;
+	XImage *preparedTile = XCreateImage(
+			Metadpy->dpy, DefaultVisual(Metadpy->dpy, DefaultScreen(Metadpy->dpy)), td->tiles->depth, ZPixmap, 0,
+			preparedTileData, td->fnt->wid, td->fnt->hgt, td->tiles->bits_per_pixel, 0);
+
+	RGB objectColorRGB = hex_to_rgb(Infoclr->fg);
+
+	RGB fgColor;
+	fgColor.red = 252;
+	fgColor.green = 0;
+	fgColor.blue = 251;
+
+	for (int tileX = 0; tileX < td->fnt->wid; tileX++)
+	{
+		for (int tileY = 0; tileY < td->fnt->hgt; tileY++)
+		{
+			// 1)
+			// получить цвет пикселя из td->tiles
+			RGB tilePixelColorRGB = get_pixel_rgb(td->tiles, x1 + tileX, y1 + tileY);
+
+			if (td->graphics_fgmask_new != NULL)
+			{
+				// 2)
+				// получить цвет маски
+				RGB fgMaskPixelColorRGB = get_pixel_rgb(td->graphics_fgmask_new, x1 + tileX, y1 + tileY);
+				// собрать цвет объекта от цвета маски
+				RGB maskedObjectColorRGB;
+				maskedObjectColorRGB.red = objectColorRGB.red * fgMaskPixelColorRGB.red / fgColor.red;
+				maskedObjectColorRGB.blue = objectColorRGB.blue * fgMaskPixelColorRGB.red / fgColor.red;
+				maskedObjectColorRGB.green = objectColorRGB.green * fgMaskPixelColorRGB.red / fgColor.red;
+
+				// добавить цвет объекта к цветку тайла
+				tilePixelColorRGB.red += maskedObjectColorRGB.red;
+				tilePixelColorRGB.blue += maskedObjectColorRGB.blue;
+				tilePixelColorRGB.green += maskedObjectColorRGB.green;
+				// tilePixelColorRGB = objectColorRGB;
+			}
+
+
+			unsigned long tilePixelColorHex = rgb_to_hex(tilePixelColorRGB.red, tilePixelColorRGB.green, tilePixelColorRGB.blue);
+			XPutPixel(preparedTile, tileX, tileY, tilePixelColorHex);
+		}
+	}
+
 	XPutImage(Metadpy->dpy, tilePreparation,
 		  Infoclr->gc,
-		  td->tiles,
-		  x1, y1,
+		  preparedTile,
+		  0, 0,
 		  0, 0,
 		  td->fnt->wid, td->fnt->hgt);
 	XSetClipMask(Metadpy->dpy, Infoclr->gc, None);
@@ -2872,150 +3134,12 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 }
  #else
 
-typedef struct pixelCoordinates pixelCoordinates;
-struct pixelCoordinates {
-  int x;
-  int y;
-};
-
-pixelCoordinates correctPixelCoordinates(int x, int y, int minX, int minY, int maxX, int maxY) {
-    struct pixelCoordinates correctedPixelCoordinates;
-    correctedPixelCoordinates.x = x;
-    correctedPixelCoordinates.y = y;
-
-    if (x < minX) correctedPixelCoordinates.x = minX;
-    if (x > maxX) correctedPixelCoordinates.x = maxX;
-
-    if (y < minY) correctedPixelCoordinates.y = minY;
-    if (y > maxY) correctedPixelCoordinates.y = maxY;
-
-    return correctedPixelCoordinates;
-}
-
-typedef struct {
-	unsigned char red;
-	unsigned char green;
-	unsigned char blue;
-} RGB;
-
-// Function to get the RGB values of a pixel in an XImage
-RGB get_pixel_rgb(XImage *image, int x, int y) {
-	RGB pixel_rgb = {0, 0, 0}; // Initialize to black
-
-	// Check for out-of-bounds coordinates
-	if (x < 0 || x >= image->width || y < 0 || y >= image->height) {
-		fprintf(stderr, "Error: Pixel coordinates out of bounds.\n");
-		return pixel_rgb; // Return black if out of bounds
-	}
-
-	int bytes_per_pixel = image->bits_per_pixel / 8;
-	int offset = (y * image->bytes_per_line) + (x * bytes_per_pixel);
-
-	if (bytes_per_pixel == 1) { // Grayscale - treat as equal R, G, and B
-		unsigned char gray_value = image->data[offset];
-		pixel_rgb.red = gray_value;
-		pixel_rgb.green = gray_value;
-		pixel_rgb.blue = gray_value;
-	} else if (bytes_per_pixel == 3) { // RGB
-		// Assuming RGB format (R, G, B)
-		pixel_rgb.red = image->data[offset + 0];
-		pixel_rgb.green = image->data[offset + 1];
-		pixel_rgb.blue = image->data[offset + 2];
-	} else if (bytes_per_pixel == 4) { // RGBA (or BGRA - might need adjustment)
-		// Assuming ARGB (might need to swap R and B if it's BGRA)
-		pixel_rgb.red = image->data[offset + 0];
-		pixel_rgb.green = image->data[offset + 1];
-		pixel_rgb.blue = image->data[offset + 2];
-
-		// Note: You could also get the alpha value from image->data[offset + 3];
-	} else {
-		fprintf(stderr, "Error: Unsupported pixel depth.\n");
-	}
-
-	return pixel_rgb;
-}
-
-void set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color) {
-	int bytes_per_pixel = image->bits_per_pixel / 8; // Bytes per pixel (1 for grayscale, 3 or 4 for RGB/RGBA)
-	int offset;
-
-	// Boundary checks
-	if (x < 0 || x >= image->width || y < 0 || y >= image->height) {
-		fprintf(stderr, "Error: Pixel coordinates out of bounds.\n");
-		return; // Or handle the error in a different way
-	}
-
-	// Calculate the offset into the image data
-	offset = (y * image->bytes_per_line) + (x * bytes_per_pixel);  // Careful calculation
-
-	// Set the pixel color based on the color depth
-	if (bytes_per_pixel == 1) { // Grayscale
-		// For grayscale, 'pixel_color' is usually a single byte (0-255)
-		// However, Xlib uses unsigned long for colors.  If 'pixel_color'
-		// is a byte, it's okay as it'll be properly cast.
-		image->data[offset] = (char)pixel_color;  // Cast to char for byte-wise assignment
-
-	} else if (bytes_per_pixel == 3) { // RGB
-		// Assume RGB format (e.g., 0xRRGGBB)
-		image->data[offset + 0] = (pixel_color >> 16) & 0xFF; // Red
-		image->data[offset + 1] = (pixel_color >> 8) & 0xFF;  // Green
-		image->data[offset + 2] = pixel_color & 0xFF;        // Blue
-
-	} else if (bytes_per_pixel == 4) { // RGBA
-		// Assume RGBA format (e.g., 0xAARRGGBB or ARGB - order depends on the system)
-		//  This example assumes ARGB, but your system might be different.  Double-check.
-		image->data[offset + 0] = (pixel_color >> 16) & 0xFF; // Red
-		image->data[offset + 1] = (pixel_color >> 8) & 0xFF;  // Green
-		image->data[offset + 2] = pixel_color & 0xFF;        // Blue
-		image->data[offset + 3] = (pixel_color >> 24) & 0xFF; // Alpha
-
-	} else {
-		fprintf(stderr, "Error: Unsupported pixel depth.\n");
-		return;  // Or handle the error
-	}
-}
-
-unsigned long rgb_to_hex(uint8_t red, uint8_t green, uint8_t blue) {
-	return ((unsigned long)red << 16) | ((unsigned long)green << 8) | blue;
-}
-
-
-float linear_interpolation(float ratio, int valueLeft, int valueRight)
-{
-	return (1 - ratio) * valueLeft + ratio * valueRight;
-}
-
-float bilinear_interpolation(float ratio_x, float ratio_y, int value_11, int value_12, int value_21, int value_22)
-{
-	float f1 = linear_interpolation(ratio_x, value_11, value_12);
-	float f2 = linear_interpolation(ratio_x, value_21, value_22);
-
-	return linear_interpolation(ratio_y, f1, f2);
-}
-
-RGB pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, RGB p11, RGB p12, RGB p21, RGB p22)
-{
-	RGB newColor;
-	newColor.blue = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.blue, p12.blue, p21.blue, p22.blue);
-	newColor.green = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.green, p12.green, p21.green, p22.green);
-	newColor.red = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.red, p12.red, p21.red, p22.red);
-
-	return newColor;
-}
-
-RGB hex_to_rgb(uint32_t hex_color) {
-	RGB rgb;
-	rgb.red   = (hex_color >> 16) & 0xFF;
-	rgb.green = (hex_color >> 8) & 0xFF;
-	rgb.blue  = hex_color & 0xFF;
-	return rgb;
-}
 
 static XImage *ResizeImage_2mask(
     Display *display, XImage *originalImage, // TODO - is it whole tileset image or just one tile?
     int tileWidth, int tileHeight, int fontWidth, int fontHeight,
     char *bgbits, char *fgbits, char *bg2bits,
-    Pixmap *bgmask_return, Pixmap *fgmask_return, Pixmap *bg2mask_return
+    Pixmap *bgmask_return, Pixmap *fgmask_return, Pixmap *bg2mask_return, XImage **graphics_fgmask_new
     )
 {
 	int originalImageWidth, originalImageHeight, targetWidth, targetHeight;
@@ -3037,6 +3161,10 @@ static XImage *ResizeImage_2mask(
 			display, DefaultVisual(display, DefaultScreen(display)), originalImage->depth, ZPixmap, 0,
 			targetImageData, targetWidth, targetHeight, originalImage->bits_per_pixel, 0);
 
+	char *fgmaskImageData = (char *)malloc(targetWidth * targetHeight * originalImage->bits_per_pixel / 8);
+	*graphics_fgmask_new = XCreateImage(
+			display, DefaultVisual(display, DefaultScreen(display)), originalImage->depth, ZPixmap, 0,
+			fgmaskImageData, targetWidth, targetHeight, originalImage->bits_per_pixel, 0);
 
 	int linePadBits = 8; // TODO - why 8?
 	int targetWidthPadded = targetWidth + ((linePadBits - (targetWidth % linePadBits)) % linePadBits);
@@ -3054,7 +3182,7 @@ static XImage *ResizeImage_2mask(
 	C_MAKE(bg2mask_data, new_masks_size, char);
 	memset(bg2mask_data, 0, new_masks_size);
 
-    // resize is here 2
+	// resize is here 2
 	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
 		float originalY = (targetLoopY + 1) * originalImageHeight / targetHeight - 0.5;
 		float fractionOfY = originalY - floor(originalY);
@@ -3094,15 +3222,25 @@ static XImage *ResizeImage_2mask(
 			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
 			RGB bottomRightPixelColor = get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
 
-			RGB nexPixelColorRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
-			unsigned long nexPixelHex = rgb_to_hex(nexPixelColorRGB.red, nexPixelColorRGB.green, nexPixelColorRGB.blue);
+			topLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(topLeftPixelColor);
+			topRightPixelColor = get_pixel_color_or_black_if_its_mask_color(topRightPixelColor);
+			bottomLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomLeftPixelColor);
+			bottomRightPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomRightPixelColor);
 
-			// make new pixel
-			// compute color for new pixel based on 4 pixels and distance to them
-			// set new pixel color
-			// put new pixel in target image
+			RGB newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+			unsigned long newPixelHex = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
 
-			XPutPixel(targetImage, targetLoopX, targetLoopY, nexPixelHex);
+			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
+
+			// new fg mask stuff
+			topLeftPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y));
+			topRightPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y));
+			bottomLeftPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y));
+			bottomRightPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y));
+
+			RGB newFGMaskRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+			newPixelHex = rgb_to_hex(newFGMaskRGB.red, newFGMaskRGB.green, newFGMaskRGB.blue);
+			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
 
 			// Bitmasks stuff
 			u32b maskbitno = (topLeftPixelCoordinates.x + (topLeftPixelCoordinates.y * originalImageWidth));
@@ -3282,6 +3420,7 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 #ifdef USE_GRAPHICS
 	/* No graphics yet */
 	td->tiles = NULL;
+	td->graphics_fgmask_new = NULL;
 	td->bgmask = None;
 	td->fgmask = None;
  #ifdef GRAPHICS_BG_MASK
@@ -3328,9 +3467,11 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 
 		/* Use resized tiles & masks. */
 #ifdef GRAPHICS_BG_MASK
+		XImage *test;
 		td->tiles = ResizeImage_2mask(Metadpy->dpy, graphics_image,
 				graphics_tile_wid, graphics_tile_hgt, td->fnt->wid, td->fnt->hgt,
-				graphics_bgmask, graphics_fgmask, graphics_bg2mask, &(td->bgmask), &(td->fgmask), &(td->bg2mask));
+				graphics_bgmask, graphics_fgmask, graphics_bg2mask, &(td->bgmask), &(td->fgmask), &(td->bg2mask), &(test));
+		td->graphics_fgmask_new = test;
 #else
 		td->tiles = ResizeImage(Metadpy->dpy, graphics_image,
 				graphics_tile_wid, graphics_tile_hgt, td->fnt->wid, td->fnt->hgt,
@@ -3977,9 +4118,11 @@ static void term_force_font(int term_idx, cptr fnt_name) {
 
 			/* If window was resized, grapics tiles need to be resized too. */
  #ifdef GRAPHICS_BG_MASK
+			XImage *test;
 			td->tiles = ResizeImage_2mask(Metadpy->dpy, graphics_image,
 					graphics_tile_wid, graphics_tile_hgt, td->fnt->wid, td->fnt->hgt,
-					graphics_bgmask, graphics_fgmask, graphics_bg2mask, &(td->bgmask), &(td->fgmask), &(td->bg2mask));
+					graphics_bgmask, graphics_fgmask, graphics_bg2mask, &(td->bgmask), &(td->fgmask), &(td->bg2mask), &(test));
+			td->graphics_fgmask_new = test;
  #else
 			td->tiles = ResizeImage(Metadpy->dpy, graphics_image,
 					graphics_tile_wid, graphics_tile_hgt, td->fnt->wid, td->fnt->hgt,
