@@ -2967,16 +2967,16 @@ static XImage *ResizeImage_2mask(
 
 	// resize is here 2
 	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
-		float originalY = (targetLoopY + 1) * originalImageHeight / targetHeight - 0.5;
+		float originalY = targetLoopY * originalImageHeight / targetHeight - 0.5;
 		float fractionOfY = originalY - floor(originalY);
-		originalLoopY = (int) originalY;
+		originalLoopY = round(originalY);
 
 		int tileYCount = targetLoopY / fontHeight;
 
 		for (targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
-			float originalX = (targetLoopX + 1) * originalImageWidth / targetWidth - 0.5;
+			float originalX = targetLoopX * originalImageWidth / targetWidth - 0.5;
 			float fractionOfX = originalX - floor(originalX);
-			originalLoopX = (int) originalX;
+			originalLoopX = round(originalX);
 			
 			int tileXCount = targetLoopX / fontWidth;
 
