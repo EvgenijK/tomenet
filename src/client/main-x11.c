@@ -2262,9 +2262,9 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 			Metadpy->dpy, DefaultVisual(Metadpy->dpy, DefaultScreen(Metadpy->dpy)), td->tiles->depth, ZPixmap, 0,
 			preparedTileData, td->fnt->wid, td->fnt->hgt, td->tiles->bits_per_pixel, 0);
 
-	RGB objectColorRGB = hex_to_rgb(Infoclr->fg);
+	color_rgb objectColorRGB = hex_to_rgb(Infoclr->fg);
 
-	RGB fgColor;
+	color_rgb fgColor;
 	fgColor.red = 252;
 	fgColor.green = 0;
 	fgColor.blue = 251;
@@ -2275,15 +2275,15 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 		{
 			// 1)
 			// получить цвет пикселя из td->tiles
-			RGB tilePixelColorRGB = get_pixel_rgb(td->tiles, x1 + tileX, y1 + tileY);
+			color_rgb tilePixelColorRGB = get_pixel_rgb(td->tiles, x1 + tileX, y1 + tileY);
 
 			if (td->graphics_fgmask_new != NULL)
 			{
 				// 2)
 				// получить цвет маски
-				RGB fgMaskPixelColorRGB = get_pixel_rgb(td->graphics_fgmask_new, x1 + tileX, y1 + tileY);
+				color_rgb fgMaskPixelColorRGB = get_pixel_rgb(td->graphics_fgmask_new, x1 + tileX, y1 + tileY);
 				// собрать цвет объекта от цвета маски
-				RGB maskedObjectColorRGB;
+				color_rgb maskedObjectColorRGB;
 				maskedObjectColorRGB.red = objectColorRGB.red * fgMaskPixelColorRGB.red / fgColor.red;
 				maskedObjectColorRGB.blue = objectColorRGB.blue * fgMaskPixelColorRGB.red / fgColor.red;
 				maskedObjectColorRGB.green = objectColorRGB.green * fgMaskPixelColorRGB.red / fgColor.red;
@@ -2989,28 +2989,28 @@ static XImage *ResizeImage_2mask(
 			// get 4 pixels in variables
 
 			// top left
-			pixelCoordinates topLeftPixelCoordinates;
+			coordinates topLeftPixelCoordinates;
 			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			RGB topLeftPixelColor = get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
+			color_rgb topLeftPixelColor = get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
 			// top right
-			pixelCoordinates topRightPixelCoordinates;
+			coordinates topRightPixelCoordinates;
 			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			RGB topRightPixelColor = get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
+			color_rgb topRightPixelColor = get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
 			// bottom left
-			pixelCoordinates bottomLeftPixelCoordinates;
+			coordinates bottomLeftPixelCoordinates;
 			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			RGB bottomLeftPixelColor = get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
+			color_rgb bottomLeftPixelColor = get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
 			// bottom right
-			pixelCoordinates bottomRightPixelCoordinates;
+			coordinates bottomRightPixelCoordinates;
 			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			RGB bottomRightPixelColor = get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
+			color_rgb bottomRightPixelColor = get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
 
 			topLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(topLeftPixelColor);
 			topRightPixelColor = get_pixel_color_or_black_if_its_mask_color(topRightPixelColor);
 			bottomLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomLeftPixelColor);
 			bottomRightPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomRightPixelColor);
 
-			RGB newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+			color_rgb newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
 			unsigned long newPixelHex = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
 
 			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
@@ -3021,7 +3021,7 @@ static XImage *ResizeImage_2mask(
 			bottomLeftPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y));
 			bottomRightPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y));
 
-			RGB newFGMaskRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+			color_rgb newFGMaskRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
 			newPixelHex = rgb_to_hex(newFGMaskRGB.red, newFGMaskRGB.green, newFGMaskRGB.blue);
 			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
 
