@@ -7,6 +7,9 @@
 
 #include <X11/Xlib.h>
 
+#define INTERPOLATION_NEAR 0
+#define INTERPOLATION_LINEAR 1
+
 typedef struct coordinates coordinates;
 struct coordinates {
     int x;
@@ -37,9 +40,15 @@ typedef struct
     linear_sample bottom;
 } bilinear_sample;
 
-coordinates correctPixelCoordinates(int x, int y, int minX, int minY, int maxX, int maxY);
-color_rgb get_pixel_rgb(XImage *image, int x, int y);
-void set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color);
+typedef struct
+{
+    coordinates top_left;
+    coordinates bottom_right;
+} rectangle;
+
+coordinates correctPixelCoordinates(int x, int y, rectangle restriction_rectangle);
+color_rgb x_get_pixel_rgb(XImage *image, int x, int y);
+void x_set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color);
 unsigned long rgb_to_hex(uint8_t red, uint8_t green, uint8_t blue);
 
 // float linear_interpolation(float ratio, int value_left, int value_right);

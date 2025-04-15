@@ -2275,13 +2275,13 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 		{
 			// 1)
 			// получить цвет пикселя из td->tiles
-			color_rgb tilePixelColorRGB = get_pixel_rgb(td->tiles, x1 + tileX, y1 + tileY);
+			color_rgb tilePixelColorRGB = x_get_pixel_rgb(td->tiles, x1 + tileX, y1 + tileY);
 
 			if (td->graphics_fgmask_new != NULL)
 			{
 				// 2)
 				// получить цвет маски
-				color_rgb fgMaskPixelColorRGB = get_pixel_rgb(td->graphics_fgmask_new, x1 + tileX, y1 + tileY);
+				color_rgb fgMaskPixelColorRGB = x_get_pixel_rgb(td->graphics_fgmask_new, x1 + tileX, y1 + tileY);
 				// собрать цвет объекта от цвета маски
 				color_rgb maskedObjectColorRGB;
 				maskedObjectColorRGB.red = objectColorRGB.red * fgMaskPixelColorRGB.red / fgColor.red;
@@ -2917,16 +2917,65 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 }
  #else
 
+Pixell XPixelInterpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb), int interpolation_type)
+{
+	Pixell new_pixel = 0;
+
+	int originalLoopX = round(originalX);
+	int originalLoopY = round(originalY);
+
+	switch (interpolation_type)
+	{
+		case INTERPOLATION_LINEAR:
+			float fractionOfY = originalY - floor(originalY);
+			float fractionOfX = originalX - floor(originalX);
+
+			// top left
+			coordinates topLeftPixelCoordinates;
+			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
+			color_rgb topLeftPixelColor = x_get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
+			// top right
+			coordinates topRightPixelCoordinates;
+			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, tile_boundaries);
+			color_rgb topRightPixelColor = x_get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
+			// bottom left
+			coordinates bottomLeftPixelCoordinates;
+			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, tile_boundaries);
+			color_rgb bottomLeftPixelColor = x_get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
+			// bottom right
+			coordinates bottomRightPixelCoordinates;
+			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, tile_boundaries);
+			color_rgb bottomRightPixelColor = x_get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
+
+			topLeftPixelColor = color_filter_function(topLeftPixelColor);
+			topRightPixelColor = color_filter_function(topRightPixelColor);
+			bottomLeftPixelColor = color_filter_function(bottomLeftPixelColor);
+			bottomRightPixelColor = color_filter_function(bottomRightPixelColor);
+
+			color_rgb newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+			new_pixel = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
+
+			break;
+		case INTERPOLATION_NEAR:
+		default:
+			color_rgb newPixelRgb = x_get_pixel_rgb(originalImage, originalLoopX, originalLoopY);
+			newPixelRgb = color_filter_function(newPixelRgb);
+			new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
+
+			break;
+	}
+
+	return new_pixel;
+}
 
 static XImage *ResizeImage_2mask(
-    Display *display, XImage *originalImage, // TODO - is it whole tileset image or just one tile?
+    Display *display, XImage *originalImage,
     int tileWidth, int tileHeight, int fontWidth, int fontHeight,
     char *bgbits, char *fgbits, char *bg2bits,
     Pixmap *bgmask_return, Pixmap *fgmask_return, Pixmap *bg2mask_return, XImage **graphics_fgmask_new
     )
 {
 	int originalImageWidth, originalImageHeight, targetWidth, targetHeight;
-	int originalLoopX, targetLoopX, originalLoopY, targetLoopY;
 
 	XImage *targetImage;
 	char *targetImageData;
@@ -2966,18 +3015,14 @@ static XImage *ResizeImage_2mask(
 	memset(bg2mask_data, 0, new_masks_size);
 
 	// resize is here 2
-	for (targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
+	for (int targetLoopY = 0; targetLoopY < targetHeight; targetLoopY++) {
 		float originalY = targetLoopY * originalImageHeight / targetHeight - 0.5;
-		float fractionOfY = originalY - floor(originalY);
-		originalLoopY = round(originalY);
 
 		int tileYCount = targetLoopY / fontHeight;
 
-		for (targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
+		for (int targetLoopX = 0; targetLoopX < targetWidth; targetLoopX++) {
 			float originalX = targetLoopX * originalImageWidth / targetWidth - 0.5;
-			float fractionOfX = originalX - floor(originalX);
-			originalLoopX = round(originalX);
-			
+
 			int tileXCount = targetLoopX / fontWidth;
 
 			int originalTileStartY = tileYCount * tileHeight;
@@ -2986,44 +3031,21 @@ static XImage *ResizeImage_2mask(
 			int originalTileStartX = tileXCount * tileWidth;
 			int originalTileEndX = (tileXCount + 1) * tileWidth - 1;
 
-			// get 4 pixels in variables
+			rectangle tile_boundaries;
+			tile_boundaries.top_left.x = originalTileStartX;
+			tile_boundaries.top_left.y = originalTileStartY;
+			tile_boundaries.bottom_right.x = originalTileEndX;
+			tile_boundaries.bottom_right.y = originalTileEndY;
 
-			// top left
-			coordinates topLeftPixelCoordinates;
-			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			color_rgb topLeftPixelColor = get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
-			// top right
-			coordinates topRightPixelCoordinates;
-			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			color_rgb topRightPixelColor = get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
-			// bottom left
-			coordinates bottomLeftPixelCoordinates;
-			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			color_rgb bottomLeftPixelColor = get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
-			// bottom right
-			coordinates bottomRightPixelCoordinates;
-			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, originalTileStartX, originalTileStartY, originalTileEndX, originalTileEndY);
-			color_rgb bottomRightPixelColor = get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
-
-			topLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(topLeftPixelColor);
-			topRightPixelColor = get_pixel_color_or_black_if_its_mask_color(topRightPixelColor);
-			bottomLeftPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomLeftPixelColor);
-			bottomRightPixelColor = get_pixel_color_or_black_if_its_mask_color(bottomRightPixelColor);
-
-			color_rgb newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
-			unsigned long newPixelHex = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
-
+			// fixed colors
+			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_LINEAR);
 			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
 
-			// new fg mask stuff
-			topLeftPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y));
-			topRightPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y));
-			bottomLeftPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y));
-			bottomRightPixelColor = get_pixel_color_if_fg_mask_or_black(get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y));
-
-			color_rgb newFGMaskRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
-			newPixelHex = rgb_to_hex(newFGMaskRGB.red, newFGMaskRGB.green, newFGMaskRGB.blue);
+			// fg mask
+			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_LINEAR);
 			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
+
+			coordinates topLeftPixelCoordinates = correctPixelCoordinates(round(originalX), round(originalY), tile_boundaries);
 
 			// Bitmasks stuff
 			u32b maskbitno = (topLeftPixelCoordinates.x + (topLeftPixelCoordinates.y * originalImageWidth));
@@ -3034,10 +3056,10 @@ static XImage *ResizeImage_2mask(
 			if (bgbit) bgmask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
 			else bgmask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
 
-			bool fgbit = fgbits[maskbitno / 8] & (1 << (maskbitno % 8));
-
-			if (fgbit) fgmask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
-			else fgmask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
+			// bool fgbit = fgbits[maskbitno / 8] & (1 << (maskbitno % 8));
+			//
+			// if (fgbit) fgmask_data[newmaskbitno / 8] |= 1 << (newmaskbitno % 8);
+			// else fgmask_data[newmaskbitno / 8] &= ~(1 << (newmaskbitno % 8));
 
 			bool bg2bit = bg2bits[maskbitno / 8] & (1 << (maskbitno % 8));
 

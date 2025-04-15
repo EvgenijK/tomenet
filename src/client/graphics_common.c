@@ -5,16 +5,16 @@
 #include "graphics_common.h"
 
 
-coordinates correctPixelCoordinates(int x, int y, int minX, int minY, int maxX, int maxY) {
-    struct coordinates correctedPixelCoordinates;
+coordinates correctPixelCoordinates(int x, int y, rectangle restriction_rectangle) {
+    coordinates correctedPixelCoordinates;
     correctedPixelCoordinates.x = x;
     correctedPixelCoordinates.y = y;
 
-    if (x < minX) correctedPixelCoordinates.x = minX;
-    if (x > maxX) correctedPixelCoordinates.x = maxX;
+    if (x < restriction_rectangle.top_left.x) correctedPixelCoordinates.x = restriction_rectangle.top_left.x;
+    if (x > restriction_rectangle.bottom_right.x) correctedPixelCoordinates.x = restriction_rectangle.bottom_right.x;
 
-    if (y < minY) correctedPixelCoordinates.y = minY;
-    if (y > maxY) correctedPixelCoordinates.y = maxY;
+    if (y < restriction_rectangle.top_left.y) correctedPixelCoordinates.y = restriction_rectangle.top_left.y;
+    if (y > restriction_rectangle.bottom_right.y) correctedPixelCoordinates.y = restriction_rectangle.bottom_right.y;
 
     return correctedPixelCoordinates;
 }
@@ -192,16 +192,11 @@ color_rgb pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, col
     bilinear_sample red_sample = make_bilinear_sample(p11.red, p12.red, p21.red, p22.red);
     new_color.red = (int) bilinear_interpolation(fractionOfX, fractionOfY, red_sample);
 
-
-    // newColor.blue = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.blue, p12.blue, p21.blue, p22.blue);
-    // newColor.green = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.green, p12.green, p21.green, p22.green);
-    // new_color.red = (int) bilinear_interpolation(fractionOfX, fractionOfY, p11.red, p12.red, p21.red, p22.red);
-
     return new_color;
 }
 
 // Function to get the RGB values of a pixel in an XImage
-color_rgb get_pixel_rgb(XImage *image, int x, int y) {
+color_rgb x_get_pixel_rgb(XImage *image, int x, int y) {
     color_rgb pixel_rgb = {0, 0, 0}; // Initialize to black
 
     // Check for out-of-bounds coordinates
@@ -237,7 +232,7 @@ color_rgb get_pixel_rgb(XImage *image, int x, int y) {
     return pixel_rgb;
 }
 
-void set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color) {
+void x_set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color) {
     int bytes_per_pixel = image->bits_per_pixel / 8; // Bytes per pixel (1 for grayscale, 3 or 4 for RGB/RGBA)
     int offset;
 
