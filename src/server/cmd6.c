@@ -1560,8 +1560,7 @@ void do_cmd_drink_fountain(int Ind) {
 		s_printf("warning_fill: %s\n", p_ptr->name);
 	}
 
-	if (c_ptr->feat == FEAT_DEEP_WATER ||
-	    c_ptr->feat == FEAT_SHAL_WATER) {
+	if (is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) {
 #ifdef USE_SOUND_2010
 		sound(Ind, "quaff_potion", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
@@ -1813,7 +1812,7 @@ void do_cmd_fill_bottle(int Ind, int force_slot) {
 	    && c_ptr->feat != FEAT_FOUNTAIN_BLOOD
 #endif
 	    ) {
-		if (c_ptr->feat != FEAT_SHAL_WATER && c_ptr->feat != FEAT_DEEP_WATER) {
+		if (!is_water(c_ptr->feat) || c_ptr->feat == FEAT_TAINTED_WATER) {
 			msg_print(Ind, "You see nothing here to fill bottles with.");
 			return;
 		}
@@ -2183,7 +2182,7 @@ bool curse_armor(int Ind) {
 		/* Break it */
 		o_ptr->ident |= ID_BROKEN;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Recalculate mana */
@@ -2268,7 +2267,7 @@ bool curse_weapon(int Ind) {
 		/* Break it */
 		o_ptr->ident |= ID_BROKEN;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Recalculate mana */
@@ -2356,7 +2355,7 @@ bool curse_an_item(int Ind, int slot) {
 		/* Break it */
 		o_ptr->ident |= ID_BROKEN;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Recalculate mana */
@@ -3275,7 +3274,6 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 						msg_format(Ind, "\376\377s  '\377u%s\377s'", get_dun_name(x, y, TRUE, d_ptr, 0, TRUE));
 						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
  #if 0 /* learn about dungeon existance as character? */
-							d_ptr->known |= 0x1;
 							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE), d_ptr->type, x, y);
 							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
 							/* Announce it to publicly */
@@ -3284,6 +3282,7 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
   #ifdef DUNFOUND_REWARDS_NORMAL
 							dunfound_reward(Ind, d_ptr);
   #endif
+							d_ptr->known |= 0x1;
  #else /* learn about dungeon just as player, having to go there and really find it in character-person?  */
 							s_printf("(%s) DUNHINT: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE), d_ptr->type, x, y);
  #endif
@@ -3294,7 +3293,6 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 						msg_format(Ind, "\376\377s  '\377u%s\377s'", get_dun_name(x, y, FALSE, d_ptr, 0, TRUE));
 						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
  #if 0 /* learn about dungeon existance as character? */
-							d_ptr->known |= 0x1;
 							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE), d_ptr->type, x, y);
 							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
 							/* Announce it to publicly */
@@ -3303,6 +3301,7 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
   #ifdef DUNFOUND_REWARDS_NORMAL
 							dunfound_reward(Ind, d_ptr);
   #endif
+							d_ptr->known |= 0x1;
  #else /* learn about dungeon just as player, having to go there and really find it in character-person?  */
 							s_printf("(%s) DUNHINT: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE), d_ptr->type, x, y);
  #endif

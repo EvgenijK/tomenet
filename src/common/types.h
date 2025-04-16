@@ -154,10 +154,8 @@ struct feature_type {
 	u32b flags2;
 #endif
 
-	byte mimic;		/* Feature to mimic */
-
+	u16b mimic;		/* Feature to mimic */
 	byte extra;		/* Extra byte (unused) */
-
 	s16b unused;		/* Extra bytes (unused) */
 
 	/* NOTE: it's d_ and x_ in ToME */
@@ -585,8 +583,8 @@ struct c_special{
 		struct { byte fy, fx; } between; /* or simply 'dpos'? */
 		struct { byte wx, wy; s16b wz; } wpos;	/* XXX */
 		struct { byte type, rest; bool known; } fountain;
-		struct { u16b trap_kit; byte difficulty, feat; bool found; } montrap;
-		struct { s32b id; s16b dam; byte rad, typ, feat; bool found; } rune; /* CS_RUNE */
+		struct { u16b trap_kit; byte difficulty; u16b feat; bool found; } montrap;
+		struct { s32b id; s16b dam; byte rad, typ; u16b feat; bool found; } rune; /* CS_RUNE */
 	} sc;
 	struct c_special *next;
 };
@@ -603,8 +601,8 @@ struct sfunc {
 
 struct cave_type {
 	u32b info, info2;	/* Hack -- cave flags */
-	byte feat;		/* Hack -- feature type */
-	byte feat_org;		/* UNUSED -- Feature type backup (TODO: for wall-created grids to revert to original feat when tunneled! Add to save/load!) */
+	u16b feat;		/* Hack -- feature type */
+	u16b feat_org;		/* UNUSED -- Feature type backup (TODO: for wall-created grids to revert to original feat when tunneled! Add to save/load!) */
 
 	u16b o_idx;		/* Item index (in o_list) or zero */
 	s16b m_idx;		/* Monster index (in m_list) or zero */
@@ -2127,7 +2125,8 @@ struct monster_type {
 
 	s32b hp;			/* Current Hit points */
 	s32b maxhp;			/* Max Hit points */
-	s32b org_maxhp;			/* Max Hit points */
+	s32b org_maxhp;			/* Max Hit points set initially on monster spawn */
+	s32b org_maxhp2;		/* Max Hit points set initially on monster spawn, but potentially modified (FINAL_GUARDIAN_DIFFBOOST) */
 
 	s16b csleep;			/* Inactive counter */
 
@@ -2177,7 +2176,7 @@ struct monster_type {
 
 #ifdef RANDUNIS
 	u16b ego;			/* Ego monster type */
-	s32b name3;			/* Randuni seed, if any */
+	s32b name3;			/* Randuni seed, if any. */
 #endif
 
 	s16b status;			/* Status(friendly, pet, companion, ..) */
@@ -2214,7 +2213,8 @@ struct monster_type {
 #endif
 
 	s16b strongest_los;		/* Closest/most hp LoS to a player, no matter if actually a valid target or not */
-	s32b extra, extra2, extra3;	/* (not saved) extra flags for debugging/testing purpose;
+	s16b body_monster;		/* RF2_SHAPECHANGER: RNG seed for monster changing into other monster. */
+	s32b extra, extra2, extra3;	/* extra flags for debugging/testing purpose;
 					   extra: also used for robins and target dummy's "snowiness" now; new: also for Sauron boosting; for Morgoth "roar" sfx */
 
 #ifdef MONSTER_ASTAR
@@ -2251,6 +2251,7 @@ struct monster_type {
 	s16b custom_lua_deletion;	/* Runs custom lua script on deletion */
 	s16b custom_lua_awoke;		/* Runs custom lua script on waking up (only the 1st time) */
 	s16b custom_lua_sighted;	/* Runs custom lua script on LoS to player (only the 1st time) */
+	//add status effects too, eg slept/feared/...?
 
 	s32b temp;			/* Misc/temp stuff -- unused */
 };
@@ -3331,6 +3332,7 @@ struct player_type {
 	s16b max_plv;			/* Max Player Level */
 	s16b max_dlv;			/* Max dungeon level explored. */
 	worldpos recall_pos;		/* what position to recall to */
+	s16b recall_x, recall_y;	/* Exact [x,y] coords to land on after recall (admins only, maybe special events) */
 	u16b town_x, town_y;
 
 	int avoid_loc;			/* array size of locations to avoid when changing wpos (recalling not next to a DK escape beacon) */
@@ -3661,6 +3663,8 @@ struct player_type {
 	s16b diseased;			/* Timed -- Diseased */
 	int poisoned_attacker;		/* Who poisoned the player - used for blood bond */
 	s16b cut;			/* Timed -- Cut */
+	bool cut_intrinsic;		/* Was a currently active cut applied before acquiring 'intrinsic_regen' aka TROLL_REGENERATION/HYDRA_REGENERATION, ie by form change? */
+	bool nocut_intrinsic;		/* Cut was applied before acquiring 'NO_CUT' property ie by form change? */
 	int cut_attacker;		/* Who cut the player - used for blood bond */
 	s16b stun;			/* Timed -- Stun */
 
@@ -3715,6 +3719,7 @@ struct player_type {
 	byte tim_wraithstep;		/* Timed -- Extra info flags */
 	u16b tim_jail;			/* Timed -- Jailed */
 	u16b tim_susp;			/* Suspended sentence (dungeon) */
+	u16b tim_jail_delay;		/* Time we're still sticking around in jail despite being free to go */
 	u16b house_num;			/* Added for easier jail-leaving handling: House index of jail we're in */
 	u16b tim_pkill;			/* pkill changeover timer */
 	u16b pkill;			/* pkill flags */
@@ -4308,7 +4313,7 @@ struct player_type {
 	   again and again - although noone probably reads them anyway ;-p - C. Blue */
 	char warning_bpr, warning_bpr2, warning_bpr3;
 	char warning_run, warning_run_steps, warning_run_monlos, warning_run_lite;
-	char warning_wield, warning_chat, warning_lite, warning_lite_refill;
+	char warning_wield, warning_chat, warning_lite, warning_lite_refill, warning_lamp_oil;
 	char warning_wield_combat; /* warn if engaging into combat (attacking/taking damage) without having equipped melee/ranged weapons! (except for druids) */
 	char warning_rest, warning_rest_cooldown;/* if a char rests from <= 40% to 50% without R, or so..*/
 	char warning_mimic, warning_dual, warning_dual_mode, warning_potions, warning_wor;
@@ -4594,8 +4599,8 @@ struct dungeon_info_type {
 typedef struct town_extra town_extra;
 struct town_extra {
 	cptr name;
-	byte feat1;
-	byte feat2;
+	u16b feat1;
+	u16b feat2;
 	byte ratio;		/* percent of feat1 */
 	byte wild_req;	/* On what kind of wilderness this town should be built */
 	u16b dungeons[2];	/* Type of dungeon(s) the town contains */
@@ -4843,6 +4848,7 @@ struct client_opts {
 	bool no_monsterattack_sfx;
 	bool positional_audio;
 	bool screenshot_format;
+	bool screenshot_keys;
 	bool quiet_house_sfx;
 	bool no_house_sfx;
 	bool alert_starvation;
@@ -4927,7 +4933,7 @@ struct client_opts {
 	bool colourize_bignum;
 	bool clone_to_stdout;
 	bool clone_to_file;
-	bool mp_huge_bar, sn_huge_bar, hp_huge_bar, stun_huge_bar;
+	bool mp_huge_bar, sn_huge_bar, hp_huge_bar, st_huge_bar, stun_huge_bar;
 	bool load_form_macros;
 	bool auto_inscr_off;
 	bool ascii_feats, ascii_items, ascii_monsters, ascii_uniques;
@@ -4935,6 +4941,8 @@ struct client_opts {
 
 	bool add_kind_diz, hide_lore_paste, sunburn_msg, gfx_palanim_repaint, gfx_hack_repaint, topline_first, ascii_weather, no2mask_weather;
 	bool instant_retaliator;
+	bool wild_resume_from_any;
+	bool tavern_town_resume;
 };
 
 /*
@@ -5014,6 +5022,7 @@ struct school_type {
    schedule. Timing is possible too. Might want to make use of AT_... sequences. */
 typedef struct global_event_type global_event_type;
 struct global_event_type {
+	time_t created;		/* event creation date (ie call of start_global_event()) */
 	int getype;		/* Type of the event (or quest) */
 	struct worldpos beacon_wpos[128];	/* Exit beacon wpos, arbitrary amount, basically: Each participant could have his own floor, in the same event, competing! Or a level 127 dungeon could have a beacon on each floor! */
 	s16b beacon_parm[128];			/* Each beacon can have an optional parameter to be evaluated on player taking the beacon. */
@@ -5023,16 +5032,19 @@ struct global_event_type {
 	s32b extra[64];		/* extra info (zero'ed on event start) */
 	s32b participant[MAX_GE_PARTICIPANTS];	/* player IDs */
 	s32b creator;		/* Player ID or 0L */
-	long int announcement_time;	/* for how many seconds the event will be announced until it actually starts */
+	byte signup_begins_announcement; /* 0 = disabled, 1 = first player signing up will begin the announcement phase and this value is set to 2. */
+	long int pre_announcement_time; /* if signup_begins_announcement is 1: for how many seconds have we been waiting for first signup. */
+	long int announcement_time;	/* for how many seconds the event will be announced until it actually starts. */
 	long int signup_time;	/* for how many seconds the event will allow signing up:
+				   -2 = this event always allows signing up, even while the event is already running.
 				   -1 = this event doesn't allow signing up at all!
 				   0 = same as announcement_time, ie during the announcement phase
 				   >0 = designated time instead of announcement_time. */
 	bool first_announcement;	/* just keep track of first advertisement, and add additional info that time */
-	s32b start_turn;	/* quest started */
-	s32b end_turn;		/* quest will end */
-	time_t started;		/* quest started */
-	time_t ending;		/* quest will end */
+	s32b start_turn;	/* event start turn*/
+	s32b end_turn;		/* event end turn */
+	time_t started;		/* event start date */
+	time_t ending;		/* event end date */
 	char title[64];		/* short title of this event (used for /gesign <n> player command) */
 	char description[10][MAX_CHARS_WIDE];	/* longer event description (full line = 80 chars, + colour codes) */
 	bool hidden;		/* hidden from the players? */

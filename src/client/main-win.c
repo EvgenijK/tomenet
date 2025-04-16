@@ -315,12 +315,45 @@ void resize_main_window_win(int cols, int rows);
 
 
 /* Cache for prepared graphical tiles.
-   Observations:
+   Usage observations:
     Size 256:    Cache fills maybe within first 10 floors of Barrow-Downs (2mask mode), so it's very comfortable.
                  However, it overflows instantly in just 1 sector of housing area around Bree, on admin who can see all objects.
     Size 256*3:  Cache manages to more or less capture a whole housing area sector fine. This seems a good minimum cache size.
+    Size 256*4:  Default choice now, for reserves.
+
+   Notes: On Windows (any version, up to at least 10), a 256*4 size would lead to exceeding the default GDI objects limit of 10000
+          (as cache always gets initialized for all 10 windows (main window + 9 subterms),
+          resulting in NULL pointer getting returned by some CreateBitmap() calls half way through initialization,
+          eg within ResizeTilesWithMasks(). To workaround this,
+          - either reduce the cache size (eg to 384, compare 'tested values' table further below)
+          - or increase the limit at
+            for x86 systems only: HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\GDIProcessHandleQuota
+            for x64 systems only: HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows\GDIProcessHandleQuota
+            which have a range of 256...65536 (on Windows 2000 only up to 16384)
+            The default value is 0x2710 (decimal 10000) and should be increased to something safe depending on the tile cache size.
+            You have to reboot for these registry changes to take effect!
+
+            Potential issues with old x86 systems:
+            However, on x86 anything above 12,000 might rarely give an effective increase above this due to x86-system resource constraints.
+            Also, GDI is allocated out of desktop heap, it's possible on x86 systems for huge allocation sizes (not handle counts)
+            to need to increase desktop heap allocation in Session View space from 20MB all the way up to 48MB by modifying a registry key,
+            but Session View space is limited on x86 and other regions might get less resources in turn.
+
+          Tested working GDI handle values vs cache sizes (10000 GDI handles means it works out of the box w/o need to change the registry):
+            10000: (256 * 1), (384)
+            25000: (256 * 2)
 */
-//#define TILE_CACHE_SIZE (256*4)
+/* Alternate method to remedy the Windows-specific GDI object limit w/o modifying the Registry:
+   We can use a different cache structure: One large cache bitmap per window, instead of many small bitmaps for each tile.
+   The number of cache tiles per line is defined by TILE_CACHE_SINGLEBMP's value [32],
+   so the TILE_CACHE_SIZE should always be multiple of this: */
+#define TILE_CACHE_SINGLEBMP 32		/* <- Comment out this define if you want to use the default cache method that is limited by GDI handle limit */
+#ifdef TILE_CACHE_SINGLEBMP
+ #define TILE_CACHE_SIZE (256 * 4)
+#else
+ #define TILE_CACHE_SIZE (384) /* Without the single-bmp structure, we cannot use a bigger cache w/o modifying the registry as explained above */
+ //#define TILE_CACHE_SIZE (256 * 2) /* Only use this (or even bigger values) if you have modified the registry as explained above */
+#endif
 
 /* Output cache state information in the message window? Spammy and only for debugging purpose. */
 //#define TILE_CACHE_LOG
@@ -335,22 +368,27 @@ void resize_main_window_win(int cols, int rows);
  #endif
 #endif
 
+#ifdef TILE_CACHE_SIZE
+bool disable_tile_cache = FALSE;
 struct tile_cache_entry {
-    HDC hdcTilePreparation;
-    //HBITMAP hbmTilePreparation;
+ #ifndef TILE_CACHE_SINGLEBMP
+    HBITMAP hbmTilePreparation;
+ #endif
     char32_t c;
     byte a;
-#ifdef GRAPHICS_BG_MASK
-    HDC hdcTilePreparation2;
-    //HBITMAP hbmTilePreparation2;
+ #ifdef GRAPHICS_BG_MASK
+  #ifndef TILE_CACHE_SINGLEBMP
+    HBITMAP hbmTilePreparation2;
+  #endif
     char32_t c_back;
     byte a_back;
-#endif
+ #endif
     bool is_valid;
-#ifdef TILE_CACHE_FGBG
+ #ifdef TILE_CACHE_FGBG
     s32b fg, bg; /* Optional palette_animation handling */
-#endif
+ #endif
 };
+#endif
 
 
 /*
@@ -379,12 +417,22 @@ struct _term_data {
  #ifdef GRAPHICS_BG_MASK
 	HDC hdcBg2Mask;
 	HDC hdcTilePreparation2;
+	HBITMAP hbmTilePreparation2;
  #endif
 	HDC hdcTilePreparation;
+	HBITMAP hbmTilePreparation;
 
  #ifdef TILE_CACHE_SIZE
 	int cache_position;
 	struct tile_cache_entry tile_cache[TILE_CACHE_SIZE];
+  #ifdef TILE_CACHE_SINGLEBMP
+	HBITMAP hbmCacheTilePreparation;
+	HDC hdcCacheTilePreparation;
+   #ifdef GRAPHICS_BG_MASK
+	HBITMAP hbmCacheTilePreparation2;
+	HDC hdcCacheTilePreparation2;
+   #endif
+  #endif
  #endif
 #endif
 
@@ -774,47 +822,81 @@ static HBITMAP ResizeTilesWithMasks(HBITMAP hbm, int ix, int iy, int ox, int oy,
 }
 
 static void releaseCreatedGraphicsObjects(term_data *td) {
-	if (td == NULL) return;
+	if (td == NULL) {
+		logprint("(debug) releaseCreatedGraphicsObjects : NULL\n");
+		return;
+	}
 
 	if (td->hdcTilePreparation != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcTilePreparation);
 		td->hdcTilePreparation = NULL;
 	}
 	if (td->hdcTiles != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcTiles);
 		td->hdcTiles = NULL;
 	}
 	if (td->hdcBgMask != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcBgMask);
 		td->hdcBgMask = NULL;
 	}
 	if (td->hdcFgMask != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcFgMask);
 		td->hdcFgMask = NULL;
 	}
  #ifdef GRAPHICS_BG_MASK
 	if (td->hdcTilePreparation2 != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcTilePreparation2);
 		td->hdcTilePreparation2 = NULL;
 	}
 	if (td->hdcBg2Mask != NULL) {
+		//associated bitmap gets auto-deleted?
 		DeleteDC(td->hdcBg2Mask);
 		td->hdcBg2Mask = NULL;
 	}
  #endif
 
  #ifdef TILE_CACHE_SIZE
-	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
-		if (td->tile_cache[i].hdcTilePreparation) {
-			DeleteDC(td->tile_cache[i].hdcTilePreparation);
-			td->tile_cache[i].hdcTilePreparation = NULL;
+	if (!disable_tile_cache) {
+  #ifdef TILE_CACHE_SINGLEBMP
+		if (td->hbmCacheTilePreparation != NULL) {
+			DeleteBitmap(td->hbmCacheTilePreparation);
+			DeleteDC(td->hdcCacheTilePreparation);
+			td->hdcCacheTilePreparation = NULL;
+		}
+		if (td->hbmCacheTilePreparation2 != NULL) {
+			DeleteBitmap(td->hbmCacheTilePreparation2);
+			DeleteDC(td->hdcCacheTilePreparation2);
+			td->hdcCacheTilePreparation2 = NULL;
+		}
+  #endif
+		for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+  #ifndef TILE_CACHE_SINGLEBMP
+			if (td->tile_cache[i].hbmTilePreparation != NULL) {
+				DeleteBitmap(td->tile_cache[i].hbmTilePreparation);
+				td->tile_cache[i].hbmTilePreparation = NULL;
+				td->tile_cache[i].c = 0xffffffff;
+				td->tile_cache[i].a = 0xff;
+			}
+   #ifdef GRAPHICS_BG_MASK
+			if (td->tile_cache[i].hbmTilePreparation2 != NULL) {
+				DeleteBitmap(td->tile_cache[i].hbmTilePreparation2);
+				td->tile_cache[i].hbmTilePreparation2 = NULL;
+				td->tile_cache[i].c_back = 0xffffffff;
+				td->tile_cache[i].a_back = 0xff;
+			}
+   #endif
+  #else
 			td->tile_cache[i].c = 0xffffffff;
 			td->tile_cache[i].a = 0xff;
-  #ifdef GRAPHICS_BG_MASK
-			DeleteDC(td->tile_cache[i].hdcTilePreparation2);
-			td->tile_cache[i].hdcTilePreparation2 = NULL;
+   #ifdef GRAPHICS_BG_MASK
 			td->tile_cache[i].c_back = 0xffffffff;
 			td->tile_cache[i].a_back = 0xff;
+   #endif
   #endif
 			td->tile_cache[i].is_valid = FALSE;
 			/* Optional 'bg' and 'fg' need no intialization */
@@ -824,6 +906,8 @@ static void releaseCreatedGraphicsObjects(term_data *td) {
 }
 
 /* Called on term_data_link() (initial term creation+initialization) and on term_font_force() (any font change): */
+/* This can cause a crash due to too many leaked GDI objects if TILE_CACHE_SIZE is defined. Fixed now, see comments.
+   However, this beckons the question whether the other gfx tileset code requires something similar perhaps. - C. Blue */
 static void recreateGraphicsObjects(term_data *td) {
 	int fwid, fhgt;
 
@@ -841,12 +925,12 @@ static void recreateGraphicsObjects(term_data *td) {
 	releaseCreatedGraphicsObjects(td);
 
 	HBITMAP hbmTilePreparation = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
+	HBITMAP hbmBgMask, hbmFgMask;
  #ifdef GRAPHICS_BG_MASK
 	HBITMAP hbmTilePreparation2 = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
-	HBITMAP hbmBgMask, hbmFgMask, hbmBg2Mask;
+	HBITMAP hbmBg2Mask;
 	HBITMAP hbmTiles = ResizeTilesWithMasks(g_hbmTiles, graphics_tile_wid, graphics_tile_hgt, fwid, fhgt, g_hbmBgMask, g_hbmFgMask, g_hbmBg2Mask, &hbmBgMask, &hbmFgMask, &hbmBg2Mask);
  #else
-	HBITMAP hbmBgMask, hbmFgMask;
 	HBITMAP hbmTiles = ResizeTilesWithMasks(g_hbmTiles, graphics_tile_wid, graphics_tile_hgt, fwid, fhgt, g_hbmBgMask, g_hbmFgMask, &hbmBgMask, &hbmFgMask);
  #endif
 
@@ -854,8 +938,13 @@ static void recreateGraphicsObjects(term_data *td) {
  #ifdef GRAPHICS_BG_MASK
 	    || hbmBg2Mask == NULL || hbmTilePreparation2 == NULL
  #endif
-	    )
+	    ) {
+		logprint(format("(debug) fwid %d, fhgt %d; ht %d, hbg %d, hfm %d, htp %d\n", fwid, fhgt, hbmTiles, hbmBgMask, hbmFgMask, hbmTilePreparation));
+ #ifdef GRAPHICS_BG_MASK
+		logprint(format("(debug) hbg2 %d, htp2 %d.\n", hbmBg2Mask, hbmTilePreparation2));
+ #endif
 		quit("Resizing tiles or masks failed.\n");
+	}
 
 	/* Get device content for current window. */
 	HDC hdc = GetDC(td->w);
@@ -891,31 +980,27 @@ static void recreateGraphicsObjects(term_data *td) {
  #endif
 
  #ifdef TILE_CACHE_SIZE
-	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
-		//td->tiles->depth=32
-		HBITMAP hbmCacheTilePreparation = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
-
-		/* Create a compatible device content in memory. */
-		td->tile_cache[i].hdcTilePreparation = CreateCompatibleDC(hdc);
-
-		/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
-		HBITMAP hbmOldCacheTilePreparation = SelectObject(td->tile_cache[i].hdcTilePreparation, hbmCacheTilePreparation);
-
-		/* Delete the default HBITMAPs here, the above created tiles & masks should be deleted when the HDCs are released. */
+	if (!disable_tile_cache) {
+  #ifdef TILE_CACHE_SINGLEBMP
+		td->hbmCacheTilePreparation = CreateBitmap(TILE_CACHE_SINGLEBMP * 2 * fwid, (TILE_CACHE_SIZE / TILE_CACHE_SINGLEBMP) * fhgt, 1, 32, NULL);
+		td->hdcCacheTilePreparation = CreateCompatibleDC(hdc);
+		HBITMAP hbmOldCacheTilePreparation = SelectObject(td->hdcCacheTilePreparation, td->hbmCacheTilePreparation);
 		DeleteBitmap(hbmOldCacheTilePreparation);
-
-  #ifdef GRAPHICS_BG_MASK
-		//td->tiles->depth=32
-		HBITMAP hbmCacheTilePreparation2 = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
-
-		/* Create a compatible device content in memory. */
-		td->tile_cache[i].hdcTilePreparation2 = CreateCompatibleDC(hdc);
-
-		/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
-		HBITMAP hbmOldCacheTilePreparation2 = SelectObject(td->tile_cache[i].hdcTilePreparation2, hbmCacheTilePreparation2);
-
-		/* Delete the default HBITMAPs here, the above created tiles & masks should be deleted when the HDCs are released. */
+   #ifdef GRAPHICS_BG_MASK
+		td->hbmCacheTilePreparation2 = CreateBitmap(TILE_CACHE_SINGLEBMP * 2 * fwid, (TILE_CACHE_SIZE / TILE_CACHE_SINGLEBMP) * fhgt, 1, 32, NULL);
+		td->hdcCacheTilePreparation2 = CreateCompatibleDC(hdc);
+		HBITMAP hbmOldCacheTilePreparation2 = SelectObject(td->hdcCacheTilePreparation2, td->hbmCacheTilePreparation2);
 		DeleteBitmap(hbmOldCacheTilePreparation2);
+   #endif
+  #else
+		for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+			//td->tiles->depth=32
+			td->tile_cache[i].hbmTilePreparation = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
+   #ifdef GRAPHICS_BG_MASK
+			//td->tiles->depth=32
+			td->tile_cache[i].hbmTilePreparation2 = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
+   #endif
+		}
   #endif
 	}
  #endif
@@ -1527,7 +1612,7 @@ void save_prefs(void) {
 
 	/* Delete deprecated entries now that they have been copy-converted. */
 	if (convert_ini) {
-		printf("Writing back window-parameter conversions to .ini file.\n");
+		logprint("Writing back window-parameter conversions to .ini file.\n");
 		WritePrivateProfileString("Main window", NULL, NULL, ini_file);
 		WritePrivateProfileString("Mirror window", NULL, NULL, ini_file);
 		WritePrivateProfileString("Recall window", NULL, NULL, ini_file);
@@ -1662,6 +1747,11 @@ static void load_prefs_IME(void) {
 	disable_CS_IME = INI_disable_CS_IME = (GetPrivateProfileInt("Base", "ForceIMEOff", 0, ini_file) != 0);
 	enable_CS_IME = INI_enable_CS_IME = (GetPrivateProfileInt("Base", "ForceIMEOn", 0, ini_file) != 0);
 }
+#ifdef TILE_CACHE_SIZE
+static void load_prefs_TILE_CACHE(void) {
+	if (GetPrivateProfileInt("Base", "DisableGfxCache", 0, ini_file) != 0) disable_tile_cache = TRUE;
+}
+#endif
 #ifdef USE_LOGFONT
 /* Load just the logfont preferences from the .INI file, as it must be done early before Windows are initialized */
 static void load_prefs_logfont(void) {
@@ -2683,17 +2773,19 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 	HBRUSH brushFg;
 
 	int fwid, fhgt;
-	HDC hdcTilePreparation;
 
  #ifdef TILE_CACHE_SIZE
 	struct tile_cache_entry *entry;
 	int i, hole = -1;
+  #ifdef TILE_CACHE_SINGLEBMP
+	int tc_idx, tc_x, tc_y;
+  #endif
  #endif
 
 
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top check: main screen top chat line) */
-	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -2739,98 +2831,154 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 		fhgt = td->font_hgt;
 	}
 
-	/* Location of window cell */
+	/* Location of screen window cell */
 	x = x * fwid + td->size_ow1;
 	y = y * fhgt + td->size_oh1;
 
+	/* Location of graphics tile in the tileset */
 	x1 = ((c - MAX_FONT_CHAR - 1) % graphics_image_tpr) * fwid;
 	y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * fhgt;
 
+	hdc = myGetDC(td->w);
 
 
  #ifdef TILE_CACHE_SIZE
-	entry = NULL;
-	for (i = 0; i < TILE_CACHE_SIZE; i++) {
-		entry = &td->tile_cache[i];
-		if (!entry->is_valid) hole = i;
-		else if (entry->c == c && entry->a == a
+	if (!disable_tile_cache) {
+		entry = NULL;
+		for (i = 0; i < TILE_CACHE_SIZE; i++) {
+			entry = &td->tile_cache[i];
+			if (!entry->is_valid) hole = i;
+			else if (entry->c == c && entry->a == a
   #ifdef GRAPHICS_BG_MASK
-		    && entry->c_back == 0 && entry->a_back == 0
+			    && entry->c_back == 0 && entry->a_back == 0
   #endif
   #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
-		    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
-		    && fgColor == entry->fg && bgColor == entry->bg
+			    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
+			    && fgColor == entry->fg && bgColor == entry->bg
   #endif
-		    ) {
-			/* Copy cached tile to window. */
-			BitBlt(hdc, x, y, fwid, fhgt, entry->hdcTilePreparation, 0, 0, SRCCOPY);
-
-			/* Success */
-			return(0);
+			    ) {
+				/* Copy cached tile to window. */
+  #ifdef TILE_CACHE_SINGLEBMP
+				//SelectObject(td->hdcCacheTilePreparation, td->hbmCacheTilePreparation); //already selected?
+				BitBlt(hdc, x, y, fwid, fhgt, td->hdcCacheTilePreparation, (i % TILE_CACHE_SINGLEBMP) * 2 * fwid, (i / TILE_CACHE_SINGLEBMP) * fhgt, SRCCOPY);
+  #else
+				SelectObject(td->hdcTilePreparation, entry->hbmTilePreparation);
+				BitBlt(hdc, x, y, fwid, fhgt, td->hdcTilePreparation, 0, 0, SRCCOPY);
+  #endif
+  #ifndef OPTIMIZE_DRAWING
+				ReleaseDC(td->w, hdc);
+  #endif
+				/* Success */
+				return(0);
+			}
 		}
-	}
 
-	// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
-	if (hole != -1) {
+		// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
+		if (hole != -1) {
   #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
+			c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
   #endif
-		entry = &td->tile_cache[hole];
-	} else {
+  #ifdef TILE_CACHE_SINGLEBMP
+			tc_idx = hole;
+  #endif
+			entry = &td->tile_cache[hole];
+		} else {
   #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
+			c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
   #endif
-		// Replace valid cache entries in FIFO order
-		entry = &td->tile_cache[td->cache_position++];
-		if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
-	}
+			// Replace valid cache entries in FIFO order
+  #ifdef TILE_CACHE_SINGLEBMP
+			tc_idx = td->cache_position;
+  #endif
+			entry = &td->tile_cache[td->cache_position++];
+			if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
+		}
 
-	hdcTilePreparation = entry->hdcTilePreparation;
-	entry->c = c;
-	entry->a = a;
+  #ifndef TILE_CACHE_SINGLEBMP
+		SelectObject(td->hdcTilePreparation, entry->hbmTilePreparation);
+  #else
+		//SelectObject(td->hdcCacheTilePreparation, td->hbmCacheTilePreparation); //already selected?
+  #endif
+
+		entry->c = c;
+		entry->a = a;
   #ifdef GRAPHICS_BG_MASK
-	entry->c_back = 0;
-	entry->a_back = 0;
+		entry->c_back = 0;
+		entry->a_back = 0;
   #endif
-	entry->is_valid = TRUE;
+		entry->is_valid = TRUE;
   #ifdef TILE_CACHE_FGBG
-	entry->fg = fgColor;
-	entry->bg = bgColor;
+		entry->fg = fgColor;
+		entry->bg = bgColor;
   #endif
+	} else SelectObject(td->hdcTilePreparation, td->hbmTilePreparation);
  #else /* (TILE_CACHE_SIZE) No caching: */
-	hdcTilePreparation = td->hdcTilePreparation;
+	SelectObject(td->hdcTilePreparation, td->hbmTilePreparation);
  #endif
 
 
+ #if defined(TILE_CACHE_SIZE) && defined(TILE_CACHE_SINGLEBMP)
+	if (!disable_tile_cache) {
+		tc_x = (tc_idx % TILE_CACHE_SINGLEBMP) * 2 * fwid;
+		tc_y = (tc_idx / TILE_CACHE_SINGLEBMP) * fhgt;
 
-	hdc = myGetDC(td->w);
-
-	/* Paint background rectangle .*/
-	rectBg = (RECT){ 0, 0, fwid, fhgt };
-	rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
-	brushBg = CreateSolidBrush(bgColor);
-	brushFg = CreateSolidBrush(fgColor);
-	FillRect(td->hdcTilePreparation, &rectBg, brushBg);
-	FillRect(td->hdcTilePreparation, &rectFg, brushFg);
-	DeleteObject(brushBg);
-	DeleteObject(brushFg);
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ tc_x, tc_y, tc_x + fwid, tc_y + fhgt };
+		rectFg = (RECT){ tc_x + fwid, tc_y, tc_x + 2 * fwid, tc_y + fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcCacheTilePreparation, &rectBg, brushBg);
+		FillRect(td->hdcCacheTilePreparation, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
 
 
-	//BitBlt(hdc, 0, 0, 2*9, 15, hdcTilePreparation, 0, 0, SRCCOPY);
+		//BitBlt(hdc, 0, 0, 2*9, 15, td->hdcCacheTilePreparation, 0, 0, SRCCOPY);
 
-	BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
-	BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
+		BitBlt(td->hdcCacheTilePreparation, tc_x + fwid, tc_y, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcCacheTilePreparation, tc_x + fwid, tc_y, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
 
-	//BitBlt(hdc, 0, 15, 2*9, 15, td->hdcTilePreparation, 0, 0, SRCCOPY);
+		//BitBlt(hdc, 0, 15, 2*9, 15, td->hdcCacheTilePreparation, 0, 0, SRCCOPY);
 
-	BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
-	BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcTilePreparation, fwid, 0, SRCPAINT);
+		BitBlt(td->hdcCacheTilePreparation, tc_x, tc_y, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcCacheTilePreparation, tc_x, tc_y, fwid, fhgt, td->hdcCacheTilePreparation, tc_x + fwid, tc_y, SRCPAINT);
 
-	//BitBlt(hdc, 0, 15, 5*9, 15, td->hdcBgMask, 0, 0, SRCCOPY);
-	//BitBlt(hdc, 0, 2*15, 5*9, 15, td->hdcFgMask, 0, 0, SRCCOPY);
-	//
-	/* Copy the picture from the tile preparation memory to the window */
-	BitBlt(hdc, x, y, fwid, fhgt, td->hdcTilePreparation, 0, 0, SRCCOPY);
+		//BitBlt(hdc, 0, 15, 5*9, 15, td->hdcBgMask, 0, 0, SRCCOPY);
+		//BitBlt(hdc, 0, 2*15, 5*9, 15, td->hdcFgMask, 0, 0, SRCCOPY);
+		//
+		/* Copy the picture from the tile preparation memory to the window */
+		BitBlt(hdc, x, y, fwid, fhgt, td->hdcCacheTilePreparation, tc_x, tc_y, SRCCOPY);
+	} else
+ #endif
+	{
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ 0, 0, fwid, fhgt };
+		rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcTilePreparation, &rectBg, brushBg);
+		FillRect(td->hdcTilePreparation, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
+
+
+		//BitBlt(hdc, 0, 0, 2*9, 15, td->hdcTilePreparation, 0, 0, SRCCOPY);
+
+		BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
+
+		//BitBlt(hdc, 0, 15, 2*9, 15, td->hdcTilePreparation, 0, 0, SRCCOPY);
+
+		BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcTilePreparation, fwid, 0, SRCPAINT);
+
+		//BitBlt(hdc, 0, 15, 5*9, 15, td->hdcBgMask, 0, 0, SRCCOPY);
+		//BitBlt(hdc, 0, 2*15, 5*9, 15, td->hdcFgMask, 0, 0, SRCCOPY);
+		//
+		/* Copy the picture from the tile preparation memory to the window */
+		BitBlt(hdc, x, y, fwid, fhgt, td->hdcTilePreparation, 0, 0, SRCCOPY);
+	}
+
 
  #ifndef OPTIMIZE_DRAWING
 	ReleaseDC(td->w, hdc);
@@ -2864,12 +3012,13 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	HBRUSH brushFg;
 
 	int fwid, fhgt;
-	HDC hdcTilePreparation;
-	HDC hdcTilePreparation2;
 
  #ifdef TILE_CACHE_SIZE
 	struct tile_cache_entry *entry;
 	int i, hole = -1;
+  #ifdef TILE_CACHE_SINGLEBMP
+	int tc_idx, tc_x, tc_y;
+  #endif
  #endif
 
 
@@ -2878,7 +3027,7 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top check: main screen top chat line) */
-	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -2935,6 +3084,86 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
    #endif
   #endif
 
+
+   #ifdef TILE_CACHE_SIZE
+	if (!disable_tile_cache) {
+		entry = NULL;
+		for (i = 0; i < TILE_CACHE_SIZE; i++) {
+			entry = &td->tile_cache[i];
+			if (!entry->is_valid) hole = i;
+			else if (entry->c == c && entry->a == a && entry->c_back == c_back && entry->a_back == a_back
+    #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
+			    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
+			    && fgColor == entry->fg && bgColor == entry->bg
+    #endif
+			    ) {
+				/* Copy cached tile to window. */
+  #ifdef TILE_CACHE_SINGLEBMP
+				//SelectObject(td->hdcCacheTilePreparation2, td->hbmCacheTilePreparation2); //already selected?
+				BitBlt(hdc, x, y, fwid, fhgt, td->hdcCacheTilePreparation2, (i % TILE_CACHE_SINGLEBMP) * 2 * fwid, (i / TILE_CACHE_SINGLEBMP) * fhgt, SRCCOPY);
+  #else
+				SelectObject(td->hdcTilePreparation2, entry->hbmTilePreparation2);
+				BitBlt(hdc, x, y, fwid, fhgt, td->hdcTilePreparation2, 0, 0, SRCCOPY);
+  #endif
+  #ifndef OPTIMIZE_DRAWING
+				ReleaseDC(td->w, hdc);
+  #endif
+				/* Success */
+				return(0);
+			}
+		}
+
+		// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
+		if (hole != -1) {
+    #ifdef TILE_CACHE_LOG
+			c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
+    #endif
+    #ifdef TILE_CACHE_SINGLEBMP
+			tc_idx = hole;
+    #endif
+			entry = &td->tile_cache[hole];
+		} else {
+    #ifdef TILE_CACHE_LOG
+			c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
+    #endif
+			// Replace valid cache entries in FIFO order
+    #ifdef TILE_CACHE_SINGLEBMP
+			tc_idx = td->cache_position;
+    #endif
+			entry = &td->tile_cache[td->cache_position++];
+			if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
+		}
+
+  #ifndef TILE_CACHE_SINGLEBMP
+		SelectObject(td->hdcTilePreparation, entry->hbmTilePreparation); //in 2mask-mode actually not used, as only tilePreparation2 is interesting as it holds the final result
+		SelectObject(td->hdcTilePreparation2, entry->hbmTilePreparation2);
+  #else
+		//already selected?
+		//SelectObject(td->hdcCacheTilePreparation, td->hbmCacheTilePreparation);
+		//SelectObject(td->hdcCacheTilePreparation2, td->hbmCacheTilePreparation2);
+  #endif
+
+		entry->c = c;
+		entry->a = a;
+    #ifdef GRAPHICS_BG_MASK
+		entry->c_back = c_back;
+		entry->a_back = a_back;
+    #endif
+		entry->is_valid = TRUE;
+    #ifdef TILE_CACHE_FGBG
+		entry->fg = fgColor;
+		entry->bg = bgColor;
+    #endif
+	} else {
+		SelectObject(td->hdcTilePreparation, td->hbmTilePreparation);
+		SelectObject(td->hdcTilePreparation2, td->hbmTilePreparation2);
+	}
+   #else /* (TILE_CACHE_SIZE) No caching: */
+	SelectObject(td->hdcTilePreparation, td->hbmTilePreparation);
+	SelectObject(td->hdcTilePreparation2, td->hbmTilePreparation2);
+   #endif
+
+
 	/* Note about the graphics tiles image (stored in hdcTiles):
 	   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
 	   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
@@ -2943,140 +3172,173 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	y1 = ((c - MAX_FONT_CHAR - 1) / graphics_image_tpr) * fhgt;
 
 
+  #if defined(TILE_CACHE_SIZE) && defined(TILE_CACHE_SINGLEBMP)
+	if (!disable_tile_cache) {
+		tc_x = (tc_idx % TILE_CACHE_SINGLEBMP) * 2 * fwid;
+		tc_y = (tc_idx / TILE_CACHE_SINGLEBMP) * fhgt;
 
-   #ifdef TILE_CACHE_SIZE
-	entry = NULL;
-	for (i = 0; i < TILE_CACHE_SIZE; i++) {
-		entry = &td->tile_cache[i];
-		if (!entry->is_valid) hole = i;
-		else if (entry->c == c && entry->a == a && entry->c_back == c_back && entry->a_back == a_back
-    #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
-		    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
-		    && fgColor == entry->fg && bgColor == entry->bg
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ tc_x, tc_y, tc_x + fwid, tc_y + fhgt }; //uhh, C99 ^^'
+		rectFg = (RECT){ tc_x + fwid, tc_y, tc_x + 2 * fwid, tc_y + fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcCacheTilePreparation, &rectBg, brushBg);
+		FillRect(td->hdcCacheTilePreparation, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
+
+
+		BitBlt(td->hdcCacheTilePreparation, tc_x + fwid, tc_y, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcCacheTilePreparation, tc_x + fwid, tc_y, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
+
+		BitBlt(td->hdcCacheTilePreparation, tc_x, tc_y, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcCacheTilePreparation, tc_x, tc_y, fwid, fhgt, td->hdcCacheTilePreparation, tc_x + fwid, tc_y, SRCPAINT);
+
+
+		/* --- Background (terrain) graphical tile --- */
+
+		/* Background/Foreground color */
+		bgColor = RGB(0, 0, 0); //this 0-init not really needed?
+		fgColor = RGB(0, 0, 0);
+
+   #ifndef EXTENDED_COLOURS_PALANIM
+    #ifndef EXTENDED_BG_COLOURS
+		fgColor = win_clr[a_back & 0x0F];
+    #else
+		fgColor = win_clr[a_back & 0x1F];
+		//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x0F]); //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+		bgColor = win_clr_bg[a_back & 0x1F]; //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
     #endif
-		    ) {
-			/* Copy cached tile to window. */
-			BitBlt(hdc, x, y, fwid, fhgt, entry->hdcTilePreparation, 0, 0, SRCCOPY);
+   #else
+    #ifndef EXTENDED_BG_COLOURS
+		fgColor = win_clr[a_back & 0x1F];
+    #else
+		fgColor = win_clr[a_back & 0x3F];
+		//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x1F]); //verify correctness
+		bgColor = win_clr_bg[a_back & 0x3F]; //verify correctness
+    #endif
+   #endif
 
-			/* Success */
-			return(0);
+		/* Note about the graphics tiles image (stored in hdcTiles):
+		   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
+		   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
+
+		x1b = ((c_back - MAX_FONT_CHAR - 1) % graphics_image_tpr) * fwid;
+		y1b = ((c_back - MAX_FONT_CHAR - 1) / graphics_image_tpr) * fhgt;
+
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ tc_x, tc_y, tc_x + fwid, tc_y + fhgt }; //uhh, C99 ^^'
+		rectFg = (RECT){ tc_x + fwid, tc_y, tc_x + 2 * fwid, tc_y + fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcCacheTilePreparation2, &rectBg, brushBg);
+		FillRect(td->hdcCacheTilePreparation2, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
+
+
+		if (c_back == 32) {
+			/* hack: SPACE aka ASCII 32 means empty background ie fill in a_back colour */
+		} else {
+			BitBlt(td->hdcCacheTilePreparation2, tc_x + fwid, tc_y, fwid, fhgt, td->hdcFgMask, x1b, y1b, SRCAND);
+			BitBlt(td->hdcCacheTilePreparation2, tc_x + fwid, tc_y, fwid, fhgt, td->hdcTiles, x1b, y1b, SRCPAINT);
+
+			BitBlt(td->hdcCacheTilePreparation2, tc_x, tc_y, fwid, fhgt, td->hdcBgMask, x1b, y1b, SRCAND);
+			BitBlt(td->hdcCacheTilePreparation2, tc_x, tc_y, fwid, fhgt, td->hdcCacheTilePreparation2, tc_x + fwid, tc_y, SRCPAINT);
 		}
-	}
-
-	// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
-	if (hole != -1) {
-    #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
-    #endif
-		entry = &td->tile_cache[hole];
-	} else {
-    #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
-    #endif
-		// Replace valid cache entries in FIFO order
-		entry = &td->tile_cache[td->cache_position++];
-		if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
-	}
-
-	hdcTilePreparation = entry->hdcTilePreparation; //in 2mask-mode actually not used, as only tilePreparation2 is interesting as it holds the final result
-	hdcTilePreparation2 = entry->hdcTilePreparation2;
-	entry->c = c;
-	entry->a = a;
-    #ifdef GRAPHICS_BG_MASK
-	entry->c_back = c_back;
-	entry->a_back = a_back;
-    #endif
-	entry->is_valid = TRUE;
-    #ifdef TILE_CACHE_FGBG
-	entry->fg = fgColor;
-	entry->bg = bgColor;
-    #endif
-   #else /* (TILE_CACHE_SIZE) No caching: */
-	hdcTilePreparation = td->hdcTilePreparation;
-	hdcTilePreparation2 = td->hdcTilePreparation2;
-   #endif
 
 
+		/* --- Merge the foreground tile onto the background tile, using the bg2Mask from the foreground tile --- */
 
-	/* Paint background rectangle .*/
-	rectBg = (RECT){ 0, 0, fwid, fhgt }; //uhh, C99 ^^'
-	rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
-	brushBg = CreateSolidBrush(bgColor);
-	brushFg = CreateSolidBrush(fgColor);
-	FillRect(hdcTilePreparation, &rectBg, brushBg);
-	FillRect(hdcTilePreparation, &rectFg, brushFg);
-	DeleteObject(brushBg);
-	DeleteObject(brushFg);
+		BitBlt(td->hdcCacheTilePreparation2, tc_x, tc_y, fwid, fhgt, td->hdcBg2Mask, x1, y1, SRCAND);
+		BitBlt(td->hdcCacheTilePreparation2, tc_x, tc_y, fwid, fhgt, td->hdcCacheTilePreparation, tc_x + fwid, tc_y, SRCPAINT);
 
 
-	BitBlt(hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
-	BitBlt(hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
-
-	BitBlt(hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
-	BitBlt(hdcTilePreparation, 0, 0, fwid, fhgt, hdcTilePreparation, fwid, 0, SRCPAINT);
-
-
-	/* --- Background (terrain) graphical tile --- */
-
-	/* Background/Foreground color */
-	bgColor = RGB(0, 0, 0); //this 0-init not really needed?
-	fgColor = RGB(0, 0, 0);
-
-  #ifndef EXTENDED_COLOURS_PALANIM
-   #ifndef EXTENDED_BG_COLOURS
-	fgColor = win_clr[a_back & 0x0F];
-   #else
-	fgColor = win_clr[a_back & 0x1F];
-	//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x0F]); //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
-	bgColor = win_clr_bg[a_back & 0x1F]; //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
-   #endif
-  #else
-   #ifndef EXTENDED_BG_COLOURS
-	fgColor = win_clr[a_back & 0x1F];
-   #else
-	fgColor = win_clr[a_back & 0x3F];
-	//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x1F]); //verify correctness
-	bgColor = win_clr_bg[a_back & 0x3F]; //verify correctness
-   #endif
+		/* --- Copy the picture from the (bg) tile preparation memory to the window --- */
+		BitBlt(hdc, x, y, fwid, fhgt, td->hdcCacheTilePreparation2, tc_x, tc_y, SRCCOPY);
+	} else
   #endif
-
-	/* Note about the graphics tiles image (stored in hdcTiles):
-	   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
-	   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
-
-	x1b = ((c_back - MAX_FONT_CHAR - 1) % graphics_image_tpr) * fwid;
-	y1b = ((c_back - MAX_FONT_CHAR - 1) / graphics_image_tpr) * fhgt;
-
-	/* Paint background rectangle .*/
-	rectBg = (RECT){ 0, 0, fwid, fhgt }; //uhh, C99 ^^'
-	rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
-	brushBg = CreateSolidBrush(bgColor);
-	brushFg = CreateSolidBrush(fgColor);
-	FillRect(hdcTilePreparation2, &rectBg, brushBg);
-	FillRect(hdcTilePreparation2, &rectFg, brushFg);
-	DeleteObject(brushBg);
-	DeleteObject(brushFg);
+	{
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ 0, 0, fwid, fhgt }; //uhh, C99 ^^'
+		rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcTilePreparation, &rectBg, brushBg);
+		FillRect(td->hdcTilePreparation, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
 
 
-	if (c_back == 32) {
-		/* hack: SPACE aka ASCII 32 means empty background ie fill in a_back colour */
-	} else {
-		BitBlt(hdcTilePreparation2, fwid, 0, fwid, fhgt, td->hdcFgMask, x1b, y1b, SRCAND);
-		BitBlt(hdcTilePreparation2, fwid, 0, fwid, fhgt, td->hdcTiles, x1b, y1b, SRCPAINT);
+		BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcFgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcTilePreparation, fwid, 0, fwid, fhgt, td->hdcTiles, x1, y1, SRCPAINT);
 
-		BitBlt(hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcBgMask, x1b, y1b, SRCAND);
-		BitBlt(hdcTilePreparation2, 0, 0, fwid, fhgt, hdcTilePreparation2, fwid, 0, SRCPAINT);
+		BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcBgMask, x1, y1, SRCAND);
+		BitBlt(td->hdcTilePreparation, 0, 0, fwid, fhgt, td->hdcTilePreparation, fwid, 0, SRCPAINT);
+
+
+		/* --- Background (terrain) graphical tile --- */
+
+		/* Background/Foreground color */
+		bgColor = RGB(0, 0, 0); //this 0-init not really needed?
+		fgColor = RGB(0, 0, 0);
+
+   #ifndef EXTENDED_COLOURS_PALANIM
+    #ifndef EXTENDED_BG_COLOURS
+		fgColor = win_clr[a_back & 0x0F];
+    #else
+		fgColor = win_clr[a_back & 0x1F];
+		//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x0F]); //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+		bgColor = win_clr_bg[a_back & 0x1F]; //wrong / undefined state, as we don't want to have palette indices 0..15 + 32..32+TERMX_AMT with a hole in between?
+    #endif
+   #else
+    #ifndef EXTENDED_BG_COLOURS
+		fgColor = win_clr[a_back & 0x1F];
+    #else
+		fgColor = win_clr[a_back & 0x3F];
+		//bgColor = PALETTEINDEX(win_clr_bg[a_back & 0x1F]); //verify correctness
+		bgColor = win_clr_bg[a_back & 0x3F]; //verify correctness
+    #endif
+   #endif
+
+		/* Note about the graphics tiles image (stored in hdcTiles):
+		   Mask generation has blackened (or whitened if 'inverse') any pixel in it that was actually recognized as eligible mask pixel!
+		   For this reason, usage of OR (SRCPAINT) bitblt here is correct as it doesn't collide with the original image's mask-pixels (as these are now black). */
+
+		x1b = ((c_back - MAX_FONT_CHAR - 1) % graphics_image_tpr) * fwid;
+		y1b = ((c_back - MAX_FONT_CHAR - 1) / graphics_image_tpr) * fhgt;
+
+		/* Paint background rectangle .*/
+		rectBg = (RECT){ 0, 0, fwid, fhgt }; //uhh, C99 ^^'
+		rectFg = (RECT){ fwid, 0, 2 * fwid, fhgt };
+		brushBg = CreateSolidBrush(bgColor);
+		brushFg = CreateSolidBrush(fgColor);
+		FillRect(td->hdcTilePreparation2, &rectBg, brushBg);
+		FillRect(td->hdcTilePreparation2, &rectFg, brushFg);
+		DeleteObject(brushBg);
+		DeleteObject(brushFg);
+
+
+		if (c_back == 32) {
+			/* hack: SPACE aka ASCII 32 means empty background ie fill in a_back colour */
+		} else {
+			BitBlt(td->hdcTilePreparation2, fwid, 0, fwid, fhgt, td->hdcFgMask, x1b, y1b, SRCAND);
+			BitBlt(td->hdcTilePreparation2, fwid, 0, fwid, fhgt, td->hdcTiles, x1b, y1b, SRCPAINT);
+
+			BitBlt(td->hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcBgMask, x1b, y1b, SRCAND);
+			BitBlt(td->hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcTilePreparation2, fwid, 0, SRCPAINT);
+		}
+
+
+		/* --- Merge the foreground tile onto the background tile, using the bg2Mask from the foreground tile --- */
+
+		BitBlt(td->hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcBg2Mask, x1, y1, SRCAND);
+		BitBlt(td->hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcTilePreparation, fwid, 0, SRCPAINT);
+
+
+		/* --- Copy the picture from the (bg) tile preparation memory to the window --- */
+		BitBlt(hdc, x, y, fwid, fhgt, td->hdcTilePreparation2, 0, 0, SRCCOPY);
 	}
-
-
-	/* --- Merge the foreground tile onto the background tile, using the bg2Mask from the foreground tile --- */
-
-	BitBlt(hdcTilePreparation2, 0, 0, fwid, fhgt, td->hdcBg2Mask, x1, y1, SRCAND);
-	BitBlt(hdcTilePreparation2, 0, 0, fwid, fhgt, hdcTilePreparation, fwid, 0, SRCPAINT);
-
-
-	/* --- Copy the picture from the (bg) tile preparation memory to the window --- */
-	BitBlt(hdc, x, y, fwid, fhgt, hdcTilePreparation2, 0, 0, SRCCOPY);
 
   #ifndef OPTIMIZE_DRAWING
 	ReleaseDC(td->w, hdc);
@@ -3098,6 +3360,8 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 #if defined(USE_GRAPHICS) && defined(TILE_CACHE_SIZE)
 static void invalidate_graphics_cache_win(term_data *td, int c_idx) {
 	int i;
+
+	if (disable_tile_cache) return;
 
 	if (c_idx == -1)
 		for (i = 0; i < TILE_CACHE_SIZE; i++)
@@ -3155,7 +3419,7 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top check: main screen top chat line) */
-	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &data[0] && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -3253,7 +3517,7 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 /*
  * Create and initialize a "term_data" given a title
  */
-static void term_data_link(term_data *td) {
+static void term_data_link(int i, term_data *td) {
 	term *t = &td->t;
 
 	/* Initialize the term */
@@ -3302,6 +3566,7 @@ int init_graphics_win(void) {
 	char filename[1024];
 	HDC hdc = GetDC(NULL);
 
+	logprint("Initializing graphics.\n");
 	if (GetDeviceCaps(hdc, BITSPIXEL) < 24) {
 		sprintf(use_graphics_errstr, "Using graphic tiles needs a device content with at least 24 bits per pixel.");
 		logprint(format("%s\n", use_graphics_errstr));
@@ -3439,6 +3704,7 @@ gfx_skip:
 		use_graphics_new = FALSE;
 	}
 
+	logprint(format("Graphics initialization complete, use_graphics is %d.\n", use_graphics));
 	return(use_graphics);
 }
 #endif
@@ -3459,6 +3725,7 @@ static void init_windows(void) {
 	static char version[20];
 	term_data *td;
 
+	logprint("Initializing windows.\n");
 
 	/* Main window */
 	td = &data[0];
@@ -3496,16 +3763,30 @@ static void init_windows(void) {
 
 #ifdef USE_GRAPHICS
  #ifdef TILE_CACHE_SIZE
-		for (int i = 0; i < TILE_CACHE_SIZE; i++) {
-			td->tile_cache[i].hdcTilePreparation = NULL;
-			td->tile_cache[i].c = 0xffffffff;
-			td->tile_cache[i].a = 0xff;
-  #ifdef GRAPHICS_BG_MASK
-			td->tile_cache[i].hdcTilePreparation2 = NULL;
-			td->tile_cache[i].c_back = 0xffffffff;
-			td->tile_cache[i].a_back = 0xff;
+		//Note: Cache cannot be disabled from ini file at this point yet,
+		//      as we load_prefs() further below this, but doesn't matter as it just sets to NULL anyway.
+		if (!disable_tile_cache) {
+  #ifdef TILE_CACHE_SINGLEBMP
+			td->hbmCacheTilePreparation = NULL;
+   #ifdef GRAPHICS_BG_MASK
+			td->hbmCacheTilePreparation2 = NULL;
+   #endif
   #endif
-			td->tile_cache[i].is_valid = FALSE;
+			for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+  #ifndef TILE_CACHE_SINGLEBMP
+				td->tile_cache[i].hbmTilePreparation = NULL;
+  #endif
+				td->tile_cache[i].c = 0xffffffff;
+				td->tile_cache[i].a = 0xff;
+  #ifdef GRAPHICS_BG_MASK
+   #ifndef TILE_CACHE_SINGLEBMP
+				td->tile_cache[i].hbmTilePreparation2 = NULL;
+   #endif
+				td->tile_cache[i].c_back = 0xffffffff;
+				td->tile_cache[i].a_back = 0xff;
+  #endif
+				td->tile_cache[i].is_valid = FALSE;
+			}
 		}
  #endif
 #endif /* USE_GRAPHICS */
@@ -3518,6 +3799,7 @@ static void init_windows(void) {
 	usleep(100000);
 #endif
 
+	logprint(format("Loading .ini file '%s'.\n", ini_file ? ini_file : "NULL"));
 	/* Load .INI preferences - this will overwrite nick and pass, so we need to keep these if we got them from command-line */
 	if (nick[0]) {
 		char tmpnick[ACCNAME_LEN], tmppass[PASSWORD_LEN];
@@ -3531,6 +3813,8 @@ static void init_windows(void) {
 		strcpy(pass, tmppass);
 	} else load_prefs();
 
+	/* For '-a', '-g' and '-G' command-line parameters: These override the settings in the prf we just loaded! */
+	if (override_graphics != -1) use_graphics_new = use_graphics = override_graphics;
 
 	/* Need these before term_getsize gets called */
 	data[0].dwStyle = (WS_OVERLAPPED | WS_THICKFRAME | WS_SYSMENU |
@@ -3545,6 +3829,7 @@ static void init_windows(void) {
 	}
 
 	/* Windows */
+	logprint("Initializing termdata font info.\n");
 	for (i = 0; i < MAX_TERM_DATA; i++) {
 #ifdef USE_LOGFONT
 		if (use_logfont) {
@@ -3578,62 +3863,7 @@ static void init_windows(void) {
 
 #ifdef USE_GRAPHICS
 	/* Handle "graphics" mode */
-	if (use_graphics) {
- #ifdef TILE_CACHE_SIZE
-		int fwid, fhgt;
-		HDC hdc;
- #endif
-
-		(void)init_graphics_win();
-
- #ifdef TILE_CACHE_SIZE
-		for (i = 1; i < MAX_TERM_DATA; i++) {
-			td = &data[i];
-			hdc = GetDC(td->w);
-
-  #ifdef USE_LOGFONT
-			if (use_logfont) {
-				fwid = td->lf.lfWidth;
-				fhgt = td->lf.lfHeight;
-			} else
-  #endif
-			{
-				fwid = td->font_wid;
-				fhgt = td->font_hgt;
-			}
-
-			/* Note: If we want to cache even more graphics for faster drawing, we could initialize 16 copies of the graphics image with all possible mask colours already applied.
-			   Memory cost could become "large" quickly though (eg 5MB bitmap -> 80MB). Not a real issue probably. */
-			for (int i = 0; i < TILE_CACHE_SIZE; i++) {
-				//td->tiles->depth=32
-				HBITMAP hbmCacheTilePreparation = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
-
-				/* Create a compatible device content in memory. */
-				td->tile_cache[i].hdcTilePreparation = CreateCompatibleDC(hdc);
-
-				/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
-				HBITMAP hbmOldCacheTilePreparation = SelectObject(td->tile_cache[i].hdcTilePreparation, hbmCacheTilePreparation);
-
-				/* Delete the default HBITMAPs here, the above created tiles & masks should be deleted when the HDCs are released. */
-				DeleteBitmap(hbmOldCacheTilePreparation);
-
-  #ifdef GRAPHICS_BG_MASK
-				//td->tiles->depth=32
-				HBITMAP hbmCacheTilePreparation2 = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
-
-				/* Create a compatible device content in memory. */
-				td->tile_cache[i].hdcTilePreparation2 = CreateCompatibleDC(hdc);
-
-				/* Select our tiles into the memory DC and store default bitmap to not leak GDI objects. */
-				HBITMAP hbmOldCacheTilePreparation2 = SelectObject(td->tile_cache[i].hdcTilePreparation2, hbmCacheTilePreparation2);
-
-				/* Delete the default HBITMAPs here, the above created tiles & masks should be deleted when the HDCs are released. */
-				DeleteBitmap(hbmOldCacheTilePreparation2);
-  #endif
-			}
-		}
- #endif
-	}
+	if (use_graphics) (void)init_graphics_win();
 #endif
 
 	/* Screen window */
@@ -3645,10 +3875,11 @@ static void init_windows(void) {
 	                           HWND_DESKTOP, NULL, hInstance, NULL);
 	if (!td_ptr->w) quit("Failed to create TomeNET window");
 	td_ptr = NULL;
-	term_data_link(&data[0]);
+	term_data_link(0, &data[0]);
 	ang_term[0] = &data[0].t;
 
 	/* Windows */
+	logprint("Initializing termdata windows.\n");
 	for (i = 1; i < MAX_TERM_DATA; i++) {
 		td_ptr = &data[i];
 		td_ptr->w = CreateWindowEx(td_ptr->dwExStyle, AngList,
@@ -3663,7 +3894,7 @@ static void init_windows(void) {
 			td_ptr->size_hack = FALSE;
 		}
 		td_ptr = NULL;
-		term_data_link(&data[i]);
+		term_data_link(i, &data[i]);
 		ang_term[i] = &data[i].t;
 	}
 
@@ -3676,10 +3907,58 @@ static void init_windows(void) {
 	/* New palette XXX XXX XXX */
 	new_palette();
 
-
 	/* Create a "brush" for drawing the "cursor" */
 	hbrYellow = CreateSolidBrush(win_clr[TERM_YELLOW]);
 
+#if defined(USE_GRAPHICS) && defined(TILE_CACHE_SIZE)
+	if (use_graphics && !disable_tile_cache) {
+		int i;
+ #ifndef TILE_CACHE_SINGLEBMP
+		int j;
+ #endif
+		int fwid, fhgt;
+		HDC hdc;
+
+		logprint("Initializing graphical tileset cache.\n");
+
+		for (i = 1; i < MAX_TERM_DATA; i++) {
+			td = &data[i];
+			hdc = GetDC(td->w);
+
+ #ifdef USE_LOGFONT
+			if (use_logfont) {
+				fwid = td->lf.lfWidth;
+				fhgt = td->lf.lfHeight;
+			} else
+ #endif
+			{
+				fwid = td->font_wid;
+				fhgt = td->font_hgt;
+			}
+
+			/* Note: If we want to cache even more graphics for faster drawing, we could initialize 16 copies of the graphics image with all possible mask colours already applied.
+			   Memory cost could become "large" quickly though (eg 5MB bitmap -> 80MB). Not a real issue probably. */
+ #ifdef TILE_CACHE_SINGLEBMP
+			td->hbmCacheTilePreparation = CreateBitmap(TILE_CACHE_SINGLEBMP * 2 * fwid, (TILE_CACHE_SIZE / TILE_CACHE_SINGLEBMP) * fhgt, 1, 32, NULL);
+  #ifdef GRAPHICS_BG_MASK
+			td->hbmCacheTilePreparation2 = CreateBitmap(TILE_CACHE_SINGLEBMP * 2 * fwid, (TILE_CACHE_SIZE / TILE_CACHE_SINGLEBMP) * fhgt, 1, 32, NULL);
+  #endif
+ #else
+			for (j = 0; j < TILE_CACHE_SIZE; j++) {
+				//td->tiles->depth=32
+				td->tile_cache[j].hbmTilePreparation = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
+  #ifdef GRAPHICS_BG_MASK
+				//td->tiles->depth=32
+				td->tile_cache[j].hbmTilePreparation2 = CreateBitmap(2 * fwid, fhgt, 1, 32, NULL);
+  #endif
+			}
+ #endif
+
+			ReleaseDC(td->w, hdc);
+		}
+	}
+#endif
+	logprint("Window initialization completed.\n");
 
 	/* Process pending messages */
 	(void)Term_xtra_win_flush();
@@ -4844,7 +5123,7 @@ void init_stuff(void) {
 	if (!fp0) {
 		char path2[1024];
 
-		printf("No file '%s' found. Trying to use default template.\n", path);
+		logprint(format("No file '%s' found. Trying to use default template.\n", path));
 		GetModuleFileName(hInstance, path2, 512);
 		strcpy(path2 + strlen(path2) - 4, ".ini.default");
 
@@ -4865,13 +5144,13 @@ void init_stuff(void) {
 			if (!fp) quit(format("error: can't open %s for writing", path));
 			if (!fp2) quit(format("error: can't open %s for reading", path2));
 			while (!feof(fp2)) {
-				fgets(buf, 1024, fp2);
+				(void)fgets(buf, 1024, fp2);
 				if (!feof(fp2)) fputs(buf, fp);
 			}
 			fclose(fp2);
 			fclose(fp);
 #endif
-			printf("Successfully generated %s.\n", path);
+			logprint(format("Successfully generated %s.\n", path));
 		} else plog(format("Error: Neither %s nor %s exists", path, path2));
 	}
 
@@ -5134,6 +5413,9 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 	/* Load logfont settings before commandline-args (to allow -L to modify it) and before window initialization (or it won't work) */
 	load_prefs_logfont();
 #endif
+#ifdef TILE_CACHE_SIZE
+	load_prefs_TILE_CACHE();
+#endif
 
 	/* Process the command line -- now before initializing the main window because of CS_IME setting via cmdline arg 'I'/'i':*/
 	for (i = 0, n = strlen(lpCmdLine); i < n; i++) {
@@ -5142,130 +5424,110 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 			i++;
 
 			switch (lpCmdLine[i]) {
-				case 'C': /* compatibility mode */
-					server_protocol = 1;
-					break;
-				case 'F':
-					i += cmd_get_number(&lpCmdLine[i + 1], (int*)&cfg_client_fps);
-					break;
-				case 'h':
-					/* Attempt to print out some usage information */
-					if (initialized) /* We're called AFTER init_windows()? Then we'll appear in a graphical windows message window, with annoying formatting :p */
-						/* Message box on Windows has a default limit of characters, we need to cut out the 4
-						   commented-out lines or it won't fit. Adding empty lines however seems to be no problem. */
-						plog(format("%s\nRunning on %s.\n\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-						    longVersion,
-						    os_version,
-						    //"Usage:    tomenet [options] [server]",
-						    "Example: tomenet -lMorgoth MorgyPass",
-						    "                              -p18348 europe.tomenet.eu",
-						    /* "  -h              Display this help",
-						    "  -C              Compatibility mode for OLD servers",
-						    "  -F              Client FPS", */
-						    "  -I              force IME off (for CJK languages)",
-						    "  -i               force IME on (for CJK languages)",
+			case 'C': /* compatibility mode */
+				server_protocol = 1; break;
+			case 'F':
+				i += cmd_get_number(&lpCmdLine[i + 1], (int*)&cfg_client_fps);
+				break;
+			case 'h':
+				/* Attempt to print out some usage information */
+				if (initialized) /* We're called AFTER init_windows()? Then we'll appear in a graphical windows message window, with annoying formatting :p */
+					/* Message box on Windows has a default limit of characters, we need to cut out the 4
+					   commented-out lines or it won't fit. Adding empty lines however seems to be no problem. */
+					plog(format("%s\nRunning on %s.\n\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+					    longVersion,
+					    os_version,
+					    //"Usage:    tomenet [options] [server]",
+					    "Example: tomenet -lMorgoth MorgyPass",
+					    "                              -p18348 europe.tomenet.eu",
+					    /* "  -h              Display this help",
+					    "  -C              Compatibility mode for OLD servers",
+					    "  -F              Client FPS", */
+					    "  -I              force IME off (for CJK languages)",
+					    "  -i               force IME on (for CJK languages)",
 #ifdef USE_LOGFONT
-						    "  -L              Use LOGFONT (Windows-internal font)",
+					    "  -L              Use LOGFONT (Windows-internal font)",
 #endif
-						    "  -l<name> <pwd>       Login crecedentials",
-						    "  -N<name>       character name",
-						    "  -R<name>       char name, auto-reincarnate",
-						    "  -p<num>         change game Port number",
-						    "  -P<path>        set the lib directory Path",
-						    "  -k              don't disable numlock on startup",
-						    "  -m             skip message of the day window",
-						    "  -q              disable all audio ('quiet mode')",
-						    /* "  -u              disable automatic lua updates", */
-						    "  -w             disable client-side weather effects",
-						    "  -v              save chat log on exit",
-						    "  -V              save chat+message log on exit",
-						    "  -x              don't save chat/message log on exit",
-						    "  -a/-g/-G       switch to ASCII/gfx/dualgfx mode"));
-					else /* We're called BEFORE init_windows()? Then we'll appear in the terminal window, with normal fixed-width formatting */
-						plog(format("%s\nRunning on %s.\n\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-						    longVersion,
-						    os_version,
-						    "Usage:    tomenet [options] [server]",
-						    "Example:  tomenet -lMorgoth MorgyPass -p18348 europe.tomenet.eu",
-						    /* "  -h              Display this help",
-						    "  -C              Compatibility mode for OLD servers",
-						    "  -F              Client FPS", */
-						    "  -I              force IME off (for CJK languages)",
-						    "  -i              force IME on (for CJK languages)",
+					    "  -l<name> <pwd>       Login crecedentials",
+					    "  -N<name>       character name",
+					    "  -R<name>       char name, auto-reincarnate",
+					    "  -p<num>         change game Port number",
+					    "  -P<path>        set the lib directory Path",
+					    "  -k              don't disable numlock on startup",
+					    "  -m             skip message of the day window",
+					    "  -q              disable all audio ('quiet mode')",
+					    /* "  -u              disable automatic lua updates", */
+					    "  -w             disable client-side weather effects",
+					    "  -v              save chat log on exit",
+					    "  -V              save chat+message log on exit",
+					    "  -x              don't save chat/message log on exit",
+					    "  -a/-g/-G       switch to ASCII/gfx/dualgfx mode"));
+				else /* We're called BEFORE init_windows()? Then we'll appear in the terminal window, with normal fixed-width formatting */
+					plog(format("%s\nRunning on %s.\n\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+					    longVersion,
+					    os_version,
+					    "Usage:    tomenet [options] [server]",
+					    "Example:  tomenet -lMorgoth MorgyPass -p18348 europe.tomenet.eu",
+					    /* "  -h              Display this help",
+					    "  -C              Compatibility mode for OLD servers",
+					    "  -F              Client FPS", */
+					    "  -I              force IME off (for CJK languages)",
+					    "  -i              force IME on (for CJK languages)",
 #ifdef USE_LOGFONT
-						    "  -L              Use LOGFONT (Windows-internal font)",
+					    "  -L              Use LOGFONT (Windows-internal font)",
 #endif
-						    "  -l<name> <pwd>  Login crecedentials",
-						    "  -N<name>        character name",
-						    "  -R<name>        char name, auto-reincarnate",
-						    "  -p<num>         change game Port number",
-						    "  -P<path>        set the lib directory Path",
-						    "  -k              don't disable numlock on startup",
-						    "  -m              skip message of the day window",
-						    "  -q              disable all audio ('quiet mode')",
-						    // "  -u              disable automatic lua updates",
-						    "  -w              disable client-side weather effects",
-						    "  -v              save chat log on exit",
-						    "  -V              save chat+message log on exit",
-						    "  -x              don't save chat/message log on exit",
-						    "  -a/-g/-G        switch to ASCII/gfx/dualgfx mode"));
-					if (initialized) quit(NULL);
-					just_h = TRUE;
-					break;
-				case 'I':
-					disable_CS_IME = TRUE;
-					break;
-				case 'i':
-					enable_CS_IME = TRUE;
-					break;
+					    "  -l<name> <pwd>  Login crecedentials",
+					    "  -N<name>        character name",
+					    "  -R<name>        char name, auto-reincarnate",
+					    "  -p<num>         change game Port number",
+					    "  -P<path>        set the lib directory Path",
+					    "  -k              don't disable numlock on startup",
+					    "  -m              skip message of the day window",
+					    "  -q              disable all audio ('quiet mode')",
+					    // "  -u              disable automatic lua updates",
+					    "  -w              disable client-side weather effects",
+					    "  -v              save chat log on exit",
+					    "  -V              save chat+message log on exit",
+					    "  -x              don't save chat/message log on exit",
+					    "  -a/-g/-G        switch to ASCII/gfx/dualgfx mode"));
+				if (initialized) quit(NULL);
+				just_h = TRUE;
+				break;
+			case 'I': disable_CS_IME = TRUE; break;
+			case 'i': enable_CS_IME = TRUE; break;
 #ifdef USE_LOGFONT
-				case 'L':
-					use_logfont = TRUE;
-					break;
+			case 'L': use_logfont = TRUE; break;
 #endif
-				case 'l': /* account name & password */
-					i += cmd_get_string(&lpCmdLine[i + 1], nick, MAX_CHARS, quoted);
-					i += cmd_get_string(&lpCmdLine[i + 1], pass, MAX_CHARS, FALSE);
-					done = TRUE;
-					break;
-				case 'R':
-					auto_reincarnation = TRUE;
-				case 'N': /* character name */
-					i += cmd_get_string(&lpCmdLine[i + 1], cname, MAX_CHARS, quoted);
-					break;
-				case 'p': /* port */
-					i += cmd_get_number(&lpCmdLine[i + 1], (int*)&cfg_game_port);
-					break;
-				case 'P': /* lib directory path */
-					i += cmd_get_string(&lpCmdLine[i + 1], path, 1024, quoted);
-					break;
-				case 'q':
-					quiet_mode = TRUE;
-					break;
-				case 'w':
-					noweather_mode = TRUE;
-					break;
-				case 'u':
-					no_lua_updates = TRUE;
-					break;
-				case 'k':
-					disable_numlock = FALSE;
-					break;
-				case 'm':
-					skip_motd = TRUE;
-					break;
-				case 'v':
-					save_chat = 1;
-					break;
-				case 'V':
-					save_chat = 2;
-					break;
-				case 'x':
-					save_chat = 3;
-					break;
-				case 'a': use_graphics_new = use_graphics = UG_NONE; ask_for_graphics = FALSE; break; // ASCII
-				case 'g': use_graphics_new = use_graphics = UG_NORMAL; ask_for_graphics = FALSE; break; // graphics
-				case 'G': use_graphics_new = use_graphics = UG_2MASK; ask_for_graphics = FALSE; break; // dual-mask graphics
+			case 'l': /* account name & password */
+				i += cmd_get_string(&lpCmdLine[i + 1], nick, MAX_CHARS, quoted);
+				i += cmd_get_string(&lpCmdLine[i + 1], pass, MAX_CHARS, FALSE);
+				done = TRUE;
+				break;
+			case 'R':
+				auto_reincarnation = TRUE;
+			case 'N': /* character name */
+				i += cmd_get_string(&lpCmdLine[i + 1], cname, MAX_CHARS, quoted);
+				break;
+			case 'p': /* port */
+				i += cmd_get_number(&lpCmdLine[i + 1], (int*)&cfg_game_port);
+				break;
+			case 'P': /* lib directory path */
+				i += cmd_get_string(&lpCmdLine[i + 1], path, 1024, quoted);
+				break;
+			case 'q': quiet_mode = TRUE; break;
+			case 'w': noweather_mode = TRUE; break;
+			case 'u': no_lua_updates = TRUE; break;
+			case 'k': disable_numlock = FALSE; break;
+			case 'm': skip_motd = TRUE; break;
+			case 'v': save_chat = 1; break;
+			case 'V': save_chat = 2; break;
+			case 'x': save_chat = 3; break;
+			case 'a': override_graphics = UG_NONE; ask_for_graphics = FALSE; break; // ASCII
+			case 'g': override_graphics = UG_NORMAL; ask_for_graphics = FALSE; break; // graphics
+			case 'G': override_graphics = UG_2MASK; ask_for_graphics = FALSE; break; // dual-mask graphics
+#ifdef TILE_CACHE_SIZE
+			case 'T': disable_tile_cache = TRUE; break;
+#endif
 			}
 			quoted = FALSE;
 		} else if (lpCmdLine[i] == ' ') {
@@ -5279,6 +5541,8 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 			quoted = FALSE;
 		}
 	}
+
+	if (disable_tile_cache) logprint("Graphics tiles cache disabled.\n");
 
 	if (hPrevInst == NULL) {
 /* Not required, just a paranoia note, it's pretty undocumented */

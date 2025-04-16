@@ -109,24 +109,46 @@ static void choose_name(void) {
 	strcpy(introline[4], "    |##|     |##| ##|  |##|\\##/|##|  |##|       |##|\\###|  |##|         |##|   ");
 	strcpy(introline[5], "    |##|     |######|  |##| \\/ |##|  |######|   |##| \\##|  |######|     |##|   ");
   #endif
-  #ifdef LOGO_SOLID
-	if (strcmp(ANGBAND_SYS, "gcu") && !force_cui) /* No solid chars in terminal mode for now, seems to cause glitches */
-   #if defined(WINDOWS) && defined(USE_LOGFONT)
-	if (!use_logfont) /* doesn't have font_map_solid_walls style characters */
+  #ifdef USE_GRAPHICS
+	if (use_graphics) {
+		int w;
+		char c;
+		char32_t c32;
+
+		for (y = 0; y < 6; y++) {
+			for (w = 0; w < 80; w++) {
+				c = introline[y][w];
+				switch (c) {
+				case '#': c32 = 813; break;
+				case '|': c32 = ' '; break;
+				case '\\': c32 = (introline[y][w - 1] == '#' || introline[y][w + 1] == ' ' ? 825 : 826); break;
+				case '/': c32 = (introline[y][w - 1] == '#' || introline[y][w + 1] == ' ' ? 827 : 828); break;
+   #if 0 // 0'ed -> keep the flickering top parts ASCII? :)
+				//case '^': c32 = ...we don't have anything for this actually^^...; break;
    #endif
-	for (y = 0; y < 6; y++) for (x = 0; x < MAX_CHARS; x++) if (introline[y][x] == '#')
+				default: c32 = (char32_t)c;
+				}
+				Term_draw(w, LOGO_ROW + y, introline_col[y], c32);
+			}
+		}
+	} else
+  #endif
+	{
+  #ifdef LOGO_SOLID
+		if (strcmp(ANGBAND_SYS, "gcu") && !force_cui) /* No solid chars in terminal mode for now, seems to cause glitches */
+   #if defined(WINDOWS) && defined(USE_LOGFONT)
+		if (!use_logfont) /* doesn't have font_map_solid_walls style characters */
+   #endif
+		for (y = 0; y < 6; y++) for (x = 0; x < MAX_CHARS; x++) if (introline[y][x] == '#')
    #ifdef WINDOWS
-		introline[y][x] = FONT_MAP_SOLID_WIN;
+			introline[y][x] = FONT_MAP_SOLID_WIN;
    #else
-		introline[y][x] = FONT_MAP_SOLID_X11;
+			introline[y][x] = FONT_MAP_SOLID_X11;
    #endif
   #endif
-	c_put_str(introline_col[0], introline[0], LOGO_ROW, 0);
-	c_put_str(introline_col[1], introline[1], LOGO_ROW + 1, 0);
-	c_put_str(introline_col[2], introline[2], LOGO_ROW + 2, 0);
-	c_put_str(introline_col[3], introline[3], LOGO_ROW + 3, 0);
-	c_put_str(introline_col[4], introline[4], LOGO_ROW + 4, 0);
-	c_put_str(introline_col[5], introline[5], LOGO_ROW + 5, 0);
+		for (y = 0; y < 6; y++)
+			c_put_str(introline_col[y], introline[y], LOGO_ROW + y, 0);
+	}
  #endif
 	c_put_str(TERM_SLATE, "Welcome! In order to play, you need to create an account.", LOGIN_ROW, 2);
 	c_put_str(TERM_SLATE, "If you don't have an account yet, just enter one of your choice. Remember", LOGIN_ROW + 1, 2);
@@ -298,6 +320,7 @@ static bool choose_sex(void) {
 
 		if (!hazard) c = inkey();
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -446,6 +469,7 @@ race_redraw:
 		if (!hazard) c = inkey();
 
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -708,6 +732,7 @@ trait_redraw:
 		if (!hazard) c = inkey();
 
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -930,6 +955,7 @@ class_redraw:
 		if (!hazard) c = inkey();
 
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1141,6 +1167,7 @@ static bool choose_stat_order(void) {
 
 					c = inkey();
 					if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+					if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 					if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1433,6 +1460,7 @@ static bool choose_stat_order(void) {
 				} else break;
 			}
 			if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+			if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 			if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1541,6 +1569,7 @@ static bool choose_mode(void) {
 			if (!hazard) c = inkey();
 
 			if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+			if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 			if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1735,6 +1764,7 @@ static bool choose_mode(void) {
 		}
 
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1886,6 +1916,7 @@ static bool choose_body_modification(void) {
 		if (!hazard) c = inkey();
 
 		if (c == 'Q' || c == KTRL('Q')) quit(NULL);
+		if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 #ifdef RETRY_LOGIN
 		if (rl_connection_destroyed) return(FALSE);
 #endif
@@ -1973,7 +2004,7 @@ void get_char_name(void) {
 	put_str("Name        :", LOGIN_ROW + 4, 1);
 	put_str("Password    :", LOGIN_ROW + 5, 1);
 	c_put_str(TERM_SLATE, "Name and password are case-sensitive! Name must start on upper-case letter.", LOGIN_ROW + 7, 2);
-	c_put_str(TERM_SLATE, "The name may also contain numbers, spaces and these symbols: .,-'&_$%~#<>|", LOGIN_ROW + 8, 2);
+	c_put_str(TERM_SLATE, "The name may also contain numbers, spaces and these symbols: .,-'&_$%~#", LOGIN_ROW + 8, 2);
 #endif
 	/* Dump the default name */
 #ifndef SIMPLE_LOGIN
@@ -2290,7 +2321,8 @@ cstats:
 	put_str("Entering game...  [Hit any key]", 21, 1);
 
 	/* Wait for key */
-	inkey();
+	i = inkey();
+	if (i == KTRL('T')) xhtml_screenshot("screenshot????", FALSE); //xD
 
 	/* Clear */
 	clear_from(20);
@@ -2751,7 +2783,7 @@ bool get_server_name(void) {
 #endif
 			quit(NULL);
 			return(FALSE);
-		}
+		} else if (c == KTRL('T')) xhtml_screenshot("screenshot????", FALSE);
 
 		/* Index */
 		j = (islower(c) ? A2I(c) : -1);

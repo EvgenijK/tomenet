@@ -637,7 +637,7 @@ static s16b get_stats(int Ind, int stat_order[6]) {
 				/* Start fully healed */
 				p_ptr->stat_cur[i] = p_ptr->stat_max[i];
 
-				/* Efficiency -- Apply the racial/class bonuses */
+				/* Efficiency -- Apply the racial/class boni */
 				stat_use[i] = modify_stat_value(p_ptr->stat_max[i], bonus);
 			}
 
@@ -2377,6 +2377,10 @@ static void player_setup(int Ind, bool new) {
 			count++;
 	}
 
+#ifdef DEATH_FATE_SPECIAL
+	if (in_deathfate_x(wpos)) p_ptr->temp_misc_1 |= 0x10; //abuse no-dungeon-town marker as new_level_flag replacement
+#endif
+
 	/* Make sure he's supposed to be here -- if not, then the level has
 	 * been unstaticed and so he should forget his memory of the old level.
 	 */
@@ -2814,6 +2818,17 @@ static void player_setup(int Ind, bool new) {
 		clockin(Ind, 3);
 	}
 
+	/* Stuff that is done in player_process_change_wpos() after 'if (p_ptr->new_level_flag) return;' that needs to be done here too: */
+	p_ptr->warning_secret_area = FALSE; /* Display this warning at most once per floor. Once per secret area would be nice but requires some non-trivial coding... */
+	if (in_pvparena(&p_ptr->wpos)) wiz_lite_extra(Ind);
+	if (ge_special_sector && in_arena(&p_ptr->wpos)) wiz_lite_extra(Ind);
+#ifdef DEATH_FATE_SPECIAL
+	if (in_deathfate_x(wpos)) {
+		wiz_lite_extra(Ind);
+		p_ptr->temp_misc_1 &= ~0x10; //unhack marker
+	}
+	if (p_ptr->paralyzed == 255 && (!in_deathfate(&p_ptr->wpos) || (l_ptr && !(l_ptr->flags2 & LF2_INDOORS)))) p_ptr->paralyzed = 0;
+#endif
 
 #if 1 /* fix problem that player logging on on regenerated level cant see himself at the beginning */
  #if 0
@@ -2832,7 +2847,7 @@ static void player_setup(int Ind, bool new) {
 	p_ptr->redraw |= PR_MAP | PR_EXTRA | PR_BASIC | PR_HISTORY | PR_VARIOUS;
 	p_ptr->redraw |= PR_PLUSSES | PR_STATE;
 
-	/* Update his view, light, bonuses, and torch radius */
+	/* Update his view, light, boni, and torch radius */
 	p_ptr->update |= (PU_VIEW | PU_LITE | PU_BONUS | PU_TORCH | PU_DISTANCE | PU_SKILL_INFO | PU_SKILL_MOD | PU_LUA);
 	p_ptr->temp_misc_3 |= 0x02; /* Don't display art_combo message this time from calc_boni(), ie on initial login-setup. */
 
@@ -2949,6 +2964,7 @@ void disable_specific_warnings(player_type *p_ptr) {
 		p_ptr->warning_chat = 1;
 		p_ptr->warning_lite = 1;
 		p_ptr->warning_lite_refill = 1;
+		p_ptr->warning_lamp_oil = 1;
 		p_ptr->warning_wield_combat = 1;
 #if WARNING_REST_TIMES == 0
 		if (!p_ptr->warning_rest) p_ptr->warning_rest = 1;
@@ -3202,6 +3218,7 @@ void disable_lowlevel_warnings(player_type *p_ptr) {
 		p_ptr->warning_dual_mode = 1;
 		p_ptr->warning_hungry = 2;
 		p_ptr->warning_lite_refill = 1;
+		p_ptr->warning_lamp_oil = 1;
 		p_ptr->warning_repair = 1;
 		//p_ptr->warning_blastcharge = 1; //instead, we save/load it!
 		p_ptr->warning_ingredients = 1;

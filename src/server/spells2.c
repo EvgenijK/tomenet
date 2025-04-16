@@ -414,7 +414,7 @@ bool do_focus(int Ind, int p, int v) {
 	/* Disturb */
 	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Handle stuff */
@@ -475,7 +475,7 @@ bool do_xtra_stats(int Ind, int s, int p, int v, bool demonic) {
 	/* Disturb */
 	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Handle stuff */
@@ -998,7 +998,7 @@ bool do_res_stat_temp(int Ind, int stat) {
 		p_ptr->stat_los[stat] = 0;
 		p_ptr->stat_cnt[stat] = 0;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Message */
@@ -1107,7 +1107,7 @@ void identify_pack(int Ind) {
 		inven_unchanged[i] = FALSE;
 	}
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Combine / Reorder the pack (later) */
@@ -1257,7 +1257,7 @@ int remove_curse_aux(int Ind, int all, int pInd) {
 		/* Take note */
 		note_toggle_cursed(o_ptr, FALSE);
 
-		/* Recalculate the bonuses */
+		/* Recalculate the boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Window stuff */
@@ -1669,7 +1669,7 @@ void self_knowledge(int Ind) {
 		if (f5 & TR5_VORPAL) fprintf(fff, "Your weapon is very sharp.\n");
 		if (f1 & TR1_VAMPIRIC) fprintf(fff, "Your weapon drains life from your foes.\n");
 
-		/* Special "Attack Bonuses" */
+		/* Special "Attack boni" */
 		if (f1 & TR1_BRAND_ACID) fprintf(fff, "Your weapon melts your foes.\n");
 		if (f1 & TR1_BRAND_ELEC) fprintf(fff, "Your weapon shocks your foes.\n");
 		if (f1 & TR1_BRAND_FIRE) fprintf(fff, "Your weapon burns your foes.\n");
@@ -1786,7 +1786,7 @@ bool lose_all_info(int Ind) {
 		o_ptr->ident &= ~(ID_SENSE | ID_SENSE_HEAVY);
 	}
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Combine / Reorder the pack (later) */
@@ -3859,7 +3859,7 @@ bool enchant(int Ind, object_type *o_ptr, int n, int eflag) {
 	/* Failure */
 	if (!res) return(FALSE);
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Combine / Reorder the pack (later) */
@@ -3974,7 +3974,7 @@ bool create_artifact_aux(int Ind, int item) {
 	o_ptr->discount = 0;
 	o_ptr->note = 0;
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Combine / Reorder the pack (later) */
@@ -4062,7 +4062,7 @@ bool curse_spell_aux(int Ind, int item) {
 		p_ptr->using_up_item = -1;
 	}
 
-	/* Recalculate the bonuses - if stupid enough to curse worn item ;) */
+	/* Recalculate the boni - if stupid enough to curse worn item ;) */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Window stuff */
@@ -4264,7 +4264,7 @@ bool ident_spell_aux(int Ind, int item) {
 		msg_format(Ind, "On the ground: %s.", o_name);
 	}
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* redraw to-hit/to-dam */
@@ -4379,7 +4379,7 @@ bool identify_fully_item(int Ind, int item) {
 	/* Mark the item as fully known */
 	o_ptr->ident |= (ID_MENTAL);
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Combine / Reorder the pack (later) */
@@ -4443,7 +4443,7 @@ bool identify_fully_item_quiet(int Ind, int item) {
 
 	/* Mark the item as fully known */
 	o_ptr->ident |= (ID_MENTAL);
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 	/* Combine / Reorder the pack (later) */
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER);
@@ -6103,7 +6103,7 @@ bool probing(int Ind) {
  * Later we may use one function for both "destruction" and
  * "earthquake" by using the "full" to select "destruction".
  */
-void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, byte feat, int stun) {
+void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, u16b feat, int stun) {
 	int y, x, k, t, Ind;
 	player_type *p_ptr;
 	cave_type *c_ptr;
@@ -10797,7 +10797,7 @@ bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown) {
 	}
 
 	/* If in water, fuse is extinguished, if in cold, sometimes extinguish */
-	if (thrown && (c_ptr->feat == FEAT_SHAL_WATER || c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat == FEAT_TAINTED_WATER || c_ptr->feat == FEAT_GLIT_WATER)) {
+	if (thrown && is_water(c_ptr->feat)) {
 		msg_print(Ind, "\377y*Splash!* The fuse is extinguished by the water.");
 		return(FALSE);
 	}
@@ -11045,7 +11045,7 @@ void detonate_charge(int o_idx) {
 				if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) || (c_ptr->info & CAVE_PROT)) continue;
 				if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) continue;// || !allow_terraforming(wpos, FEAT_NONE))
 				if (!cave_clean_bold(zcave, y2, x2) || c_ptr->special
-				    || c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
+				    || is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
 					continue;
 				cave_set_feat_live(wpos, y2, x2, FEAT_RUBBLE);
 				c_ptr->info2 |= CAVE2_NOYIELD;
@@ -11115,7 +11115,7 @@ void detonate_charge(int o_idx) {
 				if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) || (c_ptr->info & CAVE_PROT)) continue;
 				if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) continue;// || !allow_terraforming(wpos, FEAT_NONE))
 				if (!cave_clean_bold(zcave, y2, x2) || c_ptr->special
-				    || c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
+				    || is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
 					continue;
 				cave_set_feat_live(wpos, y2, x2, i);
 			}

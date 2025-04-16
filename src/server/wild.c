@@ -862,8 +862,9 @@ static void reserve_building_plot(struct worldpos *wpos, int *x1, int *y1, int *
 
 		/* hack -- buildings and farms can partially, but not completly,
 		   be built on water. */
-		if ((zcave[*y1][*x1].feat == FEAT_DEEP_WATER) &&
-		     (zcave[*y2][*x2].feat == FEAT_DEEP_WATER)) plot_clear = 0;
+		if (is_deep_water(zcave[*y1][*x1].feat) &&
+		    is_deep_water(zcave[*y2][*x2].feat))
+			plot_clear = 0;
 
 		/* if we have a clear plot, reserve it and return */
 		if (plot_clear) {
@@ -1300,8 +1301,7 @@ static bool dwelling_check_entrance(worldpos *wpos, int y, int x) {
 		if (f_info[c_ptr->feat].flags1 & FF1_WALL) continue;
 
 		/* Nasty terrain covering the door */
-		if (c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat == FEAT_DEEP_LAVA)
-			continue;
+		if (is_deep_water(c_ptr->feat) || is_deep_lava(c_ptr->feat)) continue;
 
 		/* Found a neat entrance */
 		return(TRUE);
@@ -1349,8 +1349,7 @@ static bool dwelling_check_entrance(worldpos *wpos, int y, int x, int dir) {
 			if (f_info[c_ptr->feat].flags1 & FF1_WALL) continue;
 
 			/* Nasty terrain covering the door */
-			if (c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat == FEAT_DEEP_LAVA)
-				continue;
+			if (is_deep_water(c_ptr->feat) || is_deep_lava(c_ptr->feat)) continue;
 
 			/* Found a neat entrance */
 			return(TRUE);
@@ -1368,8 +1367,7 @@ static bool dwelling_check_entrance(worldpos *wpos, int y, int x, int dir) {
 			if (f_info[c_ptr->feat].flags1 & FF1_WALL) continue;
 
 			/* Nasty terrain covering the door */
-			if (c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat == FEAT_DEEP_LAVA)
-				continue;
+			if (is_deep_water(c_ptr->feat) || is_deep_lava(c_ptr->feat)) continue;
 
 			/* Found a neat entrance */
 			return(TRUE);
@@ -1398,7 +1396,7 @@ static void wild_add_dwelling(struct worldpos *wpos, int x, int y) {
 	int xx, yy, door_dir = 0;
 	bool hinders_door = FALSE;
 #endif
-	char wall_feature = 0, door_feature = 0;
+	u16b wall_feature = 0, door_feature = 0;
 	char has_moat = 0;
 	cave_type *c_ptr;
 	bool rand_old = Rand_quick;
@@ -2289,8 +2287,8 @@ static void init_terrain(terrain_type *t_ptr, int radius) {
 	t_ptr->monst_lev *= 1;
 }
 
-static unsigned char terrain_spot(terrain_type * terrain) {
-	unsigned char feat = FEAT_DIRT;
+static u16b terrain_spot(terrain_type * terrain) {
+	u16b feat = FEAT_DIRT;
 	u32b tmp_seed;
 
 	if (rand_int(1000) < terrain->grass) feat = FEAT_GRASS;
@@ -3521,7 +3519,7 @@ static void wilderness_gen_hack(struct worldpos *wpos) {
 	for (x = 1; x < MAX_WID - 1; x++) {
 		c_ptr = &zcave[y][x];
 		/* turn single deep water fields to shallow */
-		if (c_ptr->feat == FEAT_DEEP_WATER) {
+		if (is_deep_water(c_ptr->feat)) {
 			found_more_water = 0;
 			for (y2 = y - 1; y2 <= y + 1; y2++)
 			for (x2 = x - 1; x2 <= x + 1; x2++) {
@@ -3531,18 +3529,14 @@ static void wilderness_gen_hack(struct worldpos *wpos) {
 					found_more_water++; /* hack */
 					continue;
 				}
-				if (c2_ptr->feat == FEAT_SHAL_WATER ||
-				    c2_ptr->feat == FEAT_TAINTED_WATER ||
-				    c2_ptr->feat == FEAT_DEEP_WATER) {
-					found_more_water++;
-				}
+				if (is_water(c2_ptr->feat)) found_more_water++;
 			}
 			//if (!found_more_water) c_ptr->feat = FEAT_SHAL_WATER;
 			/* also important for SEASON_WINTER, to turn lake border into ice */
 			if (found_more_water < 6) c_ptr->feat = FEAT_SHAL_WATER;
 		}
 		/* turn single non-<deep water> fields to deep water */
-		else if (c_ptr->feat != FEAT_DEEP_WATER) {
+		else if (!is_deep_water(c_ptr->feat)) {
 			found_more_water = 0;
 			for (y2 = y - 1; y2 <= y + 1; y2++)
 			for (x2 = x - 1; x2 <= x + 1; x2++) {
@@ -3552,11 +3546,7 @@ static void wilderness_gen_hack(struct worldpos *wpos) {
 					found_more_water++; /* hack */
 					continue;
 				}
-				if (c2_ptr->feat == FEAT_SHAL_WATER ||
-				    c2_ptr->feat == FEAT_TAINTED_WATER ||
-				    c2_ptr->feat == FEAT_DEEP_WATER) {
-					found_more_water++;
-				}
+				if (is_water(c2_ptr->feat)) found_more_water++;
 			}
 			if (found_more_water >= 7) c_ptr->feat = FEAT_DEEP_WATER;
 		}
@@ -4924,6 +4914,16 @@ void knock_house(int Ind, int x, int y) {
 	sound_house_knock(h_idx, x, y);
 #endif
 }
+void knock_window(int Ind, int x, int y) {
+	player_type *p_ptr = Players[Ind];
+
+	/* knock on the house door! */
+	msg_format_near(Ind, "\377s%s knocks on the window..", p_ptr->name);
+	msg_print(Ind, "\377sYou knock on the window..");
+#ifdef USE_SOUND_2010
+	sound_near_site(y, x, &p_ptr->wpos, 0, "knock_window", "knock", SFX_TYPE_COMMAND, FALSE);//don't require LOS
+#endif
+}
 
 /* Modify grids of an outdoor level:
    Change features depending on season,
@@ -4939,11 +4939,7 @@ void wpos_apply_season_daytime(worldpos *wpos, cave_type **zcave) {
 			for (y = 1; y < MAX_HGT - 1; y++)
 			for (x = 1; x < MAX_WID - 1; x++) {
 				c_ptr = &zcave[y][x];
-				if (c_ptr->feat == FEAT_SHAL_WATER ||
-				    c_ptr->feat == FEAT_TAINTED_WATER ||
-				    c_ptr->feat == FEAT_DEEP_WATER) {
-					c_ptr->feat = FEAT_ICE;
-				}
+				if (is_water(c_ptr->feat)) c_ptr->feat = FEAT_ICE;
 			}
 	}
 	/* apply season-specific FEAT-manipulation */
@@ -4955,10 +4951,7 @@ void wpos_apply_season_daytime(worldpos *wpos, cave_type **zcave) {
 			for (y = 1; y < MAX_HGT - 1; y++)
 			for (x = 1; x < MAX_WID - 1; x++) {
 				c_ptr = &zcave[y][x];
-				if (c_ptr->feat == FEAT_SHAL_WATER ||
-				    c_ptr->feat == FEAT_TAINTED_WATER) {
-					c_ptr->feat = FEAT_ICE;
-				}
+				if (is_shal_water(c_ptr->feat)) c_ptr->feat = FEAT_ICE;
 			}
 	}
 

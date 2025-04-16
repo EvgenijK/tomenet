@@ -981,13 +981,10 @@ bool teleport_player(int Ind, int dis, bool ignore_pvp) {
 
 			if (left_shop && dis <= 5) {
 				/* Copy/paste from player_can_enter(), could replace it with that (with comfortably=TRUE flag) */
-				if (zcave[y][x].feat == FEAT_SHAL_LAVA ||
-				    zcave[y][x].feat == FEAT_DEEP_LAVA ||
-				    zcave[y][x].feat == FEAT_FIRE ||
-				    zcave[y][x].feat == FEAT_GREAT_FIRE)
+				if (is_lava(zcave[y][x].feat) || is_acute_fire(zcave[y][x].feat))
 					if (!(p_ptr->immune_fire || (p_ptr->resist_fire && p_ptr->oppose_fire)))
 						continue;
-				if (zcave[y][x].feat == FEAT_DEEP_WATER)
+				if (is_deep_water(zcave[y][x].feat))
 					//if (!(p_ptr->immune_water || p_ptr->res_water ||
 					if (!(p_ptr->can_swim || p_ptr->levitate || p_ptr->ghost || p_ptr->tim_wraith))
 						continue;
@@ -1226,10 +1223,7 @@ void teleport_player_to(int Ind, int ny, int nx, char forced) {
 
 		if (!forced) { /* normal tele-to */
 			if (town) {
-				if (zcave[y][x].feat == FEAT_SHAL_LAVA ||
-				    zcave[y][x].feat == FEAT_DEEP_LAVA ||
-				    zcave[y][x].feat == FEAT_FIRE ||
-				    zcave[y][x].feat == FEAT_GREAT_FIRE)
+				if (is_lava(zcave[y][x].feat) || is_acute_fire(zcave[y][x].feat))
 					if (!(p_ptr->immune_fire || (p_ptr->resist_fire && p_ptr->oppose_fire))) {
 						/* Occasionally advance the distance */
 						if (++ctr > (4 * dis * dis + 4 * dis + 1)) {
@@ -1238,7 +1232,7 @@ void teleport_player_to(int Ind, int ny, int nx, char forced) {
 						}
 						continue;
 					}
-				if (zcave[y][x].feat == FEAT_DEEP_WATER)
+				if (is_deep_water(zcave[y][x].feat))
 					//if (!(p_ptr->immune_water || p_ptr->res_water ||
 					if (!(p_ptr->can_swim || p_ptr->levitate || p_ptr->ghost || p_ptr->tim_wraith)) {
 						/* Occasionally advance the distance */
@@ -3405,7 +3399,7 @@ int equip_damage(int Ind, int typ) {
 		s_printf("warning_repair: %s\n", p_ptr->name);
 	}
 
-	/* Calculate bonuses */
+	/* Calculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Window stuff */
@@ -3476,7 +3470,7 @@ int shield_takes_damage(int Ind, int typ) {
 		s_printf("warning_repair: %s\n", p_ptr->name);
 	}
 
-	/* Calculate bonuses */
+	/* Calculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Window stuff */
@@ -3556,7 +3550,7 @@ int weapon_takes_damage(int Ind, int typ, int slot) {
 		s_printf("warning_repair: %s\n", p_ptr->name);
 	}
 
-	/* Calculate bonuses */
+	/* Calculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Window stuff */
@@ -3857,7 +3851,7 @@ bool inc_stat(int Ind, int stat) {
 		/* Bring up the maximum too */
 		if (value > p_ptr->stat_max[stat]) p_ptr->stat_max[stat] = value;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Success */
@@ -3991,7 +3985,7 @@ bool dec_stat(int Ind, int stat, int amount, int mode) {
 			}
 		}
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 //WIS drain -> Sanity changes;	p_ptr->update |= (PU_BONUS); */
 		p_ptr->update |= (PU_BONUS | PU_MANA | PU_HP | PU_SANITY);
 	}
@@ -4016,7 +4010,7 @@ bool res_stat(int Ind, int stat) {
 		/* Restore */
 		p_ptr->stat_cur[stat] = p_ptr->stat_max[stat];
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 //		p_ptr->update |= (PU_BONUS);
 		p_ptr->update |= (PU_BONUS | PU_MANA | PU_HP | PU_SANITY);
 
@@ -4092,7 +4086,7 @@ bool apply_disenchant(int Ind, int mode) {
 		    ((i != 1) ? "fade" : "fades"));
 		inven_item_increase(Ind, t, -i);
 		inven_item_optimize(Ind, t);
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 		/* Window stuff */
 		p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
@@ -4149,7 +4143,7 @@ bool apply_disenchant(int Ind, int mode) {
 			   o_name, index_to_label(t),
 			   ((o_ptr->number != 1) ? "were" : "was"));
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Window stuff */
@@ -4698,7 +4692,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	case GF_ICE:
 	case GF_ICEPOISON:
 		/* misc flavour: turn shallow water into ice? */
-		if (((c_ptr->feat == FEAT_SHAL_WATER) || (c_ptr->feat == FEAT_TAINTED_WATER)) && rand_int(10 + dam / 100) > 7) cave_set_feat_live(wpos, y, x, FEAT_ICE);
+		if (is_shal_water(c_ptr->feat) && rand_int(10 + dam / 100) > 7) cave_set_feat_live(wpos, y, x, FEAT_ICE);
 		if (typ == GF_COLD) break;
 		//fall through
 	case GF_SHARDS:
@@ -4729,7 +4723,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	case GF_STONE_WALL:
 	    {
 		struct c_special *cs_ptr;
-		byte feat = c_ptr->feat;
+		u16b feat = c_ptr->feat;
 
 		/* Require a "naked" floor grid */
 		if (!cave_naked_bold(zcave, y, x)) break;
@@ -4754,7 +4748,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 
 		/* Cleanup monster traps */
 		if (feat == FEAT_MON_TRAP) {
-			erase_mon_trap(wpos, y, x, 0);
+			(void)erase_mon_trap(wpos, y, x, 0);
 			/* erasing the monster trap will reset feature to previous type, so have to overwrite it again with the new wall */
 			c_ptr->feat = FEAT_WALL_EXTRA;
 		}
@@ -4882,6 +4876,11 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			if (rand_int(10 + dam / 100) > 7) cave_set_feat_live(wpos, y, x, FEAT_DIRT);
 			break;
 		case FEAT_SHAL_WATER:
+		case FEAT_TAINTED_WATER:
+		case FEAT_ANIM_SHAL_WATER_EAST:
+		case FEAT_ANIM_SHAL_WATER_WEST:
+		case FEAT_ANIM_SHAL_WATER_NORTH:
+		case FEAT_ANIM_SHAL_WATER_SOUTH:
 			if (rand_int(10 + dam / 100) > 7) cave_set_feat_live(wpos, y, x, FEAT_MUD);
 			break;
 #if 1
@@ -4899,6 +4898,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 	/* Destroy locks and traps */
 	case GF_KILL_TRAP: {
 		struct c_special *cs_ptr;
+		bool note = FALSE;
 
 		/* Destroy invisible traps */
 		//if (c_ptr->feat == FEAT_INVIS)
@@ -4913,21 +4913,15 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			//c_ptr->feat = FEAT_FLOOR;
 			cs_erase(c_ptr, cs_ptr);
 
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
-
-				/* Redraw */
-				if (c_ptr->o_idx && !c_ptr->m_idx)
-					/* Make sure no traps are displayed on the screen anymore - mikaelh */
-					everyone_clear_ovl_spot(wpos, y, x);
-				else
-					everyone_lite_spot(wpos, y, x);
-			}
+			if (!quiet) note = TRUE;
 		}
 
-		/* Secret / Locked doors are found and unlocked */
-		else if (c_ptr->feat == FEAT_SECRET ||
+		/* Secret / Locked doors are found and unlocked.
+		   TODO: Currently there are no secret locked doors. So either...
+		    - keep all secret doors turning into normal unlocked doors on discovery, in which casewe could remove the FEAT_SECRET check here, as these aren't locked!
+		    - make secret doors on discovery turn into randomly locked doors, in which case this makes kind of sense to check for them here too
+		    - best of course would be to have a 'lockedness' for FEAT_SECRET too, not just for FEAT_DOOR_HEAD. */
+		if (c_ptr->feat == FEAT_SECRET ||
 		    (c_ptr->feat >= FEAT_DOOR_HEAD + 0x01 &&
 		    c_ptr->feat <= FEAT_DOOR_HEAD + 0x07)) {
 			/* Notice */
@@ -4940,91 +4934,52 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
 
 			/* Clear mimic feature */
-			if ((cs_ptr = GetCS(c_ptr, CS_MIMIC)))
-				cs_erase(c_ptr, cs_ptr);
+			if ((cs_ptr = GetCS(c_ptr, CS_MIMIC))) cs_erase(c_ptr, cs_ptr);
 
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
+			if (!quiet) note = TRUE;
+		}
 
-				/* Redraw */
-				if (c_ptr->o_idx && !c_ptr->m_idx)
-					/* Make sure no traps are displayed on the screen anymore - mikaelh */
-					everyone_clear_ovl_spot(wpos, y, x);
-				else
-					everyone_lite_spot(wpos, y, x);
-			}
+		if (note) {
+			/* Notice */
+			note_spot(Ind, y, x);
+
+			/* Redraw */
+			if (c_ptr->o_idx && !c_ptr->m_idx)
+				/* Make sure no traps are displayed on the screen anymore - mikaelh */
+				everyone_clear_ovl_spot(wpos, y, x);
+			else
+				everyone_lite_spot(wpos, y, x);
 		}
 
 		break; }
 
 	/* Destroy Doors (and traps on them) */
 	case GF_KILL_DOOR: {
-		byte feat = twall_erosion(wpos, y, x, FEAT_FLOOR);
+		u16b feat = twall_erosion(wpos, y, x, FEAT_FLOOR);
 		struct c_special *cs_ptr;
 		bool door = FALSE;
 
 		/* Destroy all visible traps and open doors */
 		if (c_ptr->feat == FEAT_OPEN ||
-		    c_ptr->feat == FEAT_BROKEN) {
+		    c_ptr->feat == FEAT_BROKEN)
 			door = TRUE;
-
-			/* Hack -- special message */
-			if (!quiet && (*w_ptr & CAVE_MARK)) {
-				msg_print(Ind, "There is a bright flash of light!");
-				obvious = TRUE;
-			}
-
-			/* Destroy the feature */
-			cave_set_feat_live(wpos, y, x, feat);
-			/* Forget the wall */
-			everyone_forget_spot(wpos, y, x);
-
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
-
-				/* Redraw */
-				if (c_ptr->o_idx && !c_ptr->m_idx)
-					/* Make sure no traps are displayed on the screen anymore - mikaelh */
-					everyone_clear_ovl_spot(wpos, y, x);
-				else
-					everyone_lite_spot(wpos, y, x);
-			}
-		}
 
 		/* Destroy all closed doors */
-		if ((c_ptr->feat >= FEAT_DOOR_HEAD &&
+		if (c_ptr->feat >= FEAT_DOOR_HEAD &&
 		    c_ptr->feat <= FEAT_DOOR_TAIL)
-		    || c_ptr->feat == FEAT_SECRET) {
 			door = TRUE;
 
-			/* Hack -- special message */
-			if (!quiet && (*w_ptr & CAVE_MARK)) {
-				msg_print(Ind, "There is a bright flash of light!");
-				obvious = TRUE;
-			}
-
-			/* Destroy the feature */
-			cave_set_feat_live(wpos, y, x, feat);
-
-			/* Forget the wall */
-			everyone_forget_spot(wpos, y, x);
-
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
-
-				/* Redraw */
-				everyone_lite_spot(wpos, y, x);
-
-				/* Update some things */
-				p_ptr->update |= (PU_VIEW | PU_LITE | PU_MONSTERS);
-			}
+		/* Destroy all hidden doors, clear mimic feature */
+		if (c_ptr->feat == FEAT_SECRET
+		    && (cs_ptr = GetCS(c_ptr, CS_MIMIC))) {
+			cs_erase(c_ptr, cs_ptr);
+			door = TRUE;
 		}
 
-		/* Destroy any traps that were on this door */
-		if (door && (cs_ptr = GetCS(c_ptr, CS_TRAPS))) {
+		if (door) {
+			/* Destroy any traps that were on this door */
+			if ((cs_ptr = GetCS(c_ptr, CS_TRAPS))) cs_erase(c_ptr, cs_ptr);
+
 			/* Hack -- special message */
 			if (!quiet && player_can_see_bold(Ind, y, x)) {
 				msg_print(Ind, "There is a bright flash of light!");
@@ -5032,8 +4987,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			}
 
 			/* Destroy the feature */
-			//c_ptr->feat = FEAT_FLOOR;
-			cs_erase(c_ptr, cs_ptr);
+			cave_set_feat_live(wpos, y, x, feat);
 
 			/* Forget the wall */
 			everyone_forget_spot(wpos, y, x);
@@ -5054,40 +5008,36 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 
 	/* Destroy Traps and Doors */
 	case GF_KILL_TRAP_DOOR: {
-		byte feat = twall_erosion(wpos, y, x, FEAT_FLOOR);
+		u16b feat = twall_erosion(wpos, y, x, FEAT_FLOOR);
 		struct c_special *cs_ptr;
+		bool note = FALSE, door = FALSE;
 
 		/* Destroy any traps */
 		if ((cs_ptr = GetCS(c_ptr, CS_TRAPS))) {
-			/* Hack -- special message */
-			if (!quiet && player_can_see_bold(Ind, y, x)) {
-				msg_print(Ind, "There is a bright flash of light!");
-				obvious = TRUE;
-			}
-
-			/* Destroy the feature */
-			//c_ptr->feat = FEAT_FLOOR;
 			cs_erase(c_ptr, cs_ptr);
-
-			/* Forget the wall */
-			everyone_forget_spot(wpos, y, x);
-
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
-
-				/* Redraw */
-				if (c_ptr->o_idx && !c_ptr->m_idx)
-					/* Make sure no traps are displayed on the screen anymore - mikaelh */
-					everyone_clear_ovl_spot(wpos, y, x);
-				else
-					everyone_lite_spot(wpos, y, x);
-			}
+			note = TRUE;
 		}
-
-		/* Destroy all visible traps and open doors */
+		/* Destroy all secret doors */
+		if (c_ptr->feat == FEAT_SECRET
+		    && (cs_ptr = GetCS(c_ptr, CS_MIMIC))) {
+			cs_erase(c_ptr, cs_ptr);
+			note = TRUE;
+			door = TRUE;
+		}
+		/* Destroy all visible open/broken doors */
 		if (c_ptr->feat == FEAT_OPEN ||
 		    c_ptr->feat == FEAT_BROKEN) {
+			note = TRUE;
+			door = TRUE;
+		}
+		/* Destroy all closed doors */
+		if (c_ptr->feat >= FEAT_DOOR_HEAD &&
+		    c_ptr->feat <= FEAT_DOOR_TAIL) {
+			note = TRUE;
+			door = TRUE;
+		}
+
+		if (note) {
 			/* Hack -- special message */
 			if (!quiet && (*w_ptr & CAVE_MARK)) {
 				msg_print(Ind, "There is a bright flash of light!");
@@ -5095,9 +5045,10 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			}
 
 			/* Destroy the feature */
-			cave_set_feat_live(wpos, y, x, feat);
+			if (door) cave_set_feat_live(wpos, y, x, feat);
+
 			/* Forget the wall */
-			everyone_forget_spot(wpos, y, x);
+			if (door) everyone_forget_spot(wpos, y, x);
 
 			if (!quiet) {
 				/* Notice */
@@ -5112,38 +5063,13 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			}
 		}
 
-		/* Destroy all closed doors */
-		if ((c_ptr->feat >= FEAT_DOOR_HEAD &&
-		    c_ptr->feat <= FEAT_DOOR_TAIL)
-		    || c_ptr->feat == FEAT_SECRET) {
-			/* Hack -- special message */
-			if (!quiet && (*w_ptr & CAVE_MARK)) {
-				msg_print(Ind, "There is a bright flash of light!");
-				obvious = TRUE;
-			}
-
-			/* Destroy the feature */
-			cave_set_feat_live(wpos, y, x, feat);
-
-			/* Forget the wall */
-			everyone_forget_spot(wpos, y, x);
-
-			if (!quiet) {
-				/* Notice */
-				note_spot(Ind, y, x);
-
-				/* Redraw */
-				everyone_lite_spot(wpos, y, x);
-
-				/* Update some things */
-				p_ptr->update |= (PU_VIEW | PU_LITE | PU_MONSTERS);
-			}
-		}
 		break; }
 
-	/* Destroy walls (and doors) */
+	/* Destroy walls (and doors, and traps on the doors) */
 	case GF_KILL_WALL: {
-		byte feat = twall_erosion(wpos, y, x, FEAT_FLOOR), mult = 10; /* NOTE: For cmd_tunnel() mult is actually at least 30. */
+		u16b feat = twall_erosion(wpos, y, x, FEAT_FLOOR), mult = 10; /* NOTE: For cmd_tunnel() mult is actually at least 30. */
+		bool door = FALSE;
+		struct c_special *cs_ptr;
 
 		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
@@ -5216,7 +5142,6 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			if (!istown(wpos)) place_gold(Ind, wpos, y, x, mult, 0);
 			object_level = old_object_level;
 		}
-
 		/* Quartz / Magma */
 		else if (c_ptr->feat >= FEAT_MAGMA) {
 			/* Message */
@@ -5228,7 +5153,6 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			/* Destroy the wall */
 			cave_set_feat_live(wpos, y, x, (feat == FEAT_FLOOR) ? FEAT_MUD : feat);
 		}
-
 		/* Rubble */
 		else if (c_ptr->feat == FEAT_RUBBLE) {
 			/* Message */
@@ -5255,7 +5179,6 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 				}
 			}
 		}
-
 		/* House doors are immune */
 		else if (c_ptr->feat == FEAT_HOME) {
 			/* Message */
@@ -5267,15 +5190,39 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		}
 
 		/* Destroy doors (and secret doors) */
-		else if (c_ptr->feat >= FEAT_DOOR_HEAD) {
+		else if (c_ptr->feat >= FEAT_DOOR_HEAD &&
+		    c_ptr->feat <= FEAT_DOOR_TAIL) {
 			/* Hack -- special message */
 			if (!quiet && (*w_ptr & CAVE_MARK)) {
 				msg_print(Ind, "The door turns into mud!");
 				obvious = TRUE;
 			}
+			door = TRUE;
 
 			/* Destroy the feature */
 			cave_set_feat_live(wpos, y, x, (feat == FEAT_FLOOR) ? FEAT_MUD : feat);
+		}
+
+		else if (c_ptr->feat == FEAT_SECRET) {
+			/* Hack -- special message */
+			if (!quiet && (*w_ptr & CAVE_MARK)) {
+				msg_print(Ind, "The wall turns into mud!"); // "wall" ^^ we might also have been able to notice that it was actually a secret door that just melted
+				obvious = TRUE;
+			}
+			door = TRUE;
+
+			if ((cs_ptr = GetCS(c_ptr, CS_MIMIC)))
+				cs_erase(c_ptr, cs_ptr);
+
+			/* Destroy the feature */
+			cave_set_feat_live(wpos, y, x, (feat == FEAT_FLOOR) ? FEAT_MUD : feat);
+		}
+
+		/* Destroy any traps on doors that melted */
+		if (door) {
+			if ((cs_ptr = GetCS(c_ptr, CS_TRAPS)))
+				cs_erase(c_ptr, cs_ptr);
+
 		}
 
 		/* Non s2m'able features */
@@ -5409,7 +5356,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		break;
 
 	case GF_KILL_GLYPH: {
-		byte feat = twall_erosion(wpos, y, x, FEAT_DIRT);
+		u16b feat = twall_erosion(wpos, y, x, FEAT_DIRT);
 
 		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) && !(c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
@@ -5453,7 +5400,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 				p2 = 15; f2 = FEAT_MUD;
 			}
 		}
-		else if (c_ptr->feat == FEAT_SHAL_LAVA) {
+		else if (is_shal_lava(c_ptr->feat)) {
 			/* 15% chance to convert it to normal floor */
 			p1 = 15; f1 = FEAT_VOLCANIC;//FEAT_ROCKY, FEAT_ASH
 		}
@@ -6343,7 +6290,7 @@ static int percent_damage(int hp, int dam) {
  * We assume "Nether" is an evil, necromantic force, so it doesn't hurt undead,
  * and hurts evil less.  If can breath nether, then it resists it as well.
  *
- * Damage reductions use the following formulas:
+ * Damage reductions use the following formulae:
  *   Note that "dam = dam * 6 / (randint(6) + 6);"
  *	 gives avg damage of .655, ranging from .858 to .500
  *   Note that "dam = dam * 5 / (randint(6) + 6);"
@@ -11608,6 +11555,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			else msg_format(Ind, "\377o%^s charges the air around you!", killer);
 		} else {
 			p_ptr->word_recall = 0;
+			p_ptr->recall_x = p_ptr->recall_y = 0;
 			if (fuzzy) msg_print(Ind, "\377oA tension leaves the air around you!");
 			else msg_format(Ind, "\377o%^s dispels the tension from the air around you!", killer);
 		}
@@ -13420,11 +13368,8 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 
 				if (cave_valid_bold(zcave, y, x) && /* <- implies !FF1_PERMANENT */
 				    //(cave[y][x].feat < FEAT_PATTERN_START || cave[y][x].feat > FEAT_PATTERN_XTRA2) &&
-				    (c_ptr2->feat != FEAT_SHAL_WATER) &&
-				    (c_ptr2->feat != FEAT_DEEP_WATER) &&
-				    (c_ptr2->feat != FEAT_TAINTED_WATER) &&
-				    (c_ptr2->feat != FEAT_DEEP_LAVA) &&
-				    (c_ptr2->feat != FEAT_SHAL_LAVA) &&
+				    !is_water(c_ptr2->feat) &&
+				    !is_lava(c_ptr2->feat) &&
 				    //(c_ptr2->feat != FEAT_ASH) &&
 				    (c_ptr2->feat != FEAT_MUD) &&
 				    (c_ptr2->feat != FEAT_DIRT) &&
@@ -13442,7 +13387,7 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 
 					/* Cleanup monster traps */
 					cs_ptr = GetCS(c_ptr2, CS_MON_TRAP);
-					if (cs_ptr) erase_mon_trap(wpos, y, x, 0);
+					if (cs_ptr) (void)erase_mon_trap(wpos, y, x, 0);
 
 					/* Specialty: Detonation potions/blast charges are mining equipment - but miners want treasure as well! */
 					if (typ == GF_DETONATION && !istown(wpos) && !c_ptr->o_idx) { /* paranoia @ o_idx (for gi_ok) */

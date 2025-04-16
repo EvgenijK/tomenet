@@ -4608,10 +4608,11 @@ F:EASY_KNOW | IGNORE_FIRE | LITE3 | LITE1 | RES_FEAR | SEE_INVIS | WHITE_LIGHT
 N:531:& Fur Cloak~
 G:(:W
 I:35:3:0
-W:12:0:30:85
+#Notes: Price 300->85 (plain). Added RES_COLD -> increase again (Rings are 250)
+W:12:0:30:285
 A:12/2:30/2
 P:3:0d0:0:0:0
-F:IGNORE_WATER
+F:IGNORE_WATER | RES_COLD
 
 #N:532:Water Curing
 #G:!:d
@@ -6937,9 +6938,51 @@ A:127/0
 P:0:1d1:0:0:0
 F:EASY_KNOW
 
-#todo: fireworks tiles (eg: '|', '/', '\', '-', <explosion>, <rocket> perhaps, or whatever...)
+# d10 frame:
+N:833:Top left
+G:/:D
+I:125:36:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:834:Top
+G:_:D
+I:125:37:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:835:Top right
+G:\:D
+I:125:38:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:836:Bottom left
+G:\:D
+I:125:39:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:837:Bottom
+G:_:D
+I:125:40:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:838:Bottom right
+G:/:D
+I:125:41:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
 
-# HOLE 823-838
+#todo: fireworks tiles (eg: '|', '/', '\', '-', <explosion>, <rocket> perhaps, or whatever...)
 
 ##### Keys #####
 
@@ -7162,7 +7205,7 @@ D:Multiple of these can be read at once for creating an even bigger house.
 ####
 # (Pern)Mangband native items
 # Scheduled to be ego items.
-# Currently, those items will be generated w/o random bonuses.
+# Currently, those items will be generated w/o random boni.
 
 N:882:& Orcish Shield~
 G:):D
@@ -8628,6 +8671,132 @@ d:(This is a quest item)
 
 # 1041 = Handbook of Transportation
 
+N:1042:& Large Die~ (TL)
+G:*:u
+I:125:18:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1043:& Large Die~ (TR)
+G:*:u
+I:125:19:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1044:& Large Die~ (TLT)
+G:*:u
+I:125:20:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1045:& Large Die~ (TRT)
+G:*:u
+I:125:21:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1046:& Large Die~ (TLM)
+G:*:u
+I:125:22:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1047:& Large Die~ (TRM)
+G:*:u
+I:125:23:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1048:& Large Die~ (TlM)
+G:*:u
+I:125:24:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1049:& Large Die~ (TrM)
+G:*:u
+I:125:25:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1050:& Large Die~ (Tl)
+G:*:u
+I:125:26:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1051:& Large Die~ (BL)
+G:*:u
+I:125:27:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1052:& Large Die~ (BR)
+G:*:u
+I:125:28:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1053:& Large Die~ (BLB)
+G:*:u
+I:125:29:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1054:& Large Die~ (BRB)
+G:*:u
+I:125:30:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1055:& Large Die~ (BLM)
+G:*:u
+I:125:31:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1056:& Large Die~ (BRM)
+G:*:u
+I:125:32:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1057:& Large Die~ (BlM)
+G:*:u
+I:125:33:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1058:& Large Die~ (BrM)
+G:*:u
+I:125:34:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
+N:1059:& Large Die~ (Br)
+G:*:u
+I:125:35:0
+W:127:0:1:0
+A:127/0
+P:0:1d1:0:0:0
+F:EASY_KNOW
 
 
 #N:(No.):(name)

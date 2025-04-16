@@ -1500,7 +1500,7 @@ void search(int Ind) {
 				/* Message */
 				msg_print(Ind, "You have found a secret door.");
 				/* Pick a door XXX XXX XXX */
-				c_ptr->feat = FEAT_DOOR_HEAD + 0x00;
+				c_ptr->feat = FEAT_DOOR_HEAD + 0x00; // add random 'lockage'? ' + (!rand_int(4) ? rand_int(8) : 0) ' -- not just here but whereever secret doors are un-secreted
 				/* Clear mimic feature */
 				if ((cs_ptr = GetCS(c_ptr, CS_MIMIC))) cs_erase(c_ptr, cs_ptr);
 				/* Notice */
@@ -2988,6 +2988,14 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 					msg_format(Ind, "You have %s (%c).", o_name, index_to_label(slot));
 				}
 
+				if (!p_ptr->warning_lamp_oil && o_ptr->tval == TV_LITE && o_ptr->sval == SV_LITE_LANTERN
+				    && p_ptr->inventory[INVEN_LITE].tval == TV_LITE && p_ptr->inventory[INVEN_LITE].sval == SV_LITE_LANTERN) {
+					msg_print(Ind, "\374\377yHINT: You can also refill your lantern with another lantern with \377oSHIFT+F\377y,");
+					msg_print(Ind, "\374\377y      and the chat command '\377o/empty\377y' can empty lanterns to make them stack.");
+					s_printf("warning_lamp_oil: %s\n", p_ptr->name);
+					p_ptr->warning_lamp_oil = 1;
+				}
+
 				if (!p_ptr->warning_inspect &&
 				    (o_ptr->tval == TV_RING || o_ptr->tval == TV_AMULET)// || o_ptr->tval == TV_WAND || o_ptr->tval == TV_STAFF || o_ptr->tval == TV_ROD)
 				    && object_known_p(Ind, o_ptr)
@@ -3086,7 +3094,7 @@ s_printf("bugtracking: name1=%d, owner=%d(%s), carrier=%d, p-id=%d(%s)\n", o_ptr
 #endif
 
 	/* splash! harm items */
-	if (c_ptr->feat == FEAT_DEEP_WATER && magik(WATER_ITEM_DAMAGE_CHANCE)
+	if (is_deep_water(c_ptr->feat) && magik(WATER_ITEM_DAMAGE_CHANCE)
 	    && !p_ptr->levitate && !(p_ptr->body_monster && (r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC)) // && !p_ptr->tim_wraith
 	    && !p_ptr->immune_water && !(p_ptr->resist_water && magik(50))) {
 		if (TOOL_EQUIPPED(p_ptr) != SV_TOOL_TARPAULIN
@@ -7307,7 +7315,7 @@ static bool wraith_access_virtual(int Ind, int y, int x) {
 /* 'comfortably': also check for things like lava if player isn't fire immune. - C. Blue
  * This function is a mess and needs cleaning up, especially with wraith step now.
  * Why do we have all three flags WALL, NO_WALK, CAN_PASS and then still proceed PERMANENT on top of it even...? */
-bool player_can_enter(int Ind, byte feature, bool comfortably) {
+bool player_can_enter(int Ind, u16b feature, bool comfortably) {
 	player_type *p_ptr = Players[Ind];
 	bool pass_wall;
 	bool only_wall = FALSE;
@@ -7333,7 +7341,7 @@ bool player_can_enter(int Ind, byte feature, bool comfortably) {
 		    || feature == FEAT_BUSH || feature == FEAT_TREE || feature == FEAT_DEAD_TREE)
 			return(TRUE);
 		//use natural drown/damage code for this stuff instead:
-		//if (feature == FEAT_DEEP_WATER || feature == FEAT_DEEP_LAVA) return(FALSE);
+		//if (is_deep_water(feature) || is_deep_lava(feature)) return(FALSE);
 	}
 
 #if 0	// it's interesting.. hope we can have similar feature :)
@@ -7343,6 +7351,11 @@ bool player_can_enter(int Ind, byte feature, bool comfortably) {
 
 	switch (feature) {
 	case FEAT_DEEP_WATER:
+	case FEAT_GLIT_WATER:
+	case FEAT_ANIM_DEEP_WATER_EAST:
+	case FEAT_ANIM_DEEP_WATER_WEST:
+	case FEAT_ANIM_DEEP_WATER_NORTH:
+	case FEAT_ANIM_DEEP_WATER_SOUTH:
 		if (comfortably &&
 		    //!(p_ptr->immune_water || p_ptr->res_water ||.
 		    !(p_ptr->can_swim || p_ptr->levitate || p_ptr->ghost || p_ptr->tim_wraith))
@@ -7351,6 +7364,14 @@ bool player_can_enter(int Ind, byte feature, bool comfortably) {
 
 	case FEAT_SHAL_LAVA:
 	case FEAT_DEEP_LAVA:
+	case FEAT_ANIM_SHAL_LAVA_EAST:
+	case FEAT_ANIM_SHAL_LAVA_WEST:
+	case FEAT_ANIM_SHAL_LAVA_NORTH:
+	case FEAT_ANIM_SHAL_LAVA_SOUTH:
+	case FEAT_ANIM_DEEP_LAVA_EAST:
+	case FEAT_ANIM_DEEP_LAVA_WEST:
+	case FEAT_ANIM_DEEP_LAVA_NORTH:
+	case FEAT_ANIM_DEEP_LAVA_SOUTH:
 	case FEAT_FIRE:
 	case FEAT_GREAT_FIRE:
 		if (comfortably && !p_ptr->immune_fire &&
@@ -8498,8 +8519,7 @@ int see_wall(int Ind, int dir, int y, int x) {
 	if ((zcave[y][x].feat == FEAT_DEAD_TREE || zcave[y][x].feat == FEAT_TREE || zcave[y][x].feat == FEAT_BUSH)
 	     && p_ptr->pass_trees) return(FALSE);
 	/* hack - allow 'running' if player can swim - HARDCODED :( */
-	if ((zcave[y][x].feat == FEAT_SHAL_WATER || zcave[y][x].feat == FEAT_TAINTED_WATER || zcave[y][x].feat == FEAT_DEEP_WATER)
-	     && p_ptr->can_swim) return(FALSE);
+	if (is_water(zcave[y][x].feat) && p_ptr->can_swim) return(FALSE);
 #endif
 	/* Must be known to the player */
 	if (!(p_ptr->cave_flag[y][x] & CAVE_MARK)) return(FALSE);
@@ -8904,12 +8924,14 @@ static bool run_test(int Ind) {
 		    (!(m_list[c_ptr->m_idx].pet))
 		    /* Even in Bree (despite of Santa Claus: Rogues in cloaking mode might want to not 'run him over' but wait for allies) - C. Blue */
 		    ) {
+			//dun_level *l_ptr = getfloor(&p_ptr->wpos);
+
 			/* Visible monster */
 			if (p_ptr->mon_vis[c_ptr->m_idx] &&
 			   (!(m_list[c_ptr->m_idx].special) &&
+			   //(!l_ptr || !(l_ptr->flags1 & LF1_CAN_ALWAYS_RUN)) &&  ---apparently not needed
 			   r_info[m_list[c_ptr->m_idx].r_idx].level != 0))
 				return(TRUE);
-
 		}
 
 #ifdef HOSTILITY_ABORTS_RUNNING /* pvp mode chars cannot run with this on */
@@ -8928,7 +8950,7 @@ static bool run_test(int Ind) {
 		if ((cs_ptr = GetCS(c_ptr, CS_TRAPS)) && cs_ptr->sc.trap.found) return(TRUE);
 
 		/* Hack -- basically stop in water */
-		if (c_ptr->feat == FEAT_DEEP_WATER && !aqua) return(TRUE);
+		if (is_deep_water(c_ptr->feat) && !aqua) return(TRUE);
 
 		/* Assume unknown */
 		inv = TRUE;
@@ -8940,8 +8962,17 @@ static bool run_test(int Ind) {
 			/* Examine the terrain */
 			switch (c_ptr->feat) {
 			/* FIXME: this can be funny with running speed boost */
-			case FEAT_DEEP_LAVA:
 			case FEAT_SHAL_LAVA:
+			case FEAT_DEEP_LAVA:
+			case FEAT_ANIM_SHAL_LAVA_EAST:
+			case FEAT_ANIM_SHAL_LAVA_WEST:
+			case FEAT_ANIM_SHAL_LAVA_NORTH:
+			case FEAT_ANIM_SHAL_LAVA_SOUTH:
+			case FEAT_ANIM_DEEP_LAVA_EAST:
+			case FEAT_ANIM_DEEP_LAVA_WEST:
+			case FEAT_ANIM_DEEP_LAVA_NORTH:
+			case FEAT_ANIM_DEEP_LAVA_SOUTH:
+			//FEAT_FIRE/FEAT_GREAT_FIRE?
 				/* Ignore */
 				if (p_ptr->invuln || p_ptr->immune_fire) notice = FALSE;
 				/* Done */
@@ -8975,6 +9006,11 @@ static bool run_test(int Ind) {
 				break;
 			/* Water */
 			case FEAT_DEEP_WATER:
+			case FEAT_GLIT_WATER:
+			case FEAT_ANIM_DEEP_WATER_EAST:
+			case FEAT_ANIM_DEEP_WATER_WEST:
+			case FEAT_ANIM_DEEP_WATER_NORTH:
+			case FEAT_ANIM_DEEP_WATER_SOUTH:
 				if (aqua) notice = FALSE;
 				/* Done */
 				break;
@@ -9201,12 +9237,10 @@ void run_step(int Ind, int dir, char *consume_full_energy) {
 	if (dir) {
 		/* Calculate torch radius */
 		p_ptr->update |= (PU_TORCH);
-
 		/* Initialize */
 		run_init(Ind, dir);
 		/* check if we have enough energy to move */
-		if (p_ptr->energy < level_speed(&p_ptr->wpos) / real_speed)
-			return;
+		if (p_ptr->energy < level_speed(&p_ptr->wpos) / real_speed) return;
 	}
 
 	/* Keep running */

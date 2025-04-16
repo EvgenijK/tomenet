@@ -36,6 +36,7 @@ audio_sfx = {
     "cast",
     "cloak", --20
     "close_door",
+    "close_window",
     "disarm",
     "eat",
     "fuel",
@@ -43,8 +44,9 @@ audio_sfx = {
     "open_door",
     "open_door_stuck",
     "open_pick",
+    "open_window", --30
     "quaff_potion",
-    "read_scroll", --30
+    "read_scroll",
     "staircase",
     "staircase_fly",
     "staircase_pad",
@@ -52,9 +54,9 @@ audio_sfx = {
     "staircase_scuttle",
     "staircase_rider",
     "use_staff",
-    "throw",
+    "throw", --40
     "tunnel_rock",
-    "tunnel_rubble", --40
+    "tunnel_rubble",
     "tunnel_tree",
     "hit_floor",
     "zap_rod",
@@ -64,9 +66,9 @@ audio_sfx = {
 
     "cough",
     "cough_male",
-    "cough_female",
+    "cough_female", --50
     "shout",
-    "shout_male", --50
+    "shout_male",
     "shout_female",
     "scream",
     "scream_male",
@@ -75,9 +77,9 @@ audio_sfx = {
     "taunt_male",
     "taunt_female",
     "flash_bomb",
-    "spin",
+    "spin", --60
     "berserk_male",
-    "berserk_female", --60
+    "berserk_female",
     "shadow_run",
 
     "flare_missile",
@@ -87,10 +89,11 @@ audio_sfx = {
 
     "slap",
     "snowball",
-    "applaud",
+    "applaud", --70
 
     "knock",
-    "knock_castle", --70
+    "knock_castle",
+    "knock_window",
 
     --game
     "playing_cards",
@@ -99,12 +102,12 @@ audio_sfx = {
     "dice_roll",
     "coin_flip",
     "go_stone",
-    "ball_pass",
+    "ball_pass", --80
     "game_piece",
 
     --misc
     "grow_trees",
-    "insanity", --80
+    "insanity",
     "inventory",
     "levelup",
     "jailed",
@@ -112,12 +115,12 @@ audio_sfx = {
 
     "death", --everyone's favourite DOOM scream....
     "death_male",
-    "death_female",
+    "death_female", --90
 
     --[combat]
     "hit",
     "hit_weapon",
-    "hit_sword", --90
+    "hit_sword",
     "hit_blunt",
     "hit_whip",
     "hit_axe",
@@ -125,10 +128,10 @@ audio_sfx = {
 
     "miss",
     "miss_weapon",
-    "miss_projectile",
+    "miss_projectile", --100
     "parry",
     "parry_weapon",
-    "block_shield", --100
+    "block_shield",
     "block_shield_projectile",
     "disarm_weapon",
 
@@ -136,22 +139,22 @@ audio_sfx = {
     "fire_arrow",
     "fire_bolt",
     "fire_boomerang",
-    "fire_missile",
+    "fire_missile", --110
     "throw_boulder",
 
     --[magic]
     "breath",
-    "cast_ball", --110
+    "cast_ball",
     "cast_bolt",
     "cast_beam",
     "cast_cloud",
     "cast_wall",
     "cast_wave",
     "blink",
-    "phase_door",
+    "phase_door", --120
     "puff",
     "teleport",
-    "recall", --120
+    "recall",
     "curse",
     "heal",
     "summon",
@@ -160,20 +163,20 @@ audio_sfx = {
     --[monsters]
     "death_monster", --smack/smash sound (floating eye, insects, molds, jellies, all other stuff..)
     "death_monster_animal", --hiss
-    "death_monster_animal_small", --hiss
+    "death_monster_animal_small", --hiss --130
     "death_monster_animal_large", --roar
     "death_monster_animal_aquatic", --bubbling
-    "death_monster_CZ", --howl --130
+    "death_monster_CZ", --howl
     "death_monster_humanoid", --scream/ugh/silence/whatever
     "death_monster_oOTP", --roar/scream
     "death_monster_A", --probably nothing, really
     "death_monster_dragon_low", --hiss
     "death_monster_dragon_high", --roar
     "death_monster_demon_low", --squeak
-    "death_monster_demon_high", --scream
+    "death_monster_demon_high", --scream --140
     "death_monster_undead_low", --pulverize
     "death_monster_undead_high", --ghostly dissolve
-    "death_monster_nonliving", --breakdown (construct) --140
+    "death_monster_nonliving", --breakdown (construct)
     "death_monster_Ev", --swushsh (elementals and vortices dissolve)
 
     "monster_beg",
@@ -181,20 +184,20 @@ audio_sfx = {
     "monster_butt",
     "monster_charge",
     "monster_claw",
-    "monster_crawl",
+    "monster_crawl", --150
     "monster_crush",
     "monster_drool",
-    "monster_engulf", --150
+    "monster_engulf",
     "monster_explode",
     "monster_gaze",
     "monster_insult",
     "monster_kick",
     "monster_moan",
     "monster_punch",
-    "monster_show",
+    "monster_show", --160
     "monster_spit",
     "monster_spore",
-    "monster_sting", --160
+    "monster_sting",
     "monster_touch",
     "monster_wail",
     "monster_whisper",
@@ -203,10 +206,10 @@ audio_sfx = {
     "monster_roar",
     -- 'notice' sfx by priority, from lowest to highest:
     "monster_notice_animal_small", --hiss
-    "monster_notice_animal_large", --growl
+    "monster_notice_animal_large", --growl --170
     "monster_notice_humanoid", --speech-like
     "monster_notice_grunt", --orcs, trolls, ogres, giants, hybrids maybe
-    "monster_notice_undead", --170
+    "monster_notice_undead",
     "monster_notice_demon",
     "monster_notice_dragon",
 
@@ -215,10 +218,10 @@ audio_sfx = {
     "earthquake",
     "destruction",
     "detonation",
-    "trap_setoff",
+    "trap_setoff", --180
     "hollow_noise",
     "stirring",
-    "stone_wall", --180
+    "stone_wall",
     "shatter_potion",
     "am_field",
     "fireworks_big",
@@ -227,30 +230,30 @@ audio_sfx = {
     "fireworks_launch",
 
     --[store]
-    "casino_inbetween",
+    "casino_inbetween", --190
     "casino_craps",
     "casino_wheel",
-    "casino_slots_init", --190
+    "casino_slots_init",
     "casino_slots",
     "casino_rules",
     "casino_win",
     "casino_lose",
     "home_extend",
     "store_doorbell_enter",
-    "store_doorbell_leave",
+    "store_doorbell_leave", --200
     "store_paperwork",
     "store_cancel",
-    "store_repair", --200
+    "store_repair",
     "store_food_and_drink",
     "store_redeem",
     "store_rest",
     "store_listen",
     "store_prayer",
     "store_enchant",
-    "store_recharge",
+    "store_recharge", --210
     "store_id",
     "store_curing",
-    "store_recall", --210
+    "store_recall",
 
     --[item]
     "item_food",
@@ -259,20 +262,20 @@ audio_sfx = {
     "item_blunt",
     "item_whip",
     "item_axe",
-    "item_polearm",
+    "item_polearm", --220
     "item_magestaff",
     "item_boomerang",
-    "item_bow", --220
+    "item_bow",
     "item_shot",
     "item_arrow",
     "item_bolt",
     "item_ring",
     "item_amulet",
     "item_lightsource",
-    "item_armour_light",
+    "item_armour_light", --230
     "item_armour_heavy",
     "item_tool",
-    "item_tool_digger", --230
+    "item_tool_digger",
 
     "item_book",
     "item_scroll",
@@ -280,22 +283,22 @@ audio_sfx = {
     "item_potion",
     "item_rune",
     "item_skeleton",
-    "item_firestone",
+    "item_firestone", --240
     "item_spike",
     "item_chest",
-    "item_junk", --240
+    "item_junk",
     "item_trapkit",
     "item_staff",
     "item_wand",
     "item_rod",
     "item_key",
     "item_golem_wood",
-    "item_golem_metal",
+    "item_golem_metal", --250
     "item_golem_misc",
     "item_seal",
 
     --[ambient]
-    "ambient_fireplace", --250
+    "ambient_fireplace",
     "ambient_shore",
     "ambient_lake",
     "ambient_fire",
@@ -303,10 +306,10 @@ audio_sfx = {
     "ambient_store_general",
     "ambient_store_armour",
     "ambient_store_weapon",
-    "ambient_store_temple",
+    "ambient_store_temple", --260
     "ambient_store_alchemy",
     "ambient_store_magic",
-    "ambient_store_black", --260
+    "ambient_store_black",
     "ambient_store_book",
     "ambient_store_rune",
     "ambient_store_merchants",
@@ -314,10 +317,10 @@ audio_sfx = {
     "ambient_store_casino",
     "ambient_store_misc",
 
-    "animal_bird",
+    "animal_bird", --270
     "animal_owl",
     "animal_seagull",
-    "animal_toad", --270
+    "animal_toad",
     "animal_wolf",
     "animal_birdofprey",
 }

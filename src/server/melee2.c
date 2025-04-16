@@ -2427,7 +2427,7 @@ bool make_attack_spell(int Ind, int m_idx) {
 		eff_m_hp = m_ptr->org_maxhp;
 #endif
 		/* Further, the eff_m_hp taken from mirroring a player's hp is much too low for efficient breath attacks, as monsters usually
-		   have many more HP than the player, so it needs boosting if we use the usual breath-damage formulas for "normal" monsters here too: */
+		   have many more HP than the player, so it needs boosting if we use the usual breath-damage formulae for "normal" monsters here too: */
 		eff_m_hp *= 3;
 
 		/* boost damage output of weaker monster spells, basically bolt spells, which for players are high-damage spells */
@@ -6571,7 +6571,7 @@ int mon_will_run(int Ind, int m_idx) {
 
  #if 0 // I'll run instead!
 	/* Hack -- aquatic life outa water */
-	if (zcave[m_ptr->fy][m_ptr->fx].feat != FEAT_DEEP_WATER) {
+	if (!is_deep_water(zcave[m_ptr->fy][m_ptr->fx].feat)) {
 		if (r_ptr->flags7 & RF7_AQUATIC) return(TRUE);
 	} else {
 		if (!(r_ptr->flags3 & RF3_UNDEAD) &&
@@ -7219,8 +7219,8 @@ static bool monster_is_comfortable(monster_race *r_ptr, cave_type *c_ptr) {
 		return(TRUE);
 
 	/* I'd like to be under the sea ./~ */
-	if (r_ptr->flags7 & RF7_AQUATIC) return(c_ptr->feat == FEAT_DEEP_WATER);
-	else return(c_ptr->feat != FEAT_DEEP_WATER);
+	if (r_ptr->flags7 & RF7_AQUATIC) return(is_deep_water(c_ptr->feat));
+	else return(!is_deep_water(c_ptr->feat));
 }
 #endif	// 0
 
@@ -7325,7 +7325,7 @@ static bool find_terrain(int m_idx, int *yp, int *xp) {
 	int fx = m_ptr->fx;
 
  #if 0
-	byte feat = FEAT_DEEP_WATER;	// maybe feat[10] or sth
+	u16b feat = FEAT_DEEP_WATER;	// maybe feat[10] or sth
 	bool negate = FALSE;
  #endif	// 0
 
@@ -7714,7 +7714,7 @@ static bool monster_can_pickup(monster_race *r_ptr, object_type *o_ptr) {
 }
 
 #ifdef MONSTER_DIG_FACTOR
-static int digging_difficulty(byte feat) {
+static int digging_difficulty(u16b feat) {
  #if 0
 	if (!(f_info[feat].flags1 & FF1_TUNNELABLE) ||
 	    (f_info[feat].flags1 & FF1_PERMANENT))
@@ -9790,7 +9790,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 					zcave[2][55].feat = FEAT_UNSEALED_DOOR;
 					everyone_lite_spot(wpos, 2, 55);
 				}
-			} else if (m_ptr->extra < 45) { //move right
+			} else if (m_ptr->extra < 46) { //move right
 				zcave[oy][ox].m_idx = 0;
 				m_ptr->fx++;
 				who = zcave[oy][m_ptr->fx].m_idx;
@@ -10116,7 +10116,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 
 #if 0	// too bad hack!
 	/* Hack -- aquatic life outa water */
-	if (zcave[oy][ox].feat != FEAT_DEEP_WATER) {
+	if (!is_deep_water(zcave[oy][ox].feat)) {
 		if (r_ptr->flags7 & RF7_AQUATIC) {
 			m_ptr->monfear = 50;
 			m_ptr->monfear_gone = 0;
@@ -12744,7 +12744,7 @@ void process_monsters(void) {
 			    || p_ptr->admin_invinc)
 			    && (!m_ptr->owner || (m_ptr->owner != p_ptr->id))) { /* for Dungeon Master GF_DOMINATE */
 				if (los(&p_ptr->wpos, p_ptr->py, p_ptr->px, fy, fx) && j <= MAX_SIGHT) m_ptr->strongest_los = pl;
-				continue;
+				if (m_ptr->r_idx != RI_BLUE) continue;
 			}
 
 			/* Change monster's highest player encounter - mode 3: monster is awake and player is within its area of awareness */

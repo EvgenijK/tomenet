@@ -73,6 +73,24 @@ F:174:/56 # stream of tainted water
 F:110:/56 # puddle of water
 F:94:/56 # mud
 
+F:258:/56 # stream of water (eastward)
+F:259:/56 # stream of water (westward)
+F:260:/56 # stream of water (northward)
+F:261:/56 # stream of water (southward)
+F:262:/57 # stream of deep water (eastward)
+F:263:/57 # stream of deep water (westward)
+F:264:/57 # stream of deep water (northward)
+F:265:/57 # stream of deep water (southward)
+
+F:266:/156 # stream of lava (eastward)
+F:267:/156 # stream of lava (westward)
+F:268:/156 # stream of lava (northward)
+F:269:/156 # stream of lava (southward)
+F:270:/157 # stream of deep lava (eastward)
+F:271:/157 # stream of deep lava (westward)
+F:272:/157 # stream of deep lava (northward)
+F:273:/157 # stream of deep lava (southward)
+
 F:160:/66 # void jumpgate
 F:105:/166 # unstable void jumpgate
 F:233:/66 # Iridescent Gate
@@ -94,6 +112,7 @@ F:143:/71 # small campfire
 F:144:/72 # campfire
 
 F:145:/73 # burning torch
+F:146:/77 # burning oil lamp
 
 F:142:/74 # small fire
 F:178:/75 # great fire
@@ -282,6 +301,8 @@ F:115:/285 # cordon 'o'
 
 F:196:/286 # window
 F:197:/287 # small window
+F:256:/296 # open window
+F:257:/297 # open small window
 
 F:198:/288 # rain barrel
 
@@ -289,6 +310,16 @@ F:131:/289 # hearthfire
 F:132:/290 # hearthfire's embers
 
 F:140:/291 # decorative glowing sphere (for xmas tree top)
+F:147:/292 # small glowing sphere
+F:148:/293 # glowing sphere
+F:149:/294 # large glowing sphere
+
+F:220:/558 # arcade server player 1 trail -> rounded solid rectangle
+F:221:/558 # arcade server player 2 trail -> rounded solid rectangle
+F:222:/558 # arcade server player 3 trail -> rounded solid rectangle
+F:223:/558 # arcade server player 4 trail -> rounded solid rectangle
+F:227:/250 # arcade server orange wall -> inner permanent wall (vault)
+F:229:/294 # arcade server powerup -> large glowing sphere
 
 # F:182:/57 # Ekkaia, the Encircling Sea
 F:182:/158 # Ekkaia, the Encircling Sea
@@ -327,6 +358,11 @@ F:246:/565 # Solid block (UI), top left corner rounded
 F:247:/566 # Solid block (UI), top right corner rounded
 F:248:/567 # Solid block (UI), bottom left corner rounded
 F:249:/568 # Solid block (UI), bottom right corner rounded
+
+F:250:/569 # Solid block (UI), half top right shaved off
+F:251:/570 # Solid block (UI), half bottom left shaved off
+F:252:/571 # Solid block (UI), half bottom right shaved off
+F:253:/572 # Solid block (UI), half top left shaved off
 
 F:238:/295 # Drawbridge, horizontal
 
@@ -1367,6 +1403,34 @@ K:818:/3410 # Die 3
 K:819:/3411 # Die 4
 K:820:/3412 # Die 5
 K:821:/3413 # Die 6
+
+# Large dice parts (1/4 tiles)
+K:1042:/3418 # Die top left dot
+K:1043:/3419 # Die top right dot
+K:1044:/3420 # Die top left+top dot
+K:1045:/3421 # Die top right+top dot
+K:1046:/3422 # Die top left+middle dot
+K:1047:/3423 # Die top right+middle dot
+K:1048:/3424 # Die top left, dot middle
+K:1049:/3425 # Die top right, dot middle
+K:1050:/3426 # Die top left (no dot)
+K:1051:/3427 # Die bottom left dot
+K:1052:/3428 # Die bottom right dot
+K:1053:/3429 # Die bottom left+bottom dot
+K:1054:/3430 # Die bottom right+bottom dot
+K:1055:/3431 # Die bottom left+middle dot
+K:1056:/3432 # Die bottom right+middle dot
+K:1057:/3433 # Die bottom left, dot middle
+K:1058:/3434 # Die bottom right, dot middle
+K:1059:/3435 # Die bottom right (no dot)
+
+# d10 frame
+K:833:/3436 # D10 top left
+K:834:/3437 # D10 top
+K:835:/3438 # D10 top right
+K:836:/3439 # D10 bottom left
+K:837:/3440 # D10 bottom
+K:838:/3441 # D10 bottom right
 
 # Cards colours
 K:829:/3414 # Clubs

@@ -51,6 +51,12 @@
 
 /* Resume wilderness music in subsong's index and position, whenever switching from one wilderness music event to another? */
 #define WILDERNESS_MUSIC_RESUME
+#ifdef WILDERNESS_MUSIC_RESUME
+ /* Also resume wilderness music if previous music was not wilderness music? This is mainly for staircase scumming at 0 ft <-> -50 ft. */
+ #define WILDERNESS_MUSIC_ALWAYS_RESUME
+ /* Also resume town and tavern music the same way wilderness music is resumed */
+ #define TOWN_TAVERN_MUSIC_RESUME_TOO
+#endif
 
 /* Allow user-defined custom volume factor for each sample or song? ([].volume) */
 #define USER_VOLUME_SFX
@@ -419,6 +425,8 @@ typedef struct {
 	bool initial[MAX_SONGS];	/* Is it an 'initial' song? An initial song is played first and only once when a music event gets activated. */
 #ifdef WILDERNESS_MUSIC_RESUME
 	int bak_song, bak_pos;		/* Specifically for 'wilderness' music: Remember song and position of each wilderness-type event. */
+	bool bak_nighttime;		/* TRUE for day, FALSE for night, also FALSE for if there was no nighttime suffix for this music event.
+					   Note that '_night' is specifically picked because eg town events don't have a "_day" suffix but only "_night" suffices! */
 #endif
 	bool disabled;			/* disabled by user? */
 	bool config;
@@ -617,7 +625,7 @@ static bool sound_sdl_init(bool no_cache) {
 		songs[i].config = FALSE;
 		songs[i].disabled = FALSE;
 #ifdef WILDERNESS_MUSIC_RESUME
-		songs[i].bak_pos = FALSE;
+		songs[i].bak_pos = 0;
 #endif
 	}
 
@@ -2502,6 +2510,7 @@ static bool play_music(int event) {
 	/* We previously failed to play both music and alternative music.
 	   Stop currently playing music before returning */
 	if (event == -2) {
+		music_next = -1;
 		if (Mix_PlayingMusic() && Mix_FadingMusic() != MIX_FADING_OUT)
 			Mix_FadeOutMusic(500);
 		music_cur = -1;
@@ -2517,8 +2526,12 @@ static bool play_music(int event) {
 			music_next = -1;
 			Mix_FadeOutMusic(500);
 		} else {
+#if 0 /* wrong? */
 			music_next = music_cur; //hack
 			music_next_song = music_cur_song;
+#else
+			music_next = -1; //nothing
+#endif
 		}
 		return(TRUE); //whatever..
 	}
@@ -2527,6 +2540,7 @@ static bool play_music(int event) {
 	/* New, for title screen -> character screen switch: Halt current music */
 	if (event == -4) {
 		/* Stop currently playing music though, before returning */
+		music_next = -1;
 		if (Mix_PlayingMusic() && Mix_FadingMusic() != MIX_FADING_OUT)
 			Mix_FadeOutMusic(2000);
 		music_cur = -1;
@@ -2603,13 +2617,21 @@ static bool play_music(int event) {
 	if (Mix_PlayingMusic()) {
 		if (Mix_FadingMusic() != MIX_FADING_OUT) {
 #ifdef WILDERNESS_MUSIC_RESUME
+			cptr mc = string_exec_lua(0, format("return get_music_name(%d)", music_cur));
+
 			/* Special: If current music is in category 'wilderness', remember its position to resume it instead of restarting it, next time it happens to play */
-			if (prefix(string_exec_lua(0, format("return get_music_name(%d)", music_cur)), "wilderness_")) {
+			if (prefix(mc, "wilderness_")
+ #ifdef TOWN_TAVERN_MUSIC_RESUME_TOO
+			    || (c_cfg.tavern_town_resume && (
+			    prefix(mc, "town_") || prefix(mc, "tavern_") ||
+			    prefix(mc, "Bree") || prefix(mc, "Gondolin") || prefix(mc, "MinasAnor") || prefix(mc, "Lothlorien") || prefix(mc, "Khazaddum") ||
+			    prefix(mc, "Menegroth") || prefix(mc, "Nargothrond")))
+ #endif
+			    ) {
 				songs[music_cur].bak_song = music_cur_song;
 				songs[music_cur].bak_pos = Mix_GetMusicPosition(songs[music_cur].wavs[music_cur_song]) * 1000 + 500; /* pre-add the fading-out time span (in ms) */
+				songs[music_cur].bak_nighttime = suffix(mc, "_night");
 			}
-			/* Special special: If we're playing a non-'wilderness' music, forget ALL wilderness-music positions */
-			else for (n = 0; n < MUSIC_MAX; n++) songs[n].bak_pos = 0;
 #endif
 			Mix_FadeOutMusic(500);
 		}
@@ -2648,6 +2670,7 @@ static bool play_music_vol(int event, char vol) {
 	/* We previously failed to play both music and alternative music.
 	   Stop currently playing music before returning */
 	if (event == -2) {
+		music_next = -1;
 		if (Mix_PlayingMusic() && Mix_FadingMusic() != MIX_FADING_OUT)
 			Mix_FadeOutMusic(500);
 		music_cur = -1;
@@ -2673,6 +2696,7 @@ static bool play_music_vol(int event, char vol) {
 	/* New, for title screen -> character screen switch: Halt current music */
 	if (event == -4) {
 		/* Stop currently playing music though, before returning */
+		music_next = -1;
 		if (Mix_PlayingMusic() && Mix_FadingMusic() != MIX_FADING_OUT)
 			Mix_FadeOutMusic(2000);
 		music_cur = -1;
@@ -2759,7 +2783,7 @@ static void fadein_next_music(void) {
 #ifdef WILDERNESS_MUSIC_RESUME
 	bool prev_wilderness;
 	cptr pmn, mn;
-	bool pmn_day, mn_day;
+	bool mn_night;
 #endif
 
 #ifdef DISABLE_MUTED_AUDIO
@@ -2780,7 +2804,7 @@ static void fadein_next_music(void) {
 					look_for_next = FALSE;
 					continue;
 				}
-				if (!songs[d].config) continue;
+				if (!songs[d].config || songs[d].disabled) continue;
 				break;
 			}
 			if (j == MUSIC_MAX) {
@@ -2881,6 +2905,9 @@ static void fadein_next_music(void) {
 
 		/* Actually play the thing */
 		music_cur_repeat = (c_cfg.shuffle_music || c_cfg.play_all ? 0 : -1);
+		/* If we only have 1 subsong, ie we cannot shuffle/playall among different songs,
+		   set repeat to 'forever' to avoid a new fade-in-sequence each time the song ends and restarts */
+		if (songs[music_cur].num == 1) music_cur_repeat = -1;
 		Mix_FadeInMusic(wave, music_cur_repeat, 1000); //-1 infinite, 0 once, or n times
 #ifdef ENABLE_JUKEBOX
 		if (jukebox_screen) jukebox_update_songlength();
@@ -2904,22 +2931,42 @@ static void fadein_next_music(void) {
 
 #ifdef WILDERNESS_MUSIC_RESUME
 	/* Special: If new music is in category 'wilderness', restore its position to resume it instead of restarting it.
-	   However, only do this if the previous music was actually in 'wilderness' too!
+	   However, only do this if the previous music was actually in 'wilderness' too! (except if WILDERNESS_MUSIC_ALWAYS_RESUME)
 	   Part 1/2: Restore the song subnumber: */
 	if (music_cur != -1) {
 		pmn = string_exec_lua(0, format("return get_music_name(%d)", music_cur));
-		prev_wilderness = prefix(pmn, "wilderness_");
-		pmn_day = suffix(pmn, "_day");
+ //#ifndef WILDERNESS_MUSIC_ALWAYS_RESUME --- changed to client options, so unhardcoding this line by commenting it out
+		if (!c_cfg.wild_resume_from_any)
+			prev_wilderness = prefix(pmn, "wilderness_");
+ //#else /* Always resume (as if previous music was wilderness music ie is eligible for resuming) - except on day/night change still */
+		else
+			prev_wilderness = TRUE;
+ //#endif
 
 		mn = string_exec_lua(0, format("return get_music_name(%d)", music_next));
-		mn_day = suffix(mn, "_day");
-		if (pmn_day != mn_day) { /* On day/night change, do not resume. Instead, reset all saved positions! */
+		/* On day/night change, do not resume. Instead, reset all saved positions */
+		mn_night = suffix(mn, "_night");
+		if (songs[music_next].bak_nighttime != mn_night) {
 			int n;
 
-			for (n = 0; n < MUSIC_MAX; n++) songs[n].bak_pos = 0;
+			for (n = 0; n < MUSIC_MAX; n++) {
+ #if 0 /* just reset positions of day/night specific music? -- problem with this: Some music doesn't have a "_day" suffix but only a "_night" one. So we just reset all. */
+				pmn = string_exec_lua(0, format("return get_music_name(%d)", n)); //abuse pmn
+				if (!suffix(pmn, "_day") && !suffix(pmn, "_night")) continue;
+ #endif
+				songs[n].bak_pos = 0;
+			}
 			prev_wilderness = FALSE; //(efficient discard; not needed as we reset the pos to zero anyway)
-		} else if (prev_wilderness && prefix(mn, "wilderness_"))
+		} else if (prev_wilderness && (prefix(mn, "wilderness_")
+  #ifdef TOWN_TAVERN_MUSIC_RESUME_TOO
+		    || (c_cfg.tavern_town_resume && (
+		    prefix(mn, "town_") || prefix(mn, "tavern_") ||
+		    prefix(mn, "Bree") || prefix(mn, "Gondolin") || prefix(mn, "MinasAnor") || prefix(mn, "Lothlorien") || prefix(mn, "Khazaddum") ||
+		    prefix(mn, "Menegroth") || prefix(mn, "Nargothrond")))
+  #endif
+		    )) {
 			music_next_song = songs[music_next].bak_song;
+		}
 	} else prev_wilderness = FALSE;
 #endif
 	/* Choose the predetermined random event */
@@ -2955,9 +3002,19 @@ static void fadein_next_music(void) {
 	   However, only do this if the previous music was actually in 'wilderness' too!
 	   Part 2/2: Restore the position: */
 	//if (prev_wilderness && prefix(songs[music_cur].paths[music_cur_song], format("%s/wilderness/", ANGBAND_DIR_XTRA_MUSIC))) {
-	if (prev_wilderness && prefix(string_exec_lua(0, format("return get_music_name(%d)", music_cur)), "wilderness_")) {
-		music_cur_song = songs[music_cur].bak_song;
-		Mix_SetMusicPosition(songs[music_cur].bak_pos / 1000);
+	if (prev_wilderness) {
+		mn = string_exec_lua(0, format("return get_music_name(%d)", music_cur));
+		if (prefix(mn, "wilderness_")
+  #ifdef TOWN_TAVERN_MUSIC_RESUME_TOO
+		    || (c_cfg.tavern_town_resume && (
+		    prefix(mn, "town_") || prefix(mn, "tavern_") ||
+		    prefix(mn, "Bree") || prefix(mn, "Gondolin") || prefix(mn, "MinasAnor") || prefix(mn, "Lothlorien") || prefix(mn, "Khazaddum") ||
+		    prefix(mn, "Menegroth") || prefix(mn, "Nargothrond")))
+  #endif
+		    ) {
+			music_cur_song = songs[music_cur].bak_song;
+			Mix_SetMusicPosition(songs[music_cur].bak_pos / 1000);
+		}
 	}
 #endif
 #ifdef ENABLE_JUKEBOX
@@ -3270,7 +3327,7 @@ errr re_init_sound_sdl(void) {
 		songs[i].config = FALSE;
 		songs[i].disabled = FALSE;
 #ifdef WILDERNESS_MUSIC_RESUME
-		songs[i].bak_pos = FALSE;
+		songs[i].bak_pos = 0;
 #endif
 	}
 
@@ -3396,6 +3453,7 @@ errr re_init_sound_sdl(void) {
 
 /* on game termination */
 void mixer_fadeall(void) {
+	music_next = -1;
 	Mix_FadeOutMusic(1500);
 	Mix_FadeOutChannel(-1, 1500);
 }
@@ -3559,7 +3617,7 @@ void do_cmd_options_sfx_sdl(void) {
 	/* Check if the file exists */
 	fff = my_fopen(buf, "r");
 	if (!fff) {
-		c_msg_print("\377oError: File 'sound.cfg' not found.");
+		c_msg_format("\377oError: Cannot read sound config file '%s'.", buf);
 		return;
 	}
 	fclose(fff);
@@ -3654,11 +3712,20 @@ void do_cmd_options_sfx_sdl(void) {
 		/* Specialty for big_map: Display list of all subsamples below the normal jukebox stuff */
 		if (screen_hgt == MAX_SCREEN_HGT && samples[j_sel].config) {
 			int s, offs = 24, showmax = MAX_WINDOW_HGT - offs - 2;
+			char tmp_lastslot[MAX_CHARS] = { 0 };
 
 			clear_from(offs);
 			for (s = 0; s < MAX_SONGS; s++) {
 				path_p = samples[j_sel].paths[s];
 				if (!path_p) break;
+				if (s == showmax) { /* add a final entry if it fits exactly */
+					path_p = path_p + strlen(path_p) - 1;
+					while (path_p > samples[j_sel].paths[s] && *(path_p - 1) != '/') path_p--;
+					if (sound_cur == j_sel && sound_cur_wav == s)
+						snprintf(tmp_lastslot, MAX_CHARS, "\377y%2d. %s", s + 1, path_p);
+					else
+						snprintf(tmp_lastslot, MAX_CHARS, "\377u%2d. %s", s + 1, path_p);
+				}
 				if (s >= showmax) continue;
 				path_p = path_p + strlen(path_p) - 1;
 				while (path_p > samples[j_sel].paths[s] && *(path_p - 1) != '/') path_p--;
@@ -3667,8 +3734,14 @@ void do_cmd_options_sfx_sdl(void) {
 				else
 					Term_putstr(7 - 4, offs + 1 + s, -1, TERM_UMBER, format("%2d. %s", s + 1, path_p));
 			}
-			if (s >= showmax) Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, format("... and %d more...", s - showmax));
-			Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected sound event:", showmax, s));
+			if (s == showmax + 1) {
+				Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, tmp_lastslot);
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected sound event:", showmax + 1, s));
+			} else if (s > showmax + 1) {
+				Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, format("... and %d more...", s - showmax));
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected sound event:", showmax, s));
+			} else
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected sound event:", showmax + 1, s));
 		}
 
 		/* display static selector */
@@ -3715,20 +3788,20 @@ void do_cmd_options_sfx_sdl(void) {
 			fff = my_fopen(buf, "r");
 			fff2 = my_fopen(buf2, "w");
 			if (!fff) {
-				c_msg_print("Error: File 'sound.cfg' not found.");
+				c_msg_format("Error: Cannot read sound config file '%s'.", buf);
 				jukebox_sfx_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			if (!fff2) {
-				c_msg_print("Error: Cannot write to disabled-sound config file.");
+				c_msg_format("Error: Cannot write to disabled-sound config file '%s'.", buf2);
 				jukebox_sfx_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			while (TRUE) {
 				if (!fgets(out_val, 4096, fff)) {
-					if (ferror(fff)) c_msg_print("Error: Failed to read from file 'sound.cfg'.");
+					if (ferror(fff)) c_msg_format("Error: Failed to read from sound config file '%s'.", buf);
 					break;
 				}
 
@@ -3813,20 +3886,20 @@ void do_cmd_options_sfx_sdl(void) {
 			fff = my_fopen(buf, "r");
 			fff2 = my_fopen(buf2, "w");
 			if (!fff) {
-				c_msg_print("Error: File 'sound.cfg' not found.");
+				c_msg_format("Error: Cannot read sound config file '%s'.", buf);
 				jukebox_sfx_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			if (!fff2) {
-				c_msg_print("Error: Cannot write to sound volume config file.");
+				c_msg_format("Error: Cannot write to sound volume config file '%s'.", buf2);
 				jukebox_sfx_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			while (TRUE) {
 				if (!fgets(out_val, 4096, fff)) {
-					if (ferror(fff)) c_msg_print("Error: Failed to read from file 'sound.cfg'.");
+					if (ferror(fff)) c_msg_format("Error: Failed to read from sound config file '%s'.", buf);
 					jukebox_sfx_screen = FALSE;
 					topline_icky = FALSE;
 					break;
@@ -4170,7 +4243,7 @@ void do_cmd_options_mus_sdl(void) {
 	/* Check if the file exists */
 	fff = my_fopen(buf, "r");
 	if (!fff) {
-		c_msg_print("\377oError: File 'music.cfg' not found.");
+		c_msg_format("\377oError: Cannot read music config file '%s'.", buf);
 		return;
 	}
 	fclose(fff);
@@ -4181,6 +4254,9 @@ void do_cmd_options_mus_sdl(void) {
 	jukebox_org_repeat = music_cur_repeat;
 	jukebox_org_vol = music_vol;
 	jukebox_screen = TRUE;
+	/* Resolve timing glitch: If music is currently in transition of fading out -> new music going to fade in afterwards
+	   (eg town->dungeon character movement), the jukebox will need to update the 'org' stats with the new music. */
+	if (Mix_FadingMusic() == MIX_FADING_OUT) jukebox_org = music_next;
 #endif
 
 	/* Clear screen */
@@ -4327,11 +4403,20 @@ void do_cmd_options_mus_sdl(void) {
 		/* Specialty for big_map: Display list of all subsongs below the normal jukebox stuff */
 		if (screen_hgt == MAX_SCREEN_HGT && songs[j_sel].config) {
 			int s, offs = 25, showmax = MAX_WINDOW_HGT - offs - 2;
+			char tmp_lastslot[MAX_CHARS] = { 0 };
 
 			clear_from(offs);
 			for (s = 0; s < MAX_SONGS; s++) {
 				path_p = songs[j_sel].paths[s];
 				if (!path_p) break;
+				if (s == showmax) { /* add a final entry if it fits exactly */
+					path_p = path_p + strlen(path_p) - 1;
+					while (path_p > songs[j_sel].paths[s] && *(path_p - 1) != '/') path_p--;
+					if (music_cur == j_sel && music_cur_song == s)
+						snprintf(tmp_lastslot, MAX_CHARS, "\377%c%2d. %s", songs[j_sel].initial[s] ? 'o' : 'y', s + 1, path_p);
+					else
+						snprintf(tmp_lastslot, MAX_CHARS, "\377%c%2d. %s", songs[j_sel].initial[s] ? 'U' : 'u', s + 1, path_p);
+				}
 				if (s >= showmax) continue;
 				path_p = path_p + strlen(path_p) - 1;
 				while (path_p > songs[j_sel].paths[s] && *(path_p - 1) != '/') path_p--;
@@ -4340,8 +4425,14 @@ void do_cmd_options_mus_sdl(void) {
 				else
 					Term_putstr(7 - 4, offs + 1 + s, -1, songs[j_sel].initial[s] ? TERM_L_UMBER : TERM_UMBER, format("%2d. %s", s + 1, path_p)); //currently no different colour for songs[].disabled, consistent with 'Key' info
 			}
-			if (s >= showmax) Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, format("... and %d more...", s - showmax));
-			Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected music event:", showmax, s));
+			if (s == showmax + 1) {
+				Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, tmp_lastslot);
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected music event:", showmax + 1, s));
+			} else if (s > showmax + 1) {
+				Term_putstr(7 - 4, MAX_WINDOW_HGT - 1, -1, TERM_SLATE, format("... and %d more...", s - showmax));
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected music event:", showmax, s));
+			} else
+				Term_putstr(0, offs, -1, TERM_WHITE, format("List of the first %d subsong filenames (found \377y%d\377w) of the selected music event:", showmax + 1, s));
 		}
 
 		/* display static selector */
@@ -4509,20 +4600,20 @@ void do_cmd_options_mus_sdl(void) {
 			fff = my_fopen(buf, "r");
 			fff2 = my_fopen(buf2, "w");
 			if (!fff) {
-				c_msg_print("Error: File 'music.cfg' not found.");
+				c_msg_format("Error: Cannot read music config file '%s'.", buf);
 				jukebox_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			if (!fff2) {
-				c_msg_print("Error: Cannot write to disabled-music config file.");
+				c_msg_format("Error: Cannot write to disabled-music config file '%s'.", buf2);
 				jukebox_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			while (TRUE) {
 				if (!fgets(out_val, 4096, fff)) {
-					if (ferror(fff)) c_msg_print("Error: Failed to read from file 'music.cfg'.");
+					if (ferror(fff)) c_msg_format("Error: Failed to read from music config file '%s'.", buf);
 					break;
 				}
 
@@ -4607,20 +4698,20 @@ void do_cmd_options_mus_sdl(void) {
 			fff = my_fopen(buf, "r");
 			fff2 = my_fopen(buf2, "w");
 			if (!fff) {
-				c_msg_print("Error: File 'music.cfg' not found.");
+				c_msg_format("Error: Cannot read music config file '%s'.", buf);
 				jukebox_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			if (!fff2) {
-				c_msg_print("Error: Cannot write to music volume config file.");
+				c_msg_format("Error: Cannot write to music volume config file '%s'.", buf2);
 				jukebox_screen = FALSE;
 				topline_icky = FALSE;
 				return;
 			}
 			while (TRUE) {
 				if (!fgets(out_val, 4096, fff)) {
-					if (ferror(fff)) c_msg_print("Error: Failed to read from file 'music.cfg'.");
+					if (ferror(fff)) c_msg_format("Error: Failed to read from music config file '%s'.", buf);
 					break;
 				}
 
@@ -4891,10 +4982,11 @@ void do_cmd_options_mus_sdl(void) {
 			/* Actually do shuffle? */
 			if (jukebox_shuffle) intshuffle(jukebox_shuffle_map, MUSIC_MAX);
 
+			/* Find first song */
  #ifdef JUKEBOX_INSTANT_PLAY
 			for (j = 0; j < MUSIC_MAX; j++) {
 				d = jukebox_shuffle_map[j];
-				if (!songs[d].config) continue;
+				if (!songs[d].config || songs[d].disabled) continue;
 				break;
 			}
 			if (j == MUSIC_MAX) break; //edge case: a music pack without a single event defined >_>
@@ -4973,7 +5065,7 @@ void do_cmd_options_mus_sdl(void) {
 						look_for_next = FALSE;
 						continue;
 					}
-					if (!songs[d].config) continue;
+					if (!songs[d].config || songs[d].disabled) continue;
 					break;
 				}
 				if (j == MUSIC_MAX) {
@@ -5014,7 +5106,7 @@ void do_cmd_options_mus_sdl(void) {
 					look_for_next = FALSE;
 					continue;
 				}
-				if (!songs[d].config) continue;
+				if (!songs[d].config || songs[d].disabled) continue;
 				break;
 			}
 			if (j == MUSIC_MAX) {
@@ -5089,7 +5181,7 @@ void do_cmd_options_mus_sdl(void) {
 						look_for_next = FALSE;
 						continue;
 					}
-					if (!songs[d].config) continue;
+					if (!songs[d].config || songs[d].disabled) continue;
 					break;
 				}
 				if (j == -1) {
@@ -5138,7 +5230,7 @@ void do_cmd_options_mus_sdl(void) {
 					look_for_next = FALSE;
 					continue;
 				}
-				if (!songs[d].config) continue;
+				if (!songs[d].config || songs[d].disabled) continue;
 				break;
 			}
 			if (j == -1) {

@@ -1117,6 +1117,14 @@ static void rd_monster(monster_type *m_ptr) {
 	}
 	rd_s32b(&m_ptr->hp);
 	rd_s32b(&m_ptr->maxhp);
+	if (!s_older_than(4, 9, 22)) {
+		rd_s32b(&m_ptr->org_maxhp);
+		rd_s32b(&m_ptr->org_maxhp2);
+		rd_s16b(&m_ptr->body_monster);
+		rd_s32b(&m_ptr->extra);
+		rd_s32b(&m_ptr->extra2);
+		rd_s32b(&m_ptr->extra3);
+	}
 	rd_s16b(&m_ptr->csleep);
 	rd_byte(&m_ptr->mspeed);
 	rd_s16b(&m_ptr->energy);
@@ -2106,7 +2114,7 @@ static bool rd_extra(int Ind) {
 	rd_s16b(&p_ptr->sc);
 	rd_s16b(&p_ptr->fruit_bat);
 
-	/* Read the flags */
+	/* Read the # of lives left */
 	rd_byte(&tmp8u);
 	p_ptr->lives = tmp8u;
 
@@ -2695,7 +2703,13 @@ if (p_ptr->updated_savegame == 0) {
 
 	if (!older_than(4, 9, 15)) {
 		rd_byte(&p_ptr->tim_lcage);
-		strip_bytes(8); //future use
+
+		rd_byte(&tmp8u);
+		p_ptr->cut_intrinsic = (tmp8u & 0x01);
+		p_ptr->nocut_intrinsic = (tmp8u & 0x02);
+
+		// --- future use / HOLE: ---
+		strip_bytes(7);
 	} else p_ptr->tim_lcage = 0;
 
 	if (!older_than(4, 5, 28)) {
@@ -2909,7 +2923,7 @@ static errr rd_hostilities(int Ind) {
 static errr rd_floor(void) {
 	struct worldpos wpos;
 	s16b tmp16b;
-	byte tmp;
+	byte tmp, tmp8u;
 	cave_type **zcave;
 	u16b max_y, max_x;
 
@@ -2919,7 +2933,8 @@ static errr rd_floor(void) {
 	dun_level *l_ptr;
 	struct c_special *cs_ptr;
 
-	unsigned char runlength, feature;
+	byte runlength;
+	u16b feature;
 	u16b tmpinfo;
 	u32b info, info2;
 	s16b custom_lua_tunnel_hand = 0;
@@ -2998,7 +3013,10 @@ static errr rd_floor(void) {
 	for (x = y = 0; y < max_y; ) {
 		/* Grab RLE info */
 		rd_byte(&runlength);
-		rd_byte(&feature);
+		if (s_older_than(4, 9, 21)) {
+			rd_byte(&tmp8u);
+			feature = (u16b)tmp8u;
+		} else rd_u16b(&feature);
 		if (!s_older_than(4, 6, 1)) rd_u32b(&info);
 		else {
 			rd_u16b(&tmpinfo);

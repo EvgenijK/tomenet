@@ -76,7 +76,7 @@
 #define DEFENSIVE_STANCE_TOTAL_MELEE_REDUCTION		/* Globally just cut _TOTAL_ melee damage by nn% in defensive stance, depending on stance level */
 
 #define ENABLE_CLOAKING		/* cloaking mode for rogues */
-#define NEW_DODGING		/* reworked dodging formulas to allow more armour weight while aligning it to rogues, keeping your ideas though, Adam ;) - C. Blue */
+#define NEW_DODGING		/* reworked dodging formulae to allow more armour weight while aligning it to rogues, keeping your ideas though, Adam ;) - C. Blue */
 #define ENABLE_TECHNIQUES
 #define NEW_HISCORE		/* extended high score options for tomenet.cfg */
 
@@ -657,9 +657,13 @@
 /* Casino: Use custom/graphical visuals for Go stones, dice, etc. if player has custom mappings to allow it? */
 #define CUSTOM_VISUALS
 #ifdef CUSTOM_VISUALS
- #define DICE_X	39
- #define DICE_Y	4
+ #define DICE_X		39
+ #define DICE_Y		4
  #define CUSTOM_VISUALS_EMPTY_FEAT 122 /* [For the Go board] Star: 122, Sandwall (ie with GRAPHICS_BG_MASK): 258 */
+ /* Instead of normal dice, use huge dice (2x2 tiles)? */
+ #define DICE_HUGE
+ #define DICE_HUGE_X	37
+ #define DICE_HUGE_Y	4
 #endif
 
 /* Traumaturgy + Dual-Wield + 2x Axe equipped -> Blood frenzy possibility. (Khorne Berserkers - C. Blue) */
@@ -667,6 +671,12 @@
 
 /* Istar w/o reliance on disruption shield */
 #define NATURE_HP_SUPPLEMENT
+
+/* Super experimental:
+   Boost dungeon boss HP for high level players to avoid insta-kill pushovers?
+   Just for fun though, as the monster damage etc aren't increased so they are still pushovers technically.
+   This only affects bosses of floors < 100, aka ideal player level 50, and hard-coded also only floors shallower than 99, to make sure to exempt Sauron. */
+#define FINAL_GUARDIAN_DIFFBOOST
 
 
 
@@ -689,8 +699,10 @@
  #define OPTIMIZED_ANIMATIONS	/* testing */
 #endif
 
+
 /* Specific settings for test-server only */
 #ifdef TEST_SERVER
+
  /* Allow subclassing ie. planned access to skills from a secondary class!
    Enables role customization while preserving unique features of base classes.
    Currently applies a big +200% XP penalty for 2/3 ratios from both classes. */
@@ -752,11 +764,14 @@
 
  /* Harsh weather gives us trouble of some sort? */
  #define IRRITATING_WEATHER /* TODO: Fix weather code, see pos_in_weather() and two related code parts commented about there */
+
 #endif
+
 
 /* Specific settings for Arcade server only */
 #ifdef ARCADE_SERVER
 #endif
+
 
 /* Specific settings for main-server only */
 #if !defined(RPG_SERVER) && !defined(TEST_SERVER) && !defined(ARCADE_SERVER)
@@ -779,6 +794,11 @@
     from slate tone? */
  #define DISTINCT_DARK
 
+ /* When Highlighting/beeping when character name is mentioned in chat,
+   and now also used for reincarnation to detect similar charnames:
+   Recognize and ignore any roman number suffix attached to our 'real' character name? */
+ #define CHARNAME_ROMAN
+
  /* Remove some hard-coding in the client options */
  #define CO_BIGMAP			7
  #define CO_FONT_MAP_SOLID_WALLS	8
@@ -794,7 +814,7 @@
  /* Atmospheric login screens, with animation, sound and music? */
  #define ATMOSPHERIC_INTRO
 
-/* 4.6.2: Allow to retry login, for re-entering invalid account/character names or after death. */
+ /* 4.6.2: Allow to retry login, for re-entering invalid account/character names or after death. */
  #define RETRY_LOGIN
 
  /* Buffer guide in RAM, to reduce searching times (especially on Windows OS, not really bad on Linux) */

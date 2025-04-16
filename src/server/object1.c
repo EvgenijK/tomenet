@@ -15,6 +15,9 @@
 
 #include "angband.h"
 
+/* Track TV_PSEUDO_OBJ in object_desc() */
+#include <execinfo.h>
+
 /*
  * Name flavors by combination of adj and extra modifier, so that
  * we don't have to devise new flavor every time adding a new item.
@@ -1284,6 +1287,14 @@ void object_flags(object_type *o_ptr, u32b *f1, u32b *f2, u32b *f3, u32b *f4, u3
 	/* Sigil */
 	if (o_ptr->sigil) {
 		bool failed = 0;
+		/* Remember flags without the sigil, these already include the full ego powers */
+		hack_sigil_f[1] = *f1;
+		hack_sigil_f[2] = *f2;
+		hack_sigil_f[3] = *f3;
+		hack_sigil_f[4] = *f4;
+		hack_sigil_f[5] = *f5;
+		hack_sigil_f[6] = *f6;
+		hack_sigil_f[0] = *esp;
 
 		if (o_ptr->sseed) {
 			/* Build the flag pool */
@@ -1774,7 +1785,16 @@ void object_flags(object_type *o_ptr, u32b *f1, u32b *f2, u32b *f3, u32b *f4, u3
 			o_ptr->sigil = 0;
 			o_ptr->sseed = 0;
 		}
-	}
+
+		/* Get flag difference made by the sigil */
+		hack_sigil_f[1] = *f1 & ~hack_sigil_f[1];
+		hack_sigil_f[2] = *f2 & ~hack_sigil_f[2];
+		hack_sigil_f[3] = *f3 & ~hack_sigil_f[3];
+		hack_sigil_f[4] = *f4 & ~hack_sigil_f[4];
+		hack_sigil_f[5] = *f5 & ~hack_sigil_f[5];
+		hack_sigil_f[6] = *f6 & ~hack_sigil_f[6];
+		hack_sigil_f[0] = *esp & ~hack_sigil_f[0];
+	} else hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 
 	/* Hack for mindcrafter spell scrolls:
 	   Since they're called 'crystals', add water+fire immunity.
@@ -2164,11 +2184,14 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		p_ptr = Players[Ind];
 		short_item_names = p_ptr->short_item_names;
 
-		/* See if the object is "aware" */
-		if (object_aware_p(Ind, o_ptr)) aware = TRUE;
-
 		/* See if the object is "known" */
 		if (object_known_p(Ind, o_ptr)) known = TRUE;
+
+		/* See if the object is "aware" */
+		if (object_aware_p(Ind, o_ptr)) aware = TRUE;
+		/* For flavoured artifacts (flavoured base item that is insta-art, eg "ivory jewel 'evenstar'"),
+		   which have been *ID*ed by someone else, but item flavour is not yet known to us actually! */
+		else known = FALSE;
 	} else {
 		/* Assume aware and known */
 		aware = known = TRUE;
@@ -2438,6 +2461,18 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		break;
 #endif
 
+	case TV_PSEUDO_OBJ: {
+		int size, i;
+		void *buf[1000];
+		char **fnames;
+
+		s_printf("TV_PSEUDO_OBJ in object_desc():\n");
+		size = backtrace(buf, 1000);
+		s_printf(" size = %d\n", size);
+		fnames = backtrace_symbols(buf, size);
+		for (i = 0; i < size; i++) s_printf(" %s\n", fnames[i]);
+		return; }
+
 	/* Used in the "inventory" routine */
 	default:
 		/* the_sandman: debug line */
@@ -2453,7 +2488,11 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	if (modstr == NULL) modstr = "<nf>";
 
 	/* Handle flavoured randart names: Keep our special randart naming ;) 'the slow digestion of..' */
-	if (o_ptr->name1 == ART_RANDART && known && !special_rop) {
+	if (o_ptr->name1 == ART_RANDART && known && !special_rop
+	    /* handle flavoured base items that are artifacts (insta-arts only atm),
+	       for the case that the item has been *ID*ed by someone else, but we don't even know the flavour-ID yet! */
+	    && (aware || !object_has_flavor(o_ptr->k_idx))
+	    ) {
 		//no flavour
 		modstr = "";
 		append_name = FALSE;
@@ -2685,16 +2724,13 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 					*t++ = 'e';
 				}
 
-				/* Hack -- "Cod/ex -> Cod/ices" */
+				/* Hack -- "Cod/ex -> Cod/ices" and "Suffix" -> "Suffices" */
 				else if (k == 'x') {
-					if (k2 == 'e') {
+					if (k2 == 'e' || k2 == 'i') {
 						t -= 2;
 						*t++ = 'i';
 						*t++ = 'c';
 						*t++ = 'e';
-					} else {
-					    /* and "Suffix" -> "Suffixes", theoretically.. >_> */
-					    *t++ = 'e';
 					}
 				}
 
@@ -3250,7 +3286,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		/* Dump "pval" flags for wearable items */
 		if (known && (((f1 & (TR1_PVAL_MASK)) || (f5 & (TR5_PVAL_MASK)))
 		    || o_ptr->tval == TV_GOLEM || o_ptr->tval == TV_TRAPKIT)) {
-			/* Hack -- first display any base pval bonuses. */
+			/* Hack -- first display any base pval boni. */
 			if (o_ptr->bpval && !special_rop) {
 				if (!(mode & 8)) t = object_desc_chr(t, ' ');
 				t = object_desc_chr(t, p1);
@@ -3282,7 +3318,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 				t = object_desc_str(t, "(-2)");
 			}
 #endif
-			/* Next, display any pval bonuses. */
+			/* Next, display any pval boni. */
 			if (o_ptr->pval) {
 				artifact_type *a_ptr;
 
@@ -5107,8 +5143,9 @@ bool maybe_hidden_powers(int Ind, object_type *o_ptr, bool ignore_id, ego_grante
 	/* fixed_flag_forge: Collect all 100% granted flags, that is from ego powers and also the base item. */
 	if (static_e_ptr && !o_ptr->name1) { /* Arts are expected to have practically all abilities as 'hidden powers', no detail needed here (would even be spammy colour-wise). */
 		*static_e_ptr = &fixed_flag_forge;
-		fixed_flag_forge.flags[0] = fixed_flag_forge.flags[1] = fixed_flag_forge.flags[2] =
-		fixed_flag_forge.flags[3] = fixed_flag_forge.flags[4] = fixed_flag_forge.flags[5] = 0;
+		fixed_flag_forge.flags[0] = \
+		fixed_flag_forge.flags[1] = fixed_flag_forge.flags[2] = fixed_flag_forge.flags[3] = \
+		fixed_flag_forge.flags[4] = fixed_flag_forge.flags[5] = fixed_flag_forge.flags[6] = 0;
 		if (o_ptr->name2) {
 			e_ptr = &e_info[o_ptr->name2];
 			for (j = 0; j < 5; j++) {
@@ -5338,7 +5375,8 @@ bool identify_fully_aux(int Ind, object_type *o_ptr, bool assume_aware, int slot
  * (for player stores maybe.).
  */
 /* Print object flag info to file, specifically with colouring for randomized powers ie those from ego items. */
-#define ff_print(msg, flag_slot, flag) fprintf(fff, "%s%s\n", (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : "\377B", msg)
+//#define ff_print(msg, flag_slot, flag) fprintf(fff, "%s%s\n", (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : "\377B", msg)
+#define ff_print(msg, flag_slot, flag) fprintf(fff, "%s%s\n", (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : ((hack_sigil_local_f[flag_slot] & (flag)) ? "\377G" : "\377B"), msg)
 #ifndef NEW_ID_SCREEN
 bool identify_fully_aux(int Ind, object_type *o_ptr) {
 	player_type *p_ptr = Players[Ind];
@@ -5365,6 +5403,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	int buf_tmp_i, buf_tmp_n;
 	char timeleft[51] = { 0 };//[26]
 	ego_granted_flags *es_ptr = NULL; //silence compiler warning
+	u32b hack_sigil_local_f[7] = { 0 }; //same as ego_granted_flags
 
 	/* Open a new file */
 	fff = my_fopen(p_ptr->infofile, "wb");
@@ -5374,6 +5413,9 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 	/* Let the player scroll through this info */
 	p_ptr->special_file_type = TRUE;
+
+	/* Paranoia - ensure cleared hack flags for any subsequent calls */
+	hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 
 	//polyring price debug
 	//if (o_ptr->tval == TV_RING && o_ptr->sval == SV_RING_POLYMORPH) fprintf(fff,"%u - %u\n", price_poly_ring(Ind, o_ptr, 1), price_poly_ring(Ind, o_ptr, 0));
@@ -5406,6 +5448,9 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 			fprintf(fff, "An amount of \377y%d\377w gold pieces.\n", o_ptr->pval);
 			my_fclose(fff);
 			Send_special_other(Ind);
+
+			/* Paranoia - ensure cleared hack flags for any subsequent calls */
+			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 			return(TRUE);
 		}
 		/* Empty gift */
@@ -5413,6 +5458,9 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 			fprintf(fff, "Nothing\n");
 			my_fclose(fff);
 			Send_special_other(Ind);
+
+			/* Paranoia - ensure cleared hack flags for any subsequent calls */
+			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 			return(TRUE);
 		}
 	}
@@ -5576,6 +5624,15 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	/* conclude hack: can *identifying* actually make a difference at all? */
 	if (!can_have_hidden_powers) eff_full = TRUE;
 
+	/* Remember all flags from previous object_flags() call, as the non-local array ('hack_sigil_f[]') could be overwritten in between */
+	hack_sigil_local_f[1] = hack_sigil_f[1];
+	hack_sigil_local_f[2] = hack_sigil_f[2];
+	hack_sigil_local_f[3] = hack_sigil_f[3];
+	hack_sigil_local_f[4] = hack_sigil_f[4];
+	hack_sigil_local_f[5] = hack_sigil_f[5];
+	hack_sigil_local_f[6] = hack_sigil_f[6];
+	hack_sigil_local_f[0] = hack_sigil_f[0];
+
 	/* ------------------------------------------------------------------------------------------ */
 #endif
 
@@ -5604,6 +5661,8 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		Send_special_other(Ind);
 
 		/* Gave knowledge */
+		/* Paranoia - ensure cleared hack flags for any subsequent calls */
+		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 		return(TRUE);
 	}
 #endif
@@ -5631,6 +5690,9 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		}
 		my_fclose(fff);
 		Send_special_other(Ind);
+
+		/* Paranoia - ensure cleared hack flags for any subsequent calls */
+		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 		return(TRUE);
 	}
 
@@ -5958,11 +6020,17 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		fff = my_fopen(p_ptr->infofile, "rb");
 		if (my_fgets(fff, buf, 1024, FALSE)) {
 			my_fclose(fff);
+
+			/* Paranoia - ensure cleared hack flags for any subsequent calls */
+			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 			return(FALSE);
 		}
 		my_fclose(fff);
 		strcpy(p_ptr->cur_file_title, "Basic Item Information");
 		Send_special_other(Ind);
+
+		/* Paranoia - ensure cleared hack flags for any subsequent calls */
+		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 		return(TRUE);
 	}
 
@@ -6531,6 +6599,9 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	}
  #endif
 #endif
+
+	/* Paranoia - ensure cleared hack flags for any subsequent calls */
+	hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
 
 	/* Close the file */
 	my_fclose(fff);

@@ -199,7 +199,7 @@ static bool do_player_trap_garbage(int Ind, int times) {
 	for (k = 0; k < times; k++) {
 		l = rand_int(max_k_idx);
 
-		/* hack -- !ruin, !death cannot be generated */
+		/* hack -- !ruin, !death cannot be generated. (TV_PSEUDO_OBJ are covered by chance == 0.)  */
 		if (!k_info[l].tval || k_info[l].cost || k_info[l].level > lv || k_info[l].level > 30 || !k_info[l].chance[0]) continue;
 
 		o_ptr = &forge;
@@ -436,7 +436,7 @@ static bool player_handle_missile_trap(int Ind, s16b num, s16b tval, s16b sval, 
 	/* Batch of Morgul daggers might also be over the top */
 	if (o_ptr->name2 == EGO_MORGUL || o_ptr->name2b == EGO_MORGUL)
 		o_ptr->name1 = o_ptr->name2 = o_ptr->name2b = o_ptr->name3 = 0;
-	/* Reverse good bonuses */
+	/* Reverse good boni */
 	if (o_ptr->bpval > 0) o_ptr->bpval = 0;
 	if (o_ptr->pval > 0) o_ptr->pval = 0;
 	if (o_ptr->to_a > 0) o_ptr->to_a = 0;
@@ -547,7 +547,7 @@ static bool generic_handle_missile_trap(struct worldpos *wpos, int x, int y, s16
 	/* Batch of Morgul daggers might also be over the top */
 	if (o_ptr->name2 == EGO_MORGUL || o_ptr->name2b == EGO_MORGUL)
 		o_ptr->name1 = o_ptr->name2 = o_ptr->name2b = o_ptr->name3 = 0;
-	/* Reverse good bonuses */
+	/* Reverse good boni */
 	if (o_ptr->bpval > 0) o_ptr->bpval = 0;
 	if (o_ptr->pval > 0) o_ptr->pval = 0;
 	if (o_ptr->to_a > 0) o_ptr->to_a = 0;
@@ -1552,7 +1552,7 @@ bool player_activate_trap_type(int Ind, s16b y, s16b x, object_type *i_ptr, int 
 				combine_pack(Ind);
 				reorder_pack(Ind);
 				msg_print(Ind, "You suddenly feel you have time for self-reflection.");
-				/* Recalculate bonuses */
+				/* Recalculate boni */
 				p_ptr->update |= (PU_BONUS);
 
 				/* Recalculate mana */
@@ -3573,7 +3573,7 @@ void place_trap(struct worldpos *wpos, int y, int x, int modx) {
 
 	/* Require empty, clean, floor grid */
 	/* Hack - '+1' for secret doors */
-	if (cave_floor_grid(c_ptr) || c_ptr->feat == FEAT_DEEP_WATER) flags = FTRAP_FLOOR;
+	if (cave_floor_grid(c_ptr) || is_deep_water(c_ptr->feat)) flags = FTRAP_FLOOR;
 	else if ((c_ptr->feat >= FEAT_DOOR_HEAD) && (c_ptr->feat <= FEAT_DOOR_TAIL + 1)) flags = FTRAP_DOOR;
 	else return;
 
@@ -3687,13 +3687,13 @@ void place_trap_specific(struct worldpos *wpos, int y, int x, int mod, int found
 	/* Require empty, clean, floor grid */
 	/* Hack - '+1' for secret doors */
 #if 0
-	if (cave_floor_grid(c_ptr) || c_ptr->feat == FEAT_DEEP_WATER) flags = FTRAP_FLOOR;
+	if (cave_floor_grid(c_ptr) || is_deep_water(c_ptr->feat)) flags = FTRAP_FLOOR;
 	else if ((c_ptr->feat >= FEAT_DOOR_HEAD) &&
 	    (c_ptr->feat <= FEAT_DOOR_TAIL + 1))
 		flags = FTRAP_DOOR;
 	else return;
 #else
-	if (!(cave_floor_grid(c_ptr) || c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat >= FEAT_DOOR_HEAD))
+	if (!(cave_floor_grid(c_ptr) || is_deep_water(c_ptr->feat) || c_ptr->feat >= FEAT_DOOR_HEAD))
 		return;
 #endif
 
@@ -4312,7 +4312,9 @@ void do_cmd_disarm_mon_trap_aux(int Ind, worldpos *wpos, int y, int x) {
 	cave_set_feat_live(wpos, y, x, feat);
 }
 
-void erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
+/* Erases a monster trap and all items in it.
+   Returns TRUE if successful, FALSE if not (ie if it got called on an invalid cs_ptr). - C. Blue */
+bool erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
 	int this_o_idx, next_o_idx, feat;
 	object_type *o_ptr;
 	cave_type *c_ptr;
@@ -4323,7 +4325,7 @@ void erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
 	if (!(zcave = getcave(wpos))) {
 		/* Fall back to at least erasing the object in it and any other object linked to it.
 		   Note that this traverses only from trapkit to trapload item, but not vice versa, so not perfect. */
-		if (!o_idx) return;
+		if (!o_idx) return(TRUE);
 		for (this_o_idx = o_idx; this_o_idx; this_o_idx = next_o_idx) {
 			o_ptr = &o_list[this_o_idx];
 #ifdef ENABLE_DEMOLITIONIST
@@ -4334,7 +4336,7 @@ void erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
 			o_ptr->embed = 0; /* Don't go recursive, because delete_object_idx() actually calls erase_mon_trap()! */
 			delete_object_idx(this_o_idx, TRUE);
 		}
-		return;
+		return(TRUE);
 	}
 
 	c_ptr = &zcave[y][x];
@@ -4343,8 +4345,8 @@ void erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
 	   Specifically, cs_ptr->sc was pointing to 0x8 and sc/sc.montrap/sc.montrap.feat were all segfaults.
 	   So, adding a check for cs_ptr validity here.. - C. Blue, 2022-10-07 */
 	if (!cs_ptr) {
-		s_printf("WARNING: erase_mon_trap() called on invalid cs_ptr at (%d,%d,%d).\n", wpos->wx, wpos->wy, wpos->wz);
-		return;
+		s_printf("WARNING: erase_mon_trap() called on invalid cs_ptr at (%d,%d,%d) [%d,%d] feat:%d, o_idx:%d (t=%d/s=%d).\n", wpos->wx, wpos->wy, wpos->wz, x, y, c_ptr->feat, o_idx, o_list[o_idx].tval, o_list[o_idx].sval);
+		return(FALSE);
 	}
 	feat = cs_ptr->sc.montrap.feat;
 
@@ -4371,7 +4373,7 @@ void erase_mon_trap(worldpos *wpos, int y, int x, int o_idx) {
 
 	cs_erase(c_ptr, cs_ptr);
 	cave_set_feat_live(wpos, y, x, feat);
-	return;
+	return(TRUE);
 }
 
 /* hack: Identify the load? */

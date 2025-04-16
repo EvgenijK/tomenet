@@ -43,7 +43,7 @@
 /* Boomerangs cannot be destroyed by using them (they just fall to the floor). */
 #define INDESTRUCTIBLE_BOOMERANGS
 
-/* 4.7.3a: Boomerangs may get VORPAL flag, need all the melee formulas here too now
+/* 4.7.3a: Boomerangs may get VORPAL flag, need all the melee formulae here too now
    ---- TODO: Maybe implement some of this stuff, but maybe we just don't need it! ... */
 
 /* Inverse chance to get a vorpal cut (1 in n) [4] */
@@ -558,6 +558,7 @@ void do_cmd_go_up(int Ind) {
 #endif
 		else if (wpos->wz == -1) {
 			msg_format(Ind, "\377%cYou leave %s..", COLOUR_DUNGEON, get_dun_name(wpos->wx, wpos->wy, FALSE, wild_info[wpos->wy][wpos->wx].dungeon, 0, FALSE));
+			if (in_deathfate(wpos)) msg_print(Ind, "There is no trace of the mysterious figure, seems you took a different turn.");
 #ifdef RPG_SERVER /* stair scumming in non-IRON dungeons might create mad spam otherwise */
 			if (p_ptr->party)
 			for (i = 1; i <= NumPlayers; i++) {
@@ -1100,6 +1101,8 @@ void do_cmd_go_down(int Ind) {
 
 	if (c_ptr->feat == FEAT_BETWEEN) {
 		if (d_ptr && !d_ptr->type && d_ptr->theme == DI_DEATH_FATE) {
+			p_ptr->player_sees_dm = (p_ptr->inventory[INVEN_HEAD].tval && p_ptr->inventory[INVEN_HEAD].name1 == ART_GOGGLES_DM);
+
 			un_afk_idle(Ind);
 
 			c_ptr->m_idx = 0;
@@ -1797,7 +1800,7 @@ void do_cmd_toggle_search(int Ind) {
 		/* Clear the searching flag */
 		p_ptr->searching = FALSE;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Redraw stuff */
@@ -2839,6 +2842,49 @@ void do_cmd_open(int Ind, int dir) {
 		if (c_ptr->feat == FEAT_SEALED_DOOR)
 			msg_print(Ind, "That door cannot be opened.");
 
+		else if (c_ptr->feat == FEAT_WINDOW) {
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot open that window from outside.");
+				return;
+			}
+			cave_set_feat_live(wpos, y, x, FEAT_OPEN_WINDOW);
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "open_window", "open_chest", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "open_window", "open_chest", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+		else if (c_ptr->feat == FEAT_WINDOW_SMALL) {
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot open that window from outside.");
+				return;
+			}
+			cave_set_feat_live(wpos, y, x, FEAT_OPEN_WINDOW_SMALL);
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "open_window", "open_chest", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "open_window", "open_chest", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+
 		/* Nothing useful */
 		else if (!((c_ptr->feat >= FEAT_DOOR_HEAD) &&
 		      (c_ptr->feat <= FEAT_DOOR_TAIL)) &&
@@ -3264,6 +3310,53 @@ void do_cmd_close(int Ind, int dir) {
 		else if (c_ptr->feat == FEAT_UNSEALED_DOOR)
 			msg_print(Ind, "That door cannot be closed.");
 
+		else if (c_ptr->feat == FEAT_OPEN_WINDOW) {
+#if 0 /* xD */
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot close that window from outside.");
+				return;
+			}
+#endif
+			cave_set_feat_live(wpos, y, x, FEAT_WINDOW);
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "close_window", "close_door", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "close_window", "close_door", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+		else if (c_ptr->feat == FEAT_OPEN_WINDOW_SMALL) {
+#if 0 /* xD */
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot close that window from outside.");
+				return;
+			}
+#endif
+			cave_set_feat_live(wpos, y, x, FEAT_WINDOW_SMALL);
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "close_window", "close_door", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "close_window", "close_door", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+
 		/* Require open door */
 		else if (c_ptr->feat != FEAT_OPEN && c_ptr->feat != FEAT_HOME_OPEN) {
 #if 1 /* just for fun */
@@ -3392,7 +3485,7 @@ void do_cmd_close(int Ind, int dir) {
  * Check the terrain around the location to see if erosion takes place.
  * TODO: expand this for more generic terrain types		- Jir -
  */
-byte twall_erosion(worldpos *wpos, int y, int x, byte feat) {
+u16b twall_erosion(worldpos *wpos, int y, int x, u16b feat) {
 	int tx, ty, d;
 	cave_type **zcave;
 	cave_type *c_ptr;
@@ -3408,11 +3501,11 @@ byte twall_erosion(worldpos *wpos, int y, int x, byte feat) {
 		if (!in_bounds(ty, tx)) continue;
 
 		c_ptr = &zcave[ty][tx];
-		if (c_ptr->feat == FEAT_DEEP_WATER) {
+		if (is_deep_water(c_ptr->feat)) {
 			//feat = FEAT_DEEP_WATER; /* <- this is only if FEAT_DEEP_WATER is also terraformable in turn (see cave_set_feat_live) */
 			feat = FEAT_SHAL_WATER; /* <- this should be used otherwise */
 			break;
-		} else if (c_ptr->feat == FEAT_DEEP_LAVA) {
+		} else if (is_deep_lava(c_ptr->feat)) {
 			//feat = FEAT_DEEP_LAVA; /* <- this is only if FEAT_DEEP_LAVA is also terraformable in turn (see cave_set_feat_live) */
 			feat = FEAT_SHAL_LAVA; /* <- this should be used otherwise */
 			break;
@@ -3432,7 +3525,7 @@ byte twall_erosion(worldpos *wpos, int y, int x, byte feat) {
  * This will, however, produce grids which are NOT illuminated
  * (or darkened) along with the rest of the room.
  */
-bool twall(int Ind, struct worldpos *wpos, int y, int x, byte feat) {
+bool twall(int Ind, struct worldpos *wpos, int y, int x, u16b feat) {
 	byte *w_ptr = Ind ? &Players[Ind]->cave_flag[y][x] : NULL;
 	cave_type **zcave;
 
@@ -5587,8 +5680,7 @@ void do_cmd_bash(int Ind, int dir) {
 		/* for leaderless guild houses */
 		if ((zcave[y][x].info2 & CAVE2_GUILD_SUS)) return;
 
-		if (c_ptr->feat == FEAT_DEEP_WATER ||
-		    c_ptr->feat == FEAT_SHAL_WATER) {
+		if (is_water(c_ptr->feat) || is_lava(c_ptr->feat)) {
 			if (bash_type != 3) bash_type = 2;
 			water = TRUE;
 		}
@@ -6308,6 +6400,7 @@ int do_cmd_run(int Ind, int dir) {
 		 */
 		return(0);
 	}
+
 	return(2);
 }
 
@@ -6589,7 +6682,7 @@ bool retaliating_cmd = FALSE;
  * required to make each shot, spreading the shots out over time.
  *
  * Note that when firing missiles, the launcher multiplier is applied
- * after all the bonuses are added in, making multipliers very useful.
+ * after all the boni are added in, making multipliers very useful.
  *
  * Note that Bows of "Extra Might" get extra range and an extra bonus
  * for the damage multiplier.
@@ -8040,7 +8133,7 @@ void do_cmd_fire(int Ind, int dir) {
 					inven_item_optimize(Ind, item);
 				}
 
-				/* Recalculate bonuses */
+				/* Recalculate boni */
 				p_ptr->update |= (PU_BONUS);
 				/* Recalculate torch */
 				p_ptr->update |= (PU_TORCH);
@@ -9554,8 +9647,7 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 			}
  #endif
 			/* If thrown into fire, insta-trigger */
-			if (zcave[y][x].feat == FEAT_SHAL_LAVA || zcave[y][x].feat == FEAT_DEEP_LAVA || zcave[y][x].feat == FEAT_FIRE || zcave[y][x].feat == FEAT_GREAT_FIRE)
-				o_ptr->timeout = -1;
+			if (is_lava(zcave[y][x].feat) || is_acute_fire(zcave[y][x].feat)) o_ptr->timeout = -1;
 		}
 	}
 #endif
@@ -9641,14 +9733,16 @@ void house_admin(int Ind, int dir, char *args) {
 	if (!(zcave = getcave(wpos))) return;	//(FALSE);
 
 	if (dir && args) {
+		struct c_special *cs_ptr;
+
 		/* Get requested direction */
 		y = p_ptr->py + ddy[dir];
 		x = p_ptr->px + ddx[dir];
 		/* Get requested grid */
 		c_ptr = &zcave[y][x];
-		if (c_ptr->feat == FEAT_HOME || c_ptr->feat == FEAT_HOME_OPEN) {
-			struct c_special *cs_ptr;
-
+		switch (c_ptr->feat) {
+		case FEAT_HOME:
+		case FEAT_HOME_OPEN:
 			if ((cs_ptr = GetCS(c_ptr, CS_DNADOOR))) {
 				/* Test for things that don't require access: */
 				switch (args[0]) {
@@ -9691,7 +9785,20 @@ void house_admin(int Ind, int dir, char *args) {
 					} else msg_print(Ind, "\377oChange failed.");
 				} else msg_print(Ind, "\377oAccess not permitted.");
 			} else msg_print(Ind, "\377yNot a door of a private house.");
-		} else msg_print(Ind, "\377sThere is no home door there.");
+			break;
+		case FEAT_WINDOW:
+		case FEAT_WINDOW_SMALL:
+		case FEAT_OPEN_WINDOW:
+		case FEAT_OPEN_WINDOW_SMALL:
+			/* Windows only allow knocking */
+			if (args[0] == 'H') {
+				knock_window(Ind, x, y);
+				return;
+			}
+			//fall through
+		default:
+			msg_print(Ind, "\377sThere is no house door there.");
+		}
 	}
 	return;
 }

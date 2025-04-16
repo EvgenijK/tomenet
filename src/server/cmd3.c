@@ -189,7 +189,7 @@ s16b inven_takeoff(int Ind, int item, int amt, bool called_from_wield, bool forc
 	}
 #endif
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 	/* Recalculate torch */
 	p_ptr->update |= (PU_TORCH);
@@ -244,7 +244,7 @@ void equip_thrown(int Ind, int slot, object_type *o_ptr, int original_number) {
 	/* What are we "doing" with the object */
 	if (original_number > o_ptr->number) {
 		//we still have some of these objects left in our equipment slot! So no need for a 'loss' message.
-		/* Recalculate bonuses cause of weight change */
+		/* Recalculate boni cause of weight change */
 		p_ptr->update |= (PU_BONUS);
 		/* Window stuff */
 		p_ptr->window |= (PW_INVEN | PW_EQUIP | PW_PLAYER);
@@ -332,7 +332,7 @@ void equip_thrown(int Ind, int slot, object_type *o_ptr, int original_number) {
 	}
 #endif
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 	/* Recalculate torch */
 	p_ptr->update |= (PU_TORCH);
@@ -1511,7 +1511,7 @@ int do_cmd_wield(int Ind, int item, u16b alt_slots) {
 
 	if (hobbit_warning) msg_print(Ind, "\377yYou feel somewhat less dextrous than when barefeet.");
 
-	/* Recalculate bonuses */
+	/* Recalculate boni */
 	p_ptr->update |= (PU_BONUS);
 
 	/* Recalculate torch */
@@ -3107,7 +3107,7 @@ void do_cmd_steal_from_monster(int Ind, int m_idx) {
 
 	//notice -= q_ptr->skill_fos; /* perception */
 
-	/* Hack -- Rogues get bonuses to chances */
+	/* Hack -- Rogues get boni to chances */
 	if (!p_ptr->rogue_heavyarmor && get_skill(p_ptr, SKILL_STEALING)) {
 		/* Increase chance by level */
 		success += get_skill_scale(p_ptr, SKILL_STEALING, 150);
@@ -3589,7 +3589,7 @@ void do_cmd_steal(int Ind, int dir) {
 		s_printf("warning_stealing_rha: %s\n", p_ptr->name);
 	}
 
-	/* Hack -- Rogues get bonuses to chances */
+	/* Hack -- Rogues get boni to chances */
 	if (!p_ptr->rogue_heavyarmor && get_skill(p_ptr, SKILL_STEALING)) {
 		/* Increase chance by level */
 		success += get_skill_scale(p_ptr, SKILL_STEALING, 150);
@@ -4376,14 +4376,19 @@ static bool do_cmd_look_accept(int Ind, int y, int x) {
 
 		/* Notice shops */
 		if (c_ptr->feat == FEAT_SHOP) return(TRUE);
-#if 0
+ #if 0
 		if ((c_ptr->feat >= FEAT_SHOP_HEAD) &&
 		    (c_ptr->feat <= FEAT_SHOP_TAIL)) return(TRUE);
-#endif	// 0
+ #endif	// 0
 
 		/* Notice doors */
 		if ((c_ptr->feat >= FEAT_DOOR_HEAD) &&
 		    (c_ptr->feat <= FEAT_DOOR_TAIL)) return(TRUE);
+
+		/* Notice windows */
+		if (c_ptr->feat == FEAT_WINDOW || c_ptr->feat == FEAT_WINDOW_SMALL
+		    c_ptr->feat == FEAT_OPEN_WINDOW || c_ptr->feat == FEAT_OPEN_WINDOW_SMALL)
+			return(TRUE);
 
 		/* Notice rubble */
 		if (c_ptr->feat == FEAT_RUBBLE) return(TRUE);
@@ -4805,6 +4810,38 @@ void do_cmd_look(int Ind, int dir) {
 
 		if (feat == FEAT_GRAND_MIRROR)
 			name = "grand mirror stands before you. Your reflection seems to stare at you..";
+
+		/* Let character 'pseudo-deduce' staircase type from its player-perceived colour? */
+		if (!p_ptr->wpos.wz && (feat == FEAT_MORE || feat == FEAT_LESS || feat == FEAT_WAY_MORE || feat == FEAT_WAY_LESS)) {
+			struct dungeon_type *d_ptr;
+			worldpos tpos = p_ptr->wpos; /* copy */
+			wilderness_type *wild = &wild_info[tpos.wy][tpos.wx];
+			byte ap;
+
+			if (!tpos.wz) {
+				if ((feat == FEAT_MORE) || (feat == FEAT_WAY_MORE)) d_ptr = wild->dungeon;
+				else d_ptr = wild->tower;
+			} else if (tpos.wz < 0) d_ptr = wild->dungeon;
+			else d_ptr = wild->tower;
+
+			/* Check for empty staircase without any connected dungeon/tower! */
+			if (!d_ptr) ap = TERM_SLATE;
+			else get_staircase_colour(d_ptr, &ap);
+
+			switch (ap) {
+			case TERM_L_UMBER: info = "Experimental"; break;
+			case TERM_HOLYORB: info = (d_ptr->type == DI_HALLS_OF_MANDOS ? "One-way" : "Experimental one-way"); break;
+			case TERM_GREEN: info = "No death"; break;
+			case TERM_DARKNESS: info = "***No exit!***"; break;
+			case TERM_L_DARK: info = "Iron"; break;
+			case TERM_FIRE: info = "Hellish"; break;
+			case TERM_L_RED: info = "No recall/stairs back"; break;
+			case TERM_RED: info = "No recall"; break;
+			case TERM_ORANGE: info = "No stairs back"; break;
+			case TERM_YELLOW: info = "No recall-entry"; break;
+			//TERM_L_WHITE is normal
+			}
+		}
 
 		/* Message */
 		if (strlen(info)) snprintf(out_val, sizeof(out_val), "%s%s%s (%s)", p1, p2, name, info);

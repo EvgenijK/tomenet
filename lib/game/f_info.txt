@@ -25,7 +25,7 @@ V:4.0.0
 # Note: For transparency of t_*.prf files loaded over existing floors etc, use special feat FEAT_ALPHA! (138 / 8A)
 
 N:0:nothing
-G: :w
+G: :d
 F:FLOOR
 
 # 0x01 --> open floor
@@ -174,8 +174,7 @@ F:WALL | NO_WALK | CAN_PASS | NOTICE | SUPPORT_LIGHT | PERMANENT
 
 # used for the wilderness border
 N:22:permanent wall
-#G: :w
-G: :w
+G: :d
 F:PERMANENT
 #added all of those flags to allow running wilderness transitions - C. Blue:
 #removed this one too and added a hack in run_step..  F:DONT_NOTICE_RUNNING
@@ -610,7 +609,7 @@ F:NO_SHADE
 #added to visually "blank" unused space on floors that are smaller than possible
 #N:79:permanent clear wall
 N:79:nothing
-G: :w
+G: :d
 F:WALL | NO_WALK | NO_VISION | PERMANENT | SUPPORT_LIGHT
 F:DONT_NOTICE_RUNNING | BOUNDARY | NO_ARTICLE
 
@@ -837,7 +836,7 @@ F:LOS | NO_WALK | DONT_NOTICE_RUNNING | PERMANENT | NO_ARTICLE
 D:0:Ohhh, it is *dark* and *deep*.
 
 N:108:bottomless abyss
-G: :w
+G: :d
 F:WALL | NO_WALK | NO_VISION | PERMANENT | SUPPORT_LIGHT
 F:DONT_NOTICE_RUNNING | BOUNDARY
 
@@ -911,7 +910,7 @@ F:NO_ARTICLE
 D:1:You cannot break down these bars.
 
 N:121:empty sky
-G: :w
+G: :d
 F:WALL | NO_WALK | LOS | PERMANENT | SUPPORT_LIGHT
 F:DONT_NOTICE_RUNNING | BOUNDARY | NO_ARTICLE
 
@@ -1367,14 +1366,14 @@ G:":r
 F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NIGHT_DARK
 
 # window
-N:196:window
+N:196:closed window
 G:#:W
-F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING
+F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
 
 # small window
-N:197:small window
+N:197:small closed window
 G:#:W
-F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING
+F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
 
 # rain barrel
 N:198:rain barrel
@@ -1676,9 +1675,144 @@ N:249:solid block, bottom right corner rounded
 G:#:w
 F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
 
+N:250:solid block, half top right shaved off
+G:#:w
+F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
+N:251:solid block, half bottom left shaved off
+G:#:w
+F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
+N:252:solid block, half bottom right shaved off
+G:#:w
+F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
+N:253:solid block, half top left shaved off
+G:#:w
+F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
 
+#HOLE (254)
+
+# Uh oh, only #254 is left. If we need more space we could check which of the pseudo-feats are currently unused and delete them:
+# 165-171, 237, 239-253.
+# Best solution of course: Expand MAX_F_IDX to 512, change data type from byte to u16b accordingly o_O"
 
 # NOTE: 255 is reserved for special purpose (RLE in server save file / 'not done yet' indicator -- TODO: Check the latter one, can't coexist w/ RLE?)
+
+# window
+N:256:open window
+G:":W
+F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
+F:LOS | BLOCK_CONTACT
+
+# small window
+N:257:small open window
+G:":W
+F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
+F:LOS | BLOCK_CONTACT
+
+# Stream of animated water, eastward
+N:258:stream of water
+G:~:%a
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated water, westward
+N:259:stream of water
+G:~:%b
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated water, northward
+N:260:stream of water
+G:~:%c
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated water, southward
+N:261:stream of water
+G:~:%d
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated deep water, eastward
+N:262:stream of deep water
+G:~:%a
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated deep water, westward
+N:263:stream of deep water
+G:~:%b
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated deep water, northward
+N:264:stream of deep water
+G:~:%c
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+# Stream of animated deep water, southward
+N:265:stream of deep water
+G:~:%d
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING
+F:NO_SHADE | NO_LITE_WHITEN
+#LAMP_LITE_OPTIONAL
+
+# Stream of animated lava, eastward
+N:266:stream of shallow lava
+G:~:%e
+E:4d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava burns you.
+# Stream of animated lava, westward
+N:267:stream of lava
+G:~:%f
+E:4d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava burns you.
+# Stream of animated lava, northward
+N:268:stream of shallow lava
+G:~:%g
+E:4d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava burns you.
+# Stream of animated lava, southward
+N:269:stream of shallow lava
+G:~:%h
+E:4d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava burns you.
+# Stream of animated deep lava, eastward
+N:270:stream of deep lava
+G:~:%e
+E:8d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava BURNS you.
+# Stream of animated deep lava, westward
+N:271:stream of deep lava
+G:~:%f
+E:8d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava BURNS you.
+# Stream of animated deep lava, northward
+N:272:stream of deep lava
+G:~:%g
+E:8d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava BURNS you.
+# Stream of animated deep lava, southward
+N:273:stream of deep lava
+G:~:%h
+E:8d4:2:FIRE
+F:FLOOR | CAN_FEATHER | CAN_LEVITATE | REMEMBER | SUPPORT_LIGHT | GLOW
+D:0:The lava BURNS you.
 
 
 # generic scheme (all lines are unique except

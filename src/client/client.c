@@ -9,7 +9,7 @@
  */
 
 #include "angband.h"
-
+extern bool disable_tile_cache;
 
 char mangrc_filename[100] = "";
 bool convert_rc = FALSE;
@@ -274,6 +274,13 @@ retry_mangrc:
 				p = strtok(buf, " \t\n");
 				p = strtok(NULL, "\t\n");
 				if (p) strcpy(graphic_tiles, p);
+			}
+			if (!strncmp(buf, "disableGfxCache", 15)) { //TILE_CACHE_SIZE
+				char *p;
+
+				p = strtok(buf, " \t\n");
+				p = strtok(NULL, "\t\n");
+				if (atoi(p) != 0) disable_tile_cache = TRUE;
 			}
 #endif
 #ifdef USE_SOUND
@@ -724,43 +731,43 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 				/* Add missing windows (added for older client versions that didn't have 7-9 yet) */
 				if (!found_window[0]) {
 					write_mangrc_aux(0, "Term-Main", config2);
-					printf("Added missing Term-Main window to config file.\n");
+					logprint("Added missing Term-Main window to config file.\n");
 				}
 				if (!found_window[1]) {
 					write_mangrc_aux(1, "Term-1", config2);
-					printf("Added missing Term-1 window to config file.\n");
+					logprint("Added missing Term-1 window to config file.\n");
 				}
 				if (!found_window[2]) {
 					write_mangrc_aux(2, "Term-2", config2);
-					printf("Added missing Term-2 window to config file.\n");
+					logprint("Added missing Term-2 window to config file.\n");
 				}
 				if (!found_window[3]) {
 					write_mangrc_aux(3, "Term-3", config2);
-					printf("Added missing Term-3 window to config file.\n");
+					logprint("Added missing Term-3 window to config file.\n");
 				}
 				if (!found_window[4]) {
 					write_mangrc_aux(4, "Term-4", config2);
-					printf("Added missing Term-4 window to config file.\n");
+					logprint("Added missing Term-4 window to config file.\n");
 				}
 				if (!found_window[5]) {
 					write_mangrc_aux(5, "Term-5", config2);
-					printf("Added missing Term-5 window to config file.\n");
+					logprint("Added missing Term-5 window to config file.\n");
 				}
 				if (!found_window[6]) {
 					write_mangrc_aux(6, "Term-6", config2);
-					printf("Added missing Term-6 window to config file.\n");
+					logprint("Added missing Term-6 window to config file.\n");
 				}
 				if (!found_window[7]) {
 					write_mangrc_aux(7, "Term-7", config2);
-					printf("Added missing Term-7 window to config file.\n");
+					logprint("Added missing Term-7 window to config file.\n");
 				}
 				if (!found_window[8]) {
 					write_mangrc_aux(8, "Term-8", config2);
-					printf("Added missing Term-8 window to config file.\n");
+					logprint("Added missing Term-8 window to config file.\n");
 				}
 				if (!found_window[9]) {
 					write_mangrc_aux(9, "Term-9", config2);
-					printf("Added missing Term-9 window to config file\n.");
+					logprint("Added missing Term-9 window to config file\n.");
 				}
 			}
 #endif
@@ -852,6 +859,7 @@ bool write_mangrc(bool creds_only, bool update_creds, bool audiopacks_only) {
 			/* On writing a default .tomenetrc, also default to 16x24sv tileset */
 			if (!graphic_tiles[0]) strcpy(graphic_tiles, "16x24sv");
 			fputs(format("graphic_tiles\t\t%s\n", graphic_tiles), config2);
+			fputs("disableGfxCache\t\t0\n", config2);
 #endif
 			fputs("\n", config2);
 //#ifdef USE_SOUND
@@ -1133,31 +1141,14 @@ int main(int argc, char **argv) {
 			i = argc;
 #endif
 			break;
-
 		/* Source other files */
-		case 'f':
-			skip = read_mangrc(&argv[i][2]);
-			break;
-
-		case 'p':
-			cfg_game_port = atoi(&argv[i][2]);
-			break;
-
-		case 'F':
-			cfg_client_fps = atoi(&argv[i][2]);
-			break;
-
-		case 'P':
-			strcpy(path, argv[i] + 2);
-			break;
-
-		case 'R':
-			auto_reincarnation = TRUE;
+		case 'f': skip = read_mangrc(&argv[i][2]); break;
+		case 'p': cfg_game_port = atoi(&argv[i][2]); break;
+		case 'F': cfg_client_fps = atoi(&argv[i][2]); break;
+		case 'P': strcpy(path, argv[i] + 2); break;
+		case 'R': auto_reincarnation = TRUE;
 			/* Fall through */
-		case 'N':
-			strcpy(cname, argv[i] + 2);
-			break;
-
+		case 'N': strcpy(cname, argv[i] + 2); break;
 		/* Pull login id */
 		case 'l':
 			if (argv[i][2]) { /* Hack -- allow space after '-l' */
@@ -1166,52 +1157,22 @@ int main(int argc, char **argv) {
 			}
 			else modus = 1;
 			break;
-
 		/* Pull 'real name' */
 		case 'n':
-			if (argv[i][2])	/* Hack -- allow space after '-l' */
-			{
+			if (argv[i][2]) { /* Hack -- allow space after '-l' */
 				strcpy(real_name, argv[i] + 2);
 				break;
 			}
 			/* Fall through */
-
-		case 'c':
-			force_cui = TRUE;
-			break;
-
-		case 'C':
-			server_protocol = 1;
-			break;
-
-		case 'q':
-			quiet_mode = TRUE;
-			break;
-
-		case 'w':
-			noweather_mode = TRUE;
-			break;
-
-		case 'u':
-			no_lua_updates = TRUE;
-			break;
-
-		case 'm':
-			skip_motd = TRUE;
-			break;
-
-		case 'v':
-			save_chat = 1;
-			break;
-
-		case 'V':
-			save_chat = 2;
-			break;
-
-		case 'x':
-			save_chat = 3;
-			break;
-
+		case 'c': force_cui = TRUE; break;
+		case 'C': server_protocol = 1; break;
+		case 'q': quiet_mode = TRUE; break;
+		case 'w': noweather_mode = TRUE; break;
+		case 'u': no_lua_updates = TRUE; break;
+		case 'm': skip_motd = TRUE; break;
+		case 'v': save_chat = 1; break;
+		case 'V': save_chat = 2; break;
+		case 'x': save_chat = 3; break;
 		case 'e': {
 			/* Since ALSA might spam underrun errors.. */
 			FILE *fr = freopen("tomenet.log", "w", stderr);
@@ -1219,10 +1180,10 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Failed to open tomenet.log for writing!\n");
 			}
 			break;
-
-		case 'a': use_graphics_new = use_graphics = UG_NONE; ask_for_graphics = FALSE; break; // ASCII
-		case 'g': use_graphics_new = use_graphics = UG_NORMAL; ask_for_graphics = FALSE; break; // graphics
-		case 'G': use_graphics_new = use_graphics = UG_2MASK; ask_for_graphics = FALSE; break; // dual-mask graphics
+		case 'a': override_graphics = UG_NONE; ask_for_graphics = FALSE; break; // ASCII
+		case 'g': override_graphics = UG_NORMAL; ask_for_graphics = FALSE; break; // graphics
+		case 'G': override_graphics = UG_2MASK; ask_for_graphics = FALSE; break; // dual-mask graphics
+		case 'T': disable_tile_cache = TRUE; break; //TILE_CACHE_SIZE
 		}
 
 		default:
@@ -1231,6 +1192,10 @@ int main(int argc, char **argv) {
 			break;
 		}
 	}
+
+	if (override_graphics != -1) use_graphics_new = use_graphics = override_graphics;
+
+	if (disable_tile_cache) logprint("Graphics tiles cache disabled.\n");
 
 	if (quiet_mode) use_sound = FALSE;
 
@@ -1272,7 +1237,7 @@ int main(int argc, char **argv) {
 	//also, ANGBAND_DIR_XTRA is not yet initialized at this point, if needed..
 		/* Print the name and help for each available module */
 		for (i = 0; i < (int)N_ELEMENTS(modules); i++)
-			printf("     %s   %s\n", modules[i].name, modules[i].help);
+			logprint(format("     %s   %s\n", modules[i].name, modules[i].help));
 #endif
 #endif
 
@@ -1355,7 +1320,7 @@ int main(int argc, char **argv) {
 	/* No visual module worked */
 	if (!done) {
 		Net_cleanup();
-		printf("Unable to initialize a display module!\n");
+		logprint("Unable to initialize a display module!\n");
 		exit(1);
 	}
 

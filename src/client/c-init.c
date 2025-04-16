@@ -315,9 +315,7 @@ void initialize_player_pref_files(void) {
 	}
 
 	/* Access the "character" pref file */
-	sprintf(buf, "%s.prf", cname);
-	/* Process that file */
-	process_pref_file(buf);
+	load_charspec_macros(cname);
 
 	/* Special hack: On ARCADE_SERVER, load special arcade macros! */
 	if (s_ARCADE) {
@@ -3588,6 +3586,10 @@ void client_init(char *argv1, bool skip) {
 	/* Set the "plog hook" */
 	if (!plog_aux) plog_aux = plog_hook;
 
+	/* Set this option's default value to TRUE while client is still 'uninitialized' in regards to loading any option settings,
+	   so screenshots taking in meta screen, login screen, account screen and character creation process use this desirable format: */
+	c_cfg.screenshot_format = TRUE;
+
 	/* Setup the file paths */
 	init_stuff();
 
@@ -4300,7 +4302,7 @@ again:
 #endif
 
 	/* Reset static vars for hp/sp/mp for drawing huge bars to enforce redrawing, for the next char we log in with */
-	prev_huge_cmp = prev_huge_csn = prev_huge_chp = -1;
+	prev_huge_cmp = prev_huge_csn = prev_huge_chp = prev_huge_cst = -1;
 
 	/* For different tomb stone music if this character dies to insanity */
 	insanity_death = FALSE;
@@ -4450,7 +4452,11 @@ void ask_for_graphics_generic(void) {
 				if (ch == 'y' || ch == 'Y') {
 					my_memfrob(pass, strlen(pass));
 					/* Specifying the -a/-g parameter will prevent the new instance from asking us again: */
+ #ifdef WINDOWS
+					char *args[] = { "TomeNET.exe", "-g", format("-l%s", nick), pass, server_name, NULL };
+ #else
 					char *args[] = { "tomenet", "-g", format("-l%s", nick), pass, server_name, NULL };
+ #endif
 
 					Term_putstr(8, 10, -1, TERM_GREEN, "Switching to graphics mode...");
 					execv(argv0, args);

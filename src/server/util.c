@@ -1562,8 +1562,8 @@ void sound_house_knock(int h_idx, int dx, int dy) {
 		Send_sound(i, val, val2, SFX_TYPE_COMMAND, 100 - (d * 50) / 11, 0, dx - Players[i]->px, dy - Players[i]->py);
 #endif
 	}
-
 }
+
 /* like msg_print_near_monster() just for sounds,
    basically same as sound_near_site() except no player can be exempt - C. Blue */
 void sound_near_monster(int m_idx, cptr name, cptr alternative, int type) {
@@ -5253,7 +5253,7 @@ static void player_talk_aux(int Ind, char *message) {
 
 
 	/* hack: preparse for private chat target, and if found
-	   then strip chat mode prefixes to switch to private chat mode - C. Blue */
+	   then strip chat mode prefices to switch to private chat mode - C. Blue */
 	/* Form a search string if we found a colon */
 	if (strlen(message) > 4 && message[1] == ':' && message[2] != ':' &&
 	    (message[0] == '!' || message[0] == '#' || message[0] == '$')
@@ -10159,7 +10159,13 @@ void grid_affects_player(int Ind, int ox, int oy) {
 		}
 	}
 	if (ox != -1 && (zcave[oy][ox].info & CAVE_STCK) && !(zcave[y][x].info & CAVE_STCK)) {
-		msg_print(Ind, "\377sFresh air greets you as you leave the vault.");
+		/* If we don't get insta-kicked out of jail (JAIL_KICK),
+		   we might actually be walking out of a jail, not out of a vault */
+		if (zcave[oy][ox].info & CAVE_JAIL) {
+			msg_print(Ind, "\377sFresh air greets you as you leave the prison.");
+			p_ptr->tim_jail_delay = 0;
+		} else
+			msg_print(Ind, "\377sFresh air greets you as you leave the vault.");
 		p_ptr->redraw |= PR_DEPTH; /* hack: depth colour indicates no-tele */
 		p_ptr->redraw |= PR_BPR_WRAITH;
 #ifdef USE_SOUND_2010
@@ -11049,4 +11055,15 @@ int cclen(cptr str) {
 	}
 
 	return(l);
+}
+
+/* Bind custom_lua_timer */
+char *custom_lua_timer_parmstr_get(int i) {
+	if (i < 1 || i >= CUSTOM_LUA_TIMERS) return(NULL);
+	return(custom_lua_timer_parmstr[i]);
+}
+void custom_lua_timer_parmstr_set(int i, char *str) {
+	if (i < 1 || i >= CUSTOM_LUA_TIMERS) return;
+	strncpy(custom_lua_timer_parmstr[i], str, MAX_CHARS_WIDE);
+	custom_lua_timer_parmstr[i][MAX_CHARS_WIDE - 1] = 0;
 }

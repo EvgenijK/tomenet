@@ -496,7 +496,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "diz_death_any",		"Displays lore on monster that kills anyone" },
 	{ &c_cfg.diz_first,		TRUE,	0,	0, 122, TRUE,
 	    "diz_first",		"Displays lore on first-time monster kill" },
-	{ &c_cfg.screenshot_format,	TRUE,	1,	0, 123, TRUE,
+	{ &c_cfg.screenshot_format,	TRUE,	6,	0, 123, TRUE,
 	    "screenshot_format",	"Screenshots are timestamped instead of numbered" },
 	{ &c_cfg.palette_animation,	TRUE,	4,	0, 124, TRUE,
 	    "palette_animation",	"Shade world surface colours depending on daytime" },
@@ -607,10 +607,19 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "topline_first",		"Top line shows first line of multi-line messages" },
 	{ &c_cfg.ascii_weather,		FALSE,	1,	0, 171, TRUE, //just for debugging weather glitches
 	    "ascii_weather",		"Always use plain ASCII symbols for weather" },
-	{ &c_cfg.no2mask_weather,	TRUE,	1,	0, 172, TRUE, //just for debugging weather glitches
+	{ &c_cfg.no2mask_weather,	FALSE,	1,	0, 172, TRUE, //just for debugging weather glitches
 	    "no2mask_weather",		"Never use dual-mask grapics for weather" },
 	{ &c_cfg.auto_inscr_server_ch,	TRUE,	8,	9, 173, TRUE,
 	    "auto_inscr_server_ch",	"Server-defined auto-inscriptions for chemicals" },
+
+	{ &c_cfg.screenshot_keys,	FALSE,	6,	0, 174, TRUE,
+	    "screenshot_keys",		"Swap CTRL+T and SHIFT+CTRL+T key (XHTML vs PNG)" },
+	{ &c_cfg.wild_resume_from_any,	TRUE,	5,	0, 175, TRUE,
+	    "wild_resume_from_any",	"Resume wilderness music even after non-wild music" },
+	{ &c_cfg.tavern_town_resume,	TRUE,	5,	0, 176, TRUE,
+	    "tavern_town_resume",	"If wild_resume_from_any, also resume tavern/town" },
+	{ &c_cfg.st_huge_bar,		FALSE,	1,	0, 177, TRUE,
+	    "st_huge_bar",		"Also show stamina as huge bar (big_map only)" },
 };
 
 cptr melee_techniques[16] = {

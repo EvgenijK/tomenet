@@ -32,25 +32,32 @@ typedef unsigned int u32b;
 
 
 /* cave.c */
-/* These should not directly be used from LUA, because at least cave_set_feat_live()
-   assumes that allow_terraforming() has been checked before!
-	extern void cave_set_feat(worldpos *wpos, int y, int x, int feat);
-	extern bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
-   Instead, for Glyphs we use the following one cleanly: */
-// Argh, I need cave_set_feat for arcade stuff. -Moltor
-extern void cave_set_feat(worldpos *wpos, int y, int x, int feat);
 extern void warding_glyph(int Ind);
+/* Note that cave_set_feat_live() assumes that allow_terraforming() has been checked before.
+   Especially for Glyphs 'warding_gylph() should be used cleanly. - C. Blue */
+// Argh, I need cave_set_feat for arcade stuff. -Moltor
 // #if defined(ARCADE_SERVER) || defined(DM_MODULES)
-extern int check_feat(worldpos *wpos, int y, int x);
+extern int cave_set_feat(worldpos *wpos, int y, int x, int feat);
+extern bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
+extern void custom_cave_set_feat(worldpos *wpos, int y, int x, int feat,
+    s16b custom_lua_tunnel_hand, s16b custom_lua_tunnel, s16b custom_lua_search, byte custom_lua_search_diff_minus, byte custom_lua_search_diff_chance, s16b custom_lua_newlivefeat, s16b custom_lua_way);
+extern bool custom_cave_set_feat_live(worldpos *wpos, int y, int x, int feat,
+    s16b custom_lua_tunnel_hand, s16b custom_lua_tunnel, s16b custom_lua_search, byte custom_lua_search_diff_minus, byte custom_lua_search_diff_chance, s16b custom_lua_newlivefeat, s16b custom_lua_way);
+// #endif
 // #ifdef DM_MODULES
+extern int check_feat(worldpos *wpos, int y, int x);
 extern int dun_get_wid(worldpos *wpos);
 extern int dun_get_hgt(worldpos *wpos);
 extern int check_monster(worldpos *wpos, int y, int x);
 extern int check_monster_ego(worldpos *wpos, int y, int x);
 extern int check_item_tval(worldpos *wpos, int y, int x);
 extern int check_item_sval(worldpos *wpos, int y, int x);
-extern void place_item_module(worldpos *wpos, int y, int x, int tval, int sval);
+extern int custom_place_item_module(worldpos *wpos, int y, int x, int tval, int sval,
+    s16b custom_lua_carrystate, s16b custom_lua_equipstate, s16b custom_lua_destruction, s16b custom_lua_usage);
+extern int place_item_module(worldpos *wpos, int y, int x, int tval, int sval);
 extern int place_monster_ego(worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning);
+extern int custom_place_monster_ego(worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning,
+    s16b custom_lua_death, s16b custom_lua_deletion, s16b custom_lua_awoke, s16b custom_lua_sighted);
 extern int players_on_depth(struct worldpos *wpos);
 extern byte level_up_x(struct worldpos *wpos);
 extern byte level_up_y(struct worldpos *wpos);
@@ -247,7 +254,7 @@ extern bool dispel_undead(int Ind, int dam);
 extern bool dispel_demons(int Ind, int dam);
 extern bool dispel_monsters(int Ind, int dam);
 extern bool turn_undead(int Ind);
-extern void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, byte feat, int stun);
+extern void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, u16b feat, int stun);
 extern void earthquake(struct worldpos *wpos, int cy, int cx, int r);
 extern void wipe_spell(struct worldpos *wpos, int cy, int cx, int r);
 extern bool target_okay(int Ind);
@@ -302,6 +309,11 @@ extern void house_creation(int Ind, bool floor, bool jail);
 extern bool do_vermin_control(int Ind);
 extern void do_autokinesis_to(int Ind, int dis);
 extern bool do_mstopcharm(int Ind);
+extern bool cast_raindrop(worldpos *wpos, int x);
+extern bool cast_snowflake(worldpos *wpos, int x, int interval);
+extern bool cast_fireworks(worldpos *wpos, int x, int y, int typ);
+extern bool cast_falling_star(worldpos *wpos, int x, int y, int dur);
+extern bool thunderstorm_visual(worldpos *wpos, int x, int y, int dur);
 
 /* traps.c */
 extern void place_trap_specific(struct worldpos *wpos, int y, int x, int mod, int found);

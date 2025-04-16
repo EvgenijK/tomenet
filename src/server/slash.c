@@ -275,7 +275,7 @@ static void do_cmd_refresh(int Ind) {
 	/* Clear the target */
 	p_ptr->target_who = 0;
 
-	/* Update his view, light, bonuses, and torch radius */
+	/* Update his view, light, boni, and torch radius */
 	p_ptr->update |= (PU_VIEW | PU_LITE | PU_BONUS | PU_TORCH |
 			PU_DISTANCE | PU_SKILL_MOD);
 
@@ -1480,8 +1480,33 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 //#define R_REQUIRES_AWARE /* Item can only be used for '@R' inscription if we're aware of its flavour? */
 			int good_match_found = 0;
 			char const *candidate_destination;
+			char *c, *c2;
+			int x = -1, y = -1;
 
 			if (admin) {
+				/* Ultra-hack: Admins may specify "/x,y" to teleport directly to a specific [x,y] coord after recall */
+				if ((c = strchr(message3, '/')) && *(c + 1)) { //verify correct format
+					x = atoi(c + 1);
+					if ((c2 = strchr(c, ',')) && *(c2 + 1)) { //verify correct format
+						y = atoi(c2 + 1);
+						if (!in_bounds(y, x)) x = y = -1; //discard
+					} else x = -1; //discard
+					/* Crop the coord string from recall parms and proceed normally */
+					c2 = strchr(c, ' ');
+					if (c2) {
+						char tmp[MSG_LEN];
+
+						strcpy(tmp, message3);
+						strcpy(tmp + (c - message3), c2);
+						strcpy(message3, tmp);
+					} else *c = 0;
+					while (*message3 && message3[strlen(message3) - 1] == ' ') message3[strlen(message3) - 1] = 0; //trim trailing spaces
+					p_ptr->recall_x = x;
+					p_ptr->recall_y = y;
+					do_slash_cmd(Ind, format("/rec %s", message3), format("/rec %s", message3)); //hax! this is done to re-tokenize the new message3 string
+					return;
+				}
+
 				if (!p_ptr->word_recall) set_recall_timer(Ind, 1);
 				else set_recall_timer(Ind, 0);
 			} else {
@@ -3319,12 +3344,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				for (i = 0; i < MAX_GLOBAL_EVENTS; i++) if ((global_event[i].getype != GE_NONE) && (global_event[i].hidden == FALSE || admin)) {
 					n++;
 					if (n == 1) msg_print(Ind, "\377WCurrently ongoing events:");
-#ifdef DM_MODULES
-					if ((global_event[i].getype == GE_ADVENTURE) && (global_event[i].state[1] == 1)) {
-						msg_format(Ind, "  \377U%d\377W) '%s' accepts challengers indefinitely.", i+1, global_event[i].title);
+					if (global_event[i].signup_begins_announcement == 1) {
+						msg_format(Ind, "  \377U%d\377W) '%s' accepts challengers indefinitely.", i + 1, global_event[i].title);
 						continue;
 					}
-#endif
 					/* Event still in announcement phase? */
 					at = global_event[i].announcement_time - (turn - global_event[i].start_turn) / cfg.fps;
 					if (at > 0) {
@@ -3363,6 +3386,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				int at = global_event[k0].announcement_time - (turn - global_event[k0].start_turn) / cfg.fps;
 				int as = global_event[k0].signup_time - (turn - global_event[k0].start_turn) / cfg.fps;
 
+				/* Hack: Always allow signing up, ie at any time during the full run of the event? */
+				if (global_event[k0].signup_time == -2) as = 1;
+
 				signup[0] = '\0';
 				if (!(global_event[k0].signup_time == -1) &&
 				    !(!global_event[k0].signup_time &&
@@ -3385,9 +3411,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				if (global_event[k0].noghost) msg_print(Ind, "\377RIn this event death is permanent - if you die your character will be erased!");
 
 //				msg_print(Ind, "\377d ");
-#ifdef DM_MODULES
-				if ((global_event[k0].getype == GE_ADVENTURE) && (global_event[k0].state[1] == 1)) return;
-#endif
+				if (global_event[k0].signup_begins_announcement == 1) return;
 				if (at >= 120) {
 					msg_format(Ind, "\377WThis event will start in %ld minute%s.%s", at / 60, at / 60 == 1 ? "" : "s", signup);
 				} else if (at > 0) {
@@ -3434,15 +3458,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (global_event[k0].signup_time == -1)
 				msg_print(Ind, "\377yThat event doesn't offer to sign up.");
 			else if (!global_event[k0].signup_time &&
-#ifdef DM_MODULES
-						((global_event[k0].getype == GE_ADVENTURE) &&
-						!(global_event[k0].state[1] == 1)) &&
-#endif
-				    (!global_event[k0].announcement_time ||
-				    (global_event[k0].announcement_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0)))
+			    global_event[k0].signup_begins_announcement != 1 &&
+			    (!global_event[k0].announcement_time ||
+			    (global_event[k0].announcement_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0)))
 				msg_print(Ind, "\377yThat event has already started.");
-			else if (global_event[k0].signup_time &&
-				    (global_event[k0].signup_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0))
+			else if (global_event[k0].signup_time && global_event[k0].signup_time != -2 &&
+			    (global_event[k0].signup_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0))
 				msg_print(Ind, "\377yThat event does not allow signing up anymore now.");
 			else {
 				if (tk < 2) global_event_signup(Ind, k0, NULL);
@@ -3463,12 +3484,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (global_event[k0].signup_time == -1)
 				msg_print(Ind, "\377yThat event doesn't offer to sign up.");
 			else if (!global_event[k0].signup_time &&
-#ifdef DM_MODULES
-						((global_event[k0].getype == GE_ADVENTURE) &&
-						!(global_event[k0].state[1] == 1)) &&
-#endif
-				    (!global_event[k0].announcement_time ||
-				    (global_event[k0].announcement_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0)))
+			    global_event[k0].signup_begins_announcement != 1 &&
+			    (!global_event[k0].announcement_time ||
+			    (global_event[k0].announcement_time - (turn - global_event[k0].start_turn) / cfg.fps <= 0)))
 				msg_print(Ind, "\377yThat event has already started.");
 			else {
 				global_event_type *ge = &global_event[k0];
@@ -3482,9 +3500,8 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					s_printf("%s EVENT_SIGNOFF: '%s' (%d) -> #%d '%s'(%d) [%d]\n", showtime(), p_ptr->name, Ind, k0, ge->title, ge->getype, i);
 					p_ptr->global_event_type[k0] = GE_NONE;
 
-#ifdef DM_MODULES
 					/* If the adventure is pending, possibly retract sign-up phase */
-					if (ge->getype == GE_ADVENTURE && ge->state[1] == 2) {
+					if (ge->signup_begins_announcement == 2) {
 						n = 0;
 						for (j = 0; j < MAX_GE_PARTICIPANTS; j++) {
 							if (!ge->participant[j]) continue;
@@ -3501,11 +3518,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 							}
 						}
 						if (!n) { // if zero participants, reset
-							ge->state[1] = 1;
+							ge->signup_begins_announcement = 1;
+							ge->pre_announcement_time = 0;
 							announce_global_event(k0);
 						}
 					}
-#endif
 
 					return;
 				}
@@ -4067,8 +4084,8 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		}
 #endif
 		else if (prefix(messagelc, "/knock")) { /* knock on a house door */
-			int x, y;
-			bool found = FALSE;
+			int x, y, wx, wy;
+			bool found = FALSE, found_window = FALSE;
 			cave_type **zcave = getcave(&p_ptr->wpos);
 
 			if (tk) {
@@ -4076,27 +4093,33 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
-			/* Check for a house door next to us */
+			/* Check for a house door next to us, and for a window as fallback */
 			for (x = p_ptr->px - 1; x <= p_ptr->px + 1; x++) {
 				for (y = p_ptr->py - 1; y <= p_ptr->py + 1; y++) {
 					if (!in_bounds(y, x)) continue;
-					if (zcave[y][x].feat != FEAT_HOME &&
-					    zcave[y][x].feat != FEAT_HOME_OPEN)
+					switch (zcave[y][x].feat) {
+					case FEAT_WINDOW: case FEAT_WINDOW_SMALL:
+					case FEAT_OPEN_WINDOW: case FEAT_OPEN_WINDOW_SMALL:
+						found_window = TRUE;
+						wx = x;
+						wy = y;
 						continue;
-
-					/* found a home door, assume it is a house */
-					found = TRUE;
-					break;
+					case FEAT_HOME: case FEAT_HOME_OPEN:
+						/* found a home door, assume it is a house */
+						found = TRUE;
+					}
+					if (found) break;
 				}
 				if (found) break;
 			}
-			if (!found) {
+			if (!found && !found_window) {
 				msg_print(Ind, "There is no house next to you.");
 				return;
 			}
 
 			/* knock on the door */
-			knock_house(Ind, x, y);
+			if (found) knock_house(Ind, x, y);
+			else knock_window(Ind, wx, wy); /* knock on the window */
 			return;
 		}
 		else if (prefix(messagelc, "/slap")) { /* Slap someone around :-o */
@@ -4128,6 +4151,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			sound_near_site(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "slap", "", SFX_TYPE_COMMAND, TRUE);
 #endif
 			if (Ind != j) {
+				msg_format(Ind, "\377yYou slap %s.", Players[j]->name);
 				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s slaps you!", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
 				msg_format_near(j, "\377y%s slaps %s!", p_ptr->name, Players[j]->name);
 			} else {
@@ -4190,6 +4214,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 
 			if (Ind != j) {
+				msg_format(Ind, "\377yYou pat %s.", Players[j]->name);
 				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s pats you.", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
 				msg_format_near(j, "\377y%s pats %s.", p_ptr->name, Players[j]->name);
 			} else {
@@ -4224,6 +4249,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 
 			if (Ind != j) {
+				msg_format(Ind, "\377yYou hug %s.", Players[j]->name);
 				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s hugs you.", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
 				msg_format_near(j, "\377y%s hugs %s.", p_ptr->name, Players[j]->name);
 			} else {
@@ -4258,6 +4284,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 
 			if (Ind != j) {
+				msg_format(Ind, "\377yYou poke %s.", Players[j]->name);
 				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s pokes you.", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
 				msg_format_near(j, "\377y%s pokes %s.", p_ptr->name, Players[j]->name);
 			} else {
@@ -4278,6 +4305,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
+				msg_format(Ind, "\377yYou applaud %s.", Players[j]->name);
 				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s applauds you.", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
 				msg_format_near(j, "\377y%s applauds %s.", p_ptr->name, Players[j]->name);
 #ifdef USE_SOUND_2010
@@ -4289,6 +4317,33 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			msg_format_near(Ind, "\377y%s applauds.", p_ptr->name);
 #ifdef USE_SOUND_2010
 			sound_near_site(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "applaud", "", SFX_TYPE_COMMAND, TRUE);
+#endif
+			return;
+		}
+		else if (prefix(messagelc, "/wave")) {
+			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
+			if (tk) {
+				j = name_lookup_loose(Ind, message3, FALSE, FALSE, FALSE);
+				if (!j || !p_ptr->play_vis[j] || j == Ind) return;
+				if (!target_able(Ind, -j)) {
+					msg_print(Ind, "You don't see anyone of that name..");
+					return;
+				}
+
+				msg_format(Ind, "\377yYou wave at %s.", Players[j]->name);
+				if (!check_ignore(Ind, j)) msg_format(j, "\377o%s waves at you.", Players[j]->play_vis[Ind] ? p_ptr->name : "It");
+				msg_format_near(j, "\377y%s waves at %s.", p_ptr->name, Players[j]->name);
+#ifdef USE_SOUND_2010
+				//sound_near_site(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "applaud", "", SFX_TYPE_COMMAND, TRUE);
+#endif
+				return;
+			}
+			msg_print(Ind, "\377yYou wave.");
+			msg_format_near(Ind, "\377y%s waves.", p_ptr->name);
+#ifdef USE_SOUND_2010
+			//sound_near_site(p_ptr->py, p_ptr->px, &p_ptr->wpos, 0, "applaud", "", SFX_TYPE_COMMAND, TRUE);
 #endif
 			return;
 		}
@@ -7757,6 +7812,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				   over as-close-as-possible-to-prefix-matching name */
 				for (i = 1; i < max_k_idx; i++) {
 					k_ptr = &k_info[i];
+					if (k_ptr->tval == TV_PSEUDO_OBJ) continue; //only real objects
 					//if (!k_ptr->k_idx) continue;
 
 					s = my_strcasestr(k_name + k_ptr->name, item);
@@ -10404,7 +10460,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 						// s_printf("strcmp(message3,global_event[i].title) %d\n",strcmp(message3,global_event[i].title));
 						if (!(strcmp(message3,global_event[i].title) == 0)) continue; // strcmp() returns 0 if equal
 						// s_printf("global_event: i %d global_event[i].getype %d global_event[i].title %s global_event[i].state[0] %d\n",i,global_event[i].getype,global_event[i].title, global_event[i].state[0]);
-						if (global_event[i].state[0] || global_event[i].state[1]) {
+						if (global_event[i].state[0] || global_event[i].signup_begins_announcement) {
 							msg_print(Ind, "Error: adventure already running!");
 							return;
 						}
@@ -10506,7 +10562,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					    (!ge->announcement_time ||
 					    (ge->announcement_time - (turn - ge->start_turn) / cfg.fps <= 0)))
 						continue;
-					if (ge->signup_time &&
+					if (ge->signup_time && ge->signup_time != -2 &&
 					    (ge->signup_time - (turn - ge->start_turn) / cfg.fps <= 0))
 						continue;
 					break;
@@ -11462,7 +11518,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				s_printf("Purged ITEM_REMOVAL_NEVER off %d items.\n", j);
 				return;
 			}
-			/* test new \376, \375, \374 chat line prefixes */
+			/* test new \376, \375, \374 chat line prefices */
 			else if (prefix(messagelc, "/testchat")) {
 				msg_print(Ind, "No code.");
 				msg_print(Ind, "\376376 code.");
@@ -12369,6 +12425,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (prefix(messagelc, "/lsl") || prefix(messagelc, "/lsls") || prefix(messagelc, "/lslsu")) {
 				int x, y;
 				struct dungeon_type *d_ptr;
+				dun_level *l_ptr;
 				worldpos tpos;
 				bool stale = FALSE, used = FALSE, unstat = FALSE;
 
@@ -12379,40 +12436,60 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				for (x = 0; x < 64; x++) for (y = 0; y < 64; y++) {
 					/* check surface */
 					k = 0; tpos.wx = x; tpos.wy = y; tpos.wz = 0;
-					for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
-					if (used && k) msg_format(Ind, "\377g  %2d,%2d", x, y);
-					else if (wild_info[y][x].surface.ondepth > k) {
-						msg_format(Ind, "  %2d,%2d", x, y);
-						if (unstat) master_level_specific(Ind, &tpos, "u");
+					l_ptr = getfloor(&tpos);
+					if (l_ptr && (l_ptr->flags2 & LF2_STATIC)) {
+						msg_format(Ind, "  \377v%2d,%2d", x, y);
+						//todo maybe: apply 'unstat'
+					} else {
+						for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
+						if (used && k) msg_format(Ind, "\377g  %2d,%2d", x, y);
+						else if (wild_info[y][x].surface.ondepth > k) {
+							msg_format(Ind, "  %2d,%2d", x, y);
+							if (unstat) master_level_specific(Ind, &tpos, "u");
+						}
+						else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377D  %2d,%2d", x, y);
 					}
-					else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377D  %2d,%2d", x, y);
+
 					/* check tower */
 					if ((d_ptr = wild_info[y][x].tower)) {
-					    //msg_format(Ind, "T max,base = %d,%d", d_ptr->maxdepth, d_ptr->baselevel);
-					    for (i = 0; i < d_ptr->maxdepth; i++) {
-						k = 0; tpos.wx = x; tpos.wy = y; tpos.wz = i + 1;
-						for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
-						if (used && k) msg_format(Ind, "\377gT %2d,%2d,%2d", x, y, i + 1);
-						else if (d_ptr->level[i].ondepth > k) {
-							msg_format(Ind, "T %2d,%2d,%2d", x, y, i + 1);
-							if (unstat) master_level_specific(Ind, &tpos, "u");
+						//msg_format(Ind, "T max,base = %d,%d", d_ptr->maxdepth, d_ptr->baselevel);
+						for (i = 0; i < d_ptr->maxdepth; i++) {
+							k = 0; tpos.wx = x; tpos.wy = y; tpos.wz = i + 1;
+							l_ptr = getfloor(&tpos);
+							if (l_ptr && (l_ptr->flags2 & LF2_STATIC)) {
+								msg_format(Ind, "  \377v%2d,%2d,%2d", x, y, i + 1);
+								//todo maybe: apply 'unstat'
+							} else {
+								for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
+								if (used && k) msg_format(Ind, "\377gT %2d,%2d,%2d", x, y, i + 1);
+								else if (d_ptr->level[i].ondepth > k) {
+									msg_format(Ind, "T %2d,%2d,%2d", x, y, i + 1);
+									if (unstat) master_level_specific(Ind, &tpos, "u");
+								}
+								else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377DT %2d,%2d,%2d", x, y, i + 1);
+							}
 						}
-						else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377DT %2d,%2d,%2d", x, y, i + 1);
-					    }
 					}
+
 					/* check dungeon */
 					if ((d_ptr = wild_info[y][x].dungeon)) {
-					    //msg_format(Ind, "D max,base = %d,%d", d_ptr->maxdepth, d_ptr->baselevel);
-					    for (i = 0; i < d_ptr->maxdepth; i++) {
-						k = 0; tpos.wx = x; tpos.wy = y; tpos.wz = -(i + 1);
-						for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
-						if (used && k) msg_format(Ind, "\377gD %2d,%2d,%2d", x, y, -(i + 1));
-						else if (d_ptr->level[i].ondepth > k) {
-							msg_format(Ind, "D %2d,%2d,%2d", x, y, -(i + 1));
-							if (unstat) master_level_specific(Ind, &tpos, "u");
+						//msg_format(Ind, "D max,base = %d,%d", d_ptr->maxdepth, d_ptr->baselevel);
+						for (i = 0; i < d_ptr->maxdepth; i++) {
+							k = 0; tpos.wx = x; tpos.wy = y; tpos.wz = -(i + 1);
+							l_ptr = getfloor(&tpos);
+							if (l_ptr && (l_ptr->flags2 & LF2_STATIC)) {
+								msg_format(Ind, "  \377v%2d,%2d,%2d", x, y, -(i + 1));
+								//todo maybe: apply 'unstat'
+							} else {
+								for (j = 1; j <= NumPlayers; j++) if (inarea(&Players[j]->wpos, &tpos)) k++;
+								if (used && k) msg_format(Ind, "\377gD %2d,%2d,%2d", x, y, -(i + 1));
+								else if (d_ptr->level[i].ondepth > k) {
+									msg_format(Ind, "D %2d,%2d,%2d", x, y, -(i + 1));
+									if (unstat) master_level_specific(Ind, &tpos, "u");
+								}
+								else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377DD %2d,%2d,%2d", x, y, -(i + 1));
+							}
 						}
-						else if (stale && getcave(&tpos) && stale_level(&tpos, cfg.anti_scum)) msg_format(Ind, "\377DD %2d,%2d,%2d", x, y, -(i + 1));
-					    }
 					}
 				}
 				msg_print(Ind, "done.");
@@ -13923,7 +14000,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_format(Ind, "");
 				}
 #else
-				for (j = 0; j < MAX_F_IDX; j++) {
+				// instead of full MAX_F_IDX whatever that value may be (currently 512) we limit it to 512
+				k = MAX_F_IDX;
+				if (k > 512) k = 512;
+				for (j = 0; j < k; j++) {
 					oc = f_info[j].z_char;
 					if (c && c != oc) continue;
 					if (p_ptr->f_char[j] == oc) continue;
@@ -14195,7 +14275,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 
 				while (TRUE) {
 					l = rand_int(max_k_idx);
-					if (!k_info[l].tval || !k_info[l].chance[0]) continue;
+					if (!k_info[l].tval || !k_info[l].chance[0]) continue; //TV_PSEUDO_OBJ are covered by chance == 0 check.
 					invcopy(&forge, l);
 					if (forge.tval != TV_POTION && forge.tval != TV_SCROLL && forge.tval != TV_JUNK && forge.tval != TV_SKELETON) continue;
 					object_flags(&forge, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
@@ -14639,7 +14719,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 #ifdef ENABLE_SUBINVEN
 			else if (prefix(messagelc, "/dbgsi")) { //display the first 3 elements of the first n subinventory arrays each
-				player_type *p_ptr = Players[Ind];
 				object_type *o_ptr;
 				char o_name[ONAME_LEN];
 
@@ -14669,6 +14748,153 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 #endif
+			else if (prefix(messagelc, "/ondepth")) {
+				msg_format(Ind, "ondepth: %d", players_on_depth(&p_ptr->wpos));
+				return;
+			}
+			/* Relocates a character that can be online or offline */
+			else if (prefix(messagelc, "/relocatechar") || prefix(messagelc, "/relocchar") || prefix(messagelc, "/relchar")) {
+				int p, slot;
+				s32b p_id;
+				struct worldpos tpos;
+				char *c, *c2;
+				player_type *q_ptr;
+				hash_entry *ptr;
+				object_type *o_ptr;
+
+				/* valid argument format? */
+				message3[0] = toupper(message3[0]); //qol
+				c = strchr(message3, ':');
+				if (c == message) c = 0;
+				if (c) {
+					*c++ = 0;
+					c2 = strchr(c, ',');
+					if (c2) {
+						*c2++ = 0;
+						tpos.wx = atoi(c);
+						c = strchr(c2, ',');
+						if (c) {
+							*c++ = 0;
+							tpos.wy = atoi(c2);
+							if (*c) tpos.wz = atoi(c);
+							else c = 0; // mark as 'error'
+						} // else 'error'
+					} else c = 0; // mark as 'error'
+				}
+				if (!c) {
+					msg_print(Ind, "\377oUsage: /relocchar <exact character name>:<worldX,worldY,worldZ>");
+					return;
+				}
+
+
+				/* Player is online? */
+				p = name_lookup(Ind, message3, FALSE, TRUE, FALSE);//gotta be exact for this kind of critical command
+				if (p) {
+					cave_type **zcave;
+
+					q_ptr = Players[p];
+
+					if (!(zcave = getcave(&q_ptr->wpos))) {
+						msg_print(Ind, "Error: Cannot getcave().");
+						return;
+					}
+
+					if (inarea(&q_ptr->wpos, &tpos)) {
+						msg_print(Ind, "That player is already at the specified world coordinates.");
+						return;
+					}
+
+					s_printf("RELOCCHAR(live): '%s' (%s) relocates '%s' (%s) from %d,%d,%d to %d,%d,%d\n",
+					    p_ptr->name, p_ptr->accountname, q_ptr->name, q_ptr->accountname,
+					    q_ptr->wpos.wx, q_ptr->wpos.wy, q_ptr->wpos.wz, tpos.wx, tpos.wy, tpos.wz);
+					msg_format(Ind, "Relocating live player '%s' (%s) from %d,%d,%d to %d,%d,%d",
+					    q_ptr->name, q_ptr->accountname,
+					    q_ptr->wpos.wx, q_ptr->wpos.wy, q_ptr->wpos.wz, tpos.wx, tpos.wy, tpos.wz);
+					q_ptr->recall_pos = tpos;
+					if (!q_ptr->recall_pos.wz) q_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
+					else q_ptr->new_level_method = LEVEL_RAND;
+					recall_player(p, "\377yA magical gust of wind lifts you up and carries you away!");
+					process_player_change_wpos(p);
+					return;
+				}
+
+				/* Player not online, check existance in the database */
+				if (!(p_id = lookup_case_player_id(message3))) {
+						msg_print(Ind, "That character does not exist.");
+						return;
+				}
+
+				/* Hack NumPlayers to load his savegame to edit his location info */
+				NumPlayers++;
+				MAKE(Players[NumPlayers], player_type);
+				q_ptr = Players[NumPlayers];
+				q_ptr->inventory = C_NEW(INVEN_TOTAL, object_type);
+				for (slot = 0; slot < NUM_HASH_ENTRIES; slot++) {
+					ptr = hash_table[slot];
+					while (ptr) {
+						/* not the target player? */
+						if (strcmp(ptr->name, message3)) {
+							/* advance to next character */
+							ptr = ptr->next;
+							continue;
+						}
+
+						/* init his data structures */
+						o_ptr = q_ptr->inventory;
+						WIPE(q_ptr, player_type);
+						q_ptr->inventory = o_ptr;
+						q_ptr->Ind = NumPlayers;
+						C_WIPE(q_ptr->inventory, INVEN_TOTAL, object_type);
+						/* set his supposed name */
+						strcpy(q_ptr->name, ptr->name);
+						/* generate savefile name */
+						process_player_name(NumPlayers, TRUE);
+						/* try to load him! */
+						if (!load_player(NumPlayers)) {
+							/* bad fail */
+							s_printf("RELOCCHAR: load_player '%s' failed\n", q_ptr->name);
+							msg_format(Ind, "Error: load_player '%s' failed!", q_ptr->name);
+							slot = NUM_HASH_ENTRIES; // break out
+							break;
+						}
+						/* Check whether we need to modify */
+						if (inarea(&q_ptr->wpos, &tpos)) {
+							msg_print(Ind, "That player is already at the specified world coordinates.");
+						} else {
+							/* Modify worldpos */
+							msg_format(Ind, "Relocating player '%s' (%s) from %d,%d,%d to %d,%d,%d",
+							    q_ptr->name, q_ptr->accountname,
+							    q_ptr->wpos.wx, q_ptr->wpos.wy, q_ptr->wpos.wz, tpos.wx, tpos.wy, tpos.wz);
+							s_printf("RELOCCHAR: '%s'(%s) relocates '%s'(%s) from %d,%d,%d to %d,%d,%d\n",
+							    p_ptr->name, p_ptr->accountname, q_ptr->name, q_ptr->accountname,
+							    q_ptr->wpos.wx, q_ptr->wpos.wy, q_ptr->wpos.wz, tpos.wx, tpos.wy, tpos.wz);
+							q_ptr->wpos = tpos;
+							/* also write wpos to hashtable info (like clockin 7) */
+							ptr->wpos = q_ptr->wpos;
+							/* write savegame back */
+							save_player(NumPlayers);
+						}
+						slot = NUM_HASH_ENTRIES; // break out
+						break;
+					}
+				}
+				/* unhack */
+				C_FREE(q_ptr->inventory, INVEN_TOTAL, object_type);
+				KILL(q_ptr, player_type);
+				NumPlayers--;
+				return;
+			}
+			else if (prefix(messagelc, "/dbgmon")) {
+				monster_type *m_ptr;
+
+				for (i = 1; i < m_max; i++) {
+					m_ptr = &m_list[i];
+					if (m_ptr->r_idx != 0) continue;
+					//m_ptr-> = 0;
+					break;
+				}
+				return;
+			}
 		}
 	}
 

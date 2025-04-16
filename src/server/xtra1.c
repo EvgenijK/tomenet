@@ -281,8 +281,10 @@ static void prt_sanity(int Ind) {
 
 	ratio = p_ptr->msane ? (p_ptr->csane * 100) / p_ptr->msane : 100;
 
-	/* Vague (ie first assume sanity_bars_allowed == 1) */
-	max = 6;
+	/* Vague (ie first assume sanity_bars_allowed == 1).
+	   Changes the scale from 6 to 16 and transmission from best to worst case for 'cur' values,
+	   so it works best with huge_bar option, as the huge bars have a height of 16. */
+	max = 16;
 	if (ratio < 0) {
 		/* This guy should be dead - for tombstone */
 		attr = TERM_RED;
@@ -300,19 +302,19 @@ static void prt_sanity(int Ind) {
 	} else if (ratio < 50) {
 		attr = TERM_ORANGE;
 		strcpy(buf, "    Crazy");
-		cur = 3;
+		cur = 4;
 	} else if (ratio < 75) {
 		attr = TERM_YELLOW;
 		strcpy(buf, "    Weird");
-		cur = 4;
+		cur = 8;
 	} else if (ratio < 90) {
 		attr = TERM_GREEN;
 		strcpy(buf, "     Sane");
-		cur = 5;
+		cur = 12;
 	} else {
 		attr = TERM_L_GREEN;
 		strcpy(buf, "    Sound");
-		cur = 6;
+		cur = 16;
 	}
 
 	/* We are threoretically allowed to know the exact ratio? */
@@ -2219,7 +2221,7 @@ static void calc_body_bonus(int Ind, boni_col * csheet_boni) {
 		/* let speed bonus not be that high that players won't try any slower form */
 		//p_ptr->pspeed = (((r_ptr->speed - 110) * 30) / 100) + 110;//was 50%, 30% for RPG_SERVER originally
 		//Pfft, include the -speed into the calculation, too. Seems lame how -speed is counted for 100% but not + bonus.
-		//But really, if physical-race-intrinsic bonuses/maluses are counted in mimicry, then dwarves
+		//But really, if physical-race-intrinsic boni/mali are counted in mimicry, then dwarves
 		//should be able to keep their climbing ability past 30 when mimicked, TLs could fly, etc etc =/
 		p_ptr->pspeed = (((r_ptr->speed + MIMIC_LOWSPEED_BONUS - 110 - (p_ptr->prace == RACE_ENT ? 2 : 0) ) * 30) / 100) + 110;//was 50%, 30% for RPG_SERVER originally
 	}
@@ -3063,7 +3065,7 @@ int calc_crit_obj(object_type *o_ptr) {
  * because in the old days a player could just avoid 300 pounds,
  * and helps because now carrying 300 pounds is not very painful.
  *
- * The "weapon" and "bow" do *not* add to the bonuses to hit or to
+ * The "weapon" and "bow" do *not* add to the boni to hit or to
  * damage, since that would affect non-combat things.  These values
  * are actually added in later, at the appropriate place.
  *
@@ -3206,7 +3208,7 @@ void calc_boni(int Ind) {
 	old_dis_ac = p_ptr->dis_ac;
 	old_dis_to_a = p_ptr->dis_to_a;
 
-	/* Save the old hit/damage bonuses */
+	/* Save the old hit/damage boni */
 	old_dis_to_h = p_ptr->dis_to_h;
 	old_dis_to_d = p_ptr->dis_to_d;
 
@@ -3241,7 +3243,7 @@ void calc_boni(int Ind) {
 		p_ptr->regenerate = TRUE; csheet_boni[14].cb[5] |= CB6_RRGHP;
 	}
 #endif
-	/* Originally Druidism bonuses */
+	/* Originally Druidism boni */
 	else if (p_ptr->xtrastat_tim) {
 		/* Extra Growth / Demonic Strength now imply Regeneration */
 		p_ptr->regenerate = TRUE; csheet_boni[14].cb[5] |= CB6_RRGHP;
@@ -3276,7 +3278,7 @@ void calc_boni(int Ind) {
 
 	/* Clear the Displayed/Real armor class */
 	p_ptr->dis_ac = p_ptr->ac = 0;
-	/* Clear the Displayed/Real Bonuses */
+	/* Clear the Displayed/Real boni */
 	p_ptr->dis_to_h = p_ptr->to_h = p_ptr->to_h_melee = p_ptr->to_h_ranged = p_ptr->to_h_tmp = p_ptr->to_h_melee_tmp = p_ptr->to_h_ranged_tmp = 0;
 	p_ptr->dis_to_d = p_ptr->to_d = p_ptr->to_d_melee = p_ptr->to_d_ranged = p_ptr->to_d_tmp = p_ptr->to_d_melee_tmp = p_ptr->to_d_ranged_tmp = 0;
 	p_ptr->dis_to_a = p_ptr->to_a = p_ptr->to_a_tmp = 0;
@@ -4157,20 +4159,20 @@ void calc_boni(int Ind) {
 			p_ptr->see_infra = MAX_SIGHT;
 #endif
 
-		/* Hack -- first add any "base bonuses" of the item.  A new
+		/* Hack -- first add any "base boni" of the item.  A new
 		 * feature in MAngband 0.7.0 is that the magnitude of the
-		 * base bonuses is stored in bpval instead of pval, making the
-		 * magnitude of "base bonuses" and "ego bonuses" independent
+		 * base boni is stored in bpval instead of pval, making the
+		 * magnitude of "base boni" and "ego boni" independent
 		 * from each other.
 		 * An example of an item that uses this independency is an
 		 * Orcish Shield of the Avari that gives +1 to STR and +3 to
 		 * CON. (base bonus from the shield +1 STR,CON, ego bonus from
 		 * the Avari +2 CON).
 		 * Of course, the proper fix would be to redesign the object
-		 * type so that each of the ego bonuses has its own independent
+		 * type so that each of the ego boni has its own independent
 		 * parameter.
 		 */
-		/* If we have any base bonuses to add, add them */
+		/* If we have any base boni to add, add them */
 		if (k_ptr->flags1 & TR1_PVAL_MASK) {
 			/* Affect stats */
 			if (k_ptr->flags1 & TR1_STR) { p_ptr->stat_add[A_STR] += o_ptr->bpval; csheet_boni[i-INVEN_WIELD].pstr += o_ptr->bpval; }
@@ -4235,8 +4237,8 @@ void calc_boni(int Ind) {
 			}
 		}
 
-		/* Next, add our ego bonuses */
-		/* Hack -- clear out any pval bonuses that are in the base item
+		/* Next, add our ego boni */
+		/* Hack -- clear out any pval boni that are in the base item
 		 * bonus but not the ego bonus so we don't add them twice.
 		 */
 		if (o_ptr->name2) {
@@ -4583,7 +4585,7 @@ void calc_boni(int Ind) {
 #endif
 
 #ifndef NEW_SHIELDS_NO_AC
-		/* Apply the bonuses to armor class */
+		/* Apply the boni to armor class */
 		if (o_ptr->tval == TV_SHIELD) may_to_a += o_ptr->to_a;
  #ifndef WEAPONS_NO_AC
 		else p_ptr->to_a += o_ptr->to_a;
@@ -4603,7 +4605,7 @@ void calc_boni(int Ind) {
  #endif
 #endif
 
-		/* Apply the mental bonuses to armor class, if known */
+		/* Apply the mental boni to armor class, if known */
 		if (object_known_p(Ind, o_ptr)) {
 #ifndef NEW_SHIELDS_NO_AC
 			if (o_ptr->tval == TV_SHIELD) may_dis_to_a += o_ptr->to_a;
@@ -4714,11 +4716,11 @@ void calc_boni(int Ind) {
 			if (o_ptr->xtra2 & 0x10) { p_ptr->immune_poison = TRUE; csheet_boni[i-INVEN_WIELD].cb[1] |= CB2_IPOIS; }
 		}
 
-		/* Apply the bonuses to hit/damage */
+		/* Apply the boni to hit/damage */
 		p_ptr->to_h += o_ptr->to_h;
 		p_ptr->to_d += o_ptr->to_d;
 
-		/* Apply the mental bonuses tp hit/damage, if known */
+		/* Apply the mental boni tp hit/damage, if known */
 		if (object_known_p(Ind, o_ptr)) p_ptr->dis_to_h += o_ptr->to_h;
 		if (object_known_p(Ind, o_ptr)) p_ptr->dis_to_d += o_ptr->to_d;
 	}
@@ -5361,7 +5363,7 @@ void calc_boni(int Ind) {
 		}
 	}
 
-	/* Actual Modifier Bonuses (Un-inflate stat bonuses) */
+	/* Actual Modifier boni (Un-inflate stat boni) */
 	p_ptr->to_a += ((int)(adj_dex_ta[p_ptr->stat_ind[A_DEX]]) - 128);
 	p_ptr->to_d_melee += ((int)(adj_str_td[p_ptr->stat_ind[A_STR]]) - 128);
 #if 1 /* addition */
@@ -5373,7 +5375,7 @@ void calc_boni(int Ind) {
 	//p_ptr->to_h += ((int)(adj_dex_th[p_ptr->stat_ind[A_DEX]]) - 128);
 	//p_ptr->to_h += ((int)(adj_str_th[p_ptr->stat_ind[A_STR]]) - 128);
 
-	/* Displayed Modifier Bonuses (Un-inflate stat bonuses) */
+	/* Displayed Modifier boni (Un-inflate stat boni) */
 	p_ptr->dis_to_a += ((int)(adj_dex_ta[p_ptr->stat_ind[A_DEX]]) - 128);
 	//p_ptr->dis_to_d += ((int)(adj_str_td[p_ptr->stat_ind[A_STR]]) - 128);
 	//p_ptr->dis_to_h += ((int)(adj_dex_th[p_ptr->stat_ind[A_DEX]]) - 128);
@@ -6133,15 +6135,15 @@ void calc_boni(int Ind) {
 		object_flags(&p_ptr->inventory[INVEN_WIELD], &f1, &f2, &f3, &f4, &f5, &f6, &esp);
 
 		if (f4 & TR4_SHOULD2H) {
-			/* Reduce the real bonuses */
+			/* Reduce the real boni */
 			if (p_ptr->to_h > 0) p_ptr->to_h = (2 * p_ptr->to_h) / 3;
 			if (p_ptr->to_d > 0) p_ptr->to_d = (2 * p_ptr->to_d) / 3;
 
-			/* Reduce the mental bonuses */
+			/* Reduce the mental boni */
 			if (p_ptr->dis_to_h > 0) p_ptr->dis_to_h = (2 * p_ptr->dis_to_h) / 3;
 			if (p_ptr->dis_to_d > 0) p_ptr->dis_to_d = (2 * p_ptr->dis_to_d) / 3;
 
-			/* Reduce the weaponmastery bonuses */
+			/* Reduce the weaponmastery boni */
 			if (p_ptr->to_h_melee > 0) p_ptr->to_h_melee = (2 * p_ptr->to_h_melee) / 3;
 			if (p_ptr->to_d_melee > 0) p_ptr->to_d_melee = (2 * p_ptr->to_d_melee) / 3;
 
@@ -6206,7 +6208,7 @@ void calc_boni(int Ind) {
 	    || (p_ptr->pclass == CLASS_HELLKNIGHT && p_ptr->blessed_weapon)
 #endif
 	    )) {
-		/* Reduce the real bonuses */
+		/* Reduce the real boni */
 		/*p_ptr->to_h -= 2;
 		p_ptr->to_d -= 2;*/
 		p_ptr->to_h = p_ptr->to_h * 3 / 5;
@@ -6214,7 +6216,7 @@ void calc_boni(int Ind) {
 		p_ptr->to_h_melee = p_ptr->to_h_melee * 3 / 5;
 		p_ptr->to_d_melee = p_ptr->to_d_melee * 3 / 5;
 
-		/* Reduce the mental bonuses */
+		/* Reduce the mental boni */
 		/*p_ptr->dis_to_h -= 2;
 		p_ptr->dis_to_d -= 2;*/
 		p_ptr->dis_to_h = p_ptr->dis_to_h * 3 / 5;
@@ -6256,7 +6258,7 @@ void calc_boni(int Ind) {
 		//WRONG: this formula was for double values of d, oops (as if Maulo had 55 and Jabber 112)
 		//d = (2500 / ((500 / (d + 4)) + 22)) - 20 - 10000 / ((d - 50) * (d - 50) + 490);
 		//Maulo@25, Jabber@55, this seems fine:
-		//d = (2500 / ((500 / (d + 4)) + 22)) - 20 - 700 / ((d - 25) * (d - 25) + 70);//geez :/ it's the Godzilla of the the mimic formulas I think..
+		//d = (2500 / ((500 / (d + 4)) + 22)) - 20 - 700 / ((d - 25) * (d - 25) + 70);//geez :/ it's the Godzilla of the the mimic formulae I think..
 		//d = (2500 / ((500 / (d + 4)) + 22)) - 20 - 1300 / ((d - 26) * (d - 26) + 90);//was ok
 		d = (2200 / ((250 / (d + 4)) + 22)) - 20 - 950 / ((d - 25) * (d - 25) + 100);
 		//d = (2000 / ((130 / (d + 4)) + 22)) - 20 - 650 / ((d - 25) * (d - 25) + 90);//too little
@@ -6880,7 +6882,7 @@ void calc_boni(int Ind) {
 	/* Admin-specific item powers - C. Blue */
 	/* Can a player see the secret_dungeon_master? Only if he wears the special Goggles.. */
 	o_ptr = &p_ptr->inventory[INVEN_HEAD];
-	p_ptr->player_sees_dm = (o_ptr->tval && o_ptr->name1 == ART_GOGGLES_DM);
+	p_ptr->player_sees_dm = ((o_ptr->tval && o_ptr->name1 == ART_GOGGLES_DM) || in_deathfate2(&p_ptr->wpos));
 	o_ptr = &p_ptr->inventory[INVEN_WIELD];
 	p_ptr->instakills = (o_ptr->tval && o_ptr->name1 == ART_SCYTHE_DM) ? ((o_ptr->note && strstr(quark_str(o_ptr->note), "IDDQD")) ? 2 : 1) : 0; //at doom's gate...
 
@@ -7545,12 +7547,12 @@ void calc_boni_weapon(int Ind, object_type *o_ptr, int *to_hit, int *to_dam) {
 		if (i == INVEN_WIELD || (i == INVEN_ARM && oi_ptr->tval != TV_SHIELD) ||
 		    i == INVEN_AMMO || i == INVEN_BOW || i == INVEN_TOOL) continue;
 
-		/* Apply the bonuses to hit/damage */
+		/* Apply the boni to hit/damage */
 		to_h += oi_ptr->to_h;
 		to_d += oi_ptr->to_d;
 	}
 
-	/* If we have any base bonuses to add, add them */
+	/* If we have any base boni to add, add them */
 
 #if 0 /* should this stuff be mvoed to affect _total p_ptr->to_h instead of being applied so (too) early here? */
 	/* Apply temporary "stun" */
@@ -7578,7 +7580,7 @@ void calc_boni_weapon(int Ind, object_type *o_ptr, int *to_hit, int *to_dam) {
 		to_d += 10;
 	}
 
-	/* Actual Modifier Bonuses (Un-inflate stat bonuses) */
+	/* Actual Modifier boni (Un-inflate stat boni) */
 	to_d_melee += ((int)(adj_str_td[p_ptr->stat_ind[A_STR]]) - 128);
 #if 0
 #if 1 /* addition */
@@ -8393,14 +8395,17 @@ int start_global_event(int Ind, int getype, char *parm) {
 	ge->getype = getype;
 	ge->creator = 0;
 	if (Ind) ge->creator = p_ptr->id;
-	ge->announcement_time = 1800; /* time until event finally starts, announced every 15 mins */
-	ge->signup_time = 0; /* 0 = during announcement time */
+	ge->signup_begins_announcement = 0; /* event will begin the announcement phase when there is the first player signing up for it. So this is basically an indefinite pre-announcement phase. */
+	ge->announcement_time = 1800; /* time until event finally starts, announced every 15 mins. */
+	ge->signup_time = 0; /* 0 = during announcement time, -1 = any time after the event has started */
+	ge->pre_announcement_time = 0;
 	ge->first_announcement = TRUE; /* first announcement will also display available commands */
 	ge->start_turn = turn;
 	//ge->start_turn = turn + 1; /* +1 is a small hack, to prevent double-announcement */
 	/* hack - synch start_turn to cfg.fps, since process_global_events is only called every
 	   (turn % cfg.fps == 0), and its announcement timer checks will fail otherwise */
 	ge->start_turn += (cfg.fps - (turn % cfg.fps));
+	time(&ge->created);
 	time(&ge->started);
 	ge->paused = FALSE;
 	ge->paused_turns = 0; /* counter for real turns the event "missed" while being paused */
@@ -8487,7 +8492,7 @@ int start_global_event(int Ind, int getype, char *parm) {
 		}
 #endif
 		ge->announcement_time = 0;
-		ge->signup_time = 60 * 30;
+		ge->signup_time = -2; //any time!
 		ge->min_participants = 0;
 		break;
 	case GE_DUNGEON_KEEPER:	/* 'Dungeon Keeper' Labyrinth */
@@ -8530,7 +8535,7 @@ int start_global_event(int Ind, int getype, char *parm) {
 		// Provides the /evinfo warning, check applies PEVF_NOGHOST_00 elsewhere - Kurzel
 
 		// Indefinite "challenge" events, managed by a DM. Use /gestop to cancel.
-		ge->state[1] = exec_lua(0, format("return adventure_type(\"%s\", 7)", parm));
+		ge->signup_begins_announcement = exec_lua(0, format("return adventure_type(\"%s\", 7)", parm));
 
 		// for (i = 0; i < 64; i++) // Up to 64, only 7 defined (so far)
 		for (i = 0; i < 7; i++) // GE_EXTRA in adventures.lua
@@ -8539,7 +8544,6 @@ int start_global_event(int Ind, int getype, char *parm) {
 
 		for (i = 0; i < 10; i++) // GE_DESCRIPTION in adventures.lua (default "")
 			strcpy(ge->description[i], string_exec_lua(0, format("return adventure_description(\"%s\", %d)", parm, i + 1)));
-
 		break;
 #endif
 	}
@@ -8592,9 +8596,7 @@ void stop_global_event(int Ind, int n) {
 	ge->start_turn = turn;
 	ge->announcement_time = -1; /* enter the processing phase, */
  #endif
- #ifdef DM_MODULES
-	if (ge->getype == GE_ADVENTURE) ge->state[1] = 0; /* signal cancellation */
- #endif
+	if (ge->signup_begins_announcement) ge->signup_begins_announcement = 0; /* signal true cancellation (ie event is erased, instead of just regressing into wait-for-1st-signup-phase. */
 	ge->state[0] = 255; /* ..and process clean-up! */
 #endif
 	return;
@@ -8604,12 +8606,10 @@ void announce_global_event(int ge_id) {
 	global_event_type *ge = &global_event[ge_id];
 	int time_left = ge->announcement_time - ((turn - ge->start_turn) / cfg.fps);
 
-#ifdef DM_MODULES
-	if ((ge->getype == GE_ADVENTURE) && (ge->state[1] == 1)) {
+	if (ge->signup_begins_announcement == 1) {
 		msg_broadcast_format(0, "\374\377W[%s (\377U%d\377W) is accepting challengers]", ge->title, ge_id + 1);
 		return;
 	}
-#endif
 
 	/* display minutes, if at least 120s left */
 	//if (time_left >= 120) msg_broadcast_format(0, "\374\377W[%s (%d) starts in %d minutes. See \377s/evinfo\377W]", ge->title, ge_id + 1, time_left / 60);
@@ -8631,7 +8631,7 @@ void announce_global_event(int ge_id) {
  */
 void global_event_signup(int Ind, int n, cptr parm) {
 	int i, p, max_p;
-	bool fake_signup = FALSE;
+	bool fake_signup = FALSE, first_signup = FALSE;
 	global_event_type *ge = &global_event[n];
 	player_type *p_ptr = Players[Ind];
 
@@ -8669,6 +8669,14 @@ void global_event_signup(int Ind, int n, cptr parm) {
 	if (p_ptr->inval) {
 		msg_print(Ind, "\377ySorry, only validated accounts may participate.");
 		return;
+	}
+
+	/* If the event is infinitely recruiting, begin sign-up phase! */
+	if (ge->signup_begins_announcement == 1) {
+		/* Begin! */
+		ge->signup_begins_announcement = 2;
+		/* Modules at least want to know if this was the first player signing up */
+		first_signup = TRUE;
 	}
 
 	/* check individual event restrictions against player */
@@ -8956,7 +8964,6 @@ void global_event_signup(int Ind, int n, cptr parm) {
 		break;
 #ifdef DM_MODULES
 	case GE_ADVENTURE:
-
 		/* Disqualified? */
 		if (p_ptr->mode & MODE_DED_IDDC) {
 			msg_print(Ind, "\377ySorry, as a dedicated ironman deep diver you may not participate.");
@@ -8993,29 +9000,23 @@ void global_event_signup(int Ind, int n, cptr parm) {
 			if (!is_admin(p_ptr)) return;
 		}
 
-		/* If the adventure is ongoing, begin sign-up phase! */
-		if (ge->state[1] == 1) {
-
+		if (first_signup) {
 			/* Stall for any real player presence, eg. DM or testers but NOT static counter */
 			n = 0;
 			for (i = 1; i <= NumPlayers; i++)
 				if (in_module(&Players[i]->wpos) && (Players[i]->wpos.wz >= ge->extra[3]) && (Players[i]->wpos.wz <= ge->extra[4])) n++; // GE_EXTRA - adventures.lua
 			if (n) {
 				msg_print(Ind, "\377ySorry, this event is currently undergoing renovations.");
+				ge->signup_begins_announcement = 1; //discard this signup attempt, regress into waiting-for-1st-signup phase
 				return;
 			}
 
 			/* HACK - restart timers */
-			ge->start_turn = turn + (cfg.fps - (turn % cfg.fps));
+			ge->start_turn = turn;// - cfg.fps + (turn % cfg.fps);
 			time(&ge->started);
 			ge->announcement_time = 60 * exec_lua(0, format("return adventure_type(\"%s\", 1)", ge->title));
 			ge->end_turn = ge->start_turn + cfg.fps * 60 * exec_lua(0, format("return adventure_type(\"%s\", 3)", ge->title));
-
-			/* Begin! */
-			ge->state[1] = 2;
-
 		}
-
 		break;
 #endif
 	}
@@ -9038,6 +9039,7 @@ void global_event_signup(int Ind, int n, cptr parm) {
 
 /*
  * Process a global event - C. Blue
+ * Called every second.
  */
 static void process_global_event(int ge_id) {
 	global_event_type *ge = &global_event[ge_id];
@@ -9076,9 +9078,13 @@ static void process_global_event(int ge_id) {
 		s_printf("%s EVENT_STOP (turn overflow): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 	}
 
-#ifdef DM_MODULES
-	if ((ge->getype == GE_ADVENTURE) && (ge->state[1] == 1)) return; /* waiting for first participant to signup */
-#endif
+	if (ge->signup_begins_announcement == 1) {
+		ge->start_turn = turn; /* continuously update start turn so we never exceed elapsed_turns regarding 'turn overflow' (see right above) */
+		/* Instead of start_turn, increase this seconds-counter, just so we keep track of time in
+		   SOME way at least if not in turns (even though this isn't really needed for anything): */
+		ge->pre_announcement_time++;
+		return; /* waiting for first participant to signup */
+	}
 
 	/* extra warning at T - x min for last minute subscribers */
 	if (ge->announcement_time * cfg.fps - elapsed_turns == GE_FINAL_ANNOUNCEMENT * cfg.fps) {
@@ -9222,15 +9228,13 @@ static void process_global_event(int ge_id) {
 							ge->participant[i] = 0; // wipe offline participants too
 						}
 					}
-#ifdef DM_MODULES
 					/* If the adventure is pending, retract sign-up phase! */
-					if (ge->getype == GE_ADVENTURE && ge->state[1] == 2) {
-						ge->state[1] = 1;
+					if (ge->signup_begins_announcement == 2) {
+						ge->signup_begins_announcement = 1;
+						ge->pre_announcement_time = 0;
 						announce_global_event(ge_id);
 						return; // do NOT start the event yet, as we regressed into signup/announcement-phase
-					} else
-#endif
-					ge->getype = GE_NONE;
+					} else ge->getype = GE_NONE;
 
 				/* Participants are ok, event now starts! */
 				} else {
@@ -9259,15 +9263,12 @@ static void process_global_event(int ge_id) {
 						}
 					}
 #ifdef DM_MODULES
-					s_printf("GE_DEBUG: sector000separation = %d, state[0] = %d, state[1] = %d\n", sector000separation, ge->state[0], ge->state[1]);
+					s_printf("GE_DEBUG: sector000separation=%d, state[0]=%d, signup_begins_announcement=%d\n", sector000separation, ge->state[0], ge->signup_begins_announcement);
 #endif
 				}
 			}
-
 		/* we're still just announcing the event -- nothing more to do for now */
-		} else {
-			return; /* still announcing */
-		}
+		} else return; /* still announcing */
 	}
 
 	/* Event starts immediately without announcement time? Still display a hint message. */
@@ -10277,7 +10278,7 @@ static void process_global_event(int ge_id) {
 				ge->state[0] = 255;
 				s_printf("%s EVENT_STOP (no players (5)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 			} else ge->state[0] = 1;
-			// s_printf("DM_MODULES: wpos (%d,%d,%d) contains %d players (state = %d,%d).\n",wpos.wx,wpos.wy,wpos.wz,n,ge->state[0],ge->state[1]);
+			// s_printf("DM_MODULES: wpos (%d,%d,%d) contains %d players (state = %d,%d).\n", wpos.wx, wpos.wy, wpos.wz, n, ge->state[0], ge->signup_begins_announcement);
 
 			break;
 		case 1: /* ongoing modules are actually running now, not just in signup phase */
@@ -10292,7 +10293,7 @@ static void process_global_event(int ge_id) {
 				ge->state[0] = 255;
 				s_printf("%s EVENT_STOP (no players (6)): #%d '%s'(%d)\n", showtime(), ge_id, ge->title, ge->getype);
 			}
-			// s_printf("DM_MODULES: %d participants (state = %d,%d).\n",n,ge->state[0],ge->state[1]);
+			// s_printf("DM_MODULES: %d participants (state = %d,%d).\n", n, ge->state[0], ge->signup_begins_announcement);
 
 			break;
 		case 255: /* clean-up or restart */
@@ -10328,14 +10329,15 @@ static void process_global_event(int ge_id) {
 			// Don't wipe it once generated, avoiding conflicts with PVPARENA / other modules - Kurzel
 			// if (wild_info[wpos.wy][wpos.wx].tower) (void)rem_dungeon(&wpos, TRUE);
 
-			/* Debug why state[1] might be != 2 and therefore state[0] wouldn't be reset, if we didn't add the 'Always reset stage' safety measure below */
-			s_printf("ge->state[1] is %d\n", ge->state[1]);
+			/* Debug why signup_begins_announcement might be != 2 and therefore state[0] wouldn't be reset, if we didn't add the 'Always reset stage' safety measure below */
+			s_printf("ge->signup_begins_announcement is %d\n", ge->signup_begins_announcement);
 			/* Always reset stage to the beginning, to be safe */
 			ge->state[0] = 0;
 			/* restart challenge announcement */
-			if (ge->state[1] == 2) {
-				//ge->state[0] = 0; --safety measure: moved above
-				ge->state[1] = 1;
+			if (ge->signup_begins_announcement == 2) {
+				//ge->signup_begins_announcement = 0; --safety measure: moved above
+				ge->signup_begins_announcement = 1;
+				ge->pre_announcement_time = 0;
 				announce_global_event(ge_id);
 				break;
 			}
@@ -10761,6 +10763,7 @@ void handle_request_return_str(int Ind, int id, char *str) {
 		/* check for failure, if item does not exist in the game */
 		for (i = 1; i < max_k_idx; i++) {
 			invcopy(&forge, i);
+			if (forge.tval == TV_PSEUDO_OBJ) continue; //only real objects
 			forge.number = num; //hack: make item name match player input for plural (num > 1)
 			object_desc(0, o_name, &forge, FALSE, 256);
 			if (!o_name[0] || o_name[0] == ' ') continue;
@@ -11634,17 +11637,23 @@ void handle_request_return_key(int Ind, int id, char c) {
 	case RID_CRAPS: {
 		int win = 3;
 		int roll1, roll2, roll3, ycv = p_ptr->casino_progress;
-
+#if defined(CUSTOM_VISUALS) && defined(DICE_HUGE)
+		if (ycv < 10) ycv += 2; //screen overflow limit >,>
+		else {
+			ycv = 2;
+			Send_store_special_clr(Ind, 8, 19);
+#else
 		if (ycv < 10) ycv++; //screen overflow limit >,>
 		else {
 			ycv = 1;
 			Send_store_special_clr(Ind, 7, 19);
+#endif
 		}
 		p_ptr->casino_progress = ycv;
 
 #ifdef CUSTOM_VISUALS /* use graphical font or tileset mapping if available */
 		connection_t *connp;
-		char32_t c_die[6 + 1]; //pft ^^
+		char32_t c_die[6 + 1], c_die_huge[6 + 1][2][2];
 		byte a_die[6 + 1];
 		bool custom_visuals = FALSE;
 		connp = Conn[p_ptr->conn];
@@ -11678,6 +11687,50 @@ void handle_request_return_key(int Ind, int id, char c) {
 			c_die[6] = p_ptr->k_char[k_idx];
 			a_die[6] = p_ptr->k_attr[k_idx];
 
+			/* Huge dice (1/4 tiles): */
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TL);
+			c_die_huge[4][0][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TR);
+			c_die_huge[4][1][0] = p_ptr->k_char[k_idx];
+			c_die_huge[2][1][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TLT);
+			c_die_huge[6][0][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TRT);
+			c_die_huge[6][1][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TLM);
+			c_die_huge[5][0][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TRM);
+			c_die_huge[5][1][0] = p_ptr->k_char[k_idx];
+			c_die_huge[3][1][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TlM);
+			c_die_huge[1][0][0] = p_ptr->k_char[k_idx];
+			c_die_huge[3][0][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TrM);
+			c_die_huge[1][1][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_Tl);
+			c_die_huge[2][0][0] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BL);
+			c_die_huge[4][0][1] = p_ptr->k_char[k_idx];
+			c_die_huge[2][0][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BR);
+			c_die_huge[4][1][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BLB);
+			c_die_huge[6][0][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BRB);
+			c_die_huge[6][1][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BLM);
+			c_die_huge[5][0][1] = p_ptr->k_char[k_idx];
+			c_die_huge[3][0][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BRM);
+			c_die_huge[5][1][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BlM);
+			c_die_huge[1][0][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BrM);
+			c_die_huge[1][1][1] = p_ptr->k_char[k_idx];
+			c_die_huge[3][1][1] = p_ptr->k_char[k_idx];
+			k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_Br);
+			c_die_huge[2][1][1] = p_ptr->k_char[k_idx];
+
 			custom_visuals = TRUE;
 		}
 #endif
@@ -11701,20 +11754,44 @@ void handle_request_return_key(int Ind, int id, char c) {
 #ifdef CUSTOM_VISUALS
  #ifdef GRAPHICS_BG_MASK
 		if (custom_visuals) {
+  #ifndef DICE_HUGE //normal die
 			Send_char_direct(Ind, DICE_X - 1, DICE_Y + 2 + ycv, a_die[roll1], c_die[roll1], 0, 32);
 			Send_char_direct(Ind, DICE_X - 1 + 2, DICE_Y + 2 + ycv, a_die[roll2], c_die[roll2], 0, 32);
+  #else //huge die
+			int dx, dy;
+
+			for (dx = 0; dx != 2; dx++) for (dy = 0; dy != 2; dy++) {
+			Send_char_direct(Ind, DICE_HUGE_X + dx, DICE_HUGE_Y + 2 + ycv + dy, a_die[roll1], c_die_huge[roll1][dx][dy], 0, 32);
+			Send_char_direct(Ind, DICE_HUGE_X + 4 + dx, DICE_HUGE_Y + 2 + ycv + dy, a_die[roll2], c_die_huge[roll2][dx][dy], 0, 32);
+			}
+  #endif
  #else
+  #ifndef DICE_HUGE //normal die
 			Send_char_direct(Ind, DICE_X - 1, DICE_Y + 2 + ycv, a_die[roll1], c_die[roll1]);
 			Send_char_direct(Ind, DICE_X - 1 + 2, DICE_Y + 2 + ycv, a_die[roll2], c_die[roll2]);
+  #else //huge die
+			int dx, dy;
+
+			for (dx = 0; dx != 2; dx++) for (dy = 0; dy != 2; dy++) {
+			Send_char_direct(Ind, DICE_HUGE_X + dx, DICE_HUGE_Y + 2 + ycv + dy, a_die[roll1], c_die_huge[roll1][dx][dy], 0, 32);
+			Send_char_direct(Ind, DICE_HUGE_X + 4 + dx, DICE_HUGE_Y + 2 + ycv + dy, a_die[roll2], c_die_huge[roll2][dx][dy], 0, 32);
+			}
+  #endif
  #endif
 		} else
 #endif
 		Send_store_special_str(Ind, DICE_Y + 2 + ycv, DICE_X - 3, TERM_L_UMBER, format("%2d  %2d", roll1, roll2));
 		if (roll3 == p_ptr->casino_roll) {
 			win = TRUE;
+#if defined(CUSTOM_VISUALS) && defined(DICE_HUGE)
+			ycv++; //looks slightly better?
+#endif
 			Send_store_special_str(Ind, DICE_Y + 2 + ycv, DICE_X + 6, TERM_GREEN, "You won!");
 		} else if (roll3 == 7) {
 			win = FALSE;
+#if defined(CUSTOM_VISUALS) && defined(DICE_HUGE)
+			ycv++; //looks slightly better?
+#endif
 			Send_store_special_str(Ind, DICE_Y + 2 + ycv, DICE_X + 6, TERM_SLATE, "You lost!");
 		} else {
 			Send_request_key(Ind, RID_CRAPS, "- hit any key to roll again -");
@@ -11769,7 +11846,7 @@ void handle_request_return_cfr(int Ind, int id, bool cfr) {
 	case RID_GO:
 		if (p_ptr->store_num == -1) return; /* Discard if we left the building */
 		if (!cfr) {
-			Send_store_special_clr(Ind, 5, 18);
+			Send_store_special_clr(Ind, 5, 19);
 			Send_store_special_str(Ind, 8, 8, TERM_ORANGE, "Now you're chickening out huh!");
 			p_ptr->store_action = 0;
 			return;

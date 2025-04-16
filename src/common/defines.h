@@ -43,7 +43,7 @@
 #define VERSION_PATCH		2
 #define VERSION_EXTRA		1
 #define VERSION_BRANCH		0
-#define VERSION_BUILD		2
+#define VERSION_BUILD		3
 
 /* MAJOR/MINOR/PATCH version that counts as 'latest' (should be 0-15).
    If a player is online with a version > this && <= current version (VERSION_)
@@ -95,7 +95,7 @@
 /* For savefile purpose only */
 #define SF_VERSION_MAJOR	4
 #define SF_VERSION_MINOR	9
-#define SF_VERSION_PATCH	20
+#define SF_VERSION_PATCH	22
 #define SF_VERSION_EXTRA	0 /* <- not used in version checks! */
 
 /* For quests savefile purpose only */
@@ -468,7 +468,7 @@
  * This limit has never been stretched, and it would be interesting to see
  * what happens when 100 or so players play at once.
  */
-#define MAX_PLAYERS	1000
+#define MAX_PLAYERS	1000	/* Todo: Sync usage with MAX_SELECT_FD */
 
 #ifdef PLAYER_STORES
 /* How many of them can at once visit different player stores? */
@@ -570,7 +570,7 @@
  * TODO: make them redefinable w/o client update
  */
 
-#define MAX_F_IDX	256	/* Max size for "f_info[]" */
+#define MAX_F_IDX	512	/* Max size for "f_info[]" */
 #define MAX_K_IDX	1280	/* Max size for "k_info[]" */
 #define MAX_A_IDX	512	/* Max size for "a_info[]" */
 #define MAX_E_IDX	384	/* Max size for "e_info[]" */
@@ -584,7 +584,7 @@
 #define MAX_D_IDX	64	/* Max size for "d_info[]" */
 #define MAX_Q_IDX	100	/* Max size for "q_info[]" */
 
-/* for compatibility with 4.5.8.1- clients: */
+/* for compatibility with 4.5.8.1- clients (and 4.9.2.1.0.2- for MAX_F_IDX): */
 #define MAX_F_IDX_COMPAT	256
 #define MAX_K_IDX_COMPAT	1024
 #define MAX_A_IDX_COMPAT	512
@@ -791,15 +791,6 @@
 #define SEASON_SUMMER 1
 #define SEASON_AUTUMN 2
 #define SEASON_WINTER 3
-
-/* Jail - crime sentences */
-#define JAIL_MURDER 100
-#define JAIL_MURDER_KPK 500
-#define JAIL_STEALING 500
-#define JAIL_SWEARING 20
-#define JAIL_SPAM 30
-#define JAIL_OLD_CRIMES 0
-#define JAIL_VISIT 10
 
 
 /* ---------------------------------------------------------------- (Rather fundamental 'features')  ---------------------------------------------------------------- */
@@ -1072,6 +1063,18 @@
 #define JAIL_TOWN_AREA
 /* does the Jailer remove WoR scrolls and discharge WoR rods? */
 //#define JAILER_KILLS_WOR
+/* Automatically throw us out of prison? Or give us time to let us choose, in case we want to take the dungeon route maybe.
+   If set to anything > 0 it will give us that much time in seconds until we do get kicked out. [30] */
+#define JAIL_KICK 30
+
+/* Jail - crime sentences */
+#define JAIL_MURDER 100
+#define JAIL_MURDER_KPK 500
+#define JAIL_STEALING 500
+#define JAIL_SWEARING 20
+#define JAIL_SPAM 30
+#define JAIL_OLD_CRIMES 0
+#define JAIL_VISIT 10
 
 /* Monster interception ("interference") will not cancel FTK (fire-till-kill)?
    -- TODO: implement for spells/runecraft/mimicpowers (those have 0 interference chance atm though so it doesn't matter) */
@@ -2778,8 +2781,8 @@
 /* Feature 0xC1 -- brick roof */
 /* Feature 0xC2 -- brick roof top */
 /* Feature 0xC3 -- brick roof chimney */
-/* Feature 0xC4 -- window */
-/* Feature 0xC5 -- small window */
+#define FEAT_WINDOW		0xC4 /* Feature 0xC4 -- window */
+#define FEAT_WINDOW_SMALL	0xC5 /* Feature 0xC5 -- small window */
 /* Feature 0xC6 -- rain barrel */
 #define FEAT_FLOWER		0xC7 /* 199 */
 /* Feature 0xC8 -- cobblestone road */
@@ -2811,6 +2814,54 @@
 #define FEAT_SOLID		237	/* Pseudo feature definition for graphical tilesets for 'solid_bars' UI elements and similar. Also see 165-171.*/
 #define FEAT_DRAWBRIDGE_HORIZ	238
 #define FEAT_SOLID_NC		239
+
+#define FEAT_OPEN_WINDOW	256
+#define FEAT_OPEN_WINDOW_SMALL	257
+#define FEAT_ANIM_SHAL_WATER_EAST	258
+#define FEAT_ANIM_SHAL_WATER_WEST	259
+#define FEAT_ANIM_SHAL_WATER_NORTH	260
+#define FEAT_ANIM_SHAL_WATER_SOUTH	261
+#define FEAT_ANIM_DEEP_WATER_EAST	262
+#define FEAT_ANIM_DEEP_WATER_WEST	263
+#define FEAT_ANIM_DEEP_WATER_NORTH	264
+#define FEAT_ANIM_DEEP_WATER_SOUTH	265
+#define FEAT_ANIM_SHAL_LAVA_EAST	266
+#define FEAT_ANIM_SHAL_LAVA_WEST	267
+#define FEAT_ANIM_SHAL_LAVA_NORTH	268
+#define FEAT_ANIM_SHAL_LAVA_SOUTH	269
+#define FEAT_ANIM_DEEP_LAVA_EAST	270
+#define FEAT_ANIM_DEEP_LAVA_WEST	271
+#define FEAT_ANIM_DEEP_LAVA_NORTH	272
+#define FEAT_ANIM_DEEP_LAVA_SOUTH	273
+
+
+#define is_shal_water(F) \
+	((F) == FEAT_ANIM_SHAL_WATER_EAST || (F) == FEAT_ANIM_SHAL_WATER_WEST || (F) == FEAT_ANIM_SHAL_WATER_NORTH || (F) == FEAT_ANIM_SHAL_WATER_SOUTH || \
+	(F) == FEAT_SHAL_WATER || (F) == FEAT_TAINTED_WATER)
+#define is_deep_water(F) \
+	((F) == FEAT_ANIM_DEEP_WATER_EAST || (F) == FEAT_ANIM_DEEP_WATER_WEST || (F) == FEAT_ANIM_DEEP_WATER_NORTH || (F) == FEAT_ANIM_DEEP_WATER_SOUTH || \
+	(F) == FEAT_DEEP_WATER || (F) == FEAT_GLIT_WATER)
+	//Note that FEAT_GLIT_WATER is just a boundary, so strictly speaking it's neither shallow nor deep but a permawall. ^^
+#define is_water(F) (is_shal_water(F) || is_deep_water(F))
+
+#define is_shal_lava(F) \
+	((F) == FEAT_ANIM_SHAL_LAVA_EAST || (F) == FEAT_ANIM_SHAL_LAVA_WEST || (F) == FEAT_ANIM_SHAL_LAVA_NORTH || (F) == FEAT_ANIM_SHAL_LAVA_SOUTH || \
+	(F) == FEAT_SHAL_LAVA)
+#define is_deep_lava(F) \
+	((F) == FEAT_ANIM_DEEP_LAVA_EAST || (F) == FEAT_ANIM_DEEP_LAVA_WEST || (F) == FEAT_ANIM_DEEP_LAVA_NORTH || (F) == FEAT_ANIM_DEEP_LAVA_SOUTH || \
+	(F) == FEAT_DEEP_LAVA)
+#define is_lava(F) (is_shal_lava(F) || is_deep_lava(F))
+
+/* Intense fires that creatures cannot avoid: */
+#define is_acute_fire(F) ((F) == FEAT_FIRE || (F) == FEAT_GREAT_FIRE)
+/* Fire that won't necessarily harm creatures, but objects falling into these can easily get destroyed: */
+#define is_avoidable_fire(F) ((F) == FEAT_EMBERS || (F) == FEAT_SMALL_FIRE || (F) == FEAT_SMALL_CAMPFIRE || (F) == FEAT_CAMPFIRE)
+/* Any fire */
+#define is_fire(F) (is_acute_fire(F) || is_avoidable_fire(F))
+
+/* Note: Just fiery light sources 'dropped to the floor'. These won't even threaten items, for now:
+	FEAT_BURNING_TORCH, FEAT_BURNING_LAMP. */
+
 
 /* number of connected void gates or something? */
 #define MAX_BETWEEN_EXITS	2
@@ -4661,7 +4712,7 @@
    ^ vitriol (works as acid replacement - when creating perchlorate too? as metal is not a liquid? ah w/e just allow..): mining (volcanic)/dragons.
    ..rust: metal powder + (salt) water. Or use some kind of 'grinding tool' on rusty armour or on normal metal items to obtain (not 'reactive' though) metal powder first.
     */
-/* Optionally enable simplifications of ingredients and formulas: */
+/* Optionally enable simplifications of ingredients and formulae: */
  #define NO_RUST_NO_HYDROXIDE		/* Note: Rusty items can still be ground and will just turn into normal metal powder instead, assuming the item was only partially rusted ^^. */
  #ifdef NO_RUST_NO_HYDROXIDE
   #define CHEMICALS_NUM 9
@@ -4775,6 +4826,31 @@
 #define SV_PO_CARDS_SPADES	15
 #define SV_PO_CARDS_HEARTS	16
 #define SV_PO_CARDS_DIAMONDS	17
+#define SV_PO_DIE_TL	18
+#define SV_PO_DIE_TR	19
+#define SV_PO_DIE_TLT	20
+#define SV_PO_DIE_TRT	21
+#define SV_PO_DIE_TLM	22
+#define SV_PO_DIE_TRM	23
+#define SV_PO_DIE_TlM	24
+#define SV_PO_DIE_TrM	25
+#define SV_PO_DIE_Tl	26
+#define SV_PO_DIE_BL	27
+#define SV_PO_DIE_BR	28
+#define SV_PO_DIE_BLB	29
+#define SV_PO_DIE_BRB	30
+#define SV_PO_DIE_BLM	31
+#define SV_PO_DIE_BRM	32
+#define SV_PO_DIE_BlM	33
+#define SV_PO_DIE_BrM	34
+#define SV_PO_DIE_Br	35
+#define SV_PO_D10F_TL	36
+#define SV_PO_D10F_T	37
+#define SV_PO_D10F_TR	38
+#define SV_PO_D10F_BL	39
+#define SV_PO_D10F_B	40
+#define SV_PO_D10F_BR	41
+
 /* k_idx for TV_PSEUDO_OBJ -- for graphical tiles the svals actually don't matter, they are just defined for good measure but have no use;
    instead the k_idx values are used, especially client-side! */
 #define KIDX_PO_RAIN	822
@@ -4784,6 +4860,12 @@
 #define KIDX_PO_RAIN_W2	826
 #define KIDX_PO_SNOW	827
 #define KIDX_PO_SAND	828
+#define KIDX_PO_D10F_TL	833
+#define KIDX_PO_D10F_T	834
+#define KIDX_PO_D10F_TR	835
+#define KIDX_PO_D10F_BL	836
+#define KIDX_PO_D10F_B	837
+#define KIDX_PO_D10F_BR	838
 
 
 /* svals for TV_SUBINVEN */
@@ -5954,7 +6036,7 @@
 #define RESF_FORCERANDART	0x00080000U	/* generate a random artifact -- ensure the item is eligible via randart_eligible(tval) */
 
 #define RESF_NO_ENCHANT		0x00100000U	/* generate an 'average' item (no enchantments/ego powers/artifacts) */
-#define RESF_SAURON		0x00200000U	/* don't generate The One Ring, as player has already slain Sauron. -- This flag is abused for no_soloist drops eg from Santa Claus! */
+#define RESF_SAURON		0x00200000U	/* don't generate The One Ring, as player has already slain Sauron or is in Mt Doom. -- This flag is abused for no_soloist drops eg from Santa Claus! */
 
 #define RESF_COND_SWORD		0x00400000U	/* don't allow weapons besides a sword (swordmen, rogues) */
 #define RESF_COND_DARKSWORD	0x00800000U	/* don't allow weapons besides a dark sword (unbelievers) */
@@ -6171,7 +6253,7 @@
 #define RF1_MALE			0x00000004U	/* Male gender */
 #define RF1_FEMALE			0x00000008U	/* Female gender */
 #define RF1_CHAR_CLEAR		0x00000010U	/* Absorbs symbol */
-#define RF1_CHAR_MULTI		0x00000020U	/* Changes symbol */
+#define RF1_CHAR_MULTI		0x00000020U	/* Changes symbol -- no effect and unused in the code, use RF2_SHAPECHANGER instead */
 #define RF1_ATTR_CLEAR		0x00000040U	/* Absorbs color */
 #define RF1_ATTR_MULTI		0x00000080U	/* Changes color depending on breaths */
 #define RF1_FORCE_DEPTH			0x00000100U	/* Start at "correct" depth */
@@ -7015,10 +7097,10 @@
 #define DF1_CAVE		0x00000400U	/* Allow rooms */
 #define DF1_CAVERN		0x00000800U	/* Allow cavern rooms */
 
-#define DF1_NO_UP		0x00001000U	/* Disallow up stairs */
+#define DF1_NO_UP		0x00001000U	/* Disallow up stairs (but can recall anytime) */
 #define DF1_HOT_PLACE		0x00002000U	/* Corpses on ground and in pack decay quicker through heat -- not implemented -- todo: good idea for consumables going bad */
 #define DF1_COLD_PLACE		0x00004000U	/* Corpses on ground and in pack decay slower through cold -- not implemented -- todo: good idea for consumables going bad */
-#define DF1_FORCE_DOWN		0x00008000U	/* No up stairs generated */
+#define DF1_FORCE_DOWN		0x00008000U	/* No up stairs generated and cannot recall until reaching the final floor */
 
 #define DF1_FORGET		0x00010000U	/* Features are forgotten, like the Maze and Illusory Castle */
 #define DF1_NO_DESTROY		0x00020000U	/* No destroyed levels in dungeon */
@@ -7180,6 +7262,8 @@
 #define LF1_RANDOM_TOWN		0x00002000U /* it's a random (dungeon) town (for tracking in IDDC) */
 #define LF1_CUSTOM_GATEWAY	0x00004000U /* Marker that on this floor a custom gateway has been placed by a player (limiter) */
 #define LF1_FAST_DIVE		0x00008000U /* Floor is in the process of being generated by a fast diver: ghost/probability travel */
+
+#define LF1_CAN_ALWAYS_RUN	0x00010000U /* Floor always allows running even if awake monsters are in LoS which would otherwise inhibit it */
 
 #define LF1_WATER		0x01000000U	/* for DIGGING: water rivers or base grids are being used */
 #define LF1_LAVA		0x02000000U	/* for DIGGING: lava rivers or base grids are being used */
@@ -7564,13 +7648,13 @@
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_FLOOR) || \
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_CAN_LEVITATE) && p_ptr->levitate) || \
 	((ZCAVE[Y][X].feat == FEAT_DEAD_TREE || ZCAVE[Y][X].feat == FEAT_TREE || ZCAVE[Y][X].feat == FEAT_BUSH) && (p_ptr->pass_trees || p_ptr->levitate)) || /* fly is redundant, covered a line above */ \
-	((ZCAVE[Y][X].feat == FEAT_SHAL_WATER || ZCAVE[Y][X].feat == FEAT_TAINTED_WATER || ZCAVE[Y][X].feat == FEAT_DEEP_WATER) && p_ptr->can_swim))
+	(is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim))
 /* adding this to prevent annoying stops when running in barrow-downs while tree-passing --
    note last line, added for Paths of the Dead, allowing to run over pits */
 #define cave_running_bold_notrees(p_ptr,ZCAVE,Y,X) \
 	( ((f_info[ZCAVE[Y][X].feat].flags1 & FF1_FLOOR) || \
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_CAN_LEVITATE) && p_ptr->levitate) || \
-	((ZCAVE[Y][X].feat == FEAT_SHAL_WATER || ZCAVE[Y][X].feat == FEAT_TAINTED_WATER || ZCAVE[Y][X].feat == FEAT_DEEP_WATER) && p_ptr->can_swim)) \
+	(is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim)) \
 	&& !(ZCAVE[Y][X].feat == FEAT_DEAD_TREE || ZCAVE[Y][X].feat == FEAT_TREE || ZCAVE[Y][X].feat == FEAT_BUSH || \
 	    ZCAVE[Y][X].feat == FEAT_DARK_PIT) )
 /* adding this to prevent annoying stops when running in barrow-downs while tree-passing --
@@ -8025,6 +8109,18 @@ extern int PlayerUID;
   #define TERMA_L_BLUE	78
   #define TERMA_L_UMBER	79
 
+  // EXTENDED_BG_COLOURS reserves 80..86
+
+  /* Space-time-animated colours ^^ */
+  #define TERM_ANIM_WATER_EAST 87
+  #define TERM_ANIM_WATER_WEST 88
+  #define TERM_ANIM_WATER_NORTH 89
+  #define TERM_ANIM_WATER_SOUTH 90
+  #define TERM_ANIM_LAVA_EAST 91
+  #define TERM_ANIM_LAVA_WEST 92
+  #define TERM_ANIM_LAVA_NORTH 93
+  #define TERM_ANIM_LAVA_SOUTH 94
+
   /* Problem: Not enough colours! So we need to change these masks to actual colours. */
   #define TERM_BNW	120	/* black & white, for admin wizards and pandas */
   #define TERM_BNWM	121	/* black & white + holyfire, for martyr */
@@ -8291,8 +8387,6 @@ extern int PlayerUID;
 #define MONSTER_LEVEL_MAX	500
 #define MONSTER_TOO_WEAK	50
 #define MONSTER_EXP(level)	((((level) > MONSTER_LEVEL_MAX)?MONSTER_LEVEL_MAX:(level)) * (((level) > MONSTER_LEVEL_MAX)?MONSTER_LEVEL_MAX:(level)) * (((level) > MONSTER_LEVEL_MAX)?MONSTER_LEVEL_MAX:(level)) * 9)
-/* R_INFO is obsolete; use race_inf instead.	- Jir -	*/
-#define R_INFO(m_ptr)		(r_info_get(m_ptr))
 
 /*
  * Golem defines
@@ -8327,12 +8421,6 @@ extern int PlayerUID;
 #define MEGO_SUB		1
 #define MEGO_FIX		2
 #define MEGO_PRC		3
-
-
-/* pfft */
-/* #define race_inf(m_ptr) (race_info_idx((m_ptr)->r_idx, (m_ptr)->ego, (m_ptr)->name3))
- */
-#define race_inf(m_ptr) r_info_get(m_ptr)
 
 /* wpos to old-fashioned wilderness 'height' */
 /* #define wild_idx(p_ptr) (p_ptr->wpos.wx+p_ptr->wpos.wy*MAX_WILD_X); */
@@ -9766,7 +9854,7 @@ extern int PlayerUID;
 #define in_deathfate(wpos) \
 	((wpos)->wx == WPOS_DF_X && (wpos)->wy == WPOS_DF_Y && (wpos)->wz == WPOS_DF_Z)
 #define in_deathfate2(wpos) \
-	((wpos)->wx == WPOS_DF_X && (wpos)->wy == WPOS_DF_Y && (wpos)->wz == -WPOS_DF_Z)
+	((wpos)->wx == WPOS_DF_X && (wpos)->wy == WPOS_DF_Y && ((wpos)->wz * WPOS_DF_Z) < 0)
 #define in_deathfate_x(wpos) \
 	((wpos)->wx == WPOS_DF_X && (wpos)->wy == WPOS_DF_Y && (wpos)->wz)
 
@@ -9860,3 +9948,6 @@ extern int PlayerUID;
 #define HCMSG_VEGETABLE "You turn into an unthinking vegetable."
 #define HCMSG_LIGHT_FAINT "Your light is growing faint."
 #define HCMSG_NOTE "Note from "
+
+/* Custom lua timers */
+#define CUSTOM_LUA_TIMERS 20

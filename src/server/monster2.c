@@ -47,6 +47,7 @@
 #define IDDC_MANDOS_NO_UNMAKERS
 
 
+
 static cptr horror_desc[MAX_HORROR] = {
 	"abominable",
 	"abysmal",
@@ -1332,7 +1333,7 @@ s16b get_mon_num(int level, int dlevel) {
 	}
 #if 0
 	/* Halls of Mandos: No towns there, prevent super-ood to make life easier? */
-	//if (d_ptr->type == DI_MANDOS && dlev + 20 < level) level = dlev + 20;
+	//if (d_ptr->type == DI_HALLS_OF_MANDOS && dlev + 20 < level) level = dlev + 20;
 #endif
 
 	/* Reset total */
@@ -2965,6 +2966,54 @@ static int get_prison_monster(void) {
 	return(7); /* compiler paranoia dog */
 }
 
+#ifdef FINAL_GUARDIAN_DIFFBOOST
+void final_guardian_diffboost(int m_idx) {
+	monster_type *m_ptr = &m_list[m_idx];
+	monster_race *r_ptr = &r_info[m_ptr->r_idx];
+	struct worldpos *wpos = &m_ptr->wpos;
+	int i, top_lev = 0, dlev = getlevel(&m_ptr->wpos), ideal_lev = det_req_level_inverse(dlev);
+	player_type *p_ptr;
+
+	if (ideal_lev > 50) ideal_lev = 50; //pft
+
+//s_printf("FINAL_GUARDIAN_DIFFBOOST: ideal lev (d) %d; cur HP %d, org_maxhp2 %d\n", ideal_lev, m_ptr->org_maxhp, m_ptr->org_maxhp2);
+	for (i = 1; i <= NumPlayers; i++) {
+		p_ptr = Players[i];
+		if (!inarea(&p_ptr->wpos, wpos)) continue;
+ #ifndef TEST_SERVER
+		if (is_admin(p_ptr)) continue;
+ #endif
+		if (p_ptr->lev > top_lev) top_lev = p_ptr->lev;
+	}
+
+	if (top_lev > ideal_lev) {
+		if (top_lev > 50) top_lev = 50; //pft
+		top_lev = top_lev - ideal_lev + 10;
+		top_lev = top_lev * top_lev; //100..1369 (Azog, lowest level dungeon boss) ((3600 theoretical maximum for a hypothetical level 0 boss))
+//s_printf("FINAL_GUARDIAN_DIFFBOOST: raw boost %d\n", top_lev);
+
+		/* Actually reduce the boost if the monster is already a higher level one */
+		ideal_lev = det_req_level_inverse(r_ptr->level);
+//s_printf("FINAL_GUARDIAN_DIFFBOOST: ideal lev (r) %d\n", ideal_lev);
+		ideal_lev = (ideal_lev * ideal_lev) / 25; // -> %age of reduction of the boost
+		top_lev = 100 + ((top_lev - 100) * (100 - ideal_lev)) / 100; // reduce HP boost over 100% by a higher %age the higher level the monster actually is
+
+		/* Calculate HP gain from base HP */
+		ideal_lev = (m_ptr->org_maxhp2 * top_lev) / 100 - m_ptr->org_maxhp2;
+
+		/* Calculate remaining HP gain in case monster was already boosted previously */
+		ideal_lev = ideal_lev - (m_ptr->org_maxhp - m_ptr->org_maxhp2);
+		if (ideal_lev <= 0) return;
+
+		/* Apply HP gain */
+		m_ptr->hp += ideal_lev;
+		m_ptr->maxhp += ideal_lev;
+		m_ptr->org_maxhp += ideal_lev;
+		s_printf("FINAL_GUARDIAN_DIFFBOOST:FINAL_GUARDIAN HP increased to %d%% (%d HP)\n", top_lev, m_ptr->hp);
+	}
+}
+#endif
+
 /*
  * Attempt to place a monster of the given race at the given location.
  *
@@ -2983,7 +3032,7 @@ static int get_prison_monster(void) {
  */
 /* lots of hard-coded stuff in here -C. Blue */
 int place_monster_one(struct worldpos *wpos, int y, int x, int r_idx, int ego, int randuni, bool slp, int clo, int clone_summoning) {
-	int		i, Ind, j, dlev;
+	int		i, Ind, j, dlev, m_idx;
 	bool		already_on_level = FALSE;
 	cave_type	*c_ptr;
 	dun_level	*l_ptr = getfloor(wpos);
@@ -3411,7 +3460,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG 8\n");
 		if (wpos->wz && dlev < 50 && r_ptr->level > dlev - 10 + (dlev > 20 ? dlev : 20)) return(45);
 #if 0
 		/* Halls of Mandos: No towns there, prevent super-ood to make life easier? */
-		if (d_ptr->type == DI_MANDOS && dlev + 20 < r_ptr->level) return(45);
+		if (d_ptr->type == DI_HALLS_OF_MANDOS && dlev + 20 < r_ptr->level) return(45);
 #endif
 	}
 #ifdef PMO_DEBUG
@@ -3512,17 +3561,18 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 	r_ptr = race_info_idx(r_idx, ego, randuni);
 
 	/* Make a new monster */
-	c_ptr->m_idx = m_pop();
-
+	m_idx = m_pop();
 	/* Mega-Hack -- catch "failure" */
-	if (!c_ptr->m_idx) return(49);
+	if (!m_idx) return(49);
+
+	c_ptr->m_idx = m_idx;;
 
 
 	/* --- Success! --- */
 
 
 	/* Get a new monster record */
-	m_ptr = &m_list[c_ptr->m_idx];
+	m_ptr = &m_list[m_idx];
 
 	/* Save the race */
 	m_ptr->r_idx = r_idx;
@@ -3530,6 +3580,9 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 	m_ptr->ego = ego;
 //	m_ptr->name3 = randuni;
 #endif	// RANDUNIS
+
+	/* Shapechanger get a seed that keeps their form [semi] permanent */
+	if (race_inf(m_ptr)->flags2 & RF2_SHAPECHANGER) m_ptr->body_monster = rand_int(0xFFFF);
 
 	/* Place the monster at the location */
 	m_ptr->fy = y;
@@ -3635,13 +3688,13 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 		if (Players[Ind]->conn == NOT_CONNECTED)
 			continue;
 
-		Players[Ind]->mon_los[c_ptr->m_idx] = FALSE;
-		Players[Ind]->mon_vis[c_ptr->m_idx] = FALSE;
+		Players[Ind]->mon_los[m_idx] = FALSE;
+		Players[Ind]->mon_vis[m_idx] = FALSE;
 	}
 
 	if (dlev >= (m_ptr->level + 8)) {
 		m_ptr->exp = MONSTER_EXP(m_ptr->level + ((dlev - m_ptr->level - 5) / 3));
-		monster_check_experience(c_ptr->m_idx, TRUE);
+		monster_check_experience(m_idx, TRUE);
 	}
 
 
@@ -3672,7 +3725,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 	strcpy(buf, (r_name + r_ptr->name));
 
 	/* Update the monster */
-	update_mon(c_ptr->m_idx, TRUE);
+	update_mon(m_idx, TRUE);
 
 
 	/* Assume no sleeping */
@@ -3683,7 +3736,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 
 		m_ptr->csleep = ((val * 2) + randint(val * 10));
 	}
-	//if (!m_ptr->csleep && m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, c_ptr->m_idx, m_ptr->custom_lua_awoke)); //not needed here?
+	//if (!m_ptr->csleep && m_ptr->custom_lua_awoke) exec_lua(0, format("custom_monster_awoke(%d,%d,%d)", 0, m_idx, m_ptr->custom_lua_awoke)); //not needed here?
 
 	/*if (m_ptr->hold_o_idx) {
 		s_printf("AHA! monster created with an object in hand!\n");
@@ -3699,7 +3752,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 	/* DEX */
 	m_ptr->org_ac = m_ptr->ac;
 	/* CON */
-	m_ptr->org_maxhp = m_ptr->maxhp;
+	m_ptr->org_maxhp2 = m_ptr->org_maxhp = m_ptr->maxhp;
 
 #ifdef MONSTER_ASTAR
 	if (r_ptr->flags7 & RF7_ASTAR) {
@@ -3707,7 +3760,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 		for (j = 0; j < ASTAR_MAX_INSTANCES; j++) {
 			/* found an available instance? */
 			if (astar_info_open[j].m_idx == -1) {
-				astar_info_open[j].m_idx = c_ptr->m_idx;
+				astar_info_open[j].m_idx = m_idx;
 				m_ptr->astar_idx = j;
  #ifdef ASTAR_DISTRIBUTE
 				astar_info_closed[j].nodes = 0;
@@ -3723,6 +3776,11 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 	if ((r_ptr->flags8 & RF8_FINAL_GUARDIAN)) {
 		s_printf("FINAL_GUARDIAN %d spawned\n", r_idx);
 		if (level_generation_time && l_ptr) l_ptr->flags2 |= LF2_DUN_BOSS; /* Floor feeling (IDDC) */
+
+#ifdef FINAL_GUARDIAN_DIFFBOOST
+		if (dlev < 99) /* Ensure Sauron isn't affected */
+			final_guardian_diffboost(m_idx);
+#endif
 	}
 
 	/* Success */
@@ -4077,32 +4135,50 @@ int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool slp, 
 
 #ifdef DM_MODULES
 int place_monster_ego(worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning) {
-	monster_race *r_ptr = &r_info[r_idx];
 	cave_type **zcave;
 	int res;
 
 	if (!(zcave = getcave(wpos))) return(-1);
-#ifdef ARCADE_SERVER
+ #ifdef ARCADE_SERVER
 	if (in_trainingtower(wpos)) return(-2);
-#endif
+ #endif
 
-	if (!(summon_override_checks & SO_SURFACE)) {
-		/* Do not allow breeders to spawn in the wilderness - the_sandman */
-		if ((r_ptr->flags7 & RF7_MULTIPLY) && !(wpos->wz)) return(-3);
-	}
+	summon_override_checks = SO_ALL;
 
 	/* Place one monster, or fail */
 	if ((res = place_monster_one(wpos, y, x, r_idx, e_idx, 0, slp, clo, clone_summoning)) != 0) {
-		// DEBUG
-		/* s_printf("place_monster_one failed at (%d, %d, %d), y = %d, x = %d, r_idx = %d, feat = %d\n",
-			wpos->wx, wpos->wy, wpos->wz, y, x, r_idx, zcave[y][x].feat); */
+		s_printf("place_monster_one (%d,%d) failed (%d) at [y=%d,x=%d] (%d,%d,%d) cave-feat %d!\n",
+		    r_idx, e_idx, res, y, x, wpos->wx, wpos->wy, wpos->wz, zcave[y][x].feat);
+
 		/* Failure (!=0) */
 		return(res);
 	}
-	/* Success (==0) */
 
-	/* Success */
+	summon_override_checks = SO_NONE;
+
+	/* Success (==0) */
 	return(0);
+}
+
+int custom_place_monster_ego(worldpos *wpos, int y, int x, int r_idx, int e_idx, bool slp, bool grp, int clo, int clone_summoning,
+    s16b custom_lua_death, s16b custom_lua_deletion, s16b custom_lua_awoke, s16b custom_lua_sighted) {
+	monster_type *m_ptr;
+	int res;
+
+	res = place_monster_ego(wpos, y, x, r_idx, e_idx, slp, grp, clo, clone_summoning);
+	if (!res) {
+		struct cave_type **zcave = getcave(wpos);
+
+		/* Success */
+		m_ptr = &m_list[zcave[y][x].m_idx];
+
+		m_ptr->custom_lua_death = custom_lua_death;
+		m_ptr->custom_lua_deletion = custom_lua_deletion;
+		m_ptr->custom_lua_awoke = custom_lua_awoke;
+		m_ptr->custom_lua_sighted = custom_lua_sighted;
+	}
+
+	return(res);
 }
 #endif
 
@@ -5415,7 +5491,7 @@ int race_index(char * name) {
 	return(0);
 }
 
-monster_race* r_info_get(monster_type *m_ptr) {
+monster_race* race_inf(monster_type *m_ptr) {
 	/* player golem or questor? */
 	if (m_ptr->special || m_ptr->questor) return(m_ptr->r_ptr);
 #ifdef RANDUNIS
@@ -5922,9 +5998,9 @@ static bool monster_ground(int r_idx) {
  * Also note that fountains mustn't count as safe haven for aquatic monsters,
  * or fountain guards without ranged attacks might be pretty helpless.
  */
-bool monster_can_cross_terrain(byte feat, monster_race *r_ptr, bool spawn, u32b info) {
+bool monster_can_cross_terrain(u16b feat, monster_race *r_ptr, bool spawn, u32b info) {
 	/* Deep water */
-	if (feat == FEAT_DEEP_WATER) {
+	if (is_deep_water(feat)) {
 		if ((r_ptr->flags7 & RF7_AQUATIC) ||
 		    (r_ptr->flags7 & RF7_CAN_FLY) ||
 		    (r_ptr->flags3 & RF3_IM_WATER) ||
@@ -5934,7 +6010,7 @@ bool monster_can_cross_terrain(byte feat, monster_race *r_ptr, bool spawn, u32b 
 			return(FALSE);
 	}
 	/* Shallow water */
-	else if (feat == FEAT_SHAL_WATER) {
+	else if (is_shal_water(feat)) {
 		if ((r_ptr->flags2 & RF2_AURA_FIRE)
 		    && r_ptr->level < 25 /* no more Solar Blades stuck in shallow water o_o */
 		    /*(this level is actually only undercut by a) Jumping Fireball, b) Fire Spirit and c) Fire Vortex)*/
@@ -5952,16 +6028,7 @@ bool monster_can_cross_terrain(byte feat, monster_race *r_ptr, bool spawn, u32b 
 		else return(FALSE);
 	}
 	/* Lava OR fire damage */
-	else if (feat == FEAT_SHAL_LAVA ||
-	    feat == FEAT_DEEP_LAVA ||
-	    feat == FEAT_EMBERS ||
-	    feat == FEAT_SMALL_FIRE ||
-	    feat == FEAT_SMALL_CAMPFIRE ||
-	    feat == FEAT_CAMPFIRE ||
-	    // feat == FEAT_BURNING_TORCH ||
-	    // feat == FEAT_BURNING_LAMP ||
-	    feat == FEAT_FIRE ||
-	    feat == FEAT_GREAT_FIRE) {
+	else if (is_lava(feat) || is_acute_fire(feat)) {
 		if ((r_ptr->flags3 & RF3_IM_FIRE) ||
 		    (r_ptr->flags9 & RF9_RES_FIRE) ||
 		    (r_ptr->flags7 & RF7_CAN_FLY))
@@ -5976,23 +6043,11 @@ bool monster_can_cross_terrain(byte feat, monster_race *r_ptr, bool spawn, u32b 
 
 void set_mon_num2_hook(int feat) {
 	/* Set the monster list */
-	switch (feat) {
-	case FEAT_SHAL_WATER:
-		get_mon_num2_hook = monster_shallow_water;
-		break;
-	case FEAT_DEEP_WATER:
-		get_mon_num2_hook = monster_deep_water;
-		break;
-	case FEAT_DEEP_LAVA:
-	case FEAT_SHAL_LAVA:
-	case FEAT_FIRE: //added the 'fires', dunno..
-	case FEAT_GREAT_FIRE:
+	if (is_shal_water(feat)) get_mon_num2_hook = monster_shallow_water;
+	else if (is_deep_water(feat)) get_mon_num2_hook = monster_deep_water;
+	else if (is_lava(feat) || is_fire(feat)) //added the 'fires', dunno..
 		get_mon_num2_hook = monster_lava;
-		break;
-	default:
-		get_mon_num2_hook = monster_ground;
-		break;
-	}
+	else get_mon_num2_hook = monster_ground;
 }
 
 /* Generic function to set a proper hook for monster spawning. */

@@ -103,7 +103,7 @@ static int arctan[12][34] = {	/* [y, x] -> arctan(y/x) in degrees, with y=0..11,
  * about the underlying platform.
  *
  * The game "Angband" uses a set of files called "main-xxx.c", for
- * various "xxx" suffixes.  Most of these contain a function called
+ * various "xxx" suffices.  Most of these contain a function called
  * "init_xxx()", that will prepare the underlying visual system for
  * use with Angband, and then create one or more "term" structures,
  * using flags and hooks appropriate to the given platform, so that
@@ -433,8 +433,12 @@ static errr term_win_copy_part(term_win *s, term_win *f, int x_start, int y_star
 static void QueueAttrChar(int x, int y, byte a, char32_t c) {
 	byte *scr_aa = Term->scr->a[y];
 	char32_t *scr_cc = Term->scr->c[y];
+#ifdef GRAPHICS_BG_MASK
+	byte *scr_aa_back = Term->scr_back->a[y];
+	char32_t *scr_cc_back = Term->scr_back->c[y];
+#endif
 
-	int oa = scr_aa[x];
+	byte oa = scr_aa[x];
 	char32_t oc = scr_cc[x];
 
 	/* Hack -- Ignore non-changes */
@@ -449,13 +453,8 @@ static void QueueAttrChar(int x, int y, byte a, char32_t c) {
 	   In that case, 'background' info exists and we just don't use it, for this drawing action.
 	   So we should clear it instead of leaving it undefined.
 	   (Except for weather particles, where the effect of leaving the background here would actually be desired, as the weather particle is just temporary.) */
-	{
-		byte *scr_aa_back = Term->scr_back->a[y];
-		char32_t *scr_cc_back = Term->scr_back->c[y];
-
-		scr_aa_back[x] = 0;
-		scr_cc_back[x] = 32; //note: 0 would glitch as it's undefined, 32 aka space is correct for erasure
-	}
+	scr_aa_back[x] = 0;
+	scr_cc_back[x] = 32; //note: 0 would glitch as it's undefined, 32 aka space is correct for erasure
 #endif
 
 	/* Check for new min/max row info */
@@ -467,27 +466,60 @@ static void QueueAttrChar(int x, int y, byte a, char32_t c) {
 	if (x > Term->x2[y]) Term->x2[y] = x;
 }
 #ifdef GRAPHICS_BG_MASK
+/* If c_back is zero, it keeps the current background char instead of setting one. */
 static void QueueAttrChar_2mask(int x, int y, byte a, char32_t c, byte a_back, char32_t c_back) {
 	byte *scr_aa = Term->scr->a[y];
 	char32_t *scr_cc = Term->scr->c[y];
 	byte *scr_aa_back = Term->scr_back->a[y];
 	char32_t *scr_cc_back = Term->scr_back->c[y];
 
-	int oa = scr_aa[x];
+	byte oa = scr_aa[x];
 	char32_t oc = scr_cc[x];
-	int oa_back = scr_aa_back[x];
+	byte oa_back = scr_aa_back[x];
 	char32_t oc_back = scr_cc_back[x];
 
 	/* Hack -- Ignore non-changes */
-	if (oa == a && oc == c && oa_back == a_back && oc_back == c_back) return;
+	//if (oa == a && oc == c && (!c_back || (oa_back == a_back && oc_back == c_back))) return;
+	//if (oa == a && oc == c && oa_back == a_back && (!c_back || oc_back == c_back)) return;
+	if (oa == a && oc == c && oa_back == a_back && oc_back == c_back) return; //max paranoia
 
-	/* Save the "literal" information */
-	scr_aa[x] = a;
-	scr_cc[x] = c;
+	/* Save the "literal" information (background) */
 	if (c_back) {
 		scr_aa_back[x] = a_back;
 		scr_cc_back[x] = c_back;
 	}
+
+	/* If we draw over a tile that was previous printed here as ASCII instead of graphics,
+	   we need to take care of the background, as ASCII doesn't set that.
+	   This for example concerns town stores during rain
+	   (note that all weather particles draw with 0,0 for a_back,c_back). - C. Blue */
+	if ((scr_cc_back[x] == 32 // <- ASCII was drawn here?
+ #if 0 /* actually any ASCII drawage, aka QueueAttrChar(), already sets cc_back to 32 so the check above should suffice and this one isn't clear, gfx could also be < 256?! */
+	    /* Rare special case: Even if background contains graphics (because we are in 2mask-mode)
+	       we were fed ASCII in the foreground w/o overriding the graphical background.
+	       This should only ever happen if we're receiving visual info from an ASCII client while locally drawing 2mask-mode, ie weather particles: */
+	    || scr_cc[x] < 256)
+ #else /* freaking compiler warning */
+	    && TRUE)
+ #endif
+ #if 0 /* actually this colour check can be removed as it doesn't matter (would even improve future compatibility if we ever print ASCII with coloured backgrounds) */
+	     && !scr_aa_back[x]
+ #endif
+	     ) {
+		//replace the 'space (usually w/ colour 0]' ASCII background with graphical '(usually black, accordingly) box', so we can properly merge-draw on it
+		scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+		/* Colour should stay the same - however, we need to hack it for the case that we have an ASCII tile that has 'space' foreground, but non-black colour!
+		   In these cases the FEAT_SOLID would obtain the foreground colour, thereby turning into a coloured 'pseudo-background' for our graphical foreground tile.
+		   Another solution would be to change all 'clear' aka 'space' feats in f_info to use 'd' (TERM_DARK) colour, which is probably the better solution than setting a_back to TERM_DARK here.
+		   ---
+		   BOTH SOLUTIONS have been implemented now ie the blank feats in f_info.txt had their colour changed to 'd',
+		   so if we ever require coloured backgrounds in text mode we should be able to remove the following line anytime just fine. */
+		scr_aa_back[x] = TERM_DARK;
+	}
+
+	/* Save the "literal" information (foreground) */
+	scr_aa[x] = a;
+	scr_cc[x] = c;
 
 	/* Check for new min/max row info */
 	if (y < Term->y1) Term->y1 = y;
@@ -515,15 +547,17 @@ static void QueueAttrChars(int x, int y, int n, byte a, char32_t *s) {
 
 	byte *scr_aa = Term->scr->a[y];
 	char32_t *scr_cc = Term->scr->c[y];
+#ifdef GRAPHICS_BG_MASK
+	byte *scr_aa_back = Term->scr_back->a[y];
+	char32_t *scr_cc_back = Term->scr_back->c[y];
+#endif
 
 #ifdef DRAW_LARGER_CHUNKS
 	memset(scr_aa + x, a, n);
 	memcpy(scr_cc + x, s, n * sizeof(s[0]));
- #if 0
  #ifdef GRAPHICS_BG_MASK /* Erase any background info */
 	memset(scr_aa_back + x, 0, n);
 	memcpy(scr_cc_back + x, 0, n * sizeof(s[0]));
- #endif
  #endif
 
 	x1 = x;
@@ -531,8 +565,8 @@ static void QueueAttrChars(int x, int y, int n, byte a, char32_t *s) {
 #else
 	/* Queue the attr/chars */
 	for ( ; n; x++, s++, n--) {
-		int oa = scr_aa[x];
-		int oc = scr_cc[x];
+		byte oa = scr_aa[x];
+		char32_t oc = scr_cc[x];
 
 		/* Hack -- Ignore non-changes */
 		if (oa == a && oc == *s) continue;
@@ -540,11 +574,9 @@ static void QueueAttrChars(int x, int y, int n, byte a, char32_t *s) {
 		/* Save the "literal" information */
 		scr_aa[x] = a;
 		scr_cc[x] = *s;
- #if 0
- #ifdef GRAPHICS_BG_MASK /* Erase any background info */
-		scr_aa[x] = 0;
-		scr_cc[x] = 0;
- #endif
+ #ifdef GRAPHICS_BG_MASK /* We print ASCII, so erase any background info! (Important for QueueAttrChar_2mask() to have 32 aka 'blank' here!) */
+		scr_aa_back[x] = 0;
+		scr_cc_back[x] = 32;
  #endif
 
 		/* Note the "range" of window updates */
@@ -567,6 +599,8 @@ static void QueueAttrChars(int x, int y, int n, byte a, char32_t *s) {
 
 #if 0 /* 0'ed cause only used for text printing, not for actual pict-printing (ie graphics tiles) */
 #ifdef GRAPHICS_BG_MASK
+/* If a c_back is zero, it keeps the current background char at that position, instead of setting one.
+   HOWEVER, this is currently not implemented for DRAW_LARGER_CHUNKS! */
 static void QueueAttrChars_2mask(int x, int y, int n, byte a, char32_t *s, byte a_back, char32_t *s_back) {
 	int x1 = -1, x2 = -1;
 
@@ -576,6 +610,7 @@ static void QueueAttrChars_2mask(int x, int y, int n, byte a, char32_t *s, byte 
 	char32_t *scr_cc_back = Term->scr_back->c[y];
 
  #ifdef DRAW_LARGER_CHUNKS
+	//TODO: new back-character may have value zero to keep current background char
 	memset(scr_aa + x, a, n);
 	memcpy(scr_cc + x, s, n * sizeof(s[0]));
 	memset(scr_aa_back + x, a_back, n);
@@ -586,19 +621,23 @@ static void QueueAttrChars_2mask(int x, int y, int n, byte a, char32_t *s, byte 
  #else
 	/* Queue the attr/chars */
 	for ( ; n; x++, s++, n--) {
-		int oa = scr_aa[x];
-		int oc = scr_cc[x];
-		int oa_b = scr_aa_back[x];
-		int oc_b = scr_cc_back[x];
+		byte oa = scr_aa[x];
+		char32_t oc = scr_cc[x];
+		byte oa_b = scr_aa_back[x];
+		char32_t oc_b = scr_cc_back[x];
 
 		/* Hack -- Ignore non-changes */
-		if (oa == a && oc == *s && oa_b == a_back && oc_b == *s_back) continue;
+		//if (oa == a && oc == *s && (!*s_back || (oa_b == a_back && oc_b == *s_back))) continue;
+		//if (oa == a && oc == *s && oa_b == a_back && (!*s_back || oc_b == *s_back)) continue;
+		if (oa == a && oc == *s && oa_b == a_back && oc_b == *s_back) continue; //max paranoia
 
 		/* Save the "literal" information */
 		scr_aa[x] = a;
 		scr_cc[x] = *s;
-		scr_aa_back[x] = a_back;
-		scr_cc_back[x] = *s_back;
+		if (*s_back) {
+			scr_aa_back[x] = a_back;
+			scr_cc_back[x] = *s_back;
+		}
 
 		/* Note the "range" of window updates */
 		if (x1 < 0) x1 = x;
@@ -1509,6 +1548,33 @@ byte flick_colour(byte attr) {
 		default: return(TERM_L_DARK); /* need TERM_L_DARK or TERM_SLATE to get enough contrast to dark blue */
 #endif
 		}}
+
+	case TERM_ANIM_WATER_EAST: /* water stream flowing eastward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_WATE));
+		return((flick_global_x - ticks / 1) % 5 ? flick_colour(TERM_WATE) : (rand_int(4) ? TERM_L_BLUE : TERM_BLUE));
+	case TERM_ANIM_WATER_WEST: /* water stream flowing westward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_WATE));
+		return((flick_global_x + ticks / 1) % 5 ? flick_colour(TERM_WATE) : (rand_int(4) ? TERM_L_BLUE : TERM_BLUE));
+	case TERM_ANIM_WATER_NORTH: /* water stream flowing northward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_WATE));
+		return((flick_global_y + ticks / 1) % 5 ? flick_colour(TERM_WATE) : (rand_int(4) ? TERM_L_BLUE : TERM_BLUE));
+	case TERM_ANIM_WATER_SOUTH: /* water stream flowing southward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_WATE));
+		return((flick_global_y - ticks / 1) % 5 ? flick_colour(TERM_WATE) : (rand_int(4) ? TERM_L_BLUE : TERM_BLUE));
+
+	case TERM_ANIM_LAVA_EAST: /* lava stream flowing eastward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_FIRE));
+		return((flick_global_x - ticks / 1) % 5 ? flick_colour(TERM_FIRE) : (rand_int(4) ? TERM_YELLOW : TERM_ORANGE));
+	case TERM_ANIM_LAVA_WEST: /* lava stream flowing westward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_FIRE));
+		return((flick_global_x + ticks / 1) % 5 ? flick_colour(TERM_FIRE) : (rand_int(4) ? TERM_YELLOW : TERM_ORANGE));
+	case TERM_ANIM_LAVA_NORTH: /* lava stream flowing northward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_FIRE));
+		return((flick_global_y + ticks / 1) % 5 ? flick_colour(TERM_FIRE) : (rand_int(4) ? TERM_YELLOW : TERM_ORANGE));
+	case TERM_ANIM_LAVA_SOUTH: /* lava stream flowing southward, every 5th grid has a 'lighter' foam */
+		if (!flick_global_x) return(flick_colour(TERM_FIRE));
+		return((flick_global_y - ticks / 1) % 5 ? flick_colour(TERM_FIRE) : (rand_int(4) ? TERM_YELLOW : TERM_ORANGE));
+
 	default:
 #if 0 /* old way: xhtml_screenshot() would call us on ANY colour, even non-animated */
 		return(attr); /* basically only happens in screenshot function, where flick_colour() is used indiscriminately on ALL colours even those not animated.. pft */

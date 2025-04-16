@@ -380,6 +380,12 @@ static void wr_monster(monster_type *m_ptr) {
 	}
 	wr_s32b(m_ptr->hp);
 	wr_s32b(m_ptr->maxhp);
+	wr_s32b(m_ptr->org_maxhp);
+	wr_s32b(m_ptr->org_maxhp2);
+	wr_s16b(m_ptr->body_monster);
+	wr_s32b(m_ptr->extra);
+	wr_s32b(m_ptr->extra2);
+	wr_s32b(m_ptr->extra3);
 	wr_s16b(m_ptr->csleep);
 	wr_byte(m_ptr->mspeed);
 	wr_s16b(m_ptr->energy);
@@ -946,7 +952,7 @@ static void wr_extra(int Ind) {
 	wr_s16b(p_ptr->sc);
 	wr_s16b(p_ptr->fruit_bat);
 
-	wr_byte(p_ptr->lives);		/* old "rest" */
+	wr_byte(p_ptr->lives);
 	wr_byte(p_ptr->houses_owned);
 
 	wr_byte(p_ptr->breath_element);
@@ -1182,7 +1188,12 @@ static void wr_extra(int Ind) {
 	wr_u16b(p_ptr->tim_reflect);
 
 	wr_byte(p_ptr->tim_lcage);
-	for (i = 0; i < 8; i++) wr_byte(0); //future use
+
+	tmp8u = (p_ptr->cut_intrinsic ? 0x01 : 0x00) + (p_ptr->nocut_intrinsic ? 0x02 : 0x00);
+	wr_byte(tmp8u);
+
+	/* --- future use / HOLE: --- */
+	for (i = 0; i < 7; i++) wr_byte(0);
 
 	/* for shuffling/dealing a deck of cards */
 	wr_u16b(p_ptr->cards_diamonds);
@@ -1280,7 +1291,7 @@ static void wr_floor(struct worldpos *wpos) {
 	unsigned char runlength;
 	/* init RLE control vars to some 'reserved' value, usually the highest we can express in their type,
 	   and set as rule that it may not be used by the scripts, so it stays distinguished as init-marker. */
-	byte prev_feature = 0xff;
+	u16b prev_feature = 0xff;
 	u32b prev_info = 0xffffffff, prev_info2 = 0xffffffff;
 	s16b prev_custom_lua_tunnel_hand = (s16b)0xffff;
 	s16b prev_custom_lua_tunnel = (s16b)0xffff;
@@ -1360,7 +1371,7 @@ static void wr_floor(struct worldpos *wpos) {
 				if (runlength) {
 					/* if we just finished a run, write it */
 					wr_byte(runlength);
-					wr_byte(prev_feature);
+					wr_u16b(prev_feature);
 					wr_u32b(prev_info);
 					wr_u32b(prev_info2);
 					wr_s16b(prev_custom_lua_tunnel_hand);
@@ -1390,7 +1401,7 @@ static void wr_floor(struct worldpos *wpos) {
 		}
 		/* hack -- write the final run of this row */
 		wr_byte(runlength);
-		wr_byte(prev_feature);
+		wr_u16b(prev_feature);
 		wr_u32b(prev_info);
 		wr_u32b(prev_info2);
 		wr_s16b(prev_custom_lua_tunnel_hand);

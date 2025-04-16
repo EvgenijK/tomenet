@@ -4069,6 +4069,7 @@ static void process_player_begin(int Ind) {
 		zcave[p_ptr->py][p_ptr->px].m_idx = 0 - Ind;
 		everyone_lite_spot(&p_ptr->wpos, oy, ox);
 		everyone_lite_spot(&p_ptr->wpos, p_ptr->py, p_ptr->px);
+		p_ptr->player_sees_dm = TRUE;
 		break;
 	case AT_MUMBLE:
 		if (turn < p_ptr->auto_transport_turn + cfg.fps * 2) break; /* cool down.. */
@@ -4545,6 +4546,7 @@ bool can_use_wordofrecall(player_type *p_ptr) {
 
 /* Handles WoR
  * XXX dirty -- REWRITEME
+ * bypass : ignore any normal restrictions (ironman, fear..) - this is unused actually, instead, this function performs admin checks that ignore such restrictions.
  */
 static void do_recall(int Ind, bool bypass) {
 	player_type *p_ptr = Players[Ind];
@@ -4568,6 +4570,7 @@ static void do_recall(int Ind, bool bypass) {
 		if (!pass) {
 			msg_print(Ind, "\377oA tension leaves the air around you...");
 			p_ptr->redraw |= (PR_DEPTH);
+			p_ptr->recall_x = p_ptr->recall_y = 0;
 			return;
 		}
 	}
@@ -4589,6 +4592,7 @@ static void do_recall(int Ind, bool bypass) {
 				msg_print(Ind, "\377oA tension leaves the air around you...");
 				p_ptr->redraw |= (PR_DEPTH);
 				if (!is_admin(p_ptr)) {
+					p_ptr->recall_x = p_ptr->recall_y = 0;
 					set_afraid(Ind, 10);// + (d_ptr->baselevel - p_ptr->max_dlv));
 					return;
 				}
@@ -4599,6 +4603,7 @@ static void do_recall(int Ind, bool bypass) {
 		if (d_ptr && (d_ptr->type == DI_NETHER_REALM) && !p_ptr->total_winner) {
 			msg_print(Ind, "\377rAs you attempt to recall, you are gripped by an uncontrollable fear.");
 			if (!is_admin(p_ptr)) {
+				p_ptr->recall_x = p_ptr->recall_y = 0;
 				set_afraid(Ind, 10);//+(d_ptr->baselevel-p_ptr->max_dlv));
 				return;
 			}
@@ -4620,6 +4625,7 @@ static void do_recall(int Ind, bool bypass) {
 					recall_ok = FALSE;
 					/* Redraw the depth(colour) */
 					p_ptr->redraw |= (PR_DEPTH);
+					p_ptr->recall_x = p_ptr->recall_y = 0;
 				}
 			} else if ((p_ptr->mode & MODE_DED_IDDC) && in_irondeepdive(&p_ptr->wpos)) {
 				msg_print(Ind, "You have dedicated yourself to the Ironman Deep Dive Challenge!");
@@ -4627,6 +4633,7 @@ static void do_recall(int Ind, bool bypass) {
 					recall_ok = FALSE;
 					/* Redraw the depth(colour) */
 					p_ptr->redraw |= (PR_DEPTH);
+					p_ptr->recall_x = p_ptr->recall_y = 0;
 				}
 			}
 		}
@@ -4656,10 +4663,14 @@ static void do_recall(int Ind, bool bypass) {
 	else if ((!(p_ptr->recall_pos.wz) || !(wild_info[p_ptr->wpos.wy][p_ptr->wpos.wx].flags & (WILD_F_UP | WILD_F_DOWN))) && !bypass) {
 		int dis;
 
+		/* We haven't mapped the target worldmap sector yet? */
 		if (((!(p_ptr->wild_map[(wild_idx(&p_ptr->recall_pos)) / 8] &
 		    (1U << (wild_idx(&p_ptr->recall_pos)) % 8))) &&
 		    !is_admin(p_ptr) ) ||
-		    inarea(&p_ptr->wpos, &p_ptr->recall_pos))
+		    /* Or we have specified no target sector or the same sector we're already in? */
+		    (inarea(&p_ptr->wpos, &p_ptr->recall_pos)
+		    && p_ptr->recall_x == 0 //exception for admins: Allow precise recall within same sector
+		    ))
 		{
 			/* back to the last town (s)he visited.
 			 * (This can fail if gone too far) */
@@ -4820,6 +4831,7 @@ static void do_recall(int Ind, bool bypass) {
 		/* new_pos isn't set so recalling shouldn't be allowed - mikaelh */
 		recall_ok = FALSE;
 		p_ptr->redraw |= (PR_DEPTH);
+		p_ptr->recall_x = p_ptr->recall_y = 0;
 	}
 
 	if (recall_ok) {
@@ -5116,7 +5128,7 @@ static bool process_player_end_aux(int Ind) {
 		apply_terrain_effect(Ind);
 
 		/* Drowning, but not ghosts */
-		if (c_ptr->feat == FEAT_DEEP_WATER) {
+		if (is_deep_water(c_ptr->feat)) {
 			/* Rewrote this whole routine to take into account DSMs, wood helping thanks to its relative density, subinventories etc. - C. Blue */
 			if (!p_ptr->tim_wraith && !p_ptr->levitate) { /* Wraiths and levitating players are completely unaffected by water, including their items */
 				bool huge_wood = FALSE, cold = cold_place(wpos), is_ent = (p_ptr->prace == RACE_ENT && !p_ptr->body_monster);
@@ -5270,7 +5282,7 @@ static bool process_player_end_aux(int Ind) {
 				/* If we're, after all (enough wood and/or enough swiming or aquatic/Ent) not drowning... */
 				if (drowning < 0) {
 					/* Special flavour message when not drowning and carrying a huge block of wood */
-					if (huge_wood && is_ent && !rand_int(5)) {
+					if (huge_wood && !is_ent && !rand_int(5)) {
 						/* Give specific message for flavour, about clinging to the massive piece of wood, being our 'main relief' ;) */
 						msg_print(Ind, "You float in the water safely, clinging to the wood.");
 					}
@@ -5313,12 +5325,11 @@ static bool process_player_end_aux(int Ind) {
 		else if ((p_ptr->body_monster) &&
 		    ((r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC) &&
 		    !(r_info[p_ptr->body_monster].flags3 & RF3_UNDEAD))
-		    && ((c_ptr->feat != FEAT_SHAL_WATER) ||
+		    && (!is_shal_water(c_ptr->feat) ||
 		    r_info[p_ptr->body_monster].weight > 700)
 		    /* new: don't get stunned from crossing door/stair grids every time - C. Blue */
 		    && !is_always_passable(c_ptr->feat)
-		    && !p_ptr->tim_wraith)
-		{
+		    && !p_ptr->tim_wraith) {
 			long hit = p_ptr->mhp >> 6; /* Take damage */
 
 			hit += randint(p_ptr->chp >> 5);
@@ -5327,7 +5338,7 @@ static bool process_player_end_aux(int Ind) {
 			if (!hit) hit = 1;
 
 			if (hit) {
-				if (c_ptr->feat != FEAT_SHAL_WATER)
+				if (!is_shal_water(c_ptr->feat))
 					msg_print(Ind, "\377rYou cannot breathe air!");
 				else
 					msg_print(Ind, "\377rThere's not enough water to breathe!");
@@ -5435,7 +5446,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Ent's natural food while in 'Resting Mode' - C. Blue
 	   Water helps much, natural floor helps some. */
 	if (!p_ptr->ghost && p_ptr->prace == RACE_ENT && p_ptr->resting) {
-		if (c_ptr->feat == FEAT_SHAL_WATER || c_ptr->feat == FEAT_DEEP_WATER || c_ptr->feat == FEAT_MUD)
+		if ((is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) || c_ptr->feat == FEAT_MUD)
 			autofood = 200; //Delicious!
 		else if (c_ptr->feat == FEAT_GRASS || c_ptr->feat == FEAT_DIRT)
 			autofood = 100;
@@ -5588,7 +5599,7 @@ static bool process_player_end_aux(int Ind) {
 	if (p_ptr->poisoned || p_ptr->diseased || p_ptr->sun_burn
 #if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
 	    /* Trolls and Hydras continue to regenerate even while cut (it's the whole point of their regen) */
-	    || (p_ptr->cut && !intrinsic_regen)
+	    || (p_ptr->cut && (!intrinsic_regen || p_ptr->cut_intrinsic))
 #else
 	    || p_ptr->cut
 #endif
@@ -6911,6 +6922,7 @@ static bool process_player_end_aux(int Ind) {
 		    ) {
 			msg_print(Ind, "\377oA tension leaves the air around you...");
 			p_ptr->word_recall = 0;
+			p_ptr->recall_x = p_ptr->recall_y = 0;
 			if (p_ptr->disturb_state) disturb(Ind, 0, 0);
 			/* Redraw the depth(colour) */
 			p_ptr->redraw |= (PR_DEPTH);
@@ -7090,25 +7102,41 @@ static void process_player_end(int Ind) {
 #endif
 
 					msg_print(Ind, "\377GYou are free to go!");
-
-					/* Get the jail door location */
-					if (!p_ptr->house_num) teleport_player_force(Ind, 1); //should no longer happen as house_num is saved now between logins
-					else {
-						zcave[p_ptr->py][p_ptr->px].m_idx = 0;
-						everyone_lite_spot(&p_ptr->wpos, p_ptr->py, p_ptr->px);
-						p_ptr->px = houses[p_ptr->house_num - 1].dx;
-						p_ptr->py = houses[p_ptr->house_num - 1].dy;
-						p_ptr->house_num = 0;
-						teleport_player_force(Ind, 1);
-
-						/* Hack: We started on the prison door, which isn't CAVE_STCK.
-						   So we have to manually add a message and redraw the no-tele indicators. */
-						msg_print(Ind, "\377sFresh air greets you as you leave the prison.");
-						p_ptr->redraw |= PR_DEPTH; /* hack: depth colour indicates no-tele */
-						p_ptr->redraw |= PR_BPR_WRAITH;
-					}
+#ifdef JAIL_KICK
+					p_ptr->tim_jail_delay = JAIL_KICK + 1;
+#else
+					p_ptr->tim_jail_delay = 1;
+#endif
 				}
 			}
+		}
+		if (p_ptr->tim_jail_delay) {
+			p_ptr->tim_jail_delay--;
+			if (!p_ptr->tim_jail_delay) {
+#ifdef JAIL_KICK
+				if (JAIL_KICK > 0) msg_print(Ind, "\377sThe prison guards are out of patience and escort you out.");
+#endif
+				/* Get the jail door location */
+				if (!p_ptr->house_num) teleport_player_force(Ind, 1); //should no longer happen as house_num is saved now between logins
+				else {
+					zcave[p_ptr->py][p_ptr->px].m_idx = 0;
+					everyone_lite_spot(&p_ptr->wpos, p_ptr->py, p_ptr->px);
+					p_ptr->px = houses[p_ptr->house_num - 1].dx;
+					p_ptr->py = houses[p_ptr->house_num - 1].dy;
+					p_ptr->house_num = 0;
+					teleport_player_force(Ind, 1);
+
+					/* Hack: We started on the prison door, which isn't CAVE_STCK.
+					   So we have to manually add a message and redraw the no-tele indicators. */
+					msg_print(Ind, "\377sFresh air greets you as you leave the prison.");
+					p_ptr->redraw |= PR_DEPTH; /* hack: depth colour indicates no-tele */
+					p_ptr->redraw |= PR_BPR_WRAITH;
+				}
+			}
+#ifdef JAIL_KICK
+			else if (JAIL_KICK >= 12 && p_ptr->tim_jail_delay == JAIL_KICK / 2)
+				msg_print(Ind, "\377sThe prison guards are waiting for you to leave the prison...");
+#endif
 		}
 	}
 
@@ -9089,10 +9117,10 @@ void process_player_change_wpos(int Ind) {
 #ifdef USE_SOUND_2010
 	bool travel_ambient = FALSE;
 #endif
-
+	bool df = FALSE, took_oneway_stairs, dont_end_up_in_ntvault_nestpit;
 	monster_type *m_ptr;
 	cave_type **mcave;
-
+	struct dungeon_type *d_ptr = getdungeon(wpos);
 
 	/* Prevent exploiting /undoskills by invoking it right before each level-up:
 	   Discard the possibility to undoskills when we venture into a dungeon again. */
@@ -9407,6 +9435,15 @@ void process_player_change_wpos(int Ind) {
 	    )
 		dealloc_dungeon_level(&p_ptr->wpos_old);
 
+	if (!in_deathfate_x(&p_ptr->wpos_old) && in_deathfate_x(&p_ptr->wpos)) {
+		s_printf("DF-ENTER: %s (%s) -> %d\n", p_ptr->name, p_ptr->accountname, p_ptr->wpos_old.wz);
+		df = TRUE;
+	}
+	if (in_deathfate_x(&p_ptr->wpos_old) && !in_deathfate_x(&p_ptr->wpos)) {
+		s_printf("DF-LEAVE: %s (%s) <- %d\n", p_ptr->name, p_ptr->accountname, p_ptr->wpos_old.wz);
+		df = TRUE;
+	}
+
 	wpcopy(&p_ptr->wpos_old, &p_ptr->wpos);
 
 	/* Allow the player again to find another random IDDC town, if he hit a static IDDC town */
@@ -9426,15 +9463,17 @@ void process_player_change_wpos(int Ind) {
 
 	/* Determine starting location */
 	switch (p_ptr->new_level_method) {
-	/* Climbed down */
+	/* Recalled down */
 	case LEVEL_RECALL_DOWN:
+	/* Took staircase down */
 	case LEVEL_DOWN:
 		starty = level_down_y(wpos);
 		startx = level_down_x(wpos);
 		break;
 
-	/* Climbed up */
+	/* Recalled up */
 	case LEVEL_RECALL_UP:
+	/* Took staircase up */
 	case LEVEL_UP:
 		starty = level_up_y(wpos);
 		startx = level_up_x(wpos);
@@ -9494,8 +9533,8 @@ void process_player_change_wpos(int Ind) {
 			}
 		}
 		while (((zcave[starty][startx].info & (CAVE_ICKY | CAVE_STCK | CAVE_NEST_PIT)) /* Don't recall into houses. Stck/Nest-pit shouldn't really happen on world surface though.. */
-			|| (zcave[starty][startx].feat == FEAT_DEEP_WATER)
-			|| (zcave[starty][startx].feat == FEAT_DEEP_LAVA)
+			|| is_deep_water(zcave[starty][startx].feat)
+			|| is_deep_lava(zcave[starty][startx].feat)
 			|| (zcave[starty][startx].feat == FEAT_SICKBAY_AREA) /* don't recall him into sickbay areas */
 			|| (zcave[starty][startx].info & CAVE_PROT) /* don't recall into stables or inns */
 			|| (f_info[zcave[starty][startx].feat].flags1 & FF1_PROTECTED)
@@ -9595,6 +9634,16 @@ void process_player_change_wpos(int Ind) {
 		}
 	}
 
+	/* Did we take a staircase into/inside a one-way dungeon? */
+	took_oneway_stairs = ((p_ptr->new_level_method == LEVEL_UP || p_ptr->new_level_method == LEVEL_DOWN)
+	    && d_ptr && ((d_ptr->flags1 & (DF1_FORCE_DOWN | DF1_NO_UP)) || (d_ptr->flags2 & DF2_IRON)));
+
+	/* Did we use a level-changing method that should avoid any no-tele-vaults and nests/pits? */
+	dont_end_up_in_ntvault_nestpit = ((p_ptr->new_level_method == LEVEL_RECALL_UP || p_ptr->new_level_method == LEVEL_RECALL_DOWN ||
+	    p_ptr->new_level_method == LEVEL_RAND || p_ptr->new_level_method == LEVEL_OUTSIDE_RAND ||
+	    p_ptr->new_level_method == LEVEL_PROB_TRAVEL || took_oneway_stairs)
+	    && !(p_ptr->global_event_temp & PEVF_STCK_OK));
+
 	//s_printf("finding area (%d,%d)\n", startx, starty);
 	/* Place the player in an empty space */
 	for (j = 0; j < 5000; j++) {
@@ -9613,13 +9662,9 @@ void process_player_change_wpos(int Ind) {
 			if (!(zcave[y][x].info & CAVE_ICKY) && (p_ptr->new_level_method == LEVEL_HOUSE)) continue;
 		}
 
-		/* Prevent recalling or prob-travelling into no-tele vaults and monster nests! - C. Blue */
-		if ((zcave[y][x].info & (CAVE_STCK | CAVE_NEST_PIT)) &&
-		    (p_ptr->new_level_method == LEVEL_RECALL_UP || p_ptr->new_level_method == LEVEL_RECALL_DOWN ||
-		    p_ptr->new_level_method == LEVEL_RAND || p_ptr->new_level_method == LEVEL_OUTSIDE_RAND ||
-		    p_ptr->new_level_method == LEVEL_PROB_TRAVEL)
-		    && !(p_ptr->global_event_temp & PEVF_STCK_OK))
-			continue;
+		/* Prevent recalling or prob-travelling into no-tele vaults and monster nests! - C. Blue
+		   And also prevent taking staircases into these if we are in a one-way-only dungeon. */
+		if ((zcave[y][x].info & (CAVE_STCK | CAVE_NEST_PIT)) && dont_end_up_in_ntvault_nestpit) continue;
 
 		/* Prevent landing onto a store entrance */
 		if (zcave[y][x].feat == FEAT_SHOP) continue;
@@ -9646,12 +9691,8 @@ void process_player_change_wpos(int Ind) {
 		x = startx;
 		y = starty;
 
-		/* REALLY don't recall/probtravel into no-tele.. */
-		if ((zcave[y][x].info & (CAVE_STCK | CAVE_NEST_PIT)) &&
-		    (p_ptr->new_level_method == LEVEL_RECALL_UP || p_ptr->new_level_method == LEVEL_RECALL_DOWN ||
-		    p_ptr->new_level_method == LEVEL_RAND || p_ptr->new_level_method == LEVEL_OUTSIDE_RAND ||
-		    p_ptr->new_level_method == LEVEL_PROB_TRAVEL)
-		    && !(p_ptr->global_event_temp & PEVF_STCK_OK)) {
+		/* REALLY don't recall/probtravel into no-tele.. | and also don't take one-way staircase now */
+		if ((zcave[y][x].info & (CAVE_STCK | CAVE_NEST_PIT)) && dont_end_up_in_ntvault_nestpit) {
 			for (starty = 1; starty < p_ptr->cur_hgt - 1; starty++) {
 				for (startx = 1; startx < p_ptr->cur_wid - 1; startx++) {
 					if (!(zcave[starty][startx].info & CAVE_STCK) &&
@@ -9684,8 +9725,15 @@ void process_player_change_wpos(int Ind) {
 		if (j) s_printf("failed!\n");
 	}
 
-	p_ptr->py = y;
-	p_ptr->px = x;
+	if (is_admin(p_ptr) && p_ptr->recall_x != 0 && p_ptr->recall_y != 0) {
+		p_ptr->px = p_ptr->recall_x;
+		p_ptr->py = p_ptr->recall_y;
+		p_ptr->recall_x = 0;
+		p_ptr->recall_y = 0;
+	} else {
+		p_ptr->px = x;
+		p_ptr->py = y;
+	}
 
 	/* Update the player location */
 	zcave[y][x].m_idx = 0 - Ind;
@@ -9967,6 +10015,7 @@ void process_player_change_wpos(int Ind) {
 	   with the only exception of server join/leave in nserver.c and Morgoth
 	   live spawn (ie not on level generation time) in monster2.c. - C. Blue */
 	check_Morgoth(Ind);
+	if (df) check_df();
 	if (p_ptr->new_level_flag) return;
 
 #ifdef CLIENT_SIDE_WEATHER
@@ -11496,6 +11545,14 @@ void process_timers() {
 	int y, x, i;
 	player_type *p_ptr;
 
+	for (i = 1; i < CUSTOM_LUA_TIMERS; i++) { //accomodate for LUA arrays starting at index 1, just play it safe
+		if (!custom_lua_timer_timeout[i]) continue;
+		custom_lua_timer_timeout[i]--;
+		if (!custom_lua_timer_timeout[i])
+			exec_lua(0, format("custom_lua_timer(%d,\"%s\",%d,%d,%d)", i,
+			    custom_lua_timer_parmstr[i], custom_lua_timer_parm1[i], custom_lua_timer_parm2[i], custom_lua_timer_parm3[i]));
+	}
+
 #ifdef ENABLE_GO_GAME
 	/* Process Go AI engine communication (its replies) */
 	if (go_game_up || go_wait_for_sgf) go_engine_clocks();
@@ -12720,7 +12777,7 @@ void eff_running_speed(int *real_speed, player_type *p_ptr, cave_type *c_ptr) {
 			}
 		}
 	    /* or running-swimming? */
-		else if ((c_ptr->feat == FEAT_SHAL_WATER || c_ptr->feat == FEAT_GLIT_WATER || c_ptr->feat == FEAT_TAINTED_WATER || c_ptr->feat == FEAT_DEEP_WATER) && p_ptr->can_swim) {
+		else if (is_water(c_ptr->feat) && p_ptr->can_swim) {
 			/* Allow Aquatic players run/swim at full speed */
 			if (!(r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC)) {
 				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
@@ -12731,6 +12788,75 @@ void eff_running_speed(int *real_speed, player_type *p_ptr, cave_type *c_ptr) {
 		else {
 			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
 			if (f_info[c_ptr->feat].flags1 & FF1_SLOW_RUNNING_2) *real_speed = (*real_speed * 100) / (100 + (300 * impair) / 100); // -75% speed
+		}
+	}
+#endif
+
+#if 1
+	/* Hinder player movement in deep, moving streams of water/lava - and speed us up if we're moving with it! */
+	if (!p_ptr->ghost && !p_ptr->levitate && !p_ptr->tim_wraith &&
+	    *real_speed == cfg.running_speed) { /* Only if we're not already slowed down for some reason (by above terrain slowdown code) */
+		switch (c_ptr->feat) {
+
+		/* Deep streams have major impact */
+		case FEAT_ANIM_DEEP_LAVA_EAST:
+		case FEAT_ANIM_DEEP_WATER_EAST:
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
+				*real_speed = (*real_speed * 5) / 10;
+			if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 13) / 10;
+			break;
+		case FEAT_ANIM_DEEP_LAVA_WEST:
+		case FEAT_ANIM_DEEP_WATER_WEST:
+			if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 5) / 10;
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
+				*real_speed = (*real_speed * 13) / 10;
+			break;
+		case FEAT_ANIM_DEEP_LAVA_NORTH:
+		case FEAT_ANIM_DEEP_WATER_NORTH:
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
+				*real_speed = (*real_speed * 5) / 10;
+			if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 13) / 10;
+			break;
+		case FEAT_ANIM_DEEP_LAVA_SOUTH:
+		case FEAT_ANIM_DEEP_WATER_SOUTH:
+			if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 5) / 10;
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
+				*real_speed = (*real_speed * 13) / 10;
+			break;
+
+		/* Shallow streams have minor impact */
+		case FEAT_ANIM_SHAL_LAVA_EAST:
+		case FEAT_ANIM_SHAL_WATER_EAST:
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
+				*real_speed = (*real_speed * 8) / 10;
+			if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 11) / 10;
+			break;
+		case FEAT_ANIM_SHAL_LAVA_WEST:
+		case FEAT_ANIM_SHAL_WATER_WEST:
+			if (p_ptr->find_current == 3 || p_ptr->find_current == 6 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 8) / 10;
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 4 || p_ptr->find_current == 7)
+				*real_speed = (*real_speed * 11) / 10;
+			break;
+		case FEAT_ANIM_SHAL_LAVA_NORTH:
+		case FEAT_ANIM_SHAL_WATER_NORTH:
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
+				*real_speed = (*real_speed * 8) / 10;
+			if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 11) / 10;
+			break;
+		case FEAT_ANIM_SHAL_LAVA_SOUTH:
+		case FEAT_ANIM_SHAL_WATER_SOUTH:
+			if (p_ptr->find_current == 7 || p_ptr->find_current == 8 || p_ptr->find_current == 9)
+				*real_speed = (*real_speed * 8) / 10;
+			if (p_ptr->find_current == 1 || p_ptr->find_current == 2 || p_ptr->find_current == 3)
+				*real_speed = (*real_speed * 11) / 10;
+			break;
 		}
 	}
 #endif

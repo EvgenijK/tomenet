@@ -363,10 +363,12 @@ extern bool disable_numlock;
 extern bool use_logfont, use_logfont_ini;
 #endif
 extern byte use_graphics, use_graphics_new, use_graphics_err;
+extern int override_graphics;
 extern char use_graphics_errstr[MAX_CHARS_WIDE];
 #ifdef USE_GRAPHICS
 extern char graphic_tiles[256];
 extern char32_t kidx_po_rain_char, kidx_po_rain_e1_char, kidx_po_rain_e2_char, kidx_po_rain_w1_char, kidx_po_rain_w2_char, kidx_po_snow_char, kidx_po_sand_char;
+extern char32_t kidx_po_d10f_tl, kidx_po_d10f_t, kidx_po_d10f_tr, kidx_po_d10f_bl, kidx_po_d10f_b, kidx_po_d10f_br;
 extern byte kidx_po_rain_attr, kidx_po_rain_e1_attr, kidx_po_rain_e2_attr, kidx_po_rain_w1_attr, kidx_po_rain_w2_attr, kidx_po_snow_attr, kidx_po_sand_attr;
 #endif
 extern bool use_sound, use_sound_org;
@@ -594,6 +596,7 @@ extern errr process_pref_file(cptr buf);
 extern errr process_pref_file_manual(cptr buf);
 extern errr process_pref_file_aux(char *buf, cptr name, bool quiet);
 extern errr process_pref_file_aux_aux(char *buf, byte fmt);
+extern errr load_charspec_macros(cptr cname);
 extern void show_motd(int delay);
 extern void peruse_file(void);
 extern errr my_fgets(FILE *fff, char *buf, huge n);
@@ -604,13 +607,16 @@ extern errr get_safe_file(char *buf, cptr file);
 extern void xhtml_screenshot(cptr name, byte redux);
 extern void save_auto_inscriptions(cptr name);
 extern void load_auto_inscriptions(cptr name);
-extern void save_birth_file(cptr name, bool touch);
-extern void load_birth_file(cptr name);
+extern void save_birth_file(cptr cname, bool touch);
+extern void load_birth_file(cptr cname);
 extern bool within_cmd_player;
 extern int within_cmd_player_ticks;
 extern bool jukebox_play_all, jukebox_play_all_done; //ENABLE_JUKEBOX
 extern int jukebox_playing, jukebox_play_all_prev, jukebox_playing_song, jukebox_play_all_prev_song; //ENABLE_JUKEBOX
 extern int check_guide_checksums(bool forced);
+#ifdef WINDOWS
+extern void screenshot_result_check(void);
+#endif
 
 /* c-init.c */
 extern void init_stuff(void);
@@ -1040,6 +1046,7 @@ extern void version_build(void);
 extern int find_realm(int book);
 extern char color_attr_to_char(byte a);
 extern int color_char_to_attr(char c);
+extern int color_char_ext_to_attr(char c);
 extern byte mh_attr(int max);
 extern char *my_strcasestr(const char *big, const char *little);
 extern char *my_strcasestr_skipcol(const char *big, const char *little, byte strict);
@@ -1329,7 +1336,14 @@ extern int food_warn_once_timer;
 extern int prev_huge_cmp, prev_huge_mmp;
 extern int prev_huge_csn, prev_huge_msn;
 extern int prev_huge_chp, prev_huge_mhp;
+extern int prev_huge_cst, prev_huge_mst;
 
 extern bool fix_custom_font_after_startup;
 extern int flick_global_x, flick_global_y, flick_global_time;
 extern bool gfx_palanim_repaint_hack, gfx_palanim_repaint_hack_login;
+
+#ifdef WINDOWS
+extern bool screenshot_silent_dump;
+extern int screenshotting;
+extern char screenshotting_filename[MAX_CHARS];
+#endif

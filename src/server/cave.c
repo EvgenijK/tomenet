@@ -190,7 +190,7 @@ byte level_rand_y(struct worldpos *wpos) {
 	return(wpos->wz > 0 ? wild->tower->level[wpos->wz - 1].rn_y : wild->dungeon->level[ABS(wpos->wz) - 1].rn_y);
 }
 
-static int get_staircase_colour(dungeon_type *d_ptr, byte *c) {
+int get_staircase_colour(dungeon_type *d_ptr, byte *c) {
 	if (!d_ptr->type && d_ptr->theme == DI_DEATH_FATE) {
 		*c = TERM_L_DARK;
 		return(-2);
@@ -274,7 +274,7 @@ bool can_go_up(struct worldpos *wpos, byte mode) {
 	if (wpos->wz < 0) d_ptr = wild->dungeon;
 
 #if 0 /* fixed (old /update-dun killed flags2) */
-	/* paranoia, but caused panic: in wilderness_gen() cmd_up({0,0,0},0x1) would return 1
+	/* paranoia, but caused panic: in wilderness_gen() cmd_go_up({0,0,0},0x1) would return 1
 	   resulting in bad up/down values for staircase generation when it attempts to locate
 	   a staircase leading into pvp-arena and put some feats around it (at coords 0,0 ...).
 	   Apparently, WILD_F_UP is set here, too. And even w_ptr->tower was also valid.
@@ -312,7 +312,7 @@ bool can_go_down(struct worldpos *wpos, byte mode) {
 	if (wpos->wz > 0) d_ptr = wild->tower;
 
 #if 0 /* fixed (old /update-dun killed flags2) */
-	/* paranoia, but caused panic: in wilderness_gen() cmd_up({0,0,0},0x1) would return 1
+	/* paranoia, but caused panic: in wilderness_gen() cmd_go_up({0,0,0},0x1) would return 1
 	   resulting in bad up/down values for staircase generation when it attempts to locate
 	   a staircase leading into pvp-arena and put some feats around it (at coords 0,0 ...).
 	   Apparently, WILD_F_UP is set here, too. And even w_ptr->tower was also valid.
@@ -429,6 +429,116 @@ static void update_uniques_killed(struct worldpos *wpos) {
 	}
 }
 
+#ifdef DEATH_FATE_SPECIAL
+/* (Note that new_players_on_depth() is always called when new_level_flag is set,
+   so if we get called from process_player_change_wpos() then l_ptr->ondepth will be up to date.) */
+void check_df() {
+	struct dun_level;
+	int i;
+	player_type *p_ptr;
+	struct worldpos wpos_forge = { WPOS_DF_X, WPOS_DF_Y, WPOS_DF_Z }, *wpos = &wpos_forge;
+
+	/* Hack for allowing only a single player to act at a time on this floor.
+	   IMPORTANT: For this to work on the newly arrived player,
+	   their new_level_flag (or temp_misc_1 0x10 hack) must always be set _before_ calling us for the target floor! */
+
+	dun_level *l_ptr = getfloor(wpos);
+
+	if (l_ptr && (l_ptr->flags2 & LF2_INDOORS)) {
+		/* Only 1 player? Make sure he's unfrozen */
+		if (l_ptr->ondepth == 1) {
+			s_printf("DF: ondepth=1.\n"); //paranoia: catch possible bugs
+			for (i = 1; i <= NumPlayers; i++) {
+				p_ptr = Players[i];
+				if (p_ptr->conn == NOT_CONNECTED) continue;
+				if (p_ptr->admin_dm) continue;
+				if (!inarea(&p_ptr->wpos, wpos)) {
+					/* Play it safe and paranoia-unfreeze anyone just in case */
+					if (p_ptr->paralyzed == 255) {
+						p_ptr->paralyzed = 0;
+						p_ptr->redraw |= PR_STATE;
+						msg_print(i, "You can move again!");
+						msg_format_near(i, "%s can move again.", p_ptr->name);
+					}
+					continue;
+				}
+
+				if (p_ptr->paralyzed == 255) {
+					p_ptr->paralyzed = 0;
+					p_ptr->redraw |= PR_STATE;
+					msg_print(i, "You can move again!");
+					msg_format_near(i, "%s can move again.", p_ptr->name);
+				}
+				break;
+			}
+		} else {
+			bool para = TRUE, free = FALSE;
+
+			/* Ensure that a player who just joined us here does get frozen in the first place.
+			   Note that we can get called from player_birth()->player_setup(), which sets up a newly logged/created player
+			   with Ind = NumPlayers + 1! So we need to anticipate this here. Verification for valid NumPlayers+1 entry is done via 0x10 flag check.
+			   Also need to not do this if NumPlayers is 0, as that is server init/loading-up time and would cause a crash as **Players is not initialized. */
+			for (i = 1; i <= (NumPlayers && (NumPlayers + 1 < MAX_PLAYERS) && Players[NumPlayers + 1] ? NumPlayers + 1 : NumPlayers); i++) {
+				p_ptr = Players[i];
+
+				if (p_ptr->conn == NOT_CONNECTED) continue;
+				if (p_ptr->admin_dm) continue;
+				if (!inarea(&p_ptr->wpos, wpos)) {
+					/* Play it safe and paranoia-unfreeze anyone just in case */
+					if (p_ptr->paralyzed == 255) {
+						p_ptr->paralyzed = 0;
+						p_ptr->redraw |= PR_STATE;
+						msg_print(i, "You can move again!");
+						msg_format_near(i, "%s can move again.", p_ptr->name);
+					}
+					continue;
+				}
+
+				if (!p_ptr->new_level_flag && !(p_ptr->temp_misc_1 & 0x10)) {
+					s_printf("DF: Player lacks new_level_flag/0x10: %s\n", p_ptr->name); //paranoia: catch possible bugs
+					continue;
+				}
+				p_ptr->paralyzed = 255;
+				p_ptr->redraw |= PR_STATE;
+				msg_print(i, "You are frozen in stasis!");
+				msg_format_near(i, "%s seems frozen in stasis!", p_ptr->name);
+				break;
+			}
+			/* Ensure that not more than one player is unfrozen (paranoia?) */
+			for (i = 1; i <= NumPlayers; i++) {
+				p_ptr = Players[i];
+				if (p_ptr->conn == NOT_CONNECTED) continue;
+				if (p_ptr->admin_dm) continue;
+				if (!inarea(&p_ptr->wpos, wpos)) continue;
+
+				if (p_ptr->paralyzed == 255) continue;
+				free = TRUE;
+				if (!para) {
+					p_ptr->paralyzed = 255;
+					p_ptr->redraw |= PR_STATE;
+					msg_print(i, "You are frozen in stasis!");
+					msg_format_near(i, "%s seems frozen in stasis!", p_ptr->name);
+				}
+				else para = FALSE;
+			}
+			/* If everyone is frozen, ensure that one player is unfrozen, pick one player "randomly" */
+			if (!free) for (i = 1; i <= NumPlayers; i++) {
+				p_ptr = Players[i];
+				if (p_ptr->conn == NOT_CONNECTED) continue;
+				if (p_ptr->admin_dm) continue;
+				if (!inarea(&p_ptr->wpos, wpos)) continue;
+
+				p_ptr->paralyzed = 0;
+				p_ptr->redraw |= PR_STATE;
+				msg_print(i, "You can move again!");
+				msg_format_near(i, "%s can move again.", p_ptr->name);
+				break;
+			}
+		}
+	} else if (!l_ptr) s_printf("NOPD: No l_ptr!\n");
+}
+#endif
+
 void new_players_on_depth(struct worldpos *wpos, int value, bool inc) {
 	struct wilderness_type *w_ptr;
 	time_t now;
@@ -444,7 +554,7 @@ void new_players_on_depth(struct worldpos *wpos, int value, bool inc) {
 
 	w_ptr = &wild_info[wpos->wy][wpos->wx];
 #if DEBUG_LEVEL > 2
-		s_printf("new_players_on_depth.. %s  now:%ld value:%d inc:%s\n", wpos_format(0, wpos), now, value, inc ? "TRUE" : "FALSE");
+	s_printf("new_players_on_depth.. %s  now:%ld value:%d inc:%s\n", wpos_format(0, wpos), now, value, inc ? "TRUE" : "FALSE");
 #endif
 
 	if (wpos->wz) {
@@ -508,84 +618,6 @@ void new_players_on_depth(struct worldpos *wpos, int value, bool inc) {
 		}
 	}
 
-	/* Hack for allowing only a single player to act at a time on this floor.
-	   IMPORTANT: For this to work, new_level_flag must always be set _before_ calling us for the target floor! */
-#ifdef DEATH_FATE_SPECIAL
-	if (in_deathfate(wpos)) {
-		struct dun_level *l_ptr = getfloor(wpos);
-
-		if (l_ptr) {
-			/* Only 1 player? Make sure he's unfrozen */
-			if (l_ptr->ondepth == 1) {
-				s_printf("DF: ondepth=1.\n"); //paranoia: catch possible bugs
-				for (i = 1; i <= NumPlayers; i++) {
-					p_ptr = Players[i];
-					if (p_ptr->conn == NOT_CONNECTED) continue;
-					if (p_ptr->admin_dm) continue;
-					if (!inarea(&p_ptr->wpos, wpos)) continue;
-
-					if (p_ptr->paralyzed == 255) {
-						p_ptr->paralyzed = 0;
-						p_ptr->redraw |= PR_STATE;
-						msg_print(i, "You can move again!");
-						msg_format_near(i, "%s can move again.", p_ptr->name);
-					}
-					break;
-				}
-			} else {
-				bool para = TRUE, free = FALSE;
-
-				/* Ensure that a player who just joined us here does get frozen in the first place */
-				for (i = 1; i <= NumPlayers; i++) {
-					p_ptr = Players[i];
-					if (p_ptr->conn == NOT_CONNECTED) continue;
-					if (p_ptr->admin_dm) continue;
-					if (!inarea(&p_ptr->wpos, wpos)) continue;
-
-					if (!p_ptr->new_level_flag) {
-						s_printf("DF: Player lacks new_level_flag: %s\n", p_ptr->name); //paranoia: catch possible bugs
-						continue;
-					}
-					p_ptr->paralyzed = 255;
-					p_ptr->redraw |= PR_STATE;
-					msg_print(i, "You are frozen in stasis!");
-					msg_format_near(i, "%s seems frozen in stasis!", p_ptr->name);
-					break;
-				}
-				/* Ensure that not more than one player is unfrozen (paranoia?) */
-				for (i = 1; i <= NumPlayers; i++) {
-					p_ptr = Players[i];
-					if (p_ptr->conn == NOT_CONNECTED) continue;
-					if (p_ptr->admin_dm) continue;
-					if (!inarea(&p_ptr->wpos, wpos)) continue;
-
-					if (p_ptr->paralyzed == 255) continue;
-					free = TRUE;
-					if (!para) {
-						p_ptr->paralyzed = 255;
-						p_ptr->redraw |= PR_STATE;
-						msg_print(i, "You are frozen in stasis!");
-						msg_format_near(i, "%s seems frozen in stasis!", p_ptr->name);
-					}
-					else para = FALSE;
-				}
-				/* If everyone is frozen, ensure that one player is unfrozen, pick one player "randomly" */
-				if (!free) for (i = 1; i <= NumPlayers; i++) {
-					p_ptr = Players[i];
-					if (p_ptr->conn == NOT_CONNECTED) continue;
-					if (p_ptr->admin_dm) continue;
-					if (!inarea(&p_ptr->wpos, wpos)) continue;
-
-					p_ptr->paralyzed = 0;
-					p_ptr->redraw |= PR_STATE;
-					msg_print(i, "You can move again!");
-					msg_format_near(i, "%s can move again.", p_ptr->name);
-					break;
-				}
-			}
-		} else s_printf("NOPD: No l_ptr!\n");
-	}
-#endif
 
 	update_uniques_killed(wpos);
 
@@ -714,6 +746,12 @@ void check_Morgoth(int Ind) {
 			/* Skip */
 			continue;
 		}
+
+#ifdef FINAL_GUARDIAN_DIFFBOOST
+		if ((r_info[m_ptr->r_idx].flags8 & RF8_FINAL_GUARDIAN)
+		    && getlevel(&m_ptr->wpos) < 99) /* Ensure Sauron isn't affected */
+			final_guardian_diffboost(m_idx);
+#endif
 
 		/* search for Morgy */
 		if (m_ptr->r_idx != RI_MORGOTH) continue;
@@ -979,7 +1017,7 @@ void FreeCS(cave_type *c_ptr) {
 
 	while (trav) {
 		/* Delete embedded items - C. Blue */
-		//if (trav->type == CS_MON_TRAP) erase_mon_trap(wpos, y, x, 0);
+		//if (trav->type == CS_MON_TRAP) (void)erase_mon_trap(wpos, y, x, 0);
 		if (trav->type == CS_MON_TRAP) {
 			/* Erase objects being carried */
 			object_type *o_ptr;
@@ -1752,18 +1790,17 @@ bool cave_valid_bold(cave_type **zcave, int y, int x) {
 	return(TRUE);
 }
 
+/* Hack -- Legal monster codes and object codes for rapid character alternation (RF7_VORTEX?) */
+//static cptr flicker_monster_vis = "abcdefghijkmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"; //no '@', no 'l'
+//static cptr flicker_object_vis = "?/|\\\"!$()_-=[]{},~";
 
-static bool monster_okay_no_mimic(int r_idx) {
+static bool monster_okay_no_shapechanger(int r_idx) {
 	if (r_info[r_idx].flags9 & RF9_MIMIC) return(FALSE);
+	if (r_info[r_idx].flags2 & RF2_SHAPECHANGER) return(FALSE);
+	/* Hm, no 'invisible' form? */
+	if (r_info[r_idx].flags1 & RF1_CHAR_CLEAR) return(FALSE);
 	return(TRUE);
 }
-
-/*
- * Hack -- Legal monster codes - and '@' to hallucinate another "player" instead
- */
-static cptr image_monster_hack = \
-//"@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-"@abcdefghijkmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"; //removed 'l', nonexistant monster letter
 
 /*
  * Mega-Hack -- Hallucinatory monster
@@ -1771,7 +1808,9 @@ static cptr image_monster_hack = \
 static void image_monster(byte *ap, char32_t *cp, player_type *p_ptr) {
 	int n, image = p_ptr->image;
 
-	get_mon_num_hook = monster_okay_no_mimic;
+	//no recursion! Would crash for RF9_SHAPECHANGER as we don't give an m_ptr to get_monster_visual().
+	get_mon_num_hook = monster_okay_no_shapechanger;
+
 	get_mon_num_prep(0, NULL);
 	n = get_mon_num(127, 127);
 	//get_mon_num_hook = dungeon_aux;
@@ -1786,13 +1825,6 @@ static void image_monster(byte *ap, char32_t *cp, player_type *p_ptr) {
 	(*ap) = randint(15);
 }
 
-
-/*
- * Hack -- Legal object codes
- */
-static cptr image_object_hack = \
-"?/|\\\"!$()_-=[]{},~";
-
 /*
  * Mega-Hack -- Hallucinatory object
  */
@@ -1801,6 +1833,7 @@ static void image_object(byte *ap, char32_t *cp, player_type *p_ptr) {
 	int n = randint(max_k_idx - 1); //skip N:0
 
 	invcopy(o_ptr, n);
+	if (o_ptr->tval == TV_PSEUDO_OBJ) invcopy(o_ptr, 1); //emergency fallback (mushroom): only real objects
 	get_object_visual(cp, ap, o_ptr, p_ptr);
 
 	/* Random color */
@@ -1821,6 +1854,7 @@ static void mimic_object(byte *ap, char32_t *cp, int seed, player_type *p_ptr) {
 	Rand_quick = FALSE;
 
 	invcopy(o_ptr, n);
+	if (forge.tval == TV_PSEUDO_OBJ) invcopy(o_ptr, 1); //emergency fallback (mushroom): only real objects
 	get_object_visual(cp, ap, o_ptr, p_ptr);
 
 	/* Random color */
@@ -2197,11 +2231,23 @@ static void get_monster_visual(int Ind, monster_type *m_ptr, monster_race *r_ptr
 	/* Multi-hued monster */
 	else if (r_ptr->flags1 & RF1_ATTR_MULTI) {
 		/* Is it a shapechanger? */
-		if (r_ptr->flags2 & RF2_SHAPECHANGER)	// TODO: Actually use real mappings (see image_monster(), image_object()) and _stick_ with a form at least for a bunch of turns!
-			(*cp) = (randint((r_ptr->flags7 & RF7_VORTEX) ? 1 : 25) == 1?
-				 image_object_hack[randint(strlen(image_object_hack))]:
-				 image_monster_hack[randint(strlen(image_monster_hack))]);
-		else (*cp) = c;
+		if (r_ptr->flags2 & RF2_SHAPECHANGER) {
+			byte dummy;
+
+			Rand_value = m_ptr->body_monster; //fix RNG to this monster
+			Rand_quick = TRUE;
+
+#if 0 //0:only allow mimics to look like objects?
+			if (rand_int(25)) image_monster(&dummy, cp, p_ptr);
+			else image_object(&dummy, cp, p_ptr);
+#else
+			image_monster(&dummy, cp, p_ptr);
+#endif
+
+			Rand_quick = FALSE; //restore RNG
+			if (!rand_int((r_ptr->flags7 & RF7_VORTEX) ? 1 : 30))
+				m_ptr->body_monster = rand_int(0xFFFF); //randomly change shape sometimes
+		} else (*cp) = c;
 
 		/* Multi-hued attr */
 		if (r_ptr->flags2 & (RF2_ATTR_ANY))
@@ -2256,10 +2302,23 @@ static void get_monster_visual(int Ind, monster_type *m_ptr, monster_race *r_ptr
 		(*cp) = c;
 
 		/* Is it a non-colourchanging shapechanger? */
-		if (r_ptr->flags2 & RF2_SHAPECHANGER)	// TODO: Actually use real mappings (see image_monster(), image_object()) and _stick_ with a form at least for a bunch of turns!
-			(*cp) = (randint((r_ptr->flags7 & RF7_VORTEX) ? 1 : 25) == 1 ?
-				 image_object_hack[randint(strlen(image_object_hack))]:
-				 image_monster_hack[randint(strlen(image_monster_hack))]);
+		if (r_ptr->flags2 & RF2_SHAPECHANGER) {
+			byte dummy;
+
+			Rand_value = m_ptr->body_monster; //fix RNG to this monster
+			Rand_quick = TRUE;
+
+#if 0 //0:only allow mimics to look like objects?
+			if (rand_int(25)) image_monster(&dummy, cp, p_ptr);
+			else image_object(&dummy, cp, p_ptr);
+#else
+			image_monster(&dummy, cp, p_ptr);
+#endif
+
+			Rand_quick = FALSE; //restore RNG
+			if (!rand_int((r_ptr->flags7 & RF7_VORTEX) ? 1 : 30))
+				m_ptr->body_monster = rand_int(0xFFFF); //randomly change shape sometimes
+		}
 
 		/* Use attr */
 		(*ap) = a;
@@ -2284,12 +2343,23 @@ static void get_monster_visual(int Ind, monster_type *m_ptr, monster_race *r_ptr
 			(*cp) = c;
 
 			/* Is it a non-colourchanging shapechanger? */
-			if (r_ptr->flags2 & RF2_SHAPECHANGER) {		// TODO: Actually use real mappings (see image_monster(), image_object()) and _stick_ with a form at least for a bunch of turns!
-				(*cp) = (randint((r_ptr->flags7 & RF7_VORTEX) ? 1 : 25) == 1?
-					 image_object_hack[randint(strlen(image_object_hack))]:
-					 image_monster_hack[randint(strlen(image_monster_hack))]);
-			}
+			if (r_ptr->flags2 & RF2_SHAPECHANGER) {
+				byte dummy;
 
+				Rand_value = m_ptr->body_monster; //fix RNG to this monster
+				Rand_quick = TRUE;
+
+#if 0 //0:only allow mimics to look like objects?
+				if (rand_int(25)) image_monster(&dummy, cp, p_ptr);
+				else image_object(&dummy, cp, p_ptr);
+#else
+				image_monster(&dummy, cp, p_ptr);
+#endif
+
+				Rand_quick = FALSE; //restore RNG
+				if (!rand_int((r_ptr->flags7 & RF7_VORTEX) ? 1 : 30))
+					m_ptr->body_monster = rand_int(0xFFFF); //randomly change shape sometimes
+			}
 		}
 		/* Normal (non-clear attr) monster */
 		else if (!(r_ptr->flags1 & RF1_ATTR_CLEAR)) (*ap) = a;
@@ -2474,8 +2544,7 @@ byte get_trap_color(int Ind, int t_idx, int feat) {
 	a = t_info[t_idx].color;
 
 	/* Get a new color with a strange formula :) */
-	if (t_info[t_idx].flags & FTRAP_CHANGE)
-	{
+	if (t_info[t_idx].flags & FTRAP_CHANGE) {
 		u32b tmp;
 
 		/* tmp = dlev + dungeon_type + c_ptr->feat; */
@@ -2487,8 +2556,8 @@ byte get_trap_color(int Ind, int t_idx, int feat) {
 	}
 
 	/* Hack -- always l.blue if underwater */
-	if (feat == FEAT_DEEP_WATER || feat == FEAT_SHAL_WATER)
-		a = TERM_L_BLUE;
+	if (feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
+	else if (is_water(feat)) a = TERM_L_BLUE;
 
 	return(a);
 }
@@ -2506,8 +2575,8 @@ byte get_monster_trap_color(int Ind, int o_idx, int feat) {
 	a = k_info[kit_o_ptr->k_idx].d_attr;
 
 	/* Hack -- always l.blue if underwater */
-	if (feat == FEAT_DEEP_WATER || feat == FEAT_SHAL_WATER)
-		a = TERM_L_BLUE;
+	if (feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
+	else if (is_water(feat)) a = TERM_L_BLUE;
 
 	return(a);
 }
@@ -3161,8 +3230,8 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 
 #if 0 /* currently this doesn't make sense because montraps are their own feature (like runes) instead of using just the cs_ptr (like normal traps)! This means they cancel the water grid! ew. */
 						/* Hack -- always l.blue if underwater */
-						if (cs_ptr->sc.montrap.feat == FEAT_DEEP_WATER || cs_ptr->sc.montrap.feat == FEAT_SHAL_WATER)
-							a = TERM_L_BLUE;
+						if (cs_ptr->sc.montrap.feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
+						else if (is_water(cs_ptr->sc.montrap.feat)) a = TERM_L_BLUE;
 #endif
 					}
 					keep = TRUE;
@@ -3751,7 +3820,6 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			/* player has seen the entrance on the actual main screen -> add it to global exploration history knowledge */
 			if (!is_admin(p_ptr) && d_ptr && !(d_ptr->known & 0x1)
 			    && !(d_ptr->flags1 & DF1_UNLISTED) && !(!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) {
-				d_ptr->known |= 0x1;
 				s_printf("(%s) DUNFOUND: Player %s (%s) discovered dungeon '%s' (%d) at (%d,%d) [%d,%d].\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE), d_ptr->type, tpos.wx, tpos.wy, x, y);
 				msg_format(Ind, "\374\377i***\377B You discovered the staircase to a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
 				/* Announce it to publicly */
@@ -3760,6 +3828,7 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
  #ifdef DUNFOUND_REWARDS_NORMAL
 				dunfound_reward(Ind, d_ptr);
  #endif
+				d_ptr->known |= 0x1;
 			}
 #endif
 		}
@@ -3822,7 +3891,8 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 				get_object_visual(cp, ap, &o_list[c_ptr->o_idx], p_ptr);
 
 				/* Hack -- always l.blue if underwater */
-				if (feat == FEAT_DEEP_WATER || feat == FEAT_SHAL_WATER) (*ap) = TERM_L_BLUE;
+				if (feat == FEAT_TAINTED_WATER) (*ap) = TERM_UMBER; //dirty water
+				else if (is_water(feat)) (*ap) = TERM_L_BLUE;
 
 #ifdef ENABLE_DEMOLITIONIST
 				/* Hack -- thrown aka non-planted, armed demolition charges flicker as the fuse is lit */
@@ -4916,7 +4986,7 @@ void prt_map_forward(int Ind) {
  *
  * Note that all "walls" always look like "secret doors" (see "map_info()").
  */
-static byte priority_table[][2] = {
+static u16b priority_table[][2] = {
 	/* Dark */
 	{ FEAT_NONE, 2 },
 
@@ -4975,6 +5045,24 @@ static byte priority_table[][2] = {
 	{ FEAT_SHAL_WATER, 20 },
 	{ FEAT_DEEP_LAVA, 20 },
 	{ FEAT_SHAL_LAVA, 20 },
+	{ FEAT_ANIM_SHAL_WATER_EAST, 20 },
+	{ FEAT_ANIM_SHAL_WATER_WEST, 20 },
+	{ FEAT_ANIM_SHAL_WATER_NORTH, 20 },
+	{ FEAT_ANIM_SHAL_WATER_SOUTH, 20 },
+	{ FEAT_ANIM_DEEP_WATER_EAST, 20 },
+	{ FEAT_ANIM_DEEP_WATER_WEST, 20 },
+	{ FEAT_ANIM_DEEP_WATER_NORTH, 20 },
+	{ FEAT_ANIM_DEEP_WATER_SOUTH, 20 },
+
+	{ FEAT_ANIM_SHAL_LAVA_EAST, 20 },
+	{ FEAT_ANIM_SHAL_LAVA_WEST, 20 },
+	{ FEAT_ANIM_SHAL_LAVA_NORTH, 20 },
+	{ FEAT_ANIM_SHAL_LAVA_SOUTH, 20 },
+	{ FEAT_ANIM_DEEP_LAVA_EAST, 20 },
+	{ FEAT_ANIM_DEEP_LAVA_WEST, 20 },
+	{ FEAT_ANIM_DEEP_LAVA_NORTH, 20 },
+	{ FEAT_ANIM_DEEP_LAVA_SOUTH, 20 },
+
 	{ FEAT_DARK_PIT, 20 },
 	{ FEAT_MOUNTAIN, 20 },
 
@@ -8504,9 +8592,9 @@ int check_item_sval(worldpos *wpos, int y, int x) {
 }
 
 // Basic wish, then drop the item. - Kurzel
-void place_item_module(worldpos *wpos, int y, int x, int tval, int sval) {
-	object_type forge;
-	object_type *o_ptr = &forge;
+int place_item_module(worldpos *wpos, int y, int x, int tval, int sval) {
+	object_type forge, *o_ptr = &forge;
+
 	object_wipe(o_ptr);
 	invcopy(o_ptr, lookup_kind(tval, sval));
 	o_ptr->number = 1;
@@ -8514,16 +8602,35 @@ void place_item_module(worldpos *wpos, int y, int x, int tval, int sval) {
 	apply_magic(wpos, o_ptr,
 		(in_module(wpos) ? exec_lua(0, format("return adventure_locale(%d, 1)", wpos->wz)) : -2),
 		TRUE, TRUE, FALSE, FALSE, RESF_NONE); // use native depth if not loading as an event
-	drop_near(TRUE, 0, o_ptr, -1, wpos, y, x);
+	return(drop_near(TRUE, 0, o_ptr, -1, wpos, y, x));
+}
+
+int custom_place_item_module(worldpos *wpos, int y, int x, int tval, int sval,
+    s16b custom_lua_carrystate, s16b custom_lua_equipstate, s16b custom_lua_destruction, s16b custom_lua_usage) {
+	object_type *o_ptr;
+	int res;
+
+	if ((res = place_item_module(wpos, y, x, tval, sval)) > 0) {
+		/* Success */
+		o_ptr = &o_list[res];
+
+		o_ptr->custom_lua_carrystate = custom_lua_carrystate;
+		o_ptr->custom_lua_equipstate = custom_lua_equipstate;
+		o_ptr->custom_lua_destruction = custom_lua_destruction;
+		o_ptr->custom_lua_usage = custom_lua_usage;
+	}
+
+	return(res);
 }
 #endif
 
 /*
  * Change the "feat" flag for a grid, and notice/redraw the grid
  * (Adapted from PernAngband)
+ * Returns 0 on success.
  */
 bool level_generation_time = FALSE;
-void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
+int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 	player_type *p_ptr;
 	cave_type **zcave;
 	cave_type *c_ptr;
@@ -8533,25 +8640,21 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 	dun_level *l_ptr = getfloor(wpos);
 	bool deep_water = l_ptr && (l_ptr->flags1 & LF1_DEEP_WATER);
 
-	if (!(zcave = getcave(wpos))) return;
-	if (!in_bounds_array(y, x)) return;
+	if (!(zcave = getcave(wpos))) return(1);
+	if (!in_bounds_array(y, x)) return(2);
 	c_ptr = &zcave[y][x];
 
 	/* Trees in greater fire become dead trees at once */
 	if ((feat == FEAT_TREE || feat == FEAT_BUSH) &&
-	    (c_ptr->feat == FEAT_SHAL_LAVA ||
-	    c_ptr->feat == FEAT_FIRE ||
-	    c_ptr->feat == FEAT_GREAT_FIRE))
+	    (is_lava(c_ptr->feat) || is_acute_fire(c_ptr->feat)))
 		feat = FEAT_DEAD_TREE;
 
 	/* Don't mess with inns please! */
-	if (f_info[c_ptr->feat].flags1 & FF1_PROTECTED) return;
+	if (f_info[c_ptr->feat].flags1 & FF1_PROTECTED) return(3);
 
 	/* in Nether Realm, floor is always nether mist (or lava)! */
 	if (in_netherrealm(wpos)) switch (feat) {
 		case FEAT_IVY:
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
 		case FEAT_SNOW:
 		case FEAT_ICE:
 		case FEAT_FLOOR:
@@ -8563,11 +8666,13 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 		/* case FEAT_PUDDLE: new feature to be added: same as shallow water, but dries out after a while */
 		case FEAT_FLOWER:
 			feat = FEAT_NETHER_MIST;
+			break;
+		default:
+			if (is_water(feat)) feat = FEAT_NETHER_MIST;
 	}
 	/* in SR/SWC floor is always deep water */
 	if (deep_water) switch (feat) {
 		case FEAT_IVY:
-		case FEAT_SHAL_WATER:
 		case FEAT_SNOW:
 		case FEAT_ICE:
 		case FEAT_FLOOR:
@@ -8579,6 +8684,9 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 		/* case FEAT_PUDDLE: new feature to be added: same as shallow water, but dries out after a while */
 		case FEAT_FLOWER:
 			feat = FEAT_DEEP_WATER;
+			break;
+		default:
+			if (is_shal_water(feat)) feat = FEAT_DEEP_WATER;
 	}
 
 	/* Change the feature */
@@ -8589,7 +8697,7 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 	if (rad) cave_illuminate_rad(wpos, zcave, x, y, rad, (f_info[feat].flags2 & FF2_SHINE_FIRE) ? CAVE_GLOW_HACK_LAMP : CAVE_GLOW_HACK);
 	aquatic_terrain_hack(zcave, x, y);
 
-	if (level_generation_time) return;
+	if (level_generation_time) return(0); //success
 
 	/* XXX it's not needed when called from generate.c */
 	for (i = 1; i <= NumPlayers; i++) {
@@ -8604,6 +8712,7 @@ void cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 		/* Redraw */
 		lite_spot(i, y, x);
 	}
+	return(0); //success
 }
 
 /* Helper function - like cave_set_feat_live() but doesn't set anything, just tests.
@@ -8634,14 +8743,12 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 		case FEAT_MAGMA:
 			if (TOWN_TERRAFORM_WALLS == 0) return(FALSE);
 			break;
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
-			if (TOWN_TERRAFORM_WATER == 0) return(FALSE);
-			break;
 		case FEAT_GLYPH:
 		case FEAT_RUNE:
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
+		default:
+			if (is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 
 		switch (c_ptr->feat) {
@@ -8654,14 +8761,12 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 		case FEAT_MAGMA:
 			if (TOWN_TERRAFORM_WALLS == 0) return(FALSE);
 			break;
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
-			if (TOWN_TERRAFORM_WATER == 0) return(FALSE);
-			break;
 		case FEAT_GLYPH:
 		case FEAT_RUNE:
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
+		default:
+			if (is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 #else
 		/* hack: only allow around store entrances */
@@ -8705,7 +8810,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 	    (c_ptr->feat == FEAT_DEEP_LAVA ||
 	    c_ptr->feat == FEAT_DEEP_WATER))
 #else
-	if (c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
+	if (is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
 #endif
 		return(FALSE);
 
@@ -8717,6 +8822,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
  * by players and monsters. More specific restrictions can be placed here.
  * NOTE: We assume, that allow_terraforming() has already been checked before
  *       cave_set_feat_live() is actually called.
+ * Returns 0 on success.
  */
 bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	player_type *p_ptr;
@@ -8755,14 +8861,12 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 		case FEAT_MAGMA:
 			if (TOWN_TERRAFORM_WALLS == 0) return(FALSE);
 			break;
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
-			if (TOWN_TERRAFORM_WATER == 0) return(FALSE);
-			break;
 		case FEAT_GLYPH:
 		case FEAT_RUNE:
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
+		default:
+			if (is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 
 		switch (c_ptr->feat) {
@@ -8775,14 +8879,12 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 		case FEAT_MAGMA:
 			if (TOWN_TERRAFORM_WALLS == 0) return(FALSE);
 			break;
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
-			if (TOWN_TERRAFORM_WATER == 0) return(FALSE);
-			break;
 		case FEAT_GLYPH:
 		case FEAT_RUNE:
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
+		default:
+			if (is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 #else
 		/* hack: only allow around store entrances */
@@ -8826,15 +8928,13 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	    (c_ptr->feat == FEAT_DEEP_LAVA ||
 	    c_ptr->feat == FEAT_DEEP_WATER))
 #else
-	if (c_ptr->feat == FEAT_DEEP_LAVA || c_ptr->feat == FEAT_DEEP_WATER)
+	if (is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
 #endif
 		return(FALSE);
 
 	/* in Nether Realm, floor is always nether mist (or lava)! */
 	if (in_netherrealm(wpos)) switch (feat) {
 		case FEAT_IVY:
-		case FEAT_SHAL_WATER:
-		case FEAT_DEEP_WATER:
 		case FEAT_SNOW:
 		case FEAT_ICE:
 		case FEAT_FLOOR:
@@ -8846,11 +8946,13 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 		/* case FEAT_PUDDLE: new feature to be added: same as shallow water, but dries out after a while */
 		case FEAT_FLOWER:
 			feat = FEAT_NETHER_MIST;
+			break;
+		default:
+			if (is_water(feat)) feat = FEAT_NETHER_MIST;
 	}
 	/* in SR/SWC floor is always deep water */
 	if (deep_water) switch (feat) {
 		case FEAT_IVY:
-		case FEAT_SHAL_WATER:
 		case FEAT_SNOW:
 		case FEAT_ICE:
 		case FEAT_FLOOR:
@@ -8862,14 +8964,15 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 		/* case FEAT_PUDDLE: new feature to be added: same as shallow water, but dries out after a while */
 		case FEAT_FLOWER:
 			feat = FEAT_DEEP_WATER;
+			break;
+		default:
+			if (is_shal_water(feat)) feat = FEAT_DEEP_WATER;
 	}
 
 
 	/* Trees in greater fire become dead trees at once */
 	if ((feat == FEAT_TREE || feat == FEAT_BUSH) &&
-	    (c_ptr->feat == FEAT_SHAL_LAVA ||
-	    c_ptr->feat == FEAT_FIRE ||
-	    c_ptr->feat == FEAT_GREAT_FIRE))
+	    (is_lava(c_ptr->feat) || is_acute_fire(c_ptr->feat)))
 		feat = FEAT_DEAD_TREE;
 
 	/* Clear mimic feature left by a secret door - mikaelh */
@@ -8923,14 +9026,54 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	return(TRUE);
 }
 
+void custom_cave_set_feat(worldpos *wpos, int y, int x, int feat,
+    s16b custom_lua_tunnel_hand, s16b custom_lua_tunnel, s16b custom_lua_search, byte custom_lua_search_diff_minus, byte custom_lua_search_diff_chance, s16b custom_lua_newlivefeat, s16b custom_lua_way) {
+	cave_type **zcave;
+	int res;
+
+	if (!(zcave = getcave(wpos))) return;
+	if (!in_bounds_array(y, x)) return;
+
+	res = cave_set_feat(wpos, y, x, feat);
+	if (res) s_printf("cave_set_feat() failed (%d) at [y=%d,x=%d] (%d,%d,%d) feat %d!\n", res, y, x, wpos->wx, wpos->wy, wpos->wz, feat);
+
+	zcave[y][x].custom_lua_tunnel_hand = custom_lua_tunnel_hand;
+	zcave[y][x].custom_lua_tunnel = custom_lua_tunnel;
+	zcave[y][x].custom_lua_search = custom_lua_search;
+	zcave[y][x].custom_lua_search_diff_minus = custom_lua_search_diff_minus;
+	zcave[y][x].custom_lua_search_diff_chance = custom_lua_search_diff_chance;
+	zcave[y][x].custom_lua_newlivefeat = custom_lua_newlivefeat;
+	zcave[y][x].custom_lua_way = custom_lua_way;
+}
+
+bool custom_cave_set_feat_live(worldpos *wpos, int y, int x, int feat,
+    s16b custom_lua_tunnel_hand, s16b custom_lua_tunnel, s16b custom_lua_search, byte custom_lua_search_diff_minus, byte custom_lua_search_diff_chance, s16b custom_lua_newlivefeat, s16b custom_lua_way) {
+	cave_type **zcave;
+
+	if (!(zcave = getcave(wpos))) return(FALSE);
+	if (!in_bounds_array(y, x)) return(FALSE);
+
+	if (!cave_set_feat_live(wpos, y, x, feat)) return(FALSE);
+	if (!(zcave = getcave(wpos))) return(TRUE); //we did set the feat!
+
+	zcave[y][x].custom_lua_tunnel_hand = custom_lua_tunnel_hand;
+	zcave[y][x].custom_lua_tunnel = custom_lua_tunnel;
+	zcave[y][x].custom_lua_search = custom_lua_search;
+	zcave[y][x].custom_lua_search_diff_minus = custom_lua_search_diff_minus;
+	zcave[y][x].custom_lua_search_diff_chance = custom_lua_search_diff_chance;
+	zcave[y][x].custom_lua_newlivefeat = custom_lua_newlivefeat;
+	zcave[y][x].custom_lua_way = custom_lua_way;
+
+	return(TRUE);
+}
+
 
 
 /*
  * Calculate "incremental motion". Used by project() and shoot().
  * Assumes that (*y,*x) lies on the path from (y1,x1) to (y2,x2).
  */
-void mmove2(int *y, int *x, int y1, int x1, int y2, int x2)
-{
+void mmove2(int *y, int *x, int y1, int x1, int y2, int x2) {
 	int dy, dx, dist, shift;
 
 	/* Extract the distance travelled */
@@ -8953,11 +9096,8 @@ void mmove2(int *y, int *x, int y1, int x1, int y2, int x2)
 
 
 	/* Move mostly vertically */
-	if (dy > dx)
-	{
-
+	if (dy > dx) {
 #if 0
-
 		int k;
 
 		/* Starting shift factor */
@@ -8974,7 +9114,6 @@ void mmove2(int *y, int *x, int y1, int x1, int y2, int x2)
 
 		/* Always move along major axis */
 		(*y) = (y2 < y1) ? (*y - 1) : (*y + 1);
-
 #endif
 
 		/* Extract a shift factor */
@@ -8988,9 +9127,7 @@ void mmove2(int *y, int *x, int y1, int x1, int y2, int x2)
 	}
 
 	/* Move mostly horizontally */
-	else
-	{
-
+	else {
 #if 0
 
 		int k;
@@ -9009,7 +9146,6 @@ void mmove2(int *y, int *x, int y1, int x1, int y2, int x2)
 
 		/* Always move along major axis */
 		(*x) = (x2 < x1) ? (*x - 1) : (*x + 1);
-
 #endif
 
 		/* Extract a shift factor */
@@ -9533,7 +9669,7 @@ void disturb(int Ind, int stop_search, int keep_resting) {
 		/* Cancel */
 		p_ptr->searching = FALSE;
 
-		/* Recalculate bonuses */
+		/* Recalculate boni */
 		p_ptr->update |= (PU_BONUS);
 
 		/* Redraw stuff */
@@ -9643,7 +9779,7 @@ int new_effect(int who, int type, int dam, int time, int interval, worldpos *wpo
 	return(i);
 }
 
-bool allow_terraforming(struct worldpos *wpos, byte feat) {
+bool allow_terraforming(struct worldpos *wpos, u16b feat) {
 	bool bree = in_bree(wpos);
 	bool town = istown(wpos) || isdungeontown(wpos);
 	bool townarea = istownarea(wpos, MAX_TOWNAREA);
@@ -9665,6 +9801,16 @@ bool allow_terraforming(struct worldpos *wpos, byte feat) {
 	/* water is annoying in all towns - mikaelh */
 	case FEAT_SHAL_WATER:
 	case FEAT_DEEP_WATER:
+	//case FEAT_GLIT_WATER:
+	case FEAT_TAINTED_WATER:
+	case FEAT_ANIM_SHAL_WATER_EAST:
+	case FEAT_ANIM_SHAL_WATER_WEST:
+	case FEAT_ANIM_SHAL_WATER_NORTH:
+	case FEAT_ANIM_SHAL_WATER_SOUTH:
+	case FEAT_ANIM_DEEP_WATER_EAST:
+	case FEAT_ANIM_DEEP_WATER_WEST:
+	case FEAT_ANIM_DEEP_WATER_NORTH:
+	case FEAT_ANIM_DEEP_WATER_SOUTH:
 		if (town) return(FALSE);
 		break;
 
@@ -9678,6 +9824,14 @@ bool allow_terraforming(struct worldpos *wpos, byte feat) {
 	case FEAT_WALL_EXTRA: /* tested by earthquake(), destroy_area(), project_f() for GF_STONE_WALL (stone prison, wall creation) */
 	case FEAT_SHAL_LAVA:
 	case FEAT_DEEP_LAVA:
+	case FEAT_ANIM_SHAL_LAVA_EAST:
+	case FEAT_ANIM_SHAL_LAVA_WEST:
+	case FEAT_ANIM_SHAL_LAVA_NORTH:
+	case FEAT_ANIM_SHAL_LAVA_SOUTH:
+	case FEAT_ANIM_DEEP_LAVA_EAST:
+	case FEAT_ANIM_DEEP_LAVA_WEST:
+	case FEAT_ANIM_DEEP_LAVA_NORTH:
+	case FEAT_ANIM_DEEP_LAVA_SOUTH:
 		if (town || townarea || sector000 || valinor || nr_bottom) return(FALSE);
 		break;
 
@@ -9960,7 +10114,7 @@ void aquatic_terrain_hack(cave_type **zcave, int x, int y) {
 		xx = x + ddx[d];
 		yy = y + ddy[d];
 		if (!in_bounds(yy, xx)) continue;
-		if (zcave[yy][xx].feat == FEAT_DEEP_WATER) {
+		if (is_deep_water(zcave[yy][xx].feat)) {
 			zcave[y][x].info |= CAVE_WATERY;
 			return;
 		}

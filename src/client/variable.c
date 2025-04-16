@@ -220,11 +220,13 @@ bool bad_solid_mapping = FALSE;
 bool use_logfont = FALSE, use_logfont_ini;
 #endif
 byte use_graphics = FALSE, use_graphics_new = FALSE, use_graphics_err = 0;
+int override_graphics = -1; /* For '-a', '-g' and '-G' command-line parameters: These override the settings in the prf! */
 char use_graphics_errstr[MAX_CHARS_WIDE] = { 0 };
 #ifdef USE_GRAPHICS
 char graphic_tiles[256] = "16x24sv";
 char32_t kidx_po_rain_char = 0, kidx_po_rain_e1_char = 0, kidx_po_rain_e2_char = 0, kidx_po_rain_w1_char = 0, kidx_po_rain_w2_char = 0, kidx_po_snow_char = 0, kidx_po_sand_char = 0; /* pseudo objects for graphical weather particles */
 byte kidx_po_rain_attr = 0, kidx_po_rain_e1_attr = 0, kidx_po_rain_e2_attr = 0, kidx_po_rain_w1_attr = 0, kidx_po_rain_w2_attr = 0, kidx_po_snow_attr = 0, kidx_po_sand_attr = 0; /* pseudo objects for graphical weather particles */
+char32_t kidx_po_d10f_tl = 0, kidx_po_d10f_t = 0, kidx_po_d10f_tr = 0, kidx_po_d10f_bl = 0, kidx_po_d10f_b = 0, kidx_po_d10f_br = 0;
 #endif
 #ifdef USE_SOUND_2010
 bool use_sound = TRUE, use_sound_org = TRUE; //ought to be set via TOMENET_SOUND environment var in linux, probably (compare TOMENET_GRAPHICS) -C. Blue
@@ -493,7 +495,7 @@ bool silent_dump = FALSE;
 bool equip_no_weapon = FALSE;
 
 bool auto_reincarnation = FALSE;
-char macro_trigger_exclusive[MAX_CHARS];
+char macro_trigger_exclusive[MAX_CHARS]; //hack for 'd'eleting a macro, to auto-restore the original key
 bool macro_processing_exclusive = FALSE;
 
 /* To make graphics char remappings easier and there is no need to update mapping files when MAX_FONT_CHAR changes. */
@@ -782,7 +784,14 @@ int food_warn_once_timer;
 int prev_huge_cmp = -1, prev_huge_mmp = -1;
 int prev_huge_csn = -1, prev_huge_msn = -1;
 int prev_huge_chp = -1, prev_huge_mhp = -1;
+int prev_huge_cst = -1, prev_huge_mst = -1;
 
 bool fix_custom_font_after_startup = TRUE;
 int flick_global_x = 0, flick_global_y = 0, flick_global_time = 0; //time is for TERM_SRCLITE_TEMP
 bool gfx_palanim_repaint_hack = FALSE, gfx_palanim_repaint_hack_login = TRUE;
+
+#ifdef WINDOWS
+bool screenshot_silent_dump = FALSE;
+int screenshotting = 0;
+char screenshotting_filename[MAX_CHARS];
+#endif

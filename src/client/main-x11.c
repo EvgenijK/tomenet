@@ -1187,6 +1187,7 @@ static term_data* term_idx_to_term_data(int term_idx);
     Size 256:    Cache fills maybe within first 10 floors of Barrow-Downs (2mask mode), so it's very comfortable.
                  However, it overflows instantly in just 1 sector of housing area around Bree, on admin who can see all objects.
     Size 256*3:  Cache manages to more or less capture a whole housing area sector fine. This seems a good minimum cache size.
+    Size 256*4:  Default choice now, for reserves.
 */
 #define TILE_CACHE_SIZE (256*4)
 
@@ -1203,20 +1204,24 @@ static term_data* term_idx_to_term_data(int term_idx);
  #endif
 #endif
 
+#ifdef TILE_CACHE_SIZE
+extern bool disable_tile_cache;
+bool disable_tile_cache = FALSE;
 struct tile_cache_entry {
     Pixmap tilePreparation;
     char32_t c;
     byte a;
-#ifdef GRAPHICS_BG_MASK
+ #ifdef GRAPHICS_BG_MASK
     Pixmap tilePreparation2;
     char32_t c_back;
     byte a_back;
-#endif
+ #endif
     bool is_valid;
-#ifdef TILE_CACHE_FGBG
+ #ifdef TILE_CACHE_FGBG
     s32b fg, bg; /* Optional palette_animation handling */
-#endif
+ #endif
 };
+#endif
 
 
 /*
@@ -1867,6 +1872,7 @@ static void free_graphics(term_data *td) {
 		td->tilePreparation = None;
 	}
  #ifdef TILE_CACHE_SIZE
+	if (!disable_tile_cache)
 	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
 		if (td->tile_cache[i].tilePreparation) {
 			XFreePixmap(Metadpy->dpy, td->tile_cache[i].tilePreparation);
@@ -2097,7 +2103,7 @@ static errr Term_curs_x11(int x, int y) {
 static errr Term_text_x11(int x, int y, int n, byte a, cptr s) {
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
-	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -2164,7 +2170,7 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
-	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -2198,57 +2204,59 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 	y *= Infofnt->hgt;
 
  #ifdef TILE_CACHE_SIZE
-	entry = NULL;
-	for (i = 0; i < TILE_CACHE_SIZE; i++) {
-		entry = &td->tile_cache[i];
-		if (!entry->is_valid) hole = i;
-		else if (entry->c == c && entry->a == a
+	if (!disable_tile_cache) {
+		entry = NULL;
+		for (i = 0; i < TILE_CACHE_SIZE; i++) {
+			entry = &td->tile_cache[i];
+			if (!entry->is_valid) hole = i;
+			else if (entry->c == c && entry->a == a
   #ifdef GRAPHICS_BG_MASK
-		    && entry->c_back == 0 && entry->a_back == 0
+			    && entry->c_back == 0 && entry->a_back == 0
   #endif
   #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
-		    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
-		    && Infoclr->fg == entry->fg && Infoclr->bg == entry->bg
+			    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
+			    && Infoclr->fg == entry->fg && Infoclr->bg == entry->bg
   #endif
-		    ) {
-			/* Copy cached tile to window. */
-			XCopyArea(Metadpy->dpy, entry->tilePreparation, td->inner->win, Infoclr->gc,
-				0, 0,
-				td->fnt->wid, td->fnt->hgt,
-				x, y);
+			    ) {
+				/* Copy cached tile to window. */
+				XCopyArea(Metadpy->dpy, entry->tilePreparation, td->inner->win, Infoclr->gc,
+					0, 0,
+					td->fnt->wid, td->fnt->hgt,
+					x, y);
 
-			/* Success */
-			return(0);
+				/* Success */
+				return(0);
+			}
 		}
-	}
 
-	// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
-	if (hole != -1) {
+		// Replace invalid cache entries right away in-place, so we don't kick other still valid entries out via FIFO'ing
+		if (hole != -1) {
   #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
+			c_msg_format("Tile cache pos (hole): %d / %d", hole, TILE_CACHE_SIZE);
   #endif
-		entry = &td->tile_cache[hole];
-	} else {
+			entry = &td->tile_cache[hole];
+		} else {
   #ifdef TILE_CACHE_LOG
-		c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
+			c_msg_format("Tile cache pos (FIFO): %d / %d", td->cache_position, TILE_CACHE_SIZE);
   #endif
-		// Replace valid cache entries in FIFO order
-		entry = &td->tile_cache[td->cache_position++];
-		if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
-	}
+			// Replace valid cache entries in FIFO order
+			entry = &td->tile_cache[td->cache_position++];
+			if (td->cache_position >= TILE_CACHE_SIZE) td->cache_position = 0;
+		}
 
-	tilePreparation = entry->tilePreparation;
-	entry->c = c;
-	entry->a = a;
+		tilePreparation = entry->tilePreparation;
+		entry->c = c;
+		entry->a = a;
   #ifdef GRAPHICS_BG_MASK
-	entry->c_back = 0;
-	entry->a_back = 0;
+		entry->c_back = 0;
+		entry->a_back = 0;
   #endif
-	entry->is_valid = TRUE;
+		entry->is_valid = TRUE;
   #ifdef TILE_CACHE_FGBG
-	entry->fg = Infoclr->fg;
-	entry->bg = Infoclr->bg;
+		entry->fg = Infoclr->fg;
+		entry->bg = Infoclr->bg;
   #endif
+	} else tilePreparation = td->tilePreparation;
  #else /* (TILE_CACHE_SIZE) No caching: */
 	tilePreparation = td->tilePreparation;
  #endif
@@ -2336,7 +2344,7 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
-	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + SCREEN_WID && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + SCREEN_HGT) {
+	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
 		flick_global_x = x;
 		flick_global_y = y;
 	} else flick_global_x = 0;
@@ -2371,6 +2379,7 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	y *= Infofnt->hgt;
 
    #ifdef TILE_CACHE_SIZE
+    if (!disable_tile_cache) {
 	entry = NULL;
 	for (i = 0; i < TILE_CACHE_SIZE; i++) {
 		entry = &td->tile_cache[i];
@@ -2420,6 +2429,10 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	entry->fg = Infoclr->fg;
 	entry->bg = Infoclr->bg;
     #endif
+    } else {
+	tilePreparation = td->tilePreparation;
+	tilePreparation2 = td->tilePreparation2;
+    }
    #else /* (TILE_CACHE_SIZE) No caching: */
 	tilePreparation = td->tilePreparation;
 	tilePreparation2 = td->tilePreparation2;
@@ -2525,6 +2538,8 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 /* c_idx: -1 = invalidate all; otherwise only tiles that use this colour are invalidated. */
 static void invalidate_graphics_cache_x11(term_data *td, int c_idx) {
 	int i;
+
+	if (disable_tile_cache) return;
 
 	if (c_idx == -1)
 		for (i = 0; i < TILE_CACHE_SIZE; i++)
@@ -3298,6 +3313,7 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
  #endif
 	td->tilePreparation = None;
  #ifdef TILE_CACHE_SIZE
+	if (!disable_tile_cache)
 	for (int i = 0; i < TILE_CACHE_SIZE; i++) {
 		td->tile_cache[i].tilePreparation = None;
 		td->tile_cache[i].c = 0xffffffff;
@@ -3330,9 +3346,9 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 	t->nuke_hook = Term_nuke_x11;
 
 #ifdef USE_GRAPHICS
-
 	/* Use graphics */
 	if (use_graphics) {
+		logprint(format("Termdata graphics init (%d): fwid %d, fhgt %d.\n", index, td->fnt->wid, td->fnt->hgt));
 
 		/* Use resized tiles & masks. */
 #ifdef GRAPHICS_BG_MASK
@@ -3360,15 +3376,17 @@ static errr term_data_init(int index, term_data *td, bool fixed, cptr name, cptr
 		/* Note: If we want to cache even more graphics for faster drawing, we could initialize 16 copies of the graphics image with all possible mask colours already applied.
 		   Memory cost could become "large" quickly though (eg 5MB bitmap -> 80MB). Not a real issue probably. */
  #ifdef TILE_CACHE_SIZE
-		for (int i = 0; i < TILE_CACHE_SIZE; i++) {
-			td->tile_cache[i].tilePreparation = XCreatePixmap(
-				Metadpy->dpy, Metadpy->root,
-				td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+		if (!disable_tile_cache) {
+			for (int i = 0; i < TILE_CACHE_SIZE; i++) {
+				td->tile_cache[i].tilePreparation = XCreatePixmap(
+					Metadpy->dpy, Metadpy->root,
+					td->fnt->wid, td->fnt->hgt, td->tiles->depth);
   #ifdef GRAPHICS_BG_MASK
-			td->tile_cache[i].tilePreparation2 = XCreatePixmap(
-				Metadpy->dpy, Metadpy->root,
-				td->fnt->wid, td->fnt->hgt, td->tiles->depth);
+				td->tile_cache[i].tilePreparation2 = XCreatePixmap(
+					Metadpy->dpy, Metadpy->root,
+					td->fnt->wid, td->fnt->hgt, td->tiles->depth);
   #endif
+			}
 		}
  #endif
 
@@ -3604,6 +3622,7 @@ int init_graphics_x11(void) {
 	Visual *visual;
 
 	/* Load graphics file. Quit if file missing or load error. */
+	logprint("Initializing graphics.\n");
 
 	/* Check for tiles string & extract tiles width & height. */
 	if (2 != sscanf(graphic_tiles, "%dx%d", &graphics_tile_wid, &graphics_tile_hgt)) {
@@ -3667,7 +3686,7 @@ int init_graphics_x11(void) {
 	/* Ensure the BMP isn't empty or too small */
 	if (width < graphics_tile_wid || height < graphics_tile_hgt) {
 		sprintf(use_graphics_errstr, "Invalid image dimensions (width x height): %dx%d", width, height);
-		printf("%s\n", use_graphics_errstr);
+		logprint(format("%s\n", use_graphics_errstr));
  #ifndef GFXERR_FALLBACK
 		quit("Graphics load error (X4)");
  #else
@@ -3720,11 +3739,12 @@ int init_graphics_x11(void) {
 
 gfx_skip:
 	if (!use_graphics) {
-		printf("Disabling graphics and falling back to normal text mode.\n");
+		logprint("Disabling graphics and falling back to normal text mode.\n");
 		/* Actually also show it as 'off' in =g menu, as in, "desired at config-file level" */
 		use_graphics_new = FALSE;
 	}
 
+	logprint(format("Graphics initialization complete, use_graphics is %d.\n", use_graphics));
 	return(use_graphics);
 }
 #endif
@@ -4009,6 +4029,7 @@ static void term_force_font(int term_idx, cptr fnt_name) {
  #endif
 
  #ifdef TILE_CACHE_SIZE
+			if (!disable_tile_cache)
 			for (int i = 0; i < TILE_CACHE_SIZE; i++) {
 				td->tile_cache[i].tilePreparation = XCreatePixmap(
 					Metadpy->dpy, Metadpy->root,

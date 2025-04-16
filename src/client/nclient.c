@@ -47,10 +47,6 @@
 #define PANEL_Y	(SCREEN_PAD_TOP)
 
 
-/* When Highlighting/beeping when character name is mentioned in chat:
-   Recognize and ignore any roman number suffix attached to our 'real' character name? */
-#define CHARNAME_ROMAN
-
 
 /* Use Windows TEMP folder (acquired from environment variable) for pinging the servers in the meta server list.
    KEEP CONSISTENT WITH c-birth.c!
@@ -83,14 +79,17 @@ static char		cl_initialized = 0;
 char *marker1 = "#######";
 char *marker2 = "####";
 char *marker3 = "###";
+char *marker4 = "##";
 #ifdef WINDOWS
 char smarker1[] = { FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, 0 };
 char smarker2[] = { FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, 0 };
 char smarker3[] = { FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, 0 };
+char smarker4[] = { FONT_MAP_SOLID_WIN, FONT_MAP_SOLID_WIN, 0 };
 #elif defined(USE_X11)
 char smarker1[] = { FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, 0 };
 char smarker2[] = { FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, 0 };
 char smarker3[] = { FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, 0 };
+char smarker4[] = { FONT_MAP_SOLID_X11, FONT_MAP_SOLID_X11, 0 };
 //#else /* command-line client ("-c") doesn't draw either! */
 #endif
 void clear_huge_bars(void) {
@@ -155,17 +154,24 @@ void draw_huge_bar(int typ, int *prev, int cur, int *prev_max, int max) {
 		af = TERM_L_GREEN;
 		ae = TERM_RED;
 		break;
+	case 3: if (!c_cfg.st_huge_bar) return;
+		af = TERM_L_WHITE;
+		ae = TERM_L_DARK;
+		break;
 	}
 
-	/* Order of unimportance, from left to right: MP / SN / HP */
+	/* Order of unimportance, from left to right: MP / SN / HP -- edit: appended ST to the right, maybe todo: move it to the left instead */
 	pos = -1;
 	if (c_cfg.mp_huge_bar) pos++;
 	if (typ > 0) {
 		if (c_cfg.sn_huge_bar) pos++;
-		if (typ > 1 && c_cfg.hp_huge_bar) pos++;
+		if (typ > 1) {
+			if (c_cfg.hp_huge_bar) pos++;
+			if (typ > 2) if (c_cfg.st_huge_bar) pos++;
+		}
 	}
 	/* Find actual bar width */
-	switch ((c_cfg.mp_huge_bar ? 1 : 0) + (c_cfg.sn_huge_bar ? 1 : 0) + (c_cfg.hp_huge_bar ? 1 : 0)) {
+	switch ((c_cfg.mp_huge_bar ? 1 : 0) + (c_cfg.sn_huge_bar ? 1 : 0) + (c_cfg.hp_huge_bar ? 1 : 0) + (c_cfg.st_huge_bar ? 1 : 0)) {
 	case 1:
 		x = 3;
 #if defined(WINDOWS) || defined(USE_X11)
@@ -189,6 +195,14 @@ void draw_huge_bar(int typ, int *prev, int cur, int *prev_max, int max) {
 		else
 #endif
 		marker = marker3;
+		break;
+	case 4:
+		x = 1 + (2 + 1) * pos;
+#if defined(WINDOWS) || defined(USE_X11)
+		if (!force_cui && c_cfg.solid_bars) marker = smarker4;
+		else
+#endif
+		marker = marker4;
 		break;
 	}
 	gain = (c > p);
@@ -292,11 +306,11 @@ void draw_huge_stun_bar(byte attr) {
 	}
 
 	/* Restore the other huge bars over the stun "background bar" */
-	prev_huge_cmp = prev_huge_csn = prev_huge_chp = -1; // force redrawing
+	prev_huge_cmp = prev_huge_csn = prev_huge_chp = prev_huge_cst = -1; // force redrawing
 	if (p_ptr->mmp) draw_huge_bar(0, &prev_huge_cmp, p_ptr->cmp, &prev_huge_mmp, p_ptr->mmp);
 	if (p_ptr->msane) draw_huge_bar(1, &prev_huge_csn, p_ptr->csane, &prev_huge_msn, p_ptr->msane);
 	if (p_ptr->mhp) draw_huge_bar(2, &prev_huge_chp, p_ptr->chp, &prev_huge_mhp, p_ptr->mhp);
-
+	if (p_ptr->mst) draw_huge_bar(3, &prev_huge_cst, p_ptr->cst, &prev_huge_mst, p_ptr->mst);
 }
 
 
@@ -640,7 +654,7 @@ int Send_file_data(int ind, unsigned short id, char *buf, unsigned short len) {
 	Sockbuf_flush(&wbuf);
 	Packet_printf(&wbuf, "%c%c%hd%hd", PKT_FILE, PKT_FILE_DATA, id, len);
 	if (Sockbuf_write(&wbuf, buf, len) != len)
-		printf("failed sending file data\n");
+		logprint("failed sending file data\n");
 	return(0);
 }
 
@@ -1134,9 +1148,9 @@ void Receive_login(void) {
 		else strcpy(c_name, cname);
 
 		if (total_cpa <= 15)
-			c_put_str(TERM_SLATE, "Keep blank for random name, ESC to cancel. Allowed symbols: .,-'&_$%~#<>|", offset + 1, COL_CHARS);
+			c_put_str(TERM_SLATE, "Keep blank for random name, ESC to cancel. Allowed symbols: .,-'&_$%~#", offset + 1, COL_CHARS);
 		else
-			c_put_str(TERM_SLATE, "Keep blank for random name, ESC to cancel. Allowed symbols: .,-'&_$%~#<>|", offset, 35);
+			c_put_str(TERM_SLATE, "Keep blank for random name, ESC to cancel. Allowed symbols: .,-'&_$%~#", offset, 35);
 
 		while (1) {
 			c_put_str(TERM_YELLOW, "New name: ", offset, COL_CHARS);
@@ -1675,8 +1689,9 @@ int Net_start(int sex, int race, int class) {
 	}
 
 	/* Send the "feature" redefinitions */
-	if (is_newer_than(&server_version, 4, 6, 1, 2, 0, 0)) limit = MAX_F_IDX;
-	else limit = MAX_F_IDX_COMPAT;
+	if (is_newer_than(&server_version, 4, 9, 1, 2, 0, 2)) limit = MAX_F_IDX;
+	else if (is_newer_than(&server_version, 4, 6, 1, 2, 0, 0)) limit = MAX_F_IDX_COMPAT;
+	else limit = MAX_F_IDX_COMPAT; //used to be different
 
 	for (i = 0; i < limit; i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
@@ -1788,7 +1803,7 @@ static int Net_packet(void) {
 	while (rbuf.buf + rbuf.len > rbuf.ptr) {
 		type = (*rbuf.ptr & 0xFF);
 #if DEBUG_LEVEL > 2
-		if (type > 50) printf("Received packet: %d\n", type);
+		if (type > 50) logprint(format("Received packet: %d\n", type));
 #endif	/* DEBUG_LEVEL */
 		if (receive_tbl[type] == NULL) {
 			errno = 0;
@@ -2187,6 +2202,7 @@ int Receive_stamina(void) {
 
 	if (screen_icky) Term_switch(0);
 	prt_stamina(max, cur, bar);
+	draw_huge_bar(3, &prev_huge_cst, cur, &prev_huge_mst, max);
 	if (screen_icky) Term_switch(0);
 
 	/* Window stuff */
@@ -4608,7 +4624,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_YELLOW, "#.....# ");
 		Term_putstr(col, row + 6, -1, TERM_YELLOW, " #...#  ");
 		Term_putstr(col, row + 7, -1, TERM_YELLOW, "  ###   ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE,  "[LEMON ]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE,  "LEMON ");
 		break;
 
 	case 2: /* orange */
@@ -4620,7 +4636,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_ORANGE, "#++++++#");
 		Term_putstr(col, row + 6, -1, TERM_ORANGE, " #++++# ");
 		Term_putstr(col, row + 7, -1, TERM_ORANGE, "  ####  ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE,  "[ORANGE]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE,  "ORANGE");
 		break;
 
 	case 3: /* sword */
@@ -4632,7 +4648,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_SLATE, "   ##   ");
 		Term_putstr(col, row + 6, -1, TERM_UMBER, " ###### ");
 		Term_putstr(col, row + 7, -1, TERM_UMBER, "   ##   ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE, "[SWORD ]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE, "SWORD ");
 		break;
 
 	case 4: /* shield */
@@ -4644,7 +4660,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_UMBER, " #    # ");
 		Term_putstr(col, row + 6, -1, TERM_UMBER, "  #  #  ");
 		Term_putstr(col, row + 7, -1, TERM_UMBER, "   ##   ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE, "[SHIELD]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE, "SHIELD");
 		break;
 
 	case 5: /* plum */
@@ -4656,7 +4672,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_VIOLET, "####### ");
 		Term_putstr(col, row + 6, -1, TERM_VIOLET, " ###### ");
 		Term_putstr(col, row + 7, -1, TERM_VIOLET, "  ####  ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE, "[ PLUM ]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE, " PLUM ");
 		break;
 
 	case 6: /* cherry */
@@ -4668,7 +4684,7 @@ static void display_fruit(int row, int col, int fruit) {
 		Term_putstr(col, row + 5, -1, TERM_RED, "#..##..#");
 		Term_putstr(col, row + 6, -1, TERM_RED, "#..##..#");
 		Term_putstr(col, row + 7, -1, TERM_RED, " ##  ## ");
-		Term_putstr(col, row + 9, -1, TERM_SLATE, "[CHERRY]");
+		Term_putstr(col + 1, row + 9, -1, TERM_L_WHITE, "CHERRY");
 		break;
 	}
 }
@@ -4690,6 +4706,7 @@ int Receive_store_special_anim(void) {
 	char ch;
 	u16b anim1, anim2, anim3, anim4;
 	int anim_step;
+	bool use_gfx_d10f = TRUE;
 
 	if ((n = Packet_scanf(&rbuf, "%c%hd%hd%hd%hd", &ch, &anim1, &anim2, &anim3, &anim4)) <= 0) return(n);
 	if (!shopping) return(1);
@@ -4831,10 +4848,34 @@ int Receive_store_special_anim(void) {
 #else
 		usleep(600000);
 #endif
-		Term_putstr(DICE_X - 8, DICE_Y + 2, -1, TERM_L_DARK, "  _");
-		Term_putstr(DICE_X - 8, DICE_Y + 3, -1, TERM_L_DARK, " / \\");
-		Term_putstr(DICE_X - 8, DICE_Y + 4, -1, TERM_L_DARK, format("/ %1d \\", anim2));
-		Term_putstr(DICE_X - 8, DICE_Y + 5, -1, TERM_L_DARK, "\\___/");
+#ifdef GRAPHICS_BG_MASK
+		if (use_gfx_d10f && use_graphics == 2) {
+			Term_draw_2mask(DICE_X - 7, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tl, 0, 0);
+			Term_draw_2mask(DICE_X - 6, DICE_Y + 3, TERM_L_DARK, kidx_po_d10f_t, 0, 0);
+			Term_draw_2mask(DICE_X - 5, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tr, 0, 0);
+			Term_draw_2mask(DICE_X - 7, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_bl, 0, 0);
+			Term_draw_2mask(DICE_X - 6, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_b, 0, 0);
+			Term_draw_2mask(DICE_X - 5, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_br, 0, 0);
+			Term_putstr(DICE_X - 6, DICE_Y + 4, -1, TERM_L_DARK, format("%1d", anim2));
+		} else
+#endif
+#ifdef USE_GRAPHICS
+		if (use_gfx_d10f && use_graphics) {
+			Term_draw(DICE_X - 7, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tl);
+			Term_draw(DICE_X - 6, DICE_Y + 3, TERM_L_DARK, kidx_po_d10f_t);
+			Term_draw(DICE_X - 5, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tr);
+			Term_draw(DICE_X - 7, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_bl);
+			Term_draw(DICE_X - 6, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_b);
+			Term_draw(DICE_X - 5, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_br);
+			Term_putstr(DICE_X - 6, DICE_Y + 4, -1, TERM_L_DARK, format("%1d", anim2));
+		} else
+#endif
+		{
+			Term_putstr(DICE_X - 8, DICE_Y + 2, -1, TERM_L_DARK, "  _");
+			Term_putstr(DICE_X - 8, DICE_Y + 3, -1, TERM_L_DARK, " / \\");
+			Term_putstr(DICE_X - 8, DICE_Y + 4, -1, TERM_L_DARK, format("/ %1d \\", anim2));
+			Term_putstr(DICE_X - 8, DICE_Y + 5, -1, TERM_L_DARK, "\\___/");
+		}
 		/* hack: hide cursor */
 		Term->scr->cx = Term->wid;
 		Term->scr->cu = 1;
@@ -4848,10 +4889,34 @@ int Receive_store_special_anim(void) {
 #else
 		usleep(300000);
 #endif
-		Term_putstr(DICE_X + 4, DICE_Y + 2, -1, TERM_L_DARK, "  _");
-		Term_putstr(DICE_X + 4, DICE_Y + 3, -1, TERM_L_DARK, " / \\");
-		Term_putstr(DICE_X + 4, DICE_Y + 4, -1, TERM_L_DARK, format("/ %1d \\", anim3));
-		Term_putstr(DICE_X + 4, DICE_Y + 5, -1, TERM_L_DARK, "\\___/");
+#ifdef GRAPHICS_BG_MASK
+		if (use_gfx_d10f && use_graphics == 2) {
+			Term_draw_2mask(DICE_X + 5, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tl, 0, 0);
+			Term_draw_2mask(DICE_X + 6, DICE_Y + 3, TERM_L_DARK, kidx_po_d10f_t, 0, 0);
+			Term_draw_2mask(DICE_X + 7, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tr, 0, 0);
+			Term_draw_2mask(DICE_X + 5, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_bl, 0, 0);
+			Term_draw_2mask(DICE_X + 6, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_b, 0, 0);
+			Term_draw_2mask(DICE_X + 7, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_br, 0, 0);
+			Term_putstr(DICE_X + 6, DICE_Y + 4, -1, TERM_L_DARK, format("%1d", anim3));
+		} else
+#endif
+#ifdef USE_GRAPHICS
+		if (use_gfx_d10f && use_graphics) {
+			Term_draw(DICE_X + 5, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tl);
+			Term_draw(DICE_X + 6, DICE_Y + 3, TERM_L_DARK, kidx_po_d10f_t);
+			Term_draw(DICE_X + 7, DICE_Y + 4, TERM_L_DARK, kidx_po_d10f_tr);
+			Term_draw(DICE_X + 5, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_bl);
+			Term_draw(DICE_X + 6, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_b);
+			Term_draw(DICE_X + 7, DICE_Y + 5, TERM_L_DARK, kidx_po_d10f_br);
+			Term_putstr(DICE_X + 6, DICE_Y + 4, -1, TERM_L_DARK, format("%1d", anim3));
+		} else
+#endif
+		{
+			Term_putstr(DICE_X + 4, DICE_Y + 2, -1, TERM_L_DARK, "  _");
+			Term_putstr(DICE_X + 4, DICE_Y + 3, -1, TERM_L_DARK, " / \\");
+			Term_putstr(DICE_X + 4, DICE_Y + 4, -1, TERM_L_DARK, format("/ %1d \\", anim3));
+			Term_putstr(DICE_X + 4, DICE_Y + 5, -1, TERM_L_DARK, "\\___/");
+		}
 		/* hack: hide cursor */
 		Term->scr->cx = Term->wid;
 		Term->scr->cu = 1;
@@ -4870,10 +4935,34 @@ int Receive_store_special_anim(void) {
 #else
 		usleep(600000);
 #endif
-		Term_putstr(DICE_X - 2, DICE_Y + 6, -1, TERM_RED, "  _");
-		Term_putstr(DICE_X - 2, DICE_Y + 7, -1, TERM_RED, " / \\");
-		Term_putstr(DICE_X - 2, DICE_Y + 8, -1, TERM_RED, format("/ %1d \\", anim4));
-		Term_putstr(DICE_X - 2, DICE_Y + 9, -1, TERM_RED, "\\___/");
+#ifdef GRAPHICS_BG_MASK
+		if (use_gfx_d10f && use_graphics == 2) {
+			Term_draw_2mask(DICE_X - 1, DICE_Y + 8, TERM_RED, kidx_po_d10f_tl, 0, 0);
+			Term_draw_2mask(DICE_X, DICE_Y + 7, TERM_RED, kidx_po_d10f_t, 0, 0);
+			Term_draw_2mask(DICE_X + 1, DICE_Y + 8, TERM_RED, kidx_po_d10f_tr, 0, 0);
+			Term_draw_2mask(DICE_X - 1, DICE_Y + 9, TERM_RED, kidx_po_d10f_bl, 0, 0);
+			Term_draw_2mask(DICE_X, DICE_Y + 9, TERM_RED, kidx_po_d10f_b, 0, 0);
+			Term_draw_2mask(DICE_X + 1, DICE_Y + 9, TERM_RED, kidx_po_d10f_br, 0, 0);
+			Term_putstr(DICE_X, DICE_Y + 8, -1, TERM_RED, format("%1d", anim4));
+		} else
+#endif
+#ifdef USE_GRAPHICS
+		if (use_gfx_d10f && use_graphics) {
+			Term_draw(DICE_X - 1, DICE_Y + 8, TERM_RED, kidx_po_d10f_tl);
+			Term_draw(DICE_X, DICE_Y + 7, TERM_RED, kidx_po_d10f_t);
+			Term_draw(DICE_X + 1, DICE_Y + 8, TERM_RED, kidx_po_d10f_tr);
+			Term_draw(DICE_X - 1, DICE_Y + 9, TERM_RED, kidx_po_d10f_bl);
+			Term_draw(DICE_X, DICE_Y + 9, TERM_RED, kidx_po_d10f_b);
+			Term_draw(DICE_X + 1, DICE_Y + 9, TERM_RED, kidx_po_d10f_br);
+			Term_putstr(DICE_X, DICE_Y + 8, -1, TERM_RED, format("%1d", anim4));
+		} else
+#endif
+		{
+			Term_putstr(DICE_X - 2, DICE_Y + 6, -1, TERM_RED, "  _");
+			Term_putstr(DICE_X - 2, DICE_Y + 7, -1, TERM_RED, " / \\");
+			Term_putstr(DICE_X - 2, DICE_Y + 8, -1, TERM_RED, format("/ %1d \\", anim4));
+			Term_putstr(DICE_X - 2, DICE_Y + 9, -1, TERM_RED, "\\___/");
+		}
 		break;
 
 	case 3: //craps, or just any dice roll: wait for it to settle
@@ -7821,6 +7910,14 @@ void do_ping(void) {
 	   -- moved it from Term_inkey() to here - C. Blue
 	 */
 	refresh_clone_map();
+
+#ifdef WINDOWS
+	/* Check if PNG screenshot returned successfully */
+	if (screenshotting) {
+		/* Check every 10ms * '10' = 100 ms */
+		if (!(--screenshotting % 10)) screenshot_result_check();
+	}
+#endif
 }
 
 #ifdef META_PINGS
@@ -8301,7 +8398,7 @@ int Send_client_setup(void) {
 	}
 
 	/* Send the "feature" redefinitions */
-	for (i = 0; i < MAX_F_IDX; i++) {
+	for (i = 0; i < (is_atleast(&server_version, 4, 9, 2, 1, 0, 3) ? MAX_F_IDX : MAX_F_IDX_COMPAT); i++) {
 		/* 4.8.1 and newer servers communicate using 32bit character size. */
 		if (is_atleast(&server_version, 4, 8, 1, 0, 0, 0))
 			Packet_printf(&wbuf, "%c%u", Client_setup.f_attr[i], Client_setup.f_char[i]);

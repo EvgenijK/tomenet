@@ -438,14 +438,15 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 
 #ifdef CUSTOM_VISUALS /* use graphical font or tileset mapping if available */
 	connection_t *connp;
-	char32_t c_die[6 + 1]; //pft ^^
+	char32_t c_die[6 + 1], c_die_huge[6 + 1][2][2]; //huge die tile array layout: (x: left..right, y: top..bottom)
+	char32_t c_d10f[6]; //frame for any d10 die
 	//byte a_die[6 + 1];
 	bool custom_visuals = FALSE;
 	connp = Conn[p_ptr->conn];
 
 
 	/* Prepare the graphical visuals for this player (6 dice results) */
-	if (connp->use_graphics && is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 1) && !p_ptr->ascii_items) { //client must know PKT_CHAR_DIRECT
+	if (connp->use_graphics && is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 1) && !p_ptr->ascii_items) { //client must know PKT_CHAR_DIRECT ; && !p_ptr->ascii_feats?
 		int k_idx;
 
 		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_1);
@@ -471,6 +472,64 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_6);
 		c_die[6] = p_ptr->k_char[k_idx];
 		//a_die[6] = p_ptr->k_attr[k_idx];
+
+		/* Huge dice (1/4 tiles): */
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TL);
+		c_die_huge[4][0][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TR);
+		c_die_huge[4][1][0] = p_ptr->k_char[k_idx];
+		c_die_huge[2][1][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TLT);
+		c_die_huge[6][0][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TRT);
+		c_die_huge[6][1][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TLM);
+		c_die_huge[5][0][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TRM);
+		c_die_huge[5][1][0] = p_ptr->k_char[k_idx];
+		c_die_huge[3][1][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TlM);
+		c_die_huge[1][0][0] = p_ptr->k_char[k_idx];
+		c_die_huge[3][0][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_TrM);
+		c_die_huge[1][1][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_Tl);
+		c_die_huge[2][0][0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BL);
+		c_die_huge[4][0][1] = p_ptr->k_char[k_idx];
+		c_die_huge[2][0][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BR);
+		c_die_huge[4][1][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BLB);
+		c_die_huge[6][0][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BRB);
+		c_die_huge[6][1][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BLM);
+		c_die_huge[5][0][1] = p_ptr->k_char[k_idx];
+		c_die_huge[3][0][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BRM);
+		c_die_huge[5][1][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BlM);
+		c_die_huge[1][0][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_BrM);
+		c_die_huge[1][1][1] = p_ptr->k_char[k_idx];
+		c_die_huge[3][1][1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_DIE_Br);
+		c_die_huge[2][1][1] = p_ptr->k_char[k_idx];
+
+		/* Generic D10 die frame*/
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_TL);
+		c_d10f[0] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_T);
+		c_d10f[1] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_TR);
+		c_d10f[2] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_BL);
+		c_d10f[3] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_B);
+		c_d10f[4] = p_ptr->k_char[k_idx];
+		k_idx = lookup_kind(TV_PSEUDO_OBJ, SV_PO_D10F_BR);
+		c_d10f[5] = p_ptr->k_char[k_idx];
 
 		custom_visuals = TRUE;
 	}
@@ -548,21 +607,74 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 #ifdef USE_SOUND_2010
 			sound(Ind, "casino_inbetween", NULL, SFX_TYPE_MISC, FALSE);
 #endif
-			//Note: These are 10-sided dice, so CUSTOM_VISUALS is pointless as they will be a 'number' visually anyway instead of 'dots'
-			Send_store_special_str(Ind, DICE_Y + 2, DICE_X - 8, TERM_L_DARK, "  _");
-			Send_store_special_str(Ind, DICE_Y + 3, DICE_X - 8, TERM_L_DARK, " / \\");
-			Send_store_special_str(Ind, DICE_Y + 4, DICE_X - 8, TERM_L_DARK, format("/ %1d \\", roll1));
-			Send_store_special_str(Ind, DICE_Y + 5, DICE_X - 8, TERM_L_DARK, "\\___/");
+#ifdef CUSTOM_VISUALS
+			if (custom_visuals) {
+ #ifdef GRAPHICS_BG_MASK
+				Send_char_direct(Ind, DICE_X - 7, DICE_Y + 4, TERM_L_DARK, c_d10f[0], 0, 32);
+				Send_char_direct(Ind, DICE_X - 6, DICE_Y + 3, TERM_L_DARK, c_d10f[1], 0, 32);
+				Send_char_direct(Ind, DICE_X - 5, DICE_Y + 4, TERM_L_DARK, c_d10f[2], 0, 32);
+				Send_char_direct(Ind, DICE_X - 7, DICE_Y + 5, TERM_L_DARK, c_d10f[3], 0, 32);
+				Send_char_direct(Ind, DICE_X - 6, DICE_Y + 5, TERM_L_DARK, c_d10f[4], 0, 32);
+				Send_char_direct(Ind, DICE_X - 5, DICE_Y + 5, TERM_L_DARK, c_d10f[5], 0, 32);
 
-			Send_store_special_str(Ind, DICE_Y + 2, DICE_X + 4, TERM_L_DARK, " / \\");
-			Send_store_special_str(Ind, DICE_Y + 3, DICE_X + 4, TERM_L_DARK, " / \\");
-			Send_store_special_str(Ind, DICE_Y + 4, DICE_X + 4, TERM_L_DARK, format("/ %1d \\", roll2));
-			Send_store_special_str(Ind, DICE_Y + 5, DICE_X + 4, TERM_L_DARK, "\\___/");
+				Send_char_direct(Ind, DICE_X + 5, DICE_Y + 4, TERM_L_DARK, c_d10f[0], 0, 32);
+				Send_char_direct(Ind, DICE_X + 6, DICE_Y + 3, TERM_L_DARK, c_d10f[1], 0, 32);
+				Send_char_direct(Ind, DICE_X + 7, DICE_Y + 4, TERM_L_DARK, c_d10f[2], 0, 32);
+				Send_char_direct(Ind, DICE_X + 5, DICE_Y + 5, TERM_L_DARK, c_d10f[3], 0, 32);
+				Send_char_direct(Ind, DICE_X + 6, DICE_Y + 5, TERM_L_DARK, c_d10f[4], 0, 32);
+				Send_char_direct(Ind, DICE_X + 7, DICE_Y + 5, TERM_L_DARK, c_d10f[5], 0, 32);
 
-			Send_store_special_str(Ind, DICE_Y + 6, DICE_X - 2, TERM_RED, "  _");
-			Send_store_special_str(Ind, DICE_Y + 7, DICE_X - 2, TERM_RED, " / \\");
-			Send_store_special_str(Ind, DICE_Y + 8, DICE_X - 2, TERM_RED, format("/ %1d \\", choice));
-			Send_store_special_str(Ind, DICE_Y + 9, DICE_X - 2, TERM_RED, "\\___/");
+				Send_char_direct(Ind, DICE_X - 1, DICE_Y + 8, TERM_RED, c_d10f[0], 0, 32);
+				Send_char_direct(Ind, DICE_X, DICE_Y + 7, TERM_RED, c_d10f[1], 0, 32);
+				Send_char_direct(Ind, DICE_X + 1, DICE_Y + 8, TERM_RED, c_d10f[2], 0, 32);
+				Send_char_direct(Ind, DICE_X - 1, DICE_Y + 9, TERM_RED, c_d10f[3], 0, 32);
+				Send_char_direct(Ind, DICE_X, DICE_Y + 9, TERM_RED, c_d10f[4], 0, 32);
+				Send_char_direct(Ind, DICE_X + 1, DICE_Y + 9, TERM_RED, c_d10f[5], 0, 32);
+ #else
+				Send_char_direct(Ind, DICE_X - 7, DICE_Y + 4, TERM_L_DARK, c_d10f[0]);
+				Send_char_direct(Ind, DICE_X - 6, DICE_Y + 3, TERM_L_DARK, c_d10f[1]);
+				Send_char_direct(Ind, DICE_X - 5, DICE_Y + 4, TERM_L_DARK, c_d10f[2]);
+				Send_char_direct(Ind, DICE_X - 7, DICE_Y + 5, TERM_L_DARK, c_d10f[3]);
+				Send_char_direct(Ind, DICE_X - 6, DICE_Y + 5, TERM_L_DARK, c_d10f[4]);
+				Send_char_direct(Ind, DICE_X - 5, DICE_Y + 5, TERM_L_DARK, c_d10f[5]);
+
+				Send_char_direct(Ind, DICE_X + 5, DICE_Y + 4, TERM_L_DARK, c_d10f[0]);
+				Send_char_direct(Ind, DICE_X + 6, DICE_Y + 3, TERM_L_DARK, c_d10f[1]);
+				Send_char_direct(Ind, DICE_X + 7, DICE_Y + 4, TERM_L_DARK, c_d10f[2]);
+				Send_char_direct(Ind, DICE_X + 5, DICE_Y + 5, TERM_L_DARK, c_d10f[3]);
+				Send_char_direct(Ind, DICE_X + 6, DICE_Y + 5, TERM_L_DARK, c_d10f[4]);
+				Send_char_direct(Ind, DICE_X + 7, DICE_Y + 5, TERM_L_DARK, c_d10f[5]);
+
+				Send_char_direct(Ind, DICE_X - 1, DICE_Y + 8, TERM_RED, c_d10f[0]);
+				Send_char_direct(Ind, DICE_X, DICE_Y + 7, TERM_RED, c_d10f[1]);
+				Send_char_direct(Ind, DICE_X + 1, DICE_Y + 8, TERM_RED, c_d10f[2]);
+				Send_char_direct(Ind, DICE_X - 1, DICE_Y + 9, TERM_RED, c_d10f[3]);
+				Send_char_direct(Ind, DICE_X, DICE_Y + 9, TERM_RED, c_d10f[4]);
+				Send_char_direct(Ind, DICE_X + 1, DICE_Y + 9, TERM_RED, c_d10f[5]);
+ #endif
+				Send_store_special_str(Ind, DICE_Y + 4, DICE_X - 6, TERM_L_DARK, format("%1d", roll1));
+				Send_store_special_str(Ind, DICE_Y + 4, DICE_X + 6, TERM_L_DARK, format("%1d", roll2));
+				Send_store_special_str(Ind, DICE_Y + 8, DICE_X, TERM_RED, format("%1d", choice));
+			} else
+#endif
+			{
+				//Note: These are 10-sided dice, so CUSTOM_VISUALS is pointless as they will be a 'number' visually anyway instead of 'dots'
+				Send_store_special_str(Ind, DICE_Y + 2, DICE_X - 8, TERM_L_DARK, "  _");
+				Send_store_special_str(Ind, DICE_Y + 3, DICE_X - 8, TERM_L_DARK, " / \\");
+				Send_store_special_str(Ind, DICE_Y + 4, DICE_X - 8, TERM_L_DARK, format("/ %1d \\", roll1));
+				Send_store_special_str(Ind, DICE_Y + 5, DICE_X - 8, TERM_L_DARK, "\\___/");
+
+				Send_store_special_str(Ind, DICE_Y + 2, DICE_X + 4, TERM_L_DARK, "  _");
+				Send_store_special_str(Ind, DICE_Y + 3, DICE_X + 4, TERM_L_DARK, " / \\");
+				Send_store_special_str(Ind, DICE_Y + 4, DICE_X + 4, TERM_L_DARK, format("/ %1d \\", roll2));
+				Send_store_special_str(Ind, DICE_Y + 5, DICE_X + 4, TERM_L_DARK, "\\___/");
+
+				Send_store_special_str(Ind, DICE_Y + 6, DICE_X - 2, TERM_RED, "  _");
+				Send_store_special_str(Ind, DICE_Y + 7, DICE_X - 2, TERM_RED, " / \\");
+				Send_store_special_str(Ind, DICE_Y + 8, DICE_X - 2, TERM_RED, format("/ %1d \\", choice));
+				Send_store_special_str(Ind, DICE_Y + 9, DICE_X - 2, TERM_RED, "\\___/");
+
+			}
 		}
 
 		if (((choice > roll1) && (choice < roll2)) ||
@@ -598,13 +710,31 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 		//msg_format(Ind, "First roll:   \377s%d %d\377w   Total: \377y%d", roll1, roll2, roll3);
 
 #ifdef CUSTOM_VISUALS
- #ifdef GRAPHICS_BG_MASK
 		if (custom_visuals) {
+ #ifdef GRAPHICS_BG_MASK
+  #ifndef DICE_HUGE //normal die
 			Send_char_direct(Ind, DICE_X - 1, DICE_Y + 2, CRAPS_1STDICE_ATTR, c_die[roll1], 0, 32);
 			Send_char_direct(Ind, DICE_X - 1 + 2, DICE_Y + 2, CRAPS_1STDICE_ATTR, c_die[roll2], 0, 32);
+  #else //huge die
+			int dx, dy;
+
+			for (dx = 0; dx != 2; dx++) for (dy = 0; dy != 2; dy++) {
+			Send_char_direct(Ind, DICE_HUGE_X + dx, DICE_HUGE_Y + 2 + dy, CRAPS_1STDICE_ATTR, c_die_huge[roll1][dx][dy], 0, 32);
+			Send_char_direct(Ind, DICE_HUGE_X + 4 + dx, DICE_HUGE_Y + 2 + dy, CRAPS_1STDICE_ATTR, c_die_huge[roll2][dx][dy], 0, 32);
+			}
+  #endif
  #else
+  #ifndef DICE_HUGE //normal die
 			Send_char_direct(Ind, DICE_X - 1, DICE_Y + 2, CRAPS_1STDICE_ATTR, c_die[roll1]);
 			Send_char_direct(Ind, DICE_X - 1 + 2, DICE_Y + 2, CRAPS_1STDICE_ATTR, c_die[roll2]);
+  #else //huge die
+			int dx, dy;
+
+			for (dx = 0; dx != 2; dx++) for (dy = 0; dy != 2; dy++) {
+			Send_char_direct(Ind, DICE_HUGE_X + dx, DICE_HUGE_Y + 2 + dy, CRAPS_1STDICE_ATTR, c_die_huge[roll1][dx][dy]);
+			Send_char_direct(Ind, DICE_HUGE_X + 4 + dx, DICE_HUGE_Y + 2 + dy, CRAPS_1STDICE_ATTR, c_die_huge[roll2][dx][dy]);
+			}
+  #endif
  #endif
 		} else
 #endif
@@ -633,6 +763,21 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 		odds = 9;
 		Send_store_special_str(Ind, DICE_Y, DICE_X - 6, TERM_GREEN, "=== Wheel ===");
 		Send_store_special_str(Ind, DICE_Y + 2, DICE_X - 15, TERM_RED, "  0  \377w1  2  3  4  5  6  7  8  9");
+#if 0 //not for now; should probably add more proper graphics: horizontal 'chain', an arrow/triange, better selected-number brackets/marker (existing half-triangles maybe)
+#ifdef CUSTOM_VISUALS
+		if (custom_visuals) {
+			int x;
+
+			for (x = 0; x < 30; x++)
+ #ifdef GRAPHICS_BG_MASK
+    //111,116,126
+				Send_char_direct(Ind, DICE_X - 15 + x, DICE_Y + 3, TERM_WHITE, p_ptr->f_char[126], 0, 32);
+ #else
+				Send_char_direct(Ind, DICE_X - 15 + x, DICE_Y + 3, TERM_WHITE, p_ptr->f_char[126]);
+ #endif
+		} else
+#endif
+#endif
 		Send_store_special_str(Ind, DICE_Y + 3, DICE_X - 15, TERM_WHITE, "--------------------------------");
 
 		p_ptr->casino_odds = odds;
@@ -650,17 +795,17 @@ static bool gamble_comm(int Ind, int cmd, int gold) {
 		roll2 = randint(6);
 		choice = randint(6);
 
-		Send_store_special_str(Ind, DICE_Y + 3, DICE_X - 14, TERM_SLATE,  "/==========================\\");
-		Send_store_special_str(Ind, DICE_Y + 4, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 5, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 6, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 7, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 8, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 9, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 10, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 11, DICE_X - 14, TERM_SLATE,  "|                          |");
-		Send_store_special_str(Ind, DICE_Y + 12, DICE_X - 14, TERM_SLATE, "\\==========================/");
-		Send_store_special_str(Ind, DICE_Y + 13, DICE_X - 14, TERM_SLATE,  " [      ] [      ] [      ]");
+		Send_store_special_str(Ind, DICE_Y + 3, DICE_X - 14, TERM_SEL_BLUE,  "/==========================\\");
+		Send_store_special_str(Ind, DICE_Y + 4, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 5, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 6, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 7, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 8, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 9, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 10, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 11, DICE_X - 14, TERM_SEL_BLUE,  "|                          |");
+		Send_store_special_str(Ind, DICE_Y + 12, DICE_X - 14, TERM_SEL_BLUE, "\\==========================/");
+		Send_store_special_str(Ind, DICE_Y + 13, DICE_X - 14, TERM_SEL_BLUE,  " [      ] [      ] [      ]");
 
 		/* Create client-side animation */
 		if (is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 1)) {
@@ -803,7 +948,7 @@ static bool inn_comm(int Ind, int cmd) {
 #endif	// 0
 
 		/* Must cure HP draining status first */
-		if ((p_ptr->poisoned > 0) || (p_ptr->diseased > 0) || (p_ptr->cut > 0)) {
+		if (p_ptr->poisoned || p_ptr->diseased || p_ptr->cut) {
 			msg_print(Ind, "You need a healer, not a room.");
 			// msg_print(Ind, NULL);
 			msg_print(Ind, "Sorry, but don't want anyone dying in here.");
@@ -2581,7 +2726,7 @@ bool bldg_process_command(int Ind, store_type *st_ptr, int action, int item, int
 #ifdef ENABLE_GO_GAME
 				go_challenge(Ind);
 #else
-				Send_store_special_clr(Ind, 4, 18);
+				Send_store_special_clr(Ind, 3, 19);
 				Send_store_special_str(Ind, 6, 3, TERM_ORANGE, "Sorry, the Go board, bowls and stones were stolen by some unknown bastard!");
 				Send_store_special_str(Ind, 7, 3, TERM_ORANGE, "Unfortunately I cannot say yet when a replacement will arrive.");
 #endif

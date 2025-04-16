@@ -972,7 +972,8 @@ static void Trim_name(char *nick_name) {
 		if (!((*ptr >= 'A' && *ptr <= 'Z') ||
 		    (*ptr >= 'a' && *ptr <= 'z') ||
 		    (*ptr >= '0' && *ptr <= '9') ||
-		    strchr(" .,-'&_$%~#<>|", *ptr))) /* chars allowed for character name, */
+		    //strchr(" .,-'&_$%~#<>|", *ptr))) /* chars allowed for character name, */
+		    strchr(" .,-'&_$%~#", *ptr))) /* chars allowed for character name, */
 			*ptr = '_'; /* but they become _ in savefile name */
 	}
 }
@@ -1117,7 +1118,7 @@ static void Console(int fd, int arg) {
 
 	/* See what we got */
 	/* this code added by thaler, 6/28/97 */
-	fgets(buf, 1024, stdin);
+	(void)fgets(buf, 1024, stdin);
 	if (*buf && buf[strlen(buf) - 1] == '\n') buf[strlen(buf) - 1] = '\0';
 
 	for (i = 0; i < strlen(buf) && buf[i] != ' '; i++) {
@@ -1407,6 +1408,7 @@ static void Delete_player(int Ind) {
 	inventory_change_type *inv_change;
 	/* Be paranoid */
 	cave_type **zcave;
+	bool df = in_deathfate(&p_ptr->wpos);
 
 	/* Remove him from any stores, especially important for special stores and their RID_ dialogues */
 	if (p_ptr->store_num != -1) handle_store_leave(Ind);
@@ -1642,6 +1644,7 @@ static void Delete_player(int Ind) {
 
 	/* Update Morgoth eventually if the player was on his level */
 	check_Morgoth(0);
+	if (df) check_df();
 
 	/* Tell the metaserver about the loss of a player */
 	Report_to_meta(META_UPDATE);
@@ -2973,7 +2976,7 @@ static void set_player_font_definitions(int ind, int player) {
 		}
 	}
 
-	for (i = 0; i < MAX_F_IDX; i++) {
+	for (i = 0; i < (is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 3) ? MAX_F_IDX : MAX_F_IDX_COMPAT); i++) {
 /* Hacking the no-floor bug for loth/bree tower/gondo city -C. Blue */
 		p_ptr->f_attr[i] = connp->Client_setup.f_attr[i];
 		p_ptr->f_char[i] = connp->Client_setup.f_char[i];
@@ -3603,7 +3606,7 @@ static int Handle_login(int ind) {
 #ifdef USE_SOUND_2010
 	/* Since 4.5.7 we can now distinguish (client-side) between disabled and unavailable audio.
 	   The minus constant is for optional songs, ie songs that have a commented out music.cfg entry by default (user's choice to enable them). */
-	if (p_ptr->audio_sfx && p_ptr->audio_sfx != 4 && p_ptr->audio_sfx < __audio_sfx_max - 110 - 4)
+	if (p_ptr->audio_sfx && p_ptr->audio_sfx != 4 && p_ptr->audio_sfx < __audio_sfx_max - 110 - 4 - 2)
 		msg_print(NumPlayers, "\374\377D --- Warning: Your sound pack is outdated! ---");
 	if (p_ptr->audio_mus && p_ptr->audio_mus < __audio_mus_max - 40 - 12 - 6*2*4 - 9*2 - 4 - 24 - 43)
 		msg_print(NumPlayers, "\374\377D --- Warning: Your music pack is outdated! ---");
@@ -3759,9 +3762,7 @@ static int Handle_login(int ind) {
 			msg_format(Ind, "  \377U%d\377W) '%s' recruits for %d more minutes.",
 			    i + 1, global_event[i].title, (global_event[i].announcement_time - ((turn - global_event[i].start_turn) / cfg.fps)) / 60);
  #else
-  #ifdef DM_MODULES
-			if ((global_event[i].getype == GE_ADVENTURE) && (global_event[i].state[1] == 1)) continue;
-  #endif
+			if (global_event[i].signup_begins_announcement == 1) continue;
 			if (time_left >= 120) msg_format(NumPlayers, "\374\377W[%s (\377U%d\377W) starts in %d minutes]", global_event[i].title, i + 1, time_left / 60);
 			else msg_format(NumPlayers, "\374\377W[%s (%d) starts in %d seconds!]", global_event[i].title, i + 1, time_left);
  #endif
@@ -3927,6 +3928,7 @@ static int Handle_login(int ind) {
 
 	/* Check Morgoth, if player had saved a level where he was generated */
 	check_Morgoth(NumPlayers);
+	if (in_deathfate(&p_ptr->wpos)) check_df();
 
 	/* Initialise his temporary quest helper information */
 	quest_check_player_location(NumPlayers);
@@ -4421,8 +4423,7 @@ int Net_input(void) {
 	for (i = 0; i < max_connections; i++) {
 		connp = Conn[i];
 
-		if (!connp || connp->state == CONN_FREE)
-			continue;
+		if (!connp || connp->state == CONN_FREE) continue;
 		if (connp->timeout && (connp->start + connp->timeout * cfg.fps < turn)) {
 			if (connp->state & (CONN_PLAYING | CONN_READY)) {
 /*				sprintf(msg, "%s mysteriously disappeared!",
@@ -4431,14 +4432,11 @@ int Net_input(void) {
 			}
 			sprintf(msg, "timeout %02x", connp->state);
 			Destroy_connection(i, msg);
-
-#if 0
-			/* Very VERY bad hack :/ - C. Blue */
-			save_game_panic();
-#endif
-
 			continue;
 		}
+#if 0 /* Debug: Cannot timeout while paralyzed? */
+if (!(turn % (cfg.fps / 2))) s_printf("connp %d: start %ld\n", i, connp->start);
+#endif
 
 		// Make sure that the player we are looking at is not already in the
 		// game.  If he is already in the game then we will send him data
@@ -5323,8 +5321,9 @@ static int Receive_login(int ind) {
 }
 
 #define RECEIVE_PLAY_SIZE		(2 * 6 + OPT_MAX +8     + 2 * (TV_MAX + MAX_F_IDX        + MAX_K_IDX +        MAX_R_IDX)) /*todo: fix*/
-#define RECEIVE_PLAY_SIZE_462		(2 * 6 + OPT_MAX_154 +8 + 2 * (TV_MAX + MAX_F_IDX        + MAX_K_IDX +        MAX_R_IDX)) /*todo: fix*/
-#define RECEIVE_PLAY_SIZE_OPT154	(2 * 6 + OPT_MAX_154    + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX_COMPAT + MAX_R_IDX_COMPAT))
+#define RECEIVE_PLAY_SIZE_492102	(2 * 6 + OPT_MAX +8     + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX +        MAX_R_IDX)) /*todo: fix*/
+#define RECEIVE_PLAY_SIZE_462		(2 * 6 + OPT_MAX_154 +8 + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX +        MAX_R_IDX)) /*todo: fix*/
+#define RECEIVE_PLAY_SIZE_OPT154	(2 * 6 + OPT_MAX_154    + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX_COMPAT + MAX_R_IDX_COMPAT)) //did this MAX_F_IDX_COMBAT use to be an even lower value than 256?...
 #define RECEIVE_PLAY_SIZE_OPTMAXCOMPAT	(2 * 6 + OPT_MAX_COMPAT + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX_COMPAT + MAX_R_IDX_COMPAT))
 #define RECEIVE_PLAY_SIZE_OPTMAXOLD	(2 * 6 + OPT_MAX_OLD    + 2 * (TV_MAX + MAX_F_IDX_COMPAT + MAX_K_IDX_COMPAT + MAX_R_IDX_COMPAT))
 //#define STRICT_RECEIVE_PLAY
@@ -5598,7 +5597,8 @@ static int Receive_play(int ind) {
 		}
 
 		/* Read the "feature" char/attrs */
-		if (is_newer_than(&connp->version, 4, 6, 1, 2, 0, 0)) limit = MAX_F_IDX;
+		if (is_newer_than(&connp->version, 4, 9, 1, 2, 0, 2)) limit = MAX_F_IDX;
+		else if (is_newer_than(&connp->version, 4, 6, 1, 2, 0, 0)) limit = MAX_F_IDX_COMPAT;
 		else limit = MAX_F_IDX_COMPAT;
 
 		for (i = 0; i < limit; i++) {
@@ -7100,7 +7100,7 @@ int Send_depth(int Ind, struct worldpos *wpos) {
 
 #ifdef TOWNFOUND_REWARDS
 					/* Setting the forge.level is only needed if apply_magic() isn't called, as it calls determine_level_req() for us. */
-					switch(town[i].type) {
+					switch (town[i].type) {
 					case TOWN_VANILLA:
 						invcopy(&forge, lookup_kind(TV_SCROLL, SV_SCROLL_STAR_ACQUIREMENT));
 						forge.number = 1;
@@ -11440,7 +11440,7 @@ static int Receive_run(int ind) {
 	/* paranoia? */
 	//if (player == -1) return;
 
-	if (p_ptr->command_rep) {
+	if (p_ptr && p_ptr->command_rep) {
 #ifdef USE_SOUND_2010
 		if (p_ptr->command_rep != PKT_BASH) sound(player, NULL, NULL, SFX_TYPE_STOP, TRUE);
 #endif
@@ -11448,7 +11448,7 @@ static int Receive_run(int ind) {
 	}
 
 	/* If not the dungeon master, who can always run */
-	if (!p_ptr->admin_dm && !p_ptr->admin_invinc) {
+	if (p_ptr && !p_ptr->admin_dm && !p_ptr->admin_invinc) {
 		monster_race *r_ptr;
 
 		if ((p_ptr->global_event_temp & PEVF_NO_RUN_00)) return Receive_walk(ind);
@@ -11456,10 +11456,10 @@ static int Receive_run(int ind) {
 		if (in_sector000(&p_ptr->wpos) && (sector000flags2 & LF2_NO_RUN)) return Receive_walk(ind);
 
 		/* check for status impairments (lack of light is checked in run_test()) */
-		if (p_ptr->confused || p_ptr->blind)
-			return Receive_walk(ind);
+		if (p_ptr->confused || p_ptr->blind) return Receive_walk(ind);
 
 		/* Check for monsters in sight */
+		if (!l_ptr || !(l_ptr->flags1 & LF1_CAN_ALWAYS_RUN))
 		for (i = 1; i < m_max; i++) {
 			/* Check this monster */
 			if (p_ptr->mon_los[i] && !m_list[i].csleep && !m_list[i].special
@@ -11510,7 +11510,7 @@ static int Receive_run(int ind) {
 //if (p_ptr->auto_retaliating) s_printf("auto-retal\n");
 //else s_printf("not a-r\n");
 //	if (!p_ptr->admin_dm && p_ptr->auto_retaliating) {
-	if (p_ptr->auto_retaliating || p_ptr->shooting_till_kill)
+	if (p_ptr && (p_ptr->auto_retaliating || p_ptr->shooting_till_kill))
 		return Receive_walk(ind);
 #endif
 
@@ -13971,7 +13971,7 @@ static int Receive_redraw(int ind) {
 			p_ptr->redraw |= PR_PLUSSES;
 			if (is_older_than(&p_ptr->version, 4, 4, 8, 5, 0, 0)) p_ptr->redraw |= PR_STUDY;
 
-			/* Update his view, light, bonuses, and torch radius */
+			/* Update his view, light, boni, and torch radius */
 #ifdef ORIG_SKILL_EVIL	/* not to be defined */
 			p_ptr->update |= (PU_VIEW | PU_LITE | PU_BONUS | PU_TORCH | PU_DISTANCE
 					| PU_SKILL_INFO | PU_SKILL_MOD);
@@ -15788,7 +15788,7 @@ static int Receive_client_setup(int ind) {
 	}
 
 	/* Read the "feature" char/attrs */
-	for (i = 0; i < MAX_F_IDX; i++) {
+	for (i = 0; i <  (is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 3) ? MAX_F_IDX : MAX_F_IDX_COMPAT); i++) {
 		connp->Client_setup.f_char[i] = 0; /* Needs to be initialized for proper packet read. */
 		/* 4.8.1 and newer clients use 32bit character size. */
 		if (is_atleast(&connp->version, 4, 8, 1, 0, 0, 0))
@@ -15932,9 +15932,16 @@ static int Receive_client_setup_F(int ind) {
 	}
 
 	/* Read the "feature" char/attrs */
-	if (begin < 0 || begin >= MAX_F_IDX || end < 0 || end > MAX_F_IDX || end < begin) {
-		Destroy_connection(ind, "bad f-setup");
-		return(-1);
+	if (is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 3)) {
+		if (begin < 0 || begin >= MAX_F_IDX || end < 0 || end > MAX_F_IDX || end < begin) {
+			Destroy_connection(ind, "bad f-setup");
+			return(-1);
+		}
+	} else {
+		if (begin < 0 || begin >= MAX_F_IDX_COMPAT || end < 0 || end > MAX_F_IDX_COMPAT || end < begin) {
+			Destroy_connection(ind, "bad f-setup");
+			return(-1);
+		}
 	}
 	for (i = begin; i < end; i++) {
 		connp->Client_setup.f_char[i] = 0; /* Needs to be initialized for proper packet read. */

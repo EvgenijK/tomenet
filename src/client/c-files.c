@@ -722,7 +722,7 @@ void init_file_paths(char *path) {
 #endif /* VM */
 }
 
-/* Convert a macro trigger key between Windows and Posix */
+/* Convert a macro trigger key between Windows and Posix -- not implemented ie currently does nothing */
 static void key_autoconvert(char *tmp, byte fmt) {
 	//if (fmt == VERSION_OS || fmt == OS_UNKNOWN || VERSION_OS == OS_UNKNOWN) return;
 	if (fmt == VERSION_OS || (fmt == OS_UNKNOWN && VERSION_OS != OS_WIN32)) return;
@@ -1167,7 +1167,7 @@ errr process_pref_file_aux(char *buf, cptr name, bool quiet) {
 	if (!fp) {
 		if (!quiet) {
 			if (rl_connection_state == 1) c_message_add(format("\377yCould not open file %s", buf));
-			if (strcmp(ANGBAND_SYS, "gcu")) printf("Could not open file %s.\n", buf);
+			if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("Could not open file %s.\n", buf));
 		}
 		return(-1);
 	}
@@ -1178,7 +1178,7 @@ errr process_pref_file_aux(char *buf, cptr name, bool quiet) {
 		if (process_pref_file_aux_aux(buf2, fmt)) {
 			/* Useful error message */
 			if (rl_connection_state == 1) c_msg_format("\377yError in '%s' parsing '%s'.", buf2, name);
-			if (strcmp(ANGBAND_SYS, "gcu")) printf("Error in '%s' parsing '%s'.\n", buf2, name);
+			if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("Error in '%s' parsing '%s'.\n", buf2, name));
 			//else if (rl_connection_state != 1) plog_fmt("Error in '%s' parsing '%s'.\n", buf2, name); //too annoying if prf file contains a bunch of outdated options as residue from older game versions
 			//errors = TRUE;
 		}
@@ -1188,7 +1188,7 @@ errr process_pref_file_aux(char *buf, cptr name, bool quiet) {
 				c_msg_format("\377yThe mapping '%s' in '%s' maps non-wall feat", buf2, name);
 				c_msg_print("\377y to solid wall symbols (either 2 or 127), indicating that the mapping is broken!");
 			}
-			if (strcmp(ANGBAND_SYS, "gcu")) printf("The mapping '%s' in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", buf2, name);
+			if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("The mapping '%s' in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", buf2, name));
 			else if (rl_connection_state != 1) plog_fmt("The mapping '%s' in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", buf2, name);
 			bad_solid_mapping = FALSE;
 		}
@@ -1201,13 +1201,13 @@ errr process_pref_file_aux(char *buf, cptr name, bool quiet) {
 			c_msg_format("\377yThe mapping in '%s' maps non-wall feats to", name);
 			c_msg_print("\377y solid wall symbols (either 2 or 127), indicating that the mapping is broken!");
 		}
-		if (strcmp(ANGBAND_SYS, "gcu")) printf("The mapping in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", name);
+		if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("The mapping in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", name));
 		else if (rl_connection_state != 1) plog_fmt("The mapping in '%s' maps non-wall feats to solid wall symbols (either 2 or 127), indicating that the mapping is broken!\n", name);
 		bad_solid_mapping = FALSE;
 	}
 #endif
 	if (err == 2) {
-		if (strcmp(ANGBAND_SYS, "gcu")) printf("Grave error: Couldn't allocate memory when parsing '%s'.\n", name);
+		if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("Grave error: Couldn't allocate memory when parsing '%s'.\n", name));
 		//plog(format("!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!\n", name)); //might be deadly if it happens in live game ^^' so instead just:
 		c_msg_format("\377R!!! GRAVE ERROR: Couldn't allocate memory when parsing file '%s' !!!", name);
 	} else err = 0;
@@ -1242,7 +1242,7 @@ errr process_pref_file(cptr name) {
 
 	/* Build the filename */
 	path_build(buf, 1024, ANGBAND_DIR_USER, name);
-	if (strcmp(ANGBAND_SYS, "gcu")) printf("Processing prf file '%s'.\n", name); //in GCU-only client this lands across the curses terminals instead of the console, pointless
+	if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("Processing prf file '%s'.\n", name)); //in GCU-only client this lands across the curses terminals instead of the console, pointless
 	return(process_pref_file_aux(buf, name, TRUE));
 }
 errr process_pref_file_manual(cptr name) {
@@ -1250,10 +1250,27 @@ errr process_pref_file_manual(cptr name) {
 
 	/* Build the filename */
 	path_build(buf, 1024, ANGBAND_DIR_USER, name);
-	if (strcmp(ANGBAND_SYS, "gcu")) printf("Processing prf file '%s'.\n", name); //in GCU-only client this lands across the curses terminals instead of the console, pointless
+	if (strcmp(ANGBAND_SYS, "gcu")) logprint(format("Processing prf file '%s'.\n", name)); //in GCU-only client this lands across the curses terminals instead of the console, pointless
 	return(process_pref_file_aux(buf, name, FALSE));
 }
 
+/* Wrapper to try and load both, the character name based macros
+   and the character name + monster form specific macros (if form-specific macros are disabled). */
+errr load_charspec_macros(cptr cname) {
+	char tmp[MAX_CHARS];
+	errr error1;
+
+	sprintf(tmp, "%s.prf", cname);
+	error1 = process_pref_file(tmp);
+
+	if (c_cfg.load_form_macros && strcmp(c_p_ptr->body_name, "Player")) {
+
+		sprintf(tmp, "%s%c%s.prf", cname, PRF_BODY_SEPARATOR, c_p_ptr->body_name);
+		(void)process_pref_file(tmp);
+	}
+
+	return(error1);
+}
 
 /*
  * Show the Message of the Day.
@@ -1863,6 +1880,52 @@ errr file_character(cptr name, bool quiet) {
 	return(0);
 }
 
+#ifdef WINDOWS
+/* On Windows async screenshot process: Test if it finished meanwhile. */
+void screenshot_result_check(void) {
+	FILE *fp;
+	char resbuf[5];
+	int res = -1;
+	bool missing;
+
+	/* Since this is an async process spawn, wait for a limited time for it to complete */
+	if ((missing = !my_fexists("screenCapture.res")) && screenshotting) return;
+	//had one report that on an i5/Win10 screenshotting took somewhat over 2s sometimes o_O so this might time out a lot.
+
+	/* Screenshot process didn't complete in time? */
+	if (missing) {
+		if (!screenshot_silent_dump) {
+			c_msg_print("Warning: screenCapture exceeded time limit, but might still have worked fine.");
+			c_msg_format(" If so, it saved to %spng", screenshotting_filename);
+		} else {
+			screenshot_silent_dump = FALSE;
+			c_msg_print("Warning: screenCapture.bat exceeded time limit.");
+		}
+		return;
+	}
+
+	/* try to read result code */
+	fp = fopen("screenCapture.res", "r");
+	if (fp) {
+		if (fgets(resbuf, 5, fp)) res = atoi(resbuf);
+		else c_msg_print("Error: Unable to read result value from screenCapture.res."); //paranoia
+		fclose(fp);
+	} else c_msg_print("Error: Cannot open screenCapture.res."); //paranoia
+	remove("screenCapture.res");
+	if (res == -1) {
+		screenshot_silent_dump = FALSE;
+		return;
+	}
+
+	/* evaluate result code. '10' indicates no .NET framework, it's unlikely any other error gets thrown */
+	if (res == 10) c_msg_print("Error: .NET framework must be installed to take PNG image screenshots.");
+	else if (res != 0) c_msg_format("Error: Unknown error %d.", atoi(resbuf));
+	//res = 0 aka no error:
+	else if (!screenshot_silent_dump) c_msg_format("Screenshot saved to %spng", screenshotting_filename);
+	screenshot_silent_dump = FALSE;
+}
+#endif
+
 /*
  * Make an xhtml screenshot - mikaelh
  * Some code borrowed from ToME
@@ -1969,6 +2032,7 @@ void xhtml_screenshot(cptr name, byte redux) {
 
 			if (!dp) {
 				c_msg_print("Couldn't open the user directory.");
+				silent_dump = FALSE;
 				return;
 			}
 
@@ -2023,60 +2087,52 @@ void xhtml_screenshot(cptr name, byte redux) {
 
 #ifdef ENABLE_SHIFT_SPECIALKEYS
 	/* Hack: SHIFT+CTRL+T makes a real (PNG) screenshot instead of an xhtml screenshot - C. Blue */
+	if ((!c_cfg.screenshot_keys && inkey_shift_special == 3) ||
+	    (c_cfg.screenshot_keys && inkey_shift_special != 3)) {
  #if defined(USE_X11)
-	/* On X11, use ImageMagick's 'import' if available */
-	if (inkey_shift_special == 3 && x11_win_term_main) {
-		char buf2[1028];
+		/* On X11, use ImageMagick's 'import' if available */
+		if (x11_win_term_main) {
+			char buf2[1028];
 
-		strcpy(buf2, buf);
-		buf2[strlen(buf2) - 5] = 0;
-		if (!system(format("import -window %d %spng", x11_win_term_main, buf2))) {
-			strcpy(buf2, file_name);
+			strcpy(buf2, buf);
 			buf2[strlen(buf2) - 5] = 0;
-			if (!silent_dump) c_msg_format("Screenshot saved to %spng", buf2);
-			else silent_dump = FALSE;
-		} else c_msg_format("Error: Failed to call imagemagick's 'import'. ('%s')", buf2);
-		return;
-	}
+			if (!system(format("import -window %d %spng", x11_win_term_main, buf2))) {
+				strcpy(buf2, file_name);
+				buf2[strlen(buf2) - 5] = 0;
+				if (!silent_dump) c_msg_format("Screenshot saved to %spng", buf2);
+			} else c_msg_format("Error: Failed to call imagemagick's 'import'. ('%s')", buf2);
+			silent_dump = FALSE;
+			return;
+		}
  #elif defined(WINDOWS)
-	/* On Windows, use the .NET framework if available, via batch file */
-	if (inkey_shift_special == 3) {
+		/* On Windows, use the .NET framework if available, via batch file */
 		char buf2[1028];
 
+		/* Generate filename with path (from xhtml filename) */
 		strcpy(buf2, buf);
 		buf2[strlen(buf2) - 5] = 0;
 
+		/* Spawn async process to take screenshot */
 		remove("screenCapture.res");
 		if (WinExec(format("screenCapture.bat \"%spng\" \"\"", buf2), SW_HIDE) > 31) {
-			//this is an async process spawn, wait for it to complete
-			x = 0;
-			while (!my_fexists("screenCapture.res") && x < 40) { // paranoia: Time out if for some reason the bat never returns.
-				x++;
-				sync_sleep(50);
-			}
-			if (my_fexists("screenCapture.res")) {
-				//assume the error value in it was '10' which indicates no .NET framework, as it's unlikely any other error gets thrown =p
-				c_msg_print("Error: .NET framework must be installed to take PNG image screenshots.");
-				remove("screenCapture.res");
-				return;
-			} else {
-				c_msg_print("Error: screenCapture.bat didn't return in time.");
-				return;
-			}
+			screenshotting = 500; // 500 * 10ms interval -> wait for 5s max to give feedback msg
 
+			/* Generate filename without path (from xhtml filename) */
 			strcpy(buf2, file_name);
 			buf2[strlen(buf2) - 5] = 0;
-			if (!silent_dump) c_msg_format("Screenshot saved to %spng", buf2);
-			else silent_dump = FALSE;
+			strcpy(screenshotting_filename, buf2);
+			screenshot_silent_dump = silent_dump;
 		} else c_msg_format("Error: Failed to call screenCapture.bat (%lu).", GetLastError());
+		silent_dump = FALSE;
 		return;
-	}
  #endif
+	}
 #endif
 
 	fp = fopen(buf, "wb");
 	if (!fp) {
 		/* Couldn't write */
+		silent_dump = FALSE;
 		return;
 	}
 
@@ -2224,6 +2280,7 @@ void xhtml_screenshot(cptr name, byte redux) {
 					fprintf(stderr, "fwrite failed\n");
 					c_msg_print("\377rScreenshot could not be written!");
 					fclose(fp);
+					silent_dump = FALSE;
 					return;
 				}
 
@@ -2239,6 +2296,7 @@ void xhtml_screenshot(cptr name, byte redux) {
 			fprintf(stderr, "fwrite failed\n");
 			c_msg_print("\377rScreenshot could not be written!");
 			fclose(fp);
+			silent_dump = FALSE;
 			return;
 		}
 	}
@@ -2520,12 +2578,24 @@ void load_auto_inscriptions(cptr name) {
 	}
 }
 
-/* Save Character-Birth file (*.dna) */
-void save_birth_file(cptr name, bool touch) {
+/* Save Character-Birth file (*.dna).
+ * 'touch': Keep saved values dna_sex (Sex/Body/Mode), dna_class, dna_race, dna_trait instead of updating them to newly chosen values.
+ */
+void save_birth_file(cptr cname, bool touch) {
 	FILE *fp;
 	char buf[1024];
 	char file_name[256];
 	int i;
+	char name[CNAME_LEN + 4];
+#ifdef CHARNAME_ROMAN
+	char *ptr;
+#endif
+
+	strcpy(name, cname);
+#ifdef CHARNAME_ROMAN
+	/* Ignore roman number at the end, for players who increment after each death :) */
+	if ((ptr = roman_suffix(name))) *(ptr - 1) = 0;
+#endif
 
 	strncpy(file_name, name, 249);
 	file_name[249] = '\0';
@@ -2580,22 +2650,32 @@ void save_birth_file(cptr name, bool touch) {
 }
 
 /* Load Character-Birth file (*.dna) */
-void load_birth_file(cptr name) {
+void load_birth_file(cptr cname) {
 	FILE *fp;
 	char buf[1024];
 	char file_name[256];
+	char name[CNAME_LEN + 4];
+#ifdef CHARNAME_ROMAN
+	char *ptr;
+#endif
 
 	int vm = 0, vi = 0, vp = 0;
 	char vt = '%', *p;
 	bool update = FALSE;
-
-	strncpy(file_name, name, 249);
-	file_name[249] = '\0';
 	int tmp, i, r;
 
 
 	/* Assume invalid until we completely loaded it successfully */
 	valid_dna = FALSE;
+
+	strcpy(name, cname);
+#ifdef CHARNAME_ROMAN
+	/* Ignore roman number at the end, for players who increment after each death :) */
+	if ((ptr = roman_suffix(name))) *(ptr - 1) = 0;
+#endif
+
+	strncpy(file_name, name, 249);
+	file_name[249] = '\0';
 
 	/* add '.dna' extension if not already existing */
 	if (strlen(name) > 4) {
@@ -2738,7 +2818,7 @@ int check_guide_checksums(bool forced) {
 	if (system("sha256sum --version"))
 #endif
 	{
-		//printf("Warning: No sha256sum found, cannot auto-check guide for outdatedness.\n"); --could be spammy
+		//logprint("Warning: No sha256sum found, cannot auto-check guide for outdatedness.\n"); --could be spammy
 		guide_outdated = FALSE;
 		c_msg_print("\377yError verifying Guide version: 'sha256sum' is not installed.");
 		return(1);

@@ -384,8 +384,8 @@ static dun_data *dun;
  * Why the first two are byte and the rest s16b???
  */
 /* ToME variables -- not implemented, but needed to have it work */
-static byte feat_wall_outer = FEAT_WALL_OUTER;	/* Outer wall of rooms */
-static byte feat_wall_inner = FEAT_WALL_INNER;	/* Inner wall of rooms */
+static u16b feat_wall_outer = FEAT_WALL_OUTER;	/* Outer wall of rooms */
+static u16b feat_wall_inner = FEAT_WALL_INNER;	/* Inner wall of rooms */
 s16b floor_type[1000];	/* Dungeon floor */
 s16b fill_type[1000];	/* Dungeon filler */
 
@@ -8475,6 +8475,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		dun->l_ptr = getfloor(wpos);
 		dun->l_ptr->flags1 = LF1_NO_DESTROY;
 		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TRAPS;
+		dun->l_ptr->flags2 |= LF2_INDOORS; //hack: Abuse as marker
 #ifdef SIMPLE_RI_MIRROR
 		dun->l_ptr->flags2 |= LF2_NO_RUN; /* Don't allow too easy kiting */
 #endif
@@ -8549,7 +8550,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		p_ptr->temp_misc_1 &= ~(0x80 | 0x40);
 		dun = &dun_body;
 		dun->l_ptr = getfloor(wpos);
-		dun->l_ptr->flags1 = LF1_NO_DESTROY | LF1_NO_MAGIC;
+		dun->l_ptr->flags1 = LF1_NO_DESTROY | LF1_NO_MAGIC | LF1_CAN_ALWAYS_RUN;
 		dun->l_ptr->flags2 = LF2_NO_SUMMON | LF2_NO_LIVE_SPAWN | LF2_NO_RUNES | LF2_NO_TELE | LF2_NO_TRAPS;
 		dun->l_ptr->monsters_generated = dun->l_ptr->monsters_spawned = dun->l_ptr->monsters_killed = 0;
 		//if (season_halloween && p_ptr && (p_ptr->prob_travel || p_ptr->ghost)) dun->l_ptr->flags1 |= LF1_FAST_DIVE;

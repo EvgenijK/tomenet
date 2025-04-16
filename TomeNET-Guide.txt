@@ -1,7 +1,7 @@
 .==========================================================================+--.
 |                              TomeNET Guide                               |
 +==========================================================================+-
-| Latest update: 23. March 2025 - written by C. Blue (c_blue@gmx.net)      |
+| Latest update: 15. April 2025 - written by C. Blue (c_blue@gmx.net)      |
 | for TomeNET version v4.9.3 - official websites are:                      :
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
@@ -126,11 +126,11 @@ Contents
     (4.9)   Navigating on maps
     (4.10)  Houses
     (4.10a) Player stores
-    (4.11)  Malicious effects players can suffer
+    (4.11)  Malicious effects (status effects) players can suffer
     (4.11a) Black Breath
     (4.11b) Drain effects
     (4.11c) Common recurring combat buffs
-    (4.12)  Malicious effects monsters can suffer
+    (4.12)  Malicious effects (status effects) monsters can suffer
     (4.13)  Extermination orders, events and Ironman Challenge
     (4.14)  Time systems, speed
     (4.14a) In-game metrics
@@ -2241,12 +2241,13 @@ They all start with a slash '/' hence they're called slash commands:
             Shout <text> loudly, will wake up monsters. (Same as "/shout".)
 
 Extra slash commands for role-playing that have no further effect:
-/applaud    Applaud someone next to you (sfx).
+/applaud    Applaud someone nearby (sfx).
 /hug        Hug someone next to you.
 /knock      Knock on a house door next to you (sfx).
 /pat        Pat someone next to you.
 /poke       Poke someone next to you.
 /slap       Slap someone next to you (sfx).
+/wave       Wave at someone nearby to you.
 
 Aside from slash commands there are also item-paste shortcuts, which can be
 incorporated into any text you type in chat:
@@ -3081,7 +3082,7 @@ mlevel, rlevel
             for their melee attacks on each level-up. To find out in what way a
             particular monster has been boosted you can use a rod of probing.
 
-            Some formulas used by the game use mlev, some use rlev.
+            Some formulae used by the game use mlev, some use rlev.
             (Note: This is similar to klevel vs olevel for items.)
 
 Morgy       Morgoth, Lord of Darkness. Final boss enemy in TomeNET.
@@ -6191,7 +6192,7 @@ CTRL+A to switch to 'normal' mode, CTRL+T to switch to 'party' (team) mode,
 CTRL+G for 'guild' mode and CTRL+F for floor mode (current dungeon level, or
 gets converted to a "/say" action if not in a dungeon).
 
-Also you can use the following prefixes in the beginning of a chat line,
+Also you can use the following prefices in the beginning of a chat line,
 to get similar behaviour as in one of the chat modes just for one line:
 !:      Sends the following text to your current party.
 $:      Sends the following text to your current guild.
@@ -9812,35 +9813,35 @@ together with any other floor feelings): "You feel a commanding presence.."
 Here is a list of all dungeon bosses and the artifacts they are guarding:
 (Some names have been shortened to fit.)
 
-Dungeon, sorted by depth     |          Boss         | Artifact (or extra loot)
------------------------------+-----------------------+-------------------------
-The Training Tower    (A)    |  -                    | -
-Barrow-Downs                 |  Wight-King           | Stone of Lore
-Mordor                       |  -                    | -
-The Paths of the Dead        |  Feagwath             | Doomcaller
-Angband                      |  -  (B)               | -
-------Non-town dungeons------+-----------------------+-------------------------
-Death Fate                   |  -                    | -
-The Halls of Mandos   (C)    |  -                    | -
-The Orc Cave                 |  Azog                 | -
-Mirkwood                     |  Saenathra            | - (A random chest)
-The Old Forest               |  Old Man Willow       | Boomerang of Beor
-The Helcaraxe                |  White Balrog         | Pike 'Til-i-arc'
-The Sandworm lair            |  Sandworm Queen       | Armour of the Sandworm
-The Heart of the Earth       |  Golgarach            | Space-time Anchor  (D)
-The Maze                     |  Minotaur             | Helm of Hammerhand
-Cirith Ungol                 |  Shelob               | Smallsword 'Sting'
-The Land of Rhun             |  Ulfang the Black     | Sabre 'Careth Asdriag'
-Moria                        |  Balrog of Moria      | Quarterstaff 'Ruyi Bang'
-The Small Water Cave         |  Watcher in the Water | Trident of Wrath
-Submerged Ruins              |  Ar-Pharazon          | Amulet 'Toris Mejistos'
-The Illusory Castle          |  King in Yellow       | Helm of Knowledge
-The Sacred Land of Mountains |  T'ron  (level 72!)   | Coat of T'ron
-Erebor                       |  Smaug                | Arkenstone of Thrain
-Dol Guldur            (E)    |  Shadow of Dol Guldur | Ring of Durin
-Mount Doom            (E)    |  Sauron, the Sorceror | -
-The Cloud Planes             |  The Living Lightning | - (Lightning items)
-Nether Realm                 |  Zu-Aon  (F)          | Ring of Phasing
+Dungeon, sorted by depth      |         Boss         | Artifact (or extra loot)
+------------------------------+----------------------+-------------------------
+The Training Tower    (A)     | -                    | -
+Barrow-Downs                  | Wight-King           | Stone of Lore
+Mordor                        | -                    | -
+The Paths of the Dead         | Feagwath             | Doomcaller
+Angband                       | -  (B)               | -
+------Non-town dungeons-------+----------------------+-------------------------
+Death Fate                    | -                    | -
+The Halls of Mandos   (C)     | -                    | -
+The Orc Cave                  | Azog                 | -
+Mirkwood                      | Saenathra            | - (A random chest)
+The Old Forest                | Old Man Willow       | Boomerang of Beor
+The Helcaraxe                 | White Balrog         | Pike 'Til-i-arc'
+The Sandworm Lair             | Sandworm Queen       | Armour of the Sandworm
+The Heart of the Earth        | Golgarach            | Space-time Anchor  (D)
+The Maze                      | Minotaur             | Helm of Hammerhand
+Cirith Ungol                  | Shelob               | Smallsword 'Sting'
+The Land of Rhun              | Ulfang the Black     | Sabre 'Careth Asdriag'
+The Mines of Moria            | Balrog of Moria      | Quarterstaff 'Ruyi Bang'
+The Small Water Cave          | Watcher in the Water | Trident of Wrath
+Submerged Ruins               | Ar-Pharazon          | Amulet 'Toris Mejistos'
+The Illusory Castle           | King in Yellow       | Helm of Knowledge
+The Sacred Land of Mountains  | T'ron  (level 72!)   | Coat of T'ron
+Erebor                        | Smaug                | Arkenstone of Thrain
+Dol Guldur            (E)     | Shadow of Dol Guldur | Ring of Durin
+Mount Doom            (E)     | Sauron, the Sorceror | -
+The Cloud Planes              | The Living Lightning | - (Lightning items)
+Nether Realm                  | Zu-Aon  (F)          | Ring of Phasing
 
 (A) In the Training Tower, you cannot die for real (except for PvP mode chars).
 
@@ -10094,7 +10095,7 @@ other weapon.
 
 Trap kits can have special (ego) powers:
 
-Prefixes:
+Prefices:
 ---------
 Automatic       - Can set off up to 99 times, with a 20% chance each time of
                   ceasing to function. Requires the according amount of ammo
@@ -10112,7 +10113,7 @@ Complicated     - Trap gets an extra AC bonus, making it harder to disarm.
 Obvious         - Curses the trap and makes it practically useless.
                   It has the STEALTH flag but a negative (-pval) malus.
 
-Suffixes:
+Suffices:
 ---------
 of Extra Might  - Fires with +x (bonus shown in round brackets) extra might.
                   ("It fires missiles with extra might.")
@@ -10661,8 +10662,8 @@ you already removed might linger there for a bit more.
 
 
 
-(4.11) Malicious effects players can suffer
--------------------------------------------
+(4.11) Malicious effects (status effects) players can suffer
+------------------------------------------------------------
 The player can suffer from various effects caused by monsters, traps or
 himself. Against several of these effects the 'Saving Throw' ability helps
 to decide whether it will be resisted or not (especially true for effects
@@ -10753,7 +10754,8 @@ Cut                     Cuts will make you lose HP continuously.
                         and any means of 'Curing' will completely heal cuts.
                         While cut, HP regeneration is inhibited except
                         for half-trolls, trolls and hydras which can continue
-                        regenerating HP even while cut.
+                        regenerating HP even while cut - except if the cut was
+                        applied before shapeshifting into one of these forms.
 
 Poison   -Poisoned      The player will continuously lose Hit Points.
                         Resisting poison will prevent the player from getting
@@ -11158,8 +11160,8 @@ Berserk Rage:     Remove and resist fear.
 
 
 
-(4.12) Malicious effects monsters can suffer
---------------------------------------------
+(4.12) Malicious effects (status effects) monsters can suffer
+-------------------------------------------------------------
 Monsters can be affected by similar effects as players.
 Those are:
 
@@ -12274,17 +12276,25 @@ get more blows/round from it, sometimes you don't.
 If you try to wield a weapon that is too heavy for your character, meaning
 your 'STRength' stat isn't high enough yet, you'll get a warning message:
 "You have trouble wielding such a heavy weapon".
-This means you won't get any benefits from your 'Weaponmastery' skill, nor
-any extra blows per round at all, instead you'll be stuck with 1 blow/round.
-Also, you'll be more prone to disarming attacks.
+This means
+- you won't get any benefits from your 'Weaponmastery' skill.
+- nor any extra blows per round at all, you'll be stuck with 1 blow/round.
+- your hit chance will be lowered depending on the 'overweight' amount.
+- your parry chance cut to 1/3
+- digging effectiveness (if you use the weapon for digging) will be low
+- you cannot use it as effective throwing weapon.
+- you'll be more prone to disarming attacks.
+(For mage staves overweight has no negative effects beyond these listed above.)
 
 Similar is possible for shields. If you try to use a shield which is too heavy
 for you, you'll get another warning message:
 "You have trouble wielding such a heavy shield".
-That means you will hardly be able to deflect anything with this shield and
-won't get get any 'reflection' ability from it, if it provides this.
-All other abilities you gain from it are not affected though (eg resistances
-or stat boni), you will benefit from these just fine.
+That means
+- chance to block attacks will be cut down to 1/3.
+- you won't get get any 'reflection' ability (REFLECT flag) from it, if it
+  provides this. (All other abilities you gain from it are not affected though
+  (eg resistances or stat boni), you will benefit from these just fine.)
+- you will not be able to bash anything with it.
 
 Your character might have a chance to parry attacks with his weapon and block
 attacks with his shield, provided he uses one.
@@ -12424,8 +12434,11 @@ If you try to wield a ranged weapon that is too heavy for your character,
 meaning your 'STRength' stat isn't high enough yet, you'll get a warning
 message:
 "You have trouble wielding such a heavy bow".
-That means you'll get neither any benefits from your 'Archery' skill nor from
-any particular ranged mastery (extra shots!) at all when using that weapon.
+That means
+- you'll get neither any benefits from your 'Archery' skill or from any
+  specific ranged mastery skill at all! That means you will not receive from
+  these skills: Extra shots, extra might, hit chance bonus, damage bonus.
+- your to-hit chance will be reduced depending on the 'overweight' amount.
 
 Note: +damage bonus from other items besides the ranged weapon itself or the
 ammunition it uses will not be added to ranged attacks, while +hit bonus will.
@@ -12774,8 +12787,10 @@ Weapon weight
 -------------
 If your melee weapon or ranged weapon is too heavy you will hardly be able
 to use it, resulting in reduced attack number per round and less damage.
-You will get the message "You have trouble wielding such a heavy weapon/bow"
-and probably your blows will drop to 1 and tohit/todam go near to zero.
+You will get the message "You have trouble wielding such a heavy weapon",
+or for ranged weapons "You have trouble wielding such a heavy bow",
+and probably your blows (or shots, for ranged weapons) will drop to 1 and
+your tohit/todam values get reduced drastically.
 A weapon is too heavy for you if its weight is greater than the so-called
 str_hold value. Below is a table with the str_hold values, depending on a
 character's strength:
@@ -12969,7 +12984,7 @@ Breath damage is capped, the number is given in the corresponding description
 and actual breath damage generally depends on the monster's current hit points.
 
 Bolts and balls depend damage-wise on the level of the casting monster as the
-formulas show and is not as strictly capped as breath damage.
+formulae show and is not as strictly capped as breath damage.
 
 However, all breaths and magical attacks (such as bolts and ball spells) are
 subject to a global magical damage cap of 1600. Even though breaths are not
@@ -13686,7 +13701,7 @@ b) identification via ID (eg by scroll, staff or shop service (see (4.5a)) -
       it has been identified.
    2) It identifies the flavour of an item (if it is a flavoured item) for
       the particular player who identifies it.
-      Flavours are prefixes in the base item name, in particular:
+      Flavours are prefices in the base item name, in particular:
       -potion colours
       -scroll titles
       -ring/amulet materials
@@ -16061,6 +16076,11 @@ be very lucky and hope for the random(0..799) roll for quartz to actually be a
 digging power of 21. So on each turn of tunnelling your chance to succeed would
 be 1 in 800 in that case.
 
+If you try to use a digging tool that is too heavy for you, you will see it in
+your encumberment bar and there will be a warning message on equipping it,
+ "You have trouble wielding such a heavy tool"
+which means your digging power will be cut down to 1/3 when using it to dig.
+
 
 (5.17b) Digging - common example values
 ---------------------------------------
@@ -17807,11 +17827,12 @@ stated.
                                                  your chance of parrying is
                                                  increased instead of blocking.
 
-                                Offensive stance - you can stun opponents
-                                                   depending on your strength,
-                                                   your 'Weaponmastery' skill,
-                                                   your stance rank, and your
-                                                   opponent
+                                Offensive stance - your hits get a chance to
+                                                   stun opponents, depending on
+                                                   - your strength,
+                                                   - your Weaponmastery skill,
+                                                   - your stance rank, and
+                                                   - your opponent's prowess
                                                    (see (4.12) about stunning),
                                                  - intercept more often,
                                                  - parry and dodge only rarely,
@@ -17842,10 +17863,9 @@ stated.
                                 Parry/Dodge    -100%  -90%  -80%  -70%
 
                                 All offensive stances reduce AC by 30.
-                                Offensive stance rank increases chance of
-                                applying a stun.
-                                Weaponmastery and Combat skill can greatly
-                                prolongs those stun effect durations.
+                                If stun from offensive stance is successfully
+                                applied, its power is affected by your strength
+                                and your skills 'Weaponmastery' and 'Combat'.
 
         .Dual-wield             The ability to wield two weapons at once. This
                                 ability cannot be trained, it's always at 1.000
@@ -21550,7 +21570,8 @@ F: flag list
                 The usual limits of the Anti-Magic skill apply, see (7.2) for
                 details.
     ARROW_1, ARROW_2, ARROW_3
-                The player will receive an extra shot per round with slings or
+                If the monster has at least one of these (they don't stack),
+                the player will get an extra shot per round with slings or
                 bows since the monster seems to be good at shooting.
                 If the monster shoots 1_IN_3 or better (better means faster,
                 ie higher frequency, that is 1_IN_2 or 1_IN_1), the player will
@@ -23038,8 +23059,8 @@ In general, holy schools are somewhat less affected by anti-magic fields.)
                     Invincible here in detail means that you won't take..
                     -any hit point decreasing damage (except genocide strain),
                     -any sanity decreasing damage,
-                    -any malicious effects such as poisoning, fear, blindness,
-                     confusion, paralysis, slowness, stun or cuts,
+                    -any malicious effects such as disease, poisoning, cuts,
+                     fear, blindness, confusion, paralysis, slowness or stun,
                     -black breath infections,
                     -nexus, polymorph and teleportation effects.
                     Martyrdom doesn't protect your inventory from harm though.
@@ -25072,6 +25093,10 @@ raw numbers:
 "You have an excellent chance of parrying."     Below 50% chance.
 "You have a superb chance of parrying."         50% chance or better.
 
+If you try to use a weapon which is too heavy for you and get the warning:
+ "You have trouble wielding such a heavy weapon"
+your parry chance will be lowered to 1/3 (among other things, compare (5.1)).
+
 Note: If you aim at maximizing your parry chance on a character that is
       proficient in combat stances, you might choose defensive stance without
       a shield equipped. Because if no shield is equipped, defensive combat
@@ -25092,6 +25117,10 @@ raw numbers:
 "You have an excellent chance of blocking."     Below 48% chance.
 "You have a superb chance of blocking."         48-50% chance (the highest
                                                 reachable).
+
+If you try to use a shield which is too heavy for you and get the warning:
+ "You have trouble wielding such a heavy shield"
+your block chance will be lowered to 1/3 (among other things, compare (5.1)).
 
 Note: To achieve an extraordinarily high block chance you'll have to enter a
       defensive combat stance, and your shield should have a high base block

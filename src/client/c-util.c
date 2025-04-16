@@ -5,6 +5,9 @@
 #include "angband.h"
 
 #include <sys/time.h>
+#ifndef WINDOWS
+ #include <glob.h>
+#endif
 
 #define ENABLE_SUBWINDOW_MENU /* allow =f menu function for setting fonts/visibility of term windows */
 //#ifdef ENABLE_SUBWINDOW_MENU
@@ -3119,7 +3122,8 @@ bool askfor_aux(char *buf, int len, char mode) {
 				if (!((i >= 'A' && i <= 'Z') ||
 				    (i >= 'a' && i <= 'z') ||
 				    (i >= '0' && i <= '9') ||
-				    strchr(" .,-'&_$%~#<>|", i))) /* chars allowed for character name, */
+				    //strchr(" .,-'&_$%~#<>|", i))) /* chars allowed for character name, */
+				    strchr(" .,-'&_$%~#", i))) /* chars allowed for character name, */
 					i = '_';
 			}
 
@@ -5279,19 +5283,474 @@ static void get_macro_trigger(char *buf) {
 	Term_addstr(-1, TERM_WHITE, tmp);
 }
 
+
 /* When reinitializing macros, also reload font/graf prefs?
    Shoudln't be needed. */
 //#define FORGET_MACRO_VISUALS
+
+#ifdef TEST_CLIENT
+
+/* Maximum amount of switchable macrofile-sets loaded at the same time */
+#define MACROFILESETS_MAX 8
+/* Maximum amount of switchable macrofile-set-stages */
+#define MACROFILESETS_STAGES_MAX 6
+/* String part that serves as marker for recognizing macrosets and their switch-type by the macros on their dedicated cycle/switch-keys */
+#define MACROFILESET_MARKER_CYCLIC "Cycling\\sto\\sset"
+#define MACROFILESET_MARKER_SWITCH "Switching\\sto\\sset"
+#define MACROSET_NAME_LEN 20
+#define MACROSET_COMMENT_LEN 20
+struct macro_fileset_type {
+	bool style_cyclic; // Style: cyclic (at least one trigger key was found that cycles)
+	bool style_free; // Style: free-switching (at last one trigger key was found that switches freely)
+	char basefilename[MACROSET_NAME_LEN]; // Base .prf filename part (excluding path) for all macro files of this set, to which stage numbers get appended
+	char macro__pat__cycle[32];
+	char macro__patbuf__cycle[32];
+	char macro__act__cycle[160];
+	char macro__actbuf__cycle[160];
+	int stages; // Amount of stages to cyclic/switch between
+	bool any_stage_file_exists; // just QoL shortcut derived from at least one of 'stage_file_exists[]' being TRUE
+	bool all_stage_files_exist; // just QoL shortcut
+	bool currently_referenced; // this macro set is referenced by at least one existing macro among all currently loaded macros
+
+	char macro__pat__switch[MACROFILESETS_STAGES_MAX][32];
+	char macro__patbuf__switch[MACROFILESETS_STAGES_MAX][32];
+	char macro__act__switch[MACROFILESETS_STAGES_MAX][160];
+	char macro__actbuf__switch[MACROFILESETS_STAGES_MAX][160];
+	bool stage_file_exists[MACROFILESETS_STAGES_MAX]; // stage file was actually found? (eg if stage files 1,2,4 are found, we must assume there is a stage 3, but maybe the file is missing)
+	char stage_comment[MACROFILESETS_STAGES_MAX][MACROSET_COMMENT_LEN];
+};
+typedef struct macro_fileset_type macro_fileset_type;
+
+static int filesets_found = 0;
+static int fileset_selected = -1, fileset_stage_selected = -1;
+static macro_fileset_type fileset[MACROFILESETS_MAX] = { 0 };
+
+/* Scan...
+   (a) all currently loaded macros,
+   (b) look on disk for files belonging to those scanned in (a),
+   (c) all macro files on disk (in user/TomeNET-user folder) for filesets. - C. Blue */
+int macroset_scan(void) {
+	int k, m;
+	bool style_cyclic, style_free;
+
+	int f, n, stage;
+	char *cc, *cf, *cfile;
+	char buf_pat[32], buftxt_pat[32], buf_act[160], buftxt_act[160];
+	char buf_basename[1024], tmpbuf[1024];
+#ifndef WINDOWS
+	size_t glob_size;
+	glob_t glob_res;
+	char **p;
+#else
+	WIN32_FIND_DATA FindFileData;
+	HANDLE hFind;
+#endif
+	char cwd[1024];
+
+
+	/* Discard known filesets - fileset[] already gets zero-initialized */
+#if 0
+	for (k = 0; k < MACROFILESETS_MAX; k++) {
+		fileset[k].stages = 0;
+		fileset[k].currently_referenced = fileset[k].any_stage_file_exists = fileset[k].all_stage_files_exist = FALSE;
+		for (f = 0; f < MACROFILESETS_STAGES_MAX; f++)
+			fileset[k].stage_file_exists[f] = FALSE;
+	}
+#else
+	memset(fileset, 0, sizeof(fileset));
+#endif
+	filesets_found = 0;
+	fileset_selected = fileset_stage_selected = -1;
+
+
+	/* ---------- (a) Auto-scan for all currently loaded (ie are referenced in our currently active macros) filesets ---------- */
+
+	k = 0;
+	m = -1;
+	while (TRUE) {
+		while (++m < macro__num) {
+			style_cyclic = style_free = FALSE;
+
+			/* Get macro in parsable format */
+			strncpy(buf_act, macro__act[m], 159);
+			buf_act[159] = '\0';
+			ascii_to_text(buftxt_act, buf_act);
+
+			/* Scan macro for marker text, indicating that it's a set-switch */
+			// (note: MACROFILESET_MARKER_CYCLIC "Cycling\\sto\\sset")
+			// (note: MACROFILESET_MARKER_SWITCH "Switching\\sto\\sset")
+			if ((cc = strstr(buftxt_act, MACROFILESET_MARKER_CYCLIC))) style_cyclic = TRUE;
+			if ((cf = strstr(buftxt_act, MACROFILESET_MARKER_SWITCH))) style_free = TRUE;
+
+			if (!style_cyclic && !style_free) continue;
+
+			/* Found one! */
+
+			/* Determine base filename from the action text : %lFILENAME\r\e */
+			cfile = strstr(buftxt_act, "%l");
+			if (!cfile) continue; //broken set-switching macro (not following our known scheme)
+			strcpy(buf_basename, cfile + 2);
+			/* Find end of filename */
+			cfile = strstr(buf_basename, "\\r\\e");
+			if (!cfile) continue; //broken set-switching macro (not following our known scheme)
+			*cfile = 0;
+			/* Find start of 'stage' appendix of the filename, cut it off to obtain base filename.
+			   Assume filename has this format "basename-FSn.prf" where n is the stage number: 0...MACROFILESETS_STAGES_MAX */
+			/* If this is a cyclic macro, the number after FS won't give the # of cycles away! Only the %:... self-notification message can do that!
+			   So it should follow a specific format: ":%:Cycling to set n of m\r 'comment'\r" <- the 'of m' giving away the true amount of stages for cyclic sets!
+			   However, it might be better to instead scan the folder for macro files starting on the base filename instead, so we are sure to catch all. */
+			if (strncmp(buf_basename + strlen(buf_basename) - 8, "-FS", 3)) continue; //broken set-switching macro (not following our known scheme)
+
+			//TODO: Extract 'stage_comment' (eg 'water/cold spells' that is part of the switching-message)
+
+			/* --- At this point, we confirmed a valid macro belonging to a macro set found --- */
+
+			if (k >= MACROFILESETS_MAX) {
+				/* Too many macro sets! */
+				c_msg_format("\377yWarning(0): Excess macroset reference \"%s\" found! (max %d sets.).", buf_basename, MACROFILESETS_MAX);
+				continue;
+			}
+
+			/* Finalize stage index */
+			stage = atoi(buf_basename + strlen(buf_basename) - 5) - 1;
+			/* Finalize base filename */
+			buf_basename[strlen(buf_basename) - 8] = 0;
+
+			/* Too many stages? */
+			if (stage >= MACROFILESETS_STAGES_MAX) {
+				c_msg_format("\377yWarning(0): Discarding excess stage file %d (maximum stage is %d)", stage + 1, MACROFILESETS_STAGES_MAX);
+				c_msg_format("\377y            for macroset '%s'.", buf_basename);
+				continue;
+			} else if (stage < 0) {
+				c_msg_format("\377yWarning(0): Discarding invalid stage file %d (stages must start at 1)", stage + 1);
+				c_msg_format("\377y            for macroset '%s'.", buf_basename);
+				continue;
+			}
+
+			/* Scan already known filesets for same basename,
+			to either add the found key to an existing one or add a new fileset */
+			for (f = 0; f < k; f++) {
+				if (strcmp(fileset[f].basefilename, buf_basename)) continue;
+
+				/* Found set! */
+
+				/* New maximum stage registered? Then update # of stages. */
+				if (stage >= fileset[f].stages) fileset[f].stages = stage + 1;
+
+				/* Add stage to this already known set */
+				break;
+			}
+
+			/* No known fileset of this basename found? Register a new set. */
+			if (f == k) {
+				fileset[k].style_cyclic = style_cyclic;
+				fileset[k].style_free = style_free;
+
+				fileset[k].stages = stage + 1; // We have at least this many stages, apparently
+				strcpy(fileset[k].basefilename, buf_basename);
+
+				/* Init cycle keys */
+				fileset[k].macro__pat__cycle[0] = 0;
+				fileset[k].macro__patbuf__cycle[0] = 0;
+
+				/* Set is referenced by loaded macros in memory */
+				fileset[k].currently_referenced = TRUE;
+
+				/* One more registered macroset */
+				k++;
+			} else k = f; //unify, for subsequent code:
+
+			/* Get trigger in parsable format */
+			strncpy(buf_pat, macro__pat[m], 31);
+			buf_pat[31] = '\0';
+			ascii_to_text(buftxt_pat, buf_pat);
+
+			/* Init switch keys */
+			fileset[k].macro__pat__switch[stage][0] = 0;
+			fileset[k].macro__patbuf__switch[stage][0] = 0;
+			fileset[k].macro__act__switch[stage][0] = 0;
+			fileset[k].macro__actbuf__switch[stage][0] = 0;
+			/* Macro-set specific: */
+			if (style_cyclic) {
+				strcpy(fileset[k].macro__pat__cycle, buf_pat);
+				strcpy(fileset[k].macro__patbuf__cycle, buftxt_pat);
+			}
+			/* Macro-set-stage specific: */
+			if (style_free) {
+				strcpy(fileset[k].macro__pat__switch[stage], buf_pat);
+				strcpy(fileset[k].macro__patbuf__switch[stage], buftxt_pat);
+				strcpy(fileset[k].macro__act__switch[stage], buf_act);
+				strcpy(fileset[k].macro__actbuf__switch[stage], buftxt_act);
+			}
+
+			/* Continue scanning keys for switch-macros */
+		}
+		/* Scanned the last one of all loaded macros? We're done. */
+		if (m >= macro__num - 1) break;
+	}
+	filesets_found = k;
+
+
+	/* ---------- (b) Disk operations: Read macro files from TomeNET's user folder ---------- */
+
+	getcwd(cwd, sizeof(cwd)); //Remember TomeNET working directory
+	chdir(ANGBAND_DIR_USER); //Change to TomeNET user folder
+
+	/* For cyclic sets: These don't have keys to switch to each stage, but only 1 key that switches to the next stage.
+	   So to actually find all stages of a cyclic set, we therefore need to scan for all actually existing stage-filenames derived from the base filename.
+	   Also, for free-switch sets we can use this anyway, just to verify whether a stage's file does actually exist or if there is a 'hole' (eg stage files 1,2,4 exist but 3 doesn't). */
+	for (k = 0; k < filesets_found; k++) {
+#ifndef WINDOWS
+c_msg_format("(1)scan disk for set (%d) <%s>", k, fileset[k].basefilename);
+		glob(format("%s-FS?.prf", fileset[k].basefilename), 0, 0, &glob_res);
+		glob_size = glob_res.gl_pathc;
+		if (glob_size < 1) { /* No macro files found at all, ew. */
+			/* -- this warning is redundant with 'has no stage file(s)' warning further down ---
+			c_msg_format("\377yWarning: Currently loaded macros refer to macroset \"%s\"", fileset[k].basefilename);
+			c_msg_format("\377y         but there were no macro files \"%s-FS?.prf\" found of that name!", fileset[k].basefilename);
+			*/
+c_msg_print("(1)nothing");
+		} else { /* Found 'n' macro files */
+			fileset[k].any_stage_file_exists = TRUE;
+
+			for (p = glob_res.gl_pathv; glob_size; p++, glob_size--) {
+				/* Acquire base name and stage */
+				strcpy(buf_basename, *p);
+#else
+		hFind = FindFirstFile("*-FS?.prf", &FindFileData);
+		if (hFind == INVALID_HANDLE_VALUE) //;
+c_msg_format("(2)FindFirstFile failed (%ld)", GetLastError());
+		else {
+			strcpy(buf_basename, FindFileData.cFileName);
+			n = 0;
+			while (TRUE) {
+				if (n++) {
+					if (FindNextFile(hFind, &FindFileData)) strcpy(buf_basename, FindFileData.cFileName);
+					else break;
+				}
+#endif
+				/* Extract stage number */
+				stage = atoi(buf_basename + strlen(fileset[k].basefilename) + 3) - 1;
+				if (stage >= MACROFILESETS_STAGES_MAX) {
+					c_msg_format("\377yWarning(1): Discarding excess stage file %d (maximum stage is %d)", stage + 1, MACROFILESETS_STAGES_MAX);
+					c_msg_format("\377y            for macroset '%s'.", buf_basename);
+					continue;
+				} else if (stage < 0) {
+					c_msg_format("\377yWarning(1): Discarding invalid stage file %d (stages must start at 1)", stage + 1);
+					c_msg_format("\377y            for macroset '%s'.", buf_basename);
+					continue;
+				}
+c_msg_format("(1)set (%d) <%s> registered stage %d", k, fileset[k].basefilename, stage);
+
+				/* Register that there is an existing file to back up this stage's existance */
+				fileset[k].stage_file_exists[stage] = TRUE;
+
+				/* If stage number is higher than our highest known stage number, increase our known number to this one (new max found) */
+				if (stage >= fileset[k].stages) fileset[k].stages = stage + 1;
+			}
+		}
+#ifndef WINDOWS
+		globfree(&glob_res);
+#else
+		if (hFind != INVALID_HANDLE_VALUE) FindClose(hFind);
+#endif
+	}
+
+
+	/* ---------- (c) Now also scan user folder for any macro sets that aren't referenced by our currently loaded macros: ---------- */
+
+#ifndef WINDOWS
+	glob("*-FS?.prf", 0, 0, &glob_res);
+	glob_size = glob_res.gl_pathc;
+	if (glob_size < 1) //; /* No macro files found at all */
+c_msg_print("(2)nothing");
+	else { /* Found 'n' macro files */
+		for (p = glob_res.gl_pathv; glob_size; p++, glob_size--) {
+			/* Acquire base name and stage */
+			strcpy(buf_basename, *p);
+#else
+	hFind = FindFirstFile("*-FS?.prf", &FindFileData);
+	if (hFind == INVALID_HANDLE_VALUE) { //;
+		c_msg_format("(2)FindFirstFile failed (%ld)", GetLastError());
+	} else {
+		strcpy(buf_basename, FindFileData.cFileName);
+		n = 0;
+		while (TRUE) {
+			if (n++) {
+				if (FindNextFile(hFind, &FindFileData)) strcpy(buf_basename, FindFileData.cFileName);
+				else break;
+			}
+#endif
+			/* Extract stage index */
+			stage = atoi(buf_basename + strlen(buf_basename) - 5) - 1;
+			/* Extract base name */
+			buf_basename[strlen(buf_basename) - 8] = 0;
+
+c_msg_format("(2)set <%s> / stage %d found", buf_basename, stage);
+			/* Too many stages? */
+			if (stage >= MACROFILESETS_STAGES_MAX) {
+				c_msg_format("\377yWarning(2): Discarding excess stage file %d (maximum stage is %d)", stage + 1, MACROFILESETS_STAGES_MAX);
+				c_msg_format("\377y            for macroset '%s'.", buf_basename);
+				continue;
+			} else if (stage < 0) {
+				c_msg_format("\377yWarning(2): Discarding invalid stage file %d (stages must start at 1)", stage + 1);
+				c_msg_format("\377y            for macroset '%s'.", buf_basename);
+				continue;
+			}
+
+			/* Check if it's not one we already registered in (b) above, or here in (c) from a previous '*p' entry */
+			for (k = 0; k < filesets_found; k++)
+				if (!strcmp(fileset[k].basefilename, buf_basename)) break;
+
+			/* It's a set we already know? */
+			if (k != filesets_found) {
+				/* If it was from (b) then we have fully checked all related files already and can continue.
+				   To determine whether it was from (b), we utilize our knowledge that any filesets scanned in (b)
+				   are those registered in (a) ie those currently referenced to by loaded macros in memory. */
+				if (fileset[k].currently_referenced) continue;
+
+				/* It's a new stage of a set we have registered already */
+c_msg_format("(2)existing disk-set (%d) <%s> adds stage %d", k, fileset[k].basefilename, stage);
+
+				/* Register that there is an existing file to back up this stage's existance */
+				fileset[k].stage_file_exists[stage] = TRUE;
+
+				/* New maximum stage registered? Then update # of stages. */
+				if (stage >= fileset[k].stages) fileset[k].stages = stage + 1;
+			}
+			/* It's a new set that we haven't registered yet? */
+			else {
+				c_msg_format("Found disk-only set <%s>.", buf_basename);
+
+				/* Register it as new set if possible (we still have space)*/
+
+				if (k >= MACROFILESETS_MAX) {
+					/* Too many macro sets! */
+					c_msg_format("\377yWarning(2): Excess macroset reference \"%s\" found! (max %d sets.).", buf_basename, MACROFILESETS_MAX);
+					continue;
+				}
+
+				fileset[k].stages = stage + 1; // We have at least this many stages, apparently
+				strcpy(fileset[k].basefilename, buf_basename);
+
+				/* Register that there is an existing file to back up this stage's existance */
+				fileset[k].stage_file_exists[stage] = TRUE;
+
+				fileset[k].style_cyclic = FALSE;//todo:find out- style_cyclic;
+				fileset[k].style_free = FALSE;//todo:find out- style_free;
+
+				/* Init cycle keys */
+				fileset[k].macro__pat__cycle[0] = 0;
+				fileset[k].macro__patbuf__cycle[0] = 0;
+
+				/* Set is purely from disk, not referenced by loaded macros in memory */
+				fileset[k].currently_referenced = FALSE;
+
+				/* One more registered macroset */
+				filesets_found++;
+			}
+		}
+	}
+#ifndef WINDOWS
+	globfree(&glob_res);
+#else
+	if (hFind != INVALID_HANDLE_VALUE) FindClose(hFind);
+#endif
+	/* End of 'user' folder disk operations */
+	chdir(cwd); //Return to TomeNET working directory
+
+
+	/* ---------- For all known macro sets, now check whether macro files for all/some stages are missing ---------- */
+
+	for (k = 0; k < filesets_found; k++) {
+		/* Count all stage files */
+		n = 0;
+		for (f = 0; f < fileset[k].stages; f++) {
+			if (fileset[k].stage_file_exists[f]) n++;
+			else stage = f;
+		}
+
+		/* Found all of them aka fileset is complete? We're done. */
+		if (n == fileset[k].stages) {
+			fileset[k].all_stage_files_exist = TRUE;
+			continue;
+		}
+
+		/* Found none, ie all stages are missing their file each? */
+		if (!n) {
+			if (fileset[k].stages == 1) {
+				c_msg_format("\377yWarning(+): Macroset \"%s\" (1 stage) has no file.", fileset[k].basefilename);
+			} else {
+ #if 0
+				c_msg_format("\377yWarning(+): Macroset \"%s\" (%d stage%s) has no files for any stage.",
+				    fileset[k].basefilename, fileset[k].stages, fileset[k].stages != 1 ? "s" : "");
+ #else /* Save screen space, shorter message */
+				c_msg_format("\377yWarning(+): Macroset \"%s\" (%d stage%s) has no files.",
+				    fileset[k].basefilename, fileset[k].stages, fileset[k].stages != 1 ? "s" : "");
+ #endif
+			}
+		}
+		/* Just one of the stages is missing a file? */
+		else if (n == fileset[k].stages - 1) {
+			c_msg_format("\377yWarning(+): Macroset \"%s\" (%d stage%s) has no file for stage %d.",
+			    fileset[k].basefilename, fileset[k].stages, fileset[k].stages != 1 ? "s" : "", stage + 1);
+		/* Several stages are missing files */
+		} else {
+			tmpbuf[0] = 0;
+			for (f = 0; f < fileset[k].stages; f++)
+				if (!fileset[k].stage_file_exists[f]) strcat(tmpbuf, format("%d, ", f + 1));
+			tmpbuf[strlen(tmpbuf) - 2] = 0; //trim trailing comma
+
+			c_msg_format("\377yWarning(+): Macroset \"%s\" (%d stage%s)",
+			    fileset[k].basefilename, fileset[k].stages, fileset[k].stages != 1 ? "s" : "");
+			c_msg_format("\377y            has no files for these stages: %s.", tmpbuf);
+		}
+	}
+
+	/* all done, return # of sets found */
+	return(filesets_found);
+}
+
+/* Prompt to enter an existing macrofileset number, stores it in 'f': */
+#define GET_MACROFILESET \
+	{ if (!filesets_found) continue; \
+	Term_putstr(15, l, -1, TERM_L_GREEN, format("Enter number of set to select (1-%d): ", filesets_found)); \
+	tmpbuf[0] = 0; \
+	if (!askfor_aux(tmpbuf, 3, 0)) continue; \
+	f = atoi(tmpbuf) - 1; \
+	if (f < 0 || f >= filesets_found) { \
+		c_msg_format("\377oError: Invalid number entered (%d).", f + 1); \
+		continue; \
+	} }
+
+/* Prompt to enter an existing macrofileset-stage number of the currently selected fileset, stores it in 'f': */
+#define GET_MACROFILESET_STAGE \
+	{ if (fileset_selected == -1 || !fileset[fileset_selected].stages) continue; \
+	Term_putstr(15, l, -1, TERM_L_GREEN, format("Enter number of stage to select (1-%d): ", fileset[fileset_selected].stages)); \
+	tmpbuf[0] = 0; \
+	if (!askfor_aux(tmpbuf, 3, 0)) continue; \
+	f = atoi(tmpbuf) - 1; \
+	if (f < 0 || f >= fileset[fileset_selected].stages) { \
+		c_msg_format("\377oError: Invalid number entered (%d).", f + 1); \
+		continue; \
+	} }
+
+#endif /* TEST_CLIENT */
+
 void interact_macros(void) {
-	int i, j = 0, l, chain_type;
+	int i, j = 0, l, l2, chain_type;
 	char tmp[160], buf[1024], buf2[1024], *bptr, *b2ptr, chain_macro_buf[1024];
 	char fff[1024], t_key[10], choice;
 	bool m_ctrl, m_alt, m_shift, t_hyb, t_com;
 	bool were_recording = FALSE;
 	bool inkey_msg_old = inkey_msg; //just for cmd_message().. probably redundant and we could just remove the inkey_msg = TRUE at cmd_message() instead of doing these extra checks...
+#ifdef TEST_CLIENT
+	static bool rescan = TRUE; // (mw_fileset) always initially scan once on first invocation of the macro-fileset menu
+#endif
 
 	/* Save screen */
 	Term_save();
+	topline_icky = TRUE;
 
 	/* No macros should work within the macro menu itself */
 	inkey_interact_macros = TRUE; /* This makes setting inkey_msg = TRUE after cmd_message() redundant and therefore not needed */
@@ -5321,6 +5780,7 @@ void interact_macros(void) {
 		Term_putstr(5, l++, -1, TERM_L_BLUE, "(\377yz\377B) Invoke macro wizard         *** Recommended ***");
 		Term_putstr(5, l++, -1, TERM_L_BLUE, "(\377ys\377B/\377yS\377B/\377yF\377B/\377yA\377B) Save macros to named / global.prf / form-named / class pref file");
 		Term_putstr(5, l++, -1, TERM_WHITE, "(\377yl\377w/\377yL\377w) Load macros from a pref file / load current class-specific pref file");
+		Term_putstr(5, l++, -1, TERM_L_BLUE, "(\377yZ\377w) Invoke macro wizard and implicitely choose macro-set creation.");
 		l++;
 		Term_putstr(5, l++, -1, TERM_WHITE, "(\377yd\377w) Delete a macro from a key   (restores a key's normal behaviour)");
 		Term_putstr(5, l++, -1, TERM_WHITE, "(\377yI\377w) Reinitialize all macros     (discards all unsaved macros)");
@@ -5338,7 +5798,7 @@ void interact_macros(void) {
 		//Term_putstr(5, l++, -1, TERM_SLATE, "(\377r\377w/\377yR\377w) Record a macro / set preferences");
 		Term_putstr(5, l++, -1, TERM_SLATE, "(\377ur\377s) Record a macro");
 		Term_putstr(5, l++, -1, TERM_SLATE, "(\377up\377s) Paste currently shown macro action to chat");
-		l++;
+		//l++;
 
 		/* Describe that action */
 		Term_putstr(0, l + 2, -1, TERM_L_GREEN, "Current action (if any) shown below:");
@@ -5455,6 +5915,7 @@ void interact_macros(void) {
 
 			/* Default filename */
 			if (strcmp(c_p_ptr->body_name, "Player")) sprintf(tmp, "%s%c%s.prf", cname, PRF_BODY_SEPARATOR, c_p_ptr->body_name);
+			/* Fall back to normal character name if not using any monster form */
 			else sprintf(tmp, "%s.prf", cname);
 
 			/* Ask for a file */
@@ -6344,6 +6805,7 @@ void interact_macros(void) {
 
 			/* Reload screen */
 			Term_load();
+			topline_icky = FALSE;
 
 			/* Flush the queue */
 			Flush_queue();
@@ -6418,8 +6880,7 @@ void interact_macros(void) {
 				process_pref_file(buf);
 			}
 			/* Access the "character" pref file */
-			sprintf(buf, "%s.prf", cname);
-			process_pref_file(buf);
+			load_charspec_macros(cname);
 
 			macro_processing_exclusive = FALSE;
 			c_msg_print("Reninitialized all macros, omitting 'global.prf'");
@@ -6472,12 +6933,11 @@ void interact_macros(void) {
 			}
 #if 0 /* skip exactly these here */
 			/* Access the "character" pref file */
-			sprintf(buf, "%s.prf", cname);
-			process_pref_file(buf);
+			load_charspec_macros(cname);
 #endif
 
 			macro_processing_exclusive = FALSE;
-			c_msg_format("Reninitialized all macros, omitting '%s.prf'", cname);
+			c_msg_format("Reninitialized all macros, omitting '%s*.prf", cname);
 		}
 
 		else if (i == 'B') {
@@ -6529,12 +6989,11 @@ void interact_macros(void) {
 			}
 #if 0 /* skip these here */
 			/* Access the "character" pref file */
-			sprintf(buf, "%s.prf", cname);
-			process_pref_file(buf);
+			load_charspec_macros(cname);
 #endif
 
 			macro_processing_exclusive = FALSE;
-			c_msg_format("Reninitialized all macros, omitting 'global.prf' and '%s.prf'", cname);
+			c_msg_format("Reninitialized all macros, omitting 'global.prf' and '%s*.prf'", cname);
 		}
 
 		else if (i == 'U') {
@@ -6584,13 +7043,13 @@ void interact_macros(void) {
 				process_pref_file(buf);
 			}
 			/* Access the "character" pref file */
-			sprintf(buf, "%s.prf", cname);
-			process_pref_file(buf);
+			load_charspec_macros(cname);
 #endif
 
 			macro_processing_exclusive = FALSE;
 			c_msg_print("Reninitialized all macros, omitting all auto-loaded prf-files:");
-			c_msg_format(" 'global.prf', '%s.prf', '%s.prf', '%s.prf, '%s.prf'", cname,
+			c_msg_format(" 'global.prf', '%s*.prf', '%s.prf', '%s.prf, '%s.prf'",
+			    cname,
 			    race < Setup.max_race ? race_info[race].title : "NO_RACE",
 			    trait < Setup.max_trait ? trait_info[trait].title : "NO_TRAIT",
 			    class < Setup.max_class ? class_info[class].title : "NO_CLASS");
@@ -6660,8 +7119,8 @@ void interact_macros(void) {
 				process_pref_file(buf);
 			}
 			/* Access the "character" pref file */
-			sprintf(buf, "%s.prf", cname);
-			process_pref_file(buf);
+			load_charspec_macros(cname);
+
 
 			macro_processing_exclusive = FALSE;
 			c_msg_print("Reninitialized all macros.");
@@ -6681,8 +7140,8 @@ void interact_macros(void) {
 			Send_paste_msg(buf);
 		}
 
-		else if (i == 'z') {
-			int target_dir = '5';
+		else if (i == 'z' || i == 'Z') {
+			int target_dir = '5', ystart = 6;
 			bool should_wait, force_normal;
 #define mw_quaff 'a'
 #define mw_read 'b'
@@ -6719,6 +7178,7 @@ void interact_macros(void) {
 #define mw_dir_close 'u'
 #define mw_LAST 'u'
 #define mw_chain 'Z'
+#define mw_fileset 'S'
 
 			/* Invoke wizard to create a macro step-by-step as easy as possible  */
 			Term_putstr(0, l, -1, TERM_L_GREEN, "Command: Invoke macro wizard");
@@ -6735,17 +7195,26 @@ Chain_Macro:
 			/* Describe */
 			Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 			//Term_putstr(25, 22, -1, TERM_L_UMBER, "[Press ESC to exit anytime]");
-			Term_putstr(1, 6, -1, TERM_L_DARK, "Don't forget to save your macros with 's' when you are back in the macro menu!");
-			Term_putstr(19, 7, -1, TERM_L_UMBER, "----------------------------------------");
+			Term_putstr(1, 4, -1, TERM_L_DARK, "Don't forget to save your macros with 's' when you are back in the macro menu!");
+			Term_putstr(19, 5, -1, TERM_L_UMBER, "----------------------------------------");
 
 			/* Initialize wizard state: First state */
-			i = choice = 0;
+			if (i == 'Z') { //shortcut
+				i = 1;
+				choice = mw_fileset;
+			} else i = choice = 0;
 			/* Paranoia */
 			memset(tmp, 0, 160);
 			memset(buf, 0, 1024);
 			memset(buf2, 0, 1024);
 
 			while (i != -1) {
+				/* mw_fileset: Restart */
+				if (i == 'Z') { //hack
+					i = 1;
+					choice = mw_fileset;
+				}
+
 				/* Restart wizard from a wrong choice? */
 				if (i == -2) {
 					/* Paranoia */
@@ -6757,17 +7226,18 @@ Chain_Macro:
 					should_wait = FALSE;
 				}
 
-				Term_putstr(12, 2, -1, i == 0 ? TERM_L_GREEN : TERM_SLATE, "Step 1:  Choose an action for the macro to perform.");
-				Term_putstr(12, 3, -1, i == 1 ? TERM_L_GREEN : TERM_SLATE, "Step 2:  If required, choose item, spell, and targetting method.");
-				Term_putstr(12, 4, -1, i == 2 ? TERM_L_GREEN : TERM_SLATE, "Step 3:  Choose the key you want to bind the macro to.");
+				/* Colour currently active step */
+				Term_putstr(12, 1, -1, i == 0 ? TERM_L_GREEN : TERM_SLATE, "Step 1:  Choose an action for the macro to perform.");
+				Term_putstr(12, 2, -1, i == 1 ? TERM_L_GREEN : TERM_SLATE, "Step 2:  If required, choose item, spell, and targetting method.");
+				Term_putstr(12, 3, -1, i == 2 ? TERM_L_GREEN : TERM_SLATE, "Step 3:  Choose the key you want to bind the macro to.");
 
-				clear_from(8);
+				clear_from(ystart);
 
 				switch (i) {
 				case 0:
 					force_normal = FALSE;
-					l = 8;
-					Term_putstr(5, l++, -1, TERM_GREEN, "Which of the following actions should the macro perform?");
+					l = ystart;
+					Term_putstr(1, l++, -1, TERM_GREEN, "Which of the following actions should the macro perform?");
 					Term_putstr(8, l++, -1, TERM_L_GREEN, "a\377w/\377Gb) Drink a potion. \377w/\377G Read a scroll.");
 					Term_putstr(8, l++, -1, TERM_L_GREEN, "c\377w/\377GC) Fire ranged weapon (including boomerangs). \377w/\377G Throw an item.");
 					Term_putstr(8, l++, -1, TERM_L_GREEN, "d\377w/\377GD) Cast school \377w/\377G mimic spell without a target (or target manually).");
@@ -6783,7 +7253,9 @@ Chain_Macro:
 					Term_putstr(6, l++, -1, TERM_L_GREEN, "n\377w/\377GN\377w/\377GZ) Slash command. \377w/\377G Custom action ('%a'). \377w/\377G Chain existing macros.");
 					Term_putstr(6, l++, -1, TERM_L_GREEN, "o\377w/\377GO\377w/\377Gp) Load a macro file. \377w/\377G Modify an option. \377w/\377G Change equipment.");
 					Term_putstr(2, l++, -1, TERM_L_GREEN, "q\377w/\377Gr\377w/\377Gs\377w/\377Gt\377w/\377Gu) Directional running \377w/\377G tunneling \377w/\377G disarming \377w/\377G bashing \377w/\377G closing.");
-
+#ifdef TEST_CLIENT
+					Term_putstr(8, l++, -1, TERM_L_GREEN, "S)   Create a switchable multi-macrofile set.");
+#endif
 
 					while (TRUE) {
 						/* Hack: Hide the cursor */
@@ -6799,6 +7271,8 @@ Chain_Macro:
 						case ':':
 							/* specialty: allow chatting from within here (only in macro wizard step 1) */
 							cmd_message();
+							/* Restore top line */
+							Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 							continue;
 						case KTRL('T'):
 							/* Take a screenshot */
@@ -6810,7 +7284,11 @@ Chain_Macro:
 							    choice != 'C' && choice != 'D' && choice != 'E' &&
 							    choice != 'G' && choice != 'H' && choice != 'I' && choice != 'J' &&
 							    choice != 'K' && choice != 'L' && choice != 'M' && choice != 'N' && choice != 'O' &&
-							    choice != 'Z') {
+							    choice != 'Z'
+#ifdef TEST_CLIENT
+							    && choice != 'S'
+#endif
+							    ) {
 								//i = -1;
 								continue;
 							}
@@ -6824,21 +7302,24 @@ Chain_Macro:
 					i++;
 					break;
 				case 1:
+					l = ystart + 2;
 					switch (choice) {
 					case mw_quaff:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the potion's name or inscription.");
-						//Term_putstr(5, 11, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
-						Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377GCritical Wounds");
-						Term_putstr(5, 12, -1, TERM_GREEN, "if you want to quaff a 'Potion of Cure Critical Wounds'.");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial potion name or inscription:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the potion's name or inscription.");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GCritical Wounds");
+						Term_putstr(5, l++, -1, TERM_GREEN, "if you want to quaff a 'Potion of Cure Critical Wounds'.");
+						l += 3;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial potion name or inscription:");
 						break;
 
 					case mw_read:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the scroll's name or inscription.");
-						//Term_putstr(5, 11, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
-						Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377GPhase Door");
-						Term_putstr(5, 12, -1, TERM_GREEN, "if you want to read a 'Scroll of Phase Door'.");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial scroll name or inscription:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the scroll's name or inscription.");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GPhase Door");
+						Term_putstr(5, l++, -1, TERM_GREEN, "if you want to read a 'Scroll of Phase Door'.");
+						l += 3;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial scroll name or inscription:");
 						should_wait = TRUE; /* recharge scrolls mostly; id/enchant scrolls.. */
 						break;
 
@@ -6846,82 +7327,89 @@ Chain_Macro:
 						should_wait = TRUE; /* Just to be on the safe side, if the item picked is one that might require waiting (eg scroll of recharging in a chained macro). */
 						__attribute__ ((fallthrough));
 					case mw_anydir:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
-						//Term_putstr(5, 11, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
 						if (choice == mw_any) {
-							Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377GRation");
-							Term_putstr(5, 12, -1, TERM_GREEN, "if you want to use (eat) a 'Ration of Food'.");
+							Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GRation");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use (eat) a 'Ration of Food'.");
 						} else {
 							/* actually a bit silyl here, we're not really using inscriptions but instead treat them as text -_-.. */
-							Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377G@/0"); /* ..so 'correctly' this should just be '/0' :-p */
-							Term_putstr(5, 12, -1, TERM_GREEN, "if you want to use (fire) a wand or rod inscribed '@/0'.");
+							Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377G@/0"); /* ..so 'correctly' this should just be '/0' :-p */
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use (fire) a wand or rod inscribed '@/0'.");
 						}
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial potion name or inscription:");
+						l += 3;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial potion name or inscription:");
 						break;
 
 					case mw_schoolnt:
 						sprintf(tmp, "return get_class_spellnt(%d)", p_ptr->pclass);
 						strcpy(buf, string_exec_lua(0, tmp));
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact spell name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact spell name:");
 						should_wait = TRUE; /* identify/recharge spells */
 						break;
 
 					case mw_mimicnt:
 						sprintf(tmp, "return get_class_mimicnt(%d)", p_ptr->pclass);
 						strcpy(buf, string_exec_lua(0, tmp));
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact spell name.");//and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact spell name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact spell name.");//and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact spell name:");
 						break;
 
 					case mw_schoolt:
 						sprintf(tmp, "return get_class_spellt(%d)", p_ptr->pclass);
 						strcpy(buf, string_exec_lua(0, tmp));
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact spell name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact spell name:");
 						break;
 
 					case mw_mimict:
 						sprintf(tmp, "return get_class_mimict(%d)", p_ptr->pclass);
 						strcpy(buf, string_exec_lua(0, tmp));
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact spell name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact spell name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, format("For example, enter:     \377G%s", buf));
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact spell name:");
 						break;
 
 					case mw_mimicidx:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter a spell number, starting from 1, which is");
-						Term_putstr(10, 11, -1, TERM_GREEN, "the first spell after the 3 basic powers and immunity");
-						Term_putstr(10, 12, -1, TERM_GREEN, "preference setting, which always occupy spell slots a)-d).");
-						Term_putstr(10, 13, -1, TERM_GREEN, "So \377G1\377g = spell e), \377G2\377g = f), \377G3\377g = g), \377G4\377g = h) etc.");
-						Term_putstr(10, 14, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter spell index number:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter a spell number, starting from 1, which is");
+						Term_putstr(10, l++, -1, TERM_GREEN, "the first spell after the 3 basic powers and immunity");
+						Term_putstr(10, l++, -1, TERM_GREEN, "preference setting, which always occupy spell slots a)-d).");
+						Term_putstr(10, l++, -1, TERM_GREEN, "So \377G1\377g = spell e), \377G2\377g = f), \377G3\377g = g), \377G4\377g = h) etc.");
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a spell before you can use it!");
+						l++;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter spell index number:");
 						break;
 
 					case mw_fight:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact technique name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, "For example, enter:     \377GSprint");
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a technique before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact technique name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact technique name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, "For example, enter:     \377GSprint");
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a technique before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact technique name:");
 						break;
 
 					case mw_stance:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please pick a stance:");
-						Term_putstr(10, 11, -1, TERM_GREEN, "  \377Ga\377g) Balanced stance (standard)");
-						Term_putstr(10, 12, -1, TERM_GREEN, "  \377Gb\377g) Defensive stance");
-						Term_putstr(10, 13, -1, TERM_GREEN, "  \377Gc\377g) Offensive stance");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please pick a stance:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "  \377Ga\377g) Balanced stance (standard)");
+						Term_putstr(10, l++, -1, TERM_GREEN, "  \377Gb\377g) Defensive stance");
+						Term_putstr(10, l++, -1, TERM_GREEN, "  \377Gc\377g) Offensive stance");
 						/* Hack: Hide the cursor */
 						Term->scr->cx = Term->wid;
 						Term->scr->cu = 1;
@@ -6935,6 +7423,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -6957,33 +7447,36 @@ Chain_Macro:
 						break;
 
 					case mw_shoot:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact technique name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, "For example, enter:     \377GFlare Missile");
-						Term_putstr(10, 12, -1, TERM_GREEN, "You must have learned a technique before you can use it!");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact technique name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact technique name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, "For example, enter:     \377GFlare Missile");
+						Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a technique before you can use it!");
+						l += 3;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact technique name:");
 						break;
 
 					case mw_poly:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact monster name OR its code. (You can find");
-						Term_putstr(10, 11, -1, TERM_GREEN, "codes you have already learned by pressing  \377s~ 2 @  \377gin the game");
-						Term_putstr(10, 12, -1, TERM_GREEN, "or by pressing  \377s:  \377gto chat and then typing the command:  \377s/mon @");
-						Term_putstr(10, 13, -1, TERM_GREEN, "The first number on the left, in parentheses, is what you need.)");
-						Term_putstr(10, 14, -1, TERM_GREEN, "For example, enter  \377GFruit bat\377g  or just  \377G37  \377gto transform into one.");
-						Term_putstr(10, 15, -1, TERM_GREEN, "To return to the form you used before your current form, enter:  \377G-1\377g .");
-						Term_putstr(10, 16, -1, TERM_GREEN, "To return to your normal form, use  \377GPlayer\377g  or its code  \377G0\377g  .");
-						Term_putstr(10, 17, -1, TERM_GREEN, "To get asked about the form every time, just leave this blank.");
-						//Term_putstr(10, 18, -1, TERM_GREEN, "You must have learned a form before you can use it!");
-						Term_putstr(1, 19, -1, TERM_L_GREEN, "Enter exact monster name/code or leave blank:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact monster name OR its code. (You can find");
+						Term_putstr(10, l++, -1, TERM_GREEN, "codes you have already learned by pressing  \377s~ 2 @  \377gin the game");
+						Term_putstr(10, l++, -1, TERM_GREEN, "or by pressing  \377s:  \377gto chat and then typing the command:  \377s/mon @");
+						Term_putstr(10, l++, -1, TERM_GREEN, "The first number on the left, in parentheses, is what you need.)");
+						Term_putstr(10, l++, -1, TERM_GREEN, "For example, enter  \377GFruit bat\377g  or just  \377G37  \377gto transform into one.");
+						Term_putstr(10, l++, -1, TERM_GREEN, "To return to the form you used before your current form, enter:  \377G-1\377g .");
+						Term_putstr(10, l++, -1, TERM_GREEN, "To return to your normal form, use  \377GPlayer\377g  or its code  \377G0\377g  .");
+						Term_putstr(10, l++, -1, TERM_GREEN, "To get asked about the form every time, just leave this blank.");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "You must have learned a form before you can use it!");
+						l++;
+						Term_putstr(1, l++, -1, TERM_L_GREEN, "Enter exact monster name/code or leave blank:");
 						should_wait = TRUE;
 						break;
 
 					case mw_prfimm:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please choose an immunity preference:");
-						Term_putstr(5, 11, -1, TERM_GREEN, "\377Ga\377g) Just check (displays your current immunity preference)");
-						Term_putstr(5, 12, -1, TERM_GREEN, "\377Gb\377g) None (pick one randomly on polymorphing)");
-						Term_putstr(5, 13, -1, TERM_GREEN, "\377Gc\377g) Electricity  \377Gd\377g) Cold  \377Ge\377g) Fire  \377Gf\377g) Acid  \377Gg\377g) Poison  \377Gh\377g) Water");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Pick one (a-h): ");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please choose an immunity preference:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Ga\377g) Just check (displays your current immunity preference)");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Gb\377g) None (pick one randomly on polymorphing)");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Gc\377g) Electricity  \377Gd\377g) Cold  \377Ge\377g) Fire  \377Gf\377g) Acid  \377Gg\377g) Poison  \377Gh\377g) Water");
+						l += 2;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Pick one (a-h): ");
 
 						while (TRUE) {
 							switch (choice = inkey()) {
@@ -6994,6 +7487,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7037,9 +7532,9 @@ Chain_Macro:
 
 						/* Ask for a runespell? */
 						while (!exec_lua(0, format("return rcraft_end(%d)", u))) {
-							clear_from(8);
+							clear_from(ystart);
 							Term_putstr(12, 22, -1, TERM_GREEN, "(Press Backspace to go back one step or Escape to quit)");
-							exec_lua(0, format("return rcraft_prt(%d, %d, %d)", u, 1));
+							exec_lua(0, format("return rcraft_prt(%d, %d)", u, 2));
 							/* Hack: Hide the cursor */
 							Term->scr->cx = Term->wid;
 							Term->scr->cu = 1;
@@ -7057,6 +7552,8 @@ Chain_Macro:
 								continue;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								break;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7084,14 +7581,15 @@ Chain_Macro:
 
 					case mw_trap:
 						/* ---------- Enter trap kit name ---------- */
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the trap kit name or inscription.");
-						//Term_putstr(5, 11, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
-						Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377GCatapult");
-						Term_putstr(5, 12, -1, TERM_GREEN, "if you want to use a 'Catapult Trap Kit'.");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial trap kit name or inscription:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the trap kit name or inscription.");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GCatapult");
+						Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Catapult Trap Kit'.");
+						l += 3;
+						Term_putstr(5, l, -1, TERM_L_GREEN, "Enter partial trap kit name or inscription:");
 
 						/* Get an item name */
-						Term_gotoxy(50, 16);
+						Term_gotoxy(50, l);
 						strcpy(buf, "");
 						if (!askfor_aux(buf, 159, 0)) {
 							i = -2;
@@ -7100,17 +7598,19 @@ Chain_Macro:
 						strcat(buf, "\\r");
 
 						/* ---------- Enter ammo/load name ---------- */
-						clear_from(10);
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the item name or inscription you");
-						Term_putstr(5, 11, -1, TERM_GREEN, "want to load the trap kit with.");//, and pay attention to upper-case");
-						//Term_putstr(5, 12, -1, TERM_GREEN, "and lower-case letters!");
-						Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GPebbl     \377gif you want");
-						Term_putstr(5, 13, -1, TERM_GREEN, "to load a catapult trap kit with 'Rounded Pebbles'.");
-						Term_putstr(5, 14, -1, TERM_GREEN, "If you want to choose ammo manually, just press the \377GRETURN\377g key.");
-						Term_putstr(5, 17, -1, TERM_L_GREEN, "Enter partial ammo/load name or inscription:");
+						l = ystart + 2;
+						clear_from(l);
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the item name or inscription you");
+						Term_putstr(5, l++, -1, TERM_GREEN, "want to load the trap kit with.");//, and pay attention to upper-case");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GPebbl     \377gif you want");
+						Term_putstr(5, l++, -1, TERM_GREEN, "to load a catapult trap kit with 'Rounded Pebbles'.");
+						Term_putstr(5, l++, -1, TERM_GREEN, "If you want to choose ammo manually, just press the \377GRETURN\377g key.");
+						l += 2;
+						Term_putstr(5, l, -1, TERM_L_GREEN, "Enter partial ammo/load name or inscription:");
 
 						/* Get an item name */
-						Term_gotoxy(50, 17);
+						Term_gotoxy(50, l);
 						strcpy(buf2, "");
 						if (!askfor_aux(buf2, 159, 0)) {
 							i = -2;
@@ -7125,13 +7625,14 @@ Chain_Macro:
 						break;
 
 					case mw_device:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please choose the type of magic device you want to use:");
-						Term_putstr(15, 12, -1, TERM_L_GREEN, "a) a wand");
-						Term_putstr(15, 13, -1, TERM_L_GREEN, "b) a staff");
-						Term_putstr(15, 14, -1, TERM_L_GREEN, "c) a rod that doesn't require a target");
-						Term_putstr(15, 15, -1, TERM_L_GREEN, "d) a rod that requires a target");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "e) an activatable item that doesn't require a target");
-						Term_putstr(15, 17, -1, TERM_L_GREEN, "f) an activatable item that requires a target");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please choose the type of magic device you want to use:");
+						l++;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "a) a wand");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "b) a staff");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "c) a rod that doesn't require a target");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "d) a rod that requires a target");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "e) an activatable item that doesn't require a target");
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "f) an activatable item that requires a target");
 
 						/* Hack: Hide the cursor */
 						Term->scr->cx = Term->wid;
@@ -7146,6 +7647,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7187,85 +7690,93 @@ Chain_Macro:
 
 						/* ---------- Enter device name ---------- */
 
-						clear_from(10);
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the magic device's name or");
-						Term_putstr(5, 11, -1, TERM_GREEN, "inscription.");// and pay attention to upper-case and lower-case letters!");
+						l = ystart + 2;
+						clear_from(ystart);
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the magic device's name or");
+						Term_putstr(5, l++, -1, TERM_GREEN, "inscription.");// and pay attention to upper-case and lower-case letters!");
 						switch (choice) {
-						case 'a': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GMagic Mis");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use a 'Wand of Magic Missiles'.");
+						case 'a': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GMagic Mis");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Wand of Magic Missiles'.");
 							break;
-						case 'b': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GTelep");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use a 'Staff of Teleportation'.");
+						case 'b': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GTelep");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Staff of Teleportation'.");
 							break;
-						case 'c': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GTrap Loc");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use a 'Rod of Trap Location'.");
+						case 'c': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GTrap Loc");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Rod of Trap Location'.");
 							break;
-						case 'd': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GLightn");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use a 'Rod of Lightning Bolts'.");
+						case 'd': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GLightn");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Rod of Lightning Bolts'.");
 							break;
-						case 'e': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GFrostw");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use a 'Frostwoven Cloak'.");
+						case 'e': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GFrostw");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use a 'Frostwoven Cloak'.");
 							break;
-						case 'f': Term_putstr(5, 12, -1, TERM_GREEN, "For example, enter:     \377GSerpen");
-							Term_putstr(5, 13, -1, TERM_GREEN, "if you want to use an 'Amulet of the Serpents'.");
+						case 'f': Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377GSerpen");
+							Term_putstr(5, l++, -1, TERM_GREEN, "if you want to use an 'Amulet of the Serpents'.");
 							break;
 						}
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial device name or inscription:");
+						l += 2;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial device name or inscription:");
 
 						/* hack before we exit: remember menu choice 'magic device' */
 						choice = mw_device;
 						break;
 
 					case mw_abilitynt:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact ability name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, "For example, enter:     \377GSwitch between main-hand and dual-hand");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact ability name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact ability name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, "For example, enter:     \377GSwitch between main-hand and dual-hand");
+						l += 4;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact ability name:");
 						break;
 					case mw_abilityt:
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please enter the exact ability name.");// and pay attention");
-						//Term_putstr(10, 11, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
-						Term_putstr(10, 11, -1, TERM_GREEN, "For example, enter:     \377GBreathe element");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Enter exact ability name:");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please enter the exact ability name.");// and pay attention");
+						//Term_putstr(10, l++, -1, TERM_GREEN, "to upper-case and lower-case letters and spaces!");
+						Term_putstr(10, l++, -1, TERM_GREEN, "For example, enter:     \377GBreathe element");
+						l += 4;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Enter exact ability name:");
 						break;
 
 					case mw_throw:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
-						//Term_putstr(5, 11, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
-						Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377G{bad}");
-						Term_putstr(5, 12, -1, TERM_GREEN, "if you want to throw any item that is inscribed '{bad}'.");
-						Term_putstr(5, 13, -1, TERM_GREEN, "(That can for example give otherwise useless potions some use..)");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial item name or inscription:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
+						//Term_putstr(5, l++, -1, TERM_GREEN, "and pay attention to upper-case and lower-case letters!");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377G{bad}");
+						Term_putstr(5, l++, -1, TERM_GREEN, "if you want to throw any item that is inscribed '{bad}'.");
+						Term_putstr(5, l++, -1, TERM_GREEN, "(That can for example give otherwise useless potions some use..)");
+						l += 2;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial item name or inscription:");
 						break;
 
 					case mw_slash:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter the complete slash command.");
-						Term_putstr(5, 11, -1, TERM_GREEN, "For example, enter:     \377G/cough");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter a slash command:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter the complete slash command.");
+						Term_putstr(5, l++, -1, TERM_GREEN, "For example, enter:     \377G/cough");
+						l += 4;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter a slash command:");
 						break;
 
 					case mw_custom:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter the custom macro action string.");
-						Term_putstr(5, 11, -1, TERM_GREEN, "(You have to specify everything manually here, and won't get");
-						Term_putstr(5, 12, -1, TERM_GREEN, "prompted about a targetting method or anything else either.)");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter a new action:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter the custom macro action string.");
+						Term_putstr(5, l++, -1, TERM_GREEN, "(You have to specify everything manually here, and won't get");
+						Term_putstr(5, l++, -1, TERM_GREEN, "prompted about a targetting method or anything else either.)");
+						l += 3;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter a new action:");
 						break;
 
 					case mw_load:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter the macro file name.");
-						Term_putstr(5, 11, -1, TERM_GREEN, "If you are on Linux or OSX it is case-sensitive! On Windows it is not.");
-						Term_putstr(5, 12, -1, TERM_GREEN, format("For example, enter:     \377G%s.prf", cname));
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Exact file name:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter the macro file name.");
+						Term_putstr(5, l++, -1, TERM_GREEN, "If you are on Linux or OSX it is case-sensitive! On Windows it is not.");
+						Term_putstr(5, l++, -1, TERM_GREEN, format("For example, enter:     \377G%s.prf", cname));
+						l += 3;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Exact file name:");
 						break;
 
 					case mw_option:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Do you want to enable, disable or toggle (flip) an option?");
-						Term_putstr(5, 11, -1, TERM_L_GREEN, "    y\377g) enable an option");
-						Term_putstr(5, 12, -1, TERM_L_GREEN, "    n\377g) disable an option");
-						Term_putstr(5, 13, -1, TERM_L_GREEN, "    t\377g) toggle an option");
-						Term_putstr(5, 15, -1, TERM_L_GREEN, "    Y\377g) enable an option and display feedback message");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "    N\377g) disable an option and display feedback message");
-						Term_putstr(5, 17, -1, TERM_L_GREEN, "    T\377g) toggle an option and display feedback message");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Do you want to enable, disable or toggle (flip) an option?");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    y\377g) enable an option");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    n\377g) disable an option");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    t\377g) toggle an option");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    Y\377g) enable an option and display feedback message");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    N\377g) disable an option and display feedback message");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    T\377g) toggle an option and display feedback message");
 						/* hack: hide cursor */
 						Term->scr->cx = Term->wid;
 						Term->scr->cu = 1;
@@ -7279,6 +7790,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7295,29 +7808,32 @@ Chain_Macro:
 						/* exit? */
 						if (i == -2) continue;
 
-						clear_from(10);
-						Term_putstr(5, 10, -1, TERM_GREEN, "Now please enter the exact name of an option, for example: \377Gbig_map");
-						Term_putstr(5, 12, -1, TERM_L_GREEN, "Enter exact option name: ");
+						l = ystart + 2;
+						clear_from(l);
+						Term_putstr(5, l++, -1, TERM_GREEN, "Now please enter the exact name of an option, for example: \377Gbig_map");
+						l++;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter exact option name: ");
 
 						j = choice;
 						choice = mw_option;
 						break;
 
 					case mw_equip:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Do you want to wear/wield, take off or swap an item?");
-						Term_putstr(5, 11, -1, TERM_L_GREEN, "    w\377g) primary wear/wield");
-						Term_putstr(5, 12, -1, TERM_L_GREEN, "    W\377g) secondary wear/wield");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Do you want to wear/wield, take off or swap an item?");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    w\377g) primary wear/wield");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    W\377g) secondary wear/wield");
 						if (c_cfg.rogue_like_commands) {
-							Term_putstr(5, 13, -1, TERM_L_GREEN, "    T\377g) take off an item");
-							Term_putstr(5, 14, -1, TERM_L_GREEN, "    S\377g) swap item(s)");
+							Term_putstr(5, l++, -1, TERM_L_GREEN, "    T\377g) take off an item");
+							Term_putstr(5, l++, -1, TERM_L_GREEN, "    S\377g) swap item(s)");
 						} else {
-							Term_putstr(5, 13, -1, TERM_L_GREEN, "    t\377g) take off an item");
-							Term_putstr(5, 14, -1, TERM_L_GREEN, "    x\377g) swap item(s)");
+							Term_putstr(5, l++, -1, TERM_L_GREEN, "    t\377g) take off an item");
+							Term_putstr(5, l++, -1, TERM_L_GREEN, "    x\377g) swap item(s)");
 						}
-						Term_putstr(5, 15, -1, TERM_L_GREEN, "    d\377g) invoke '/dress' command (optionally with a tag)");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "    b\377g) invoke '/bed' command (optionally with a tag)");
-						Term_putstr(5, 18, -1, TERM_GREEN, "Note: This macro depends on your current 'rogue_like_commands' option");
-						Term_putstr(5, 19, -1, TERM_GREEN, "      setting and will not work anymore if you change the keyset.");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    d\377g) invoke '/dress' command (optionally with a tag)");
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "    b\377g) invoke '/bed' command (optionally with a tag)");
+						l++;
+						Term_putstr(5, l++, -1, TERM_GREEN, "Note: This macro depends on your current 'rogue_like_commands' option");
+						Term_putstr(5, l++, -1, TERM_GREEN, "      setting and will not work anymore if you change the keyset.");
 						/* Hack: Hide the cursor */
 						Term->scr->cx = Term->wid;
 						Term->scr->cu = 1;
@@ -7332,6 +7848,8 @@ Chain_Macro:
 									break;
 								case ':': /* Allow chatting */
 									cmd_message();
+									/* Restore top line */
+									Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 									continue;
 								case KTRL('T'):
 									/* Take a screenshot */
@@ -7360,6 +7878,8 @@ Chain_Macro:
 									break;
 								case ':': /* Allow chatting */
 									cmd_message();
+									/* Restore top line */
+									Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 									continue;
 								case KTRL('T'):
 									/* Take a screenshot */
@@ -7382,9 +7902,11 @@ Chain_Macro:
 						/* exit? */
 						if (i == -2) continue;
 
-						clear_from(10);
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
-						Term_putstr(5, 16, -1, TERM_L_GREEN, "Enter partial item name or inscription:");
+						l = ystart + 2;
+						clear_from(l);
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
+						l += 4;
+						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial item name or inscription:");
 
 						j = choice;
 						choice = mw_equip;
@@ -7393,7 +7915,7 @@ Chain_Macro:
 
 					case mw_common:
 						force_normal = FALSE;
-						l = 8;
+						l = ystart;
 						//Term_putstr(10, l++, -1, TERM_GREEN, "Please choose one of these common commands and functions:"); --make room for one more entry instead
 						Term_putstr(2, l++, -1, TERM_L_GREEN, "a) reply to last incoming whisper                            :+:");
 						Term_putstr(2, l++, -1, TERM_L_GREEN, "b) repeat previous chat command or message                   :^P\\r");
@@ -7424,6 +7946,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7448,8 +7972,8 @@ Chain_Macro:
 						case 'c': strcpy(buf2, ":/afk\\r"); break;
 						case 'd':
 							while (TRUE) {
-								clear_from(8);
-								l = 10;
+								clear_from(ystart);
+								l = ystart + 2;
 								Term_putstr(1, l++, -1, TERM_GREEN, "Please choose a type of word-of-recall:");
 								l++;
 								Term_putstr(1, l++, -1, TERM_L_GREEN, "a) just basic word-of-recall (in to max depth / back out again)  :/rec\\r");
@@ -7466,6 +7990,8 @@ Chain_Macro:
 										break;
 									case ':': /* Allow chatting */
 										cmd_message();
+										/* Restore top line */
+										Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 										continue;
 									case KTRL('T'):
 										/* Take a screenshot */
@@ -7516,8 +8042,8 @@ Chain_Macro:
 						case 'f': strcpy(buf2, ":/shout\\r"); break;
 						case 'g':
 							while (TRUE) {
-								clear_from(8);
-								l = 10;
+								clear_from(ystart);
+								l = ystart + 2;
 								Term_putstr(2, l++, -1, TERM_GREEN, "Select one of the following:");
 								Term_putstr(2, l++, -1, TERM_L_GREEN, "a) fire equipped shooter at closest enemy                    \\e)*tf-");
 								Term_putstr(2, l++, -1, TERM_L_GREEN, "b) inscribe ammo/trap payload to auto pickup+merge+load+@m0  {-!=LM@m0\\r");
@@ -7535,6 +8061,8 @@ Chain_Macro:
 										break;
 									case ':': /* Allow chatting */
 										cmd_message();
+										/* Restore top line */
+										Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 										continue;
 									case KTRL('T'):
 										/* Take a screenshot */
@@ -7574,8 +8102,8 @@ Chain_Macro:
 						case 'h': strcpy(buf2, ":/? "); break;
 						case 'i':
 							while (TRUE) {
-								clear_from(8);
-								l = 10;
+								clear_from(ystart);
+								l = ystart + 2;
 								Term_putstr(10, l++, -1, TERM_GREEN, "Pick one item-swap inscription:");
 								l++;
 
@@ -7600,6 +8128,8 @@ Chain_Macro:
 										break;
 									case ':': /* Allow chatting */
 										cmd_message();
+										/* Restore top line */
+										Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 										continue;
 									case KTRL('T'):
 										/* Take a screenshot */
@@ -7648,31 +8178,31 @@ Chain_Macro:
 						case 'l': {
 							int delay, num = 1;
 
-							clear_from(8);
-							l = 9;
+							clear_from(ystart);
+							l = ystart + 1;
 							Term_putstr(2, l++, -1, TERM_GREEN, "Steal item(s) from shop, from the same stock slot you last interacted with:");
 							Term_putstr(4, l++, -1, TERM_GREEN, "As long as the latency-delay matches, the macro will stop automatically");
 							Term_putstr(4, l++, -1, TERM_GREEN, "after stealing the last item in the store slot.");
 							l++;
-							Term_putstr(10, l++, -1, TERM_YELLOW, "Steal up to how many (1-20)?");
+							Term_putstr(10, l, -1, TERM_YELLOW, "Steal up to how many (1-20)?");
 							/* default: suggest to just steal 1 item at a time */
 							sprintf(tmp, "1");
-							Term_gotoxy(40, l - 1);
+							Term_gotoxy(40, l);
 							if (askfor_aux(tmp, 50, 0)) {
 								num = atoi(tmp);
 								if (num < 1) num = 1;
 								if (num > 20) num = 20;
 							}
-							l++;
+							l += 2;
 
 							Term_putstr(10, l++, -1, TERM_YELLOW, "This macro needs a latency-based delay to work properly!");
 							Term_putstr(10, l++, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
 							Term_putstr(10, l++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
-							Term_putstr(10, l++, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
+							Term_putstr(10, l, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
 
 							/* suggest +25% reserve tolerance but at least +25 ms on the ping time */
 							sprintf(tmp, "%d", ((ping_avg < 100 ? ping_avg + 25 : (ping_avg * 125) / 100) / 100 + 1) * 100);
-							Term_gotoxy(52, l - 1);
+							Term_gotoxy(52, l);
 							if (askfor_aux(tmp, 50, 0)) {
 								delay = atoi(tmp);
 								if (delay % 100) delay += 100; //QoL hack for noobs who can't read
@@ -7701,11 +8231,12 @@ Chain_Macro:
 						break;
 
 					case mw_prfele:
-						Term_putstr(5, 10, -1, TERM_GREEN, "Please choose an elemental preference:");
-						Term_putstr(5, 11, -1, TERM_GREEN, "\377Ga\377g) Just check (displays your current elemental preference)");
-						Term_putstr(5, 12, -1, TERM_GREEN, "\377Gb\377g) None (random)");
-						Term_putstr(5, 13, -1, TERM_GREEN, "\377Gc\377g) Lightning  \377Gd\377g) Frost  \377Ge\377g) Fire  \377Gf\377g) Acid  \377Gg\377g) Poison");
-						Term_putstr(15, 16, -1, TERM_L_GREEN, "Pick one (a-g): ");
+						Term_putstr(5, l++, -1, TERM_GREEN, "Please choose an elemental preference:");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Ga\377g) Just check (displays your current elemental preference)");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Gb\377g) None (random)");
+						Term_putstr(5, l++, -1, TERM_GREEN, "\377Gc\377g) Lightning  \377Gd\377g) Frost  \377Ge\377g) Fire  \377Gf\377g) Acid  \377Gg\377g) Poison");
+						l += 2;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Pick one (a-g): ");
 
 						while (TRUE) {
 							switch (choice = inkey()) {
@@ -7716,6 +8247,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7756,16 +8289,16 @@ Chain_Macro:
 					case mw_dir_tunnel:
 					case mw_dir_disarm:
 					case mw_dir_close:
-						clear_from(8);
-						Term_putstr(10, 10, -1, TERM_GREEN, "Please pick the specific, fixed direction:");
-
-						Term_putstr(25, 13, -1, TERM_L_GREEN, " 7  8  9");
-						Term_putstr(25, 14, -1, TERM_GREEN, "  \\ | /");
-						Term_putstr(25, 15, -1, TERM_L_GREEN, "4 \377g-\377G 5 \377g-\377G 6");
-						Term_putstr(25, 16, -1, TERM_GREEN, "  / | \\");
-						Term_putstr(25, 17, -1, TERM_L_GREEN, " 1  2  3");
-
-						Term_putstr(15, 20, -1, TERM_L_GREEN, "Your choice? (1 to 9) ");
+						clear_from(ystart);
+						Term_putstr(10, l++, -1, TERM_GREEN, "Please pick the specific, fixed direction:");
+						l += 2;
+						Term_putstr(25, l++, -1, TERM_L_GREEN, " 7  8  9");
+						Term_putstr(25, l++, -1, TERM_GREEN, "  \\ | /");
+						Term_putstr(25, l++, -1, TERM_L_GREEN, "4 \377g-\377G 5 \377g-\377G 6");
+						Term_putstr(25, l++, -1, TERM_GREEN, "  / | \\");
+						Term_putstr(25, l++, -1, TERM_L_GREEN, " 1  2  3");
+						l += 2;
+						Term_putstr(15, l++, -1, TERM_L_GREEN, "Your choice? (1 to 9) ");
 
 						while (TRUE) {
 							target_dir = inkey();
@@ -7777,6 +8310,8 @@ Chain_Macro:
 								break;
 							case ':': /* Allow chatting */
 								cmd_message();
+								/* Restore top line */
+								Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 								continue;
 							case KTRL('T'):
 								/* Take a screenshot */
@@ -7824,10 +8359,11 @@ Chain_Macro:
 						bool bind = FALSE;
 
 						while (TRUE) {
-							clear_from(8);
-							Term_putstr(10, 10, -1, TERM_GREEN, "Please press the key carrying the macro you want to chain.");
-							Term_putstr(10, 11, -1, TERM_GREEN, "Pressing ESC will cancel and quit the macro-chaining process.");
-							Term_putstr(10, 13, -1, TERM_L_GREEN, "Trigger: ");
+							clear_from(ystart);
+							Term_putstr(10, l++, -1, TERM_GREEN, "Please press the key carrying the macro you want to chain.");
+							Term_putstr(10, l++, -1, TERM_GREEN, "Pressing ESC will cancel and quit the macro-chaining process.");
+							l++;
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "Trigger: ");
 
 							get_macro_trigger(buf);
 
@@ -7891,17 +8427,22 @@ Chain_Macro:
 							bind = TRUE;
 						}
 						/* Ask if we want to bind it to a key or continue chaining stuff */
-						Term_putstr(10, 18, -1, TERM_GREEN, "Press the key to bind the macro to. (ESC and % key cannot be used.)");
-						Term_putstr(10, 19, -1, TERM_GREEN, "Most keys can be combined with \377USHIFT\377g, \377UALT\377g or \377UCTRL\377g modifiers!");
+						l += 4;
+						l2 = l;
+						Term_putstr(10, l++, -1, TERM_GREEN, "Press the key to bind the macro to. (ESC and % key cannot be used.)");
+						Term_putstr(10, l++, -1, TERM_GREEN, "Most keys can be combined with \377USHIFT\377g, \377UALT\377g or \377UCTRL\377g modifiers!");
 						if (!bind) {
-							Term_putstr(10, 20, -1, TERM_GREEN, "If you want to \377Uchain another macro\377g, press '\377U%\377g' key.");
-							Term_putstr(5, 21, -1, TERM_L_GREEN, "Press the key to bind the macro to, or '%' for chaining: ");
-						} else Term_putstr(5, 21, -1, TERM_L_GREEN, "Press the key to bind the macro to: ");
+							Term_putstr(10, l++, -1, TERM_GREEN, "If you want to \377Uchain another macro\377g, press '\377U%\377g' key.");
+							Term_putstr(5, l, -1, TERM_L_GREEN, "Press the key to bind the macro to, or '%' for chaining: ");
+						} else {
+							l++;
+							Term_putstr(5, l, -1, TERM_L_GREEN, "Press the key to bind the macro to: ");
+						}
 
 						while (TRUE) {
 							/* Get a macro trigger */
-							Term_putstr(67, 21, -1, TERM_WHITE, "  ");//45
-							Term_gotoxy(67, 21);
+							Term_putstr(67, l, -1, TERM_WHITE, "  ");//45
+							Term_gotoxy(67, l);
 							get_macro_trigger(buf);
 
 							/* choose proper macro type, and bind it to key */
@@ -7928,20 +8469,21 @@ Chain_Macro:
 								   until the server tells the client that the item has been successfully equipped.
 								   Example: Polymorph into a form that has a certain spell available to cast.
 								   The casting needs to wait until the server tells us that we successfully polymorphed. */
-								clear_from(18);
+								clear_from(l2++);
 								if (should_wait) {
-									Term_putstr(10, 19, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
-									Term_putstr(10, 20, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
 								} else {
-									Term_putstr(10, 19, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
-									Term_putstr(10, 20, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
 								}
-								Term_putstr(10, 21, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
-								Term_putstr(10, 23, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
+								l2++;
+								Term_putstr(10, l2, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
 
 								/* suggest +25% reserve tolerance but at least +25 ms on the ping time */
 								sprintf(tmp, "%d", ((ping_avg < 100 ? ping_avg + 25 : (ping_avg * 125) / 100) / 100 + 1) * 100);
-								Term_gotoxy(52, 23);
+								Term_gotoxy(52, l);
 								if (askfor_aux(tmp, 50, 0)) {
 									delay = atoi(tmp);
 									if (delay % 100) delay += 100; //QoL hack for noobs who can't read
@@ -7992,8 +8534,468 @@ Chain_Macro:
 						i = -2;
 						continue;
 						}
-					}
 
+					case mw_fileset: {
+#ifdef TEST_CLIENT
+						int xoffset1 = 1, xoffset2 = 3;
+						int f, k, m, n, found;
+						char *cc, *cf, *cfile;
+						char buf_pat[32], buftxt_pat[32], buf_act[160], buftxt_act[160];
+						char buf_basename[1024], tmpbuf[1024];
+						bool style_cyclic, style_free;
+						bool ok_new_set, ok_new_stage, ok_swap_stages;
+
+						if (rescan) { /* (Is statically TRUE on first invocation of mw_fileset, to ensure an initial scan) */
+							rescan = FALSE;
+							filesets_found = macroset_scan();
+						}
+
+						while (TRUE) {
+							ok_new_set = (filesets_found < MACROFILESETS_MAX);
+							ok_new_stage = (fileset[fileset_selected].stages < MACROFILESETS_STAGES_MAX);
+							ok_swap_stages = (fileset[fileset_selected].stages >= 2); //need at least 2 stages in order to swap anything
+
+							/* --- Begin of visual output --- */
+							//l = ystart + 1;
+							l = 0; //Actually discard the compelete, usual 4-lines macro wizard header. Doesn't apply to us here and just takes up space.
+							clear_from(l);
+
+							/* Space requirements are a lot, adjust visual layout depending on bigmap screen mode! */
+							if (screen_hgt == MAX_SCREEN_HGT) {
+								/* --- Bigmap screen --- */
+
+								/* Give user a choice and wait for user selection of what to do */
+								if (!filesets_found) Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("Found no macrosets (max %d).", MACROFILESETS_MAX));
+								else Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("Found %d macroset%s (max %d sets, max %d stages each. REFD=currently referenced):",
+								    filesets_found, filesets_found != 1 ? "s" : "", MACROFILESETS_MAX, MACROFILESETS_STAGES_MAX));
+								for (k = 0; k < MACROFILESETS_MAX; k++)
+									if (k < filesets_found) {
+										/* Build stages string */
+										tmpbuf[0] = 0;
+										for (f = 0; f < fileset[k].stages; f++) {
+											if (f) strcat(tmpbuf, "\377g/");
+											if (fileset[k].stage_file_exists[f]) strcat(tmpbuf, format("\377W%d", f + 1));
+											else strcat(tmpbuf, format("\377D%d", f + 1));
+										}
+										for (; f < MACROFILESETS_STAGES_MAX; f++) strcat(tmpbuf, "  ");
+
+										Term_putstr(xoffset2 - 1, l++, -1, fileset_selected == k ? TERM_VIOLET : TERM_UMBER,
+										    //format("%s%2d\377g) %s\377g; %sStages\377g: %s\377g, active: %s; \377s%s\377-; \"\377s%s\377-\"",
+										    format("%s%2d\377g) %s\377g; %sStages\377g: %s\377g [%s]; \377s%s\377-; \"\377s%s\377-\"",
+										    fileset_selected == k ? ">" : " ", k + 1, fileset[k].currently_referenced ? "\377BREFD" : "\377gdisk", "",//fileset[k].all_stage_files_exist ? "" : "\377y",
+										    tmpbuf, (k != fileset_selected || fileset_stage_selected == -1) ? "\377u-\377-" : format("\377v%d\377-", fileset_stage_selected + 1),
+										    (fileset[k].style_cyclic && fileset[k].style_free) ? "Cyc+Fr" : (fileset[k].style_cyclic ? "Cyclic" : (fileset[k].style_free ? "FreeSw" : "------")),
+										    fileset[k].basefilename));
+									} else
+										Term_putstr(xoffset2, l++, -1, TERM_UMBER, format("%2d\377g) -", k + 1));
+
+								l++;
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "\377gWith the filesets listed above, you may...");
+								Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377Ga\377-) Clear list and rescan (discards any unsaved macro set)");
+								Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", ok_new_set ? "\377Gb\377-" : "\377Db", ") Initialise a new set (it will also get selected automatically)"));
+								if (filesets_found) {
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", filesets_found ? "\377Gc\377-" : "\377Dc", ") Select a set to work with (persists through leaving this menu)"));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", filesets_found ? "\377Gd\377-" : "\377Dd", ") Forget a set (forgets all loaded reference keys to that set)"));
+								} else l += 2;
+
+								if (fileset_selected != -1) {
+									l++;
+									Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("And with the currently selected fileset (\377v%d\377-) you may...", fileset_selected + 1));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377GA\377-) Modify its switching keys");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377GB\377-) Change its switching method");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, ok_swap_stages ? "\377GC\377-) Swap two stages" : "\377DC) Swap two stages");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s) Purge one of the set stage files (purges its reference keys) (1-%d)",
+									    fileset[fileset_selected].stages ? "\377GD\377-" : "\377DD", fileset[fileset_selected].stages));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", ok_new_stage ?
+									    "\377GE\377-" : "\377DE", ") Initialise+activate a new stage to the set (doesn't clear active macros)"));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s) Activate a stage (\377oforgets active macros\377- & loads stage macrofile) (1-%d)",
+									    fileset[fileset_selected].stages ? "\377GF\377-" : "\377DF", fileset[fileset_selected].stages));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("\377GG\377-) Write all currently active macros to the activated stage file%s",
+									    fileset_stage_selected == -1 ? "" : format(" (\377v%d\377-)", fileset_stage_selected + 1)));
+								}
+
+								l++;
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "After selecting a set (and stage), you can leave this menu with \377GESC\377- to work");
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "on the macros you wish this set to contain. When done, return here to save");
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "the macros to the selected stage file with '\377GG\377-)' (this will overwrite it).");
+
+								l++;
+								Term_putstr(15, l, -1, TERM_L_GREEN, "Please choose an action: ");
+							} else {
+								/* Small screen */
+
+								/* Give user a choice and wait for user selection of what to do */
+								if (!filesets_found) Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("Found no macrosets (max %d).", MACROFILESETS_MAX));
+								else Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("Found %d macroset%s (max %d sets, max %d stages each. REFD=currently referenced):",
+								    filesets_found, filesets_found != 1 ? "s" : "", MACROFILESETS_MAX, MACROFILESETS_STAGES_MAX));
+								for (k = 0; k < MACROFILESETS_MAX; k++)
+									if (k < filesets_found) {
+										/* Build stages string */
+										tmpbuf[0] = 0;
+										for (f = 0; f < fileset[k].stages; f++) {
+											if (f) strcat(tmpbuf, "\377g/");
+											if (fileset[k].stage_file_exists[f]) strcat(tmpbuf, format("\377W%d", f + 1));
+											else strcat(tmpbuf, format("\377D%d", f + 1));
+										}
+										for (; f < MACROFILESETS_STAGES_MAX; f++) strcat(tmpbuf, "  ");
+
+										Term_putstr(xoffset2 - 1, l++, -1, fileset_selected == k ? TERM_VIOLET : TERM_UMBER,
+										    //format("%s%2d\377g) %s\377g; %sStages\377g: %s\377g, active: %s; \377s%s\377-; \"\377s%s\377-\"",
+										    format("%s%2d\377g) %s\377g; %sStages\377g: %s\377g [%s]; \377s%s\377-; \"\377s%s\377-\"",
+										    fileset_selected == k ? ">" : " ", k + 1, fileset[k].currently_referenced ? "\377BREFD" : "\377gdisk", "",//fileset[k].all_stage_files_exist ? "" : "\377y",
+										    tmpbuf, (k != fileset_selected || fileset_stage_selected == -1) ? "\377u-\377-" : format("\377v%d\377-", fileset_stage_selected + 1),
+										    (fileset[k].style_cyclic && fileset[k].style_free) ? "Cyc+Fr" : (fileset[k].style_cyclic ? "Cyclic" : (fileset[k].style_free ? "FreeSw" : "------")),
+										    fileset[k].basefilename));
+									} else
+										Term_putstr(xoffset2, l++, -1, TERM_UMBER, format("%2d\377g) -", k + 1));
+
+								Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377Ga\377-) Clear list and rescan (discards any unsaved macro set)");
+								Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", ok_new_set ? "\377Gb\377-" : "\377Db", ") Initialise a new set (it will also get selected automatically)"));
+								if (filesets_found) {
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", filesets_found ? "\377Gc\377-" : "\377Dc", ") Select a set to work with (persists through leaving this menu)"));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", filesets_found ? "\377Gd\377-" : "\377Dd", ") Forget a set (forgets all loaded reference keys to that set)"));
+								} else l += 2;
+
+								if (fileset_selected != -1) {
+									Term_putstr(xoffset1, l++, -1, TERM_GREEN, format("With the currently selected fileset (\377v%d\377-) you may...", fileset_selected + 1));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377GA\377-) Modify its switching keys");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, "\377GB\377-) Change its switching method");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, ok_swap_stages ? "\377GC\377-) Swap two stages" : "\377DC) Swap two stages");
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s) Purge one of the set stage files (purges its reference keys) (1-%d)",
+									    fileset[fileset_selected].stages ? "\377GD\377-" : "\377DD", fileset[fileset_selected].stages));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s%s", ok_new_stage ?
+									    "\377GE\377-" : "\377DE", ") Initialise+activate a new stage to the set (doesn't clear active macros)"));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("%s) Activate a stage (\377oforgets active macros\377- & loads stage macrofile) (1-%d)",
+									    fileset[fileset_selected].stages ? "\377GF\377-" : "\377DF", fileset[fileset_selected].stages));
+									Term_putstr(xoffset2, l++, -1, TERM_GREEN, format("\377GG\377-) Write all currently active macros to the activated stage file%s",
+									    fileset_stage_selected == -1 ? "" : format(" (\377v%d\377-)", fileset_stage_selected + 1)));
+								}
+
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "After selecting a set (and stage), you can leave this menu with \377GESC\377- to work");
+								Term_putstr(xoffset1, l++, -1, TERM_GREEN, "on the macros. Return here to save all macros to selected stage with '\377GG\377-)'");
+							}
+
+							/* Hack: Hide the cursor */
+							Term->scr->cx = Term->wid;
+							Term->scr->cu = 1;
+
+							i = choice = 0;
+							while (TRUE) {
+								switch (choice = inkey()) {
+								case ESCAPE:
+								case 'p':
+								case '\010': /* backspace */
+									i = -2; /* leave */
+									break;
+								case ':': /* Allow chatting */
+									cmd_message();
+									i = -3;
+									break;
+								case KTRL('T'):
+									/* Take a screenshot */
+									xhtml_screenshot("screenshot????", 2);
+									i = -3;
+									break;
+								default:
+									/* invalid action? */
+									if ((choice < 'a' || choice > 'd') && (fileset_selected == -1 || choice < 'A' || choice > 'G')) continue;
+								}
+								break;
+							}
+							/* Restore top line */
+							if (i == -3) continue;
+							/* exit? */
+							if (i == -2) break;
+
+							/* Perform selected action */
+							if (screen_hgt == MAX_SCREEN_HGT) Term_putstr(40, l++, -1, TERM_GREEN, format("(%c)", choice));
+							switch (choice) {
+/* 	#define MACROFILESET_MARKER_CYCLIC "Cycling\\sto\\sset" #define MACROFILESET_MARKER_SWITCH "Switching\\sto\\sset"
+	bool style_cyclic; // Style: cyclic (at least one trigger key was found that cycles) bool style_free; // Style: free-switching (at last one trigger key was found that switches freely)
+	char basefilename[MACROSET_NAME_LEN]; // Base .prf filename part (excluding path) for all macro files of this set, to which stage numbers get appended
+	char macro__pat__cycle[32]; char macro__patbuf__cycle[32]; char macro__act__cycle[160]; char macro__actbuf__cycle[160];
+	int stages; // Amount of stages to cyclic/switch between
+	char macro__pat__switch[MACROFILESETS_STAGES_MAX][32]; char macro__patbuf__switch[MACROFILESETS_STAGES_MAX][32];
+	char macro__act__switch[MACROFILESETS_STAGES_MAX][160]; char macro__actbuf__switch[MACROFILESETS_STAGES_MAX][160];
+	bool stage_file_exists[MACROFILESETS_STAGES_MAX]; // stage file was actually found? (eg if stage files 1,2,4 are found, we must assume there is a stage 3, but maybe the file is missing)
+	char stage_comment[MACROFILESETS_STAGES_MAX][MACROSET_COMMENT_LEN]; */
+							/* Fileset actions: */
+							case 'a': // wipe memory list and rescan
+								/* Init filesets */
+								rescan = TRUE;
+								i = -4;
+								break;
+							case 'b': //init new fileset (implies initialization+activation of a 1st stage too)
+								if (!ok_new_set) continue;
+								// new set index, gets appended to existing ones
+								// get name
+								Term_putstr(1, l, -1, TERM_L_GREEN, "Enter a name for the new set: ");
+								tmpbuf[0] = 0;
+								if (!askfor_aux(tmpbuf, MACROSET_NAME_LEN, 0) || !tmpbuf[0]) continue;
+								f = filesets_found++;
+								strcpy(fileset[f].basefilename, tmpbuf);
+
+#if 1
+								// get type (switching method)
+								Term_putstr(1, l, -1, TERM_L_GREEN, "Set the set type aka switching method (1 cyclic, 2 free-switch, 3 both): ");
+								n = -1;
+								while (TRUE) {
+									tmpbuf[0] = 0;
+									Term_gotoxy(74, l);
+									if (!askfor_aux(tmpbuf, 1, 0)) break;
+									n = atoi(tmpbuf);
+									if (n < 1 || n > 3) continue;
+									break;
+								}
+								if (n == -1) continue;
+								fileset[f].style_cyclic = (n % 2 != 0);
+								fileset[f].style_free = (n / 2 != 0);
+#else
+								/* --- do the rest in a new, cleared screen perhaps, so there is room for explanations --- */
+
+								l = 0;
+								clear_from(l);
+								Term_putstr(1, l++, -1, TERM_L_GREEN, format("Set \"\377s%s\377-\":", fileset[f].basefilename));
+								l++;
+
+								// get type (switching method)
+								Term_putstr(1, l++, -1, TERM_L_GREEN, "Set the set type aka switching method (1 cyclic, 2 free-switch, 3 both): ");
+								n = -1;
+								while (TRUE) {
+									tmpbuf[0] = 0;
+									Term_gotoxy(74, l);
+									if (!askfor_aux(tmpbuf, 1, 0)) break;
+									n = atoi(tmpbuf);
+									if (n < 1 || n > 3) continue;
+									break;
+								}
+								if (n == -1) continue;
+								fileset[f].style_cyclic = (n % 2 != 0);
+								fileset[f].style_free = (n / 2 != 0);
+								if (fileset[f].style_cyclic) {
+									if (fileset[f].style_free)
+										Term_putstr(15, l++, -1, TERM_L_GREEN, "Switching method: \377sCyclic+FreeSw");
+									else
+										Term_putstr(15, l++, -1, TERM_L_GREEN, "Switching method: \377sCyclic");
+								} else if (fileset[f].style_free) Term_putstr(15, l++, -1, TERM_L_GREEN, "Switching method: \377sFreeSw");
+								else Term_putstr(15, l++, -1, TERM_L_GREEN, "Switching method: \377s------");
+								l++;
+#endif
+								// auto-select set and its first stage
+								fileset_selected = f;
+								fileset[f].stages = 1;
+								fileset_stage_selected = 0;
+
+								/* Init cycle keys */
+								fileset[f].macro__pat__cycle[0] = 0;
+								fileset[f].macro__patbuf__cycle[0] = 0;
+								/* Init switch keys */
+								fileset[f].macro__pat__switch[fileset_stage_selected][0] = 0;
+								fileset[f].macro__patbuf__switch[fileset_stage_selected][0] = 0;
+								fileset[f].macro__act__switch[fileset_stage_selected][0] = 0;
+								fileset[f].macro__actbuf__switch[fileset_stage_selected][0] = 0;
+
+								// ask for cycling-key / 1st stage switching key depending on selected type (1/2/1+2)
+								if (fileset[f].style_cyclic) { //ask for set-global cycling-key
+									while (TRUE) {
+										Term_putstr(1, l, -1, TERM_L_GREEN, "Press the key you want to use as macro-cycling trigger: ");
+										tmpbuf[0] = 0;
+										get_macro_trigger(tmpbuf);
+										if (!strcmp(tmpbuf, "\e") || !strcmp(buf, "%")) {
+											c_msg_print("\377yKeys <ESC> and '%' aren't allowed to carry a macro.");
+											if (!strcmp(buf, "\e")) break;
+											continue;
+										}
+										break;
+									}
+									if (!strcmp(buf, "\e")) continue; //abort
+
+									/* Set macro trigger */
+									strcpy(buf_pat, tmpbuf);
+									strcpy(fileset[k].macro__pat__cycle, buf_pat);
+									/* Set macro trigger in human-readable format */
+									ascii_to_text(buftxt_pat, buf_pat);
+									strcpy(fileset[k].macro__patbuf__cycle, buftxt_pat);
+
+									/* Forge macro action (in human-readable format) */
+									sprintf(tmpbuf, ":%%:TEST-CYCLIC\r");
+									//"\e):%:Cycling\sto\sset\sTESTSET\r\e)%ldummyset-FS3.prf\r\e"
+
+									/* Set macro action in human-readable format */
+									strcpy(buftxt_act, tmpbuf);
+									strcpy(fileset[k].macro__actbuf__cycle, buftxt_act);
+									/* Set macro action */
+									text_to_ascii(buf_act, buftxt_act);
+									strcpy(fileset[k].macro__act__cycle, buf_act);
+
+									/* Also add it to the currently loaded macros */
+									//key_autoconvert(tmp, fmt);
+									macro_add(buf_pat, buf_act, FALSE, FALSE);
+								}
+								if (fileset[f].style_free) { //ask for stage-specific switching-key
+									while (TRUE) {
+										Term_putstr(1, l, -1, TERM_L_GREEN, "Press the key you want to use as stage 1-specific trigger: ");
+										tmpbuf[0] = 0;
+										get_macro_trigger(tmpbuf);
+										if (!strcmp(tmpbuf, "\e") || !strcmp(buf, "%")) {
+											c_msg_print("\377yKeys <ESC> and '%' aren't allowed to carry a macro.");
+											if (!strcmp(buf, "\e")) break;
+											continue;
+										}
+										break;
+									}
+									if (!strcmp(buf, "\e")) continue; //abort
+
+									/* Set macro trigger */
+									strcpy(buf_pat, tmpbuf);
+									strcpy(fileset[k].macro__pat__switch[fileset_stage_selected], buf_pat);
+									/* Set macro trigger in human-readable format */
+									ascii_to_text(buftxt_pat, buf_pat);
+									strcpy(fileset[k].macro__patbuf__switch[fileset_stage_selected], buftxt_pat);
+
+									/* Forge macro action (in human-readable format) */
+									sprintf(tmpbuf, ":%%:TEST-FREESW\r");
+									//"\e):%:Switching\sto\sset\sTESTSET\r\e)%ldummyset-FS3.prf\r\e"
+
+									/* Set macro action in human-readable format */
+									strcpy(buftxt_act, tmpbuf);
+									strcpy(fileset[k].macro__actbuf__switch[fileset_stage_selected], buftxt_act);
+									/* Set macro action */
+									text_to_ascii(buf_act, buftxt_act);
+									strcpy(fileset[k].macro__act__switch[fileset_stage_selected], buf_act);
+
+									/* Also add it to the currently loaded macros */
+									//key_autoconvert(tmp, fmt);
+									macro_add(buf_pat, buf_act, FALSE, FALSE);
+								}
+
+								break;
+
+							case 'c': //select a set
+								GET_MACROFILESET
+								fileset_selected = f;
+								break;
+
+							case 'd': //forget a set
+								GET_MACROFILESET
+								if (fileset_selected == f) fileset_selected = -1; //unselect it if it was selected
+								//scan all macros
+								m = -1;
+								found = 0;
+								while (TRUE) {
+									while (++m < macro__num) {
+										/* Get macro in parsable format */
+										strncpy(buf_act, macro__act[m], 159);
+										buf_act[159] = '\0';
+										ascii_to_text(buftxt_act, buf_act);
+
+										/* Scan macro for marker text, indicating that it's a set-switch */
+										// (note: MACROFILESET_MARKER_CYCLIC "Cycling\\sto\\sset")
+										// (note: MACROFILESET_MARKER_SWITCH "Switching\\sto\\sset")
+										if ((cc = strstr(buftxt_act, MACROFILESET_MARKER_CYCLIC))) style_cyclic = TRUE;
+										if ((cf = strstr(buftxt_act, MACROFILESET_MARKER_SWITCH))) style_free = TRUE;
+
+										if (!style_cyclic && !style_free) continue;
+
+										/* Found one! */
+
+										/* Determine base filename from the action text : %lFILENAME\r\e */
+										cfile = strstr(buftxt_act, "%l");
+										if (!cfile) continue; //broken set-switching macro (not following our known scheme)
+										strcpy(buf_basename, cfile + 2);
+										/* Find end of filename */
+										cfile = strstr(buf_basename, "\\r\\e");
+										if (!cfile) continue; //broken set-switching macro (not following our known scheme)
+										*cfile = 0;
+										/* Find start of 'stage' appendix of the filename, cut it off to obtain base filename.
+										   Assume filename has this format "basename-FSn.prf" where n is the stage number: 0...MACROFILESETS_STAGES_MAX */
+										/* If this is a cyclic macro, the number after FS won't give the # of cycles away! Only the %:... self-notification message can do that!
+										   So it should follow a specific format: ":%:Cycling to set n of m\r 'comment'\r" <- the 'of m' giving away the true amount of stages for cyclic sets!
+										   However, it might be better to instead scan the folder for macro files starting on the base filename instead, so we are sure to catch all. */
+										if (strncmp(buf_basename + strlen(buf_basename) - 8, "-FS", 3)) continue; //broken set-switching macro (not following our known scheme)
+
+										/* --- At this point, we confirmed a valid macro belonging to a macro set found --- */
+
+										/* Finalize base filename */
+										buf_basename[strlen(buf_basename) - 8] = 0;
+
+										/* Compare to set we want to delete */
+										if (strcmp(fileset[f].basefilename, buf_basename)) continue;
+
+										/* --- Matches target set! --- */
+
+										/* Delete macro */
+										(void)macro_del(macro__pat[m]);
+										found++;
+
+										/* Continue scanning keys for switch-macros */
+									}
+									/* Scanned the last one of all loaded macros? We're done. */
+									if (m >= macro__num - 1) break;
+								}
+								if (!found) c_msg_print("No references to the macroset were found within currently loaded macros.");
+								c_msg_format("%d reference%s to the macroset were cleared within currently loaded macros.", found, found == 1 ? "" : "s");
+
+								/* Slide the rest of the sets list one up */
+								filesets_found--; /* One less registered macroset */
+								for (k = f; k < filesets_found; k++)
+									fileset[k] = fileset[k + 1];
+								/* Erase final one */
+								fileset[k].stages = 0;
+								break;
+
+							/* Note: If a fileset is activated, a stage of it will also be activated automatically. If it's a new set, it'll be stage #1 (still empty). */
+							/* Fileset-stage actions (required 'fileset_selected != -1' condition was already checked directly after inkey() read) : */
+							case 'A': //modify switching keys
+								break;
+
+							case 'B': //modify switching method
+								break;
+
+							case 'C': //swap two stages
+								if (!ok_swap_stages) continue;
+								break;
+
+							case 'D': //purge a stage
+								if (!fileset[fileset_selected].stages) continue;
+								break;
+
+							case 'E': //init additional stage; append it to or insert it into the current stages list
+								if (!ok_new_stage) continue;
+								break;
+
+							case 'F': //activate a stage
+								GET_MACROFILESET_STAGE
+								fileset_stage_selected = f;
+								break;
+
+							case 'G': //write current macros to active stage
+#if 0
+								// get comment
+								Term_putstr(15, l, -1, TERM_L_GREEN, "Enter a comment (optional): ");
+								tmpbuf[0] = 0;
+								if (!askfor_aux(tmpbuf, MACROSET_COMMENT_LEN, 0)) fileset[f].comment[0] = 0;
+								strcpy(fileset[f].comment, tmpbuf);
+#endif
+
+								break;
+							}
+
+							/* Restart mw_fileset menu */
+							if (i == -4) break;
+						}
+
+						/* Hack: Restart mw_fileset menu */
+						if (i == -4) {
+							i = 'Z';
+							continue;
+						}
+#endif /* TEST_CLIENT */
+
+						/* this was the final step, we're done */
+						i = -1; //actually don't continue (back to macro wizard main screen) but break out (back to macro menu) for convenience!
+						continue; }
+					}
 
 
 					/* --------------- specify item/parm if required --------------- */
@@ -8002,7 +9004,7 @@ Chain_Macro:
 
 					/* might input a really long line? */
 					if (choice == mw_custom) {
-						Term_gotoxy(5, 17);
+						Term_gotoxy(5, ystart + 9);
 
 						/* Get an item/spell name */
 						strcpy(buf, "");
@@ -8012,7 +9014,7 @@ Chain_Macro:
 						}
 					}
 					else if (choice == mw_slash) {
-						Term_gotoxy(5, 17);
+						Term_gotoxy(5, ystart + 9);
 
 						/* Get an item/spell name */
 						strcpy(buf, "");
@@ -8026,7 +9028,7 @@ Chain_Macro:
 					else if (choice == mw_mimicidx) {
 						while (TRUE) {
 							/* Get power slot */
-							Term_gotoxy(47, 16);
+							Term_gotoxy(47, ystart + 8);
 							strcpy(buf, "");
 							if (!askfor_aux(buf, 159, 0)) {
 								i = -2;
@@ -8044,11 +9046,12 @@ Chain_Macro:
 					/* no need for inputting an item/spell to use with the macro? */
 					else if (choice != mw_fire && choice != mw_rune && choice != mw_trap && choice != mw_prfimm &&
 					    choice != mw_stance && choice != mw_common && choice != mw_dir_run && choice != mw_dir_tunnel &&
-					    choice != mw_dir_disarm && choice != mw_dir_bash && choice != mw_dir_close && choice != mw_prfele) {
-						if (choice == mw_load) Term_gotoxy(23, 16);
-						else if (choice == mw_poly) Term_gotoxy(47, 19);
-						else if (choice == mw_option) Term_gotoxy(30, 12);
-						else Term_gotoxy(47, 16);
+					    choice != mw_dir_disarm && choice != mw_dir_bash && choice != mw_dir_close && choice != mw_prfele &&
+					    choice != mw_fileset) {
+						if (choice == mw_load) Term_gotoxy(23, ystart + 8);
+						else if (choice == mw_poly) Term_gotoxy(47, ystart + 10);
+						else if (choice == mw_option) Term_gotoxy(30, ystart + 4);
+						else Term_gotoxy(47, ystart + 8);
 
 						/* Get an item/spell name */
 						strcpy(buf, "");
@@ -8070,7 +9073,7 @@ Chain_Macro:
 					/* generate the full macro action; magic device/preferred immunity macros are already pre-made */
 					if (choice != mw_device && choice != mw_prfimm && choice != mw_custom && choice != mw_common &&
 					    choice != mw_dir_run && choice != mw_dir_tunnel && choice != mw_dir_disarm && choice != mw_dir_bash &&
-					    choice != mw_dir_close && choice != mw_prfele) {
+					    choice != mw_dir_close && choice != mw_prfele && choice != mw_fileset) {
 						buf2[0] = '\\'; //note: should in theory be ')e\',
 						buf2[1] = 'e'; //      but doesn't work due to prompt behaviour
 						buf2[2] = ')'; //      (\e will then get ignored)
@@ -8350,23 +9353,26 @@ Chain_Macro:
 					    ) {
 						while (TRUE) {
 							i = 1; //clearing it in case it was set to -3 below
-							clear_from(8);
-							Term_putstr(10, 8, -1, TERM_GREEN, "Please choose the targetting method:");
+							clear_from(ystart);
+							l = ystart + 1;
+							Term_putstr(10, l++, -1, TERM_GREEN, "Please choose the targetting method:");
+							l++;
 
-							//Term_putstr(10, 11, -1, TERM_GREEN, "(\377UHINT: \377gAlso inscribe your ammo '!=' for auto-pickup!)");
-							Term_putstr(10, 10, -1, TERM_L_GREEN, "a) Target closest monster if such exists,");
-							Term_putstr(10, 11, -1, TERM_L_GREEN, "   otherwise cancel action. (\377URecommended in most cases!\377G)");
-							Term_putstr(10, 12, -1, TERM_L_GREEN, "b) Target closest monster if such exists,");
-							Term_putstr(10, 13, -1, TERM_L_GREEN, "   otherwise prompt for direction.");
-							Term_putstr(10, 14, -1, TERM_L_GREEN, "c) Target closest monster if such exists,");
-							Term_putstr(10, 15, -1, TERM_L_GREEN, "   otherwise target own grid.");
-							Term_putstr(10, 16, -1, TERM_L_GREEN, "d) Fire into a fixed direction or prompt for direction.");
-							Term_putstr(10, 17, -1, TERM_L_GREEN, "e) Target own grid (ie yourself).");
+							//Term_putstr(10, l++, -1, TERM_GREEN, "(\377UHINT: \377gAlso inscribe your ammo '!=' for auto-pickup!)");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "a) Target closest monster if such exists,");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "   otherwise cancel action. (\377URecommended in most cases!\377G)");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "b) Target closest monster if such exists,");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "   otherwise prompt for direction.");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "c) Target closest monster if such exists,");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "   otherwise target own grid.");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "d) Fire into a fixed direction or prompt for direction.");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "e) Target own grid (ie yourself).");
+							l++;
 
-							Term_putstr(10, 19, -1, TERM_L_GREEN, "f) Target most wounded friendly player,");
-							Term_putstr(10, 20, -1, TERM_L_GREEN, "   cancel action if no player is nearby. (\377UEg for 'Cure Wounds'.\377G)");
-							Term_putstr(10, 21, -1, TERM_L_GREEN, "g) Target most wounded friendly player,");
-							Term_putstr(10, 22, -1, TERM_L_GREEN, "   target own grid instead if no player is nearby.");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "f) Target most wounded friendly player,");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "   cancel action if no player is nearby. (\377UEg for 'Cure Wounds'.\377G)");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "g) Target most wounded friendly player,");
+							Term_putstr(10, l++, -1, TERM_L_GREEN, "   target own grid instead if no player is nearby.");
 
 							while (TRUE) {
 								switch (choice = inkey()) {
@@ -8378,6 +9384,8 @@ Chain_Macro:
 								case ':': /* Allow chatting */
 									cmd_message();
 									inkey_msg = TRUE; /* And suppress macros again.. */
+									/* Restore top line */
+									Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 									continue;
 								case KTRL('T'):
 									/* Take a screenshot */
@@ -8397,18 +9405,21 @@ Chain_Macro:
 
 							/* Get a specific fixed direction */
 							if (choice == 'd') {
-								clear_from(8);
-								Term_putstr(10, 10, -1, TERM_GREEN, "Please pick the specific, fixed direction or '%':");
+								clear_from(ystart);
+								l = ystart + 2;
+								Term_putstr(10, l++, -1, TERM_GREEN, "Please pick the specific, fixed direction or '%':");
+								l += 2;
 
-								Term_putstr(25, 13, -1, TERM_L_GREEN, " 7  8  9");
-								Term_putstr(25, 14, -1, TERM_GREEN, "  \\ | / ");
-								Term_putstr(25, 15, -1, TERM_L_GREEN, "4 \377g-\377G 5 \377g-\377G 6");
-								//Term_putstr(25, 16, -1, TERM_GREEN, "  / | \\         \377G?\377g = 'Prompt for direction each time'");
-								Term_putstr(25, 16, -1, TERM_GREEN, "  / | \\         \377G%\377g = 'Prompt for direction each time'");
-								Term_putstr(25, 17, -1, TERM_L_GREEN, " 1  2  3");
+								Term_putstr(25, l++, -1, TERM_L_GREEN, " 7  8  9");
+								Term_putstr(25, l++, -1, TERM_GREEN, "  \\ | / ");
+								Term_putstr(25, l++, -1, TERM_L_GREEN, "4 \377g-\377G 5 \377g-\377G 6");
+								//Term_putstr(25, l++, -1, TERM_GREEN, "  / | \\         \377G?\377g = 'Prompt for direction each time'");
+								Term_putstr(25, l++, -1, TERM_GREEN, "  / | \\         \377G%\377g = 'Prompt for direction each time'");
+								Term_putstr(25, l++, -1, TERM_L_GREEN, " 1  2  3");
+								l += 2;
 
-								//Term_putstr(15, 20, -1, TERM_L_GREEN, "Your choice? (1 to 9, or '?') ");
-								Term_putstr(15, 20, -1, TERM_L_GREEN, "Your choice? (1 to 9, or '%') ");
+								//Term_putstr(15, l++, -1, TERM_L_GREEN, "Your choice? (1 to 9, or '?') ");
+								Term_putstr(15, l++, -1, TERM_L_GREEN, "Your choice? (1 to 9, or '%') ");
 
 //#if 0 /* No - this will break if the user has any kind of macro on the key already. Eg on his '?' key, and then presses '?' here. Need another solution. */
 #if 1 /* Actually we need this, but we will replace ? by %, so it's guaranteedly a macro-free key. */
@@ -8426,6 +9437,8 @@ Chain_Macro:
 										break;
 									case ':': /* Allow chatting */
 										cmd_message();
+										/* Restore top line */
+										Term_putstr(29, 0, -1, TERM_L_UMBER, "*** Macro Wizard ***");
 										continue;
 									case KTRL('T'):
 										/* Take a screenshot */
@@ -8491,20 +9504,26 @@ Chain_Macro:
 					i++;
 					break;
 				case 2:
-					Term_putstr(10, 9, -1, TERM_GREEN, "In this final step, press the key you would like");
-					Term_putstr(10, 10, -1, TERM_GREEN, "to bind the macro to. (ESC and % key cannot be used.)");
-					Term_putstr(10, 11, -1, TERM_GREEN, "You should use keys that have no other purpose!");
-					Term_putstr(10, 12, -1, TERM_GREEN, "Good examples are the F-keys, F1 to F12 and unused number pad keys.");
-					//Term_putstr(10, 14, -1, TERM_GREEN, "The keys ESC and '%' are NOT allowed to be used.");
-					Term_putstr(10, 14, -1, TERM_GREEN, "Most keys can be combined with \377USHIFT\377g, \377UALT\377g or \377UCTRL\377g modifiers!");
-					Term_putstr(10, 16, -1, TERM_GREEN, "If you want to \377Uchain another macro\377g, press '\377U%\377g' key.");
-					Term_putstr(10, 17, -1, TERM_GREEN, "By doing this you can combine multiple macros into one hotkey.");
-					Term_putstr(5, 19, -1, TERM_L_GREEN, "Press the key to bind the macro to, or '%' for chaining: ");
+					l = ystart + 1;
+					Term_putstr(10, l++, -1, TERM_GREEN, "In this final step, press the key you would like");
+					Term_putstr(10, l++, -1, TERM_GREEN, "to bind the macro to. (ESC and % key cannot be used.)");
+					Term_putstr(10, l++, -1, TERM_GREEN, "You should use keys that have no other purpose!");
+					Term_putstr(10, l++, -1, TERM_GREEN, "Good examples are the F-keys, F1 to F12 and unused number pad keys.");
+					l++;
+					//Term_putstr(10, l++, -1, TERM_GREEN, "The keys ESC and '%' are NOT allowed to be used.");
+					Term_putstr(10, l++, -1, TERM_GREEN, "Most keys can be combined with \377USHIFT\377g, \377UALT\377g or \377UCTRL\377g modifiers!");
+					l++;
+					Term_putstr(10, l++, -1, TERM_GREEN, "If you want to \377Uchain another macro\377g, press '\377U%\377g' key.");
+					Term_putstr(10, l++, -1, TERM_GREEN, "By doing this you can combine multiple macros into one hotkey.");
+					l++;
+					Term_putstr(5, l, -1, TERM_L_GREEN, "Press the key to bind the macro to, or '%' for chaining: ");
 
 					while (TRUE) {
+						l2 = l;
+
 						/* Get a macro trigger */
-						Term_putstr(67, 19, -1, TERM_WHITE, "  ");//45
-						Term_gotoxy(67, 19);
+						Term_putstr(67, l2, -1, TERM_WHITE, "  ");//45
+						Term_gotoxy(67, l2);
 						get_macro_trigger(buf);
 
 						/* choose proper macro type, and bind it to key */
@@ -8541,20 +9560,21 @@ Chain_Macro:
 							   until the server tells the client that the item has been successfully equipped.
 							   Example: Polymorph into a form that has a certain spell available to cast.
 							   The casting needs to wait until the server tells us that we successfully polymorphed. */
-							clear_from(19);
+							clear_from(l2);
 							if (should_wait) {
-								Term_putstr(10, 19, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
-								Term_putstr(10, 20, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
 							} else {
-								Term_putstr(10, 19, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
-								Term_putstr(10, 20, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
 							}
-							Term_putstr(10, 21, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
-							Term_putstr(10, 23, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
+							Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
+							l2++;
+							Term_putstr(10, l2, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
 
 							/* suggest +25% reserve tolerance but at least +25 ms on the ping time */
 							sprintf(tmp, "%d", ((ping_avg < 100 ? ping_avg + 25 : (ping_avg * 125) / 100) / 100 + 1) * 100);
-							Term_gotoxy(52, 23);
+							Term_gotoxy(52, l2);
 							if (askfor_aux(tmp, 50, 0)) {
 								delay = atoi(tmp);
 								if (delay % 100) delay += 100; //QoL hack for noobs who can't read
@@ -8635,6 +9655,7 @@ Chain_Macro:
 
 	/* Reload screen */
 	Term_load();
+	topline_icky = FALSE;
 
 	/* Flush the queue */
 	Flush_queue();
@@ -9518,6 +10539,7 @@ static bool do_cmd_options_aux(int page, cptr info, int select) {
 
 void display_account_information(void) {
 	int l = 3;
+
 	if (!acc_opt_screen) return;
 
 	if (acc_got_info) {
@@ -9578,12 +10600,13 @@ static void do_cmd_options_acc(void) {
 	char old_pass[PASSWORD_LEN], new_pass[PASSWORD_LEN], con_pass[PASSWORD_LEN];
 	char tmp[PASSWORD_LEN];
 
-	acc_opt_screen = TRUE;
-	acc_got_info = FALSE;
-
 	/* suppress hybrid macros */
 	bool inkey_msg_old = inkey_msg;
 	inkey_msg = TRUE;
+
+
+	acc_opt_screen = TRUE;
+	acc_got_info = FALSE;
 
 	/* Get the account info */
 	Send_account_info();
@@ -10438,7 +11461,7 @@ static void do_cmd_options_fonts(void) {
 //#include <dirent.h> /* for do_cmd_options_tilesets() */
 static void do_cmd_options_tilesets(void) {
 	int j, l;
-	char ch;
+	char ch, old_tileset[MAX_CHARS];
 	bool go = TRUE, inkey_msg_old;
 
 	char tileset_name[MAX_FONTS][256], path[1024];
@@ -10499,6 +11522,8 @@ static void do_cmd_options_tilesets(void) {
 
 	/* Clear screen */
 	Term_clear();
+
+	strcpy(old_tileset, graphic_tiles);
 
 	/* Interact */
 	while (go) {
@@ -10588,6 +11613,10 @@ static void do_cmd_options_tilesets(void) {
 		switch (ch) {
 		case ESCAPE:
 			go = FALSE;
+
+			if (strcmp(old_tileset, graphic_tiles))
+				c_msg_print("\377yGraphical tileset was changed. Requires client restart (use CTRL+Q).");
+
 			break;
 
 		case KTRL('T'):
@@ -10757,7 +11786,6 @@ errr options_dump(cptr fname) {
 	FILE *fff;
 	char buf[1024];
 
-
 	/* Build the filename */
 	path_build(buf, 1024, ANGBAND_DIR_USER, fname);
 
@@ -10766,6 +11794,7 @@ errr options_dump(cptr fname) {
 
 	if (fff) {
 		char buf2[1024];
+
 		fclose(fff);
 
 		/* Attempt to rename */
@@ -10960,7 +11989,7 @@ static bool test_for_password(cptr path_7z_quoted, cptr pack_name, cptr pack_cla
 		return(FALSE);
 	}
 	out_val[0] = 0;
-	if (!feof(fff)) fgets(out_val, 1024, fff);
+	if (!feof(fff)) (void)fgets(out_val, 1024, fff);
 	fclose(fff);
 	if (strlen(out_val) >= 3) return(TRUE);
 
@@ -10972,7 +12001,7 @@ static bool test_for_password(cptr path_7z_quoted, cptr pack_name, cptr pack_cla
 		return(FALSE);
 	}
 	out_val[0] = 0;
-	if (!feof(fff)) fgets(out_val, 1024, fff);
+	if (!feof(fff)) (void)fgets(out_val, 1024, fff);
 	if (out_val[0]) out_val[strlen(out_val) - 1] = 0; //strip \n
 	fclose(fff);
 	if (strlen(out_val) < 3) {
@@ -10988,7 +12017,7 @@ static bool test_for_password(cptr path_7z_quoted, cptr pack_name, cptr pack_cla
 		return(FALSE);
 	}
 	out_val[0] = 0;
-	if (!feof(fff)) fgets(out_val, 1024, fff);
+	if (!feof(fff)) (void)fgets(out_val, 1024, fff);
 	fclose(fff);
 	passworded = strlen(out_val) >= 3;
 
@@ -11078,7 +12107,7 @@ static bool verify_password(cptr path_7z_quoted, cptr pack_name, cptr pack_class
 		return(FALSE);
 	}
 	out_val[0] = 0;
-	if (!feof(fff)) fgets(out_val, 1024, fff);
+	if (!feof(fff)) (void)fgets(out_val, 1024, fff);
 	if (out_val[0]) out_val[strlen(out_val) - 1] = 0; //strip \n
 	fclose(fff);
 	if (strlen(out_val) < 3) {
@@ -11094,7 +12123,7 @@ static bool verify_password(cptr path_7z_quoted, cptr pack_name, cptr pack_class
 		return(FALSE);
 	}
 	out_val[0] = 0;
-	if (!feof(fff)) fgets(out_val, 1024, fff);
+	if (!feof(fff)) (void)fgets(out_val, 1024, fff);
 	fclose(fff);
 	passworded = strlen(out_val) >= 3;
 
@@ -12036,7 +13065,11 @@ void do_cmd_options(void) {
 		Term_putstr(1, l++, -1, TERM_WHITE, "(\377yc\377w)   Colour palette and colour blindness options");
 		l++;
 
+#ifdef WINDOWS
+		Term_putstr(1, l++, -1, TERM_WHITE, "(\377UA\377w/\377UY\377w) Account Options / Re-copy user/scpt folders to user home folder.");
+#else
 		Term_putstr(1, l++, -1, TERM_WHITE, "(\377UA\377w)   Account Options");
+#endif
 		Term_putstr(1, l++, -1, TERM_WHITE, "(\377UI\377w)   Install sound/music pack from 7z-file you placed in your TomeNET folder");
 #ifdef WINDOWS
 		Term_putstr(1, l++, -1, TERM_WHITE, "(\377UC\377w/\377UU\377w) Check / Update the TomeNET Guide (downloads and reinits the Guide)");
@@ -12336,6 +13369,53 @@ void do_cmd_options(void) {
 		else if (k == 'I') do_cmd_options_install_audio_packs();
 
 		else if (k == 'c') do_cmd_options_colourblindness();
+
+#ifdef WINDOWS
+		else if (k == 'Y') {
+			if (getenv("HOMEDRIVE") && getenv("HOMEPATH")) { //ignore win_dontmoveuser here, as user asked for it deliberately
+				//char out_val[1024];
+
+				if (!strcmp(format("%sscpt", ANGBAND_DIR), ANGBAND_DIR_SCPT)) {
+					c_msg_format("\377ySource and target scpt folder are the same: '%s'. Skipping.", ANGBAND_DIR_SCPT);
+				} else {
+					/* Copy to 'scpt' folder */
+					/* make sure it exists (paranoia except if user did something very silyl) */
+					if (!check_dir(ANGBAND_DIR_SCPT)) {
+						mkdir(ANGBAND_DIR_SCPT);
+						c_msg_format("\377wCreated target folder %s.", ANGBAND_DIR_SCPT);
+					}
+					/* copy over the default files from the installation folder */
+					c_msg_format("\377wCopying %sscpt to %s.", ANGBAND_DIR, ANGBAND_DIR_SCPT);
+ #if 1 /* Copy in the background? */
+					WinExec(format("xcopy /I /E /Y /H /C %s%s \"%s\"", ANGBAND_DIR, "scpt", ANGBAND_DIR_SCPT), SW_NORMAL); //SW_HIDE);
+ #else /* Will timeout the client if LOTS of screenshots etc ^^ */
+					sprintf(out_val, "xcopy /I /E /Y /H /C %s%s \"%s\"", ANGBAND_DIR, "scpt", ANGBAND_DIR_SCPT);
+					system(out_val);
+ #endif
+				}
+
+
+				if (!strcmp(format("%suser", ANGBAND_DIR), ANGBAND_DIR_USER)) {
+					c_msg_format("\377ySource and target user folder are the same: '%s'. Skipping.", ANGBAND_DIR_USER);
+				} else {
+					/* Copy to 'user' folder */
+					/* make sure it exists (paranoia except if user did something very silyl) */
+					if (!check_dir(ANGBAND_DIR_USER)) {
+						mkdir(ANGBAND_DIR_USER);
+						c_msg_format("\377wCreated target folder %s.", ANGBAND_DIR_USER);
+					}
+					/* copy over the default files from the installation folder */
+					c_msg_format("\377wCopying %suser to %s.", ANGBAND_DIR, ANGBAND_DIR_USER);
+ #if 1 /* Copy in the background? */
+					WinExec(format("xcopy /I /E /Y /H /C %s%s \"%s\"", ANGBAND_DIR, "user", ANGBAND_DIR_USER), SW_NORMAL); //SW_HIDE);
+ #else /* Will timeout the client if LOTS of screenshots etc ^^ */
+					sprintf(out_val, "xcopy /I /E /Y /H /C %s%s \"%s\"", ANGBAND_DIR, "user", ANGBAND_DIR_USER);
+					system(out_val);
+ #endif
+				}
+			} else c_msg_print("\377yFailure: Environment variables HOMEDRIVE and/or HOMEPATH not available.");
+		}
+#endif
 
 		/* Unknown option */
 		else {
@@ -13853,16 +14933,19 @@ void check_immediate_options(int i, bool yes, bool playing) {
 	/* Refresh music when shuffle_music or play_all is toggled */
 	if (option_info[i].o_var == &c_cfg.shuffle_music || option_info[i].o_var == &c_cfg.play_all) {
 		/* ..but only if we're not already in the process of changing music! */
-		if (music_next == -1)
+		if (music_next == -1
+		    && in_game /* Not when we're in the account overview screen and start the character creation process */
+		    )
 			music(-3); //refresh!
 	}
 #endif
 
 	if ((option_info[i].o_var == &c_cfg.mp_huge_bar ||
 	    option_info[i].o_var == &c_cfg.sn_huge_bar ||
-	    option_info[i].o_var == &c_cfg.hp_huge_bar) ||
+	    option_info[i].o_var == &c_cfg.hp_huge_bar ||
+	    option_info[i].o_var == &c_cfg.st_huge_bar) ||
 	    (option_info[i].o_var == &c_cfg.solid_bars &&
-	    (c_cfg.mp_huge_bar || c_cfg.sn_huge_bar || c_cfg.hp_huge_bar))) {
+	    (c_cfg.mp_huge_bar || c_cfg.sn_huge_bar || c_cfg.hp_huge_bar || c_cfg.st_huge_bar))) {
 		if (screen_icky) Term_switch(0);
 
 		clear_huge_bars();
@@ -13877,6 +14960,7 @@ void check_immediate_options(int i, bool yes, bool playing) {
 		if (p_ptr->mmp) draw_huge_bar(0, &prev_huge_cmp, p_ptr->cmp, &prev_huge_mmp, p_ptr->mmp);
 		if (p_ptr->msane) draw_huge_bar(1, &prev_huge_csn, p_ptr->csane, &prev_huge_msn, p_ptr->msane);
 		if (p_ptr->mhp) draw_huge_bar(2, &prev_huge_chp, p_ptr->chp, &prev_huge_mhp, p_ptr->mhp);
+		if (p_ptr->mst) draw_huge_bar(3, &prev_huge_cst, p_ptr->cst, &prev_huge_mst, p_ptr->mst);
 
 		if (screen_icky) Term_switch(0);
 	}
@@ -13957,6 +15041,7 @@ u32b parse_color_code(const char *str) {
    "Access the "graphic visual" system pref file (if any)". */
 static void handle_process_graphics_file(void) {
 	char fname[255 + 13 + 1];
+
 	/* Figure out graphics prefs file name to be loaded. */
 	sprintf(fname, "graphics-%s.prf", graphic_tiles);
 	/* Access the "graphic visual" system pref file (if any). */
@@ -13965,7 +15050,7 @@ static void handle_process_graphics_file(void) {
 	 * The grafics redefinition can use tile indexing from 0 and
 	 * there is no need to update graphics files after MAX_FONT_CHAR is changed. */
 	char_map_offset = MAX_FONT_CHAR + 1;
-	if (process_pref_file(fname) == -1) printf("ERROR: Can't read graphics preferences file: %s\n", fname);
+	if (process_pref_file(fname) == -1) logprint(format("ERROR: Can't read graphics preferences file: %s\n", fname));
 	char_map_offset = 0;
 
 	/* Initialize pseudo-features and pseudo-objects that don't exist in the game world but are just used for graphical tilesets */
@@ -13985,6 +15070,12 @@ static void handle_process_graphics_file(void) {
 	kidx_po_snow_attr = Client_setup.k_attr[KIDX_PO_SNOW];
 	kidx_po_sand_char = Client_setup.k_char[KIDX_PO_SAND];
 	kidx_po_sand_attr = Client_setup.k_attr[KIDX_PO_SAND];
+	kidx_po_d10f_tl = Client_setup.k_char[KIDX_PO_D10F_TL];
+	kidx_po_d10f_t = Client_setup.k_char[KIDX_PO_D10F_T];
+	kidx_po_d10f_tr = Client_setup.k_char[KIDX_PO_D10F_TR];
+	kidx_po_d10f_bl = Client_setup.k_char[KIDX_PO_D10F_BL];
+	kidx_po_d10f_b = Client_setup.k_char[KIDX_PO_D10F_B];
+	kidx_po_d10f_br = Client_setup.k_char[KIDX_PO_D10F_BR];
 	/* --- Init pseudo-features --- */
 	/* Currently there are no pseudo-features used on client-side here; go board in the casino is handled server-side */
 }
