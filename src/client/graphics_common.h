@@ -9,6 +9,10 @@
 
 #define INTERPOLATION_NEAR 0
 #define INTERPOLATION_LINEAR 1
+#define INTERPOLATION_LANCZOS 2
+
+#define LANCZOS_A 1
+#define LANCZOS_SAMPLE_LENGTH (LANCZOS_A * 2 + 1)
 
 typedef struct coordinates coordinates;
 struct coordinates {
@@ -46,6 +50,11 @@ typedef struct
     coordinates bottom_right;
 } rectangle;
 
+typedef struct
+{
+    double data[LANCZOS_SAMPLE_LENGTH][LANCZOS_SAMPLE_LENGTH];
+} lanczos_sample_2d;
+
 coordinates correctPixelCoordinates(int x, int y, rectangle restriction_rectangle);
 color_rgb x_get_pixel_rgb(XImage *image, int x, int y);
 void x_set_pixel_color(XImage *image, int x, int y, unsigned long pixel_color);
@@ -66,4 +75,6 @@ color_rgb get_pixel_color_or_black_if_its_mask_color(color_rgb pixel_color);
 color_rgb get_pixel_color_if_fg_mask_or_black(color_rgb pixel_color);
 color_rgb get_rgb_from_pixel(Display *display, unsigned long pixel);
 
+double lanczos_resample(lanczos_sample_2d sample, double target_x, double target_y);
+double lanczos_kernel(double x, int lanczos_a);
 #endif //SRC_GRAPHICS_COMMON_H

@@ -3,7 +3,7 @@
 //
 #include "angband.h"
 #include "graphics_common.h"
-
+#include "math.h"
 
 coordinates correctPixelCoordinates(int x, int y, rectangle restriction_rectangle) {
     coordinates correctedPixelCoordinates;
@@ -195,13 +195,47 @@ color_rgb pixel_bilinear_interpolation(float fractionOfX, float fractionOfY, col
     return new_color;
 }
 
+double lanczos_kernel(double x, int lanczos_a) {
+    x = fabs(x);
+    if (x == 0.0) {
+        return 1.0;
+    } else if (fabs(x) < lanczos_a) {
+        double pi_x = M_PI * x;
+        return lanczos_a * sin(pi_x) * sin(pi_x / lanczos_a) / (pi_x * pi_x);
+    } else {
+        return 0.0;
+    }
+}
+
+double lanczos_resample(lanczos_sample_2d sample, double target_x, double target_y)
+{
+    double sum = 0.0;
+    double weight_sum = 0.0;
+
+    for (int i = 0; i < LANCZOS_SAMPLE_LENGTH; ++i)
+    {
+        for (int j = 0; j < LANCZOS_SAMPLE_LENGTH; ++j)
+        {
+            double dist_x = target_x - i; // probably need to adjust `-` sign
+            double dist_y = target_y - j; // probably need to adjust `-` sign
+
+            double weight = lanczos_kernel(dist_x, LANCZOS_A) * lanczos_kernel(dist_y, LANCZOS_A);
+
+            sum += weight * sample.data[i][j];
+            weight_sum += weight;
+        }
+    }
+
+    return sum / weight_sum;
+}
+
 // Function to get the RGB values of a pixel in an XImage
 color_rgb x_get_pixel_rgb(XImage *image, int x, int y) {
     color_rgb pixel_rgb = {0, 0, 0}; // Initialize to black
 
     // Check for out-of-bounds coordinates
     if (x < 0 || x >= image->width || y < 0 || y >= image->height) {
-        fprintf(stderr, "Error: Pixel coordinates out of bounds.\n");
+        fprintf(stderr, "Error: Pixel coordinates out of bounds: x = %d, y = %d\n", x, y);
         return pixel_rgb; // Return black if out of bounds
     }
 
