@@ -2979,7 +2979,7 @@ Pixell XPixelInterpolation(XImage *originalImage, float originalX, float origina
 
 			break;
 		case INTERPOLATION_LANCZOS:
-			/* Most of implementation is here because  */
+			/* Most of implementation is here because making sample and then go through it take too much time  */
 			lanczos_sample_2d sample_red;
 			lanczos_sample_2d sample_green;
 			lanczos_sample_2d sample_blue;
@@ -3032,6 +3032,22 @@ Pixell XPixelInterpolation(XImage *originalImage, float originalX, float origina
 
 			new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
 			break;
+		case INTERPOLATION_CUBIC:
+			originalX += 0.5;
+			originalY += 0.5;
+			originalLoopX = round(originalX);
+			originalLoopY = round(originalY);
+
+			for (int y = originalLoopY - LANCZOS_A; y <= originalLoopY + LANCZOS_A; y++)
+			{
+				for (int x = originalLoopX - LANCZOS_A; x <= originalLoopX + LANCZOS_A; x++)
+				{
+					coordinates sample_pixel_coordinates = correctPixelCoordinates(x, y, tile_boundaries);
+					color_rgb sample_pixel_color = x_get_pixel_rgb(originalImage, sample_pixel_coordinates.x, sample_pixel_coordinates.y);
+					sample_pixel_color = color_filter_function(sample_pixel_color);
+
+				}
+			}
 		case INTERPOLATION_NEAR:
 		default:
 			coordinates pixel_coordinates_near = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
@@ -3116,12 +3132,12 @@ static XImage *ResizeImage_2mask(
 
 			// fixed colors
 			// unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_LINEAR);
-			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_LANCZOS);
+			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_CUBIC);
 			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
 
 			// fg mask
 			// newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_LINEAR);
-			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_LANCZOS);
+			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_CUBIC);
 			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
 
 			coordinates topLeftPixelCoordinates = correctPixelCoordinates(round(originalX), round(originalY), tile_boundaries);
