@@ -2932,7 +2932,55 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 }
  #else
 
-Pixell XPixelInterpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb), int interpolation_type)
+
+Pixell x_bilinear_interpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
+{
+	Pixell new_pixel = 0;
+	int originalLoopX = round(originalX);
+	int originalLoopY = round(originalY);
+
+	float fractionOfY = originalY - floor(originalY);
+	float fractionOfX = originalX - floor(originalX);
+
+	originalX -= 0.5;
+	originalY -= 0.5;
+	originalLoopX = round(originalX);
+	originalLoopY = round(originalY);
+
+	// top left
+	coordinates topLeftPixelCoordinates;
+	topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
+	color_rgb topLeftPixelColor = x_get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
+	// top right
+	coordinates topRightPixelCoordinates;
+	topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, tile_boundaries);
+	color_rgb topRightPixelColor = x_get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
+	// bottom left
+	coordinates bottomLeftPixelCoordinates;
+	bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, tile_boundaries);
+	color_rgb bottomLeftPixelColor = x_get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
+	// bottom right
+	coordinates bottomRightPixelCoordinates;
+	bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, tile_boundaries);
+	color_rgb bottomRightPixelColor = x_get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
+
+	topLeftPixelColor = color_filter_function(topLeftPixelColor);
+	topRightPixelColor = color_filter_function(topRightPixelColor);
+	bottomLeftPixelColor = color_filter_function(bottomLeftPixelColor);
+	bottomRightPixelColor = color_filter_function(bottomRightPixelColor);
+
+	// if (topLeftPixelColor.blue != 0 && topLeftPixelColor.blue == topRightPixelColor.blue == bottomLeftPixelColor.blue == bottomRightPixelColor.blue)
+	// {
+	// 	fprintf(stderr, "Error: Pixels are the same\n");
+	// }
+
+	color_rgb newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
+	new_pixel = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
+
+	return new_pixel;
+}
+
+Pixell x_lanczos_interpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
 {
 	Pixell new_pixel = 0;
 
@@ -2941,120 +2989,162 @@ Pixell XPixelInterpolation(XImage *originalImage, float originalX, float origina
 
 	color_rgb newPixelRgb;
 
+	/* Most of implementation is here because making sample and then go through it take too much time  */
+	lanczos_sample_2d sample_red;
+	lanczos_sample_2d sample_green;
+	lanczos_sample_2d sample_blue;
+
+	originalLoopX = round(originalX);
+	originalLoopY = round(originalY);
+
+
+	double sum_red = 0.0;
+	double sum_green = 0.0;
+	double sum_blue = 0.0;
+	double weight_sum = 0.0;
+	for (int y = originalLoopY - LANCZOS_A; y <= originalLoopY + LANCZOS_A; y++)
+	{
+		for (int x = originalLoopX - LANCZOS_A; x <= originalLoopX + LANCZOS_A; x++)
+		{
+			coordinates sample_pixel_coordinates = correctPixelCoordinates(x, y, tile_boundaries);
+			color_rgb sample_pixel_color = x_get_pixel_rgb(originalImage, sample_pixel_coordinates.x, sample_pixel_coordinates.y);
+			sample_pixel_color = color_filter_function(sample_pixel_color);
+
+			// int sample_x = x - (originalLoopX - LANCZOS_A);
+			// int sample_y = y - (originalLoopY - LANCZOS_A);
+
+			// sample_red.data[sample_x][sample_y] = sample_pixel_color.red;
+			// sample_green.data[sample_x][sample_y] = sample_pixel_color.green;
+			// sample_blue.data[sample_x][sample_y] = sample_pixel_color.blue;
+
+
+			double dist_x = originalX - x; // probably need to adjust `-` sign
+			double dist_y = originalY - y; // probably need to adjust `-` sign
+
+			double weight = lanczos_kernel(dist_x, LANCZOS_A) * lanczos_kernel(dist_y, LANCZOS_A);
+
+			sum_red += weight * sample_pixel_color.red;
+			sum_green += weight * sample_pixel_color.green;
+			sum_blue += weight * sample_pixel_color.blue;
+			weight_sum += weight;
+
+		}
+	}
+	// newPixelRgb.red = (int) lanczos_resample(sample_red, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
+	// newPixelRgb.green = (int) lanczos_resample(sample_green, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
+	// newPixelRgb.blue = (int) lanczos_resample(sample_blue, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
+
+	newPixelRgb.red = (int) fmin(sum_red / weight_sum, 255);
+	newPixelRgb.green = (int)fmin(sum_green / weight_sum, 255);
+	newPixelRgb.blue = (int)fmin (sum_blue / weight_sum, 255);
+
+	new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
+	return new_pixel;
+}
+
+Pixell x_quadratic_interpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
+{
+	fprintf(stderr, "Quadratic interpolation\n");
+
+	Pixell new_pixel = 0;
+
+	int originalLoopX = round(originalX);
+	int originalLoopY = round(originalY);
+
+	color_rgb newPixelRgb;
+
+	originalX += 0.5;
+	originalY += 0.5;
+	originalLoopX = floor(originalX);
+	originalLoopY = floor(originalY);
+
+	double dist_y = (originalY - 0.5) - floor(originalY - 0.5);
+	double dist_x = (originalX - 0.5) - floor(originalX - 0.5);
+
+	if (floor(originalX) == floor(originalX - 0.5))
+	{
+		dist_x += 1;
+	}
+
+	if (floor(originalY) == floor(originalY - 0.5))
+	{
+		dist_y += 1;
+	}
+
+	color_rgb colors[3];
+
+	int index = 0;
+	for (int y = originalLoopY - 1; y <= originalLoopY + 1; y++, index++)
+	{
+		// left
+		coordinates leftPixelCoordinates;
+		leftPixelCoordinates = correctPixelCoordinates(originalLoopX - 1, y, tile_boundaries);
+		color_rgb leftPixelColor = x_get_pixel_rgb(originalImage, leftPixelCoordinates.x, leftPixelCoordinates.y);
+		leftPixelColor = color_filter_function(leftPixelColor);
+		// middle
+		coordinates middlePixelCoordinates;
+		middlePixelCoordinates = correctPixelCoordinates(originalLoopX, y, tile_boundaries);
+		color_rgb middlePixelColor = x_get_pixel_rgb(originalImage, middlePixelCoordinates.x, middlePixelCoordinates.y);
+		middlePixelColor = color_filter_function(middlePixelColor);
+		// right
+		coordinates rightPixelCoordinates;
+		rightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, y, tile_boundaries);
+		color_rgb rightPixelColor = x_get_pixel_rgb(originalImage, rightPixelCoordinates.x, rightPixelCoordinates.y);
+		rightPixelColor = color_filter_function(rightPixelColor);
+
+		colors[index].red = (int) quadratic_interpolation(dist_x, leftPixelColor.red, middlePixelColor.red, rightPixelColor.red);
+		colors[index].green = (int) quadratic_interpolation(dist_x, leftPixelColor.green, middlePixelColor.green, rightPixelColor.green);
+		colors[index].blue = (int) quadratic_interpolation(dist_x, leftPixelColor.blue, middlePixelColor.blue, rightPixelColor.blue);
+	}
+
+	int new_red = (int) quadratic_interpolation(dist_y, colors[0].red, colors[1].red, colors[2].red);
+	int new_green = (int) quadratic_interpolation(dist_y, colors[0].green, colors[1].green, colors[2].green);
+	int new_blue = (int) quadratic_interpolation(dist_y, colors[0].blue, colors[1].blue, colors[2].blue);
+
+	new_red =  (int) fmin(new_red, 255);
+	new_green = (int) fmin(new_green, 255);
+	new_blue = (int) fmin(new_blue, 255);
+
+	new_pixel = rgb_to_hex(new_red, new_green, new_blue);
+
+	return new_pixel;
+}
+
+Pixell x_interpolation_near(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
+{
+	Pixell new_pixel = 0;
+
+	int originalLoopX = round(originalX);
+	int originalLoopY = round(originalY);
+
+	color_rgb newPixelRgb;
+
+	coordinates pixel_coordinates_near = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
+	newPixelRgb = x_get_pixel_rgb(originalImage, pixel_coordinates_near.x, pixel_coordinates_near.y);
+	newPixelRgb = color_filter_function(newPixelRgb);
+	new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
+
+	return new_pixel;
+}
+
+Pixell XPixelInterpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb), int interpolation_type)
+{
+	Pixell new_pixel = 0;
+
 	switch (interpolation_type)
 	{
 		case INTERPOLATION_LINEAR:
-			float fractionOfY = originalY - floor(originalY);
-			float fractionOfX = originalX - floor(originalX);
-
-			originalX -= 0.5;
-			originalY -= 0.5;
-			originalLoopX = round(originalX);
-			originalLoopY = round(originalY);
-
-			// top left
-			coordinates topLeftPixelCoordinates;
-			topLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
-			color_rgb topLeftPixelColor = x_get_pixel_rgb(originalImage, topLeftPixelCoordinates.x, topLeftPixelCoordinates.y);
-			// top right
-			coordinates topRightPixelCoordinates;
-			topRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY, tile_boundaries);
-			color_rgb topRightPixelColor = x_get_pixel_rgb(originalImage, topRightPixelCoordinates.x, topRightPixelCoordinates.y);
-			// bottom left
-			coordinates bottomLeftPixelCoordinates;
-			bottomLeftPixelCoordinates = correctPixelCoordinates(originalLoopX, originalLoopY + 1, tile_boundaries);
-			color_rgb bottomLeftPixelColor = x_get_pixel_rgb(originalImage, bottomLeftPixelCoordinates.x, bottomLeftPixelCoordinates.y);
-			// bottom right
-			coordinates bottomRightPixelCoordinates;
-			bottomRightPixelCoordinates = correctPixelCoordinates(originalLoopX + 1, originalLoopY + 1, tile_boundaries);
-			color_rgb bottomRightPixelColor = x_get_pixel_rgb(originalImage, bottomRightPixelCoordinates.x, bottomRightPixelCoordinates.y);
-
-			topLeftPixelColor = color_filter_function(topLeftPixelColor);
-			topRightPixelColor = color_filter_function(topRightPixelColor);
-			bottomLeftPixelColor = color_filter_function(bottomLeftPixelColor);
-			bottomRightPixelColor = color_filter_function(bottomRightPixelColor);
-
-			color_rgb newPixelRGB = pixel_bilinear_interpolation(fractionOfX, fractionOfY, topLeftPixelColor, topRightPixelColor, bottomLeftPixelColor, bottomRightPixelColor);
-			new_pixel = rgb_to_hex(newPixelRGB.red, newPixelRGB.green, newPixelRGB.blue);
-
+			new_pixel = x_bilinear_interpolation(originalImage, originalX, originalY, tile_boundaries, color_filter_function);
 			break;
 		case INTERPOLATION_LANCZOS:
-			/* Most of implementation is here because making sample and then go through it take too much time  */
-			lanczos_sample_2d sample_red;
-			lanczos_sample_2d sample_green;
-			lanczos_sample_2d sample_blue;
-
-			originalX += 0.5;
-			originalY += 0.5;
-			originalLoopX = round(originalX);
-			originalLoopY = round(originalY);
-
-
-			double sum_red = 0.0;
-			double sum_green = 0.0;
-			double sum_blue = 0.0;
-			double weight_sum = 0.0;
-			for (int y = originalLoopY - LANCZOS_A; y <= originalLoopY + LANCZOS_A; y++)
-			{
-				for (int x = originalLoopX - LANCZOS_A; x <= originalLoopX + LANCZOS_A; x++)
-				{
-					coordinates sample_pixel_coordinates = correctPixelCoordinates(x, y, tile_boundaries);
-					color_rgb sample_pixel_color = x_get_pixel_rgb(originalImage, sample_pixel_coordinates.x, sample_pixel_coordinates.y);
-					sample_pixel_color = color_filter_function(sample_pixel_color);
-
-					// int sample_x = x - (originalLoopX - LANCZOS_A);
-					// int sample_y = y - (originalLoopY - LANCZOS_A);
-
-					// sample_red.data[sample_x][sample_y] = sample_pixel_color.red;
-					// sample_green.data[sample_x][sample_y] = sample_pixel_color.green;
-					// sample_blue.data[sample_x][sample_y] = sample_pixel_color.blue;
-
-
-					double dist_x = originalX - x; // probably need to adjust `-` sign
-					double dist_y = originalY - y; // probably need to adjust `-` sign
-
-					double weight = lanczos_kernel(dist_x, LANCZOS_A) * lanczos_kernel(dist_y, LANCZOS_A);
-
-					sum_red += weight * sample_pixel_color.red;
-					sum_green += weight * sample_pixel_color.green;
-					sum_blue += weight * sample_pixel_color.blue;
-					weight_sum += weight;
-
-				}
-			}
-			// newPixelRgb.red = (int) lanczos_resample(sample_red, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
-			// newPixelRgb.green = (int) lanczos_resample(sample_green, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
-			// newPixelRgb.blue = (int) lanczos_resample(sample_blue, originalX - originalLoopX + LANCZOS_A, originalLoopY - originalY + LANCZOS_A);
-
-			newPixelRgb.red = (int) fmin(sum_red / weight_sum, 255);
-			newPixelRgb.green = (int)fmin(sum_green / weight_sum, 255);
-			newPixelRgb.blue = (int)fmin (sum_blue / weight_sum, 255);
-
-			new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
+			new_pixel = x_lanczos_interpolation(originalImage, originalX, originalY, tile_boundaries, color_filter_function);
 			break;
-		case INTERPOLATION_CUBIC:
-			originalX += 0.5;
-			originalY += 0.5;
-			originalLoopX = round(originalX);
-			originalLoopY = round(originalY);
-
-			for (int y = originalLoopY - LANCZOS_A; y <= originalLoopY + LANCZOS_A; y++)
-			{
-				for (int x = originalLoopX - LANCZOS_A; x <= originalLoopX + LANCZOS_A; x++)
-				{
-					coordinates sample_pixel_coordinates = correctPixelCoordinates(x, y, tile_boundaries);
-					color_rgb sample_pixel_color = x_get_pixel_rgb(originalImage, sample_pixel_coordinates.x, sample_pixel_coordinates.y);
-					sample_pixel_color = color_filter_function(sample_pixel_color);
-
-				}
-			}
+		case INTERPOLATION_QUADRATIC:
+			new_pixel = x_quadratic_interpolation(originalImage, originalX, originalY, tile_boundaries, color_filter_function);
+			break;
 		case INTERPOLATION_NEAR:
 		default:
-			coordinates pixel_coordinates_near = correctPixelCoordinates(originalLoopX, originalLoopY, tile_boundaries);
-			newPixelRgb = x_get_pixel_rgb(originalImage, pixel_coordinates_near.x, pixel_coordinates_near.y);
-			newPixelRgb = color_filter_function(newPixelRgb);
-			new_pixel = rgb_to_hex(newPixelRgb.red, newPixelRgb.green, newPixelRgb.blue);
-
+			new_pixel = x_interpolation_near(originalImage, originalX, originalY, tile_boundaries, color_filter_function);
 			break;
 	}
 
@@ -3132,12 +3222,12 @@ static XImage *ResizeImage_2mask(
 
 			// fixed colors
 			// unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_LINEAR);
-			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_CUBIC);
+			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, 1);
 			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
 
 			// fg mask
 			// newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_LINEAR);
-			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_CUBIC);
+			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, 1);
 			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
 
 			coordinates topLeftPixelCoordinates = correctPixelCoordinates(round(originalX), round(originalY), tile_boundaries);

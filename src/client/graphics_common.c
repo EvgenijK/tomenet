@@ -229,6 +229,16 @@ double lanczos_resample(lanczos_sample_2d sample, double target_x, double target
     return sum / weight_sum;
 }
 
+double quadratic_interpolation(double x, double y0, double y1, double y2) {
+    // Lagrange form of quadratic interpolation
+    // double L0 = ((x - 1) * (x - 2)) / ((-1 - 1) * (-1 - 2));
+    double L0 = ((x - 1) * (x - 2)) / ((0 - 1) * (0 - 2));
+    double L1 = (x * (x - 2)) / ((1 - 0) * (1 - 2));
+    double L2 = (x * (x - 1)) / ((2 - 0) * (2 - 1));
+
+    return L0 * y0 + L1 * y1 + L2 * y2;
+}
+
 // Function to get the RGB values of a pixel in an XImage
 color_rgb x_get_pixel_rgb(XImage *image, int x, int y) {
     color_rgb pixel_rgb = {0, 0, 0}; // Initialize to black
