@@ -296,13 +296,16 @@
 #define NEW_WILDERNESS_MAP_SCROLLS
 
 #if 1 // GLOBAL_DUNGEON_KNOWLEDGE /* (defined in defines.h, so we cannot reference it here, as _we_ are referenced in defines.h) */
-/* Discovering a town grants a reward.
-   If DUNFOUND_REWARDS_NORMAL is defined, this will only treat non-predefined towns (ie TOWN_VANILLA style, aka wild towns)
-   as all predefined towns contain at least one town dungeon and therefore would yield duplicate reward. */
+/* Discovering a town grants a reward. */
  #define TOWNFOUND_REWARDS
+/* If DUNFOUND_REWARDS_NORMAL is defined, only reward non-predefined towns (ie TOWN_VANILLA style, aka wild towns)
+   as all predefined towns contain at least one town dungeon and therefore would yield duplicate reward? */
+ //#define TOWNFOUND_REWARDS_VANILLAONLY
 /* Discovering a canonical dungeon (d_info.txt, and normally-findable) grants a reward,
    the higher the less dungeons are remaining to be found */
  #define DUNFOUND_REWARDS_NORMAL
+/* Discovering a non-canonical dungeon (not in d_info.txt, but normally-findable) grants a reward. */
+ #define DUNFOUND_REWARDS_EXTRA
 #endif
 
 /* Disable manual declaration of hostility/peace */
@@ -324,6 +327,9 @@
 #define VAMPIRES_BB_IMMUNE
 /* Allow vampires to polymorph into vampiric mist at 40, obtaining some special feats? */
 #define VAMPIRIC_MIST
+/* Vampire race intrinsic polymorph levels */
+#define VAMPIRE_XFORM_LEVEL_BAT 15
+#define VAMPIRE_XFORM_LEVEL_MIST 30
 
 /* Note about vampire istari, not getting access to all normal istar spells:
    They currently cannot train Water or Nature school, Divination is at 75% and Fire Flash is unusable.

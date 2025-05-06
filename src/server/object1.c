@@ -15,8 +15,10 @@
 
 #include "angband.h"
 
+#ifdef BACKTRACE_TV_PSEUDO_OBJ
 /* Track TV_PSEUDO_OBJ in object_desc() */
-#include <execinfo.h>
+ #include <execinfo.h>
+#endif
 
 /*
  * Name flavors by combination of adj and extra modifier, so that
@@ -1239,37 +1241,75 @@ void object_flags(object_type *o_ptr, u32b *f1, u32b *f2, u32b *f3, u32b *f4, u3
 			(*f5) |= a_ptr->flags5;
 			(*f6) |= a_ptr->flags6;
 			(*esp) |= a_ptr->esp;
-
-			/* Hack: art_combo for wielded items */
-			if (o_ptr->wId) {
-				int Ind;
-
-				for (Ind = 1; Ind <= NumPlayers; Ind++) {
-					if (Players[Ind]->conn == NOT_CONNECTED) continue;
-					if (Players[Ind]->id != o_ptr->wId) continue;
-
-					/* Not art_combo wielding currenly? */
-					if (!(Players[Ind]->temp_misc_3 & 0x01)) break;
-
-					switch (o_ptr->name1) {
-					case ART_JUDGEMENT:
-						(*f1) |= TR1_KILL_DRAGON | TR1_KILL_DEMON | TR1_KILL_UNDEAD;
-						break;
-					case ART_MERCY:
-						(*f1) |= TR1_BLOWS;
-						(*f2) &= ~TR2_IM_POISON;
-						(*f2) |= TR2_IM_POISON;
-						break;
-					}
-					break;
-				}
-			}
 		}
 #if 0
 		if ((!object_flags_no_set) && (a_ptr->set != -1))
 			apply_flags_set(o_ptr->name1, a_ptr->set, f1, f2, f3, f4, f5, f6, esp);
 #endif	// 0
 	}
+
+	/* Combosets for wielded items */
+	if (o_ptr->comboset_flags) {
+		/* Remember flags without the comboset, these only include the very basic item powers (k_info + a_info) */
+		hack_comboset_f[1] = *f1;
+		hack_comboset_f[2] = *f2;
+		hack_comboset_f[3] = *f3;
+		hack_comboset_f[4] = *f4;
+		hack_comboset_f[5] = *f5;
+		hack_comboset_f[6] = *f6;
+		hack_comboset_f[0] = *esp;
+
+		switch (o_ptr->name1) {
+		case ART_JUDGEMENT:
+			if (o_ptr->comboset_flags == 0x3) (*f1) |= TR1_KILL_DRAGON | TR1_KILL_DEMON | TR1_KILL_UNDEAD;
+			break;
+		case ART_MERCY:
+			if (o_ptr->comboset_flags == 0x3) {
+				(*f1) |= TR1_BLOWS;
+				(*f2) &= ~TR2_IM_POISON;
+				(*f2) |= TR2_IM_POISON;
+			}
+			break;
+
+		case ART_NARTHANC:
+			if (o_ptr->comboset_flags_cnt == 2) {
+				(*f2) |= TR2_SUST_STR;
+				(*f1) |= TR1_STR;
+			}
+			break;
+		case ART_NIMTHANC:
+			if (o_ptr->comboset_flags_cnt == 2) {
+				(*f2) |= TR2_SUST_STR;
+				(*f1) |= TR1_STR;
+			}
+			break;
+		case ART_DETHANC:
+			if (o_ptr->comboset_flags_cnt == 2) {
+				(*f2) |= TR2_SUST_DEX;
+				(*f1) |= TR1_DEX;
+			}
+			break;
+
+		//case ART_MOLTOR: case ART_BOOTS_MOLTOR: -- nothing here, as flags are unchanged.
+
+		case ART_RING_DURIN:
+			if (o_ptr->comboset_flags == 0x7) (*f3) &= ~TR3_DRAIN_EXP;
+			break;
+
+		case ART_STING:
+			if (o_ptr->comboset_flags == 0x3) (*f2) |= TR2_RES_FEAR;
+			break;
+		}
+
+		/* Get flag difference made by the sigil */
+		hack_comboset_f[1] = *f1 & ~hack_comboset_f[1];
+		hack_comboset_f[2] = *f2 & ~hack_comboset_f[2];
+		hack_comboset_f[3] = *f3 & ~hack_comboset_f[3];
+		hack_comboset_f[4] = *f4 & ~hack_comboset_f[4];
+		hack_comboset_f[5] = *f5 & ~hack_comboset_f[5];
+		hack_comboset_f[6] = *f6 & ~hack_comboset_f[6];
+		hack_comboset_f[0] = *esp & ~hack_comboset_f[0];
+	} else hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 
 	/* Ego-item */
 	if (o_ptr->name2) {
@@ -2462,6 +2502,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 #endif
 
 	case TV_PSEUDO_OBJ: {
+#ifdef BACKTRACE_TV_PSEUDO_OBJ
 		int size, i;
 		void *buf[1000];
 		char **fnames;
@@ -2471,6 +2512,7 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 		s_printf(" size = %d\n", size);
 		fnames = backtrace_symbols(buf, size);
 		for (i = 0; i < size; i++) s_printf(" %s\n", fnames[i]);
+#endif
 		return; }
 
 	/* Used in the "inventory" routine */
@@ -3458,9 +3500,8 @@ void object_desc(int Ind, char *buf, object_type *o_ptr, int pref, int mode) {
 	else if (!aware && (Ind && object_tried_p(Ind, o_ptr)))
 		strcpy(tmp_val, "tried");
 	/* Note 100% discount and write it a bit special */
-	else if (o_ptr->discount == 100 && !(mode & 2048)) {
+	else if (o_ptr->discount == 100 && !(mode & 2048))
 		strcat(tmp_val, "unsalable");
-	}
 	/* Note the discount, if any */
 	else if (o_ptr->discount && !(mode & 2048)) {
 		object_desc_num(tmp_val, o_ptr->discount);
@@ -5376,7 +5417,11 @@ bool identify_fully_aux(int Ind, object_type *o_ptr, bool assume_aware, int slot
  */
 /* Print object flag info to file, specifically with colouring for randomized powers ie those from ego items. */
 //#define ff_print(msg, flag_slot, flag) fprintf(fff, "%s%s\n", (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : "\377B", msg)
-#define ff_print(msg, flag_slot, flag) fprintf(fff, "%s%s\n", (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : ((hack_sigil_local_f[flag_slot] & (flag)) ? "\377G" : "\377B"), msg)
+#define ff_print(msg, flag_slot, flag) \
+    fprintf(fff, "%s%s\n", \
+    ((hack_comboset_local_f[flag_slot] & (flag)) ? "\377B" : ((hack_sigil_local_f[flag_slot] & (flag)) ? "\377G" : \
+    (!es_ptr || (es_ptr->flags[flag_slot] & (flag))) ? "" : "\377B")) \
+    , msg)
 #ifndef NEW_ID_SCREEN
 bool identify_fully_aux(int Ind, object_type *o_ptr) {
 	player_type *p_ptr = Players[Ind];
@@ -5403,7 +5448,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	int buf_tmp_i, buf_tmp_n;
 	char timeleft[51] = { 0 };//[26]
 	ego_granted_flags *es_ptr = NULL; //silence compiler warning
-	u32b hack_sigil_local_f[7] = { 0 }; //same as ego_granted_flags
+	u32b hack_sigil_local_f[7] = { 0 }, hack_comboset_local_f[7] = { 0 }; //same as ego_granted_flags
 
 	/* Open a new file */
 	fff = my_fopen(p_ptr->infofile, "wb");
@@ -5416,6 +5461,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 	/* Paranoia - ensure cleared hack flags for any subsequent calls */
 	hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+	hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 
 	//polyring price debug
 	//if (o_ptr->tval == TV_RING && o_ptr->sval == SV_RING_POLYMORPH) fprintf(fff,"%u - %u\n", price_poly_ring(Ind, o_ptr, 1), price_poly_ring(Ind, o_ptr, 0));
@@ -5451,6 +5497,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 			/* Paranoia - ensure cleared hack flags for any subsequent calls */
 			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+			hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 			return(TRUE);
 		}
 		/* Empty gift */
@@ -5461,6 +5508,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 			/* Paranoia - ensure cleared hack flags for any subsequent calls */
 			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+			hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 			return(TRUE);
 		}
 	}
@@ -5632,10 +5680,17 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	hack_sigil_local_f[5] = hack_sigil_f[5];
 	hack_sigil_local_f[6] = hack_sigil_f[6];
 	hack_sigil_local_f[0] = hack_sigil_f[0];
+	/* and for hack_comboset_f[] likewise */
+	hack_comboset_local_f[1] = hack_comboset_f[1];
+	hack_comboset_local_f[2] = hack_comboset_f[2];
+	hack_comboset_local_f[3] = hack_comboset_f[3];
+	hack_comboset_local_f[4] = hack_comboset_f[4];
+	hack_comboset_local_f[5] = hack_comboset_f[5];
+	hack_comboset_local_f[6] = hack_comboset_f[6];
+	hack_comboset_local_f[0] = hack_comboset_f[0];
 
 	/* ------------------------------------------------------------------------------------------ */
 #endif
-
 
 #ifdef USE_SOUND_2010
 	sound_item(Ind, o_ptr->tval, o_ptr->sval, "pickup_");
@@ -5663,6 +5718,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		/* Gave knowledge */
 		/* Paranoia - ensure cleared hack flags for any subsequent calls */
 		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+		hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 		return(TRUE);
 	}
 #endif
@@ -5693,6 +5749,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 		/* Paranoia - ensure cleared hack flags for any subsequent calls */
 		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+		hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 		return(TRUE);
 	}
 
@@ -6023,6 +6080,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 			/* Paranoia - ensure cleared hack flags for any subsequent calls */
 			hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+			hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 			return(FALSE);
 		}
 		my_fclose(fff);
@@ -6031,6 +6089,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 		/* Paranoia - ensure cleared hack flags for any subsequent calls */
 		hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+		hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 		return(TRUE);
 	}
 
@@ -6136,9 +6195,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	if (f1 & TR1_INFRA) ff_print("It affects your infra-vision.", 1, TR1_INFRA);
 	if (f1 & TR1_TUNNEL) ff_print("It affects your ability to tunnel.", 1, TR1_TUNNEL);
 	if (f1 & TR1_SPEED) ff_print("It affects your speed.", 1, TR1_SPEED);
-	if ((p_ptr->temp_misc_3 & 0x01) && o_ptr->name1 == ART_MERCY)
-		fprintf(fff, "\377BIt affects your melee attack speed.\n");
-	else if (f1 & TR1_BLOWS) ff_print("It affects your melee attack speed.", 1, TR1_BLOWS);
+	if (f1 & TR1_BLOWS) ff_print("It affects your melee attack speed.", 1, TR1_BLOWS);
 	if (f5 & TR5_CRIT) ff_print("It affects your ability to score critical hits.", 5, TR5_CRIT);//blue text to indicate 'upgrade'
 	if (f5 & TR5_LUCK) ff_print("It affects your luck.", 5, TR5_LUCK);
 
@@ -6156,14 +6213,11 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 	if (f1 & TR1_SLAY_TROLL) ff_print("It is especially deadly against trolls.", 1, TR1_SLAY_TROLL);
 	if (f1 & TR1_SLAY_GIANT) ff_print("It is especially deadly against giants.", 1, TR1_SLAY_GIANT);
 	if (f1 & TR1_SLAY_ANIMAL) ff_print("It is especially deadly against natural creatures.", 1, TR1_SLAY_ANIMAL);
-	if ((p_ptr->temp_misc_3 & 0x01) && o_ptr->name1 == ART_JUDGEMENT) fprintf(fff, "\377BIt is a great bane of undead.\n"); //blue text to indicate 'upgrade'
-	else if (f1 & TR1_KILL_UNDEAD) ff_print("It is a great bane of undead.", 1, TR1_KILL_UNDEAD);
+	if (f1 & TR1_KILL_UNDEAD) ff_print("It is a great bane of undead.", 1, TR1_KILL_UNDEAD);
 	else if (f1 & TR1_SLAY_UNDEAD) ff_print("It strikes at undead with holy wrath.", 1, TR1_SLAY_UNDEAD);
-	if ((p_ptr->temp_misc_3 & 0x01) && o_ptr->name1 == ART_JUDGEMENT) fprintf(fff, "\377BIt is a great bane of demons.\n"); //blue text to indicate 'upgrade'
-	else if (f1 & TR1_KILL_DEMON) ff_print("It is a great bane of demons.", 1, TR1_KILL_DEMON);
+	if (f1 & TR1_KILL_DEMON) ff_print("It is a great bane of demons.", 1, TR1_KILL_DEMON);
 	else if (f1 & TR1_SLAY_DEMON) ff_print("It strikes at demons with holy wrath.", 1, TR1_SLAY_DEMON);
-	if ((p_ptr->temp_misc_3 & 0x01) && o_ptr->name1 == ART_JUDGEMENT) fprintf(fff, "\377BIt is a great bane of dragons.\n"); //blue text to indicate 'upgrade'
-	else if (f1 & TR1_KILL_DRAGON) ff_print("It is a great bane of dragons.", 1, TR1_KILL_DRAGON);
+	if (f1 & TR1_KILL_DRAGON) ff_print("It is a great bane of dragons.", 1, TR1_KILL_DRAGON);
 	else if (f1 & TR1_SLAY_DRAGON) ff_print("It is especially deadly against dragons.", 1, TR1_SLAY_DRAGON);
 	if (f1 & TR1_SLAY_EVIL) ff_print("It fights against evil with holy fury.", 1, TR1_SLAY_EVIL);
 	if (f1 & TR1_MANA) ff_print("It affects your mana capacity.", 1, TR1_MANA);
@@ -6193,11 +6247,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 		if (f2 & TRAP2_ONLY_EVIL) fprintf(fff, "It can only be set off by evil creatures.\n");
 	}
 #endif
-	if ((p_ptr->temp_misc_3 & 0x01) && o_ptr->name1 == ART_MERCY) { //blue text to indicate 'upgrade'
-		fprintf(fff, "\377BIt provides \377Uimmunity\377- to poison.\n");
-		f2 &= ~TR2_RES_POIS; //don't display its original power that got upgraded to IM
-	}
-	else if (f2 & TR2_IM_POISON) ff_print("It provides \377Uimmunity\377- to poison.", 2, TR2_IM_POISON);
+	if (f2 & TR2_IM_POISON) ff_print("It provides \377Uimmunity\377- to poison.", 2, TR2_IM_POISON);
 
 	if (o_ptr->tval == TV_DRAG_ARMOR && o_ptr->sval == SV_DRAGON_MULTIHUED) {
 		if (!(f2 & TR2_IM_FIRE)) {
@@ -6602,6 +6652,7 @@ bool identify_combo_aux(int Ind, object_type *o_ptr, bool full, int slot, int In
 
 	/* Paranoia - ensure cleared hack flags for any subsequent calls */
 	hack_sigil_f[1] = hack_sigil_f[2] = hack_sigil_f[3] = hack_sigil_f[4] = hack_sigil_f[5] = hack_sigil_f[6] = hack_sigil_f[0] = 0x0;
+	hack_comboset_f[1] = hack_comboset_f[2] = hack_comboset_f[3] = hack_comboset_f[4] = hack_comboset_f[5] = hack_comboset_f[6] = hack_comboset_f[0] = 0x0;
 
 	/* Close the file */
 	my_fclose(fff);
@@ -7824,4 +7875,28 @@ void apply_XID(int Ind, object_type *o_ptr, int slot) {
 	}
 	/* Multiple failures occurred */
 	if (failure) msg_print(Ind, "You are unable to use any of your identify items.");
+}
+
+/* Comboset boni: Analyze and reset modified stats (if any) back to normal.
+   Does NOT treat item flags, as these are handled directly in object_flags(). */
+void clear_comboset(object_type *o_ptr) {
+	if (!o_ptr->comboset_flags) return;
+
+	switch (o_ptr->name1) {
+	case ART_NARTHANC:
+	case ART_NIMTHANC:
+	case ART_DETHANC:
+		o_ptr->pval = 0;
+		break;
+
+	case ART_MOLTOR:
+		o_ptr->pval = 1;
+		break;
+	case ART_BOOTS_MOLTOR:
+		o_ptr->pval = 5;
+		break;
+	}
+
+	o_ptr->wId = 0; //deprecated, superceded by comboset_lags
+	o_ptr->comboset_flags = 0;
 }

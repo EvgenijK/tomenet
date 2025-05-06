@@ -790,6 +790,13 @@ void ball(int Ind, int m_idx, int typ, int dam_hp, int y, int x, int rad) {
 		if (m_idx > 0) sound_near_monster_atk(m_idx, Ind, "stone_wall", NULL, SFX_TYPE_MON_SPELL);
 		else sound_near_site(y, x, &p_ptr->wpos, Ind, "stone_wall", NULL, SFX_TYPE_MON_SPELL, FALSE);
 	}
+	else if (m_list[m_idx].r_idx == RI_LIVING_LIGHTNING) {
+		sound(Ind, "lightning", "thunder", SFX_TYPE_NO_OVERLAP, TRUE);//SFX_TYPE_MON_SPELL
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, Ind, "lightning", "thunder", SFX_TYPE_NO_OVERLAP);//SFX_TYPE_MON_SPELL
+		else sound_near_site(y, x, &p_ptr->wpos, Ind, "lightning", "thunder", SFX_TYPE_NO_OVERLAP, FALSE);//SFX_TYPE_MON_SPELL
+
+	}
 	else if (p_ptr->sfx_monsterattack) {
 		sound(Ind, "cast_ball", NULL, SFX_TYPE_MON_SPELL, TRUE);
 		/* everyone nearby the monster can hear it too, even if no LOS */
@@ -6571,7 +6578,7 @@ int mon_will_run(int Ind, int m_idx) {
 
  #if 0 // I'll run instead!
 	/* Hack -- aquatic life outa water */
-	if (!is_deep_water(zcave[m_ptr->fy][m_ptr->fx].feat)) {
+	if (!feat_is_deep_water(zcave[m_ptr->fy][m_ptr->fx].feat)) {
 		if (r_ptr->flags7 & RF7_AQUATIC) return(TRUE);
 	} else {
 		if (!(r_ptr->flags3 & RF3_UNDEAD) &&
@@ -7219,8 +7226,8 @@ static bool monster_is_comfortable(monster_race *r_ptr, cave_type *c_ptr) {
 		return(TRUE);
 
 	/* I'd like to be under the sea ./~ */
-	if (r_ptr->flags7 & RF7_AQUATIC) return(is_deep_water(c_ptr->feat));
-	else return(!is_deep_water(c_ptr->feat));
+	if (r_ptr->flags7 & RF7_AQUATIC) return(feat_is_deep_water(c_ptr->feat));
+	else return(!feat_is_deep_water(c_ptr->feat));
 }
 #endif	// 0
 
@@ -10116,7 +10123,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 
 #if 0	// too bad hack!
 	/* Hack -- aquatic life outa water */
-	if (!is_deep_water(zcave[oy][ox].feat)) {
+	if (!feat_is_deep_water(zcave[oy][ox].feat)) {
 		if (r_ptr->flags7 & RF7_AQUATIC) {
 			m_ptr->monfear = 50;
 			m_ptr->monfear_gone = 0;

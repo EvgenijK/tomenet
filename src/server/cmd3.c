@@ -71,8 +71,7 @@ s16b inven_takeoff(int Ind, int item, int amt, bool called_from_wield, bool forc
  #endif
 #endif
 
-	/* For art_combo hack: Clear wielder info. */
-	o_ptr->wId = 0;
+	clear_comboset(o_ptr);
 
 	/* Sigil (reset it) */
 	if (o_ptr->sigil) {
@@ -227,8 +226,7 @@ void equip_thrown(int Ind, int slot, object_type *o_ptr, int original_number) {
  #endif
 #endif
 
-	/* For art_combo hack: Clear wielder info. */
-	o_ptr->wId = 0;
+	clear_comboset(o_ptr);
 
 	/* Sigil (reset it) */
 	if (o_ptr->sigil) {
@@ -527,8 +525,7 @@ int inven_drop(bool handle_d, int Ind, int item, int amt, bool force) {
 	/* Message */
 	msg_format(Ind, "%^s %s (%c).", act, o_name, index_to_label(item));
 
-	/* For art_combo hack: Clear wielder info. */
-	o_ptr->wId = 0;
+	clear_comboset(o_ptr);
 
 	/* Sigil (reset it) */
 	if (o_ptr->sigil) {
@@ -2527,7 +2524,7 @@ void power_inscribe(object_type *o_ptr, bool redux, char *powins) {
 	if (is_ammo(o_ptr->tval) && (o_ptr->pval != 0)) {
 		if (strlen(powins) != l) strcat(powins, " ");
 		strcat(powins, "(");
-		strcat(powins, redux ? GF_name_short[o_ptr->pval] : GF_name[o_ptr->pval]);
+		strcat(powins, redux ? GF_name_short[o_ptr->pval] : (GF_name[o_ptr->pval][1] == ' ' ? GF_name[o_ptr->pval] + 2: GF_name[o_ptr->pval])); //trim "a " article prefix
 		strcat(powins, ")");
 	}
 
@@ -3942,7 +3939,8 @@ static void do_cmd_refill_lamp(int Ind, int item) {
 		return;
 	}
 
-	if (check_guard_inscription(o_ptr->note, 'F') || check_guard_inscription(o_ptr->note, 'k')) {
+	if (check_guard_inscription(o_ptr->note, 'F') ||
+	    (o_ptr->tval == TV_FLASK && check_guard_inscription(o_ptr->note, 'k'))) { //can F from lanterns that have '!k'
 		msg_print(Ind, "The item's incription prevents it.");
 		return;
 	}
@@ -4250,7 +4248,8 @@ bool do_auto_refill(int Ind) {
 			j_ptr = &(p_ptr->inventory[i]);
 			if (!item_tester_hook(j_ptr)) continue;
 			if (artifact_p(j_ptr) || ego_item_p(j_ptr)) continue;
-			if (check_guard_inscription(j_ptr->note, 'F') || check_guard_inscription(j_ptr->note, 'k')) continue;
+			if (check_guard_inscription(j_ptr->note, 'F') ||
+			    (j_ptr->tval == TV_FLASK && check_guard_inscription(j_ptr->note, 'k'))) continue;
 
 			do_cmd_refill_lamp(Ind, i);
 			return(TRUE);
@@ -4386,8 +4385,9 @@ static bool do_cmd_look_accept(int Ind, int y, int x) {
 		    (c_ptr->feat <= FEAT_DOOR_TAIL)) return(TRUE);
 
 		/* Notice windows */
-		if (c_ptr->feat == FEAT_WINDOW || c_ptr->feat == FEAT_WINDOW_SMALL
-		    c_ptr->feat == FEAT_OPEN_WINDOW || c_ptr->feat == FEAT_OPEN_WINDOW_SMALL)
+		if (c_ptr->feat == FEAT_WINDOW || c_ptr->feat == FEAT_WINDOW_SMALL ||
+		    c_ptr->feat == FEAT_OPEN_WINDOW || c_ptr->feat == FEAT_OPEN_WINDOW_SMALL ||
+		    c_ptr->feat == FEAT_BARRED_WINDOW || c_ptr->feat == FEAT_BARRED_WINDOW_SMALL)
 			return(TRUE);
 
 		/* Notice rubble */
@@ -5701,7 +5701,7 @@ void do_cmd_subinven_move(int Ind, int islot, int amt) {
 			eligible_bag = TRUE;
 			break;
 		case SV_SI_FOOD_BAG:
-			if (i_ptr->tval != TV_FOOD) continue;
+			if (i_ptr->tval != TV_FOOD && i_ptr->tval != TV_FIRESTONE) continue;
 			eligible_bag = TRUE;
 			break;
 		default:
@@ -5843,7 +5843,7 @@ bool do_cmd_subinven_fill(int Ind, int slot, bool quiet) {
 			eligible_item = TRUE;
 			break;
 		case SV_SI_FOOD_BAG:
-			if (i_ptr->tval != TV_FOOD) continue;
+			if (i_ptr->tval != TV_FOOD && i_ptr->tval != TV_FIRESTONE) continue;
 			eligible_item = TRUE;
 			break;
 		default:

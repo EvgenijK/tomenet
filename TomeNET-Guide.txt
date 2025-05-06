@@ -1,7 +1,7 @@
 .==========================================================================+--.
 |                              TomeNET Guide                               |
 +==========================================================================+-
-| Latest update: 15. April 2025 - written by C. Blue (c_blue@gmx.net)      |
+| Latest update: 28. April 2025 - written by C. Blue (c_blue@gmx.net)      |
 | for TomeNET version v4.9.3 - official websites are:                      :
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
@@ -255,9 +255,14 @@ If you are using Linux, you will find additional information about how to
 compile the game under
  '(2.1) Installing/updating TomeNET (Windows/Linux/Mac OS X)'.
 
+For Windows clients:
 If you use a foreign IME setting, eg korean or japanese, switch it to US-EN IME
 (compare problem 54 in the troubleshooting section (9.8)) or you might not be
 able to use most keys aside from arrow keys for basic movement.
+If you are using an asian CJK system (chiense/japanese/korean) and find the
+game window's focus is odd or alt-tabbing isn't behaving as expected, you can
+turn off the automatic IME setting, one way is to press =E in the game, for
+more details see "PROBLEM 77".
 
 -Get the latest client from the project's main official site www.tomenet.eu.
  or from https://muuttuja.org/tomenet/ (Mikael's site, which features a
@@ -2442,6 +2447,20 @@ Weapons/ammo, devices and spells:
                 For details about auto-retaliation and the different types of
                 @O... inscriptions, see (4.1a)!
 
+Items that can recharge magic devices (eg Scrolls of Recharging):
+    @I<partial item name>
+                Will not prompt for a target item but try to find the target
+                item matching the partial item name specified after '@I'.
+                Only magic devices will be considered as target items.
+                Example:
+                "A Scroll of Recharging {{1} {@r4 @IWond}"
+                If this scroll were read, it would try to enchant a magic
+                device which name partially matches "Wond". So if you carry
+                a Wand of Wonder in your inventory, the scroll would try to
+                recharge that one.
+                You can also specify (parts of) an inscription of a target
+                item, for example "@Imydev" or whatever you like.
+
 For magic devices:
     !B          Will play a beep sound if you either fail the activation roll
                 to use the device or if the device is out of charges or still
@@ -2521,15 +2540,20 @@ Gift wrappings:
 Bags (subinventory):
     !A[0|1]     Do not auto-stow items into this bag.
                 0: Except if they stack with existing items.
-                1: Except if they are at least similar to existing items.
+                1: Except if they are at least similar(*) to existing items.
 
     !O[0|1]     Do not auto-stow unowned items (ie new loot) into this bag.
                 0: Except if they stack with existing items.
-                1: Except if they are at least similar to existing items.
+                1: Except if they are at least similar(*) to existing items.
 
     !S[0|1]     Only auto-stow items into this bag when buying from store.
                 0: And only if they stack with existing items.
-                1: And only if they are at least similar to existing items.
+                1: And only if they are at least similar(*) to existing items.
+
+    (*) 'Similar' just means they can stack with the item, but there might not
+        be enough space to get fully absorbed into the existing stack.
+        So only part of the items may stack and the rest or even all of it has
+        to be placed into a fresh, empty bag slot.
 
     Also see !S inscription for items, which prevents auto-stowing an item.
 
@@ -3550,7 +3574,7 @@ dangers but also fantastic treasure. Players on the same server can also play
 together by forming parties and sharing their experience! Players will acquire
 new ranks as their experience grows, allowing them to learn new abilities and
 to become stronger. Morgoth is said not to show up until his servant Sauron,
-the Sorceror has been defeated. (See (1.3a) for details about Morgoth.)
+the Sorcerer has been defeated. (See (1.3a) for details about Morgoth.)
 
 On their journey through wilderness and remote towns, towers and dungeons,
 characters will gain experience points that increase their level up to 50.
@@ -3683,7 +3707,7 @@ themselves (5.12).
 
 About Sauron:
 -------------
-In order to find Morgoth, players have to defeat Sauron, the Sorceror first,
+In order to find Morgoth, players have to defeat Sauron, the Sorcerer first,
 Morgoth's servant, who dwells at the bottom of Mount Doom. A player must get
 the killing blow on Sauron to get kill credit, so if you are in a party of
 several players who all haven't killed him yet, you must seek him out multiple
@@ -3766,7 +3790,7 @@ See the following paragraph (1.3b) for more information on Morgoth.
 (1.3b) How to encounter the final boss: Morgoth, Lord of Darkness
 -----------------------------------------------------------------
 -Morgoth is found only at dungeon level 100 or deeper.
--He won't show up until you defeated Sauron, the Sorceror, who is found at the
+-He won't show up until you defeated Sauron, the Sorcerer, who is found at the
  bottom of Mount Doom (which is dungeon level 99).
 -Morgoth does not neccessarily spawn on each fitting dungeon level,
  sometimes you have to search for him, like for all other monsters/uniques.
@@ -6285,6 +6309,22 @@ haul back to town to sell it, you could just equip it anyway to just use that
 weapon slot in your equipment as a +1 extension of your inventory, and then
 teleport back to town right away (via a scroll of Word of Recall).
 
+Paste item (also dubbed "link item") to chat:
+---------------------------------------------
+You can paste an item's name (including its inscription) to chat by pressing
+either 'i' for inventory or 'e' for equipment and then SHIFT + slot letter.
+For example if you have an item "b) a Dagger" in your inventory, you would
+press 'i', then 'SHIFT+B' to paste it into chat.
+While you are inside a shop, you can also paste items offered by the shop to
+chat by pressing the 'c' key and then the shop item's slot letter.
+Another method to insert items into your chat messages is to use the \\x tag
+for inventory \\X for equipment, and \\\x for shop items. Finally, there is
+the \\_ tag for pasting items under your feet (ie on the ground on the grid
+you are currently standing on), where 'x' stands for the slot letter and 'X'
+stands for SHIFT + slot letter. So for example to mention your equipped
+weapon, which is in equipment slot 'a)', you could write this chat message:
+"Hey everyone, look at the \\A which I'm wielding."
+
 
 (3.4a) Subinventory aka Bags
 ----------------------------
@@ -6401,15 +6441,22 @@ an item from within it via 'S' (capital 'S' instead the usual lower-case 's').
 There are also inscriptions that can be put onto these bags (don't mix them):
   !A  Do not auto-stow items into this bag.
   !A0 ..except if this item can stack with already existing items in the bag.
-  !A1 ..except if they are at least similar to existing items.
+  !A1 ..except if they are at least similar(*) to existing items.
 
   !O  Do not auto-stow unowned items (ie new loot) into this bag.
   !O0 ..except if this item can stack with already existing items in the bag.
-  !O1 ..except if they are at least similar to existing items.
+  !O1 ..except if they are at least similar(*) to existing items.
 
   !S  Only auto-stow items into this bag when buying from a store.
   !S0 ..and only if this item can stack with already existing items in the bag.
-  !S1 ..and only if they are at least similar to existing items.
+  !S1 ..and only if they are at least similar(*) to existing items.
+
+  (*) 'Similar' just means they can stack with the item, but there might not
+      be enough space to get fully absorbed into the existing stack.
+      So only part of the items may stack and the rest or even all of it has
+      to be placed into a fresh, empty bag slot.
+
+  Also see !S inscription for items, which prevents auto-stowing an item.
 
 The inscriptions !d and !s have a special, additional QoL function when used
 on bags: They will prevent storing the bag in a list house. Either one works.
@@ -9839,7 +9886,7 @@ The Illusory Castle           | King in Yellow       | Helm of Knowledge
 The Sacred Land of Mountains  | T'ron  (level 72!)   | Coat of T'ron
 Erebor                        | Smaug                | Arkenstone of Thrain
 Dol Guldur            (E)     | Shadow of Dol Guldur | Ring of Durin
-Mount Doom            (E)     | Sauron, the Sorceror | -
+Mount Doom            (E)     | Sauron, the Sorcerer | -
 The Cloud Planes              | The Living Lightning | - (Lightning items)
 Nether Realm                  | Zu-Aon  (F)          | Ring of Phasing
 
@@ -9859,7 +9906,7 @@ deeper. See (1.3), (1.3a) and (1.3b) for more information.
 create a temporary anti-teleportation field of radius 12 that will prevent all
 teleportation from and to, and stall all Word of Recall attempts within.
 
-(E) While Sauron, the Sorceror, boss of Mount Doom, does not drop any
+(E) While Sauron, the Sorcerer, boss of Mount Doom, does not drop any
 specific artifact, he is still a required kill before you are able to encounter
 Morgoth, the Lord of Darkness (compare (1.3), (1.3a) and (1.3b)).
 When you kill Sauron, you will be able to recall out from that dungeon level!
@@ -12917,7 +12964,7 @@ the encumberment bar about this.
 
 Glove encumberment (concerning magic)
 -------------------------------------
-Wearing gloves as a sorceror may reduce your maximum mana points if they are
+Wearing gloves as a sorcerer may reduce your maximum mana points if they are
 not magically enchanted, such as:
 Providing 'Free Action' / increasing your mana / increasing your dexterity.
 You will receive a warning message, saying:
@@ -14660,6 +14707,8 @@ Protection from evil
                 ("You feel safe from evil!")
 
 Recharging      Recharges a magical device (rod, wand or staff, see (5.18)).
+                Can be inscribed "@I<partial item name>" to target a specific
+                item.
 
 Remove Curse    Breaks lesser curses on items, allowing you to unwear or
                 destroy them. Note that many items can be sold for good cash
@@ -16251,6 +16300,9 @@ returns low and if it ever fails you might lose a lot of wands/staves at once.
 Note that inside the Ironman Deep Dive Challenge (IDDC) it is not possible to
 recharge Staves of Summoning or Wands of Polymorph.
 
+Items used to recharge magic devices can be inscribed "@I<partial item name>"
+to target a specific item. Also see (0.3) for details about "@I" inscription.
+
 
 
 (5.19) Enchanting
@@ -16442,7 +16494,7 @@ on the final level of a particular dungeon and when you kill them you will
 info about dungeon bosses.
 
 Morgoth, the Lord of Darkness is the game boss. To actually encounter him you
-first need to defeat Sauron, the Sorceror though. See (1.3b) for details.
+first need to defeat Sauron, the Sorcerer though. See (1.3b) for details.
 By defeating Morgoth the player is awarded royal status. There will be two
 more dungeons that can only be entered by royalty and offer further, insanely
 hard challenges and new unique bosses.
@@ -19848,7 +19900,7 @@ create a character!):
     who live on the surface under the burning light of the sun. Overthrowing
     rivals by treachery and murder are acknowledged ways in their society,
     as long as noone is left alive who might bring charge against the victors.
-    Dark-Elves are good fighters and sorcerors, but also decent priests.
+    Dark-Elves are good fighters and sorcerers, but also decent priests.
     Dark-Elves intrinsically resist darkness, but are susceptible to light.
     At level 20 they learn to see the invisible.
     They get bonus on 'Stealth', 'Dodging', 'Sneakiness', 'Backstabbing', a
@@ -19911,14 +19963,14 @@ create a character!):
     improve by training in both Necromancy and Traumaturgy (see skill details).
     Being undead, vampires don't drown as easily as other races, but the water
     still has a somewhat damaging effect if they cannot swim at all.
-    At level 20 they become able to turn into a vampire bat (mimicry code 391).
+    At level 15 they become able to turn into a vampire bat (mimicry code 391).
     Vampire bats are fast, can fly (basically as effective as 'levitation')
     and are more resistant to sun burn than the humanoid vampire form,
     making them useful for travelling, although they move slightly erratically.
     While vampires are in bat form, their mana pool is greatly reduced though.
     As a specialty, vampires can use their full equipment in vampire bat form
     but cannot fight or cast well while transformed (reduced BpR and MP pool).
-    At level 35 they can become able to turn into vampiric mist (mimicry 365).
+    At level 30 they can become able to turn into vampiric mist (mimicry 365).
     In mist form, they can pass closed doors, traps without triggering them,
     have maximum stealth and be granted a shivering aura (or have their
     existing shivering aura boosted). They will also gain the 'invisibility'
@@ -26171,7 +26223,7 @@ The most powerful representant of each class:
 -Patriarchs, these unfaltering priestlords can summon and curse rapidly.
 -Master Mindcrafters, their ability to summon mighty support and to smash
  your brain by psi attacks is feared.
--Old sorcerors are able to summon ancient dragonkind and wyrms, beware!
+-Old sorcerers are able to summon ancient dragonkind and wyrms, beware!
 -(Grand) Swordsmasters, most skilled swordsmen that will disarm you easily.
 -(Grand) Master mystics, most powerful martial artists. With their special
  moves they can manage to stun you easily. Best remedy is high AC so
@@ -27751,14 +27803,16 @@ Solution:   This can have several reasons. On disconnection a message box will
                     The login process couldn't be completed. Probably a network
                     problem, or really bad lag/timeout.
 
-            If you are living in a place with ISPs that utilize bad network
-            infrastructure/routing, for example Australia, you could try a VPN
-            service such as 'NordVPN' (not affiliated, random example) who
-            offer their 'Meshnet' service aimed specifically at gaming, or the
-            also gaming-specific service 'Exitlag' (again not affiliated).
+            If you are living in a place with ISPs that have bad network
+            infrastructure/routing, for example Australia or New Zealand, you
+            could try a VPN service such as 'NordVPN' (not affiliated, random
+            example) who offer their 'Meshnet' service aimed specifically at
+            gaming, or the also gaming-specific service 'Exitlag' (again not
+            affiliated).
             These are services that gamers from Australia apparently use to
             improve their gaming experience.
             At the time of writing, these provide free trial periods.
+            (A ping improvement of 70ms was reported by one player from NZ.)
 
             To check how your ISP routes your network traffic, you can use the
             'traceroute' command on your PC (eg 'traceroute europe.tomenet.eu')
@@ -28579,8 +28633,10 @@ Solution:   Usually caused by an outdated config file, such as .opt (options)
             of "high..." were at some point changed to actually read "high..."
             instead. For example "hilite_player" -> "highlite_player" etc.
 
-PROBLEM 77: I cannot switch languages in Windows via keyboard shortcut while
-            TomeNET is in focus.
+PROBLEM 77: Asian Windows clients (CJK, ie chinese/japanese/korean):
+            I cannot switch languages in Windows via keyboard shortcut while
+            TomeNET is in focus, or ALT+TAB isn't behaving as expected, or
+            the game's window focus is not switchable as usual.
 Solution:   As long as you don't rely on CJK IME (Input Method Editors for
             chinese, japanese, korean languages), you can safely disable IME
             and it should fix the problem. There are three ways:
@@ -28590,5 +28646,25 @@ Solution:   As long as you don't rely on CJK IME (Input Method Editors for
                'DisableIME' and set it to '1' instead of '0'.
             3) Start TomeNET with the command-line option '-I', for example
                from a terminal window or a .BAT file:  TomeNET.exe -I
+
+PROBLEM 78: On startup the game keeps asking for bigmap (double screen height)
+            mode or for graphics mode.
+Solution:   TomeNET writes a hint to its config file after asking this so next
+            startup it knows not to ask again when it reads the config file.
+            Since this mechanism doesn't seem to work, you either
+            - set the TomeNET config file to write-protected or
+            - have some script that automatically overwrites it with an initial
+              state/version.
+            You can also  edit your TomeNET config file with a text editor and
+            add the missing hint manually to suppress the query on startup:
+            For Windows client:
+             Edit TomeNET.ini (must be same base filename as the executable, ie
+             in this case TomeNET.exe, assumed you aren't using a command-line
+             parameter to load a differently named ini file) and add or modify
+             a line in it: "HintBigmap=0"
+            For X11 client (Linux/OSX):
+             Edit .tomenetrc file (assumed you aren't using a command-line parm
+             to load a differently named rc file) and add a line just saying:
+             "hintBigmap".
 
 ===============================================================================

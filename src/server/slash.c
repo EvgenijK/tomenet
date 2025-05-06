@@ -298,9 +298,17 @@ static void do_cmd_refresh(int Ind) {
 /* Helper function to convert human-readable inventory slot letters to internal inventor[] indices.
    Capital letters for equipment slots.
    If Ind is =! 0 an error message will be sent to that player if the slot is out of range. */
-static int a2slot(int Ind, char slot, bool inven, bool equip) {
+static int a2slot(int Ind, char slot, char slot2, bool inven, bool equip) {
 	/* convert to valid inventory slot */
-	if (inven && slot >= 'a' && slot <= 'w') return(slot - 'a');
+	if (inven && slot >= 'a' && slot <= 'w') {
+#ifndef ENABLE_SUBINVEN
+		return(slot - 'a');
+#else
+		if (!slot2) return(slot - 'a');
+		else if (slot2 >= 'a' && slot <= 'w') return((slot - 'a' + 1) * SUBINVEN_INVEN_MUL + (slot2 - 'a'));
+		/* else: invalid slot, fall through and fail */
+#endif
+	}
 	/* check for valid equipment slot */
 	if (equip && slot >= 'A' && slot <= 'N') return(slot - 'A' + INVEN_PACK);
 	/* invalid slot */
@@ -974,16 +982,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				/* skip inscribed items, except if we designated one item in particular (j==h) */
 				if (o_ptr->note &&
 				    strcmp(quark_str(o_ptr->note), "terrible") &&
-				    strcmp(quark_str(o_ptr->note), "cursed") &&
-				    strcmp(quark_str(o_ptr->note), "uncursed") &&
 				    strcmp(quark_str(o_ptr->note), "broken") &&
-				    strcmp(quark_str(o_ptr->note), "average") &&
 				    strcmp(quark_str(o_ptr->note), "good") &&
 				    strcmp(quark_str(o_ptr->note), "worthless") &&
-				    strcmp(quark_str(o_ptr->note), "stolen") &&
-				    strcmp(quark_str(o_ptr->note), "handmade") &&
-				    strcmp(quark_str(o_ptr->note), "on sale")
-				    ) {
+				    !DISCARDABLE_INSCR_FLOOR(quark_str(o_ptr->note))) {
 					if (j != h) continue; /* skip inscribed items when mass-tagging */
 					else o_ptr->note = 0; /* hack to overwrite its inscription */
 				}
@@ -2184,7 +2186,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				if (p_ptr->item_newest >= 0) do_cmd_empty_potion(Ind, p_ptr->item_newest);
 				return;
 			}
-			if ((slot = a2slot(Ind, token[1][0], TRUE, FALSE)) == -1) return;
+			if ((slot = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
 			do_cmd_empty_potion(Ind, slot);
 			return;
 		}
@@ -3834,7 +3836,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				else {
 					int slot;
 
-					if ((slot = a2slot(Ind, token[2][0], TRUE, FALSE)) == -1) return;
+					if ((slot = a2slot(Ind, token[2][0], 0, TRUE, FALSE)) == -1) return; //todo: token[1][1] for ENABLE_SUBINVEN support
 					n = auction_set(Ind, slot, token[3], token[4], token[5]);
 					if (n) auction_print_error(Ind, n);
 				}
@@ -4057,7 +4059,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "\377oWhere the slot must be a potion which determines the colour.");
 				return;
 			}
-			if ((k = a2slot(Ind, token[1][0], TRUE, FALSE)) == -1) return;
+			if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
 
 			/* Check for a house door next to us */
 			for (x = p_ptr->px - 1; x <= p_ptr->px + 1; x++) {
@@ -4100,6 +4102,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					switch (zcave[y][x].feat) {
 					case FEAT_WINDOW: case FEAT_WINDOW_SMALL:
 					case FEAT_OPEN_WINDOW: case FEAT_OPEN_WINDOW_SMALL:
+					case FEAT_BARRED_WINDOW: case FEAT_BARRED_WINDOW_SMALL:
 						found_window = TRUE;
 						wx = x;
 						wy = y;
@@ -5725,7 +5728,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			Send_confused(Ind, TRUE);
 			Send_fear(Ind, TRUE);
 			Send_poison(Ind, is_atleast(&p_ptr->version, 4, 9, 2, 1, 0, 1) ? 0x4 : 0x2);
-			Send_state(Ind, TRUE, TRUE, TRUE);
+			Send_state(Ind, 1, TRUE, TRUE);
 			Send_speed(Ind, 210);
 			if (is_older_than(&p_ptr->version, 4, 4, 8, 5, 0, 0)) Send_study(Ind, TRUE);
 			else Send_bpr_wraith(Ind, 99, TERM_L_RED, "wRaItH");
@@ -5977,7 +5980,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
-			if ((k = a2slot(Ind, token[1][0], TRUE, FALSE)) == -1) return;
+			if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
 			if (tk == 1) amt = 1;
 			else amt = atoi(token[2]);
 
@@ -6009,7 +6012,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
 
 			if (tk) {
-				if ((k = a2slot(Ind, token[1][0], TRUE, FALSE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval || o_ptr->tval != TV_SUBINVEN) {
 					msg_format(Ind, "Inventory item '%c)' is not a valid container.", token[1][0]);
@@ -6058,7 +6061,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			/* Paralyzed? */
 			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
 
-			if ((k = a2slot(Ind, token[1][0], TRUE, FALSE)) == -1) return;
+			if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
 			o_ptr = &p_ptr->inventory[k];
 			if (!o_ptr->tval || o_ptr->tval != TV_SUBINVEN) {
 				msg_format(Ind, "Inventory item '%c)' is not a valid container.", token[1][0]);
@@ -9257,7 +9260,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
@@ -9371,7 +9374,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				object_type *o_ptr;
 				int tries = 1;
 
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
@@ -9424,7 +9427,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->name2) {
 					msg_print(Ind, "\377oNot an ego item.");
@@ -11344,7 +11347,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /costs <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				object_desc(Ind, o_name, o_ptr, TRUE, 0);
 				msg_format(Ind, "Overview for item %s in slot %d:",
@@ -11980,7 +11983,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /madart <slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval) {
 					msg_print(Ind, "\377oInventory slot empty.");
@@ -12078,7 +12081,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /measureart <slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval) {
 					msg_print(Ind, "\377oInventory slot empty.");
@@ -13111,7 +13114,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /testrandart <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
 					if (o_ptr->name1) {
@@ -14306,12 +14309,17 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				  "readme": "https://ipinfo.io/missingauth"
 				}
 				*/
-				char ip_addr[MAX_CHARS];
-				bool ip = atoi(message3); /* specified an IP? */
+				char ip_addr[MAX_CHARS], *mp = message3;
+				bool is_ip, is_idx;
+
+				while (*mp == ' ') mp++;
+				is_ip = (atoi(mp) || *mp == '0') && strchr(mp, '.'); /* specified an IP? */
+				is_idx = (atoi(mp) || *mp == '0') && !strchr(mp, '.'); /* specified an index? */
 
 				if (!tk) {
 					msg_print(Ind, "\377oUsage: /geo <character name>");
 					msg_print(Ind, "\377oUsage: /geo <ip address>");
+					msg_print(Ind, "\377oUsage: /geo <invalid-list entry index>");
 					return;
 				}
 
@@ -14320,8 +14328,29 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if (!ip) {
-					j = name_lookup_loose(Ind, message3, FALSE, TRUE, FALSE);
+				if (is_idx) {
+					if (k < 0) {
+						msg_print(Ind, "\377yIndex must start at 0.");
+						return;
+					}
+					for (i = 0; i < MAX_LIST_INVALID; i++)
+						if (!list_invalid_name[i][0]) break;
+					if (k >= i) {
+						msg_print(Ind, "No such invalid-accounts list index.");
+						return;
+					}
+					msg_format(Ind, "Looking up IP %s (#%d '%s@%s') ...", list_invalid_addr[k], k, list_invalid_name[k], list_invalid_host[k]);
+					strcpy(ip_addr, list_invalid_addr[k]);
+				} else if (is_ip) {
+					char *p = strchr(mp, '/');
+
+					/* QoL: automatically cut off '/nnnnn' trailing port info if given */
+					if (p) *p = 0;
+
+					strcpy(ip_addr, mp);
+					msg_format(Ind, "Looking up IP %s ...", ip_addr);
+				} else { /* character name specified */
+					j = name_lookup_loose(Ind, mp, FALSE, TRUE, FALSE);
 					if (!j) {
 						msg_print(Ind, "\377yCharacter not online.");
 						return;
@@ -14329,14 +14358,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					/* Note: Could also use LUA's execute() hehee */
 					strcpy(ip_addr, get_player_ip(j));
 					msg_format(Ind, "Looking up IP %s of player '%s'...", ip_addr, Players[j]->name);
-				} else {
-					char *p = strchr(message3, '/');
-
-					/* QoL: automatically cut off '/nnnnn' trailing port info if given */
-					if (p) *p = 0;
-
-					strcpy(ip_addr, message3);
-					msg_format(Ind, "Looking up IP %s ...", ip_addr);
 				}
 
 				i = system(format("curl https://ipinfo.io/%s > __ipinfo.tmp &", ip_addr));
@@ -14696,7 +14717,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /icursed <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				inverse_cursed(o_ptr);
 				return;
@@ -14708,7 +14729,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /icursed <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], TRUE, TRUE)) == -1) return;
+				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 				o_ptr = &p_ptr->inventory[k];
 				reverse_cursed(o_ptr);
 				return;

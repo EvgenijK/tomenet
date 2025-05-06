@@ -1176,8 +1176,9 @@ static void process_effects(void) {
 
 			/* Creates a "wave" effect*/
 			if (e_ptr->flags & (EFF_WAVE | EFF_THINWAVE)) {
-				if (los(wpos, e_ptr->cy, e_ptr->cx, j, i) &&
-				    (distance(e_ptr->cy, e_ptr->cx, j, i) == e_ptr->rad))
+				if (projectable(wpos, e_ptr->cy, e_ptr->cx, j, i, MAX_RANGE)
+				    //&& projectable(wpos, e_ptr->caster_y, e_ptr->caster_x, j, i, MAX_RANGE) --enable if caster_x/y are needed for special combo effects, if ever
+				    && (distance(e_ptr->cy, e_ptr->cx, j, i) == e_ptr->rad))
 					apply_effect(k, &who, wpos, i, j, c_ptr);
 			}
 
@@ -1622,11 +1623,12 @@ static void process_effects(void) {
 				c_ptr = &zcave[j][i];
 				if (c_ptr->effect && c_ptr->effect != k) continue; /* 'skip' */
 
-				if (los(wpos, e_ptr->cy, e_ptr->cx, j, i) && (distance(e_ptr->cy, e_ptr->cx, j, i) <= e_ptr->rad)) {
+				if (projectable(wpos, e_ptr->cy, e_ptr->cx, j, i, MAX_RANGE)
+				    //&& projectable(wpos, e_ptr->caster_y, e_ptr->caster_x, j, i, MAX_RANGE) --enable if caster_x/y are needed for special combo effects, if ever
+				    && (distance(e_ptr->cy, e_ptr->cx, j, i) <= e_ptr->rad)) {
 					apply_effect(k, &who, wpos, i, j, c_ptr);
 					if (!(e_ptr->flags & EFF_DUMMY)) {
 						project(who, 0, wpos, j, i, e_ptr->dam, e_ptr->type, flg, "");
-
 						/* The caster got ghost-killed by the projection (or just disconnected)? If it was a real player, handle it: */
 						if (Players[0 - who]->conn == NOT_CONNECTED || Players[0 - who]->death) {
 							erase_effects(k);
@@ -1675,7 +1677,9 @@ static void process_effects(void) {
 					i = e_ptr->cx + tdx[l];
 					if (!in_bounds(j, i)) continue;
 					c_ptr = &zcave[j][i];
-					if (los(wpos, e_ptr->cy, e_ptr->cx, j, i) && (distance(e_ptr->cy, e_ptr->cx, j, i) <= e_ptr->rad)) {
+					if (projectable(wpos, e_ptr->cy, e_ptr->cx, j, i, MAX_RANGE)
+					    //&& projectable(wpos, e_ptr->caster_y, e_ptr->caster_x, j, i, MAX_RANGE) --enable if caster_x/y are needed for special combo effects, if ever
+					    && (distance(e_ptr->cy, e_ptr->cx, j, i) <= e_ptr->rad)) {
 						c_ptr->effect = k;
 						if (!(e_ptr->flags & EFF_DUMMY))
 							project(who, 0, wpos, j, i, e_ptr->dam, e_ptr->type, flg, "");
@@ -5128,7 +5132,7 @@ static bool process_player_end_aux(int Ind) {
 		apply_terrain_effect(Ind);
 
 		/* Drowning, but not ghosts */
-		if (is_deep_water(c_ptr->feat)) {
+		if (feat_is_deep_water(c_ptr->feat)) {
 			/* Rewrote this whole routine to take into account DSMs, wood helping thanks to its relative density, subinventories etc. - C. Blue */
 			if (!p_ptr->tim_wraith && !p_ptr->levitate) { /* Wraiths and levitating players are completely unaffected by water, including their items */
 				bool huge_wood = FALSE, cold = cold_place(wpos), is_ent = (p_ptr->prace == RACE_ENT && !p_ptr->body_monster);
@@ -5325,7 +5329,7 @@ static bool process_player_end_aux(int Ind) {
 		else if ((p_ptr->body_monster) &&
 		    ((r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC) &&
 		    !(r_info[p_ptr->body_monster].flags3 & RF3_UNDEAD))
-		    && (!is_shal_water(c_ptr->feat) ||
+		    && (!feat_is_shal_water(c_ptr->feat) ||
 		    r_info[p_ptr->body_monster].weight > 700)
 		    /* new: don't get stunned from crossing door/stair grids every time - C. Blue */
 		    && !is_always_passable(c_ptr->feat)
@@ -5338,7 +5342,7 @@ static bool process_player_end_aux(int Ind) {
 			if (!hit) hit = 1;
 
 			if (hit) {
-				if (!is_shal_water(c_ptr->feat))
+				if (!feat_is_shal_water(c_ptr->feat))
 					msg_print(Ind, "\377rYou cannot breathe air!");
 				else
 					msg_print(Ind, "\377rThere's not enough water to breathe!");
@@ -5446,7 +5450,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Ent's natural food while in 'Resting Mode' - C. Blue
 	   Water helps much, natural floor helps some. */
 	if (!p_ptr->ghost && p_ptr->prace == RACE_ENT && p_ptr->resting) {
-		if ((is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) || c_ptr->feat == FEAT_MUD)
+		if ((feat_is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) || c_ptr->feat == FEAT_MUD)
 			autofood = 200; //Delicious!
 		else if (c_ptr->feat == FEAT_GRASS || c_ptr->feat == FEAT_DIRT)
 			autofood = 100;
@@ -5474,7 +5478,7 @@ static bool process_player_end_aux(int Ind) {
 	/* Ghosts don't need food */
 	/* Allow AFK-hivernation if not hungry */
 	else if (!p_ptr->ghost && !(p_ptr->afk && p_ptr->food >= PY_FOOD_ALERT) && !p_ptr->admin_dm &&
-	    p_ptr->paralyzed != 255 && /* Hack for forced stasis - also prevents damage from starving badly */
+	    p_ptr->paralyzed <= cfg.spell_stack_limit && /* Hack for forced stasis - also prevents damage from starving badly */
 	    /* Don't starve in town (but recover from being gorged) - C. Blue */
 	    (!(townarea || dungeontown || safe_area(Ind)) //not in AMC either @ safe_area()
 	    || p_ptr->food >= PY_FOOD_FULL)) { /* allow to digest even some in town etc to not get gorged in upcoming fights quickly - C. Blue */
@@ -5847,7 +5851,7 @@ static bool process_player_end_aux(int Ind) {
 		(void)set_tim_infra(Ind, p_ptr->tim_infra - minus_magic);
 
 	/* Paralysis */
-	if (p_ptr->paralyzed && p_ptr->paralyzed != 255) /* hack */
+	if (p_ptr->paralyzed && p_ptr->paralyzed <= cfg.spell_stack_limit) /* hack */
 		(void)set_paralyzed(Ind, p_ptr->paralyzed - 1);
 
 	/* Confinement */
@@ -6912,7 +6916,7 @@ static bool process_player_end_aux(int Ind) {
 
 	/* Delayed Word-of-Recall */
 	if (p_ptr->word_recall) {
-		if ((l_ptr && (l_ptr->flags2 & LF2_NO_TELE))
+		if ((l_ptr && (l_ptr->flags2 & LF2_NO_TELE) && !is_admin(p_ptr))
 #ifdef ANTI_TELE_CHEEZE
 		    || p_ptr->anti_tele
  #ifdef ANTI_TELE_CHEEZE_ANCHOR
@@ -9533,8 +9537,8 @@ void process_player_change_wpos(int Ind) {
 			}
 		}
 		while (((zcave[starty][startx].info & (CAVE_ICKY | CAVE_STCK | CAVE_NEST_PIT)) /* Don't recall into houses. Stck/Nest-pit shouldn't really happen on world surface though.. */
-			|| is_deep_water(zcave[starty][startx].feat)
-			|| is_deep_lava(zcave[starty][startx].feat)
+			|| feat_is_deep_water(zcave[starty][startx].feat)
+			|| feat_is_deep_lava(zcave[starty][startx].feat)
 			|| (zcave[starty][startx].feat == FEAT_SICKBAY_AREA) /* don't recall him into sickbay areas */
 			|| (zcave[starty][startx].info & CAVE_PROT) /* don't recall into stables or inns */
 			|| (f_info[zcave[starty][startx].feat].flags1 & FF1_PROTECTED)
@@ -10000,11 +10004,16 @@ void process_player_change_wpos(int Ind) {
 	    )
 		imprison(Ind, JAIL_OLD_CRIMES, "old crimes");
 
-	/* daylight problems for vampires */
-	if (!p_ptr->wpos.wz && p_ptr->prace == RACE_VAMPIRE) calc_boni(Ind);
+	/* daylight problems for vampires; and nightly darkvision boost is _sometimes_ not revoked when recalling into the dungeon until first movement step is taken */
+	if (p_ptr->prace == RACE_VAMPIRE
 	/* temp luck blessings are on hold while on the surface - which is applied in calc_boni(): */
-	else if (p_ptr->bless_temp_luck) calc_boni(Ind);
-
+	    || p_ptr->bless_temp_luck) {
+		calc_boni(Ind);
+		if (p_ptr->prace == RACE_VAMPIRE) {
+			p_ptr->update |= PU_TORCH;
+			update_stuff(Ind);
+		}
+	}
 
 	/* moved here, since it simplifies the wpos-changing process and
 	   should keep it highly consistent and linear.
@@ -12777,7 +12786,7 @@ void eff_running_speed(int *real_speed, player_type *p_ptr, cave_type *c_ptr) {
 			}
 		}
 	    /* or running-swimming? */
-		else if (is_water(c_ptr->feat) && p_ptr->can_swim) {
+		else if (feat_is_water(c_ptr->feat) && p_ptr->can_swim) {
 			/* Allow Aquatic players run/swim at full speed */
 			if (!(r_info[p_ptr->body_monster].flags7 & RF7_AQUATIC)) {
 				if (f_info[c_ptr->feat].flags1 & FF1_SLOW_SWIMMING_1) *real_speed = (*real_speed * 100) / (100 + impair); // -50% speed
@@ -13127,4 +13136,15 @@ void apply_jail_flags(u32b *f1, u32b *f2, u32b *f3) {
 	*f3 |= DF3_DARK;
 	*f2 |= DF2_NO_MAGIC_MAP;
 	//*f3 |= DF3_NO_TELE | DF3_NO_SUMMON | DF3_LIMIT_ESP; //DF3_NO_ESP |
+
+	/* Make it more escape-tunnelish */
+	*f1 |= DF1_SMALLEST | DF1_FLAT | DF1_NO_DOORS;
+	*f2 |= DF2_NO_RECALL_INTO | DF2_NO_ENTRY_PROB;
+	//*f3 |= DF3_NOT_EMPTY | DF3_FEW_ROOMS | DF3_NO_VAULTS; //too small/few rooms, sometimes whole floor is 100% walled, with 1 staircase grid left, ie 0 rooms.
+	*f3 |= DF3_NOT_EMPTY | DF3_NO_VAULTS | DF3_NO_SIMPLE_STORES;
+	//*f3 |= DF3_NO_SUMMON; //make it cheesy?^^
+
+	/* Actually just make it force-down instead of iron */
+	*f2 &= ~DF2_IRON;
+	*f1 |= DF1_FORCE_DOWN;
 }

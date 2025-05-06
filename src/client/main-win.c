@@ -93,7 +93,17 @@
  #define DEFAULT_LOGFONTNAME "9X15"
 #endif
 
-#define OPTIMIZE_DRAWING
+
+/* Note that there was an issue with optimized drawing, when Term_repaint() and an incoming message happen together,
+   like on sunrise/sunset:
+   The hdc handle from repainting wasn't closed and then used when the chat+msg window was redrawn due to the incoming
+   message, resulting in all messages in it being pasted into the main window instead (with the (usually smaller) font
+   grid size of the chat+msg window.
+   To fix this, the function Term_xtra_win_fresh() is now public and used in Term_repaint() before returning, to reset
+   the OldDC handle. (Another idea might be to have a distinct OldDC[] handle for each term window.) - C. Blue */
+/* Unfortunatels there is still a bug: On sunrise/sunset if you type in chat the client could now crash.
+   Disabling OPTIMIZE_DRAWING completely for now. */
+//#define OPTIMIZE_DRAWING
 
 
 /*
@@ -2416,10 +2426,8 @@ static errr Term_xtra_win_react(void) {
 }
 
 
-#ifdef OPTIMIZE_DRAWING
-/* Declare before use */
-static errr Term_xtra_win_fresh(int v);
-#endif
+/* For OPTIMIZE_DRAWING - declare before use */
+errr Term_xtra_win_fresh(int v);
 
 
 /*
@@ -2593,11 +2601,14 @@ static errr Term_xtra_win_delay(int v) {
 }
 
 
-#ifdef OPTIMIZE_DRAWING
 /*
+ * For OPTIMIZE_DRAWING, made available for z-term.c to fix the visual glitch
+ * if a message ("The sun has risen.") is received together with the palette changes,
+ * probably resulting in the hdc from term 'chat+msg' being wrongly used to paint into the main screen.
  * This is where we free the DC we've been using.  -- note: 'v' is unused.
  */
-static errr Term_xtra_win_fresh(int v) {
+errr Term_xtra_win_fresh(int v) {
+#ifdef OPTIMIZE_DRAWING
 	term_data *td = (term_data*)(Term->data);
 
 	if (oldDC) {
@@ -2606,9 +2617,9 @@ static errr Term_xtra_win_fresh(int v) {
 	}
 
 	/* Success */
+#endif
 	return(0);
 }
-#endif
 
 
 /*
@@ -2850,7 +2861,7 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 			if (!entry->is_valid) hole = i;
 			else if (entry->c == c && entry->a == a
   #ifdef GRAPHICS_BG_MASK
-			    && entry->c_back == 0 && entry->a_back == 0
+			    && entry->c_back == 32 && entry->a_back == TERM_DARK
   #endif
   #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
 			    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
@@ -2903,8 +2914,12 @@ static errr Term_pict_win(int x, int y, byte a, char32_t c) {
 		entry->c = c;
 		entry->a = a;
   #ifdef GRAPHICS_BG_MASK
-		entry->c_back = 0;
-		entry->a_back = 0;
+   #if 0
+		entry->c_back = 32;
+   #else
+		entry->c_back = Client_setup.f_char[FEAT_SOLID];;
+   #endif
+		entry->a_back = TERM_DARK;
   #endif
 		entry->is_valid = TRUE;
   #ifdef TILE_CACHE_FGBG
@@ -3021,6 +3036,15 @@ static errr Term_pict_win_2mask(int x, int y, byte a, char32_t c, byte a_back, c
   #endif
  #endif
 
+	/* Avoid visual glitches while not in 2mask mode */
+	if (use_graphics != UG_2MASK) {
+		a_back = TERM_DARK;
+  #if 0
+		c_back = 32; //space! NOT zero!
+  #else
+		c_back = Client_setup.f_char[FEAT_SOLID]; // 'graphical space' for erasure
+  #endif
+	}
 
 	/* SPACE = erase background, aka black background. This is for places where we have no bg-info, such as client-lore in knowledge menu. */
 	if (c_back == 32) a_back = TERM_DARK;
@@ -3393,6 +3417,31 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 	term_data *td = (term_data*)(Term->data);
 	int fwid, fhgt;
 
+	RECT rc;
+	HDC  hdc;
+
+#if 1
+	/* For 2mask mode: Actually imprint screen buffer with "empty background" for this text printed grid, to possibly avoid glitches. */
+ #ifdef USE_GRAPHICS
+  #ifdef GRAPHICS_BG_MASK
+	{
+		byte *scr_aa_back = Term->scr_back->a[y];
+		char32_t *scr_cc_back = Term->scr_back->c[y];
+
+		byte *old_aa_back = Term->old_back->a[y];
+		char32_t *old_cc_back = Term->old_back->c[y];
+
+		old_aa_back[x] = scr_aa_back[x] = TERM_DARK;
+   #if 0
+		old_cc_back[x] = scr_cc_back[x] = 32;
+   #else
+		old_cc_back[x] = scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+   #endif
+	}
+  #endif
+ #endif
+#endif
+
 #ifdef USE_LOGFONT
 	if (use_logfont) {
 		fwid = td->lf.lfWidth;
@@ -3403,10 +3452,6 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 		fwid = td->font_wid;
 		fhgt = td->font_hgt;
 	}
-
-	RECT rc;
-	HDC  hdc;
-
 
 	/* Location */
 	rc.left   = x * fwid + td->size_ow1;
@@ -3431,7 +3476,6 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 #endif
 
 #ifdef OPTIMIZE_DRAWING
-
 	if (old_attr != a) {
 		/* Foreground color */
 		if (colors16) {
@@ -6082,12 +6126,15 @@ void set_palette(byte c, byte r, byte g, byte b) {
 		/* Redraw the contents */
 //WiP, not functional		if (screen_icky) Term_switch_fully(0);
 		if (c_cfg.gfx_palanim_repaint || (c_cfg.gfx_hack_repaint && !gfx_palanim_repaint_hack))
-			Term_repaint(SCREEN_PAD_LEFT, SCREEN_PAD_TOP, screen_wid, screen_hgt); //flicker-free redraw - C. Blue
+			/* Alternative function for flicker-free redraw - C. Blue */
+			//Term_repaint(SCREEN_PAD_LEFT, SCREEN_PAD_TOP, screen_wid, screen_hgt);
+			/* Include the UI elements, which is required if we use ANIM_FULL_PALETTE_FLASH or ANIM_FULL_PALETTE_LIGHTNING  - C. Blue */
+			Term_repaint(0, 0, CL_WINDOW_WID, CL_WINDOW_HGT);
 		else {
 			Term_redraw();
 			gfx_palanim_repaint_hack = FALSE;
 		}
-//WiP, not functional		if (screen_icky) Term_switch_fully(0);
+//WiP, not functional:		if (screen_icky) Term_switch_fully(0);
 		/* Restore */
 		Term_activate(term_old);
 		return;
@@ -6107,7 +6154,7 @@ void set_palette(byte c, byte r, byte g, byte b) {
 
 	/* Need complex color mode for palette animation */
 	if (colors16) {
-		c_msg_print("\377yPalette animation failed! Disable it in = 3 'palette_animation'!");
+		c_msg_print("\377yPalette animation failed! Disable it in = 2 'palette_animation'!");
 		return;
 	}
 

@@ -1119,6 +1119,7 @@ extern void load_banlist(void);
 /* for actually loading/saving dynamic quest information */
 extern void load_quests(void);
 extern bool s_older_than(byte x, byte y, byte z); /* for csfunc structure changes */
+extern void load_recent_deaths(void);
 
 /* melee1.c */
 extern cptr desc_moan_halloween[];
@@ -1290,7 +1291,7 @@ extern int Send_powers_info(int Ind);
 extern int Send_technique_info(int Ind); /* for MKEY_MELEE and MKEY_RANGED */
 extern int Send_item_request(int Ind, signed char tester_hook); //paranoia @ 'signed' char =-p
 extern int Send_spell_request(int Ind, int item);
-extern int Send_state(int Ind, bool paralyzed, bool searching, bool resting);
+extern int Send_state(int Ind, s16b paralyzed, bool searching, bool resting);
 extern int Send_flush(int Ind);
 extern int Send_store(int ind, char pos, byte attr, int wgt, int number, int price, cptr name, byte tval, byte sval, s16b pval, char *powers);
 extern int Send_store_wide(int ind, char pos, byte attr, int wgt, int number, int price, cptr name, byte tval, byte sval, s16b pval,
@@ -1384,6 +1385,7 @@ extern char *compacttime(void);
 extern char *showtime(void);
 extern char *showdate(void);
 extern void get_date(int *weekday, int *day, int *month, int *year);
+extern void get_time_date_shortdate(char *time_str, char *date_str, char *shortdate_str);
 extern int is_inactive(int Ind);
 extern bool purge_acc_file(void);
 
@@ -1395,6 +1397,8 @@ extern bool forbidden_name(char *cname);
 extern bool maybe_hidden_powers(int Ind, object_type *o_ptr, bool ignore_id, ego_granted_flags **static_e_ptr);
 extern cptr wand_adj[MAX_METALS], rod_adj[MAX_METALS];
 extern bool object_has_flavor(int k_idx);
+extern void clear_comboset(object_type *o_ptr);
+
 /* object2.c */
 extern int charge_wand_fix[256], charge_wand_rnd[256], charge_staff_fix[256], charge_staff_rnd[256];
 extern void init_charge_wand(void), init_charge_staff(void);
@@ -1699,6 +1703,7 @@ extern int l_printf(char *str, ...) __attribute__ ((format (printf, 1, 2)));
 extern int reverse_lines(cptr input_file, cptr output_file);
 extern int su_print(char *str);
 extern int e_printf(char *str, ...) __attribute__ ((format (printf, 1, 2)));
+extern void rd_print(int Ind, char *shortdate_str, char *demise_str, int format);
 
 /* save.c */
 extern bool save_player(int Ind);
@@ -1834,7 +1839,7 @@ extern bool identify_fully(int Ind);
 extern bool identify_fully_item(int Ind, int item);
 extern bool identify_fully_item_quiet(int Ind, int item);
 extern bool identify_fully_object_quiet(int Ind, object_type *o_ptr);
-extern bool recharge(int Ind, int num);
+extern bool recharge(int Ind, int num, int item);
 extern bool recharge_aux(int Ind, int item, int num);
 extern bool speed_monsters(int Ind);
 extern bool slow_monsters(int Ind, int pow);
@@ -2891,4 +2896,5 @@ extern char GF_name[MAX_GF_TYPES][18], GF_name_short[MAX_GF_TYPES][7];
 extern int custom_lua_timer_timeout[CUSTOM_LUA_TIMERS];
 extern char custom_lua_timer_parmstr[CUSTOM_LUA_TIMERS][MAX_CHARS_WIDE];
 extern int custom_lua_timer_parm1[CUSTOM_LUA_TIMERS], custom_lua_timer_parm2[CUSTOM_LUA_TIMERS], custom_lua_timer_parm3[CUSTOM_LUA_TIMERS];
-extern u32b hack_sigil_f[7]; //same as ego_granted_flags
+extern u32b hack_sigil_f[7], hack_comboset_f[7]; //same as ego_granted_flags
+extern char recent_deaths[RECENT_DEATHS_ENTRIES][MAX_CHARS_WIDE];

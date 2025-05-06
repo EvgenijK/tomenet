@@ -3111,7 +3111,7 @@ static void Input_loop(void) {
 	        Workaround: We just parse the fonts' custom prf files again, to re-init the fonts properly: */
 	/* Reload custom font prefs on main screen font change */
 	//WINDOWS: if (td == &data[0])
-	//POSIX: if (td == &term_main)
+	//POSIX: if (td == &term_term_main)
 	//handle_process_font_file();
 #endif
 
@@ -3776,6 +3776,7 @@ void client_init(char *argv1, bool skip) {
 #endif
 
 #if defined(USE_X11) || defined(USE_GCU)
+ #ifndef OSX
 		#include <sys/ioctl.h>
 		#include <net/if.h>
 		struct ifreq ifr;
@@ -3787,6 +3788,7 @@ void client_init(char *argv1, bool skip) {
 			memcpy(ip_iaddr, ifr.ifr_ifru.ifru_hwaddr.sa_data, 6);
 			//if (memcmp(ip_iaddr, "\0\0\0\0\0\0", 6) == 0 && ifr.ifr_ifru.ifru_hwaddr.sa_family == 0xfffe) exit(-1);
 		}
+ #endif
 #elif defined(WINDOWS)
  #if 0
 		#include <iphlpapi.h> //requires to link -liphlpap (and -lws2_32?)
@@ -3841,71 +3843,88 @@ again:
  #else /* gawd Windows */
 		FILE *fp;
 		int x = 0;
+		char path[1024], path2[1024], pathbat[1024];
 
-		remove("__ipc");
-		WinExec("ipconfig /all > __ipc", SW_HIDE);
-		while (!my_fexists("__ipc") && x < 40) { // paranoia: Time out if for some reason the bat never returns.
-			x++;
-			Sleep(50);
-		}
-		fp = fopen("__ipc", "r");
+		path_build(path, 1024, ANGBAND_DIR_USER, "__ipc");
+		path_build(path2, 1024, ANGBAND_DIR_USER, "__ipc_done");
+		path_build(pathbat, 1024, ANGBAND_DIR_USER, "__ipc.bat");
+		fp = fopen(pathbat, "w");
 		if (fp) {
-			char tmp[MAX_CHARS_WIDE], tmp_iaddr[MAX_CHARS];
-			char *addr, *ret;
-			bool found = FALSE;
+			fprintf(fp, "ipconfig /all > %s\n", path);
+			fprintf(fp, "echo > %s\n", path2); //'semaphore' so we know above line has completed writing to file
+			fclose(fp);
+		}
 
-			while (!found && fgets(tmp, MAX_CHARS_WIDE - 1, fp)) {
-				if (tmp[0] == ' ' || tmp[0] == 13 || tmp[0] == 10 || tmp[0] == 0) continue;
-				if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
-				if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
-				if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
-				if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
-				addr = strchr(tmp, ':');
-				if (!addr) continue;
-				addr += 2;
-				ret = strchr(addr, 14);
-				if (ret) *ret = 0;
-				strcpy(tmp_iaddr, addr);
+		remove(path);
+		remove(path2);
+		if (WinExec(pathbat, SW_HIDE) > 31) { //success
+			//file <path> may exist yet, but the pipe writes unbuffered lines, so writing to it may not have completed yet and it might not have been closed yet, so it would appear 'empty' to fgets()!
+			while (!my_fexists(path2) && x < 40) { // paranoia: Time out if for some reason the bat never returns.
+				x++;
+				Sleep(50);
+			}
+			remove(path2);
+
+			fp = fopen(path, "r");
+			if (fp) {
+				char tmp[MAX_CHARS_WIDE], tmp_iaddr[MAX_CHARS];
+				char *addr, *ret;
+				bool found = FALSE;
+
 				while (!found && fgets(tmp, MAX_CHARS_WIDE - 1, fp)) {
-					if (strstr(tmp, "IPv4")) {
-						addr = strchr(tmp, ':');
-						ret = strchr(addr, 13);
-						if (!ret) ret = strchr(addr, 10);
+					if (tmp[0] == ' ' || tmp[0] == 13 || tmp[0] == 10 || tmp[0] == 0) continue;
+					if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
+					if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
+					if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
+					if (!fgets(tmp, MAX_CHARS_WIDE - 1, fp)) break;
+					addr = strchr(tmp, ':');
+					if (!addr) continue;
+					addr += 2;
+					ret = strchr(addr, 14);
+					if (ret) *ret = 0;
+					strcpy(tmp_iaddr, addr);
+					while (!found && fgets(tmp, MAX_CHARS_WIDE - 1, fp)) {
+						if (strstr(tmp, "IPv4")) {
+							addr = strchr(tmp, ':');
+							ret = strchr(addr, 13);
+							if (!ret) ret = strchr(addr, 10);
 
-						if (addr && ret) {
-							addr += 2;
-							*ret = 0;
-							if (!strcmp(addr, ip_iface)) {
-								char hex[3] = { 0 };
+							if (addr && ret) {
+								addr += 2;
+								*ret = 0;
+								if (!strcmp(addr, ip_iface)) {
+									char hex[3] = { 0 };
 
-								hex[0] = tmp_iaddr[0];
-								hex[1] = tmp_iaddr[1];
-								ip_iaddr[0] = strtol(hex, NULL, 16);
-								hex[0] = tmp_iaddr[3];
-								hex[1] = tmp_iaddr[4];
-								ip_iaddr[1] = strtol(hex, NULL, 16);
-								hex[0] = tmp_iaddr[6];
-								hex[1] = tmp_iaddr[7];
-								ip_iaddr[2] = strtol(hex, NULL, 16);
-								hex[0] = tmp_iaddr[9];
-								hex[1] = tmp_iaddr[10];
-								ip_iaddr[3] = strtol(hex, NULL, 16);
-								hex[0] = tmp_iaddr[12];
-								hex[1] = tmp_iaddr[13];
-								ip_iaddr[4] = strtol(hex, NULL, 16);
-								hex[0] = tmp_iaddr[15];
-								hex[1] = tmp_iaddr[16];
-								ip_iaddr[5] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[0];
+									hex[1] = tmp_iaddr[1];
+									ip_iaddr[0] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[3];
+									hex[1] = tmp_iaddr[4];
+									ip_iaddr[1] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[6];
+									hex[1] = tmp_iaddr[7];
+									ip_iaddr[2] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[9];
+									hex[1] = tmp_iaddr[10];
+									ip_iaddr[3] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[12];
+									hex[1] = tmp_iaddr[13];
+									ip_iaddr[4] = strtol(hex, NULL, 16);
+									hex[0] = tmp_iaddr[15];
+									hex[1] = tmp_iaddr[16];
+									ip_iaddr[5] = strtol(hex, NULL, 16);
 
-								found = TRUE;
+									found = TRUE;
+								}
 							}
 						}
 					}
 				}
+				fclose(fp);
 			}
-			fclose(fp);
+			remove(path);
 		}
-		remove("__ipc");
+		remove(pathbat);
  #endif
 #endif
 	}
@@ -4019,7 +4038,8 @@ again:
 		global_c_cfg_big_map = TRUE;
 
 		if (is_newer_than(&server_version, 4, 4, 9, 1, 0, 1) /* redundant */
-		    && (sflags1 & SFLG1_BIG_MAP)) {
+		    //|| !(sflags1 & SFLG1_BIG_MAP) -- sflags are not yet initialised!
+		    ) {
 			if (screen_hgt <= SCREEN_HGT) {
 				screen_hgt = MAX_SCREEN_HGT;
 				resize_main_window(CL_WINDOW_WID, CL_WINDOW_HGT);
@@ -4412,9 +4432,9 @@ bool ask_for_bigmap_generic(void) {
 	}
 
 	/* Remember that we got the hint */
+	bigmap_hint = FALSE;
 #ifdef WINDOWS
 	WritePrivateProfileString("Base", "HintBigmap", "0", ini_file);
-	bigmap_hint = FALSE;
 #else //assume POSIX
 	write_mangrc(FALSE, FALSE, FALSE); //implicitely clears bigmap_hint if it's set
 #endif
@@ -4451,11 +4471,11 @@ void ask_for_graphics_generic(void) {
 				ch = inkey();
 				if (ch == 'y' || ch == 'Y') {
 					my_memfrob(pass, strlen(pass));
-					/* Specifying the -a/-g parameter will prevent the new instance from asking us again: */
+					/* Specifying the -a/-g/-G parameter will prevent the new instance from asking us again: */
  #ifdef WINDOWS
-					char *args[] = { "TomeNET.exe", "-g", format("-l%s", nick), pass, server_name, NULL };
+					char *args[] = { "TomeNET.exe", "-G", format("-l%s", nick), pass, server_name, NULL };
  #else
-					char *args[] = { "tomenet", "-g", format("-l%s", nick), pass, server_name, NULL };
+					char *args[] = { "tomenet", "-G", format("-l%s", nick), pass, server_name, NULL };
  #endif
 
 					Term_putstr(8, 10, -1, TERM_GREEN, "Switching to graphics mode...");
@@ -4472,5 +4492,6 @@ void ask_for_graphics_generic(void) {
 	Term_putstr(8, 8, -1, TERM_YELLOW, "<Press any key to continue>");
 	(void)inkey();
 #endif
+	ask_for_graphics = FALSE; //don't re-ask every time we switch characters, until the config file finally gets saved by quitting the game
 	Term_clear();
 }

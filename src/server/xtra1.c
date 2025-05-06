@@ -457,11 +457,14 @@ static void prt_poisoned(int Ind) {
 static void prt_state(int Ind) {
 	player_type *p_ptr = Players[Ind];
 
-	bool p, s, r;
+	s16b p;
+	bool s, r;
 
 	/* Paralysis */
-	if (p_ptr->paralyzed || p_ptr->suspended) p = TRUE;
-	else p = FALSE;
+	if (p_ptr->paralyzed > cfg.spell_stack_limit) p = 2;
+	else if (p_ptr->paralyzed) p = 1;
+	else if (p_ptr->suspended) p = 3;
+	else p = 0;
 
 	/* Searching */
 	if (p_ptr->searching) s = TRUE;
@@ -3122,6 +3125,9 @@ void calc_boni(int Ind) {
 	long int d, toac = 0, body = 0;
 	monster_race *r_ptr = &r_info[p_ptr->body_monster];
 
+	byte comboset_flags[MAX_ITEM_COMBOSETS] = { 0x0 };
+	byte comboset_flags_cnt[MAX_ITEM_COMBOSETS] = { 0x0 };
+
 	u32b f1, f2, f3, f4, f5, f6, esp;
 	s16b pval;
 #ifdef WEAPONS_NO_AC
@@ -3145,8 +3151,6 @@ void calc_boni(int Ind) {
 	int may_to_a, may_dis_to_a;
 #endif
 	bool may_reflect = FALSE;
-
-	char art_combo = 0, art_combo_slot1, art_combo_slot2;
 
 #ifdef EQUIPMENT_SET_BONUS
 	/* for boni of artifact "sets" ie arts of (about) identical name - C. Blue */
@@ -4001,6 +4005,118 @@ void calc_boni(int Ind) {
 	p_ptr->to_h_tmp += p_ptr->focus_val;
 #endif
 
+	/* Scan for combo-sets */
+	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
+		o_ptr = &p_ptr->inventory[i];
+		/* Specific (artifact) combos */
+		switch (o_ptr->name1) {
+		case ART_JUDGEMENT: comboset_flags[0] |= 0x1; break;
+		case ART_MERCY: comboset_flags[0] |= 0x2; break;
+
+		case ART_NARTHANC: comboset_flags[1] |= 0x1; comboset_flags_cnt[1]++; break;
+		case ART_NIMTHANC: comboset_flags[1] |= 0x2; comboset_flags_cnt[1]++; break;
+		case ART_DETHANC: comboset_flags[1] |= 0x4; comboset_flags_cnt[1]++; break;
+
+		case ART_MOLTOR: comboset_flags[2] |= 0x1; break;
+		case ART_BOOTS_MOLTOR: comboset_flags[2] |= 0x2; break;
+
+		case ART_DURIN: comboset_flags[3] |= 0x1; break;
+		case ART_HELM_DURIN: comboset_flags[3] |= 0x2; break;
+		case ART_RING_DURIN: comboset_flags[3] |= 0x4; break;
+
+		case ART_BILBO: comboset_flags[4] |= 0x1; break;
+		case ART_STING: comboset_flags[4] |= 0x2; break;
+		}
+	}
+	/* Imprint the results onto the equipped items -
+           while based on this, item flags are modified on the fly in any object_flags() later,
+           any stat-value modifications must be done to the item here and now: */
+	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++) {
+		o_ptr = &p_ptr->inventory[i];
+		/* Specific (artifact) combos */
+		switch (o_ptr->name1) {
+		case ART_JUDGEMENT:
+		case ART_MERCY:
+			o_ptr->comboset_flags = comboset_flags[0];
+			break;
+
+		case ART_NARTHANC:
+		case ART_NIMTHANC:
+		case ART_DETHANC:
+			o_ptr->comboset_flags = comboset_flags[1];
+			o_ptr->comboset_flags_cnt = comboset_flags_cnt[1];
+			if (o_ptr->comboset_flags_cnt == 2) o_ptr->pval = a_info[o_ptr->name1].pval + 1;
+			else o_ptr->pval = a_info[o_ptr->name1].pval;
+			break;
+
+		case ART_MOLTOR:
+		case ART_BOOTS_MOLTOR:
+			o_ptr->comboset_flags = comboset_flags[2];
+			if (o_ptr->comboset_flags == 0x3) o_ptr->pval = a_info[o_ptr->name1].pval + 1;
+			else o_ptr->pval = a_info[o_ptr->name1].pval;
+			break;
+
+		case ART_DURIN:
+		case ART_HELM_DURIN:
+		case ART_RING_DURIN:
+			o_ptr->comboset_flags = comboset_flags[3];
+			break;
+
+		case ART_BILBO:
+		case ART_STING:
+			o_ptr->comboset_flags = comboset_flags[4];
+			break;
+		}
+
+	}
+	/* Imprint the results onto the player and give feedback message about combosets, gaining or losing a combo effect: */
+	/* - comboset #0 -> bit 1 */
+	if ((comboset_flags[0] == 0x3) && !(p_ptr->combosets & 0x1)) {
+		p_ptr->combosets |= 0x1;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_print(Ind, "\377B*Both your weapons glow more brightly!*");
+	} else if ((comboset_flags[0] != 0x3) && (p_ptr->combosets & 0x1)) {
+		p_ptr->combosets &= ~0x1;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_format(Ind, "Your dagger '%s' glows less brightly!", comboset_flags[0] & 0x1 ? "Judgement" : "Mercy");
+	}
+	/* - comboset #1 -> bit 2 */
+	if (comboset_flags_cnt[1] == 2 && !(p_ptr->combosets & 0x2)) {
+		p_ptr->combosets |= 0x2;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_print(Ind, "\377B*Both your weapons glow more brightly!*");
+	} else if ((comboset_flags_cnt[1] != 2) && (p_ptr->combosets & 0x2)) {
+		p_ptr->combosets &= ~0x2;
+		if (!(p_ptr->temp_misc_3 & 0x01)) switch (comboset_flags[1]) {
+			case 0x1: msg_print(Ind, "Your dagger 'Narthanc' glows less brightly!"); break;
+			case 0x2: msg_print(Ind, "Your dagger 'Nimthanc' glows less brightly!"); break;
+			case 0x4: msg_print(Ind, "Your dagger 'Dethanc' glows less brightly!"); break;
+		}
+	}
+	/* - comboset #2 -> bit 3 */
+	if ((comboset_flags[2] == 0x3) && !(p_ptr->combosets & 0x4)) {
+		p_ptr->combosets |= 0x4;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_print(Ind, "\377B*Your pick and boots glow brightly!*");
+	} else if ((comboset_flags[2] != 0x3) && (p_ptr->combosets & 0x4)) {
+		p_ptr->combosets &= ~0x4;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_format(Ind, "Your %s less brightly!", comboset_flags[2] & 0x1 ? "pick glows" : "boots glow");
+	}
+	/* - comboset #3 -> bit 4 */
+	if ((comboset_flags[3] == 0x7) && !(p_ptr->combosets & 0x8)) {
+		p_ptr->combosets |= 0x8;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_print(Ind, "\377B*Your ring of Durin glows brightly!*");
+	} else if ((comboset_flags[3] != 0x7) && (p_ptr->combosets & 0x8)) {
+		p_ptr->combosets &= ~0x8;
+		if (!(p_ptr->temp_misc_3 & 0x01) && (comboset_flags[3] & 0x2)) msg_print(Ind, "Your ring of Durin glows less brightly!");
+	}
+	/* - comboset #4 -> bit 5 */
+	if ((comboset_flags[4] == 0x3) && !(p_ptr->combosets & 0x10)) {
+		p_ptr->combosets |= 0x10;
+		if (!(p_ptr->temp_misc_3 & 0x01)) msg_print(Ind, "\377B*Your smallsword 'Sting' glows brightly!*");
+	} else if ((comboset_flags[4] != 0x3) && (p_ptr->combosets & 0x10)) {
+		p_ptr->combosets &= ~0x10;
+		if (!(p_ptr->temp_misc_3 & 0x01) && (comboset_flags[4] & 0x2)) msg_print(Ind, "Your smallsword 'Sting' glows less brightly!");
+	}
+	/* Clear the 'skip-comboset-messages-once' marker forever, until next login */
+	p_ptr->temp_misc_3 &= ~0x01;
+
 	/* Potentially downgrade Black Breath if it was from an item and we no longer have it equipped */
 	if (p_ptr->black_breath == 2) p_ptr->black_breath = 3;
 	/* Scan the equipment */
@@ -4088,18 +4204,6 @@ void calc_boni(int Ind) {
 		else if (o_ptr->name1 && o_ptr->name1 != ART_RANDART) {
 			strcpy(tmp_name, a_name + a_info[o_ptr->name1].name);
 			tmp_name_ptr = tmp_name;
-
-			/* Hack for specific artifact combo */
-			switch (o_ptr->name1) {
-			case ART_JUDGEMENT:
-				art_combo_slot1 = i;
-				art_combo++;
-				break;
-			case ART_MERCY:
-				art_combo_slot2 = i;
-				art_combo++;
-				break;
-			}
 
 			/* Specialty for true art rings of power: Check for extended base name "<item> < of power> 'of <name>|<name'" and skip the 'of power' extension: */
 			if (!strncasecmp(tmp_name, "of power ", 9)) tmp_name_ptr += 9;
@@ -4726,32 +4830,6 @@ void calc_boni(int Ind) {
 	}
 	/* Downgrade black breath level if no longer have an TR4_BLACK_BREATH item equipped! */
 	if (p_ptr->black_breath == 3) p_ptr->black_breath = 1;
-
-	/* Hack: Specific artifact dagger combo effect (Judgement+Mercy) */
-	if (art_combo == 2) {
-		if (!(p_ptr->temp_misc_3 & 0x01)) {
-			if (!(p_ptr->temp_misc_3 & 0x02)) msg_print(Ind, "\377B*Both your weapons glow more brightly!*"); //skip message once (login setup time)
-
-			/* Hack flags wherever necessary, to set them to the upgrades below... */
-			p_ptr->temp_misc_3 |= 0x01;
-		}
-
-		/* Judgement upgrades SLAY to KILL mods */
-		p_ptr->slay_equip |= TR1_KILL_DRAGON; csheet_boni[art_combo_slot1 - INVEN_WIELD].cb[8] |= CB9_KDRGN;
-		p_ptr->slay_equip |= TR1_KILL_DEMON; csheet_boni[art_combo_slot1 - INVEN_WIELD].cb[8] |= CB9_KDEMN;
-		p_ptr->slay_equip |= TR1_KILL_UNDEAD; csheet_boni[art_combo_slot1 - INVEN_WIELD].cb[9] |= CB10_KUNDD;
-
-		/* Mercy upgrades RES to IM and gains BLOWS */
-		p_ptr->immune_poison = TRUE; csheet_boni[art_combo_slot2 - INVEN_WIELD].cb[1] |= CB2_IPOIS;
-		csheet_boni[art_combo_slot2 - INVEN_WIELD].blow += pval;
-	} else {
-		if (p_ptr->temp_misc_3 & 0x01) {
-			if (art_combo == 1) msg_format(Ind, "Your dagger '%s' glows less brightly!", art_combo_slot1 ? "Judgement" : "Mercy");
-			/* Unflag the combo hack mark */
-			p_ptr->temp_misc_3 &= ~0x01;
-		}
-	}
-	p_ptr->temp_misc_3 &= ~0x02;
 
 	/* Has to be done here as it may depend on other items granting light resistance,
 	   so all items have to be applied first: */

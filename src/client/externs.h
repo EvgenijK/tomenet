@@ -776,7 +776,7 @@ extern void prt_blind_hallu(char blind_hallu);
 extern void prt_confused(bool confused);
 extern void prt_afraid(bool fear);
 extern void prt_poisoned(char poisoned);
-extern void prt_state(bool paralyzed, bool searching, bool resting);
+extern void prt_state(s16b paralyzed, bool searching, bool resting);
 extern void prt_speed(int speed);
 extern void prt_study(bool study);
 extern void prt_bpr_wraith(byte bpr, byte attr, cptr bpr_str);
@@ -1144,6 +1144,7 @@ extern void store_audiopackfolders(void);
 extern void save_term_data_to_term_prefs(void);
 extern void save_prefs(void);
 extern void set_window_title_win(int term_idx, cptr title);
+extern errr Term_xtra_win_fresh(int v);
 #endif
 extern void store_crecedentials(void);
 extern int sys_lang;

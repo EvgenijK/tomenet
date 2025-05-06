@@ -622,9 +622,10 @@ static void rd_item(object_type *o_ptr) {
 	if (!older_than(4, 9, 20)) {
 		rd_s32b(&tmp32s);
 		o_ptr->wId = tmp32s;
+		rd_byte(&o_ptr->comboset_flags);
+		rd_byte(&o_ptr->comboset_flags_cnt);
 
-		rd_u16b(&o_ptr->dummy1); //future use
-		rd_u32b(&o_ptr->dummy2); //future use
+		rd_u32b(&o_ptr->dummy1); //future use
 	}
 
 
@@ -2708,8 +2709,10 @@ if (p_ptr->updated_savegame == 0) {
 		p_ptr->cut_intrinsic = (tmp8u & 0x01);
 		p_ptr->nocut_intrinsic = (tmp8u & 0x02);
 
+		rd_byte(&p_ptr->combosets);
+
 		// --- future use / HOLE: ---
-		strip_bytes(7);
+		strip_bytes(6);
 	} else p_ptr->tim_lcage = 0;
 
 	if (!older_than(4, 5, 28)) {
@@ -5105,4 +5108,16 @@ void load_quests(void) {
 	}
 	s_printf("Error (%s) reading a %d.%d.%d quests savefile.\n", what, qsf_major, qsf_minor, qsf_patch);
 	return; //FALSE;
+}
+
+void load_recent_deaths(void) {
+	char buf[1024];
+	FILE *fp;
+	int n = -1;
+
+	path_build(buf, 1024, ANGBAND_DIR_DATA, "recent-deaths.log");
+	if ((fp = fopen(buf, "rb")) == NULL) return;
+
+	while (++n < RECENT_DEATHS_ENTRIES && fgets(recent_deaths[n], MAX_CHARS_WIDE, fp) != NULL)
+		recent_deaths[n][strlen(recent_deaths[n]) - 1] = 0; //trim trailing newline
 }

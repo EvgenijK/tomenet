@@ -1560,7 +1560,7 @@ void do_cmd_drink_fountain(int Ind) {
 		s_printf("warning_fill: %s\n", p_ptr->name);
 	}
 
-	if (is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) {
+	if (feat_is_water(c_ptr->feat) && c_ptr->feat != FEAT_TAINTED_WATER) {
 #ifdef USE_SOUND_2010
 		sound(Ind, "quaff_potion", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
@@ -1812,7 +1812,7 @@ void do_cmd_fill_bottle(int Ind, int force_slot) {
 	    && c_ptr->feat != FEAT_FOUNTAIN_BLOOD
 #endif
 	    ) {
-		if (!is_water(c_ptr->feat) || c_ptr->feat == FEAT_TAINTED_WATER) {
+		if (!feat_is_water(c_ptr->feat) || c_ptr->feat == FEAT_TAINTED_WATER) {
 			msg_print(Ind, "You see nothing here to fill bottles with.");
 			return;
 		}
@@ -2020,8 +2020,10 @@ void do_cmd_empty_potion(int Ind, int slot) {
 	object_type *o_ptr, *q_ptr, forge;
 	//cptr q, s;
 
-	o_ptr = &p_ptr->inventory[slot];
-	if (!o_ptr->k_idx) return;
+	if (!get_inven_item(Ind, slot, &o_ptr) || !o_ptr->k_idx) {
+		msg_print(Ind, "\377oInvalid item.");
+		return;
+	}
 
 	tval = o_ptr->tval;
 
@@ -2934,9 +2936,9 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			if (!o_ptr) break;
 
 			msg_print(Ind, "This is a Scroll of Recharging.");
-			(void)recharge(Ind, 60);
-			*used_up = FALSE;
-			p_ptr->using_up_item = item;
+			(void)recharge(Ind, 60, item);
+			*used_up = (p_ptr->current_recharge == 0); /* We need to use it up right away, if the 'item' '@I' direct recharge worked! */
+			if (!*used_up) p_ptr->using_up_item = item; /* Otherwise it will be used up later, after successful hanle_item()->recharge_aux() */
 			ident = TRUE;
 			break;
 
@@ -3275,7 +3277,8 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
  #if 0 /* learn about dungeon existance as character? */
 							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE), d_ptr->type, x, y);
-							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
+							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377B',", get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
+							msg_print(Ind, "\374\377B    that nobody has found before! \377i***");
 							/* Announce it to publicly */
 							l_printf("%s \\{B%s discovered a dungeon: %s\n", showdate(), p_ptr->name, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
 							msg_broadcast_format(Ind, "\374\377i*** \377B%s discovered a dungeon: '%s'! \377i***", p_ptr->name, get_dun_name(x, y, TRUE, d_ptr, 0, FALSE));
@@ -3294,7 +3297,8 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 						if (!is_admin(p_ptr) && !(d_ptr->known & 0x1)) {
  #if 0 /* learn about dungeon existance as character? */
 							s_printf("(%s) DUNFOUND: Player %s (%s) wildmapped dungeon '%s' (%d) at (%d,%d).\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE), d_ptr->type, x, y);
-							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
+							msg_format(Ind, "\374\377i***\377B You discovered the location of a new dungeon, '\377U%s\377B',", get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
+							msg_print(Ind, "\374\377B    that nobody has found before! \377i***");
 							/* Announce it to publicly */
 							l_printf("%s \\{B%s discovered a dungeon: %s\n", showdate(), p_ptr->name, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
 							msg_broadcast_format(Ind, "\374\377i*** \377B%s discovered a dungeon: '%s'! \377i***", p_ptr->name, get_dun_name(x, y, FALSE, d_ptr, 0, FALSE));
@@ -6150,7 +6154,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	    && !(o_ptr->tval == TV_TOOL && o_ptr->sval == SV_TOOL_GRINDER)
 #endif
 	    && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && !(o_ptr->xtra3 & 0x0050))
-	    && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+	    && !((o_ptr->tval == TV_SPECIAL || o_ptr->tval == TV_JUNK) && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
 	    && !(o_ptr->tval == TV_JUNK && (o_ptr->sval == SV_GLASS_SHARD || o_ptr->sval == SV_ENERGY_CELL))
 	    ) {
 		if (p_ptr->anti_magic) {
@@ -6418,7 +6422,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	}
 
 	if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_ENERGY_CELL) {
-		recharge(Ind, 10000 + get_skill_scale(p_ptr, SKILL_DEVICE, 100)); //10000: Hack, marker that it's not a normal recharging
+		(void)recharge(Ind, 10000 + get_skill_scale(p_ptr, SKILL_DEVICE, 100), -1); //10000: Hack, marker that it's not a normal recharging
 		p_ptr->using_up_item = item;
 		return;
 	}
@@ -6744,7 +6748,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			break;
 		case ART_THINGOL:
 			msg_print(Ind, "You hear a low humming noise...");
-			recharge(Ind, 80 + get_skill_scale(p_ptr, SKILL_DEVICE, 30));
+			(void)recharge(Ind, 80 + get_skill_scale(p_ptr, SKILL_DEVICE, 30), item);
 			o_ptr->recharging = 70 - get_skill_scale(p_ptr, SKILL_DEVICE, 50);
 			break;
 		case ART_COLANNON:

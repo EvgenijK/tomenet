@@ -715,7 +715,7 @@ void check_Pumpkin(void) {
 
 /* This lets Morgoth become stronger, weaker or teleport himself away if
  * a King/Queen joins his level or if a player enters it who hasn't killed
- * Sauron, the Sorceror yet - C. Blue
+ * Sauron, the Sorcerer yet - C. Blue
  */
 void check_Morgoth(int Ind) {
 	int k, i, x, y, num_on_depth = 0, m_idx;
@@ -808,7 +808,7 @@ void check_Morgoth(int Ind) {
 						l_ptr->flags1 &= ~LF1_NO_GHOST;
 
 						/* notifications */
-						sprintf(msg, "\377sMorgoth, Lord of Darkness summons Sauron, the Sorceror, and teleports out!");
+						sprintf(msg, "\377sMorgoth, Lord of Darkness summons Sauron, the Sorcerer, and teleports out!");
 						for (i = 1; i <= NumPlayers; i++) {
 							if (Players[i]->conn == NOT_CONNECTED) continue;
 							/* Player on Morgy depth? */
@@ -2557,7 +2557,7 @@ byte get_trap_color(int Ind, int t_idx, int feat) {
 
 	/* Hack -- always l.blue if underwater */
 	if (feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
-	else if (is_water(feat)) a = TERM_L_BLUE;
+	else if (feat_is_water(feat)) a = TERM_L_BLUE;
 
 	return(a);
 }
@@ -2576,7 +2576,7 @@ byte get_monster_trap_color(int Ind, int o_idx, int feat) {
 
 	/* Hack -- always l.blue if underwater */
 	if (feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
-	else if (is_water(feat)) a = TERM_L_BLUE;
+	else if (feat_is_water(feat)) a = TERM_L_BLUE;
 
 	return(a);
 }
@@ -3231,7 +3231,7 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 #if 0 /* currently this doesn't make sense because montraps are their own feature (like runes) instead of using just the cs_ptr (like normal traps)! This means they cancel the water grid! ew. */
 						/* Hack -- always l.blue if underwater */
 						if (cs_ptr->sc.montrap.feat == FEAT_TAINTED_WATER) a = TERM_UMBER;
-						else if (is_water(cs_ptr->sc.montrap.feat)) a = TERM_L_BLUE;
+						else if (feat_is_water(cs_ptr->sc.montrap.feat)) a = TERM_L_BLUE;
 #endif
 					}
 					keep = TRUE;
@@ -3821,7 +3821,8 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			if (!is_admin(p_ptr) && d_ptr && !(d_ptr->known & 0x1)
 			    && !(d_ptr->flags1 & DF1_UNLISTED) && !(!d_ptr->type && d_ptr->theme == DI_DEATH_FATE)) {
 				s_printf("(%s) DUNFOUND: Player %s (%s) discovered dungeon '%s' (%d) at (%d,%d) [%d,%d].\n", showtime(), p_ptr->name, p_ptr->accountname, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE), d_ptr->type, tpos.wx, tpos.wy, x, y);
-				msg_format(Ind, "\374\377i***\377B You discovered the staircase to a new dungeon, '\377U%s\377y', that nobody before you has found so far! \377i***", get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
+				msg_format(Ind, "\374\377i***\377B You discovered the staircase to a new dungeon, '\377U%s\377B',", get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
+				msg_print(Ind, "\374\377B    that nobody has found before! \377i***");
 				/* Announce it to publicly */
 				l_printf("%s \\{B%s discovered a dungeon: %s\n", showdate(), p_ptr->name, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
 				msg_broadcast_format(Ind, "\374\377i*** \377B%s discovered a dungeon: '%s'! \377i***", p_ptr->name, get_dun_name(tpos.wx, tpos.wy, d_ptr == wild->tower, d_ptr, 0, FALSE));
@@ -3892,7 +3893,7 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 
 				/* Hack -- always l.blue if underwater */
 				if (feat == FEAT_TAINTED_WATER) (*ap) = TERM_UMBER; //dirty water
-				else if (is_water(feat)) (*ap) = TERM_L_BLUE;
+				else if (feat_is_water(feat)) (*ap) = TERM_L_BLUE;
 
 #ifdef ENABLE_DEMOLITIONIST
 				/* Hack -- thrown aka non-planted, armed demolition charges flicker as the fuse is lit */
@@ -8646,7 +8647,7 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 
 	/* Trees in greater fire become dead trees at once */
 	if ((feat == FEAT_TREE || feat == FEAT_BUSH) &&
-	    (is_lava(c_ptr->feat) || is_acute_fire(c_ptr->feat)))
+	    (feat_is_lava(c_ptr->feat) || feat_is_acute_fire(c_ptr->feat)))
 		feat = FEAT_DEAD_TREE;
 
 	/* Don't mess with inns please! */
@@ -8668,7 +8669,7 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 			feat = FEAT_NETHER_MIST;
 			break;
 		default:
-			if (is_water(feat)) feat = FEAT_NETHER_MIST;
+			if (feat_is_water(feat)) feat = FEAT_NETHER_MIST;
 	}
 	/* in SR/SWC floor is always deep water */
 	if (deep_water) switch (feat) {
@@ -8686,7 +8687,7 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 			feat = FEAT_DEEP_WATER;
 			break;
 		default:
-			if (is_shal_water(feat)) feat = FEAT_DEEP_WATER;
+			if (feat_is_shal_water(feat)) feat = FEAT_DEEP_WATER;
 	}
 
 	/* Change the feature */
@@ -8748,7 +8749,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
 		default:
-			if (is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
+			if (feat_is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 
 		switch (c_ptr->feat) {
@@ -8766,7 +8767,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
 		default:
-			if (is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
+			if (feat_is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 #else
 		/* hack: only allow around store entrances */
@@ -8810,7 +8811,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
 	    (c_ptr->feat == FEAT_DEEP_LAVA ||
 	    c_ptr->feat == FEAT_DEEP_WATER))
 #else
-	if (is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
+	if (feat_is_deep_lava(c_ptr->feat) || feat_is_deep_water(c_ptr->feat))
 #endif
 		return(FALSE);
 
@@ -8866,7 +8867,7 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
 		default:
-			if (is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
+			if (feat_is_water(feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 
 		switch (c_ptr->feat) {
@@ -8884,7 +8885,7 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 			if (TOWN_TERRAFORM_GLYPHS == 0) return(FALSE);
 			break;
 		default:
-			if (is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
+			if (feat_is_water(c_ptr->feat) && TOWN_TERRAFORM_WATER == 0) return(FALSE);
 		}
 #else
 		/* hack: only allow around store entrances */
@@ -8928,7 +8929,7 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	    (c_ptr->feat == FEAT_DEEP_LAVA ||
 	    c_ptr->feat == FEAT_DEEP_WATER))
 #else
-	if (is_deep_lava(c_ptr->feat) || is_deep_water(c_ptr->feat))
+	if (feat_is_deep_lava(c_ptr->feat) || feat_is_deep_water(c_ptr->feat))
 #endif
 		return(FALSE);
 
@@ -8948,7 +8949,7 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 			feat = FEAT_NETHER_MIST;
 			break;
 		default:
-			if (is_water(feat)) feat = FEAT_NETHER_MIST;
+			if (feat_is_water(feat)) feat = FEAT_NETHER_MIST;
 	}
 	/* in SR/SWC floor is always deep water */
 	if (deep_water) switch (feat) {
@@ -8966,13 +8967,13 @@ bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 			feat = FEAT_DEEP_WATER;
 			break;
 		default:
-			if (is_shal_water(feat)) feat = FEAT_DEEP_WATER;
+			if (feat_is_shal_water(feat)) feat = FEAT_DEEP_WATER;
 	}
 
 
 	/* Trees in greater fire become dead trees at once */
 	if ((feat == FEAT_TREE || feat == FEAT_BUSH) &&
-	    (is_lava(c_ptr->feat) || is_acute_fire(c_ptr->feat)))
+	    (feat_is_lava(c_ptr->feat) || feat_is_acute_fire(c_ptr->feat)))
 		feat = FEAT_DEAD_TREE;
 
 	/* Clear mimic feature left by a secret door - mikaelh */
@@ -9725,8 +9726,13 @@ static int effect_pop(int who_id) {
 int new_effect(int who, int type, int dam, int time, int interval, worldpos *wpos, int cy, int cx, int rad, s32b flags) {
 	int i;
 	s32b who_id = 0;
+	player_type *p_ptr = NULL;
 
-	if (who < 0 && who > PROJECTOR_UNUSUAL) who_id = Players[0 - who]->id;
+	/* Caster is a player? */
+	if (who < 0 && who > PROJECTOR_UNUSUAL) {
+		p_ptr = Players[0 - who];
+		who_id = p_ptr->id;
+	}
 
 	if ((i = effect_pop(who_id)) == -1) return(-1);
 	effects[i].interval = interval;
@@ -9738,18 +9744,26 @@ int new_effect(int who, int type, int dam, int time, int interval, worldpos *wpo
 	effects[i].cx = cx;
 	effects[i].cy = cy;
 
-	if ((project_time_effect & EFF_VORTEX) && (who < 0 && who > PROJECTOR_UNUSUAL)) {
+	if (who_id) {
+		effects[i].caster_x = p_ptr->px;
+		effects[i].caster_y = p_ptr->py;
+	} else {
+		effects[i].caster_x = -1;
+		effects[i].caster_y = -1;
+	}
+
+	if ((project_time_effect & EFF_VORTEX) && who_id) {
 		if (target_okay(0 - who)) {
-			effects[i].whot = Players[0 - who]->target_who;
-			effects[i].cy = Players[0 - who]->target_row;
-			effects[i].cx = Players[0 - who]->target_col;
+			effects[i].whot = p_ptr->target_who;
+			effects[i].cy = p_ptr->target_row;
+			effects[i].cx = p_ptr->target_col;
 		}
 	}
-	else if ((project_time_effect & EFF_SEEKER) && (who < 0 && who > PROJECTOR_UNUSUAL)) {
+	else if ((project_time_effect & EFF_SEEKER) && who_id) {
 		if (target_okay(0 - who)) {
-			effects[i].whot = Players[0 - who]->target_who;
-			effects[i].ty = Players[0 - who]->py;
-			effects[i].tx = Players[0 - who]->px;
+			effects[i].whot = p_ptr->target_who;
+			effects[i].ty = p_ptr->py;
+			effects[i].tx = p_ptr->px;
 		}
 	}
 	else if (project_time_effect & EFF_METEOR) {
@@ -10114,7 +10128,7 @@ void aquatic_terrain_hack(cave_type **zcave, int x, int y) {
 		xx = x + ddx[d];
 		yy = y + ddy[d];
 		if (!in_bounds(yy, xx)) continue;
-		if (is_deep_water(zcave[yy][xx].feat)) {
+		if (feat_is_deep_water(zcave[yy][xx].feat)) {
 			zcave[y][x].info |= CAVE_WATERY;
 			return;
 		}

@@ -644,7 +644,7 @@ void do_cmd_go_up(int Ind) {
 #endif
 	} else {
 		if (p_ptr->safe_float_turns) {
-			msg_print(Ind, "Floating attempt blocked by client option 'safe_float' (in '=6').");
+			msg_print(Ind, "Floating attempt blocked by client option 'safe_float' (in '=1').");
 			return;
 		}
 
@@ -1617,7 +1617,7 @@ void do_cmd_go_down(int Ind) {
 #endif
 	} else {
 		if (p_ptr->safe_float_turns) {
-			msg_print(Ind, "Floating attempt blocked by client option 'safe_float' (in '=6').");
+			msg_print(Ind, "Floating attempt blocked by client option 'safe_float' (in '=1').");
 			return;
 		}
 
@@ -2884,6 +2884,48 @@ void do_cmd_open(int Ind, int dir) {
 			sound_near_site(y, x, wpos, 0, "open_window", "open_chest", SFX_TYPE_COMMAND, FALSE);
 #endif
 		}
+		else if (c_ptr->feat == FEAT_BARRED_WINDOW) {
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot open that window from outside.");
+				return;
+			}
+			cave_set_feat_live(wpos, y, x, FEAT_WINDOW); /* Open shutters ^^ */
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "open_window", "open_chest", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "open_window", "open_chest", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+		else if (c_ptr->feat == FEAT_BARRED_WINDOW_SMALL) {
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot open that window from outside.");
+				return;
+			}
+			cave_set_feat_live(wpos, y, x, FEAT_WINDOW_SMALL); /* Open shutters ^^ */
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "open_window", "open_chest", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "open_window", "open_chest", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
 
 		/* Nothing useful */
 		else if (!((c_ptr->feat >= FEAT_DOOR_HEAD) &&
@@ -3357,6 +3399,53 @@ void do_cmd_close(int Ind, int dir) {
 #endif
 		}
 
+		else if (c_ptr->feat == FEAT_WINDOW) {
+#if 0 /* xD */
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot close that window from outside.");
+				return;
+			}
+#endif
+			cave_set_feat_live(wpos, y, x, FEAT_BARRED_WINDOW); /* closed the shutters ^^ */
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "close_window", "close_door", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "close_window", "close_door", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+		else if (c_ptr->feat == FEAT_WINDOW_SMALL) {
+#if 0 /* xD */
+			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
+				msg_print(Ind, "You cannot close that window from outside.");
+				return;
+			}
+#endif
+			cave_set_feat_live(wpos, y, x, FEAT_BARRED_WINDOW_SMALL); /* closed the shutters ^^ */
+
+			un_afk_idle(Ind);
+			break_cloaking(Ind, 3);
+			break_shadow_running(Ind);
+			stop_precision(Ind);
+			stop_shooting_till_kill(Ind);
+
+			/* Take half a turn */
+			p_ptr->energy -= level_speed(&p_ptr->wpos) / 2;
+
+#ifdef USE_SOUND_2010
+			//sound(Ind, "close_window", "close_door", SFX_TYPE_COMMAND, TRUE);
+			sound_near_site(y, x, wpos, 0, "close_window", "close_door", SFX_TYPE_COMMAND, FALSE);
+#endif
+		}
+
 		/* Require open door */
 		else if (c_ptr->feat != FEAT_OPEN && c_ptr->feat != FEAT_HOME_OPEN) {
 #if 1 /* just for fun */
@@ -3501,11 +3590,11 @@ u16b twall_erosion(worldpos *wpos, int y, int x, u16b feat) {
 		if (!in_bounds(ty, tx)) continue;
 
 		c_ptr = &zcave[ty][tx];
-		if (is_deep_water(c_ptr->feat)) {
+		if (feat_is_deep_water(c_ptr->feat)) {
 			//feat = FEAT_DEEP_WATER; /* <- this is only if FEAT_DEEP_WATER is also terraformable in turn (see cave_set_feat_live) */
 			feat = FEAT_SHAL_WATER; /* <- this should be used otherwise */
 			break;
-		} else if (is_deep_lava(c_ptr->feat)) {
+		} else if (feat_is_deep_lava(c_ptr->feat)) {
 			//feat = FEAT_DEEP_LAVA; /* <- this is only if FEAT_DEEP_LAVA is also terraformable in turn (see cave_set_feat_live) */
 			feat = FEAT_SHAL_LAVA; /* <- this should be used otherwise */
 			break;
@@ -5433,7 +5522,7 @@ void do_cmd_disarm(int Ind, int dir) {
 				if (!is_newer_than(&p_ptr->version, 4, 7, 3, 0, 0, 0))
 					msg_print(Ind, "\374\377yHINT: Look into command \377o/edmt\377y for easier mass-disarming of monster traps.");
 				else
-					msg_print(Ind, "\374\377yHINT: Look into command \377o/edmt\377y and option \377oeasy_disarm_montraps\377y (in '=7') for easier mass-disarming of monster traps.");
+					msg_print(Ind, "\374\377yHINT: Look into command \377o/edmt\377y and option \377oeasy_disarm_montraps\377y (in '=2') for easier mass-disarming of monster traps.");
 				s_printf("warning_edmt: %s\n", p_ptr->name);
 				p_ptr->warning_edmt = 1;
 			}
@@ -5680,7 +5769,7 @@ void do_cmd_bash(int Ind, int dir) {
 		/* for leaderless guild houses */
 		if ((zcave[y][x].info2 & CAVE2_GUILD_SUS)) return;
 
-		if (is_water(c_ptr->feat) || is_lava(c_ptr->feat)) {
+		if (feat_is_water(c_ptr->feat) || feat_is_lava(c_ptr->feat)) {
 			if (bash_type != 3) bash_type = 2;
 			water = TRUE;
 		}
@@ -9647,7 +9736,7 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 			}
  #endif
 			/* If thrown into fire, insta-trigger */
-			if (is_lava(zcave[y][x].feat) || is_acute_fire(zcave[y][x].feat)) o_ptr->timeout = -1;
+			if (feat_is_lava(zcave[y][x].feat) || feat_is_acute_fire(zcave[y][x].feat)) o_ptr->timeout = -1;
 		}
 	}
 #endif
@@ -9790,6 +9879,8 @@ void house_admin(int Ind, int dir, char *args) {
 		case FEAT_WINDOW_SMALL:
 		case FEAT_OPEN_WINDOW:
 		case FEAT_OPEN_WINDOW_SMALL:
+		case FEAT_BARRED_WINDOW:
+		case FEAT_BARRED_WINDOW_SMALL:
 			/* Windows only allow knocking */
 			if (args[0] == 'H') {
 				knock_window(Ind, x, y);

@@ -214,7 +214,7 @@ void draw_huge_bar(int typ, int *prev, int cur, int *prev_max, int max) {
 	if (redraw)
 		for (n = ye; n > MAX_SCREEN_HGT - 2 - HUGE_BAR_SIZE; n--) {
 #ifdef USE_GRAPHICS //821,822,813, 813,813,813, 823,813,824
-			if (use_graphics) {
+			if (use_graphics && c_cfg.huge_bars_gfx) {
 				int w;
 
 				/* Silyl visual hack: Don't draw rounded corners if we're "inside" the huge stun bar... would look odd to have these little black patches ~~ */
@@ -240,7 +240,7 @@ void draw_huge_bar(int typ, int *prev, int cur, int *prev_max, int max) {
 	/* Only draw the difference to before */
 	for (n = ys; n > ye; n--)
 #ifdef USE_GRAPHICS
-		if (use_graphics) {
+		if (use_graphics && c_cfg.huge_bars_gfx) {
 			int w;
 
 			/* Silyl visual hack: Don't draw rounded corners if we're "inside" the huge stun bar... would look odd to have these little black patches ~~ */
@@ -293,7 +293,7 @@ void draw_huge_stun_bar(byte attr) {
 		for (x = 1; x < SCREEN_PAD_LEFT - 1; x++)
 			//if (scr_cc[x] == ' ')
 #ifdef USE_GRAPHICS
-				if (use_graphics && c != ' ')
+				if (use_graphics && c_cfg.huge_bars_gfx && c != ' ')
 					Term_draw(x, y, attr,
 					    y == MAX_SCREEN_HGT - 2 - HUGE_BAR_SIZE ? (
 					    x == 1 ? 821 : (x == SCREEN_PAD_LEFT - 1 - 1 ? 822 : 813)) :
@@ -449,6 +449,7 @@ static void Receive_init(void) {
 	receive_tbl[PKT_EQUIP_WIDE]	= Receive_equip_wide;
 	receive_tbl[PKT_SFLAGS]		= Receive_sflags;
 	receive_tbl[PKT_CHAR_DIRECT]	= Receive_char;
+	receive_tbl[PKT_MACRO_FAILURE] 	= Receive_macro_failure;
 }
 
 
@@ -3215,7 +3216,11 @@ int Receive_char(void) {
 			} else {
 				c_back = panel_map_c_back[x - PANEL_X][y - PANEL_Y];
 				a_back = panel_map_a_back[x - PANEL_X][y - PANEL_Y];
+ #if 0
 				if (!c_back) c_back = panel_map_c_back[x - PANEL_X][y - PANEL_Y] = 32;
+ #else
+				if (!c_back) c_back = panel_map_c_back[x - PANEL_X][y - PANEL_Y] = Client_setup.f_char[FEAT_SOLID];
+ #endif
 			}
 #endif
 		}
@@ -4286,7 +4291,11 @@ c_msg_format("RLI wx,wy=%d,%d; mmsx,mmsy=%d,%d, mmpx,mmpy=%d,%d, y_offset=%d", p
 					} else {
 						a_back = panel_map_a_back[x - PANEL_X][y - PANEL_Y];
 						c_back_real = panel_map_c_back[x - PANEL_X][y - PANEL_Y];
+ #if 0
 						if (!c_back_real) c_back_real = panel_map_c_back[x - PANEL_X][y - PANEL_Y] = 32;
+ #else
+						if (!c_back_real) c_back_real = panel_map_c_back[x - PANEL_X][y - PANEL_Y] = Client_setup.f_char[FEAT_SOLID];
+ #endif
 					}
 #endif
 				}
@@ -6320,13 +6329,15 @@ void apply_auto_pickup(char *item_name) {
 /* Apply client-side auto-inscriptions - C. Blue
    'insc_idx': -1 to apply all auto-inscriptions, otherwise only apply one particular auto-inscription.
    'force': overwrite existing non-trivial inscription.
+   Always returns 'FALSE' if auto_inscr_off is enabled ie all auto-inscriptions are disabled.
+   Always returns 'FALSE' if the item slot is empty.
    Returns 'TRUE' if the item is now inscribed, no matter whether by us or already before we tried, else FALSE. */
 bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 	int i;
 	char *ex, ex_buf[ONAME_LEN];
 	char *ex2, ex_buf2[ONAME_LEN];
 	char *match, tag_buf[ONAME_LEN];
-	bool auto_inscribe, found, has_insc = FALSE;
+	bool auto_inscribe, found, already_has_insc = FALSE;
 #ifdef REGEX_SEARCH
 	int ires = -999;
 	regex_t re_src;
@@ -6375,7 +6386,7 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 	/* look for 2nd '{' which MUST be an inscription */
 	ex = strstr(ex_buf, "{");
 
-	if (ex) has_insc = TRUE;
+	if (ex && !NAME_DISCARDABLE_INSCR(ex)) already_has_insc = TRUE;
 
 	/* Add "fake-artifact" inscriptions using '#' */
 	if (iinsc) {
@@ -6400,17 +6411,12 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 
 	/* no inscription? inscribe it then automatically */
 	if (ex == NULL || force) auto_inscribe = TRUE;
-	/* check whether inscription is just a discount/stolen tag */
-	else if (strstr(ex, "% off}") ||
-	    !strcmp(ex, "{cursed}") ||	/* for picking up items that were already identified on the floor */
-	    !strcmp(ex, "{on sale}") ||
-	    !strcmp(ex, "{stolen}")) {
-		/* if so, auto-inscribe it instead */
-		auto_inscribe = TRUE;
-	}
+	/* check whether inscription is just a discount/stolen tag, if so, auto-inscribe it instead */
+	else if (NAME_DISCARDABLE_INSCR_FLOOR(ex)) auto_inscribe = TRUE;
+
 #if 0 /* is '!' UNavailable? */
 	/* already has a real inscription? -> can't auto-inscribe */
-	if (!auto_inscribe) return(has_insc);
+	if (!auto_inscribe) return(already_has_insc);
 #else
 	/* save for checking for already existing target inscription */
 	if (ex && strlen(ex) > 2) {
@@ -6524,17 +6530,12 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 		if (found) break;
 	}
 	/* no match found? */
-	if (i == stop) return(has_insc);
+	if (i == stop) return(already_has_insc);
 
 	/* send the new inscription */
 	/* security hack: avoid infinite looping */
 	if (auto_inscription_tag[i][0] && /* since the auto-ins line might just be used for auto-pickup, don't inscribe empty inscriptions (mad spam on looting) */
-	    strstr(auto_inscription_tag[i], "% off") == NULL &&
-	    strcmp(auto_inscription_tag[i], "unsalable") &&
-	    /* These last three are actually NOT empty inscriptions, so they don't really need checking here: */
-	    strcmp(auto_inscription_tag[i], "cursed") &&
-	    strcmp(auto_inscription_tag[i], "on sale") &&
-	    strcmp(auto_inscription_tag[i], "stolen")) {
+	    !DISCARDABLE_INSCR_FLOOR(auto_inscription_tag[i])) { //note: the three 'cursed', 'on sale', 'stolen' (part of DISCARDxxx) are actually NOT empty inscriptions so they don't really need checking here
 #ifdef ENABLE_SUBINVEN
 		Send_inscribe((sslot + 1) * SUBINVEN_INVEN_MUL + slot, auto_inscription_tag[i]);
 #else
@@ -6542,7 +6543,7 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 #endif
 		return(TRUE);
 	}
-	return(has_insc);
+	return(already_has_insc);
 }
 
 int Receive_account_info(void) {
@@ -6853,6 +6854,19 @@ int Receive_sflags(void) {
 	char ch;
 
 	if ((n = Packet_scanf(&rbuf, "%c%d%d%d%d", &ch, &sflags0, &sflags1, &sflags2, &sflags3)) <= 0) return(n);
+	return(1);
+}
+
+int Receive_macro_failure(void) {
+	int n;
+	char ch;
+
+	if ((n = Packet_scanf(&rbuf, "%c", &ch)) <= 0) return(n);
+
+	/* Stop macro execution if we're on safe_macros!
+	   There is currently no use for this, just added it in case we ever need it as fail-safe. */
+	if (parse_macro && c_cfg.safe_macros) flush_now();
+
 	return(1);
 }
 

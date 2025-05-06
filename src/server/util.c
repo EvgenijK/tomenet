@@ -6137,7 +6137,7 @@ static void player_talk_aux(int Ind, char *message) {
 		reached = TRUE;
 		msg_print(i, q_ptr->censor_swearing ? tmessage : tmessage_u);
 	}
-	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =2 .)");
+	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =5 .)");
 
 #else /* in case TOMENET_WORLDS is not defined: */
 
@@ -6185,7 +6185,7 @@ static void player_talk_aux(int Ind, char *message) {
 			else msg_format(i, "%s %s", sender, q_ptr->censor_swearing ? message + 4 : message_u + 4);
 		}
 	}
-	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =2 .)");
+	if (!reached && p_ptr->limit_chat) msg_print(Ind, "(Nobody could hear you. Note that you have limit_chat enabled in =5 .)");
 #endif
 
 	p_ptr->warning_chat = 1;
@@ -9889,8 +9889,8 @@ void restore_estate(int Ind) {
 				o_ptr->custom_lua_usage = o_ptr_v8->custom_lua_usage;
 				//convert:
 				o_ptr->mode = o_ptr_v8->mode; /* u32b = u16b */
-				o_ptr->wId = 0;
-				o_ptr->dummy1 = o_ptr->dummy2 = 0; /* (future use) */
+				o_ptr->wId = o_ptr->comboset_flags = 0;
+				o_ptr->dummy1 = 0; /* (future use) */
 			}
 			if (r == 0) {
 				s_printf("  error: Failed to read object.\n");

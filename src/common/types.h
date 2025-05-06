@@ -665,6 +665,13 @@ struct effect_type {
 	s16b cx;		/* Center of the cast */
 	s32b whot;		/* Effect target, p_ptr->target_who - Kurzel */
 	s16b tx, ty, cflags;	/* Target x,y and control-flags */
+
+	/* x,y coords from where the spell was cast - added to make it break on the correct side of walls for 1-grid thick walls.
+	   For now unused as effects, unlike ball explosions, cannot target monsters on walls as 'starting point' and hence always
+	   begin _before_ a wall and hence always break at that wall.
+	   This would become important to implement if an effect could _create_ another (ball) spell that might start on a wall,
+	   in that case, uncomment the lines in dungeon.c:process_effects() for these two: */
+	s16b caster_x, caster_y;
 };
 
 /*
@@ -840,10 +847,11 @@ struct object_type {
 	s16b custom_lua_destruction;	/* Runs custom lua script on item destruction */
 	s16b custom_lua_usage;		/* Runs custom lua script on whatever this item can be used for via command: activation, quaff, read, eat.. */
 
-	s32b wId;			/* Player currently _wielding/wearing_ the item. */
+	s32b wId;			/* Player currently _wielding/wearing_ the item. -- deprecated, superceded by 'comboset_flags' method */
+	byte comboset_flags;		/* Flag array of all equipped items affecting this item too to create a comboset */
+	byte comboset_flags_cnt;	/* Flag array of all equipped items affecting this item too to create a comboset - flag count */
 
-	u16b dummy1;			/* For future use */
-	u32b dummy2;			/* For future use */
+	u32b dummy1;			/* For future use */
 };
 typedef struct object_type_v8 object_type_v8;
 struct object_type_v8 {
@@ -3500,8 +3508,9 @@ struct player_type {
 	bool fail_no_melee;
 	byte temp_misc_1; //0x01: door-mimic open state; 0x02: ppage, 0x04: gpage, 0x08: snowed, 0x10: random dungeon town handling, 0x20: loading old savegames before separate depths, 0x40 and 0x80: reserved for testing
 	byte temp_misc_2; //timer for snowed
-	byte temp_misc_3; //for art_combo hack, to avoid duplicate checks (ie outside of xtra1.c)
+	byte temp_misc_3; //0x01: for combosets, to skip set-gain messages once: on login
 	byte lifetime_flags;
+	byte combosets; /* Just for messaging, could be optimized out maybe: Index flag array of all existing combosets, to check which are active (MAX_ITEM_COMBOSETS is 5, so 8 bits are 3 more than needed) */
 
 	bool page_on_privmsg;
 	bool page_on_afk_privmsg;
@@ -4328,7 +4337,7 @@ struct player_type {
 	/* For the 4.4.8.1.0.0 lua update crash bug */
 	char warning_lua_update, warning_lua_count;
 	char warning_tunnel, warning_tunnel2, warning_tunnel3, warning_tunnel4, warning_tunnel_hidden, warning_trap, warning_tele, warning_fracexp;
-	char warning_death;
+	char warning_death, warning_away;
 	char warning_drained, warning_boomerang, warning_bash, warning_inspect;
 	/* 4.7.1b+ additions */
 	char warning_repair, warning_partyexp, warning_wor2, warning_depth; //repair weapon/armour, no xp sharing, wor INTO dun (display at -50 BD when char is hilev), low/no exp on grey/yellow
@@ -4943,6 +4952,7 @@ struct client_opts {
 	bool instant_retaliator;
 	bool wild_resume_from_any;
 	bool tavern_town_resume;
+	bool huge_bars_gfx;
 };
 
 /*

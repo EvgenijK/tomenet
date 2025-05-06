@@ -29,7 +29,15 @@
    Uncool thing about it is it causes all chat text, character stats, just everything to get (lightning-)flashed.
    Todo maybe: Use extended colours for the dungeon too, not just world surface.
    Note that while lightning happens on world surface and doesn't need to work inside the dungeon,
-   flash happens inside the dungeon mainly, so disabling it here would render it practically completely non-existant. */
+   flash happens inside the dungeon mainly, so disabling it here would render it practically completely non-existant.
+
+   HOWEVER, there is a bug: The colour of status bar text can be set to white on initial status bar change,
+   eg 'Suspended' info on shattering the mirror, if the change happens too close to sending the animation request to
+   the client, but redrawing palette-animated colours will only happen within the 'game map screen', so the status
+   bar won't be redrawn and hence stay at the initial colour (eg TERM_WHITE for screenflashing).
+
+   This set_palette() redrawal either needs fixing to affect the whole UI in gfx mode too,
+   or FULL-palette anims should both be commented out here. */
 #define ANIM_FULL_PALETTE_FLASH
 //#define ANIM_FULL_PALETTE_LIGHTNING
 
@@ -1147,34 +1155,29 @@ void prt_poisoned(char poisoned) {
 /*
  * Prints paralyzed/searching status
  */
-void prt_state(bool paralyzed, bool searching, bool resting) {
-	byte attr = TERM_WHITE;
+void prt_state(s16b paralyzed, bool searching, bool resting) {
+	byte attr = TERM_RED;
 	char text[16];
 	int x, y;
 
-	if (paralyzed) {
-		attr = TERM_RED;
+	switch (paralyzed) {
+	case 0:
+		attr = TERM_WHITE;
+		if (searching) strcpy(text, "Searching   ");
+		else if (resting) strcpy(text, "Resting     ");
+		else strcpy(text, "            ");
+		break;
+	case 2:
+		strcpy(text, "In Stasis!  ");
+		break;
+	case 3:
+		strcpy(text, "Suspended!  ");
+		break;
+	case 1:
+	default:
 		strcpy(text, "Paralyzed!  ");
+		break;
 	}
-
-	else if (searching) {
-#if 0
-		if (get_skill(SKILL_STEALTH) <= 10)
-			strcpy(text, "Searching   ");
-		else {
-			attr = TERM_L_DARK;
-			strcpy(text, "Stlth Mode  ");
-		}
-#else
-		strcpy(text, "Searching   ");
-#endif
-
-	}
-
-	else if (resting)
-		strcpy(text, "Resting     ");
-	else
-		strcpy(text, "            ");
 
 	/* remember cursor position */
 	Term_locate(&x, &y);
@@ -1682,16 +1685,25 @@ void prt_lagometer(int lag) {
 	int num;
 	int x, y;
 	bool hidden;
-
-	if (shopping) return; /* Lag-o-meter not visible as shop screens encompass the whole main window */
+	term *old;
 
 	/* disable(d)? */
 	if (!lagometer_enabled) return;
+
+	/* Paranoia: Maybe just don't draw it at all while screen is icky, not even in the background? */
+	//if (screen_icky) return;
+
+	/* Prevent visual redraw glich if current term is NOT term_main, and we check for screen_icky and then Term_switch() layers of the wrong Term (ie some other term than term_main) */
+	old = Term;
+	Term_activate(term_term_main);
+
 	if (lag == -1) {
 		if (screen_icky) Term_switch(0);
 		//Term_putstr(COL_LAG, ROW_LAG, 12, TERM_L_DARK, "[//////////]");
 		Term_putstr(COL_LAG, ROW_LAG, 12, TERM_L_DARK, "[----------]");
 		if (screen_icky) Term_switch(0);
+
+		Term_activate(old);
 		return;
 	}
 
@@ -1736,21 +1748,23 @@ void prt_lagometer(int lag) {
 	}
 #endif
 
+	if (screen_icky) Term_switch(0);
+
 	/* remember cursor position */
 	hidden = Term_locate(&x, &y);
-
-	if (screen_icky) Term_switch(0);
 
 	/* Default to "unknown" */
 	Term_putstr(COL_LAG, ROW_LAG, 12, TERM_L_DARK, "[----------]");
 	/* Dump the current "lag" (use '*' symbols) */
 	Term_putstr(COL_LAG + 1, ROW_LAG, num, attr, "++++++++++");
 
-	if (screen_icky) Term_switch(0);
-
 	/* restore cursor position */
 	Term_gotoxy(x, y);
 	if (hidden) Term->scr->cu = 1;
+
+	if (screen_icky) Term_switch(0);
+
+	Term_activate(old);
 }
 
 /*
@@ -5143,10 +5157,12 @@ void do_animate_screenflash(bool reset) {
 			active = FALSE;
 		}
 		return;
-	}
+	} else if (!animate_screenflash) return;
 
 	/* Animate palette */
-	if (/* !c_cfg.disable_lightning && */ !animate_screenflash_icky && c_cfg.palette_animation) switch (animate_screenflash) {
+	if (c_cfg.palette_animation && /* !c_cfg.disable_lightning && */
+	    (!animate_screenflash_icky || animate_screenflash == FLASH_END)) /* Actually do reset colours back to normal if flash ends while screen is icky */
+	switch (animate_screenflash) {
 	case 1:
 		/* First thing: Backup all colours before temporarily manipulating them */
 		if (!active) {
@@ -5225,10 +5241,12 @@ void do_animate_lightning(bool reset) {
 			active = FALSE;
 		}
 		return;
-	}
+	} else if (!animate_lightning) return;
 
 	/* Animate palette */
-	if (!c_cfg.disable_lightning && !animate_lightning_icky && c_cfg.palette_animation) switch (animate_lightning) {
+	if (!c_cfg.disable_lightning && c_cfg.palette_animation &&
+	    (!animate_lightning_icky || animate_lightning == AL_END)) /* Actually do reset colours back to normal if lightning ends while screen is icky */
+	switch (animate_lightning) {
 	case 1:
 		/* First thing: Backup all colours before temporarily manipulating them */
 		if (!active) {

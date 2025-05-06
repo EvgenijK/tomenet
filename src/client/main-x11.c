@@ -2101,6 +2101,27 @@ static errr Term_curs_x11(int x, int y) {
  * Draw a number of characters (XXX Consider using "cpy" mode)
  */
 static errr Term_text_x11(int x, int y, int n, byte a, cptr s) {
+#if 1 /* For 2mask mode: Actually imprint screen buffer with "empty background" for this text printed grid, to possibly avoid glitches */
+ #ifdef USE_GRAPHICS
+  #ifdef GRAPHICS_BG_MASK
+	{
+		byte *scr_aa_back = Term->scr_back->a[y];
+		char32_t *scr_cc_back = Term->scr_back->c[y];
+
+		byte *old_aa_back = Term->old_back->a[y];
+		char32_t *old_cc_back = Term->old_back->c[y];
+
+		old_aa_back[x] = scr_aa_back[x] = TERM_DARK;
+   #if 0
+		old_cc_back[x] = scr_cc_back[x] = 32;
+   #else
+		old_cc_back[x] = scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+   #endif
+	}
+  #endif
+ #endif
+#endif
+
 	/* Catch use in chat instead of as feat attr, or we crash :-s
 	   (term-idx 0 is the main window; screen-pad-left check: In case it is used in the status bar for some reason; screen-pad-top checks: main screen top chat line or status line) */
 	if (Term && Term->data == &term_main && x >= SCREEN_PAD_LEFT && x < SCREEN_PAD_LEFT + screen_wid && y >= SCREEN_PAD_TOP && y < SCREEN_PAD_TOP + screen_hgt) {
@@ -2211,7 +2232,7 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 			if (!entry->is_valid) hole = i;
 			else if (entry->c == c && entry->a == a
   #ifdef GRAPHICS_BG_MASK
-			    && entry->c_back == 0 && entry->a_back == 0
+			    && entry->c_back == 32 && entry->a_back == TERM_DARK
   #endif
   #ifdef TILE_CACHE_FGBG /* Instead of this, invalidate_graphics_cache_...() will specifically invalidate affected entries */
 			    /* Extra: Verify that palette is identical - allows palette_animation to work w/o invalidating the whole cache each time: */
@@ -2248,8 +2269,12 @@ static errr Term_pict_x11(int x, int y, byte a, char32_t c) {
 		entry->c = c;
 		entry->a = a;
   #ifdef GRAPHICS_BG_MASK
-		entry->c_back = 0;
-		entry->a_back = 0;
+   #if 0
+		entry->c_back = 32;
+   #else
+		entry->c_back = Client_setup.f_char[FEAT_SOLID];
+   #endif
+		entry->a_back = TERM_DARK;
   #endif
 		entry->is_valid = TRUE;
   #ifdef TILE_CACHE_FGBG
@@ -2338,6 +2363,16 @@ static errr Term_pict_x11_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	int i, hole = -1;
    #endif
 	int x1, y1;
+
+	/* Avoid visual glitches while not in 2mask mode */
+	if (use_graphics != UG_2MASK) {
+		a_back = TERM_DARK;
+   #if 0
+		c_back = 32; //space! NOT zero!
+   #else
+		c_back = Client_setup.f_char[FEAT_SOLID]; //'graphical space' for erasure
+   #endif
+	}
 
 	/* SPACE = erase background, aka black background. This is for places where we have no bg-info, such as client-lore in knowledge menu. */
 	if (c_back == 32) a_back = TERM_DARK;
@@ -4387,6 +4422,7 @@ void set_font_name(int term_idx, char* fnt) {
 	if (&td->t != Term) {
 		/* Terminal for which the font was forced is not activated. Activate, redraw and activate the terminal before. */
 		term *old_term = Term;
+
 		Term_activate(&td->t);
 		Term_redraw();
 		Term_activate(old_term);
@@ -4629,7 +4665,10 @@ void set_palette(byte c, byte r, byte g, byte b) {
  #endif
 //WiP, not functional		if (screen_icky) Term_switch_fully(0);
 		if (c_cfg.gfx_palanim_repaint || (c_cfg.gfx_hack_repaint && !gfx_palanim_repaint_hack))
-			Term_repaint(SCREEN_PAD_LEFT, SCREEN_PAD_TOP, screen_wid, screen_hgt); //flicker-free redraw - C. Blue
+			/* Alternative function for flicker-free redraw - C. Blue */
+			//Term_repaint(SCREEN_PAD_LEFT, SCREEN_PAD_TOP, screen_wid, screen_hgt);
+			/* Include the UI elements, which is required if we use ANIM_FULL_PALETTE_FLASH or ANIM_FULL_PALETTE_LIGHTNING  - C. Blue */
+			Term_repaint(0, 0, CL_WINDOW_WID, CL_WINDOW_HGT);
 		else {
 			Term_redraw();
 			gfx_palanim_repaint_hack = FALSE;

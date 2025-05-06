@@ -8408,9 +8408,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 #endif
 	bool netherrealm_level = FALSE, nr_bottom = FALSE;
 	int build_special_store = 0; /* 0 = don't build a dungeon store,
-					1 = build deep dungeon store,
-					2 = build low-level dungeon store,
-					3 = build ironman supply store
+					1 = build deep dungeon store (rare gear/sbm),
+					2 = build low-level dungeon store (herbalist),
+					3 = build ironman supply store (various: town-like stores, also hidden library)
 					4 = build specific ironman supply store: hidden library
 					5 = build specific ironman supply store: deep supply
 				    - C. Blue */
@@ -8979,8 +8979,8 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 	if (maze) permaze = magik(DUN_MAZE_PERMAWALL);
 
-	if (!maze && !cavern &&
-	    ((dflags1 & (DF1_EMPTY)) || (!rand_int(EMPTY_LEVEL) && !(dflags3 & DF3_NOT_EMPTY)))) {
+	if (!maze && !cavern && !(dflags3 & DF3_NOT_EMPTY) &&
+	    ((dflags1 & DF1_EMPTY) || !rand_int(EMPTY_LEVEL))) {
 		empty_level = TRUE;
 		if ((randint(DARK_EMPTY) != 1 || (randint(100) > dun_lev)))
 			dark_empty = FALSE;
@@ -8988,7 +8988,6 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	if (dflags3 & DF3_NO_DARK) dark_level = FALSE;
 	else if (dflags3 & DF3_DARK) dark_level = TRUE;
 
-	if (dflags3 & DF3_NO_EMPTY) empty_level = FALSE;
 	if (dflags3 & DF3_NO_DESTROYED) destroyed = FALSE;
 	if (dflags3 & DF3_NO_MAZE) maze = permaze = FALSE;
 
@@ -9962,7 +9961,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 	/* Nether Realm has an overriding shop creation routine. */
 	if (!netherrealm_level) {
-		bool store_failed = FALSE; /* avoid checking for a different type of store if one already failed, warping probabilities around */
+		bool store_failed = FALSE; /* avoid checking for a different type of store if one already failed, warping probabilities around -- currently no effect due to the way it's used ^^' */
 
 		/* Check for building deep store (Rare & expensive stores) */
 		if ((!dungeon_store_timer) && (dun_lev >= 60) && (dun_lev != 100))
@@ -9989,29 +9988,28 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		if (!(d_ptr->flags3 & DF3_NO_SIMPLE_STORES)) {
 			/* Low-level store?
 			   Herbalist - is now allowed again, for IDDC, and hence not restricted in here anymore. */
-
 			/* Build one of several misc iron dungeon helper stores for basic items of certain type */
 			//todo: maybe use the new d_ptr->store_timer for randomly generated stores
 #ifdef TEST_SERVER
-			if (!store_failed && (!build_special_store) && (dun_lev >= 13)) {
+			/* Allow almost anywhere, for testing */
+			if (!store_failed && (!build_special_store) && (dun_lev >= 6)) {
 				if (!rand_int(5)) build_special_store = 3;
 				else store_failed = TRUE;
 			}
-#else
- #ifdef RPG_SERVER
-			if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_IRON) && (dun_lev >= 13)) {
+#elif defined(RPG_SERVER)
+			/* Allowed in any canonical dungeon (they are all ironman on RPG server)! */
+			if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_IRON) && (dun_lev >= 6)) {
 				//((dun_lev + rand_int(3) - 1) % 5 == 0)) build_special_store = 3;
 				if (!rand_int(5)) build_special_store = 3;
 				else store_failed = TRUE;
 			}
- #endif
+#else
+			/* Build one of several misc stores for basic items of certain type */
+			if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_MISC_STORES) && (dun_lev >= 6)) {
+				if (!rand_int(3)) build_special_store = 3;
+				else store_failed = TRUE;
+			}
 #endif
-		}
-
-		/* Build one of several misc stores for basic items of certain type, like on RPG server above */
-		if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_MISC_STORES) && (dun_lev >= 13)) {
-			if (!rand_int(5)) build_special_store = 3;
-			else store_failed = TRUE;
 		}
 
 		/* Build deep supplies store if desired (good for challenge dungeons actually) - frequent store! */
@@ -10024,18 +10022,20 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			}
 		}
 
-		/* Check for building low-level store (Herbalist) - frequent store if levels are explored slowly (like in IDDC)! */
-		if ((!build_special_store) &&
-		    (!dungeon_store2_timer) && (dun_lev >= 6) && (dun_lev <= 30))
+		if (!(d_ptr->flags3 & DF3_NO_SIMPLE_STORES)) {
+			/* Check for building low-level store (Herbalist) - frequent store if levels are explored slowly (like in IDDC)! */
+			if ((!build_special_store) &&
+			    (!dungeon_store2_timer) && (dun_lev >= 6) && (dun_lev <= 30))
 #ifdef IDDC_REFUGE_EXTRA_STORES /* Disable the random Hidden Library here in turn */
  #ifndef IDDC_REFUGE_EXTRA_STORES_RANDOM
-			if (!in_irondeepdive(wpos))
+				if (!in_irondeepdive(wpos))
  #else
-			/* Only disable it on levels where it already exists within a refuge */
-			if (!dun->l_ptr || !dun->l_ptr->refuge_x)
+				/* Only disable it on levels where it already exists within a refuge */
+				if (!dun->l_ptr || !dun->l_ptr->refuge_x)
  #endif
 #endif
-			build_special_store = 2;
+				build_special_store = 2;
+		}
 
 		/* if failed, we're done */
 		if (!build_special_store) return;
@@ -10057,9 +10057,14 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			y = rand_int(dun->l_ptr->hgt - 4) + 2;
 			x = rand_int(dun->l_ptr->wid - 4) + 2;
 			csbm_ptr = &zcave[y][x];
+#if 0
 			/* Must be in a wall, must not be in perma wall. Outside of vaults. */
 			if ((f_info[csbm_ptr->feat].flags1 & FF1_WALL) &&
 			    !(f_info[csbm_ptr->feat].flags1 & FF1_PERMANENT) &&
+#else
+			/* Must be in a wall, but for Halls of Mandos allow perma-walls - and just allow them in general, seems no harm done? */
+			if ((f_info[csbm_ptr->feat].flags1 & FF1_WALL) &&
+#endif
 			    !(csbm_ptr->info & CAVE_ICKY)) {
 				/* must have at least 1 'free' adjacent field */
 				bool found1free = FALSE;

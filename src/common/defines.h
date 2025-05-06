@@ -40,10 +40,10 @@
 /* MAJOR/MINOR/PATCH version should be 0-15. BUILD == 1 means 'test build' */
 #define VERSION_MAJOR		4
 #define VERSION_MINOR		9
-#define VERSION_PATCH		2
-#define VERSION_EXTRA		1
+#define VERSION_PATCH		3
+#define VERSION_EXTRA		0
 #define VERSION_BRANCH		0
-#define VERSION_BUILD		3
+#define VERSION_BUILD		0
 
 /* MAJOR/MINOR/PATCH version that counts as 'latest' (should be 0-15).
    If a player is online with a version > this && <= current version (VERSION_)
@@ -51,7 +51,7 @@
    with a 'T' marker which is visible only to admins.*/
 #define VERSION_MAJOR_LATEST	4
 #define VERSION_MINOR_LATEST	9
-#define VERSION_PATCH_LATEST	2
+#define VERSION_PATCH_LATEST	3
 #define VERSION_EXTRA_LATEST	0
 #define VERSION_BRANCH_LATEST	0
 #define VERSION_BUILD_LATEST	0
@@ -59,7 +59,7 @@
 /* maximum MAJOR/MINOR/PATCH version that counts as 'outdated' (should be 0-15). */
 #define VERSION_MAJOR_OUTDATED	4
 #define VERSION_MINOR_OUTDATED	9
-#define VERSION_PATCH_OUTDATED	1
+#define VERSION_PATCH_OUTDATED	2
 #define VERSION_EXTRA_OUTDATED	0
 #define VERSION_BRANCH_OUTDATED	0
 #define VERSION_BUILD_OUTDATED	2 /* should always be 1 (or higher) to invalidate previous 'test' versions */
@@ -76,8 +76,18 @@
   #define CLIENT_VERSION_TAG	CLIENT_TAG
  #else
   #define CLIENT_VERSION_TAG	CLIENT_TAG"-Test"
+  #if VERSION_BUILD == 0 /* Don't override higher build versions (we use anything > 0 for test client builds) */
+   #undef VERSION_BUILD
+   #define VERSION_BUILD 1
+  #endif
  #endif
 #endif
+
+/*
+ * Base version strings of TomeNET (see version_build)
+ */
+#define TOMENET_VERSION_SHORT		"TomeNET"
+
 
 /* Minimum client version required to be allowed to log in */
 #define MIN_VERSION_MAJOR	4
@@ -140,19 +150,20 @@
 #endif
 
 
+/* Determine fundamental server type (Normal, RPG, Arcade, Fun flagged). */
+#include "defines-local.h"
 
-/*
- * Base version strings of TomeNET (see version_build)
- */
-#define TOMENET_VERSION_SHORT		"TomeNET"
+/* Add feature enabling/disabling definitions - C. Blue */
+#include "defines-features.h"
+
+/* Add colour schemes - C. Blue */
+#include "colours.h"
+
 
 /*
  * This value is a single 16-bit number holding the version info
  */
-
-#define MY_VERSION (VERSION_MAJOR << 12 | VERSION_MINOR << 8 | VERSION_PATCH \
-	<< 4 | VERSION_EXTRA)
-
+#define MY_VERSION (VERSION_MAJOR << 12 | VERSION_MINOR << 8 | VERSION_PATCH << 4 | VERSION_EXTRA)
 
 
 /* Main server flags */
@@ -179,15 +190,6 @@
 #define SFLG1_CIPD		0x00000040U	/* Server is ok with CLIENT_ITEM_PASTE_DIZ */
 #define SFLG1_SIPD		0x00000080U	/* Server is ok with SERVER_ITEM_PASTE_DIZ */
 
-
-/* Determine fundamental server type (Normal, RPG, Arcade, Fun flagged). */
-#include "defines-local.h"
-
-/* Add feature enabling/disabling definitions - C. Blue */
-#include "defines-features.h"
-
-/* Add colour schemes - C. Blue */
-#include "colours.h"
 
 
 /* Characters disallowed in save files */
@@ -602,6 +604,9 @@
 /* Max ego base type restrictions */
 #define MAX_EGO_BASETYPES	10
 
+/* Max equipped-item combo-sets */
+#define MAX_ITEM_COMBOSETS	5
+
 
 #ifdef CLIENT_SIDE
  /* Client-side unique list */
@@ -634,6 +639,21 @@
   #define NAVI_KEY_END		-120
   #define NAVI_KEY_DEL		-119	/* Windows only, not available on POSIX (there DEL is same as BACKSPACE) */
 #endif
+
+
+/* Inscriptions that shouldn't count as 'item is inscribed' really - for auto-inscribing checks.
+   NOTE: "% off" and "unsalable" are NOT inscriptions, but it can still be part of the item name and LOOK like on as it appears in curly brackets. */
+#define DISCARDABLE_INSCR(STR) \
+    (strstr(STR, "% off") || !strcmp(STR, "unsalable") || !strcmp(STR, "on sale") || !strcmp(STR, "stolen") || !strcmp(STR, "handmade") || !strcmp(STR, "uncursed") || !strcmp(STR, "average"))
+/* Also add 'cursed' for items that were floor-identified before being picked up */
+#define DISCARDABLE_INSCR_FLOOR(STR) \
+    (DISCARDABLE_INSCR(STR) || !strcmp(STR, "cursed"))
+/* Full-item-name versions of the above */
+#define NAME_DISCARDABLE_INSCR(STR) \
+    (strstr(STR, "% off}") || !strcmp(STR, "{unsalable}") || !strcmp(STR, "{on sale}") || !strcmp(STR, "{stolen}") || !strcmp(STR, "{handmade}") || !strcmp(STR, "{uncursed}") || !strcmp(STR, "{average}"))
+/* Also add 'cursed' for items that were floor-identified before being picked up */
+#define NAME_DISCARDABLE_INSCR_FLOOR(STR) \
+    (NAME_DISCARDABLE_INSCR(STR) || !strcmp(STR, "{cursed}"))
 
 
 /*
@@ -721,6 +741,10 @@
 
 /* Max amount of legal words that override swear words */
 #define MAX_NONSWEAR 200
+
+/* Size of the 'Recent Death' list [42 = one full screen in big_map mode] */
+#define RECENT_DEATHS_ENTRIES 42
+
 
 /*
  * Maximum size of the "view" array (see "cave.c")
@@ -2833,34 +2857,39 @@
 #define FEAT_ANIM_DEEP_LAVA_WEST	271
 #define FEAT_ANIM_DEEP_LAVA_NORTH	272
 #define FEAT_ANIM_DEEP_LAVA_SOUTH	273
+#define FEAT_BARRED_WINDOW		274
+#define FEAT_BARRED_WINDOW_SMALL	275
 
 
-#define is_shal_water(F) \
+#define feat_is_shal_water(F) \
 	((F) == FEAT_ANIM_SHAL_WATER_EAST || (F) == FEAT_ANIM_SHAL_WATER_WEST || (F) == FEAT_ANIM_SHAL_WATER_NORTH || (F) == FEAT_ANIM_SHAL_WATER_SOUTH || \
 	(F) == FEAT_SHAL_WATER || (F) == FEAT_TAINTED_WATER)
-#define is_deep_water(F) \
+#define feat_is_deep_water(F) \
 	((F) == FEAT_ANIM_DEEP_WATER_EAST || (F) == FEAT_ANIM_DEEP_WATER_WEST || (F) == FEAT_ANIM_DEEP_WATER_NORTH || (F) == FEAT_ANIM_DEEP_WATER_SOUTH || \
 	(F) == FEAT_DEEP_WATER || (F) == FEAT_GLIT_WATER)
 	//Note that FEAT_GLIT_WATER is just a boundary, so strictly speaking it's neither shallow nor deep but a permawall. ^^
-#define is_water(F) (is_shal_water(F) || is_deep_water(F))
+#define feat_is_water(F) (feat_is_shal_water(F) || feat_is_deep_water(F))
 
-#define is_shal_lava(F) \
+#define feat_is_shal_lava(F) \
 	((F) == FEAT_ANIM_SHAL_LAVA_EAST || (F) == FEAT_ANIM_SHAL_LAVA_WEST || (F) == FEAT_ANIM_SHAL_LAVA_NORTH || (F) == FEAT_ANIM_SHAL_LAVA_SOUTH || \
 	(F) == FEAT_SHAL_LAVA)
-#define is_deep_lava(F) \
+#define feat_is_deep_lava(F) \
 	((F) == FEAT_ANIM_DEEP_LAVA_EAST || (F) == FEAT_ANIM_DEEP_LAVA_WEST || (F) == FEAT_ANIM_DEEP_LAVA_NORTH || (F) == FEAT_ANIM_DEEP_LAVA_SOUTH || \
 	(F) == FEAT_DEEP_LAVA)
-#define is_lava(F) (is_shal_lava(F) || is_deep_lava(F))
+#define feat_is_lava(F) (feat_is_shal_lava(F) || feat_is_deep_lava(F))
 
 /* Intense fires that creatures cannot avoid: */
-#define is_acute_fire(F) ((F) == FEAT_FIRE || (F) == FEAT_GREAT_FIRE)
+#define feat_is_acute_fire(F) ((F) == FEAT_FIRE || (F) == FEAT_GREAT_FIRE)
 /* Fire that won't necessarily harm creatures, but objects falling into these can easily get destroyed: */
-#define is_avoidable_fire(F) ((F) == FEAT_EMBERS || (F) == FEAT_SMALL_FIRE || (F) == FEAT_SMALL_CAMPFIRE || (F) == FEAT_CAMPFIRE)
+#define feat_is_avoidable_fire(F) ((F) == FEAT_EMBERS || (F) == FEAT_SMALL_FIRE || (F) == FEAT_SMALL_CAMPFIRE || (F) == FEAT_CAMPFIRE)
 /* Any fire */
-#define is_fire(F) (is_acute_fire(F) || is_avoidable_fire(F))
+#define feat_is_fire(F) (feat_is_acute_fire(F) || feat_is_avoidable_fire(F))
 
 /* Note: Just fiery light sources 'dropped to the floor'. These won't even threaten items, for now:
 	FEAT_BURNING_TORCH, FEAT_BURNING_LAMP. */
+
+#define feat_is_window(F) ((F) == FEAT_WINDOW || (F) == FEAT_WINDOW_SMALL || (F) == FEAT_OPEN_WINDOW || (F) == FEAT_OPEN_WINDOW_SMALL || (F) == FEAT_BARRED_WINDOW || (F) == FEAT_BARRED_WINDOW_SMALL)
+
 
 
 /* number of connected void gates or something? */
@@ -3137,6 +3166,8 @@
 #define ART_ORCHAST		156
 #define ART_NIGHT		157
 #define ART_NATUREBANE		158
+
+#define ART_RING_DURIN		205
 
 /* ToME-NET additions */
 #define ART_GIVEROFSLEEP	209
@@ -6965,7 +6996,7 @@
 #define		WILD_ROCK_HOME		1
 #define		WILD_PERM_HOME		2
 #define		WILD_SHACK		3
-#define		WILD_TOWN_HOME		4
+#define		WILD_TOWN_HOME		4	/* player-purchasable houses */
 
 /* types of crops */
 #define		WILD_CROP_POTATO	0
@@ -7222,7 +7253,7 @@
 
 #define DF3_NO_VAULTS		0x00100000U	/* Less room_build() calls for any sort of struct (including vaults) */
 #define DF3_NO_MAZE		0x00200000U	/* don't build (perma)mazes */
-#define DF3_NO_EMPTY		0x00400000U	/* don't build empty levels (arenas) */
+//HOLE #define DF3_XXX		0x00400000U	/* */
 #define DF3_NO_DESTROYED	0x00800000U	/* don't build 'destroyed' levels */
 
 #define DF3_NO_TELE		0x01000000U	/* Disallow any teleportation (to go with NO_SUMMON -- for new experimental dungeoneering). Implies LF1_NO_MAGIC! */
@@ -7239,7 +7270,7 @@
    without changing its main flags (set by admin on dungeon creation) too much */
 #define DF3_THEME_MASK \
 	(DF3_DERARE_MONSTERS | DF3_MANY_MONSTERS | DF3_VMANY_MONSTERS | \
-	DF3_WALL_STREAMERS | DF3_NOT_EMPTY | DF3_NOT_WATERY | DF3_FEW_ROOMS | DF3_NO_VAULTS | DF3_NO_MAZE | DF3_NO_EMPTY | DF3_NO_DARK | DF3_NO_DESTROYED)
+	DF3_WALL_STREAMERS | DF3_NOT_EMPTY | DF3_NOT_WATERY | DF3_FEW_ROOMS | DF3_NO_VAULTS | DF3_NO_MAZE | DF3_NO_DARK | DF3_NO_DESTROYED)
 
 
 /* level flags for dun_level */
@@ -7648,13 +7679,13 @@
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_FLOOR) || \
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_CAN_LEVITATE) && p_ptr->levitate) || \
 	((ZCAVE[Y][X].feat == FEAT_DEAD_TREE || ZCAVE[Y][X].feat == FEAT_TREE || ZCAVE[Y][X].feat == FEAT_BUSH) && (p_ptr->pass_trees || p_ptr->levitate)) || /* fly is redundant, covered a line above */ \
-	(is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim))
+	(feat_is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim))
 /* adding this to prevent annoying stops when running in barrow-downs while tree-passing --
    note last line, added for Paths of the Dead, allowing to run over pits */
 #define cave_running_bold_notrees(p_ptr,ZCAVE,Y,X) \
 	( ((f_info[ZCAVE[Y][X].feat].flags1 & FF1_FLOOR) || \
 	((f_info[ZCAVE[Y][X].feat].flags1 & FF1_CAN_LEVITATE) && p_ptr->levitate) || \
-	(is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim)) \
+	(feat_is_water(ZCAVE[Y][X].feat) && p_ptr->can_swim)) \
 	&& !(ZCAVE[Y][X].feat == FEAT_DEAD_TREE || ZCAVE[Y][X].feat == FEAT_TREE || ZCAVE[Y][X].feat == FEAT_BUSH || \
 	    ZCAVE[Y][X].feat == FEAT_DARK_PIT) )
 /* adding this to prevent annoying stops when running in barrow-downs while tree-passing --
@@ -9348,6 +9379,8 @@ extern int PlayerUID;
 /* Invalid (Nothing) items: Enable backtracing if we're using glibc */
 #ifdef __GLIBC__
  #define BACKTRACE_NOTHINGS
+ #define BACKTRACE_TV_PSEUDO_OBJ
+ #define BACKTRACE_OOM
 #endif
 /* Actually remove the invalid c_ptr->o_idx reference? */
 #define FIX_NOTHINGS
@@ -9406,12 +9439,12 @@ extern int PlayerUID;
 #ifndef VAMPIRIC_MIST
  #define mimic_vampire(ridx, plv)	\
 	(((ridx) == 0) || \
-	((plv) >= 20 && (ridx) == RI_VAMPIRE_BAT))
+	((plv) >= VAMPIRE_XFORM_LEVEL_BAT && (ridx) == RI_VAMPIRE_BAT))
 #else
  #define mimic_vampire(ridx, plv)	\
 	(((ridx) == 0) || \
-	((plv) >= 20 && (ridx) == RI_VAMPIRE_BAT) || \
-	((plv) >= 35 && (ridx) == RI_VAMPIRIC_MIST))
+	((plv) >= VAMPIRE_XFORM_LEVEL_BAT && (ridx) == RI_VAMPIRE_BAT) || \
+	((plv) >= VAMPIRE_XFORM_LEVEL_MIST && (ridx) == RI_VAMPIRIC_MIST))
 #endif
 
 #define mimic_hatchling(ridx)	\

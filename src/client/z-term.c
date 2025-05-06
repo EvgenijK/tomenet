@@ -453,8 +453,15 @@ static void QueueAttrChar(int x, int y, byte a, char32_t c) {
 	   In that case, 'background' info exists and we just don't use it, for this drawing action.
 	   So we should clear it instead of leaving it undefined.
 	   (Except for weather particles, where the effect of leaving the background here would actually be desired, as the weather particle is just temporary.) */
-	scr_aa_back[x] = 0;
-	scr_cc_back[x] = 32; //note: 0 would glitch as it's undefined, 32 aka space is correct for erasure
+//	if (use_graphics == 2) {
+		scr_aa_back[x] = 0;
+ #if 0
+		scr_cc_back[x] = 32; //note: 0 would glitch as it's undefined, 32 aka space is correct for erasure
+ #else
+		//replace the 'space (usually w/ colour 0]' ASCII background with graphical '(usually black, accordingly) box', so we can properly merge-draw on it
+		scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+ #endif
+//	}
 #endif
 
 	/* Check for new min/max row info */
@@ -493,28 +500,30 @@ static void QueueAttrChar_2mask(int x, int y, byte a, char32_t c, byte a_back, c
 	   we need to take care of the background, as ASCII doesn't set that.
 	   This for example concerns town stores during rain
 	   (note that all weather particles draw with 0,0 for a_back,c_back). - C. Blue */
-	if ((scr_cc_back[x] == 32 // <- ASCII was drawn here?
- #if 0 /* actually any ASCII drawage, aka QueueAttrChar(), already sets cc_back to 32 so the check above should suffice and this one isn't clear, gfx could also be < 256?! */
-	    /* Rare special case: Even if background contains graphics (because we are in 2mask-mode)
-	       we were fed ASCII in the foreground w/o overriding the graphical background.
-	       This should only ever happen if we're receiving visual info from an ASCII client while locally drawing 2mask-mode, ie weather particles: */
-	    || scr_cc[x] < 256)
+	if (!c_back || c_back == 32) { /* Only applies if we don't want to change it */
+		if ((scr_cc_back[x] == 32 // <- ASCII was drawn here
+ #if 1 /* actually any ASCII drawage, aka QueueAttrChar(), already sets cc_back to 32 so the check above should suffice and this one isn't clear, gfx could also be < 256?! */
+		    /* Rare special case: Even if background contains graphics (because we are in 2mask-mode)
+		       we were fed ASCII in the foreground w/o overriding the graphical background.
+		       This should only ever happen if we're receiving visual info from an ASCII client while locally drawing 2mask-mode, ie weather particles: */
+		    || (Term->higher_pict && scr_cc[x] <= MAX_FONT_CHAR))
  #else /* freaking compiler warning */
 	    && TRUE)
  #endif
  #if 0 /* actually this colour check can be removed as it doesn't matter (would even improve future compatibility if we ever print ASCII with coloured backgrounds) */
-	     && !scr_aa_back[x]
+		     && !scr_aa_back[x]
  #endif
-	     ) {
-		//replace the 'space (usually w/ colour 0]' ASCII background with graphical '(usually black, accordingly) box', so we can properly merge-draw on it
-		scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
-		/* Colour should stay the same - however, we need to hack it for the case that we have an ASCII tile that has 'space' foreground, but non-black colour!
-		   In these cases the FEAT_SOLID would obtain the foreground colour, thereby turning into a coloured 'pseudo-background' for our graphical foreground tile.
-		   Another solution would be to change all 'clear' aka 'space' feats in f_info to use 'd' (TERM_DARK) colour, which is probably the better solution than setting a_back to TERM_DARK here.
-		   ---
-		   BOTH SOLUTIONS have been implemented now ie the blank feats in f_info.txt had their colour changed to 'd',
-		   so if we ever require coloured backgrounds in text mode we should be able to remove the following line anytime just fine. */
-		scr_aa_back[x] = TERM_DARK;
+		     ) {
+			//replace the 'space (usually w/ colour 0]' ASCII background with graphical '(usually black, accordingly) box', so we can properly merge-draw on it
+			scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+			/* Colour should stay the same - however, we need to hack it for the case that we have an ASCII tile that has 'space' foreground, but non-black colour!
+			   In these cases the FEAT_SOLID would obtain the foreground colour, thereby turning into a coloured 'pseudo-background' for our graphical foreground tile.
+			   Another solution would be to change all 'clear' aka 'space' feats in f_info to use 'd' (TERM_DARK) colour, which is probably the better solution than setting a_back to TERM_DARK here.
+			   ---
+			   BOTH SOLUTIONS have been implemented now ie the blank feats in f_info.txt had their colour changed to 'd',
+			   so if we ever require coloured backgrounds in text mode we should be able to remove the following line anytime just fine. */
+			scr_aa_back[x] = TERM_DARK;
+		}
 	}
 
 	/* Save the "literal" information (foreground) */
@@ -576,7 +585,11 @@ static void QueueAttrChars(int x, int y, int n, byte a, char32_t *s) {
 		scr_cc[x] = *s;
  #ifdef GRAPHICS_BG_MASK /* We print ASCII, so erase any background info! (Important for QueueAttrChar_2mask() to have 32 aka 'blank' here!) */
 		scr_aa_back[x] = 0;
+  #if 0
 		scr_cc_back[x] = 32;
+  #else
+		scr_cc_back[x] = Client_setup.f_char[FEAT_SOLID];
+  #endif
  #endif
 
 		/* Note the "range" of window updates */
@@ -877,8 +890,10 @@ static byte anim2static(byte attr) {
 		case 9: case 10: case 11:
 			return(TERM_YELLOW);
 		}
-		/* Fall through should not happen, just silence the compiler */
-		__attribute__ ((fallthrough));
+#ifdef TEST_CLIENT
+		c_msg_print("Colour error 1");
+#endif
+		return(TERM_VIOLET); //paranoia + just silence the compiler */
 	case TERM_SMOOTHPAL:
 		switch ((((unsigned)ticks * 10) / 52) % 6) { //xD
 		case 0: return(TERM_L_RED);
@@ -888,8 +903,10 @@ static byte anim2static(byte attr) {
 		case 4: return(TERM_L_BLUE);
 		case 5: return(TERM_VIOLET);
 		}
-		/* Fall through should not happen, just silence the compiler */
-		__attribute__ ((fallthrough));
+#ifdef TEST_CLIENT
+		c_msg_print("Colour error 2");
+#endif
+		return(TERM_VIOLET); //paranoia + just silence the compiler */
 	case TERM_SEL_RED:
 #if 0 /* somewhat calm still */
 		switch ((unsigned)ticks % 10) {
@@ -924,8 +941,10 @@ static byte anim2static(byte attr) {
 			return(TERM_L_DARK);
 		}
 #endif
-		/* Fall through should not happen, just silence the compiler */
-		__attribute__ ((fallthrough));
+#ifdef TEST_CLIENT
+		c_msg_print("Colour error 3");
+#endif
+		return(TERM_VIOLET); //paranoia + just silence the compiler */
 	case TERM_SEL_BLUE: //atm for testing purpose only, see comments below...
 		/* Dual-animation! Use palette animation if available, colour-rotation otherwise */
 		if (TRUE
@@ -980,8 +999,10 @@ static byte anim2static(byte attr) {
 			return(TERM_L_BLUE);
 #endif
 		}
-		/* Fall through should not happen, just silence the compiler */
-		__attribute__ ((fallthrough));
+#ifdef TEST_CLIENT
+		c_msg_print("Colour error 4");
+#endif
+		return(TERM_VIOLET); //paranoia + just silence the compiler */
 	case TERM_SRCLITE: {
 //#define TERM_SRCLITE_TEMP /* only animate temporarily instead of permanently? */
 #define TERM_SRCLITE_HUE 1 /* 1 = reddish, else blueish */
@@ -1586,7 +1607,7 @@ byte flick_colour(byte attr) {
 
 extern term *ang_term[];
 
-void flicker() {
+void flicker(void) {
 	int y, x, y2, x2, i;
 	char32_t ch;
 	byte attr;
@@ -2478,7 +2499,12 @@ static void Term_repaint_row_pict(int y, byte *aa, char32_t *cc, byte *back_aa, 
 
    So this function doesn't change/update a/c values, but just their visuals.
    TODO maybe: For efficiency, restrict to actual map screen area instead of full window, and also don't use a 'buf' for every single text char. */
-#define OLD_VS_SCR /* define to use 'old', undefine to use 'scr' -- both work, but 'old' should be logically correct... */
+
+/* Define to use 'old', undefine to use 'scr' -- both work, but 'old' should be logically correct...
+   ...on the other hand, Term_save() stores Term->scr into memory, while Term->old isn't stored at all.
+   Note that Term_text_win() enables a 2-mask anti-glitch hack that actually overwrites/reinits the background part of Term->old and Term->scr. */
+//#define OLD_VS_SCR
+
 void Term_repaint(int xstart, int ystart, int wid, int hgt) {
 	int y;
 
@@ -2511,28 +2537,36 @@ void Term_repaint(int xstart, int ystart, int wid, int hgt) {
 	/* Pending text starts in the first column */
 	int fx = x1;
 	/* Pending text color is "blank" */
-	int fa = Term->attr_blank;
-#ifdef DRAW_LARGER_CHUNKS
+	int fa = Term->attr_blank; //TODO: Move behind the 'Term_switch(0)'!
+ #ifdef DRAW_LARGER_CHUNKS
 	int i;
-#endif
+ #endif
 	/* Max width is number of columns marked as "modified", plus terminating character '\0' */
 	int mod_num = x2 - x1 + 1;
 	char text[mod_num + 1];
 #endif
 
-	bool icky_s = (Term == ang_term[0] && screen_icky);
-	bool icky_tl = topline_icky && Term == ang_term[0] && !screen_icky;
-
+#if 0 /* TRFIX: in Term_repaint() we don't write chars to a term's screen, but we redraw whatever the term is currently showing! so this is the wrong place for any icky_screen checks or Term_switch()ing! */
+//	bool icky_s = (Term == term_term_main && screen_icky);
+	bool icky_tl = topline_icky && Term == term_term_main && !screen_icky;
 
 	/* Various icky checks, these exist only for term 0 aka the main window */
-	if (icky_s) Term_switch(0);
+//	if (icky_s) Term_switch(0);
+#endif
+	/* instead, don't repaint anything if this isn't the main term */
+	if (Term != term_term_main) return;
+
+/* Sure fix for the visual glitch on day/night change while in menus/shopping */
+//if (screen_icky) return;
 
 	/* --- Repaint, with _text or _pict or _pict_2mask --- */
 
 	for (y = ystart; y < ystart + hgt; y++) {
+#if 0 /* TRFIX */
 		/* Just skip the topline if it's icky, no need to Term_switch+paint+Term_switch again here really,
 		   as the topline is certainly going to get cleared later anyway. */
 		if (icky_tl && !y) continue;
+#endif
 
 #ifdef OLD_VS_SCR
 		aa = Term->old->a[y];
@@ -2565,7 +2599,11 @@ void Term_repaint(int xstart, int ystart, int wid, int hgt) {
 #endif
 
 			if (!xc || xc == 32
-			    || !xa) /* let's also ignore black feats */
+			    || !xa /* let's also ignore black feats */
+#ifdef GRAPHICS_BG_MASK
+			    || !xc_back /* ignore grids that have invalid/undefined background to avoid visual glitching */
+#endif
+			    )
 				continue;
 
 			/* Hack -- use "Term_pict()" always */
@@ -2590,11 +2628,17 @@ void Term_repaint(int xstart, int ystart, int wid, int hgt) {
 				(void)((*Term->text_hook)(x, y, 1, xa, buf));
 			}
 			/* Hack -- erase the grid */
-			//else (void)((*Term->wipe_hook)(x, y, 1));  -- we're just repainting, if grid was already empty, even better -> we just ignore it
+			//else (void)((*Term->wipe_hook)(x, y, 1)); // -- we're just repainting, if grid was already empty, even better -> we just ignore it
 		}
 	}
 
-	if (icky_s) Term_switch(0);
+#if 0 /* TRFIX */
+//	if (icky_s) Term_switch(0);
+#endif
+#ifdef WINDOWS
+	/* Instead, we need to release the OldDC to avoid graphical glitches! */
+	Term_xtra_win_fresh(0);
+#endif
 }
 
 
@@ -3906,7 +3950,7 @@ errr refresh_clone_map() {
 
 
 	//Find the map in memory.
-	Term_activate(ang_term[0]);
+	Term_activate(term_term_main);
 	if (screen_icky > 0) scr_a = Term->mem[0];
 	else scr_a = Term->scr;
 #ifdef GRAPHICS_BG_MASK

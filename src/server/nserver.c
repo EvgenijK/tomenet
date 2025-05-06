@@ -238,6 +238,29 @@ void get_date(int *weekday, int *day, int *month, int *year) {
 	*year = tmp->tm_year + 1900;
 }
 
+/* added for death logs, we want both, time for normal death log, date for legends log, shortdate for recent deaths log - C. Blue */
+void get_time_date_shortdate(char *time_str, char *date_str, char *shortdate_str) {
+	time_t		now;
+	struct tm	*tmp;
+	static char	month_names[13][4] = {
+				"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+				"Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+				"Bug"
+			};
+	static char	day_names[7][4] = {
+				"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+			};
+
+	time(&now);
+	tmp = localtime(&now);
+
+	sprintf(time_str, "%02d %s (%s) %02d:%02d:%02d",
+		tmp->tm_mday, month_names[tmp->tm_mon], day_names[tmp->tm_wday],
+		tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+	sprintf(date_str, "%04d-%02d-%02d", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday);
+	sprintf(shortdate_str, "%02d %s", tmp->tm_mday, month_names[tmp->tm_mon]);
+}
+
 /* time = 0 will not add a ban; use time -1 for permanently. */
 int add_banlist(char *account, char *ip_addy, char *hostname, int time, char *reason) {
 	struct combo_ban *ptr;
@@ -815,6 +838,12 @@ void world_disconnect(int Ind) {
 	s_printf("World server disconnected\n");
 	remove_input(WorldSocket);
 	close(WorldSocket);
+
+	//hack: Tell world_comm to reinit static vars.
+	//Added this after today the NA server suddenly got packet-error-desync'ed with world,
+	//and not even /unworld+/world helped but a restart of the NA server was required. - C. Blue
+	world_comm(-1, 0);
+
 	/* Clear all the world players quietly */
 	while (remlist(&rpmlist, rpmlist));
 #if 0
@@ -3402,7 +3431,7 @@ static int Handle_login(int ind) {
 	else msg_print(NumPlayers, NULL);
 
 	/* Warn about certain options' current status */
-	if (p_ptr->limit_chat) msg_print(NumPlayers, "\377yYou have enabled '\377olimit_chat\377y' in \377o=2\377y. Your chat is not globally visible!");
+	if (p_ptr->limit_chat) msg_print(NumPlayers, "\377yYou have enabled '\377olimit_chat\377y' in \377o=5\377y. Your chat is not globally visible!");
 #if 0
 	if (p_ptr->suppress_ingredients) {
 #ifdef ENABLE_DEMOLITIONIST
@@ -7090,10 +7119,16 @@ int Send_depth(int Ind, struct worldpos *wpos) {
 #endif
 
 					town[i].flags |= TF_KNOWN; // we do allow p_ptr->ghost, same as for d_ptr->known stuff
+					forge.k_idx = 0; //init for paranoia
 					/* Make a fuzz */
 					s_printf("(%s) TOWNFOUND: Player %s (%s) discovered town '%s' (%d) at (%d,%d).\n",
 					    showtime(), p_ptr->name, p_ptr->accountname, town_profile[town[i].type].name, i, town[i].x, town[i].y);
-					msg_format(Ind, "\374\377i***\377B You discovered a new town, '\377U%s\377y', that nobody before you has found so far! \377i***", town_profile[town[i].type].name);
+#if 1
+					msg_format(Ind, "\374\377i***\377B You discovered a new town, '\377U%s\377B', that nobody has found before! \377i***", town_profile[town[i].type].name);
+#else
+					msg_format(Ind, "\374\377i***\377B You discovered a new town, '\377U%s\377B',", town_profile[town[i].type].name);
+					msg_print(Ind, "\374\377B    that nobody has found before! \377i***");
+#endif
 					/* Announce it to publicly */
 					l_printf("%s \\{B%s discovered a town: %s\n", showdate(), p_ptr->name, town_profile[town[i].type].name);
 					msg_broadcast_format(Ind, "\374\377i*** \377B%s discovered a town: '%s'! \377i***", p_ptr->name, town_profile[town[i].type].name);
@@ -7105,7 +7140,7 @@ int Send_depth(int Ind, struct worldpos *wpos) {
 						invcopy(&forge, lookup_kind(TV_SCROLL, SV_SCROLL_STAR_ACQUIREMENT));
 						forge.number = 1;
 						break;
- #ifndef DUNFOUND_REWARDS_NORMAL /* Already covered? As all of these have at least one normal dungeon */
+ #if !defined(DUNFOUND_REWARDS_NORMAL) || !defined(TOWNFOUND_REWARDS_VANILLAONLY) /* Already covered? As all of these have at least one normal dungeon */
 					case TOWN_BREE:
 						/* Always known ie can never be discovered */
 						break;
@@ -7131,6 +7166,9 @@ int Send_depth(int Ind, struct worldpos *wpos) {
 
 					/* Optional: For enchantable items */
 					apply_magic(&p_ptr->wpos, &forge, 0, TRUE, TRUE, TRUE, TRUE, make_resf(p_ptr));
+					object_aware(Ind, &forge);
+					object_known(&forge);
+					forge.ident |= ID_MENTAL;
 					object_desc(Ind, o_name, &forge, TRUE, 3);
 
 					disturb(Ind, 0, 0);
@@ -7417,7 +7455,7 @@ int Send_poison(int Ind, char poisoned) {
 	return Packet_printf(&connp->c, "%c%c", PKT_POISON, poisoned);
 }
 
-int Send_state(int Ind, bool paralyzed, bool searching, bool resting) {
+int Send_state(int Ind, s16b paralyzed, bool searching, bool resting) {
 	connection_t *connp = Conn[Players[Ind]->conn], *connp2;
 	player_type *p_ptr = Players[Ind], *p_ptr2 = NULL;
 
@@ -11286,6 +11324,19 @@ int Send_sflags(int Ind) {
 	return(Packet_printf(&connp->c, "%c%d%d%d%d", PKT_SFLAGS, sflags0, sflags1, sflags2, sflags3));
 }
 
+int Send_macro_failure(int Ind) {
+	connection_t *connp = Conn[Players[Ind]->conn];
+
+	if (!BIT(connp->state, CONN_PLAYING | CONN_READY)) {
+		errno = 0;
+		plog(format("Connection not ready for macro_failure (%d.%d.%d)",
+			Ind, connp->state, connp->id));
+		return(0);
+	}
+
+	return Packet_printf(&connp->c, "%c", PKT_MACRO_FAILURE);
+}
+
 
 /* --------------------------------------------------------------------------*/
 
@@ -14288,7 +14339,11 @@ static int Receive_special_line(int ind) {
 	case SPECIAL_FILE_DEATHS: {
 		char path[MAX_PATH_LENGTH];
 
+#if 0 /* (DEPRECATED) externally created from tomenet.log via scripts */
 		path_build(path, MAX_PATH_LENGTH, ANGBAND_DIR_DATA, "tomenet-deaths-short.txt");
+#else /* internally created via rd_print() */
+		path_build(path, MAX_PATH_LENGTH, ANGBAND_DIR_DATA, "recent-deaths.log");
+#endif
 		do_cmd_check_other_prepare(player, path, "Recent Deaths (some low ones omitted)");
 		break; }
 	case SPECIAL_FILE_MOTD2:

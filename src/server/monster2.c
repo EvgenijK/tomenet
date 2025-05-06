@@ -909,9 +909,9 @@ void heal_m_list(struct worldpos *wpos) {
  * Note that this function must maintain the special "m_fast"
  * array of indexes of "live" monsters.
  */
-#define BACKTRACE_OOM /* Actually dump bt info about being out of ...monsters. */
- /* Can apparently happen when power-staving warriors of the dawn in arena level. */
 #ifdef BACKTRACE_OOM
+ /* Actually dump bt info about being out of ...monsters. */
+ /* Can apparently happen when power-staving warriors of the dawn in arena level. */
  #include <execinfo.h>
 #endif
 s16b m_pop(void) {
@@ -3116,6 +3116,8 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG 2\n");
 #endif
 		/* Keep Ironman Deep Dive Challenge entrance sector clean too */
 		if (wpos->wx == WPOS_IRONDEEPDIVE_X && wpos->wy == WPOS_IRONDEEPDIVE_Y && !wpos->wz) return(11);
+		/* Halls of Mandos too...? It doesn't have XP entrance restrictions though. */
+		if (wpos->wx == hallsofmandos_wpos_x && wpos->wy == hallsofmandos_wpos_y && !wpos->wz) return(11);
 	}
 
 	if (!(summon_override_checks & SO_GRID_EMPTY)) {
@@ -6000,7 +6002,7 @@ static bool monster_ground(int r_idx) {
  */
 bool monster_can_cross_terrain(u16b feat, monster_race *r_ptr, bool spawn, u32b info) {
 	/* Deep water */
-	if (is_deep_water(feat)) {
+	if (feat_is_deep_water(feat)) {
 		if ((r_ptr->flags7 & RF7_AQUATIC) ||
 		    (r_ptr->flags7 & RF7_CAN_FLY) ||
 		    (r_ptr->flags3 & RF3_IM_WATER) ||
@@ -6010,7 +6012,7 @@ bool monster_can_cross_terrain(u16b feat, monster_race *r_ptr, bool spawn, u32b 
 			return(FALSE);
 	}
 	/* Shallow water */
-	else if (is_shal_water(feat)) {
+	else if (feat_is_shal_water(feat)) {
 		if ((r_ptr->flags2 & RF2_AURA_FIRE)
 		    && r_ptr->level < 25 /* no more Solar Blades stuck in shallow water o_o */
 		    /*(this level is actually only undercut by a) Jumping Fireball, b) Fire Spirit and c) Fire Vortex)*/
@@ -6028,7 +6030,7 @@ bool monster_can_cross_terrain(u16b feat, monster_race *r_ptr, bool spawn, u32b 
 		else return(FALSE);
 	}
 	/* Lava OR fire damage */
-	else if (is_lava(feat) || is_acute_fire(feat)) {
+	else if (feat_is_lava(feat) || feat_is_acute_fire(feat)) {
 		if ((r_ptr->flags3 & RF3_IM_FIRE) ||
 		    (r_ptr->flags9 & RF9_RES_FIRE) ||
 		    (r_ptr->flags7 & RF7_CAN_FLY))
@@ -6043,9 +6045,9 @@ bool monster_can_cross_terrain(u16b feat, monster_race *r_ptr, bool spawn, u32b 
 
 void set_mon_num2_hook(int feat) {
 	/* Set the monster list */
-	if (is_shal_water(feat)) get_mon_num2_hook = monster_shallow_water;
-	else if (is_deep_water(feat)) get_mon_num2_hook = monster_deep_water;
-	else if (is_lava(feat) || is_fire(feat)) //added the 'fires', dunno..
+	if (feat_is_shal_water(feat)) get_mon_num2_hook = monster_shallow_water;
+	else if (feat_is_deep_water(feat)) get_mon_num2_hook = monster_deep_water;
+	else if (feat_is_lava(feat) || feat_is_fire(feat)) //added the 'fires', dunno..
 		get_mon_num2_hook = monster_lava;
 	else get_mon_num2_hook = monster_ground;
 }
