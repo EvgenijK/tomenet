@@ -1,8 +1,8 @@
 .==========================================================================+--.
 |                              TomeNET Guide                               |
 +==========================================================================+-
-| Latest update: 28. April 2025 - written by C. Blue (c_blue@gmx.net)      |
-| for TomeNET version v4.9.3 - official websites are:                      :
+| Latest update: 2. July 2025 - written by C. Blue (c_blue@gmx.net)        |
+| for TomeNET version v4.9.3a - official websites are:                     :
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
 | Runes & Runemastery sections by Kurzel (kurzel.tomenet@gmail.com)
@@ -707,6 +707,15 @@ q       q       quaff a potion.
                 which you can fill at a fountain.
 
 r       r       read a scroll.
+                There is a special mechanism for certain scrolls that can be
+                used on other items: Scrolls of Identify and Scrolls of Enchant
+                Weapon/Armour. If you read your last scroll of these but do not
+                select an item to use with the scroll, the scroll will not
+                vanish completely but remain in your inventory with an 'amount'
+                of zero, stating "no more Scrolls of...". You can then use this
+                'scroll' later, whenever you choose to.
+                If you want to get rid of this remnant scroll, press 'k' (or if
+                you use rogue-like key set it's CTRL+D) to destroy it finally.
 
 E       E       eat food. Hunger can kill you, if you don't eat for a longer
                 while, depending on your character. You will see a yellow
@@ -1561,8 +1570,9 @@ They all start with a slash '/' hence they're called slash commands:
             traps on the field faster after a battle has ended, instead of
             having to press the disarm-key for every trap.
 
-/empty <inventory slot>
-            Empty a potion from your inventory, leaving an empty bottle.
+/empty <a..w|+>
+            Empty a potion from your inventory (slot specified or '+' for
+            the newest item), leaving an empty bottle.
             Example: /empty c   (if you have 'c) 3 potions of boldness', one
             will be emptied and 2 remain at 'c) 2 potions of boldness'.))
             You can also empty brass lanterns with this command.
@@ -1795,7 +1805,9 @@ They all start with a slash '/' hence they're called slash commands:
             If any parameter is added (eg just a dot '.') it will terminate the
             client, instead of throwing us just back to the account screen.
 
-/lite a..w  Refills your light source with an item from your inventory.
+/light <a..w|+>
+            Refills your light source with an item from your inventory (slot
+            specified or '+' for newest item).
             Usually it's easier to just press 'F' instead.
 
 /martyr
@@ -1882,10 +1894,11 @@ They all start with a slash '/' hence they're called slash commands:
                         If you're on Linux and not hearing the page sounds,
                         see PROBLEM 20 in the troubleshooting section (9.8).
 
-/paint      (Also available by pressing 'h' for house menu.)
-            Use a potion in your inventory to paint your house entrance in a
-            similar colour. The potion is used up in the process. A potion of
-            water removes the paint again.
+/paint <a..w|+>
+            (Also available by pressing 'h' for house menu.)
+            Use a potion in your inventory (specified slot or '+' for newest)
+            to paint your house entrance in a similar colour. The potion is
+            used up in the process. A potion of water removes the paint again.
             Painting your house can be useful for example to mark it for others
             to see that you run a player store. Further, you could choose the
             colour to indicate the type of items you offer, for example red
@@ -1987,6 +2000,11 @@ They all start with a slash '/' hence they're called slash commands:
 /retire
 /ret        Gives a short message to use SHIFT+Q instead.
 
+/rip <a..w|+>
+/tear       Tear cloth from your inventory (slot specified or '+' for
+            the newest item) into bandages.
+            Example: /rip h   (if you have 'h) a cloth hat').
+
 /rfe        Store a message/suggestion for the admin(s).
             (Request for enhancement)
 
@@ -2066,9 +2084,10 @@ They all start with a slash '/' hence they're called slash commands:
 
 /snotes     Same as /motd.
 
-/split <a..w> [<amount>]
-            Splits up an item stack in your inventory, creating a second pile
-            of the size <amount> or just 1 item, if <amount> is omitted.
+/split <a..w|+> [<amount>]
+            Splits up an item stack in your inventory (slot specified or '+'
+            for newest item), creating a second pile of the size <amount> or
+            just 1 item, if <amount> is omitted.
             The split-off item (pile) is auto-inscribed !G to prevent instant
             automatic reabsorbtion into the original pile.
             The command will fail if there is no free slot in your inventory.
@@ -2079,23 +2098,24 @@ They all start with a slash '/' hence they're called slash commands:
 /stime      Tells you the current date and time (of the server, not of your
             local timezone). Also see /ctime and /time.
 
-/stow [<a..w>]
+/stow [<a..w|+>]
             This command will try to stow all items in your inventory into
             eligible container items you carry.
-            If a slot is specified (optional) it will only try to stow items
-            which fit into the container item that is in that slot.
-            Also see /unstow.
+            If a slot is specified (optional, '+' for newest item) it will only
+            try to stow items which fit into the container item that is in that
+            slot. Also see /unstow.
 
 /suicide
 /sui        Gives a short message to use SHIFT+Q instead.
 
-/tag [a..w|* [inscription]]
+/tag [a..w|+|* [inscription]]
 /t          Tags one specific or all uninscribed items in your backpack by
             adding a '!k' or a custom inscription. Helpful for looting in
             conjunction with /dis command.
 
-            If a slot (a..w) is specified, it only tags the item in that
-            particular inventory slot (if not yet inscribed already).
+            If a slot (a..w, or '+' for newest item) is specified, it only
+            tags the item in that particular inventory slot (if not yet
+            inscribed already).
 
             If you specify '*' for all slots, it will skip all items that
             already have an inscription except for trivial pseudo- or 'on sale'
@@ -2123,6 +2143,11 @@ They all start with a slash '/' hence they're called slash commands:
 /target <x> <y>
 /tar        Allows you to target a specific grid specified by X,Y as offset
             to your current character position.
+
+/tear <a..w|+>
+/rip        Tear cloth from your inventory (slot specified or '+' for
+            the newest item) into bandages.
+            Example: /rip h   (if you have 'h) a cloth hat').
 
 /testyourmight <show|rs>
 /tym <show|rs[w|x]>
@@ -2196,10 +2221,11 @@ They all start with a slash '/' hence they're called slash commands:
             /uni a    will only show uniques that are still alive for you.
             /hou b    will only show bosses.
 
-/unstow <a..w>
-            This command will unstow all items from a container and put them
-            into your normal inventory instead. If it overflows, surplus items
-            will drop to the floor. Also see /stow.
+/unstow <a..w|+>
+            This command will unstow all items from a container (the one at the
+            specified inventory slot, or '+' if you just picked it up last) and
+            put them into your normal inventory instead. If it overflows,
+            surplus items will drop to the floor. Also see /stow.
 
 /untag [<inscription>]
 /ut         If <inscription is omitted, it removes all inscriptions from items
@@ -2422,6 +2448,8 @@ Mainly for consumable items:
 Mainly for consumable items stored in piles:
     !g          trying to pick up this pile will only grab 1 item, as if the
                 player pressed CTRL+G (or CTRL+Z with rogue-like key set).
+                If you use CTRL+G on a !g stack, it will instead pick up the
+                whole stack.
 
 The # inscription:
     This one makes all following inscription be appended directly behind the
@@ -2439,6 +2467,9 @@ Items that 'can cause Earthquakes':
                 only works on the artifact "The Mighty Hammer 'Grond'".
                 (Press keys  ~i  in the game to check server settings.)
                 See (5.11) for more information about earthquakes.
+                This inscription is ignored if the player tunnels their own
+                grid (ie direction '5') as that is interpreted as a deliberate
+                attempt to cause an earthquake.
 
 Weapons/ammo, devices and spells:
     @O          This and its variants control the 'auto-retaliator' which is a
@@ -2468,7 +2499,7 @@ For magic devices:
                 For all other cases of activation failure this inscription has
                 no effect.
 
-Rods only:
+Rods only (other magic devices will give a notification message anyway):
     !C          Will notify you when the rod finished recharging.
 
 Wands and directional rods:
@@ -2561,7 +2592,7 @@ Any item in your inventory:
     !G[n]       Prevents an item from stacking with other items in any case.
                 If an optional number n is given, it will stack items up to
                 this stack size, at most 99. Usage examples: !G  or  !G34  .
-                If 'n' s specified, the inventory slot letter will change to
+                If 'n' is specified, the inventory slot letter will change to
                 yellow colour if the current stack size is lower than 'n'.
                 If picking up items that are inscribed !Gn and matching items
                 in your inventory are also inscribed !Gn then the lower n value
@@ -2578,6 +2609,13 @@ Any item in your inventory:
                 purchasing items from a store, stealing items from a store and
                 taking items from a list house (shop-style house).
 
+                If you purchase an item or get an item from a house or from the
+                floor, and the item has either a !Gn inscription or it has no
+                inscription but you have a matching !Gn inscription in your
+                auto-inscriptions list, the "Quantity?" prompt will suggest
+                that !G-amount as default quantity that you can simply confirm
+                with RETURN key (while a/spacebar are still 'all' as usual).
+
                 QoL effects:
                 You can use force-stack to combine !G stacks, overriding the
                 inscription.
@@ -2585,6 +2623,8 @@ Any item in your inventory:
                 nominal capacity, the suggested default amount will be exactly
                 the difference between actual stack size and inscription-based
                 capacity.
+                If you use CTRL+G on a !G stack, it will pick up the whole
+                stack instead of trying to limit the target slot stack size.
 
     !K[n]       Inscribed on an inventory item, will auto-destroy any further
                 items you acquire beyond the amount of n.
@@ -2841,10 +2881,11 @@ NOTE: In addition to this user-defined client-side auto-inscription list, there
       This option will add a predefined set of auto-inscriptions that might be
       generally useful for all types of characters, see (2.5) for details.
 
-By pressing 'a' you can toggle auto-pickup (green 'a') and auto-destroy (red
-'A') features. These two will actually allow specifying a "#" wildcard on its
-own, which means that ALL items will be picked up or destroyed and subsequent
-rules will be ignored accordingly. (The sole '#' will not work for inscribing).
+By pressing 'a' you can toggle auto-pickup (green 'a'), auto-destroy (red 'A')
+or just ignore (yellow 'i') features. These will actually allow specifying
+a "#" wildcard on its own, which means that ALL items will be picked up or
+destroyed or ignored and subsequent rules will be ignored accordingly.
+(The sole '#' will not work for inscribing items, any inscription is ignored).
 The client options 'auto_pickup' and 'auto_destroy' must be enabled for these
 functions to work. This can also be done via slash commands '/apickup' (which
 toggles auto_pickup option) and '/adestroy' (toggles auto_destroy option).
@@ -3428,6 +3469,10 @@ Wormy       Wormtongue, Agent of Saruman. He drops great items.
  level might occasionally spike out-of-depth, up to 40 levels above the floor
  level. This can be especially nasty because these spawns will not change the
  floor feeling, so you won't notice it except when you spot the monster.
+
+-Team mates trying to move into each other will switch places. This can be used
+ to pull your team mate across terrain they actually cannot cross on their own,
+ as long as you can cross it!
 
 -No, there is currently no 'fishing' feature implemented.
 
@@ -5070,7 +5115,8 @@ self-explaining or that are especially important are listed in detail here:
         Enables auto-pickup. Auto-pickup uses the auto-inscriptions rules list
         and the same matching algorithm.
         To choose items for auto-pickup press '&' to enter auto-inscriptions
-        screen and toggle auto-pickup/auto-destroy with 'a' key per item.
+        screen and toggle auto-pickup/auto-destroy/ignore with 'a' key per line
+        matching an item name (or multiple).
         A green 'a' means the item will be automatically picked up.
         A special match with just '#' can be created to pick up ALL items.
         This option causes a loop on item piles that ends if item matches
@@ -5084,7 +5130,8 @@ self-explaining or that are especially important are listed in detail here:
         Enables auto-destroy. Auto-destroy uses the auto-inscriptions rules
         list and the same matching algorithm.
         To choose items for auto-pickup press '&' to enter auto-inscriptions
-        screen and toggle auto-pickup/auto-destroy with 'a' key per item.
+        screen and toggle auto-pickup/auto-destroy/ignore with 'a' key per line
+        matching an item name (or multiple).
         A red 'A' means the item will be automatically destroyed!
         A special match with just '#' can be created to destroy up ALL items,
         the same effect can alternatively be invoked by enabling the option
@@ -6222,7 +6269,8 @@ to get similar behaviour as in one of the chat modes just for one line:
 $:      Sends the following text to your current guild.
 #:      Sends the following text to everyone on your dungeon level.
         Note: While in town this will instead become a /say.
-%:      Sends the following text to yourself (has some use in macros).
+%:      Sends the following text to yourself (eg for feedback in macros).
+%%:     Sends the following text to yourself, qualifies as 'chat message'.
 +:      Sends the following text to the last person who whispered us a private
         message, so it's sort of a 'reply' function.
 
@@ -6415,6 +6463,18 @@ There are four categories of subinventory containers:
   If you pick up potions, they will be auto-stowed into this bag unless
   inscribed (see further down).
   Potion belts are sometimes sold by the Alchemy Shop in town.
+
+- Food Bag
+  This dry bag can store all kinds of food, such as rations, mushrooms and for
+  the sake of gameplay even pints of ale/wine :-p.
+  It has a relatively high capacity, allowing you to carry various special-
+  purpose mushrooms without taking up main inventory space.
+  (For client versions older than 4.9.2, you must use the '@' feature (call by
+  item name) in the prompt, or simply create a macro using the macro wizard,
+  which creates call-by-name macros.)
+  If you pick up food, it will be auto-stowed into this bag unless inscribed
+  (see further down).
+  This is by far the cheapest bag and often sold in the General Store in town.
 
 For client versions older than 4.9.2:
 From outside the subinventory you cannot access any items inside except if you
@@ -8153,6 +8213,7 @@ by town temples, see (4.5a), which will avoid turning into a ghost.
 Ghosts are very fragile, but can pass solid walls, float up and down freely
 using the < and > keys, their melee attacks can cause fear and they gain a few
 special abilities listed further below under 'Ghosts' (such as infra-vision).
+Ghosts only receive half XP points and they do not share XP with party members.
 
 If a player ultimatively dies on a dungeon or tower floor, ie he didn't turn
 into a resurrectable ghost but got completely erased, then that particular
@@ -9656,6 +9717,7 @@ Bree        |   0 ft/  0|The Training Tower(*)| +50..+100/ 1..2  |    100 ft
             |           |Barrow-Downs         |  50..1750/ 1..35 |   1750 ft
 Gondolin    |1000 ft/ 20|Mordor               |1700..3300/34..66 |   1650 ft
 Minas Anor  |2000 ft/ 40|The Paths of the Dead|2000..3500/40..70 |   1550 ft
+            |           |The Ash Mountains    |2950..4750/59..95 |   1850 ft
 Lothlorien  |3000 ft/ 60|Angband              |3350..6350/67..127|   3050 ft
 Khazad-dum  |4000 ft/ 80|Angband              |3350..6350/67..127|   3050 ft
 
@@ -9774,10 +9836,14 @@ the game. For more information, see (4.13), Ironman Challenge.
  -Extermination orders in the Halls of Mandos will (same as for the IDDC) have
   its monster level depend on the floor level rather than on the player's
   level.
+ -There are various shops similar to those found in normal towns, appearing
+  randomly in the dungeon. Some might offer certain goods cheaper than usual.
  -Similar to IDDC, minimum floor depth vs character level regarding experience
   gain is not enforced: Normal experience is gained on any depth regardless of
   your character's level. But unlike in IDDC this is only true for characters
   up to level 49. Characters of level 50+ will receive depth-restricted XP.
+ -Same as in the IDDC there are no live-spawns and floors become stale after
+  relogging to the same depth but a newly generated floor.
  -The Halls of Mandos are barred to any unique monsters and to Unmakers!
  -Various more or less basic stores, including a library, will spawn in
   addition to the usual dungeon stores. Also (like in the IDDC) a deep supply
@@ -9860,12 +9926,13 @@ together with any other floor feelings): "You feel a commanding presence.."
 Here is a list of all dungeon bosses and the artifacts they are guarding:
 (Some names have been shortened to fit.)
 
-Dungeon, sorted by depth      |         Boss         | Artifact (or extra loot)
-------------------------------+----------------------+-------------------------
+Dungeon, sorted by depth      | Boss                 | Artifact (or extra loot)
+------Town dungeons-----------+----------------------+-------------------------
 The Training Tower    (A)     | -                    | -
 Barrow-Downs                  | Wight-King           | Stone of Lore
 Mordor                        | -                    | -
 The Paths of the Dead         | Feagwath             | Doomcaller
+The Ash Mountains             | -                    | -
 Angband                       | -  (B)               | -
 ------Non-town dungeons-------+----------------------+-------------------------
 Death Fate                    | -                    | -
@@ -11614,7 +11681,7 @@ certain aspects of it:
 
   New year's eve:
     Running from 31st December to 1st January.
-    If seasons run at 2x speed, then also from 31st June till 1st July.
+    If seasons run at 2x speed, then also from 30st June till 1st July.
 
     Fireworks will be launched into the sky of the town of Bree.
     While it's night and fireworks are being launched, magic that lights up the
@@ -13274,6 +13341,7 @@ Light           Light effects can blind you if you don't resist it.
                 If you are mimicking a monster that is susceptible to light
                 you will suffer double damage from attacks.
                 Breath damage is monster HP/6. Light breath caps at 400.
+                ('Starlight' is no different from light, just often stronger.)
 
 Darkness        Darkness effects can blind you if you don't resist it.
                 Resistance will cut damage to 4/7..4/12.
@@ -13302,6 +13370,43 @@ Disenchantment  This attack does massive damage and can also disenchant your
                 their magical (+X) pval bonus.
                 Artifacts have a chance to resist disenchantment.
 
+Psi             Psionic damage is intrusion via mindcraft that deals damage to
+                your hit points AND a fraction of that amount also to your
+                sanity and can cause confusion as side effect if player has no
+                confusion resistance and no psi resistance.
+                Resistance to psi effects will also reduce psi damage received
+                to 4/5...4/9 per psi resistance factor.
+                The mindcrafter class gets all psi damage it receives halved
+                (stacking with the damage reduction from psi resistance).
+                If you run out of sanity, your character dies PERMANENTLY even
+                if of 'everlasting' mode! It's erased same as no-ghost mode.
+                Also see (7.6) for more details on insanity in general.
+
+                There are no items that grant psi resistance. The only way to
+                gain it is being lucky on saving throw roll (provided your mind
+                is NOT opened (via 'p' key)) or a "willpower" (Mindcraft spell)
+                roll or being under the effect of Berserk which always instills
+                iron determination.
+                These 3 psi-resisting factors stack and will all help to reduce
+                the damage both on the mind (sanity) and body (hit points).
+                However, the resistances can also get reduced/canceled out if
+                the player currently suffers status effects, such as confusion,
+                being stunned, hallucinations or fear, while fear will only
+                reduce your psi resists if you fail an additional saving throw.
+                The other status effects are guaranteed resist-counters.
+
+                If you do have psi resists, having telepathy (full ESP) will
+                further reduce damage to 4/9...9/9, while if you do NOT have
+                psi resist factors (or if they got canceled out by bad status
+                effects) having telepathy will actually INCREASE damage you
+                take to 7/6...12/6 (so it could double the damage if unlucky)!
+
+                The resulting sanity damage will finally be reduced if the
+                player has insanity-reducing powers, see (7.6) for a list.
+
+                If the psi attack came from another player, it will only affect
+                your hit points but not your sanity.
+
 
 Irresistible/extremely powerful damage types:
 ---------------------------------------------
@@ -13323,6 +13428,25 @@ Gravity         These attacks have very annoying side-effects:
                 being thrown around by the shockwave and hence cut the damage
                 to 6/7..6/12.
                 Damage (breath only) is monster HP/3 and caps at 150.
+
+Holy Orb        This purely holy effect will deal double damage if you are
+                'evil' and half damage if you are 'good'.
+                If you are a (non-corrupt) priest you will take no damage.
+
+Holy Fire       Same as Holy Orb above, except that:
+                If you are immune to fire the damage will also be cut to half,
+                and if you are not immune then having fire resistance will cut
+                damage to 3/4 (once for permanent and once for temporary
+                resistance, stacking to 9/16).
+                Instead being susceptible to fire will increase damage to 4/3.
+
+Hellfire        This evil element will deal double damage if you are 'good' and
+                reduce damage to 3/4 if you are 'evil'.
+                If you are immune to fire the damage will also be cut to half,
+                and if you are not immune then having fire resistance will cut
+                damage to 3/4 (once for permanent and once for temporary
+                resistance, stacking to 9/16).
+                Instead being susceptible to fire will increase damage to 5/3.
 
 Mana            Mana is pure magical energy. There are only rumours
                 about items that provide resistance against it.
@@ -13349,6 +13473,10 @@ Meteor          This is an irresistible attack of pure impact.
 Disintegration  This is an irresistible attack of raw destruction.
                 Damage (breath only) is monster HP/3, capping at 300.
 
+Annihilation    Deals a percentage of your current hit points as damage points,
+                caping at 400 damage, but after applying the cap is always
+                randomly reduced further down to 6/7...6/12.
+
 
 Combined damage types:
 ----------------------
@@ -13356,18 +13484,29 @@ Ice             Ice attacks combine shard and cold damage.
                 Ice damage (bolt only) is (6d6)+monsterlevel.
                 Ice damage consists of 60% cold damage and 40% shards damage.
 
-Plasma          Plasma attacks combine raw force, electricity and, mostly of
-                all, immense heat. The usual resistances, susceptibilities
-                and immunities for fire, electricity and sound apply as
-                available.
-                Plasma also has stun effect if sound resistance is missing.
+Plasma          Plasma attacks combine electricity (25%), sound (25%), and most
+                of all immense heat (50%).
+                The usual resistances, susceptibilities or immunities for fire,
+                electricity and sound apply as usual if you have them.
+                Plasma also has a strong stun effect if sound resistance is
+                missing, making for example plasma hounds highly dangerous.
                 Breath damage is monster HP/6. Plasma breath caps at 150.
                 Plasma bolts do 10+level+(8d7) damage.
+
+Thunder         This is a lightning strike and deals:
+                1/3 electricity damage, 1/3 sound damage, 1/3 light damage.
+                The electricity damage is reduced by resistances or immunity
+                as usual, see 'Electricity' further above.
+                Having sound resistance cuts the sound damage to 5/7...5/12.
+                Having light resistance cuts the light damage to 4/7...4/12,
+                while light susceptibility doubles the light damage.
+                If you don't resist sound you will get stunned,
+                if you don't resist light or blindness you will get blinded.
 
 Radiation
 Nuke
 Toxic Waste     This is a poisonous attack (player suffers pure poison damage)3
-                that may have acidic effect on your inventory (inventory may
+ ('Nuke')       that may have acidic effect on your inventory (inventory may
                 get destroyed as if you were hit by acidic attacks).
                 If you resist poison
                 - you will just take 2/5 of the damage
@@ -13391,6 +13530,8 @@ Detonation      Same as rocket, usually caused by potions of detonations.
 
 Inferno         Same as rocket/detonation, except it does not destroy walls,
                 usually comes as 'cloud' type effect, aka lasting for a while.
+
+
 
 Havoc           A terrible mixture of wrecking inferno, blasts of uncontrolled
                 mana and waves of raw chaos.
@@ -14463,7 +14604,7 @@ Learning        Gives you 1..3 (random) additional skill points to spend.
 
 Life            Heals 700 HP, removes blindness/confusion/stun, cures
                 poison/disease/cuts/hallucinations, cures Black Breath,
-                restores all your stats and experience and your stamina.
+                restores all your stats and experience.
 
 Lose Memories   Lose 25% experience (if Hold Life is missing).
 
@@ -15647,6 +15788,17 @@ Players don't take damage from their 'own' earthquakes, caused by their
 equipment or items (for example weapons of earthquakes or scrolls of
 *destruction*).
 
+If you have equipped an item that has the ego power 'of Earthquakes' (either a
+weapon or a digging tool), you can try to cause an earthquake at will by
+striking the ground at your feet.
+To do this, tunnel into direction '5' aka your own grid you are standing on.
+The item with the biggest earthquake chance will automatically be chosen from
+your equipped digging tool and your equipped weapons (with the most powerful
+one being The Mighty Hammer 'Grond').
+When striking the floor, any 'Q' inscription (available on Grond only) on the
+item used is ignored as this action is interpreted as a deliberate attempt to
+cause an earthquake.
+
 Earthquakes can deal up to 300 damage if you cannot evade the falling rocks
 and shifting ground: Depending on the number of unchanged (by the earthquake)
 empty fields that are adjacent to your character, there is a chance to 'evade'
@@ -16067,25 +16219,51 @@ and its (+hit,+dam) enchantment and also on its weight (that's why a pick is a
 better digging tool than a shovel for example, even if they have the same bonus
 enchantments). Digging power further depends on your Digging skill and your STR
 (strength).
-If you lack a digging tool, an equipped sword or axe can substitute somewhat
-when you are just trying to hack down vegetation instead of rocks.
 
 Each digging attempt of your character has a constant chance to succeed, based
 on your digging power vs the material you're trying to tunnel through. If your
 digging power is too low, the chance might even be 0% so you would be trying
-forever, giving you a message "You cannot seem to make a dent in the ..." as
-your character realizes the futility of the attempt.
+forever, giving you a message "You cannot seem to make a dent in the ..." and
+automatically stopping your digging process, as your character realizes the
+futility of the attempt.
 
-If you're not interested in the exact formula, skip down to (5.17b) which has a
-table with example values for certain scenarios.
+Digging tools vs weapons
+------------------------
+Digging tools can actually also be wielded as weapons (Shift+W).
+Vice versa, an equipped weapon can also serve as digging tool, if it's any axe,
+any sword, or from the polearm-class a scythe or sickle.
+However, weapons only have 'digging power' against soft targets such as spider
+webs and vegetation, ie trees, bushes, ivy.
+So even if you lack a digging tool, an equipped sword or axe can substitute
+somewhat in these cases. For some weak, unenchanted digging tools, weapons can
+even be more effective to use (see table further below)!
+When you attempt to tunnel, your character will automtically apply the best
+tool you have equipped, choosing from weapons and an actual digging tool.
+
+Causing earthquakes
+-------------------
+For digging tools that have the ego-power 'of Earthquakes', you can cause an
+earthquake by digging the floor you are standing on, ie direction '5'.
+Again, this will also check your weapons, and if you have a weapon equipped
+that can also cause earthquakes, the strongest source will automatically be
+applied. So if you have The Mighty Hammer 'Grond' equipped and want to cause
+an earthquake with it, just tunnel direction '5' and your character will smash
+it into the floor where you are standing, most likely causing an earthquake.
+
+If you're not interested in the exact formulas for digging power, skip down
+to (5.17b) which has a table with example values for certain scenarios.
 
 
 (5.17a) Digging - exact calculation
 -----------------------------------
 Your digging power is calculated as follows:
+
+For actual digging tools
+------------------------
 An equipped item that provides (+X) to digging will add 20*X.
 If you have a digging tool equipped, its weight is added (eg 25.0 lb -> +25).
 If the digging tool is enchanted to hit or to damage, those values are added.
+
 The power value so far is now multiplied by a value between 1 and 2, depending
 on your 'Digging' skill (see (7.2)). If the skill is 0, the multiplier is 1, if
 it's 50, the multiplier is 2. Otherwise the value is linearly inbetween.
@@ -16098,11 +16276,41 @@ If your resulting final digging power is zero, then it is set to 1, so you
 always have at least a tiny chance of digging through the weaker materials
 that have a +0 difficulty (see table below).
 
+For weapons
+-----------
+The calculation is simpler than for diggin tools, as it doesn't take your
+digging skill into account.
+Swords:
+    vs wood:    30 + weight/2 + (tohit+todam)/3
+    vs fibre:   60 + weight/4 + (tohit+todam)/2
+Axes:
+    vs wood:    60 + weight   + (tohit+todam)/2
+    vs fibre:   30 + weight/2 + (tohit+todam)/3
+Scythes and sickles:
+    vs fibre:   60 + weight   + (tohit+todam)/2
+
+'Wood' encompasses trees, dead trees and bushes.
+'Fibre' encompasses bushes too, ivy, and actually spider webs.
+Against other types of 'terrain', weapons have no digging power at all.
+
+Now a bonus is added to the fibre/wood power, depending on your strength:
+Ranging from +0 at 3 over +9 at 18/10, +19 at 18/110 up to +30 at 18/***.
+(Internals: For this bonus we actually borrow the 'CON-MHP' bonus category,
+which we adjust to our purpose by subtracting 128 and re-adding 5 (net -123),
+so it's a different bonus scale than the 'STR-DIG' one used for digging tools.)
+
+Now if the weapon is a 1.5-handed weapon but it's not wielded with both hands
+because you also have a shield equipped (aka awkward_wield encumberment) the
+resulting fibre/wood digging powers are halved.
+
+
+Now we continue for both, weapons and real digging tools:
+
 To successfully dig through certain features, your digging power must be
 greater than the result of a random number roll "random(0..x-1) + y":
 ---------------------------------------------------------------------
 Spider web           100 +  0
-Rubble               200 +  0
+Rubble/Ivy           200 +  0
 Bush                 300 +  0
 Dead tree            300 +  0
 Tree                 400 +  0
@@ -16163,6 +16371,29 @@ You can tunnel through all tunneable materials, no matter your strength, with..
 -a (+1) pick that has +hit and +dam enchanted to a total of at least +6.
 -any (+2) digging tool or better (except if it was cursed and therefore has too
  negative (+hit,+dam) enchantments).
+
+For good measure a digging tool vs weapon example:
+ You have 5.000 Digging skill and you are trying to fell a tree (it classifies
+ as 'wood' target) and you equipped a Shovel (+1) (+0,+0) and are also wielding
+ a Broad Axe (2d6) (+0,+6). Your strength is 18/20.
+ The axe does provide digging power in this case as the target 'Tree' is in
+ either one of 'wood' and 'fibre' categories.
+
+ The shovel's digging power:
+    (+1) x 20 + 6.0 lbs weight +0+0 (no hit/dam enchantments) = 26
+    Your 5.000 skill is applied: 26 x (1 + (5.000/50.000)) = 26 x 1.1 = 28
+    Digging-tool class strength bonus added: 18/30 -> +15 -> 28 + 15 = 43.
+    The shovel's final digging power is 43.
+
+ The axe's digging power:
+    60 + 15.0 lbs weight + (+0+6)/2 = 60 + 15 + 3 = 78.
+    Weapon class strength bonus is added: 18/30 -> +11 -> 78 + 11 = 89.
+    The axe's final digging power is 89.
+
+ So since the axe provides a better digging power against the tree, you will
+ automatically be using the axe and your digging attempts will apply the axe's
+ digging power of 89 instead of the (in this scenario) weaker shovel's digging
+ power of 43.
 
 
 (5.17c) Digging - further information
@@ -16364,6 +16595,8 @@ Details about enchanting via scrolls:
   cases. For cursed weapons that have both to-h and to-d enchantments in the
   negative you should therefore pick the (arithmetically) higher value of these
   two to enchant, in order to reach +0 faster and therefore save cash.
+  The chance to break the curse is 10% + new enchantment * 10%, so at +0 the
+  chance is 10% and at +9 the chance is 10% + 9 x 10% = 100% success.
   Permanent curses can never be broken, obviously.
 
 To-dam enchantments on ranged weapons, ie slings, bows or crossbows, will get
@@ -16975,6 +17208,10 @@ the two 'dungeon floor depth' and 'monster race level'. 'diff' caps at 13.
 Note that the highest level items in the game at this time are these two level
 115 items: 'Massive Piece of Adamantite' and 'Heavy Ribbed Adamantite Armour'.
 
+(The theoretical max item level, technically capped, is MAX_DEPTH_OBJ = 128.
+So the calculation result of monster level vs floor depth yada yada will always
+get limited to at most 128.)
+
 
 Example:
 
@@ -17363,7 +17600,7 @@ SEDUCE          none. Makes you take off equipped items.
                 and if no other players or monsters are standing next to you:
                 - drain half of current mana or hit points
                 - drain constitution or wisdom
-                - get a disease (equals poison effect)
+                - get a disease (damage over time)
                 - lose an item or gold (monster steals it; tools won't help!)
                 - gain some experience
                 - regain some drained sanity, if any.
@@ -20759,8 +20996,8 @@ create a character!):
     better than other classes.
     A lot of their spells can actually be cast while blinded (or even
     confused), and their targetted spells often do not require a clean line of
-    sight, since they manifest whereever their mind is focused on
-    (e.g. Psionic Blast).
+    sight, meaning there can be other monsters between you and your target,
+    since they manifest whereever their mind is focused on (eg Psionic Blast).
     Their spells also cannot be reflected by monsters for that same reason.
     Some of the mindcrafters' spells that interact with party members will
     require them to prepare and open their mind for telepathic contact. This
@@ -20830,7 +21067,7 @@ Shaman         0   +1   +2   -2    0    0         +3    +40%         4
  light red    15   30   30    4   30   20   45   23            poor     poor
 Runemaster     0   +2   -2   +2   -2    0         +4    +40%         4
  light blue   35   32   20    3   30   26   45   40            fair     poor
-Mindcrafter   +2   +2    0    0    0   +1         +6    +25%         5
+Mindcrafter   +2   +2    0    0    0   +1         +7    +25%         5
  grey         30   28   36    3   35   14   55   45            good     fair
 Death Knight  +3   -3   +1    0   +2   +2         +8    +30%         5
  dark grey    10   28   54    1   16   13   60   40            good     superb
@@ -21391,6 +21628,8 @@ will be coloured in red tones to make it easily visible:
 In addition to the message, sanity attacks will play a whispering sound effect,
 named 'insanity' in the sfx jukebox (press = n to access).
 
+For details about attacks using 'psi' damage, also see (5.6) under 'Psi'.
+
 There are no items granting any insanity resistance, but there are certain ways
 to reduce incoming insanity damage, depending on the flags of a mimicked form
 or your race, class or skills, in three tiers:
@@ -21401,6 +21640,10 @@ or your race, class or skills, in three tiers:
     Mindcrafter class: Level 10/20/40 = tier 1/2/3.
     Vampire race: Tier 2.
     Player ghosts: Tier 3.
+These tiers will randomly reduce incoming sanity damage to:
+    Tier 1:  9/12...12/12
+    Tier 2:  6/12...12/12
+    Tier 3:  6/12... 9/12
 Insanity reduction also helps resisting the adverse effects of encountering an
 eldritch horror (see (7.3) under Saving Throw).
 
@@ -22731,9 +22974,9 @@ these limitations will be lifted.
                     Projecting heal on others will heal for 1/2 the amount.
                     Required skill level for first spell level: 1.
 
-                    Tier II: Level 20.
+                    Tier II: Level 20.                         (auto-project)
 
-                    Tier III: Level 40.
+                    Tier III: Level 40.                        (auto-project)
 
     Grasping Vines  Summons vines from the ground that grasp an opponent,
                     slowing it down.
@@ -22754,7 +22997,7 @@ these limitations will be lifted.
                     cures confusion, stun and blindness.       (auto-project)
                     Required skill level for first spell level: 15.
 
-                    Tier II: Level 35.
+                    Tier II: Level 28.                         (auto-project)
                     Also restores drained stats and lost experience.
 
     Thunderstorm    Throws thunder bolts at random monsters nearby.
@@ -22765,7 +23008,8 @@ these limitations will be lifted.
                     Required skill level for first spell level: 15.
                     Shared spell (see above): Air, Nature.
 
-    Regeneration    Increases your hit point regeneration rate.
+    Regeneration    Increases your hit point regeneration rate
+                    and also speeds up the healing process of cuts.
                     (Stacks with other regeneration effects and item flag.)
                     Required skill level for first spell level: 20.
 
@@ -23148,9 +23392,11 @@ In general, holy schools are somewhat less affected by anti-magic fields.)
 
                     Tier II: Level 11.                         (auto-project)
                     Also neutralizes poison, cures blindness, cuts, confusion.
+                    This spell can be used even while blind.
 
                     Tier III: Level 21.                        (auto-project)
                     Also cures diseases, stun and hallucinations.
+                    This spell can be used even while blind or confused.
 
     Cure Wounds     Heals a fixed amount of hit points of a friendly target,
                     which is capped at 14d8, the same amount a potion of cure
@@ -23174,9 +23420,9 @@ In general, holy schools are somewhat less affected by anti-magic fields.)
                     Projecting heal on others will heal for 3/4 the amount.
                     Required skill level for first spell level: 3.
 
-                    Tier II: Level 23.
+                    Tier II: Level 23.                         (auto-project)
 
-                    Tier III: Level 40.
+                    Tier III: Level 40.                        (auto-project)
 
     Break Curses    Removes non-heavy curses from carried/worn objects.
                     Required skill level for first spell level: 10.
@@ -23325,6 +23571,7 @@ All Unlife spells are Wisdom-based.)
                     anti-teleport effects, it does get cancelled by no-teleport
                     floor grids, eg those inside no-teleport vaults, because
                     the still air on these will prevent your shadowy moves.
+                    ** This spell requires at least 5.000 in 'Conveyance'! **
                     Required skill level for first spell level: 8.
 
     Aspect of Peril                                            (auto-project)
@@ -23344,10 +23591,24 @@ All Unlife spells are Wisdom-based.)
                     At level 10 the stream is sufficient to grant levitation.
                     Required skill level for first spell level: 18.
 
+    Darkness Rift   Manifests darkness of unbearable thickness in the shape of
+                    a beam, or large corridor, of unlight.
+                    (This spell uses WISDOM to determine fail-rates!)
+                    Required skill level for first spell level: 21.
+
+                    Tier II: Level 39.
+
     Shadow Gate     Teleports you to the nearest opponent in line of sight
                     within a maximum radius that increases with skill.
-                    Required skill level for first spell level: 26.
+                    Your next melee attack against that target, if executed
+                    swiftly after the teleport effect and not missing, will be
+                    a guaranteed critical hit. If you dual-wield you will dual-
+                    strike same as you'd usually do vs sleeping targets or from
+                    within cloaked state (except there is no limit on how often
+                    this works on the same target).
+                    Required skill level for first spell level: 23.
                     Shared spell (see above): O.Shadow, Conveyance.
+                    ** This spell requires at least 10.000 in 'Conveyance'! **
                     This spell cannot be found in the Conveyance tome.
 
     Shadow Shroud   Grants temporary invisibility. (See (5.14) for details.)
@@ -23368,7 +23629,6 @@ All Unlife spells are Wisdom-based.)
                     The probability for each evaded attack to cost you 1 ST
                     starts at 50% and goes down to 25% the further the spell
                     is trained.
-                    (This spell uses WISDOM to determine fail-rates!)
                     Required skill level for first spell level: 33.
     Stop Dispersion
                     Ends an active 'Dispersion' spell.
@@ -23420,6 +23680,9 @@ All Unlife spells are Wisdom-based.)
                     increases by +1 every five skill points, up to +4 at 50.
 
                     At 40 grants darkness resistance.
+                    Lose any susceptibility to light due to being enshrouded by
+                    strong darkness. For Vampires this also means that they can
+                    now walk in the sun without further protection.
 
 
 - Spirit            [Spells are WIS-based unless noted otherwise.]
@@ -23451,6 +23714,7 @@ All Unlife spells are Wisdom-based.)
                     Level 18: Also restores drained stats.
                     Level 28: Also restores lost experience.
                     Required skill level for first spell level: 4.
+                    This spell can be used even while blind of confused.
 
     Trance          Causes all ghosts, spirits and elementals that see you
                     to fall into a deep, spiritual sleep instantly.
@@ -23787,7 +24051,7 @@ All Unlife spells are Wisdom-based.)
                     to your melee-to-hit and ranged-to-hit, caps at +10.
                     Required skill level for first spell level: 1.
 
-                    Tier II: Level 25.
+                    Tier II: Level 25.                         (auto-project)
                     Further increases your accuracy, caps at +25.
 
     Herbal Tea      Satisfies your hunger.                     (auto-project)
@@ -23816,9 +24080,9 @@ All Unlife spells are Wisdom-based.)
                     yourself over time.                        (auto-project)
                     Required skill level for first spell level: 18.
 
-                    Tier II: Level 29.
+                    Tier II: Level 29.                         (auto-project)
 
-                    Tier III: Level 40.
+                    Tier III: Level 40.                        (auto-project)
 
 
 - Mindcraft -

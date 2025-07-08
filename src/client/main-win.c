@@ -83,6 +83,10 @@
 //#  endif
 //#endif
 
+/* ExtTextOut() won't draw certain glyphs eg codes 16-31 if we don't use glyph indices instead,
+   via this method (thanks for bringing this up @ The Scar): */
+#define WIN_GLYPH_FIX
+
 /* Uncomment this to be able to use Windows LOGFONT instead of the fonts in lib/xtra/fonts.
    NOTE: Moved to config.h as it must be available to all other client source files too now that it's switchable. */
 //#define USE_LOGFONT // Kurzel - Some .FON files considered security vulnerability on Windows? Ew.
@@ -92,7 +96,6 @@
 #ifdef USE_LOGFONT
  #define DEFAULT_LOGFONTNAME "9X15"
 #endif
-
 
 /* Note that there was an issue with optimized drawing, when Term_repaint() and an incoming message happen together,
    like on sunrise/sunset:
@@ -1825,8 +1828,8 @@ static void load_prefs(void) {
 	cfg_max_channels = GetPrivateProfileInt("Base", "MaxChannels", 32, ini_file);
 	cfg_audio_buffer = GetPrivateProfileInt("Base", "AudioBuffer", 1024, ini_file);
 	cfg_audio_master = (GetPrivateProfileInt("Base", "AudioMaster", 1, ini_file) != 0);
-	GetPrivateProfileString("Base", "SoundpackFolder", "sound", cfg_soundpackfolder, 127, ini_file);
-	GetPrivateProfileString("Base", "MusicpackFolder", "music", cfg_musicpackfolder, 127, ini_file);
+	GetPrivateProfileString("Base", "SoundpackFolder", "sound", cfg_soundpackfolder, 1024, ini_file);
+	GetPrivateProfileString("Base", "MusicpackFolder", "music", cfg_musicpackfolder, 1024, ini_file);
 	cfg_audio_music = (GetPrivateProfileInt("Base", "AudioMusic", 1, ini_file) != 0);
 	cfg_audio_sound = (GetPrivateProfileInt("Base", "AudioSound", 1, ini_file) != 0);
 	cfg_audio_weather = (GetPrivateProfileInt("Base", "AudioWeather", 1, ini_file) != 0);
@@ -3420,6 +3423,10 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 	RECT rc;
 	HDC  hdc;
 
+#ifdef WIN_GLYPH_FIX
+	WORD lpGlyphIndices[n];
+#endif
+
 #if 1
 	/* For 2mask mode: Actually imprint screen buffer with "empty background" for this text printed grid, to possibly avoid glitches. */
  #ifdef USE_GRAPHICS
@@ -3503,8 +3510,12 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 		old_attr = a;
 	}
 	/* Dump the text */
-	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED, &rc,
-	           s, n, NULL);
+ #ifndef WIN_GLYPH_FIX
+	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED, &rc, s, n, NULL);
+ #else
+	GetGlyphIndices(hdc, s, n, lpGlyphIndices, 0);
+	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED | ETO_GLYPH_INDEX, &rc, (LPCSTR)lpGlyphIndices, n, NULL);
+ #endif
 
 #else
 
@@ -3543,8 +3554,12 @@ static errr Term_text_win(int x, int y, int n, byte a, const char *s) {
 	SelectObject(hdc, td->font_id);
 
 	/* Dump the text */
-	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED, &rc,
-	           s, n, NULL);
+ #ifndef WIN_GLYPH_FIX
+	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED, &rc, s, n, NULL);
+ #else
+	GetGlyphIndices(hdc, s, n, lpGlyphIndices, 0);
+	ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE | ETO_CLIPPED | ETO_GLYPH_INDEX, &rc, (LPCSTR)lpGlyphIndices, n, NULL);
+ #endif
 
 	/* Release DC */
 	ReleaseDC(td->w, hdc);

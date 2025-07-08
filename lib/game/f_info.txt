@@ -40,7 +40,7 @@ N:2:fountain
 #G:_:w
 #G:_:e
 G:_:Y
-F:FLOOR | NOTICE | REMEMBER | CAN_RUN
+F:FLOOR | NOTICE | REMEMBER | CAN_RUN | PERMANENT
 D:0:The liquid here seems magical.
 
 # 0x03 --> glyph of warding
@@ -116,7 +116,7 @@ D:1:You cannot tunnel a shaft.
 N:15:dried out fountain
 #G:_:D
 G:_:W
-F:FLOOR | NOTICE | REMEMBER | CAN_RUN
+F:FLOOR | NOTICE | REMEMBER | CAN_RUN | PERMANENT
 D:0:The fountain seems dried out.
 
 N:16:spider webs
@@ -212,7 +212,7 @@ F:LAMP_LITE
 
 N:27:fountain of blood
 G:_:r
-F:FLOOR | NOTICE | REMEMBER | CAN_RUN
+F:FLOOR | NOTICE | REMEMBER | CAN_RUN | PERMANENT
 D:0:This is fresh blood in the fountain.
 
 # permanent wall for houses, upper storeys
@@ -1690,11 +1690,14 @@ N:253:solid block, half top left shaved off
 G:#:w
 F:FLOOR | DONT_NOTICE_RUNNING | SUPPORT_LIGHT | CAN_RUN
 
-#HOLE (254)
+N:254:glacier wall
+G:#:w
+F:WALL | NO_WALK | NO_VISION | PERMANENT | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | BOUNDARY
+D:2:a massive glacier blocking your way
 
-# Uh oh, only #254 is left. If we need more space we could check which of the pseudo-feats are currently unused and delete them:
+# Note: Some pseudo-feats are currently unused:
 # 165-171, 237, 239-253.
-# Best solution of course: Expand MAX_F_IDX to 512, change data type from byte to u16b accordingly o_O"
 
 # NOTE: 255 is reserved for special purpose (RLE in server save file / 'not done yet' indicator -- TODO: Check the latter one, can't coexist w/ RLE?)
 
@@ -1825,6 +1828,13 @@ F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
 N:275:small barred window
 G:#:u
 F:WALL | NO_WALK | NO_VISION | PERMANENT | DONT_NOTICE_RUNNING | NOTICE
+
+N:276:clouds along steep mountains
+M:107
+G:~:W
+F:WALL | NO_WALK | NO_VISION | PERMANENT | NO_ARTICLE | BOUNDARY
+F:DONT_NOTICE_RUNNING | NIGHT_DARK
+D:0:Falling off the edge leads to certain death.
 
 
 

@@ -331,10 +331,8 @@ void initialize_player_ins_files(void) {
 
 	/* start with empty auto-inscriptions list */
 	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
-		auto_inscription_match[i][0] = 0;
-		auto_inscription_tag[i][0] = 0;
-		auto_inscription_autopickup[i] = FALSE;
-		auto_inscription_autodestroy[i] = FALSE;
+		auto_inscription_match[i][0] = auto_inscription_tag[i][0] = 0;
+		auto_inscription_autopickup[i] = auto_inscription_autodestroy[i] = auto_inscription_ignore[i] = FALSE;
 		auto_inscription_force[i] = FALSE;
 #ifdef REGEX_SEARCH
 		auto_inscription_invalid[i] = FALSE;
@@ -1578,7 +1576,7 @@ static void init_kind_list() {
 
 			if (strlen(buf) < 3) continue;
 			else if (buf[0] == 'A') { /* depth, rarity +  (--note: Does not account for extra rarity increase due to OOD discrepancy between k-depth and a-depth) */
-				int best_rar = 255;
+				int best_rar = 65535;
 
 				while (TRUE) {
 					if (!strchr(p1, ':')) break;
@@ -1589,9 +1587,9 @@ static void init_kind_list() {
 					/* fetch rarity */
 					p2 = strchr(p1, '/') + 1;
 					p1 = p2;
-					if (atoi(p1) < best_rar) best_rar = atoi(p1);
+					if (atoi(p1) && atoi(p1) < best_rar) best_rar = atoi(p1); //rarity 0 means 'never generated'
 				}
-				kind_list_rarity[kind_list_idx] = best_rar;
+				kind_list_rarity[kind_list_idx] = best_rar; //65535 = 0 aka never generated. We don't set it to 0 here because INSTA_ARTs don't have a rarity either! (ie it's 0 for them too)
 			} else if (buf[0] == 'I') {
 				p1 = buf + 2; /* tval */
 				p2 = strchr(p1, ':') + 1; /* sval */
@@ -1819,6 +1817,9 @@ static void init_artifact_list() {
 		/* normal artifacts: */
 		else {
 			int krar = kind_list_rarity[i], krar_boost, rar_boost;
+
+			/* Hack: If base item type is actually disabled (via rarity 0), flashy-thingy us! */
+			if (krar == 65535) continue;
 
 			krar_boost = krar + (krar * krar) / 500;
 			rar_boost = rar + (rar * rar) / 500;
@@ -2942,17 +2943,11 @@ static void init_floor_mapping(void) {
 }
 
 /* Initialize info for the in-client guide search */
-#ifdef BUFFER_GUIDE
-char guide_line[GUIDE_LINES_MAX][MAX_CHARS + 1]; //one extra char per line for newline char '\n'
-#endif
-#ifdef BUFFER_LOCAL_FILE
-char local_file_line[LOCAL_FILE_LINES_MAX][MAX_CHARS_WIDE + 1]; //one extra char per line for newline char '\n'
-#endif
 void init_guide(void) {
-	int i;
+	int i, filesize, guide_lines_reserved = 1000, linelen;
 
 	FILE *fff;
-	char path[1024], buf[MAX_CHARS * 2 + 1], *c, *c2;
+	char path[1024], buf[MAX_CHARS * 2 + 1], *c, *c2, **guide_line_tmp;
 	byte contents = 0;
 
 	guide_lastline = -1;
@@ -2971,13 +2966,44 @@ void init_guide(void) {
 		return;
 	}
 
+	fseek(fff, 0, SEEK_END);
+	filesize = ftell(fff);
+	fseek(fff, 0, SEEK_SET);
+	guide_data = calloc(1, filesize + 1); //0-termination by strcpy()
+	if (!guide_data) {
+		c_msg_format("\377yCouldn't allocate the required %d bytes for the Guide.", filesize);
+		return;
+	}
+	guide_line = malloc(sizeof(char*) * guide_lines_reserved);
+	if (!guide_line) {
+		c_msg_format("\377yCouldn't allocate the required %lu bytes for Guide line buffer.", sizeof(int) * guide_lines_reserved);
+		free(guide_data);
+		return;
+	}
+
 	/* count lines */
 	while (fgets(buf, 81 , fff)) {
-		guide_lastline++;
+		guide_lastline++; //note: guide_lastline was initialized to -1, so it'll start at 0 here as it should
 
 #ifdef BUFFER_GUIDE
-		if (guide_lastline >= GUIDE_LINES_MAX) continue; //catch memory overflow aka "Bad socket filedescriptor" client termination error
-		strcpy(guide_line[guide_lastline], buf); //note: guide_lastline was initialized to -1, so it'll start at 0 here as it should
+		if (guide_lastline + 1 >= guide_lines_reserved) {
+			guide_lines_reserved += 1000;
+			guide_line_tmp = realloc(guide_line, sizeof(char*) * guide_lines_reserved);
+			if (!guide_line_tmp) {
+				free(guide_data);
+				free(guide_line);
+				c_msg_format("\377yCouldn't allocate the required %lu bytes for Guide line buffer.", sizeof(int) * guide_lines_reserved);
+				return;
+			}
+			guide_line = guide_line_tmp;
+		}
+		linelen = strlen(buf);
+		if (guide_lastline == 0) {
+			guide_line[0] = guide_data;
+			guide_line[1] = guide_data + linelen;
+		} else guide_line[guide_lastline + 1] = guide_line[guide_lastline] + linelen;
+		strcpy(guide_line[guide_lastline], buf);
+		guide_line[guide_lastline][linelen - 1] = 0; //replace newline by string terminator
 #endif
 
 		/* and also remember chapter titles */
@@ -3037,17 +3063,6 @@ void init_guide(void) {
 		c_message_add("\377y Try updating it via =U or the TomeNET-Updater or download it manually.");
 		return;
 	}
-
-#ifdef BUFFER_GUIDE
-	/* too big file? */
-	if (guide_lastline >= GUIDE_LINES_MAX) {
-		c_message_add(format("\377yThe file TomeNET-Guide.txt was too big (%d/%d lines) to load completely!", guide_lastline, GUIDE_LINES_MAX));
-		c_message_add("\377y Update your client via TomeNET-Updater or install the latest client manually.");
-		/* cap */
-		guide_lastline = GUIDE_LINES_MAX - 1;
-	}
-#endif
-
 
 	guide_races = exec_lua(0, "return guide_races");
 	for (i = 0; i < guide_races; i++)
@@ -3325,7 +3340,7 @@ static void quit_hook(cptr s) {
 			if (fp != (FILE*)NULL) {
 				dump_messages_aux(fp, i, 2 - res, FALSE);//FALSE
 				fclose(fp);
-			}
+			} else logprint(format("Error: Cannot save chat/message history to %s.\n", buf2));
 		}
 	}
 
@@ -3346,18 +3361,20 @@ static void quit_hook(cptr s) {
 
 		path_build(buf, 1024, ANGBAND_DIR_USER, format("chathist-%s.tmp", nick));
 		fp = fopen(buf, "w");
-		if (!hist_chat_looped) {
-			for (j = 0; j < hist_chat_end; j++) {
-				if (!message_history_chat[j][0]) continue;
-				fprintf(fp, "%s\n", message_history_chat[j]);
+		if (fp) {
+			if (!hist_chat_looped) {
+				for (j = 0; j < hist_chat_end; j++) {
+					if (!message_history_chat[j][0]) continue;
+					fprintf(fp, "%s\n", message_history_chat[j]);
+				}
+			} else {
+				for (j = hist_chat_end; j < hist_chat_end + MSG_HISTORY_MAX; j++) {
+					if (!message_history_chat[j % MSG_HISTORY_MAX][0]) continue;
+					fprintf(fp, "%s\n", message_history_chat[j % MSG_HISTORY_MAX]);
+				}
 			}
-		} else {
-			for (j = hist_chat_end; j < hist_chat_end + MSG_HISTORY_MAX; j++) {
-				if (!message_history_chat[j % MSG_HISTORY_MAX][0]) continue;
-				fprintf(fp, "%s\n", message_history_chat[j % MSG_HISTORY_MAX]);
-			}
-		}
-		fclose(fp);
+			fclose(fp);
+		} else logprint(format("Error: Cannot save chat history to chathist-%s.tmp.\n", nick));
 	}
 
 #ifdef GUIDE_BOOKMARKS
@@ -3367,11 +3384,13 @@ static void quit_hook(cptr s) {
 
 		path_build(buf, 1024, ANGBAND_DIR_USER, "bookmarks.tmp");
 		fp = fopen(buf, "w");
-		for (j = 0; j < GUIDE_BOOKMARKS; j++) {
-			if (!bookmark_line[j]) continue;
-			fprintf(fp, "%d,%s\n", bookmark_line[j], bookmark_name[j]);
-		}
-		fclose(fp);
+		if (fp) {
+			for (j = 0; j < GUIDE_BOOKMARKS; j++) {
+				if (!bookmark_line[j]) continue;
+				fprintf(fp, "%d,%s\n", bookmark_line[j], bookmark_name[j]);
+			}
+			fclose(fp);
+		} else logprint("Error: Cannot save guide bookmarks to bookmarks.tmp.\n");
 	}
 #endif
 
@@ -4443,8 +4462,6 @@ bool ask_for_bigmap_generic(void) {
 	return(ok);
 }
 void ask_for_graphics_generic(void) {
-	int ch;
-
 	Term_clear();
 	Term_putstr(8, 3, -1, TERM_YELLOW, "This game originally uses letters, numbers and symbols for 'graphics'.");
 	Term_putstr(8, 4, -1, TERM_YELLOW, "But if you prefer a true graphical representation, after logging");
@@ -4464,6 +4481,8 @@ void ask_for_graphics_generic(void) {
 		} else
  #endif
 		{
+			int ch;
+
 			Term_putstr(8, 7, -1, TERM_YELLOW, "If you want to \377Genable graphics immediately\377y right now, press '\377Gy\377y'.");
 			Term_putstr(8, 8, -1, TERM_YELLOW, "To continue with \377roriginal ASCII (text symbol)\377y visuals, press '\377rn\377y'.");
 			//Term_putstr(8, 9, -1, TERM_YELLOW, "(You can switch/disable that later anytime in-game via \377o= g\377y menu.)");

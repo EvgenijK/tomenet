@@ -282,7 +282,7 @@ struct stairs_list {
 #define DUN_WAT_RNG	2	/* Width of rivers */
 #define DUN_WAT_CHG	50	/* 1 in 50 chance of junction in river */
 
-#define DUN_SANDWALL	10   /* percentage for Sandwall being generated [10] */
+#define DUN_SANDWALL	10	/* percentage for Sandwall being generated [5] (only if dungeon isn't defined with solid-wall types exclusively) */
 
 /* specify behaviour/possibility of vaults/rooms in 'maze' levels */
 #define VAULTS_OVERRIDE_MAZE	/* make vault walls override maze emptiness. otherwise, mazes can 'unwall' vaults! */
@@ -436,7 +436,7 @@ extern void arcade_wipe(worldpos *wpos) {
 	if (!(zcave = getcave(wpos))) return;
 	for (mx = 1; mx < 131; mx++)
 		for (my = 1; my < 43; my++)
-			cave_set_feat(wpos, my, mx, 1);
+			cave_set_feat(wpos, my, mx, FEAT_FLOOR);
 	return;
 }
 #endif
@@ -611,6 +611,7 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 	int dun_lev;
 	c_special *cs_ptr;
 	int svals[SV_POTION_LAST + SV_POTION2_LAST + 1], maxsval = 0, k;
+	struct dungeon_type *d_ptr = getdungeon(wpos);
 
 	if (!(zcave = getcave(wpos))) return;
 	dun_lev = getlevel(wpos);
@@ -619,6 +620,9 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 
 	/* No fountains over traps/house doors etc */
 	if (c_ptr->special) return;
+
+	/* No fountain in super hot levels (Mount Doom) */
+	if ((d_ptr->flags3 & DF3_NOT_WATERY) && (d_ptr->flags1 & DF1_HOT_PLACE)) return;
 
 	/* Place the fountain */
 	if (randint(100) < 20) { /* 30 */
@@ -770,7 +774,7 @@ void place_fountain_of_blood(struct worldpos *wpos, int y, int x) {
  * Place an altar at the given location
  */
 static void place_altar(int y, int x) {
-	if (magik(10)) cave_set_feat(y, x, 164);
+	if (magik(10)) cave_set_feat(y, x, FEAT_ALTAR);
 }
 #endif	/* 0 */
 
@@ -835,9 +839,15 @@ static void place_between(struct worldpos *wpos, int y, int x) {
 			if (!(rand_int(1)) && !in_irondeepdive(wpos) && !in_hallsofmandos(wpos) /* Iron/ForceDown/NoUp/NoExitXXX: allow for now */
 			    && ((l_ptr = getfloor(wpos))) && !(l_ptr->flags2 & LF2_BROKEN)
 			    && ((zcave = getcave(wpos))) && (zcave[y][x].info & CAVE_STCK)) {
-				l_ptr->flags2 |= LF2_BROKEN;
-				cave_set_feat(wpos, y, x, FEAT_IRID_GATE);
-				s_printf("Broken Gate (%d,%d,%d - %d,%d).\n", wpos->wx,  wpos->wy,  wpos->wz, x, y);
+				/* Require adjacent perma walls for good measure? */
+				int d;
+
+				for (d = 0; d < 8; d++) if (cave_perma_wall(zcave, y + ddy_ddd[d], x + ddx_ddd[d])) break;
+				if (d != 8) {
+					l_ptr->flags2 |= LF2_BROKEN;
+					cave_set_feat(wpos, y, x, FEAT_IRID_GATE);
+					s_printf("Broken Gate (%d,%d,%d - %d,%d).\n", wpos->wx,  wpos->wy,  wpos->wz, x, y);
+				} else s_printf("Broken Gate failed (%d,%d,%d - %d,%d).\n", wpos->wx,  wpos->wy,  wpos->wz, x, y);
 			}
 #endif
 			return;
@@ -1402,7 +1412,7 @@ static bool vault_aux_aquatic(int r_idx) {
  */
 static void build_streamer(struct worldpos *wpos, int feat, int chance, bool pierce) {
 	int i, tx, ty, tries = 1000;
-	int y, x, dir;
+	int y, x, dir, dun_level;
 	cave_type *c_ptr;
 
 	dungeon_type *dt_ptr = getdungeon(wpos);
@@ -1416,11 +1426,11 @@ static void build_streamer(struct worldpos *wpos, int feat, int chance, bool pie
 
 #ifdef ENABLE_DEMOLITIONIST
 	/* Kurzel - Replace some quartz with sandwall at mostly shallow depths? */
-	if (feat == FEAT_QUARTZ) {
-		int dun_level = getlevel(wpos);
-
-		if (magik((dun_level >= 25) ? 0 : (25 - dun_level))) // (0..25)% chance!
+	if (feat == FEAT_QUARTZ && (dun_level = getlevel(wpos)) < 20) {
+		if (magik(25 - dun_level)) { // (5..25)% chance!
+			s_printf("Streamer (%d,%d,%d): FEAT_SANDWALL conversion.\n", wpos->wx, wpos->wy, wpos->wz);
 			feat = FEAT_SANDWALL;
+		}
 	}
 #endif
 
@@ -1720,7 +1730,7 @@ static void lake_level(struct worldpos *wpos) {
 				if (cave_valid_bold(zcave, y, x)) {
 #if 0
 					/* Delete the object (if any) */
-					delete_object(wpos, y, x, TRUE);
+					delete_object(wpos, y, x, TRUE, TRUE);
 #endif
 
 					/* Access the grid */
@@ -1791,7 +1801,7 @@ static void destroy_level(struct worldpos *wpos) {
 				/* Destroy valid grids */
 				if (cave_valid_bold(zcave, y, x)) {
 					/* Delete the object (if any) */
-					delete_object(wpos, y, x, TRUE);
+					delete_object(wpos, y, x, TRUE, TRUE);
 
 					/* Access the grid */
 					c_ptr = &zcave[y][x];
@@ -1840,7 +1850,7 @@ static void destroy_level(struct worldpos *wpos) {
  */
 static void vault_objects(struct worldpos *wpos, int y, int x, int num, player_type *p_ptr) {
 	int i, j, k, tries = 1000;
-	u32b resf = make_resf(p_ptr);
+	u64b resf = make_resf(p_ptr);
 	cave_type **zcave;
 
 	if (!(zcave = getcave(wpos))) return;
@@ -2638,7 +2648,7 @@ static void build_type3(struct worldpos *wpos, int by0, int bx0, player_type *p_
 	int y1a, x1a, y2a, x2a;
 	int y1b, x1b, y2b, x2b;
 	int yval, xval;
-	u32b resf = make_resf(p_ptr);
+	u64b resf = make_resf(p_ptr);
 
 	bool light;
 	cave_type *c_ptr;
@@ -2865,7 +2875,7 @@ static void build_type3(struct worldpos *wpos, int by0, int bx0, player_type *p_
 static void build_type4(struct worldpos *wpos, int by0, int bx0, player_type *p_ptr) {
 	int y, x, y1, x1, lev = getlevel(wpos);
 	int y2, x2, tmp, yval, xval;
-	u32b resf = make_resf(p_ptr);
+	u64b resf = make_resf(p_ptr);
 
 	bool light;
 	cave_type *c_ptr;
@@ -4381,7 +4391,7 @@ bool build_vault(struct worldpos *wpos, int yval, int xval, vault_type *v_ptr, p
 	int ymax = v_ptr->hgt, xmax = v_ptr->wid;
 	char *data = v_text + v_ptr->text;
 
-	u32b resf = make_resf(p_ptr), eff_resf;
+	u64b resf = make_resf(p_ptr), eff_resf;
 	int eff_forbid_true = 0, eff_forbid_rand = 0;
 
 	if (!(zcave = getcave(wpos))) return(FALSE);
@@ -5579,7 +5589,7 @@ static void fill_treasure(worldpos *wpos, int x1, int x2, int y1, int y2, int di
 	cave_type **zcave;
 	int dun_lev = getlevel(wpos);
 	bool placed;
-	u32b resf = make_resf(p_ptr);
+	u64b resf = make_resf(p_ptr);
 
 	if (!(zcave = getcave(wpos))) return;
 
@@ -9320,6 +9330,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		}
 
 		if (wall_streamers) {
+			bool allow_outoftheme_soft; //allow sand-type streamers in a non-sand dungeon?
+			u32b f1 = f_info[d_info[d_ptr->type].fill_type[0]].flags1;
+
 			/* Hack -- Add some magma streamers */
 			k = ((dflags3 & DF3_WALL_STREAMERS) ? DUN_STR_MAG : 0)
 			    + ((dflags2 & DF2_WALL_STREAMER_ADD) ? 1 : 0);
@@ -9333,8 +9346,13 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				build_streamer(wpos, FEAT_QUARTZ, DUN_STR_QC, FALSE);
 
 			/* Add some sand streamers */
-			k = ((dflags3 & DF3_WALL_STREAMERS) && (((dflags1 & DF1_SAND_VEIN) && !rand_int(4)) || magik(DUN_SANDWALL)) ? 1 : 0)
+			allow_outoftheme_soft = !(((f1 & FF1_WALL) && (f1 & FF1_PERMANENT)) //permanent wall (26 and many more, Mandos), mountains
+			    || ((f1 & FF1_WALL) && !(f1 & FF1_NOTICE) && !(f1 & FF1_CAN_LEVITATE))); //granite wall (56-59, Angband etc), but allow for tree dungeons (can-levitate)
+			i = magik(DUN_SANDWALL);
+			k = ((dflags3 & DF3_WALL_STREAMERS) && (((dflags1 & DF1_SAND_VEIN) && !rand_int(4)) || (allow_outoftheme_soft && i)) ? 1 : 0)
 			    + (((dflags2 & DF2_WALL_STREAMER_ADD) && (dflags1 & DF1_SAND_VEIN)) ? 1 : 0);
+			if (i) s_printf("Streamer (%d,%d,%d): SAND_VEIN %d, allow %d / DUN_SANDWALL (%d) %d -> %d.\n",
+			    wpos->wx, wpos->wy, wpos->wz, (dflags1 & DF1_SAND_VEIN) != 0, allow_outoftheme_soft, DUN_SANDWALL, i, k);
 			for (i = 0; i < k; i++)
 				build_streamer(wpos, FEAT_SANDWALL, DUN_STR_SC, FALSE);
 		}
@@ -9794,6 +9812,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	/* unhack */
 	if (hack_monster_idx) {
 		alloc_entry *table = alloc_race_table_dun[DI_SANDWORM_LAIR];
+
 		if (hack_dun_table_idx != -1) {
 			table[hack_dun_table_idx].prob1 = hack_dun_table_prob1;
 			table[hack_dun_table_idx].prob2 = hack_dun_table_prob2;
@@ -9860,31 +9879,31 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	if (wpos->wz > 0)
 		for (mx = 1; mx < 131; mx++)
 			for (my = 1; my < 43; my++)
-				cave_set_feat(wpos, my, mx, 1);
+				cave_set_feat(wpos, my, mx, FEAT_FLOOR);
 	if (wpos->wz > 0 && wpos->wz < 7) {
 		for (my = 1; my < 8; my++)
 			for (mx = 63; mx < 70; mx++)
-				 cave_set_feat(wpos, my, mx, 209);
+				 cave_set_feat(wpos, my, mx, FEAT_BGOAL); //apparently just used for colouring/visual, not for actual 'goal' functionality? ^^
 		for (my = 36; my < 43; my++)
 			for (mx = 63; mx < 70; mx++)
-				 cave_set_feat(wpos, my, mx, 209);
+				 cave_set_feat(wpos, my, mx, FEAT_BGOAL);
 		for (my = 19; my < 26; my++)
 			for (mx = 1; mx < 8; mx++)
-				cave_set_feat(wpos, my, mx, 209);
+				cave_set_feat(wpos, my, mx, FEAT_BGOAL);
 		for (my = 19; my < 26; my++)
 			for (mx = 124; mx < 131; mx++)
-				cave_set_feat(wpos, my, mx, 209);
+				cave_set_feat(wpos, my, mx, FEAT_BGOAL);
 	}
 	if (wpos->wz == 7) {
 		for (mx = 1; mx<21; mx++)
-			cave_set_feat(wpos, 11, mx, 61);
+			cave_set_feat(wpos, 11, mx, FEAT_PERM_INNER);
 		for (mx = 1; mx < 12; mx++)
-			cave_set_feat(wpos, mx, 21, 61);
+			cave_set_feat(wpos, mx, 21, FEAT_PERM_INNER);
 	}
 	if (wpos->wz == 9)
 		for (mx = 1; mx < 131; mx++)
 			for (my = 1; my < 43; my++)
-				cave_set_feat(wpos, my, mx, 187);
+				cave_set_feat(wpos, my, mx, FEAT_DEEP_WATER);
 #endif
 
 #ifdef ENABLE_DOOR_CHECK
@@ -9962,14 +9981,22 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	/* Nether Realm has an overriding shop creation routine. */
 	if (!netherrealm_level) {
 		bool store_failed = FALSE; /* avoid checking for a different type of store if one already failed, warping probabilities around -- currently no effect due to the way it's used ^^' */
+		int dst, dst2;
+
+		/* Hack: Allow insta shop respawn in IDDC and Mandos */
+		if (in_hallsofmandos(wpos) || in_irondeepdive(wpos)) {
+			dst = dungeon_store_timer;
+			dst2 = dungeon_store2_timer;
+			dungeon_store_timer = dungeon_store2_timer = 0;
+		}
 
 		/* Check for building deep store (Rare & expensive stores) */
 		if ((!dungeon_store_timer) && (dun_lev >= 60) && (dun_lev != 100))
 			build_special_store = 1;
 
-		/* Build hidden library if desired (good for challenge dungeons actually) - very frequent store! */
-		if (//!store_failed &&
-		    (!build_special_store) && (d_ptr->flags3 & DF3_HIDDENLIB) && (dun_lev >= 8)) {
+		/* Build hidden library if desired (good for challenge dungeons actually) - very frequent store!
+		   Note that even if these checks fail, the hidden library can still be built via build_special_store == 3 aka DF2_MISC_STORES (Halls of Mandos)! */
+		if ((!build_special_store) && (d_ptr->flags3 & DF3_HIDDENLIB) && (dun_lev >= 8)) { // && !store_failed
 			if (!rand_int(dun_lev / 2 + 1))
 #ifdef IDDC_REFUGE_EXTRA_STORES /* Disable the random Hidden Library here in turn */
  #ifndef IDDC_REFUGE_EXTRA_STORES_RANDOM
@@ -9992,20 +10019,20 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			//todo: maybe use the new d_ptr->store_timer for randomly generated stores
 #ifdef TEST_SERVER
 			/* Allow almost anywhere, for testing */
-			if (!store_failed && (!build_special_store) && (dun_lev >= 6)) {
+			if (!store_failed && !build_special_store && dun_lev >= 6) {
 				if (!rand_int(5)) build_special_store = 3;
 				else store_failed = TRUE;
 			}
 #elif defined(RPG_SERVER)
 			/* Allowed in any canonical dungeon (they are all ironman on RPG server)! */
-			if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_IRON) && (dun_lev >= 6)) {
+			if (!store_failed && !build_special_store && (d_ptr->flags2 & DF2_IRON) && dun_lev >= 6) {
 				//((dun_lev + rand_int(3) - 1) % 5 == 0)) build_special_store = 3;
 				if (!rand_int(5)) build_special_store = 3;
 				else store_failed = TRUE;
 			}
 #else
 			/* Build one of several misc stores for basic items of certain type */
-			if (!store_failed && (!build_special_store) && (d_ptr->flags2 & DF2_MISC_STORES) && (dun_lev >= 6)) {
+			if (!store_failed && !build_special_store && (d_ptr->flags2 & DF2_MISC_STORES) && dun_lev >= 6) {
 				if (!rand_int(3)) build_special_store = 3;
 				else store_failed = TRUE;
 			}
@@ -10013,8 +10040,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		}
 
 		/* Build deep supplies store if desired (good for challenge dungeons actually) - frequent store! */
-		if (//!store_failed &&
-		    (!build_special_store) && (d_ptr->flags3 & DF3_DEEPSUPPLY) && (dun_lev >= 80)) {
+		if (!build_special_store && (d_ptr->flags3 & DF3_DEEPSUPPLY) && dun_lev >= 80) { // && !store_failed
 			if (!rand_int(5)) build_special_store = 5;
 			else {
 				//s_printf("DUNGEON_STORE: DEEPSUPPLY roll failed.\n");
@@ -10037,15 +10063,23 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				build_special_store = 2;
 		}
 
+		if (build_special_store) {
+			/* reset deep (rare) shop timeout */
+			if (build_special_store == 1)
+				dungeon_store_timer = 2 + rand_int(cfg.dungeon_shop_timeout); /* reset timeout (in minutes) */
+			/* reset low-level shop timeout */
+			if (build_special_store == 2)
+				dungeon_store2_timer = 2 + rand_int(cfg.dungeon_shop_timeout); /* reset timeout (in minutes) */
+		}
+
+		/* Unhack: Allow insta shop respawn in IDDC and Mandos */
+		if (in_hallsofmandos(wpos) || in_irondeepdive(wpos)) {
+			dungeon_store_timer = dst;
+			dungeon_store2_timer = dst2;
+		}
+
 		/* if failed, we're done */
 		if (!build_special_store) return;
-
-		/* reset deep (rare) shop timeout */
-		if (build_special_store == 1)
-			dungeon_store_timer = 2 + rand_int(cfg.dungeon_shop_timeout); /* reset timeout (in minutes) */
-		/* reset low-level shop timeout */
-		if (build_special_store == 2)
-			dungeon_store2_timer = 2 + rand_int(cfg.dungeon_shop_timeout); /* reset timeout (in minutes) */
 	/* build only one special shop in the Nether Realm */
 	} else if (((dun_lev - 166) % 5 != 0) || (dun_lev == netherrealm_end)) return;
 
@@ -10129,17 +10163,16 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 								} else if (build_special_store == 2) cs_ptr->sc.omni = STORE_HERBALIST;
 								else if (build_special_store == 3) {
 									//Add specialist stores? - the_sandman
-									switch (rand_int(7)) {
-									/*case 1: cs_ptr->sc.omni = STORE_SPEC_AXE;break;
-									case 2: cs_ptr->sc.omni = STORE_SPEC_BLUNT;break;
-									case 3: cs_ptr->sc.omni = STORE_SPEC_POLE;break;
-									case 4: cs_ptr->sc.omni = STORE_SPEC_SWORD;break;*/
+									switch (rand_int(6)) {
 									case 0: cs_ptr->sc.omni = STORE_HIDDENLIBRARY; break;
-									case 1: case 2: cs_ptr->sc.omni = STORE_SPEC_CLOSECOMBAT; break;
-									case 3: cs_ptr->sc.omni = STORE_SPEC_POTION; break;
-									case 4: cs_ptr->sc.omni = STORE_SPEC_SCROLL; break;
-									case 5: cs_ptr->sc.omni = STORE_SPEC_ARCHER; break;
-									default: cs_ptr->sc.omni = STORE_STRADER; break;
+									case 1: cs_ptr->sc.omni = STORE_SPEC_CLOSECOMBAT; break;
+									case 2: cs_ptr->sc.omni = STORE_SPEC_POTION; break;
+									case 3: cs_ptr->sc.omni = STORE_SPEC_SCROLL; break;
+									case 4: cs_ptr->sc.omni = STORE_SPEC_ARCHER; break;
+									case 5:
+										if (dun_lev < 40) cs_ptr->sc.omni = STORE_COMMON; /* Light version, but offers all bags */
+										else cs_ptr->sc.omni = STORE_STRADER; /* Heavy version, renders scribe/potion/library store moot for resupplying */
+										break;
 									}
 								} else if (build_special_store == 4) cs_ptr->sc.omni = STORE_HIDDENLIBRARY;
 								else if (build_special_store == 5) cs_ptr->sc.omni = STORE_DEEPSUPPLY;
@@ -10184,6 +10217,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
  * this can be used to build 'extra' towns for some purpose, though.
  */
 //TL;DR: nowadays _only_ used in town_gen_hack(), for dungeon (ironman) towns or 'generic' wilderness towns - C. Blue
+
+//  todo: some FEAT_WALL_HOUSE vs FEAT_PERM_EXTRA confusion? and FEAT_WALL_HOUSEUPPER for upper floors of FEAT_PERM_EXTRA solid buildings? but it doesn't matter...
+
 static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 	int i, y, x, y0, x0, y1, x1, y2, x2, tmp;
 	int size = 0;
@@ -10263,7 +10299,7 @@ static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 			c_ptr = &zcave[y][x];
 
 			/* Clear previous contents, add "basic" perma-wall */
-			c_ptr->feat = (n == 13) ? FEAT_WALL_HOUSE : FEAT_PERM_EXTRA;
+			c_ptr->feat = (n == 13) ? FEAT_WALL_HOUSE : FEAT_PERM_EXTRA; //todo? FEAT_WALL_HOUSEUPPER instead of FEAT_PERM_EXTRA for walls above the ground floor
 
 			/* Hack -- The buildings are illuminated and known */
 			/* c_ptr->info |= (CAVE_GLOW); */
@@ -10466,7 +10502,7 @@ static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 				c_ptr = &zcave[(y1 + y2) / 2][x];
 
 				/* Clear previous contents, add "basic" perma-wall */
-				c_ptr->feat = FEAT_PERM_EXTRA;
+				c_ptr->feat = FEAT_PERM_EXTRA; //FEAT_WALL_HOUSE?
 			}
 
 			for (y = y1; y <= y2; y++) {
@@ -10474,7 +10510,7 @@ static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 				c_ptr = &zcave[y][(x1 + x2) / 2];
 
 				/* Clear previous contents, add "basic" perma-wall */
-				c_ptr->feat = FEAT_PERM_EXTRA;
+				c_ptr->feat = FEAT_PERM_EXTRA; //FEAT_WALL_HOUSE?
 			}
 
 			/* Setup some "house info" */
@@ -10646,7 +10682,8 @@ static void build_store(struct worldpos *wpos, int n, int yy, int xx) {
 			if ((cs_ptr = AddCS(c_ptr, CS_DNADOOR))) cs_ptr->sc.ptr = houses[i].dna;
 		}
 	} else if (n == STORE_AUCTION) /* auctionhouse */
-		c_ptr->feat = FEAT_PERM_EXTRA; /* wants to work */
+		c_ptr->feat = FEAT_WALL_HOUSE; /* wants to work */
+		//FEAT_PERM_EXTRA?
 	else {
 		/* Clear previous contents, add a store door */
 		c_ptr->feat = FEAT_SHOP;	/* TODO: put CS_SHOP */

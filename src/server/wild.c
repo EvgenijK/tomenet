@@ -129,18 +129,19 @@ static void bleed_warn_feat(int wild_type, cave_type *c_ptr) {
    Note that the flags for these structures are loaded from the server savefile.
 
    Note that this has to be initially called with 0,0 to work properly.
-*/
 
+   'townlev' may be NULL if not required.
+*/
 static int towndist(int wx, int wy, s16b *townlev) {
 	int i;
 	int dist, mindist = 100;
 
-	*townlev = 0;
+	if (townlev) *townlev = 0;
 	for (i = 0; i < numtowns; i++) {
 		dist = abs(wx - town[i].x) + abs(wy - town[i].y);
 		if (dist < mindist) {
 			mindist = dist;
-			*townlev = town[i].baselevel;
+			if (townlev) *townlev = town[i].baselevel;
 		}
 	}
 	return(mindist);
@@ -305,7 +306,7 @@ bool wild_spawn_towns(bool lowdun_near_Bree) {
 	for (i = 1 + 1; i < TOWNS; i++) {
 		retry = FALSE;
 
-		/* avoid towns at the border of the world map (also: no housing space there!) */
+		/* avoid towns at the border of the world map (also: no housing space there!); especially 0,0 (event sector) and 63,63 (test/storage sector) */
 		y = 2 + rand_int(MAX_WILD_Y - 4);
 		x = 2 + rand_int(MAX_WILD_X - 4);
 
@@ -370,6 +371,9 @@ bool wild_spawn_towns(bool lowdun_near_Bree) {
 		y = rand_int(MAX_WILD_Y);
 		x = rand_int(MAX_WILD_X);
 
+		/* avoid  0,0 (event sector) and 63,63 (test/storage sector) */
+		if ((!x && !y) || (x == MAX_WILD_X - 1 && y == MAX_WILD_Y - 1)) continue;
+
 		wpos.wy = y;
 		wpos.wx = x;
 
@@ -409,7 +413,9 @@ bool wild_spawn_towns(bool lowdun_near_Bree) {
 			case DI_THE_ORC_CAVE:
 			case DI_OLD_FOREST:
 			case DI_MIRKWOOD:
+			case DI_HALLS_OF_MANDOS: /* Also Halls of Mandos? */
 				if (distance(y, x * 2, cfg.town_y, cfg.town_x * 2) > 20) continue;
+				break;
 			}
 		}
 
@@ -782,13 +788,13 @@ void wild_add_monster(struct worldpos *wpos) {
 	/* Set the second hook according to the terrain type */
 	set_mon_num2_hook(zcave[monst_y][monst_x].feat);
 
-	get_mon_num_prep(0, l_ptr ? l_ptr->uniques_killed : NULL);
+	get_mon_num_prep_wild(towndist(wpos->wx, wpos->wy, NULL), l_ptr ? l_ptr->uniques_killed : NULL);
 
 	/* get the monster */
 	r_idx = get_mon_num(monster_level, monster_level);
 
 	/* place the monster */
-	place_monster_aux(wpos, monst_y, monst_x, r_idx, FALSE, TRUE, FALSE, 0);
+	tries = place_monster_aux(wpos, monst_y, monst_x, r_idx, FALSE, TRUE, FALSE, 0);
 
 	/* hack -- restore the monster selection function */
 	get_mon_num_hook = dungeon_aux;
@@ -965,7 +971,7 @@ static void wild_add_garden(struct worldpos *wpos, int x, int y) {
 			/* if it's on our field, erase it */
 			if (o_ptr->iy >= y1 && o_ptr->iy <= y2 &&
 			    o_ptr->ix >= x1 && o_ptr->ix <= x2)
-				delete_object_idx(i, TRUE);
+				delete_object_idx(i, TRUE, TRUE);
 		}
 
 		/* Remember/reindex mushroom fields all over the world, for Farmer Maggot! */
@@ -1060,7 +1066,7 @@ static bool wild_monst_aux_home_owner(int r_idx) {
 	return(FALSE);
 }
 
-static int wild_obj_aux_bones(int k_idx, u32b resf) {
+static int wild_obj_aux_bones(int k_idx, u64b resf) {
 	object_kind *k_ptr = &k_info[k_idx];
 
 	/* paranoia */
@@ -1159,7 +1165,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 
 			if (cave_clean_bold(zcave,y,x)) {
 				object_level = w_ptr->radius / 2 +1;
-				place_object(0, wpos, y, x, FALSE, FALSE, FALSE, RESF_LOW, default_obj_theme, 0, ITEM_REMOVAL_NEVER, FALSE);
+				place_object(0, wpos, y, x, FALSE, FALSE, FALSE, RESF_MASK_LOW, default_obj_theme, 0, ITEM_REMOVAL_NEVER, FALSE);
 				num_objects--;
 			}
 			trys++;
@@ -1199,7 +1205,7 @@ static void wild_furnish_dwelling(struct worldpos *wpos, int x1, int y1, int x2,
 	if (!(w_ptr->flags & WILD_F_BONES)) {
 		trys = 0;
 		get_obj_num_hook = wild_obj_aux_bones;
-		get_obj_num_prep(RESF_WILD);
+		get_obj_num_prep(RESF_MASK_WILD);
 
 		while ((num_bones) && (trys < 100)) {
 			x = rand_range(x1,x2);
@@ -3206,7 +3212,7 @@ bool fill_house(house_type *h_ptr, int func, void *data) {
 					everyone_lite_spot(&h_ptr->wpos, h_ptr->y + y, h_ptr->x + x);
 				}
 				else if (func == FILL_CLEAR) {
-					delete_object(wpos, y, x, TRUE);
+					delete_object(wpos, y, x, TRUE, TRUE);
 					everyone_lite_spot(&h_ptr->wpos, h_ptr->y + y, h_ptr->x + x);
 				}
 				else if (func == FILL_BUILD) {
@@ -3369,7 +3375,7 @@ bool fill_house(house_type *h_ptr, int func, void *data) {
 						break;
 					}
 					if (func == FILL_CLEAR) {
-						delete_object(wpos, miny + (y - 1), minx + (x - 1), TRUE);
+						delete_object(wpos, miny + (y - 1), minx + (x - 1), TRUE, TRUE);
 						everyone_lite_spot(&h_ptr->wpos, miny + (y - 1), minx + (x - 1));
 						break;
 					}
@@ -5296,16 +5302,19 @@ void dunfound_reward(int Ind, dungeon_type *d_ptr) {
 		if (slot != -1 ) {
 			//msg_format(Ind, "You notice %s lying on the ground!", o_name);
 			msg_format(Ind, "The Mathom House sends you a gift to support your exploration efforts!");
+			s_printf("DUNFOUND_REWARD(1): %s gains '%s'.\n", p_ptr->name, o_name);
 			msg_format(Ind, "You have %s (%c).", o_name, index_to_label(slot));
 		}
    #else /* Just drop it at our feet? */
 		drop_near(TRUE, 0, &forge, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
+		s_printf("DUNFOUND_REWARD(2): %s gains '%s'.\n", p_ptr->name, o_name);
 		msg_format(Ind, "You notice %s lying on the ground!", o_name);
    #endif
   #else /* Monetary reward */
 		reward = dam_roll(4000, 50);
    #ifndef DUNFOUND_REWARDS_MONEY_DROP /* Auto-pick it up? */
 		msg_format(Ind, "The Mathom House sends %d gold pieces to support your exploration efforts!", reward);
+		s_printf("DUNFOUND_REWARD(3): %s gains %d Au.\n", p_ptr->name, reward);
 		(void)gain_au(Ind, reward, FALSE, FALSE);
    #else
 		invcopy(&forge, lookup_kind(TV_GOLD, 1));
@@ -5314,6 +5323,7 @@ void dunfound_reward(int Ind, dungeon_type *d_ptr) {
 		forge.sval = k_info[forge.k_idx].sval;
 		object_desc(Ind, o_name, &forge, TRUE, 3);
 		drop_near(TRUE, 0, &forge, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
+		s_printf("DUNFOUND_REWARD(4): %s gains '%s'.\n", p_ptr->name, o_name);
 		msg_format(Ind, "You notice %s lying on the ground!", o_name);
    #endif
   #endif
@@ -5351,10 +5361,12 @@ void dunfound_reward(int Ind, dungeon_type *d_ptr) {
 	if (slot != -1 ) {
 		//msg_format(Ind, "You notice %s lying on the ground!", o_name);
 		msg_format(Ind, "The Mathom House sends you a gift to support your exploration efforts!");
+		s_printf("DUNFOUND_REWARD(5): %s gains '%s'.\n", p_ptr->name, o_name);
 		msg_format(Ind, "You have %s (%c).", o_name, index_to_label(slot));
 	}
   #else /* Just drop it at our feet? */
 	drop_near(TRUE, 0, &forge, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
+	s_printf("DUNFOUND_REWARD(6): %s gains '%s'.\n", p_ptr->name, o_name);
 	msg_format(Ind, "You notice %s lying on the ground!", o_name);
   #endif
  #else /* Monetary reward */
@@ -5364,6 +5376,7 @@ void dunfound_reward(int Ind, dungeon_type *d_ptr) {
 	reward = 34247 * (1 + 72 / (((dun_total_normal - dun_total_normal_known) * 9 + 1) / 10)); // scales from 137k (none of 27 found) to 2.5M (last two remaining of 27)
   #ifndef DUNFOUND_REWARDS_MONEY_DROP /* Auto-pick it up? */
 	msg_format(Ind, "The Mathom House sends %d gold pieces to support your exploration efforts!", reward);
+	s_printf("DUNFOUND_REWARD(7): %s gains %d Au.\n", Players[Ind]->name, reward);
 	(void)gain_au(Ind, reward, FALSE, FALSE);
   #else
 	invcopy(&forge, lookup_kind(TV_GOLD, 1));
@@ -5372,6 +5385,7 @@ void dunfound_reward(int Ind, dungeon_type *d_ptr) {
 	forge.sval = k_info[forge.k_idx].sval;
 	object_desc(Ind, o_name, &forge, TRUE, 3);
 	drop_near(TRUE, 0, &forge, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
+	s_printf("DUNFOUND_REWARD(8): %s gains '%s'.\n", p_ptr->name, o_name);
 	msg_format(Ind, "You notice %s lying on the ground!", o_name);
   #endif
  #endif

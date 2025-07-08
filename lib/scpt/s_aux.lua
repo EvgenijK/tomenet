@@ -72,6 +72,8 @@ function finish_spell(must_i)
 	assert(s.desc, "No spell desc!")
 	if not s.direction then s.direction = FALSE end
 	if not s.item then s.item = -1 end
+	if not s.extrareq then s.extrareq = -1 end
+	if not s.extralev then s.extralev = 0 end
 
 	i = new_spell(must_i, s.name)
 	assert(i == must_i, "ACK ! i != must_i ! please contact the maintainer")
@@ -86,10 +88,14 @@ function finish_spell(must_i)
 	else
 		spell(i).spell_power = 1
 	end
+
 	__spell_spell[i] = s.spell
 	__spell_name2[i] = s.name2
 	__spell_info[i] = s.info
 	__spell_desc[i] = s.desc
+
+	spell(i).extrareq = s.extrareq
+	spell(i).extralev = s.extralev
 	return i
 end
 
@@ -258,18 +264,24 @@ end
 
 -- Can we cast the spell ?
 function is_ok_spell(i, s)
+	-- client-side (0) or server-side (>=1) ?
+	if i ~= 0 then
+		ply = players(i)
+	else
+		ply = player
+	end
+
 	if get_level(i, s, 50, 0) == 0 then return nil end
 
-	if (s == FIREFLASH_I or s == FIREFLASH_II) and player.prace == RACE_VAMPIRE then
-		return nil
-	end
-	if player.admin_wiz == 0 and player.admin_dm == 0 then
-		if s == BLOODSACRIFICE and player.pclass ~= CLASS_HELLKNIGHT and player.pclass ~= CLASS_CPRIEST then
-			return nil
-		end
-		if (s == OREGEN or s == OUNLIFERES) and player.prace ~= RACE_VAMPIRE then
-			return nil
-		end
+	if (not check_affect(s, "forbid_undead")) and ply.prace == RACE_VAMPIRE then return nil end
+	if (not check_affect(s, "require_undead")) and ply.prace ~= RACE_VAMPIRE then return nil end
+	if (not check_affect(s, "forbid_demon")) and (ply.pclass == CLASS_HELLKNIGHT or ply.pclass == CLASS_CPRIEST) then return nil end
+	if (not check_affect(s, "require_demon")) and ply.pclass ~= CLASS_HELLKNIGHT and ply.pclass ~= CLASS_CPRIEST then return nil end
+
+	if spell(s).extrareq ~= -1 then
+		local r = ply.s_info[spell(s).extrareq + 1].value
+
+		if r < spell(s).extralev then return nil end
 	end
 
 	return 1
@@ -278,23 +290,12 @@ end
 function is_ok_spell2(i, s)
 	local lev = get_level(i, s, 50, 0)
 
-	if lev == 0 then return nil end
-
-	if (s == FIREFLASH_I or s == FIREFLASH_II) and player.prace == RACE_VAMPIRE then
-		return nil
-	end
-	if player.admin_wiz == 0 and player.admin_dm == 0 then
-		if s == BLOODSACRIFICE and player.pclass ~= CLASS_HELLKNIGHT and player.pclass ~= CLASS_CPRIEST then
-			return nil
-		end
-		if (s == OREGEN or s == OUNLIFERES) and player.prace ~= RACE_VAMPIRE then
-			return nil
-		end
+	if is_ok_spell(i, s) ~= nil then
+		if __tmp_spells[s].priority then lev = lev + __tmp_spells[s].priority end
+		return lev
 	end
 
-	if __tmp_spells[s].priority then lev = lev + __tmp_spells[s].priority end
-
-	return lev
+	return nil
 end
 
 -- Get the amount of mana(or power) needed
@@ -565,7 +566,14 @@ function print_spell_chat(s, inven_slot)
 
 	--format("   %-22s%-14s Level Cost Fail Info", "Name", "School")
 	--c_msg_print(format("\255G%-22s%-16s %3d %4s %3d%s %s", spell(s).name, sch_str, lvl, get_mana(i, s, inven_slot), spell_chance(i, s, inven_slot), "%", __spell_info[s]()))
-	Send_msg(format("\255G%-22s%-16s %3d %4s %3d%s %s", spell(s).name, sch_str, lvl, get_mana(i, s, inven_slot), spell_chance(i, s, inven_slot), "%", __spell_info[s]()))
+	local sinf = __spell_info[s]()
+	local fcol = strfind(sinf, ":")
+	if fcol ~= nil then
+		--duplicate the first colon so it isn't treated as private chat accidentally
+		--NOTE: Actually that not required here as the ':' is too far to the right anyway, preventing accidental 'name'-detection, but whatever, let's paranoia
+		sinf = strsub(sinf, 1, fcol)..":"..strsub(sinf, fcol + 1, -1)
+	end
+	Send_msg(format("\255G%-22s%-16s %3d %4s %3d%s %s", spell(s).name, sch_str, lvl, get_mana(i, s, inven_slot), spell_chance(i, s, inven_slot), "%", sinf))
 end
 function print_spell_desc_chat(s)
 	local index, desc
@@ -573,8 +581,21 @@ function print_spell_desc_chat(s)
 
 	if type(__spell_desc[s]) == "string" then Send_msg("\255W"..__spell_desc[s])
 	else
+		local col1 = 0
 		for index, desc in __spell_desc[s] do
-			msg = msg..desc.." "
+			if col1 == 0 then
+				local fcol = strfind(desc, ":")
+				if fcol == nil then
+					msg = msg..desc.." "
+				else
+					--duplicate (only) the first colon so it isn't treated as private chat accidentally
+					local descline = strsub(desc, 1, fcol)..":"..strsub(desc, fcol + 1, -1)
+					msg = msg..descline.." "
+					col1 = 1
+				end
+			else
+				msg = msg..desc.." "
+			end
 		end
 		Send_msg("\255W"..msg)
 	end
@@ -829,6 +850,13 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 		ply = player
 	end
 
+	if not is_ok_spell(i, s) then
+		local energy = level_speed(ply.wpos);
+		ply.energy = ply.energy - energy
+		msg_print(i, "\255oYou cannot cast this spell!")
+		return 0
+	end
+
 	local use = FALSE
 
 	-- No magic
@@ -880,7 +908,7 @@ function cast_school_spell(i, s, s_ptr, no_cost, other)
 		end
 
 --[[		-- Sanity check for direction
-		if (need_direction(s) && other.dir == -1) then
+		if (need_direction(s) and other.dir == -1) then
 			msg_print(i, "Spell needs a direction.")
 			return
 		end

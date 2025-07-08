@@ -1140,8 +1140,11 @@ static void wr_extra(int Ind) {
 	for (i = 0; i < MAX_GLOBAL_EVENT_TYPES; i++)
 		wr_s16b(p_ptr->global_event_participated[i]);
 
-	wr_s16b(p_ptr->combat_stance);
-	wr_s16b(p_ptr->combat_stance_power);
+	wr_byte(p_ptr->combat_stance);
+	wr_byte(p_ptr->combat_stance_prev);
+	wr_byte(p_ptr->combat_stance_power);
+	wr_byte(0); //HOLE
+
 	wr_byte(p_ptr->cloaked);
 	wr_byte(p_ptr->shadow_running);
 	wr_byte(p_ptr->shoot_till_kill);
@@ -1190,12 +1193,13 @@ static void wr_extra(int Ind) {
 
 	wr_byte(p_ptr->tim_lcage);
 
-	tmp8u = (p_ptr->cut_intrinsic ? 0x01 : 0x00) + (p_ptr->nocut_intrinsic ? 0x02 : 0x00);
+	tmp8u = (p_ptr->cut_intrinsic_regen ? 0x01 : 0x00) + (p_ptr->cut_intrinsic_nocut ? 0x02 : 0x00);
 	wr_byte(tmp8u);
 	wr_byte(p_ptr->combosets);
+	wr_s16b(p_ptr->cut_bandaged);
 
 	/* --- future use / HOLE: --- */
-	for (i = 0; i < 6; i++) wr_byte(0);
+	for (i = 0; i < 4; i++) wr_byte(0);
 
 	/* for shuffling/dealing a deck of cards */
 	wr_u16b(p_ptr->cards_diamonds);

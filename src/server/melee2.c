@@ -795,7 +795,6 @@ void ball(int Ind, int m_idx, int typ, int dam_hp, int y, int x, int rad) {
 		/* everyone nearby the monster can hear it too, even if no LOS */
 		if (m_idx > 0) sound_near_monster_atk(m_idx, Ind, "lightning", "thunder", SFX_TYPE_NO_OVERLAP);//SFX_TYPE_MON_SPELL
 		else sound_near_site(y, x, &p_ptr->wpos, Ind, "lightning", "thunder", SFX_TYPE_NO_OVERLAP, FALSE);//SFX_TYPE_MON_SPELL
-
 	}
 	else if (p_ptr->sfx_monsterattack) {
 		sound(Ind, "cast_ball", NULL, SFX_TYPE_MON_SPELL, TRUE);
@@ -808,6 +807,48 @@ void ball(int Ind, int m_idx, int typ, int dam_hp, int y, int x, int rad) {
 
 	/* Target the player with a ball attack */
 	(void)project(m_idx, rad, &p_ptr->wpos, y, x, dam_hp, typ, flg, p_ptr->attacker);
+}
+
+/* This function is specifically for when a ball effect is cast but not directed at any particular player.
+   (We ignore MONSTER_SFX_WAY and treat it like 1, aka all affected players can hear it.) */
+void ball_noInd(int m_idx, int typ, int dam_hp, struct worldpos *wpos, int y, int x, int rad) {
+	int flg = PROJECT_NORF | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL | PROJECT_NODO;
+
+#ifdef USE_SOUND_2010
+	if (typ == GF_ROCKET) {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "rocket", NULL, SFX_TYPE_MON_SPELL);
+		else sound_near_site(y, x, wpos, 0, "rocket", NULL, SFX_TYPE_MON_SPELL, FALSE);
+	}
+	else if (typ == GF_DETONATION) {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "detonation", NULL, SFX_TYPE_MON_SPELL);
+		else sound_near_site(y, x, wpos, 0, "detonation", NULL, SFX_TYPE_MON_SPELL, FALSE);
+	}
+	else if (typ == GF_METEOR) {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "detonation", NULL, SFX_TYPE_MON_SPELL);
+		else sound_near_site(y, x, wpos, 0, "detonation", NULL, SFX_TYPE_MON_SPELL, FALSE);
+	}
+	else if (typ == GF_STONE_WALL) {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "stone_wall", NULL, SFX_TYPE_MON_SPELL);
+		else sound_near_site(y, x, wpos, 0, "stone_wall", NULL, SFX_TYPE_MON_SPELL, FALSE);
+	}
+	else if (m_list[m_idx].r_idx == RI_LIVING_LIGHTNING) {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "lightning", "thunder", SFX_TYPE_NO_OVERLAP);//SFX_TYPE_MON_SPELL
+		else sound_near_site(y, x, wpos, 0, "lightning", "thunder", SFX_TYPE_NO_OVERLAP, FALSE);//SFX_TYPE_MON_SPELL
+
+	}
+	else {
+		/* everyone nearby the monster can hear it too, even if no LOS */
+		if (m_idx > 0) sound_near_monster_atk(m_idx, 0, "cast_ball", NULL, SFX_TYPE_MON_SPELL);
+		else sound_near_site(y, x, wpos, 0, "cast_ball", NULL, SFX_TYPE_MON_SPELL, FALSE);
+	}
+#endif
+
+	(void)project(m_idx, rad, wpos, y, x, dam_hp, typ, flg, "");
 }
 
 #if 0
@@ -868,8 +909,7 @@ void mon_meteor_swarm(int Ind, int m_idx, int typ, int dam, int x, int y, int ra
 	/* Note: We don't actually use 'rad'. The projection only affects one grid, aka rad 0, from where on it unfolds.
 	   The actual 'meteor'-style effect will then use a hard-coded radius that might differ.
 	   So, todo maybe: Somehow carry over the specified 'rad' instead of it being a dummy. */
-	//(void)project(Ind, 0, &p_ptr->wpos, y, x, dam, typ, flg, p_ptr->attacker);
-	(void)project(Ind, 0, &p_ptr->wpos, y, x, dam, typ, flg, p_ptr->attacker);
+	(void)project(PROJECTOR_UNUSUAL, 0, &p_ptr->wpos, y, x, dam, typ, flg, p_ptr->attacker); //could use m_idx for better kill msg
 }
 
 
@@ -1407,6 +1447,9 @@ static void administrative_push(int Ind, monster_type *m_ptr, cave_type **zcave)
 	set_stun(Ind, p_ptr->stun + 10);
 }
 
+/* Hack: Low grab chances are extra effective against low level monsters? */
+#define LOW_LEVEL_MONSTER_INTERCEPTION
+
 int calc_grab_chance(player_type *p_ptr, int mod, int rlev) {
 	int grabchance;
 #ifdef ENABLE_STANCES
@@ -1473,6 +1516,15 @@ int calc_grab_chance(player_type *p_ptr, int mod, int rlev) {
  #ifdef ENABLE_STANCES
 	grabchance = (grabchance * fac) / 100; /* new way: modify final grabchance after rlev subtraction has been applied */
  #endif
+#endif
+
+#ifdef LOW_LEVEL_MONSTER_INTERCEPTION
+	if (rlev <= 90) {
+		int s = get_skill_scale(p_ptr, SKILL_INTERCEPT, 50), m = 100 / (rlev + 10) - 1;
+
+		if (s > m) s = m;
+		grabchance += s * 2;
+	}
 #endif
 
 	/* apply action-specific modifier */
@@ -3076,7 +3128,7 @@ bool make_attack_spell(int Ind, int m_idx) {
 			if (res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(2, 3), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(2, 3), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -3099,7 +3151,7 @@ bool make_attack_spell(int Ind, int m_idx) {
 			if (res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(5, 5), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(5, 5), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -3122,7 +3174,7 @@ bool make_attack_spell(int Ind, int m_idx) {
 			if (res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(10, 10), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(10, 10), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -5318,7 +5370,7 @@ bool make_attack_spell_mirror(int Ind, int m_idx) {
 			if (res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(2, 3), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(2, 3), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -5341,7 +5393,7 @@ bool make_attack_spell_mirror(int Ind, int m_idx) {
 			if (res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(5, 5), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(5, 5), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -5364,7 +5416,7 @@ bool make_attack_spell_mirror(int Ind, int m_idx) {
 			if (!res) msg_print(Ind, "You resist the effects!");
 			else {
 				take_hit(Ind, dam, ddesc, -m_idx);
-				(void)set_cut(Ind, p_ptr->cut + damroll(10, 10), -m_idx);
+				(void)set_cut(Ind, p_ptr->cut + damroll(10, 10), -m_idx, FALSE);
 			}
 			break;
 		}
@@ -11155,7 +11207,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 						if (o_ptr->owner) s_printf("ITEM_TAKEN_DELETE: %s by %s (%d,%d,%d)\n", o_name, m_name_real, wpos->wx, wpos->wy, wpos->wz);
 
 						/* Delete the object */
-						delete_object_idx(this_o_idx, TRUE);
+						delete_object_idx(this_o_idx, TRUE, FALSE);
 					} else
  #endif	// MONSTER_ITEM_CONSUME
 					{
@@ -11192,7 +11244,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 					if (o_ptr->owner) s_printf("ITEM_TAKEN_DELETE: %s by %s (%d,%d,%d)\n", o_name, m_name_real, wpos->wx, wpos->wy, wpos->wz);
 
 					/* Delete the object */
-					delete_object(wpos, ny, nx, TRUE);
+					delete_object(wpos, ny, nx, TRUE, FALSE);
 #endif	// MONSTER_INVENTORY
 				}
 
@@ -11214,7 +11266,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 
 					/* Delete the object */
 					//delete_object(wpos, ny, nx);	/* arts.. */
-					delete_object_idx(c_ptr->o_idx, TRUE);
+					delete_object_idx(c_ptr->o_idx, TRUE, FALSE);
 
 #if 0	// XXX
 					/* Scan all objects in the grid */
@@ -11232,7 +11284,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 						}
 
 						/* Wipe the object */
-						delete_object_idx(this_o_idx, TRUE);
+						delete_object_idx(this_o_idx, TRUE, FALSE);
 					}
 #endif
 				}
@@ -11259,7 +11311,7 @@ static void process_monster(int Ind, int m_idx, bool force_random_movement) {
 					m_ptr->no_move = 15; //alernative method, comes with proper hacked message when it ends, too :)
 
 					/* Delete the object */
-					delete_object(wpos, ny, nx, TRUE);
+					delete_object(wpos, ny, nx, TRUE, FALSE);
 				}
 			}
 #endif
@@ -12315,7 +12367,7 @@ void process_monsters(void) {
 
 	bool		test;
 
-	int		closest, dis_to_closest, lowhp;
+	int		closest, dis_to_closest, lowhp, dis_strongest_los = 9999;
 	bool		blos, new_los;
 	bool		interval = (((turn / MONSTER_TURNS) % (cfg.fps / MONSTER_TURNS)) == 0);
 
@@ -12750,8 +12802,15 @@ void process_monsters(void) {
 			/* Skip if player wears amulet of invincibility - C. Blue */
 			    || p_ptr->admin_invinc)
 			    && (!m_ptr->owner || (m_ptr->owner != p_ptr->id))) { /* for Dungeon Master GF_DOMINATE */
-				if (los(&p_ptr->wpos, p_ptr->py, p_ptr->px, fy, fx) && j <= MAX_SIGHT) m_ptr->strongest_los = pl;
-				if (m_ptr->r_idx != RI_BLUE) continue;
+				if (los(&p_ptr->wpos, p_ptr->py, p_ptr->px, fy, fx) && j <= MAX_SIGHT) {
+					if (j < dis_strongest_los) {
+						dis_strongest_los = j;
+						m_ptr->strongest_los = pl;
+					}
+				}
+				/* (Note: If this 'continue' code is ever modified to be skipped for RI_BLUE,
+				   then the check (***) must accomodate for it, as closest will no longer be -1 but the actual Ind.) */
+				continue;
 			}
 
 			/* Change monster's highest player encounter - mode 3: monster is awake and player is within its area of awareness */
@@ -12974,7 +13033,7 @@ void process_monsters(void) {
 			lowhp = p_ptr->chp;
 		}
 
-		/* Paranoia -- Make sure we found a closest player */
+		/* Paranoia -- Make sure we found a closest player (***) */
 		if (closest == -1) {
 			/* hack: still move around randomly? */
 			if (may_move_Ind) {
@@ -13179,14 +13238,12 @@ void curse_equipment(int Ind, int chance, int heavy_chance) {
 	player_type *p_ptr = Players[Ind];
 	bool changed = FALSE;
 	u32b f1, f2, f3, f4, f5, f6, esp;
-	object_type * o_ptr = &p_ptr->inventory[INVEN_WIELD + rand_int(12)];
-
-	if (randint(100) > chance) return;
+	object_type *o_ptr = &p_ptr->inventory[INVEN_WIELD + rand_int(12)];
 
 	if (!(o_ptr->k_idx)) return;
+	if (randint(100) > chance) return;
 
 	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
-
 
 	/* Extra, biased saving throw for blessed items */
 	if ((f3 & (TR3_BLESSED)) && (randint(888) > chance)) {
@@ -13218,9 +13275,12 @@ void curse_equipment(int Ind, int chance, int heavy_chance) {
 	if (changed) {
 		msg_print(Ind, "There is a malignant black aura surrounding you...");
 		if (o_ptr->note) {
-			if (streq(quark_str(o_ptr->note), "uncursed")) {
-				o_ptr->note = 0;
-			}
+			/* new: remove previous pseudo-id tag completely */
+			char note2[80], noteid[10];
+
+			note_crop_pseudoid(note2, noteid, quark_str(o_ptr->note));
+			if (!note2[0]) o_ptr->note = o_ptr->note_utag = 0;
+			else o_ptr->note = quark_add(note2);
 		}
 	}
 }

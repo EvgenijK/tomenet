@@ -146,8 +146,8 @@ void display_inventory(void) {
 		display_entry(store_top + k, entries);
 	}
 
-	/* Erase the extra lines and the "more" prompt */
-	for (i = k; i < entries; i++) prt("", i + y + 3, 0);
+	/* Erase the extra lines, +1 for the "more" prompt */
+	for (i = k; i < entries + 1; i++) prt("", i + y + 3, 0);
 
 	/* Assume "no current page" */
 	put_str("             ", y + 2, 20);
@@ -349,6 +349,8 @@ static void store_purchase(bool one) {
 
 	/* Find out how many the player wants */
 	if (o_ptr->number > 1 && !one) {
+		int limitG = scan_auto_inscriptions_for_limit(store_names[item]);
+
 		/* Hack -- note cost of "fixed" items */
 		if (store_num != STORE_HOME && store_num != STORE_HOME_DUN) {
 			c_msg_print(format("That costs %d gold per item.", store_prices[item]));
@@ -358,18 +360,23 @@ static void store_purchase(bool one) {
 
 			/* Get a quantity */
 			if (o_ptr->number <= amt_afford)
-				amt = c_get_quantity(NULL, 1, o_ptr->number);
+				if (limitG) amt = c_get_quantity(NULL, limitG <= amt_afford ? limitG : o_ptr->number, o_ptr->number);
+				else amt = c_get_quantity(NULL, 1, o_ptr->number);
 			else if (amt_afford > 1) {
 				inkey_letter_all = TRUE;
-				sprintf(out_val, "Quantity (1-\377y%d\377w, 'a' or spacebar for all): ", amt_afford);
-				amt = c_get_quantity(out_val, 1, amt_afford);
+				if (limitG) amt = c_get_quantity(NULL, limitG <= amt_afford ? limitG : amt_afford, amt_afford);
+				else {
+					sprintf(out_val, "Quantity (1-\377y%d\377w, 'a' or spacebar for all): ", amt_afford);
+					amt = c_get_quantity(out_val, 1, amt_afford);
+				}
 			} else {
 				sprintf(out_val, "Quantity (\377y1\377w): ");
 				amt = c_get_quantity(out_val, 1, -1);
 			}
 		} else {
 			/* Get a quantity */
-			amt = c_get_quantity(NULL, 1, o_ptr->number);
+			if (limitG) amt = c_get_quantity(NULL, limitG <= o_ptr->number ? limitG : o_ptr->number, o_ptr->number);
+			else amt = c_get_quantity(NULL, 1, o_ptr->number);
 		}
 
 		/* Allow user abort */

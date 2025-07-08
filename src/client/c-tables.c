@@ -536,7 +536,7 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "auto_pickup",		"Automatically pickup items (see '/apickup')" },
 	{ &c_cfg.auto_destroy,		FALSE,	8,	0, 140, TRUE,
 	    "auto_destroy",		"Automatically destroy items (see '/adestroy')" },
-	{ &c_cfg.destroy_all_unmatched,	FALSE,	8,	0, 141, TRUE,
+	{ &c_cfg.destroy_all_unmatched,	FALSE,	8,	0, 141, TRUE,	// this option does't make sense, can just use '#' in & menu instead, much cheaper
 	    "destroy_all_unmatched",	"Destroys ALL unmatched items. (Like A'#' in &.)" },
 
 	{ &c_cfg.mp_huge_bar,		TRUE,	1,	0, 142, TRUE,
@@ -622,6 +622,17 @@ option_type option_info[OPT_MAX] = { // there is room for 22 options per page on
 	    "st_huge_bar",		"Also show stamina as huge bar (big_map only)" },
 	{ &c_cfg.huge_bars_gfx,		TRUE,	1,	0, 178, TRUE,
 	    "huge_bars_gfx",		"Display huge bars graphically if graphics are on" },
+
+	{ &c_cfg.autoinsc_debug,	FALSE,	8,	0, 179, TRUE,
+	    "autoinsc_debug",		"Displays extra info on auto-inscriptions matching" },
+	{ &c_cfg.autoloot_dunonly,	FALSE,	8,	0, 180, TRUE,
+	    "autoloot_dunonly",		"Suppress auto-pickup/destroy while not in dungeon" },
+	{ &c_cfg.autoloot_dununown,	FALSE,	8,	0, 181, TRUE,
+	    "autoloot_dununown",	"Suppress auto-pck/des if owned and not in dungeon" },
+	{ &c_cfg.flash_starvation,	TRUE,	7,	0, 182, TRUE, //moved exp_bar to page 2 to make room for this
+	    "flash_starvation",		"Flash 'Starved' food status by colour animation." },
+	{ &c_cfg.autoswitch_inven,	TRUE,	6,	0, 183, TRUE,
+	    "autoswitch_inven",		"Empty inven prompts auto-switch to equip or bag." },
 };
 
 cptr melee_techniques[16] = {

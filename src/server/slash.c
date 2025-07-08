@@ -330,11 +330,12 @@ static int a2slot(int Ind, char slot, char slot2, bool inven, bool equip) {
  */
 
 void do_slash_cmd(int Ind, char *message, char *message_u) {
-	int i = 0, j = 0, h = 0;
+	int i = 0, j = 0, h = 0, n = 0;
 	int k = 0, tk = 0;
 	player_type *p_ptr = Players[Ind];
-	char *colon, *token[9], message2[MAX_SLASH_LINE_LEN], message3[MAX_SLASH_LINE_LEN];
-	char message4[MAX_SLASH_LINE_LEN], messagelc[MAX_SLASH_LINE_LEN];
+	char *colon, *token[9];
+	char message2[MAX_SLASH_LINE_LEN], message3[MAX_SLASH_LINE_LEN], message4[MAX_SLASH_LINE_LEN];
+	char messagelc[MAX_SLASH_LINE_LEN];
 
 	worldpos wp;
 	bool admin = is_admin(p_ptr);
@@ -412,6 +413,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 	/* Oops conflict; took 'never duplicate' principal */
 	else if (prefix(messagelc, "/cough")) {
 	    /// count || prefix(messagelc, "/cou"))
+		/* Paralyzed/k.o.? */
+		if (p_ptr->energy <= 0) {
+			msg_print(Ind, "\377yYou cannot cough while you cannot move.");
+			return;
+		}
+
 		break_cloaking(Ind, 4);
 		msg_format_near(Ind, "\374\377%c%^s coughs noisily.", COLOUR_CHAT, p_ptr->name);
 		msg_format(Ind, "\374\377%cYou cough noisily..", COLOUR_CHAT);
@@ -419,6 +426,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		return;
 	}
 	else if (prefix(messagelc, "/shout") || (prefix(messagelc, "/sho") && !prefix(messagelc, "/show")) || prefix(messagelc, "/yell")) {
+		/* Paralyzed/k.o.? */
+		if (p_ptr->energy <= 0) {
+			msg_print(Ind, "\377yYou cannot shout while you cannot move.");
+			return;
+		}
+
 		break_cloaking(Ind, 4);
 		if (colon++) {
 			colon_u++;
@@ -442,6 +455,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		return;
 	}
 	else if (prefix(messagelc, "/scream") || (prefix(messagelc, "/scr") && !prefix(messagelc, "/screen"))) {
+		/* Paralyzed/k.o.? */
+		if (p_ptr->energy <= 0) {
+			msg_print(Ind, "\377yYou cannot scream while you cannot move.");
+			return;
+		}
+
 		break_cloaking(Ind, 6);
 		if (colon++) {
 			colon_u++;
@@ -621,8 +640,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			int s = 0;
 #endif
 
-			//if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
-			if (p_ptr->energy < 0) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot destroy items while you cannot move.");
+				return;
+			}
+
 			disturb(Ind, 1, 0);
 
 			/* only tagged ones? */
@@ -936,10 +959,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			//reduxx = strstr(inscription, "@@@@");
 
 			if (tk && (token[1][0] != '*')) {
-				h = (token[1][0]) - 'a';
+				h = -1;
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) h = p_ptr->item_newest;
+				} else h = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE);
 				j = h;
 				if (h < 0 || h >= INVEN_PACK || token[1][1]) {
-					msg_print(Ind, "\377oUsage: /tag [a..w|* [<inscription>]]");
+					msg_print(Ind, "\377oUsage: /tag [a..w|+|* [<inscription>]]");
 					return;
 				}
 			} else {
@@ -1179,6 +1205,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot cast while you cannot move.");
+				return;
+			}
+
 			if (*token[1] >= '1' && *token[1] <= '9') {
 				object_type *o_ptr;
 				char c[4] = "@";
@@ -1263,6 +1295,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #if 0
 		/* cast a spell by name, instead of book/position */
 		else if (prefix(messagelc, "/cast")) {
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot cast while you cannot move.");
+				return;
+			}
+
 			for (i = 0; i < 100; i++) {
 				if (!strncmp(p_ptr->spell_name[i], message3, strlen(message3))) {
 					cast_school_spell(Ind, p_ptr->spell_book[i], p_ptr->spell_pos[i], dir, item, aux);
@@ -1276,6 +1314,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		else if ((prefix(messagelc, "/bed")) || prefix(messagelc, "/naked")) {
 			byte start = INVEN_WIELD, end = INVEN_TOTAL;
 			object_type *o_ptr;
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot undress while you cannot move.");
+				return;
+			}
 
 			if (!tk) {
 				start = INVEN_BODY;
@@ -1316,8 +1360,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			int ws, ws_org;
 			s16b slot_weapon = -1, slot_ring = -1;
 
-			/* Paralyzed? */
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot dress while you cannot move.");
+				return;
+			}
 
 			disturb(Ind, 1, 0);
 
@@ -1516,19 +1563,18 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				bool spell_rec_found = FALSE, spell_rel_found = FALSE;
 				object_type *o_ptr;
 
-				/* Paralyzed or just not enough energy left to perform a move? */
-
-				/* this also prevents recalling while resting, too harsh maybe */
-				//if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
-				if (p_ptr->paralyzed) return;
 
 				/* Don't drain energy far below zero - mikaelh */
-				if (p_ptr->energy < 0) return;
-/* All of this isn't perfect. In theory, the command to use a specific rec-item would need to be added to the client's command queue I guess. oO */
-#if 0 /* can't use /rec while resting with this enabled, oops. */
-				/* hm, how about this? - C. Blue */
-				if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
-#endif
+				/* Paralyzed/k.o.? */
+				if (p_ptr->energy <= 0) {
+					msg_print(Ind, "\377yYou cannot initiate recall while you cannot move.");
+					return;
+				}
+				/* this also prevents recalling while resting, too harsh maybe */
+				//if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+
+				/* All of this isn't perfect. In theory, the command to use a specific rec-item would need to be added to the client's command queue I guess. oO */
+
 
 				/* Test for 'Recall' istar spell and for 'Relocation' astral spell */
 #if 0 /* hm, which version might be easier/better?.. */
@@ -1692,26 +1738,27 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 			}
 
+			// here we check to make sure the user didn't enter a depth or a coordinate
+			// we could use isalpha, except we'd like it to be robust against town names
+			// that start with special characters.
 			if (tk && !isdigit(token[1][0]) && (token[1][0] != '-')) {
-				// here we check to make sure the user didn't enter a depth or a coordinate
-				// we could use isalpha, except we'd like it to be robust against town names
-				// that start with special characters.
-				strcpy(message4, message3);
-				for (i = 0; message4[i]; ++i) message4[i] = tolower(message4[i]);
-				k = 0; h = 0;
-				// k holds length of best match, h holds index of best match
+				char *msgptr = message3, *cdptr;
+
+				if (!strncasecmp(msgptr, "The ", 4) && strlen(msgptr) > 4) msgptr += 4;
+				h = 0;
+				n = 256; // n holds best (ie earliest) match starting location in candidate name string
 				for (i = 0; i < numtowns; ++i) {
-					j = 0;
 					candidate_destination = town_profile[town[i].type].name;
-					while (message4[j] && (message4[j] == tolower(candidate_destination[j]))) ++j;
-					if (!message4[j] && !(candidate_destination[j])) { // perfect match
+					if (!strcasecmp(candidate_destination, msgptr)) { // perfect match
 						h = i;
 						good_match_found = 2;
 						break;
 					}
-					if (j == k) good_match_found = 0;
-					else if (j > k) {
-						k = j;
+					/* If the destination entered is not an actual substring of the best candidate, discard it */
+					if (!(cdptr = my_strcasestr(candidate_destination, msgptr))) continue;
+
+					if (cdptr - candidate_destination < n) {
+						n = cdptr - candidate_destination;
 						h = i;
 						good_match_found = 1;
 					}
@@ -1720,20 +1767,20 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					dungeon_type *d_ptr;
 
 					for (i = 1; i <= dungeon_id_max; ++i) {
-						j = 0;
 						d_ptr = getdungeon(&((struct worldpos) {dungeon_x[i], dungeon_y[i], dungeon_tower[i] ? 1 : -1}));
 						if (!(d_ptr->known & 0x1) && !admin) continue;
 						candidate_destination = get_dun_name(dungeon_x[i], dungeon_y[i], dungeon_tower[i], d_ptr, 0, TRUE);
-						if (!strncmp(candidate_destination, "The ", 4)) candidate_destination += 4;
-						while (message4[j] && (message4[j] == tolower(candidate_destination[j]))) ++j;
-						if (!message4[j] && !(candidate_destination[j])) { // perfect match
+						if (!strncmp(candidate_destination, "The ", 4) && strlen(candidate_destination) > 4) candidate_destination += 4;
+						if (!strcasecmp(candidate_destination, msgptr)) { // perfect match
 							h = i;
 							good_match_found = 4;
 							break;
 						}
-						if (j == k) good_match_found = 0;
-						else if (j > k) {
-							k = j;
+						/* If the destination entered is not an actual substring of the best candidate, discard it */
+						if (!(cdptr = my_strcasestr(candidate_destination, msgptr))) continue;
+
+						if (cdptr - candidate_destination < n) {
+							n = cdptr - candidate_destination;
 							h = i;
 							good_match_found = 3;
 						}
@@ -1997,7 +2044,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				add_xorder(Ind, j, r, num, flags);
 			return;
 		}
-		else if (prefix(messagelc, "/feeling") || prefix(messagelc, "/fe")) {
+		else if (prefix(messagelc, "/feeling") || !strcmp(messagelc, "/fe")) {
 			cave_type **zcave = getcave(&p_ptr->wpos);
 			bool no_tele = FALSE;
 
@@ -2161,33 +2208,63 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 		else if (prefix(messagelc, "/sip")) {
-			/* Paralyzed? */
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot drink from a fountain while you cannot move.");
+				return;
+			}
 
 			do_cmd_drink_fountain(Ind);
 			return;
 		}
 		else if (prefix(messagelc, "/fill")) {
-			/* Paralyzed? */
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot fill bottles while you cannot move.");
+				return;
+			}
 
 			do_cmd_fill_bottle(Ind, -1);
 			return;
 		}
 		else if (prefix(messagelc, "/empty") || prefix(messagelc, "/emp")) {
-			int slot;
-
-			//return;//disabled for anti-cheeze
 			if (!tk) {
-				msg_print(Ind, "\377oUsage: /empty (inventory slot letter|+)");
+				msg_print(Ind, "\377oUsage: /empty <inventory slot letter|+>");
 				return;
 			}
+
 			if (message3[0] == '+') {
-				if (p_ptr->item_newest >= 0) do_cmd_empty_potion(Ind, p_ptr->item_newest);
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot empty bottles while you cannot move.");
 				return;
 			}
-			if ((slot = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
-			do_cmd_empty_potion(Ind, slot);
+
+			do_cmd_empty_potion(Ind, k);
+			return;
+		}
+		else if (prefix(messagelc, "/rip") || prefix(messagelc, "/tear")) { //tear cloth into bandages
+			if (!tk) {
+				msg_print(Ind, "\377oUsage: /rip <inventory slot letter|+>");
+				return;
+			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot tear cloth while you cannot move.");
+				return;
+			}
+
+			if (message3[0] == '+') {
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+
+			do_cmd_rip_cloth(Ind, k);
 			return;
 		}
 		else if ((prefix(messagelc, "/dice") ||
@@ -2206,6 +2283,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot roll dice while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			if (!strcmp(message, "/d") || !strcmp(message, "/r")) k = 2;
 			else if (!strcmp(message, "/die")) {
@@ -2303,6 +2387,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 			}
 
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot flip coins while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			coin = (rand_int(2) == 0);
 			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
@@ -2338,6 +2429,14 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "\377rYou cannot have anymore pets!");
 				return;
 			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot summon a pet while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			if (pet_creation(Ind))
 				msg_print(Ind, "\377USummoning a pet.");
 			else
@@ -2347,6 +2446,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #endif
 		else if (prefix(messagelc, "/unpet")) {
 #ifdef RPG_SERVER
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot dismiss your pet while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			if (strcmp(Players[Ind]->accountname, "The_sandman") || !p_ptr->privileged) return;
 			msg_print(Ind, "\377RYou abandon your pet! You cannot have anymore pets!");
 //			if (Players[Ind]->wpos.wz != 0) {
@@ -2390,6 +2496,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot shuffle cards while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			if (!tk) {
 				msg_format(Ind, "\377%cYou shuffle a deck of 52 cards", COLOUR_GAMBLE);
@@ -2492,6 +2605,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot hand your cards over while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			msg_format(Ind, "\377%cYou hand your stack of cards over to %s.", COLOUR_GAMBLE, q_ptr->name);
 			msg_format_near(Ind, "\377%c%s hands his stack of cards over to %s.", COLOUR_GAMBLE, p_ptr->name, q_ptr->name);
 #ifdef USE_SOUND_2010
@@ -2516,7 +2636,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			int value, flower;
 			char* temp;
 
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot play cards while you cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			temp = (char*)malloc(10*sizeof(char));
@@ -2577,7 +2701,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 			}
 
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot play cards while you cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			if (tk) {
@@ -3322,18 +3450,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 #endif
-		else if (prefix(messagelc, "/invn")) { /* Set o_ptr->number for an inventory slot */
-			char slot = message3[0];
-
-			if (slot < 'a' || slot > 'w') {
-				msg_print(Ind, "Usage: /invn <a..w> <number>");
-				return;
-			}
-			if (p_ptr->inventory[slot - 'a'].k_idx) p_ptr->inventory[slot - 'a'].number = atoi(message3 + 1);
-			else msg_format(Ind, "Empty slot: %c).", slot);
-			p_ptr->window |= PW_INVEN;
-			return;
-		}
 		else if (prefix(messagelc, "/evinfo")) { /* get info on a global event */
 			int n = 0;
 			char ppl[75];
@@ -3668,18 +3784,8 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			recall_player(Ind, "");
 			return;
 		}
-		else if (prefix(messagelc, "/remdun")) { /* forcefully removes a dungeon or tower, even if someone is inside (gets recalled), even if there is no staircase. */
-			if (!tk) {
-				msg_print(Ind, "Usage: /remdun (d/t)");
-				return;
-			}
-			msg_format(Ind, "Dungeon removal %s.", rem_dungeon(&p_ptr->wpos, token[1][0] != 'd') ? "succeeded" : "failed");
-			return;
-		}
 #ifdef AUCTION_SYSTEM
 		else if (prefix(messagelc, "/auc") || prefix(messagelc, "/auction")) {
-			int n;
-
 			if (p_ptr->inval) {
 				msg_print(Ind, "\377oYou must be validated to use the auction system.");
 				return;
@@ -3858,14 +3964,27 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		/* workaround - refill ligth source (outdated clients cannot use 'F' due to INVEN_ order change */
 		else if (prefix(messagelc, "/light") && !prefix(messagelc, "/lightning")) {
 			if (tk != 1) {
-				msg_print(Ind, "Usage: /light a...w");
+				msg_print(Ind, "Usage: /light a...w|+");
 				return;
 			}
-			k = message3[0] - 97;
+
+			if (message3[0] == '+') {
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+
 			if (k < 0 || k >= INVEN_PACK) {
-				msg_print(Ind, "Usage: /light a...w");
+				msg_print(Ind, "Usage: /light a...w|+");
 				return;
 			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot refill your light while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			do_cmd_refill(Ind, k);
 			return;
 		}
@@ -3961,7 +4080,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		else if (prefix(messagelc, "/pbbs")) {
 			/* Look at or write to in-game party bbs, as suggested by Caine/Goober - C. Blue */
 			bool bbs_empty = TRUE;
-			int n;
 
 			if (!p_ptr->party) {
 				msg_print(Ind, "You have to be in a party to interact with a party BBS.");
@@ -3989,7 +4107,6 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 		else if (prefix(messagelc, "/gbbs")) {
 			/* Look at or write to in-game guild bbs - C. Blue */
 			bool bbs_empty = TRUE;
-			int n;
 
 			if (!p_ptr->guild) {
 				msg_print(Ind, "You have to be in a guild to interact with a guild BBS.");
@@ -4032,6 +4149,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			int x, y;
 			cave_type **zcave = getcave(&p_ptr->wpos);
 
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot enter a store while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			/* Enter a player store next to us */
 			for (x = p_ptr->px - 1; x <= p_ptr->px + 1; x++)
 			for (y = p_ptr->py - 1; y <= p_ptr->py + 1; y++) {
@@ -4052,6 +4176,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			bool found = FALSE;
 			cave_type **zcave = getcave(&p_ptr->wpos);
 
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot paint your house while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 			/* need to specify one parm: the potion used for colouring */
 			if (tk != 1) {
 				msg_print(Ind, "\377oUsage:     /paint <inventory slot>");
@@ -4059,7 +4190,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "\377oWhere the slot must be a potion which determines the colour.");
 				return;
 			}
-			if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+			if (message3[0] == '+') {
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
 
 			/* Check for a house door next to us */
 			for (x = p_ptr->px - 1; x <= p_ptr->px + 1; x++) {
@@ -4094,6 +4228,13 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "\377oUsage:     /knock");
 				return;
 			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot knock on a door while you cannot move.");
+				return;
+			}
+			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			/* Check for a house door next to us, and for a window as fallback */
 			for (x = p_ptr->px - 1; x <= p_ptr->px + 1; x++) {
@@ -4132,7 +4273,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "Usage: /slap <player name>");
 				return;
 			}
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			j = name_lookup_loose(Ind, message3, FALSE, FALSE, FALSE);
@@ -4179,7 +4324,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "Usage: /pat <player name>");
 				return;
 			}
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			/* hack: real Panda */
@@ -4233,7 +4382,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "Usage: /hug <player name>");
 				return;
 			}
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			j = name_lookup_loose(Ind, message3, FALSE, FALSE, FALSE);
@@ -4268,7 +4421,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "Usage: /poke <player name>");
 				return;
 			}
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			j = name_lookup_loose(Ind, message3, FALSE, FALSE, FALSE);
@@ -4297,7 +4454,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 		else if (prefix(messagelc, "/applaud")) {
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			if (tk) {
@@ -4324,7 +4485,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			return;
 		}
 		else if (prefix(messagelc, "/wave")) {
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			if (tk) {
@@ -4371,7 +4536,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(Ind, "You don't have any money with you.");
 				return;
 			}
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot tip while you cannot move.");
+				return;
+			}
 			p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 			j = name_lookup_loose(Ind, message3, FALSE, FALSE, FALSE);
@@ -5980,7 +6150,17 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
-			if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot split items while you cannot move.");
+				return;
+			}
+
+			if (message3[0] == '+') {
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, FALSE)) == -1) return;
+
 			if (tk == 1) amt = 1;
 			else amt = atoi(token[2]);
 
@@ -6008,11 +6188,18 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
-			/* Paralyzed? */
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot stow items while you cannot move.");
+				return;
+			}
 
 			if (tk) {
-				if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval || o_ptr->tval != TV_SUBINVEN) {
 					msg_format(Ind, "Inventory item '%c)' is not a valid container.", token[1][0]);
@@ -6058,10 +6245,17 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				return;
 			}
 
-			/* Paralyzed? */
-			if (p_ptr->energy < level_speed(&p_ptr->wpos)) return;
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot stow items while you cannot move.");
+				return;
+			}
 
-			if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
+			if (message3[0] == '+') {
+				if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+				else return;
+			} else if ((k = a2slot(Ind, token[1][0], 0, TRUE, FALSE)) == -1) return;
+
 			o_ptr = &p_ptr->inventory[k];
 			if (!o_ptr->tval || o_ptr->tval != TV_SUBINVEN) {
 				msg_format(Ind, "Inventory item '%c)' is not a valid container.", token[1][0]);
@@ -6101,6 +6295,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_format(Ind, "Example:  /mix accD*  -> satchel slots: a, c twice, normal inven: d, activate.");
 				msg_format(Ind, "Last but not least you can specify repeat if you start on \"x<number of repeats>\".");
 				msg_format(Ind, "example:  /mix x9 bccd*   -> repeat 8 times. The number must range from 0 to 9.");
+				return;
+			}
+
+			/* Paralyzed/k.o.? */
+			if (p_ptr->energy <= 0) {
+				msg_print(Ind, "\377yYou cannot mix chemicals while you cannot move.");
 				return;
 			}
 
@@ -9014,6 +9214,14 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 #endif
 				return;
 			}
+			else if (prefix(messagelc, "/remdun")) { /* forcefully removes a dungeon or tower, even if someone is inside (gets recalled), even if there is no staircase. */
+				if (!tk) {
+					msg_print(Ind, "Usage: /remdun (d/t)");
+					return;
+				}
+				msg_format(Ind, "Dungeon removal %s.", rem_dungeon(&p_ptr->wpos, token[1][0] != 'd') ? "succeeded" : "failed");
+				return;
+			}
 			else if (prefix(messagelc, "/debug-pos")) {
 				/* C. Blue's mad debug code to change player @
 				   startup positions in Bree (px, py) */
@@ -9221,6 +9429,24 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				} else msg_format(Ind, "\377oSorry, the server reached the maximum of %d pending admin notes.", MAX_ADMINNOTES);
 				return;
 			}
+			else if (prefix(messagelc, "/manote")) { /* Modify a global admin note */
+				char *c;
+
+				j = 0;
+				if (tk < 2) { /* Explain command usage */
+					msg_format(Ind, "\377oUsage: /manote <note index 0..%d> <text>", MAX_ADMINNOTES - 1);
+					return;
+				}
+				if (k < 0 || k >= MAX_ADMINNOTES) {
+					msg_format(Ind, "\377oNote index must range from 0 to %d.", MAX_ADMINNOTES - 1);
+					return;
+				}
+				c = message3;
+				while (*c == ' ') c++;
+				strcpy(admin_note[k], strchr(c, ' ') + 1);
+				msg_print(Ind, "\377yNote has been stored.");
+				return;
+			}
 			else if (prefix(messagelc, "/broadcast-motd")) { /* Display all admin notes aka motd, plus any shutrec-warning, to all players. */
 				lua_broadcast_motd();
 				return;
@@ -9260,7 +9486,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
@@ -9374,7 +9603,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				object_type *o_ptr;
 				int tries = 1;
 
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
 
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
@@ -9427,7 +9659,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					return;
 				}
 
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->name2) {
 					msg_print(Ind, "\377oNot an ego item.");
@@ -9440,7 +9676,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 
 				return;/* see create_reward for proper loop */
 
-				apply_magic(&p_ptr->wpos, o_ptr, p_ptr->lev, TRUE, TRUE, TRUE, FALSE, RESF_NOART);
+				apply_magic(&p_ptr->wpos, o_ptr, p_ptr->lev, TRUE, TRUE, TRUE, FALSE, RESF_MASK_NOART);
 
 				msg_format(Ind, "Re-rolled ego in inventory slot %d!", k);
 				/* Window stuff */
@@ -11025,7 +11261,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 							/* k_idx = 1 is something weird... */
 							else if (!o_ptr->k_idx || o_ptr->k_idx == 1) {
 								msg_format(Ind, "Removed an invalid item (o_idx=%d) (k_idx=%d) found at (x=%d,y=%d)", o_idx, o_ptr->k_idx, x, y);
-								delete_object_idx(o_idx, TRUE);
+								delete_object_idx(o_idx, TRUE, FALSE);
 							}
 							prev_o_ptr = NULL;
 							/* more objects on this grid? */
@@ -11045,7 +11281,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 								}
 								else if (!o_ptr->k_idx || o_ptr->k_idx == 1) {
 									msg_format(Ind, "Removed an invalid item (o_idx=%d) (k_idx=%d) from a pile at (x=%d,y=%d)", o_idx, o_ptr->k_idx, x, y);
-									delete_object_idx(o_idx, TRUE);
+									delete_object_idx(o_idx, TRUE, FALSE);
 								}
 							}
 						}
@@ -11078,7 +11314,7 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				msg_print(j, "\377GYou have been rewarded by the gods!");
 
 //				create_reward(j, o_ptr, 1, 100, TRUE, TRUE, make_resf(Players[j]) | RESF_NOHIDSM, 5000);
-				give_reward(j, RESF_LOW2, NULL, 0, 100);
+				give_reward(j, RESF_MASK_LOW2, NULL, 0, 100);
 				return;
 			}
 			else if (prefix(messagelc, "/debug1")) { /* debug an issue at hand */
@@ -11347,7 +11583,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /costs <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				object_desc(Ind, o_name, o_ptr, TRUE, 0);
 				msg_format(Ind, "Overview for item %s in slot %d:",
@@ -11983,7 +12224,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /madart <slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval) {
 					msg_print(Ind, "\377oInventory slot empty.");
@@ -12081,7 +12327,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /measureart <slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				if (!o_ptr->tval) {
 					msg_print(Ind, "\377oInventory slot empty.");
@@ -13044,6 +13295,24 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 				return;
 			}
+			else if (prefix(messagelc, "/fixarttimeout")) {
+				if (!tk) {
+					msg_print(Ind, "No artifact index specified.");
+					return;
+				}
+				if (k < 1 || k >= max_a_idx) {
+					msg_format(Ind, "Error: Artifact index must range from 1 to %d.", max_a_idx - 1);
+					return;
+				}
+
+				/* --- partial copy/paste from determine_artifact_timeout(): --- */
+
+				a_info[k].timeout = get_artifact_timeout(k);
+				/* Specialty hacks */
+				if (k == ART_ANTIRIAD) a_info[ART_ANTIRIAD_DEPLETED].timeout = a_info[k].timeout;
+
+				return;
+			}
 			else if (prefix(messagelc, "/mtrack")) { /* track monster health of someone's current target */
 				char m_name[MNAME_LEN];
 				int p;
@@ -13114,7 +13383,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /testrandart <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				if (o_ptr->name1 != ART_RANDART) {
 					if (o_ptr->name1) {
@@ -14717,7 +14991,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /icursed <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				inverse_cursed(o_ptr);
 				return;
@@ -14729,7 +15008,12 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					msg_print(Ind, "\377oUsage: /icursed <inventory-slot>");
 					return;
 				}
-				if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
+				if (message3[0] == '+') {
+					if (p_ptr->item_newest >= 0) k = p_ptr->item_newest;
+					else return;
+				} else if ((k = a2slot(Ind, token[1][0], token[1][1], TRUE, TRUE)) == -1) return;
+
 				o_ptr = &p_ptr->inventory[k];
 				reverse_cursed(o_ptr);
 				return;
@@ -14914,6 +15198,11 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					//m_ptr-> = 0;
 					break;
 				}
+				return;
+			}
+			else if (prefix(messagelc, "/setfeat")) {
+				msg_format(Ind, "Setting feat %d (%s) here.", k, f_name + f_info[k].name);
+				cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, k);
 				return;
 			}
 		}

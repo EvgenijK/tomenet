@@ -2485,18 +2485,14 @@ static errr init_q_info(void) {
 
 /*** Initialize others ***/
 
-static void prepare_distance()
-{
+static void prepare_distance() {
 	int d, y, x, count = 0;
 
 	/* Start with adjacent locations, spread further */
-	for (d = 0; d < PREPARE_RADIUS ; d++)
-	{
+	for (d = 0; d < PREPARE_RADIUS ; d++){
 		/* Check nearby locations */
-		for (y = - d; y <= d; y++)
-		{
-			for (x = - d; x <= d; x++)
-			{
+		for (y = - d; y <= d; y++) {
+			for (x = - d; x <= d; x++) {
 				/* Check distance */
 				if (distance(y, x, 0, 0) != d) continue;
 
@@ -2516,15 +2512,13 @@ static void prepare_distance()
 }
 
 
-void init_schools(s16b new_size)
-{
+void init_schools(s16b new_size) {
 	/* allocate the extra memory */
 	C_MAKE(schools, new_size, school_type);
 	max_schools = new_size;
 }
 
-void init_spells(s16b new_size)
-{
+void init_spells(s16b new_size) {
 	/* allocate the extra memory */
 	C_MAKE(school_spells, new_size, spell_type);
 	max_spells = new_size;
@@ -2702,6 +2696,7 @@ static byte getiddctype(byte depth, byte last) {
 		    //Hardcoded exclusions from d_info.txt indices:
 		    || (i == 0) //Wilderness
 		    || (i == DI_NETHER_REALM) //Nether Realm (paranoia, too deep anyhow!)
+		    || (i == DI_CLOUD_PLANES) //Cloud Planes (paranoia, too deep anyhow!)
 		    || (i == DI_DEATH_FATE) //Death Fate
 		    || (i == DI_VALINOR) //Valinor (more paranoia)
 		    || (i == DI_HALLS_OF_MANDOS) //Problem: Halls of Mandos doesn't allow any unique monsters(!)
@@ -2765,6 +2760,7 @@ static errr init_iddc() {
 				    //Hardcoded exclusions from d_info.txt indices:
 				    && (j != 0) //Wilderness
 				    && (j != DI_NETHER_REALM) //Nether Realm (paranoia, too deep anyhow!)
+				    && (j != DI_CLOUD_PLANES) //Cloud Planes (paranoia, too deep anyhow!)
 				    && (j != DI_DEATH_FATE) //Death Fate
 				    && (j != DI_VALINOR) //Valinor (more paranoia)
 				    && (j != DI_HALLS_OF_MANDOS)) //Problem: Halls of Mandos doesn't allow any unique monsters(!)
@@ -3034,7 +3030,7 @@ static errr init_alloc(void) {
 			p = (10000 / r_ptr->rarity);
 
 			/* Adjust based on server settings - mikaelh */
-			p = p * mon_allowed_chance(r_ptr) / 100;
+			p = (p * mon_allowed_chance(r_ptr)) / 100;
 
 			/* Hack - Don't include zero probability entries in the table */
 			if (p == 0) continue;
@@ -3084,7 +3080,7 @@ static errr init_alloc(void) {
 			p = (10000 / r_ptr->rarity);
 
 			/* Adjust based on server settings - mikaelh */
-			p = p * mon_allowed_chance(r_ptr) / 100;
+			p = (p * mon_allowed_chance(r_ptr)) / 100;
 
 			/* for more efficiency: no dungeon bosses, done now in level-generation routine - C. Blue */
 			if (r_ptr->flags8 & RF8_FINAL_GUARDIAN) {
@@ -3108,9 +3104,8 @@ static errr init_alloc(void) {
 				if (table) {
 					/* hack: make all monsters' base probability 'most common'? */
 					if ((d_info[j].flags3 & DF3_DERARE_MONSTERS)) q = 10000;
-
 					/* Adjust the base probability */
-					q = p * restrict_monster_to_dungeon(i, j) / 100;
+					else q = (p * restrict_monster_to_dungeon(i, j)) / 100;
 
 					/* Load the entry */
 					table[z].index = i;
@@ -4101,6 +4096,7 @@ void init_firework_dungeon(void) {
 			    !strcmp(d_name + d_info[i].name, "The Training Tower") ||
 			    !strcmp(d_name + d_info[i].name, "Mordor") ||
 			    !strcmp(d_name + d_info[i].name, "Angband") ||
+			    !strcmp(d_name + d_info[i].name, "The Ash Mountains") ||
 			    !strcmp(d_name + d_info[i].name, "The Paths of the Dead"))
 				continue;
 

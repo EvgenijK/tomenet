@@ -31,11 +31,6 @@
 /* Inverse of (1 - assumed density of wood relative to water), we're assuming 0.5, so it's "1 / (1 - 0.5)" = 2. */
 #define WOOD_INV_DENSITY 2
 
-/* Half-Trolls and especially Trolls regenerate extraordinarily quickly (both players and monsters) */
-#define TROLL_REGENERATION
-/* Hydras regenerate extraordinarily quickly aka regrowing their heads (both players and monsters) */
-#define HYDRA_REGENERATION
-
 /* Maximum wilderness radius a player can travel with WoR [16]
  * TODO: Add another method to allow wilderness travels */
 #define RECALL_MAX_RANGE	24
@@ -856,6 +851,7 @@ void erase_effects(int effect) {
 	e_ptr->cx = 0;
 	e_ptr->cy = 0;
 	e_ptr->rad = 0;
+	e_ptr->cflags = 0;
 
 	if (!(zcave = getcave(wpos))) return;
 
@@ -1188,9 +1184,11 @@ static void process_effects(void) {
 
 				/* until half-time (or half-radius) the fireworks rise into the air */
 				if (e_ptr->rad < e_ptr->time) {
+					e_ptr->cflags = 1;
 					if (i == e_ptr->cx && j == e_ptr->cy - e_ptr->rad)
 						apply_effect(k, &who, wpos, i, j, c_ptr);
 				} else { /* after that, they explode (w00t) */
+					e_ptr->cflags = 2;
 					/* explosion is faster than flying upwards */
 					//doesn't work-   e_ptr->interval = 2;
 #ifdef USE_SOUND_2010
@@ -1274,7 +1272,7 @@ static void process_effects(void) {
 #endif
 					}
 				} else if (i == e_ptr->cx && j == e_ptr->cy)
-					ball(who, e_ptr->whot, e_ptr->type, e_ptr->dam, j, i, 1);
+					ball_noInd(who, e_ptr->type, e_ptr->dam, wpos, j, i, 1);
 			}
 
 			/* Generate lightning effects -- effect_xtra: -1\ 0| 1/ 2_ */
@@ -1856,14 +1854,19 @@ static void regen_monsters(void) {
 			/* Hack -- Minimal regeneration rate */
 			if (!frac) frac = 1;
 
+#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
+			if (r_ptr->flags2 & RF2_REGENERATE_TH) frac *= 4;
+			else if (r_ptr->flags2 & RF2_REGENERATE_T2) frac *= 3;
+			else
+#endif
 #ifdef HYDRA_REGENERATION
-			if (r_ptr->d_char == 'M' || (r_ptr->flags2 & RF2_REGENERATE_TH)) frac *= 4;
+			if (r_ptr->d_char == 'M') frac *= 4;
 			else
 #endif
 #ifdef TROLL_REGENERATION
 			/* Experimental - Trolls are super-regenerators (hard-coded) */
-			if (m_ptr->r_idx == RI_HALF_TROLL || (r_ptr->flags2 & RF2_REGENERATE_T2)) frac *= 3;
-			else if (r_ptr->d_char == 'T' || (r_ptr->flags2 & RF2_REGENERATE_TH)) frac *= 4;
+			if (m_ptr->r_idx == RI_HALF_TROLL) frac *= 3;
+			else if (r_ptr->d_char == 'T') frac *= 4;
 			else
 #endif
 			/* Hack -- Some monsters regenerate quickly */
@@ -2337,6 +2340,8 @@ static void get_world_surface_palette_state(int *sky, int *sub, int *halfhours, 
 /* Local helper function for actually animating the palette.
    Note: For consistency we use Send_palette(<targetcol> - <targetcol - currentcol>) */
 #define PALANIM_OPTIMIZED /* KEEP SAME AS CLIENT! */
+/* Shade mountains aka TERM_L_UMBER too? */
+#define SHADE_MOUNTAINS
 static void world_surface_palette_player_do(int i, int sky, int sub, int halfhours) {
 	int steps = halfhours * PALANIM_HOUR_DIV / 2;
 
@@ -2497,8 +2502,12 @@ static void world_surface_palette_player_do(int i, int sky, int sub, int halfhou
 		    COLOUR_R(TERM_L_GREEN), COLOUR_G(TERM_L_GREEN), COLOUR_B(TERM_L_GREEN));
 		Send_palette(i, 30,		//l-blue
 		    COLOUR_R(TERM_L_BLUE), COLOUR_G(TERM_L_BLUE), COLOUR_B(TERM_L_BLUE));
+#endif
+#ifdef SHADE_MOUNTAINS
 		Send_palette(i, 31,		//l-umber
-		    COLOUR_R(TERM_L_UMBER), COLOUR_G(TERM_L_UMBER), COLOUR_B(TERM_L_UMBER));
+		    COLOUR_CALC_CR(0xe0, TERM_L_UMBER, steps, sub),
+		    COLOUR_CALC_CG(0xa0, TERM_L_UMBER, steps, sub),
+		    COLOUR_B(TERM_L_UMBER));
 #endif
 		break;
 	case 3: //sunsetty and darkish (PALANIM_HOUR_DIV steps) (18:30<19:00)
@@ -2556,9 +2565,11 @@ static void world_surface_palette_player_do(int i, int sky, int sub, int halfhou
 		    COLOUR_CALC_CR(0x3f, TERM_L_BLUE, steps, sub),
 		    COLOUR_CALC_CG(0xaf, TERM_L_BLUE, steps, sub),
 		    COLOUR_B(TERM_L_BLUE));
-#if 0 /* unchanged */
+#ifdef SHADE_MOUNTAINS
 		Send_palette(i, 31,		//l-umber
-		    COLOUR_R(TERM_L_UMBER), COLOUR_G(TERM_L_UMBER), COLOUR_B(TERM_L_UMBER));
+		    COLOUR_CALC_CRC(0xc0, 0xe0, steps, sub),
+		    COLOUR_CALC_CGC(0x70, 0xa0, steps, sub),
+		    COLOUR_B(TERM_L_UMBER));
 #endif
 		break;
 #ifndef STRETCHEDSUNSET /* todo: enable this more realistic, unstretched sunset */
@@ -2616,10 +2627,12 @@ static void world_surface_palette_player_do(int i, int sky, int sub, int halfhou
 		    COLOUR_CALC_CR(0x3f, TERM_L_BLUE, steps, sub),
 		    COLOUR_CALC_CG(0xaf, TERM_L_BLUE, steps, sub),
 		    COLOUR_B(TERM_L_BLUE));
- #if 0 /* unchanged */
+#ifdef SHADE_MOUNTAINS
 		Send_palette(i, 31,		//l-umber
-		    COLOUR_R(TERM_L_UMBER), COLOUR_G(TERM_L_UMBER), COLOUR_B(TERM_L_UMBER));
- #endif
+		    COLOUR_CALC_CRC(0xc0, 0xc0, steps, sub),
+		    COLOUR_CALC_CGC(0x70, 0x70, steps, sub),
+		    COLOUR_B(TERM_L_UMBER));
+#endif
 		break;
 	case 5: //NIGHTFALL! -- getting dark (PALANIM_HOUR_DIV steps) (19:30-20:00)
 		//leading sky 3 final colours to darkest colours (night theme)
@@ -2677,8 +2690,13 @@ static void world_surface_palette_player_do(int i, int sky, int sub, int halfhou
 		    COLOUR_CALC_GC(TERM_BLUE, 0xaf, steps, sub),
 		    COLOUR_B(TERM_BLUE)); //BLUE and L_BLUE are both 0xff
 		Send_palette(i, 31,		//l-umber		<-umber
+#ifdef SHADE_MOUNTAINS
+		    COLOUR_CALC_RC(TERM_UMBER, 0xc0, steps, sub),
+		    COLOUR_CALC_GC(TERM_UMBER, 0x70, steps, sub),
+#else
 		    COLOUR_CALC_R(TERM_UMBER, TERM_L_UMBER, steps, sub),
 		    COLOUR_CALC_G(TERM_UMBER, TERM_L_UMBER, steps, sub),
+#endif
 		    COLOUR_CALC_B(TERM_UMBER, TERM_L_UMBER, steps, sub));
 		break;
 #else
@@ -2738,8 +2756,13 @@ static void world_surface_palette_player_do(int i, int sky, int sub, int halfhou
 		    COLOUR_CALC_GC(TERM_BLUE, 0xaf, PALANIM_HOUR_DIV, sub),
 		    COLOUR_B(TERM_BLUE)); //BLUE and L_BLUE are both 0xff
 		Send_palette(i, 31,		//l-umber		<-umber
+#ifdef SHADE_MOUNTAINS
+		    COLOUR_CALC_RC(TERM_UMBER, 0xc0, PALANIM_HOUR_DIV, sub),
+		    COLOUR_CALC_GC(TERM_UMBER, 0x70, PALANIM_HOUR_DIV, sub),
+#else
 		    COLOUR_CALC_R(TERM_UMBER, TERM_L_UMBER, PALANIM_HOUR_DIV, sub),
 		    COLOUR_CALC_G(TERM_UMBER, TERM_L_UMBER, PALANIM_HOUR_DIV, sub),
+#endif
 		    COLOUR_CALC_B(TERM_UMBER, TERM_L_UMBER, PALANIM_HOUR_DIV, sub));
 		break;
 #endif
@@ -3672,6 +3695,7 @@ static bool auto_retaliate_test(int Ind) {
 		if (p_ptr->piercing && !p_ptr->piercing_charged) p_ptr->piercing = 0;
 
 		p_ptr->ar_test_fail = TRUE;
+		p_ptr->melee_crit_dual = 0;
 		return(FALSE);
 	}
 
@@ -4134,6 +4158,7 @@ static void process_player_begin(int Ind) {
 		teleport_player(Ind, 40, FALSE);
 	}
 
+	if (p_ptr->melee_timeout_crit_dual) p_ptr->melee_timeout_crit_dual--;
 }
 
 
@@ -4205,7 +4230,23 @@ void recall_player(int Ind, char *message) {
 	p_ptr = Players[Ind];
 
 	if (!p_ptr) return;
-	if (!(zcave = getcave(&p_ptr->wpos))) return;	// eww
+	if (!(zcave = getcave(&p_ptr->wpos))) {
+		/* This seemed to have happened as 'double recall', leading to a panic save:
+		   A poisoned player recalled to orc caves surface and died with insta-res enabled just the moment he arrived,
+		   resulting in the level method getting set to LEVEL_TO_TEMPLE, but the cave not yet allocated,
+		   making the 2nd recall_player() (to temple) fail exactly here and therefore return(),
+		   so the subsequent process_player_change_wpos() call would attempt to apply LEVEL_TO_TEMPLE in the orc caves sector,
+		   which of course fails as there is no temple there, sets p_ptr->px/py both to 0, and this in turn crashed update_lite()...
+		   Solution: Ensure cave is allocated!   - C. Blue */
+		s_printf("ERORR in recall_player(): <%s>(%d) at (%d,%d,%d) has no cave!\n", p_ptr->name, Ind, p_ptr->wpos.wx, p_ptr->wpos.wy, p_ptr->wpos.wz);
+#if 0
+		return;	// eww
+#else
+		/* Actually allocate the cave so we don't fail! */
+		alloc_dungeon_level(&p_ptr->wpos);
+		zcave = getcave(&p_ptr->wpos);
+#endif
+	}
 
 	/* Always clear exception-flag */
 	p_ptr->global_event_temp &= ~PEVF_PASS_00;
@@ -4970,20 +5011,10 @@ int food_consumption(int Ind) {
 
 	/* Regeneration and extra-growth takes more food. (Intrinsic) super-regen takes a large amount of food. */
 #if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
- #ifdef HYDRA_REGENERATION
-	/* Experimental - Hydras are super-regenerators aka regrowing heads */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M')
-		i += 25;
-	else
- #endif
- #ifdef TROLL_REGENERATION
-	/* Experimental - Trolls are super-regenerators (hard-coded) */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'T' && p_ptr->body_monster != RI_HALF_TROLL)
-		i += 25;
-	else if (p_ptr->prace == RACE_HALF_TROLL || p_ptr->body_monster == RI_HALF_TROLL)
-		i += 20;
-	else
- #endif
+	switch (troll_hydra_regen(p_ptr)) {
+	case 1: i += 20; break;
+	case 2: i += 25; break;
+	}
 #endif
 	if (p_ptr->regenerate || p_ptr->xtrastat_tim) i += 15;
 	/* Other stat-boosting effects: */
@@ -4993,7 +5024,7 @@ int food_consumption(int Ind) {
 	/* Non-magical regeneration burns enormously more food temporarily: Fast metabolism! */
 	if (p_ptr->tim_regen &&
 	    p_ptr->tim_regen_pow > 0 && /* (and definitely not Nether Sap, anyway) */
-	    p_ptr->tim_regen_cost) /* non-magical only */
+	    p_ptr->tim_regen_cost) /* non-magical only, ie via shroom of fast metabolism */
 		i += 30;
 
 	/* Hitpoints multiplier consume significantly much food (+0..15) */
@@ -5076,7 +5107,7 @@ static bool process_player_end_aux(int Ind) {
 
 	/*** Damage over Time ***/
 #define POISON_DIV 30
-#define CUT_DIV 400
+#define CUT_DIV 200
 
 	/* Take damage from poison */
 	if (p_ptr->poisoned) {
@@ -5114,12 +5145,12 @@ static bool process_player_end_aux(int Ind) {
 		if (!k) k = 1;
 
 		if (p_ptr->cut >= CUT_MORTAL_WOUND) i = 7;	/* Mortal wound */
-		if (p_ptr->cut >= 200) i = 6;	/* Deep gash */
-		if (p_ptr->cut >= 100) i = 5;	/* Severe cut */
-		if (p_ptr->cut >= 50) i = 4;	/* Nasty cut */
-		if (p_ptr->cut >= 25) i = 3;	/* Bad cut */
-		if (p_ptr->cut >= 10) i = 2;	/* Light cut */
-		else i = 1;			/* Graze */
+		if (p_ptr->cut >= CUT_DEEP_GASH) i = 6;		/* Deep gash */
+		if (p_ptr->cut >= CUT_SEVERE_CUT) i = 5;	/* Severe cut */
+		if (p_ptr->cut >= CUT_NASTY_CUT) i = 4;		/* Nasty cut */
+		if (p_ptr->cut >= CUT_BAD_CUT) i = 3;		/* Bad cut */
+		if (p_ptr->cut >= CUT_LIGHT_CUT) i = 2;		/* Light cut */
+		else i = 1; /* CUT_GRAZE:			   Graze */
 
 		/* Take damage */
 		p_ptr->died_from_ridx = 0;
@@ -5127,7 +5158,7 @@ static bool process_player_end_aux(int Ind) {
 	}
 
 	/* Misc. terrain effects */
-	if (!p_ptr->ghost) {
+	if (!p_ptr->ghost) { /* Spare dead players, even though levitation usually does NOT fully protect eg from lava fire damage? */
 		/* Generic terrain effects */
 		apply_terrain_effect(Ind);
 
@@ -5332,7 +5363,7 @@ static bool process_player_end_aux(int Ind) {
 		    && (!feat_is_shal_water(c_ptr->feat) ||
 		    r_info[p_ptr->body_monster].weight > 700)
 		    /* new: don't get stunned from crossing door/stair grids every time - C. Blue */
-		    && !is_always_passable(c_ptr->feat)
+		    && !(is_always_passable(c_ptr->feat) && (c_ptr->info & CAVE_WATERY))
 		    && !p_ptr->tim_wraith) {
 			long hit = p_ptr->mhp >> 6; /* Take damage */
 
@@ -5571,21 +5602,13 @@ static bool process_player_end_aux(int Ind) {
 	}
 
 	/* Regeneration ability - in pvp, damage taken is greatly reduced, so regen must not nullify the remaining damage easily */
-#ifdef HYDRA_REGENERATION
-	/* Experimental - Hydras are super-regenerators aka regrowing heads */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M') {
-		regen_amount *= (p_ptr->mode & MODE_PVP) ? 2 : 4;
+#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
+	if ((i = troll_hydra_regen(p_ptr))) {
 		intrinsic_regen = TRUE;
-	} else
-#endif
-#ifdef TROLL_REGENERATION
-	/* Experimental - Trolls are super-regenerators (hard-coded) */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'T' && p_ptr->body_monster != RI_HALF_TROLL) {
-		regen_amount *= (p_ptr->mode & MODE_PVP) ? 2 : 4;
-		intrinsic_regen = TRUE;
-	} else if (p_ptr->prace == RACE_HALF_TROLL || p_ptr->body_monster == RI_HALF_TROLL) {
-		regen_amount *= (p_ptr->mode & MODE_PVP) ? 2 : 3;
-		intrinsic_regen = TRUE;
+		switch (i) {
+		case 1: regen_amount *= (p_ptr->mode & MODE_PVP) ? 2 : 3; break;
+		case 2: regen_amount *= (p_ptr->mode & MODE_PVP) ? 2 : 4; break;
+		}
 	} else
 #endif
 	if (p_ptr->regenerate) regen_amount *= 2;
@@ -5603,7 +5626,7 @@ static bool process_player_end_aux(int Ind) {
 	if (p_ptr->poisoned || p_ptr->diseased || p_ptr->sun_burn
 #if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
 	    /* Trolls and Hydras continue to regenerate even while cut (it's the whole point of their regen) */
-	    || (p_ptr->cut && (!intrinsic_regen || p_ptr->cut_intrinsic))
+	    || (p_ptr->cut && (!intrinsic_regen || !p_ptr->cut_intrinsic_regen))
 #else
 	    || p_ptr->cut
 #endif
@@ -5626,7 +5649,30 @@ static bool process_player_end_aux(int Ind) {
 		if (p_ptr->tim_regen_pow > 0) {
 			/* Actually 'quiet' and give msg afterwards */
 			i = hp_player(Ind, p_ptr->tim_regen_pow / 10 + (magik((p_ptr->tim_regen_pow % 10) * 10) ? 1 : 0), TRUE, TRUE);
-			msg_format(Ind, "\377gYou are healed for %d points.", i);
+			if (i) msg_format(Ind, "\377gYou are healed for %d points.", i);
+			/* For spell: Also heal cuts */
+			if (!p_ptr->tim_regen_cost && p_ptr->cut) {
+				int nonlin, healcut; // tim_regen_pow is 134 at 50.000 Nature (0.000 SP), 183 at 50.000 SP.
+
+#if 0
+				nonlin = 10 + (1000 * (p_ptr->tim_regen_pow + 1)) / (p_ptr->cut * 10);
+				healcut = (p_ptr->tim_regen_pow * 10) / nonlin;
+				// cut 1:	rg 1: 1				rg 10: 1	rg 100: 1
+				// cut 10:	rg 1: 1		rg  5: 1	rg 10: 1	rg 100: 1
+				// cut 100:	rg 1: 1				rg 10: 4	rg 100: 9	rg 183: 9
+				// cut 1000:	rg 1: 1				rg 10: 9	rg 100: 50	rg 183: 65
+#else
+				nonlin = 20 + (1000 * (p_ptr->tim_regen_pow + 1)) / (p_ptr->cut * 10);
+				healcut = (p_ptr->tim_regen_pow * 5) / nonlin;
+				// cut 1:	rg 1: 				rg 10: 		rg 100: 1
+				// cut 10:	rg 1: 		rg  5: 		rg 10: 		rg 100: 1
+				// cut 100:	rg 1: 				rg 10: 		rg 100: 4	rg 183: 4
+				// cut 1000:	rg 1: 				rg 10: 		rg 100: 16	rg 183: 24
+#endif
+
+				if (!healcut) healcut = 1;
+				(void)set_cut(Ind, p_ptr->cut - healcut, p_ptr->cut_attacker, FALSE);
+			}
 		}
 		/* Nether Sap spell (Unlife) */
 		else if (p_ptr->tim_regen_pow < 0) {
@@ -5636,7 +5682,7 @@ static bool process_player_end_aux(int Ind) {
 				/* (Cannot be using Martyr as true vampire, so no need to check for regen inhibition, but hp_player_quiet() does check for it anyway.)
 				   Actually 'quiet' and give msg afterwards */
 				i = hp_player(Ind, (-p_ptr->tim_regen_pow) / 10 + (magik(((-p_ptr->tim_regen_pow) % 10) * 10) ? 1 : 0), TRUE, TRUE);
-				msg_format(Ind, "\377gYou are healed for %d points.", i);
+				if (i) msg_format(Ind, "\377gYou are healed for %d points.", i);
 			} else (void)set_tim_mp2hp(Ind, 0, 0, 0);  /* End prematurely when OOM */
 		}
 	}
@@ -6143,11 +6189,11 @@ static bool process_player_end_aux(int Ind) {
 	}
 
 	/* Cut */
-	if (p_ptr->cut) {
+	if (p_ptr->cut || p_ptr->cut_bandaged) {
 		int adjust = minus;// = (adj_con_fix[p_ptr->stat_ind[A_CON]] + minus);
 
 		/* Hack -- Truly "mortal" wound */
-		if (p_ptr->cut >= CUT_MORTAL_WOUND) {
+		if (p_ptr->cut + p_ptr->cut_bandaged >= CUT_MORTAL_WOUND) {
 			/* Holiness > worldly bandages, always helps */
 			if (get_skill(p_ptr, SKILL_HCURING) >= 40) adjust = 2;
 			else adjust = 0;
@@ -6158,7 +6204,12 @@ static bool process_player_end_aux(int Ind) {
 		if (p_ptr->biofeedback) adjust += 5;
 
 		/* Apply some healing */
-		(void)set_cut(Ind, p_ptr->cut - adjust * (minus_health + 1), p_ptr->cut_attacker);
+		if (p_ptr->cut) (void)set_cut(Ind, p_ptr->cut - adjust * (minus_health + 1), p_ptr->cut_attacker, FALSE);
+		else if (adjust >= p_ptr->cut_bandaged) {
+			p_ptr->cut_bandaged = p_ptr->cut_attacker = 0;
+			msg_print(Ind, "\376Your wound seems healed, you remove the bandage.");
+		}
+		else p_ptr->cut_bandaged -= adjust;
 	}
 
 #ifdef IRRITATING_WEATHER
@@ -7803,7 +7854,7 @@ static void scan_objs() {
 			/* Eat all non-transferrable items:
 			   Starter items and level 0 items that aren't rescue-exchangeable either */
 			if (((o_ptr->mode & MODE_STARTER_ITEM) || !o_ptr->level) && !exceptionally_shareable_item(o_ptr)) {
-				delete_object_idx(i, TRUE);
+				delete_object_idx(i, TRUE, FALSE);
 				cnt++;
 				dcnt++;
 				continue;
@@ -7821,12 +7872,12 @@ static void scan_objs() {
 			if (in_bounds_array(o_ptr->iy, o_ptr->ix)) { //paranoia
 				if (o_ptr->marked2 == ITEM_REMOVAL_QUICK) {
 					if (++o_ptr->marked >= 2) {
-						delete_object_idx(i, TRUE);
+						delete_object_idx(i, TRUE, TRUE);
 						dcnt++;
 					}
 				} else if (o_ptr->marked2 == ITEM_REMOVAL_MONTRAP) {
 					if (++o_ptr->marked >= 120) {
-						delete_object_idx(i, TRUE);
+						delete_object_idx(i, TRUE, TRUE);
 						dcnt++;
 					}
 				} else if (++o_ptr->marked >= ((like_artifact_p(o_ptr) || /* Stormbringer too */
@@ -7838,7 +7889,7 @@ static void scan_objs() {
 					/* Artifacts and objects that were inscribed and dropped by
 					the dungeon master or by unique monsters on their death
 					stay n times as long as cfg.surface_item_removal specifies */
-					delete_object_idx(i, TRUE);
+					delete_object_idx(i, TRUE, TRUE);
 					dcnt++;
 				}
 			}
@@ -7866,7 +7917,7 @@ static void scan_objs() {
 				if (++o_ptr->marked >= ((artifact_p(o_ptr) ||
 				    (o_ptr->note && !o_ptr->owner)) ?
 				    cfg.dungeon_item_removal * 3 : cfg.dungeon_item_removal)) {
-					delete_object_idx(i, TRUE);
+					delete_object_idx(i, TRUE, TRUE);
 					dcnt++;
 				}
 			}
@@ -10217,7 +10268,7 @@ void steamblast_trigger(int idx) {
 						(void)generic_activate_trap_type(wpos, y, x, o_ptr, c_ptr->o_idx);
 						if ((o_ptr->xtra3 & 0x1) || /* Erase chest whenever the trap was set off */
 						    (o_ptr->sval == SV_CHEST_RUINED && (o_ptr->xtra3 & 0x2))) /* Erase the chest if it got ruined by the trap */
-							delete_object_idx(c_ptr->o_idx, FALSE);
+							delete_object_idx(c_ptr->o_idx, FALSE, FALSE);
 						else {
 							/* If chest is not ruined, also disarm + unlock */
 							//o_ptr->pval = 0;

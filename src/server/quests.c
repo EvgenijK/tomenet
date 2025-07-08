@@ -1119,9 +1119,9 @@ static void teleport_objects_away(struct worldpos *wpos, s16b x, s16b y, int dis
 		if (!cave_floor_bold(zcave, cy, cx) ||
 		    cave_perma_bold2(zcave, cy, cx)) continue;
 
-//		(void)floor_carry(cy, cx, &tmp_obj);
-		drop_near(TRUE, 0, &tmp_obj, 0, wpos, cy, cx);
-		delete_object_idx(this_o_idx, FALSE);
+		//(void)floor_carry(cy, cx, &tmp_obj);
+		if (drop_near(TRUE, 0, &tmp_obj, 0, wpos, cy, cx) < 0) delete_object_idx(this_o_idx, FALSE, TRUE);
+		else delete_object_idx(this_o_idx, FALSE, FALSE);
 		break;
 	}
     }
@@ -1152,7 +1152,7 @@ static bool questor_object(int q_idx, qi_questor *q_questor, int questor_idx) {
 	int o_idx, i;
 	object_type *o_ptr;
 	cave_type **zcave, *c_ptr;
-	u32b resf = RESF_NOTRUEART;
+	u64b resf = RESF_NOTRUEART;
 
 	/* data written back to q_info[] */
 	struct worldpos wpos;
@@ -1204,7 +1204,7 @@ static bool questor_object(int q_idx, qi_questor *q_questor, int questor_idx) {
 
 #ifdef QUESTOR_OBJECT_EXCLUSIVE
  #ifdef QUESTOR_OBJECT_CRUSHES
-		delete_object(&wpos, y, x, TRUE);
+		delete_object(&wpos, y, x, TRUE, TRUE);
  #else
 		/* teleport the whole pile of objects away */
 		teleport_objects_away(&wpos, x, y, 1);
@@ -1215,7 +1215,7 @@ static bool questor_object(int q_idx, qi_questor *q_questor, int questor_idx) {
 		/* Illusionate is looting D pits again */
 		if (c_ptr->o_idx > 0) teleport_objects_away(&wpos, x, y, 200);
 		/* out of patience */
-		if (c_ptr->o_idx > 0) delete_object_idx(c_ptr->o_idx, TRUE);
+		if (c_ptr->o_idx > 0) delete_object_idx(c_ptr->o_idx, TRUE, TRUE);
  #endif
 #else
 		/* just drop the questor onto the pile of stuff (if any).
@@ -1419,7 +1419,7 @@ static void quest_erase_objects(int q_idx, byte individual, s32b p_id) {
 		o_list[j].questor = FALSE;
 		o_list[j].quest = 0; //prevent questitem_d() check from triggering when deleting it!..
 		q_info[q_idx].objects_registered--; //..and count down manually
-		delete_object_idx(j, TRUE);
+		delete_object_idx(j, TRUE, FALSE);
 	}
 
 	if (q_info[q_idx].objects_registered < 0) {//paranoia
@@ -1686,7 +1686,7 @@ static void quest_despawn_questor(int q_idx, int questor_idx) {
 				o_list[o_idx].questor = FALSE;
 				o_list[o_idx].quest = 0; //prevent questitem_d() check from triggering when deleting it!..
 				q_info[q_idx].objects_registered--; //..and count down manually
-				delete_object_idx(c_ptr->o_idx, TRUE);
+				delete_object_idx(c_ptr->o_idx, TRUE, FALSE);
 			} else
 #if QDEBUG > 1
 				s_printf(" ..failed: Object is not a questor or has a different quest idx.\n");
@@ -1716,7 +1716,7 @@ static void quest_despawn_questor(int q_idx, int questor_idx) {
 				o_list[j].questor = FALSE;
 				o_list[j].quest = 0; //prevent questitem_d() check from triggering when deleting it!..
 				q_info[q_idx].objects_registered--; //..and count down manually
-				delete_object_idx(j, TRUE);
+				delete_object_idx(j, TRUE, FALSE);
 				//:-p break;
 			}
 #if 0 /* keep quest items in inventory. And questors are now unique and undroppable, so n.p.! */
@@ -4934,7 +4934,7 @@ static void quest_reward_object(int pInd, int q_idx, object_type *o_ptr) {
 
 /* hand out a reward object created by create_reward() to player (if individual quest)
    or to all involved players in the area (if non-individual quest) */
-static void quest_reward_create(int pInd, int q_idx, u32b resf) {
+static void quest_reward_create(int pInd, int q_idx, u64b resf) {
 	quest_info *q_ptr = &q_info[q_idx];
 	int i, j;
 
@@ -5007,7 +5007,9 @@ static void quest_reward_exp(int pInd, int q_idx, int exp) {
 	int i, j;
 
 	if (pInd && q_ptr->individual) { //we should never get an individual quest without a pInd here..
-		gain_exp(pInd, exp);
+		gain_exp_onhold(pInd, exp);
+		msg_format(pInd, "The quest awards %d XP to you.", Players[pInd]->gain_exp);
+		apply_exp(pInd);
 		return;
 	}
 
@@ -5030,7 +5032,13 @@ static void quest_reward_exp(int pInd, int q_idx, int exp) {
 		if (j == q_ptr->questors) continue;
 
 		/* hand him out the reward too */
+#if 0
 		gain_exp(i, exp);
+#else
+		gain_exp_onhold(i, exp);
+		msg_format(i, "The quest awards %d XP to you.", Players[i]->gain_exp);
+		apply_exp(i);
+#endif
 	}
 }
 
@@ -5077,7 +5085,7 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 	quest_info *q_ptr = &q_info[q_idx];
 	int i, j, stage = quest_get_stage(pInd, q_idx);
 	object_type forge, *o_ptr;
-	u32b resf = RESF_NOTRUEART;
+	u64b resf = RESF_NOTRUEART;
 	/* count rewards */
 	int r_obj = 0, r_gold = 0, r_exp = 0;
 	qi_stage *q_stage = quest_qi_stage(q_idx, stage);
@@ -5194,10 +5202,10 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 			/* instead use create_reward() like for events? */
 			else if (q_rew->oreward) {
 				switch (q_rew->oreward) {
-				case 1: resf |= RESF_LOW; break;
-				case 2: resf |= RESF_LOW2; break;
-				case 3: resf |= RESF_MID; break;
-				case 4: resf |= RESF_HIGH; break;
+				case 1: resf |= RESF_MASK_LOW; break;
+				case 2: resf |= RESF_MASK_LOW2; break;
+				case 3: resf |= RESF_MASK_MID; break;
+				case 4: resf |= RESF_MASK_HIGH; break;
 				case 5: break; /* 'allow randarts' */
 				}
 				quest_reward_create(pInd, q_idx, resf);
@@ -6017,7 +6025,7 @@ void quest_handle_disabled_on_startup() {
 					o_list[q_ptr->questor[j].mo_idx].questor = FALSE;
 					o_list[q_ptr->questor[j].mo_idx].quest = 0; //prevent questitem_d() check from triggering when deleting it!..
 					q_ptr->objects_registered--; //..and count down manually
-					delete_object_idx(q_ptr->questor[j].mo_idx, TRUE);
+					delete_object_idx(q_ptr->questor[j].mo_idx, TRUE, FALSE);
 				} else s_printf("..failed: Questor does not exist.\n");
 				break;
 			}
@@ -6098,7 +6106,7 @@ void questitem_d(object_type *o_ptr, int num) {
 void questor_drop_specific(int Ind, int q_idx, int questor_idx, struct worldpos *wpos, int x, int y) {
 	qi_questor *q_questor = &q_info[q_idx].questor[questor_idx];
 	object_type forge, *o_ptr = &forge;
-	u32b resf = RESF_NOTRUEART;
+	u64b resf = RESF_NOTRUEART;
 
 	/* specific reward */
 	if (q_questor->drops_tval) {
@@ -6150,10 +6158,10 @@ void questor_drop_specific(int Ind, int q_idx, int questor_idx, struct worldpos 
 	/* instead use create_reward() like for events? */
 	else if (q_questor->drops_reward) {
 		switch (q_questor->drops_reward) {
-		case 1: resf |= RESF_LOW; break;
-		case 2: resf |= RESF_LOW2; break;
-		case 3: resf |= RESF_MID; break;
-		case 4: resf |= RESF_HIGH; break;
+		case 1: resf |= RESF_MASK_LOW; break;
+		case 2: resf |= RESF_MASK_LOW2; break;
+		case 3: resf |= RESF_MASK_MID; break;
+		case 4: resf |= RESF_MASK_HIGH; break;
 		case 5: break; /* 'allow randarts' */
 		}
 		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, resf, 3000);

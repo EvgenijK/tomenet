@@ -2540,10 +2540,10 @@ if (p_ptr->updated_savegame == 0) {
 			p_ptr->global_event_participated[i] = 0;
 
 	if (!older_than(4, 3, 3)) {
-		rd_s16b(&tmp16s);
-		p_ptr->combat_stance = tmp16s;
-		rd_s16b(&tmp16s);
-		p_ptr->combat_stance_power = tmp16s;
+		rd_byte(&p_ptr->combat_stance);
+		rd_byte(&p_ptr->combat_stance_prev);
+		rd_byte(&p_ptr->combat_stance_power);
+		strip_bytes(1); //HOLE
 	}
 	if (!older_than(4, 3, 4)) rd_byte(&p_ptr->cloaked);
 	if (!older_than(4, 3, 9)) rd_byte((byte *) &p_ptr->shadow_running);
@@ -2706,13 +2706,14 @@ if (p_ptr->updated_savegame == 0) {
 		rd_byte(&p_ptr->tim_lcage);
 
 		rd_byte(&tmp8u);
-		p_ptr->cut_intrinsic = (tmp8u & 0x01);
-		p_ptr->nocut_intrinsic = (tmp8u & 0x02);
+		p_ptr->cut_intrinsic_regen = (tmp8u & 0x01);
+		p_ptr->cut_intrinsic_nocut = (tmp8u & 0x02);
 
 		rd_byte(&p_ptr->combosets);
+		rd_s16b(&p_ptr->cut_bandaged);
 
 		// --- future use / HOLE: ---
-		strip_bytes(6);
+		strip_bytes(4);
 	} else p_ptr->tim_lcage = 0;
 
 	if (!older_than(4, 5, 28)) {
@@ -4810,8 +4811,12 @@ void load_banlist(void) {
 		ptr = NEW(struct combo_ban);
 
 		if ((r = fscanf(fp, "%[^|]|%[^|]|%[^|]|%d|%[^\n]\n", ptr->acc, ptr->ip, ptr->hostname, &ptr->time, ptr->reason)) == EOF || r < 5) {
-			s_printf("Error reading banlist.txt: (%d/%d) %s\n", r, EOF, strerror(ferror(fp)));
-			s_printf("Read banlist entry %2d (%d fields): %s|%s|%s|%d|%s\n", n, r, ptr->acc, ptr->ip, ptr->hostname, ptr->time, ptr->reason);
+			if (r == EOF)
+				s_printf("No entry %2d found in banlist.txt: (%d/%d) %s\n", n, r, EOF, strerror(ferror(fp)));
+			else {
+				s_printf("Error reading banlist.txt: (%d/%d) %s\n", r, EOF, strerror(ferror(fp)));
+				s_printf("Read banlist entry %2d (%d fields): %s|%s|%s|%d|%s\n", n, r, ptr->acc, ptr->ip, ptr->hostname, ptr->time, ptr->reason);
+			}
 			KILL(ptr, struct combo_ban);
 			break;
 		}

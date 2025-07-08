@@ -1060,9 +1060,9 @@ void prt_hunger(int food) {
 	} else if (food == -1) return; /* Catch timing issue, if we feed from starved state quickly, before the blinking ends, resulting in visual glitch of redrawing us as blinking-starved mistakenly. */
 
 	if (food < PY_FOOD_FAINT)
-		c_put_str(food_warn_once_timer ? TERM_SEL_RED : TERM_L_RED, "Starved", ROW_HUNGRY, COL_HUNGRY);
+		c_put_str(food_warn_once_timer || c_cfg.flash_starvation ? TERM_SEL_RED : TERM_L_RED, "Starved", ROW_HUNGRY, COL_HUNGRY);
 	else if (food < PY_FOOD_WEAK)
-		c_put_str(food_warn_once_timer ? TERM_SELECTOR : TERM_ORANGE, "Starved", ROW_HUNGRY, COL_HUNGRY);
+		c_put_str(food_warn_once_timer || c_cfg.flash_starvation ? TERM_SELECTOR : TERM_ORANGE, "Starved", ROW_HUNGRY, COL_HUNGRY);
 	else if (food < PY_FOOD_ALERT)
 		c_put_str(food_warn_once_timer ? TERM_SELECTOR : TERM_YELLOW, "Hungry ", ROW_HUNGRY, COL_HUNGRY);
 	else if (food < PY_FOOD_FULL)
@@ -1272,6 +1272,7 @@ void prt_indicators(u32b indicators) {
 	prt_indicator_regen((indicators & IND_REGEN) != 0);
 	prt_indicator_dispersion((indicators & IND_DISPERSION) != 0);
 	prt_indicator_charm((indicators & IND_CHARM) != 0);
+	prt_indicator_pfe((indicators & IND_PFE) != 0);
 	if ((indicators & (IND_SHIELD1 | IND_SHIELD2 | IND_SHIELD3 | IND_SHIELD4 | IND_SHIELD5 | IND_SHIELD6 | IND_SHIELD7)) != 0) prt_indicator_shield(indicators);
 	else prt_indicator_shield(0);
 }
@@ -1429,8 +1430,8 @@ void prt_indicator_dispersion(bool is_active) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_active) c_put_str(TERM_SLATE, "Dis", ROW_DISPERSION, COL_DISPERSION);
-	else c_put_str(TERM_WHITE, "   ", ROW_DISPERSION, COL_DISPERSION);
+	if (is_active) c_put_str(TERM_SLATE, "Disp", ROW_DISPERSION, COL_DISPERSION);
+	else c_put_str(TERM_WHITE, "    ", ROW_DISPERSION, COL_DISPERSION);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
@@ -1445,8 +1446,24 @@ void prt_indicator_charm(bool is_active) {
 	/* remember cursor position */
 	Term_locate(&x, &y);
 
-	if (is_active) c_put_str(TERM_L_BLUE, "Charm", ROW_CHARM, COL_CHARM);
-	else c_put_str(TERM_WHITE, "     ", ROW_CHARM, COL_CHARM);
+	if (is_active) c_put_str(TERM_L_BLUE, "Chm", ROW_CHARM, COL_CHARM);
+	else c_put_str(TERM_WHITE, "   ", ROW_CHARM, COL_CHARM);
+
+	/* restore cursor position */
+	Term_gotoxy(x, y);
+}
+
+void prt_indicator_pfe(bool is_active) {
+	int x, y;
+
+	/* Only visible in BIG_MAP mode, othewise it would overwrite other indicators */
+	if (screen_hgt != MAX_SCREEN_HGT) return;
+
+	/* remember cursor position */
+	Term_locate(&x, &y);
+
+	if (is_active) c_put_str(TERM_GREEN, "PfE", ROW_PFE, COL_PFE);
+	else c_put_str(TERM_WHITE, "   ", ROW_PFE, COL_PFE);
 
 	/* restore cursor position */
 	Term_gotoxy(x, y);
@@ -1474,7 +1491,7 @@ void prt_indicator_shield(u32b flags) {
 			else if (flags & IND_SHIELD6) /*SHIELD_PLASMA*/ a = TERM_L_RED;
 			else /*IND_SHIELD7*/ a = TERM_VIOLET; //'mystic shield'
 		}
-		 c_put_str(a, "Shl", ROW_TEMP_SHIELD, COL_TEMP_SHIELD);
+		 c_put_str(a, "Shld", ROW_TEMP_SHIELD, COL_TEMP_SHIELD);
 	}
 
 	/* restore cursor position */
@@ -2619,14 +2636,14 @@ void show_subinven(int islot) {
 	}
 
 	/* Mention the two basic commands for handling subinventories */
-	//c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - 's': unstow, 'a': container-dependant activate.", k, inventory[islot].bpval), 0, 0);
+	//c_put_str(TERM_L_BLUE, format("Bag contents (%d/%d) - 's': unstow, 'a': container-dependant activate.", k, inventory[islot].bpval), 0, 0);
 	/* Hack: If shopping, also show 'S' to sell something */
 	if (shopping) {
-		if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC, S: sell, s: unstow, a: mix chemicals, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
-		else c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, S: sell, s: unstow, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
+		if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Bag contents (%d/%d) - ESC, S: sell, s: unstow, a: mix chemicals, x/d/k/{/}/H/K.", k, inventory[islot].bpval), 0, 0);
+		else c_put_str(TERM_L_BLUE, format("Bag contents (%d/%d) - ESC: exit, S: sell, s: unstow, x/d/k/{/}/H/K.", k, inventory[islot].bpval), 0, 0);
 	} else {
-		if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, s: unstow, a: mix chemicals, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
-		else c_put_str(TERM_L_BLUE, format("Container contents (%d/%d) - ESC: exit, s: unstow, x/d/k/{/}.", k, inventory[islot].bpval), 0, 0);
+		if (i_ptr->sval == SV_SI_SATCHEL) c_put_str(TERM_L_BLUE, format("Bag contents (%d/%d) - ESC: exit, s: unstow, a: mix chemicals, x/d/k/{/}/H/K.", k, inventory[islot].bpval), 0, 0);
+		else c_put_str(TERM_L_BLUE, format("Bag contents (%d/%d) - ESC: exit, s: unstow, x/d/k/{/}/H/K.", k, inventory[islot].bpval), 0, 0);
 	}
 
 	/* Make a "shadow" below the list (only if needed) */

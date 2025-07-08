@@ -257,13 +257,13 @@ void do_autokinesis_to(int Ind, int dis) {
 void grow_trees(int Ind, int rad) {
 	player_type *p_ptr = Players[Ind];
 	int a, i, j;
-	cave_type **zcave = getcave(&p_ptr->wpos);
+	cave_type **zcave = getcave(&p_ptr->wpos), *c_ptr;
+	bool surface = (p_ptr->wpos.wz == 0);
+#ifdef USE_SOUND_2010
+	bool grew = FALSE;
+#endif
 
 	if (!zcave || !allow_terraforming(&p_ptr->wpos, FEAT_TREE)) return;
-
-#ifdef USE_SOUND_2010
-	sound(Ind, "grow_trees", NULL, SFX_TYPE_COMMAND, FALSE);
-#endif
 
 	for (a = 0; a < rad * rad + 11; a++) {
 		i = (rand_int((rad * 2) + 1) - rad + rand_int((rad * 2) + 1) - rad) / 2;
@@ -272,12 +272,20 @@ void grow_trees(int Ind, int rad) {
 		if (!in_bounds(p_ptr->py + j, p_ptr->px + i)) continue;
 		if (distance(p_ptr->py, p_ptr->px, p_ptr->py + j, p_ptr->px + i) > rad) continue;
 
-		if (!cave_naked_bold(zcave, p_ptr->py + j, p_ptr->px + i) ||
-		    (f_info[zcave[p_ptr->py + j][p_ptr->px + i].feat].flags2 & FF2_NO_TFORM) ||
-		    (zcave[p_ptr->py + j][p_ptr->px + i].info & CAVE_NO_TFORM)) continue;
+		c_ptr = &zcave[p_ptr->py + j][p_ptr->px + i];
 
+		/* Not inside houses */
+		if (surface && (c_ptr->info & CAVE_ICKY)) continue;
+
+		if (!cave_naked_bold(zcave, p_ptr->py + j, p_ptr->px + i) ||
+		    (f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) ||
+		    (c_ptr->info & CAVE_NO_TFORM)) continue;
+
+#ifdef USE_SOUND_2010
+		grew |=
+#endif
 		cave_set_feat_live(&p_ptr->wpos, p_ptr->py + j, p_ptr->px + i, magik(50) ? FEAT_TREE : FEAT_BUSH);
-#if 1
+
 		/* Redraw - the trees might block view and cause wall shading etc! */
 		for (i = 1; i <= NumPlayers; i++) {
 			/* If he's not playing, skip him */
@@ -287,8 +295,11 @@ void grow_trees(int Ind, int rad) {
 
 			Players[i]->update |= (PU_VIEW | PU_LITE | PU_FLOW); //PU_DISTANCE, PU_TORCH, PU_MONSTERS??; PU_FLOW needed? both VIEW and LITE needed?
 		}
-#endif
 	}
+
+#ifdef USE_SOUND_2010
+	if (grew) sound(Ind, "grow_trees", NULL, SFX_TYPE_COMMAND, FALSE);
+#endif
 }
 
 /*
@@ -341,7 +352,7 @@ bool create_garden(int Ind, int chance) {
 			    ) {
 				if (randint(100) < chance) {
 					/* Delete the object (if any) */
-					delete_object(wpos, y, x, TRUE);
+					delete_object(wpos, y, x, TRUE, TRUE);
 					cave_set_feat_live(&p_ptr->wpos, y, x, magik(50) ? FEAT_TREE : FEAT_BUSH);
 					//c_ptr->feat = feat;
 				}
@@ -632,7 +643,7 @@ bool do_banish_dragons(int Ind, int chance) {
 /* Teleport-to a monster */
 bool do_shadow_gate(int Ind, int range) {
 	player_type *p_ptr = Players[Ind];
-	int nx, ny, tx = -1, ty = -1, mdist = 999, dist, idx;
+	int nx, ny, tx = -1, ty = -1, mdist = 999, dist, idx, midx = 0;
 	cave_type **zcave;
 
 	if (!p_ptr) return(FALSE);
@@ -663,6 +674,7 @@ bool do_shadow_gate(int Ind, int range) {
 		mdist = dist;
 		tx = nx;
 		ty = ny;
+		midx = idx;
 	}
 	if (tx == -1) {
 		msg_print(Ind, "There is no adversary close enough to you.");
@@ -670,6 +682,9 @@ bool do_shadow_gate(int Ind, int range) {
 	}
 
 	teleport_player_to(Ind, ty, tx, FALSE);
+	/* Grant a critical attack */
+	p_ptr->melee_crit_dual = midx;
+	p_ptr->melee_timeout_crit_dual = cfg.fps; //use level_speeds instead?
 	return(TRUE);
 }
 #endif
@@ -1903,6 +1918,27 @@ bool detect_treasure(int Ind, int rad) {
 					lite_spot(Ind, y, x);
 				}
 			}
+
+			/* Notice any precious metals/minerals, so massive pieces too */
+			if (o_ptr->tval == TV_GOLEM) switch (o_ptr->sval) {
+			case SV_GOLEM_COPPER:
+			case SV_GOLEM_SILVER:
+			case SV_GOLEM_GOLD:
+			case SV_GOLEM_MITHRIL:
+			case SV_GOLEM_ADAM:
+				/* Notice new items */
+				if (!(p_ptr->obj_vis[c_ptr->o_idx])) {
+					/* Detect */
+					detect = TRUE;
+
+					/* Hack -- memorize the item */
+					p_ptr->obj_vis[c_ptr->o_idx] = TRUE;
+
+					/* Redraw */
+					lite_spot(Ind, y, x);
+				}
+				break;
+			}
 		}
 	}
 	return(detect);
@@ -1977,6 +2013,27 @@ bool floor_detect_treasure(int Ind) {
 					/* Redraw */
 					lite_spot(Ind, y, x);
 				}
+			}
+
+			/* Notice any precious metals/minerals, so massive pieces too */
+			if (o_ptr->tval == TV_GOLEM) switch (o_ptr->sval) {
+			case SV_GOLEM_COPPER:
+			case SV_GOLEM_SILVER:
+			case SV_GOLEM_GOLD:
+			case SV_GOLEM_MITHRIL:
+			case SV_GOLEM_ADAM:
+				/* Notice new items */
+				if (!(p_ptr->obj_vis[c_ptr->o_idx])) {
+					/* Detect */
+					detect = TRUE;
+
+					/* Hack -- memorize the item */
+					p_ptr->obj_vis[c_ptr->o_idx] = TRUE;
+
+					/* Redraw */
+					lite_spot(Ind, y, x);
+				}
+				break;
 			}
 		}
 	}
@@ -3588,7 +3645,7 @@ void stair_creation(int Ind) {
 	}
 
 	/* Hack -- Delete old contents */
-	delete_object(wpos, p_ptr->py, p_ptr->px, TRUE);
+	delete_object(wpos, p_ptr->py, p_ptr->px, TRUE, TRUE);
 
 	/* Create a staircase */
 	if (!can_go_down(wpos, 0x1) && !can_go_up(wpos, 0x1)) {
@@ -3833,7 +3890,8 @@ bool enchant(int Ind, object_type *o_ptr, int n, int eflag) {
 				/* only when you get it above -1 -CFT */
 				if (cursed_p(o_ptr) &&
 				    (!(f3 & TR3_PERMA_CURSE)) &&
-				    (o_ptr->to_a >= 0) && (rand_int(100) < 25)) {
+				    //(o_ptr->to_a >= 0) && (rand_int(100) < 25)) {
+				    (rand_int(100) < 10 + 10 * o_ptr->to_a)) {
 					msg_print(Ind, "The curse is broken!");
 
 #ifdef VAMPIRES_INV_CURSED
@@ -3895,7 +3953,7 @@ bool create_artifact_aux(int Ind, int item) {
 	int tries = 0;
 	char o_name[ONAME_LEN];
 	s32b old_owner;/* anti-cheeze :) */
-	u32b resf = make_resf(p_ptr);
+	u64b resf = make_resf(p_ptr);
 
 	if (!get_inven_item(Ind, item, &o_ptr)) return(FALSE);
 
@@ -4557,7 +4615,6 @@ static bool recharge_antiriad(int Ind, int item, int num) {
 /*
  * Hook for "get_item()".  Determine if something is rechargable.
  */
-//static bool item_tester_hook_recharge(object_type *o_ptr)
 bool item_tester_hook_recharge(object_type *o_ptr) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
 
@@ -4607,13 +4664,7 @@ bool recharge(int Ind, int num, int item) {
 				if (!o_ptr->tval) break;
 				if (i == item) continue;
 
-#if 1 /* Optional: Perform a 'item_tester_hook_device()-like check: */
-				if (o_ptr->tval != TV_ROD && o_ptr->tval != TV_STAFF && o_ptr->tval != TV_WAND
- #ifdef MSTAFF_MDEV_COMBO
-				    && !(o_ptr->tval == TV_MSTAFF && o_ptr->xtra4) //hack: marker as 'rechargable' for ITH_RECHARGE
- #endif
-				    ) continue;
-#endif
+				if (!item_tester_hook_recharge(o_ptr)) continue;
 
 				object_desc(Ind, o_name, &p_ptr->inventory[i], TRUE, 3);
 				if (!strstr(o_name, c)) continue;
@@ -6107,8 +6158,9 @@ bool probing(int Ind) {
 
 			/* Describe the monster */
 			if (r_ptr->flags7 & RF7_NO_DEATH)
-				msg_format(Ind, "%^s (Lv %d) is %s, has %d ac and %d speed.", (r_ptr->flags3 & (RF3_UNDEAD | RF3_NONLIVING)) ? "indestructible" : "immortal",
-				    m_name, m_ptr->level, m_ptr->ac, m_ptr->mspeed - 110);
+				msg_format(Ind, "%^s (Lv %d) is %s, has %d ac and %d speed.",
+				    m_name, m_ptr->level, (r_ptr->flags3 & (RF3_UNDEAD | RF3_NONLIVING)) ? "indestructible" : "immortal",
+				    m_ptr->ac, m_ptr->mspeed - 110);
 			else if (m_ptr->r_idx == RI_BLUE)
 				msg_format(Ind, "%^s (Lv \?\?\?) has unknown hp, %d ac and %d speed.", m_name, m_ptr->ac, m_ptr->mspeed - 110);
 			else
@@ -6286,7 +6338,7 @@ void destroy_area(struct worldpos *wpos, int y1, int x1, int r, bool full, u16b 
 				struct c_special *cs_ptr;
 
 				/* Delete the object (if any) */
-				delete_object(wpos, y, x, TRUE);
+				delete_object(wpos, y, x, TRUE, TRUE);
 
 				/* Wall (or floor) type */
 				t = rand_int(200);
@@ -6757,7 +6809,7 @@ void earthquake(struct worldpos *wpos, int cy, int cx, int r) {
 				bool floor = cave_floor_bold(zcave, yy, xx);
 
 				/* Delete any object that is still there */
-				delete_object(wpos, yy, xx, TRUE);
+				delete_object(wpos, yy, xx, TRUE, TRUE);
 
 				/* Wall (or floor) type */
 				t = (floor ? rand_int(100) : 200);
@@ -6834,7 +6886,7 @@ void wipe_spell(struct worldpos *wpos, int cy, int cx, int r) {
 			}
 
 			/* Delete objects */
-			delete_object(wpos, yy, xx, TRUE);
+			delete_object(wpos, yy, xx, TRUE, TRUE);
 
 			everyone_lite_spot(wpos, yy, xx);
 		}
@@ -10608,7 +10660,7 @@ static void grind_chemicals_aux(int Ind, int amt, object_type *q_ptr, object_typ
 #if 0
 	/* Give us the result */
  #ifdef ENABLE_SUBINVEN
-	if (auto_stow(Ind, SV_SI_SATCHEL, q_ptr, -1, FALSE, FALSE, FALSE)) return;
+	if (auto_stow(Ind, SV_SI_SATCHEL, q_ptr, -1, FALSE, FALSE, FALSE, 0x0)) return;
  #endif
 	slot = inven_carry(Ind, q_ptr);
 	if (slot != -1) {
@@ -10973,7 +11025,30 @@ void arm_charge(int Ind, int item, int dir) {
 	inven_item_describe(Ind, item);
 	inven_item_optimize(Ind, item);
 }
-/* A charge (planted into the floor) explodes */
+/* Detonate a charge that is referenced as just an *o_ptr, with supplemented (arbitrary) wpos and x/y coords.
+   Uses a temp clone object, so it does not delete the real charge object in the process.
+   NOTE:
+   Usually charges that are 'embed'ded are from arming them, resulting in CS_MON_TRAP.
+   There is one exception though: If a charge is used as device trap 'ammo', it is embedded too,
+   but it isn't a normal, armed charge. It has the same effect though. */
+void detonate_charge_obj(object_type *o_ptr, struct worldpos *wpos, int x, int y) {
+	int o_idx;
+	object_type *q_ptr;
+
+	o_idx = o_pop();
+	if (!o_idx) return; //failure, no more free objects
+
+	q_ptr = &o_list[o_idx];
+	*q_ptr = *o_ptr;
+	q_ptr->wpos = *wpos;
+	q_ptr->ix = x;
+	q_ptr->iy = y;
+
+	q_ptr->temp |= 0x10; /* Mark as 'if this item is embedded, it is a trapkit load, not a planted stand-alone charge'. */
+	detonate_charge(o_idx);
+	q_ptr->temp &= ~0x10; /* Clear temp marker again. */
+}
+/* A charge (planted into the floor or thrown) explodes */
 void detonate_charge(int o_idx) {
 	object_type *oo_ptr = &o_list[o_idx];
 	object_type forge = (*oo_ptr), *o_ptr = &forge; /* create local working copy */
@@ -10987,6 +11062,7 @@ void detonate_charge(int o_idx) {
 	int x2, y2, dir;
 	/* Throwing a charge doesn't properly plant it - it's effectiveness is reduced: */
 	bool was_thrown = !o_ptr->embed;
+	bool trapkit = o_ptr->embed && (o_ptr->temp & 0x10);
 
 	bool rand_old = Rand_quick;
 	u32b old_seed = Rand_value;
@@ -10996,7 +11072,8 @@ void detonate_charge(int o_idx) {
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
 	/* without this, when disarming it we'd generate a (nothing) */
-	if ((cs_ptr = GetCS(c_ptr, CS_MON_TRAP))) {
+	if (o_ptr->embed && !trapkit && /* safety: in case this charge was thrown but happens to explode exactly while it passes over a CS_MON_TRAP grid oO' Or if it was a device trap load. */
+	    (cs_ptr = GetCS(c_ptr, CS_MON_TRAP))) {
 		i = cs_ptr->sc.montrap.feat;
 		cs_erase(c_ptr, cs_ptr);
 
@@ -11009,8 +11086,8 @@ void detonate_charge(int o_idx) {
 	}
 	/* Get rid of it so we don't get 'the charge was destroyed'
 	   message from our own fire/blast effets on the o_ptr, looks silyl.
-	   This is the reason we needed to create a working copy in 'forge'.  */
-	delete_object_idx(o_idx, TRUE);
+	   This is the reason we needed to create a working copy in 'forge'. */
+	delete_object_idx(o_idx, TRUE, FALSE); /* (This call deletes oo_ptr which is the actual object, leaving us o_ptr as local temp copy to work with) */
 
 	/* Find owner of the charge */
 	for (i = 1; i <= NumPlayers; i++) {

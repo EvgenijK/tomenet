@@ -2036,6 +2036,18 @@ void c_prt(byte attr, cptr str, int row, int col) {
 	Term_addstr(-1, attr, str);
 }
 
+/* Like c_prt(), but allow the usual colour codes -- for future use in s_aux.lua instead of c_prt(), for coloured spell info */
+void cc_prt(byte attr, cptr str, int row, int col) {
+	/* Hack -- fake monochrome */
+	/* if (!c_cfg.use_color) attr = TERM_WHITE; */
+
+	/* Clear line, position cursor */
+	Term_erase(col, row, 255);
+
+	/* Dump the attr/text */
+	Term_putstr(col, row, -1, attr, (char*)str);
+}
+
 /*
  * As above, but in "white"
  */
@@ -2228,6 +2240,7 @@ void copy_to_clipboard(char *buf, bool chat_input) {
 				continue;
 			}
 			break;
+		case '\\': *c2++ = '\\';
 		}
 		*c2 = *c;
 		c++;
@@ -2311,6 +2324,7 @@ void copy_to_clipboard(char *buf, bool chat_input) {
 				continue;
 			}
 			break;
+		case '\\': *c2++ = '\\';
 		}
 		*c2 = *c;
 		c++;
@@ -7905,7 +7919,7 @@ Chain_Macro:
 						l = ystart + 2;
 						clear_from(l);
 						Term_putstr(5, l++, -1, TERM_GREEN, "Please enter a distinctive part of the item's name or inscription.");
-						l += 4;
+						l += 5;
 						Term_putstr(5, l++, -1, TERM_L_GREEN, "Enter partial item name or inscription:");
 
 						j = choice;
@@ -8474,16 +8488,16 @@ Chain_Macro:
 									Term_putstr(10, l2++, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
 									Term_putstr(10, l2++, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
 								} else {
-									Term_putstr(10, l2++, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
-									Term_putstr(10, l2++, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "No need to add a latency-based delay so you can just press ESC. But");
+									Term_putstr(10, l2++, -1, TERM_YELLOW, "if you want one, eg for shop interaction, you may modify it in steps");
 								}
-								Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or just press ESC to not use a delay.");
 								l2++;
 								Term_putstr(10, l2, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
 
 								/* suggest +25% reserve tolerance but at least +25 ms on the ping time */
 								sprintf(tmp, "%d", ((ping_avg < 100 ? ping_avg + 25 : (ping_avg * 125) / 100) / 100 + 1) * 100);
-								Term_gotoxy(52, l);
+								Term_gotoxy(52, l2);
 								if (askfor_aux(tmp, 50, 0)) {
 									delay = atoi(tmp);
 									if (delay % 100) delay += 100; //QoL hack for noobs who can't read
@@ -9049,7 +9063,7 @@ Chain_Macro:
 					    choice != mw_dir_disarm && choice != mw_dir_bash && choice != mw_dir_close && choice != mw_prfele &&
 					    choice != mw_fileset) {
 						if (choice == mw_load) Term_gotoxy(23, ystart + 8);
-						else if (choice == mw_poly) Term_gotoxy(47, ystart + 10);
+						else if (choice == mw_poly) Term_gotoxy(47, ystart + 11);
 						else if (choice == mw_option) Term_gotoxy(30, ystart + 4);
 						else Term_gotoxy(47, ystart + 8);
 
@@ -9565,10 +9579,10 @@ Chain_Macro:
 								Term_putstr(10, l2++, -1, TERM_YELLOW, "This macro might need a latency-based delay to work properly!");
 								Term_putstr(10, l2++, -1, TERM_YELLOW, "You can accept the suggested delay or modify it in steps");
 							} else {
-								Term_putstr(10, l2++, -1, TERM_YELLOW, "If you want to add a latency-based delay, eg for shop interaction,");
-								Term_putstr(10, l2++, -1, TERM_YELLOW, "you can accept the suggested delay or modify it in steps");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "No need to add a latency-based delay so you can just press ESC. But");
+								Term_putstr(10, l2++, -1, TERM_YELLOW, "if you want one, eg for shop interaction, you may modify it in steps");
 							}
-							Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or hit ESC to not use a delay.");
+							Term_putstr(10, l2++, -1, TERM_YELLOW, "of 100 ms up to 9900 ms, or just press ESC to not use a delay.");
 							l2++;
 							Term_putstr(10, l2, -1, TERM_L_GREEN, "ENTER\377g to accept, \377GESC\377g to discard (in ms):");
 
@@ -9684,7 +9698,7 @@ void auto_inscriptions(void) {
 	char tmp[160], buf[1024], *buf_ptr, c;
 	char match_buf[AUTOINS_MATCH_LEN + 8], tag_buf[AUTOINS_TAG_LEN + 2];
 
-	char fff[1024];
+	char fff[1024], search[MAX_CHARS];
 
 #ifdef REGEX_SEARCH
 	int ires = -999;
@@ -9710,9 +9724,9 @@ void auto_inscriptions(void) {
 
 			/* Describe */
 			Term_putstr(15,  0, -1, TERM_L_UMBER, format("*** Current Auto-Inscriptions List, page %d/%d ***", cur_page + 1, max_page + 1));
-			Term_putstr(2, 21, -1, TERM_L_UMBER, "(\377y8\377U/\377y2\377U/\377ySPACE\377U/\377yBKSP\377U/\377yp\377U) navigate, (\377yP\377U) chat-paste, (\377yf\377U/\377yb\377U/\377yt\377U) force/bags-only/toggle");
-			Term_putstr(2, 22, -1, TERM_L_UMBER, "(\377yESC\377U\377U/\377y?\377U,\377yh\377U/\377ye\377U,\377yRET\377U/\377yd\377U/\377yc\377U) exit/help/edit/delete/CLEAR ALL, (\377ya\377U) auto-pickup/destroy");
-			Term_putstr(2, 23, -1, TERM_L_UMBER, "(\377yw\377U/\377yx\377U) move up/down, (\377yl\377U/\377yL\377U/\377ys\377U/\377yS\377U) Load/save from/to an '\377u.ins\377U'/'\377uglobal.ins\377U' file");
+			Term_putstr(0, 21, -1, TERM_L_UMBER, "(\377yESC\377U/\377yg\377U/\377yG\377U/\377U/\377y8\377U/\377y2\377U/\377ySPC\377U/\377yBKSP\377U/\377yp\377U) nav, (\377yP\377U) chat-paste, (\377yf\377U/\377yb\377U/\377yt\377U) force/bags-only/toggle");
+			Term_putstr(0, 22, -1, TERM_L_UMBER, "(\377y?\377U/\377ye\377U,\377yRET\377U/\377yI\377U/\377yX\377U/\377yd\377U/\377yc\377U) help/edit/insert/excise/delete/CLEAR, (\377ya\377U) auto-pick/des/ig");
+			Term_putstr(0, 23, -1, TERM_L_UMBER, "(\377yw\377U/\377yx\377U) move, (\377y/\377U/\377y#\377U) find, (\377yl\377U/\377yL\377U/\377ys\377U/\377yS\377U/\377yA\377U) load/save '\377u.ins\377U'/'\377uglobal.ins\377U'/'\377u<class>.ins\377U'");
 
 			for (i = 0; i < AUTOINS_PAGESIZE; i++) {
 				cur_idx = cur_page * AUTOINS_PAGESIZE + i;
@@ -9733,12 +9747,12 @@ void auto_inscriptions(void) {
 				strcat(match_buf, auto_inscription_match[cur_idx]);
 				strcpy(tag_buf, auto_inscription_tag[cur_idx]);
 				sprintf(fff, "\377%c%3d %-59s %s%s\377%c>%-19s", auto_inscription_force[cur_idx] ? AUTOINS_FORCE_COL : 'w', cur_idx + 1, match_buf, /* spacing = AUTOINS_MATCH_LEN + 7 */
-				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : " "),
 #ifdef REGEX_SEARCH
-				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting.. */
+				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting, error colour code takes up 2 'chars' */
 #else
 				    "",
 #endif
+				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : (auto_inscription_ignore[cur_idx] ? "\377yi\377-" : " ")),
 				    c, tag_buf);
 
 #ifdef INTEGRATED_SELECTOR
@@ -9776,12 +9790,12 @@ void auto_inscriptions(void) {
 				strcat(match_buf, auto_inscription_match[cur_idx]);
 				strcpy(tag_buf, auto_inscription_tag[cur_idx]);
 				sprintf(fff, "\377%c%3d %-59s %s%s\377%c>%-19s", auto_inscription_force[cur_idx] ? AUTOINS_FORCE_COL : 'w', cur_idx + 1, match_buf, /* spacing = AUTOINS_MATCH_LEN + 7 */
-				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : " "),
  #ifdef REGEX_SEARCH
-				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting.. */
+				    auto_inscription_invalid[cur_idx] ? "  " : "", /* silyl sprintf %- formatting, error colour code takes up 2 'chars'  */
  #else
 				    "",
  #endif
+				    auto_inscription_autodestroy[cur_idx] ? "\377RA\377-" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377-" : (auto_inscription_ignore[cur_idx] ? "\377yi\377-" : " ")),
 				    c, tag_buf);
 
  #ifdef AUTOINS_DIS_SUB_MATCH
@@ -9826,24 +9840,27 @@ void auto_inscriptions(void) {
 		case '?':
 		case 'h':
 			Term_clear();
+			topline_icky = TRUE;
 			i = 0;
 
-			Term_putstr( 0, i++, -1, TERM_WHITE, "Editing item name matches (left column) and applied inscription (right column):");
-			i++;
+			Term_putstr( 0, i++, -1, TERM_SLATE, "Editing item name matches (left column) and applied inscription (right column):");
+			//i++;
 
 			Term_putstr( 0, i++, -1, TERM_YELLOW, "Editing item name matches:");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "The item name you enter is used as a partial match.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "The item name you enter is used as a partial match, case-sensitively.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "You can use '#' as wildcards, eg \"Rod#Healing\".");
 #ifdef REGEX_SEARCH
 			Term_putstr( 0, i++, -1, TERM_WHITE, "If you prefix a line with '$' the string will be interpreted as regexp.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "In a regexp string, the '#' will no longer have a wildcard function.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "Regular expressions are parsed case-insensitively.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "Regular expressions are parsed case-insensitively instead.");
 #endif
 			//i++;
 
 			Term_putstr( 0, i++, -1, TERM_YELLOW, "Editing item inscriptions to be applied:");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "No special rules here, it works the same as manual inscriptions.");
-			Term_putstr( 0, i++, -1, TERM_WHITE, "So you could even specify \"@@\" if you want a power-inscription.");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "It works the same as manual inscriptions. So you could even specify \"@@\"");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "if you want a power-inscription. There is only one special rule:");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "A matched entry that is set to '\377yi\377w'gnore will be skipped for the purpose");
+			Term_putstr( 0, i++, -1, TERM_WHITE, "of inscribing if the tag is empty, and only work for auto-pickup/destroy.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "Press 'f' to toggle force-inscribing, which will overwrite an existing");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "Inscription always. Otherwise just trivial ones, eg discount tags.");
 			Term_putstr( 0, i++, -1, TERM_WHITE, "An orange tag text colour (instead of white) indicates forced-mode.");//AUTOINS_FORCE_COL
@@ -9860,6 +9877,37 @@ void auto_inscriptions(void) {
 
 			Term_putstr(25, 23, -1, TERM_L_BLUE, "(Press any key to go back)");
 			inkey();
+
+			topline_icky = FALSE;
+			break;
+		case '/': // search
+			redraw = TRUE;
+			Term_putstr(0, 23, -1, TERM_YELLOW, "Enter search term: ");
+			if (!askfor_aux(search, MAX_CHARS, 0)) continue;
+
+			for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++)
+				if (my_strcasestr(auto_inscription_match[(cur_idx + 1 + i) % MAX_AUTO_INSCRIPTIONS], search)) break;
+			/* If we're not looking for subsequent results, leave the options page instead of wrapping around */
+			if (i != MAX_AUTO_INSCRIPTIONS) {
+				cur_idx = (cur_idx + 1 + i) % MAX_AUTO_INSCRIPTIONS;
+				cur_line = (cur_idx % AUTOINS_PAGESIZE);
+				cur_page = cur_idx / AUTOINS_PAGESIZE;
+			}
+			break;
+		case '#': // jump to line #
+			redraw = TRUE;
+			Term_putstr(0, 23, -1, TERM_YELLOW, format("Enter line number (1-%d): ", MAX_AUTO_INSCRIPTIONS));
+			if (!askfor_aux(tmp, MAX_CHARS, 0)) continue;
+
+			i = atoi(tmp);
+			if (i < 1 || i > MAX_AUTO_INSCRIPTIONS) {
+				c_msg_print("\377yInvalid line number.");
+				continue;
+			}
+
+			cur_idx = i - 1;
+			cur_line = (cur_idx % AUTOINS_PAGESIZE);
+			cur_page = cur_idx / AUTOINS_PAGESIZE;
 			break;
 		case 'P':
 			/* Paste currently selected entry to chat */
@@ -9869,7 +9917,7 @@ void auto_inscriptions(void) {
 			strcpy(tag_buf, auto_inscription_tag[cur_idx]);
 			sprintf(tmp, "\377sAuto-inscription %3d: %s%s<\377%c%s\377s>", cur_idx + 1,
 			    match_buf,
-			    auto_inscription_autodestroy[cur_idx] ? "\377RA\377s" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377s" : " "),
+			    auto_inscription_autodestroy[cur_idx] ? "\377RA\377s" : (auto_inscription_autopickup[cur_idx] ? "\377Ga\377s" : (auto_inscription_ignore[cur_idx] ? "\377yi\377s" : " ")),
 			    auto_inscription_force[cur_idx] ? AUTOINS_FORCE_COL : 'w',
 			    tag_buf);
 			Send_paste_msg(tmp);
@@ -9894,12 +9942,14 @@ void auto_inscriptions(void) {
 			if (cur_page < 0) cur_page = max_page;
 			redraw = TRUE;
 			break;
+		case 'G':
 		case '1': //end
 		case NAVI_KEY_END:
 			cur_page = max_page;
-			cur_line = 0;
+			cur_line = AUTOINS_PAGESIZE - 1;
 			redraw = TRUE;
 			break;
+		case 'g':
 		case '7': //home
 		case NAVI_KEY_POS1:
 			cur_page = 0;
@@ -9962,6 +10012,10 @@ void auto_inscriptions(void) {
 			auto_inscription_autopickup[cur_idx] = auto_inscription_autopickup[cur_idx + 1];
 			auto_inscription_autopickup[cur_idx + 1] = temp;
 
+			temp = auto_inscription_ignore[cur_idx];
+			auto_inscription_ignore[cur_idx] = auto_inscription_ignore[cur_idx + 1];
+			auto_inscription_ignore[cur_idx + 1] = temp;
+
 			temp = auto_inscription_force[cur_idx];
 			auto_inscription_force[cur_idx] = auto_inscription_force[cur_idx + 1];
 			auto_inscription_force[cur_idx + 1] = temp;
@@ -10007,6 +10061,10 @@ void auto_inscriptions(void) {
 			temp = auto_inscription_autopickup[cur_idx];
 			auto_inscription_autopickup[cur_idx] = auto_inscription_autopickup[cur_idx - 1];
 			auto_inscription_autopickup[cur_idx - 1] = temp;
+
+			temp = auto_inscription_ignore[cur_idx];
+			auto_inscription_ignore[cur_idx] = auto_inscription_ignore[cur_idx - 1];
+			auto_inscription_ignore[cur_idx - 1] = temp;
 
 			temp = auto_inscription_force[cur_idx];
 			auto_inscription_force[cur_idx] = auto_inscription_force[cur_idx - 1];
@@ -10092,6 +10150,22 @@ void auto_inscriptions(void) {
 			/* Dump the macros */
 			save_auto_inscriptions(tmp);
 			break;
+		case 'A':
+			/* Prompt */
+			clear_from(21);
+			Term_putstr(0, 22, -1, TERM_L_GREEN, "*** Save to class-specific inscription file ***");
+
+			/* Get a filename, handle ESCAPE */
+			Term_putstr(0, 23, -1, TERM_WHITE, "File: ");
+
+			strcpy(tmp, format("%s.ins", p_ptr->cp_ptr->title));
+
+			/* Ask for a file */
+			if (!askfor_aux(tmp, 70, 0)) continue;
+
+			/* Dump the macros */
+			save_auto_inscriptions(tmp);
+			break;
 		case 'e':
 		case '6':
 		case '\n':
@@ -10133,7 +10207,7 @@ void auto_inscriptions(void) {
 					auto_inscription_invalid[cur_idx] = TRUE;
 					c_msg_format("\377oInvalid regular expression in auto-inscription #%d.", cur_idx + 1);
 					/* Re-colour the line to indicate error */
-					Term_putstr(11, cur_line + 1, -1, TERM_L_RED, buf_ptr);
+					Term_putstr(5, cur_line + 1, -1, TERM_L_RED, buf_ptr);
 				} else auto_inscription_invalid[cur_idx] = FALSE;
 				regfree(&re_src);
 			}
@@ -10166,10 +10240,8 @@ void auto_inscriptions(void) {
 			}
 			break;
 		case 'd':
-			auto_inscription_match[cur_idx][0] = 0;
-			auto_inscription_tag[cur_idx][0] = 0;
-			auto_inscription_autopickup[cur_idx] = FALSE;
-			auto_inscription_autodestroy[cur_idx] = FALSE;
+			auto_inscription_match[cur_idx][0] = auto_inscription_tag[cur_idx][0] = 0;
+			auto_inscription_autopickup[cur_idx] = auto_inscription_autodestroy[cur_idx] = auto_inscription_ignore[cur_idx] = FALSE;
 			auto_inscription_force[cur_idx] = FALSE;
 #ifdef REGEX_SEARCH
 			auto_inscription_invalid[cur_idx] = FALSE;
@@ -10187,12 +10259,65 @@ void auto_inscriptions(void) {
 			}
 #endif
 			break;
+		case 'X':
+			/* Slide rest up.. */
+			for (i = cur_idx; i < MAX_AUTO_INSCRIPTIONS - 1; i++) {
+				strcpy(auto_inscription_match[i], auto_inscription_match[i + 1]);
+				strcpy(auto_inscription_tag[i], auto_inscription_tag[i + 1]);
+				auto_inscription_autopickup[i] = auto_inscription_autopickup[i + 1];
+				auto_inscription_autodestroy[i] = auto_inscription_autodestroy[i + 1];
+				auto_inscription_ignore[i] = auto_inscription_ignore[i + 1];
+				auto_inscription_force[i] = auto_inscription_force[i + 1];
+#ifdef REGEX_SEARCH
+				auto_inscription_invalid[i] = auto_inscription_invalid[i + 1];
+#endif
+				auto_inscription_subinven[i] = auto_inscription_subinven[i + 1];
+				auto_inscription_disabled[i] = auto_inscription_disabled[i + 1];
+			}
+			/* ..and delete the last one */
+			auto_inscription_match[i][0] = auto_inscription_tag[i][0] = 0;
+			auto_inscription_autopickup[i] = auto_inscription_autodestroy[i] = auto_inscription_ignore[i] = FALSE;
+			auto_inscription_force[i] = FALSE;
+#ifdef REGEX_SEARCH
+			auto_inscription_invalid[i] = FALSE;
+#endif
+			auto_inscription_subinven[i] = FALSE;
+			auto_inscription_disabled[i] = FALSE;
+			break;
+		case 'I':
+			/* Check if the last inscription is free */
+			if (auto_inscription_match[MAX_AUTO_INSCRIPTIONS - 1][0]) {
+				c_msg_format("\377yThe last auto-inscription (#%d) must be unused in order to insert a line!", MAX_AUTO_INSCRIPTIONS);
+				break;
+			}
+			/* Slide all down.. */
+			for (i = MAX_AUTO_INSCRIPTIONS - 1; i > cur_idx; i--) {
+				strcpy(auto_inscription_match[i], auto_inscription_match[i - 1]);
+				strcpy(auto_inscription_tag[i], auto_inscription_tag[i - 1]);
+				auto_inscription_autopickup[i] = auto_inscription_autopickup[i - 1];
+				auto_inscription_autodestroy[i] = auto_inscription_autodestroy[i - 1];
+				auto_inscription_ignore[i] = auto_inscription_ignore[i - 1];
+				auto_inscription_force[i] = auto_inscription_force[i - 1];
+#ifdef REGEX_SEARCH
+				auto_inscription_invalid[i] = auto_inscription_invalid[i - 1];
+#endif
+				auto_inscription_subinven[i] = auto_inscription_subinven[i - 1];
+				auto_inscription_disabled[i] = auto_inscription_disabled[i - 1];
+			}
+			/* ..and clear the current line */
+			auto_inscription_match[i][0] = auto_inscription_tag[i][0] = 0;
+			auto_inscription_autopickup[i] = auto_inscription_autodestroy[i] = auto_inscription_ignore[i] = FALSE;
+			auto_inscription_force[i] = FALSE;
+#ifdef REGEX_SEARCH
+			auto_inscription_invalid[i] = FALSE;
+#endif
+			auto_inscription_subinven[i] = FALSE;
+			auto_inscription_disabled[i] = FALSE;
+			break;
 		case 'c':
 			for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
-				auto_inscription_match[i][0] = 0;
-				auto_inscription_tag[i][0] = 0;
-				auto_inscription_autopickup[i] = FALSE;
-				auto_inscription_autodestroy[i] = FALSE;
+				auto_inscription_match[i][0] = auto_inscription_tag[i][0] = 0;
+				auto_inscription_autopickup[i] = auto_inscription_autodestroy[i] = auto_inscription_ignore[i] = FALSE;
 				auto_inscription_force[i] = FALSE;
 #ifdef REGEX_SEARCH
 				auto_inscription_invalid[i] = FALSE;
@@ -10208,17 +10333,19 @@ void auto_inscriptions(void) {
 			redraw = TRUE;
 			break;
 		case 'a':
-			/* cycle: nothing / auto-pickup / auto-destroy */
-			if (!auto_inscription_autopickup[cur_idx]) {
-				if (!auto_inscription_autodestroy[cur_idx])
-					auto_inscription_autopickup[cur_idx] = TRUE;
-				else auto_inscription_autopickup[cur_idx] = auto_inscription_autodestroy[cur_idx] = FALSE; /* <- shouldn't happen (someone messed up his .ins) */
-			} else {
-				if (auto_inscription_autodestroy[cur_idx])
-					auto_inscription_autopickup[cur_idx] = auto_inscription_autodestroy[cur_idx] = FALSE;
-				else
-					auto_inscription_autodestroy[cur_idx] = TRUE;
-			}
+			/* cycle: nothing / auto-pickup / auto-destroy / ignore */
+			if (auto_inscription_ignore[cur_idx]) {
+				auto_inscription_ignore[cur_idx] = FALSE;
+				auto_inscription_autopickup[cur_idx] = auto_inscription_autodestroy[cur_idx] = FALSE; /* <- shouldn't happen (someone messed up his .ins) */
+			} else if (auto_inscription_autodestroy[cur_idx]) {
+				auto_inscription_autodestroy[cur_idx] = FALSE;
+				auto_inscription_ignore[cur_idx] = TRUE;
+				auto_inscription_autopickup[cur_idx] = FALSE; /* <- shouldn't happen (someone messed up his .ins) */
+			} else if (auto_inscription_autopickup[cur_idx]) {
+				auto_inscription_autopickup[cur_idx] = FALSE;
+				auto_inscription_autodestroy[cur_idx] = TRUE;
+				auto_inscription_ignore[cur_idx] = FALSE; /* <- shouldn't happen (someone messed up his .ins) */
+			} else auto_inscription_autopickup[cur_idx] = TRUE;
 			redraw = TRUE;
 			break;
 		case 'f':
@@ -12318,7 +12445,7 @@ static void do_cmd_options_install_audio_packs(void) {
 		/* Scan contents for 'tar' file */
 		fff = fopen("__tomenethelper.bat", "w");
 		if (!fff) {
-			c_message_add("\377oError: Couldn't write temporary file.");
+			c_message_add("\377oError: Couldn't write temporary file (I1).");
 			return;
 		}
 		if (passworded) fprintf(fff, format("@%s -p\"%s\" l \"%s\" > __tomenet.tmp\n", path_7z_quoted, password, pack_name));
@@ -12356,7 +12483,7 @@ static void do_cmd_options_install_audio_packs(void) {
 				l7z = FALSE;
 				fff = fopen("__tomenethelper.bat", "w");
 				if (!fff) {
-					c_message_add("\377oError: Couldn't write temporary file.");
+					c_message_add("\377oError: Couldn't write temporary file (I2).");
 					return;
 				}
 				if (passworded) fprintf(fff, format("@%s x -p\"%s\" -so \"%s\" | %s l -si -ttar > __tomenet.tmp\n", path_7z_quoted, password, pack_name, path_7z_quoted));
@@ -13018,7 +13145,7 @@ void do_cmd_options(void) {
 			Term_putstr(1, l++, -1, TERM_L_DARK, "(\377sb\377D/\377sM\377D/\377sm\377D) Toggle/enable/disable big_map (double size) - NOT AVAILABLE ON GCU");
 #endif
 		l++;
-		Term_putstr(1, l++, -1, TERM_WHITE, "(\377os\377w/\377oS\377w)   Save all options & flags / Save to global.opt file (account-wide)");
+		Term_putstr(1, l++, -1, TERM_WHITE, "(\377os\377w/\377oS\377w/\377oa\377w) Save options & flags / to global.opt (account) / to class-specific file");
 		Term_putstr(1, l++, -1, TERM_WHITE, "(\377ol\377w)     Load all options & flags");
 		if (strcmp(ANGBAND_SYS, "gcu")) {
 			Term_putstr(1, l++, -1, TERM_WHITE, "(\377oT\377w)     Save current window, positions and sizes to current config file");
@@ -13135,15 +13262,15 @@ void do_cmd_options(void) {
 					}
 
 					switch(option_info[l].o_page) {
-					case 1:	m = do_cmd_options_aux(1, "UI Opt. 1 (Base/Vis)", k); break;
-					case 4:	m = do_cmd_options_aux(4, "UI Opt. 2 (Visuals)", k); break;
-					case 6:	m = do_cmd_options_aux(6, "UI Opt. 3 (Formatting)", k); break;
-					case 7:	m = do_cmd_options_aux(7, "UI Opt. 4 (Notifications)", k); break;
-					case 0:	m = do_cmd_options_aux(0, "UI Opt. 5 (Messages)", k); break;
-					case 5:	m = do_cmd_options_aux(5, "Audio Opt. 1 (SFX+Music)", k); break;
-					case 9:	m = do_cmd_options_aux(9, "Audio Opt. 2 (Paging+OS)", k); break;
-					case 2:	m = do_cmd_options_aux(2, "Play Opt. 1 (Actions/Safety)", k); break;
-					case 3:	m = do_cmd_options_aux(3, "Play Opt. 2 (Disturbances)", k); break;
+					case 1: m = do_cmd_options_aux(1, "UI Opt. 1 (Base/Vis)", k); break;
+					case 4: m = do_cmd_options_aux(4, "UI Opt. 2 (Visuals)", k); break;
+					case 6: m = do_cmd_options_aux(6, "UI Opt. 3 (Formatting)", k); break;
+					case 7: m = do_cmd_options_aux(7, "UI Opt. 4 (Notifications)", k); break;
+					case 0: m = do_cmd_options_aux(0, "UI Opt. 5 (Messages)", k); break;
+					case 5: m = do_cmd_options_aux(5, "Audio Opt. 1 (SFX+Music)", k); break;
+					case 9: m = do_cmd_options_aux(9, "Audio Opt. 2 (Paging+OS)", k); break;
+					case 2: m = do_cmd_options_aux(2, "Play Opt. 1 (Actions/Safety)", k); break;
+					case 3: m = do_cmd_options_aux(3, "Play Opt. 2 (Disturbances)", k); break;
 					case 8: m = do_cmd_options_aux(8, "Play Opt. 3 (Items)", k); break;
 					default: m = found = FALSE; c_msg_print("Option not found.");
 					}
@@ -13182,6 +13309,18 @@ void do_cmd_options(void) {
 
 			/* Default filename */
 			strcpy(tmp, "global.opt");
+
+			/* Ask for a file */
+			if (!askfor_aux(tmp, 70, 0)) continue;
+
+			/* Dump the macros */
+			(void)options_dump(tmp);
+		} else if (k == 'a') {
+			/* Get a filename, handle ESCAPE */
+			Term_putstr(0, 23, -1, TERM_YELLOW, "Save to class-specific .opt file: ");
+
+			/* Default filename */
+			strcpy(tmp, format("%s.opt", p_ptr->cp_ptr->title));
 
 			/* Ask for a file */
 			if (!askfor_aux(tmp, 70, 0)) continue;
@@ -14430,13 +14569,10 @@ void audio_pack_selector(void) {
 #endif
 
 
-	/* Save screen */
-	Term_save();
-
 	/* Get list of all folders starting on 'music' or 'sound' within lib/xtra */
 	fff = fopen("__tomenet.tmp", "w"); //just make sure the file always exists, for easier file-reading handling.. pft */
 	if (!fff) {
-		c_message_add("\377oError: Couldn't write temporary file.");
+		c_message_add("\377oError: Couldn't write temporary file (P1).");
 		return;
 	}
 	fclose(fff);
@@ -14444,7 +14580,7 @@ void audio_pack_selector(void) {
  #if 0 /* use system calls - easy, but has drawback of cmd shell window popup -_- */
 	fff = fopen("__tomenethelper.bat", "w");
 	if (!fff) {
-		c_message_add("\377oError: Couldn't write temporary file.");
+		c_message_add("\377oError: Couldn't write temporary file (P2).");
 		return;
 	}
 	fprintf(fff, "@dir %s /a:d /b > __tomenet.tmp\n", ANGBAND_DIR_XTRA);
@@ -14475,7 +14611,7 @@ void audio_pack_selector(void) {
 #endif
 	fff = fopen("__tomenet.tmp", "r");
 	if (!fff) {
-		c_message_add("\377oError: Couldn't scan audio pack folders.");
+		c_message_add("\377oError: Couldn't read temporary file.");
 		return;
 	}
 	while (!feof(fff)) {
@@ -14531,19 +14667,19 @@ void audio_pack_selector(void) {
 
 					/* Scan for pack info */
 					if (!strcmp(ckey, "packname")) {
-						strcpy(sp_name[soundpacks], cval);
+						strncpy(sp_name[soundpacks], cval, MAX_CHARS);
 						continue;
 					}
 					if (!strcmp(ckey, "author")) {
-						strcpy(sp_author[soundpacks], cval);
+						strncpy(sp_author[soundpacks], cval, MAX_CHARS);
 						continue;
 					}
 					if (!strcmp(ckey, "description")) {
-						strcpy(sp_diz[soundpacks], cval);
+						strncpy(sp_diz[soundpacks], cval, MAX_CHARS * 3);
 						continue;
 					}
 					if (!strcmp(ckey, "version")) {
-						strcpy(sp_version[soundpacks], cval);
+						strncpy(sp_version[soundpacks], cval, MAX_CHARS);
 						continue;
 					}
 				}
@@ -14591,19 +14727,19 @@ void audio_pack_selector(void) {
 
 					/* Scan for pack info */
 					if (!strcmp(ckey, "packname")) {
-						strcpy(mp_name[musicpacks], cval);
+						strncpy(mp_name[musicpacks], cval, MAX_CHARS);
 						continue;
 					}
 					if (!strcmp(ckey, "author")) {
-						strcpy(mp_author[musicpacks], cval);
+						strncpy(mp_author[musicpacks], cval, MAX_CHARS);
 						continue;
 					}
 					if (!strcmp(ckey, "description")) {
-						strcpy(mp_diz[musicpacks], cval);
+						strncpy(mp_diz[musicpacks], cval, MAX_CHARS * 3);
 						continue;
 					}
 					if (!strcmp(ckey, "version")) {
-						strcpy(mp_version[musicpacks], cval);
+						strncpy(mp_version[musicpacks], cval, MAX_CHARS);
 						continue;
 					}
 				}
@@ -14620,6 +14756,9 @@ void audio_pack_selector(void) {
 #else
 	remove("__tomenethelper.bat");
 #endif
+
+	/* Save screen */
+	Term_save();
 
 	/* suppress hybrid macros */
 	inkey_msg = TRUE;

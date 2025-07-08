@@ -465,7 +465,10 @@ struct player_type {
 	s16b diseased;			/* Timed -- Diseased */
 	int poisoned_attacker;		/* Who poisoned the player - used for blood bond */
 	s16b cut;			/* Timed -- Cut */
+	s16b cut_bandaged;		/* Timed -- Cut */
 	int cut_attacker;		/* Who cut the player - used for blood bond */
+	bool cut_intrinsic_regen;
+	bool cut_intrinsic_nocut;
 	s16b stun;			/* Timed -- Stun */
 
 	s16b xtrastat_tim;		/* Timed temp +stats */
@@ -828,8 +831,9 @@ struct player_type {
 //	u32b global_event_progress[MAX_GLOBAL_EVENTS][4];
 	int global_event_participated[MAX_GLOBAL_EVENT_TYPES];
 
-	int combat_stance;
-	int combat_stance_power;
+	byte combat_stance;
+	byte combat_stance_prev;
+	byte combat_stance_power;
 
 	bool shoot_till_kill;
 	bool shooty_till_kill;
@@ -1031,3 +1035,4 @@ extern void lua_wish(int Ind, int tval, int sval, int number, int bpval, int pva
 extern s32b player_id;
 extern u32b account_id;
 extern void disturb(int Ind, int stop_search, int keep_resting);
+extern object_type lua_get_subinven_item(int Ind, int inven, int subinven);

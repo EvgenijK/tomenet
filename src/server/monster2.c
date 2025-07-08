@@ -431,7 +431,7 @@ void delete_monster_idx(int i, bool unfound_arts) {
 		o_ptr->held_m_idx = 0;
 
 		/* Delete the object */
-		delete_object_idx(this_o_idx, unfound_arts);
+		delete_object_idx(this_o_idx, unfound_arts, TRUE);
 	}
 #endif	// MONSTER_INVENTORY
 
@@ -1148,6 +1148,78 @@ errr get_mon_num_prep(int dun_type, char *reject_monsters) {
 		if ((!hook || (*hook)(r_idx)) && (!hook2 || (*hook2)(r_idx))) {
 			/* Accept this monster */
 			entry->prob2 = entry->prob1;
+		}
+
+		/* Do not use this monster */
+		else {
+			/* Decline this monster */
+			continue;
+		}
+	}
+
+	/* Success */
+	return(0);
+}
+/* Same as get_mon_num_prep() (for dungeon 0 aka default 'wilderness'/no settings modifications),
+   but additionally consider town distance to reduce amount of humanoids if farther away from town. */
+errr get_mon_num_prep_wild(int town_distance, char *reject_monsters) {
+	alloc_entry	*restrict table = alloc_race_table_dun[0]; //dun_type is zero, no dungeon/default wilderness template
+	long		i, n, r_idx;
+	int people_perc, humanoids_perc, animals_perc;
+
+	if (!town_distance) town_distance = 1;
+
+	people_perc = (100 * 2) / (town_distance + 1);
+	if (people_perc < 25) people_perc = 25;
+
+	humanoids_perc = (100 * 4) / (town_distance + 3);
+	if (humanoids_perc < 50) humanoids_perc = 50;
+
+	animals_perc = 150 + town_distance * 10; /* This actually also boosts rarer animals as it flattens the chance differences against the cap of 10000 */
+	if (animals_perc > 300) animals_perc = 300;
+
+
+	/* Select the table based on dungeon type */
+	alloc_race_table = table;
+
+	/* Local copies of the hooks for speed */
+	bool (*hook)(int r_idx) = get_mon_num_hook;
+	bool (*hook2)(int r_idx) = get_mon_num2_hook;
+
+	/* Scan the allocation table */
+	for (i = 0, n = alloc_race_size; i < n; i++) {
+		/* Get the entry */
+		alloc_entry *entry = &table[i];
+
+		/* Default probability for this pass */
+		entry->prob2 = 0;
+
+		/* Access the "r_idx" of the chosen monster */
+		r_idx = entry->index;
+
+		/* Check the monster rejection array provided */
+		if (reject_monsters && reject_monsters[entry->index]) continue;
+
+#ifdef BLOODLETTER_SUMMON_NERF
+		if (r_idx == RI_BLOODLETTER && !level_generation_time && !(summon_override_checks & SO_ALL)) continue;
+#endif
+
+		/* Accept monsters which pass the restriction, if any */
+		if ((!hook || (*hook)(r_idx)) && (!hook2 || (*hook2)(r_idx))) {
+			/* Accept this monster */
+			entry->prob2 = entry->prob1;
+
+			/* Modify in favour of animals or against humanoids */
+			if (r_info[r_idx].flags3 & RF3_ANIMAL) {
+				entry->prob2 = (entry->prob2 * animals_perc) / 100;
+				if (entry->prob2 > 10000) entry->prob2 = 10000;
+			} else if (r_info[r_idx].flags8 & RF8_DUNGEON) { // ie not for WILD_ONLY flag monsters such as Woodsman
+				if (r_info[r_idx].d_char == 'p') // 'h' too? or leave them to 'humanoids' below
+					entry->prob2 = (entry->prob2 * people_perc) / 100;
+				else
+					entry->prob2 = (entry->prob2 * humanoids_perc) / 100;
+				if (!entry->prob2) entry->prob2 = 1;
+			}
 		}
 
 		/* Do not use this monster */
@@ -3076,7 +3148,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG 1\n");
 	/* No live spawn inside IDDC -- except for breeder clones/summons */
 	if (!(summon_override_checks & SO_IDDC) &&
 	    !level_generation_time &&
-	    in_irondeepdive(wpos)
+	    (in_irondeepdive(wpos) || in_hallsofmandos(wpos)) /* Both IDDC and HoM use character-'stale'ness, so they should both prevent live spawns accordingly. */
 	    && !clo && !clone_summoning)
 		return(6);
 
@@ -3091,7 +3163,9 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG 1\n");
 
 #ifdef IDDC_MANDOS_NO_UNMAKERS
 	/* No unmakers at all in IDDC/Mandos? (At all, as live-spawning is prohibited for them anyway, so only need to check at generation time here) */
-	if (level_generation_time && r_idx == RI_UNMAKER && !(summon_override_checks & SO_BOSS_MONSTERS) && (in_irondeepdive(wpos) || in_hallsofmandos(wpos))) return(58);
+	if (level_generation_time && r_idx == RI_UNMAKER && !(summon_override_checks & SO_BOSS_MONSTERS)
+	    && (in_irondeepdive(wpos) || in_hallsofmandos(wpos)))
+		return(58);
 #endif
 
 #ifdef PMO_DEBUG
@@ -3254,7 +3328,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG 6a\n");
 				}
 			} else
 #endif
-			/* Allow all dungeon bosses in Halls of Mandos, at their native depth */
+			/* Allow all dungeon bosses in Halls of Mandos, at their native depth -- actually no effect, as Mandos has no unique monsters! */
 			if (in_hallsofmandos(wpos)) {
 				if (r_ptr->level != ABS(wpos->wz)
 				    /* allow Sauron in Halls of Mandos, at any depth starting at his native depth (99) */
@@ -3831,7 +3905,7 @@ if (PMO_DEBUG == r_idx) s_printf("PMO_DEBUG ok\n");
 		/* if it was a live spawn, adjust his power according to amount of players on his floor */
 		if (!level_generation_time) check_Morgoth(0);
 
-		/* Just for some misc death message stuff */
+		/* Just for determining death message '<player> died facing Morgoth' */
 		if (!in_irondeepdive(wpos)) {
 			Morgoth_x = wpos->wx;
 			Morgoth_y = wpos->wy;
@@ -5189,16 +5263,16 @@ void message_pain(int Ind, int m_idx, int dam) {
 	tmp = (newhp * 100L) / oldhp;
 	percentage = (int)(tmp);
 
-	/* DEG Modified to give damage information */
-	/* Jelly's, Mold's, Vortex's, Quthl's */
+	/* Constructs, mindless spirits, vegetation: No message. */
 	if ((r_ptr->flags3 & RF3_NONLIVING)
-	    || (strchr("e", r_ptr->d_char) && (r_ptr->level <= 18 || r_ptr->level == 34)) /* Ugh hard-coding: 'Beholders' have a mouth, but actual 'Eyes', and apparently also the 'Gas Spore' don't... */
-	    ) { /* Constructs: No message. Note that this means vortices too (handled below otherwise). */
+	    || (strchr(",vmE", r_ptr->d_char) && (r_ptr->flags2 & RF2_EMPTY_MIND))
+	    || (r_ptr->d_char == 'e' && (r_ptr->level <= 18 || r_ptr->level == 34)) /* Ugh hard-coding: 'Beholders' have a mouth, but actual 'Eyes', and apparently also the 'Gas Spore' don't... */
+	    ) {
 		if (r_ptr->flags1 & RF1_UNIQUE)
 			msg_format(Ind, "\377%c%^s takes \377e%d \377%cdamage.", uniq, m_name, dam, uniq);
 		else
 			msg_format(Ind, "%^s takes \377g%d \377wdamage.", m_name, dam);
-	} else if (strchr("jmvQE", r_ptr->d_char)) {
+	} else if (strchr(",vmEeijQ", r_ptr->d_char)) {
 		if (r_ptr->flags1 & RF1_UNIQUE) {
 			if (percentage > 95)
 				msg_format(Ind, "\377%c%^s barely notices the \377e%d \377%cdamage.", uniq, m_name, dam, uniq);
@@ -5886,7 +5960,7 @@ void monster_drop_carried_objects(int m_idx, monster_type *m_ptr) {
 		q_ptr->next_o_idx = 0;
 
 		/* Delete the object */
-		delete_object_idx(this_o_idx, FALSE);
+		delete_object_idx(this_o_idx, FALSE, FALSE);
 
 		object_desc(0, o_name, q_ptr, 0, 0);
 		monster_desc(0, m_name, m_idx, 0);
@@ -7242,18 +7316,12 @@ else s_printf("\n");
 		/* not restricting for now */
 	}
 
-#ifdef HYDRA_REGENERATION
-	/* Experimental - Hydras are super-regenerators aka regrowing heads */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'M') r_ptr->flags2 |= RF2_REGENERATE_TH;
-	else
+#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
+	switch (troll_hydra_regen(p_ptr)) {
+	case 1: r_ptr->flags2 |= RF2_REGENERATE_T2; break;
+	case 2: r_ptr->flags2 |= RF2_REGENERATE_TH; break;
+	}
 #endif
-#ifdef TROLL_REGENERATION
-	/* Experimental - Trolls are super-regenerators (hard-coded) */
-	if (p_ptr->body_monster && r_info[p_ptr->body_monster].d_char == 'T' && p_ptr->body_monster != RI_HALF_TROLL) r_ptr->flags2 |= RF2_REGENERATE_T2;
-	else if (p_ptr->prace == RACE_HALF_TROLL || p_ptr->body_monster == RI_HALF_TROLL) r_ptr->flags2 |= RF2_REGENERATE_TH;
-	else
-#endif
-	;
 
 	/* Determine chance to use available spells/items */
 	switch (p_ptr->pclass) {

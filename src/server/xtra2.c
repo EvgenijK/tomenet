@@ -31,6 +31,9 @@
 #define GHOST_XP_LOST	40
 #endif
 
+/* Percentage of XP gains that is added to max_exp when gaining XP while it is still drained [10]. */
+#define XP_DRAIN_RECOVERY 10
+
 /*
  * What % of exp points will be lost on instant resurrection?
  */
@@ -2786,6 +2789,7 @@ bool set_protevil(int Ind, int v, bool own) {
 	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
 
 	/* Handle stuff */
+	p_ptr->redraw2 |= (PR2_INDICATORS); /* Redraw indicator */
 	handle_stuff(Ind);
 
 	/* Result */
@@ -2870,7 +2874,7 @@ bool set_martyr(int Ind, int v) {
 			msg_print(Ind, "\377vYou feel the heavens grant your their powers.");
 
 			/* Cancel all DoTs initially */
-			set_cut(Ind, 0, 0);
+			set_cut(Ind, -1, 0, FALSE);
 			set_diseased(Ind, 0, 0);
 			set_poisoned(Ind, 0, 0);
 
@@ -3579,78 +3583,82 @@ bool set_stun(int Ind, int v) { /* bad status effect */
 
 /*
  * Set "p_ptr->cut", notice observable changes
- *
  * Note the special code to only notice "range" changes.
+ * If 'v' is '-1' this is the same as '0' but will also heal any bandaged cuts.
  */
-bool set_cut(int Ind, int v, int attacker) { /* bad status effect */
+bool set_cut(int Ind, int v, int attacker, bool quiet) { /* bad status effect */
 	player_type *p_ptr = Players[Ind];
-	int old_aux, new_aux;
-	bool notice = FALSE;
+	int old_aux, new_aux, cut = p_ptr->cut + p_ptr->cut_bandaged;
+	bool notice = FALSE, heal_bandaged = FALSE;
 
-	if (p_ptr->martyr && v) return(FALSE);
+	if (v == -1) {
+		if (p_ptr->cut_bandaged) {
+			heal_bandaged = TRUE;
+			p_ptr->cut_bandaged = 0;
+		}
+		v = 0;
+	}
+
+	/* Martyr / ghosts never bleed */
+	if ((p_ptr->martyr || p_ptr->ghost) && v) return(FALSE);
+
+	/* SKILL_MIMIC:
+	   Do we apply intrinsic anti-cut powers? These are NO_CUT and Troll/Hydra-Regeenration.
+	   Only if the cut is newly acquired, while we already have these powers:
+	   We're not cut yet or our cut is now fully healed? Then we're ok to profit from intrinsic powers for an upcoming cut. */
+	if (!cut || !(v + p_ptr->cut_bandaged)) {
+#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
+		/* Intrinsic regen powers? */
+		if (troll_hydra_regen(p_ptr)) p_ptr->cut_intrinsic_regen = TRUE;/* Intrinsic regen power gets applied */
+#endif
+		/* Mimic forms that cannot bleed? */
+		if (p_ptr->no_cut) p_ptr->cut_intrinsic_nocut = TRUE; /* Intrinsic NO_CUT gets applied */
+	}
+
+	/* NO_CUT form? */
+	if (v && p_ptr->cut_intrinsic_nocut) return(FALSE);
 
 	/* Hack -- Force good values -- allow up to 1000 (Mortal Wound starts at 800..1000) */
 	//v = (v > cfg.spell_stack_limit * 5) ? cfg.spell_stack_limit * 5 : (v < 0) ? 0 : v;
-	v = (v > 1001) ? 1001 : (v < 0) ? 0 : v;
-
-#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
- #ifdef HYDRA_REGENERATION
-	if (r_ptr->d_char == 'M' || (r_ptr->flags2 & RF2_REGENERATE_TH)) p_ptr->cut_intrinsic = 0;
-	else
- #endif
- #ifdef TROLL_REGENERATION
-	if (m_ptr->r_idx == RI_HALF_TROLL || (r_ptr->flags2 & RF2_REGENERATE_T2)
-	    || r_ptr->d_char == 'T' || (r_ptr->flags2 & RF2_REGENERATE_TH)) p_ptr->cut_intrinsic = 0;
-	else
- #endif
-	p_ptr->cut_intrinsic = 1;
-#endif
-
-	/* p_ptr->no_cut? for mimic forms that cannot bleed */
-	if (p_ptr->no_cut) {
-		if (!p_ptr->cut || !v) p_ptr->nocut_intrinsic = 0;
-		if (!p_ptr->nocut_intrinsic) v = 0;
-	} else p_ptr->nocut_intrinsic = 1;
-
-	/* a ghost never bleeds */
-	if (v && p_ptr->ghost) v = 0;
+	v = (v > CUT_MAX) ? CUT_MAX : (v < 0) ? 0 : v;
 
 	/* Mortal wound */
 	if (p_ptr->cut >= CUT_MORTAL_WOUND) old_aux = 7;
 	/* Deep gash */
-	else if (p_ptr->cut >= 200) old_aux = 6;
+	else if (p_ptr->cut >= CUT_DEEP_GASH) old_aux = 6;
 	/* Severe cut */
-	else if (p_ptr->cut >= 100) old_aux = 5;
+	else if (p_ptr->cut >= CUT_SEVERE_CUT) old_aux = 5;
 	/* Nasty cut */
-	else if (p_ptr->cut >= 50) old_aux = 4;
+	else if (p_ptr->cut >= CUT_NASTY_CUT) old_aux = 4;
 	/* Bad cut */
-	else if (p_ptr->cut >= 25) old_aux = 3;
+	else if (p_ptr->cut >= CUT_BAD_CUT) old_aux = 3;
 	/* Light cut */
-	else if (p_ptr->cut >= 10) old_aux = 2;
+	else if (p_ptr->cut >= CUT_LIGHT_CUT) old_aux = 2;
 	/* Graze */
-	else if (p_ptr->cut > 0) old_aux = 1;
+	else if (p_ptr->cut > CUT_NONE) old_aux = 1; //CUT_GRAZE
 	/* None */
 	else old_aux = 0;
 
 	/* Mortal wound */
 	if (v >= CUT_MORTAL_WOUND) new_aux = 7;
 	/* Deep gash */
-	else if (v >= 200) new_aux = 6;
+	else if (v >= CUT_DEEP_GASH) new_aux = 6;
 	/* Severe cut */
-	else if (v >= 100) new_aux = 5;
+	else if (v >= CUT_SEVERE_CUT) new_aux = 5;
 	/* Nasty cut */
-	else if (v >= 50) new_aux = 4;
+	else if (v >= CUT_NASTY_CUT) new_aux = 4;
 	/* Bad cut */
-	else if (v >= 25) new_aux = 3;
+	else if (v >= CUT_BAD_CUT) new_aux = 3;
 	/* Light cut */
-	else if (v >= 10) new_aux = 2;
+	else if (v >= CUT_LIGHT_CUT) new_aux = 2;
 	/* Graze */
-	else if (v > 0) new_aux = 1;
+	else if (v > CUT_NONE) new_aux = 1; //CUT_GRAZE
 	/* None */
 	else new_aux = 0;
 
 	/* Increase cut */
 	if (new_aux > old_aux) {
+		if (!quiet)
 		/* Describe the state */
 		switch (new_aux) {
 		/* Graze */
@@ -3695,13 +3703,15 @@ bool set_cut(int Ind, int v, int attacker) { /* bad status effect */
 		case 0:
 			msg_print(Ind, "You are no longer bleeding.");
 			if (p_ptr->disturb_state) disturb(Ind, 0, 0);
-			p_ptr->cut_attacker = 0;
+			if (!p_ptr->cut_bandaged) p_ptr->cut_attacker = 0;
 			break;
 		}
 
 		/* Notice */
 		notice = TRUE;
 	}
+
+	if (heal_bandaged) msg_print(Ind, "\376Your wound seems healed, you remove the bandage.");
 
 	/* Use the value */
 	p_ptr->cut = v;
@@ -4323,7 +4333,7 @@ bool set_food(int Ind, int v) {
 
 		/* Bloated */
 		case 5:
-		msg_print(Ind, "You have gorged yourself!");
+		msg_print(Ind, "\377yYou have gorged yourself!");
 		break;
 		}
 
@@ -5386,7 +5396,7 @@ void check_experience(int Ind) {
 			msg_print(Ind, "\374\377G(Press '\377gm\377G' key and choose '\377guse innate power\377G' to polymorph.)");
 		}
 #ifdef VAMPIRIC_MIST
-		if (old_lev < VAMPIRE_XFORM_LEVEL_MIST && p_ptr->lev >= VAMPIRE_XFORM_LEVEL_MIST) msg_print(Ind, "\374\377GYou are now able to turn into vampiric mist (#365)!");
+		if (old_lev < VAMPIRE_XFORM_LEVEL_MIST && p_ptr->lev >= VAMPIRE_XFORM_LEVEL_MIST) msg_format(Ind, "\374\377GYou are now able to turn into vampiric mist (#%d)!", RI_VAMPIRIC_MIST);
 #endif
 		break;
 #ifdef ENABLE_MAIA
@@ -5484,23 +5494,23 @@ void check_experience(int Ind) {
 	case CLASS_DRUID: /* Forms gained by Druids */
 		/* compare mimic_druid in defines.h */
 		if (old_lev < 5 && p_ptr->lev >= 5) {
-			msg_print(Ind, "\374\377GYou learn how to change into a Cave Bear (#160) and Panther (#198)");
+			msg_format(Ind, "\374\377GYou learn how to change into a Cave Bear (#%d) and Panther (#%d)", RI_CAVE_BEAR, RI_PANTHER);
 			msg_print(Ind, "\374\377G(Press '\377gm\377G' key and choose '\377guse innate power\377G' to polymorph.)");
 		}
 		if (old_lev < 10 && p_ptr->lev >= 10) {
-			msg_print(Ind, "\374\377GYou learn how to change into a Grizzly Bear (#191) and Yeti (#154)");
+			msg_format(Ind, "\374\377GYou learn how to change into a Grizzly Bear (#%d) and Yeti (#%d)", RI_GRIZZLY_BEAR, RI_YETI);
 			msg_print(Ind, "\374\377GYou learn how to walk among your brothers through deep forest.");
 		}
-		if (old_lev < 15 && p_ptr->lev >= 15) msg_print(Ind, "\374\377GYou learn how to change into a Griffon (#279) and Sasquatch (#343)");
-		if (old_lev < 20 && p_ptr->lev >= 20) msg_print(Ind, "\374\377GYou learn how to change into a Werebear (#414), Great Eagle (#335), Aranea (#963) and Great White Shark (#898)");
-		if (old_lev < 25 && p_ptr->lev >= 25) msg_print(Ind, "\374\377GYou learn how to change into a Wyvern (#334) and Multi-hued Hound (#513)");
-		if (old_lev < 30 && p_ptr->lev >= 30) msg_print(Ind, "\374\377GYou learn how to change into a 5-h-Hydra (#440), Minotaur (#641) and Giant Squid (#482)");
-		if (old_lev < 35 && p_ptr->lev >= 35) msg_print(Ind, "\374\377GYou learn how to change into a 7-h-Hydra (#614), Elder Aranea (#964) and Plasma Hound (#726)");
-		if (old_lev < 40 && p_ptr->lev >= 40) msg_print(Ind, "\374\377GYou learn how to change into an 11-h-Hydra (#688), Giant Roc (#640) and Lesser Kraken (#740)");
-		if (old_lev < 45 && p_ptr->lev >= 45) msg_print(Ind, "\374\377GYou learn how to change into a Maulotaur (#723) and Winged Horror (#704)");// and Behemoth (#716)");
-		if (old_lev < 50 && p_ptr->lev >= 50) msg_print(Ind, "\374\377GYou learn how to change into a Gorm (#1069), Jabberwock (#778) and Greater Kraken (775)");//Leviathan (#782)");
-		if (old_lev < 55 && p_ptr->lev >= 55) msg_print(Ind, "\374\377GYou learn how to change into a Horned Serpent (#1131)");
-		if (old_lev < 60 && p_ptr->lev >= 60) msg_print(Ind, "\374\377GYou learn how to change into a Firebird (#1127)");
+		if (old_lev < 15 && p_ptr->lev >= 15) msg_format(Ind, "\374\377GYou learn how to change into a Griffon (#%d) and Sasquatch (#%d)", RI_GRIFFON, RI_SASQUATCH);
+		if (old_lev < 20 && p_ptr->lev >= 20) msg_format(Ind, "\374\377GYou learn how to change into a Werebear (#%d), Great Eagle (#%d), Aranea (#%d) and Great White Shark (#%d)", RI_WEREBEAR, RI_GREAT_EAGLE, RI_ARANEA, RI_GREAT_WHITE_SHARK);
+		if (old_lev < 25 && p_ptr->lev >= 25) msg_format(Ind, "\374\377GYou learn how to change into a Wyvern (#%d) and Multi-hued Hound (#%d)", RI_WYVERN, RI_HOUND_MULTI);
+		if (old_lev < 30 && p_ptr->lev >= 30) msg_format(Ind, "\374\377GYou learn how to change into a 5-h-Hydra (#%d), Minotaur (#%d) and Giant Squid (#%d)", RI_HYDRA_5H, RI_MINOTAUR, RI_GIANT_SQUID);
+		if (old_lev < 35 && p_ptr->lev >= 35) msg_format(Ind, "\374\377GYou learn how to change into a 7-h-Hydra (#%d), Elder Aranea (#%d) and Plasma Hound (#%d)", RI_HYDRA_7H, RI_ELDER_ARANEA, RI_HOUND_PLASMA);
+		if (old_lev < 40 && p_ptr->lev >= 40) msg_format(Ind, "\374\377GYou learn how to change into an 11-h-Hydra (#%d), Giant Roc (#%d) and Lesser Kraken (#%d)", RI_HYDRA_11H, RI_GIANT_ROC, RI_LESSER_KRAKEN);
+		if (old_lev < 45 && p_ptr->lev >= 45) msg_format(Ind, "\374\377GYou learn how to change into a Maulotaur (#%d) and Winged Horror (#%d)", RI_MAULOTAUR, RI_WINGED_HORROR);
+		if (old_lev < 50 && p_ptr->lev >= 50) msg_format(Ind, "\374\377GYou learn how to change into a Gorm (#%d), Jabberwock (#%d) and Greater Kraken (#%d)", RI_GORM, RI_JABBERWOCK, RI_GREATER_KRAKEN);
+		if (old_lev < 55 && p_ptr->lev >= 55) msg_format(Ind, "\374\377GYou learn how to change into a Horned Serpent (#%d)", RI_HORNED_SERPENT);
+		if (old_lev < 60 && p_ptr->lev >= 60) msg_format(Ind, "\374\377GYou learn how to change into a Firebird (#%d)", RI_FIREBIRD);
 		break;
 	case CLASS_SHAMAN:
 		if (old_lev < 20 && p_ptr->lev >= 20
@@ -5621,7 +5631,7 @@ void check_experience(int Ind) {
 			msg_print(Ind, "\375\377G* You have raised quite a bit in ranks of PvP characters!         *");
 			msg_print(Ind, "\375\377G*   For that, you just received a reward, and if you die you will *");
 			msg_print(Ind, "\375\377G*   also receive a deed on the next character you log in with.    *");
-			give_reward(Ind, RESF_MID, "Gladiator's reward", 1, 0);
+			give_reward(Ind, RESF_MASK_MID, "Gladiator's reward", 1, 0);
 		}
 		if (p_ptr->lev == MAX_PVP_LEVEL) {
 			msg_broadcast_format(Ind, "\374\377G* %s has reached the highest level available to PvP characters! *", p_ptr->name);
@@ -5629,7 +5639,7 @@ void check_experience(int Ind) {
 			msg_print(Ind, "\375\377G*   For that, you just received a reward, and if you die you will *");
 			msg_print(Ind, "\375\377G*   also receive a deed on the next character you log in with.    *");
 			//buffer_account_for_achievement_deed(p_ptr, ACHV_PVP_MAX);
-			give_reward(Ind, RESF_HIGH, "Gladiator's reward", 1, 0);
+			give_reward(Ind, RESF_MASK_HIGH, "Gladiator's reward", 1, 0);
 		}
 	}
 
@@ -5650,6 +5660,216 @@ void check_experience(int Ind) {
 	Send_skill_info(Ind, 0, TRUE);
 }
 
+
+/* Gain experience but put it on hold before applying. */
+void gain_exp_onhold(int Ind, s64b amount) {
+	player_type *p_ptr = Players[Ind];//, *p_ptr2=NULL;
+	//int Ind2 = 0;
+
+	//why?  if (is_admin(p_ptr) && p_ptr->lev >= 99) return;
+
+	/* enforce dedicated Ironman Deep Dive Challenge character slot usage */
+	if (amount && (p_ptr->mode & MODE_DED_IDDC) && !in_irondeepdive(&p_ptr->wpos)
+#ifdef DED_IDDC_MANDOS
+	    && !in_hallsofmandos(&p_ptr->wpos)
+#endif
+	    ) {
+#if 0 /* poof when gaining exp prematurely */
+		msg_print(Ind, "\377RYou failed to enter the Ironman Deep Dive Challenge!");
+		strcpy(p_ptr->died_from, "indetermination");
+		p_ptr->died_from_ridx = 0;
+		p_ptr->deathblow = 0;
+		p_ptr->death = TRUE;
+		return;
+#else /* just don't get exp */
+		return;
+#endif
+	}
+
+	if (p_ptr->IDDC_logscum) {
+		//(spammy) msg_print(Ind, "\377oThis floor has become stale, take a staircase to move on!");
+		return;
+	}
+
+#ifdef IRON_TEAM_EXPERIENCE
+	int iron_team_members_here = 0, iron_team_limit = 0;
+#endif
+
+#ifdef ARCADE_SERVER
+return;
+#endif
+
+	if (amount <= 0) return;
+#ifdef ALT_EXPRATIO
+	/* New way to gain exp: Exp ratio works no longer for determining required exp
+	   to level up, but instead to determine how much exp you gain: */
+	amount = (amount * 100L) / ((s64b)p_ptr->expfact);
+	if (amount < 1) amount = 1;
+#endif
+
+	/* You cant gain xp on your land */
+	if (player_is_king(Ind)) return;
+
+
+#ifdef IRON_TEAM_EXPERIENCE
+	/* moved here from party_gain_exp() for implementing the 'sync'-exception */
+	/* Iron Teams only get exp if the whole team is on the same floor! - C. Blue */
+	if (p_ptr->party && (parties[p_ptr->party].mode & PA_IRONTEAM)) {
+		for (i = 1; i <= NumPlayers; i++) {
+			if (p_ptr->conn == NOT_CONNECTED) continue;
+
+			/* note: this line means that iron teams must not add
+			admins, or the members won't gain exp anymore */
+			if (is_admin(p_ptr)) continue;
+
+			/* player on the same dungeon level? */
+			if (!inarea(&p_ptr->wpos, wpos)) continue;
+
+			/* count party members on the same dlvl */
+			if (player_in_party(p_ptr->party, i)) iron_team_members_here++;
+		}
+
+		/* only gain exp if all members are here */
+		if (iron_team_members_here != parties[p_ptr->party].members) {
+			/* New: allow exception to somewhat 'sync' own exp w/ the exp of
+			iron team member having the most exp, to avoid falling back too much.
+			(most drastic example: death of everlasting char). - C. Blue */
+			if (p_ptr->exp >= parties[p_ptr->party].experience) return;
+			iron_team_limit = parties[p_ptr->party].experience;
+		}
+	}
+#endif
+
+	if (p_ptr->ghost) amount = (amount + 1) / 2;
+
+#ifdef KINGCAP_LEV
+	/* You must defeat morgoth before being allowed level > 50
+	   otherwise stop 1 exp point before 51 */
+ #ifndef ALT_EXPRATIO
+	if ((!p_ptr->total_winner) && (p_ptr->exp + amount + 1 >=
+	    ((s64b)((s64b)player_exp[50 - 1] * (s64b)p_ptr->expfact / 100L)))) {
+		if (p_ptr->exp + 1 >=
+		    ((s64b)((s64b)player_exp[50 - 1] * (s64b)p_ptr->expfact / 100L)))
+			return;
+		amount = ((s64b)((s64b)player_exp[50 - 1] * (s64b)p_ptr->expfact / 100L)) - p_ptr->exp;
+		amount--;
+	}
+ #else
+	if ((!p_ptr->total_winner) && (p_ptr->exp + amount + 1 >= ((s64b)player_exp[50 - 1]))) {
+		if (p_ptr->exp + 1 >= ((s64b)player_exp[50 - 1]))
+			return;
+		amount = ((s64b)player_exp[50 - 1]) - p_ptr->exp;
+		amount--;
+	}
+ #endif
+#endif
+#ifdef KINGCAP_EXP
+	/* You must defeat morgoth before being allowed to gain more
+	than 21,240,000 exp which is level 50 for Draconian Ranger <- might be OUTDATED */
+	if ((!p_ptr->total_winner) && (p_ptr->exp + amount >= 21240000)) {
+		if (p_ptr->exp >= 21240000) return;
+		amount = 21240000 - p_ptr->exp;
+	}
+#endif
+
+	/* PvP-mode players have a level limit */
+	if (p_ptr->mode & MODE_PVP) {
+#ifndef ALT_EXPRATIO
+		if (p_ptr->exp + amount + 1 >= ((s64b)((s64b)player_exp[MAX_PVP_LEVEL - 1] *
+					    (s64b)p_ptr->expfact / 100L))) {
+			if (p_ptr->exp + 1 >= ((s64b)((s64b)player_exp[MAX_PVP_LEVEL - 1] *
+					    (s64b)p_ptr->expfact / 100L)))
+				return;
+			amount = ((s64b)((s64b)player_exp[MAX_PVP_LEVEL - 1] * (s64b)p_ptr->expfact / 100L)) - p_ptr->exp;
+			amount--;
+		}
+#else
+		if (p_ptr->exp + amount + 1 >= ((s64b)player_exp[MAX_PVP_LEVEL - 1])) {
+			if (p_ptr->exp + 1 >= ((s64b)player_exp[MAX_PVP_LEVEL - 1]))
+				return;
+			amount = ((s64b)player_exp[MAX_PVP_LEVEL - 1]) - p_ptr->exp;
+			amount--;
+		}
+#endif
+	}
+
+#ifdef IRON_TEAM_EXPERIENCE
+	/* new: allow players to 'sync' their exp to leading player in an iron team party */
+	if (iron_team_limit && (p_ptr->exp + amount > iron_team_limit))
+		amount = iron_team_limit - p_ptr->exp;
+#endif
+
+	/* Gain some experience in a moment, just temporarily kept in limbo here */
+	p_ptr->gain_exp = amount;
+}
+/* Finally apply the XP that was put into limbo via gain_exp_onhold() */
+void apply_exp(int Ind) {
+	player_type *p_ptr = Players[Ind];//, *p_ptr2=NULL;
+	//int Ind2 = 0;
+	s64b amount = p_ptr->gain_exp;
+
+	/* Clear on-hold XP */
+	p_ptr->gain_exp = 0;
+
+	/* Gain some experience */
+	p_ptr->exp += amount;
+
+	/* Slowly recover from experience drainage */
+	if (p_ptr->exp < p_ptr->max_exp) {
+#ifdef KINGCAP_LEV
+		/* You must defeat morgoth before beong allowed level > 50 */
+ #ifndef ALT_EXPRATIO
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) + 1 >= ((s64b)((s64b)player_exp[50 - 1] *
+		   (s64b)p_ptr->expfact / 100L)))) {
+			if (p_ptr->max_exp >= ((s64b)((s64b)player_exp[50 - 1] *
+			   (s64b)p_ptr->expfact / 100L)))
+				return;
+			amount = (((s64b)((s64b)player_exp[50 - 1] * (s64b)p_ptr->expfact / 100L)) - p_ptr->max_exp);
+			amount--;
+		}
+ #else
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) + 1 >= ((s64b)player_exp[50 - 1]))) {
+			if (p_ptr->max_exp >= ((s64b)player_exp[50 - 1]))
+				return;
+			amount = (((s64b)player_exp[50 - 1]) - p_ptr->max_exp);
+			amount--;
+		}
+ #endif
+#endif
+#ifdef KINGCAP_EXP
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) >= 21240000)) {
+			if (p_ptr->max_exp >= 21240000) return;
+			amount = (21240000 - p_ptr->max_exp);
+		}
+#endif
+
+#ifdef IRON_TEAM_EXPERIENCE
+		/* new: allow players to 'sync' their exp to leading player in an iron team party */
+		if (iron_team_limit && (p_ptr->max_exp + amount > iron_team_limit))
+			amount = iron_team_limit - p_ptr->max_exp;
+#endif
+
+		/* Gain max experience (10%) */
+		p_ptr->max_exp += amount / XP_DRAIN_RECOVERY;
+
+		if (!p_ptr->warning_xp_recover) {
+			msg_format(Ind, "\374\377yWARNING: Your experience is drained! Of all XP you gain now only \377o%d%%\377y contribute", XP_DRAIN_RECOVERY);
+			msg_print(Ind, "\374\377y         to increase your true maximum, so restore your XP as soon as possible!");
+			p_ptr->warning_xp_recover = 1;
+			s_printf("warning_xp_recover: %s\n", p_ptr->name);
+		}
+	}
+
+	/* Check Experience */
+	check_experience(Ind);
+
+#ifdef IRON_TEAM_EXPERIENCE
+	/* possibly set new maximum for iron team */
+	if (p_ptr->party && (parties[p_ptr->party].mode & PA_IRONTEAM) &&
+	    p_ptr->max_exp > parties[p_ptr->party].experience)
+		parties[p_ptr->party].experience = p_ptr->max_exp;
+#endif
+}
 
 /*
  * Gain experience
@@ -5732,9 +5952,7 @@ return;
 	}
 #endif
 
-
-	/* allow own kills to be gained */
-	if (p_ptr->ghost) amount = (amount * 2) / 4;
+	if (p_ptr->ghost) amount = (amount + 1) / 2;
 
 #ifdef KINGCAP_LEV
 	/* You must defeat morgoth before being allowed level > 50
@@ -5801,7 +6019,7 @@ return;
 #ifdef KINGCAP_LEV
 		/* You must defeat morgoth before beong allowed level > 50 */
  #ifndef ALT_EXPRATIO
-		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount/10) + 1 >= ((s64b)((s64b)player_exp[50 - 1] *
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) + 1 >= ((s64b)((s64b)player_exp[50 - 1] *
 		   (s64b)p_ptr->expfact / 100L)))) {
 			if (p_ptr->max_exp >= ((s64b)((s64b)player_exp[50 - 1] *
 			   (s64b)p_ptr->expfact / 100L)))
@@ -5810,7 +6028,7 @@ return;
 			amount--;
 		}
  #else
-		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount/10) + 1 >= ((s64b)player_exp[50 - 1]))) {
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) + 1 >= ((s64b)player_exp[50 - 1]))) {
 			if (p_ptr->max_exp >= ((s64b)player_exp[50 - 1]))
 				return;
 			amount = (((s64b)player_exp[50 - 1]) - p_ptr->max_exp);
@@ -5819,7 +6037,7 @@ return;
  #endif
 #endif
 #ifdef KINGCAP_EXP
-		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount/10) >= 21240000)) {
+		if ((!p_ptr->total_winner) && (p_ptr->max_exp + (amount / XP_DRAIN_RECOVERY) >= 21240000)) {
 			if (p_ptr->max_exp >= 21240000) return;
 			amount = (21240000 - p_ptr->max_exp);
 		}
@@ -5832,10 +6050,10 @@ return;
 #endif
 
 		/* Gain max experience (10%) */
-		p_ptr->max_exp += amount / 10;
+		p_ptr->max_exp += amount / XP_DRAIN_RECOVERY;
 
 		if (!p_ptr->warning_xp_recover) {
-			msg_print(Ind, "\374\377yWARNING: Your experience is drained! Of all XP you gain now only \377o10%\377y contribute");
+			msg_format(Ind, "\374\377yWARNING: Your experience is drained! Of all XP you gain now only \377o%d%%\377y contribute", XP_DRAIN_RECOVERY);
 			msg_print(Ind, "\374\377y         to increase your true maximum, so restore your XP as soon as possible!");
 			p_ptr->warning_xp_recover = 1;
 			s_printf("warning_xp_recover: %s\n", p_ptr->name);
@@ -6107,7 +6325,7 @@ bool monster_death(int Ind, int m_idx) {
 	artifact_type *a_ptr;
 
 	bool henc_cheezed = FALSE, pvp = ((p_ptr->mode & MODE_PVP) != 0);
-	u32b resf_drops = make_resf(p_ptr), resf_chosen = resf_drops;
+	u64b resf_drops = make_resf(p_ptr), resf_chosen = resf_drops;
 	bool in_iddc;
 
 
@@ -6570,12 +6788,9 @@ bool monster_death(int Ind, int m_idx) {
 
 	/* switch to r_info next: */
 	default:
-#if 1
 		/* Watery/Aquatic denizens (naga, bullywugs...) - drop tridents/spears */
 		if ((r_ptr->d_char == 'n' || (r_ptr->flags7 & RF7_AQUATIC)) && rand_int(3))
-			/* Bad hack: Since we're out of flags, combine two otherwise mutually exclusive flags to indicate this -_-' */
-			resf_drops |= RESF_COND_SWORD | RESF_COND_BLUNT; //'aquatic_hack'
-#endif
+			resf_drops |= RESF_COND_AQUAPOLEARM;
 
 		switch (r_idx) {
 		case 1048: //unbeliever with FRIENDS
@@ -6637,7 +6852,7 @@ bool monster_death(int Ind, int m_idx) {
 			/* the dedicated +10 mstaff is not for farming! */
 			if (!(resf_chosen & RESF_NOTRUEART)) resf_drops |= RESF_CONDF_NOMSTAFF;
 			break;
-#if 1
+
 		case 731: /* Hell knight. And dwarves - drop axes mostly */
 		//case 770: /* Artsi commented out as his diz says "his _blade_" which sounds like a sword */
 		case 111: //nibelung - these don't drop combat stuff though anyway
@@ -6646,11 +6861,9 @@ bool monster_death(int Ind, int m_idx) {
 		case 865: //dwarven warrior, not enabled
 		case 936: //Nar -- has 'any' tc though
 		case 1042: //Thrain, not enabled
-			if (rand_int(3))
-				/* Bad hack: Since we're out of flags, combine two otherwise mutually exclusive flags to indicate this -_-' */
-				resf_drops |= RESF_COND_DARKSWORD | RESF_COND_BLUNT; //'axe_hack'
+			if (rand_int(3)) resf_drops |= RESF_COND_AXE;
 			break;
-#endif
+
 		/* -- for the remaining monsters here, only do 'flexible vs tough armour' choice -- */
 		default:
 			switch (r_idx) {
@@ -6742,7 +6955,7 @@ bool monster_death(int Ind, int m_idx) {
 
 				/* hack to allow custom test l00t drop for admins: */
 				if (is_admin(p_ptr)) {
-					/* the hack works by using weapon's inscription! */
+					/* the hack works by using weapon's inscription! Format '%<tval>:<sval>[!]' */
 					char *k_tval_p, *k_sval_p;
 
 					if (p_ptr->inventory[INVEN_WIELD].tval &&
@@ -6756,6 +6969,8 @@ bool monster_death(int Ind, int m_idx) {
 						tmp_luck = lookup_kind(atoi(k_tval_p + 1), atoi(k_sval_p + 1));
 						/* catch invalid items */
 						if (!tmp_luck) resf_drops &= ~RESF_DEBUG_ITEM;
+						/* log all items that are being placed? (to track artifact vs normal version generation) */
+						if (strchr(k_sval_p, '!')) tmp_luck += 100000;
 					}
 					if (p_ptr->inventory[INVEN_WIELD].tval &&
 					    p_ptr->inventory[INVEN_WIELD].note &&
@@ -6780,9 +6995,9 @@ bool monster_death(int Ind, int m_idx) {
 					if (!drop_dual) resf_drops &= ~RESF_COND_FORCE;
 				} else resf_drops &= ~RESF_COND_FORCE;
 				/* successfully created a lore-fitting drop that clears our conditions? */
-				if (place_object_restrictor & RESF_COND_MASK) {
+				if (place_object_restrictor & RESF_MASK_COND) {
 					if (drop_dual) drop_dual = FALSE; //actually get another one? (for monsters dual-wielding the same item class, aka rogues -> swords)
-					else resf_drops &= ~RESF_COND_MASK; //lift the conditions
+					else resf_drops &= ~RESF_MASK_COND; //lift the conditions
 				}
 #endif
 
@@ -7915,6 +8130,7 @@ bool monster_death(int Ind, int m_idx) {
 			if (magik(70)) invcopy(qq_ptr, lookup_kind(TV_FIRESTONE, SV_FIRESTONE));
 			else invcopy(qq_ptr, lookup_kind(TV_FIRESTONE, SV_FIRE_SMALL));
 			qq_ptr->number = (byte)rand_range(1,12);
+			qq_ptr->level = 0;
 
 			/* Drop it in the dungeon */
 			drop_near(TRUE, 0, qq_ptr, -1, wpos, y, x);
@@ -7990,6 +8206,8 @@ bool monster_death(int Ind, int m_idx) {
 			case 3: case 4:
 				invcopy(qq_ptr, lookup_kind(TV_BOOK, 55)); break; //Destroyer, woot
 			}
+
+			apply_magic(wpos, qq_ptr, -1, FALSE, FALSE, FALSE, FALSE, RESF_NONE);
 
 			/* Drop it in the dungeon */
 			drop_near(TRUE, 0, qq_ptr, -1, wpos, y, x);
@@ -8677,7 +8895,7 @@ bool monster_death(int Ind, int m_idx) {
 		}
 
 		/* Delete any old object XXX XXX XXX */
-		delete_object(wpos, y, x, TRUE);
+		delete_object(wpos, y, x, TRUE, TRUE);
 
 		/* Explain the stairway */
 		msg_print(Ind, "A magical stairway appears...");
@@ -8735,7 +8953,7 @@ void kill_house_contents(int h_idx) {
 		ex = h_ptr->x + h_ptr->coords.rect.width - 1;
 		for (y = sy; y < ey; y++) {
 			for (x = sx; x < ex; x++)
-				delete_object(wpos, y, x, TRUE);
+				delete_object(wpos, y, x, TRUE, TRUE);
 		}
 
 		/* make sure no player gets stuck by being inside while it's sold - C. Blue */
@@ -8889,7 +9107,7 @@ static void check_killing_reward(int Ind) {
 		msg_broadcast_format(Ind, "\374\377y** %s vanquished 10 opponents! **", p_ptr->name);
 		msg_print(Ind, "\375\377G* Another 10 aggressors have fallen by your hands! *");
 		msg_print(Ind, "\375\377G* You received a reward! *");
-		give_reward(Ind, RESF_MID, "Gladiator's reward", 1, 0);
+		give_reward(Ind, RESF_MASK_MID, "Gladiator's reward", 1, 0);
 	}
 }
 
@@ -9454,6 +9672,22 @@ void player_death(int Ind) {
 	stop_precision(Ind);
 	stop_shooting_till_kill(Ind);
 
+	/* Message to other players might contain additional colour codes, keep original clean */
+	/* Message to tomb stone required static colours as flickering would be silly */
+	if (insanity) {
+		strcpy(died_from_msg, "\377minsanity\377r");
+		strcpy(died_from_tomb, "\377oi\377Gn\377bs\377Ba\377sn\377Ri\377vt\377yy\377r");
+	} else if (divine_wrath) {
+		strcpy(died_from_msg, "\377Jdivine wrath\377r");
+		strcpy(died_from_tomb, "\377od\377yi\377ov\377wi\377on\377ye \377ow\377wr\377oa\377yt\377oh\377r");
+	} else if (!strcmp(p_ptr->died_from, "herself") || !strcmp(p_ptr->died_from, "himself")) {
+		strcpy(died_from_msg, p_ptr->died_from);
+		strcpy(died_from_tomb, "yourself");
+	} else {
+		strcpy(died_from_msg, p_ptr->died_from);
+		strcpy(died_from_tomb, p_ptr->died_from);
+	}
+
 	/* It wasn't a death but just a fruit bat transformation? (Why does this utilize the player_death() function??! o_O) */
 	if (just_fruitbat_transformation) {
 		p_ptr->death = FALSE;
@@ -9474,23 +9708,6 @@ void player_death(int Ind) {
 			msg_broadcast(Ind, buf);
 		}
 		return;
-	}
-
-
-	/* Message to other players might contain additional colour codes, keep original clean */
-	/* Message to tomb stone required static colours as flickering would be silly */
-	if (insanity) {
-		strcpy(died_from_msg, "\377minsanity\377r");
-		strcpy(died_from_tomb, "\377oi\377Gn\377bs\377Ba\377sn\377Ri\377vt\377yy\377r");
-	} else if (divine_wrath) {
-		strcpy(died_from_msg, "\377Jdivine wrath\377r");
-		strcpy(died_from_tomb, "\377od\377yi\377ov\377wi\377on\377ye \377ow\377wr\377oa\377yt\377oh\377r");
-	} else if (!strcmp(p_ptr->died_from, "herself") || !strcmp(p_ptr->died_from, "himself")) {
-		strcpy(died_from_msg, p_ptr->died_from);
-		strcpy(died_from_tomb, "yourself");
-	} else {
-		strcpy(died_from_msg, p_ptr->died_from);
-		strcpy(died_from_tomb, p_ptr->died_from);
 	}
 
 	p_ptr->tmp_y = p_ptr->total_winner; //was: bool was_total_winner = p_ptr->total_winner,;
@@ -9739,7 +9956,7 @@ void player_death(int Ind) {
 		if (p_ptr->poisoned) (void)set_poisoned(Ind, 0, 0);
 		if (p_ptr->diseased) (void)set_diseased(Ind, 0, 0);
 		if (p_ptr->stun) (void)set_stun(Ind, 0);
-		if (p_ptr->cut) (void)set_cut(Ind, 0, 0);
+		if (p_ptr->cut) (void)set_cut(Ind, -1, 0, FALSE);
 		/* if (p_ptr->food < PY_FOOD_ALERT) */
 		(void)set_food(Ind, PY_FOOD_FULL - 1);
 
@@ -9895,7 +10112,7 @@ void player_death(int Ind) {
 
 		if (p_ptr->poisoned) (void)set_poisoned(Ind, 0, 0);
 		if (p_ptr->diseased) (void)set_diseased(Ind, 0, 0);
-		if (p_ptr->cut) (void)set_cut(Ind, 0, 0);
+		if (p_ptr->cut) (void)set_cut(Ind, -1, 0, FALSE);
 		(void)set_food(Ind, PY_FOOD_FULL - 1);
 
 		if (!sector000downstairs) p_ptr->global_event_temp &= ~PEVF_SAFEDUN_00; /* no longer safe from death */
@@ -10050,7 +10267,7 @@ void player_death(int Ind) {
 			if (p_ptr->poisoned) (void)set_poisoned(Ind, 0, 0);
 			if (p_ptr->diseased) (void)set_diseased(Ind, 0, 0);
 			if (p_ptr->stun) (void)set_stun(Ind, 0);
-			if (p_ptr->cut) (void)set_cut(Ind, 0, 0);
+			if (p_ptr->cut) (void)set_cut(Ind, -1, 0, FALSE);
 			(void)set_food(Ind, PY_FOOD_FULL - 1);
 
 			//msg_print(Ind, "The hold of the Black Breath on you is broken!");
@@ -10566,6 +10783,7 @@ void player_death(int Ind) {
 				else if (Players[killer]->max_plv < p_ptr->max_plv) Players[killer]->kills_higher++;
 				else Players[killer]->kills_equal++;
 
+				//TODO?: SHOW_XP_GAIN
 #if 0 /* only reward exp for killing same level or higher players */
 				if (Players[killer]->max_plv <= p_ptr->max_plv) {
 					/* note how expfact isn't multiplied, so a difference between the races remains :) */
@@ -10900,7 +11118,7 @@ void player_death(int Ind) {
 	if (p_ptr->poisoned) (void)set_poisoned(Ind, 0, 0);
 	if (p_ptr->diseased) (void)set_diseased(Ind, 0, 0);
 	if (p_ptr->stun) (void)set_stun(Ind, 0);
-	if (p_ptr->cut) (void)set_cut(Ind, 0, 0);
+	if (p_ptr->cut) (void)set_cut(Ind, -1, 0, FALSE);
 	/* if (p_ptr->food < PY_FOOD_FULL) */
 	(void)set_food(Ind, PY_FOOD_FULL - 1);
 
@@ -11443,7 +11661,7 @@ void kill_xorder(int Ind) {
 	player_type *p_ptr = Players[Ind], *q_ptr;
 	char temp[160];
 	bool great, verygreat = FALSE;
-	u32b resf;
+	u64b resf;
 
 	id = p_ptr->xorder_id;
 	for (i = 0; i < MAX_XORDERS; i++) {
@@ -11502,7 +11720,7 @@ void kill_xorder(int Ind) {
 		   buffing the quality on top of this would be too much. */
 		great = magik(50 + (plev > rlev ? rlev : plev) * 2);
 		if (great) verygreat = magik(avg);
-		resf = RESF_LOW;
+		resf = RESF_MASK_LOW;
 
 		/* Preliminary reward item */
 		acquirement_direct(Ind, o_ptr, &p_ptr->wpos, great, verygreat, resf);
@@ -11757,11 +11975,11 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 
 	/* don't start too early -C. Blue */
 #ifndef RPG_SERVER
-	if (p_ptr->lev < 5 && !iddc) {
-		msg_print(Ind, "\377oYou need to be level 5 or higher to receive an extermination order!");
-#else /* for ironman there's no harm in allowing early quests */
-	if (p_ptr->lev < 3) {
+	if (p_ptr->lev < 3 && !iddc) {
 		msg_print(Ind, "\377oYou need to be level 3 or higher to receive an extermination order!");
+#else /* for ironman there's no harm in allowing early quests */
+	if (p_ptr->lev < 1) {
+		msg_print(Ind, "\377oYou need to be level 1 or higher to receive an extermination order!");
 #endif
 		return(FALSE);
 	}
@@ -11804,7 +12022,7 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 
 	/* easier in Ironman environments */
 #ifndef RPG_SERVER
-	if (iddc) {
+	if (iddc || mandos) {
 #endif
 		if (lev < 40) {
 			if (r_info[r].flags1 & RF1_FRIENDS) i = i + 3 + randint(4);
@@ -11829,28 +12047,38 @@ bool prepare_xorder(int Ind, int j, u16b flags, int *level, u16b *type, u16b *nu
 	return(TRUE);
 }
 
-
-
-static void monster_death_message(int Ind, int m_idx, int dam, cptr note, bool lore) {
+/* 'xp': If not '-1' then display how much XP we got from the monster death. - C. Blue */
+static void monster_death_message(int Ind, int m_idx, int dam, cptr note, bool lore, int xp) {
 	player_type *p_ptr = Players[Ind];
 	monster_type *m_ptr = &m_list[m_idx];
 	monster_race *r_ptr = race_inf(m_ptr);
-	char m_name[MNAME_LEN], m_name_real[MNAME_LEN];
+	char m_name[MNAME_LEN], m_name_real[MNAME_LEN], xp_str[15];
 
 	/* Extract monster name */
 	monster_desc(Ind, m_name, m_idx, 0);
 	monster_desc(Ind, m_name_real, m_idx, 0x100);
 
+#ifdef SHOW_XP_GAIN
+	if (p_ptr->gain_exp_frac) {
+		sprintf(xp_str, " (<1 XP)"); /* Visual hack for when we just gain exp_frac. */
+		p_ptr->gain_exp_frac = FALSE;
+	}
+	else if (xp != -1) sprintf(xp_str, " (%d XP)", xp);
+	else xp_str[0] = 0;
+#else
+	xp_str[0] = 0;
+	p_ptr->gain_exp_frac = FALSE;
+#endif
 
 	/* Death by Missile/Spell attack */
 	/* DEG modified spell damage messages. */
 	if (note) {
 #ifdef RACE_DIZ
 		/* Tell player the monster's lore? (4.7.1b feature) */
-		if (lore) msg_format(Ind, "\374\377y%^s%s from \377g%d \377ydamage.", m_name, note, dam);
+		if (lore) msg_format(Ind, "\374\377y%^s%s from \377g%d \377ydamage.%s", m_name, note, dam, xp_str);
 		else
 #endif
-		msg_format(Ind, "\377y%^s%s from \377g%d \377ydamage.", m_name, note, dam);
+		msg_format(Ind, "\377y%^s%s from \377g%d \377ydamage.%s", m_name, note, dam, xp_str);
 		msg_print_near_monvar(Ind, m_idx,
 		    format("\377y%^s%s from \377g%d \377ydamage.", m_name_real, note, dam),
 		    format("\377y%^s%s from \377g%d \377ydamage.", m_name, note, dam),
@@ -11861,10 +12089,10 @@ static void monster_death_message(int Ind, int m_idx, int dam, cptr note, bool l
 	else if (!p_ptr->mon_vis[m_idx]) {
 #ifdef RACE_DIZ
 		/* Tell player the monster's lore? (4.7.1b feature) */
-		if (lore) msg_format(Ind, "\374\377yYou have killed %s.", m_name);
+		if (lore) msg_format(Ind, "\374\377yYou have killed %s.%s", m_name, xp_str);
 		else
 #endif
-		msg_format(Ind, "\377yYou have killed %s.", m_name);
+		msg_format(Ind, "\377yYou have killed %s.", m_name, xp_str);
 		/* other player(s) can maybe see it, so get at least 'killed' vs 'destroyed' right for them */
 		if ((r_ptr->flags3 & RF3_DEMON) ||
 		    (r_ptr->flags3 & RF3_UNDEAD) ||
@@ -11888,10 +12116,10 @@ static void monster_death_message(int Ind, int m_idx, int dam, cptr note, bool l
 	    (strchr("Evg", r_ptr->d_char))) {
 #ifdef RACE_DIZ
 		/* Tell player the monster's lore? (4.7.1b feature) */
-		if (lore) msg_format(Ind, "\374\377yYou have destroyed %s.", m_name);
+		if (lore) msg_format(Ind, "\374\377yYou have destroyed %s.%s", m_name, xp_str);
 		else
 #endif
-		msg_format(Ind, "\377yYou have destroyed %s.", m_name);
+		msg_format(Ind, "\377yYou have destroyed %s.%s", m_name, xp_str);
 		msg_print_near_monvar(Ind, m_idx,
 		    format("\377y%^s has been destroyed from \377g%d \377ydamage by %s.", m_name_real, dam, p_ptr->name),
 		    format("\377y%^s has been destroyed from \377g%d \377ydamage by %s.", m_name, dam, p_ptr->name),
@@ -11901,10 +12129,10 @@ static void monster_death_message(int Ind, int m_idx, int dam, cptr note, bool l
 	else {
 #ifdef RACE_DIZ
 		/* Tell player the monster's lore? (4.7.1b feature) */
-		if (lore) msg_format(Ind, "\374\377yYou have slain %s.", m_name);
+		if (lore) msg_format(Ind, "\374\377yYou have slain %s.%s", m_name, xp_str);
 		else
 #endif
-		msg_format(Ind, "\377yYou have slain %s.", m_name);
+		msg_format(Ind, "\377yYou have slain %s.%s", m_name, xp_str);
 		msg_print_near_monvar(Ind, m_idx,
 		    format("\377y%^s has been slain from \377g%d \377ydamage by %s.", m_name_real, dam, p_ptr->name),
 		    format("\377y%^s has been slain from \377g%d \377ydamage by %s.", m_name, dam, p_ptr->name),
@@ -11969,6 +12197,7 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 	s64b tmp_exp;
 	int skill_trauma = (p_ptr->anti_magic || get_skill(p_ptr, SKILL_ANTIMAGIC)) ? 0 : get_skill_scale(p_ptr, SKILL_TRAUMATURGY, 100);
 	bool old_tacit = suppress_message;
+	int apply_exp_Ind[MAX_PLAYERS] = { 0 }, i;
 
 	//int dun_level2 = getlevel(&p_ptr->wpos);
 	dungeon_type *dt_ptr2 = getdungeon(&p_ptr->wpos);
@@ -12158,7 +12387,7 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 
 		/* Hack -- remove possible suppress flag */
 		suppress_message = FALSE;
-		monster_death_message(Ind, m_idx, dam, note, FALSE); //no 'lore' displayed
+		monster_death_message(Ind, m_idx, dam, note, FALSE, -1); //no 'lore' displayed
 #ifdef USE_SOUND_2010
 #else
 		sound(Ind, SOUND_KILL);
@@ -12201,7 +12430,7 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 #endif
 
 #ifdef ARCADE_SERVER
-		cave_set_feat(&m_ptr->wpos, m_ptr->fy, m_ptr->fx, 172); /* drop "blood"? */
+		cave_set_feat(&m_ptr->wpos, m_ptr->fy, m_ptr->fx, FEAT_MARKER); /* drop "blood"? -- is this supposed to be the (otherwise unused) 'FEAT_MARKER'? */
 		if (m_ptr->hp < -1000) {
 
 			object_type forge, *o_ptr;
@@ -12269,30 +12498,6 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 		    && (!(r_ptr->flags1 & RF1_UNIQUE) || !p_ptr->diz_unique) /* prevent duplicate message for 1st kill and unique kill */
 		    && r_killed_creditable(Ind, m_idx))
 			lore = TRUE;
-#endif
-
-		monster_death_message(Ind, m_idx, dam, note, lore);
-
-		/* Check if it's cloned unique, ie "someone else's spawn" */
-		if ((r_ptr->flags1 & RF1_UNIQUE) && p_ptr->r_killed[m_ptr->r_idx] == 1)
-			m_ptr->clone = 90; /* still allow some experience to be gained */
-
-#ifdef SOLO_REKING
-		/* Generate treasure and give kill credit */
-		if (monster_death(Ind, m_idx) &&
-		/* note: only our own killing blows count, not party exp! */
-		    p_ptr->solo_reking) {
-			int raw_exp = r_ptr->mexp * (100 - m_ptr->clone) / 100;
-
-			/* appropriate depth still factors in! */
-			raw_exp = det_exp_level(raw_exp, p_ptr->lev, getlevel(&p_ptr->wpos));
-
-			p_ptr->solo_reking -= (raw_exp * 1) / 1; // 1 xp = 1 au (2.5?)
-			if (p_ptr->solo_reking < 0) p_ptr->solo_reking = 0;
-		}
-#else
-		/* Generate treasure and give kill credit */
-		monster_death(Ind, m_idx);
 #endif
 
 		/* experience calculation: gain 2 decimal digits (for low-level exp'ing) */
@@ -12371,10 +12576,13 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 				new_exp_frac = ((tmp_exp - new_exp * p_ptr->lev * 100)
 						* 100L) / p_ptr->lev + p_ptr->exp_frac;
 
+				/* Visual hack so we don't show '0 XP' when it's actually just a fraction of an XP point... -_- */
+				p_ptr->gain_exp_frac = (new_exp == 0 && tmp_exp != 0 && new_exp_frac - p_ptr->exp_frac != 0);
+
 				/* Never get too much exp off a monster
 				   due to high level difference,
 				   make exception for low exp boosts like "holy jackal" */
-				if ((new_exp > r_ptr->mexp * 4) && (new_exp > 200)) {
+				if (new_exp > r_ptr->mexp * 4 && new_exp > 200) {
 					new_exp = r_ptr->mexp * 4;
 					new_exp_frac = 0;
 				}
@@ -12390,7 +12598,10 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 
 				/* Gain experience */
 				if (new_exp) {
-					if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, new_exp);
+					if (!(p_ptr->mode & MODE_PVP)) {
+						apply_exp_Ind[0] = Ind;
+						gain_exp_onhold(Ind, new_exp);
+					}
 				} else if (!p_ptr->warning_fracexp && tmp_exp) {
 					msg_print(Ind, "\374\377ySome monsters give less than 1 experience point, but you still gain a bit!");
 					s_printf("warning_fracexp: %s\n", p_ptr->name);
@@ -12406,9 +12617,35 @@ bool mon_take_hit(int Ind, int m_idx, int dam, bool *fear, cptr note) {
 			   Otherwise Nether Realm parties are punished.. */
 			//if (!player_is_king(Ind)) party_gain_exp(Ind, p_ptr->party, tmp_exp);
 			//add 2 extra digits to r_ptr->mexp too by multiplying by 100, to match tmp_exp shift
-			if (!(p_ptr->mode & MODE_PVP)) party_gain_exp(Ind, p_ptr->party, tmp_exp, r_ptr->mexp * 100, m_ptr->henc, m_ptr->henc_top);
+			if (!(p_ptr->mode & MODE_PVP)) party_gain_exp(Ind, p_ptr->party, tmp_exp, r_ptr->mexp * 100, m_ptr->henc, m_ptr->henc_top, apply_exp_Ind);
 		}
 
+		monster_death_message(Ind, m_idx, dam, note, lore, p_ptr->gain_exp);
+		/* Apply the killing player's and all involved players' gain_exp amount from gain_exp_onhold(). */
+		i = -1;
+		while (apply_exp_Ind[++i]) apply_exp(apply_exp_Ind[i]);
+
+		/* Check if it's cloned unique, ie "someone else's spawn" */
+		if ((r_ptr->flags1 & RF1_UNIQUE) && p_ptr->r_killed[m_ptr->r_idx] == 1)
+			m_ptr->clone = 90; /* still allow some experience to be gained */
+
+#ifdef SOLO_REKING
+		/* Generate treasure and give kill credit */
+		if (monster_death(Ind, m_idx) &&
+		/* note: only our own killing blows count, not party exp! */
+		    p_ptr->solo_reking) {
+			int raw_exp = r_ptr->mexp * (100 - m_ptr->clone) / 100;
+
+			/* appropriate depth still factors in! */
+			raw_exp = det_exp_level(raw_exp, p_ptr->lev, getlevel(&p_ptr->wpos));
+
+			p_ptr->solo_reking -= (raw_exp * 1) / 1; // 1 xp = 1 au (2.5?)
+			if (p_ptr->solo_reking < 0) p_ptr->solo_reking = 0;
+		}
+#else
+		/* Generate treasure and give kill credit */
+		monster_death(Ind, m_idx);
+#endif
 
 		/*
 		 * Necromancy skill regenerates you
@@ -12693,7 +12930,7 @@ void monster_death_mon(int am_idx, int m_idx) {
 			/* Place Object */
 			else {
 				place_object_restrictor = RESF_NONE;
-				place_object(m_ptr->owner, wpos, ny, nx, good, great, FALSE, RESF_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
+				place_object(m_ptr->owner, wpos, ny, nx, good, great, FALSE, RESF_MASK_LOW, r_ptr->drops, 0, ITEM_REMOVAL_NORMAL, FALSE);
 			}
 
 			/* Reset the object level */
@@ -15788,6 +16025,8 @@ bool master_build(int Ind, char * parms) {
 	cave_type *c_ptr;
 	struct c_special *cs_ptr;
 	static u16b new_feat = FEAT_WALL_EXTRA;
+	static u32b new_info = 0x0, new_info2 = 0x0;
+	static bool set_new_feat = FALSE, set_new_info = FALSE, set_new_info2 = FALSE;
 	cave_type **zcave;
 
 	if (!(zcave = getcave(&p_ptr->wpos))) return(FALSE);
@@ -15799,58 +16038,101 @@ bool master_build(int Ind, char * parms) {
 		new_feat = (unsigned char)parms[0];
 		/* Hack -- toggle auto-build on/off */
 		switch (parms[1]) {
-		case 'T': p_ptr->master_move_hook = master_build; break;
-		case 'F': p_ptr->master_move_hook = NULL; return(FALSE);
-		case 'X': p_ptr->master_move_hook = master_build;
+		case 'X': // 2 bytes for the feat, for all feats >= 256
 			new_feat = (parms[3] | (parms[2] << 8));
-			if (new_feat == FEAT_HOME || new_feat == FEAT_SIGN) { //paranoia for now, as 'X' currently always implies feat values >= 256
-				msg_print(Ind, "FEAT_HOME and FEAT_SIGN are not eligible for building mode X.");
-				return(FALSE);
-			}
+			// fall through
+		case 'T': // 1 byte for the feat, for all feats < 256
+			set_new_feat = TRUE;
+			set_new_info = FALSE;
+			p_ptr->master_move_hook = master_build;
 			break;
-		default : break;
+		case 'i':
+			new_info = parms[2] | parms[3] << 8 | parms[4] << 16 | parms[5] << 24;
+			set_new_feat = FALSE;
+			set_new_info = TRUE;
+			set_new_info2 = FALSE;
+			p_ptr->master_move_hook = NULL;
+			break;
+		case 'j':
+			new_info2 = parms[2] | parms[3] << 8 | parms[4] << 16 | parms[5] << 24;
+			set_new_feat = FALSE;
+			set_new_info = FALSE;
+			set_new_info2 = TRUE;
+			p_ptr->master_move_hook = NULL;
+			break;
+		case 'I':
+			new_info = parms[2] | parms[3] << 8 | parms[4] << 16 | parms[5] << 24;
+			set_new_feat = FALSE;
+			set_new_info = TRUE;
+			set_new_info2 = FALSE;
+			p_ptr->master_move_hook = master_build;
+			break;
+		case 'J':
+			new_info2 = parms[2] | parms[3] << 8 | parms[4] << 16 | parms[5] << 24;
+			set_new_feat = FALSE;
+			set_new_info = FALSE;
+			set_new_info2 = TRUE;
+			p_ptr->master_move_hook = master_build;
+			break;
+		case 'F':
+			// stop building/cave.info-setting mode
+			p_ptr->master_move_hook = NULL;
+			return(FALSE);
+		default:
+			break;
 		}
 	}
 
 	c_ptr = &zcave[p_ptr->py][p_ptr->px];
 
-	/* Never destroy real house doors! Work on this later */
-	if ((cs_ptr = GetCS(c_ptr, CS_DNADOOR))) return(FALSE);
+	if (set_new_feat) {
+		/* Never destroy real house doors! Work on this later */
+		if ((cs_ptr = GetCS(c_ptr, CS_DNADOOR))) return(FALSE);
 
-	/* This part to be rewritten for stacked CS */
-	cave_set_feat(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
-	// cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
-	if (c_ptr->feat == FEAT_HOME) {
-		struct c_special *cs_ptr;
-		/* new special door creation (with keys) */
-		struct key_type *key;
-		object_type newkey;
-		int id;
+		if (new_feat == FEAT_TREE || new_feat == FEAT_BUSH) new_feat = magik(80) ? FEAT_TREE : FEAT_BUSH;
+		/* This part to be rewritten for stacked CS */
+		cave_set_feat(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
+		// cave_set_feat_live(&p_ptr->wpos, p_ptr->py, p_ptr->px, new_feat);
 
-		MAKE(key, struct key_type);
-		sscanf(&parms[2], "%d", &id);
-		key->id = id;
-		invcopy(&newkey, lookup_kind(TV_KEY, SV_HOUSE_KEY));
-		newkey.pval = key->id;
-		newkey.marked2 = ITEM_REMOVAL_NEVER;
-		drop_near(TRUE, 0, &newkey, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
-		cs_ptr = ReplaceCS(c_ptr, CS_KEYDOOR);
-		if (cs_ptr) cs_ptr->sc.ptr = key;
-		else KILL(key, struct key_type);
-		p_ptr->master_move_hook = NULL;	/*buggers up if not*/
-	} else if (c_ptr->feat == FEAT_SIGN) {
-		struct c_special *cs_ptr;
-		struct floor_insc *sign;
+		/* These feats cannot be used in build-mode (aka feat painting mode): */
+		if (c_ptr->feat == FEAT_HOME) { //note: FEAT_HOME == FEAT_HOME_HEAD
+			struct c_special *cs_ptr;
+			/* new special door creation (with keys) */
+			struct key_type *key;
+			object_type newkey;
+			int id;
 
-		MAKE(sign, struct floor_insc);
-		strcpy(sign->text, &parms[2]);
-		cs_ptr = ReplaceCS(c_ptr, CS_INSCRIP);
-		if (cs_ptr) cs_ptr->sc.ptr = sign;
-		else KILL(sign, struct floor_insc);
-		p_ptr->master_move_hook = NULL;	/*buggers up if not*/
+			MAKE(key, struct key_type);
+			sscanf(&parms[2], "%d", &id);
+			key->id = id;
+			invcopy(&newkey, lookup_kind(TV_KEY, SV_HOUSE_KEY));
+			newkey.pval = key->id;
+			newkey.marked2 = ITEM_REMOVAL_NEVER;
+			drop_near(TRUE, 0, &newkey, -1, &p_ptr->wpos, p_ptr->py, p_ptr->px);
+			cs_ptr = ReplaceCS(c_ptr, CS_KEYDOOR);
+			if (cs_ptr) cs_ptr->sc.ptr = key;
+			else KILL(key, struct key_type);
+			p_ptr->master_move_hook = NULL; /*cannot be mass-painted */
+		} else if (c_ptr->feat == FEAT_SIGN) {
+			struct c_special *cs_ptr;
+			struct floor_insc *sign;
+
+			MAKE(sign, struct floor_insc);
+			strcpy(sign->text, &parms[2]);
+			cs_ptr = ReplaceCS(c_ptr, CS_INSCRIP);
+			if (cs_ptr) cs_ptr->sc.ptr = sign;
+			else KILL(sign, struct floor_insc);
+			p_ptr->master_move_hook = NULL; /* cannot be mass-painted */
+		}
+		return(TRUE);
+	} else if (set_new_info) {
+		c_ptr->info = new_info;
+		return(TRUE);
+	} else if (set_new_info2) {
+		c_ptr->info2 = new_info2;
+		return(TRUE);
 	}
-
-	return(TRUE);
+	return(FALSE); //paranoia
 }
 
 static char master_specific_race_char = 'a';

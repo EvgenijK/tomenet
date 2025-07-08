@@ -2171,7 +2171,7 @@ player_race race_info[MAX_RACE] = {
 		{ SKILL_R_NETH, /* Moderate bonus to Nether, being the undead... */
 			'+', 0,
 			'%', 120, },
-		{ SKILL_MIMIC, /* polymorph to vampire bat and maybe vampiric mist */
+		{ SKILL_MIMIC, /* polymorph to vampire bat and vampiric mist */
 			'+', 1000,
 			'%', 0, },
 		{ SKILL_ANTIMAGIC, /* keep mimicry usable for bat form. vampires believe! for now at least... */
@@ -4110,8 +4110,7 @@ player_class class_info[MAX_CLASS] = {
  *   HD, Exp*/
 		30, 28, 36,  3, 35, 14, 55, 45,
 		 0, 9,  5,  0,  3,  3, 26, 25,
-		//5, 25,
-		6, 25,
+		7, 25,
 
 		{{ SKILL_COMBAT, /* Combat tree */
 			'+', 1000,
@@ -5373,7 +5372,7 @@ town_extra town_profile[6]= {
 		WILD_MOUNTAIN,
 		{
 			16,	/* Paths of the Dead */
-			0,
+			33,	/* The Ash Mountains */
 		},
 
 		40,

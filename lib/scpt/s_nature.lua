@@ -127,7 +127,7 @@ RECOVERY_I = add_spell	{
 	["fail"] = 	10,
 	["spell"] = 	function()
 			set_poisoned(Ind, 0, 0)
-			set_cut(Ind, 0, 0)
+			set_cut(Ind, 0, 0, FALSE)
 			set_confused(Ind, 0)
 			set_blind(Ind, 0)
 			set_stun(Ind, 0)
@@ -145,14 +145,14 @@ RECOVERY_II = add_spell	{
 	["name"] = 	"Recovery II",
 	["name2"] = 	"Recov II",
 	["school"] = 	{SCHOOL_NATURE},
-	["level"] = 	35,
+	["level"] = 	28,
 	["mana"] = 	40,
 	["mana_max"] = 	40,
-	["fail"] = 	-30,
+	["fail"] = 	-25,
 	["spell"] = 	function()
 			set_poisoned(Ind, 0, 0)
 			set_diseased(Ind, 0, 0)
-			set_cut(Ind, 0, 0)
+			set_cut(Ind, 0, 0, FALSE)
 			set_confused(Ind, 0)
 			set_blind(Ind, 0)
 			set_stun(Ind, 0)
@@ -193,7 +193,10 @@ REGENERATION = add_spell {
 			p = p - p10 * 10
 			return "dur "..(5 + get_level(Ind, REGENERATION, 50)).."+d10 heal "..p10.."."..p
 	end,
-	["desc"] = 	{ "Increases your body's regeneration rate.", }
+	["desc"] = 	{
+			"Increases your body's regeneration rate,",
+			"regenerating hit points and closing wounds faster.",
+	}
 }
 
 VERMINCONTROL = add_spell {

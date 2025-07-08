@@ -3169,22 +3169,63 @@ int set_rust_destroy(object_type *o_ptr) {
 
 /*
  * Burn/Crash things
- */
-/*
- * Does a given object (usually) hate GF_ROCKET damage,
- * ie hates_fire() or hates_impact()?
- * (Note: Add shards too in case hates_shards() is ever added to the game)
+ * Does a given object (usually) hate GF_ROCKET damage ie impact/fire/shards?
  */
 int set_rocket_destroy(object_type *o_ptr) {
 	u32b f1, f2, f3, f4, f5, f6, esp;
+	bool h_impact, h_fire, h_shards;
 
-	if (!hates_impact(o_ptr)) {
-		if (!hates_fire(o_ptr)) return(FALSE);
-		/* Extract the flags */
-		object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
-		if (f3 & TR3_IGNORE_FIRE) return(FALSE);
+	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
+
+	h_impact = hates_impact(o_ptr);
+	h_fire = (hates_fire(o_ptr) && !(f3 & TR3_IGNORE_FIRE));
+	h_shards = (hates_shards(o_ptr) && !ignores_shards(o_ptr));
+
+	if (h_impact || h_fire || h_shards) return(TRUE);
+	return(FALSE);
+}
+
+/*
+ * Does a given object (usually) hate shards?
+ */
+bool hates_shards(object_type *o_ptr) {
+	switch (o_ptr->tval) {
+	case TV_BOOK:
+		if (o_ptr->sval != SV_SPELLBOOK) return(FALSE);
+		break;
+
+	case TV_POTION: //shatters
+	case TV_POTION2:
+	case TV_SCROLL: //rips
+	case TV_PARCHMENT:
+		break;
+
+#ifdef ENABLE_DEMOLITIONIST
+	case TV_CHEMICAL:
+		if (o_ptr->sval == SV_MIXTURE) break;
+		return(FALSE);
+#endif
+	case TV_SPECIAL:
+		//if (o_ptr->sval == SV_CUSTOM_OBJECT && !(o_ptr->xtra3 & 0x????)) return(FALSE);
+		//if (o_ptr->sval == SV_CUSTOM_OBJECT && (o_ptr->xtra3 & 0x????)) break;
+		return(FALSE);
+
+	default:
+		if (!is_cloth(o_ptr->tval, o_ptr->sval)) return(FALSE);
 	}
+
 	return(TRUE);
+}
+/* Hacky draft for replacement of a nonexistant 'IGNORE_SHARDS' flag based on other elemental flags^^' */
+bool ignores_shards(object_type *o_ptr) {
+	u32b f1, f2, f3, f4, f5, f6, esp;
+
+	object_flags(o_ptr, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
+
+	/* Hack: Assume that strongly magical items (cloth armour) will also resist shard tearing >_>' */
+	if ((f5 & TR5_IGNORE_MANA) || (f3 & (TR3_IGNORE_FIRE | TR3_IGNORE_ACID))) return(TRUE);
+
+	return(FALSE);
 }
 
 /*
@@ -3290,10 +3331,12 @@ int inven_damage(int Ind, inven_func typ, int perc) {
 #ifdef ENABLE_DEMOLITIONIST
 					case TV_CHARGE:
 						bypass_invuln = TRUE;
-						/* Blow up? Note that detonate_charge() won't work cause it requires a cs_ptr, ie armed charge in the ground.
+						/* Blow up?
 						   However, this seems like overkill. We can just assume that blast charges have a protective outer shell and don't
 						   just blow up randomly, except when explicitely lit by a fuse.
 						   So for now: -- Blast charges are safe! Nothing to see here! --
+
+						   detonate_charge_obj(o_ptr, &p_ptr->wpos, p_ptr->px, p_ptr->py);
 						*/
 						bypass_invuln = FALSE;
 						break;
@@ -3913,7 +3956,7 @@ bool dec_stat(int Ind, int stat, int amount, int mode) {
 			loss = ((randint(loss) + loss) * amount) / 100;
 
 			/* Maximal loss */
-			if (loss < amount/2) loss = amount/2;
+			if (loss < amount / 2) loss = amount / 2;
 
 			/* Lose some points */
 			cur = cur - loss;
@@ -3986,7 +4029,6 @@ bool dec_stat(int Ind, int stat, int amount, int mode) {
 		}
 
 		/* Recalculate boni */
-//WIS drain -> Sanity changes;	p_ptr->update |= (PU_BONUS); */
 		p_ptr->update |= (PU_BONUS | PU_MANA | PU_HP | PU_SANITY);
 	}
 
@@ -4318,7 +4360,7 @@ bool apply_discharge_item(int o_idx, int dam) {
 
 	/* Special treatment for new ego-type: Ethereal (ammunition): */
 	if (is_ammo(o_ptr->tval) && (o_ptr->name2 == EGO_ETHEREAL || o_ptr->name2b == EGO_ETHEREAL)) {
-		if (o_ptr->number == 1) delete_object_idx(o_idx, TRUE);
+		if (o_ptr->number == 1) delete_object_idx(o_idx, TRUE, FALSE);
 		else o_ptr->number--;
 		damaged = TRUE;
 	}
@@ -4559,7 +4601,7 @@ int divide_spell_damage(int dam, int div, int typ) {
 	/* Hack -- always do at least one point of damage -- paranoia/meddling? */
 	if (dam <= 0) dam = 1;
 	/* Hack -- Never do excessive damage */
-	if (dam > MAGICAL_CAP) dam = MAGICAL_CAP;
+	if (dam > MAGICAL_CAP && !proj_dam_uncapped) dam = MAGICAL_CAP;
 
 	/* default: divide damage, usually depending on ball spell radius, or /2 for wraithform casts */
 	return(dam / div);
@@ -5175,7 +5217,7 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 				/* Place object */
 				if (!istown(wpos)) {
 					place_object_restrictor = RESF_NONE;
-					place_object(Ind, wpos, y, x, FALSE, FALSE, FALSE, make_resf(p_ptr) | RESF_LOW, default_obj_theme, p_ptr->luck, ITEM_REMOVAL_NORMAL, FALSE);
+					place_object(Ind, wpos, y, x, FALSE, FALSE, FALSE, make_resf(p_ptr) | RESF_MASK_LOW, default_obj_theme, p_ptr->luck, ITEM_REMOVAL_NORMAL, FALSE);
 				}
 			}
 		}
@@ -5633,8 +5675,7 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 				do_kill = TRUE;
 				note_kill = (plural ? " are destroyed!" : " is destroyed!");
 				if (f3 & TR3_IGNORE_ELEC) ignore = TRUE;
-			}
-			else apply_discharge_item(this_o_idx, dam);
+			} else apply_discharge_item(this_o_idx, dam);
 			break;
 
 		/* Fire -- Flammable objects */
@@ -5703,8 +5744,7 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 					ignore = FALSE;
 					note_kill = (plural ? " are destroyed!" : " is destroyed!");
 				}
-			}
-			else apply_discharge_item(this_o_idx, dam / 2);
+			} else apply_discharge_item(this_o_idx, dam / 2);
 
 			/* Note: Force item destruction is probably already covered
 			   by applied fire item destruction above */
@@ -5717,51 +5757,41 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		/* Fire + Impact */
 		case GF_METEOR:
 			do_smash_effect = TRUE;
-#if 0
-			ignore = TRUE;
-			if (hates_fire(o_ptr)) {
-				do_kill = TRUE;
-				if (!(f3 & TR3_IGNORE_FIRE)) {
-					ignore = FALSE;
-					if (is_meltable)
-						note_kill = (plural ? " melt!" : " melts!");
-					else if (is_potion)
-						note_kill = (plural ? " evaporate!" : " evaporates!");
-					else
-						note_kill = (plural ? " burn up!" : " burns up!");
-				}
-			}
-			if (hates_impact(o_ptr)) {
-				do_kill = TRUE;
-				if (!(f3 & TR3_IGNORE_COLD)) {
-					ignore = FALSE;
-					note_kill = (plural ? " shatter!" : " shatters!");
- #ifdef USE_SOUND_2010
-					if (!quiet) sound(Ind, "shatter_potion", NULL, SFX_TYPE_MISC, FALSE);
- #endif
-				}
-			}
-#else
 			do_kill = TRUE;
 			note_kill = (plural ? " are pulverized!" : " is pulverized!");
-#endif
 			break;
 
 		/* Hack -- break potions and such */
 		case GF_ICE:
 		case GF_ICEPOISON:
-			if (hates_cold(o_ptr) || hates_impact(o_ptr)) {
-				note_kill = (plural ? " shatter!" : " shatters!");
+			ignore = TRUE;
+			if (hates_cold(o_ptr)) {
 				do_kill = TRUE;
+				if (!(f3 & TR3_IGNORE_COLD)) {
+					ignore = FALSE;
+					note_kill = (plural ? " shatter!" : " shatters!");
+				}
 #ifdef USE_SOUND_2010
 				if (!quiet) sound(Ind, "shatter_potion", NULL, SFX_TYPE_MISC, FALSE);
 #endif
-			} else if (o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_PARCHMENT || (o_ptr->tval == TV_BOOK && o_ptr->sval == SV_SPELLBOOK)) {
-				note_kill = (plural ? " are shredded!" : " is shredded!");
+			} else if (hates_shards(o_ptr)) {
 				do_kill = TRUE;
+				if (!ignores_shards(o_ptr)) {
+					ignore = FALSE;
+					// Glass:
+					if (o_ptr->tval == TV_POTION || o_ptr->tval == TV_FLASK) {
+						note_kill = (plural ? " shatter!" : " shatters!");
 #ifdef USE_SOUND_2010
-				if (!quiet) sound(Ind, "item_scroll", NULL, SFX_TYPE_MISC, FALSE); //todo maybe: new sfx?
+						if (!quiet) sound(Ind, "shatter_potion", NULL, SFX_TYPE_MISC, FALSE);
 #endif
+					} else {
+#ifdef USE_SOUND_2010
+						/* if ((o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_PARCHMENT || o_ptr->tval == TV_BOOK) && !quiet)
+							sound(Ind, "item_scroll", NULL, SFX_TYPE_MISC, FALSE); //todo maybe: new sfx? */
+#endif
+						note_kill = (plural ? " are shredded!" : " is shredded!");
+					}
+				}
 			}
 			break;
 
@@ -5769,27 +5799,42 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		case GF_FORCE:
 		case GF_SOUND:
 		case GF_THUNDER:
+			ignore = TRUE;
 			if (hates_impact(o_ptr)) {
-				note_kill = (plural ? " shatter!" : " shatters!");
 				do_kill = TRUE;
+				ignore = FALSE;
+				do_smash_effect = TRUE;
+				note_kill = (plural ? " shatter!" : " shatters!");
 #ifdef USE_SOUND_2010
 				if (!quiet) sound(Ind, "shatter_potion", NULL, SFX_TYPE_MISC, FALSE);
 #endif
-			} else if (typ == GF_SHARDS &&
-			    (o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_PARCHMENT || (o_ptr->tval == TV_BOOK && o_ptr->sval == SV_SPELLBOOK))) {
-				note_kill = (plural ? " are shredded!" : " is shredded!");
+			} else if (typ == GF_SHARDS && hates_shards(o_ptr)) {
 				do_kill = TRUE;
+				if (!ignores_shards(o_ptr)) {
+					ignore = FALSE;
+					do_smash_effect = TRUE;
+					note_kill = (plural ? " are shredded!" : " is shredded!");
 #ifdef USE_SOUND_2010
-				if (!quiet) sound(Ind, "item_scroll", NULL, SFX_TYPE_MISC, FALSE); //todo maybe: new sfx?
+					//if (!quiet) sound(Ind, "item_scroll", NULL, SFX_TYPE_MISC, FALSE); //todo maybe: new sfx?
 #endif
+				}
+			} else if (typ == GF_THUNDER) {
+				if (hates_elec(o_ptr)) {
+					do_kill = TRUE;
+					if (!(f3 & TR3_IGNORE_ELEC)) {
+						note_kill = (plural ? " are destroyed!" : " is destroyed!");
+						ignore = FALSE;
+					}
+				} else apply_discharge_item(this_o_idx, dam / 2);
 			}
 			break;
 
 		/* Mana -- destroys everything -- except IGNORE_MANA items :p */
 		case GF_MANA:
+			do_kill = ignore = TRUE;
 			if (!(f5 & (TR5_IGNORE_MANA | TR5_RES_MANA))) {
+				ignore = FALSE;
 				do_smash_effect = TRUE;
-				do_kill = TRUE;
 				note_kill = (plural ? " are destroyed!" : " is destroyed!");
 			}
 			break;
@@ -5807,7 +5852,7 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			break;
 
 		case GF_DISENCHANT:
-			if ((f2 & TR2_RES_DISEN) || (f5 & TR5_IGNORE_DISEN)) break;
+			if ((f2 & TR2_RES_DISEN) || (f5 & TR5_IGNORE_DISEN)) break; //no 'ignore' message for disenchant for the time being, as it's not that "observable" (and might even be spammy)
 			if (artifact_p(o_ptr) && magik(100)) break;
 
 			if (o_ptr->timeout_magic) o_ptr->timeout_magic /= 2;
@@ -5875,6 +5920,7 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		case GF_HOLY_FIRE:
 			/* same effect as normal fire on items */
 			if (hates_fire(o_ptr)) {
+				do_smash_effect = TRUE;
 				do_kill = TRUE;
 				if (is_meltable)
 					note_kill = (plural ? " melt!" : " melts!");
@@ -5943,7 +5989,7 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		case GF_NEXUS:
 		case GF_GRAVITY:
 			{
-				int j, dist = (typ == GF_NEXUS ? 80 : 15);
+				int j, dist = (typ == GF_NEXUS ? 80 : 15), res;
 				s16b cx, cy;
 				object_type tmp_obj = *o_ptr;
 
@@ -5966,13 +6012,13 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 					    cave_perma_bold2(zcave, cy, cx)) continue;
 
 					//(void)floor_carry(cy, cx, &tmp_obj);
-					drop_near(TRUE, 0, &tmp_obj, 0, wpos, cy, cx);
+					res = drop_near(TRUE, 0, &tmp_obj, 0, wpos, cy, cx);
 
 					/* XXX not working? */
 					if (!quiet && note_kill)
 						msg_format_near_site(y, x, wpos, 0, TRUE, "\377oThe %s%s", o_name, note_kill);
 
-					delete_object_idx(this_o_idx, FALSE);
+					delete_object_idx(this_o_idx, FALSE, res < 0);
 					break;
 				}
 				break;
@@ -6024,13 +6070,12 @@ static bool project_i(int Ind, int who, int r, struct worldpos *wpos, int y, int
 
 #ifdef ENABLE_DEMOLITIONIST
 				/* Detonate blast charges */
-				/* --todo first: add a type of detonate_charge() that works on non-armed charges! This function assumes a cs_ptr instead!
-				if (o_ptr->tval == TV_CHARGE && strstr(note_kill, " burn")) detonate_charge(o_ptr); */
+				if (o_ptr->tval == TV_CHARGE && strstr(note_kill, " burn")) detonate_charge_obj(o_ptr, wpos, x, y);
 #endif
 
 				/* Delete the object */
-				//delete_object(wpos, y, x);
-				delete_object_idx(this_o_idx, TRUE);
+				//delete_object(wpos, y, x, TRUE, TRUE);
+				delete_object_idx(this_o_idx, TRUE, TRUE);
 
 				/* Potions produce effects when 'shattered'.
 				   But not if the potion got killed by the floor (lava), too dangerous for the player in Mt Doom for example. */
@@ -10783,7 +10828,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		else msg_format(Ind, "%s \377%c%d \377wdamage!", attacker, damcol, dam);
 		take_hit(Ind, dam, killer, -who);
 		if ((!p_ptr->resist_shard) && (!p_ptr->no_cut))
-			(void)set_cut(Ind, p_ptr->cut + dam, -who);
+			(void)set_cut(Ind, p_ptr->cut + dam, -who, FALSE);
 		break;
 
 	/* Sound -- mostly stunning */
@@ -11016,7 +11061,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		take_hit(Ind, dam, killer, -who);
 
 		if ((!p_ptr->resist_shard) && (!p_ptr->no_cut))
-			(void)set_cut(Ind, p_ptr->cut + damroll(5, 8), -who);
+			(void)set_cut(Ind, p_ptr->cut + damroll(5, 8), -who, FALSE);
 		/* if (!p_ptr->resist_sound)
 			(void)set_stun(Ind, p_ptr->stun + randint(15)); */
 		break;
@@ -11340,7 +11385,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		break;
 
 	case GF_SEEMAP_PLAYER:
-		map_area(Ind);
+		map_area(Ind, FALSE);
 		dam = 0;
 		break;
 
@@ -11365,7 +11410,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		break;
 
 	case GF_CURECUT_PLAYER:
-		(void)set_cut(Ind, p_ptr->cut - dam, -who);
+		(void)set_cut(Ind, p_ptr->cut - dam, -who, FALSE);
 		dam = 0;
 		break;
 
@@ -11386,11 +11431,11 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		}
 		if (p_ptr->cut && p_ptr->cut < CUT_MORTAL_WOUND) {
 			if (hack_dam & 0x2000) /* CCW */
-				(void)set_cut(Ind, p_ptr->cut - 250, 0);
+				(void)set_cut(Ind, p_ptr->cut - 250, 0, FALSE);
 			else if (hack_dam & 0x1000) /* CSW */
-				(void)set_cut(Ind, p_ptr->cut - 50, 0);
+				(void)set_cut(Ind, p_ptr->cut - 50, 0, FALSE);
 			else if (hack_dam & 0x800) { /* CLW */
-				(void)set_cut(Ind, p_ptr->cut - 20, 0);
+				(void)set_cut(Ind, p_ptr->cut - 20, 0, FALSE);
 			}
 		}
 
@@ -11443,7 +11488,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			/* Healed */
 			dam = hp_player(Ind, dam, TRUE, FALSE); /* Actually 'quiet' .. */
 			/* ..and then we just print the received-message (omitting the message for the caster): */
-			msg_format(Ind, "\377gYou are healed for %d points.", dam);
+			if (dam) msg_format(Ind, "\377gYou are healed for %d points.", dam);
 			dam = 0;
 		}
 		break;
@@ -11608,7 +11653,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			(void)set_diseased(Ind, 0, 0); //mh
 		}
 		if (dam & 0x8) /* Close cuts */
-			(void)set_cut(Ind, 0, 0);
+			(void)set_cut(Ind, -1, 0, FALSE);
 		if (dam & 0x10) { /* Remove conf/blind/stun */
 			(void)set_confused(Ind, 0);
 			(void)set_blind(Ind, 0);
@@ -11838,7 +11883,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		else msg_format(Ind, "%s \377%c%d \377wdamage!", attacker, damcol, dam);
 
 		if (!p_ptr->resist_shard && !p_ptr->no_cut)
-			(void)set_cut(Ind, p_ptr->cut + (dam / 2), -who);
+			(void)set_cut(Ind, p_ptr->cut + (dam / 2), -who, FALSE);
 		if (!p_ptr->resist_sound)
 			(void)set_stun(Ind, p_ptr->stun + randint(20));
 
@@ -11872,7 +11917,7 @@ static bool project_p(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		else msg_format(Ind, "%s \377%c%d \377wdamage!", attacker, damcol, dam);
 
 		if (!p_ptr->resist_shard && !p_ptr->no_cut)
-			(void)set_cut(Ind, p_ptr->cut + (dam / 2), -who);
+			(void)set_cut(Ind, p_ptr->cut + (dam / 2), -who, FALSE);
 		if (!p_ptr->resist_sound)
 			(void)set_stun(Ind, p_ptr->stun + randint(20));
 
@@ -13061,7 +13106,7 @@ msg_format(-who, "_ x=%d,y=%d,x2=%d,y2=%d",x,y,x2,y2);
 			if (!cave_contact(zcave, y9, x9)) broke_on_terrain1 = TRUE;
 			/* Hack: Firewalls are actually a lot of single-grid effects for each affected grid! */
 			if (project_time_effect & EFF_WALL) {
-				effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect);
+				effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 				if (effect != -1) zcave[y][x].effect = effect;
 			}
 #ifdef DEBUG_PROJECT_GRIDS
@@ -13217,7 +13262,7 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 	/* Novas */
 	if ((flg & PROJECT_STAR) && (project_time_effect & EFF_WALL)) {
 		/* Epicenter */
-		effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect);
+		effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 		if (effect != -1) zcave[y][x].effect = effect;
 
 		/* Starburst */
@@ -13238,7 +13283,7 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 				if (broke_on_terrain1) break; // allow the wall to be hit
 				if (!cave_contact(zcave, y, x)) broke_on_terrain1 = TRUE; // no DLS
 				if (!los(wpos, y1, x1, y, x)) break; // anti-exploit; only hit grids with line of effect to caster - Kurzel
-				effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect);
+				effect = new_effect(who, typ, dam, project_time, project_interval, wpos, y, x, 0, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 				if (effect != -1) zcave[y][x].effect = effect;
 				everyone_lite_spot(wpos, y, x);
 			}
@@ -13359,6 +13404,9 @@ msg_format(-who, " TRUE x=%d,y=%d,grids=%d",x,y,grids);
 			    /* Reduce disintegration effect of rockets to radius 1 - C. Blue */
 			    //(disi_range_limit && (ABS(y - y2) <= disi_range_limit) && (ABS(x - x2) <= disi_range_limit)) ) {
 			    (disi_range_limit && distance(y, x, y2, x2) <= disi_range_limit)) {
+				/* Do not allow disintegrating effects to 'pass through' permanent wall features, erasing feats behind these. */
+				if (!projectable_wall_perm(wpos, y2, x2, y, x, MAX_RANGE)) continue;
+
 				c_ptr2 = &zcave[y][x];
 
 				if (cave_valid_bold(zcave, y, x) && /* <- implies !FF1_PERMANENT */
@@ -13530,13 +13578,13 @@ msg_format(-who, " expl x=%d,y=%d,grids=%d",x,y,grids);
 			    (project_time_effect & EFF_FIREWORKS3))
 				effect = new_effect(who, typ, dam, project_time, project_interval, wpos,
 				    (y + y2) / 2, (x + x2) / 2, dist_hack / 2 + 1,
-				    project_time_effect);
+				    project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 			else if (project_time_effect & EFF_METEOR)
 				effect = new_effect(who, typ, dam, project_time, project_interval, wpos,
-				    y2, x2, 1, project_time_effect);
+				    y2, x2, 1, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 			else
 				effect = new_effect(who, typ, dam, project_time, project_interval, wpos,
-				    y2, x2, 0, project_time_effect);
+				    y2, x2, 0, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 #ifdef ARCADE_SERVER
 #if 0
 			/* Note: Should this be here or at the EFF_WALL (Firewall) handling code further above, actually? - C. Blue */
@@ -13550,7 +13598,7 @@ msg_format(-who, " expl x=%d,y=%d,grids=%d",x,y,grids);
 #endif
 		} else {
 			effect = new_effect(who, typ, dam, project_time, project_interval, wpos,
-			    y2, x2, rad, project_time_effect);
+			    y2, x2, rad, project_time_effect | ((flg & PROJECT_DUMY) ? EFF_DUMMY : 0x0));
 		}
 		project_interval = 0;
 		project_time = 0;

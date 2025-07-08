@@ -4715,7 +4715,9 @@ int Receive_store_special_anim(void) {
 	char ch;
 	u16b anim1, anim2, anim3, anim4;
 	int anim_step;
+#ifdef USE_GRAPHICS
 	bool use_gfx_d10f = TRUE;
+#endif
 
 	if ((n = Packet_scanf(&rbuf, "%c%hd%hd%hd%hd", &ch, &anim1, &anim2, &anim3, &anim4)) <= 0) return(n);
 	if (!shopping) return(1);
@@ -6215,6 +6217,7 @@ int Receive_idle(void) {
 	return(1);
 }
 
+/* Apply auto_pickup and auto_destroy */
 void apply_auto_pickup(char *item_name) {
 	int i;
 	char *ex, ex_buf[ONAME_LEN];
@@ -6226,6 +6229,16 @@ void apply_auto_pickup(char *item_name) {
 	regex_t re_src;
 	regmatch_t pmatch[REGEX_ARRAY_SIZE + 1];
 #endif
+	bool unowned;
+	char *c;
+
+	c = strchr(item_name, '{');
+	unowned = (c && ((c[1] >= '0' && c[1] <= '9') || c[1] == '?'));
+
+	if ((!c_cfg.auto_pickup && !c_cfg.auto_destroy) ||
+	    (c_cfg.autoloot_dunonly && !p_ptr->wpos.wz) ||
+	    (c_cfg.autoloot_dununown && !(p_ptr->wpos.wz || unowned)))
+		return;
 
 	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
 		match = auto_inscription_match[i];
@@ -6236,7 +6249,9 @@ void apply_auto_pickup(char *item_name) {
 		if (auto_inscription_disabled[i]) continue;
 
 		/* do nothing if match is not set to auto-pickup (for items we dont want to pickup nor destroy, mainly for chests) */
-		if (!(c_cfg.auto_pickup && auto_inscription_autopickup[i]) && !(c_cfg.auto_destroy && auto_inscription_autodestroy[i]) && !dau) continue;
+		if (!(c_cfg.auto_pickup && auto_inscription_autopickup[i]) && !(c_cfg.auto_destroy && auto_inscription_autodestroy[i]) && !dau
+		    && !auto_inscription_ignore[i])
+			continue;
 
 		/* 'all items' super wildcard? */
 		if (!strcmp(match, "#") || !strcmp(match, "!#")) {
@@ -6319,11 +6334,20 @@ void apply_auto_pickup(char *item_name) {
 		return;
 	}
 
+	/* just ignore it? */
+	if (auto_inscription_ignore[i]) {
+		if (c_cfg.autoinsc_debug) c_msg_format("Auto-inscription rule in line #%d matched, rule 'ignore'.", i + 1);
+		return;
+	}
+
 	/* destroy or pick up */
-	if (c_cfg.auto_destroy && auto_inscription_autodestroy[i])
+	if (c_cfg.auto_destroy && auto_inscription_autodestroy[i]) {
+		if (c_cfg.autoinsc_debug) c_msg_format("Auto-inscription rule in line #%d matched, rule 'destroy'.", i + 1);
 		Send_msg("/xdis fa"); /* didn't find a better way */
-	else if (c_cfg.auto_pickup && auto_inscription_autopickup[i])
+	} else if (c_cfg.auto_pickup && auto_inscription_autopickup[i]) {
+		if (c_cfg.autoinsc_debug) c_msg_format("Auto-inscription rule in line #%d matched, rule 'pickup'.", i + 1);
 		Send_stay_auto();
+	}
 }
 
 /* Apply client-side auto-inscriptions - C. Blue
@@ -6380,11 +6404,11 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 	/* haaaaack: check for existing inscription! */
 	auto_inscribe = FALSE;
 	/* look for 1st '{' which must be level requirements on ANY item */
-	ex = strstr(iname, "{");
+	ex = strchr(iname, '{');
 	if (ex == NULL) return(FALSE); /* paranoia - should always be FALSE */
 	strcpy(ex_buf, ex + 1);
 	/* look for 2nd '{' which MUST be an inscription */
-	ex = strstr(ex_buf, "{");
+	ex = strchr(ex_buf, '{');
 
 	if (ex && !NAME_DISCARDABLE_INSCR(ex)) already_has_insc = TRUE;
 
@@ -6414,26 +6438,24 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 	/* check whether inscription is just a discount/stolen tag, if so, auto-inscribe it instead */
 	else if (NAME_DISCARDABLE_INSCR_FLOOR(ex)) auto_inscribe = TRUE;
 
-#if 0 /* is '!' UNavailable? */
-	/* already has a real inscription? -> can't auto-inscribe */
-	if (!auto_inscribe) return(already_has_insc);
-#else
-	/* save for checking for already existing target inscription */
+	/* save for checking for already existing target inscription ('!' compatible?) */
 	if (ex && strlen(ex) > 2) {
 		strncpy(tag_buf, ex + 1, strlen(ex) - 2);
 		tag_buf[strlen(ex) - 2] = '\0'; /* terminate */
 	}
 	else strcpy(tag_buf, ""); /* initialise as empty */
-#endif
 
 	/* look for matching auto-inscription */
 	for (i = start; i < stop; i++) {
 		match = auto_inscription_match[i];
 		/* skip empty auto-inscriptions */
 		if (!match[0]) continue;
-#if 0 /* disallow empty inscription? */
-		if (!auto_inscription_tag[i][0]) continue;
-#endif
+
+		/* special: a rule that does anything except just inscribing is ignored if the tag is empty,
+		   otherwise it causes mad empty-inscriptions spam on looting. */
+		if (!auto_inscription_tag[i][0] &&
+		    (auto_inscription_ignore[i] || auto_inscription_autopickup[i] || auto_inscription_autodestroy[i])) continue;
+
 		/* skip disabled auto-inscriptions */
 		if (auto_inscription_disabled[i]) continue;
 #ifdef ENABLE_SUBINVEN
@@ -6441,22 +6463,11 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 		if (auto_inscription_subinven[i] && sslot == -1) continue;
 #endif
 
-#if 1 /* is '!' available? */
 		/* if item already has an inscription, only allow to overwrite it if 'forced'. */
 		if (!auto_inscribe) {
- #if 0 /* legacy '!' marker, deprecated */
-		/* if auto-inscription begins with '!', which stands for 'always overwrite' */
-			if (match[0] != '!') continue;
-			else match++;
-			/* already carrying this very inscription? don't need to inscribe it AGAIN then */
-			if (!strcmp(auto_inscription_tag[i], tag_buf)) continue;
-		} else if (match[0] == '!') match++;
- #else
 			if (!auto_inscription_force[i]) continue;
 			if (!strcmp(auto_inscription_tag[i], tag_buf)) continue;
 		}
- #endif
-#endif
 
 		/* 'all items' super wildcard? - this only works for auto-pickup/destroy, not for auto-inscribing */
 		if (!strcmp(match, "#")) continue;
@@ -6490,9 +6501,9 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 #endif
 		{
 			/* found a matching inscription? */
-#if 0 /* no '#' wildcard allowed */
-			if (strstr(iname, match)) break;
-#else /* '#' wildcard allowed: a random number (including 0) of random chars */
+
+			/* '#' wildcard allowed: a random number (including 0) of random chars */
+
 			/* prepare */
 			strcpy(ex_buf, match);
 			ex2 = (char*)iname;
@@ -6525,25 +6536,169 @@ bool apply_auto_inscriptions_aux(int slot, int insc_idx, bool force) {
 				}
 			} while (TRUE);
 		}
-#endif
 
-		if (found) break;
+		if (found) {
+			if (c_cfg.autoinsc_debug) c_msg_format("Auto-inscription rule in line #%d matched.", i + 1);
+			break;
+		}
 	}
 	/* no match found? */
 	if (i == stop) return(already_has_insc);
 
-	/* send the new inscription */
+	/* send the new inscription, or uninscribe if tag is empty */
 	/* security hack: avoid infinite looping */
-	if (auto_inscription_tag[i][0] && /* since the auto-ins line might just be used for auto-pickup, don't inscribe empty inscriptions (mad spam on looting) */
-	    !DISCARDABLE_INSCR_FLOOR(auto_inscription_tag[i])) { //note: the three 'cursed', 'on sale', 'stolen' (part of DISCARDxxx) are actually NOT empty inscriptions so they don't really need checking here
+	if (!DISCARDABLE_INSCR_FLOOR(auto_inscription_tag[i])) { //note: the three 'cursed', 'on sale', 'stolen' (part of DISCARDxxx) are actually NOT empty inscriptions so they don't really need checking here
+		if (auto_inscription_tag[i][0]) {
 #ifdef ENABLE_SUBINVEN
-		Send_inscribe((sslot + 1) * SUBINVEN_INVEN_MUL + slot, auto_inscription_tag[i]);
+			Send_inscribe((sslot + 1) * SUBINVEN_INVEN_MUL + slot, auto_inscription_tag[i]);
 #else
-		Send_inscribe(slot, auto_inscription_tag[i]);
+			Send_inscribe(slot, auto_inscription_tag[i]);
 #endif
+		} else {
+#ifdef ENABLE_SUBINVEN
+			Send_uninscribe((sslot + 1) * SUBINVEN_INVEN_MUL + slot);
+#else
+			Send_uninscribe(slot);
+#endif
+		}
 		return(TRUE);
 	}
 	return(already_has_insc);
+}
+
+/* For store-purchase-quantity preemptive auto-inscription-quantity-limit check xD :
+   Scan all client-side auto-inscriptions against an item (which we want to purchase from a store or grab from a home),
+   and if it matches, check if the tag would limit the quantity via !G and in that case limit the purchase amount to that.
+   So it's no longer required to buy ONE and then again buy 'all' when restocking !G-items that we ran out of completely. - C. Blue
+   Store items are never inscribed, but home items might be, in which case:
+    Instead of scanning auto-inscription list, we try to find a !G limit on the item inscription itself and just return 0 for 'no limit' if we don't find one,
+   Returns 0 if auto_inscr_off is enabled ie all auto-inscriptions are disabled (or if item was already inscribed but didn't contain a !G limit inscription).
+   Returns !G limit number from an auto-inscription list entry, if we found one matching the item.
+
+   PROBLEMS/LIMITATIONS:
+   We currently do not transmit inventory_inscription and inventory_inscription_len for store (or house) items, unlike for inventory items.
+   That means we cannot distinguish inscriptions (especially '#' ones, where we are most unsure where it starts) from the item name.
+   So we can still check for '!G' occurance easily, but we cannot know for certain, if a house item does contain an #-inscription or no inscription at all,
+   so we will treat the specific case of <house items containing only an '#'-inscription and no !/@/bracers> as 'no inscription'.
+   (The !, @, { are just arbitrarily the easiest to check things to find out that the item name must contain some sort of inscription.) */
+int scan_auto_inscriptions_for_limit(cptr iname) {
+	int i, g;
+	char *ex, ex_buf[ONAME_LEN];
+	char *ex2, ex_buf2[ONAME_LEN];
+	char *match, tag_buf[ONAME_LEN];
+	bool found, has_insc = FALSE;
+#ifdef REGEX_SEARCH
+	int ires = -999;
+	regex_t re_src;
+	regmatch_t pmatch[REGEX_ARRAY_SIZE + 1];
+#endif
+
+	if (c_cfg.auto_inscr_off) return(FALSE);
+
+	/* look for 1st '{' which must be level requirements on ANY item */
+	ex = strchr(iname, '{');
+	if (ex == NULL) return(FALSE); /* paranoia - should always be FALSE */
+	strcpy(ex_buf, ex + 1);
+	/* look for 2nd '{' which MUST be an inscription */
+	ex = strchr(ex_buf, '{');
+
+	if (ex && !NAME_DISCARDABLE_INSCR(ex)) has_insc = TRUE; //NAME_DISCARDABLE_INSCR_FLOOR? probably not, consumables aren't cursed anyway
+
+	/* Check for #-inscriptions as good as we can, ie inscriptions not using bracers {...} (which got checked just above) */
+	if (strchr(iname, '!') || strchr(iname, '@')) has_insc = TRUE;
+
+	/* If we already have an inscription, scan for !G and use that or return 0, and we're done. */
+	if (has_insc) {
+		if ((i = check_guard_inscription_str(iname, 'G')) > 1) return(i - 1);
+		return(0);
+	}
+
+	strcpy(tag_buf, ""); /* initialise as empty */
+
+	/* look for matching auto-inscription */
+	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
+		match = auto_inscription_match[i];
+		/* skip empty auto-inscriptions */
+		if (!match[0]) continue;
+		/* skip disabled auto-inscriptions */
+		if (auto_inscription_disabled[i]) continue;
+
+		/* 'all items' super wildcard? - this only works for auto-pickup/destroy, not for auto-inscribing */
+		if (!strcmp(match, "#")) continue;
+
+#ifdef REGEX_SEARCH
+		/* Check for '$' prefix, forcing regexp interpretation */
+		if (match[0] == '$') {
+			match++;
+
+			ires = regcomp(&re_src, match, REG_EXTENDED | REG_ICASE);
+			if (ires != 0) {
+				//too spammy when auto-inscribing the whole inventory -- c_msg_format("\377yInvalid regular expression (%d) in auto-inscription #%d.", ires, i);
+				continue;
+			}
+			if (regexec(&re_src, iname, REGEX_ARRAY_SIZE, pmatch, 0)) {
+				regfree(&re_src);
+				continue;
+			}
+			if (pmatch[0].rm_so == -1) {
+				regfree(&re_src);
+				continue;
+			}
+			/* Actually disallow searches that match empty strings */
+			if (pmatch[0].rm_eo - pmatch[0].rm_so == 0) {
+				regfree(&re_src);
+				continue;
+			}
+			found = TRUE;
+
+		} else
+#endif
+		{
+			/* found a matching inscription? */
+			/* prepare */
+			strcpy(ex_buf, match);
+			ex2 = (char*)iname;
+			found = FALSE;
+
+			do {
+				ex = strstr(ex_buf, "#");
+				if (ex == NULL) {
+					if (strstr(ex2, ex_buf)) found = TRUE;
+					break;
+				} else {
+					/* get partial string up to before the '#' */
+					strncpy(ex_buf2, ex_buf, ex - ex_buf);
+					ex_buf2[ex - ex_buf] = '\0';
+					/* test partial string for match */
+					ex2 = strstr(ex2, ex_buf2);
+					if (ex2 == NULL) break; /* no match! */
+					/* this partial string matched, discard and continue with next part */
+					/* advance searching position in the item name */
+					ex2 += strlen(ex_buf2);
+					/* get next part of search string */
+					strcpy(ex_buf, ex + 1);
+					/* no more search string left? exit */
+					if (!strlen(ex_buf)) break;
+					/* no more item name left although search string is finished? exit with negative result */
+					if (!strlen(ex2)) {
+						found = FALSE;
+						break;
+					}
+				}
+			} while (TRUE);
+		}
+
+		if (found) break;
+	}
+	/* no match found? */
+	if (i == MAX_AUTO_INSCRIPTIONS) return(0);
+
+	/* Scan for !G and return that or 0 */
+	if ((g = check_guard_inscription_str(auto_inscription_tag[i], 'G') - 1) > 0) {
+		if (c_cfg.autoinsc_debug) c_msg_format("Auto-inscription rule containing '!G%d' tag in line #%d matched.", g, i + 1);
+		return(g);
+	}
+	return(0);
 }
 
 int Receive_account_info(void) {
@@ -6678,6 +6833,25 @@ int Receive_item_newest_2nd(void) {
 
 	/* As long as we don't have an 'official' newest item, use fallback replacement if exists */
 	if (item_newest == -1) item_newest = item_newest_2nd;
+	/* Hack, mainly for scrolls and potions: If tval is identical, overwrite newest item with 2nd-newest anyway.
+	   This happens eg if we pick up one type of scrolls, and then read another type -> the one we read replaces the picked-up one. */
+	else if (item_newest_2nd != -1) {
+		int tval, tval_2nd;
+
+#ifdef ENABLE_SUBINVEN
+		if (item_newest >= SUBINVEN_INVEN_MUL) tval = subinventory[item_newest / SUBINVEN_INVEN_MUL - 1][item_newest % SUBINVEN_INVEN_MUL].tval;
+		else
+#endif
+		tval = inventory[item_newest].tval;
+
+#ifdef ENABLE_SUBINVEN
+		if (item_newest_2nd >= SUBINVEN_INVEN_MUL) tval_2nd = subinventory[item_newest_2nd / SUBINVEN_INVEN_MUL - 1][item_newest_2nd % SUBINVEN_INVEN_MUL].tval;
+		else
+#endif
+		tval_2nd = inventory[item_newest_2nd].tval;
+
+		if (tval == tval_2nd) item_newest = item_newest_2nd;
+	}
 
 	return(1);
 }
@@ -6835,7 +7009,7 @@ int Receive_whats_under_you_feet(void) {
 	prt_whats_under_your_feet(o_name, crossmod_item, cant_see, on_pile);
 	strcpy(whats_under_your_feet, o_name);
 
-	if (c_cfg.auto_pickup || c_cfg.auto_destroy) apply_auto_pickup(o_name);
+	apply_auto_pickup(o_name);
 
 	return(1);
 }

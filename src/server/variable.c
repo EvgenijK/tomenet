@@ -657,7 +657,7 @@ bool xorder_aux_extra;
 /*
  * Hack -- function hook to restrict "get_obj_num_prep()" function
  */
-int (*get_obj_num_hook)(int k_idx, u32b resf);
+int (*get_obj_num_hook)(int k_idx, u64b resf);
 
 /* the dungeon master movement hook, is called whenever he moves
  * (to make building large buildings / summoning hoards of mosnters
@@ -700,8 +700,7 @@ school_type *schools;
 /*
  * Lasting spell effects
  */
-int project_interval = 0;
-int project_time = 0;
+int project_interval = 0, project_time = 0;
 s32b project_time_effect = 0;
 effect_type effects[MAX_EFFECTS];
 
@@ -1011,6 +1010,8 @@ int deep_dive_class[IDDC_HIGHSCORE_SIZE]; /* scoreboard-despam: store class */
 
 /* Global projection counter for m_ptr->hit_proj_id */
 int mon_hit_proj_id, mon_hit_proj_id2;
+/* For The One Ring activation damage */
+bool proj_dam_uncapped = FALSE;
 
 /* remember school for each spell */
 int spell_school[512];

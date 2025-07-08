@@ -2675,7 +2675,7 @@ bool make_attack_melee(int Ind, int m_idx) {
 					/* Bare-handed? oh.. */
 					if (!o_ptr->k_idx) {
 						msg_format(Ind, "\377o%^s cuts deep in your arms and hands", m_name);
-						(void)set_cut(Ind, p_ptr->cut + 100, -m_idx);
+						(void)set_cut(Ind, p_ptr->cut + 100, -m_idx, FALSE);
 						break;
 					}
 
@@ -3051,7 +3051,7 @@ bool make_attack_melee(int Ind, int m_idx) {
 				}
 
 				/* Apply the cut */
-				if (k) (void)set_cut(Ind, p_ptr->cut + k, -m_idx);
+				if (k) (void)set_cut(Ind, p_ptr->cut + k, -m_idx, FALSE);
 			}
 #ifndef SUPPRESS_MONSTER_STUN // HERESY !
 			/* That's overdone; \
@@ -3648,14 +3648,23 @@ bool monster_attack_normal(int tm_idx, int m_idx) {
 #ifdef RPG_SERVER
 			if (dead && m_ptr->pet) {
 				char monster_name[MNAME_LEN];
+				int Ind = find_player(m_ptr->owner);
 
-				monster_desc(find_player(m_ptr->owner), monster_name, tm_idx, 0x04 | 0x08);
-				msg_format(find_player(m_ptr->owner), "\377yYour pet killed %s.", monster_name);
-				if (!(Players[find_player(m_ptr->owner)]->mode & MODE_PVP))
-					gain_exp(find_player(m_ptr->owner), (unsigned int)(exp_gain));
-				if (monster_gain_exp(m_idx,(unsigned int)(exp_gain), FALSE) > 0) {
-					msg_print(find_player(m_ptr->owner), "\377GYour pet looks more experienced!");
+				if (Ind) {
+					monster_desc(Ind, monster_name, tm_idx, 0x04 | 0x08);
+					if (!(Players[Ind]->mode & MODE_PVP)) {
+ #ifdef SHOW_XP_GAIN
+						gain_exp_onhold(Ind, (unsigned int)(exp_gain));
+						msg_format(Ind, "\377yYour pet killed %s. (%d XP)", monster_name, Players[Ind]->gain_exp);
+						apply_exp(Ind);
+ #else
+						msg_format(Ind, "\377yYour pet killed %s.", monster_name);
+						gain_exp(Ind, (unsigned int)(exp_gain));
+ #endif
+					} else msg_format(Ind, "\377yYour pet killed %s.", monster_name);
 				}
+				if (monster_gain_exp(m_idx,(unsigned int)(exp_gain), FALSE) > 0 && Ind)
+					msg_print(Ind, "\377GYour pet looks more experienced!");
 			}
 #endif
 #if 0//todo:implement
@@ -3683,7 +3692,7 @@ bool monster_attack_normal(int tm_idx, int m_idx) {
 				}
  #if 0//todo:implement
 				/* Apply the cut */
-				if (k) (void)set_cut(Ind, p_ptr->cut + k);
+				if (k) (void)set_cut(Ind, p_ptr->cut + k, FALSE);
  #endif
 			}
 #endif

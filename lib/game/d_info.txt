@@ -16,6 +16,7 @@
 
 # N:<index>:<name>
 # D:<3 letter short name>:<long name>
+# B:<boundary wall> [FEAT_PERM_SOLID]
 # W:<min depth>:<max depth>:<min player level>:<next dungeon>:<min alloc>:<max alloc chance>
 # L:<floor1>:<%1>:<floor2>:<%2>:<floor3>:<%3>:<floor4>:<%4>:<floor5>:<%5>
 # L:<%end1>:<%end2>:<%end3>:<%end4>:<%end5>
@@ -62,13 +63,15 @@ B:81
 W:11:34:5:0:14:160
 #L:89:950:199:50:88:0:0:0:0:0
 #IDDC
-L:89:950:199:50:88:0:89:317:89:317
+#L:89:950:199:50:88:0:89:317:89:317
+L:89:800:199:50:88:50:202:85:16:15
 #A:96:1000:97:0:56:0:0:0:0:0:202:96
 #IDDC
-A:96:1000:97:0:56:0:96:333:96:333:202:96
+#A:96:1000:97:0:56:0:96:333:96:333:202:96
+A:96:500:92:250:219:150:16:100:96:333:202:96
 O:20:20:20:20
-F:NO_DOORS | NO_DESTROY | FLAT
-F:FILL_METHOD_0 | FINAL_GUARDIAN_1155 | FINAL_OBJECT_7
+F:FILL_METHOD_2
+F:NO_DOORS | NO_DESTROY | FLAT | FINAL_GUARDIAN_1155 | FINAL_OBJECT_7
 F:WILD_FOREST | WILD_DENSEFOREST | STREAMERS | WALL_STREAMERS
 R:90:1
 M:SPIDER
@@ -116,6 +119,7 @@ W:1:35:1:0:14:160
 #L:88:780:89:180:199:40:0:0:0:0
 #IDDC
 L:88:780:89:180:199:40:88:390:89:90
+#L:88:770:89:180:199:40:96:5:92:5 -- enable maybe if the 'inbetween trees' are not generated inside rooms but just in passages
 L:0:950:50:0:0
 #A:96:290:97:610:219:100:0:0:0:0:57:97
 #IDDC
@@ -414,15 +418,16 @@ B:81
 W:13:26:5:0:15:100
 #L:88:760:84:160:199:80:0:0:0:0
 #IDDC
-L:88:760:84:160:199:80:88:253:88:253
+L:88:300:89:200:84:160:199:80:96:260
 L:680:160:160:0:0
 #A:96:1000:56:0:56:0:0:0:0:0:202:96
 #IDDC
-A:96:1000:56:0:56:0:96:333:96:333:202:96
+A:96:800:92:150:219:50:96:333:96:333:202:96
 O:20:5:15:30
 F:WATER_RIVERS | NO_DOORS | NO_DESTROY | FLAT
 F:RANDOM_TOWNS | FINAL_GUARDIAN_206 | FINAL_ARTIFACT_128
-F:FILL_METHOD_3
+#F:FILL_METHOD_3
+F:FILL_METHOD_2
 F:WILD_FOREST | WILD_DENSEFOREST
 R:30:0
 R:40:3
@@ -439,7 +444,7 @@ B:81
 W:30:50:15:0:40:40
 #L:88:995:49:5:1:0:0:0:0:0
 #IDDC
-L:88:995:49:5:1:0:88:332:88:332
+L:88:975:49:5:97:20:88:332:88:332
 #A:97:1000:56:0:56:0:0:0:0:0:57:97
 #IDDC
 A:97:1000:56:0:56:0:97:333:97:333:57:97
@@ -615,6 +620,7 @@ R:100:0
 N:29:The Helcaraxe
 D:Ice:the entrance to the Grinding Ice of the Helcaraxe.
 W:20:41:10:0:14:160
+B:254
 #L:90:0:88:700:84:300:0:0:0:0
 #IDDC
 L:90:0:88:700:84:300:88:350:84:150
@@ -667,8 +673,7 @@ F:FILL_METHOD_0 | NOT_WATERY | NO_RECALL_INTO
 F:NO_ENTRY_STAIR | NO_ENTRY_WOR | NO_ENTRY_PROB | NO_ENTRY_FLOAT
 #no monsters allowed (R:0)
 
-
-# Experimental post-king dungeon to close gap between Angband and Nether Realm:
+# Post-king dungeon to close gap between Angband and Nether Realm:
 #
 # levels 130-149
 N:32:The Cloud Planes
@@ -695,13 +700,49 @@ M:UNDEAD | DEMON | MULTIPLY | R_CHAR_j | R_CHAR_m
 R:100:4
 M:R_CHAR_Z
 
+# Alternative to Angband for pre-king deep leveling up to 50:
+# levels 59-95
+N:33:The Ash Mountains
+D:Ash:a foreboding mountain chain with high, scarred peaks.
+B:104
+#B:276
+W:59:95:28:0:35:200
+#dirt,grass,ice,ash,mud
+L:88:400:89:400:90:0:93:0:94:200
+L:100:25:175:700:0
+A:97:1000:101:0:0:0:0:0:0:0:97:97
+A:250:750:0:0:0
+O:5:50:10:25
+F:TOWER
+F:STREAMERS | WALL_STREAMERS
+F:CAVERN
+F:FILL_METHOD_2
+R:20:3
+M:GIANT
+R:20:3
+M:RES_COLD
+R:25:0
+M:CAN_FLY
+R:10:0
+M:CAN_CLIMB
+R:25:0
+
+#angband:
+#O:20:20:20:20
+#F:CAVERN
+#F:ADJUST_LEVEL_1_2 | ADJUST_LEVEL_1
+#F:FILL_METHOD_0 | STREAMERS | WALL_STREAMERS
+#R:100:0
+
 
 # N:<index>:<name>
 # D:<3 letter short name>:<long name>
 # B:<boundary wall> [FEAT_PERM_SOLID]
 # W:<min depth>:<max depth>:<min player level>:<next dungeon>:<min alloc>:<max alloc chance>
-# L:<floor1>:<%1>:<floor2>:<%2>:<floor3>:<%3>
-# A:<wall1>:<%1>:<wall2>:<%2>:<wall3>:<%3>:<outer wall>:<inner wall>
+# L:<floor1>:<%1>:<floor2>:<%2>:<floor3>:<%3>:<floor4>:<%4>:<floor5>:<%5>
+# L:<%end1>:<%end2>:<%end3>:<%end4>:<%end5>
+# A:<wall1>:<%1>:<wall2>:<%2>:<wall3>:<%3>:<wall4>:<%4>:<wall5>:<%5>:<outer wall>:<inner wall>
+# A:<%end1>:<%end2>:<%end3>:<%end4>:<%end5>
 # O:<%treasure>:<%combat>:<%magic>:<%tools>
 # E:<dices>d<sides>:<frequency>:<attack type>
 # F:<flags>

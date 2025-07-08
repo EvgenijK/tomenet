@@ -269,7 +269,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 	case SV_FOOD_CURE_SERIOUS:
 		if (set_blind(Ind, 0)) ident = TRUE;
 		if (set_confused(Ind, 0)) ident = TRUE;
-		if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker)) ident = TRUE;
+		if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker, FALSE)) ident = TRUE;
 		//(void)set_poisoned(Ind, 0, 0);
 		//(void)set_image(Ind, 0);	// ok?
 		if (hp_player(Ind, damroll(6, 8), FALSE, FALSE)) ident = TRUE;
@@ -319,7 +319,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 		if (!p_ptr->suscep_life) { // && !p_ptr->suscep_good
 			msg_print(Ind, "A fresh, clean essence rises, driving away wounds and poison.");
 			(void)hp_player(Ind, damroll(8, 8), FALSE, FALSE); // like Lembas, but stronger
-			(void)set_cut(Ind, 0, 0);	// like Lembas, but stronger
+			(void)set_cut(Ind, -1, 0, FALSE);	// like Lembas, but stronger
 			(void)set_stun(Ind, 0);		// "strengthens"
 			(void)set_poisoned(Ind, 0, 0);	// if it removes BB it can surely remove this
 			(void)set_diseased(Ind, 0, 0);	// if it removes BB it can surely remove this
@@ -375,7 +375,7 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 		if (!p_ptr->suscep_life && !p_ptr->suscep_good) {
 			msg_print(Ind, "That tastes very good.");
 			(void)hp_player(Ind, damroll(5, 8), FALSE, FALSE);
-			if (p_ptr->cut < CUT_MORTAL_WOUND) (void)set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker); //(csw potion does this) -- "hurt .. quickly healed"
+			if (p_ptr->cut < CUT_MORTAL_WOUND) (void)set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker, FALSE); //(csw potion does this) -- "hurt .. quickly healed"
 			//(void)set_stun(Ind, 0);
 			(void)set_poisoned(Ind, 0, 0); // "sick .. quickly healed"
 			(void)set_diseased(Ind, 0, 0); // "sick .. quickly healed"
@@ -842,7 +842,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			else if (msg == 1) take_hit(Ind, dam, "a fountain of detonation", 0); //disabled
 			else take_hit(Ind, dam, "detonations", 0);
 			(void)set_stun_raw(Ind, p_ptr->stun + 75);
-			(void)set_cut(Ind, p_ptr->cut + 5000, Ind);
+			(void)set_cut(Ind, p_ptr->cut + 5000, Ind, FALSE);
 			ident = TRUE;
 			break;
 		case SV_POTION_DEATH:
@@ -929,13 +929,13 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 		case SV_POTION_CURE_LIGHT:
 			if (hp_player(Ind, damroll(3, 8), FALSE, FALSE)) ident = TRUE;
 			if (set_blind(Ind, 0)) ident = TRUE;
-			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 20, p_ptr->cut_attacker)) ident = TRUE;
+			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 20, p_ptr->cut_attacker, FALSE)) ident = TRUE;
 			break;
 		case SV_POTION_CURE_SERIOUS:
 			if (hp_player(Ind, damroll(6, 8), FALSE, FALSE)) ident = TRUE;
 			if (set_blind(Ind, 0)) ident = TRUE;
 			if (set_confused(Ind, 0)) ident = TRUE;
-			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker)) ident = TRUE;
+			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker, FALSE)) ident = TRUE;
 			break;
 		case SV_POTION_CURE_CRITICAL:
 			if (hp_player(Ind, damroll(14, 8), FALSE, FALSE)) ident = TRUE;
@@ -943,7 +943,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			if (set_confused(Ind, 0)) ident = TRUE;
 			//if (set_poisoned(Ind, 0, 0)) ident = TRUE;	/* use specialized pots */
 			if (set_stun(Ind, 0)) ident = TRUE;
-			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 250, 0)) ident = TRUE;
+			if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 250, 0, FALSE)) ident = TRUE;
 			break;
 		case SV_POTION_HEALING:
 			if (hp_player(Ind, 300, FALSE, FALSE)) ident = TRUE;
@@ -951,7 +951,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			if (set_confused(Ind, 0)) ident = TRUE;
 			//if (set_poisoned(Ind, 0, 0)) ident = TRUE;
 			if (set_stun(Ind, 0)) ident = TRUE;
-			if (set_cut(Ind, p_ptr->cut - 250, 0)) ident = TRUE;
+			if (set_cut(Ind, p_ptr->cut - 250, 0, FALSE)) ident = TRUE;
 			break;
 		case SV_POTION_STAR_HEALING:
 			if (hp_player(Ind, 700, FALSE, FALSE)) ident = TRUE;
@@ -960,7 +960,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			if (set_poisoned(Ind, 0, 0)) ident = TRUE;
 			if (set_diseased(Ind, 0, 0)) ident = TRUE;
 			if (set_stun(Ind, 0)) ident = TRUE;
-			if (set_cut(Ind, 0, 0)) ident = TRUE;
+			if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 			break;
 		case SV_POTION_LIFE:
 			msg_print(Ind, "\377GYou feel life flow through your body!");
@@ -979,7 +979,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			(void)set_confused(Ind, 0);
 			(void)set_image(Ind, 0);
 			(void)set_stun(Ind, 0);
-			(void)set_cut(Ind, 0, 0);
+			(void)set_cut(Ind, -1, 0, FALSE);
 			(void)do_res_stat(Ind, A_STR);
 			(void)do_res_stat(Ind, A_CON);
 			(void)do_res_stat(Ind, A_DEX);
@@ -1136,7 +1136,7 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			if (set_diseased(Ind, 0, 0)) ident = TRUE;
 			if (set_confused(Ind, 0)) ident = TRUE;
 			if (set_stun(Ind, 0)) ident = TRUE;
-			if (set_cut(Ind, 0, 0)) ident = TRUE;
+			if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 			if (set_image(Ind, 0)) ident = TRUE;
 			if (heal_insanity(Ind, damroll(4, 4))) ident = TRUE;
 			if (p_ptr->food >= PY_FOOD_MAX) /* ungorge */
@@ -1426,6 +1426,9 @@ void do_cmd_quaff_potion(int Ind, int item) {
 	   don't set item_newest to a potentially resulting empty bottle, but keep it as it as we might chain-quaff */
 	if (item >= 0 && p_ptr->item_newest == item && o_ptr->number != 1) keep_newest_potion = TRUE;
 
+	/* For 'mass'-quaffing sanity potions, small QoL... */
+	if (item >=0 && o_ptr->number != 1) Send_item_newest_2nd(Ind, item);
+
 	/* Destroy a potion in the pack */
 	if (item >= 0) {
 		inven_item_increase(Ind, item, -1);
@@ -1456,7 +1459,7 @@ void do_cmd_quaff_potion(int Ind, int item) {
 		/* If we have no space, drop it to the ground instead of overflowing inventory */
 		if (inven_carry_okay(Ind, o_ptr, 0x0)) {
 #ifdef ENABLE_SUBINVEN
-			if (auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, FALSE, FALSE)) return;
+			if (auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, FALSE, FALSE, 0x0)) return;
 #endif
 			if (keep_newest_potion) o_ptr->mode |= MODE_NOT_NEWEST_ITEM;
 			item = inven_carry(Ind, o_ptr);
@@ -1504,11 +1507,11 @@ static void fountain_guard(int Ind, bool blood) {
 	if (ridx) {
 		s_printf("FOUNTAIN_GUARDS: %d ", ridx);
 
-		msg_print(Ind, "A monster appears in the fountain!");
 		summon_override_checks = SO_GRID_TERRAIN | SO_IDDC | SO_PLAYER_SUMMON;
-		if (summon_specific_race(&p_ptr->wpos, p_ptr->py, p_ptr->px, ridx, 0, 1))
+		if (summon_specific_race(&p_ptr->wpos, p_ptr->py, p_ptr->px, ridx, 0, 1)) {
 			s_printf("ok.\n");
-		else s_printf("failed.\n");
+			msg_print(Ind, "A monster appears in the fountain!");
+		} else s_printf("failed.\n");
 		summon_override_checks = SO_NONE;
 	}
 }
@@ -2025,6 +2028,11 @@ void do_cmd_empty_potion(int Ind, int slot) {
 		return;
 	}
 
+	if (check_guard_inscription(o_ptr->note, 'k')) {
+		msg_print(Ind, "The item's inscription prevents it.");
+		return;
+	};
+
 	tval = o_ptr->tval;
 
 	/* specialty: empty brass lanterns, just to make them stack and sell later */
@@ -2077,8 +2085,8 @@ void do_cmd_empty_potion(int Ind, int slot) {
 	/* Create an empty bottle */
 	q_ptr = &forge;
 	object_wipe(q_ptr);
-	q_ptr->number = 1;
 	invcopy(q_ptr, lookup_kind(TV_BOTTLE, SV_EMPTY_BOTTLE));
+	q_ptr->number = 1;
 	q_ptr->level = 1;
 
 	if (p_ptr->item_newest == slot && o_ptr->number == 1) in_slot = p_ptr->item_newest = -1;
@@ -2099,13 +2107,82 @@ void do_cmd_empty_potion(int Ind, int slot) {
 	p_ptr->energy -= level_speed(&p_ptr->wpos);
 
 #ifdef ENABLE_SUBINVEN
-	if (auto_stow(Ind, SV_SI_POTION_BELT, q_ptr, -1, FALSE, FALSE, FALSE)) {
+	if (auto_stow(Ind, SV_SI_POTION_BELT, q_ptr, -1, FALSE, FALSE, FALSE, 0x0)) {
 		/* QoL hack: Empty bottles won't really processed in meaningful ways with item-accessing command keys, instead just with /fill, because don't intend to drop/kill the bottle right after we empty'd it. */
 		p_ptr->item_newest = in_slot;
 
 		return;
 	}
 #endif
+	slot = inven_carry(Ind, q_ptr);
+	if (slot >= 0) inven_item_describe(Ind, slot);
+
+	/* QoL hack: Empty bottles won't really processed in meaningful ways with item-accessing command keys, instead just with /fill, because don't intend to drop/kill the bottle right after we empty'd it. */
+	p_ptr->item_newest = in_slot;
+}
+
+/*
+ * Rip cloth into bandages
+ */
+void do_cmd_rip_cloth(int Ind, int slot) {
+	player_type *p_ptr = Players[Ind];
+	int in_slot = p_ptr->item_newest, amt;
+	object_type *o_ptr, *q_ptr, forge;
+
+	if (!get_inven_item(Ind, slot, &o_ptr) || !o_ptr->k_idx) {
+		msg_print(Ind, "\377oInvalid item.");
+		return;
+	}
+
+	if (!is_cloth(o_ptr->tval, o_ptr->sval)) {
+		msg_print(Ind, "\377oThat's not a cloth item.");
+		return;
+	}
+
+	if (check_guard_inscription(o_ptr->note, 'k')) {
+		msg_print(Ind, "The item's inscription prevents it.");
+		return;
+	};
+
+	/* Create a fresh bandage */
+#if 0
+	amt = o_ptr->weight;
+	amt = 1 + 10 - 1000 / (amt + 90);
+	amt = (amt >> 1) + 1; //experimental: reduce a bit further..
+#else
+	amt = o_ptr->weight / 10; // 1 or 2
+	if (!amt) amt = 1;
+#endif
+
+	q_ptr = &forge;
+	object_wipe(q_ptr);
+	invcopy(q_ptr, lookup_kind(TV_JUNK, SV_BANDAGE));
+	q_ptr->number = amt;
+	q_ptr->level = 1;
+
+	if (p_ptr->item_newest == slot && o_ptr->number == 1) in_slot = p_ptr->item_newest = -1;
+
+#ifdef USE_SOUND_2010
+#if 1
+	sound(Ind, "rip_cloth", "armour_light", SFX_TYPE_MISC, FALSE); //todo: add rip_cloth
+#endif
+#endif
+
+	/* Destroy the item in the pack */
+	inven_item_increase(Ind, slot, -1);
+	inven_item_describe(Ind, slot);
+	inven_item_optimize(Ind, slot);
+
+	/* let the player carry the bandage */
+	q_ptr->iron_trade = p_ptr->iron_trade;
+	q_ptr->iron_turn = turn;
+
+	/* S(he) is no longer afk */
+	un_afk_idle(Ind);
+
+	/* Take a turn */
+	p_ptr->energy -= level_speed(&p_ptr->wpos);
+
 	slot = inven_carry(Ind, q_ptr);
 	if (slot >= 0) inven_item_describe(Ind, slot);
 
@@ -2956,7 +3033,7 @@ bool read_scroll(int Ind, int tval, int sval, object_type *o_ptr, int item, bool
 			break;
 
 		case SV_SCROLL_MAPPING:
-			map_area(Ind);
+			map_area(Ind, FALSE);
 			ident = TRUE;
 			break;
 
@@ -3690,7 +3767,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 		break;
 
 	case SV_STAFF_MAPPING:
-		map_area(Ind);
+		map_area(Ind, FALSE);
 		ident = TRUE;
 		break;
 
@@ -3723,7 +3800,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 		/* Turned it into 'Cure Serious Wounds' - C. Blue */
 		if (set_blind(Ind, 0)) ident = TRUE;
 		if (set_confused(Ind, 0)) ident = TRUE;
-		if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker)) ident = TRUE;
+		if (p_ptr->cut < CUT_MORTAL_WOUND && set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker, FALSE)) ident = TRUE;
 		if (hp_player(Ind, damroll(6 + get_skill_scale(p_ptr, SKILL_DEVICE, 9), 8), FALSE, FALSE)) ident = TRUE;
 		break;
 
@@ -3734,7 +3811,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 		if (set_diseased(Ind, 0, 0)) ident = TRUE;
 		if (set_confused(Ind, 0)) ident = TRUE;
 		if (set_stun(Ind, 0)) ident = TRUE;
-		if (set_cut(Ind, 0, 0)) ident = TRUE;
+		if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 		if (p_ptr->food >= PY_FOOD_MAX) /* ungorge */
 			if (set_food(Ind, PY_FOOD_MAX - 1)) ident = TRUE;
 		break;
@@ -3742,7 +3819,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 	case SV_STAFF_HEALING:
 		if (hp_player(Ind, 250 + get_skill_scale(p_ptr, SKILL_DEVICE, 150), FALSE, FALSE)) ident = TRUE;
 		if (set_stun(Ind, 0)) ident = TRUE;
-		if (set_cut(Ind, p_ptr->cut - 250, 0)) ident = TRUE;
+		if (set_cut(Ind, p_ptr->cut - 250, 0, FALSE)) ident = TRUE;
 		break;
 
 	case SV_STAFF_THE_MAGI:
@@ -3817,7 +3894,7 @@ bool use_staff(int Ind, int sval, int rad, bool msg, bool *use_charge) {
 			if (set_poisoned(Ind, 0, 0)) ident = TRUE;
 			if (set_diseased(Ind, 0, 0)) ident = TRUE;
 			if (set_stun(Ind, 0)) ident = TRUE;
-			if (set_cut(Ind, 0, 0)) ident = TRUE;
+			if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 			if (hp_player(Ind, 50, FALSE, FALSE)) ident = TRUE;
 		}
 		break;
@@ -4784,7 +4861,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
 		break;
 
 	case SV_ROD_MAPPING:
-		map_area(Ind);
+		map_area(Ind, FALSE);
 		ident = TRUE;
 		//if (o_ptr) o_ptr->pval += 99;
 		/* up to a 50% faster with maxed MD - the_sandman */
@@ -4814,7 +4891,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
 		if (set_diseased(Ind, 0, 0)) ident = TRUE;
 		if (set_confused(Ind, 0)) ident = TRUE;
 		if (set_stun(Ind, 0)) ident = TRUE;
-		if (set_cut(Ind, 0, 0)) ident = TRUE;
+		if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 		if (p_ptr->food >= PY_FOOD_MAX) /* ungorge */
 			if (set_food(Ind, PY_FOOD_MAX - 1)) ident = TRUE;
 		//if (o_ptr) o_ptr->pval += 30 - get_skill_scale(p_ptr, SKILL_DEVICE, 20);
@@ -4825,7 +4902,7 @@ bool zap_rod(int Ind, int sval, int rad, object_type *o_ptr, bool *use_charge) {
 		if (i > 300) i = 300;
 		if (hp_player(Ind, i, FALSE, FALSE)) ident = TRUE;
 		if (set_stun(Ind, p_ptr->stun - 250)) ident = TRUE;
-		if (set_cut(Ind, 0, 0)) ident = TRUE;
+		if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 		//if (o_ptr) o_ptr->pval += 15 - get_skill_scale_fine(p_ptr, SKILL_DEVICE, 5);
 		break;
 
@@ -5594,7 +5671,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 		break;
 
 	case SV_ROD_MAPPING:
-		map_area(Ind);
+		map_area(Ind, FALSE);
 		ident = TRUE;
 		/* up to a 50% faster with maxed MD - the_sandman */
 		//o_ptr->pval += 99 - get_skill_scale(p_ptr, SKILL_DEVICE, 49);
@@ -5621,7 +5698,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 		if (set_diseased(Ind, 0, 0)) ident = TRUE;
 		if (set_confused(Ind, 0)) ident = TRUE;
 		if (set_stun(Ind, 0)) ident = TRUE;
-		if (set_cut(Ind, 0, 0)) ident = TRUE;
+		if (set_cut(Ind, -1, 0, FALSE)) ident = TRUE;
 		if (p_ptr->food >= PY_FOOD_MAX) /* ungorge */
 			if (set_food(Ind, PY_FOOD_MAX - 1)) ident = TRUE;
 		//o_ptr->pval += 30 - get_skill_scale(p_ptr, SKILL_DEVICE, 20);
@@ -5632,7 +5709,7 @@ void do_cmd_zap_rod_dir(int Ind, int dir) {
 		if (i > 300) i = 300;
 		if (hp_player(Ind, i, FALSE, FALSE)) ident = TRUE;
 		if (set_stun(Ind, 0)) ident = TRUE;
-		if (set_cut(Ind, p_ptr->cut - 250, 0)) ident = TRUE;
+		if (set_cut(Ind, p_ptr->cut - 250, 0, FALSE)) ident = TRUE;
 		//o_ptr->pval += 15 - get_skill_scale_fine(p_ptr, SKILL_DEVICE, 5);
 		break;
 
@@ -5804,12 +5881,12 @@ static bool item_tester_hook_activate(int Ind, object_type *o_ptr) {
 
 
 
-/*
- * Hack -- activate the ring of power
- */
+/* Activate the ring of power 'The One Ring' */
 #define ROP_DEC 10
-static void ring_of_power(int Ind, int dir) {
+static void the_one_ring(int Ind, int dir) {
 	player_type *p_ptr = Players[Ind];
+
+	proj_dam_uncapped = TRUE;
 
 	/* Pick a random effect */
 	//switch (randint(10) + (magick(50) ? 0 : get_skill_scale_fine(p_ptr, SKILL_DEVICE, 1))) { --hmm nah, forces magic device skill to use the ring, no good for a specialty such as this one
@@ -5818,39 +5895,41 @@ static void ring_of_power(int Ind, int dir) {
 		/* Message */
 		msg_print(Ind, "You are surrounded by a *malignant* aura.");
 
-		/* Decrease all stats (permanently) */
-		if (p_ptr->sustain_str && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_STR, ROP_DEC, STAT_DEC_NORMAL);
-		if (p_ptr->sustain_int && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_INT, ROP_DEC, STAT_DEC_NORMAL);
-		if (p_ptr->sustain_wis && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_WIS, ROP_DEC, STAT_DEC_NORMAL);
-		if (p_ptr->sustain_dex && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_DEX, ROP_DEC, STAT_DEC_NORMAL);
-		if (p_ptr->sustain_con && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_CON, ROP_DEC, STAT_DEC_NORMAL);
-		if (p_ptr->sustain_chr && rand_int(190) > p_ptr->skill_sav) (void)dec_stat(Ind, A_CHR, ROP_DEC, STAT_DEC_NORMAL);
+		/* Decrease all stats (permanently) - at max ST still 5% chance each -> 74% chance for no stat loss at all */
+		if (!p_ptr->sustain_str || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_STR, ROP_DEC, STAT_DEC_PERMANENT);
+		if (!p_ptr->sustain_int || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_INT, ROP_DEC, STAT_DEC_PERMANENT);
+		if (!p_ptr->sustain_wis || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_WIS, ROP_DEC, STAT_DEC_PERMANENT);
+		if (!p_ptr->sustain_dex || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_DEX, ROP_DEC, STAT_DEC_PERMANENT);
+		if (!p_ptr->sustain_con || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_CON, ROP_DEC, STAT_DEC_PERMANENT);
+		if (!p_ptr->sustain_chr || rand_int(100) > p_ptr->skill_sav) (void)dec_stat(Ind, A_CHR, ROP_DEC, STAT_DEC_PERMANENT);
 
 		/* Lose some experience (permanently) */
-		take_xp_hit(Ind, p_ptr->exp / 100, "Ring of Power", TRUE, FALSE, TRUE, 0);
+		take_xp_hit(Ind, p_ptr->exp / 50, "Ring of Power", TRUE, FALSE, TRUE, 0);
 		break;
 
 	case 2:
-		/* Message */
-		msg_print(Ind, "You are surrounded by a *powerful* aura.");
-
 		/* Dispel monsters */
-		dispel_monsters(Ind, 5000); /* Enough to insta-kill even lesser Wyrms and non-leader greater demons */
+		msg_print(Ind, "You are surrounded by a *powerful* aura.");
+		dispel_monsters(Ind, 3000); /* (5k: Enough to insta-kill even lesser Wyrms and non-leader greater demons) */
 		break;
 
 	case 3:
 	case 4:
 		/* Mana Ball */
+		msg_print(Ind, "The ring releases a mana storm!");
 		sprintf(p_ptr->attacker, " invokes a mana storm for");
-		fire_ball(Ind, GF_MANA, dir, 3000, 3, p_ptr->attacker);
+		fire_ball(Ind, GF_MANA, dir, 2500, 3, p_ptr->attacker);
 		break;
 
 	default:
 		/* Mana Bolt */
+		msg_print(Ind, "The ring releases a mana bolt!");
 		sprintf(p_ptr->attacker, " fires a mana bolt for");
 		fire_bolt(Ind, GF_MANA, dir, 2000, p_ptr->attacker);
 		break;
 	}
+
+	proj_dam_uncapped = FALSE;
 }
 
 
@@ -5988,6 +6067,9 @@ bool activation_requires_direction(object_type *o_ptr) {
 	else if (o_ptr->tval == TV_MSTAFF && (o_ptr->xtra2 || (o_ptr->xtra3 && mstaff_rod_requires_direction(0, o_ptr))))
 		return(TRUE);
 #endif
+
+	/* Bandage ourselves or someone next to us! */
+	else if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_BANDAGE) return(TRUE);
 
 	/* All other items aren't activatable */
 	return(FALSE);
@@ -6155,7 +6237,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 #endif
 	    && !(o_ptr->tval == TV_SPECIAL && o_ptr->sval == SV_CUSTOM_OBJECT && !(o_ptr->xtra3 & 0x0050))
 	    && !((o_ptr->tval == TV_SPECIAL || o_ptr->tval == TV_JUNK) && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
-	    && !(o_ptr->tval == TV_JUNK && (o_ptr->sval == SV_GLASS_SHARD || o_ptr->sval == SV_ENERGY_CELL))
+	    && !(o_ptr->tval == TV_JUNK && (o_ptr->sval == SV_GLASS_SHARD || o_ptr->sval == SV_ENERGY_CELL || o_ptr->sval == SV_BANDAGE))
 	    ) {
 		if (p_ptr->anti_magic) {
 			msg_format(Ind, "\377%cYour anti-magic shell disrupts your attempt.", COLOUR_AM_OWN);
@@ -6206,6 +6288,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 	/* Roll for usage */
 	if (o_ptr->tval == TV_BOOK /* hack: blank books can always be 'activated' */
 	    || ((o_ptr->tval == TV_JUNK || o_ptr->tval == TV_SPECIAL) && o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END)
+	    || (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_BANDAGE)
 #ifdef ENABLE_DEMOLITIONIST
 	    /* Alchemy has nothing to do with magic device skills, and especially shouldn't set command_rep or we may run into weirdness!: */
 	    || o_ptr->tval == TV_CHEMICAL
@@ -6222,6 +6305,20 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			}
 		}
 #endif
+		/* Bandages require some DEX or INT */
+		if (o_ptr->tval == TV_JUNK && o_ptr->sval == SV_BANDAGE) {
+			// 1% at 3*2 displayed INT+DEX, 50% at 10*2, 77% at 14*2, 100% at 18*2:
+			int chance = ((adj_dex_th_mul[p_ptr->stat_ind[A_INT]] - 9) * (adj_dex_th_mul[p_ptr->stat_ind[A_DEX]] - 9)) / 100;
+
+			if (!magik(chance)) {
+				if (!magik(chance + 25)) {
+					inven_item_increase(Ind, item, -1);
+					inven_item_optimize(Ind, item);
+					msg_format(Ind, "\377%cThe bandage is ruined in the process.", COLOUR_MD_FAIL);
+				} else msg_format(Ind, "\377%cYou fail to apply the bandage properly.", COLOUR_MD_FAIL);
+				return;
+			}
+		}
 	} else if (!activate_magic_device(Ind, o_ptr, FALSE)) {
 #ifdef ENABLE_XID_SPELL
  #ifdef XID_REPEAT
@@ -6287,6 +6384,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 #endif
 	case TV_JUNK:
 		if (o_ptr->sval >= SV_GIFT_WRAPPING_START && o_ptr->sval <= SV_GIFT_WRAPPING_END) msg_print(Ind, "You prepare the gift wrapping...");
+		else if (o_ptr->sval == SV_BANDAGE) ; // message is given later, when the target is verified
 		else msg_print(Ind, "You activate it...");
 		break;
 	case TV_SPECIAL:
@@ -6686,7 +6784,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_LOTHARANG:
 			msg_print(Ind, "Your battle axe radiates deep purple...");
 			hp_player(Ind, damroll(4, 8 + get_skill_scale(p_ptr, SKILL_DEVICE, 20)), FALSE, FALSE);
-			if (p_ptr->cut < CUT_MORTAL_WOUND) (void)set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker);
+			if (p_ptr->cut < CUT_MORTAL_WOUND) (void)set_cut(Ind, p_ptr->cut - 50, p_ptr->cut_attacker, FALSE);
 			o_ptr->recharging = randint(3) + 2 - get_skill_scale(p_ptr, SKILL_DEVICE, 2);//o_o
 			break;
 		case ART_CUBRAGOL:
@@ -6712,7 +6810,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			msg_print(Ind, "Your armour glows a bright white...");
 			msg_print(Ind, "\377GYou feel much better...");
 			(void)hp_player(Ind, 1000, FALSE, FALSE);
-			(void)set_cut(Ind, 0, 0);
+			(void)set_cut(Ind, -1, 0, FALSE);
 			o_ptr->recharging = 888 - get_skill_scale(p_ptr, SKILL_DEVICE, 666);
 			break;
 		case ART_BELEGENNON:
@@ -6798,7 +6896,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_GONDOR:
 			msg_print(Ind, "\377GYou feel a warm tingling inside...");
 			(void)hp_player(Ind, 500, FALSE, FALSE);
-			(void)set_cut(Ind, 0, 0);
+			(void)set_cut(Ind, -1, 0, FALSE);
 			o_ptr->recharging = 500 - get_skill_scale(p_ptr, SKILL_DEVICE, 400);
 			break;
 		case ART_RAZORBACK:
@@ -6839,7 +6937,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 				take_hit(Ind, dam, "The Star of Elendil", 0);
 			}
 			if (p_ptr->suscep_lite && !p_ptr->resist_lite && !p_ptr->resist_blind) (void)set_blind(Ind, p_ptr->blind + 5 + randint(10));
-			map_area(Ind);
+			map_area(Ind, FALSE);
 			o_ptr->recharging = randint(25) + 50 - get_skill_scale(p_ptr, SKILL_DEVICE, 40);
 			break;
 		case ART_THRAIN:
@@ -7130,7 +7228,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			set_diseased(Ind, 0, 0);
 			set_confused(Ind, 0);
 			set_stun(Ind, 0);
-			set_cut(Ind, 0, 0);
+			set_cut(Ind, -1, 0, FALSE);
 			set_image(Ind, 0);
 			o_ptr->recharging = 500 - get_skill_scale(p_ptr, SKILL_DEVICE, 250);
 			break;
@@ -7287,7 +7385,7 @@ void do_cmd_activate(int Ind, int item, int dir) {
 			o_ptr->recharging = randint(75) + 175 - get_skill_scale(p_ptr, SKILL_DEVICE, 100);
 			break;
 		case ART_AXE_GOTHMOG:
-			msg_print(Ind, "Your lochaber axe erupts in fire...");
+			msg_print(Ind, "Your axe erupts in fire...");
 			p_ptr->current_activation = item;
 			get_aim_dir(Ind);
 			return;
@@ -7428,6 +7526,10 @@ void do_cmd_activate(int Ind, int item, int dir) {
 		case ART_SEVENLEAGUE:
 			teleport_player(Ind, 200, FALSE); //quite far
 			o_ptr->recharging = 15 - get_skill_scale(p_ptr, SKILL_DEVICE, 10);
+			break;
+		case ART_TUGAVOS:
+			(void)detect_treasure(Ind, DEFAULT_RADIUS_DEV(p_ptr) * 3); //DEFAULT_RADIUS * 3);
+			o_ptr->recharging = 400 - get_skill_scale(p_ptr, SKILL_DEVICE, 300);
 			break;
 		default: done = FALSE;
 		}
@@ -7685,6 +7787,35 @@ void do_cmd_activate(int Ind, int item, int dir) {
 
 	}
 
+	/* Deprecated - this is now a directional activation so we can bandage other players, see do_cmd_activate_dir() instead. */
+	if (!done && o_ptr->tval == TV_JUNK && o_ptr->sval == SV_BANDAGE) {
+		if (!p_ptr->cut) {
+			msg_print(Ind, "You have no open wounds."); //yellow?
+			return;
+		} else if (p_ptr->cut_bandaged) {
+			msg_print(Ind, "You have already applied a bandage."); //yellow?
+			return;
+		}
+		inven_item_increase(Ind, item, -1);
+		inven_item_optimize(Ind, item);
+		msg_print(Ind, "\376You apply a bandage to your wound.");
+
+		/* Bandages can only lessen very bad cuts somewhat */
+		if (p_ptr->cut <= 100) {
+			p_ptr->cut_bandaged = p_ptr->cut;
+			p_ptr->cut = 0;
+		} else {
+			p_ptr->cut_bandaged = 100;
+			p_ptr->cut -= 100;
+		}
+
+		p_ptr->update |= (PU_BONUS);
+		p_ptr->redraw |= (PR_CUT);
+		handle_stuff(Ind);
+		//disturb(Ind, 0, 0)
+		return;
+	}
+
 	/* Mistake */
 	msg_print(Ind, "That object cannot be activated.");
 }
@@ -7868,7 +7999,7 @@ void do_cmd_activate_dir(int Ind, int dir) {
 			o_ptr->recharging = randint(175) + 425 - get_skill_scale(p_ptr, SKILL_DEVICE, 325);
 			break;
 		case ART_POWER:
-			ring_of_power(Ind, dir);
+			the_one_ring(Ind, dir);
 			o_ptr->recharging = randint(450) + 450;// - get_skill_scale(p_ptr, SKILL_DEVICE, 225);
 			break;
 		case ART_MEDIATOR:
@@ -8256,6 +8387,84 @@ void do_cmd_activate_dir(int Ind, int dir) {
 	}
 #endif
 
+	if (!done && o_ptr->tval == TV_JUNK && o_ptr->sval == SV_BANDAGE) {
+		/* Bandage ourselves? */
+		if (dir == 5) {
+			if (!p_ptr->cut) {
+				msg_print(Ind, "You have no open wounds."); //yellow?
+				return;
+			} else if (p_ptr->cut_bandaged) {
+				msg_print(Ind, "You have already applied a bandage."); //yellow?
+				return;
+			}
+
+			inven_item_increase(Ind, item, -1);
+			inven_item_optimize(Ind, item);
+			msg_print(Ind, "\376You apply a bandage to your wound.");
+
+			/* Bandages can only lessen very bad cuts somewhat */
+			if (p_ptr->cut <= 100) {
+				p_ptr->cut_bandaged = p_ptr->cut;
+				p_ptr->cut = 0;
+			} else {
+				p_ptr->cut_bandaged = 100;
+				p_ptr->cut -= 100;
+			}
+
+			p_ptr->update |= (PU_BONUS);
+			p_ptr->redraw |= (PR_CUT);
+			handle_stuff(Ind);
+			//disturb(Ind, 0, 0)
+		} else {
+			cave_type **zcave = getcave(&p_ptr->wpos), *c_ptr;
+			int Ind2;
+			player_type *p2_ptr;
+
+			if (!zcave) return; //paranoia
+			c_ptr = &zcave[p_ptr->py + ddy[dir]][p_ptr->px + ddx[dir]];
+			Ind2 = -c_ptr->m_idx;
+			if (Ind2 <= 0 || Ind2 > NumPlayers) {
+				msg_print(Ind, "There is no player next to you in that direction.");
+				return;
+			}
+			p2_ptr = Players[Ind2];
+
+			if (!p2_ptr->cut) {
+				msg_print(Ind, "That player has no open wounds."); //yellow?
+				return;
+			} else if (p2_ptr->cut_bandaged) {
+				msg_print(Ind, "That player already has a bandage applied."); //yellow?
+				return;
+			}
+
+			inven_item_increase(Ind, item, -1);
+			inven_item_optimize(Ind, item);
+			switch (p2_ptr->name[strlen(p2_ptr->name) - 1]) {
+			case 's': case 'x': case 'z':
+				msg_format(Ind, "\376You apply a bandage to %s' wound.", p2_ptr->name);
+				break;
+			default:
+				msg_format(Ind, "\376You apply a bandage to %s's wound.", p2_ptr->name);
+			}
+			msg_format(Ind2, "\376%s applies a bandage to your wound.", p_ptr->name);
+
+			/* Bandages can only lessen very bad cuts somewhat */
+			if (p2_ptr->cut <= 100) {
+				p2_ptr->cut_bandaged = p2_ptr->cut;
+				p2_ptr->cut = 0;
+			} else {
+				p2_ptr->cut_bandaged = 100;
+				p2_ptr->cut -= 100;
+			}
+
+			p2_ptr->update |= (PU_BONUS);
+			p2_ptr->redraw |= (PR_CUT);
+			handle_stuff(Ind2);
+			//disturb(Ind2, 0, 0)
+		}
+		return;
+	}
+
 	/* Clear current activation */
 	p_ptr->current_activation = -1;
 
@@ -8458,7 +8667,7 @@ static int fletchery_items(int Ind, int type) {
 	object_aware(Ind, q_ptr); \
 	object_known(q_ptr); \
 	if (tlev > 50) q_ptr->ident |= ID_MENTAL; \
-	apply_magic(&p_ptr->wpos, q_ptr, tlev, FALSE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10)) ? TRUE : FALSE, FALSE, RESF_NOART); \
+	apply_magic(&p_ptr->wpos, q_ptr, tlev, FALSE, get_skill(p_ptr, SKILL_ARCHERY) >= 20, (magik(tlev / 10)) ? TRUE : FALSE, FALSE, RESF_MASK_NOART); \
 	q_ptr->ident &= ~ID_CURSED; \
 	q_ptr->note = quark_add("handmade"); \
 	/* q_ptr->discount = 50 + 25 * rand_int(3); */ \
@@ -8784,6 +8993,12 @@ void do_cmd_stance(int Ind, int stance) {
 #endif
 
 	if (!get_skill(p_ptr, SKILL_STANCE)) return;
+
+	if (stance == -1) {
+		stance = p_ptr->combat_stance_prev;
+		if (stance == p_ptr->combat_stance) return; //no 'already' message in this case
+	}
+	p_ptr->combat_stance_prev = p_ptr->combat_stance;
 
 	switch (stance) {
 	case 0: /* always known, no different power levels here */

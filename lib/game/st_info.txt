@@ -76,6 +76,7 @@ T:100:11:12
 T:100:11:13
 T:100:11:14
 T:100:11:15
+T:25:11:1
 $ENABLE_SUBINVEN$T:50:126:1
 $ENABLE_SUBINVEN$T:50:126:4
 $ENABLE_ITEM_ORDER$A:2:1:3:4:72:85
@@ -209,6 +210,7 @@ I:100:Neutralize Poison
 T:100:70:56
 T:100:70:56
 I:100:Light
+T:15:11:1
 $ENABLE_ITEM_ORDER$A:2:1:3:4:72:67
 $ENABLE_ITEM_ORDER!A:2:1:3:4:0:67
 O:26:27:28:29:26:43
@@ -794,7 +796,8 @@ F:PRICE4 | PRICE2 | PRICY_ITEMS2
 W:36
 
 N:49:Common Shop
-I:95:& Brass Lantern~
+I:90:& Wooden Torch~
+I:80:& Brass Lantern~
 I:100:& Flask~ of oil
 I:100:& Ration~ of Food
 I:60:& Shovel~
@@ -805,13 +808,25 @@ I:70:& Bolt~
 I:70:& Arrow~
 I:98:& Cloak~
 I:46:& Fur Cloak~
-I:100:Word of Recall
-I:100:Cure Critical Wounds
+I:70:Light
+I:90:Door/Stair Location
+I:100:Identify
+I:50:Word of Recall
+I:50:Remove Curse
+I:50:Slow Poison
+I:100:71:35
+I:100:71:36
+T:20:11:1
+# specialty: offer all normal bags, as some might not be available in Mandos any other way
+$ENABLE_SUBINVEN$T:50:126:0
+$ENABLE_SUBINVEN$T:50:126:1
+$ENABLE_SUBINVEN$T:50:126:2
+$ENABLE_SUBINVEN$T:50:126:3
+$ENABLE_SUBINVEN$T:50:126:4
 A:2:1:3:4:0:0
 O:0:5:6:7:1:35
-G:1:U
-W:0
-#UNUSED W:12
+G:1:o
+W:24
 
 N:50:Dragon Hunter
 T:100:38:256
@@ -861,6 +876,7 @@ T:100:70:61
 $ENABLE_DEMOLITIONIST$T:50:12:8
 $ENABLE_SUBINVEN$T:50:126:0
 $ENABLE_SUBINVEN$T:50:126:3
+T:15:11:1
 A:2:1:3:0:0:0
 O:30:31:32:33:30:33
 G:5:s
@@ -873,14 +889,15 @@ A:2:1:3:4:0:0
 O:42:43:44:45:4:58
 G:5:w
 F:RANDOM | MEDIUM_LEVEL | DEPEND_LEVEL | BUY67 | HARD_STEAL
-W:12
+W:48
 
 N:53:Potion Store
+$ENABLE_SUBINVEN$T:5:126:3
 T:100:71:256
 A:2:1:3:0:0:0
 O:30:31:32:33:30:33
 G:5:B
-W:12
+W:24
 F:BUY67 | RANDOM | MEDIUM_LEVEL | DEPEND_LEVEL | NO_DISCOUNT2 | PRICE2
 F:PRICE1 | VHARD_STEAL
 
@@ -992,6 +1009,7 @@ I:100:Satisfy Hunger
 T:30:39:2
 T:30:39:2
 T:30:39:3
+T:15:11:1
 A:2:1:3:4:0:0
 #O:34:35:36:37:46:49
 O:19:24:25:45:54:67
@@ -1032,10 +1050,11 @@ F:RANDOM
 
 #the_sandman: added normal ammos to shop & increased amount of ids
 N:63:Seasoned Tradesman
+#ammo
 T:95:16:1
 T:95:17:1
 T:95:18:1
-#Trap-scrolls
+#Trap-scrolls: Fire, Ice, Chaos
 T:100:70:48
 T:100:70:49
 T:100:70:50
@@ -1051,6 +1070,7 @@ I:50:Detect Invisible
 I:50:Recharging
 I:50:Satisfy Hunger
 I:50:Word of Recall
+#teleport scroll
 T:2:70:9
 T:50:71:42
 I:50:Restore Intelligence
@@ -1073,6 +1093,7 @@ I:100:Cure Critical Wounds
 I:50:Restore Life Levels
 I:2:*Remove Curse*
 I:50:Neutralize Poison
+#beginner handbooks and any spell scrolls
 T:100:111:50
 T:100:111:56
 T:100:111:61
@@ -1083,6 +1104,7 @@ T:100:111:255
 T:100:111:255
 $ENABLE_SUBINVEN$T:50:126:1
 $ENABLE_SUBINVEN$T:50:126:4
+T:15:11:1
 A:2:1:3:4:0:0
 O:30:31:32:33:30:33
 G:1:s
@@ -1106,7 +1128,7 @@ O:12:13:14:15:44:68
 G:3:W
 #needs PRICE4 because it very often sells ego items
 F:RANDOM | MEDIUM_LEVEL | PRICE4 | BUY67 | HARD_STEAL
-W:24
+W:48
 
 N:65:Hidden Library
 T:6:111:50
@@ -1131,8 +1153,9 @@ A:2:0:3:0:0:82
 #note: stealing is usually turned off for pstores anyway
 F:VHARD_STEAL
 
-# Variant of dungeon potion store, for Ironman Deep Dive Challenge towns
+# Variant of dungeon potion store, for Ironman Deep Dive Challenge towns - has less harsh prices (x2 instead of x3) and bigger stock
 N:67:Potion Store
+$ENABLE_SUBINVEN$T:5:126:3
 T:100:71:256
 A:2:1:3:0:0:0
 O:30:31:32:33:30:33
@@ -1210,6 +1233,7 @@ T:15:12:7
 T:5:12:0
 $ENABLE_SUBINVEN$T:50:126:1
 $ENABLE_SUBINVEN$T:50:126:4
+T:25:11:1
 #A:0:0:1:2:3:4	(removed for IDDC_IRON_COOP)
 A:2:1:3:0:0:85
 O:0:5:6:7:1:35
@@ -1327,6 +1351,7 @@ I:100:Neutralize Poison
 T:100:70:56
 T:100:70:56
 I:100:Light
+T:15:11:1
 A:2:1:3:0:0:0
 O:26:27:28:29:26:43
 G:4:g

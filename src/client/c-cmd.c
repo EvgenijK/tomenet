@@ -66,9 +66,9 @@ static void cmd_all_in_one(void) {
 	get_item_extra_hook = get_item_hook_find_obj;
 
 #ifdef ENABLE_SUBINVEN
-	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA | USE_SUBINVEN))) {
+	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA | USE_SUBINVEN | CHECK_CHARGED))) { // also process charged state for magic devices
 #else
-	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA))) {
+	if (!c_get_item(&item, "Use which item? ", (USE_EQUIP | USE_INVEN | USE_EXTRA | CHECK_CHARGED))) { // also process charged state for magic devices
 #endif
 		if (item == -2) c_msg_print("You don't have any items.");
 		return;
@@ -1193,11 +1193,6 @@ void cmd_subinven(int islot) {
 		/* Move item to backpack inventory */
 		case 's': cmd_subinven_remove(using_subinven); continue;
 
-		/* More basic functions */
-		//postponed
-		//case 'K': cmd_force_stack(); continue;
-		//case 'H': cmd_apply_autoins(); continue;
-
 		/* Specifically required for DEMOLITIONIST chemicals */
 		case 'a':
 			/* Restricted now to satchel only, no good really for other cases */
@@ -1241,9 +1236,9 @@ void cmd_subinven(int islot) {
 			}
 			continue;
 		/* Also allow force-stacking directly from here */
-		case 'K':
-			cmd_force_stack();
-			continue;
+		case 'K': cmd_force_stack(); continue;
+		/* Also allow auto-inscribing an item in the bag */
+		case 'H': cmd_apply_autoins(); continue;
 		}
 
 		if (leave) break;
@@ -2797,9 +2792,9 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		/* If we're not searching for something specific, just seek forwards until reaching our current starting line */
 		if (!chapter[0]) {
 			if (backwards) {
-				if (!searchwrap) for (n = 0; n < line; n++) res = fgets_inverse(buf, 81, fff); //res just slays non-existant compiler warning..what
+				if (!searchwrap) for (n = 0; n < line; n++) res = fgets_inverse(buf, MAX_CHARS + 1, fff); //res just slays non-existant compiler warning..what
 			} else {
-				if (!searchwrap) for (n = 0; n < line; n++) res = fgets(buf, 81, fff); //res just slays compiler warning
+				if (!searchwrap) for (n = 0; n < line; n++) res = fgets(buf, MAX_CHARS + 1, fff); //res just slays compiler warning
 			}
 		} else searchline = -1; //init searchline for chapter-search
 #else
@@ -2821,8 +2816,8 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 		withinsearch[0] = 0;
 		for (n = 0; n < maxlines; n++) {
 #ifndef BUFFER_GUIDE
-			if (backwards) res = fgets_inverse(buf, 81, fff);
-			else res = fgets(buf, 81, fff);
+			if (backwards) res = fgets_inverse(buf, MAX_CHARS + 1, fff);
+			else res = fgets(buf, MAX_CHARS + 1, fff);
 #else
 			if (backwards) {
 				if (fseek_pseudo < 0) {
@@ -2842,8 +2837,6 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 #endif
 			/* Reached end of file? -> No need to try and display further lines */
 			if (!res) break;
-
-			buf[strlen(buf) - 1] = 0; //strip trailing newlines
 
 			/* Automatically add colours to "(x.yza)" formatted chapter markers */
 			cp = buf;
@@ -3027,7 +3020,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 							/* Skip end of line, advancing to next line */
 							fseek(fff, 1, SEEK_CUR);
 							/* This line has already been read too, by fgets_inverse(), so skip too */
-							res = fgets(bufdummy, 81, fff); //res just slays compiler warning
+							res = fgets(bufdummy, MAX_CHARS + 1, fff); //res just slays compiler warning
  #else
 							fseek_pseudo += 2;
  #endif
@@ -3086,7 +3079,7 @@ void cmd_the_guide(byte init_search_type, int init_lineno, char* init_search_str
 						/* Skip end of line, advancing to next line */
 						fseek(fff, 1, SEEK_CUR);
 						/* This line has already been read too, by fgets_inverse(), so skip too */
-						res = fgets(bufdummy, 81, fff); //res just slays compiler warning
+						res = fgets(bufdummy, MAX_CHARS + 1, fff); //res just slays compiler warning
 #else
 						fseek_pseudo += 2;
 #endif
@@ -4750,12 +4743,12 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 	char searchstr[MAX_CHARS], withinsearch[MAX_CHARS];
 	char buf[MAX_CHARS_WIDE * 2 + 1], buf2[MAX_CHARS_WIDE * 2 + 1], *cp, *cp2, *buf2ptr;
 	char tempstr_KL[MAX_CHARS_WIDE * 3 + MAX_CHARS], tempstr2_KL[MAX_CHARS_WIDE * 3 + MAX_CHARS]; //for CTRL+K and CTRL+L functionality
-	char path[1024];
+	char path[1024], **local_file_line_tmp;
 
-	int i, q_offset = 0;
+	int i, q_offset = 0, filesize, local_file_lines_reserved = 1000, linelen;
 	char *res, *bufp_offset;
 #ifndef BUFFER_LOCAL_FILE
-	char bufdummy[MAX_CHARS_WIDE + 1];
+	char bufdummy[MAX_CHARS_WIDE * 2 + 1];
 #else
 	static int fseek_pseudo[MAX_REMEMBRANCE_INDICES] = { 0 }; //fake a file position, within our buffered guide string array
 #endif
@@ -4806,10 +4799,10 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 	}
 
 #ifdef BUFFER_LOCAL_FILE
-	if (fgets(buf, MAX_CHARS_WIDE + 1, fff)) file_lastline[remembrance_index] = 0;
+	if (fgets(buf, MAX_CHARS_WIDE * 2 + 1, fff)) file_lastline[remembrance_index] = 0;
 #else
 	/* count lines */
-	while (fgets(buf, MAX_CHARS_WIDE + 1, fff)) file_lastline[remembrance_index]++;
+	while (fgets(buf, MAX_CHARS_WIDE * 2 + 1, fff)) file_lastline[remembrance_index]++;
 #endif
 	my_fclose(fff);
 
@@ -4823,30 +4816,72 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 	}
 
 	fff = my_fopen(path, "r");
+
 #ifdef BUFFER_LOCAL_FILE
+	fseek(fff, 0, SEEK_END);
+	filesize = ftell(fff);
+	fseek(fff, 0, SEEK_SET);
+	local_file_data = calloc(1, filesize + 1); //0-termination by strcpy()
+	if (!local_file_data) {
+		c_msg_format("\377yCouldn't allocate the required %d bytes for a local file.", filesize);
+		return;
+	}
+	local_file_line = malloc(sizeof(char*) * local_file_lines_reserved);
+	if (!local_file_line) {
+		c_msg_format("\377yCouldn't allocate the required %lu bytes for local file line buffer.", sizeof(int) * local_file_lines_reserved);
+		free(local_file_data);
+		return;
+	}
+
 	/* buffer file, for easy reverse browsing */
-	i = 0;
+	i = -1;
 	if (reverse) {
 		fseek(fff, -1, SEEK_END);
-		while (fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff)) {
-			//buf[strlen(buf) - 1] = 0; //strip trailing newlines -- done later
-			strcpy(local_file_line[i++], buf);
-			if (i == LOCAL_FILE_LINES_MAX) {
-				c_msg_format("\377The file %s is too big to get buffered, cut off at line %d.", fname, LOCAL_FILE_LINES_MAX);
-				break;
+		while (fgets_inverse(buf, MAX_CHARS_WIDE * 2 + 1, fff)) {
+			i++;
+			if (i + 1 >= local_file_lines_reserved) {
+				local_file_lines_reserved += 1000;
+				local_file_line_tmp = realloc(local_file_line, sizeof(char*) * local_file_lines_reserved);
+				if (!local_file_line_tmp) {
+					free(local_file_data);
+					free(local_file_line);
+					c_msg_format("\377yCouldn't allocate the required %lu bytes for local file line buffer.", sizeof(int) * local_file_lines_reserved);
+					return;
+				}
+				local_file_line = local_file_line_tmp;
 			}
+			linelen = strlen(buf);
+			if (i == 0) {
+				local_file_line[0] = local_file_data;
+				local_file_line[1] = local_file_data + linelen;
+			} else local_file_line[i + 1] = local_file_line[i] + linelen;
+			strcpy(local_file_line[i], buf);
+			local_file_line[i][linelen - 1] = 0; //replace newline by string terminator
 		}
-		file_lastline[remembrance_index] = i - 1;
+		file_lastline[remembrance_index] = i;
 	} else {
-		while (fgets(buf, MAX_CHARS_WIDE + 1, fff)) {
-			//buf[strlen(buf) - 1] = 0; //strip trailing newlines -- done later
-			strcpy(local_file_line[i++], buf);
-			if (i == LOCAL_FILE_LINES_MAX) {
-				c_msg_format("\377The file %s is too big to get buffered, cut off at line %d.", fname, LOCAL_FILE_LINES_MAX);
-				break;
+		while (fgets(buf, MAX_CHARS_WIDE * 2 + 1, fff)) {
+			i++;
+			if (i + 1 >= local_file_lines_reserved) {
+				local_file_lines_reserved += 1000;
+				local_file_line_tmp = realloc(local_file_line, sizeof(char*) * local_file_lines_reserved);
+				if (!local_file_line_tmp) {
+					free(local_file_data);
+					free(local_file_line);
+					c_msg_format("\377yCouldn't allocate the required %lu bytes for local file line buffer.", sizeof(int) * local_file_lines_reserved);
+					return;
+				}
+				local_file_line = local_file_line_tmp;
 			}
+			linelen = strlen(buf);
+			if (i == 0) {
+				local_file_line[0] = local_file_data;
+				local_file_line[1] = local_file_data + linelen;
+			} else local_file_line[i + 1] = local_file_line[i] + linelen;
+			strcpy(local_file_line[i], buf);
+			local_file_line[i][linelen - 1] = 0; //replace newline by string terminator
 		}
-		file_lastline[remembrance_index] = i - 1;
+		file_lastline[remembrance_index] = i;
 	}
 	my_fclose(fff);
 #endif
@@ -4886,9 +4921,9 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 
 		/* If we're not searching for something specific, just seek forwards until reaching our current starting line */
 		if (backwards) {
-			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff); //res just slays non-existant compiler warning..what
+			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets_inverse(buf, MAX_CHARS_WIDE * 2 + 1, fff); //res just slays non-existant compiler warning..what
 		} else {
-			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets(buf, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
+			if (!searchwrap) for (n = 0; n < line_cur[remembrance_index]; n++) res = fgets(buf, MAX_CHARS_WIDE * 2 + 1, fff); //res just slays compiler warning
 		}
 #else
 		/* Always begin at zero */
@@ -4905,8 +4940,8 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 		withinsearch[0] = 0;
 		for (n = 0; n < maxlines; n++) {
 #ifndef BUFFER_LOCAL_FILE
-			if (backwards) res = fgets_inverse(buf, MAX_CHARS_WIDE + 1, fff);
-			else res = fgets(buf, MAX_CHARS_WIDE + 1, fff);
+			if (backwards) res = fgets_inverse(buf, MAX_CHARS_WIDE * 2 + 1, fff);
+			else res = fgets(buf, MAX_CHARS_WIDE * 2 + 1, fff);
 #else
 			if (backwards) {
 				if (fseek_pseudo[remembrance_index] < 0) {
@@ -4926,8 +4961,6 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 #endif
 			/* Reached end of file? -> No need to try and display further lines */
 			if (!res) break;
-
-			buf[strlen(buf) - 1] = 0; //strip trailing newlines
 
 			/* Automatically add colours to "(x.yza)" formatted chapter markers */
 			cp = buf;
@@ -4989,7 +5022,7 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 							/* Skip end of line, advancing to next line */
 							fseek(fff, 1, SEEK_CUR);
 							/* This line has already been read too, by fgets_inverse(), so skip too */
-							res = fgets(bufdummy, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
+							res = fgets(bufdummy, MAX_CHARS_WIDE * 2 + 1, fff); //res just slays compiler warning
  #else
 							fseek_pseudo[remembrance_index] += 2;
  #endif
@@ -5064,7 +5097,7 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 						/* Skip end of line, advancing to next line */
 						fseek(fff, 1, SEEK_CUR);
 						/* This line has already been read too, by fgets_inverse(), so skip too */
-						res = fgets(bufdummy, MAX_CHARS_WIDE + 1, fff); //res just slays compiler warning
+						res = fgets(bufdummy, MAX_CHARS_WIDE * 2 + 1, fff); //res just slays compiler warning
 #else
 						fseek_pseudo[remembrance_index] += 2;
 #endif
@@ -5452,7 +5485,7 @@ void browse_local_file(const char* angband_path, char* fname, int remembrance_in
 		case NAVI_KEY_RIGHT:
 		case '6': case '>': case 'l':
 			q_offset = q_offset + 40;
-			if (q_offset > MAX_CHARS_WIDE - MAX_CHARS) { /* Prevent buffer overflow. We just pick an arbitrary value here, randomly picked from Receive_special_line():buf[]. */
+			if (q_offset > MAX_CHARS_WIDE * 2 - MAX_CHARS) { /* Prevent buffer overflow. We just pick an arbitrary value here, randomly picked from Receive_special_line():buf[]. */
 				q_offset -= 40;
 				if (q_offset < 0) q_offset = 0; /* Edge case, paranoia. */
 			}
@@ -5799,7 +5832,7 @@ void cmd_help(void) {
 
 #define ARTIFACT_LORE_LIST_SIZE 17
 static void artifact_lore(void) {
-	char s[20 + 1], tmp[80];
+	char s[20 + 1], tmp[80], *tmpname;
 	int c, i, j, n, selected, selected_list, list_idx[ARTIFACT_LORE_LIST_SIZE], presorted;
 	bool show_lore = TRUE, direct_match;
 	int selected_line = 0;
@@ -5840,10 +5873,11 @@ static void artifact_lore(void) {
 			/* create upper-case working copy */
 			strcpy(tmp, artifact_list_name[i]);
 			for (j = 0; tmp[j]; j++) tmp[j] = toupper(tmp[j]);
+			tmpname = tmp + 13; //skip symbol and level and spacers, start with the actual artifact name!
 
 			/* exact match? exact match without 'The ' at the beginning maybe? */
-			if (!strcmp(tmp, s) ||
-			    (tmp[0] == 'T' && tmp[1] == 'H' && tmp[2] == 'E' && tmp[3] == ' ' && !strcmp(tmp + 4, s))
+			if (!strcmp(tmpname, s) ||
+			    (tmpname[0] == 'T' && tmpname[1] == 'H' && tmpname[2] == 'E' && tmpname[3] == ' ' && !strcmp(tmpname + 4, s))
 			    || (s[0] == '#' && atoi(s + 1) && artifact_list_code[i] == atoi(s + 1))) { /* also allow typing in the artifact's aidx directly! */
 				if (direct_match) continue; //paranoia -- there should never be two artifacts of the exact same name or index number
 				direct_match = TRUE;
@@ -5881,7 +5915,7 @@ static void artifact_lore(void) {
 			   (only check for two, of which one might already be a direct match (checked above)) */
 			else if ((n == 0 || (direct_match && n == 1)) &&
 			    (!strncmp(tmp, s, strlen(s)) ||
-			    (tmp[0] == 'T' && tmp[1] == 'H' && tmp[2] == 'E' && tmp[3] == ' ' && !strncmp(tmp + 4, s, strlen(s))))) {
+			    (tmpname[0] == 'T' && tmpname[1] == 'H' && tmpname[2] == 'E' && tmpname[3] == ' ' && !strncmp(tmpname + 4, s, strlen(s))))) {
 				selected = artifact_list_code[i];
 				selected_list = i;
 
@@ -6463,7 +6497,6 @@ static void monster_lore(void) {
 				else if ((n == 0 || (direct_match && n == 1)) && !strncmp(tmp, s, strlen(s))) {
 					selected = monster_list_code[i];
 					selected_list = i;
-
 					if (Client_setup.r_char[monster_list_code[i]] && !c_cfg.ascii_monsters && !(monster_list_unique[i] && c_cfg.ascii_uniques)) {
 						sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
 						    monster_list_code[i], monster_list_level[i], monster_list_symbol[i][0], monster_list_symbol[i][1], n == selected_line ? 'y' : 'u',
@@ -6535,18 +6568,19 @@ static void monster_lore(void) {
 		if (selected_line >= n) {
 			selected_line = n - 1;
 			if (selected_line < 0) selected_line = 0;
-
-			if (Client_setup.r_char[monster_list_code[list_idx[selected_line]]] && !c_cfg.ascii_monsters && !(monster_list_unique[list_idx[selected_line]] && c_cfg.ascii_uniques)) {
-				sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
-				    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0], monster_list_symbol[list_idx[selected_line]][1], n == selected_line ? 'y' : 'u',
-				    monster_list_symbol[list_idx[selected_line]][0], Client_setup.r_char[monster_list_code[list_idx[selected_line]]], n == selected_line ? 'y' : 'u', monster_list_name[list_idx[selected_line]]);
-				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, buf);
-				/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
-				Term_draw(5 + 15, 5 + selected_line, color_char_to_attr(monster_list_symbol[list_idx[selected_line]][0]), Client_setup.r_char[monster_list_code[list_idx[selected_line]]]);
-			} else {
-				Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, format("(%4d, L%-3d, \377%c%-3c\377y)  %s",
-				    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0],
-				    monster_list_symbol[list_idx[selected_line]][1], monster_list_name[list_idx[selected_line]]));
+			else {
+				if (Client_setup.r_char[monster_list_code[list_idx[selected_line]]] && !c_cfg.ascii_monsters && !(monster_list_unique[list_idx[selected_line]] && c_cfg.ascii_uniques)) {
+					sprintf(buf, "(%4d, L%-3d, \377%c%c\377%c/\377%c%c\377%c)  %s",
+					    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0], monster_list_symbol[list_idx[selected_line]][1], n == selected_line ? 'y' : 'u',
+					    monster_list_symbol[list_idx[selected_line]][0], Client_setup.r_char[monster_list_code[list_idx[selected_line]]], n == selected_line ? 'y' : 'u', monster_list_name[list_idx[selected_line]]);
+					Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, buf);
+					/* Hack: Custom mapping? -> Overwrite the basic font symbol with the mapped one, allowing for graphical tiles too: */
+					Term_draw(5 + 15, 5 + selected_line, color_char_to_attr(monster_list_symbol[list_idx[selected_line]][0]), Client_setup.r_char[monster_list_code[list_idx[selected_line]]]);
+				} else {
+					Term_putstr(5, 5 + selected_line, -1, TERM_YELLOW, format("(%4d, L%-3d, \377%c%-3c\377y)  %s",
+					    monster_list_code[list_idx[selected_line]], monster_list_level[list_idx[selected_line]], monster_list_symbol[list_idx[selected_line]][0],
+					    monster_list_symbol[list_idx[selected_line]][1], monster_list_name[list_idx[selected_line]]));
+				}
 			}
 		}
 
@@ -7930,7 +7964,13 @@ void cmd_message(void) {
 
 		/* Handle messages to '%' (self) in the client - mikaelh */
 		if (prefix(buf, "%:") && !prefix(buf, "%::")) {
-			c_msg_format("\377o<%%>\377w %s", buf + 2);
+			c_msg_format("\377o<%%>\377w %s", buf + 2); // hm, prefix \376 to add them to 'important scrollback' buffer too? or use below '%%' instead
+			inkey_msg = FALSE;
+			return;
+		}
+		/* Also allow these to go to chat instead of messages, for easier visibility */
+		else if (prefix(buf, "%%:") && !prefix(buf, "%%::")) {
+			c_msg_format("\374\377o<%%>\377w %s", buf + 3);
 			inkey_msg = FALSE;
 			return;
 		}
@@ -9280,7 +9320,7 @@ static void cmd_master_aux_build(void) {
 		Term_putstr(5, 13, -1, TERM_WHITE, "(0) Any feature");
 
 #ifdef TEST_CLIENT
-		Term_putstr(5, 15, -1, TERM_WHITE, "(a) Build Mode Off        (z) Paint mode off");
+		Term_putstr(5, 15, -1, TERM_WHITE, "(a) Build/Set-info Mode Off");
 #else
 		Term_putstr(5, 15, -1, TERM_WHITE, "(a) Build Mode Off");
 #endif
@@ -9311,7 +9351,7 @@ static void cmd_master_aux_build(void) {
 		/* Perm mode on */
 		case '2': buf[0] = FEAT_PERM_EXTRA; break;
 		/* Tree mode on */
-		case '3': buf[0] = magik(80)?FEAT_TREE:(char)FEAT_BUSH; break;
+		case '3': buf[0] = FEAT_TREE; break;
 		/* Evil tree mode on */
 		case '4': buf[0] = FEAT_DEAD_TREE; break;
 		/* Grass mode on */
@@ -9322,7 +9362,7 @@ static void cmd_master_aux_build(void) {
 		case '7': buf[0] = FEAT_FLOOR; break;
 		/* House door mode on */
 		case '8':
-			buf[0] = FEAT_HOME_HEAD;
+			buf[0] = FEAT_HOME_HEAD; //note: FEAT_HOME == FEAT_HOME_HEAD
 			{
 				u16b keyid;
 
@@ -9349,7 +9389,6 @@ static void cmd_master_aux_build(void) {
 
 		/* Build mode off */
 		case 'a': buf[0] = FEAT_FLOOR; buf[1] = 'F'; break;
-#ifdef TEST_CLIENT  /* Ask for CAVE_INFO -- WiP! -- TODO: change transmit/receive packet format from %s to %c%c%c%c as some of these might be zero and would terminate the string too early */
 		case 'A':
 			n = c_get_quantity("Enter info value: ", 0, -1);
 			buf[0] = 1; //dummy
@@ -9390,12 +9429,6 @@ static void cmd_master_aux_build(void) {
 			buf[5] = (n & 0xff000000) >> 24;
 			buf[6] = 0;
 			break;
-		/* Info-painting mode off */
-		case 'z':
-			buf[0] = 1; //dummy
-			buf[1] = 'z';
-			break;
-#endif
 		/* Oops */
 		default : bell(); break;
 		}

@@ -60,7 +60,7 @@
 #define VERSION_MAJOR_OUTDATED	4
 #define VERSION_MINOR_OUTDATED	9
 #define VERSION_PATCH_OUTDATED	2
-#define VERSION_EXTRA_OUTDATED	0
+#define VERSION_EXTRA_OUTDATED	1
 #define VERSION_BRANCH_OUTDATED	0
 #define VERSION_BUILD_OUTDATED	2 /* should always be 1 (or higher) to invalidate previous 'test' versions */
 
@@ -825,6 +825,9 @@
    (has no effect if KINGCAP_EXP is defined) */
 #define ALT_EXPRATIO
 
+/* Append XP gain to the monster's death message and trap disarm messages? */
+#define SHOW_XP_GAIN
+
 /* for PvP mode: */
 #define MIN_PVP_LEVEL	20
 #define MID_PVP_LEVEL	25
@@ -1189,6 +1192,10 @@
 /* Unowned gold piles are auto-split between party members on the same floor */
 #define IDDC_AUTOSPLIT_GOLD
 
+/* DF2_MISC_STORES/basic dungeon shops in the Halls of Mandos buy anything but don't display the sold items.
+   However, shops will pay less for non-canonical wares. */
+#define MANDOS_BUYALL_EATALL
+
 
 /* Maximum amount of gold that can be farmed from townies before you get 1 XP
    from it. This is an anti-cheeze for Highlander Tournament and Ironman Deep
@@ -1551,61 +1558,167 @@
    and specifically for druid form info: check_experience(), do_cmd_check_extra_info(). */
 #define RI_FARMER_MAGGOT	8
 #define RI_LEPER		13
+#define RI_MUSHROOM_GREY	22	/* font mapping */
+#define RI_FRUIT_BAT		37	/* SKILL_MIMIC */
+#define RI_MUSHROOM_SHRIEKER	40	/* font mapping */
 #define RI_NOVICE_MAGE		46
+#define RI_MUSHROOM_YELLOW	47	/* font mapping */
+#define RI_BLUE_YEEK		52	/* SKILL_MIMIC */
 #define RI_SMEAGOL		63	/* DROP_CHOSEN */
+#define RI_POLTERGEIST		65	/* SKILL_MIMIC */
+#define RI_MUSHROOM_SPOTTED	72	/* font mapping */
 #define RI_SLHOBBIT		74	/* Black Breath */
+#define RI_CCOINS_COPPER	85	/* font mapping */
 #define RI_NOVICE_MAGE_F	93
+#define RI_GGGHOST		100	/* SKILL_MIMIC */
+#define RI_DEATH_SWORD		107	/* font mapping */
+#define RI_MUSHROOM_PURPLE	108	/* font mapping */
+#define RI_NIBELUNG		111	/* SKILL_MIMIC */
+#define RI_BROWN_BAT		114	/* SKILL_MIMIC */
+#define RI_CCOINS_SILVER	117	/* font mapping */
+#define RI_DARK_ELF		122	/* SKILL_MIMIC */
+#define RI_LOST_SOUL		133	/* SKILL_MIMIC */
 #define RI_ROBIN_HOOD		138	/* DROP_CHOSEN */
 #define RI_NURGLING		139
+#define RI_BROWN_YEEK		141	/* SKILL_MIMIC */
+#define RI_PHANTOM_WARRIOR	152	/* SKILL_MIMIC */
+#define RI_YETI			154	/* Druid form */
+#define RI_CAVE_BEAR		160	/* Druid form */
+#define RI_DARK_ELVEN_MAGE	178	/* SKILL_MIMIC */
+#define RI_KAMIKAZE_YEEK	179	/* SKILL_MIMIC */
+#define RI_DARK_ELVEN_WARRIOR	182	/* SKILL_MIMIC */
+#define RI_MUSHROOM_CLEAR	184	/* font mapping */
+#define RI_TAN_BAT		187	/* SKILL_MIMIC */
 #define RI_BLUE_HORROR		189
-#define RI_OLD_MAN_WILLOW	206
+#define RI_GRIZZLY_BEAR		191	/* Druid form */
+#define RI_CCOINS_GOLD		195	/* font mapping */
+#define RI_PANTHER		198	/* Druid form */
+#define RI_OLD_MAN_WILLOW	206	/* font mapping; music */
 #define RI_HIPPOCAMPUS		207
+#define RI_MASTER_YEEK		224	/* SKILL_MIMIC */
+#define RI_DARK_ELVEN_PRIEST	226	/* SKILL_MIMIC */
+#define RI_MOANING_SPIRIT	231	/* SKILL_MIMIC */
+#define RI_DRIDER		234	/* SKILL_MIMIC */
+#define RI_MONGBAT		235	/* SKILL_MIMIC */
+#define RI_CCOINS_MITHRIL	239	/* font mapping */
 #define RI_PINK_HORROR		242	/* DROP_CHOSEN */
 #define RI_SOFTWARE_BUG		246
+#define RI_TANGLEWEED		248	/* font mapping */
+#define RI_CHEERFUL_LEPRECHAUN	258	/* SKILL_MIMIC */
 #define RI_UFTHAK		260
 #define RI_GOLEM_CLAY		261	/* For translating to custom golem_creation visuals */
+#define RI_POISON_IVY		266	/* font mapping */
+#define RI_MUSHROOM_MAGIC	267	/* font mapping */
 #define RI_BEARER_NURGLE	268
+#define RI_GRIFFON		279	/* Druid form */
+#define RI_GNOME_MAGE		281	/* SKILL_MIMIC */
+#define RI_BERSERKER		293	/* SKILL_MIMIC */
 #define RI_WATER_SPIRIT		303
-#define RI_DOOR_MIMIC		311
+#define RI_DOOR_MIMIC		311	/* font mapping */
+#define RI_GVFLYTRAP		317	/* font mapping */
+#define RI_STUNWALL		326	/* font mapping */
+#define RI_HUORN		329	/* font mapping */
+#define RI_WYVERN		334	/* Druid form */
+#define RI_GREAT_EAGLE		335	/* Druid form */
+#define RI_LIVINGSTONE		336	/* font mapping */
+#define RI_SASQUATCH		343	/* Druid form */
+#define RI_DARK_ELVEN_LORD	348	/* SKILL_MIMIC */
+#define RI_DRAGON_BAT_BLUE	351	/* SKILL_MIMIC */
 #define RI_ARCH_VILE		357
-#define RI_VAMPIRIC_MIST	365
+#define RI_VAMPIRIC_MIST	365	/* Vampire form */
 #define RI_GOLEM_IRON		367	/* For translating to custom golem_creation visuals */
+#define RI_JADE_MONK		370	/* SKILL_MIMIC */
 #define RI_AZOG			373
-#define RI_VAMPIRE_BAT		391
+#define RI_DARK_ELVEN_WARLOCK	375	/* SKILL_MIMIC */
+#define RI_DRAGON_BAT_RED	377	/* SKILL_MIMIC */
+#define RI_PHANTOM_BEAST	385	/* SKILL_MIMIC */
+#define RI_VAMPIRE_BAT		391	/* Vampire form */
+#define RI_BANSHEE		394	/* SKILL_MIMIC */
+#define RI_XICLOTLAN		396	/* font mapping */
+#define RI_DARK_ELVEN_DRUID	400	/* SKILL_MIMIC */
+#define RI_DISE_BAT		406	/* SKILL_MIMIC */
+#define RI_WEREBEAR		414	/* Druid form */
+#define RI_ANGEL		417	/* SKILL_MIMIC */
+#define RI_HELLBLADE		420	/* font mapping */
 #define RI_BEAST_NURGLE		422
+#define RI_CCOINS_ADAMANTITE	423	/* font mapping */
+#define RI_ROPER		426	/* font mapping */
+#define RI_VAMPIRE		432	/* SKILL_MIMIC */
+#define RI_HYDRA_5H		440	/* Druid form */
 #define RI_SEAHORSE		443
+#define RI_LWALLMON		448	/* font mapping */
+#define RI_ARCHANGEL		456	/* SKILL_MIMIC */
+#define RI_CHAOS_TILE		458	/* font mapping */
 #define RI_GOLEM_MITHRIL	464	/* For translating to custom golem_creation visuals */
+#define RI_GHOST		477	/* SKILL_MIMIC */
 #define RI_SHELOB		481
+#define RI_GIANT_SQUID		482	/* Druid form */
+#define RI_DOOMBAT		484	/* SKILL_MIMIC */
 #define RI_NINJA		485
 #define RI_HALF_TROLL		491	/* TROLL_REGENERATION */
+#define RI_IVORY_MONK		492	/* SKILL_MIMIC */
+#define RI_SHADE		507	/* SKILL_MIMIC */
+#define RI_SPECTRE		508	/* SKILL_MIMIC */
 #define RI_WATER_TROLL		509
+#define RI_CHERUB		511	/* SKILL_MIMIC */
 #define RI_WATER_ELEMENTAL	512
+#define RI_HOUND_MULTI		513	/* Druid form */
+#define RI_INVISIBLE_STALKER	514	/* Shaman form (forbidden) */
 #define RI_WATCHER_IN_THE_WATER	517
+#define RI_MASTER_VAMPIRE	520	/* SKILL_MIMIC */
+#define RI_ORIENTAL_VAMPIRE	521	/* SKILL_MIMIC */
 #define RI_BLOODLETTER		523
+#define RI_DAGASHI		532	/* SKILL_MIMIC */
+#define RI_HEADLESS_GHOST	533	/* SKILL_MIMIC */
+#define RI_DREAD		534	/* SKILL_MIMIC */
 #define RI_HALFLING_SLINGER	539	/* Black Breath */
+#define RI_PHANTOM		553	/* SKILL_MIMIC */
 #define RI_RAALS_TOME		557	/* DROP_CHOSEN */
-#define RI_NIGHTBLADE		564
+#define RI_NIGHTBLADE		564	/* SKILL_MIMIC; + */
 #define RI_BODAK		566
 #define RI_MEZZODAEMON		568
 #define RI_ELDER_THING		569
+#define RI_SERAPH		605	/* SKILL_MIMIC */
+#define RI_HYDRA_7H		614	/* Druid form */
+#define RI_VAMPIRE_LORD		623	/* SKILL_MIMIC */
+#define RI_SPIRIT_TROLL		630	/* SKILL_MIMIC */
+#define RI_GIANT_ROC		640	/* Druid form */
+#define RI_MINOTAUR		641	/* Druid form */
+#define RI_FALLEN_ANGEL		652	/* SKILL_MIMIC */
+#define RI_DARK_ELVEN_SORCEROR	657	/* SKILL_MIMIC */
 #define RI_BYAKHEE		659
 #define RI_EOL			660	/* DROP_CHOSEN */
+#define RI_ARCHON		661	/* SKILL_MIMIC */
 #define RI_SPAWN_OF_TSATHOGGUA	662
+#define RI_SHADOW		665	/* SKILL_MIMIC */
+#define RI_DREAD_F		667	/* SKILL_MIMIC */
+#define RI_HYDRA_11H		688	/* Druid form */
+#define RI_DREADMASTER		690	/* SKILL_MIMIC */
 #define RI_WARRIOR_DAWN		693
 #define RI_SMAUG		697
-#define RI_STORMBRINGER		698	/* DROP_CHOSEN */
+#define RI_STORMBRINGER		698	/* DROP_CHOSEN; font mapping */
+#define RI_WINGED_HORROR	704	/* Druid form */
+#define RI_ENT			708	/* (SKILL_MIMIC) */
+#define RI_GWALLMON		718	/* font mapping */
+#define RI_MAULOTAUR		723	/* Druid form */
+#define RI_HOUND_PLASMA		726	/* Druid form */
 #define RI_SANTA1		733	/* terror santa from hell */
 #define RI_KING_IN_YELLOW	735
 #define RI_GUO			736
+#define RI_LESSER_KRAKEN	740	/* Druid form */
 #define RI_ARTSI		770	/* DROP_CHOSEN */
 #define RI_SARUMAN		771	/* DROP_CHOSEN */
+#define RI_DREADLORD		774	/* SKILL_MIMIC */
+#define RI_GREATER_KRAKEN	775	/* Druid form */
+#define RI_JABBERWOCK		778	/* Druid form */
 #define RI_VLAD_DRACULA		780	/* DROP_CHOSEN */
-#define RI_TRON			789
+#define RI_TRON			789	/* Druid form */
 #define RI_MARDRA		791	/* DROP_CHOSEN */
 #define RI_BLOODTHIRSTER	758	/* for ENABLE_OHERETICISM but also for blood fountains >:) */
+#define RI_NULL_TLV		803	/* font mapping */
 #define RI_FEAGWATH		804
 #define RI_PIT_FIEND		812
-#define RI_UNMAKER		815	/* prevent live spawn */
+#define RI_UNMAKER		815	/* prevent live spawn; Shaman form (forbidden) */
 #define RI_DOL_GULDUR		819	/* 'easy' version of sauron */
 #define RI_MEPHISTOPHELES	831	/* DROP_CHOSEN */
 #define RI_OREMORJ		843	/* note: jokeangband */
@@ -1613,11 +1726,15 @@
 #define RI_GOTHMOG		856	/* DROP_CHOSEN */
 #define RI_SAURON		860
 #define RI_MORGOTH		862
+#define RI_ELVEN_ARCHER		864	/* (SKILL_MIMIC) */
+#define RI_DWARVEN_WARRIOR	865	/* (SKILL_MIMIC) */
 #define RI_RNG			869
 #define RI_BALROG_OF_MORIA	872
 #define RI_MERMAID		882
 #define RI_EYE_OF_THE_DEEP	893
 #define RI_MURK_DWELLER		894
+#define RI_DROWNED_SOUL		895	/* SKILL_MIMIC */
+#define RI_ARANEA		898	/* Druid form */
 #define RI_AQUATIC_KOBOLD	900
 #define RI_SCRAG		902
 #define RI_WATER_NAGA		919
@@ -1625,7 +1742,13 @@
 #define RI_WATER_DEMON		924
 #define RI_IXITXACHITL		925
 #define RI_IXITXACHITL_PRIEST	926
-#define RI_VAMPIRIC_IXITXACHITL	927
+#define RI_VAMPIRIC_IXITXACHITL	927	/* SKILL_MIMIC; FOUNTAIN_GUARDS */
+#define RI_CHILD_SPIRIT		929	/* (SKILL_MIMIC) */
+#define RI_YOUNG_SPIRIT		930	/* (SKILL_MIMIC) */
+#define RI_MATURE_SPIRIT	931	/* (SKILL_MIMIC) */
+#define RI_EXP_SPIRIT		932	/* (SKILL_MIMIC) */
+#define RI_WISE_SPIRIT		933	/* (SKILL_MIMIC) */
+#define RI_HE_RANGER		945	/* (SKILL_MIMIC) */
 
 /* The Nazgul */
 #define RI_UVATHA		946
@@ -1638,10 +1761,17 @@
 #define RI_KHAMUL		953
 #define RI_WITCHKING		954
 
+#define RI_GREAT_WHITE_SHARK	963	/* Druid form */
+#define RI_ELDER_ARANEA		964	/* Druid form */
 #define RI_GORLIM		961	/* DROP_CHOSEN */
+#define RI_NOV_POSSESSOR	967	/* (SKILL_MIMIC) */
+#define RI_BAT_OF_GORGOROTH	968	/* SKILL_MIMIC */
 #define RI_WIGHT_KING		971
-#define RI_DEATH_ORB		975
+#define RI_EXP_POSSESSOR	973	/* (SKILL_MIMIC) */
+#define RI_OLD_POSSESSOR	974	/* (SKILL_MIMIC) */
+#define RI_DEATH_ORB		975	/* Shaman form (forbidden) */
 #define RI_AR_PHARAZON		980
+#define RI_ELDER_VAMPIRE	989	/* SKILL_MIMIC */
 #define RI_ULFANG		990
 #define RI_NALFESHNEE		994
 #define RI_GOLEM_BRONZE		1015	/* For translating to custom golem_creation visuals */
@@ -1650,14 +1780,23 @@
 #define RI_SANDWORM		1031
 #define RI_TIK_SRVZLLAT		1032
 #define RI_WHITE_BALROG		1034
-#define RI_GOLGARACH		1035
+#define RI_GOLGARACH		1035	/* font mapping; music */
 #define RI_KRONOS		1037	/* DROP_CHOSEN */
 #define RI_WATER_HOUND		1038
+#define RI_MUSHROOM_UNMAGIC	1045	/* font mapping */
 #define RI_SIRENE		1057
+#define RI_SWORDSMASTER		1058	/* SKILL_MIMIC */
+#define RI_GRAND_SWORDSMASTER	1059	/* SKILL_MIMIC */
+#define RI_DARK_MIST		1064	/* SKILL_MIMIC */
+#define RI_SKY_BLADE		1071	/* SKILL_MIMIC */
+#define RI_SOLAR_BLADE		1072	/* SKILL_MIMIC */
+#define RI_STAR_BLADE		1073	/* SKILL_MIMIC */
 #define RI_MICHAEL		1074
 #define RI_LIVING_LIGHTNING	1147
 #define RI_HELLRAISER		1067
+#define RI_GORM			1069	/* Druid form */
 #define RI_NETHER_GUARD		1068
+#define RI_VJG_MIMIC		1082	/* font mapping */
 #define RI_DOR			1085
 #define RI_PUMPKIN		1088	/* new: max hp version is now _the_ (only) Pumpkin form - its HP get downscaled live on spawn according to floor level. */
 #define RI_ZU_AON		1097
@@ -1669,6 +1808,8 @@
 #define RI_DARKLING		1105	/* ENABLE_MAIA */
 #define RI_BAD_LUCK_BAT		1114
 #define RI_TARGET_DUMMY2	1126	/* snow-covered version */
+#define RI_FIREBIRD		1127	/* Druid form */
+#define RI_HORNED_SERPENT	1131	/* Druid form */
 #define RI_PANDA		1135
 #define RI_ROBIN		1142
 #define RI_TARGET_DUMMYA1	1144	/* normal armoured version */
@@ -1875,9 +2016,9 @@
 #define SF1_HARD_STEAL		0x02000000U	/* hard to steal from this shop */
 #define SF1_VHARD_STEAL		0x04000000U	/* very hard to steal from this shop */
 #define SF1_SPECIAL		0x08000000U	/* Store doesn't have an inventory but prints arbitrary text to screen instead */
-#define SF1_BUY67		0x10000000U	/* Shop buys for 67% of value */
+#define SF1_BUY67		0x10000000U	/* Shop buys for 67% of value (can be combined with BUY50, for 1/3 sell value) */
 #define SF1_NO_DISCOUNT1	0x20000000U	/* no 20+% discounts even */
-#define SF1_SELL67		0x40000000U	/* Store sells for 67% of value (can be combined with BUY50, for 1/3 sell value) */
+#define SF1_SELL67		0x40000000U	/* Store sells for 67% of value */
 #define SF1_ZEROLEVEL		0x80000000U	/* all items are level 0 and can't be traded */
 
 #define SF1_NO_DISCOUNT3	(SF1_NO_DISCOUNT1 | SF1_NO_DISCOUNT2)	/* Hack: Reduce discounts somewhat */
@@ -1887,7 +2028,6 @@
 #define SF2_KEEP_HALF		0x00000004U	/* On store inventory turnover, keep at most half the stock, resulting in more new items (for book stores mostly) */
 #define SF2_KEEP_TQUART		0x00000008U	/* On store inventory turnover, keep at most 3/4 of the stock, resulting in somewhat more new items (for book stores mostly) */
 #define SF2_FILL_WELL		0x00000010U	/* Fill up store inventory on turnover, so only few slots remain empty (potentially for buying items from the player). For book stores mostly. */
-
 
 /* This seems to be bad, but backported once anyway;
  * consider removing them later */
@@ -1914,6 +2054,7 @@
 #define STORE_LIBRARY	46		/* unused */
 #define STORE_FORBIDDENLIBRARY	47	/* unused */
 #define STORE_BLACKX	48
+#define STORE_COMMON	49
 #define STORE_MINING	59
 #define STORE_BLACKS	60
 #define STORE_BTSUPPLY	61
@@ -1955,7 +2096,7 @@
 /* special 'stores' (hacks for build_store()) */
 #define STORE_FEAT_MORE	100	/* staircase down */
 #define STORE_FEAT_LESS	101	/* staircase up */
-#define STORE_HOUSE	102	/* trad/list/appartment */
+#define STORE_HOUSE	102	/* player-purchasable trad/list/appartment */
 #define STORE_DOORWAY	103	/* 'destroyed house' */
 #define STORE_FOREST	104
 #define STORE_POND	105
@@ -2144,7 +2285,15 @@
 #define PY_REGEN_MNBASE		524		/* Min amount mana regen*2^16 */
 
 /* Cut thresholds */
+#define CUT_NONE		0
+#define CUT_GRAZE		1
+#define CUT_LIGHT_CUT		10
+#define CUT_BAD_CUT		25
+#define CUT_NASTY_CUT		50
+#define CUT_SEVERE_CUT		100
+#define CUT_DEEP_GASH		200
 #define CUT_MORTAL_WOUND	800	/* Was 1000 */
+#define CUT_MAX			1001	/* Ie +1 above former 'Mortal Wound' tier */
 
 
 /*** Option Definitions ***/
@@ -2583,6 +2732,9 @@
 #define ROW_CHARM		25
 #define COL_CHARM		5
 
+#define ROW_PFE			25
+#define COL_PFE			9
+
 
 /*** Terrain Feature Indexes (see "lib/edit/f_info.txt") ***/
 
@@ -2658,7 +2810,7 @@
 #define FEAT_WALL_INNER		0x39
 #define FEAT_WALL_OUTER		0x3A
 #define FEAT_WALL_SOLID		0x3B
-#define FEAT_PERM_EXTRA		0x3C	/* shop/house walls */
+#define FEAT_PERM_EXTRA		0x3C	/* shop/(non-player-)house walls */
 #define FEAT_PERM_INNER		0x3D	/* inner vault walls (also used for Dungeon Keeper) */
 #define FEAT_PERM_OUTER		0x3E	/* outer vault walls */
 #define FEAT_PERM_SOLID		0x3F	/* dungeon border */
@@ -2764,12 +2916,13 @@
 #define FEAT_GAMEBOARD_BL	157
 #define FEAT_GAMEBOARD_BR	158
 
-#define FEAT_PERM_MAGMA		0x9F /* 159 */
-#define FEAT_BETWEEN		0xA0 /* 160 */
+#define FEAT_PERM_MAGMA		159 /* 159 */
+#define FEAT_BETWEEN		160 /* 160 */
 
 /* Altars -- deprecated codes */
-//#define FEAT_ALTAR_HEAD		0xA1 /* 161 */
-//#define FEAT_ALTAR_TAIL		0xAB /* 171 */
+//#define FEAT_ALTAR_HEAD	161
+//#define FEAT_ALTAR		162
+//#define FEAT_ALTAR_TAIL	164
 
 #define FEAT_SOLID_OUT		165	/* Pseudo feature definition for graphical tilesets for 'solid_bars' UI elements and similar. Also see 237.*/
 #define FEAT_SOLID_OUTLEFT	166
@@ -2779,7 +2932,7 @@
 #define FEAT_SOLID_OUTBOTTOM	170
 #define FEAT_SOLID_OUTTB	171
 
-#define FEAT_MARKER		0xAC /* 172 */
+#define FEAT_MARKER		0xAC /* 172 -- unused except as 'blood' in ARCADE_SERVER */
 /* Feature 0xAD -- Underground Tunnel */
 #define FEAT_TAINTED_WATER	0xAE /* 174 */
 #define FEAT_MON_TRAP		0xAF /* 175 */
@@ -2905,7 +3058,7 @@
 /* For aquatic monsters/players: These feats can always be passed without damaging/impairing them. */
 #define is_always_passable(feat) \
 	(is_door(feat) || is_stair(feat) || \
-	(feat) == FEAT_FOUNTAIN || (feat) == FEAT_EMPTY_FOUNTAIN || (feat) == FEAT_FOUNTAIN_BLOOD)
+	(feat) == FEAT_FOUNTAIN || (feat) == FEAT_EMPTY_FOUNTAIN || (feat) == FEAT_FOUNTAIN_BLOOD || (feat) == FEAT_RUBBLE)
 
 
 /*
@@ -3248,6 +3401,7 @@
 #define ART_ANTIRIAD_DEPLETED	285
 #define ART_JUDGEMENT		286
 #define ART_MERCY		287
+#define ART_TUGAVOS		288
 /* #define ART_ANGTIRCALAD	*/
 
 
@@ -3603,125 +3757,6 @@
 #define TV_MAX		127
 
 
-/* some masks (originally just is_armour for XBM control) - C. Blue */
-#define is_ammo(tval)	(((tval) == TV_SHOT) || ((tval) == TV_ARROW) || ((tval) == TV_BOLT))
-#define is_melee_weapon(tval)	(((tval) == TV_SWORD) || ((tval) == TV_BLUNT) || ((tval) == TV_AXE) || ((tval) == TV_POLEARM))
-#define is_melee_item(tval)	(is_melee_weapon(tval) || ((tval) == TV_MSTAFF))
-#define is_ranged_weapon(tval)	((tval) == TV_BOW || (tval) == TV_BOOMERANG)
-#define is_throwing_weapon(o_ptr) ( \
-	((o_ptr)->tval == TV_SWORD && ((o_ptr)->sval == SV_DAGGER || (o_ptr)->sval == SV_MAIN_GAUCHE)) || \
-	((o_ptr)->tval == TV_POLEARM && ((o_ptr)->sval == SV_HUNTING_SPEAR || (o_ptr)->sval == SV_SPEAR || (o_ptr)->sval == SV_TRIDENT || (o_ptr)->sval == SV_BROAD_SPEAR || (o_ptr)->sval == SV_TRIFURCATE_SPEAR)) || \
-	(o_ptr)->tval == TV_AXE )
-#define is_weapon(tval)		(is_melee_weapon(tval) || is_ranged_weapon(tval))
-/* For shops that only offer 'basic' items. Rarity at least /4 or /5. Execptions or special considerations listed behind each type line, if any. */
-#define is_rare_weapon(tval,sval) ( \
-	((tval) == TV_SWORD && ((sval) >= SV_BLADE_OF_CHAOS || (sval) >= SV_BLUESTEEL_BLADE || (sval) >= SV_SHADOW_BLADE)) || /* dark sword (needed by unbelievers), unsure about shadow blade */ \
-	((tval) == TV_BLUNT && ((sval) == SV_MACE_OF_DISRUPTION || (sval) == SV_DEMON_HAMMER || (sval) == SV_SCOURGE_OF_REPENTANCE)) || \
-	((tval) == TV_AXE && ((sval) == SV_THUNDER_AXE || (sval) == SV_INFERNAL_AXE)) || /* hunting spear (low dice, just for fun) */ \
-	((tval) == TV_POLEARM && ((sval) == SV_SCYTHE_OF_SLICING || (sval) == SV_DRAGON_LANCE)) )
-#define is_nonmetallic_weapon(tval,sval) \
-	(((tval) == TV_BLUNT && ((sval) == SV_CLUB || (sval) == SV_WHIP || (sval) == SV_QUARTERSTAFF)) || \
-	((tval) == TV_BOOMERANG && ((sval) == SV_BOOM_WOOD || (sval) == SV_BOOM_S_WOOD)) || ((tval) == TV_BOW && ((sval) == SV_SLING || (sval) == SV_SHORT_BOW || (sval) == SV_LONG_BOW)))
-	/* || (sval) == SV_THREE_PIECE_ROD) -- metal connectors, maybe enough */
-#define is_slicing_polearm(sval) \
-	((sval) == SV_SICKLE || (sval) == SV_FAUCHARD || (sval) == SV_RHOMPHAIA || (sval) == SV_GLAIVE || (sval) == SV_SCYTHE || (sval) == SV_SCYTHE_OF_SLICING)
-#define is_aquatic_polearm(sval) \
-	((sval) == SV_HUNTING_SPEAR || (sval) == SV_SPEAR || (sval) == SV_AWL_PIKE || (sval) == SV_TRIDENT || /* halberd didn't make it*/ \
-	(sval) == SV_BROAD_SPEAR || (sval) == SV_PIKE || (sval) == SV_GLAIVE || (sval) == SV_GUISARME || (sval) == SV_TRIFURCATE_SPEAR)
-#define is_magic_device(tval)	(((tval) == TV_WAND) || ((tval) == TV_STAFF) || ((tval) == TV_ROD))
-#define is_rare_magic_device(tval,sval) ( \
-	((tval) == TV_WAND && ((sval) == SV_WAND_ANNIHILATION || (sval) == SV_WAND_ROCKETS || (sval) == SV_WAND_WALL_CREATION || (sval) == SV_WAND_TELEPORT_TO)) || \
-	/* allowing +perception+, healing, magi/power/holiness */ \
-	((tval) == TV_STAFF && ((sval) == SV_STAFF_EARTHQUAKES || (sval) == SV_STAFF_DESTRUCTION || (sval) == SV_STAFF_SPEED || (sval) == SV_STAFF_GENOCIDE)) || \
-	/* not allowing Speed/Healing so people aren't "forced" to train MD */ \
-	((tval) == TV_ROD && ((sval) == SV_ROD_HAVOC || (sval) == SV_ROD_IDENTIFY || \
-	    (sval) == SV_ROD_MAPPING || (sval) == SV_ROD_CURING || (sval) == SV_ROD_RESTORATION \
-	    || (sval) == SV_ROD_SPEED || (sval) == SV_ROD_HEALING)) )
-#define is_armour(tval)	\
-	(((tval) == TV_BOOTS) || ((tval) == TV_GLOVES) || \
-	((tval) == TV_HELM) || ((tval) == TV_CROWN) || \
-	((tval) == TV_SHIELD) || ((tval) == TV_CLOAK) || \
-	((tval) == TV_SOFT_ARMOR) || ((tval) == TV_HARD_ARMOR) || \
-	((tval) == TV_DRAG_ARMOR))
-#define is_rare_armour(tval,sval) ( \
-	(((tval) == TV_HELM) && ((sval) == SV_DRAGON_HELM || (sval) == SV_MITHRIL_HELM || (sval) == SV_ADAMANTITE_HELM)) || \
-	((tval) == TV_CROWN) || /* for telepathy crowns in Ironman dungeon stores (IDDC -2k especially) */ \
-	(((tval) == TV_SHIELD) && (((sval) == SV_ORCISH_SHIELD) || ((sval) == SV_DRAGON_SHIELD) || ((sval) == SV_SHIELD_OF_DEFLECTION) \
-	    || ((sval) == SV_MITHRIL_ANCILE) || ((sval) == SV_ADAMANTITE_AEGIS))) || \
-	(((tval) == TV_GLOVES) && ((sval) == SV_SET_OF_ELVEN_GLOVES)) || \
-	(((tval) == TV_CLOAK) && ((sval) == SV_KOLLA)) || \
-	(((tval) == TV_HARD_ARMOR) && (sval) >= SV_MITHRIL_CHAIN_MAIL) || \
-	((tval) == TV_DRAG_ARMOR) )
-/* doesn't include WINNERS_ONLY armour: */
-//	(((tval) == TV_HARD_ARMOR) && (((sval) == SV_MITHRIL_CHAIN_MAIL) || ((sval) == SV_MITHRIL_PLATE_MAIL) || ((sval) == SV_ADAMANTITE_PLATE_MAIL))) ||
-#define is_top_armour(tval,sval) \
-	(((tval) == TV_DRAG_ARMOR) && \
-	((sval) == SV_DRAGON_POWER || (sval) == SV_DRAGON_SKY || \
-	(sval) == SV_DRAGON_DEATH || (sval) == SV_DRAGON_SHINING || \
-	(sval) == SV_DRAGON_MULTIHUED || (sval) == SV_DRAGON_BALANCE))
-	/* ...and possibly all winners_only armour */
-#define is_common_armour(tval,sval) \
-	(is_armour(tval) && !is_rare_armour(tval,sval))
-#define sv_dsm_low(sv) \
-        (sv == SV_DRAGON_BLUE || sv == SV_DRAGON_WHITE || sv == SV_DRAGON_BLACK || \
-	sv == SV_DRAGON_RED || sv == SV_DRAGON_GREEN)
-#define sv_dsm_mid(sv) \
-        (sv == SV_DRAGON_BRONZE || sv == SV_DRAGON_SILVER || sv == SV_DRAGON_GOLD || \
-	sv == SV_DRAGON_PSEUDO)
-/* for determining sound effects for wear/wield command: */
-#define is_textile_armour(tval,sval) \
-	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_METAL_SHOD_BOOTS && (sval) != SV_PAIR_OF_WITAN_BOOTS) || \
-	((tval) == TV_GLOVES && (sval) != SV_SET_OF_GAUNTLETS && (sval) != SV_SET_OF_CESTI) || \
-	(tval) == TV_SOFT_ARMOR || (tval) == TV_CLOAK || \
-	((tval) == TV_HELM && ((sval) == SV_CLOTH_CAP || (sval) == SV_HARD_LEATHER_CAP || (sval) == SV_GOGGLES_DM)) || \
-	((tval) == TV_SHIELD && ((sval) == SV_SMALL_LEATHER_SHIELD || (sval) == SV_LARGE_LEATHER_SHIELD)))
-/* what magic/roguish/martial artist would wear; ignores DSM */
-#define is_flexible_armour(tval,sval) \
-	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_HARD_LEATHER_BOOTS && (sval) != SV_PAIR_OF_METAL_SHOD_BOOTS && (sval) != SV_PAIR_OF_WITAN_BOOTS) || \
-	((tval) == TV_GLOVES && (sval) != SV_SET_OF_GAUNTLETS && (sval) != SV_SET_OF_CESTI) || \
-	(tval) == TV_SOFT_ARMOR || (tval) == TV_CLOAK || \
-	((tval) == TV_HELM && ((sval) == SV_CLOTH_CAP || (sval) == SV_HARD_LEATHER_CAP || (sval) == SV_GOGGLES_DM)))
-/* what non-light melee fighters would wear; ignores DSM */
-#define is_tough_armour(tval,sval) \
-	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_SOFT_LEATHER_BOOTS) || \
-	((tval) == TV_GLOVES && (sval) != SV_SET_OF_LEATHER_GLOVES) || \
-	(tval) == TV_HARD_ARMOR || (tval) == TV_CLOAK || \
-	((tval) == TV_HELM && (sval) != SV_CLOTH_CAP && (sval) != SV_HARD_LEATHER_CAP && (sval) != SV_GOGGLES_DM) || \
-	(tval == TV_SHIELD))
-#ifndef ENABLE_DEMOLITIONIST
- #define is_cheap_misc(tval) \
-	(is_ammo(tval) || (tval) == TV_FIRESTONE || (tval) == TV_SPIKE || (tval) == TV_JUNK)
-#else
- #define is_cheap_misc(tval) \
-	(is_ammo(tval) || (tval) == TV_FIRESTONE || (tval) == TV_SPIKE || (tval) == TV_JUNK || (tval) == TV_CHEMICAL)
-#endif
-#define is_ranged_item(Ind, o_ptr) \
-	(is_ranged_weapon((o_ptr)->tval) || \
-	is_ammo((o_ptr)->tval) || \
-	(o_ptr)->tval == TV_BOOK || \
-	(o_ptr)->tval == TV_WAND || \
-	((o_ptr)->tval == TV_ROD && rod_requires_direction(Ind, o_ptr)))
-#define is_firearm_trapkit(sval) \
-	((sval) == SV_TRAPKIT_SLING || (sval) == SV_TRAPKIT_BOW || (sval) == SV_TRAPKIT_XBOW)
-#ifndef NEW_SHIELDS_NO_AC
-/* Note: This doesn't check artifact_p() or TR5_NO_ENCHANT, but only the base item type. */
-#define is_enchantable_kind(o_ptr) \
-	(is_weapon((o_ptr)->tval) || is_ammo((o_ptr)->tval) || \
-	(o_ptr)->tval == TV_MSTAFF || \
-	((o_ptr)->tval == TV_TRAPKIT && is_firearm_trapkit((o_ptr)->sval)) || \
-	is_armour((o_ptr)->tval) || (o_ptr)->tval == TV_DIGGING)
-#else
-/* Note: This doesn't check artifact_p() or TR5_NO_ENCHANT, but only the base item type. */
-#define is_enchantable_kind(o_ptr) \
-	((is_weapon((o_ptr)->tval) || is_ammo((o_ptr)->tval) || \
-	(o_ptr)->tval == TV_MSTAFF || \
-	((o_ptr)->tval == TV_TRAPKIT && is_firearm_trapkit((o_ptr)->sval)) || \
-	is_armour((o_ptr)->tval) || (o_ptr)->tval == TV_DIGGING) \
-	&& (o_ptr->tval != TV_SHIELD))
-#endif
-/* more possibilities: is_potion, is_rune, is_jewelry, is_rare_armour(tval,sval) */
-
-
 /* Ones borrowed from PernAngband.	- Jir - */
 /*
  * Max sizes of the following arrays
@@ -3746,6 +3781,7 @@
 #define SV_EMPTY_BOTTLE			1
 
 /* sval for TV_JUNK */
+#define SV_BANDAGE			1
 #define SV_ENERGY_CELL			2
 #define SV_POTTERY			3
 #define SV_GLASS_SHARD			5	/* remains of the grand mirror */
@@ -3821,6 +3857,26 @@
  */
  #define SV_BOOK_MIN_GOOD	4
 #endif
+
+/* TV_GOLD svals */
+#define SV_GOLD_COPPER		1
+#define SV_GOLD_SILVER		2
+#define SV_GOLD_CITRINES	3
+#define SV_GOLD_AMBER		4
+#define SV_GOLD_PERIDOTS	5
+#define SV_GOLD_TOPAZES		6
+#define SV_GOLD_GARNETS		7
+#define SV_GOLD_AQUAMARINES	8
+#define SV_GOLD_JADE		9
+#define SV_GOLD_GOLD		10
+#define SV_GOLD_TOURMALINES	11
+#define SV_GOLD_OPALS		12
+#define SV_GOLD_SAPPHIRES	13
+#define SV_GOLD_RUBIES		14
+#define SV_GOLD_EMERALDS	15
+#define SV_GOLD_MITHRIL		16
+#define SV_GOLD_DIAMONDS	17
+#define SV_GOLD_ADAMANTITE	18
 
 /*
  * Special "sval" limit -- last gold
@@ -4679,6 +4735,8 @@
 #define SV_CUSTOM_TOME_3		102
 
 #define is_custom_tome(sval)	((sval) >= SV_CUSTOM_TOME_1 && (sval) <= SV_CUSTOM_TOME_3)
+/* Sold in town libraries: Any basic spell scroll/crstal, any starter book (Beginner Cantrips, Novice Etiquette, First Visions), codices */
+#define is_library_book(sval)	((sval) == 255 || (sval) == 50 || (sval) == 56 || (sval) == 61 || (sval) == 100)
 
 /* For precious stones (TV_PRECIOUS_STONE) */
 /* order is from least rare to most rare (thanks, http://magmawiki.com/index.php/40d:Gem and some creative writing) */
@@ -4882,8 +4940,25 @@
 #define SV_PO_D10F_B	40
 #define SV_PO_D10F_BR	41
 
+#define SV_PO_FIREWORKS_LT1	42
+#define SV_PO_FIREWORKS_LT2	43
+#define SV_PO_FIREWORKS_LW1	44
+#define SV_PO_FIREWORKS_LW2	45
+#define SV_PO_FIREWORKS_LY1	46
+#define SV_PO_FIREWORKS_LY2	47
+#define SV_PO_FIREWORKS_LB1	48
+#define SV_PO_FIREWORKS_LB2	49
+#define SV_PO_FIREWORKS_ET1	50
+#define SV_PO_FIREWORKS_ET2	51
+#define SV_PO_FIREWORKS_EW1	52
+#define SV_PO_FIREWORKS_EW2	53
+#define SV_PO_FIREWORKS_EY1	54
+#define SV_PO_FIREWORKS_EY2	55
+#define SV_PO_FIREWORKS_EB1	56
+#define SV_PO_FIREWORKS_EB2	57
+
 /* k_idx for TV_PSEUDO_OBJ -- for graphical tiles the svals actually don't matter, they are just defined for good measure but have no use;
-   instead the k_idx values are used, especially client-side! */
+   instead the k_idx values are used. Note that this works only on client-side! (On server-side, k_idx are renumbered, not taken from k_info.txt!) */
 #define KIDX_PO_RAIN	822
 #define KIDX_PO_RAIN_E1	823
 #define KIDX_PO_RAIN_E2	824
@@ -4942,6 +5017,133 @@
 #define SV_QUEST			2	/* a custom quest item (not to be confused with questors) */
 /* TV_SPECIAL also reuses the defines from TV_JUNK - while it is paper there, here it is the actual wrapped gift:
  SV_GIFT_WRAPPING_START..SV_GIFT_WRAPPING_END: 10..19 (used up to 15) */
+
+
+/* some masks (originally just is_armour for XBM control) - C. Blue */
+#define is_ammo(tval)	(((tval) == TV_SHOT) || ((tval) == TV_ARROW) || ((tval) == TV_BOLT))
+#define is_melee_weapon(tval)	(((tval) == TV_SWORD) || ((tval) == TV_BLUNT) || ((tval) == TV_AXE) || ((tval) == TV_POLEARM))
+#define is_melee_item(tval)	(is_melee_weapon(tval) || ((tval) == TV_MSTAFF))
+#define is_ranged_weapon(tval)	((tval) == TV_BOW || (tval) == TV_BOOMERANG)
+#define is_throwing_weapon(o_ptr) ( \
+	((o_ptr)->tval == TV_SWORD && ((o_ptr)->sval == SV_DAGGER || (o_ptr)->sval == SV_MAIN_GAUCHE)) || \
+	((o_ptr)->tval == TV_POLEARM && ((o_ptr)->sval == SV_HUNTING_SPEAR || (o_ptr)->sval == SV_SPEAR || (o_ptr)->sval == SV_TRIDENT || (o_ptr)->sval == SV_BROAD_SPEAR || (o_ptr)->sval == SV_TRIFURCATE_SPEAR)) || \
+	(o_ptr)->tval == TV_AXE )
+#define is_weapon(tval)		(is_melee_weapon(tval) || is_ranged_weapon(tval))
+/* For shops that only offer 'basic' items. Rarity at least /4 or /5. Execptions or special considerations listed behind each type line, if any. */
+#define is_rare_weapon(tval,sval) ( \
+	((tval) == TV_SWORD && ((sval) >= SV_BLADE_OF_CHAOS || (sval) >= SV_BLUESTEEL_BLADE || (sval) >= SV_SHADOW_BLADE)) || /* dark sword (needed by unbelievers), unsure about shadow blade */ \
+	((tval) == TV_BLUNT && ((sval) == SV_MACE_OF_DISRUPTION || (sval) == SV_DEMON_HAMMER || (sval) == SV_SCOURGE_OF_REPENTANCE)) || \
+	((tval) == TV_AXE && ((sval) == SV_THUNDER_AXE || (sval) == SV_INFERNAL_AXE)) || /* hunting spear (low dice, just for fun) */ \
+	((tval) == TV_POLEARM && ((sval) == SV_SCYTHE_OF_SLICING || (sval) == SV_DRAGON_LANCE)) )
+#define is_common_weapon(tval,sval) \
+	(is_weapon(tval) && !is_rare_weapon(tval,sval))
+#define is_nonmetallic_weapon(tval,sval) \
+	(((tval) == TV_BLUNT && ((sval) == SV_CLUB || (sval) == SV_WHIP || (sval) == SV_QUARTERSTAFF)) || \
+	((tval) == TV_BOOMERANG && ((sval) == SV_BOOM_WOOD || (sval) == SV_BOOM_S_WOOD)) || ((tval) == TV_BOW && ((sval) == SV_SLING || (sval) == SV_SHORT_BOW || (sval) == SV_LONG_BOW)))
+	/* || (sval) == SV_THREE_PIECE_ROD) -- metal connectors, maybe enough */
+#define is_slicing_polearm(sval) \
+	((sval) == SV_SICKLE || (sval) == SV_FAUCHARD || (sval) == SV_RHOMPHAIA || (sval) == SV_GLAIVE || (sval) == SV_SCYTHE || (sval) == SV_SCYTHE_OF_SLICING)
+#define is_aquatic_polearm(sval) \
+	((sval) == SV_HUNTING_SPEAR || (sval) == SV_SPEAR || (sval) == SV_AWL_PIKE || (sval) == SV_TRIDENT || /* halberd didn't make it*/ \
+	(sval) == SV_BROAD_SPEAR || (sval) == SV_PIKE || (sval) == SV_GLAIVE || (sval) == SV_GUISARME || (sval) == SV_TRIFURCATE_SPEAR)
+#define is_magic_device(tval)	(((tval) == TV_WAND) || ((tval) == TV_STAFF) || ((tval) == TV_ROD))
+#define is_rare_magic_device(tval,sval) ( \
+	((tval) == TV_WAND && ((sval) == SV_WAND_ANNIHILATION || (sval) == SV_WAND_ROCKETS || (sval) == SV_WAND_WALL_CREATION || (sval) == SV_WAND_TELEPORT_TO)) || \
+	/* allowing +perception+, healing, magi/power/holiness */ \
+	((tval) == TV_STAFF && ((sval) == SV_STAFF_EARTHQUAKES || (sval) == SV_STAFF_DESTRUCTION || (sval) == SV_STAFF_SPEED || (sval) == SV_STAFF_GENOCIDE)) || \
+	/* not allowing Speed/Healing so people aren't "forced" to train MD */ \
+	((tval) == TV_ROD && ((sval) == SV_ROD_HAVOC || (sval) == SV_ROD_IDENTIFY || \
+	    (sval) == SV_ROD_MAPPING || (sval) == SV_ROD_CURING || (sval) == SV_ROD_RESTORATION \
+	    || (sval) == SV_ROD_SPEED || (sval) == SV_ROD_HEALING)) )
+#define is_armour(tval)	\
+	(((tval) == TV_BOOTS) || ((tval) == TV_GLOVES) || \
+	((tval) == TV_HELM) || ((tval) == TV_CROWN) || \
+	((tval) == TV_SHIELD) || ((tval) == TV_CLOAK) || \
+	((tval) == TV_SOFT_ARMOR) || ((tval) == TV_HARD_ARMOR) || \
+	((tval) == TV_DRAG_ARMOR))
+#define is_rare_armour(tval,sval) ( \
+	(((tval) == TV_HELM) && ((sval) == SV_DRAGON_HELM || (sval) == SV_MITHRIL_HELM || (sval) == SV_ADAMANTITE_HELM)) || \
+	((tval) == TV_CROWN) || /* for telepathy crowns in Ironman dungeon stores (IDDC -2k especially) */ \
+	(((tval) == TV_SHIELD) && (((sval) == SV_ORCISH_SHIELD) || ((sval) == SV_DRAGON_SHIELD) || ((sval) == SV_SHIELD_OF_DEFLECTION) \
+	    || ((sval) == SV_MITHRIL_ANCILE) || ((sval) == SV_ADAMANTITE_AEGIS))) || \
+	(((tval) == TV_GLOVES) && ((sval) == SV_SET_OF_ELVEN_GLOVES)) || \
+	(((tval) == TV_CLOAK) && ((sval) == SV_KOLLA)) || \
+	(((tval) == TV_HARD_ARMOR) && (sval) >= SV_MITHRIL_CHAIN_MAIL) || \
+	((tval) == TV_DRAG_ARMOR) ) /* includes is_top_armour() */
+/* doesn't include WINNERS_ONLY armour: */
+//	(((tval) == TV_HARD_ARMOR) && (((sval) == SV_MITHRIL_CHAIN_MAIL) || ((sval) == SV_MITHRIL_PLATE_MAIL) || ((sval) == SV_ADAMANTITE_PLATE_MAIL))) ||
+#define is_top_armour(tval,sval) \
+	(((tval) == TV_DRAG_ARMOR) && \
+	((sval) == SV_DRAGON_POWER || (sval) == SV_DRAGON_SKY || \
+	(sval) == SV_DRAGON_DEATH || (sval) == SV_DRAGON_SHINING || \
+	(sval) == SV_DRAGON_MULTIHUED || (sval) == SV_DRAGON_BALANCE))
+	/* ...and possibly all winners_only armour -- if these are added, include them in is_rare_armour() too accordingly! */
+#define is_common_armour(tval,sval) \
+	(is_armour(tval) && !is_rare_armour(tval,sval))
+#define sv_dsm_low(sv) \
+        (sv == SV_DRAGON_BLUE || sv == SV_DRAGON_WHITE || sv == SV_DRAGON_BLACK || \
+	sv == SV_DRAGON_RED || sv == SV_DRAGON_GREEN)
+#define sv_dsm_mid(sv) \
+        (sv == SV_DRAGON_BRONZE || sv == SV_DRAGON_SILVER || sv == SV_DRAGON_GOLD || \
+	sv == SV_DRAGON_PSEUDO)
+/* for determining sound effects for wear/wield command: */
+#define is_textile_armour(tval,sval) \
+	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_METAL_SHOD_BOOTS && (sval) != SV_PAIR_OF_WITAN_BOOTS) || \
+	((tval) == TV_GLOVES && (sval) != SV_SET_OF_GAUNTLETS && (sval) != SV_SET_OF_CESTI) || \
+	(tval) == TV_SOFT_ARMOR || (tval) == TV_CLOAK || \
+	((tval) == TV_HELM && ((sval) == SV_CLOTH_CAP || (sval) == SV_HARD_LEATHER_CAP || (sval) == SV_GOGGLES_DM)) || \
+	((tval) == TV_SHIELD && ((sval) == SV_SMALL_LEATHER_SHIELD || (sval) == SV_LARGE_LEATHER_SHIELD)))
+#define is_cloth_armour(tval,sval) \
+	((tval) == TV_CLOAK || ((tval) == TV_HELM && (sval) == SV_CLOTH_CAP) || \
+	((tval) == TV_SOFT_ARMOR && ( \
+	(sval) == SV_ROBE || (sval) == SV_TUNIC || (sval) == SV_FROCK || (sval) == SV_GOWN || \
+	(sval) == SV_FILTHY_RAG || (sval) == SV_COSTUME || (sval) == SV_SHIRT)))
+#define is_cloth(tval,sval)	(is_cloth_armour(tval,sval) || ((tval) == TV_TOOL && (sval) == SV_TOOL_WRAPPING))
+/* what magic/roguish/martial artist would wear; ignores DSM */
+#define is_flexible_armour(tval,sval) \
+	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_HARD_LEATHER_BOOTS && (sval) != SV_PAIR_OF_METAL_SHOD_BOOTS && (sval) != SV_PAIR_OF_WITAN_BOOTS) || \
+	((tval) == TV_GLOVES && (sval) != SV_SET_OF_GAUNTLETS && (sval) != SV_SET_OF_CESTI) || \
+	(tval) == TV_SOFT_ARMOR || (tval) == TV_CLOAK || \
+	((tval) == TV_HELM && ((sval) == SV_CLOTH_CAP || (sval) == SV_HARD_LEATHER_CAP || (sval) == SV_GOGGLES_DM)))
+/* what non-light melee fighters would wear; ignores DSM */
+#define is_tough_armour(tval,sval) \
+	(((tval) == TV_BOOTS && (sval) != SV_PAIR_OF_SOFT_LEATHER_BOOTS) || \
+	((tval) == TV_GLOVES && (sval) != SV_SET_OF_LEATHER_GLOVES) || \
+	(tval) == TV_HARD_ARMOR || (tval) == TV_CLOAK || \
+	((tval) == TV_HELM && (sval) != SV_CLOTH_CAP && (sval) != SV_HARD_LEATHER_CAP && (sval) != SV_GOGGLES_DM) || \
+	(tval == TV_SHIELD))
+#ifndef ENABLE_DEMOLITIONIST
+ #define is_cheap_misc(tval) \
+	(is_ammo(tval) || (tval) == TV_FIRESTONE || (tval) == TV_SPIKE || (tval) == TV_JUNK)
+#else
+ #define is_cheap_misc(tval) \
+	(is_ammo(tval) || (tval) == TV_FIRESTONE || (tval) == TV_SPIKE || (tval) == TV_JUNK || (tval) == TV_CHEMICAL)
+#endif
+#define is_ranged_item(Ind, o_ptr) \
+	(is_ranged_weapon((o_ptr)->tval) || \
+	is_ammo((o_ptr)->tval) || \
+	(o_ptr)->tval == TV_BOOK || \
+	(o_ptr)->tval == TV_WAND || \
+	((o_ptr)->tval == TV_ROD && rod_requires_direction(Ind, o_ptr)))
+#define is_firearm_trapkit(sval) \
+	((sval) == SV_TRAPKIT_SLING || (sval) == SV_TRAPKIT_BOW || (sval) == SV_TRAPKIT_XBOW)
+#ifndef NEW_SHIELDS_NO_AC
+/* Note: This doesn't check artifact_p() or TR5_NO_ENCHANT, but only the base item type. */
+#define is_enchantable_kind(o_ptr) \
+	(is_weapon((o_ptr)->tval) || is_ammo((o_ptr)->tval) || \
+	(o_ptr)->tval == TV_MSTAFF || \
+	((o_ptr)->tval == TV_TRAPKIT && is_firearm_trapkit((o_ptr)->sval)) || \
+	is_armour((o_ptr)->tval) || (o_ptr)->tval == TV_DIGGING)
+#else
+/* Note: This doesn't check artifact_p() or TR5_NO_ENCHANT, but only the base item type. */
+#define is_enchantable_kind(o_ptr) \
+	((is_weapon((o_ptr)->tval) || is_ammo((o_ptr)->tval) || \
+	(o_ptr)->tval == TV_MSTAFF || \
+	((o_ptr)->tval == TV_TRAPKIT && is_firearm_trapkit((o_ptr)->sval)) || \
+	is_armour((o_ptr)->tval) || (o_ptr)->tval == TV_DIGGING) \
+	&& (o_ptr->tval != TV_SHIELD))
+#endif
+/* more possibilities: is_potion, is_rune, is_jewelry, is_rare_armour(tval,sval) */
 
 
 
@@ -5242,6 +5444,7 @@
 #define IND_SHIELD5	0x00008000U /* Active timed (pseudo) reactive-shield spell (these are mutually exclusive) */
 #define IND_SHIELD6	0x00010000U /* Active timed (pseudo) reactive-shield spell (these are mutually exclusive) */
 #define IND_SHIELD7	0x00020000U /* Active timed (pseudo) reactive-shield spell (these are mutually exclusive) */
+#define IND_PFE		0x00040000U /* Active Protection from Evil */
 
 /*
  * Bit flags for the "p_ptr->window" variable (etc)
@@ -5502,7 +5705,7 @@
 #define GF_CHARMIGNORE		161
 #define GF_STOP			162 /* special fx: scroll of rune of protection in a monster trap - C. Blue */
 #define GF_CAUSE		163 /* 'Curse' actually, the monster spell */
-#define GF_FLARE		164 /* Combination of LITE_WEAK and FIRE damage, for Flare Missile */
+#define GF_FLARE		164 /* Combination of LITE_WEAK and FIRE damage, for Flare Missile -- currently doesn't damage players >.> */
 #define GF_LIFE_SLOW		165 /* Same as GF_OLD_SLOW aka 'Slow Monsters', but based on fatigue, therefore doesn't affect creatures that know no fatigue. */
 #define GF_NO_REGEN		166
 #define GF_THUNDER		167 /* To replace the hacky 'triple-bolt' of the thunderstorm spell */
@@ -5638,6 +5841,7 @@
 #define ID_SENSED_ONCE	0x0100	/* Item was at least sensed once, maybe even IDed. (anti-exploit) */
 #define ID_SENSE_HEAVY	0x0200	/* Item was deeply pseudo-identified (felt_heavy) */
 #define ID_NO_HIDDEN	0x0400	/* Item obviously cannot have hidden powers and hence *ID*ing it wouldn't have any effect */
+#define ID_NO_AUTOINSC	0x0800	/* Temporary hack: Don't auto-inscribe this item on upcoming inven_carry() call, because it was simply unstowed from a bag. */
 
 
 
@@ -5905,6 +6109,7 @@
 #define TR6_OFTEN_EGO		0x00000100U		/* Item has higher chance to be generated with ego power */
 #define TR6_UNBLESSED		0x00000200U		/* Item never receives flags that hurt an undead/demonic wielder, from ego or art powers */
 #define TR6_RETURNING		0x00000400U		/* Item automatically returns to owner when thrown (artifact ammo does this already, without need for this flag) */
+#define TR6_RELFREQ_ART		0x00000800U		/* Item chance to turn artifact is increased depending on rarity of the base item, mainly to help generation of truearts of very rare base types */
 
 
 /* Character Sheet Boni Data Flags for Char/Byte PKT Transfer - Kurzel */
@@ -6032,70 +6237,73 @@
 
 
 /* Item-generation restriction flags */
-#define RESF_NONE		0x00000000U
+#define RESF_NONE		0x00000000ULL
 
-#define RESF_WINNER		0x00000001U	/* allow TR5_WINNERS_ONLY items */
-#define RESF_NOTRUEART		0x00000002U	/* prevent true artifacts */
-#define RESF_NORANDART		0x00000004U	/* prevent random artifacts */
-#define RESF_NODOUBLEEGO	0x00000008U	/* prevent double ego items */
+#define RESF_WINNER		0x00000001ULL	/* allow TR5_WINNERS_ONLY items */
+#define RESF_NOTRUEART		0x00000002ULL	/* prevent true artifacts */
+#define RESF_NORANDART		0x00000004ULL	/* prevent random artifacts */
+#define RESF_NODOUBLEEGO	0x00000008ULL	/* prevent double ego items */
 
-#define RESF_NOHIDSM		0x00000010U	/* prevent generation of high dragon scale mails: Only base elements + poison, metallics and pseudo. */
-#define RESF_LOWSPEED		0x00000020U	/* not more than +4 speed */
-#define RESF_NOHISPEED		0x00000040U	/* not more than +6 speed */
-#define RESF_LOWVALUE		0x00000080U	/* no items worth more than 35000 Au */
+#define RESF_NOHIDSM		0x00000010ULL	/* prevent generation of high dragon scale mails: Only base elements + poison, metallics and pseudo. */
+#define RESF_LOWSPEED		0x00000020ULL	/* not more than +4 speed */
+#define RESF_NOHISPEED		0x00000040ULL	/* not more than +6 speed */
+#define RESF_LOWVALUE		0x00000080ULL	/* no items worth more than 35000 Au */
 
-#define RESF_MIDVALUE		0x00000100U	/* no items worth more than 50000 Au */
-#define RESF_NOHIVALUE		0x00000200U	/* no items worth more than 100000 Au */
+#define RESF_MIDVALUE		0x00000100ULL	/* no items worth more than 50000 Au */
+#define RESF_NOHIVALUE		0x00000200ULL	/* no items worth more than 100000 Au */
 
-#define RESF_NOETHEREAL		0x00000400U	/* no 'ethereal' ego power (ammo) */
+#define RESF_NOETHEREAL		0x00000400ULL	/* no 'ethereal' ego power (ammo) */
 #if 0 /* not implemented: */
- #define RESF_KINDMID		0x00000800U	/* k_info value of 500..10000 */
- #define RESF_KINDHI		0x00001000U	/* k_info value of 10000.. */
- #define RESF_EGOLOW		0x00002000U	/* e_info value of ..1000 */
- #define RESF_EGOMID		0x00004000U	/* e_info value of 1000..9000 */
+ #define RESF_KINDMID		0x00000800ULL	/* k_info value of 500..10000 */
+ #define RESF_KINDHI		0x00001000ULL	/* k_info value of 10000.. */
+ #define RESF_EGOLOW		0x00002000ULL	/* e_info value of ..1000 */
+ #define RESF_EGOMID		0x00004000ULL	/* e_info value of 1000..9000 */
 #else /* use it for actual stuff.. */
- #define RESF_COND_FORCE	0x00000800U	/* force item drop of desired type according to conditions */
- #define RESF_COND_LSWORD	0x00001000U	/* force a sword (swordmen, rogues) */
- #define RESF_BOOST_PVAL	0x00002000U	/* for create_reward(): Boost lowish pvals for certain items to make them guaranteedly quite useful */
- #define RESF_CONDF_NOMSTAFF	0x00004000U	/* don't allow mage staves (persistent; for Saruman, when he chosen-drops a guaranteed one, this avoids duplicates) -- */
+ #define RESF_COND_FORCE	0x00000800ULL	/* force item drop of desired type according to conditions */
+ #define RESF_COND_LSWORD	0x00001000ULL	/* force a sword (swordmen, rogues) */
+ #define RESF_BOOST_PVAL	0x00002000ULL	/* for create_reward(): Boost lowish pvals for certain items to make them guaranteedly quite useful */
+ #define RESF_CONDF_NOMSTAFF	0x00004000ULL	/* don't allow mage staves (persistent; for Saruman, when he chosen-drops a guaranteed one, this avoids duplicates) -- */
 #endif
-#define RESF_EGOHI		0x00008000U	/* e_info value of 9000.. */
+#define RESF_EGOHI		0x00008000ULL	/* e_info value of 9000.. */
 
-#define RESF_LIFE		0x00010000U	/* allow +LIFE randarts */
-#define RESF_DEBUG_ITEM		0x00020000U	/* generate a certain item (k_idx) for debugging purpose */
-#define RESF_STOREFLAT		0x00040000U	/* generate all base item types with same probability */
-#define RESF_FORCERANDART	0x00080000U	/* generate a random artifact -- ensure the item is eligible via randart_eligible(tval) */
+#define RESF_LIFE		0x00010000ULL	/* allow +LIFE randarts */
+#define RESF_DEBUG_ITEM		0x00020000ULL	/* generate a certain item (k_idx) for debugging purpose */
+#define RESF_STOREFLAT		0x00040000ULL	/* generate all base item types with same probability */
+#define RESF_FORCERANDART	0x00080000ULL	/* generate a random artifact -- ensure the item is eligible via randart_eligible(tval) */
 
-#define RESF_NO_ENCHANT		0x00100000U	/* generate an 'average' item (no enchantments/ego powers/artifacts) */
-#define RESF_SAURON		0x00200000U	/* don't generate The One Ring, as player has already slain Sauron or is in Mt Doom. -- This flag is abused for no_soloist drops eg from Santa Claus! */
+#define RESF_NO_ENCHANT		0x00100000ULL	/* generate an 'average' item (no enchantments/ego powers/artifacts) */
+#define RESF_SAURON		0x00200000ULL	/* don't generate The One Ring, as player has already slain Sauron or is in Mt Doom. -- This flag is abused for no_soloist drops eg from Santa Claus! */
 
-#define RESF_COND_SWORD		0x00400000U	/* don't allow weapons besides a sword (swordmen, rogues) */
-#define RESF_COND_DARKSWORD	0x00800000U	/* don't allow weapons besides a dark sword (unbelievers) */
+#define RESF_COND_SWORD		0x00400000ULL	/* don't allow weapons besides a sword (swordmen, rogues) */
+#define RESF_COND_DARKSWORD	0x00800000ULL	/* don't allow weapons besides a dark sword (unbelievers) */
 
-#define RESF_COND_BLUNT		0x01000000U	/* don't allow weapons besides a blunt weapon (priests) */
-#define RESF_CONDF_NOSWORD	0x02000000U	/* don't allow swords (shamans) -- */
-#define RESF_CONDF_MSTAFF	0x04000000U	/* force a mage staff (mages) */
-#define RESF_COND_SLING		0x08000000U	/* don't allow weapons besides a sling (clears condition) or ammo (doesn't clear condition) (slingers) */
+#define RESF_COND_BLUNT		0x01000000ULL	/* don't allow weapons besides a blunt weapon (priests) */
+#define RESF_CONDF_NOSWORD	0x02000000ULL	/* don't allow swords (shamans) -- */
+#define RESF_CONDF_MSTAFF	0x04000000ULL	/* force a mage staff (mages) */
+#define RESF_COND_SLING		0x08000000ULL	/* don't allow weapons besides a sling (clears condition) or ammo (doesn't clear condition) (slingers) */
 
-#define RESF_COND_RANGED	0x10000000U	/* don't allow weapons besides ranged weapons (clear condition) or ammo (doesn't clear condition) (archers) */
-#define RESF_CONDF_RUNE		0x20000000U	/* force a rune (runemasters) */
-#define RESF_COND2_LARMOUR	0x40000000U	/* mostly avoid dropping heavy armour (persistent) */
-#define RESF_COND2_HARMOUR	0x80000000U	/* mostly avoid dropping light armour (persistent) */
+#define RESF_COND_RANGED	0x10000000ULL	/* don't allow weapons besides ranged weapons (clear condition) or ammo (doesn't clear condition) (archers) */
+#define RESF_CONDF_RUNE		0x20000000ULL	/* force a rune (runemasters) */
+#define RESF_COND2_LARMOUR	0x40000000ULL	/* mostly avoid dropping heavy armour (persistent) */
+#define RESF_COND2_HARMOUR	0x80000000ULL	/* mostly avoid dropping light armour (persistent) */
 
-#define RESF_LOW		(RESF_NOTRUEART | RESF_NORANDART | RESF_NODOUBLEEGO | RESF_NOHIDSM | RESF_LOWSPEED | RESF_LOWVALUE)	/* prevent generation of especially powerful items */
-#define RESF_LOW2		(RESF_NOTRUEART | RESF_NORANDART | RESF_NODOUBLEEGO | RESF_NOHIDSM | RESF_LOWSPEED | RESF_MIDVALUE)	/* prevent generation of especially powerful items */
-#define RESF_MID		(RESF_NOTRUEART | RESF_NORANDART | RESF_NOHIDSM | RESF_NOHISPEED | RESF_NOHIVALUE)	/* prevent generation of especially powerful high-level items */
-#define RESF_MID2		(RESF_NOTRUEART | RESF_NORANDART | RESF_NOHIDSM | RESF_NOHISPEED)	/* prevent generation of especially powerful high-level items, but allow full ESP for example (no price limit) */
-#define RESF_HIGH		RESF_NOART /* alias */
-#define RESF_NOART		(RESF_NOTRUEART | RESF_NORANDART)	/* prevent generation of any artefacts */
-#define RESF_WILD		RESF_NONE
-#define RESF_STORE		(RESF_NOART | RESF_NOETHEREAL) /* not fully implemented yet (see get_obj_num... and kind_is..) */
-#define RESF_STOREBM		(RESF_NOART | RESF_NOETHEREAL) /* not fully implemented yet (see get_obj_num... and kind_is..) */
+#define RESF_MASK_LOW		(RESF_NOTRUEART | RESF_NORANDART | RESF_NODOUBLEEGO | RESF_NOHIDSM | RESF_LOWSPEED | RESF_LOWVALUE)	/* prevent generation of especially powerful items */
+#define RESF_MASK_LOW2		(RESF_NOTRUEART | RESF_NORANDART | RESF_NODOUBLEEGO | RESF_NOHIDSM | RESF_LOWSPEED | RESF_MIDVALUE)	/* prevent generation of especially powerful items */
+#define RESF_MASK_MID		(RESF_NOTRUEART | RESF_NORANDART | RESF_NOHIDSM | RESF_NOHISPEED | RESF_NOHIVALUE)	/* prevent generation of especially powerful high-level items */
+#define RESF_MASK_MID2		(RESF_NOTRUEART | RESF_NORANDART | RESF_NOHIDSM | RESF_NOHISPEED)	/* prevent generation of especially powerful high-level items, but allow full ESP for example (no price limit) */
+#define RESF_MASK_HIGH		RESF_MASK_NOART /* alias */
+#define RESF_MASK_NOART		(RESF_NOTRUEART | RESF_NORANDART)	/* prevent generation of any artefacts */
+#define RESF_MASK_WILD		RESF_NONE
+#define RESF_MASK_STORE		(RESF_MASK_NOART | RESF_NOETHEREAL) /* not fully implemented yet (see get_obj_num... and kind_is..) */
+#define RESF_MASK_STOREBM	(RESF_MASK_NOART | RESF_NOETHEREAL) /* not fully implemented yet (see get_obj_num... and kind_is..) */
 
-/* Note: There is a bad 'aquatic_hack' for certain polearm drops as we're out of RESF_ flag space. -_- (RESF_COND_SWORD+RESF_COND_BLUNT)
-   Note2: Also added an 'axe_hack' for same reason (RESF_COND_DARKSWORD+RESF_COND_BLUNT) -_- */
-#define RESF_COND_MASK		(RESF_COND_SWORD | RESF_COND_LSWORD | RESF_COND_DARKSWORD | RESF_COND_BLUNT | RESF_CONDF_NOSWORD | RESF_CONDF_MSTAFF | RESF_COND_SLING | RESF_COND_RANGED | RESF_CONDF_RUNE)
+#define RESF_COND_AQUAPOLEARM	0x0000000100000000ULL	/* soft-force aquatic-polearm style weapons */
+#define RESF_COND_AXE		0x0000000200000000ULL	/* soft-force axe type weapons */
+#define RESF_NORMALBM		0x0000000400000000ULL	/* Generate ego powers on plain items that are generated in other town stores */
 
+#define RESF_MASK_COND \
+    (RESF_COND_SWORD | RESF_COND_LSWORD | RESF_COND_DARKSWORD | RESF_COND_BLUNT | RESF_CONDF_NOSWORD | \
+    RESF_CONDF_MSTAFF | RESF_COND_SLING | RESF_COND_RANGED | RESF_CONDF_RUNE | RESF_COND_AXE | RESF_COND_AQUAPOLEARM)
 
 /* ESP defines */
 #define ESP_ORC			0x00000001U
@@ -6563,7 +6771,7 @@
  */
 #define RF8_DUNGEON		0x00000001U	/* inverse of non-existing 'RF8_WILD_ONLY' */
 #define RF8_WILD_TOWN		0x00000002U
-#define RF8_WILD_EASY		0x00000004U
+#define RF8_WILD_EASY		0x00000004U	/* Easily traversable wilderness terrain only (not even forests, nor icy waste/desert etc); add WILD_LAKE maybe? */
 #define RF8_WILD_SHORE		0x00000008U
 #define RF8_WILD_OCEAN			0x00000010U
 #define RF8_WILD_WASTE			0x00000020U
@@ -6591,8 +6799,8 @@
 #define RF8_GENO_PERSIST	0x08000000U	/* Don't automatically genocide/compact this monster */
 #define RF8_GENO_NO_THIN		0x10000000U	/* Don't genocide this monster when thinning out surface spawns */
 #define RF8_FINAL_GUARDIAN		0x20000000U	/* Note! This flag is NOT set/used in r_info.txt! Instead, the monster is defined as FINAL_GUARDIAN_ in d_info.txt! */
-#define RF8_WILD_SWAMP			0x40000000U	/* ToDo: Implement Swamp */
-#define RF8_WILD_TOO			0x80000000U
+#define RF8_WILD_SWAMP			0x40000000U
+#define RF8_WILD_TOO			0x80000000U	/* If specified w/o any other WILD_xxx flag it enables ALL WILD_xxx flags; for quests it enables any WILD_xxx location in any case; no other purpose */
 
 #define RF8_WILD_TOO_MASK \
 	( RF8_WILD_TOWN | RF8_WILD_EASY | RF8_WILD_SHORE | \
@@ -9170,7 +9378,6 @@ extern int PlayerUID;
 
 
 
-
 /*
  * Buildings actions
  */
@@ -9280,6 +9487,8 @@ extern int PlayerUID;
 #define BACT_F_MELEE		0x1000	/* for enchanting services */
 #define BACT_F_TRAPKIT_FA	0x2000	/* for enchanting services (FA = firearm type trapkits, as others don't have any (+hit,+dam) */
 #define BACT_F_TOGGLE_CLOAKS	0x4000	/* for repairing service: If specified with BACT_F_ARMOUR it _exempts_ cloaks, otherwise it _allows_ cloaks. (Flag efficiency -_-) */
+#define BACT_F_ADMIN		0x8000	/* action only available to admins */
+
 
 /* Reskill flags */
 #define RESKILL_F_UNDO		0x1
@@ -9406,7 +9615,6 @@ extern int PlayerUID;
 /* Masks for restricted mimicry */
 /*	Shaman: Animals, Giants, Dragon(rider)s, Elementals/Spirits, Ghosts.
 	No undead/nonliving material beings; no Invisible Stalker/Unmaker/Death Orb. */
-/*	!(r_info[ridx].flags3 & (RF3_UNDEAD | RF3_NONLIVING)) && !(r_info[ridx].d_char == 'O')) || \ */
 #define mimic_shaman(ridx)	\
 	(((ridx) == 0) || \
 	(((r_info[ridx].flags3 & (RF3_ANIMAL | RF3_DRAGON | RF3_GIANT | RF3_DRAGONRIDER)) || \
@@ -9415,26 +9623,23 @@ extern int PlayerUID;
 	(r_info[ridx].d_char == 'G') || mimic_shaman_E(ridx) || (r_info[ridx].d_char == 'X') || \
 	(r_info[ridx].d_char == 'g') || (r_info[ridx].d_char == 'A'))
 #define mimic_shaman_E(ridx)	\
-	((r_info[ridx].d_char == 'E') && !((ridx) == 514 || (ridx) == 815 || (ridx) == 975)) //invisible stalker, unmaker, death orb
+	((r_info[ridx].d_char == 'E') && !((ridx) == RI_INVISIBLE_STALKER || (ridx) == RI_UNMAKER || (ridx) == RI_DEATH_ORB))
 #define mimic_shaman_fulleq(c)	(strchr("EGX", c))
 /*	Druid: Selected Animals and animal-similar creatures. */
 #define mimic_druid(ridx, plv)	\
 	(((ridx) == 0) || \
-	((plv) >= 5 && ((ridx) == 160 || (ridx) == 198)) || \
-	((plv) >= 10 && ((ridx) == 191 || (ridx) == 154)) || \
-	((plv) >= 15 && ((ridx) == 279 || (ridx) == 343)) || \
-	((plv) >= 20 && ((ridx) == 414 || (ridx) == 335 || (ridx) == 898 || (ridx) == 963)) || \
-	((plv) >= 25 && ((ridx) == 334 || (ridx) == 513)) || \
-	((plv) >= 30 && ((ridx) == 440 || (ridx) == 641 || (ridx) == 482)) || \
-	((plv) >= 35 && ((ridx) == 614 || (ridx) == 726 || (ridx) == 964)) || \
-	((plv) >= 40 && ((ridx) == 688 || (ridx) == 640 || (ridx) == 740)) || \
-	((plv) >= 45 && ((ridx) == 723 || (ridx) == 704)) || /* || (ridx) == 716 || \ */ \
-	((plv) >= 50 && ((ridx) == 1069 || (ridx) == 778 || (ridx) == 775)) || /* 782 */ \
-	((plv) >= 55 && ((ridx) == 1131)) || \
-	((plv) >= 60 && ((ridx) == 1127)))
-	/* possible postking additions - guiding ideas:
-	   fire immunity for NR; very maybe pass wall for comfort.
-	    1127 firebird, 739 ethereal hound? */
+	((plv) >= 5 && ((ridx) == RI_CAVE_BEAR || (ridx) == RI_PANTHER)) || \
+	((plv) >= 10 && ((ridx) == RI_GRIZZLY_BEAR || (ridx) == RI_YETI)) || \
+	((plv) >= 15 && ((ridx) == RI_GRIFFON || (ridx) == RI_SASQUATCH)) || \
+	((plv) >= 20 && ((ridx) == RI_WEREBEAR || (ridx) == RI_GREAT_EAGLE || (ridx) == RI_ARANEA || (ridx) == RI_GREAT_WHITE_SHARK)) || \
+	((plv) >= 25 && ((ridx) == RI_WYVERN || (ridx) == RI_HOUND_MULTI)) || \
+	((plv) >= 30 && ((ridx) == RI_HYDRA_5H || (ridx) == RI_MINOTAUR || (ridx) == RI_GIANT_SQUID)) || \
+	((plv) >= 35 && ((ridx) == RI_HYDRA_7H || (ridx) == RI_ELDER_ARANEA || (ridx) == RI_HOUND_PLASMA)) || \
+	((plv) >= 40 && ((ridx) == RI_HYDRA_11H || (ridx) == RI_GIANT_ROC || (ridx) == RI_LESSER_KRAKEN)) || \
+	((plv) >= 45 && ((ridx) == RI_MAULOTAUR || (ridx) == RI_WINGED_HORROR)) || \
+	((plv) >= 50 && ((ridx) == RI_GORM || (ridx) == RI_JABBERWOCK || (ridx) == RI_GREATER_KRAKEN)) || \
+	((plv) >= 55 && ((ridx) == RI_HORNED_SERPENT)) || \
+	((plv) >= 60 && ((ridx) == RI_FIREBIRD)))
 /* for vampires, who learn to transform into a vampire bat and back for transportation - C. Blue */
 #ifndef VAMPIRIC_MIST
  #define mimic_vampire(ridx, plv)	\

@@ -2408,14 +2408,17 @@ void save_auto_inscriptions(cptr name) {
 	fprintf(fp, "Auto-Inscriptions file for TomeNET v%d.%d.%d%s\n",
 		VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, CLIENT_VERSION_TAG);
 
+	fprintf(fp, "### This file may contain comment lines, these, must start on '##' but will NOT be saved.\n");
+	fprintf(fp, "### Note that empty lines do count as data lines and hence cannot be inserted for the purpose of visual formatting.\n");
+
 	/* write inscriptions (2 lines each) */
 	for (i = 0; i < MAX_AUTO_INSCRIPTIONS; i++) {
-		fprintf(fp, "%s%s\n", auto_inscription_force[i] ? "!" : "", auto_inscription_match[i]);
+		fprintf(fp, "%s\n", auto_inscription_match[i]);
 		fprintf(fp, "%s\n", auto_inscription_tag[i]);
-		fprintf(fp, "%d\n", auto_inscription_autopickup[i]);
-		fprintf(fp, "%d\n", auto_inscription_autodestroy[i]);
-		fprintf(fp, "%d\n", auto_inscription_subinven[i]); //ENABLE_SUBINVEN
-		fprintf(fp, "%d\n", auto_inscription_disabled[i]);
+		fprintf(fp, "  %c,", auto_inscription_force[i] ? 'F' : '-');
+		fprintf(fp, "%c,", auto_inscription_ignore[i] ? 'i' : (auto_inscription_autopickup[i] ? 'a' : (auto_inscription_autodestroy[i] ? 'A' : '-')));
+		fprintf(fp, "%c,", auto_inscription_subinven[i] ? 'b' : '-'); //ENABLE_SUBINVEN
+		fprintf(fp, "%c\n", auto_inscription_disabled[i] ? 'X' : '-');
 	}
 
 	fclose(fp);
@@ -2423,12 +2426,25 @@ void save_auto_inscriptions(cptr name) {
 	c_msg_format("Auto-inscriptions saved to file '%s'.", file_name);
 }
 
+static char *ai_fgets(char *buf, int len, FILE *fp) {
+	char tmp[MAX_CHARS_WIDE];
+
+	while (TRUE) {
+		if (fgets(tmp, MAX_CHARS_WIDE, fp) == NULL) return(NULL);
+		/* allow comments: Ignore all lines starting on '###' */
+		if (tmp[0] == '#' && tmp[1] == '#' && tmp[2] == '#') continue;
+		break;
+	}
+	strncpy(buf, tmp, AUTOINS_MATCH_LEN + 2);
+	return(buf);
+}
+
 /* Load Auto-Inscription file (*.ins) - C. Blue */
 void load_auto_inscriptions(cptr name) {
 	FILE *fp;
 	char buf[1024], *bufptr, dummy[1024], *rptr;
 	char file_name[256], vtag[7];
-	int i, c, j, c_eff, version, vmaj, vmin, vpatch;
+	int i, c, j, c_eff, version, vmaj, vmin, vpatch, tmp;
 	bool replaced, force;
 #ifdef REGEX_SEARCH
 	int ires = -999;
@@ -2458,12 +2474,15 @@ void load_auto_inscriptions(cptr name) {
 	}
 
 	/* load header (1 line) */
-	if (fgets(buf, 80, fp) == NULL) {
+	if (ai_fgets(buf, 80, fp) == NULL) {
 		fclose(fp);
 		return;
 	}
+
 	/* extract version */
-	sscanf(buf, "Auto-Inscriptions file for TomeNET v%d.%d.%d%s\n", &vmaj, &vmin, &vpatch, vtag);
+	i = sscanf(buf, "Auto-Inscriptions file for TomeNET v%d.%d.%d%s\n", &vmaj, &vmin, &vpatch, vtag);
+	if (i < 4) vtag[0] = 0;
+
 	if (vmaj < 4 || /* at most 4.7.1a */
 	    (vmaj == 4 && (vmin < 7 ||
 	    (vmin == 7 && (vpatch < 1 ||
@@ -2472,13 +2491,15 @@ void load_auto_inscriptions(cptr name) {
 	else if (vmaj == 4 && vmin == 7 && vpatch < 4) /* older than 4.7.4 */
 		version = 2;
 	else if (vmaj == 4 && (vmin < 9 ||
-	    (vmin == 9 && (vpatch < 1 || (vpatch == 1 && (!vtag[0] || vtag[0] == '-')))))) // '-Test' client tag
+	    (vmin == 9 && (vpatch < 1 || (vpatch == 1 && (!vtag[0] || vtag[0] == '-')))))) // '-Test' client tag; at most 4.9.1-test
 		version = 3;
-	else
+	else if (vmaj == 4 && vmin == 9 && (vpatch < 3 || (vpatch == 3 && !vtag[0]))) /* at most 4.9.3 */
 		version = 4;
+	else //starting at 4.9.3a/test
+		version = 5;
 
 #ifdef TEST_CLIENT
-	//c_msg_format("Read a v%d.%d.%d%s .ins file, version %d.", vmaj, vmin, vpatch, vtag, version);
+	//c_msg_format("Read a v%d.%d.%d <%s><%c%c> .ins file, version %d.", vmaj, vmin, vpatch, vtag, vtag[0], vtag[1], version);
 #endif
 
 	/* attempt to merge current auto-inscriptions, and give priority to those we want to load here */
@@ -2490,11 +2511,11 @@ void load_auto_inscriptions(cptr name) {
 		force = FALSE;
 
 		/* try to read a match */
-		if (fgets(buf, AUTOINS_MATCH_LEN + 2, fp) == NULL) break;
-		if (!strchr(buf, 10)) rptr = fgets(dummy, 1024, fp); /* read and discard overflow */
+		if (ai_fgets(buf, AUTOINS_MATCH_LEN + 2, fp) == NULL) break;
+		if (!strchr(buf, 10)) rptr = ai_fgets(dummy, 1024, fp); /* read and discard overflow */
 		if (buf[0]) buf[strlen(buf) - 1] = 0;
 		bufptr = buf;
-		if (*bufptr == '!') {
+		if (*bufptr == '!' && version < 5) {
 			force = TRUE;
 			bufptr++;
 		}
@@ -2503,18 +2524,27 @@ void load_auto_inscriptions(cptr name) {
 		/* skip empty matches */
 		if (*bufptr == 0) {
 			/* try to read according tag */
-			if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
-			if (!strchr(buf, 10)) rptr = fgets(dummy, 1024, fp); /* read and discard overflow */
+			if (ai_fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
+			if (!strchr(buf, 10)) rptr = ai_fgets(dummy, 1024, fp); /* read and discard overflow */
 			if (buf[0]) buf[strlen(buf) - 1] = 0;
-			/* try to read automation flags */
-			if (version >= 3) {
-				if (fgets(buf, 5, fp) == NULL) break;
-				if (fgets(buf, 5, fp) == NULL) 	break;
-			}
-			/* try to read 'bags-only' and 'disabled' flags */
-			if (version >= 4) {
-				if (fgets(buf, 5, fp) == NULL) break;
-				if (fgets(buf, 5, fp) == NULL) 	break;
+			if (version < 5) {
+				/* try to read automation flags */
+				if (version >= 3) {
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+				}
+				/* try to read 'bags-only' and 'disabled' flags */
+				if (version >= 4) {
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+				}
+			} else {
+				char aif, aiidp, ais, aid;
+				int res;
+
+				if (ai_fgets(buf, MAX_CHARS, fp) == NULL) break;
+				res = sscanf(buf, "  %c,%c,%c,%c\n", &aif, &aiidp, &ais, &aid);
+				if (res != 4) break;
 			}
 			continue;
 		}
@@ -2532,26 +2562,53 @@ void load_auto_inscriptions(cptr name) {
 			if (strcmp(bufptr, auto_inscription_match[j])) continue;
 
 			/* try to read according tag */
-			if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
-			if (!strchr(buf, 10)) rptr = fgets(dummy, 1024, fp); /* read and discard overflow */
+			if (ai_fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
+			if (!strchr(buf, 10)) rptr = ai_fgets(dummy, 1024, fp); /* read and discard overflow */
 			if (buf[0]) buf[strlen(buf) - 1] = 0;
 			strcpy(auto_inscription_tag[j], buf);
 			auto_inscription_force[j] = force;
 
-			/* try to read automation flags */
-			if (version >= 3) {
-				if (fgets(buf, 5, fp) == NULL) break;
-				auto_inscription_autopickup[j] = atoi(buf);
-				if (fgets(buf, 5, fp) == NULL) break;
-				auto_inscription_autodestroy[j] = atoi(buf);
-			}
+			if (version < 5) {
+				auto_inscription_ignore[j] = FALSE;
 
-			/* try to read 'bags-only' and 'disabled' flags */
-			if (version >= 4) {
-				if (fgets(buf, 5, fp) == NULL) break;
-				auto_inscription_subinven[j] = atoi(buf);
-				if (fgets(buf, 5, fp) == NULL) break;
-				auto_inscription_disabled[j] = atoi(buf);
+				/* try to read automation flags */
+				if (version >= 3) {
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					tmp = atoi(buf);
+					if (tmp >= 2) {
+						auto_inscription_ignore[j] = TRUE;
+						tmp -= 2;
+					}
+					auto_inscription_autopickup[j] = tmp;
+
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					auto_inscription_autodestroy[j] = atoi(buf);
+				}
+
+				/* try to read 'bags-only' and 'disabled' flags */
+				if (version >= 4) {
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					auto_inscription_subinven[j] = atoi(buf);
+					if (ai_fgets(buf, 5, fp) == NULL) break;
+					auto_inscription_disabled[j] = atoi(buf);
+				}
+			} else {
+				char aif, aiidp, ais, aid;
+				int res;
+
+				if (ai_fgets(buf, MAX_CHARS, fp) == NULL) break;
+				res = sscanf(buf, "  %c,%c,%c,%c\n", &aif, &aiidp, &ais, &aid);
+				if (res != 4) break;
+
+				auto_inscription_force[j] = force = (aif == 'F');
+				auto_inscription_ignore[j] = auto_inscription_autopickup[j] = auto_inscription_autodestroy[j] = FALSE;
+				switch (aiidp) {
+				case 'i': auto_inscription_ignore[j] = TRUE; break;
+				case 'a': auto_inscription_autopickup[j] = TRUE; break;
+				case 'A': auto_inscription_autodestroy[j] = TRUE; break;
+				}
+				auto_inscription_subinven[j] = (ais == 'b');
+				auto_inscription_disabled[j] = (aid == 'X');
 			}
 
 			replaced = TRUE;
@@ -2592,25 +2649,52 @@ void load_auto_inscriptions(cptr name) {
 #endif
 
 		/* try to read according tag */
-		if (fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
-		if (!strchr(buf, 10)) rptr = fgets(dummy, 1024, fp); /* read and discard overflow */
+		if (ai_fgets(buf, AUTOINS_TAG_LEN + 1, fp) == NULL) break;
+		if (!strchr(buf, 10)) rptr = ai_fgets(dummy, 1024, fp); /* read and discard overflow */
 		if (buf[0]) buf[strlen(buf) - 1] = 0;
 		strcpy(auto_inscription_tag[c_eff], buf);
 
-		/* try to read automation flags */
-		if (version >= 3) {
-			if (fgets(buf, 5, fp) == NULL) break;
-			auto_inscription_autopickup[c_eff] = atoi(buf);
-			if (fgets(buf, 5, fp) == NULL) break;
-			auto_inscription_autodestroy[c_eff] = atoi(buf);
-		}
+		if (version < 5) {
+			auto_inscription_ignore[c_eff] = FALSE;
 
-		/* try to read 'bags-only' and 'disabled' flags */
-		if (version >= 4) {
-			if (fgets(buf, 5, fp) == NULL) break;
-			auto_inscription_subinven[c_eff] = atoi(buf);
-			if (fgets(buf, 5, fp) == NULL) break;
-			auto_inscription_disabled[c_eff] = atoi(buf);
+			/* try to read automation flags */
+			if (version >= 3) {
+				if (ai_fgets(buf, 5, fp) == NULL) break;
+				tmp = atoi(buf);
+				if (tmp >= 2) {
+					auto_inscription_ignore[c_eff] = TRUE;
+					tmp -= 2;
+				}
+				auto_inscription_autopickup[c_eff] = tmp;
+
+				if (ai_fgets(buf, 5, fp) == NULL) break;
+				auto_inscription_autodestroy[c_eff] = atoi(buf);
+			}
+
+			/* try to read 'bags-only' and 'disabled' flags */
+			if (version >= 4) {
+				if (ai_fgets(buf, 5, fp) == NULL) break;
+				auto_inscription_subinven[c_eff] = atoi(buf);
+				if (ai_fgets(buf, 5, fp) == NULL) break;
+				auto_inscription_disabled[c_eff] = atoi(buf);
+			}
+		} else {
+			char aif, aiidp, ais, aid;
+			int res;
+
+			if (ai_fgets(buf, MAX_CHARS, fp) == NULL) break;
+			res = sscanf(buf, "  %c,%c,%c,%c\n", &aif, &aiidp, &ais, &aid);
+			if (res != 4) break;
+
+			auto_inscription_force[c_eff] = (aif == 'F');
+			auto_inscription_ignore[c_eff] = auto_inscription_autopickup[c_eff] = auto_inscription_autodestroy[c_eff] = FALSE;
+			switch (aiidp) {
+			case 'i': auto_inscription_ignore[c_eff] = TRUE; break;
+			case 'a': auto_inscription_autopickup[c_eff] = TRUE; break;
+			case 'A': auto_inscription_autodestroy[c_eff] = TRUE; break;
+			}
+			auto_inscription_subinven[c_eff] = (ais == 'b');
+			auto_inscription_disabled[c_eff] = (aid == 'X');
 		}
 
 		if (c >= 0) c++;
@@ -2630,8 +2714,11 @@ void load_auto_inscriptions(cptr name) {
 	case 3:
 		c_message_add("Old auto-inscriptions updated to support bags-only/disabled flags."); //welllll, not exactly :-s
 		/* fall through */
+	case 4:
+		c_message_add("Old auto-inscriptions updated to new file format."); //welllll, not exactly :-s
+		/* fall through */
 
-		/* Always re-save the converted inscriptions */
+		/* Always re-save the converted inscriptions to update them to the latest version */
 		save_auto_inscriptions(name);
 	}
 }

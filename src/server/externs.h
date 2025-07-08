@@ -453,7 +453,7 @@ extern bool (*ang_sort_extra2_comp)(int Ind, vptr i, vptr j, vptr k, vptr m, int
 extern void (*ang_sort_extra2_swap)(int Ind, vptr i, vptr j, vptr k, vptr m, int a, int b);
 extern bool (*get_mon_num_hook)(int r_idx);
 extern bool (*get_mon_num2_hook)(int r_idx);
-extern int (*get_obj_num_hook)(int k_idx, u32b resf);
+extern int (*get_obj_num_hook)(int k_idx, u64b resf);
 extern bool (*master_move_hook)(int Ind, char * parms);
 
 extern int artifact_bias;
@@ -510,8 +510,7 @@ extern spell_type *school_spells;
 extern s16b max_schools;
 extern school_type *schools;
 
-extern int project_interval;
-extern int project_time;
+extern int project_interval, project_time;
 extern s32b project_time_effect;
 extern effect_type effects[MAX_EFFECTS];
 
@@ -524,6 +523,7 @@ extern char audio_sfx[SOUND_MAX_2010][30];
 #endif
 
 extern int mon_hit_proj_id, mon_hit_proj_id2;
+extern bool proj_dam_uncapped;
 
 /* variable.c ends here */
 
@@ -624,7 +624,7 @@ extern void forget_view(int Ind);
 extern void update_view(int Ind);
 extern void forget_flow(void);
 extern void update_flow(void);
-extern void map_area(int Ind);
+extern void map_area(int Ind, bool full);
 extern void mind_map_level(int Ind, int pow);
 extern void wiz_lite(int Ind);
 extern void wiz_lite_extra(int Ind);
@@ -699,9 +699,10 @@ extern void py_bash(int Ind, int y, int x);
 extern void py_bash_mon(int Ind, int y, int x);
 extern void py_bash_py(int Ind, int y, int x);
 #ifdef ENABLE_SUBINVEN
-extern s16b auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_one, bool store_bought, bool quiet);
+extern s16b auto_stow(int Ind, int sub_sval, object_type *o_ptr, int o_idx, bool pick_one, bool store_bought, bool quiet, u32b cave_info);
 #endif
 extern int search_chance(player_type *p_ptr);
+extern void handle_pickup_item(int Ind, object_type *o_ptr, u32b cave_info);
 
 /* cmd2.c */
 extern cptr get_house_owner(struct c_special *cs_ptr);
@@ -747,6 +748,7 @@ extern void break_shadow_running(int Ind);
 extern void stop_cloaking(int Ind);
 extern void stop_precision(int Ind);
 extern void stop_shooting_till_kill(int Ind);
+extern void bandage_fails(int Ind);
 extern void do_cmd_fusion(int Ind);
 
 
@@ -776,7 +778,7 @@ extern bool item_tester_hook_wear(int Ind, int slot);
 extern void power_inscribe(object_type *o_ptr, bool redux, char *powins);
 extern bool check_power_inscribe(int Ind, object_type *o_ptr, char *o_name, cptr inscription);
 #ifdef ENABLE_SUBINVEN
-extern s16b subinven_stow_aux(int Ind, object_type *i_ptr, int sslot, bool quiet);
+extern s16b subinven_stow_aux(int Ind, object_type *i_ptr, int sslot, bool quiet, bool pick_all);
 extern bool subinven_can_stack(int Ind, object_type *i_ptr, int sslot, bool store_bought);
 extern void do_cmd_subinven_move(int Ind, int islot, int amt_spec);
 extern s16b subinven_move_aux(int Ind, int islot, int sslot, int amt, bool quiet);
@@ -868,6 +870,7 @@ extern char random_colour(void);
 extern void do_cmd_drink_fountain(int Ind);
 extern void do_cmd_fill_bottle(int Ind, int force_slot);
 extern void do_cmd_empty_potion(int Ind, int slot);
+extern void do_cmd_rip_cloth(int Ind, int slot);
 extern void do_cmd_fletchery(int Ind);
 extern void do_cmd_stance(int Ind, int stance);
 extern void do_cmd_melee_technique(int Ind, int technique);
@@ -1138,7 +1141,7 @@ extern void curse_equipment(int Ind, int chance, int heavy_chance);
 extern void process_npcs(void);
 extern bool mon_allowed_pickup(int tval);
 extern int world_check_antimagic(int Ind);
-extern void ball(int Ind, int m_idx, int typ, int dam_hp, int y, int x, int rad);
+extern void ball_noInd(int m_idx, int typ, int dam_hp, struct worldpos *wpos, int y, int x, int rad);
 extern void mon_meteor_swarm(int Ind, int m_idx, int typ, int dam, int x, int y, int rad);
 extern int calc_grab_chance(player_type *p_ptr, int mod, int rlev);
 
@@ -1161,6 +1164,7 @@ extern void compact_monsters(int size, bool purge);
 extern s16b m_pop(void);
 extern int restrict_monster_to_dungeon(int r_idx, int dun_type);
 extern errr get_mon_num_prep(int dun_type, char *reject_monsters);
+extern errr get_mon_num_prep_wild(int town_distance, char *reject_monsters);
 extern s16b get_mon_num(int level, int dlevel);
 extern void set_mon_num2_hook(int feat);
 extern void set_mon_num_hook(struct worldpos *wpos);
@@ -1463,30 +1467,30 @@ extern byte get_book_name_color(object_type *o_ptr);
 extern void show_equip(void);
 extern void toggle_inven_equip(void);
 extern bool get_item(int Ind, int *cp, cptr pmt, bool equip, bool inven, bool floor);*/
-extern void delete_object_idx(int i, bool unfound_art);
-extern void delete_object(struct worldpos *wpos, int y, int x, bool unfound_art);
+extern void delete_object_idx(int i, bool unfound_art, bool log);
+extern void delete_object(struct worldpos *wpos, int y, int x, bool unfound_art, bool log);
 extern void wipe_o_list(struct worldpos *wpos);
 extern void wipe_o_list_safely(struct worldpos *wpos);
 extern void wipe_o_list_special(struct worldpos *wpos);
 extern void wipe_o_list_nonarts(struct worldpos *wpos);
-extern void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u32b resf);
-extern void apply_magic_depth(int Depth, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u32b resf);
+extern void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
+extern void apply_magic_depth(int Depth, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
 extern void determine_level_req(int level, object_type *o_ptr);
 extern void verify_level_req(object_type *o_ptr);
-extern void place_object(int Ind, struct worldpos *wpos, int y, int x, bool good, bool great, bool verygreat, u32b resf, obj_theme theme, int luck, byte removal_marker, bool preown);
-extern void generate_object(int Ind, object_type *o_ptr, struct worldpos *wpos, bool good, bool great, bool verygreat, u32b resf, obj_theme theme, int luck);
-extern void acquirement(int Ind, struct worldpos *wpos, int y1, int x1, int num, bool great, bool verygreat, u32b resf);
-extern void acquirement_direct(int Ind, object_type *o_ptr, struct worldpos *wpos, bool great, bool verygreat, u32b resf);
-extern void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool great, bool verygreat, u32b resf, long int treshold);
-extern void give_reward(int Ind, u32b resf, cptr quark, int level, int discount);
+extern void place_object(int Ind, struct worldpos *wpos, int y, int x, bool good, bool great, bool verygreat, u64b resf, obj_theme theme, int luck, byte removal_marker, bool preown);
+extern void generate_object(int Ind, object_type *o_ptr, struct worldpos *wpos, bool good, bool great, bool verygreat, u64b resf, obj_theme theme, int luck);
+extern void acquirement(int Ind, struct worldpos *wpos, int y1, int x1, int num, bool great, bool verygreat, u64b resf);
+extern void acquirement_direct(int Ind, object_type *o_ptr, struct worldpos *wpos, bool great, bool verygreat, u64b resf);
+extern void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool great, bool verygreat, u64b resf, long int treshold);
+extern void give_reward(int Ind, u64b resf, cptr quark, int level, int discount);
 extern void place_gold(int Ind, struct worldpos *wpos, int y, int x, int mult, int bonus);
 extern int drop_near(bool handle_d, int Ind, object_type *o_ptr, int chance, struct worldpos *wpos, int y, int x);
 extern void trap_found(struct worldpos *wpos, int y, int x);
 extern void compact_objects(int size, bool purge);
 extern int o_pop(void);
-extern errr get_obj_num_prep(u32b resf);
-extern errr get_obj_num_prep_tval(int tval, u32b resf); /* was written for create_reward(..) */
-extern s16b get_obj_num(int max_level, u32b resf);
+extern errr get_obj_num_prep(u64b resf);
+extern errr get_obj_num_prep_tval(int tval, u64b resf); /* was written for create_reward(..) */
+extern s16b get_obj_num(int max_level, u64b resf);
 extern void object_known(object_type *o_ptr);
 extern bool object_aware(int Ind, object_type *o_ptr);
 extern void object_tried(int Ind, object_type *o_ptr, bool flipped);
@@ -1510,11 +1514,11 @@ extern s32b artifact_flag_cost(object_type *o_ptr, int plusses);
 extern void eliminate_common_ego_flags(object_type *o_ptr, u32b *f1, u32b *f2, u32b *f3, u32b *f4, u32b *f5, u32b *f6, u32b *esp);
 
 extern void excise_object_idx(int o_idx);
-extern int kind_is_legal(int k_idx, u32b resf);
+extern int kind_is_legal(int k_idx, u64b resf);
 extern void init_match_theme(obj_theme theme);
 
 extern void kill_objs(int id);
-extern u32b place_object_restrictor;
+extern u64b place_object_restrictor;
 
 extern void handle_art_d(int aidx);
 extern void handle_art_dnum(int aidx);
@@ -1526,7 +1530,7 @@ extern void handle_art_inumpara(int aidx);
 extern byte get_attr_from_tval(object_type *o_ptr);
 extern byte anti_undead(object_type *o_ptr, player_type *p_ptr);
 extern byte anti_demon(object_type *o_ptr, player_type *p_ptr);
-extern u32b make_resf(player_type *p_ptr);
+extern u64b make_resf(player_type *p_ptr);
 
 extern void inven_index_slide(int Ind, s16b begin, s16b mod, s16b end);
 extern void inven_index_move(int Ind, s16b slot, s16b new_slot);
@@ -1603,7 +1607,7 @@ extern void guild_msg_format(int guild_id, cptr fmt, ...) __attribute__ ((format
 extern void guild_msg_format_ignoring(int sender, int guild_id, cptr fmt, ...) __attribute__ ((format (printf, 3, 4)));
 extern void floor_msg_format(int Ind, struct worldpos *wpos, cptr fmt, ...) __attribute__ ((format (printf, 3, 4)));
 extern void world_surface_msg(cptr msg);
-extern void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int henc, int henc_top);
+extern void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int henc, int henc_top, int *apply_exp_Ind);
 extern int guild_create(int Ind, cptr name);
 extern int guild_add(int adder, cptr name);
 extern int guild_add_self(int Ind, cptr guild);
@@ -1775,6 +1779,8 @@ extern void teleport_to_player(int Ind, int m_idx);
 
 extern bool hates_fire(object_type *o_ptr);
 extern bool hates_water(object_type *o_ptr);
+extern bool hates_shards(object_type *o_ptr);
+extern bool ignores_shards(object_type *o_ptr);
 
 extern int safe_area(int Ind);
 extern int approx_damage(int m_idx, int dam, int typ);
@@ -1941,6 +1947,7 @@ extern void arm_charge(int Ind, int item, int dir);
 extern bool arm_charge_conditions(int Ind, object_type *o_ptr, bool thrown);
 extern void arm_charge_dir_and_fuse(object_type *o_ptr, int dir);
 extern void detonate_charge(int o_idx);
+extern void detonate_charge_obj(object_type *o_ptr, struct worldpos *wpos, int x, int y);
 #endif
 extern void wrap_gift(int Ind, int item);
 extern void unwrap_gift(int Ind, int item);
@@ -2292,6 +2299,9 @@ extern void set_dungeon_bonus(int id, bool reset);
 #endif
 
 extern void intshuffle(int *array, int size);
+#if defined(TROLL_REGENERATION) || defined(HYDRA_REGENERATION)
+extern int troll_hydra_regen(player_type *p_ptr);
+#endif
 
 /* xtra2.c */
 extern bool set_tim_reflect(int Ind, int v);
@@ -2353,7 +2363,7 @@ extern bool set_oppose_cold(int Ind, int v);
 extern bool set_oppose_pois(int Ind, int v);
 extern bool set_stun(int Ind, int v);
 extern bool set_stun_raw(int Ind, int v);
-extern bool set_cut(int Ind, int v, int attacker);
+extern bool set_cut(int Ind, int v, int attacker, bool quiet);
 extern bool set_mindboost(int Ind, int p, int v);
 extern bool set_kinetic_shield(int Ind, int v);
 extern bool set_savingthrow(int Ind, int v);
@@ -2371,6 +2381,8 @@ extern bool set_recall_timer(int Ind, int v);
 extern bool set_recall(int Ind, int v, object_type * o_ptr);
 extern void check_experience(int Ind);
 extern void gain_exp(int Ind, s64b amount);
+extern void gain_exp_onhold(int Ind, s64b amount);
+extern void apply_exp(int Ind);
 extern void lose_exp(int Ind, s32b amount);
 extern void gain_exp_to_level(int Ind, int level);
 extern bool mon_take_hit_mon(int am_idx, int m_idx, int dam, bool *fear, cptr note);
@@ -2638,6 +2650,7 @@ extern void lua_forget_map(int Ind);
 extern void lua_forget_parties(void);
 extern void lua_forget_guilds(void);
 extern void lua_fix_acc_house_limit(int Ind);
+extern object_type lua_get_subinven_item(int Ind, int inven, int subinven);
 
 #ifdef ENABLE_GO_GAME
 /* go.c - C. Blue */

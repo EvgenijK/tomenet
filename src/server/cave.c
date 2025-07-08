@@ -586,7 +586,7 @@ void new_players_on_depth(struct worldpos *wpos, int value, bool inc) {
 					object_desc(0, o_name, o_ptr, FALSE, 0);
 					s_printf("WILD_ART: %s of %s erased at (%d, %d, %d)\n",
 					    o_name, lookup_player_name(o_ptr->owner), o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->wpos.wz);
-					delete_object_idx(i, TRUE);
+					delete_object_idx(i, TRUE, TRUE);
 				}
 			}
 		}
@@ -1033,7 +1033,7 @@ void FreeCS(cave_type *c_ptr) {
 				/* Don't go recursive, because delete_object_idx() actually calls erase_mon_trap()! */
 				o_ptr->embed = 0;
 				/* Delete the object */
-				delete_object_idx(this_o_idx, TRUE);
+				delete_object_idx(this_o_idx, TRUE, TRUE);
 			}
 		} else if (trav->type == CS_INSCRIP) {
 			if (trav->sc.ptr) {
@@ -3734,8 +3734,9 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 			if (a != 127) {
 				(*ap) = a;
  #ifdef GRAPHICS_BG_MASK
-				/* Update the background terrain colour */
-				*ap_back = a;
+				/* Update the background terrain colour, but only if it is a damaging effect!
+				   Reason: Vanity effects are usually meant to be foreground 'objects', eg rain drops, snow flakes, fireworks. */
+				if (!(effects[c_ptr->effect].flags & EFF_DUMMY)) *ap_back = a;
  #endif
 			}
 #endif
@@ -4087,7 +4088,7 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 	/* Special 'dummy' effects that are purely for adding unusual visuals */
 	if (!c_ptr->effect) return;
 
-	/* display blue raindrops */
+	/* display blue raindrops -- deprecated as weather was moved to clientside */
 	if ((effects[c_ptr->effect].flags & EFF_RAINING)) {
 		(*ap) = TERM_BLUE;
 		if (wind_gust > 0) (*cp) = '/';
@@ -4095,11 +4096,13 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 		else (*cp) = '|';
 	}
 	/* for WINTER_SEASON */
-	/* display white snowflakes */
+	/* display white snowflakes -- deprecated as weather was moved to clientside */
 	if ((effects[c_ptr->effect].flags & EFF_SNOWING)) {
 		(*ap) = TERM_WHITE;
 		(*cp) = '*'; /* a little bit large maybe, but '.' won't be noticed on the other hand? */
 	}
+	//Note: No sandgrains, as weather was already moved to clientside before sandstorms were added
+
 	/* for NEW_YEARS_EVE */
 	/* display fireworks */
 	if ((effects[c_ptr->effect].flags & (EFF_FIREWORKS1 | EFF_FIREWORKS2 | EFF_FIREWORKS3))) {
@@ -4117,7 +4120,41 @@ void map_info(int Ind, int y, int x, byte *ap, char32_t *cp, bool palanim) {
 		case GF_FW_SHDM: (*ap) = TERM_SHIELDM; break;
 		case GF_FW_MULT: (*ap) = TERM_MULTI; break;
 		}
-		(*cp) = '*'; /* a little bit large maybe, but '.' won't be noticed on the other hand? */
+		if (effects[c_ptr->effect].cflags == 1) {
+			//launching
+			if (p_ptr->ascii_items) (*cp) = '|';
+			else switch ((turn / (cfg.fps / 5)) % 4) {
+			case 0:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LT1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LT2)];
+				break;
+			case 1:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LW1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LW2)];
+				break;
+			case 2:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LY1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LY2)];
+				break;
+			case 3:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LB1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_LB2)];
+				break;
+			}
+		} else {
+			//exploding
+			if (p_ptr->ascii_items) (*cp) = '*';
+			else switch ((turn / (cfg.fps / 5)) % 4) {
+			case 0:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_ET1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_ET2)];
+				break;
+			case 1:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EW1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EW2)];
+				break;
+			case 2:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EY1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EY2)];
+				break;
+			case 3:
+				(*cp) = p_ptr->k_char[((turn / (cfg.fps / 10)) % 2) ? lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EB1) : lookup_kind(TV_PSEUDO_OBJ, SV_PO_FIREWORKS_EB2)];
+				break;
+			}
+		}
 	}
 	/* for Nether Realm finishing */
 	if ((effects[c_ptr->effect].flags & (EFF_LIGHTNING1 | EFF_LIGHTNING2 | EFF_LIGHTNING3))) {
@@ -7952,7 +7989,7 @@ void update_flow(void) {
 /*
  * Hack -- map the current panel (plus some) ala "magic mapping"
  */
-void map_area(int Ind) {
+void map_area(int Ind, bool full) {
 	player_type *p_ptr = Players[Ind];
 	int i, x, y, y1, y2, x1, x2;
 
@@ -7972,17 +8009,24 @@ void map_area(int Ind) {
 	if (l_ptr && (l_ptr->flags1 & LF1_NO_MAGIC_MAP)) return;
 	if (in_sector000(wpos) && (sector000flags1 & LF1_NO_MAGIC_MAP)) return;
 
-	/* Pick an area to map */
-	y1 = TRADPANEL_ROW_MIN - randint(10);
-	y2 = TRADPANEL_ROW_MAX + randint(10);
-	x1 = TRADPANEL_COL_MIN - randint(20);
-	x2 = TRADPANEL_COL_MAX + randint(20);
+	if (full) {
+		y1 = 1;
+		y2 = p_ptr->cur_hgt - 2;
+		x1 = 1;
+		x2 = p_ptr->cur_wid - 2;
+	} else {
+		/* Pick an area to map */
+		y1 = TRADPANEL_ROW_MIN - randint(10);
+		y2 = TRADPANEL_ROW_MAX + randint(10);
+		x1 = TRADPANEL_COL_MIN - randint(20);
+		x2 = TRADPANEL_COL_MAX + randint(20);
 
-	/* Speed -- shrink to fit legal bounds */
-	if (y1 < 1) y1 = 1;
-	if (y2 > p_ptr->cur_hgt - 2) y2 = p_ptr->cur_hgt - 2;
-	if (x1 < 1) x1 = 1;
-	if (x2 > p_ptr->cur_wid - 2) x2 = p_ptr->cur_wid - 2;
+		/* Speed -- shrink to fit legal bounds */
+		if (y1 < 1) y1 = 1;
+		if (y2 > p_ptr->cur_hgt - 2) y2 = p_ptr->cur_hgt - 2;
+		if (x1 < 1) x1 = 1;
+		if (x2 > p_ptr->cur_wid - 2) x2 = p_ptr->cur_wid - 2;
+	}
 
 	/* Scan that area */
 	for (y = y1; y <= y2; y++) {
@@ -8228,9 +8272,15 @@ void wiz_lite(int Ind) {
 	struct worldpos *wpos = &p_ptr->wpos;
 	cave_type **zcave;
 
-	/* don't ruin the mood ^^ */
-	bool mood = (wpos->wz == 0 && (season_halloween || season_newyearseve));
+	//bool mood = (wpos->wz == 0 && (season_halloween || season_newyearseve));
 
+
+	/* don't ruin the mood ^^ */
+	// ...fall back to normal magic mapping, but for the whole town/sector, during mood-events */
+	if (wpos->wz == 0 && (season_halloween || season_newyearseve)) {
+		map_area(Ind, TRUE);
+		return;
+	}
 
 	if (!(zcave = getcave(wpos))) return;
 
@@ -8248,7 +8298,7 @@ void wiz_lite(int Ind) {
 			if (c_ptr->info2 & CAVE2_SCRT) continue;
 
 			/* No disturbance of nightly town/surface events */
-			if (mood && !(c_ptr->info & CAVE_ICKY)) continue;
+			//if (mood && !(c_ptr->info & CAVE_ICKY)) continue;
 
 			/* Memorize all objects */
 			if (c_ptr->o_idx) {
@@ -8269,7 +8319,7 @@ void wiz_lite(int Ind) {
 
 				/* Get the grid */
 				c_ptr = &zcave[yy][xx];
-				if (mood && !(c_ptr->info & CAVE_ICKY)) continue; //if this were commented out, house walls would be *bright*
+				//if (mood && !(c_ptr->info & CAVE_ICKY)) continue; //if this were commented out, house walls would be *bright*
 
 				/* Perma-lite the grid */
 				c_ptr->info |= (CAVE_GLOW);
@@ -8650,8 +8700,10 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 	    (feat_is_lava(c_ptr->feat) || feat_is_acute_fire(c_ptr->feat)))
 		feat = FEAT_DEAD_TREE;
 
+#if 0 /* actually disable this, as there's no place were inns would get accidentally messed up, and this inhibits admin-building capabilities */
 	/* Don't mess with inns please! */
 	if (f_info[c_ptr->feat].flags1 & FF1_PROTECTED) return(3);
+#endif
 
 	/* in Nether Realm, floor is always nether mist (or lava)! */
 	if (in_netherrealm(wpos)) switch (feat) {
@@ -8823,7 +8875,7 @@ bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat) {
  * by players and monsters. More specific restrictions can be placed here.
  * NOTE: We assume, that allow_terraforming() has already been checked before
  *       cave_set_feat_live() is actually called.
- * Returns 0 on success.
+ * Returns TRUE on success, FALSE on failure.
  */
 bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat) {
 	player_type *p_ptr;
@@ -9743,6 +9795,7 @@ int new_effect(int who, int type, int dam, int time, int interval, worldpos *wpo
 	effects[i].whot = 0;
 	effects[i].cx = cx;
 	effects[i].cy = cy;
+	effects[i].cflags = 0;
 
 	if (who_id) {
 		effects[i].caster_x = p_ptr->px;
@@ -9765,9 +9818,6 @@ int new_effect(int who, int type, int dam, int time, int interval, worldpos *wpo
 			effects[i].ty = p_ptr->py;
 			effects[i].tx = p_ptr->px;
 		}
-	}
-	else if (project_time_effect & EFF_METEOR) {
-		effects[i].whot = PROJECTOR_UNUSUAL; //could be replaced by m_idx for better kill msg
 	}
 
 	effects[i].rad = rad;

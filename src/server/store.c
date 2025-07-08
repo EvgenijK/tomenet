@@ -283,7 +283,8 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 	ot_ptr = &ow_info[st_ptr->owner];
 
 #ifdef IDDC_DED_DISCOUNT
-	if ((p_ptr->mode & MODE_DED_IDDC) && in_bree(&p_ptr->wpos) && !p_ptr->iron_winner_ded && !flip) {
+	/* Must be restricted to world surface, as you could sell for non-discounted amt again inside the dungeon! */
+	if (!flip && (p_ptr->mode & MODE_DED_IDDC) && !p_ptr->iron_winner_ded && in_bree(&p_ptr->wpos)) {
 		int dis = o_ptr->discount;
 
 		if (o_ptr->discount < 50) o_ptr->discount = 50;
@@ -327,8 +328,51 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 		/* Mega-Hack -- Black market sucks */
 		if (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) price = (price + 3) / 4;
 
-		/* Seasoned Tradesman et al don't pay very much either, they know the customers can't disagree.. */
+		/* Seasoned Tradesman et al (DF2_MISC_STORES dungeon stores) don't pay very much either, they know the customers can't disagree.. */
 		if (st_info[st_ptr->st_idx].flags1 & SF1_BUY67) price = (price * 2 + 1) / 3;
+
+#ifdef MANDOS_BUYALL_EATALL
+		/* Shops may buy all, but won't pay as much for non-canonical wares (DF2_MISC_STORES) */
+		else if (in_hallsofmandos(&p_ptr->wpos)) {
+			switch (st_ptr->st_idx) {
+			case STORE_HERBALIST:
+				if (o_ptr->tval == TV_FOOD) break;
+				else if (o_ptr->tval == TV_POTION) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			case STORE_HIDDENLIBRARY:
+				if (o_ptr->tval == TV_BOOK) break;
+				else if (o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_LITE) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			case STORE_STRADER:
+			case STORE_COMMON:
+				if (o_ptr->tval == TV_BOOK || is_magic_device(o_ptr->tval) || o_ptr->tval == TV_MSTAFF) price = (price * 2 + 1) / 3;
+				break;
+			case STORE_SPEC_SCROLL:
+				if (o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_BOOK) break;
+				else if (o_ptr->tval == TV_LITE || o_ptr->tval == TV_POTION || is_magic_device(o_ptr->tval) || o_ptr->tval == TV_MSTAFF) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			case STORE_SPEC_POTION:
+			case STORE_POTION_IDDC:
+				if (o_ptr->tval == TV_POTION) break;
+				else if (o_ptr->tval == TV_SCROLL || o_ptr->tval == TV_BOOK || is_magic_device(o_ptr->tval) || o_ptr->tval == TV_MSTAFF) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			case STORE_SPEC_ARCHER:
+				if (is_ranged_weapon(o_ptr->tval) || is_ammo(o_ptr->tval)) break;
+				else if (is_weapon(o_ptr->tval) || is_armour(o_ptr->tval) || o_ptr->tval == TV_TRAPKIT) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			case STORE_SPEC_CLOSECOMBAT:
+				if (is_melee_weapon(o_ptr->tval) || is_armour(o_ptr->tval)) break;
+				else if (is_weapon(o_ptr->tval) || is_ammo(o_ptr->tval) || o_ptr->tval == TV_TRAPKIT) price = (price * 2 + 1) / 3;
+				else price = (price + 1) / 2;
+				break;
+			}
+		}
+#endif
 
 		/* Seasoned Tradesman et al don't pay very much either, they know the customers can't disagree.. */
 		if (st_info[st_ptr->st_idx].flags1 & SF1_BUY50) price = (price + 1) / 2;
@@ -348,6 +392,46 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 
 		/* Never get "silly" */
 		if (adjust < 100 + STORE_BENEFIT) adjust = 100 + STORE_BENEFIT;
+
+		/* You're not a welcomed customer.. */
+		if (p_ptr->tim_blacklist) price = price * 4;
+
+		/* CHEAPER items: Added for Hidden Library in IDDC */
+		if (st_info[st_ptr->st_idx].flags1 & SF1_SELL67) price = (price * 2 + 1) / 3;
+
+#ifdef IDDC_DED_DISCOUNT
+ #ifdef DED_IDDC_MANDOS
+		/* Don't make shops extra-expensive except for stat potions. */
+		if (in_hallsofmandos(&p_ptr->wpos)
+		    /* Don't skip the pricyness for black markets and for rare footwear/rare jewelry shop */
+		    && !(st_info[st_ptr->st_idx].flags1 & (SF1_ALL_ITEM | SF1_NO_DISCOUNT1))) {
+			switch (o_ptr->tval) {
+			case TV_POTION:
+				switch (o_ptr->sval) {
+				case SV_POTION_INC_STR:
+				case SV_POTION_INC_DEX:
+				case SV_POTION_INC_WIS:
+				case SV_POTION_INC_INT:
+				case SV_POTION_INC_CON:
+				case SV_POTION_INC_CHR:
+				case SV_POTION_AUGMENTATION:
+				case SV_POTION_STAR_ENLIGHTENMENT:
+				case SV_POTION_STAR_HEALING:
+					break;
+				default:
+					price = (price * adjust + 30L) / 100L;
+					if (price <= 0L) return(1L);
+					return(price);
+				}
+				break;
+			default:
+				price = (price * adjust + 30L) / 100L;
+				if (price <= 0L) return(1L);
+				return(price);
+			}
+		}
+ #endif
+#endif
 
 		/* Note: Previously BM, XBM, SBM and Rare Jewelry Store had same prices for speed/poly rings!
 		         Other rings were 2x as expensive in SBM than in BM/XBM/RJS.
@@ -380,12 +464,6 @@ s64b price_item(int Ind, object_type *o_ptr, int greed, bool flip) {
 			if (st_info[st_ptr->st_idx].flags1 & SF1_PRICE2) price /= 2;
 			if (st_info[st_ptr->st_idx].flags1 & SF1_PRICE1) price = (price * 2) / 3;
 		}
-
-		/* CHEAPER items: Added for Hidden Library in IDDC */
-		if (st_info[st_ptr->st_idx].flags1 & SF1_SELL67) price = (price * 2 + 1) / 3;
-
-		/* You're not a welcomed customer.. */
-		if (p_ptr->tim_blacklist) price = price * 4;
 	}
 
 	/* Compute the final price (with rounding) */
@@ -517,8 +595,8 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 			/* note: this check is redundant, because bats actually DO have a torso atm!
 			   funnily, native fruit bat players do NOT have one without this option o_O. */
 			switch (p_ptr->body_monster) {
-			case 37: case 114: case 187: case 235: case 351:
-			case 377: case RI_VAMPIRE_BAT: case 406: case 484: case 968:
+			case RI_FRUIT_BAT: case RI_BROWN_BAT: case RI_TAN_BAT: case RI_MONGBAT: case RI_DRAGON_BAT_BLUE:
+			case RI_DRAGON_BAT_RED: case RI_VAMPIRE_BAT: case RI_DISE_BAT: case RI_DOOMBAT: case RI_BAT_OF_GORGOROTH:
 				body += 3;
 				break;
 			default:
@@ -554,7 +632,7 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 		if (Ind && !object_known_p(Ind, o_ptr)) return(price);
 
 		if (o_ptr->name2) {
-			if (e_info[o_ptr->name2].cost) return(0);
+			if (!e_info[o_ptr->name2].cost) return(0);
 			price += e_info[o_ptr->name2].cost; /* 'Indestructible' ego, pft */
 		}
 		if (o_ptr->pval != 0) price += (((r_val >= r_ptr->level * 100) ? r_val : r_ptr->level * 100) * 10) / (30 + 300 / (r_ptr->level + 5));
@@ -569,7 +647,7 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 		if (!price) return(0);
 
 		if (o_ptr->name2) {
-			if (e_info[o_ptr->name2].cost) return(0);
+			if (!e_info[o_ptr->name2].cost) return(0);
 			price += e_info[o_ptr->name2].cost; /* 'Indestructible' ego, pft */
 		}
 		if (o_ptr->pval != 0) price += (r_val >= r_ptr->level * 100) ? r_val : r_ptr->level * 100;
@@ -590,7 +668,7 @@ u32b price_poly_ring(int Ind, object_type *o_ptr, int shop_type) {
 		if (Ind && !object_known_p(Ind, o_ptr)) return((price * player_store_factor(o_ptr)) / 10);
 
 		if (o_ptr->name2) {
-			if (e_info[o_ptr->name2].cost) return(0);
+			if (!e_info[o_ptr->name2].cost) return(0);
 			price += e_info[o_ptr->name2].cost; /* 'Indestructible' ego, pft */
 		}
 		if (o_ptr->pval != 0) {
@@ -756,7 +834,7 @@ static void mass_produce(object_type *o_ptr, store_type *st_ptr) {
 	o_ptr->discount = discount;
 
 	/* Save the total pile size */
-	o_ptr->number = size - (size * discount / 100);
+	o_ptr->number = size - ((size * discount) / 100);
 }
 
 /*
@@ -954,6 +1032,23 @@ static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 	if (p_ptr->store_num <= -2) return(2);
 #endif
 
+#ifdef MANDOS_BUYALL_EATALL
+	/* DF2_MISC_STORES/basic dungeon shops in Halls of Mandos will buy anything (but not display it) */
+	if (in_hallsofmandos(&p_ptr->wpos)) {
+		switch (p_ptr->store_num) {
+		case STORE_HERBALIST:
+		case STORE_HIDDENLIBRARY:
+		case STORE_COMMON:
+		case STORE_SPEC_SCROLL:
+		case STORE_SPEC_POTION:
+		case STORE_POTION_IDDC:
+		case STORE_SPEC_ARCHER:
+		case STORE_SPEC_CLOSECOMBAT:
+			return(0);
+		}
+	}
+#endif
+
 	/* Hack: The Mathom House */
 	if (st_info[p_ptr->store_num].flags2 & SF2_MUSEUM) {
 		/* Museums won't buy true artifacts, since they'd be
@@ -970,6 +1065,7 @@ static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 	case STORE_GENERAL_DUN:
 		/* Analyze the type */
 		switch (o_ptr->tval) {
+		//case TV_JUNK: if (o_ptr->sval == SV_BANDAGE) break; else return(1);
 		case TV_FOOD:
 		case TV_LITE:
 		case TV_FLASK:
@@ -1054,6 +1150,7 @@ static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 	case STORE_TEMPLE_DUN:
 		/* Analyze the type */
 		switch (o_ptr->tval) {
+		//case TV_JUNK: if (o_ptr->sval == SV_BANDAGE) break; else return(1);
 		case TV_BOOK:
 			if (get_book_name_color(o_ptr) != TERM_GREEN &&
 			    get_book_name_color(o_ptr) != TERM_WHITE) /* unused custom books */
@@ -1064,14 +1161,21 @@ static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 		case TV_BLUNT:
 			break;
 		default:
+			if (is_melee_weapon(o_ptr->tval)) {
+				u32b dummy, f3;
+
+				object_flags(o_ptr, &dummy, &dummy, &f3, &dummy, &dummy, &dummy, &dummy);
+				if (f3 & TR3_BLESSED) break;
+			}
 			return(1);
 		}
 		break;
 
 	/* Alchemist */
+	case STORE_DEEPSUPPLY:
+		//case TV_JUNK: if (o_ptr->sval == SV_BANDAGE) break; else return(1);
 	case STORE_ALCHEMIST:
 	case STORE_ALCHEMIST_DUN:
-	case STORE_DEEPSUPPLY:
 		/* Analyze the type */
 		switch (o_ptr->tval) {
 #ifdef ENABLE_SUBINVEN
@@ -1210,6 +1314,7 @@ static char store_will_buy_aux(int Ind, object_type *o_ptr) {
 	case STORE_BTSUPPLY:
 		/* Analyze the type */
 		switch (o_ptr->tval) {
+		//case TV_JUNK: if (o_ptr->sval == SV_BANDAGE) break; else return(1);
 		case TV_POTION:
 		case TV_POTION2:
 		case TV_SCROLL:
@@ -1454,6 +1559,19 @@ static int store_carry(store_type *st_ptr, object_type *o_ptr) {
 	s64b value, j_value;
 	object_type *j_ptr;
 	s16b o_tv = o_ptr->tval, o_sv = o_ptr->sval, j_tv, j_sv;
+
+	/* Try tracking an odd bug that caused magic shop to have 0 staves of detect invis (30 charges).
+	   NOTE: For player stores this is actually okay. We still log it here too anyway. */
+	if (!o_ptr->number) {
+		char o_name[ONAME_LEN];
+
+		object_desc(0, o_name, o_ptr, TRUE, 3);
+		s_printf("%s store_carry(%d) zero-number bug at (%d,%d,%d%s):\n  %s\n",
+		    showtime(),
+		    st_ptr->st_idx, o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->wpos.wz,
+		    st_ptr->player_owner ? "-pstore" : "",
+		    o_name);
+	}
 
 	if (o_tv == TV_SPECIAL && o_sv == SV_CUSTOM_OBJECT && o_ptr->xtra3 & 0x0200) {
 		o_tv = o_ptr->tval2;
@@ -1865,6 +1983,18 @@ static void store_delete(store_type *st_ptr) {
 	 * are being dropped, it makes for a neater message to leave the original
 	 * stack's pval alone. -LM-
 	 */
+	if (!o_ptr->number) { /* This happened for unknown reason, 02.Jun.2025, causing divide_charged_item() to panic */
+		char o_name[ONAME_LEN];
+
+		object_desc(0, o_name, o_ptr, TRUE, 3);
+		s_printf("%s store_delete(%d) zero-number bug at (%d,%d,%d):\n  %s\n",
+		    showtime(),
+		    st_ptr->st_idx, o_ptr->wpos.wx, o_ptr->wpos.wy, o_ptr->wpos.wz,
+		    o_name);
+
+		store_item_optimize(st_ptr, what);
+		return;
+	} else
 	if (is_magic_device(o_ptr->tval)) //wait what? adding TODO marker here
 		divide_charged_item(NULL, o_ptr, num);
 
@@ -1903,7 +2033,7 @@ static int store_tval = 0, store_level = 0;
  * Hack -- determine if a template is "good"
  * Note: Returns PERMILLE.
  */
-static int kind_is_storeok(int k_idx, u32b resf) {
+static int kind_is_storeok(int k_idx, u64b resf) {
 	object_kind *k_ptr = &k_info[k_idx];
 
 	int p;
@@ -1944,11 +2074,11 @@ static void store_create(store_type *st_ptr) {
 
 	object_type tmp_obj;
 	object_type *o_ptr = &tmp_obj;
-	int force_num = 0;
+	int force_num;
 	object_kind *k_ptr;
 	ego_item_type *e_ptr, *e2_ptr;
 	bool good, great;
-	u32b resf = RESF_STORE;
+	u64b resf = RESF_MASK_STORE;
 	obj_theme theme;
 	bool black_market = (st_info[st_ptr->st_idx].flags1 & SF1_ALL_ITEM) != 0;
 	//bool town_bm = (st_ptr->st_idx == STORE_BLACK);
@@ -1956,42 +2086,42 @@ static void store_create(store_type *st_ptr) {
 	/* Paranoia -- no room left */
 	if (st_ptr->stock_num >= st_ptr->stock_size) return;
 
-	if (black_market) resf = RESF_STOREBM;
+	if (black_market) {
+		resf = RESF_MASK_STOREBM;
+
+#if 1 /* EXPERIMENTAL */
+		/* Basic town BM (which is MEDIUM_LEVEL) ? Ie not expensive/secret one (which are DEEP_LEVEL)? */
+		if (st_info[st_ptr->st_idx].flags1 & SF1_MEDIUM_LEVEL) resf |= RESF_NORMALBM;
+#endif
+	}
 	if ((st_info[st_ptr->st_idx].flags1 & SF1_FLAT_BASE)) resf |= RESF_STOREFLAT;
 
 	/* Hack -- consider up to n items */
-	for (tries = 0; tries < (black_market ? 60 : 4); tries++) /* 20:4, 40:4, 60:4, 100:4 !
-	    for some reason using the higher number instead of 4 for normal stores will result in many times more ego items! ew */
-	    {
-		/* Black Market */
+	for (tries = 0; tries < (black_market ? 60 : 4); tries++) { /* 20:4, 40:4, 60:4, 100:4 !
+		for some reason using the higher number instead of 4 for normal stores will result in many times more ego items! ew */
 
+		force_num = 0;
 		if (black_market) {
-			/* Hack -- Pick an item to sell */
+			/* Hack -- Pick an item from bm-promised items (predefined in st_info) to sell */
 			item = rand_int(st_info[st_ptr->st_idx].table_num);
 			i = st_info[st_ptr->st_idx].table[item][0];
 			chance = st_info[st_ptr->st_idx].table[item][1];
 
-			/* Does it pass the rarity check ? */
-#if 0
-			/* Balancing check for other items!!! */
-			if (!magik(chance) || magik(60)) i = 0;
-#else
+			/* Does it pass the rarity check? */
 			if (!magik(chance)) i = 0;
-#endif
 			/* Hack: Expensive Black Market accumulates predefined items way too quickly. */
 			else if ((st_info[st_ptr->st_idx].flags1 & (SF1_RARE | SF1_VERY_RARE)) && rand_int(1000)) i = 0;
-			/* Hack -- mass-produce for black-market promised items */
-			else force_num = rand_range(2, 5);//was 3,9
+			/* Hack -- mass-produce for black-market promised items (various potions & scrolls, mummy wrapping) */
+			else force_num = rand_range(2, 5);
 
 
 			/* Hack -- fake level for apply_magic() */
 
 			/* 'Fake town' dungeon stores don't have a sensible 'town level', use dungeon level instead */
-			if (st_ptr->st_idx >= STORE_GENERAL_DUN && st_ptr->st_idx <= STORE_RUNE_DUN) {
+			if (st_ptr->st_idx >= STORE_GENERAL_DUN && st_ptr->st_idx <= STORE_RUNE_DUN)
 				level = return_level(st_ptr, town[st_ptr->town].dlev_depth);
-			} else {
+			else
 				level = return_level(st_ptr, town[st_ptr->town].baselevel); /* note: it's margin is random! */
-			}
 
 
 			/* Hack -- i > 10000 means it's a tval and all svals are allowed */
@@ -2018,6 +2148,7 @@ static void store_create(store_type *st_ptr) {
 				i = get_obj_num(level, resf);
 			}
 
+			/* BM specialty (SF1_ALL_ITEM): Template item failed its rarity check, so instead pick ANY item */
 			if (!i) {
 				/* Pick a level for object/magic */
 				level = 60 + rand_int(25);	/* for now let's use this */
@@ -2043,7 +2174,7 @@ static void store_create(store_type *st_ptr) {
 			i = st_info[st_ptr->st_idx].table[item][0];
 			chance = st_info[st_ptr->st_idx].table[item][1];
 
-			/* Does it pass the rarity check ? */
+			/* Does it pass the rarity check? */
 			if (!magik(chance)) continue;
 
 
@@ -2249,6 +2380,16 @@ static void store_create(store_type *st_ptr) {
 		}
 
 		switch (st_ptr->st_idx) {
+		case STORE_SPEC_ARCHER:
+			/* No magic ammunition */
+			switch (o_ptr->tval) {
+			case TV_SHOT:
+			case TV_BOLT:
+			case TV_ARROW:
+				if (o_ptr->sval == SV_AMMO_MAGIC) continue;
+				// fall through as accepted
+			}
+			break;
 		case STORE_SPEC_POTION: /* Let's not allow 'Cure * Insanity' or 'Augmentation' potions - the_sandman */
 			switch (o_ptr->tval) {
 			case TV_POTION:
@@ -2499,40 +2640,36 @@ static void store_create(store_type *st_ptr) {
 			case 100: o_ptr->discount = 15; break;
 			}
 
-		if (force_num && !is_ammo(o_ptr->tval)) {
-			/* Only single items of these */
-			switch (o_ptr->tval) {
-			case TV_DRAG_ARMOR:
-				force_num = 1;
-				break;
-			case TV_SOFT_ARMOR:
-				if (o_ptr->sval == SV_COSTUME) force_num = 1;
-				break;
-			case TV_RING:
-				if (o_ptr->sval == SV_RING_POLYMORPH) force_num = 1;
-				break;
-			case TV_ROD:
-				if (o_ptr->sval == SV_ROD_HAVOC) force_num = 1;
-				break;
-			case TV_TOOL:
-				if (o_ptr->sval == SV_TOOL_WRAPPING) force_num = 1;
-				break;
-			case TV_SCROLL:
-				if (o_ptr->sval == SV_SCROLL_WILDERNESS_MAP) force_num = 1;
-				break;
-			case TV_FOOD:
-				if (o_ptr->sval == SV_FOOD_ATHELAS) force_num = 1;
-				break;
-			}
-
-			/* Only single items of very expensive stuff */
-			if (object_value(0, o_ptr) >= 200000) force_num = 1;
-
-			/* No ego-stacks */
-			if (o_ptr->name2) force_num = 1;
-
-			o_ptr->number = force_num;
+		/* Only single items of these */
+		switch (o_ptr->tval) {
+		case TV_DRAG_ARMOR:
+			force_num = 1;
+			break;
+		case TV_SOFT_ARMOR:
+			if (o_ptr->sval == SV_COSTUME) force_num = 1;
+			break;
+		case TV_RING:
+			if (o_ptr->sval == SV_RING_POLYMORPH) force_num = 1;
+			break;
+		case TV_ROD:
+			if (o_ptr->sval == SV_ROD_HAVOC) force_num = 1;
+			break;
+		case TV_TOOL:
+			if (o_ptr->sval == SV_TOOL_WRAPPING) force_num = 1;
+			break;
+		case TV_SCROLL:
+			if (o_ptr->sval == SV_SCROLL_WILDERNESS_MAP) force_num = 1;
+			break;
+		case TV_FOOD:
+			if (o_ptr->sval == SV_FOOD_ATHELAS) force_num = 1;
+			break;
 		}
+		/* Only single items of very expensive stuff */
+		if (object_value(0, o_ptr) >= 200000) force_num = 1;
+		/* No ego-stacks */
+		if (o_ptr->name2) force_num = 1;
+
+		if (force_num && !is_ammo(o_ptr->tval)) o_ptr->number = force_num;
 
 		/* If wands, update the # of charges. stack size can be set by force_num or mass_produce (occurance 1 of 2, keep in sync) */
 		if ((o_ptr->tval == TV_WAND
@@ -2803,7 +2940,8 @@ static void display_entry(int Ind, int pos) {
 #endif
 #ifdef IDDC_DED_DISCOUNT
 		/* Also display correct discount, so as to not confuse anybody, abuse unused 'wgt' for this. */
-		if ((p_ptr->mode & MODE_DED_IDDC) && in_bree(&p_ptr->wpos) && !p_ptr->iron_winner_ded) {
+		/* (Must be restricted to world surface, as you could sell for non-discounted amt again inside the dungeon.) */
+		if ((p_ptr->mode & MODE_DED_IDDC) && !p_ptr->iron_winner_ded && in_bree(&p_ptr->wpos)) {
 			wgt = o_ptr->discount;
 			/* IDDC-mode characters get at least a 50% discount on all town store items in Bree */
 			if (o_ptr->discount < 50) o_ptr->discount = 50;
@@ -3278,23 +3416,23 @@ int autostow_or_carry(int Ind, object_type *o_ptr, bool quiet) {
  #endif
 		break;
 	case TV_CHEMICAL: /* DEMOLITIONIST stuff */
-		item_new = auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE, quiet);
+		item_new = auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE, quiet, 0x0);
 		break;
 	case TV_TRAPKIT:
-		item_new = auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE, quiet);
+		item_new = auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE, quiet, 0x0);
 		break;
 	case TV_ROD:
 		/* Unknown rods cannot be stowed as we don't want to reveal whether they need an activation or not */
 		if (rod_requires_direction(Ind, o_ptr)) break;
 		/* fall through */
 	case TV_STAFF:
-		item_new = auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE, quiet);
+		item_new = auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE, quiet, 0x0);
 		break;
 	case TV_POTION: case TV_POTION2:
-		item_new = auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE, quiet);
+		item_new = auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE, quiet, 0x0);
 		break;
 	case TV_FOOD:
-		item_new = auto_stow(Ind, SV_SI_FOOD_BAG, o_ptr, -1, FALSE, TRUE, quiet);
+		item_new = auto_stow(Ind, SV_SI_FOOD_BAG, o_ptr, -1, FALSE, TRUE, quiet, 0x0);
 		break;
 	}
 
@@ -4760,8 +4898,8 @@ void store_confirm(int Ind) {
 		/* Actually this warning is rather specifically a warning about selling unid'ed but already aware-of magic devices with charges! */
 		if (!p_ptr->warning_sellunid && object_aware_p(Ind, o_ptr) && (o_ptr->tval == TV_WAND || o_ptr->tval == TV_STAFF)) {
 			msg_print(Ind, "\374\377yHint: Identify wands and staves before selling even if you already know what");
-			msg_print(Ind, "\377\377y      they do, because if their number of charges is known it will further");
-			msg_print(Ind, "\377\377y      increase their value!");
+			msg_print(Ind, "\374\377y      they do, because if their number of charges is known it will further");
+			msg_print(Ind, "\374\377y      increase their value!");
 			p_ptr->warning_sellunid = 1;
 			s_printf("warning_sellunid: %s\n", p_ptr->name);
 		}
@@ -4829,6 +4967,14 @@ void store_confirm(int Ind) {
 
 	/* Handle stuff */
 	handle_stuff(Ind);
+
+#ifdef MANDOS_BUYALL_EATALL
+	/* Stores in the Halls of Mandos will buy anything, but not display it */
+	if (in_hallsofmandos(&p_ptr->wpos)) {
+		if (true_artifact_p(&sold_obj)) handle_art_d(sold_obj.name1);
+		return;
+	}
+#endif
 
 	/* Artifact won't be sold in a store */
 	if ((cfg.anti_arts_shop || p_ptr->total_winner) && true_artifact_p(&sold_obj) && !museum) {
@@ -5128,9 +5274,9 @@ void do_cmd_store(int Ind) {
 	/* Temple cures some maladies and gives some bread if starving ;-o */
 	if (!p_ptr->ghost &&
 	    !p_ptr->tim_blacklist && (which == STORE_TEMPLE || which == STORE_TEMPLE_DUN) && !p_ptr->suscep_good) {
-		if (p_ptr->chp < p_ptr->mhp / 2 || p_ptr->cut) msg_print(Ind, "A temple priest applies a bandage."); /* Note: Doesn't make that much sense if HP loss was caused by poison */
+		if (p_ptr->chp < p_ptr->mhp / 2 || p_ptr->cut) msg_print(Ind, "A temple priest applies a healing ointment."); /* Note: Doesn't make that much sense if HP loss was caused by poison */
 		if (p_ptr->chp < p_ptr->mhp / 2) hp_player(Ind, p_ptr->mhp / 3, TRUE, TRUE);
-		if (p_ptr->cut) set_cut(Ind, 0, 0);
+		if (p_ptr->cut) set_cut(Ind, -1, 0, FALSE);
 
 		if (p_ptr->blind || p_ptr->confused || p_ptr->poisoned || p_ptr->diseased) {
 			msg_print(Ind, "A temple priest speaks a prayer of curing.");
@@ -6879,23 +7025,23 @@ void home_purchase(int Ind, int item, int amt) {
 	/* Try to put into a specialized bag automatically */
 	switch (o_ptr->tval) {
 	case TV_CHEMICAL: /* DEMOLITIONIST stuff */
-		(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE, FALSE);
+		(void)auto_stow(Ind, SV_SI_SATCHEL, o_ptr, -1, FALSE, TRUE, FALSE, 0x0);
 		break;
 	case TV_TRAPKIT:
-		(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE, FALSE);
+		(void)auto_stow(Ind, SV_SI_TRAPKIT_BAG, o_ptr, -1, FALSE, TRUE, FALSE, 0x0);
 		break;
 	case TV_ROD:
 		/* Unknown rods cannot be stowed as we don't want to reveal whether they need an activation or not */
 		if (rod_requires_direction(Ind, o_ptr)) break;
 		/* fall through */
 	case TV_STAFF:
-		(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE, FALSE);
+		(void)auto_stow(Ind, SV_SI_MDEVP_WRAPPING, o_ptr, -1, FALSE, TRUE, FALSE, 0x0);
 		break;
 	case TV_POTION: case TV_POTION2:
-		(void)auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE, FALSE);
+		(void)auto_stow(Ind, SV_SI_POTION_BELT, o_ptr, -1, FALSE, TRUE, FALSE, 0x0);
 		break;
 	case TV_FOOD:
-		(void)auto_stow(Ind, SV_SI_FOOD_BAG, o_ptr, -1, FALSE, TRUE, FALSE);
+		(void)auto_stow(Ind, SV_SI_FOOD_BAG, o_ptr, -1, FALSE, TRUE, FALSE, 0x0);
 		break;
 	}
 
@@ -7539,13 +7685,13 @@ void reward_deed_item(int Ind, int item) {
 
 	switch (o2_ptr->sval) {
 	case SV_DEED_HIGHLANDER: /* winner's deed */
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MID2, 3000); /* 95 is default depth for highlander tournament */
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_MID2, 3000); /* 95 is default depth for highlander tournament */
 		if (!o_ptr->note) o_ptr->note = quark_add("Highlander reward");
 		msg_print(Ind, "\377GThe mayor's secretary hands you a reward, while everyone applauds!");
 		msg_print_near(Ind, "You hear some applause coming out of the mayor's office!");
 		break;
 	case SV_DEED_DUNGEONKEEPER: /* winner's deed */
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MID, 3000);
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_MID, 3000);
 		if (!o_ptr->note) o_ptr->note = quark_add("Dungeon Keeper reward");
 		msg_print(Ind, "\377GThe mayor's secretary hands you a reward, while everyone applauds!");
 		msg_print_near(Ind, "You hear some applause coming out of the mayor's office!");
@@ -7556,28 +7702,28 @@ void reward_deed_item(int Ind, int item) {
 		msg_print(Ind, "\377yitems for rewards, but he suggests that you get a blessing instead!");
 		return;
 	case SV_DEED_PVP_MAX:
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_HIGH, 3000);
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_HIGH, 3000);
 		if (!o_ptr->note) o_ptr->note = quark_add("PvP reward");
 		msg_print(Ind, "\377GThe mayor's secretary hands you a reward, while everyone applauds!");
 		msg_print_near(Ind, "You hear some applause coming out of the mayor's office!");
 		dis = 0;
 		break;
 	case SV_DEED_PVP_MID:
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MID2, 3000);
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_MID2, 3000);
 		if (!o_ptr->note) o_ptr->note = quark_add("PvP reward");
 		msg_print(Ind, "\377GThe mayor's secretary hands you a reward, while everyone applauds!");
 		msg_print_near(Ind, "You hear some applause coming out of the mayor's office!");
 		dis = 0;
 		break;
 	case SV_DEED_PVP_MASS:
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MID, 3000);
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_MID, 3000);
 		if (!o_ptr->note) o_ptr->note = quark_add("PvP reward");
 		msg_print(Ind, "\377GThe mayor's secretary hands you a reward, while everyone applauds!");
 		msg_print_near(Ind, "You hear some applause coming out of the mayor's office!");
 		dis = 0;
 		break;
 	case SV_DEED_PVP_START:
-		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_LOW2, 3000);
+		create_reward(Ind, o_ptr, 95, 95, TRUE, TRUE, RESF_MASK_LOW2, 3000);
 		//if (!o_ptr->note) o_ptr->note = quark_add("");
 		msg_print(Ind, "\377GThe mayor's secretary hands you an item and gives you a supportive pat.");
 		lev = 1; dis = 0;

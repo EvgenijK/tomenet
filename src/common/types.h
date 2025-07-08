@@ -811,6 +811,7 @@ struct object_type {
 					    0x02 is used for !W inscription to set the alarm for this object,
 					    0x04 too, for preventing the !W induced alarm if the object was dropped by the player.
 					    0x08 active steamblast charge (for chests)
+					    0x10 distinguish a trapkit-load-democharge from 'normal' planted demo charges.
 					*/
 
 	/* For IDDC_IRON_COOP || IRON_IRON_TEAM : */
@@ -3297,6 +3298,9 @@ struct player_type {
 	s32b max_exp;			/* Max experience */
 	s32b exp;			/* Cur experience */
 	u16b exp_frac;			/* Cur exp frac (times 2^16) */
+	s32b gain_exp;			/* For cases where special processing needs to be done between earning and actually gaining XP (added for XP-gain-in-monsterdeath-msgs):
+					   This amout is just held off temporarily until whatever needed to be calculated in between has finished. */
+	bool gain_exp_frac;		/* For visual message: Note whether our gain_exp was really >=1 originally or whether it just became 1 due to fractional XP finally adding up. */
 
 	s16b lev;			/* Level */
 	s16b max_lev;			/* Usual level after 'restoring life levels' */
@@ -3671,9 +3675,9 @@ struct player_type {
 	s16b slow_poison;
 	s16b diseased;			/* Timed -- Diseased */
 	int poisoned_attacker;		/* Who poisoned the player - used for blood bond */
-	s16b cut;			/* Timed -- Cut */
-	bool cut_intrinsic;		/* Was a currently active cut applied before acquiring 'intrinsic_regen' aka TROLL_REGENERATION/HYDRA_REGENERATION, ie by form change? */
-	bool nocut_intrinsic;		/* Cut was applied before acquiring 'NO_CUT' property ie by form change? */
+	s16b cut, cut_bandaged;		/* Timed -- Cut */
+	bool cut_intrinsic_regen;	/* Cut is applied when we already acquired 'intrinsic_regen' aka TROLL_REGENERATION/HYDRA_REGENERATION, ie by form change? */
+	bool cut_intrinsic_nocut;	/* Cut is applied when we already acquired 'NO_CUT' property ie by form change? */
 	int cut_attacker;		/* Who cut the player - used for blood bond */
 	s16b stun;			/* Timed -- Stun */
 
@@ -4221,14 +4225,15 @@ struct player_type {
 
 	/* ENABLE_STANCES - this code must always be compiled, otherwise savegames would screw up! so no #ifdef here. */
 	/* combat stances */
-	int combat_stance;		/* 0 = normal, 1 = def, 2 = off */
-	int combat_stance_power;	/* 1,2,3, and 4 = royal (for NR balanced) */
+	byte combat_stance, combat_stance_prev;	/* 0 = normal, 1 = def, 2 = off */
+	byte combat_stance_power;	/* 1,2,3, and 4 = royal (for NR balanced) */
 
 	/* more techniques */
 	byte cloaked, cloak_neutralized; /* Cloaking mode enabled; suspicious action was spotted */
 	s16b melee_sprint, ranged_double_used;
 	bool ranged_flare, ranged_precision, ranged_double, ranged_barrage;
 	bool shadow_running;
+	s16b melee_crit_dual, melee_timeout_crit_dual;
 
 #ifdef AUTO_RET_CMD
 	byte autoret_base;		/* set auto-retaliation via command instead of inscription - used for martial arts and generic extra stuff (no sleeping monsters) */
@@ -4861,6 +4866,7 @@ struct client_opts {
 	bool quiet_house_sfx;
 	bool no_house_sfx;
 	bool alert_starvation;
+	bool flash_starvation;
 
     //unmutable, pfft
 	bool use_color;
@@ -4936,6 +4942,10 @@ struct client_opts {
 	bool auto_pickup;
 	bool auto_destroy; //140
 	bool destroy_all_unmatched;
+	bool autoinsc_debug;
+	bool autoloot_dunonly;
+	bool autoloot_dununown;
+	bool autoswitch_inven;
 
 	bool equip_text_colour;
 	bool equip_set_colour;

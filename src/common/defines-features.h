@@ -684,6 +684,11 @@
    This only affects bosses of floors < 100, aka ideal player level 50, and hard-coded also only floors shallower than 99, to make sure to exempt Sauron. */
 #define FINAL_GUARDIAN_DIFFBOOST
 
+/* Half-Trolls and especially Trolls regenerate extraordinarily quickly (both players and monsters) */
+#define TROLL_REGENERATION
+/* Hydras regenerate extraordinarily quickly aka regrowing their heads (both players and monsters) */
+#define HYDRA_REGENERATION
+
 
 
 /* ------------------------------------------------------------------------- */
@@ -825,13 +830,7 @@
 
  /* Buffer guide in RAM, to reduce searching times (especially on Windows OS, not really bad on Linux) */
  #define BUFFER_GUIDE
- #ifdef BUFFER_GUIDE
-  #define GUIDE_LINES_MAX 35000 //note: the guide is currently 25074 lines long
- #endif
  #define BUFFER_LOCAL_FILE
- #ifdef BUFFER_LOCAL_FILE
-  #define LOCAL_FILE_LINES_MAX 35000 //actually, r_info.txt is already 20640 lines long :o
- #endif
 
  /* Use regex.h to offer regexp in-game guide searching; and now also auto-inscription regexp matching.
     (Turning this off will also prevent REGEX_URL, in c-util.c.) */

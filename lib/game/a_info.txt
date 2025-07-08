@@ -174,7 +174,7 @@ D:Morgoth.
 
 N:11:of Power 'Nenya'
 I:45:35:2
-W:80:70:2:200000
+W:80:80:2:200000
 P:0:1d1:9:9:0
 F:STR | INT | WIS | DEX | CON | CHR | SPEED | HIDE_TYPE | LUCK |
 F:ACTIVATE | HOLD_LIFE | FREE_ACT | SEE_INVIS |
@@ -190,7 +190,7 @@ D:Morgoth.
 
 N:12:of Power 'Vilya'
 I:45:36:3
-W:90:80:2:300000
+W:90:100:2:300000
 P:0:1d1:12:12:0
 F:STR | INT | WIS | DEX | CON | CHR | SPEED | HIDE_TYPE | LUCK |
 F:ACTIVATE | HOLD_LIFE | FREE_ACT | SEE_INVIS |
@@ -209,7 +209,7 @@ D:from Morgoth.
 
 N:13:of Power 'The One Ring'
 I:45:37:5
-W:100:100:2:5000000
+W:100:200:2:5000000
 P:0:1d1:15:15:0
 F:STR | INT | WIS | DEX | CON | CHR | SPEED | HIDE_TYPE |
 F:ACTIVATE | AUTO_CURSE | HEAVY_CURSE | INVIS | MANA |
@@ -259,7 +259,7 @@ D:understanding as you stare into its depths.
 
 N:16:'Razorback'
 I:38:6:0
-W:90:9:300:2000000
+W:90:1:300:2000000
 P:40:2d4:-4:0:30
 F:IM_ELEC | IM_ACID | IM_FIRE | IM_COLD | RES_POIS |
 F:RES_FEAR | RES_LITE | SH_ELEC | BRAND_ELEC |
@@ -275,7 +275,7 @@ D:untamed Lightning as you put it on.
 
 N:17:'Bladeturner'
 I:38:30:2
-W:100:16:300:5000000
+W:100:1:300:5000000
 P:50:2d4:-8:0:30
 F:HOLD_LIFE | REGEN | ESP_DRAGON |
 F:RES_ACID | RES_FIRE | RES_COLD | RES_ELEC | RES_POIS | FEATHER | LEVITATE |
@@ -287,6 +287,12 @@ F:ACTIVATE | LIFE
 D:A suit of adamant, set with scales of every color, surrounded in a nimbus
 D:of perfectly untramelled yet inextricably intermingled and utterly mastered
 D:powers elemental and ethereal.
+
+#- C. Blue -
+# Notes from making the trueart-DSMs more realistically findable (also concerns the other DSMs while their rarity is 1):
+# Since rarity is 1 now, chance2 capping at <20% for DROP_GOOD> or <20%*75% for deep+ floors> means that 1 of 5 or of 6.7 PDSMs will become trueart.
+# Furthermore, if the monster is DROP_GREAT, which are currently only uniques (and nether guards, but these require WINNER status, so not eligible)
+# then it's even 1 of 1, guarantee trueart. (If DROP_GOOD is not given, luck may grant it at max 10% chance; likewise DROP_GREAT at max 3% chance.)
 
 
 # The Spear of Melkor
@@ -1151,7 +1157,7 @@ D:It is combat incarnate.
 
 N:82:'Ringil'
 I:23:17:10
-W:75:120:140:450000
+W:75:200:140:450000
 P:0:4d6:22:25:0
 F:SPEED | RES_FEAR | BLESSED |
 F:SLAY_EVIL | BRAND_COLD | SLAY_UNDEAD | KILL_DEMON | SLAY_TROLL |
@@ -1170,7 +1176,7 @@ D:of old; his lame foot will remind him of its might should he meet it again.
 N:83:'Anduril'
 I:23:23:4
 W:40:40:140:120000
-P:0:2d10:20:20:0
+P:0:2d10:25:25:0
 F:STR | DEX | SUST_STR | SUST_DEX | RES_FEAR | FREE_ACT | BLESSED | LUCK
 F:LITE1 | BRAND_FIRE | IM_FIRE | SLAY_EVIL | SLAY_TROLL | SLAY_ORC
 F:SEE_INVIS | ACTIVATE | IGNORE_DISEN | HIDE_TYPE | SHOW_MODS
@@ -2243,7 +2249,7 @@ D:With the helm 'Lebohaum' your head is safe!
 
 N:166:'Mediator'
 I:38:20:1
-W:95:12:250:1000000
+W:95:1:250:1000000
 P:40:2d4:-8:0:30
 F:FEATHER | LEVITATE | ESP_DRAGON | LIFE | REGEN | REGEN_MANA
 F:RES_NEXUS | RES_CHAOS | RES_SHARDS | RES_SOUND | RES_DISEN | ACTIVATE
@@ -2361,8 +2367,7 @@ N:174:of Nain
 I:20:7:6
 W:50:5:250:45000
 P:0:3d8:12:18:0
-F:TUNNEL | INFRA | SEARCH | STR | ESP_ORC | CLIMB |
-F:ACTIVATE
+F:TUNNEL | INFRA | SEARCH | STR | ESP_ORC | CLIMB | ACTIVATE
 D:Wielded by Nain of the Iron Hills at the Battle of Azanulbizar, this great
 D:mattock brought victory to the Dwarves over Azog's Orcs - though Nain
 D:himself fell at the last, even with victory already assured.
@@ -2895,7 +2900,7 @@ D:A black crossbow that shimmers white here and then.
 
 N:231:of Domination
 I:19:13:0
-W:90:75:120:200000
+W:90:200:120:200000
 P:0:0d0:30:30:0
 F:HIDE_TYPE | KILL_DRAGON | KILL_DEMON | SLAY_EVIL | KILL_UNDEAD |
 F:FREE_ACT | XTRA_MIGHT | SHOW_MODS | XTRA_SHOTS | RES_DISEN | RES_FEAR
@@ -3434,7 +3439,7 @@ D:This club has seen many pub fights and a lot of broken wood and bones.
 
 N:277:of Lamfada
 I:19:2:3
-W:85:70:7:150000
+W:85:100:7:150000
 P:0:0d0:28:29:0
 F:STR | HIDE_TYPE | XTRA_MIGHT | XTRA_SHOTS | SEE_INVIS | RES_FEAR
 F:RES_FIRE | RES_COLD | RES_ELEC | RES_LITE | RES_SOUND
@@ -3526,7 +3531,7 @@ N:284:of Antiriad
 #its real base type is something findable in (originally: near) an old volcano
 #(here: aka mt doom), creating pseudo 'Heavy Adamantite Plate Armour'
 I:37:40:40
-W:85:40:270:300000
+W:85:1:270:300000
 P:90:4d4:-6:0:0
 F:INSTA_ART
 F:WINNERS_ONLY | IM_POISON | IM_ELEC | RES_ACID | IM_FIRE | IM_COLD
@@ -3571,6 +3576,15 @@ D:the terrors of combat. It's one of two twin weapons, each forged with one half
 D:of a set of powerful spell runes.
 
 
+# The Gnomish Shovel 'Tug-Avos'
+N:288:'Tug-Avos'
+I:20:2:5
+W:30:15:50:25000
+P:0:1d2:20:15:0
+F:ACTIVATE | TUNNEL
+D:A shovel imbued with gnomish magic that detects any minerals and precious
+D:metals, both bare or hidden in the rock and stone of the dungeon around you.
+
 
 # Combined item (3 pieces) Halberd 'Ang-Tir-Calad'
 
@@ -3585,7 +3599,7 @@ D:of a set of powerful spell runes.
 #N:(No.):(name)
 #G:(appearence):(colour)  --not implemented
 #I:tval:sval:pval  [ie. TV_SHIELD, SV_SMALL_LEATHER_SHIELD, +0] (defines.h)
-#W:(depth):(rarity[arts only]):(weight):(price)
+#W:(depth):(rarity[arts only, 255 = never generate]):(weight):(price)
 #C. Blue - some current details about depth and rarity:
 #  depth is minimum dlev. however, 'ood' (ie on easier dlevs) is possible.
 #  rarity roll succeeds at chance 1/rarity.

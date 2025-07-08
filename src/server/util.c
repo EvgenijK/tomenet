@@ -1324,6 +1324,9 @@ void sound_near_site(int y, int x, worldpos *wpos, int Ind, cptr name, cptr alte
 		/* Skip specified player, if any */
 		if (i == Ind) continue;
 
+		/* Skip players who don't want to hear attack sounds */
+		if (!p_ptr->sfx_monsterattack && type == SFX_TYPE_MON_SPELL) continue;
+
 		/* Make sure this player is at this depth */
 		if (!inarea(&p_ptr->wpos, wpos)) continue;
 
@@ -1391,6 +1394,9 @@ void sound_near_site_vol(int y, int x, worldpos *wpos, int Ind, cptr name, cptr 
 
 		/* Skip specified player, if any */
 		if (i == Ind) continue;
+
+		/* Skip players who don't want to hear attack sounds */
+		if (!p_ptr->sfx_monsterattack && type == SFX_TYPE_MON_SPELL) continue;
 
 		/* Make sure this player is at this depth */
 		if (!inarea(&p_ptr->wpos, wpos)) continue;
@@ -2265,6 +2271,7 @@ void handle_music(int Ind) {
 				else Send_music(Ind, 56, 13, 13); /* the actual specific music for this dungeon */
 			}
 			return;
+		case 33: Send_music(Ind, 249, 14, 11); return; //The Ash Mountains (borrow forcedown-hellish for now to create some variety, as there is no updated music pack yet)
 		}
 	}
 
@@ -7503,12 +7510,22 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 6);
 			if (id < 0) id = 0;
+		} else if ((p = strstr(s0, "-empty"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 6);
+			if (id < 0) id = 0;
 		} else if ((p = strstr(s0, "empty"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 5);
 			if (id < 0) id = 0;
 		} else if ((p = strstr(s0, "uncursed-"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 9);
+			if (id < 0) id = 1;
+		} else if ((p = strstr(s0, "-uncursed"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 9);
@@ -7523,12 +7540,22 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 9);
 			if (id < 1) id = 2;
+		} else if ((p = strstr(s0, "-terrible"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 9);
+			if (id < 1) id = 2;
 		} else if ((p = strstr(s0, "terrible"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 8);
 			if (id < 1) id = 2;
 		} else if ((p = strstr(s0, "cursed-"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 7);
+			if (id < 2) id = 3;
+		} else if ((p = strstr(s0, "-cursed"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 7);
@@ -7543,12 +7570,22 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 4);
 			if (id < 2) id = 4;
+		} else if ((p = strstr(s0, "-bad"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 4);
+			if (id < 2) id = 4;
 		} else if ((p = strstr(s0, "bad"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 3);
 			if (id < 2) id = 4;
 		} else if ((p = strstr(s0, "worthless-"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 10);
+			if (id < 4) id = 5;
+		} else if ((p = strstr(s0, "-worthless"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 10);
@@ -7563,12 +7600,22 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 7);
 			if (id < 5) id = 6;
+		} else if ((p = strstr(s0, "-broken"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 7);
+			if (id < 5) id = 6;
 		} else if ((p = strstr(s0, "broken"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 6);
 			if (id < 5) id = 6;
 		} else if ((p = strstr(s0, "average-"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 8);
+			if (id < 6) id = 7;
+		} else if ((p = strstr(s0, "-average"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 8);
@@ -7583,6 +7630,11 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 5);
 			if (id < 7) id = 8;
+		} else if ((p = strstr(s0, "-good"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 5);
+			if (id < 7) id = 8;
 		} else if ((p = strstr(s0, "good"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
@@ -7593,12 +7645,22 @@ void note_crop_pseudoid(char *s2, char *psid, cptr s) {
 			s2[p - s0] = '\0';
 			strcat(s2, p + 10);
 			if (id < 8) id = 9;
+		} else if ((p = strstr(s0, "-excellent"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 10);
+			if (id < 8) id = 9;
 		} else if ((p = strstr(s0, "excellent"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 9);
 			if (id < 8) id = 9;
 		} else if ((p = strstr(s0, "special-"))) {
+			strncpy(s2, s0, p - s0);
+			s2[p - s0] = '\0';
+			strcat(s2, p + 8);
+			if (id < 9) id = 10;
+		} else if ((p = strstr(s0, "-special"))) {
 			strncpy(s2, s0, p - s0);
 			s2[p - s0] = '\0';
 			strcat(s2, p + 8);
@@ -10258,6 +10320,9 @@ void grid_affects_player(int Ind, int ox, int oy) {
 
 	/* When the player enters a grid with items, he can destroy anything on it for 1x energy cost, until he enters another grid */
 	p_ptr->destroyed_floor_item = FALSE;
+
+	/* If player moves after a Shadow Gate cast they lose the critical-strike guarantee. */
+	p_ptr->melee_timeout_crit_dual = 0;
 }
 
 /* Items that can be shared even between incompatible character modes or if level 0! */
@@ -10969,7 +11034,9 @@ void empty_subinven(int Ind, int item, bool drop, bool quiet) {
 
 		/* Place item into player inventory, or drop if full */
 		if (inven_carry_okay(Ind, o_ptr, 0x0)) {
+			o_ptr->ident |= ID_NO_AUTOINSC;
 			k = inven_carry(Ind, o_ptr);
+			o_ptr->ident &= ~ID_NO_AUTOINSC;
 			if (k != -1) { /* Paranoia, as we just checked for inven_carry_okay, it must be != -1 */
 				if (!quiet) {
 					object_desc(Ind, o_name, o_ptr, TRUE, 3);

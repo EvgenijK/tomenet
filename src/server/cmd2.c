@@ -3009,7 +3009,7 @@ void do_cmd_open(int Ind, int dir) {
 #ifdef USE_SOUND_2010
 					sound(Ind, "open_pick", NULL, SFX_TYPE_COMMAND, TRUE);
 #endif
-					/* opening it uses only 1x trdifficulty instead of 3x */
+					/* opening it uses only 1x trdifficulty instead of 3x. (Very maybe TODO: SHOW_XP_GAIN) */
 					if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, TRAP_EXP(o_ptr->pval, getlevel(&p_ptr->wpos)) / 3);
 				}
 
@@ -3044,16 +3044,18 @@ void do_cmd_open(int Ind, int dir) {
 				if (o_ptr->sval != SV_CHEST_RUINED) {
 					/* Let the Chest drop items */
 					chest_death(Ind, y, x, o_ptr);
-					if (o_ptr->xtra3 & 0x4) { /* Erase chest on successful opening */
-						delete_object_idx(c_ptr->o_idx, FALSE);
+					if (o_ptr->xtra3 & 0x4) { /* Special option (custom lua): Erase chest on successful opening? */
+						delete_object_idx(c_ptr->o_idx, FALSE, FALSE);
 						trp = FALSE; /* Don't try to delete an already deleted object! */
 					}
 				}
 				if (trp) {
-					if ((o_ptr->xtra3 & 0x1) || /* Erase chest whenever the trap was set off */
-					    (o_ptr->sval == SV_CHEST_RUINED && (o_ptr->xtra3 & 0x2))) /* Erase the chest if it got ruined by the trap */
-						delete_object_idx(c_ptr->o_idx, FALSE);
+					if ((o_ptr->xtra3 & 0x1) || /* Special option (custom lua): Erase chest whenever the trap was set off? */
+					    (o_ptr->sval == SV_CHEST_RUINED && (o_ptr->xtra3 & 0x2))) /* Special option (custom lua): Erase the chest if it got ruined by the trap? */
+						delete_object_idx(c_ptr->o_idx, FALSE, FALSE);
 				}
+				/* Redraw chest for custom mapping users as it changed from closed to opened chest: */
+				everyone_lite_spot(wpos, y, x);
 			}
 		}
 
@@ -3353,7 +3355,7 @@ void do_cmd_close(int Ind, int dir) {
 			msg_print(Ind, "That door cannot be closed.");
 
 		else if (c_ptr->feat == FEAT_OPEN_WINDOW) {
-#if 0 /* xD */
+#if 1 /* xD */
 			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
 				msg_print(Ind, "You cannot close that window from outside.");
 				return;
@@ -3376,7 +3378,7 @@ void do_cmd_close(int Ind, int dir) {
 #endif
 		}
 		else if (c_ptr->feat == FEAT_OPEN_WINDOW_SMALL) {
-#if 0 /* xD */
+#if 1 /* xD */
 			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
 				msg_print(Ind, "You cannot close that window from outside.");
 				return;
@@ -3400,7 +3402,7 @@ void do_cmd_close(int Ind, int dir) {
 		}
 
 		else if (c_ptr->feat == FEAT_WINDOW) {
-#if 0 /* xD */
+#if 1 /* xD */
 			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
 				msg_print(Ind, "You cannot close that window from outside.");
 				return;
@@ -3423,7 +3425,7 @@ void do_cmd_close(int Ind, int dir) {
 #endif
 		}
 		else if (c_ptr->feat == FEAT_WINDOW_SMALL) {
-#if 0 /* xD */
+#if 1 /* xD */
 			if (!inside_house(wpos, p_ptr->px, p_ptr->py) && !inside_inn(p_ptr, &zcave[p_ptr->py][p_ptr->px])) {
 				msg_print(Ind, "You cannot close that window from outside.");
 				return;
@@ -3666,6 +3668,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 	int cfeat;
 	u32b cinfo, cinfo2;
 	int skill_dig = (!Ind || quiet_borer) ? 0 : get_skill(p_ptr, SKILL_DIG), mining = skill_dig;
+	int dual_power = wood_power > fibre_power ? wood_power : fibre_power;
 	int dug_feat = FEAT_NONE, tval = 0, sval = 0, special_k_idx = 0; //chest / golem base material / rune
 	struct dun_level *l_ptr = getfloor(wpos);
 
@@ -3761,8 +3764,8 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 		    else {
 			tval = TV_RUNE;
 			get_obj_num_hook = NULL;
-			get_obj_num_prep_tval(tval, RESF_MID);
-			special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MID);
+			get_obj_num_prep_tval(tval, RESF_MASK_MID);
+			special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MASK_MID);
 			if (!special_k_idx) tval = 0;
 		    }
 		}
@@ -3771,8 +3774,8 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 		if (dug_feat == FEAT_NONE && !tval && rand_int(RUNE_CHANCE) < rune_proficiency && Ind && !p_ptr->IDDC_logscum) {
 			tval = TV_RUNE;
 			get_obj_num_hook = NULL;
-			get_obj_num_prep_tval(tval, RESF_MID);
-			special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MID);
+			get_obj_num_prep_tval(tval, RESF_MASK_MID);
+			special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MASK_MID);
 			if (!special_k_idx) tval = 0;
 		}
 	}
@@ -3846,7 +3849,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 					place_object_restrictor = RESF_NONE;
 #if 1
 					object_level = find_level_base;
-					generate_object(Ind, &forge, wpos, magik(mining), magik(mining / 10), FALSE, make_resf(p_ptr) | RESF_MID,
+					generate_object(Ind, &forge, wpos, magik(mining), magik(mining / 10), FALSE, make_resf(p_ptr) | RESF_MASK_MID,
 						default_obj_theme, p_ptr->luck);
 					object_level = old_object_level;
 					object_desc(0, o_name, &forge, TRUE, 3);
@@ -3854,7 +3857,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 					drop_near(TRUE, 0, &forge, -1, wpos, y, x);
 #else
 					object_level = find_level_base;
-					place_object(Ind, wpos, y, x, magik(mining), magik(mining / 10), FALSE, make_resf(p_ptr) | RESF_MID,
+					place_object(Ind, wpos, y, x, magik(mining), magik(mining / 10), FALSE, make_resf(p_ptr) | RESF_MASK_MID,
 						default_obj_theme, p_ptr->luck, ITEM_REMOVAL_NORMAL, FALSE);
 					s_printf("DIGGING: %s found a random item.\n", Ind ? p_ptr->name : "<noone>");
 					object_level = old_object_level;
@@ -3968,7 +3971,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 		*no_quake = TRUE;
 
 		/* mow down the vegetation */
-		if (((power > wood_power ? power : wood_power) > rand_int(300)) && twall(Ind, wpos, y, x, FEAT_GRASS)) { /* 400 */
+		if (((power > dual_power ? power : dual_power) > rand_int(300)) && twall(Ind, wpos, y, x, FEAT_GRASS)) { /* 400 */
 			/* Message */
 			if (Ind && !quiet_full) {
 				msg_print(Ind, "You hack your way through the vegetation.");
@@ -4197,8 +4200,8 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 
 				tval = TV_RUNE;
 				get_obj_num_hook = NULL;
-				get_obj_num_prep_tval(tval, RESF_MID);
-				special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MID);
+				get_obj_num_prep_tval(tval, RESF_MASK_MID);
+				special_k_idx = get_obj_num(10 + getlevel(wpos), RESF_MASK_MID);
 				if (!special_k_idx) {
 					special_k_idx = fallback;
 					tval = fallback_tval;
@@ -4453,7 +4456,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 			diff = 200;
 			break;
 		case FEAT_BUSH:
-			if (power < wood_power) power = wood_power;
+			if (power < dual_power) power = dual_power;
 			diff = 300;
 			break;
 		case FEAT_DEAD_TREE:
@@ -4824,10 +4827,13 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 				fibre_power = 40 + o2_ptr->weight / 10 + (o2_ptr->to_h + o2_ptr->to_d) / 2;
 			break;
 		}
-		if ((k_info[o2_ptr->k_idx].flags4 & (TR4_MUST2H | TR4_SHOULD2H))
-		    && !o3_ptr->k_idx) {
-			wood_power <<= 1;
-			fibre_power <<= 1;
+
+		wood_power += adj_con_mhp[p_ptr->stat_ind[A_STR]] - 128 + 5; //+0..+30
+		fibre_power += adj_con_mhp[p_ptr->stat_ind[A_STR]] - 128 + 5; //+0..+30
+
+		if (p_ptr->awkward_wield) {
+			wood_power >>= 1;
+			fibre_power >>= 1;
 		}
 	}
 	if (o3_ptr->k_idx && !p_ptr->heavy_wield) {
@@ -4835,17 +4841,25 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 
 		switch (o3_ptr->tval) {
 		case TV_AXE:
-			fp = 20 + o3_ptr->weight / 20 + (o3_ptr->to_h + o3_ptr->to_d) / 3;
-			wp = 40 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2; break;
+			fp = 30 + o3_ptr->weight / 20 + (o3_ptr->to_h + o3_ptr->to_d) / 3;
+			wp = 60 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2; break;
 		case TV_SWORD:
-			fp = 40 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2;
-			wp = 20 + o3_ptr->weight / 20 + (o3_ptr->to_h + o3_ptr->to_d) / 3; break;
+			fp = 60 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2;
+			wp = 30 + o3_ptr->weight / 20 + (o3_ptr->to_h + o3_ptr->to_d) / 3; break;
 		case TV_POLEARM:
 			if (o3_ptr->sval == SV_SCYTHE ||
 			    o3_ptr->sval == SV_SCYTHE_OF_SLICING ||
 			    o3_ptr->sval == SV_SICKLE)
-				fp = 40 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2;
+				fp = 60 + o3_ptr->weight / 10 + (o3_ptr->to_h + o3_ptr->to_d) / 2;
 			break;
+		}
+
+		wp += adj_con_mhp[p_ptr->stat_ind[A_STR]] - 128 + 5; //+0..+30
+		fp += adj_con_mhp[p_ptr->stat_ind[A_STR]] - 128 + 5; //+0..+30
+
+		if (p_ptr->awkward_wield) {
+			wp >>= 1;
+			fp >>= 1;
 		}
 
 		if (wp > wood_power) wood_power = wp;
@@ -4872,7 +4886,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Check digging tool */
 	if (o_ptr->k_idx && o_ptr->tval == TV_DIGGING
 #ifdef ALLOW_NO_QUAKE_INSCRIPTION
-	    && !check_guard_inscription(o_ptr->note, 'Q')
+	    && (!check_guard_inscription(o_ptr->note, 'Q') || dir == 5)
 #endif
 	    ) {
 		u32b fx, f5;
@@ -4887,9 +4901,9 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	/* Check weapons */
 	if (o2_ptr->k_idx
 #ifdef ALLOW_NO_QUAKE_INSCRIPTION
-	    && !check_guard_inscription(o2_ptr->note, 'Q')
+	    && (!check_guard_inscription(o2_ptr->note, 'Q') || dir == 5)
 #else
-	    && (!check_guard_inscription(o2_ptr->note, 'Q') || o2_ptr->name1 != ART_GROND)
+	    && (!check_guard_inscription(o2_ptr->note, 'Q') || o2_ptr->name1 != ART_GROND || dir == 5)
 #endif
 	    ) {
 		u32b fx, f5;
@@ -4904,7 +4918,7 @@ void do_cmd_tunnel(int Ind, int dir, bool quiet_borer) {
 	}
 	if (o3_ptr->k_idx && (is_weapon(o3_ptr->tval) || o3_ptr->tval == TV_MSTAFF)
 #ifdef ALLOW_NO_QUAKE_INSCRIPTION
-	    && !check_guard_inscription(o3_ptr->note, 'Q')
+	    && (!check_guard_inscription(o3_ptr->note, 'Q') || dir == 5)
 #endif
 	    ) {
 		u32b fx, f5;
@@ -5420,11 +5434,20 @@ void do_cmd_disarm(int Ind, int dir) {
 				p_ptr->warning_trap = 1;
 
 				if (rand_int(100) < j) {
-					msg_print(Ind, "You have disarmed the chest.");
 #ifdef USE_SOUND_2010
 					sound(Ind, "disarm", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
-					if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, TRAP_EXP(o_ptr->pval, getlevel(&p_ptr->wpos)));
+					if (!(p_ptr->mode & MODE_PVP)) {
+#ifdef SHOW_XP_GAIN
+						gain_exp_onhold(Ind, TRAP_EXP(o_ptr->pval, getlevel(&p_ptr->wpos)));
+						msg_format(Ind, "You have disarmed the chest. (%d XP)", p_ptr->gain_exp);
+						apply_exp(Ind);
+#else
+						msg_print(Ind, "You have disarmed the chest.");
+						gain_exp(Ind, TRAP_EXP(o_ptr->pval, getlevel(&p_ptr->wpos)));
+#endif
+					} else msg_print(Ind, "You have disarmed the chest.");
+
 					do_id_trap(Ind, o_ptr->pval);
 
 					/* Actually disarm it */
@@ -5454,7 +5477,7 @@ void do_cmd_disarm(int Ind, int dir) {
 						msg_print(Ind, "You set off a trap!");
 						if ((o_ptr->xtra3 & 0x1) || /* Erase chest whenever the trap was set off */
 						    (o_ptr->sval == SV_CHEST_RUINED && (o_ptr->xtra3 & 0x2))) /* Erase the chest if it got ruined by the trap */
-							delete_object_idx(c_ptr->o_idx, FALSE);
+							delete_object_idx(c_ptr->o_idx, FALSE, FALSE);
 
 						break_cloaking(Ind, 0);
 						break_shadow_running(Ind);
@@ -5573,14 +5596,31 @@ void do_cmd_disarm(int Ind, int dir) {
 
 			/* Success */
 			if (rand_int(100) < j) {
-				/* Message */
-				msg_format(Ind, "You have disarmed the %s.", name);
+				/* A chance to drop a trapkit; equal to the trapping skill */
+				int sdis = (int)(p_ptr->s_info[SKILL_TRAPPING].value / 1000);
+
 #ifdef USE_SOUND_2010
 				sound(Ind, "disarm", NULL, SFX_TYPE_COMMAND, FALSE);
 #endif
+				/* Traps of missing money can drop some of their stolen cash ;) */
+				if (t_idx == TRAP_OF_MISSING_MONEY && rand_int(4))
+					place_gold(Ind, &p_ptr->wpos, y, x, 10, 0);//rand_int(getlevel(&p_ptr->wpos) * getlevel(&p_ptr->wpos) / 2));
+					//NOTE: In theory this can be abused to transfer gold cross-mode/to soloists even, but the amount is negligible.
 
-				/* A chance to drop a trapkit; equal to the trapping skill */
-				int sdis = (int)(p_ptr->s_info[SKILL_TRAPPING].value / 1000);
+				/* Reward */
+				if (!(p_ptr->mode & MODE_PVP)) {
+#ifdef SHOW_XP_GAIN
+					gain_exp_onhold(Ind, (TRAP_EXP(t_idx, getlevel(&p_ptr->wpos)) * (MAX_CLONE_TRAPPING - cs_ptr->sc.trap.clone)) / MAX_CLONE_TRAPPING);
+					msg_format(Ind, "You have disarmed the %s. (%d XP)", name, p_ptr->gain_exp);
+					apply_exp(Ind);
+#else
+					msg_format(Ind, "You have disarmed the %s.", name);
+					gain_exp(Ind, (TRAP_EXP(t_idx, getlevel(&p_ptr->wpos)) * (MAX_CLONE_TRAPPING - cs_ptr->sc.trap.clone)) / MAX_CLONE_TRAPPING);
+#endif
+				} else msg_format(Ind, "You have disarmed the %s.", name);
+
+				/* Try to identify it */
+				do_id_trap(Ind, t_idx);
 
 				if (magik(sdis)) {
 					object_type forge;
@@ -5602,17 +5642,6 @@ void do_cmd_disarm(int Ind, int dir) {
 						msg_print(Ind, "You have fashioned a trapkit of a sort from the disarmed trap.");
 					}
 				}
-
-				/* Traps of missing money can drop some of their stolen cash ;) */
-				if (t_idx == TRAP_OF_MISSING_MONEY && rand_int(4))
-					place_gold(Ind, &p_ptr->wpos, y, x, 10, 0);//rand_int(getlevel(&p_ptr->wpos) * getlevel(&p_ptr->wpos) / 2));
-					//NOTE: In theory this can be abused to transfer gold cross-mode/to soloists even, but the amount is negligible.
-
-				/* Reward */
-				if (!(p_ptr->mode & MODE_PVP)) gain_exp(Ind, (TRAP_EXP(t_idx, getlevel(&p_ptr->wpos)) * (MAX_CLONE_TRAPPING - cs_ptr->sc.trap.clone)) / MAX_CLONE_TRAPPING);
-
-				/* Try to identify it */
-				do_id_trap(Ind, t_idx);
 
 				/* Remove the trap */
 				cs_erase(c_ptr, cs_ptr);
@@ -5878,6 +5907,7 @@ void do_cmd_bash(int Ind, int dir) {
 					break_shadow_running(Ind);
 					stop_precision(Ind);
 					stop_shooting_till_kill(Ind);
+					bandage_fails(Ind);
 					return;
 				}
 #endif
@@ -5920,6 +5950,7 @@ void do_cmd_bash(int Ind, int dir) {
 					break_shadow_running(Ind);
 					stop_precision(Ind);
 					stop_shooting_till_kill(Ind);
+					bandage_fails(Ind);
 					return;
 				}
 
@@ -6025,10 +6056,12 @@ void do_cmd_bash(int Ind, int dir) {
 				/* Hack -- Lose balance ala paralysis */
 				(void)set_paralyzed(Ind, p_ptr->paralyzed + 2 + rand_int(2));
 			}
+
 			break_cloaking(Ind, 0);
 			break_shadow_running(Ind);
 			stop_precision(Ind);
 			stop_shooting_till_kill(Ind);
+			bandage_fails(Ind);
 		}
 	}
 
@@ -7299,6 +7332,7 @@ void do_cmd_fire(int Ind, int dir) {
 
 	break_cloaking(Ind, 0);
 	break_shadow_running(Ind);
+	bandage_fails(Ind);
 
 	/* Reduce and describe inventory */
 	if (!boomerang) {
@@ -8721,6 +8755,7 @@ void do_cmd_throw(int Ind, int dir, int item, char bashing) {
 	break_shadow_running(Ind);
 	stop_precision(Ind);
 	stop_shooting_till_kill(Ind);
+	bandage_fails(Ind);
 
 
 	/* Create a "local missile object" */
@@ -10383,6 +10418,22 @@ void stop_shooting_till_kill(int Ind) {
 
 		p_ptr->shoot_till_kill_rcraft = FALSE;
 	}
+}
+
+/* stop ranged technique 'barrage' preparation */
+void bandage_fails(int Ind) {
+	player_type *p_ptr = Players[Ind];
+	int tmp;
+
+	if (!p_ptr->cut_bandaged) return;
+
+	msg_print(Ind, "\376Your bandage comes off and your wound reopens!");
+	if (p_ptr->disturb_state) disturb(Ind, 0, 0);
+
+	/* clear cut_intrinsic_nocut properly */
+	tmp  = p_ptr->cut_bandaged;
+	p_ptr->cut_bandaged = 0;
+	(void)set_cut(Ind, p_ptr->cut + tmp, p_ptr->cut_attacker, TRUE);
 }
 
 /*

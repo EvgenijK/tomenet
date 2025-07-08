@@ -1604,6 +1604,7 @@ I:70:26:0
 W:0:0:5:15
 A:0/1
 D:Detects all nearby objects and treasure.
+D:Often used near mineral veins in the dungeon rocks.
 #d:Detects all nearby treasure.
 
 #N:193:Object Detection
@@ -2030,7 +2031,7 @@ I:71:59:0
 W:65:0:4:25000
 A:65/32
 P:0:1d1:0:0:0
-D:Gives 10 + 1/2 current experience, up to 100 000. Ignores Class/race ratios.
+D:Gives 10 + 1/2 current experience, up to 100 000. Ignores class/race ratios.
 
 N:245:Sleep
 G:!:d
@@ -2530,6 +2531,7 @@ W:5:0:50:350
 A:5/1
 P:0:1d2:0:0:0
 D:Detects all nearby objects and treasure.
+D:Often used near mineral veins in the dungeon rocks.
 #d:Detects all nearby treasure.
 
 #N:302:Object Location
@@ -3013,24 +3015,24 @@ D:Casts a line of light.
 N:357:Lightning Bolts
 G:-:d
 I:66:21:30
-W:20:0:15:2000
-A:20/1
+W:25:0:15:2000
+A:25/1
 P:0:1d1:0:0:0
 D:Casts a lightning bolt for 4..49d13 damage.
 
 N:358:Frost Bolts
 G:-:d
 I:66:23:35
-W:25:0:15:2500
-A:25/1
+W:30:0:15:2500
+A:30/1
 P:0:1d1:0:0:0
 D:Casts a frost bolt for 5..50d13 damage.
 
 N:359:Fire Bolts
 G:-:d
 I:66:22:40
-W:30:0:15:3000
-A:30/1
+W:35:0:15:3000
+A:35/1
 P:0:1d1:0:0:0
 D:Casts a fire bolt for 7..52d13 damage.
 
@@ -3061,8 +3063,8 @@ P:0:1d1:0:0:0
 N:363:Drain Life
 G:-:d
 I:66:18:30
-W:75:0:15:25000
-A:75/4
+W:85:0:15:35000
+A:85/4
 P:0:1d1:0:0:0
 D:Damages a monster for 10..15% of its current hit points (max 900)
 D:and returns 1/8 of the life force to you, replenishing your hit points.
@@ -3101,8 +3103,8 @@ D:Casts a frost ball for 48..318 damage.
 N:368:Fire Balls
 G:-:d
 I:66:26:60
-W:75:0:15:5000
-A:75/1
+W:65:0:15:5000
+A:65/1
 P:0:1d1:0:0:0
 D:Casts a fire ball for 72..342 damage.
 
@@ -3125,7 +3127,7 @@ D:Casts an acid bolt for 6..51d13 damage.
 N:371:Enlightenment
 G:-:d
 I:66:5:40
-W:65:0:15:10000
+W:65:0:15:15000
 A:65/4
 P:0:1d1:0:0:0
 D:Maps your surroundings.
@@ -3159,10 +3161,9 @@ D:and cures stun and most cuts.
 N:375:Detection
 G:-:d
 I:66:6:80
-W:50:0:15:10000
-A:50/8
+W:75:0:15:25000
+A:75/8
 P:0:1d1:0:0:0
-#D:Detects treasure, objects, traps, secret doors, stairs,
 D:Detects treasure, traps, secret doors, stairs,
 D:and non-invisible creatures.
 #note: the stair-detection part is hacked into detect_sdoor()
@@ -3170,7 +3171,7 @@ D:and non-invisible creatures.
 N:376:Restoration
 G:-:d
 I:66:10:140
-W:80:0:15:25000
+W:80:0:15:30000
 A:80/16
 P:0:1d1:0:0:0
 D:Restores all drained stats and drained experience.
@@ -4698,9 +4699,14 @@ $ENABLE_SUBINVEN$P:0:1d1:0:0:0
 $ENABLE_SUBINVEN$F:EASY_KNOW
 $ENABLE_SUBINVEN$D:A dry bag for preserving food during a journey.
 
-
-# HOLE 541
-
+N:541:& Bandage~
+G:~:w
+I:11:1:0
+W:0:0:2:3
+A:5/16
+P:0:1d1:0:0:0
+F:ACTIVATE | EASY_KNOW
+D:Used for tending to open wounds.
 
 N:542:& Club~
 G:\:u
@@ -7057,7 +7063,7 @@ F:EASY_KNOW
 D:This is a chunk of material used for building a golem.
 
 N:851:& Massive Piece~ of Copper
-G:*:U
+G:*:o
 I:52:1:0
 W:30:0:8900:1400
 A:30/40:40/200
@@ -8332,7 +8338,7 @@ $NEW_TOMES$I:111:101:4
 $NEW_TOMES$W:40:0:25:6000
 $NEW_TOMES$A:40/30:70/30
 $NEW_TOMES$P:0:1d1:0:0:0
-$NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE
+$NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE | OFTEN_EGO
 $NEW_TOMES$D:A spellbook can hold four spells of the user's choice.
 
 #self-made tome, high capacity
@@ -8343,7 +8349,7 @@ $NEW_TOMES$I:111:102:5
 $NEW_TOMES$W:70:0:30:24000
 $NEW_TOMES$A:70/50:100/50
 $NEW_TOMES$P:0:1d1:0:0:0
-$NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE
+$NEW_TOMES$F:FULL_NAME | EASY_KNOW | IGNORE_WATER | ACTIVATE | OFTEN_EGO
 $NEW_TOMES$D:A grimoire can hold five spells of the user's choice.
 
 # Halloween costume
@@ -8798,12 +8804,93 @@ A:127/0
 P:0:1d1:0:0:0
 F:EASY_KNOW
 
+N:1060:Fireworks (L-t1)
+G:|:w
+I:125:42:0
+W:127:0:0:0
+A:127/0
+N:1061:Fireworks (L-t2)
+G:|:w
+I:125:43:0
+W:127:0:0:0
+A:127/0
+N:1062:Fireworks (L-w1)
+G:|:w
+I:125:44:0
+W:127:0:0:0
+A:127/0
+N:1063:Fireworks (L-w2)
+G:|:w
+I:125:45:0
+W:127:0:0:0
+A:127/0
+N:1064:Fireworks (L-y1)
+G:|:w
+I:125:46:0
+W:127:0:0:0
+A:127/0
+N:1065:Fireworks (L-y2)
+G:|:w
+I:125:47:0
+W:127:0:0:0
+A:127/0
+N:1066:Fireworks (L-b1)
+G:|:w
+I:125:48:0
+W:127:0:0:0
+A:127/0
+N:1067:Fireworks (L-b2)
+G:|:w
+I:125:49:0
+W:127:0:0:0
+A:127/0
+N:1068:Fireworks (E-t1)
+G:|:w
+I:125:50:0
+W:127:0:0:0
+A:127/0
+N:1069:Fireworks (E-t2)
+G:|:w
+I:125:51:0
+W:127:0:0:0
+A:127/0
+N:1070:Fireworks (E-w1)
+G:*:w
+I:125:52:0
+W:127:0:0:0
+A:127/0
+N:1071:Fireworks (E-w2)
+G:*:w
+I:125:53:0
+W:127:0:0:0
+A:127/0
+N:1072:Fireworks (E-y1)
+G:*:w
+I:125:54:0
+W:127:0:0:0
+A:127/0
+N:1073:Fireworks (E-y2)
+G:*:w
+I:125:55:0
+W:127:0:0:0
+A:127/0
+N:1074:Fireworks (E-b1)
+G:*:w
+I:125:56:0
+W:127:0:0:0
+A:127/0
+N:1075:Fireworks (E-b2)
+G:*:w
+I:125:57:0
+W:127:0:0:0
+A:127/0
+
 
 #N:(No.):(name)
 #G:(appearence):(colour)
 #I:tval:sval:pval  [ie. TV_SHIELD, SV_SMALL_LEATHER_SHIELD, +0] (defines.h)
 #W:(level):(rarity[arts only] 0..255):(weight):(price)  --  depth, rarity and weight have no effect on INSTA_ARTs; price has effect while the item is not known, otherwise it gets overridden by a_ptr->price.
-#A:(depth)/(chance[1/value])   [multiple definitions are possible; chance=0 makes the item unfindable]  -- this line has no effect on INSTA_ARTs -- chance 0 means item won't be generated
+#A:(depth)/(chance[1/value])   [multiple definitions are possible; chance=0 means item won't be generated]  -- this line has no effect on INSTA_ARTs -- chance is u16b, can be up to 65535; rarest are currently 1000 (PDSM, Massive Adamantite)
 #P:(AC):(base dam.):(to-hit):(to-dam):(+AC)
 #F:(Flag) |...
 # Note that W and A lines are not in effect for INSTA_ARTs. Only a_info counts for those.

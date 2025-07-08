@@ -217,6 +217,7 @@ extern byte item_tester_tval;
 extern s16b item_tester_max_weight;
 extern bool (*item_tester_hook)(object_type *o_ptr);
 extern bool item_tester_hook_device(object_type *o_ptr);
+extern bool item_tester_hook_device_charge(object_type *o_ptr); //ENABLE_DEMOLITIONIST
 
 extern bool item_tester_hook_armour(object_type *o_ptr);
 extern bool item_tester_hook_nonart_armour(object_type *o_ptr);
@@ -445,6 +446,7 @@ extern char auto_inscription_match[MAX_AUTO_INSCRIPTIONS][AUTOINS_MATCH_LEN];
 extern char auto_inscription_tag[MAX_AUTO_INSCRIPTIONS][AUTOINS_TAG_LEN];
 extern bool auto_inscription_autopickup[MAX_AUTO_INSCRIPTIONS];
 extern bool auto_inscription_autodestroy[MAX_AUTO_INSCRIPTIONS];
+extern bool auto_inscription_ignore[MAX_AUTO_INSCRIPTIONS];
 extern bool auto_inscription_force[MAX_AUTO_INSCRIPTIONS];
 #ifdef REGEX_SEARCH
 extern bool auto_inscription_invalid[MAX_AUTO_INSCRIPTIONS];
@@ -665,6 +667,7 @@ extern int page(void);
 extern int warning_page(void);
 extern void logprint(const char *out);
 extern void c_prt(byte attr, cptr str, int row, int col);
+extern void cc_prt(byte attr, cptr str, int row, int col);
 extern void prt(cptr str, int row, int col);
 extern bool get_string(cptr prompt, char *buf, int len);
 extern bool get_com(cptr prompt, char *command);
@@ -816,6 +819,7 @@ extern void prt_indicator_melee_brand(bool is_active);
 extern void prt_indicator_regen(bool is_active);
 extern void prt_indicator_dispersion(bool is_active);
 extern void prt_indicator_charm(bool is_active);
+extern void prt_indicator_pfe(bool is_active);
 extern void prt_indicator_shield(u32b flags);
 
 extern void prt_whats_under_your_feet(char *o_name, bool crossmod_item, bool cant_see, bool on_pile);
@@ -1000,6 +1004,7 @@ extern int Send_si_remove(int item, int amt);
 extern int Send_version(void);
 extern int Send_plistw_notify(bool on);
 extern int Send_unknownpacket(int type, int prev_type);
+extern int scan_auto_inscriptions_for_limit(cptr iname);
 
 /* skills.c */
 extern s16b get_skill(int skill);
@@ -1281,9 +1286,6 @@ extern char relogin_host[40], relogin_accname[ACCNAME_LEN], relogin_accpass[PASS
 
 extern int guide_lastline, guide_errno;
 extern bool guide_outdated;
-#ifdef BUFFER_GUIDE
-extern char guide_line[GUIDE_LINES_MAX][MAX_CHARS + 1];
-#endif
 extern char guide_race[64][MAX_CHARS];
 extern char guide_class[64][MAX_CHARS];
 extern char guide_skill[128][MAX_CHARS];
@@ -1292,8 +1294,11 @@ extern char guide_spell[256][MAX_CHARS];
 extern int guide_races, guide_classes, guide_skills, guide_schools, guide_spells;
 extern char guide_chapter[256][MAX_CHARS], guide_chapter_no[256][8];
 extern int guide_chapters, guide_endofcontents;
+#ifdef BUFFER_GUIDE
+extern char *guide_data, **guide_line;
+#endif
 #ifdef BUFFER_LOCAL_FILE
-extern char local_file_line[LOCAL_FILE_LINES_MAX][MAX_CHARS_WIDE + 1];
+extern char *local_file_data, **local_file_line;
 #endif
 
 extern byte showing_inven, showing_equip;

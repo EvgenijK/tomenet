@@ -2720,7 +2720,7 @@ static void erase_guild_key(int id) {
 				m_ptr->hold_o_idx = o_ptr->next_o_idx;
 				monster_desc(0, m_name, o_ptr->held_m_idx, 0);
 				s_printf("GUILD_KEY_ERASE: monster inventory (%d, '%s', #1)\n", o_ptr->held_m_idx, m_name);
-				delete_object_idx(i, TRUE);
+				delete_object_idx(i, TRUE, FALSE);
 				return;
 			} else {
 				i = 1;
@@ -2730,7 +2730,7 @@ static void erase_guild_key(int id) {
 						q_ptr->next_o_idx = o_list[this_o_idx].next_o_idx;
 						monster_desc(0, m_name, o_ptr->held_m_idx, 0);
 						s_printf("GUILD_KEY_ERASE: monster inventory (%d, '%s', #%d)\n", o_ptr->held_m_idx, m_name, i);
-						delete_object_idx(this_o_idx, TRUE);
+						delete_object_idx(this_o_idx, TRUE, FALSE);
 						return;
 					}
 					q_ptr = &o_list[this_o_idx];
@@ -2741,7 +2741,7 @@ static void erase_guild_key(int id) {
 		}
 
 		s_printf("GUILD_KEY_ERASE: floor\n");
-		delete_object_idx(i, TRUE);
+		delete_object_idx(i, TRUE, FALSE);
 		return;
 	}
 
@@ -3634,10 +3634,10 @@ static bool players_in_level(int Ind, int Ind2) {
 /* Note: 'amount' is actually multiplied by 100 for extra decimal digits if we're very low level (Training Tower exp'ing).
    The same is done to 'base_amount' so it's *100 too. */
 #define PERFORM_IRON_TEAM_CHECKS
-void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int henc, int henc_top) {
+void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int henc, int henc_top, int *apply_exp_Ind) {
 	player_type *p_ptr = Players[Ind], *q_ptr;
 	int PInd[NumPlayers], pi = 0, Ind2; /* local working copy of player indices, for efficiency hopefully */
-	int i, eff_henc, hlev = 0, htop = 0;
+	int i, eff_henc, hlev = 0, htop = 0, aeI_idx = -1;
 #ifdef ANTI_MAXPLV_EXPLOIT
  #ifdef ANTI_MAXPLV_EXPLOIT_SOFTEXP
 	int diff;
@@ -3816,6 +3816,9 @@ void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int he
 		new_exp_frac = ((new_amount - new_exp * q_ptr->lev * 100)
 		    * 100L) / q_ptr->lev + q_ptr->exp_frac;
 
+		/* Visual hack so we don't show '0 XP' when it's actually just a fraction of an XP point... -_- */
+		q_ptr->gain_exp_frac = (new_exp == 0 && new_amount != 0 && new_exp_frac - q_ptr->exp_frac != 0);
+
 		/* Keep track of experience */
 		if (new_exp_frac >= 10000L) {
 			new_exp++;
@@ -3826,8 +3829,10 @@ void party_gain_exp(int Ind, int party_id, s64b amount, s64b base_amount, int he
 		}
 
 		/* Gain experience */
-		if (new_exp) gain_exp(Ind2, new_exp);
-		else if (!q_ptr->warning_fracexp && base_amount) {
+		if (new_exp) {
+			apply_exp_Ind[++aeI_idx] = Ind2;
+			gain_exp_onhold(Ind2, new_exp); //for adding the amount to the monster death message
+		} else if (!q_ptr->warning_fracexp && base_amount) {
 			msg_print(Ind2, "\374\377ySome monsters give less than 1 experience point, but you still gain a bit!");
 			s_printf("warning_fracexp: %s\n", q_ptr->name);
 			q_ptr->warning_fracexp = 1;
@@ -5498,7 +5503,7 @@ void erase_player_hash(int slot, hash_entry **p_pptr, hash_entry **p_ptr) {
 	for (i = 0; i < o_max; i++) {
 		o_ptr = &o_list[i];
 		if (true_artifact_p(o_ptr) && (o_ptr->owner == ptr->id))
-			delete_object_idx(i, TRUE);
+			delete_object_idx(i, TRUE, TRUE);
 	}
 
 	if (!backup) sf_delete(ptr->name); /* a sad day ;( */
@@ -6037,7 +6042,7 @@ void strip_true_arts_from_hashed_players() {
 			    (o_ptr->owner == ptr->id) && // <- why?
 			    !winner_artifact_p(o_ptr))
 #if 1 /* set 0 to not change cur_num */
-				delete_object_idx(i, TRUE);
+				delete_object_idx(i, TRUE, TRUE);
 #else
 				excise_object_idx(o_idx);
 				WIPE(o_ptr, object_type);
