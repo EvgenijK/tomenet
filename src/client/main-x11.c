@@ -2971,14 +2971,15 @@ static XImage *ResizeImage(Display *disp, XImage *Im,
 Pixell x_bilinear_interpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
 {
 	Pixell new_pixel = 0;
+    originalX -= 0.5; // dont know why, bit without it all algo work like near interpolation
+	originalY -= 0.5; // dont know why, bit without it all algo work like near interpolation
 	int originalLoopX = round(originalX);
 	int originalLoopY = round(originalY);
 
 	float fractionOfY = originalY - floor(originalY);
 	float fractionOfX = originalX - floor(originalX);
 
-	originalX -= 0.5;
-	originalY -= 0.5;
+
 	originalLoopX = round(originalX);
 	originalLoopY = round(originalY);
 
@@ -3018,7 +3019,8 @@ Pixell x_bilinear_interpolation(XImage *originalImage, float originalX, float or
 Pixell x_lanczos_interpolation(XImage *originalImage, float originalX, float originalY, rectangle tile_boundaries, color_rgb (*color_filter_function)(color_rgb))
 {
 	Pixell new_pixel = 0;
-
+    originalX -= 0.5; // dont know why, bit without it all algo work like near interpolation
+	originalY -= 0.5; // dont know why, bit without it all algo work like near interpolation
 	int originalLoopX = round(originalX);
 	int originalLoopY = round(originalY);
 
@@ -3257,12 +3259,12 @@ static XImage *ResizeImage_2mask(
 
 			// fixed colors
 			// unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, INTERPOLATION_LINEAR);
-			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, 1);
+			unsigned long newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_or_black_if_its_mask_color, 2);
 			XPutPixel(targetImage, targetLoopX, targetLoopY, newPixelHex);
 
 			// fg mask
 			// newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, INTERPOLATION_LINEAR);
-			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, 1);
+			newPixelHex = XPixelInterpolation(originalImage, originalX, originalY, tile_boundaries, get_pixel_color_if_fg_mask_or_black, 2);
 			XPutPixel(*graphics_fgmask_new, targetLoopX, targetLoopY, newPixelHex);
 
 			coordinates topLeftPixelCoordinates = correctPixelCoordinates(round(originalX), round(originalY), tile_boundaries);
