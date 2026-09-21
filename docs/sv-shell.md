@@ -2,9 +2,20 @@
 
 This is a runnable **synthetic development shell**, not a login screen or a
 gameplay client. It opens one SDL3 system window and renders logical native
-surfaces. HP decoding, message delivery, requests and the input router belong to
-the following tickets. It does not link a terminal, legacy client objects, Lua
-generators, historical modern artifacts or a network transport.
+surfaces. [Ticket 02 adds production HP decoding and native status](sv-hp.md).
+[SV-ARCH-001](tasks/SV-ARCH-001-align-current-implementation.md) adds separated
+protocol/model/application modules, budgeted input processing, semantic alert
+results, revision-based status preparation and session-failure recovery in the shell.
+Message delivery, requests and the input router belong to subsequent tickets.
+It compiles selected shared core sources into isolated objects and does not link
+a terminal, legacy object outputs, Lua generators, historical modern artifacts
+or a live network transport.
+
+Temporary synthetic startup and transport adapters are kept in
+`src/temporary/sv`, separately from production modules in `src/client/sv`.
+Native check scenarios live in `tests/sv/scenarios`; build rules identify each
+source group explicitly. The current synthetic executable links these groups
+together, while their source ownership and future replacement remain separate.
 
 ## Build and launch
 
@@ -172,3 +183,31 @@ approval are also unverified; Wine is intermediate evidence only. Wine emitted
 Mesa/EGL driver warnings but the named renderers successfully submitted frames.
 No submission-latency, gameplay, full glyph-corpus or full Stage A acceptance is
 claimed by these shell checks. There are no terminal fallback routes or linkage.
+
+## Architecture checks
+
+The synthetic startup now queues its HP bytes; the ordinary application pass
+processes them with a 16-input budget before rendering. `ui.c` owns drawing and
+prepared status, `app.c` owns session lifecycle and module wiring, `protocol.c`
+owns buffers/decoding, `session.c` owns semantic state and `alerts.c` owns warning
+rules. Production modules contain no pixel assertions or fixture dispatch.
+
+`--arch-check` is a test-only scenario, like `--hp-check`. It leaves a failed
+session in place to verify that the normal shell remains alive, displays the
+reason and submits the requested frames. Failure of a check itself still returns
+nonzero; optional alert executor failure is reported without disconnecting.
+
+```sh
+python3 tests/sv_arch_checks.py
+python3 tests/sv_arch_native.py --backend software
+python3 tests/sv_arch_native.py --backend opengl
+```
+
+See [the HP guide](sv-hp.md) for ownership contracts
+and checks. Temporary transport and logging alert adapters remain in
+`src/temporary/sv`; native fixtures and readbacks remain in `tests/sv/scenarios`.
+
+The 2026-09-21 correction passed Linux SV/legacy builds, headless sanitizer checks,
+legacy HP regression and software/OpenGL HP, architecture and shell smoke checks.
+Windows/Wine was not rerun: cross dependencies and the previous temporary SDK are
+not present. Earlier platform evidence above is historical, not a claim for this revision.

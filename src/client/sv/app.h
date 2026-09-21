@@ -1,0 +1,35 @@
+#ifndef SV_APP_H
+#define SV_APP_H
+#include "alerts.h"
+#include "result.h"
+typedef struct SvApp SvApp;
+typedef struct {
+    uint64_t generation;
+    SvStatus status;
+    int active, executor_failed;
+    SvResult reason;
+} SvAppView;
+typedef struct { size_t processed, pending_bytes; SvResult result; } SvStep;
+/* All entry points run on the owner thread. Views are copies. */
+SvApp *sv_app_create(SvAlertSink sink);
+SvResult sv_app_destroy(SvApp *app);
+SvResult sv_app_open(SvApp *app, const int version[6]);
+SvResult sv_app_close(SvApp *app);
+SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention attention);
+SvAppView sv_app_view(const SvApp *app);
+SvResult sv_app_receive(SvApp *app, uint64_t generation, const void *bytes, size_t size);
+/* Completion from an external producer, delivered on the owner thread.
+ * BACKPRESSURE/BUSY retain input for retry. All other outcomes consume and zero it.
+ * release frees storage only; it must not re-enter the application. */
+typedef struct {
+    uint64_t generation;
+    const void *bytes;
+    size_t size;
+    void *owner;
+    void (*release)(void *owner);
+} SvOwnedBytes;
+SvResult sv_app_receive_owned(SvApp *app, SvOwnedBytes *input);
+SvStep sv_app_step(SvApp *app, size_t budget);
+size_t sv_app_receive_capacity(const SvApp *app);
+SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
+#endif

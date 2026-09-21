@@ -23,6 +23,7 @@
 #define CLIENT
 #include "angband.h"
 #include "netclient.h"
+#include "hp-update.h"
 #ifdef AMIGA
 #include <devices/timer.h>
 #endif
@@ -2169,42 +2170,21 @@ int Receive_stat(void) {
 
 int Receive_hp(void) {
 	int n;
-	char  ch;
-	char drain;
+	ClientHpUpdate hp;
 	s16b max, cur;
+	char drain;
 #ifdef USE_SOUND_2010
 	static int prev_chp = 0;
 #endif
-	bool bar = FALSE;
+	bool bar;
 
-	if (is_newer_than(&server_version, 4, 7, 0, 2, 0, 1)) {
-		if ((n = Packet_scanf(&rbuf, "%c%hd%hd%c", &ch, &max, &cur, &drain)) <= 0)
-			return(n);
-	} else {
-		drain = FALSE;
-		if ((n = Packet_scanf(&rbuf, "%c%hd%hd", &ch, &max, &cur)) <= 0)
-			return(n);
-	}
-
-	/* Display hack */
-	if (max > 10000) {
-		max -= 10000;
-		bar = TRUE;
-	}
-	/* .. and new, clean way: It's a client option now */
-	if (c_cfg.hp_bar) bar = TRUE;
-
-	/* ..Display hack for temporarily boosted HP -_- */
-	if (cur > 5000 /* Checking for > 10000 can cause bugs if our HP drop < 0 aka when we die, while under boosted effect!
-			  So we ensure leeway of exactly the middle, +/-5000, to reach the 10000 hack:
-			  On the one hand allow having up to <5k HP and on the other hand allow taking up to <5k damage below 0 HP on death. */
-	    ) {
-		cur -= 10000;
-		hp_boosted = TRUE;
-	} else hp_boosted = FALSE;
-
-	p_ptr->mhp = max;
-	p_ptr->chp = cur;
+	if ((n = client_decode_hp(&rbuf, &server_version, &hp)) <= 0) return(n);
+	client_apply_hp(p_ptr, &hp);
+	max = p_ptr->mhp;
+	cur = p_ptr->chp;
+	drain = hp.drain;
+	bar = hp.bar || c_cfg.hp_bar;
+	hp_boosted = hp.boosted;
 
 #ifdef USE_SOUND_2010
 	/* Send beep when we're losing HP while we're busy in some other window */
