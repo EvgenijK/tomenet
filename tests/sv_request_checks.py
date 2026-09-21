@@ -6,11 +6,11 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-with tempfile.TemporaryDirectory(prefix='sv-arch-') as temp:
+with tempfile.TemporaryDirectory(prefix='sv-requests-') as temp:
     binary = Path(temp) / 'checks'
-    sources = ['tests/sv/architecture.c']
+    sources = ['tests/sv/requests.c']
     sources += ['src/client/sv/' + name + '.c' for name in
-                ('input', 'alerts', 'app', 'protocol', 'result', 'session', 'status', 'version')]
+                ('message-text', 'input', 'alerts', 'app', 'protocol', 'result', 'session', 'status', 'version')]
     sources += ['src/temporary/sv/peer.c']
     sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
     subprocess.run([os.environ.get('CC', 'clang'), '-std=c99', '-D_DEFAULT_SOURCE', '-DCLIENT=',

@@ -2,11 +2,14 @@
 #define SV_APP_H
 #include "alerts.h"
 #include "result.h"
+#include "input.h"
 typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;
     SvStatus status;
     SvMessages messages;
+    SvKeyRequest request;
+    SvInputContext context;
     int active, executor_failed;
     SvResult reason;
 } SvAppView;
@@ -35,4 +38,5 @@ size_t sv_app_receive_capacity(const SvApp *app);
 SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
 /* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
 SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
+SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
 #endif

@@ -1,0 +1,69 @@
+# Stage A ticket 04: native key requests
+
+The synthetic shell presents a server key request in a logical child surface
+inside its one SDL window. Type a character to answer, or Escape to cancel;
+Escape after completion exits the shell. The decoded HP and message surfaces
+continue to update while the request is pending.
+
+```sh
+make -C src -f makefile.sv tomenet-sv
+./src/tomenet-sv --synthetic --profile-root /tmp/sv-request-manual --library "$PWD/lib"
+python3 tests/sv_request_checks.py
+python3 tests/sv_request_native.py --backend software
+python3 tests/sv_request_native.py --backend opengl
+```
+
+Choose a new profile directory, or reuse one marked by this synthetic client.
+The peer, profile bootstrap and acceptance scenarios are temporary fixture code;
+the decoder, Session, input router, serializer, SDL input adapter and renderer
+are production modules. There is no terminal link or fallback route.
+
+`client_decode_key_request` and `client_send_key_reply` are shared with legacy
+`Receive_request_key` and `Send_request_key` in `src/client/nclient.c`. The
+request retains its signed 32-bit identity and original 80-byte prompt slot.
+The wire layouts are `%c%d%s` and `%c%d%c`; neither has a version branch.
+Preflight waits for the complete NUL-terminated prompt before publishing anything
+and rejects an unterminated full slot instead of adopting the legacy scanner's
+truncation. Valid legacy requests and reply bytes retain baseline behavior.
+
+Session owns the bounded request payload and its session-local sequence.
+The input router owns its pending identity and logical parent context. A reply
+requires the current generation and sequence; completion clears request storage
+and restores the parent. The only parent implemented in this slice is the game
+context. A second request before completion fails explicitly rather than silently
+replacing the first. Output overflow likewise ends the session explicitly.
+Drawing or recreating a surface never emits commands.
+
+Escape maps to key zero. Server abort follows this request owner's contract:
+`Receive_request_abort` sets `request_abort`; `inkey` returns Escape;
+`get_com` returns false; `Receive_request_key` sends a zero reply. Thus an active
+SV key request emits exactly one zero response on server abort. An abort without
+a pending owner does nothing, including a repeated abort after completion.
+This contract does not claim the cancellation semantics of other request types.
+
+SDL text input handles one ASCII character with keyboard layout/shift applied;
+key events handle Escape, Return, Tab, Backspace and Ctrl+A–Z. Unsupported text
+keeps the request pending. Raw prompt bytes remain intact; the declared shell
+ASCII display profile supplies visible substitutes for unsupported glyphs.
+Complete macro processing, additional input contexts and lifecycle/focus evidence
+remain ticket 05; this ticket makes no broader keyboard or encoding parity claim.
+
+## Evidence
+
+The headless sanitizer runner covers 372 fragmentation cases: empty, one-byte,
+78-byte and 79-byte prompts, two adjacent HP layouts, unsigned prompt bytes and
+signed request identity, no publication before completion, Escape and repeated
+server abort, exact serialized bytes, stale identities, parent restoration,
+cleared payloads and retained output after too-small transport reads. Separate
+checks cover normal input and malformed unterminated prompt rejection.
+
+The native scenario covers all splits of a real prompt on two versions (40
+cases), with three submitted frames per case. It reads visible HP/prompt pixels,
+updates HP during the pending request, reconstructs the view, sends text/Escape
+through the SDL event queue and production adapter, exercises server abort,
+and verifies exact replies and no duplicate after redraw. These are visibility
+assertions, not pixel-perfect or human UX approval.
+
+Initial Linux build, ASan/UBSan/LeakSanitizer and software native checks passed.
+Full regression matrix and parallel Standards/Spec review are recorded below
+when complete. Windows/Wine and human visual acceptance are not claimed.

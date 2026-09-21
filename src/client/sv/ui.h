@@ -13,6 +13,8 @@ typedef struct {
     int message_cell;
     size_t message_lengths[SV_MESSAGE_LINES];
     float logical_width;
+    uint64_t request_generation, request_sequence;
+    SvMessageText prompt;
 } SvUi;
 /* Draw only. The shell owns submission, allowing test-only readback before present.
  * Replace font => increment font_revision; reset this object for a new App lifetime. */

@@ -9,11 +9,15 @@ struct SvApp {
     SvAlertOptions options;
     SvAttention attention;
     int busy;
+    SvInputRouter input;
 };
 static void release_session(SvApp *app)
 {
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
+    app->input = (SvInputRouter){0};
+    app->view.request = (SvKeyRequest){0};
+    app->view.context = SV_CONTEXT_GAME;
     app->view.active = 0;
     app->view.messages = (SvMessages){0};
 }
@@ -92,6 +96,29 @@ size_t sv_app_receive_capacity(const SvApp *app)
 {
     return app->view.active ? sv_protocol_capacity(app->protocol) : 0;
 }
+static void refresh_request(SvApp *app)
+{
+    app->view.request = sv_session_request(app->session);
+    sv_input_sync(&app->input, app->view.request);
+    app->view.context = app->input.context;
+}
+static SvResult answer(SvApp *app, uint64_t sequence, unsigned char key)
+{
+    SvKeyReply reply;
+    SvResult result = sv_input_key(&app->input, sv_session_request(app->session), sequence, key, &reply);
+    if (result != SV_OK) return result;
+    result = sv_protocol_key_reply(app->protocol, reply.id, reply.key);
+    if (result != SV_OK) { fail_session(app, result); return result; }
+    result = sv_session_complete_request(app->session, reply.sequence);
+    refresh_request(app);
+    return result;
+}
+SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    return answer(app, sequence, key);
+}
 SvStep sv_app_step(SvApp *app, size_t budget)
 {
     SvStep step = {0, 0, SV_OK};
@@ -110,6 +137,11 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
+        refresh_request(app);
+        if (app->view.request.aborted) {
+            step.result = answer(app, app->view.request.sequence, 27);
+            if (step.result != SV_OK) break;
+        }
         app->view.status = change.status.after;
         app->view.messages = sv_session_messages(app->session);
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);

@@ -25,6 +25,7 @@
 #include "netclient.h"
 #include "hp-update.h"
 #include "message-update.h"
+#include "key-request.h"
 #ifdef AMIGA
 #include <devices/timer.h>
 #endif
@@ -7156,9 +7157,9 @@ int Receive_account_info(void) {
 /* Request keypress (1 char) */
 int Receive_request_key(void) {
 	int n, id;
-	char ch, prompt[MAX_CHARS], buf;
+	char prompt[MAX_CHARS], buf;
 
-	if ((n = Packet_scanf(&rbuf, "%c%d%s", &ch, &id, prompt)) <= 0) return(n);
+	if ((n = client_decode_key_request(&rbuf, &id, prompt)) <= 0) return(n);
 
 	request_pending = TRUE;
 	if (get_com(prompt, &buf)) Send_request_key(id, buf);
@@ -9021,7 +9022,7 @@ int Send_split_stack(int item, int amt) {
 
 int Send_request_key(int id, char key) {
 	int n;
-	if ((n = Packet_printf(&wbuf, "%c%d%c", PKT_REQUEST_KEY, id, key)) <= 0) return(n);
+	if ((n = client_send_key_reply(&wbuf, id, (unsigned char)key)) <= 0) return(n);
 	return(1);
 }
 int Send_request_amt(int id, int num) {

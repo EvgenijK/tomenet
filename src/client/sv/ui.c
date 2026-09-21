@@ -57,6 +57,14 @@ bool sv_ui_draw(SvUi *ui, SvAppView view)
         for (size_t i = 0; i < ui->messages.count; ++i)
             ui->message_lengths[i] = ui->messages.lines[i].length < limit ? ui->messages.lines[i].length : limit;
     }
+    if (ui->request_generation != view.generation || ui->request_sequence != view.request.sequence) {
+        SvMessage prompt = {0};
+        while (prompt.length < SV_REQUEST_BYTES && view.request.prompt[prompt.length]) ++prompt.length;
+        SDL_memcpy(prompt.bytes, view.request.prompt, prompt.length);
+        ui->prompt = sv_message_text(&prompt);
+        ui->request_generation = view.generation;
+        ui->request_sequence = view.request.sequence;
+    }
     float logical_w = ui->logical_width;
     SvStatus status = ui->status.status;
     const SDL_Color title = {225, 232, 237, 255}, text = {180, 196, 208, 255};
@@ -68,13 +76,28 @@ bool sv_ui_draw(SvUi *ui, SvAppView view)
         "Native surfaces",
         ui->status.text,
         view.active ? "No server connection or gameplay is active." : sv_result_text(view.reason),
-        view.executor_failed ? "Optional alert executor failed; session continues." : "Isolated profile. Fullscreen default. UI scale 100%.",
-        "One SDL window. Close or press Escape to exit."
+        view.request.pending ? "Server key request" :
+        (view.executor_failed ? "Optional alert executor failed; session continues." : "Isolated profile. Fullscreen default. UI scale 100%."),
+        view.request.pending ? "Press a key to answer; Escape cancels the request." : "One SDL window. Close or press Escape to exit."
     };
-    const int ys[] = {30, 112, 155, 190, 278, 330};
+    const int ys[] = {30, 112, 155, 190, 278, 365};
     for (unsigned i = 0; i < SDL_arraysize(lines); ++i)
         if (!sv_font_draw(font, renderer, lines[i], (int)SDL_roundf(40 * scale),
                           (int)SDL_roundf(ys[i] * scale), scale, i == 0 ? title : text)) return false;
+    if (view.request.pending) {
+        int cell = sv_font_cell_width(font, scale);
+        if (cell <= 0) return false;
+        size_t columns = (size_t)((logical_w - 80) * scale / cell);
+        if (!columns) return false;
+        for (size_t start = 0, row = 0; start < ui->prompt.length; start += columns, ++row) {
+            char line[SV_REQUEST_BYTES + 1];
+            size_t count = ui->prompt.length - start;
+            if (count > columns) count = columns;
+            SDL_memcpy(line, ui->prompt.text + start, count); line[count] = 0;
+            if (!sv_font_draw(font, renderer, line, (int)SDL_roundf(40 * scale),
+                    (int)SDL_roundf((305 + row * 28) * scale), scale, title)) return false;
+        }
+    }
     if (status.bar) {
         float fraction = status.maximum > 0 ? (float)status.current / status.maximum : 0;
         if (fraction < 0) fraction = 0;

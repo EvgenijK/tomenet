@@ -9,6 +9,7 @@
 #include "../../common/pack.h"
 #include "../hp-update.h"
 #include "../message-update.h"
+#include "../key-request.h"
 #include "protocol.h"
 struct SvProtocol {
     version_type version;
@@ -76,6 +77,22 @@ SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
         Sockbuf_advance(in, (int)(in->ptr - in->buf));
         return SV_OK;
     }
+    case PKT_REQUEST_KEY: {
+        SvKeyRequest request = {0};
+        int decoded = client_decode_key_request(in, &request.id, (char *)request.prompt);
+        if (decoded < 0) return SV_DECODE_ERROR;
+        if (!decoded) return SV_WAITING;
+        change->kind = SV_CHANGE_KEY_REQUEST;
+        change->request = request;
+        p->previous_type = type;
+        Sockbuf_advance(in, (int)(in->ptr - in->buf));
+        return SV_OK;
+    }
+    case PKT_REQUEST_ABORT:
+        change->kind = SV_CHANGE_REQUEST_ABORT;
+        p->previous_type = type;
+        Sockbuf_advance(in, 1);
+        return SV_OK;
     default:
         /* Unknown + redraw is one recovery. Never partially enqueue it. */
         if (p->output.size - p->output.len < 11) return SV_OUTPUT_OVERFLOW;
@@ -95,4 +112,10 @@ SvOutput sv_protocol_output(SvProtocol *p, void *bytes, size_t capacity)
     memcpy(bytes, p->output.buf, count);
     Sockbuf_clear(&p->output);
     return (SvOutput){SV_OK, count};
+}
+
+SvResult sv_protocol_key_reply(SvProtocol *p, int id, unsigned char key)
+{
+    if (p->output.size - p->output.len < 6) return SV_OUTPUT_OVERFLOW;
+    return client_send_key_reply(&p->output, id, key) > 0 ? SV_OK : SV_OUTPUT_OVERFLOW;
 }

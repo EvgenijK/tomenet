@@ -15,6 +15,12 @@ typedef struct {
     size_t count;
     SvMessage lines[SV_MESSAGE_LINES];
 } SvMessages;
+#define SV_REQUEST_BYTES 80
+typedef struct {
+    uint64_t sequence;
+    int id, pending, aborted;
+    unsigned char prompt[SV_REQUEST_BYTES];
+} SvKeyRequest;
 typedef struct SvSession SvSession;
 typedef struct {
     int maximum, current;
@@ -28,10 +34,10 @@ typedef struct {
     uint64_t revision;
 } SvStatus;
 typedef struct { SvStatus before, after; } SvStatusChange;
-typedef enum { SV_CHANGE_HP, SV_CHANGE_MESSAGE } SvChangeKind;
+typedef enum { SV_CHANGE_HP, SV_CHANGE_MESSAGE, SV_CHANGE_KEY_REQUEST, SV_CHANGE_REQUEST_ABORT } SvChangeKind;
 typedef struct {
     SvChangeKind kind;
-    union { SvHpUpdate hp; SvMessage message; };
+    union { SvHpUpdate hp; SvMessage message; SvKeyRequest request; };
 } SvChange;
 typedef struct { SvResult result; SvStatusChange status; } SvSessionChange;
 /* Model only. No wire version, transport or SDL dependency in this interface. */
@@ -44,4 +50,6 @@ SvStatus sv_session_status(const SvSession *session);
  * Taking an event acknowledges its delivery; drawing the feed never takes events. */
 SvResult sv_session_take_message(SvSession *session, SvMessage *message);
 SvMessages sv_session_messages(const SvSession *session);
+SvKeyRequest sv_session_request(const SvSession *session);
+SvResult sv_session_complete_request(SvSession *session, uint64_t sequence);
 #endif

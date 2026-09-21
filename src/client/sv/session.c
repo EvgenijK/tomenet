@@ -9,6 +9,8 @@
 #include "../hp-update.h"
 #include "session.h"
 struct SvSession {
+    SvKeyRequest request;
+    uint64_t request_sequence;
     SvMessage pending[SV_MESSAGE_PENDING];
     size_t head, count;
     uint64_t sequence;
@@ -81,7 +83,26 @@ SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
     switch (change->kind) {
     case SV_CHANGE_HP: applied.status = apply_hp(s, change->hp); break;
     case SV_CHANGE_MESSAGE: applied.result = apply_message(s, &change->message); break;
+    case SV_CHANGE_KEY_REQUEST:
+        if (s->request.pending || s->request_sequence == UINT64_MAX) {
+            applied.result = SV_EVENT_OVERFLOW; break;
+        }
+        s->request = change->request;
+        s->request.sequence = ++s->request_sequence;
+        s->request.pending = 1; s->request.aborted = 0;
+        break;
+    case SV_CHANGE_REQUEST_ABORT:
+        if (s->request.pending) s->request.aborted = 1;
+        break;
     default: applied.result = SV_INVALID; break;
     }
     return applied;
+}
+
+SvKeyRequest sv_session_request(const SvSession *s) { return s->request; }
+SvResult sv_session_complete_request(SvSession *s, uint64_t sequence)
+{
+    if (!s->request.pending || s->request.sequence != sequence) return SV_STALE;
+    s->request = (SvKeyRequest){0};
+    return SV_OK;
 }

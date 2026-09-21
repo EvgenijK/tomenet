@@ -48,7 +48,8 @@ SvAlertSink sv_synthetic_alert_sink(void)
 bool sv_synthetic_start(SvApp *app)
 {
     const int version[6] = {4, 7, 0, 2, 0, 2};
-    const unsigned char hp[] = {24, 0x27, 0x74, 0x27, 0x42, 1,
+    const unsigned char hp[] = {184,0x12,0x34,0x56,0x78,
+        'C','h','o','o','s','e',' ','a',' ','k','e','y',':',0,24, 0x27, 0x74, 0x27, 0x42, 1,
         46,255,'w','E','c','h','o',0,46,255,'w','E','c','h','o',0};
     if (sv_app_open(app, version) != SV_OK ||
         sv_app_set_alerts(app, (SvAlertOptions){1,1}, (SvAttention){0}) != SV_OK ||
