@@ -5317,10 +5317,13 @@ static bool process_player_end_aux(int Ind) {
 
 		switch (p_ptr->mycorrhiza - 1) {
 		/* These two are in competition with CSW, buff them to trigger more frequently */
+		case SV_FOOD_RESTORE_STR:
+		case SV_FOOD_RESTORE_CON:
 		case SV_FOOD_CURE_BLINDNESS:
 		case SV_FOOD_CURE_CONFUSION:
 			minfreq = 2;
 			break;
+		case SV_FOOD_RESTORING:
 		case SV_FOOD_CURE_SERIOUS: /* Reduce this one's trigger speed somewhat, as it provides triple-status cure too. */
 			minfreq = 4;
 			break;
@@ -10041,14 +10044,13 @@ void process_player_change_wpos(int Ind) {
 	}
 
 	if (is_admin(p_ptr) && p_ptr->recall_x != 0 && p_ptr->recall_y != 0) {
-		p_ptr->px = p_ptr->recall_x;
-		p_ptr->py = p_ptr->recall_y;
+		x = p_ptr->recall_x;
+		y = p_ptr->recall_y;
 		p_ptr->recall_x = 0;
 		p_ptr->recall_y = 0;
-	} else {
-		p_ptr->px = x;
-		p_ptr->py = y;
 	}
+	p_ptr->px = x;
+	p_ptr->py = y;
 
 	/* Update the player location */
 	zcave[y][x].m_idx = 0 - Ind;
@@ -10298,7 +10300,7 @@ void process_player_change_wpos(int Ind) {
 		bool books = FALSE;
 		object_type *o_ptr;
 
-		for (j = 1; j < INVEN_PACK; j++) {
+		for (j = 0; j < INVEN_PACK; j++) {
 			o_ptr = &p_ptr->inventory[j];
 			if (!o_ptr->tval) break;
 
@@ -10312,9 +10314,10 @@ void process_player_change_wpos(int Ind) {
 				break;
 			}
 		}
-		if (!p_ptr->warning_powins) {
+		if (books && !p_ptr->warning_powins) {
 			msg_print(Ind, "\374\377yHINT: Press \377o{\377- to power-inscribe your custom books, eg a codex.");
-			msg_print(Ind, "\374\377y      When prompted for inscription, just enter: \377y@@@");
+			msg_print(Ind, "\374\377y      When prompted for inscription, just enter: \377o@@@");
+			msg_print(Ind, "\374\377y      This works for handbooks or tomes too. '\377o@@\377y' shows full spell names.");
 			s_printf("warning_powins: %s\n", p_ptr->name);
 			p_ptr->warning_powins = 1;
 		}
@@ -11544,9 +11547,6 @@ redo_world:
 
 	/*** Init the wild_info array... for more information see wilderness.c ***/
 	init_wild_info();
-
-	/* Load list of banned players */
-	load_banlist();
 
 	/* Attempt to load the server state information */
 	if (!load_server_info()) {

@@ -40,9 +40,9 @@
 /* MAJOR/MINOR/PATCH version should be 0-15. BUILD == 1 means 'test build' */
 #define VERSION_MAJOR		4
 #define VERSION_MINOR		9
-#define VERSION_PATCH		3
+#define VERSION_PATCH		4
 #define VERSION_EXTRA		0
-#define VERSION_BRANCH		2
+#define VERSION_BRANCH		0
 #define VERSION_BUILD		0
 
 /* MAJOR/MINOR/PATCH version that counts as 'latest' (should be 0-15).
@@ -51,18 +51,18 @@
    with a 'T' marker which is visible only to admins.*/
 #define VERSION_MAJOR_LATEST	4
 #define VERSION_MINOR_LATEST	9
-#define VERSION_PATCH_LATEST	3
+#define VERSION_PATCH_LATEST	4
 #define VERSION_EXTRA_LATEST	0
-#define VERSION_BRANCH_LATEST	2
+#define VERSION_BRANCH_LATEST	0	/* not 2 (was an SDL3 change) */
 #define VERSION_BUILD_LATEST	0
 
 /* maximum MAJOR/MINOR/PATCH version that counts as 'outdated' (should be 0-15). */
 #define VERSION_MAJOR_OUTDATED	4
 #define VERSION_MINOR_OUTDATED	9
-#define VERSION_PATCH_OUTDATED	2
-#define VERSION_EXTRA_OUTDATED	1
+#define VERSION_PATCH_OUTDATED	3
+#define VERSION_EXTRA_OUTDATED	2
 #define VERSION_BRANCH_OUTDATED	0
-#define VERSION_BUILD_OUTDATED	2 /* should always be 1 (or higher) to invalidate previous 'test' versions */
+#define VERSION_BUILD_OUTDATED	3 /* should always be 1 (or higher) to invalidate previous 'test' versions */
 
 /* Server release version tag (such as "a", "b" etc), or empty if none:
    Minimum client version tag required to "play 100%". */
@@ -7020,7 +7020,7 @@
 #define RF8_GENO_NO_THIN		0x10000000U	/* Don't genocide this monster when thinning out surface spawns */
 #define RF8_FINAL_GUARDIAN		0x20000000U	/* Note! This flag is NOT set/used in r_info.txt! Instead, the monster is defined as FINAL_GUARDIAN_ in d_info.txt! */
 #define RF8_WILD_SWAMP			0x40000000U
-#define RF8_WILD_TOO			0x80000000U	/* If specified w/o any other WILD_xxx flag it enables ALL WILD_xxx flags; for quests it enables any WILD_xxx location in any case; no other purpose */
+#define RF8_WILD_TOO			0x80000000U	/* If specified w/o any other WILD_xxx flag (except for WILD_ONLY aka really RF8_DUNGEON) it enables ALL WILD_xxx flags; for quests it enables any WILD_xxx location in any case; no other purpose */
 
 #define RF8_WILD_TOO_MASK \
 	( RF8_WILD_TOWN | RF8_WILD_EASY | RF8_WILD_SHORE | \

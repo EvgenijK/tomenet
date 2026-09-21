@@ -8959,11 +8959,18 @@ static int reward_ranged_check(player_type *p_ptr, long int treshold) {
 	if (!(choice1 + choice2 + choice3 + choice4)) selection = 0;
 	return(selection);
 }
-static int reward_armor_check(player_type *p_ptr, bool mha, bool rha) {
+static int reward_armor_check(player_type *p_ptr, bool mha, bool rha, bool caster) {
 //	int maxweight = (adj_str_hold[p_ptr->stat_ind[A_STR]] - 10) * 10;
 	int maxweight = adj_str_armor[p_ptr->stat_ind[A_STR]] * 10;
 	long int rnd_result = 0, selection = 0;
 	int choice1 = 0, choice2 = 0, choice3 = 0, choice4 = 0, choice5 = 0, choice6 = 0, choice7 = 0, choice8 = 0;
+
+	/* Don't impact MP for spellcasters, even give some leeway for other equipment pieces */
+	if (caster) {
+		int mw = (mana_heavy_armour(p_ptr) * 2) / 3;
+
+		if (mw < maxweight) maxweight = mw;
+	}
 
 /*  TV_SOFT_ARMOR
     TV_HARD_ARMOR
@@ -9036,7 +9043,7 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 	int tries = 0, i = 0, j = 0;
 	char o_name[ONAME_LEN];
 	u32b f1, f2, f3, f4, f5, f6, esp, tmp;
-	bool mha, rha; /* monk heavy armor, rogue heavy armor */
+	bool mha, rha, dw; /* monk heavy armor, rogue heavy armor, dual-wielding */
 	bool go_heavy = TRUE; /* new special thingy: don't pick super light cloth armour if we're not specifically light-armour oriented */
 	bool caster = FALSE;
 	bool antimagic = (p_ptr->s_info[SKILL_ANTIMAGIC].value != 0);
@@ -9071,18 +9078,42 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 	/* fix reasonable limits */
 	if (maxweight_armor < 30) maxweight_armor = 30;
 
+	/* We're dual-wielding? */
+	if (p_ptr->inventory[INVEN_WIELD].k_idx &&
+	    p_ptr->inventory[INVEN_ARM].k_idx && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD)
+		dw = TRUE;
+
+	/* are we definitely going to use spells? (used for AM/MPDrain check, now also for armour weight impacting MP) */
+	switch (p_ptr->pclass) {
+	case CLASS_SHAMAN:
+	case CLASS_MAGE:
+	case CLASS_RUNEMASTER:
+	case CLASS_MINDCRAFTER:
+#ifdef ENABLE_CPRIEST
+	case CLASS_CPRIEST:
+#endif
+	case CLASS_PRIEST:
+	case CLASS_PALADIN:
+#ifdef ENABLE_DEATHKNIGHT
+	case CLASS_DEATHKNIGHT:
+#endif
+#ifdef ENABLE_HELLKNIGHT
+	case CLASS_HELLKNIGHT:
+#endif
+	case CLASS_DRUID:
+		caster = TRUE;
+	}
+
 	/* analyze skills */
 	if (p_ptr->skill_points != (p_ptr->max_plv - 1) * SKILL_NB_BASE) {
 		melee_choice = reward_melee_check(p_ptr, treshold);
 		mha = (melee_choice == 5); /* monk heavy armor */
 		rha = (get_skill(p_ptr, SKILL_DODGE)); /* rogue heavy armor; pclass == rogue or get_skill(SKILL_CRITS) are implied by this one due to current tables.c. dual_wield is left out on purpose. */
 		/* analyze current setup (for reward_armor_check) */
-		if (p_ptr->inventory[INVEN_WIELD].k_idx &&
-		    p_ptr->inventory[INVEN_ARM].k_idx && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD)
-			rha = TRUE; /* we're dual-wielding */
+		if (dw) rha = TRUE;
 		/* make choices */
 		ranged_choice = reward_ranged_check(p_ptr, treshold);
-		armor_choice = reward_armor_check(p_ptr, mha, rha);
+		armor_choice = reward_armor_check(p_ptr, mha, rha, caster);
 		spell_choice = reward_spell_check(p_ptr, treshold);
 		misc_choice = reward_misc_check(p_ptr, treshold);
 		/* newbie druids who didn't spend points on MA (this prevents pure caster druid rewards, but w/e) */
@@ -9139,11 +9170,9 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 			break;
 		}
 		/* analyze current setup (for reward_armor_check) */
-		if (p_ptr->inventory[INVEN_WIELD].k_idx &&
-		    p_ptr->inventory[INVEN_ARM].k_idx && p_ptr->inventory[INVEN_ARM].tval != TV_SHIELD)
-			rha = TRUE; /* we're dual-wielding */
+		if (dw) rha = TRUE;
 		/* make choices */
-		armor_choice = reward_armor_check(p_ptr, mha, rha);
+		armor_choice = reward_armor_check(p_ptr, mha, rha, caster);
 		misc_choice = randint(3);
 	}
 
@@ -9376,6 +9405,8 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 		}
 	}
 
+	if (spell_choice) caster = TRUE;
+
 	/* respect unusuable slots depending on monster form */
 	invwipe(&tmp_obj);
 	tmp_obj.tval = reward_tval;
@@ -9570,6 +9601,9 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 			/* Check for weight limit! */
 			if (o_ptr->weight > reward_maxweight) continue;
 
+			/* Rogues MUST NOT use 1.5h/2h weapons, or they cannot use 'Cloaking' skill! */
+			if (p_ptr->pclass == CLASS_ROGUE && (k_info[k_idx].flags4 & (TR4_MUST2H | TR4_SHOULD2H))) continue;
+
 			/* No weapon that reduces bpr compared to what weapon the person currently holds! */
 			if (weapon_bpr) {
 				if (calc_blows_obj(Ind, o_ptr) < weapon_bpr) {
@@ -9632,28 +9666,6 @@ void create_reward(int Ind, object_type *o_ptr, int min_lv, int max_lv, bool gre
 		invcopy(o_ptr, lookup_kind(reward_tval, reward_sval));
 		s_printf("\n REWARD_UGLY (%d,%d)", o_ptr->tval, o_ptr->sval);
 	}
-
-	/* are we definitely going to use spells? (used for AM/MPDrain check) */
-	switch (p_ptr->pclass) {
-	case CLASS_SHAMAN:
-	case CLASS_MAGE:
-	case CLASS_RUNEMASTER:
-	case CLASS_MINDCRAFTER:
-#ifdef ENABLE_CPRIEST
-	case CLASS_CPRIEST:
-#endif
-	case CLASS_PRIEST:
-	case CLASS_PALADIN:
-#ifdef ENABLE_DEATHKNIGHT
-	case CLASS_DEATHKNIGHT:
-#endif
-#ifdef ENABLE_HELLKNIGHT
-	case CLASS_HELLKNIGHT:
-#endif
-	case CLASS_DRUID:
-		caster = TRUE;
-	}
-	if (spell_choice) caster = TRUE;
 
 
 	/* apply_magic to that item, until we find a fitting one */

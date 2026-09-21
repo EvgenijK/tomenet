@@ -1094,7 +1094,7 @@ bool make_attack_melee(int Ind, int m_idx) {
 					/* Colour change for ranged MOAN for Halloween event -C. Blue */
 					if (season_halloween)
 						msg_format(Ind, "\377o%^s %s", m_name, act);
-					else
+					else if (!(r_ptr->flags7 & RF7_NO_DEATH) || !rand_int(10)) /* Hack for Farmer Maggot: Don't spam moans like crazy */
 						msg_format(Ind, "%^s %s", m_name, act);
 				} else if (method == RBM_SHOW || method == RBM_WHISPER || method == RBM_INSULT)
 					msg_format(Ind, "%^s %s", m_name, act);
@@ -1302,11 +1302,16 @@ bool make_attack_melee(int Ind, int m_idx) {
 					}
 #endif
 
-					/* Saving throw from discharge resistance - anti-cheeze: for now applied _after_ above's tim_mimic discharge */
-					if (p_ptr->resist_discharge && !magik(r_ptr->level > p_ptr->lev + 20 ? r_ptr->level - p_ptr->lev : 20)) break;
+					/* Saving throw by Magic Device skill (5%..95%) */
+					i = 113 - (2160 / (20 + get_skill_scale(p_ptr, SKILL_DEVICE, 100)));
 
-					/* Saving throw by Magic Device skill (9%..99%) */
-					if (magik(117 - (2160 / (20 + get_skill_scale(p_ptr, SKILL_DEVICE, 100))))) break;
+					/* Saving throw from discharge resistance - anti-cheeze: for now applied _after_ above's tim_mimic discharge */
+					if (p_ptr->resist_discharge) {
+						j = (p_ptr->lev * 2 > r_ptr->level + 10 ? (p_ptr->lev * 2 > r_ptr->level + 50 ? 50 : p_ptr->lev * 2 - r_ptr->level) : 10); /* Minimum chance of 10...50% */
+						if (i < j) i = j;
+					}
+
+					if (magik(i)) break;
 
 					/* Find an item */
 					for (k = 0; k < 20; k++) {

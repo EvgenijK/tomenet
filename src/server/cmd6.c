@@ -145,14 +145,22 @@ bool eat_food(int Ind, int sval, object_type *o_ptr, bool *keep) {
 
 	case SV_FOOD_PARANOIA:
 		if (!p_ptr->resist_fear) {
-			if (set_afraid(Ind, p_ptr->afraid + rand_int(10) + 10) +
-			    set_image(Ind, p_ptr->image + 20)) //maybe todo: add set_image_weak() !
-				ident = TRUE;
-			/* No duplicate increase, mycorrhiza already grants permanent increase */
-			if (p_ptr->mycorrhiza - 1 != SV_FOOD_PARANOIA) {
-				p_ptr->skill_fos_inc = 15 + rand_int(10); // look around you more often <_>
-				p_ptr->update |= PU_BONUS;
+			if (mycorrhiza) {
+				/* Don't continuously stack up bad effects forever (until hitting the status effect stack limit [of 200]) */
+				int a = p_ptr->afraid >= 20 ? 0 : rand_int(10) + 10;
+				int i = p_ptr->image >= 20 ? 0 : rand_int(15) + 5;
+
+				if ((a ? set_afraid(Ind, p_ptr->afraid + a) : 0) +
+				    (i ? set_image(Ind, p_ptr->image + i) : 0)) //maybe todo: add set_image_weak() !
+					ident = TRUE;
+			} else {
+				if (set_afraid(Ind, p_ptr->afraid + rand_int(10) + 10) +
+				    set_image(Ind, p_ptr->image + 20)) //maybe todo: add set_image_weak() !
+					ident = TRUE;
 			}
+			/* Hack: Positive side effect of harmful mushroom: Search frequency ('Perception') */
+			if (!p_ptr->skill_fos_inc) p_ptr->update |= PU_BONUS;
+			p_ptr->skill_fos_inc = 15 + rand_int(10); // look around you more often <_> (non-stacking)
 		}
 		break;
 
@@ -790,9 +798,17 @@ bool quaff_potion(int Ind, int tval, int sval, int pval) {
 			if (!p_ptr->resist_blind)
 				if (set_blind(Ind, p_ptr->blind + rand_int(100) + 100)) ident = TRUE;
 			break;
-		case SV_POTION_CONFUSION:
-			if (!p_ptr->resist_conf)
-				if (set_confused(Ind, p_ptr->confused + rand_int(20) + 15)) ident = TRUE;
+		case SV_POTION_CONFUSION: /* This is actually "Booze" - treat it accordingly: */
+			if (p_ptr->prace == RACE_ENT) {
+				dam = damroll(2, 3);
+				msg_format(Ind, "The booze harms your metabolism for \377o%d \377wdamage!", dam);
+				take_hit(Ind, dam, "ingesting booze", 0);
+				if (!(p_ptr->resist_pois || p_ptr->oppose_pois || p_ptr->immune_poison))
+					if (set_poisoned(Ind, p_ptr->poisoned + rand_int(5) + 5, 0)) ident = TRUE;
+			} else {
+				if (!p_ptr->resist_conf)
+					if (set_confused(Ind, p_ptr->confused + rand_int(20) + 15)) ident = TRUE;
+			}
 			break;
 #if 0
 		case SV_POTION_MUTATION:
@@ -1422,11 +1438,19 @@ void do_cmd_quaff_potion(int Ind, int item) {
 		if (p_ptr->prace == RACE_VAMPIRE) {
 			if (o_ptr->sval == SV_POTION_BLOOD) set_food(Ind, o_ptr->pval + p_ptr->food);
 		} else if (p_ptr->prace == RACE_ENT) {
-			if (o_ptr->sval == SV_POTION_WATER) (void)set_food(Ind, p_ptr->food + WATER_ENT_FOOD);
-			else if (o_ptr->sval != SV_POTION_BLOOD) (void)set_food(Ind, p_ptr->food + (o_ptr->pval * (o_ptr->pval > 0 ? 2 : 1))); //don't double-subtract for invulnerability potions!
+			switch (o_ptr->sval) {
+			case SV_POTION_WATER:
+				(void)set_food(Ind, p_ptr->food + WATER_ENT_FOOD);
+				break;
+			case SV_POTION_CONFUSION: //booze
+			case SV_POTION_BLOOD:
+				break;
+			default:
+				(void)set_food(Ind, p_ptr->food + (o_ptr->pval * (o_ptr->pval > 0 ? 2 : 1))); //don't double-subtract for invulnerability potions!
+			}
 		} else if (p_ptr->suscep_life) {
-			if (o_ptr->sval == SV_POTION_BLOOD) set_food(Ind, o_ptr->pval + p_ptr->food / 4);
-			(void)set_food(Ind, p_ptr->food + (o_ptr->pval * 2) / 3);
+			if (o_ptr->sval == SV_POTION_BLOOD) set_food(Ind, o_ptr->pval / 4 + p_ptr->food);
+			else (void)set_food(Ind, p_ptr->food + (o_ptr->pval * 2) / 3);
 		} else
 			if (o_ptr->sval != SV_POTION_BLOOD) (void)set_food(Ind, p_ptr->food + o_ptr->pval);
 	}
@@ -10316,7 +10340,6 @@ void do_set_mycorrhiza(int Ind, int item) {
 		}
 		s_printf("MYCORRHIZA: %s : end.\n", p_ptr->name);
 		msg_print(Ind, "\376\377WYou end your current mycorrhiza and the fungus decays.");
-		if (p_ptr->mycorrhiza - 1 == SV_FOOD_PARANOIA) p_ptr->update |= PU_BONUS;
 		p_ptr->mycorrhiza = 0;
 		p_ptr->energy -= level_speed(&p_ptr->wpos);
 		return;
@@ -10333,7 +10356,6 @@ void do_set_mycorrhiza(int Ind, int item) {
 
 	/* Are we already in a mycorrhiza? Imply ending it first then. */
 	msg_print(Ind, "\376\377WYou end your current mycorrhiza and the previous fungus decays.");
-	if (p_ptr->mycorrhiza - 1 == SV_FOOD_PARANOIA) p_ptr->update |= PU_BONUS;
 
 	/* Enter mycorrhiza! */
 	p_ptr->mycorrhiza = o_ptr->sval + 1;
@@ -10352,10 +10374,6 @@ void do_set_mycorrhiza(int Ind, int item) {
 
 	/* Item-specific adjustments and maintenance */
 	switch (p_ptr->mycorrhiza - 1) {
-	case SV_FOOD_PARANOIA:
-		/* Hack: Positive side effect of harmful mushroom: Search frequency ('Perception') */
-		p_ptr->update |= PU_BONUS;
-		break;
 	/* These two are in competition with CSW, buff them to 'quickstart' */
 	case SV_FOOD_CURE_BLINDNESS:
 	case SV_FOOD_CURE_CONFUSION:

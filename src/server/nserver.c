@@ -3680,9 +3680,9 @@ static int Handle_login(int ind) {
 #ifdef USE_SOUND_2010
 	/* Since 4.5.7 we can now distinguish (client-side) between disabled and unavailable audio.
 	   The minus constant is for optional songs, ie songs that have a commented out music.cfg entry by default (user's choice to enable them). */
-	if (p_ptr->audio_sfx && p_ptr->audio_sfx != 4 && p_ptr->audio_sfx < __audio_sfx_max - 110 - 4 - 2) // last '-2': open/close window exempt for now... (SP1.0b)
+	if (p_ptr->audio_sfx && p_ptr->audio_sfx != 4 && p_ptr->audio_sfx < __audio_sfx_max - 110 - 4) // (SP1.0b)
 		msg_print(NumPlayers, "\374\377D --- Warning: Your sound pack is outdated! ---");
-	if (p_ptr->audio_mus && p_ptr->audio_mus < __audio_mus_max - 40 - 12 - 6*2*4 - 9*2 - 4 - 24 - 43 -1) // last '-1' : ash mountains exempt for now... (MP 1.1)
+	if (p_ptr->audio_mus && p_ptr->audio_mus < __audio_mus_max - 40 - 12 - 6*2*4 - 9*2 - 4 - 24 - 43 - 4) // (MP1.1a); last '-4' : 'module_*' are exempt for now
 		msg_print(NumPlayers, "\374\377D --- Warning: Your music pack is outdated! ---");
 #endif
 
@@ -3778,6 +3778,7 @@ static int Handle_login(int ind) {
 			o_ptr->discount = 0;
 			o_ptr->level = 0;
 			o_ptr->ident |= ID_MENTAL;
+			o_ptr->find_reward = ge_contender_buffer_type[i];
 			inven_carry(NumPlayers, o_ptr);
 			s_printf("GE_CONTENDER_BUFFER(%d): '%s' got sval %d.\n", i, p_ptr->name, ge_contender_buffer_deed[i]);
 			msg_print(NumPlayers, "\377GAs a former contender in an event, you have received a deed!");
@@ -3804,6 +3805,7 @@ static int Handle_login(int ind) {
 			o_ptr->discount = 0;
 			o_ptr->level = 0;
 			o_ptr->ident |= ID_MENTAL;
+			o_ptr->find_reward = achievement_buffer_type[i];
 			inven_carry(NumPlayers, o_ptr);
 			s_printf("ACHIEVEMENT_BUFFER(%d): '%s' got sval %d.\n", i, p_ptr->name, achievement_buffer_deed[i]);
 			msg_print(NumPlayers, "\377GFor your achievements, you have received a deed!");

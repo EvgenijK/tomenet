@@ -1254,6 +1254,42 @@ static void calc_sanity(int Ind) {
 	}
 }
 
+int mana_heavy_armour(player_type *p_ptr) {
+	int max_wgt = 1000;
+
+	/* Determine the weight allowance */
+	//max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 250); break;
+	switch (p_ptr->pclass) {
+	case CLASS_MAGE: max_wgt = 150 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_RANGER: max_wgt = 240 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+#ifdef ENABLE_CPRIEST
+	case CLASS_CPRIEST:
+#endif
+	case CLASS_PRIEST: max_wgt = 250 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+#ifdef ENABLE_DEATHKNIGHT
+	case CLASS_DEATHKNIGHT:
+#endif
+#ifdef ENABLE_HELLKNIGHT
+	case CLASS_HELLKNIGHT:
+#endif
+	case CLASS_PALADIN: max_wgt = 300 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_DRUID: max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_SHAMAN: max_wgt = 170 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_ROGUE: max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_RUNEMASTER: max_wgt = 230 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;/*was 270*/
+	case CLASS_MIMIC: max_wgt = 280 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_ADVENTURER: max_wgt = 210 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	//case CLASS_MINDCRAFTER: max_wgt = 230 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_MINDCRAFTER: max_wgt = 260 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
+	case CLASS_WARRIOR:
+	case CLASS_ARCHER:
+	default:
+		// go with '1000' aka w/e
+		break;
+	}
+
+	return(max_wgt);
+}
 
 /*
  * Calculate maximum mana.  You do not need to know any spells.
@@ -1519,34 +1555,7 @@ void calc_mana(int Ind) {
 	/* Weigh the armor */
 	cur_wgt = worn_armour_weight(p_ptr);
 
-	/* Determine the weight allowance */
-	//max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 250); break;
-	switch (p_ptr->pclass) {
-	case CLASS_MAGE: max_wgt = 150 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_RANGER: max_wgt = 240 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-#ifdef ENABLE_CPRIEST
-	case CLASS_CPRIEST:
-#endif
-	case CLASS_PRIEST: max_wgt = 250 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-#ifdef ENABLE_DEATHKNIGHT
-	case CLASS_DEATHKNIGHT:
-#endif
-#ifdef ENABLE_HELLKNIGHT
-	case CLASS_HELLKNIGHT:
-#endif
-	case CLASS_PALADIN: max_wgt = 300 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_DRUID: max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_SHAMAN: max_wgt = 170 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_ROGUE: max_wgt = 200 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_RUNEMASTER: max_wgt = 230 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;/*was 270*/
-	case CLASS_MIMIC: max_wgt = 280 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_ADVENTURER: max_wgt = 210 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-//	case CLASS_MINDCRAFTER: max_wgt = 230 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_MINDCRAFTER: max_wgt = 260 + get_skill_scale(p_ptr, SKILL_COMBAT, 150); break;
-	case CLASS_WARRIOR:
-	case CLASS_ARCHER:
-	default: max_wgt = 1000; break;
-	}
+	max_wgt = mana_heavy_armour(p_ptr);
 
 	/* Heavy armor penalizes mana */
 	if ((cur_wgt - max_wgt) > 0) {
@@ -6631,13 +6640,7 @@ void calc_boni(int Ind) {
 	//p_ptr->skill_tht += (p_ptr->cp_ptr->x_thb * (get_skill_scale(p_ptr, SKILL_COMBAT, 10) + get_skill_scale(p_ptr, SKILL_BOOMERANG, 35))) / 30;
 	p_ptr->skill_tht += (40 * (get_skill_scale(p_ptr, SKILL_COMBAT, 10) + get_skill_scale(p_ptr, SKILL_BOOMERANG, 35))) / 30;
 
-
-
-	/* Hack: Mycorrhiza positive side effect of harmful mushroom - Thanks, Virus. */
-	switch (p_ptr->mycorrhiza - 1) {
-	case SV_FOOD_PARANOIA: p_ptr->skill_fos += 30; break;
-	}
-	/* Just eating the shroom instead: */
+	/* Mushroom of paranoia - Thanks, Virus */
 	if (p_ptr->skill_fos_inc) p_ptr->skill_fos += 30;
 
 
@@ -6752,6 +6755,47 @@ void calc_boni(int Ind) {
 
 	/* Hack -- Res Chaos -> Res Conf */
 	if (p_ptr->resist_chaos) p_ptr->resist_conf = TRUE;
+
+
+
+	/* Nimbus - Temporary Resists/Immunities - TODO Kurzel - Show in Chh */
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_FIRE) { p_ptr->immune_fire = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_HELLFIRE) { p_ptr->immune_fire = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_COLD) { p_ptr->immune_cold = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_ELEC) { p_ptr->immune_elec = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_ACID) { p_ptr->immune_acid = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_POIS) { p_ptr->immune_poison = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_LITE) { p_ptr->resist_lite = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_DARK) { p_ptr->resist_dark = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_INERTIA) { p_ptr->free_act = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_GRAVITY) { p_ptr->resist_sound = TRUE; p_ptr->free_act = TRUE; p_ptr->feather_fall = TRUE; p_ptr->res_tele = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_SOUND) { p_ptr->resist_sound = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_FORCE) { p_ptr->resist_sound = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_SHARDS) { p_ptr->resist_shard = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_NEXUS) { p_ptr->resist_nexus = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_NETHER) { p_ptr->resist_neth = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_CONFUSION) { p_ptr->resist_conf = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_CHAOS) { p_ptr->resist_conf = TRUE; p_ptr->resist_chaos = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_DISENCHANT) { p_ptr->resist_disen = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_WATER) { p_ptr->immune_water = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_TIME) { p_ptr->resist_time = TRUE; }
+	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_MANA) { p_ptr->resist_mana = TRUE; }
+
+	/* resistance to fire cancel sensibility to fire */
+	if (p_ptr->resist_fire || p_ptr->oppose_fire || p_ptr->immune_fire)
+		p_ptr->suscep_fire = FALSE;
+	/* resistance to cold cancel sensibility to cold */
+	if (p_ptr->resist_cold || p_ptr->oppose_cold || p_ptr->immune_cold)
+		p_ptr->suscep_cold = FALSE;
+	/* resistance to electricity cancel sensibility to fire */
+	if (p_ptr->resist_elec || p_ptr->oppose_elec || p_ptr->immune_elec)
+		p_ptr->suscep_elec = FALSE;
+	/* resistance to acid cancel sensibility to fire */
+	if (p_ptr->resist_acid || p_ptr->oppose_acid || p_ptr->immune_acid)
+		p_ptr->suscep_acid = FALSE;
+	/* resistance to light cancels sensibility to light */
+	if (p_ptr->resist_lite) p_ptr->suscep_lite = FALSE;
+
 
 
 	old_sun_burn = p_ptr->sun_burn;
@@ -6932,44 +6976,6 @@ void calc_boni(int Ind) {
 	}
 	p_ptr->old_heavy_swim = p_ptr->heavy_swim;
 #endif
-
-	/* Nimbus - Temporary Resists/Immunities - TODO Kurzel - Show in Chh */
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_FIRE) { p_ptr->immune_fire = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_HELLFIRE) { p_ptr->immune_fire = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_COLD) { p_ptr->immune_cold = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_ELEC) { p_ptr->immune_elec = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_ACID) { p_ptr->immune_acid = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_POIS) { p_ptr->immune_poison = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_LITE) { p_ptr->resist_lite = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_DARK) { p_ptr->resist_dark = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_INERTIA) { p_ptr->free_act = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_GRAVITY) { p_ptr->resist_sound = TRUE; p_ptr->free_act = TRUE; p_ptr->feather_fall = TRUE; p_ptr->res_tele = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_SOUND) { p_ptr->resist_sound = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_FORCE) { p_ptr->resist_sound = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_SHARDS) { p_ptr->resist_shard = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_NEXUS) { p_ptr->resist_nexus = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_NETHER) { p_ptr->resist_neth = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_CONFUSION) { p_ptr->resist_conf = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_CHAOS) { p_ptr->resist_conf = TRUE; p_ptr->resist_chaos = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_DISENCHANT) { p_ptr->resist_disen = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_WATER) { p_ptr->immune_water = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_TIME) { p_ptr->resist_time = TRUE; }
-	if (p_ptr->nimbus && p_ptr->nimbus_t == GF_MANA) { p_ptr->resist_mana = TRUE; }
-
-	/* resistance to fire cancel sensibility to fire */
-	if (p_ptr->resist_fire || p_ptr->oppose_fire || p_ptr->immune_fire)
-		p_ptr->suscep_fire = FALSE;
-	/* resistance to cold cancel sensibility to cold */
-	if (p_ptr->resist_cold || p_ptr->oppose_cold || p_ptr->immune_cold)
-		p_ptr->suscep_cold = FALSE;
-	/* resistance to electricity cancel sensibility to fire */
-	if (p_ptr->resist_elec || p_ptr->oppose_elec || p_ptr->immune_elec)
-		p_ptr->suscep_elec = FALSE;
-	/* resistance to acid cancel sensibility to fire */
-	if (p_ptr->resist_acid || p_ptr->oppose_acid || p_ptr->immune_acid)
-		p_ptr->suscep_acid = FALSE;
-	/* resistance to light cancels sensibility to light */
-	if (p_ptr->resist_lite) p_ptr->suscep_lite = FALSE;
 
 
 
@@ -12669,7 +12675,7 @@ void handle_request_return_cfr(int Ind, int id, bool cfr) {
 
 #ifdef ENABLE_MERCHANT_MAIL
 	case RID_SEND_ITEM:
-		if (cfr) Send_request_cfr(Ind, RID_SEND_ITEM2, "Will you be paying the fee? Otherwise we'll charge the addressee.", 2);
+		if (cfr) Send_request_cfr(Ind, RID_SEND_ITEM2, "Will you be paying the fee? Otherwise we'll charge the addressee.", 1);
 		return;
 	case RID_SEND_GOLD:
 		if (cfr) Send_request_cfr(Ind, RID_SEND_GOLD2, "Will you be paying the fee? Otherwise we'll charge the addressee.", 1);

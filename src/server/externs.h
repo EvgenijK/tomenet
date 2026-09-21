@@ -43,7 +43,7 @@ extern char *my_strcasestr_skipcol(const char *big, const char *little, byte str
 #ifdef REGEX_SEARCH
 extern bool my_strregexp_skipcol(char *buf2, regex_t re_src, char *searchstr_re, char *withinsearch, int *next_start);
 #endif
-extern char *roman_suffix(char* cname);
+extern char *roman_suffix(char* cname, int *arabic);
 #ifdef ENABLE_SUBINVEN
 //extern int get_subinven_size(int sval);
 #endif
@@ -1008,6 +1008,7 @@ extern bool highscore_reset(int Ind);
 extern bool highscore_remove(int Ind, int slot);
 extern bool highscore_file_convert(int Ind);
 extern void show_motd2(int from);
+extern bool file_exist(char *buf);
 
 /* generate.c */
 extern void place_up_stairs(worldpos *wpos, int y, int x);
@@ -1196,6 +1197,7 @@ extern void delete_monster_idx(int i, bool unfound_art);
 extern void delete_monster(struct worldpos *wpos, int y, int x, bool unfound_art);
 extern void wipe_m_list(struct worldpos *wpos);
 extern void wipe_m_list_special(struct worldpos *wpos);
+extern void wipe_m_list_uniques(struct worldpos *wpos);
 extern void wipe_m_list_admin(struct worldpos *wpos);
 extern void wipe_m_list_roaming(struct worldpos *wpos);
 extern void thin_surface_spawns(void);
@@ -1780,6 +1782,7 @@ extern void block_timer(void);
 extern void allow_timer(void);
 extern void setup_timer(void);
 extern void teardown_timer(void);
+extern cptr get_socket_ip(int Ind);
 
 /* spells1.c */
 extern byte spell_color(int type);
@@ -2315,6 +2318,7 @@ extern void window_stuff(int Ind);
 extern void handle_stuff(int Ind);
 extern void fix_spell(int Ind, bool full);
 extern void calc_mana(int Ind);
+extern int mana_heavy_armour(player_type *p_ptr);
 
 extern void calc_hitpoints(int Ind);
 extern void calc_boni(int Ind);
@@ -2824,8 +2828,11 @@ extern int sector000music, sector000musicalt, sector000musicalt2, sector000music
 extern u32b sector000flags1, sector000flags2;
 extern u32b ge_contender_buffer_ID[MAX_CONTENDER_BUFFERS];
 extern int ge_contender_buffer_deed[MAX_CONTENDER_BUFFERS];
+extern int ge_contender_buffer_type[MAX_CONTENDER_BUFFERS];
 extern u32b achievement_buffer_ID[MAX_ACHIEVEMENT_BUFFERS];
 extern int achievement_buffer_deed[MAX_ACHIEVEMENT_BUFFERS];
+extern int achievement_buffer_type[MAX_ACHIEVEMENT_BUFFERS];
+
 
 /* for temporary disabling all validity checks when a dungeon master/wizard summons something - C. Blue */
 extern u32b summon_override_checks;
@@ -2985,3 +2992,5 @@ extern int debug_drain_hp, debug_drain_mp;
 extern int inventory_pack_max, inventory_total_max;
 #endif
 extern bool admin_max_spawnrate;
+
+extern char geoloc_extip[MAX_CHARS], geoloc_country[MAX_CHARS], geoloc_state[MAX_CHARS], geoloc_city[MAX_CHARS];

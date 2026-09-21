@@ -6451,6 +6451,10 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			msg_print(Ind, NULL); //clear topline
 			if (n) C_KILL(id_list, n, int);
 			WIPE(&acc, struct account);
+
+			/* Also warn the player if some of his/her characters are about to expire maybe */
+			account_checkexpiry(NumPlayers);
+
 			return;
 		} else if (prefix(messagelc, "/ing") || prefix(messagelc, "/ingredients")) { /* toggle item-finding part of the Demolitionist perk/Apply Poison users */
 			bool pois = (p_ptr->melee_techniques & MT_POISON);
@@ -6566,6 +6570,33 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else amt = atoi(token[2]);
 
 			do_cmd_split_stack(Ind, k, amt);
+			return;
+		} else if (prefix(messagelc, "/sinfo") || prefix(messagelc, "/serverinfo") || prefix(messagelc, "/server")) {
+			u32b elapsed = (turn - session_turn) / cfg.fps;
+			int days = (int)(elapsed / 86400), hours = (int)((elapsed % 86400) / 3600), minutes = (int)((elapsed % 3600) / 60), seconds = (int)((elapsed % 60));
+
+			time_t ct = time(NULL);
+			struct tm* ctl = localtime(&ct);
+			static char day_names[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+			if (*geoloc_extip) msg_format(Ind, "\377sServer '%s' (IP %s):", cfg.server_notes, geoloc_extip);
+			else msg_format(Ind, "\377sServer '%s' (IP %s):", cfg.server_notes, get_socket_ip(Ind));
+			msg_format(Ind, " \377sLocation: %s / %s / %s.", geoloc_country, geoloc_state, geoloc_city);
+#ifdef TEST_SERVER
+			msg_print(Ind, " \377sThis is a test server. Expect frequent restarts/crashes.\n");
+#endif
+#ifdef RPG_SERVER
+			msg_print(Ind, " \377sThis is an 'Ironman' server. See guide (9.6) for ruleset details.\n");
+#endif
+#ifdef ARCADE_SERVER
+			msg_print(Ind, " \377sThis is an 'Arcade' server. See guide (9.6a) for ruleset details.\n");
+#endif
+#ifdef FUN_SERVER
+			msg_print(Ind, " \377sThis is a 'Fun' server: Players may use '/wish' command freely.\n");
+#endif
+			msg_format(Ind, " \377sUptime: %d days %d hours %d minutes %d seconds", days, hours, minutes, seconds);
+			msg_format(Ind, " \377sCurrent server-side time: %04d/%02d/%02d (%s) - %02d:%02d:%02dh",
+			    1900 + ctl->tm_year, ctl->tm_mon + 1, ctl->tm_mday, day_names[ctl->tm_wday], ctl->tm_hour, ctl->tm_min, ctl->tm_sec);
 			return;
 		} else if (prefix(messagelc, "/rest")) { /* Rest [for n turns] */
 			if (tk && (k <= 0 || k >= 10000)) {
@@ -10775,20 +10806,27 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			else if (prefix(messagelc, "/tpto") ||
 			/* Teleport us to a player - even if in different world sector */
 			    prefix(messagelc, "/tpat")) {
-				int p;
+				int p, dir = 0;
 				player_type *q_ptr;
 				cave_type **zcave;
 				bool is_tpto = prefix(messagelc, "/tpto");
+				char *mp = message3;
 
 				if (tk < 1) {
-					if (is_tpto) msg_print(Ind, "\377oUsage: /tpto <exact player name>");
+					if (is_tpto) msg_print(Ind, "\377oUsage: /tpto [dir]<exact player name>");
 					else msg_print(Ind, "\377oUsage: /tpat <player/account name>");
 					return;
 				}
 
-				message3[0] = toupper(message3[0]); //qol
-				if (is_tpto) p = name_lookup(Ind, message3, FALSE, TRUE, FALSE);//gotta be exact for this kind of critical command
-				else p = name_lookup_loose(Ind, message3, FALSE, TRUE, FALSE);
+				/* Optional direction specified? */
+				if (is_tpto && *mp >= '1' && *mp <= '9' && *mp != '5') {
+					dir = *mp - '0';
+					mp++;
+				}
+
+				*mp = toupper(*mp); //qol
+				if (is_tpto) p = name_lookup(Ind, mp, FALSE, TRUE, FALSE);//gotta be exact for this kind of critical command
+				else p = name_lookup_loose(Ind, mp, FALSE, TRUE, FALSE);
 				if (!p) return;
 
 				q_ptr = Players[p];
@@ -10798,17 +10836,23 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 				}
 
 				if (is_tpto) {
-					if (!inarea(&q_ptr->wpos, &p_ptr->wpos)) {
+					if (!inarea(&q_ptr->wpos, &p_ptr->wpos) || dir) {
 						q_ptr->recall_pos.wx = p_ptr->wpos.wx;
 						q_ptr->recall_pos.wy = p_ptr->wpos.wy;
 						q_ptr->recall_pos.wz = p_ptr->wpos.wz;
 						if (!q_ptr->recall_pos.wz) q_ptr->new_level_method = LEVEL_OUTSIDE_RAND;
 						else q_ptr->new_level_method = LEVEL_RAND;
 						recall_player(p, "\377yA magical gust of wind lifts you up and carries you away!");
+						q_ptr->admin_wiz = TRUE; //hack for placement
+						if (dir) {
+							q_ptr->recall_x = p_ptr->px + ddx[dir];
+							q_ptr->recall_y = p_ptr->py + ddy[dir];
+						}
 						process_player_change_wpos(p);
+						q_ptr->admin_wiz = FALSE; //unhack
 					}
 
-					teleport_player_to(p, p_ptr->py, p_ptr->px, TRUE);
+					if (!dir) teleport_player_to(p, p_ptr->py, p_ptr->px, TRUE);
 
 					msg_print(Ind, "Teleported that player.");
 				} else {
@@ -15037,9 +15081,9 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 			}
 #ifdef ENABLE_MERCHANT_MAIL
 			else if (prefix(messagelc, "/mgmail")) { //debug merchants guild mail
-				int i;
+				int i, sec;
 				char cd, cto;
-				char o_name_short[ONAME_LEN];
+				char o_name_short[ONAME_LEN], mt_str[MAX_CHARS];
 
 				msg_print(Ind, "Currently active merchants guild mail:");
 				for (i = 0; i < MAX_MERCHANT_MAILS; i++) {
@@ -15050,8 +15094,14 @@ void do_slash_cmd(int Ind, char *message, char *message_u) {
 					cd = mail_duration[i] < 0 ? 'y' : (mail_duration[i] == 0 ? 'G' : 'w');
 					cto = mail_timeout[i] == -1 ? 'r' : (mail_timeout[i] == -2 ? 'o' : (mail_timeout[i] < -2 ? 'y' : 'w'));
 
-					if (mail_xfee[i]) msg_format(Ind, " %3d: %s->%s (%s) dur \377%c%d\377w, timeout \377%c%d\377w%s, extra fee %d:", i, mail_sender[i], mail_target[i], mail_target_acc[i], cd, mail_duration[i], cto, mail_timeout[i], mail_COD[i] ? ", COD" : "", mail_xfee[i]);
-					else msg_format(Ind, " %3d: %s->%s (%s) dur \377%c%d\377w timeout \377%c%d\377w%s:", i, mail_sender[i], mail_target[i], mail_target_acc[i], cd, mail_duration[i], cto, mail_timeout[i], mail_COD[i] ? ", COD" : "");
+					/* <Timeout x MAX_MERCHANT_MAILS / cfg.fps> seconds [36 -> 1 min, ie 36*100/60] */
+					sec = (mail_timeout[i] * MAX_MERCHANT_MAILS) / cfg.fps;
+					if (sec / (3600 * 24)) sprintf(mt_str, "%dd%dh%dm", sec / (3600 * 24), (sec % (3600 * 24)) / 3600, (sec % 3600) / 60);
+					else if (sec / 3600) sprintf(mt_str, "%dh%dm", sec / 3600, (sec % 3600) / 60);
+					else sprintf(mt_str, "%dm%ds", sec / 60, sec % 60);
+
+					if (mail_xfee[i]) msg_format(Ind, " %3d: %s->%s (%s) dur \377%c%d\377w, timeout \377%c%d (%s)\377w%s, extra fee %d:", i, mail_sender[i], mail_target[i], mail_target_acc[i], cd, mail_duration[i], cto, mail_timeout[i], mt_str, mail_COD[i] ? ", COD" : "", mail_xfee[i]);
+					else msg_format(Ind, " %3d: %s->%s (%s) dur \377%c%d\377w timeout \377%c%d (%s)\377w%s:", i, mail_sender[i], mail_target[i], mail_target_acc[i], cd, mail_duration[i], cto, mail_timeout[i], mt_str, mail_COD[i] ? ", COD" : "");
 					if (mail_forge[i].name1 == ART_RANDART) msg_format(Ind, "      \377st%d,s%d,\377URA\377s,lv%d,m%d,o%d <%s>", mail_forge[i].tval, mail_forge[i].sval, mail_forge[i].level, mail_forge[i].mode, mail_forge[i].owner, o_name_short);
 					else if (mail_forge[i].name1) msg_format(Ind, "      \377st%d,s%d,\377U%d\377s,lv%d,m%d,o%d <%s>", mail_forge[i].tval, mail_forge[i].sval, mail_forge[i].name1, mail_forge[i].level, mail_forge[i].mode, mail_forge[i].owner, o_name_short);
 					else msg_format(Ind, "      \377st%d,s%d,lv%d,m%d,o%d <%s>", mail_forge[i].tval, mail_forge[i].sval, mail_forge[i].level, mail_forge[i].mode, mail_forge[i].owner, o_name_short);

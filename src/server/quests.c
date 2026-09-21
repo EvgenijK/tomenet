@@ -82,7 +82,7 @@
 
 static void quest_goal_check_reward(int pInd, int q_idx);
 static bool quest_goal_check(int pInd, int q_idx, bool interacting);
-static void quest_dialogue(int Ind, int q_idx, int questor_idx, bool repeat, bool interact_acquire, bool force_prompt);
+static void quest_dialogue(int Ind, int q_idx, int questor_idx, bool repeat, bool suppress_keywords, bool force_prompt, int stage_override);
 static void quest_imprint_tracking_information(int Ind, int py_q_idx, bool target_flagging_only);
 static void quest_check_goal_kr(int Ind, int q_idx, int py_q_idx, int m_idx, object_type *o_ptr);
 static void quest_remove_dungeons(int q_idx);
@@ -3223,7 +3223,7 @@ static byte quest_set_stage_individual(int Ind, int q_idx, int stage, bool quiet
 	if (!quiet)
 		for (k = 0; k < q_ptr->questors; k++) {
 			if (!inarea(&p_ptr->wpos, &q_ptr->questor[k].current_wpos)) continue;
-			quest_dialogue(Ind, q_idx, k, FALSE, FALSE, FALSE);
+			quest_dialogue(Ind, q_idx, k, FALSE, FALSE, FALSE, -1);
 		}
 
 	/* hand out/spawn any special quest items */
@@ -3394,7 +3394,7 @@ void quest_set_stage(int pInd, int q_idx, int stage, bool quiet, struct worldpos
 				/* play questors' stage dialogue */
 				for (k = 0; k < q_ptr->questors; k++) {
 					if (wpos == NULL || !inarea(&Players[i]->wpos, &q_ptr->questor[k].current_wpos)) continue;
-					quest_dialogue(i, q_idx, k, FALSE, FALSE, FALSE);
+					quest_dialogue(i, q_idx, k, FALSE, FALSE, FALSE, -1);
 				}
 			}
 
@@ -3585,7 +3585,7 @@ void quest_acquire_confirmed(int Ind, int q_idx, bool quiet) {
 #endif
 
 	/* re-prompt for keyword input, if any */
-	quest_dialogue(Ind, q_idx, p_ptr->interact_questor_idx, TRUE, FALSE, FALSE);
+	quest_dialogue(Ind, q_idx, p_ptr->interact_questor_idx, TRUE, FALSE, FALSE, -1);
 }
 
 /* Acquire a quest, WITHOUT CHECKING whether the quest actually allows this at this stage!
@@ -3827,7 +3827,21 @@ void quest_interact(int Ind, int q_idx, int questor_idx, FILE *fff) {
 
 	if (not_acquired_yet) {
 		/* do we accept players by questor interaction at all? */
-		if (!q_questor->accept_interact) return;
+		if (!q_questor->accept_interact) {
+			int passive_stage = 0;
+
+			if (p_ptr->quest_done[q_idx] && q_ptr->ending_stage &&
+			    quest_qi_stage(q_idx, q_ptr->ending_stage)->talk_lines[questor_idx])
+				passive_stage = q_ptr->ending_stage;
+
+			/* A talkable NPC that does not offer the quest may still provide
+			   passive dialogue. Use the ending stage after quest completion,
+			   otherwise stage 0. End the interaction after the text so
+			   it cannot check goals, acquire the quest, or prompt for keywords. */
+			if (q_questor->type == QI_QUESTOR_NPC)
+				quest_dialogue(Ind, q_idx, questor_idx, FALSE, TRUE, FALSE, passive_stage);
+			return;
+		}
 		/* do we accept players to acquire this quest in the current quest stage? */
 		if (!q_stage->accepts) return;
 
@@ -3859,7 +3873,7 @@ void quest_interact(int Ind, int q_idx, int questor_idx, FILE *fff) {
 
 	/* questor interaction qutomatically invokes the quest dialogue, if any */
 	q_questor->talk_focus = Ind; /* only this player can actually respond with keywords -- TODO: ensure this happens for non 'individual' quests only */
-	quest_dialogue(Ind, q_idx, questor_idx, FALSE, may_acquire, TRUE);
+	quest_dialogue(Ind, q_idx, questor_idx, FALSE, may_acquire, TRUE, -1);
 
 	/* prompt him to acquire this quest if he hasn't yet */
 	if (may_acquire) {
@@ -3877,19 +3891,21 @@ void quest_interact(int Ind, int q_idx, int questor_idx, FILE *fff) {
    'repeat' will repeat requesting an input and skip the usual dialogue. Used for
    keyword input when a keyword wasn't recognized.
 
-   'interact_acquire' must be set if this dialogue spawns from someone interacting
-   initially with the questor who is eligible to acquire the quest.
-   In that case, the player won't get the enter-a-keyword-prompt. Instead, our
-   caller function quest_interact() will prompt him to acquire the quest first.
+   'suppress_keywords' ends the interaction after displaying the dialogue. This
+   is used before an acquisition prompt and for passive NPC dialogue.
 
    'force_prompt' is set if we're called from quest_interact(). If at least one
    valid keyword exists, this gives us a keyword-prompt even if none is obvious.
    This lets players intentionally bump a questor to try hidden keywords without
-   opening an input prompt for one-way dialogue. */
-static void quest_dialogue(int Ind, int q_idx, int questor_idx, bool repeat, bool interact_acquire, bool force_prompt) {
+   opening an input prompt for one-way dialogue.
+
+   'stage_override' selects a specific dialogue stage, or -1 for the player's
+   current quest stage. */
+static void quest_dialogue(int Ind, int q_idx, int questor_idx, bool repeat, bool suppress_keywords, bool force_prompt, int stage_override) {
 	quest_info *q_ptr = &q_info[q_idx];
 	player_type *p_ptr = Players[Ind];
-	int i, k, first_keyword = -1, stage = quest_get_stage(Ind, q_idx);
+	int i, k, first_keyword = -1;
+	int stage = stage_override >= 0 ? stage_override : quest_get_stage(Ind, q_idx);
 	qi_stage *q_stage = quest_qi_stage(q_idx, stage), *q_stage_talk = q_stage;
 	bool anything, has_keyword = FALSE, obvious_keyword = FALSE, more_hack = FALSE, yn_hack = FALSE;
 	char text[MAX_CHARS * 2];
@@ -3939,7 +3955,7 @@ static void quest_dialogue(int Ind, int q_idx, int questor_idx, bool repeat, boo
 	} else force_prompt = TRUE; /* repeating what? to talk of course, what else oO -> force_prompt! */
 
 	/* No keyword-interaction possible if we haven't acquired the quest yet. */
-	if (interact_acquire) return;
+	if (suppress_keywords) return;
 
 	/* If there are any keywords in this stage, prompt the player for a reply.
 	   If the questor is focussed on one player, only he can give a reply,
@@ -4255,7 +4271,7 @@ void quest_reply(int Ind, int q_idx, char *str) {
 
 #if 1
 	/* if keyword wasn't recognised, repeat input prompt instead of just 'dropping' the convo */
-	quest_dialogue(Ind, q_idx, questor_idx, TRUE, FALSE, FALSE);
+	quest_dialogue(Ind, q_idx, questor_idx, TRUE, FALSE, FALSE, -1);
 	/* don't give 'wassup?' style msg if we just hit RETURN.. silyl */
 	if (str[0]) {
 		msg_print(Ind, "\374 ");
@@ -4516,8 +4532,10 @@ static void quest_check_goal_kr(int Ind, int q_idx, int py_q_idx, int m_idx, obj
 			break;
 		}
 
+#ifdef TEST_SERVER /* Limit to test server, it's too spammy */
 #if QDEBUG > 2
 	s_printf(" CHECKING k/r-GOAL IN QUEST (%s,%d) stage %d.\n", q_ptr->codename, q_idx, stage);
+#endif
 #endif
 	/* check the quest goals, whether any of them wants a target to this location */
 	for (j = 0; j < q_stage->goals; j++) {
@@ -4525,8 +4543,10 @@ static void quest_check_goal_kr(int Ind, int q_idx, int py_q_idx, int m_idx, obj
 
 		/* no k/r goal? */
 		if (!q_goal->kill && !q_goal->retrieve) continue;
+#ifdef TEST_SERVER /* Limit to test server, it's too spammy */
 #if QDEBUG > 2
 		s_printf(" FOUND kr GOAL %d (k=%d,r=%d).\n", j, q_goal->kill ? TRUE : FALSE, q_goal->retrieve ? TRUE : FALSE);
+#endif
 #endif
 
 		/* location-restricted?
@@ -4551,8 +4571,10 @@ static void quest_check_goal_kr(int Ind, int q_idx, int py_q_idx, int m_idx, obj
 			    distance(q_goal->target_pos_y, q_goal->target_pos_x, p_ptr->py, p_ptr->px) > q_goal->target_pos_radius)
 				continue;
 		}
+#ifdef TEST_SERVER /* Limit to test server, it's too spammy */
 #if QDEBUG > 2
 		s_printf(" PASSED/NO LOCATION CHECK.\n");
+#endif
 #endif
 
 	///TODO: implement for global quests too!
@@ -5064,10 +5086,25 @@ static void quest_reward_object(int pInd, int q_idx, object_type *o_ptr) {
 	quest_info *q_ptr = &q_info[q_idx];
 	int i, j;
 
+	o_ptr->note = quark_add(format("%s", q_name + q_ptr->name));
+	o_ptr->note_utag = 0;
+
+	o_ptr->iron_turn = turn;
+	o_ptr->find_reward = -1 - q_idx;
+
+	/* Always *ID*ed */
+	object_known(o_ptr);
+	o_ptr->ident |= ID_MENTAL;
+
+#ifdef PRE_OWN_DROP_CHOSEN /* These items never drop to the floor, but we just use this to set their level to 0 aka soulbound */
+	o_ptr->level = 0;
+#endif
+
 	if (pInd && q_ptr->individual) { //we should never get an individual quest without a pInd here..
 		o_ptr->iron_trade = Players[pInd]->iron_trade;
-		o_ptr->iron_turn = turn;
-		o_ptr->find_reward = -q_idx;
+		object_aware(pInd, o_ptr);
+		imprint_object_fully(o_ptr, Players[pInd]);
+		if (true_artifact_p(o_ptr)) determine_artifact_timeout(o_ptr->name1, &Players[pInd]->wpos);
 		inven_carry(pInd, o_ptr);
 		return;
 	}
@@ -5092,8 +5129,9 @@ static void quest_reward_object(int pInd, int q_idx, object_type *o_ptr) {
 
 		/* hand him out the reward too */
 		o_ptr->iron_trade = Players[i]->iron_trade;
-		o_ptr->iron_turn = turn;
-		o_ptr->find_reward = -q_idx;
+		object_aware(i, o_ptr);
+		imprint_object_fully(o_ptr, Players[pInd]);
+		//no artifact timeout determination as we cannot hand out the same trueart to multiple people^^
 		inven_carry(i, o_ptr);
 	}
 }
@@ -5253,7 +5291,7 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 	object_type forge, *o_ptr;
 	u64b resf = RESF_NOTRUEART;
 	/* count rewards */
-	int r_obj = 0, r_gold = 0, r_exp = 0;
+	int r_obj = 0, r_obj_s = 0, r_gold = 0, r_exp = 0;
 	qi_stage *q_stage = quest_qi_stage(q_idx, stage);
 	qi_reward *q_rew;
 	qi_questor *q_questor;
@@ -5318,7 +5356,7 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 					o_ptr = &forge;
 					object_wipe(o_ptr);
 					invcopy(o_ptr, lookup_kind(q_rew->otval, q_rew->osval));
-					o_ptr->number = 1;
+					o_ptr->number = q_rew->onumber;
 					o_ptr->name1 = q_rew->oname1;
 					o_ptr->name2 = q_rew->oname2;
 					o_ptr->name2b = q_rew->oname2b;
@@ -5331,35 +5369,17 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 					o_ptr->bpval = q_rew->obpval;
 					o_ptr->note = quark_add(format("%s", q_name + q_ptr->name));
 					o_ptr->note_utag = 0;
-#ifdef PRE_OWN_DROP_CHOSEN
-					o_ptr->level = 0;
-					if (pInd) {
-						imprint_object_fully(o_ptr, Players[pInd]);
-						o_ptr->find_reward = -1 - q_idx;
-						if (true_artifact_p(o_ptr)) determine_artifact_timeout(o_ptr->name1, &wpos);
-					}
-#endif
 				} else {
 					o_ptr = &forge;
 					object_wipe(o_ptr);
 					invcopy(o_ptr, lookup_kind(q_rew->otval, q_rew->osval));
-					o_ptr->number = 1;
+					o_ptr->number = q_rew->onumber;
 					apply_magic(&wpos, o_ptr, -2, q_rew->ogood, q_rew->ogreat, q_rew->ovgreat, FALSE, resf);
-					o_ptr->note = quark_add(format("%s", q_name + q_ptr->name));
-					o_ptr->note_utag = 0;
-#ifdef PRE_OWN_DROP_CHOSEN
-					o_ptr->level = 0;
-					if (pInd) {
-						imprint_object_fully(o_ptr, Players[pInd]);
-						o_ptr->find_reward = -1 - q_idx;
-						if (true_artifact_p(o_ptr)) determine_artifact_timeout(o_ptr->name1, &wpos);
-					}
-#endif
 				}
-
 				/* hand it out */
 				quest_reward_object(pInd, q_idx, o_ptr);
-				r_obj++;
+				r_obj += q_rew->onumber;
+				r_obj_s++;
 			}
 			/* instead use create_reward() like for events? */
 			else if (q_rew->oreward) {
@@ -5372,6 +5392,7 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 				}
 				quest_reward_create(pInd, q_idx, resf);
 				r_obj++;
+				r_obj_s++;
 			}
 			/* hand out gold? */
 			if (q_rew->gold) {
@@ -5391,7 +5412,10 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 	/* give one unified message per reward type that was handed out */
 	if (pInd && q_ptr->individual) {
 		if (r_obj == 1) msg_print(pInd, "You have received an item.");
-		else if (r_obj) msg_format(pInd, "You have received %d items.", r_obj);
+		else if (r_obj) {
+			if (r_obj_s == 1) msg_format(pInd, "You have received %d items.", r_obj);
+			else msg_format(pInd, "You have received %d items in %d stacks.", r_obj, r_obj_s);
+		}
 		if (r_gold) msg_format(pInd, "You have received %d gold piece%s.", r_gold, r_gold == 1 ? "" : "s");
 		if (r_exp) msg_format(pInd, "You have received %d experience point%s.", r_exp, r_exp == 1 ? "" : "s");
 #ifdef USE_SOUND_2010
@@ -5410,7 +5434,10 @@ static void quest_goal_check_reward(int pInd, int q_idx) {
 		if (j == q_ptr->questors) continue;
 
 		if (r_obj == 1) msg_print(i, "You have received an item.");
-		else if (r_obj) msg_format(i, "You have received %d items.", r_obj);
+		else if (r_obj) {
+			if (r_obj_s == 1) msg_format(i, "You have received %d items.", r_obj);
+			else msg_format(i, "You have received %d items in %d stacks.", r_obj, r_obj_s);
+		}
 		if (r_gold) msg_format(i, "You have received %d gold piece%s.", r_gold, r_gold == 1 ? "" : "s");
 		if (r_exp) msg_format(i, "You have received %d experience point%s.", r_exp, r_exp == 1 ? "" : "s");
 

@@ -1,7 +1,7 @@
 .==========================================================================+--.
 |                              TomeNET Guide                               |
 +==========================================================================+-
-| Latest update: 27. August 2026 - written by C. Blue (c_blue@gmx.net)     |
+| Latest update: 10. September 2026 - written by C. Blue (c_blue@gmx.net)  |
 | for TomeNET version v4.9.4 - official websites are:                      :
 | https://www.tomenet.eu/ (official main site, formerly www.tomenet.net)
 | https://muuttuja.org/tomenet/ (Mikael's TomeNET site)
@@ -1399,7 +1399,7 @@ They all start with a slash '/' hence they're called slash commands:
 /autoretr
 /arr        Sets up auto-retaliation with runecraft.
               Enter            /arr help          for this info in-game.
-              Usage:           /arr [q][t]<a-f><a-f><a-h><a-f>
+              Usage:           /arr [q][t]<a-f><a-f><a-h><a-g>
             or to disable:   /arr -
             'q': fallback to melee if you cannot cast right now.
             't': town area only? (optional).
@@ -2160,6 +2160,12 @@ They all start with a slash '/' hence they're called slash commands:
             death, neither one of detonations, so you won't get instakilled.
             (It's easier to press '_' instead of using the /sip command.
             Also see '_' key above, for additional information.)
+
+/sinfo
+/server
+/serverinfo
+            Displays general info about the server:
+            Description, IP, location, uptime, local system time.
 
 /snbar      Cycles through available types of sanity bars to display.
             Which types are available depends on the 'Health' skill, or - only
@@ -5965,15 +5971,16 @@ Tilesets also have two designated 'mask colours':
   Before, when drawing tiles, you had to use background mask for terrain tiles
   and transparency mask for other tiles (monsters, items, ...). And for the
   other tiles to not visually blend with the terrain tile below you'd have to
-  paint the transparency mask in a way an outline is formed. In SDL3 clients you
-  use the background mask and outline mask for all tiles. When a tile is used as
-  a terrain tile, the background mask and outline mask becomes the background
-  color (currently only black) and when a tile is drawn above a terrain tile,
-  the background mask becomes fully transparent, to see the terrain tile below
-  and the outline mask becomes a semi-transparent black. This way you don't have
-  to think what mask to use depending on tile type (terrain, monsters, ...). And
-  the outline color can be used to indicate some effects in the future (eg.
-  player's outline becomes colorful when quaffing some potion).
+  paint the transparency mask in a way an outline is formed. In SDL3 clients
+  you use the background mask and outline mask for all tiles. When a tile is
+  used as a terrain tile, the background mask and outline mask becomes the
+  background color (currently only black) and when a tile is drawn above a
+  terrain tile, the background mask becomes fully transparent, to see the
+  terrain tile below and the outline mask becomes a semi-transparent black.
+  This way you don't have to think what mask to use depending on tile type
+  (terrain, monsters, ...). And the outline color can be used to indicate some
+  effects in the future (eg. player's outline becomes colorful when quaffing
+  some potion).
   You don't even have to paint the outline mask into the bitmap. There is an
   'graphicsForceOutline` setting in tomenet.cfg. When set to a non negative
   number, outline of set width will be generated automatically (0 is no
@@ -5983,7 +5990,7 @@ Tilesets also have two designated 'mask colours':
   Also you can redefine the outline mask color in .prf file too, by using the
   'm:2:<hex-color>' redefinition. If redefinition is not present, default
   outline mask color (0x1D211C) is used.
-  For backward compatibility, when there are no mask redefinitions in .prf file,
+  For backward compatibility, when there are no mask redefinitions in .prf file
   the transparency-mask (0x1D211C) is used as background mask and the original
   background mask for terrain tile (0x3E3D00) is handled as outline mask
   (outline mask for bottom tile will become the same color as background). If
@@ -9092,7 +9099,7 @@ Mimic powers:
     /arm help   Shows details for the /arm command.
 
 Runes:
-    /arr [Q][t]<a-f><a-f><a-h><a-f>   or   /arr -
+    /arr [Q][t]<a-f><a-f><a-h><a-g>   or   /arr -
                 Auto-retaliate with a runespell, See (0.2b) for details.
                 Optionally use 't' for 'in town areas only',
                 and/or 'Q' for 'fallback to melee if cannot cast'.
@@ -14312,6 +14319,17 @@ the class 'Hell Knight' which counts as demonic:
          mana point drain effect if it's head gear or gloves, otherwise a it
          will apply a hit point drain effect.
 
+Susceptibilities of the base race or lineage are kept when using mimicry:
+- Ent keeps fire susceptibility.
+- Dark-elves keep light susceptibility.
+- Vampires keep light, 'good' and 'life' susceptibility.
+- Draconians:
+  White lineage keeps fire susceptibility.
+  Red lineage keeps frost susceptibility.
+- Maiar:
+  Enlightened keeps 'evil' susceptibility.
+  Corrupted keeps 'good' susceptibility.
+
 Branded physical attacks vs monsters:
 Susceptibility of a monster will result in a doubled multiplier for
 branded attacks. Example: If the player hits a Cold Hound with a
@@ -18492,7 +18510,15 @@ UN_BONUS        disenchantment.
                 If unresisted, this attack will disenchant a random piece of
                 your equipment. The damage can partially be mitigated by having
                 disenchantment resistance.
-UN_POWER        magic device skill; fast-casting UN_POWER monster forms.
+UN_POWER        magic device skill mainly (5...95% for 0...50.000 skill);
+                fast-casting UN_POWER monster forms (increased minimum chance
+                to resist to 10%...50% depending on the difference between the
+                player's level * 2 vs the monster's race level (lower cap 10%,
+                upper cap 50%)).
+                So if your magic skill grants at least 50% chance to resist,
+                which happens at 25.000 skill, you will not profit any further
+                from using an RBE_UN_POWER form.
+
                 It drains charges/energy from your items:
                 "Energy drains from your pack" for magic devices or polymorph
                 rings in your inventory or "Energy drains from your equipment"
@@ -21007,12 +21033,8 @@ create a character!):
     potions that provide nourishment. They can never be gorged though.
     Starting at level 7, Ents can enter a special symbiotic relationship with
     any fungus of their choice: Mycorrhiza. The fungus will get implanted
-    into the Ent's bark and provide periodic effects depending on its type.
-    The effect will not happen frequently at first, but more often the longer
-    the symbiosis is active (up to 5000 turns of symbiosis existance).
-    (Press 'm' to begin or end a mycorrhiza. Only one fungus can be active.
-    You can also use the '/myc' command instead. Also, the '/ex' command will
-    display a currently active symbiosis in light green colour.)
+    into the Ent's bark and provide periodic effects depending on its type,
+    getting more frequent over time.
     Ents also intrinsically resist the force of unleashed water and their bark
     skin even provides a small bonus to armour class.
     They get bonus to 'Health', a slight bonus to 'Spirit' and a large bonus on
@@ -21020,6 +21042,28 @@ create a character!):
     receive a huge penalty on 'Fire' school, a large penalty on 'Axe-mastery'
     and a penalty on 'Sword-mastery'. They cannot train 'Climbing' or any
     blood magic at all.
+
+    Mycorrhiza details:
+    -------------------
+    The effect will not happen frequently at first, but more often the longer
+    the symbiosis is active, reaching its maximum frequency after 5000 turns
+    of symbiosis existance.
+    Press 'm' to begin or end a mycorrhiza. Only one fungus can be active at
+    a time. You can also use the '/myc' command instead of 'm' menu (older
+    clients don't have the 'm' menu entry yet).
+    Also, the '/ex' command will display a currently active symbiosis in light
+    green colour, including its quality aka its duration, with 'perfect'
+    meaning 5000 turns (or longer), resulting in an average of 1 in 3 turns.
+    Some mushrooms have adjusted effects:
+    - slime mold also works and will provide nutrition to you.
+    - mushrooms of cure poison/confusion and of restore strength/constitution
+      trigger faster than other mushrooms (1 in 2 turns).
+    - mushrooms of cure serious wounds and of restoring trigger slower than
+      other mushrooms (1 in 4 turns).
+    - mushroom of cure serious wounds heals HP for 1d8 (unlike eating it,
+      which heals 6d8).
+    - mushroom of paranoia doesn't stack bad effects (fear/hallucination) far,
+      and temporarily grants increased 'perception' ability.
 
 - Draconian
     These humanoid half-breeds of dragon and man surpass common humans in all
@@ -21929,7 +21973,7 @@ create a character!):
     Druids have a powerful ranged area attack spell they can use very early
     on: Toxic Moisture, from Arcane Lore skill. Look for it in the bookstore!
     They also have a spell that satisfies hunger, later on cures poison and
-    more: Herbal Tea, from Physical Lore skill. Could also be essential.
+    more: Herbal Tea, from Physical Lore skill. Quite a powerful asset.
 
     Make sure to create a macro for your fighting technique 'Sprint' when
     you learn it, which you do pretty early on. It is great for catching
@@ -23182,7 +23226,7 @@ Yeek:
     Pass trees.
 Ent:
     Speed malus (will be reduced), swimming, pass trees.
-    (Note that Ents KEEP racial water resistance and fire susceptibilitiy.)
+    (Note that Ents KEEP racial water resistance and fire susceptibility.)
 Draconian:
     Feather falling, levitation.
     Intrinsic breath weapon - you can only use it if you're actually in dragon
@@ -23191,6 +23235,17 @@ Draconian:
 Abilities acquired from traits (such as 'enlightened' or 'corrupted' trait for
 Maiar or draconian traits) are also considered intrinsic abilities and
 therefore polymorph-proof if they aren't on the list above.
+
+Susceptibilities of the base race or lineage are kept when using mimicry:
+- Ent keeps fire susceptibility.
+- Dark-elves keep light susceptibility.
+- Vampires keep light, 'good' and 'life' susceptibility.
+- Draconians:
+  White lineage keeps fire susceptibility.
+  Red lineage keeps frost susceptibility.
+- Maiar:
+  Enlightened keeps 'evil' susceptibility.
+  Corrupted keeps 'good' susceptibility.
 
 
 (7.7a) Polymorph rings ('Ring of Polymorphing of <form>'):
@@ -25831,10 +25886,10 @@ Runecraft macros look like this (key translation in parenthesis):
 (Note: m@12\r invokes the m-key menu command for 'Draw a rune'.)
 
 Targetted runespells use the following format:
-    \e)*tm@12\r<a-f><a-f><a-h><a-f>-  (rune, rune, mode, type, target)
+    \e)*tm@12\r<a-f><a-f><a-h><a-g>-  (rune, rune, mode, type, target)
 
 Non-targetted runespells use the format:
-    \e)m@18\r<a-f><a-f><a-h><a-f>  (rune, rune, mode, type)
+    \e)m@18\r<a-f><a-f><a-h><a-g>  (rune, rune, mode, type)
 
 Note that you must choose two runes, one mode, and one type.
 To cast a single element runespell, simply choose the same element twice.
@@ -25852,19 +25907,19 @@ This spell launches a minimized light bolt, a targetted projection
 affecting up to a single opponent, dealing light damage if it connects.
 
 A fire ball spell might look like this (runes 'a' and 'e' for 'fire'):
-    \e)*tm@12\raedd-  (light--chaos--moderate--ball)
+    \e)*tm@12\raedc-  (light--chaos--moderate--ball)
 
 Note the following macro produces an identical effect (runes 'e' and 'a'):
-    \e)*tm@12\readd-  (chaos--light--moderate--ball)
+    \e)*tm@12\readc-  (chaos--light--moderate--ball)
 
 To increase the radius of the ball, adjust the mode to something that
 sounds bigger, ie. choose a spell mode that increases radius.
 
 A maximized ball of fire:
-    \e)*tm@12\raegd-  (light--chaos--maximized--ball)
+    \e)*tm@12\raehc-  (light--chaos--maximized--ball)
 
 Or an expanded ball of fire, to produce something even larger:
-    \e)*tm@12\raeed-  (light--chaos--expanded--ball)
+    \e)*tm@12\raefc-  (light--chaos--expanded--ball)
 
 Note that failure rate may become an obstacle to advanced spells at low
 level. Low failure types, modes, and elements are recommended.
@@ -25888,7 +25943,7 @@ choices for repeat casting. Retaliation is disabled completely for spells with
 an indirect effect (nimbus and glyph). Specify both runes, then mode and type,
 or '-' to disable. Prefix 't' before a runespell to retaliate in town only.
 
-Usage:   /arr [t]<a-f><a-f><a-h><a-f> (town?, rune, rune, mode, type)
+Usage:   /arr [t]<a-f><a-f><a-h><a-g> (town?, rune, rune, mode, type)
 Example: /arr aeda          Auto-retaliate with a moderate fire bolt.
 Example: /arr taeda         Moderate fire bolt, but 'in town only'.
 Example: /arr -             Disable any auto-retaliation with runes.
@@ -27157,7 +27212,7 @@ Blood (True Vampires)        5000      |   Cure Serious Wounds           100*
 Apple Juice                   250*     |   *Healing*                     400*
 Slime Mold Juice              400*     |   Life                         1000*
 Slowness                       50*     |   Resistance                    100*
-Sleep                         100*     |   Booze                          50*
+Sleep                         100*     |   Booze (not Ents)               50
 
 (*) Double this amount for Ents
 
@@ -27173,7 +27228,8 @@ Sleep                         100*     |   Booze                          50*
   ie to 14999. Scroll and Lembas do not work for Ents or true Vampires.
 
 - Ents gain double nourishment from fountains and potions and specifically 1500
-  if it's (fresh) water. Salt water gives no nourishment even to Ents.
+  if it's (fresh) water.
+  Salt water and Booze give no nourishment even to Ents but rather poison them.
 
 - Vampire race characters gain no nourishment from any food, potions or
   fountains except for fountains/potions of blood. Other characters gain no
@@ -28324,7 +28380,7 @@ ONLY WORKS ON STANDARD EQUIPMENT:
 
 DOESN'T WORK ON EGOS / ARTS:
 
--Don't use them on ego items or artifacts, or you will lose the scroll!
+-The scroll won't work on ego items or artifacts.
 
  Watch out: 'Indestructible' and 'Cursed' rings are ego items too, so are
  'Amulets of Telepathy' and Dragon Scale Mails 'of Defense', so you cannot
@@ -28835,7 +28891,7 @@ what you must actively do BEFORE turning in a deed for a reward item is:
   If you receive a weapon (and don't have Anti-magic skill) it will be a 2-h
   weapon if you are currently wielding a 2-h weapon.
   Note that you will not receive a shield if you're dual-wielding or if your
-  class is rogue.
+  class is rogue. Rogues also will never receive 1.5h- or 2h-weapons.
   Regarding weapon weight, note that a weapon reward will usually not give you
   less attacks per round than the weapon you are already wielding (if any). If
   you don't wield one, it aims for 3 attacks per round as default.

@@ -376,6 +376,7 @@
  #define MAX_MERCHANT_MAILS 100
  /* <this> x (MAX_MERCHANT_MAILS / cfg.fps) seconds  [36 -> 1 min, ie 36*100/60] */
  #define MERCHANT_MAIL_DURATION 36
+ /* Timeout is in the same unit */
  #ifdef TEST_SERVER
   #define MERCHANT_MAIL_TIMEOUT 36
  #else
@@ -786,7 +787,7 @@
 
  #define OPTIMIZED_ANIMATIONS	/* testing */
 
- #define TELEPORT_SURPRISES 5	/* monsters are surprised for a short moment (0.1s * n) if a player long-range teleported next to them */
+ #define TELEPORT_SURPRISES 5	/* monsters are surprised for a short moment (0.1s * n) if a player long-range teleported next to them; also for wilderness sector changes (experimental) */
 
  #define LIMIT_SPELLS		/* Allow player to limit the level of spells he casts */
 

@@ -2264,6 +2264,7 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 #endif
 		if ((c_ptr->info2 & CAVE2_MINED) && !p_ptr->warning_tunnel_hidden) {
 			msg_print(Ind, "\374\377yHINT: Mining hidden veins yields more than the right away spottable ones!");
+			msg_print(Ind, "\374\377y      Use 'Treasure Location' magic near a vein to find hidden veins nearby!");
 			c_ptr->info2 &= ~CAVE2_MINED;
 			p_ptr->warning_tunnel_hidden = 1;
 			s_printf("warning_tunnel_hidden: %s\n", p_ptr->name);
@@ -2607,34 +2608,31 @@ void carry(int Ind, int pickup, int confirm, bool pick_one) {
 
 /* the_sandman: item lvl restrictions are disabled in rpg */
 #ifndef RPG_SERVER
-		if (o_ptr->owner && o_ptr->owner != p_ptr->id &&
-		    (o_ptr->level > p_ptr->lev || o_ptr->level == 0) &&
-		    !in_irondeepdive(&p_ptr->wpos)) {
+		/* Items owned by someone else - handle if item level either exceeds ours or is zero: */
+		if (o_ptr->owner && o_ptr->owner != p_ptr->id
+		    && (o_ptr->level > p_ptr->lev || o_ptr->level == 0)
+		    && !in_irondeepdive(&p_ptr->wpos) /* These restrictions are disabled inside the IDDC */
+		    ) {
 			if (cfg.anti_cheeze_pickup) {
 				if (o_ptr->level) {
 					msg_format(Ind, "You must be level %d or higher to pick up that item!", o_ptr->level);
 					if (!is_admin(p_ptr)) return;
-				}
- #if 1 /* doesn't matter probably? Food exchange was already done above. */
-				else {
+				} else { /* doesn't matter probably? Food exchange was already done above. */
 					msg_print(Ind, "You cannot pick up a zero-level item that doesn't belong to you.");
 					if (!is_admin(p_ptr)) return;
 				}
- #endif
+			}
 			/* new: this is to prevent newbies to pick up all nearby stuff with their
-			   level 1 char aimlessly without being able to drop it again. */
-			} else if (p_ptr->max_plv < cfg.newbies_cannot_drop) {
+			   level 1 char aimlessly without being able to drop it again despite being unable to use them. */
+			else if (o_ptr->level && p_ptr->max_plv < cfg.newbies_cannot_drop) {
 				msg_format(Ind, "You must at least be level %d to pick up items above your level.", cfg.newbies_cannot_drop);
 				if (!is_admin(p_ptr)) return;
 			}
- #if 1
 			/* this is for a similar purpose: in the inn, don't allow picking up items that we can't immediately use */
-			else if ((f_info[c_ptr->feat].flags1 & FF1_PROTECTED) && p_ptr->lev < o_ptr->level
-			    && !in_irondeepdive(&p_ptr->wpos)) {
+			else if (o_ptr->level && (f_info[c_ptr->feat].flags1 & FF1_PROTECTED)) {
 				msg_print(Ind, "Inside an inn you cannot pick up items that are higher level than you.");
 				if (!is_admin(p_ptr)) return;
 			}
- #endif
 			else if (true_artifact_p(o_ptr) && cfg.anti_arts_pickup)
 			//else if (artifact_p(o_ptr) && cfg.anti_arts_pickup)
 			{
@@ -7959,6 +7957,12 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 			/* Change wpos */
 			wpcopy(wpos, &nwpos);
 
+#if 1 /* Alleviate insta-attacks on entering a new wilderness sector, similar to teleporting around in the dungeon */
+ #ifdef TELEPORT_SURPRISES
+			p_ptr->teleported = TELEPORT_SURPRISES;
+ #endif
+#endif
+
 			/* A player has left this depth */
 			new_players_on_depth(&old_wpos, -1, TRUE);
 
@@ -8319,6 +8323,7 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 						else
 							msg_print(Ind, "\374\377yHINT: You can try to dig out treasure with \377oSHIFT+t\377y.");
 						msg_print(Ind, "\374\377y      Using a shovel or, even better, a pick increases chance of success.");
+						msg_print(Ind, "\374\377y      Use 'Treasure Location' magic near a vein to find hidden veins nearby!");
 						s_printf("warning_tunnel2: %s\n", p_ptr->name);
 						p_ptr->warning_tunnel2 = 1;
 					}
@@ -8406,12 +8411,13 @@ void move_player(int Ind, int dir, int do_pickup, char *consume_full_energy) {
 						msg_print(Ind, "There is a wall blocking your way.");
 						//msg_print(Ind, "There is a wall with valuable minerals blocking your way.");
 
-					if (!p_ptr->warning_tunnel2) {
+						if (!p_ptr->warning_tunnel2) {
 							if (p_ptr->rogue_like_commands)
 								msg_print(Ind, "\374\377yHINT: You can try to dig out treasure with '\377o+\377y' key.");
 							else
 								msg_print(Ind, "\374\377yHINT: You can try to dig out treasure with \377oSHIFT+t\377y.");
 							msg_print(Ind, "\374\377y      Using a shovel or, even better, a pick increases chance of success.");
+							msg_print(Ind, "\374\377y      Use 'Treasure Location' magic near a vein to find hidden veins nearby!");
 							s_printf("warning_tunnel2: %s\n", p_ptr->name);
 							p_ptr->warning_tunnel2 = 1;
 						}
