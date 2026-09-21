@@ -64,6 +64,22 @@ through the SDL event queue and production adapter, exercises server abort,
 and verifies exact replies and no duplicate after redraw. These are visibility
 assertions, not pixel-perfect or human UX approval.
 
-Initial Linux build, ASan/UBSan/LeakSanitizer and software native checks passed.
-Full regression matrix and parallel Standards/Spec review are recorded below
-when complete. Windows/Wine and human visual acceptance are not claimed.
+## Verification — 2026-09-21
+
+Linux amd64 SV and the legacy SDL3 `tomenet` target built successfully. All 14
+available regression runners passed after the review fix: request, message and
+architecture ASan/UBSan/LeakSanitizer checks; legacy HP regression; native request,
+message, HP, architecture and shell/resource checks on both software and OpenGL.
+Native request checks submitted 120 checked frames per backend. LeakSanitizer
+requires execution outside this environment's ptrace-based sandbox.
+
+Parallel review used starting commit `d7b2b9c50`. Standards initially found one
+architecture violation: Application interpreted server abort. The input router
+now owns that rule and returns the prepared reply for Application to deliver.
+Follow-up Standards review has zero unresolved findings. Spec review has zero
+findings. The local tracker setup document `docs/agents/issue-tracker.md` is
+absent; review used the explicitly supplied local ticket and parent spec.
+
+MinGW was attempted and is blocked by absent cross SDL3, SDL3_ttf and FreeType
+development packages. Windows/Wine, Fedora41 shipping-baseline verification and
+human visual acceptance are not claimed.

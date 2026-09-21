@@ -96,28 +96,35 @@ size_t sv_app_receive_capacity(const SvApp *app)
 {
     return app->view.active ? sv_protocol_capacity(app->protocol) : 0;
 }
-static void refresh_request(SvApp *app)
+static SvResult deliver_reply(SvApp *app, SvKeyReply reply)
 {
-    app->view.request = sv_session_request(app->session);
-    sv_input_sync(&app->input, app->view.request);
-    app->view.context = app->input.context;
+    SvResult result = sv_protocol_key_reply(app->protocol, reply.id, reply.key);
+    if (result != SV_OK) { fail_session(app, result); return result; }
+    return sv_session_complete_request(app->session, reply.sequence);
 }
-static SvResult answer(SvApp *app, uint64_t sequence, unsigned char key)
+static SvResult refresh_request(SvApp *app)
 {
     SvKeyReply reply;
-    SvResult result = sv_input_key(&app->input, sv_session_request(app->session), sequence, key, &reply);
-    if (result != SV_OK) return result;
-    result = sv_protocol_key_reply(app->protocol, reply.id, reply.key);
-    if (result != SV_OK) { fail_session(app, result); return result; }
-    result = sv_session_complete_request(app->session, reply.sequence);
-    refresh_request(app);
-    return result;
+    app->view.request = sv_session_request(app->session);
+    SvResult result = sv_input_sync(&app->input, app->view.request, &reply);
+    if (result == SV_OK) {
+        result = deliver_reply(app, reply);
+        if (result != SV_OK) return result;
+        app->view.request = sv_session_request(app->session);
+        (void)sv_input_sync(&app->input, app->view.request, &reply);
+    } else if (result != SV_WAITING) return result;
+    app->view.context = app->input.context;
+    return SV_OK;
 }
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    return answer(app, sequence, key);
+    SvKeyReply reply;
+    result = sv_input_key(&app->input, sv_session_request(app->session), sequence, key, &reply);
+    if (result != SV_OK) return result;
+    result = deliver_reply(app, reply);
+    return result == SV_OK ? refresh_request(app) : result;
 }
 SvStep sv_app_step(SvApp *app, size_t budget)
 {
@@ -137,11 +144,8 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
-        refresh_request(app);
-        if (app->view.request.aborted) {
-            step.result = answer(app, app->view.request.sequence, 27);
-            if (step.result != SV_OK) break;
-        }
+        step.result = refresh_request(app);
+        if (step.result != SV_OK) break;
         app->view.status = change.status.after;
         app->view.messages = sv_session_messages(app->session);
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);

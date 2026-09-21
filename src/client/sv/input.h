@@ -7,8 +7,9 @@ typedef struct {
     uint64_t sequence;
 } SvInputRouter;
 typedef struct { uint64_t sequence; int id; unsigned char key; } SvKeyReply;
-/* Owns semantic context, not request text or renderer state. */
-void sv_input_sync(SvInputRouter *router, SvKeyRequest request);
+/* Owns semantic context, not request text or renderer state.
+ * Sync returns OK with one prepared reply, or WAITING without a command. */
+SvResult sv_input_sync(SvInputRouter *router, SvKeyRequest request, SvKeyReply *reply);
 SvResult sv_input_key(const SvInputRouter *router, SvKeyRequest request,
                       uint64_t sequence, unsigned char key, SvKeyReply *reply);
 #endif
