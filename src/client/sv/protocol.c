@@ -8,6 +8,7 @@
 #include "../../common/sockbuf.h"
 #include "../../common/pack.h"
 #include "../hp-update.h"
+#include "../message-update.h"
 #include "protocol.h"
 struct SvProtocol {
     version_type version;
@@ -45,7 +46,7 @@ SvResult sv_protocol_receive(SvProtocol *p, const void *bytes, size_t size)
     p->input.len += size;
     return SV_OK;
 }
-SvResult sv_protocol_next(SvProtocol *p, SvHpUpdate *update)
+SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
 {
     sockbuf_t *in = &p->input;
     if (!in->len) return SV_WAITING;
@@ -56,7 +57,21 @@ SvResult sv_protocol_next(SvProtocol *p, SvHpUpdate *update)
         int decoded = client_decode_hp(in, &p->version, &hp);
         if (decoded < 0) return SV_DECODE_ERROR;
         if (!decoded) return SV_WAITING;
-        *update = (SvHpUpdate){hp.maximum, hp.current, hp.drain, hp.bar, hp.boosted};
+        change->kind = SV_CHANGE_HP;
+        change->hp = (SvHpUpdate){hp.maximum, hp.current, hp.drain, hp.bar, hp.boosted};
+        p->previous_type = type;
+        Sockbuf_advance(in, (int)(in->ptr - in->buf));
+        return SV_OK;
+    }
+    case PKT_MESSAGE: {
+        char raw[MSG_LEN];
+        int decoded = client_decode_message(in, raw);
+        if (decoded < 0) return SV_DECODE_ERROR;
+        if (!decoded) return SV_WAITING;
+        change->kind = SV_CHANGE_MESSAGE;
+        change->message = (SvMessage){0};
+        change->message.length = strlen(raw);
+        memcpy(change->message.bytes, raw, MSG_LEN);
         p->previous_type = type;
         Sockbuf_advance(in, (int)(in->ptr - in->buf));
         return SV_OK;

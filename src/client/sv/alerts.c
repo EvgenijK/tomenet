@@ -2,6 +2,7 @@
 SvAlertEffects sv_alerts_evaluate(SvStatusChange change, SvAlertOptions options, SvAttention attention)
 {
     SvAlertEffects effects = {{0}, 0};
+    if (change.after.revision == change.before.revision) return effects;
     if (options.off_panel_damage && attention.off_panel &&
         change.after.current < change.before.current && !change.after.drain)
         effects.items[effects.count++] = SV_DAMAGE_SOUND;

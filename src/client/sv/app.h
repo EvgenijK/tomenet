@@ -6,6 +6,7 @@ typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;
     SvStatus status;
+    SvMessages messages;
     int active, executor_failed;
     SvResult reason;
 } SvAppView;
@@ -32,4 +33,6 @@ SvResult sv_app_receive_owned(SvApp *app, SvOwnedBytes *input);
 SvStep sv_app_step(SvApp *app, size_t budget);
 size_t sv_app_receive_capacity(const SvApp *app);
 SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
+/* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
+SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
 #endif

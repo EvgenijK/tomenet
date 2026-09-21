@@ -15,6 +15,7 @@ static void release_session(SvApp *app)
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
     app->view.active = 0;
+    app->view.messages = (SvMessages){0};
 }
 static void fail_session(SvApp *app, SvResult reason)
 {
@@ -98,17 +99,20 @@ SvStep sv_app_step(SvApp *app, size_t budget)
     if (!app->view.active) { step.result = SV_CLOSED; return step; }
     app->busy = 1;
     while (step.processed < budget) {
-        SvHpUpdate hp;
-        step.result = sv_protocol_next(app->protocol, &hp);
+        SvChange decoded;
+        step.result = sv_protocol_next(app->protocol, &decoded);
         if (step.result == SV_WAITING) break;
         if (step.result != SV_OK && step.result != SV_RECOVERED) {
             fail_session(app, step.result); break;
         }
         ++step.processed;
         if (step.result == SV_RECOVERED) break;
-        SvStatusChange change = sv_session_apply_hp(app->session, hp);
-        app->view.status = change.after;
-        SvAlertEffects effects = sv_alerts_evaluate(change, app->options, app->attention);
+        SvSessionChange change = sv_session_apply(app->session, &decoded);
+        step.result = change.result;
+        if (step.result != SV_OK) { fail_session(app, step.result); break; }
+        app->view.status = change.status.after;
+        app->view.messages = sv_session_messages(app->session);
+        SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);
         if (!sv_alerts_deliver(app->sink, effects)) app->view.executor_failed = 1;
     }
     step.pending_bytes = app->protocol ? sv_protocol_pending(app->protocol) : 0;
@@ -120,4 +124,11 @@ SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return (SvOutput){result, 0};
     return sv_protocol_output(app->protocol, bytes, capacity);
+}
+
+SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    return sv_session_take_message(app->session, message);
 }

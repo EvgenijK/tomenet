@@ -13,6 +13,7 @@ const char *sv_result_text(SvResult result)
     case SV_INPUT_OVERFLOW: return "Session closed: input exceeds buffer limit";
     case SV_OUTPUT_OVERFLOW: return "Session closed: output buffer exhausted";
     case SV_DECODE_ERROR: return "Session closed: packet decode failed";
+    case SV_EVENT_OVERFLOW: return "Session closed: mandatory message delivery exhausted";
     case SV_NO_MEMORY: return "Session could not allocate storage";
     case SV_OUTPUT_TOO_SMALL: return "Output destination too small";
     }

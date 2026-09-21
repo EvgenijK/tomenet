@@ -12,5 +12,9 @@ int sv_scenario_frame(void *context, SvAppView view)
         bounds.y = (int)(190 * scale);
         if (!sv_hp_check_pixels(ui->renderer, &bounds)) return 0;
     }
+    for (size_t row = 0; row < view.messages.count; ++row) {
+        bounds.y = (int)((454 + row * 34) * scale);
+        if (!sv_hp_check_pixels(ui->renderer, &bounds)) return 0;
+    }
     return SDL_RenderPresent(ui->renderer);
 }

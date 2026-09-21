@@ -31,9 +31,9 @@ SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o font.o ui.o app.o protocol.o session.o alerts.o result.o status.o version.o
+SV_CLIENT_OBJECTS := main.o font.o ui.o message-text.o app.o protocol.o session.o alerts.o result.o status.o version.o
 SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
-SV_SCENARIO_OBJECTS := scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
+SV_SCENARIO_OBJECTS := scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o
 SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_TEMPORARY_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
 
@@ -66,5 +66,5 @@ $(SV_OUT)/common/%.o: common/%.c makefile.sv | check-deps
 	$(SV_CC) $(filter-out -Werror,$(SV_CFLAGS)) $(SV_CORE_PLATFORM) -DCLIENT -D_DEFAULT_SOURCE -ffunction-sections -fdata-sections -MMD -MP -c $< -o $@
 $(SV_OUT)/$(SV_NAME): $(SV_OBJECTS)
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
-	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,text;live-network=off;audio=off;terminal=absent' > $(SV_OUT)/build.txt
+	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text;live-network=off;audio=off;terminal=absent' > $(SV_OUT)/build.txt
 -include $(SV_OBJECTS:.o=.d)

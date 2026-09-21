@@ -24,6 +24,7 @@
 #include "angband.h"
 #include "netclient.h"
 #include "hp-update.h"
+#include "message-update.h"
 #ifdef AMIGA
 #include <devices/timer.h>
 #endif
@@ -3318,12 +3319,11 @@ int Receive_char(void) {
 
 int Receive_message(void) {
 	int n, c;
-	char ch;
 	char buf[MSG_LEN] = { 0 }, *bptr, *sptr, *bnptr;
 	char l_buf[MSG_LEN], l_cname[NAME_LEN], *ptr, l_nick[NAME_LEN], called_name[NAME_LEN];
 	static bool got_note = FALSE;
 
-	if ((n = Packet_scanf(&rbuf, "%c%S", &ch, buf)) <= 0) return(n);
+	if ((n = client_decode_message(&rbuf, buf)) <= 0) return(n);
 
 	/* Ultra-hack for light-source fainting. (First two bytes are "\377w".) */
 	if (!c_cfg.no_lite_fainting && !strcmp(buf + 2, HCMSG_LIGHT_FAINT)) lamp_fainting = 30; //deciseconds

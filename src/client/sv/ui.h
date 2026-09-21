@@ -2,12 +2,16 @@
 #define SV_UI_H
 #include "font.h"
 #include "status.h"
+#include "message-text.h"
 typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SvFont *font;
     uint64_t font_revision;
     SvStatusCache status;
+    SvMessageCache messages;
+    int message_cell;
+    size_t message_lengths[SV_MESSAGE_LINES];
     float logical_width;
 } SvUi;
 /* Draw only. The shell owns submission, allowing test-only readback before present.

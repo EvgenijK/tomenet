@@ -10,7 +10,7 @@ void sv_protocol_destroy(SvProtocol *protocol);
 /* All-or-nothing append. BACKPRESSURE consumes nothing; caller retains the bytes. */
 SvResult sv_protocol_receive(SvProtocol *protocol, const void *bytes, size_t size);
 /* One complete input, or WAITING without any model-visible change. */
-SvResult sv_protocol_next(SvProtocol *protocol, SvHpUpdate *hp);
+SvResult sv_protocol_next(SvProtocol *protocol, SvChange *change);
 size_t sv_protocol_pending(const SvProtocol *protocol);
 size_t sv_protocol_capacity(const SvProtocol *protocol);
 SvOutput sv_protocol_output(SvProtocol *protocol, void *bytes, size_t capacity);

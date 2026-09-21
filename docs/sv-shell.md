@@ -6,7 +6,8 @@ surfaces. [Ticket 02 adds production HP decoding and native status](sv-hp.md).
 [SV-ARCH-001](tasks/SV-ARCH-001-align-current-implementation.md) adds separated
 protocol/model/application modules, budgeted input processing, semantic alert
 results, revision-based status preparation and session-failure recovery in the shell.
-Message delivery, requests and the input router belong to subsequent tickets.
+[Ticket 03 adds ordered message delivery and a native live feed](sv-messages.md).
+Requests and the input router belong to subsequent tickets.
 It compiles selected shared core sources into isolated objects and does not link
 a terminal, legacy object outputs, Lua generators, historical modern artifacts
 or a live network transport.

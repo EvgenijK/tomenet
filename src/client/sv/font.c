@@ -130,3 +130,14 @@ bool sv_font_draw(SvFont *font, SDL_Renderer *renderer, const char *text,
     }
     return draw_surface(renderer, surface, x, y);
 }
+
+int sv_font_cell_width(SvFont *font, float scale)
+{
+    if (!font->ttf) return (int)SDL_roundf(font->pcf->available_sizes[0].width * scale);
+    int width, height;
+    float size = 18 * scale;
+    if (size != font->size && !TTF_SetFontSize(font->ttf, size)) return 0;
+    font->size = size;
+    if (!TTF_GetStringSize(font->ttf, "M", 1, &width, &height)) return 0;
+    return width;
+}
