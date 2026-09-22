@@ -157,3 +157,25 @@ MinGW/Wine блокируются отсутствующими cross development
 **Проверки:** сверить клавиши и исходящие команды каждого владельца с текущими
 исходниками для обоих keysets; при будущей реализации SV проверить production
 input→command путь, nested target cancel и восстановление родительского контекста.
+
+## SV-IMP-008 — Уточнить исторический inventory-view input audit
+
+**Статус:** предложено отдельно; тикет 09 фиксирует правильные dispositions,
+legacy и исходный исторический аудит не изменены.
+
+**Проблема:** строка `input.command.inventory-view` в
+`docs/research/single-window-input-loops.md` описывает одно действие с выходом и
+examine по букве. Текущие владельцы продолжают цикл после многих дочерних команд;
+uppercase выполняет прямой paste через `Send_paste_msg` и завершает просмотр.
+В equipment takeoff вызывается буквальной `t`, независимо от gameplay keyset.
+
+**Затронутый код:** `src/client/c-cmd.c`: `cmd_inven`, `cmd_equip`, `cmd_subinven`;
+потребители input inventory и будущие SV bindings этих поверхностей.
+
+**Предложение:** отдельно уточнить историческую сводку по каждому владельцу,
+разделив продолжение цикла, возврат дочернего действия, paste и закрытие списка.
+Контракты текущего переноса сохранены в `docs/capabilities/item-reconciliation.md`.
+
+**Проверки:** сверить все switch branches и прямой uppercase/newest paste,
+normal/roguelike и `ENABLE_SUBINVEN`; проверить production input→command путь,
+возврат в shopping/final-review и очистку bag redirection без дублирования send.
