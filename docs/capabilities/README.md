@@ -231,3 +231,11 @@ validation, closed runtime/fallback records, dependency freshness, and version 2
 ledger claims. The version 1 descriptions above remain the historical pending-only
 contract. Canonical [evidence](native-evidence.json) is empty, with no accepted
 native claims and no declared fallback routes.
+
+## Local HTML synchronization — ticket 14
+
+[HTML consumer contract and commands](html-consumer.md) describe the independent
+local snapshot/coverage CLI, atomic generations, conservative freshness, scoped
+prototype evidence and human approval provenance. Honest missing coverage is
+valid; no HTML claim supplies native acceptance. The actual sibling consumer was
+not synchronized; validation uses temporary local consumers.
