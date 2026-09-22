@@ -241,16 +241,32 @@ def main():
                         help='validate ID preservation and lifecycle transitions against retained history')
     parser.add_argument('--source-root', type=source_root, action='append', default=[],
                         help='verify source bytes and literal anchors locally; repeat REPOSITORY=PATH')
+    parser.add_argument('--inventory-index', type=Path,
+                        help='content-addressed inventory denominator for completeness')
+    parser.add_argument('--reconciliation', type=Path,
+                        help='inventory dispositions and cross-cutting outcome obligations')
     args = parser.parse_args()
     report = Report()
     digest = None
     summary = {}
     unavailable = False
+    completeness = {'status': 'not-requested'}
     try:
         manifest, digest = load(args.manifest)
         ledger, _ = load(args.ledger)
         report.structure(manifest, 'manifest.schema.json', 'manifest')
         report.structure(ledger, 'native-coverage.schema.json', 'ledger')
+        inventory = mapping = None
+        if bool(args.inventory_index) != bool(args.reconciliation):
+            report.error('inventory-input', 'completeness', 'Supply both --inventory-index and --reconciliation')
+        elif args.inventory_index:
+            completeness = {'status': 'incomplete'}
+            inventory, inventory_digest = load(args.inventory_index)
+            mapping, reconciliation_digest = load(args.reconciliation)
+            completeness.update(inventoryIndexSha256=inventory_digest,
+                                reconciliationSha256=reconciliation_digest)
+            report.structure(inventory, 'inventory-index.schema.json', 'inventory-index')
+            report.structure(mapping, 'reconciliation.schema.json', 'reconciliation')
         previous = None
         if args.previous_manifest:
             previous, _ = load(args.previous_manifest)
@@ -265,6 +281,12 @@ def main():
             validate_coverage(registry, ledger, digest)
             if args.source_root:
                 validate_sources(manifest, dict(args.source_root), report)
+            if inventory is not None:
+                from reconcile_capabilities import reconcile
+                completeness.update(reconcile(inventory, mapping, args.inventory_index.parent,
+                                              registry, ledger, dict(args.source_root)))
+                if report.errors:
+                    completeness['status'] = 'incomplete'
             summary = {
                 'activeCapabilities': sum(c['lifecycle'] == 'active' for c in manifest['capabilities']),
                 'pendingEvidence': len(ledger['coverage']),
@@ -276,10 +298,13 @@ def main():
     except (ValueError, UnicodeError) as error:
         report.error('malformed-json', 'input', str(error))
     unavailable = unavailable or any(e['code'] == 'source-unavailable' for e in report.errors)
+    if (args.inventory_index or args.reconciliation) and report.errors:
+        completeness['status'] = 'incomplete'
     status = 'unavailable' if unavailable else 'invalid' if report.errors else 'valid'
     print(json.dumps({'status': status, 'manifestSha256': digest, 'summary': summary,
                       'historyChecked': args.previous_manifest is not None,
                       'sourceVerification': ('checked' if args.source_root else 'not-requested'),
+                      'completeness': completeness,
                       'errors': report.errors}, indent=2))
     return 2 if unavailable else 1 if report.errors else 0
 

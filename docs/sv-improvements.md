@@ -225,3 +225,28 @@ legacy путей, заранее определив совместимость 
 **Проверки:** sound/soundpackFolder/soundpackSubset во всех порядках;
 read→save→reload обоих subset keys; TMPDIR и SDL3 user root в разных каталогах;
 пустая/непустая история, relog и ошибки записи без потери старого файла.
+
+## Incremental extraction of baseline inventory rows
+
+**Status:** proposed separately; ticket 12 uses content-addressed audits and fails
+completeness when their source bytes change.
+
+**Problem:** current Markdown inventories contain historical line numbers, labels
+and subtotals. Content identity reliably detects drift, but a reviewer must locate
+new packet/version/input/field obligations manually. For example, the physical SDL3
+owner is now `react_keypress`, and the historical `Receive_keypress` label suggests
+input injection although its production body is a payload-free stub.
+
+**Affected code:** `tools/reconcile_capabilities.py`,
+`docs/capabilities/inventories/`, client packet registration/decoders and input
+owners in `src/client/nclient.c`, `c-util.c`, `main-sdl3.c`.
+
+**Proposal:** add focused source extractors that produce reviewable candidate row
+changes for registration, wire-format and conditional input sites. Keep semantic
+outcome mapping and exclusions explicitly reviewed; do not auto-certify a caller
+from a shared handler name or silently accept a refreshed hash.
+
+**Required checks:** additions/removals under compile/version guards, same-name
+changed bodies, dead/commented code, response-only paths and deliberate NULL
+registrations; generated candidates must exercise the production validator and
+must not alter legacy/SV runtime behavior.

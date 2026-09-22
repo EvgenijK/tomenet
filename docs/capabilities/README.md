@@ -14,8 +14,10 @@ inventory mappings, cross-domain obligations and verification, and the
 Ticket 11 adds settings, resources, files and platform outcomes; see the
 [settings reconciliation](settings-reconciliation.md) and
 [final policy snapshot](settings-policy.md) for ownership, defaults and exclusions.
-The current registry contains 870 active outcomes, all pending, with no accepted
-native claims. The counts below describe the historical ticket 07 slice.
+Ticket 12 reconciles the full inventory corpus and adds explicit live HUD,
+input and network outcomes; see the [complete reconciliation](complete-reconciliation.md).
+The current registry contains 925 active outcomes, all pending, with no accepted
+native claims, plus one retained deprecated ID. The counts below describe the historical ticket 07 slice.
 
 ## Initial slice — ticket 07
 
@@ -31,12 +33,14 @@ accepted native claims.
 Tickets 08–12 expand and reconcile the remaining baseline. Ticket 13 supplies
 scoped native evidence, dependency invalidation and fallback-route verification;
 ticket 14 supplies HTML snapshot synchronization. This tool does not certify
-runtime behavior, full baseline completeness, UX approval or Stage A acceptance.
+runtime behavior, UX approval or Stage A acceptance. Inventory completeness
+requires the explicit ticket 12 arguments documented below.
 
 ## Run
 
-Python 3.10+ and `jsonschema` are required. No game build, account, Git access or
-network access is required after installing the Python dependency:
+Python 3.10+ and `jsonschema` are required. Basic registry validation requires no
+game build, account, Git or network access after installing the Python dependency.
+Inventory completeness additionally uses local Git to enumerate tracked source files:
 
 ```sh
 python3 -m venv /tmp/sv-capabilities-venv
@@ -209,3 +213,13 @@ findings; the registry suite passed again after the schema change.
 Independent review found no actionable deviations from ticket 07. The initial
 source-backed slice, pending allocation and separation of later evidence and
 reconciliation work match the ticket. Final findings: Standards 0, Spec 0.
+
+## Complete baseline reconciliation — ticket 12
+
+[Complete reconciliation](complete-reconciliation.md) connects all retained inventories
+to the canonical outcomes and native allocation. Run the validator with both
+`--inventory-index docs/capabilities/inventories/index.json` and
+`--reconciliation docs/capabilities/reconciliation.json`, plus
+`--source-root tomenet=.` to verify completeness and current source bytes.
+Without these arguments, the report explicitly says completeness was not requested.
+Valid pending allocation never means native acceptance.
