@@ -10,15 +10,15 @@ python3 tests/sv_message_native.py --backend software
 python3 tests/sv_message_native.py --backend opengl
 ```
 
-The application accepts PKT_MESSAGE through the shared `client_decode_message`
-used by legacy `Receive_message`. The field uses the same `%c%S` scanner and has
+The application accepts PKT_MESSAGE through SV-local `sv_decode_message`
+in `src/client/sv/message-update.h`. The field uses the same `%c%S` scanner and has
 no version-dependent layout; scenarios select both HP boundary versions
 4.7.0.2.0.1 and 4.7.0.2.0.2 to verify adjacent packets. A preflight requires NUL
 within the 256-byte field slot. Incomplete fields wait without publication;
 256 non-NUL bytes fail without cursor advancement or truncated publication.
-This intentionally corrects the old scanner truncation for this message path,
-according to the approved field-boundary disposition; unrelated packet paths
-and legacy post-decode message effects remain unchanged.
+This intentionally prevents scanner truncation in the SV message path. Legacy
+`Receive_message` uses its original scanner directly; its unterminated-field
+problem remains separate work tracked as SV-IMP-002.
 
 `SvSession` dispatches decoded semantic changes behind one apply interface;
 the application owns sequencing, lifecycle and delivery to alert executors.
@@ -94,3 +94,20 @@ zero findings. Reviews used the task diff from starting commit `15c6730`.
 MinGW verification was attempted but is blocked by absent cross SDL3,
 SDL3_ttf and FreeType development packages. No Windows/Wine or human visual
 acceptance is claimed for this ticket.
+
+## SV-ARCH-002 isolation — 2026-09-22
+
+HP/message/request helpers now belong to `src/client/sv`; version comparison
+is local to SV. The targeted legacy/common files match upstream `59473651d`
+exactly, preserving its unrelated changes. The legacy HP harness now links
+`common.c` rather than the SV version implementation. Strict field-boundary
+checks remain in SV only; the legacy issue remains open as SV-IMP-002.
+
+Linux SV and legacy SDL3 builds passed. All 14 available regression runners
+passed: three ASan/UBSan/LeakSanitizer runners, legacy HP, and HP/message/request/
+architecture/shell checks on software and OpenGL. Native counts per backend
+remain HP 78/156 frames, messages 18/54, requests 40/120; request sanitizer
+coverage remains 372 fragmentation cases. MinGW was attempted and remains
+blocked by missing cross SDL3/SDL3_ttf/FreeType development dependencies.
+See [SV-ARCH-002](tasks/SV-ARCH-002-isolate-sv-from-legacy-changes.md) for review
+and completion evidence; earlier verification sections above are historical.

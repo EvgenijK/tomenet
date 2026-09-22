@@ -6,7 +6,7 @@
 #define CLIENT
 #include "../../common/angband.h"
 #include "../../common/sockbuf.h"
-#include "../hp-update.h"
+#include "hp-update.h"
 #include "session.h"
 struct SvSession {
     SvKeyRequest request;
@@ -31,10 +31,10 @@ SvStatus sv_session_status(const SvSession *s)
 static SvStatusChange apply_hp(SvSession *s, SvHpUpdate update)
 {
     SvStatusChange change;
-    ClientHpUpdate hp = {update.maximum, update.current, update.bar,
-                         update.boosted, update.drain};
+    SvDecodedHp hp = {update.maximum, update.current, update.bar,
+                      update.boosted, update.drain};
     change.before = sv_session_status(s);
-    client_apply_hp(&s->player, &hp);
+    sv_apply_hp(&s->player, &hp);
     s->bar = hp.bar; s->boosted = hp.boosted; s->drain = hp.drain;
     ++s->revision;
     change.after = sv_session_status(s);

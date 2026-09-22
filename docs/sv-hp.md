@@ -1,15 +1,16 @@
 # Stage A ticket 02: native HP/status
 
-The synthetic shell now displays HP decoded by the same HP decoder used by
-legacy `Receive_hp`. Default startup selects server version **4.7.0.2.0.2** and
+The synthetic shell displays HP through an SV-local decoder preserving the
+legacy `Receive_hp` baseline. Default startup selects server version **4.7.0.2.0.2** and
 queues prepared bytes for HP 50/100, boosted, bar requested and drain present.
 It displays the normalized values, marker labels and a bounded visual HP bar.
-No live connection, messages or key-request interaction is implemented here.
+This HP slice adds no live connection; messages and key requests are documented
+in their subsequent slice guides.
 
 ## Source layout
 
-Production client modules live in `src/client/sv`; shared HP decode/apply remains
-in `src/client/hp-update.h` because both SV and the legacy client use it.
+Production client modules, including local HP decode/apply in `hp-update.h`,
+live in `src/client/sv`. Legacy retains its baseline handlers.
 Temporary transport stubs and the synthetic bootstrap live in
 `src/temporary/sv`. The bootstrap owns the isolated-profile setup and prepared
 startup packet; these are not live connection or persistence implementations.
@@ -57,14 +58,13 @@ env WINEPREFIX=/tmp/tomenet-sv-wine-prefix WINEDEBUG=-all \
 
 ## Ownership and production boundary
 
-- The shared HP helper uses the unchanged production `Packet_scanf` and version
+- The SV-local HP helper uses the unchanged production `Packet_scanf` and version
   predicate. It decodes into temporary values and only publishes a complete
   update. Legacy `Receive_hp` retains its option handling, off-panel damage and
   low-HP alerts, huge-bar rendering, terminal switching and player invalidation.
-- The version predicate was moved unchanged to a shared include, allowing the
-  isolated target to compile it without linking unrelated common game helpers.
-  Existing legacy makefiles still build it through `common.c`; dependency-aware
-  SDL3 and SV builds track the include.
+- The version predicate is copied unchanged into SV `version.c`, avoiding
+  unrelated common game helpers. Legacy builds use the restored definition in
+  `common.c`. Compiler-generated dependencies track the local helper headers.
 - `SvProtocol` owns negotiated version, two bounded 1024-byte buffers and wire
   recovery. `SvSession` owns the sole player storage, markers and HP revision;
   it accepts decoded semantic changes without SDL or transport access.
@@ -186,3 +186,20 @@ Standards and Spec review findings were fixed and rechecked.
 The MinGW compiler exists, but cross SDL3/SDL_ttf/FreeType packages and the old
 `/tmp` SDK/Wine setup are absent. This correction has no new Windows/Wine evidence;
 the 2026-09-20 verification table above describes the earlier slice only.
+
+## SV-ARCH-002 isolation — 2026-09-22
+
+HP/message/request helpers now belong to `src/client/sv`; version comparison
+is local to SV. The targeted legacy/common files match upstream `59473651d`
+exactly, preserving its unrelated changes. The legacy HP harness now links
+`common.c` rather than the SV version implementation. Strict field-boundary
+checks remain in SV only; the legacy issue remains open as SV-IMP-002.
+
+Linux SV and legacy SDL3 builds passed. All 14 available regression runners
+passed: three ASan/UBSan/LeakSanitizer runners, legacy HP, and HP/message/request/
+architecture/shell checks on software and OpenGL. Native counts per backend
+remain HP 78/156 frames, messages 18/54, requests 40/120; request sanitizer
+coverage remains 372 fragmentation cases. MinGW was attempted and remains
+blocked by missing cross SDL3/SDL3_ttf/FreeType development dependencies.
+See [SV-ARCH-002](tasks/SV-ARCH-002-isolate-sv-from-legacy-changes.md) for review
+and completion evidence; earlier verification sections above are historical.

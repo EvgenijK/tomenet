@@ -18,13 +18,15 @@ The peer, profile bootstrap and acceptance scenarios are temporary fixture code;
 the decoder, Session, input router, serializer, SDL input adapter and renderer
 are production modules. There is no terminal link or fallback route.
 
-`client_decode_key_request` and `client_send_key_reply` are shared with legacy
-`Receive_request_key` and `Send_request_key` in `src/client/nclient.c`. The
+`sv_decode_key_request` and `sv_send_key_reply` live in
+`src/client/sv/key-request.h`; legacy handlers retain their baseline code. The
 request retains its signed 32-bit identity and original 80-byte prompt slot.
 The wire layouts are `%c%d%s` and `%c%d%c`; neither has a version branch.
 Preflight waits for the complete NUL-terminated prompt before publishing anything
 and rejects an unterminated full slot instead of adopting the legacy scanner's
-truncation. Valid legacy requests and reply bytes retain baseline behavior.
+truncation. This protection belongs to SV; the legacy scanner/handler issue
+remains tracked separately in SV-IMP-002. Valid requests and reply bytes retain
+baseline behavior.
 
 Session owns the bounded request payload and its session-local sequence.
 The input router owns its pending identity and logical parent context. A reply
@@ -83,3 +85,20 @@ absent; review used the explicitly supplied local ticket and parent spec.
 MinGW was attempted and is blocked by absent cross SDL3, SDL3_ttf and FreeType
 development packages. Windows/Wine, Fedora41 shipping-baseline verification and
 human visual acceptance are not claimed.
+
+## SV-ARCH-002 isolation — 2026-09-22
+
+HP/message/request helpers now belong to `src/client/sv`; version comparison
+is local to SV. The targeted legacy/common files match upstream `59473651d`
+exactly, preserving its unrelated changes. The legacy HP harness now links
+`common.c` rather than the SV version implementation. Strict field-boundary
+checks remain in SV only; the legacy issue remains open as SV-IMP-002.
+
+Linux SV and legacy SDL3 builds passed. All 14 available regression runners
+passed: three ASan/UBSan/LeakSanitizer runners, legacy HP, and HP/message/request/
+architecture/shell checks on software and OpenGL. Native counts per backend
+remain HP 78/156 frames, messages 18/54, requests 40/120; request sanitizer
+coverage remains 372 fragmentation cases. MinGW was attempted and remains
+blocked by missing cross SDL3/SDL3_ttf/FreeType development dependencies.
+See [SV-ARCH-002](tasks/SV-ARCH-002-isolate-sv-from-legacy-changes.md) for review
+and completion evidence; earlier verification sections above are historical.

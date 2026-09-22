@@ -17,7 +17,7 @@ a = p.parse_args()
 with tempfile.TemporaryDirectory(prefix='sv-hp-check-') as directory:
     work = Path(directory)
     if a.legacy_only:
-        sources = ['tests/sv_hp_legacy.c', 'src/client/variable.c', 'src/client/sv/version.c']
+        sources = ['tests/sv_hp_legacy.c', 'src/client/variable.c', 'src/common/common.c']
         sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
         command = ['clang', '-std=c99', '-D_DEFAULT_SOURCE', '-DCLIENT', '-O2',
                    '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections',

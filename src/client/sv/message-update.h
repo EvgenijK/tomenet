@@ -1,8 +1,8 @@
-/* Shared PKT_MESSAGE field decoder. Include after angband.h and sockbuf.h.
+/* SV-local PKT_MESSAGE field decoder. Include after angband.h and sockbuf.h.
  * Raw unsigned byte identity is independent of the display font/profile. */
-#ifndef CLIENT_MESSAGE_UPDATE_H
-#define CLIENT_MESSAGE_UPDATE_H
-static inline int client_decode_message(sockbuf_t *input, char out[MSG_LEN])
+#ifndef SV_MESSAGE_UPDATE_H
+#define SV_MESSAGE_UPDATE_H
+static inline int sv_decode_message(sockbuf_t *input, char out[MSG_LEN])
 {
     /* The field must terminate inside its slot. Do not let Packet_scanf's
      * legacy truncation turn a remainder into another packet. No cursor or

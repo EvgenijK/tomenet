@@ -1,8 +1,8 @@
-/* Shared baseline key-request decoder and response serializer.
+/* SV-local baseline key-request decoder and response serializer.
  * Include after angband.h, sockbuf.h and pack.h. */
-#ifndef CLIENT_KEY_REQUEST_H
-#define CLIENT_KEY_REQUEST_H
-static inline int client_decode_key_request(sockbuf_t *input, int *id, char prompt[MAX_CHARS])
+#ifndef SV_KEY_REQUEST_H
+#define SV_KEY_REQUEST_H
+static inline int sv_decode_key_request(sockbuf_t *input, int *id, char prompt[MAX_CHARS])
 {
     size_t available = (size_t)(input->len - (input->ptr - input->buf));
     if (available < 6) return 0;
@@ -15,7 +15,7 @@ static inline int client_decode_key_request(sockbuf_t *input, int *id, char prom
     if (result > 0) { *id = next_id; memcpy(prompt, next, MAX_CHARS); }
     return result;
 }
-static inline int client_send_key_reply(sockbuf_t *output, int id, unsigned char key)
+static inline int sv_send_key_reply(sockbuf_t *output, int id, unsigned char key)
 {
     return Packet_printf(output, "%c%d%c", PKT_REQUEST_KEY, id, key);
 }
