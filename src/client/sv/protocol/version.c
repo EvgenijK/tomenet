@@ -4,7 +4,7 @@
 #undef GF_INERTIA
 #endif
 #define CLIENT
-#include "../../common/angband.h"
+#include "../../../common/angband.h"
 /* Local baseline predicate keeps SV independent of unrelated common helpers. */
 bool is_newer_than(version_type *version, int major, int minor, int patch, int extra, int branch, int build) {
 //#ifdef ATMOSPHERIC_INTRO /* only defined client-side, so commented out is simpler for now */

@@ -1,7 +1,7 @@
 #ifndef SV_PROTOCOL_H
 #define SV_PROTOCOL_H
 #include "result.h"
-#include "session.h"
+#include "session/session.h"
 typedef struct SvProtocol SvProtocol;
 /* Fixed slice limits, observable by callers for backpressure. */
 #define SV_PROTOCOL_CAPACITY 1024

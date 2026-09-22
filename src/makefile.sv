@@ -31,7 +31,7 @@ SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o timing.o font.o ui.o message-text.o input.o native-input.o app.o protocol.o session.o alerts.o result.o status.o version.o
+SV_CLIENT_OBJECTS := main.o diagnostics/timing.o ui/font.o ui/ui.o ui/message-text.o input/input.o input/native-input.o app.o protocol/protocol.o session/session.o session/alerts.o result.o ui/status.o protocol/version.o
 SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o
@@ -52,8 +52,8 @@ ifeq ($(PLATFORM),linux)
 else
 	@$(SV_CC) -dumpmachine | grep -Eq '^i[3-6]86.*mingw32' || { echo 'SV Windows target must be i686 MinGW32' >&2; exit 1; }
 endif
-$(SV_OUT)/%.o: client/sv/%.c client/sv/font.h makefile.sv | check-deps
-	@mkdir -p $(SV_OUT)
+$(SV_OUT)/%.o: client/sv/%.c client/sv/ui/font.h makefile.sv | check-deps
+	@mkdir -p $(dir $@)
 	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -DSV_BUILD_ID='"$(PLATFORM)-$(SV_KEY)"' -MMD -MP -c $< -o $@
 $(SV_OUT)/temporary/%.o: temporary/sv/%.c makefile.sv | check-deps
 	@mkdir -p $(dir $@)

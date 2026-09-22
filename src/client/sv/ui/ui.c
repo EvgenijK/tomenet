@@ -1,5 +1,5 @@
-#include "ui.h"
-#include "message-text.h"
+#include "ui/ui.h"
+#include "ui/message-text.h"
 void sv_ui_rebuild(SvUi *ui)
 {
     *ui = (SvUi){.window = ui->window, .renderer = ui->renderer,

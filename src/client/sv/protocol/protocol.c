@@ -4,13 +4,13 @@
 #undef GF_INERTIA
 #endif
 #define CLIENT
-#include "../../common/angband.h"
-#include "../../common/sockbuf.h"
-#include "../../common/pack.h"
-#include "hp-update.h"
-#include "message-update.h"
-#include "key-request.h"
-#include "protocol.h"
+#include "../../../common/angband.h"
+#include "../../../common/sockbuf.h"
+#include "../../../common/pack.h"
+#include "protocol/hp-update.h"
+#include "protocol/message-update.h"
+#include "protocol/key-request.h"
+#include "protocol/protocol.h"
 struct SvProtocol {
     version_type version;
     sockbuf_t input, output;

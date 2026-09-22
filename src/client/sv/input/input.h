@@ -1,6 +1,6 @@
 #ifndef SV_INPUT_H
 #define SV_INPUT_H
-#include "session.h"
+#include "session/session.h"
 typedef enum { SV_CONTEXT_GAME, SV_CONTEXT_KEY_REQUEST } SvInputContext;
 typedef enum { SV_MACRO_NONE, SV_MACRO_NORMAL, SV_MACRO_HYBRID, SV_MACRO_COMMAND } SvMacroKind;
 typedef struct { unsigned char action; SvMacroKind kind; } SvMacro;

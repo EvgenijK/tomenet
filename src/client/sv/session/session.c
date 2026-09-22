@@ -4,10 +4,10 @@
 #undef GF_INERTIA
 #endif
 #define CLIENT
-#include "../../common/angband.h"
-#include "../../common/sockbuf.h"
-#include "hp-update.h"
-#include "session.h"
+#include "../../../common/angband.h"
+#include "../../../common/sockbuf.h"
+#include "protocol/hp-update.h"
+#include "session/session.h"
 struct SvSession {
     SvKeyRequest request;
     uint64_t request_sequence;

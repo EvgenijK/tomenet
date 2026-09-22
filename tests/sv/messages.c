@@ -1,5 +1,5 @@
 #include "app.h"
-#include "message-text.h"
+#include "ui/message-text.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

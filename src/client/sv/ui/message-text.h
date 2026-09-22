@@ -1,6 +1,6 @@
 #ifndef SV_MESSAGE_TEXT_H
 #define SV_MESSAGE_TEXT_H
-#include "session.h"
+#include "session/session.h"
 /* Derived ASCII visual profile. Unmapped byte symbols use one '?' cell.
  * Raw field bytes remain solely authoritative in SvMessage. */
 typedef struct {

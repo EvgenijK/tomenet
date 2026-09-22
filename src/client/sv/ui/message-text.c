@@ -1,4 +1,4 @@
-#include "message-text.h"
+#include "ui/message-text.h"
 #include <string.h>
 SvMessageText sv_message_text(const SvMessage *message)
 {

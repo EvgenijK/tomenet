@@ -1,4 +1,4 @@
-#include "input.h"
+#include "input/input.h"
 static int supported(unsigned char key)
 {
     return (key >= 32 && key < 127) || key == 8 || key == 9 || key == 13 || key == 27 ||

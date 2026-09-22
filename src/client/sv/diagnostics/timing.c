@@ -1,4 +1,4 @@
-#include "timing.h"
+#include "diagnostics/timing.h"
 #include <stdio.h>
 static uint64_t clock_ns(void *context)
 {

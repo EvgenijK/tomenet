@@ -9,7 +9,7 @@ in their subsequent slice guides.
 
 ## Source layout
 
-Production client modules, including local HP decode/apply in `hp-update.h`,
+Production client modules, including local HP decode/apply in `protocol/hp-update.h`,
 live in `src/client/sv`. Legacy retains its baseline handlers.
 Temporary transport stubs and the synthetic bootstrap live in
 `src/temporary/sv`. The bootstrap owns the isolated-profile setup and prepared
@@ -62,7 +62,7 @@ env WINEPREFIX=/tmp/tomenet-sv-wine-prefix WINEDEBUG=-all \
   predicate. It decodes into temporary values and only publishes a complete
   update. Legacy `Receive_hp` retains its option handling, off-panel damage and
   low-HP alerts, huge-bar rendering, terminal switching and player invalidation.
-- The version predicate is copied unchanged into SV `version.c`, avoiding
+- The version predicate is copied unchanged into SV `protocol/version.c`, avoiding
   unrelated common game helpers. Legacy builds use the restored definition in
   `common.c`. Compiler-generated dependencies track the local helper headers.
 - `SvProtocol` owns negotiated version, two bounded 1024-byte buffers and wire

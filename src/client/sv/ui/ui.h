@@ -1,8 +1,8 @@
 #ifndef SV_UI_H
 #define SV_UI_H
-#include "font.h"
-#include "status.h"
-#include "message-text.h"
+#include "ui/font.h"
+#include "ui/status.h"
+#include "ui/message-text.h"
 typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;

@@ -1,4 +1,4 @@
-#include "status.h"
+#include "ui/status.h"
 #include <stdio.h>
 void sv_status_text(SvStatus status, char *text, size_t capacity)
 {

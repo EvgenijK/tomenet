@@ -1,6 +1,6 @@
 #include "geometry-scenario.h"
 #include "native-frame.h"
-#include "native-input.h"
+#include "input/native-input.h"
 #include <stdio.h>
 #include <string.h>
 #define CHECK(test) do { if (!(test)) { \

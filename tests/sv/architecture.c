@@ -1,5 +1,5 @@
 #include "app.h"
-#include "status.h"
+#include "ui/status.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

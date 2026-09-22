@@ -1,6 +1,6 @@
 #ifndef SV_TIMING_H
 #define SV_TIMING_H
-#include "ui.h"
+#include "ui/ui.h"
 #define SV_TIMING_PENDING 128
 /* Bounded diagnostics only: identifiers/timestamps, never prompt/message payloads. */
 typedef struct {

@@ -1,6 +1,6 @@
 #ifndef SV_ALERTS_H
 #define SV_ALERTS_H
-#include "session.h"
+#include "session/session.h"
 typedef enum { SV_DAMAGE_SOUND, SV_LOW_HP_SOUND, SV_LOW_HP_NOTICE } SvAlert;
 typedef struct {
     void *context;

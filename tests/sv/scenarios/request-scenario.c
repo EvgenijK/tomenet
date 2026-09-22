@@ -1,5 +1,5 @@
 #include "request-scenario.h"
-#include "native-input.h"
+#include "input/native-input.h"
 #include "native-frame.h"
 #include "hp-scenario.h"
 #include <stdio.h>

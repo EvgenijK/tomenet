@@ -1,5 +1,5 @@
 #include "app.h"
-#include "protocol.h"
+#include "protocol/protocol.h"
 #include <stdlib.h>
 struct SvApp {
     SvSession *session;

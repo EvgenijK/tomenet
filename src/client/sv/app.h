@@ -1,8 +1,8 @@
 #ifndef SV_APP_H
 #define SV_APP_H
-#include "alerts.h"
+#include "session/alerts.h"
 #include "result.h"
-#include "input.h"
+#include "input/input.h"
 typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;

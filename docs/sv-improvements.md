@@ -36,7 +36,7 @@ fragmentation/adjacent packets, malformed fields; sanitizer и native regression
 Следующий разбор может принять этот остаток за новый пакет.
 
 **Текущее состояние:** проверки NUL внутри допустимого slot добавлены в
-`src/client/sv/message-update.h` и `src/client/sv/key-request.h`. При выполнении
+`src/client/sv/protocol/message-update.h` и `src/client/sv/protocol/key-request.h`. При выполнении
 SV-ARCH-002 общие вызовы удалены из `nclient.c`: legacy-защита снята вместе
 с восстановлением baseline. Общий scanner и legacy-обработчики не исправлены.
 
@@ -93,8 +93,8 @@ SV-ARCH-002 устранил текстовое включение: теперь
 неизменившихся строк shell. Это повторяет работу при постоянном repaint;
 измерения тикета 06 сами по себе не требуют менять этот путь.
 
-**Код:** `src/client/sv/font.c:sv_font_draw`, `draw_surface`,
-`src/client/sv/ui.c:sv_ui_draw`.
+**Код:** `src/client/sv/ui/font.c:sv_font_draw`, `draw_surface`,
+`src/client/sv/ui/ui.c:sv_ui_draw`.
 
 **Предложение:** при подтверждённой измерениями потребности добавить ограниченный
 кэш подготовленного текста с явным владением и инвалидированием по font/resource,
@@ -104,3 +104,33 @@ size и композицию 1:1; не расширять это до архив
 **Проверки:** реальный decode/input-to-submission до/после, TTF/PCF на целевых
 масштабах, renderer reset, смена ресурсов, очистка при teardown и отсутствие
 роста кэша от истории сообщений.
+
+## SV-IMP-006 — Группировка исходников SV по ответственности
+
+**Статус:** выполнено в [SV-ARCH-003](tasks/SV-ARCH-003-group-sv-sources-by-module.md#результат--2026-09-22); Linux checks passed, MinGW/Wine unverified.
+
+**Проблема:** плоский каталог `src/client/sv` смешивает orchestration, session
+model, protocol, input, rendering и diagnostics; при росте клиента труднее
+находить владельца поведения.
+
+**Код:** `src/client/sv/*`, `src/makefile.sv`, пути исходников и includes в
+`tests/sv*_checks.py`, `tests/sv/` и `src/temporary/sv/`.
+
+**Предложение:** оставить `main.c`, `app.[ch]`, `result.[ch]` в корне SV;
+сгруппировать session/model и alerts в `session/`, protocol/version/декодеры
+в `protocol/`, router и native input adapter в `input/`, renderer/font/status
+presentation/message text в `ui/`, submission timing в `diagnostics/`.
+Использовать явные includes от корня SV, например `session/session.h` и
+`ui/ui.h`; не добавлять все подкаталоги в include search path. Сохранить текущие
+interfaces и игровое поведение. Временный peer и scenarios оставить в их
+существующих отдельных каталогах. Перенос не требует изменений legacy.
+
+**Проверки:** чистая Linux-сборка с вложенными object/dependency paths,
+headless и native SV regression suites, доступный MinGW smoke, отсутствие
+ссылок на прежние пути в активных build/test callers. Исторические отчёты
+сохраняют привязку к проверенным версиям; текущую архитектурную справку обновить.
+
+**Результат:** 24 файла перенесены по указанным группам; includes и build/test
+callers адаптированы. Чистая и incremental Linux-сборки, все 23 доступных
+regression runners и Standards/Spec review прошли. Реализации сохранены;
+MinGW/Wine блокируются отсутствующими cross development dependencies.

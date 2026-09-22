@@ -1,6 +1,6 @@
 /* Prepared external peer fixtures with independently specified semantic outcomes. */
 #include "hp-scenario.h"
-#include "status.h"
+#include "ui/status.h"
 #include <stdio.h>
 #include <string.h>
 

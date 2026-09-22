@@ -1,6 +1,6 @@
 #include "timing-scenario.h"
-#include "timing.h"
-#include "native-input.h"
+#include "diagnostics/timing.h"
+#include "input/native-input.h"
 #include <stdio.h>
 #include <string.h>
 #define CHECK(test) do { if (!(test)) { \

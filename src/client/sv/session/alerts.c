@@ -1,4 +1,4 @@
-#include "alerts.h"
+#include "session/alerts.h"
 SvAlertEffects sv_alerts_evaluate(SvStatusChange change, SvAlertOptions options, SvAttention attention)
 {
     SvAlertEffects effects = {{0}, 0};

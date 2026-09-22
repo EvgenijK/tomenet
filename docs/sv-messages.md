@@ -11,7 +11,7 @@ python3 tests/sv_message_native.py --backend opengl
 ```
 
 The application accepts PKT_MESSAGE through SV-local `sv_decode_message`
-in `src/client/sv/message-update.h`. The field uses the same `%c%S` scanner and has
+in `src/client/sv/protocol/message-update.h`. The field uses the same `%c%S` scanner and has
 no version-dependent layout; scenarios select both HP boundary versions
 4.7.0.2.0.1 and 4.7.0.2.0.2 to verify adjacent packets. A preflight requires NUL
 within the 256-byte field slot. Incomplete fields wait without publication;

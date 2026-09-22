@@ -1,5 +1,5 @@
 #include "lifecycle-scenario.h"
-#include "native-input.h"
+#include "input/native-input.h"
 #include "native-frame.h"
 #include <stdio.h>
 #include <string.h>

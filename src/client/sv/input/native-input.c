@@ -1,4 +1,4 @@
-#include "native-input.h"
+#include "input/native-input.h"
 void sv_native_input_begin(SvNativeInput *input, SvApp *app)
 {
     *input = (SvNativeInput){sv_app_view(app).generation, SDL_GetTicksNS()};

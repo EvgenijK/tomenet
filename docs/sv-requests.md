@@ -19,7 +19,7 @@ the decoder, Session, input router, serializer, SDL input adapter and renderer
 are production modules. There is no terminal link or fallback route.
 
 `sv_decode_key_request` and `sv_send_key_reply` live in
-`src/client/sv/key-request.h`; legacy handlers retain their baseline code. The
+`src/client/sv/protocol/key-request.h`; legacy handlers retain their baseline code. The
 request retains its signed 32-bit identity and original 80-byte prompt slot.
 The wire layouts are `%c%d%s` and `%c%d%c`; neither has a version branch.
 Preflight waits for the complete NUL-terminated prompt before publishing anything
