@@ -1,4 +1,14 @@
-# Capability registry and native allocation — Stage A ticket 07
+# Capability registry and native allocation
+
+Ticket 08 extends the initial slice with connection/account/character lifecycle,
+world navigation, map exploration and targeting. See the
+[session reconciliation](session-reconciliation.md) for the outcome index,
+inventory mappings, cross-domain obligations and verification, and the
+[resolved policy snapshot](session-policy.md) for its planning authority.
+The current registry contains 113 active outcomes, all pending, with no accepted
+native claims. The counts below describe the historical ticket 07 slice.
+
+## Initial slice — ticket 07
 
 This is a source-backed **initial slice**, not the complete behavior baseline.
 It registers four independently observable outcomes: read current HP, read

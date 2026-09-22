@@ -134,3 +134,26 @@ headless и native SV regression suites, доступный MinGW smoke, отс�
 callers адаптированы. Чистая и incremental Linux-сборки, все 23 доступных
 regression runners и Standards/Spec review прошли. Реализации сохранены;
 MinGW/Wine блокируются отсутствующими cross development dependencies.
+
+## SV-IMP-007 — Уточнить устаревшие сводки input inventory
+
+**Статус:** предложено отдельно; в тикете 08 расхождения учтены в reconciliation,
+исходные legacy-функции и исторический аудит не изменены.
+
+**Проблема:** строки `input.command.minimap` и `input.command.target` в
+`docs/research/single-window-input-loops.md` смешивают правила разных владельцев:
+выход из locate описан как выход из overview; hostile target на неизвестной
+клавише завершается, а friendly target вообще не открывает modal loop.
+Использование сводки без проверки исходника может задать неверный SV-контракт.
+
+**Затронутый код:** `src/client/c-cmd.c`: `cmd_mini_map`, `cmd_locate`,
+`cmd_target`, `cmd_target_friendly`, `cmd_look`; потребители input inventory.
+
+**Предложение:** отдельным обновлением исторического аудита разделить владельцев
+и указать точные cancel/retry правила, сохранив provenance старого снимка.
+Текущие правильные dispositions находятся в
+`docs/capabilities/session-reconciliation.md`.
+
+**Проверки:** сверить клавиши и исходящие команды каждого владельца с текущими
+исходниками для обоих keysets; при будущей реализации SV проверить production
+input→command путь, nested target cancel и восстановление родительского контекста.

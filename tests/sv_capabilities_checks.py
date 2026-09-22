@@ -59,8 +59,11 @@ class RegistryChecks(unittest.TestCase):
                                           ROOT / 'docs/capabilities/native-coverage.json',
                                           '--source-root', f'tomenet={ROOT}')
         self.assertEqual(code, 0, report)
-        self.assertEqual(report['summary']['activeCapabilities'], 4)
-        self.assertEqual(report['summary']['pendingEvidence'], 4)
+        manifest, ledger = self.canonical_data()
+        active = [row for row in manifest['capabilities'] if row['lifecycle'] == 'active']
+        pending = [row for row in ledger['coverage'] if row['evidenceStatus'] == 'pending']
+        self.assertEqual(report['summary']['activeCapabilities'], len(active))
+        self.assertEqual(report['summary']['pendingEvidence'], len(pending))
         self.assertEqual(report['summary']['acceptedCapabilities'], 0)
 
     def test_byte_identity_includes_whitespace(self):
