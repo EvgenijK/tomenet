@@ -31,9 +31,9 @@ SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o font.o ui.o message-text.o input.o native-input.o app.o protocol.o session.o alerts.o result.o status.o version.o
+SV_CLIENT_OBJECTS := main.o timing.o font.o ui.o message-text.o input.o native-input.o app.o protocol.o session.o alerts.o result.o status.o version.o
 SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
-SV_SCENARIO_OBJECTS := scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
+SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o
 SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_TEMPORARY_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
 

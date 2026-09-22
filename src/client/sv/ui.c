@@ -3,7 +3,12 @@
 void sv_ui_rebuild(SvUi *ui)
 {
     *ui = (SvUi){.window = ui->window, .renderer = ui->renderer,
-                 .font = ui->font, .font_revision = ui->font_revision};
+                 .font = ui->font, .font_revision = ui->font_revision,
+                 .fixture_scale = ui->fixture_scale};
+}
+float sv_ui_scale(const SvUi *ui)
+{
+    return ui->fixture_scale > 0 ? ui->fixture_scale : SDL_GetWindowDisplayScale(ui->window);
 }
 bool sv_ui_event(SvUi *ui, const SDL_Event *event)
 {
@@ -66,12 +71,11 @@ static bool draw_messages(SvUi *ui, float scale)
 
 bool sv_ui_draw(SvUi *ui, SvAppView view)
 {
-    SDL_Window *window = ui->window;
     SDL_Renderer *renderer = ui->renderer;
     SvFont *font = ui->font;
     int w, h;
-    float scale = SDL_GetWindowDisplayScale(window);
-    if (scale <= 0 || !SDL_GetRenderOutputSize(renderer, &w, &h)) return false;
+    float scale = sv_ui_scale(ui);
+    if (scale <= 0 || !SDL_GetCurrentRenderOutputSize(renderer, &w, &h)) return false;
     unsigned changed = sv_status_prepare(&ui->status, view,
         (SvPresentationKey){w, h, scale, ui->font_revision});
     if (changed & SV_LAYOUT_CHANGED) ui->logical_width = w / scale;
@@ -134,4 +138,9 @@ bool sv_ui_draw(SvUi *ui, SvAppView view)
     }
     if (!rectangle(renderer, scale, 24, 418, logical_w - 48, 260)) return false;
     return draw_messages(ui, scale);
+}
+
+bool sv_ui_submit(SvUi *ui, SvAppView view)
+{
+    return sv_ui_draw(ui, view) && SDL_RenderPresent(ui->renderer);
 }

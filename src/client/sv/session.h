@@ -39,7 +39,12 @@ typedef struct {
     SvChangeKind kind;
     union { SvHpUpdate hp; SvMessage message; SvKeyRequest request; };
 } SvChange;
-typedef struct { SvResult result; SvStatusChange status; } SvSessionChange;
+typedef struct {
+    SvResult result;
+    SvStatusChange status;
+    uint64_t message_occurrence; /* Zero denotes a cleared feed. */
+    int message_chat;
+} SvSessionChange;
 /* Model only. No wire version, transport or SDL dependency in this interface. */
 SvSession *sv_session_create(void);
 void sv_session_destroy(SvSession *session);

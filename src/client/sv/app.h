@@ -6,6 +6,7 @@
 typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;
+    uint64_t revision; /* Coherent presentation revision, including local outcomes. */
     SvStatus status;
     SvMessages messages;
     SvKeyRequest request;
@@ -13,6 +14,21 @@ typedef struct {
     int active, executor_failed;
     SvResult reason;
 } SvAppView;
+typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
+               SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE } SvPresentationOrigin;
+typedef struct {
+    SvPresentationOrigin origin;
+    uint64_t generation, revision, started_ns, occurrence;
+    int interactive;
+} SvPresentationEvent;
+/* Optional owner-thread observation. Callbacks must not re-enter the app.
+ * Clock is monotonic nanoseconds; native measurement uses SDL_GetTicksNS. */
+typedef struct {
+    void *context;
+    uint64_t (*now)(void *context);
+    void (*changed)(void *context, SvPresentationEvent event);
+} SvPresentationObserver;
+SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer);
 typedef struct { size_t processed, pending_bytes; SvResult result; } SvStep;
 /* All entry points run on the owner thread. Views are copies. */
 SvApp *sv_app_create(SvAlertSink sink);

@@ -11,12 +11,38 @@ struct SvApp {
     int busy;
     SvInputRouter input;
     SvInputBindings bindings;
+    SvPresentationObserver observer;
+    uint64_t input_started_ns, input_sequence;
 };
+static uint64_t now(SvApp *app)
+{
+    return app->observer.now ? app->observer.now(app->observer.context) : 0;
+}
+static void publish(SvApp *app, SvPresentationOrigin origin, uint64_t started,
+                    uint64_t occurrence, int interactive)
+{
+    ++app->view.revision;
+    if (app->observer.changed) {
+        int busy = app->busy;
+        app->busy = 1;
+        app->observer.changed(app->observer.context, (SvPresentationEvent){
+            origin, app->view.generation, app->view.revision, started, occurrence, interactive});
+        app->busy = busy;
+    }
+}
+SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer)
+{
+    if (app->busy) return SV_BUSY;
+    if (!!observer.now != !!observer.changed) return SV_INVALID;
+    app->observer = observer;
+    return SV_OK;
+}
 static void release_session(SvApp *app)
 {
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
     app->input = (SvInputRouter){0};
+    app->input_started_ns = app->input_sequence = 0;
     app->view.request = (SvKeyRequest){0};
     app->view.context = SV_CONTEXT_GAME;
     app->view.active = 0;
@@ -24,7 +50,9 @@ static void release_session(SvApp *app)
 }
 static void fail_session(SvApp *app, SvResult reason)
 {
+    uint64_t started = now(app);
     release_session(app); app->view.reason = reason;
+    publish(app, SV_PRESENT_LIFECYCLE, started, 0, 0);
 }
 SvApp *sv_app_create(SvAlertSink sink)
 {
@@ -119,13 +147,16 @@ static SvResult refresh_request(SvApp *app)
 }
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
+    uint64_t started = now(app);
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     SvKeyReply reply;
     result = sv_input_key(&app->input, sv_session_request(app->session), sequence, key, &reply);
     if (result != SV_OK) return result;
     result = deliver_reply(app, reply);
-    return result == SV_OK ? refresh_request(app) : result;
+    if (result == SV_OK) result = refresh_request(app);
+    if (result == SV_OK) publish(app, SV_PRESENT_INPUT, started, sequence, !reply.cancelled);
+    return result;
 }
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind)
 {
@@ -134,9 +165,14 @@ SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char acti
 }
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
+    uint64_t started = now(app);
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     result = sv_input_accept(&app->input, &app->bindings, sv_session_request(app->session), sequence, key);
+    if (result == SV_OK && app->input_sequence != sequence) {
+        app->input_sequence = sequence;
+        app->input_started_ns = started;
+    }
     if (result == SV_KEY_OVERFLOW) fail_session(app, result);
     return result;
 }
@@ -153,6 +189,8 @@ SvInputStep sv_app_dispatch_input(SvApp *app, size_t budget)
         if (result == SV_OK) result = deliver_reply(app, reply);
         if (result == SV_OK) result = refresh_request(app);
         if (result != SV_OK) { step.result = result; break; }
+        publish(app, SV_PRESENT_INPUT, app->input_started_ns, reply.sequence, !reply.cancelled);
+        app->input_sequence = app->input_started_ns = 0;
         ++step.dispatched;
     }
     step.pending = app->input.count;
@@ -174,6 +212,7 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         }
         ++step.processed;
         if (step.result == SV_RECOVERED) break;
+        uint64_t started = now(app); /* Complete decode, before apply/effects/UI. */
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
@@ -183,6 +222,10 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         app->view.messages = sv_session_messages(app->session);
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);
         if (!sv_alerts_deliver(app->sink, effects)) app->view.executor_failed = 1;
+        SvPresentationOrigin origin = decoded.kind == SV_CHANGE_HP ? SV_PRESENT_HP :
+            decoded.kind == SV_CHANGE_MESSAGE ? SV_PRESENT_MESSAGE : SV_PRESENT_REQUEST;
+        publish(app, origin, started,
+            change.message_occurrence, change.message_chat);
     }
     step.pending_bytes = app->protocol ? sv_protocol_pending(app->protocol) : 0;
     app->busy = 0;

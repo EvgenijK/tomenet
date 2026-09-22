@@ -15,7 +15,7 @@ typedef struct {
     SvQueuedKey pending[SV_KEY_PENDING];
     size_t head, count;
 } SvInputRouter;
-typedef struct { uint64_t sequence; int id; unsigned char key; } SvKeyReply;
+typedef struct { uint64_t sequence; int id; unsigned char key; int cancelled; } SvKeyReply;
 /* Owns semantic context, not request text or renderer state.
  * Sync returns OK with one prepared reply, or WAITING without a command. */
 SvResult sv_input_sync(SvInputRouter *router, SvKeyRequest request, SvKeyReply *reply);

@@ -79,10 +79,15 @@ SvMessages sv_session_messages(const SvSession *s) { return s->messages; }
 SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
 {
     SvStatus status = sv_session_status(s);
-    SvSessionChange applied = {SV_OK, {status, status}};
+    SvSessionChange applied = {.result = SV_OK, .status = {status, status}};
     switch (change->kind) {
     case SV_CHANGE_HP: applied.status = apply_hp(s, change->hp); break;
-    case SV_CHANGE_MESSAGE: applied.result = apply_message(s, &change->message); break;
+    case SV_CHANGE_MESSAGE:
+        applied.result = apply_message(s, &change->message);
+        applied.message_occurrence = s->messages.count ? s->messages.revision : 0;
+        /* Baseline c_message_add: leading 253 routes explicit chat. */
+        applied.message_chat = change->message.length && change->message.bytes[0] == 253;
+        break;
     case SV_CHANGE_KEY_REQUEST:
         if (s->request.pending || s->request_sequence == UINT64_MAX) {
             applied.result = SV_EVENT_OVERFLOW; break;

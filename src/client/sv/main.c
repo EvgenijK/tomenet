@@ -11,6 +11,8 @@
 #include "request-scenario.h"
 #include "lifecycle-scenario.h"
 #include "native-input.h"
+#include "geometry-scenario.h"
+#include "timing-scenario.h"
 #include "arch-scenario.h"
 #include "native-frame.h"
 #include "synthetic.h"
@@ -22,7 +24,7 @@ static void usage(void)
 {
     puts("TomeNET SV Stage A shell (no live session)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
-         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check]\n"
+         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Product defaults: desktop fullscreen, UI scale 100%, Cascadia Mono.\n"
          "TOMENET_PATH selects library resources, otherwise adjacent lib/.\n"
          "TOMENET_SDL3_USER_PATH may select an already marked synthetic root.\n"
@@ -34,7 +36,7 @@ int main(int argc, char **argv)
     const char *root = NULL, *library = NULL;
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
-    bool lifecycle_check = false;
+    bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
     bool synthetic = false, windowed = false, quit = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
@@ -48,6 +50,9 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
         if (!strcmp(argv[i], "--lifecycle-check")) { lifecycle_check = true; continue; }
         if (!strcmp(argv[i], "--message-check")) { message_check = true; continue; }
+        if (!strcmp(argv[i], "--timing-check")) { timing_check = true; continue; }
+        if (!strcmp(argv[i], "--timing-delay")) { timing_delay = true; continue; }
+        if (!strcmp(argv[i], "--geometry-check")) { geometry_check = true; continue; }
         if (!strcmp(argv[i], "--hp-check")) { hp_check = true; continue; }
         if (i + 1 >= argc) { usage(); return 2; }
         if (!strcmp(argv[i], "--profile-root")) root = argv[++i];
@@ -64,6 +69,7 @@ int main(int argc, char **argv)
             frames = (int)n;
         } else { usage(); return 2; }
     }
+    if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");
     if (!root || !*root) { fprintf(stderr, "SV requires an isolated --profile-root; personal SDL3 profile is never opened by this scenario\n"); return 2; }
@@ -107,6 +113,8 @@ int main(int argc, char **argv)
     app = sv_app_create(sv_synthetic_alert_sink());
     if (!app) goto done;
     SvUi ui = {.window = window, .renderer = renderer, .font = font, .font_revision = 1};
+    if (timing_check && !sv_timing_scenario(app, &ui, timing_delay)) goto done;
+    if (geometry_check && !sv_geometry_scenario(app, &ui)) goto done;
     if (lifecycle_check && !sv_lifecycle_scenario(app, &ui)) goto done;
     if (request_check && !sv_request_scenario(app, &ui)) goto done;
     if (message_check && !sv_message_scenario(app, &ui)) goto done;
@@ -138,7 +146,7 @@ int main(int argc, char **argv)
          * implemented message effect. Acknowledgement is never a draw action. */
         SvMessage delivered;
         while (sv_app_take_message(app, sv_app_view(app).generation, &delivered) == SV_OK) {}
-        if (!sv_ui_draw(&ui, sv_app_view(app)) || !SDL_RenderPresent(renderer)) goto done;
+        if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
         ++submitted;
         if (frames && submitted >= frames) break;
         SDL_Delay(16);

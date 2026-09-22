@@ -61,6 +61,6 @@ SvResult sv_input_key(const SvInputRouter *router, SvKeyRequest request,
 {
     if (!request.pending || request.sequence != sequence || router->sequence != sequence)
         return SV_STALE;
-    *reply = (SvKeyReply){sequence, request.id, key == 27 ? 0 : key};
+    *reply = (SvKeyReply){sequence, request.id, key == 27 ? 0 : key, key == 27};
     return SV_OK;
 }

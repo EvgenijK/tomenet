@@ -1,11 +1,11 @@
 #include "native-frame.h"
 #include "hp-scenario.h"
-int sv_scenario_frame(void *context, SvAppView view)
+int sv_scenario_draw(void *context, SvAppView view)
 {
     SvUi *ui = context;
     SDL_PumpEvents();
     if (!sv_ui_draw(ui, view)) return 0;
-    float scale = SDL_GetWindowDisplayScale(ui->window);
+    float scale = sv_ui_scale(ui);
     SDL_Rect bounds = {(int)(40 * scale), (int)(155 * scale), (int)(700 * scale), (int)(30 * scale)};
     if (!sv_hp_check_pixels(ui->renderer, &bounds)) return 0;
     if (!view.active) {
@@ -20,5 +20,10 @@ int sv_scenario_frame(void *context, SvAppView view)
         bounds.y = (int)(305 * scale);
         if (!sv_hp_check_pixels(ui->renderer, &bounds)) return 0;
     }
-    return SDL_RenderPresent(ui->renderer);
+    return 1;
+}
+int sv_scenario_frame(void *context, SvAppView view)
+{
+    SvUi *ui = context;
+    return sv_scenario_draw(context, view) && SDL_RenderPresent(ui->renderer);
 }
