@@ -1,15 +1,17 @@
 # Capability registry and native allocation
 
-Tickets 08–09 extend the initial slice with connection/account/character lifecycle,
+Tickets 08–10 extend the initial slice with connection/account/character lifecycle,
 world navigation, map exploration, targeting, items, combat, spells and ordinary
-stores. See the [item reconciliation](item-reconciliation.md) for ticket 09's
+stores, information/social flows, documents and special-store canvases.
+See the [information reconciliation](information-reconciliation.md) for ticket 10,
+including typed request consumers and preserved source bytes. See the [item reconciliation](item-reconciliation.md) for ticket 09's
 atomic outcomes, caller-specific cancellation, inventory mappings and earlier-stage
 prerequisites, and its [planning authority](item-policy.md) for acceptance/UX sources.
 See the
 [session reconciliation](session-reconciliation.md) for the outcome index,
 inventory mappings, cross-domain obligations and verification, and the
 [resolved policy snapshot](session-policy.md) for its planning authority.
-The current registry contains 269 active outcomes, all pending, with no accepted
+The current registry contains 462 active outcomes, all pending, with no accepted
 native claims. The counts below describe the historical ticket 07 slice.
 
 ## Initial slice — ticket 07

@@ -179,3 +179,28 @@ uppercase выполняет прямой paste через `Send_paste_msg` и �
 **Проверки:** сверить все switch branches и прямой uppercase/newest paste,
 normal/roguelike и `ENABLE_SUBINVEN`; проверить production input→command путь,
 возврат в shopping/final-review и очистку bag redirection без дублирования send.
+
+## SV-IMP-009 — Уточнить сводки information/DM inventory
+
+**Статус:** предложено отдельно; тикет 10 сохраняет фактический baseline,
+legacy и исторические инвентаризации не изменены.
+
+**Проблема:** input inventory ошибочно описывает 2/8 как переключение страниц
+character sheet, h как export, а local lore как серверный special-file запрос.
+Сводка DM выхода объединяет Escape и Ctrl-Q, хотя в `cmd_master` Ctrl-Q лишь
+выходит из switch, а цикл завершается при Escape. Аналогично устроены `cmd_purchase_house` и
+`cmd_house_chown`. Player-пункты 2/4/6 означают acquirement/static/delete,
+а отмена editor всё равно отправляет префикс команды. Успешная player-команда
+закрывает весь DM menu. Эти различия могут потеряться при переносе в SV.
+
+**Затронутый код:** `src/client/c-cmd.c`: `cmd_character`, `artifact_lore`,
+`monster_lore`, `cmd_master`, `cmd_master_aux_player`;
+`docs/research/single-window-input-loops.md` и его потребители.
+
+**Предложение:** отдельно уточнить исторические строки по владельцам и вынести
+вопрос об изменении Ctrl-Q в самостоятельное решение. Корректные dispositions
+текущей задачи — в `docs/capabilities/information-reconciliation.md`.
+
+**Проверки:** сверить все ветки page/topic/export/local-lore/DM exit с исходниками;
+проверить production SV input→command путь, отмену дочерних prompts и возврат
+в фактического родителя. Исправление legacy-поведения не входит в эту запись.
