@@ -204,3 +204,24 @@ character sheet, h как export, а local lore как серверный specia
 **Проверки:** сверить все ветки page/topic/export/local-lore/DM exit с исходниками;
 проверить production SV input→command путь, отмену дочерних prompts и возврат
 в фактического родителя. Исправление legacy-поведения не входит в эту запись.
+
+## SV-IMP-010 — Согласовать legacy CFG и пути личных файлов
+
+**Статус:** предложено отдельно; тикет 11 фиксирует approved SV dispositions,
+legacy loaders/writers не изменены.
+
+**Проблема:** CFG reader распознаёт префикс `sound`, исключая `soundpackFolder`,
+но не `soundpackSubset`; subset может ошибочно менять audio enable. Кроме того,
+SDL3 load истории/закладок использует `os_temp_path`, а save — пользовательский
+каталог, поэтому чтение и запись могут обращаться к разным файлам.
+
+**Затронутый код:** `src/client/client.c:read_mangrc`,
+`src/client/c-init.c` (load/save chat history и Guide bookmarks).
+
+**Предложение:** отдельно исправить полное сопоставление CFG token и симметрию
+legacy путей, заранее определив совместимость со старыми файлами. SV использует
+собственный утверждённый CFG/history owner и не требует исправлять legacy.
+
+**Проверки:** sound/soundpackFolder/soundpackSubset во всех порядках;
+read→save→reload обоих subset keys; TMPDIR и SDL3 user root в разных каталогах;
+пустая/непустая история, relog и ошибки записи без потери старого файла.
