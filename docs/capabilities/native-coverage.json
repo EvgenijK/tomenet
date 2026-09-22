@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "consumer": "native-sv",
+  "manifestSha256": "465c1a8876313687c788bcab3f66951f11fcfb8a6192d14055364bdf99f69a5e",
+  "coverage": [
+    {
+      "capabilityId": "capability.status.read-hp",
+      "acceptanceStage": "A",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.baseline.hp",
+          "source.acceptance.hp"
+        ],
+        "serverVersions": [
+          "4.7.0.2.0.1 and 4.7.0.2.0.2 (HP wire boundary); message/key request layouts unversioned"
+        ],
+        "builds": [
+          "SV synthetic foundation; no live session acceptance"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Stage A synthetic HP/message/key-request slice; Linux software and accelerated; MinGW i686 + Wine intermediate evidence, no actual Windows claim."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-hp.primary",
+          "description": "Both HP wire layouts preserve markers; incomplete packets publish nothing and adjacent packets remain readable.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-hp.lifecycle",
+          "description": "Native HP surface shows the coherent values; urgent submission, resize/focus and software-rendering obligations apply.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Initial registry allocation only. Existing scenario runners and reports have not been imported as scoped native claims; ticket 13 owns evidence validation.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.messages.read-occurrences",
+      "acceptanceStage": "A",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.baseline.messages",
+          "source.acceptance.messages",
+          "source.baseline.message-occurrences"
+        ],
+        "serverVersions": [
+          "4.7.0.2.0.1 and 4.7.0.2.0.2 (HP wire boundary); message/key request layouts unversioned"
+        ],
+        "builds": [
+          "SV synthetic foundation; no live session acceptance"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Stage A synthetic HP/message/key-request slice; Linux software and accelerated; MinGW i686 + Wine intermediate evidence, no actual Windows claim."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.messages.read-occurrences.primary",
+          "description": "Identical adjacent messages remain distinct and ordered, including clear sentinel and original bytes.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        },
+        {
+          "id": "obligation.messages.read-occurrences.lifecycle",
+          "description": "View reconstruction does not redispatch messages; required-delivery overflow is explicit and teardown clears session occurrences.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Initial registry allocation only. Existing scenario runners and reports have not been imported as scoped native claims; ticket 13 owns evidence validation.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.request.answer-key",
+      "acceptanceStage": "A",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.baseline.key-request",
+          "source.acceptance.requests"
+        ],
+        "serverVersions": [
+          "4.7.0.2.0.1 and 4.7.0.2.0.2 (HP wire boundary); message/key request layouts unversioned"
+        ],
+        "builds": [
+          "SV synthetic foundation; no live session acceptance"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Stage A synthetic HP/message/key-request slice; Linux software and accelerated; MinGW i686 + Wine intermediate evidence, no actual Windows claim."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.request.answer-key.primary",
+          "description": "Native input sends the original signed request ID and chosen key once, then restores parent context.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.answer-key.lifecycle",
+          "description": "HP/messages continue during the prompt; resize/focus/reconstruction and stale-generation input cannot duplicate a reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Initial registry allocation only. Existing scenario runners and reports have not been imported as scoped native claims; ticket 13 owns evidence validation.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.request.cancel-key",
+      "acceptanceStage": "A",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.baseline.key-request",
+          "source.acceptance.requests"
+        ],
+        "serverVersions": [
+          "4.7.0.2.0.1 and 4.7.0.2.0.2 (HP wire boundary); message/key request layouts unversioned"
+        ],
+        "builds": [
+          "SV synthetic foundation; no live session acceptance"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Stage A synthetic HP/message/key-request slice; Linux software and accelerated; MinGW i686 + Wine intermediate evidence, no actual Windows claim."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.request.cancel-key.primary",
+          "description": "Escape sends key zero rather than ASCII 27, once, with the original request ID.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.cancel-key.lifecycle",
+          "description": "Server abort follows this owner cancellation; repeated abort and old-generation input cannot send another reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Initial registry allocation only. Existing scenario runners and reports have not been imported as scoped native claims; ticket 13 owns evidence validation.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ]
+}

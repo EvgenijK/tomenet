@@ -1,0 +1,362 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "source.baseline.hp",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/nclient.c",
+      "anchor": "Receive_hp",
+      "sha256": "cad90ba0b4505b41f31da5284d80448738e54cde6b6ee394aebb258ca8884853"
+    },
+    {
+      "id": "source.baseline.messages",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/nclient.c",
+      "anchor": "Receive_message",
+      "sha256": "cad90ba0b4505b41f31da5284d80448738e54cde6b6ee394aebb258ca8884853"
+    },
+    {
+      "id": "source.baseline.key-request",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/nclient.c",
+      "anchor": "Receive_request_key",
+      "sha256": "cad90ba0b4505b41f31da5284d80448738e54cde6b6ee394aebb258ca8884853"
+    },
+    {
+      "id": "source.protocol.key-reply",
+      "role": "protocol",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/nclient.c",
+      "anchor": "Send_request_key",
+      "sha256": "cad90ba0b4505b41f31da5284d80448738e54cde6b6ee394aebb258ca8884853"
+    },
+    {
+      "id": "source.baseline.key-input",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/c-util.c",
+      "anchor": "get_com",
+      "sha256": "7cadb5d85032724f18b0561118b3385de047e168c8642c2ad59142d7a90c8fea"
+    },
+    {
+      "id": "source.ux.shell",
+      "role": "ux",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "docs/sv-shell.md",
+      "anchor": "Stage A",
+      "sha256": "bd7dd3d388bb929860ed9e5072dc18059fb3f1844699e25ce15af7f0de158575"
+    },
+    {
+      "id": "source.acceptance.hp",
+      "role": "acceptance",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "docs/sv-hp.md",
+      "anchor": "Checked outcomes",
+      "sha256": "776e71dba8cff93e58af3eefbcc27737fb34e41a4009db5f32b79ee7ed99f099"
+    },
+    {
+      "id": "source.acceptance.messages",
+      "role": "acceptance",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "docs/sv-messages.md",
+      "anchor": "Evidence",
+      "sha256": "ca3db82518e3fba68e8c20dfa7eaacbaaa7512551619cadc2d41cab5e73afd7e"
+    },
+    {
+      "id": "source.acceptance.requests",
+      "role": "acceptance",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "docs/sv-requests.md",
+      "anchor": "Evidence",
+      "sha256": "c58551489cf7a46c92479019fd495057d7a5b92b1bc67f761d619b49a7036804"
+    },
+    {
+      "id": "source.baseline.message-occurrences",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/c-util.c",
+      "anchor": "c_message_add",
+      "sha256": "7cadb5d85032724f18b0561118b3385de047e168c8642c2ad59142d7a90c8fea"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "capability.status.read-hp",
+      "title": "Read current and maximum hit points",
+      "description": "Observe coherent current/maximum HP and boost/bar interpretation after a complete server update. This outcome excludes warning audio, full HUD and live-session acceptance.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.hp",
+        "source.acceptance.hp"
+      ]
+    },
+    {
+      "id": "capability.messages.read-occurrences",
+      "title": "Read successive message occurrences",
+      "description": "Read ordered incoming message occurrences, including identical adjacent text and the clear-topline control. Full recall, notes, chat routing and audio are separate future outcomes.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.messages",
+        "source.acceptance.messages",
+        "source.baseline.message-occurrences"
+      ]
+    },
+    {
+      "id": "capability.request.answer-key",
+      "title": "Answer a server key request",
+      "description": "Read a server prompt and answer once with the original request identity and selected key, then return to the parent input context.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-request",
+        "source.acceptance.requests"
+      ]
+    },
+    {
+      "id": "capability.request.cancel-key",
+      "title": "Cancel a server key request",
+      "description": "Cancel a pending key request with Escape and emit exactly one zero-key reply for that request, restoring the parent input context. Other request owners have separate cancellation rules.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-request",
+        "source.acceptance.requests"
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "surface.status",
+      "title": "Status",
+      "description": "Logical status surface inside the one system window.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.hp",
+        "source.ux.shell"
+      ]
+    },
+    {
+      "id": "surface.messages",
+      "title": "Message feed",
+      "description": "Logical surface for ordered recent message occurrences.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.messages"
+      ]
+    },
+    {
+      "id": "surface.request.key",
+      "title": "Key request",
+      "description": "Logical prompt surface retaining its server request identity.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-request"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "action.request.answer-key",
+      "title": "Answer key request",
+      "description": "Submit the selected key to the current request owner.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-request",
+        "source.protocol.key-reply"
+      ]
+    },
+    {
+      "id": "action.request.cancel-key",
+      "title": "Cancel key request",
+      "description": "Submit zero for Escape according to get_com and Receive_request_key.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-input",
+        "source.baseline.key-request"
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "state.player.hp",
+      "title": "Hit points",
+      "description": "Coherent current and maximum HP, boost and bar markers.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.hp"
+      ]
+    },
+    {
+      "id": "state.messages.occurrences",
+      "title": "Message occurrences",
+      "description": "Ordered original message occurrences, not latest text deduplication.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.messages",
+        "source.baseline.message-occurrences"
+      ]
+    },
+    {
+      "id": "state.request.key",
+      "title": "Pending key request",
+      "description": "Server identity and prompt for an unfinished key request.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-request"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "id": "binding.request.answer-key",
+      "title": "answer-key",
+      "description": "Gesture interpreted only by the pending key request owner.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-input",
+        "source.baseline.key-request"
+      ],
+      "gesture": "single accepted key",
+      "actionId": "action.request.answer-key",
+      "contextId": "context.request.key",
+      "keyset": [
+        "normal",
+        "roguelike"
+      ],
+      "platform": [
+        "linux",
+        "windows"
+      ]
+    },
+    {
+      "id": "binding.request.cancel-key",
+      "title": "cancel-key",
+      "description": "Gesture interpreted only by the pending key request owner.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-input",
+        "source.baseline.key-request"
+      ],
+      "gesture": "Escape",
+      "actionId": "action.request.cancel-key",
+      "contextId": "context.request.key",
+      "keyset": [
+        "normal",
+        "roguelike"
+      ],
+      "platform": [
+        "linux",
+        "windows"
+      ]
+    }
+  ],
+  "inputContexts": [
+    {
+      "id": "context.gameplay.normal",
+      "title": "Gameplay parent",
+      "description": "Logical parent restored after the request; does not claim gameplay command coverage.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-input"
+      ]
+    },
+    {
+      "id": "context.request.key",
+      "title": "Key request input",
+      "description": "Input owned by the pending generic key request.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.key-input",
+        "source.baseline.key-request"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "kind": "binding-invokes-action",
+      "from": "binding.request.answer-key",
+      "to": "action.request.answer-key"
+    },
+    {
+      "kind": "binding-invokes-action",
+      "from": "binding.request.cancel-key",
+      "to": "action.request.cancel-key"
+    },
+    {
+      "kind": "capability-exposed-on-surface",
+      "from": "capability.status.read-hp",
+      "to": "surface.status"
+    },
+    {
+      "kind": "capability-observes-state",
+      "from": "capability.status.read-hp",
+      "to": "state.player.hp"
+    },
+    {
+      "kind": "surface-presents-state",
+      "from": "surface.status",
+      "to": "state.player.hp"
+    },
+    {
+      "kind": "capability-exposed-on-surface",
+      "from": "capability.messages.read-occurrences",
+      "to": "surface.messages"
+    },
+    {
+      "kind": "capability-observes-state",
+      "from": "capability.messages.read-occurrences",
+      "to": "state.messages.occurrences"
+    },
+    {
+      "kind": "surface-presents-state",
+      "from": "surface.messages",
+      "to": "state.messages.occurrences"
+    },
+    {
+      "kind": "capability-exposed-on-surface",
+      "from": "capability.request.answer-key",
+      "to": "surface.request.key"
+    },
+    {
+      "kind": "capability-observes-state",
+      "from": "capability.request.answer-key",
+      "to": "state.request.key"
+    },
+    {
+      "kind": "surface-presents-state",
+      "from": "surface.request.key",
+      "to": "state.request.key"
+    },
+    {
+      "kind": "capability-exposed-on-surface",
+      "from": "capability.request.cancel-key",
+      "to": "surface.request.key"
+    },
+    {
+      "kind": "capability-observes-state",
+      "from": "capability.request.cancel-key",
+      "to": "state.request.key"
+    },
+    {
+      "kind": "capability-uses-action",
+      "from": "capability.request.answer-key",
+      "to": "action.request.answer-key"
+    },
+    {
+      "kind": "capability-uses-action",
+      "from": "capability.request.cancel-key",
+      "to": "action.request.cancel-key"
+    }
+  ]
+}
