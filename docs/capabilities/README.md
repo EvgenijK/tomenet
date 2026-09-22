@@ -223,3 +223,11 @@ to the canonical outcomes and native allocation. Run the validator with both
 `--source-root tomenet=.` to verify completeness and current source bytes.
 Without these arguments, the report explicitly says completeness was not requested.
 Valid pending allocation never means native acceptance.
+
+## Native evidence validation — ticket 13
+
+The [native evidence contract](native-evidence.md) adds optional `--evidence`
+validation, closed runtime/fallback records, dependency freshness, and version 2
+ledger claims. The version 1 descriptions above remain the historical pending-only
+contract. Canonical [evidence](native-evidence.json) is empty, with no accepted
+native claims and no declared fallback routes.

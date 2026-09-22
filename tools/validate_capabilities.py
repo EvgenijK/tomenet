@@ -237,6 +237,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--ledger', type=Path, required=True)
+    parser.add_argument('--evidence', type=Path, help='scoped native runtime evidence and development routes')
     parser.add_argument('--previous-manifest', type=Path,
                         help='validate ID preservation and lifecycle transitions against retained history')
     parser.add_argument('--source-root', type=source_root, action='append', default=[],
@@ -251,11 +252,16 @@ def main():
     summary = {}
     unavailable = False
     completeness = {'status': 'not-requested'}
+    claims = []
     try:
         manifest, digest = load(args.manifest)
         ledger, _ = load(args.ledger)
         report.structure(manifest, 'manifest.schema.json', 'manifest')
         report.structure(ledger, 'native-coverage.schema.json', 'ledger')
+        evidence = None
+        if args.evidence:
+            evidence, _ = load(args.evidence)
+            report.structure(evidence, 'native-evidence.schema.json', 'evidence')
         inventory = mapping = None
         if bool(args.inventory_index) != bool(args.reconciliation):
             report.error('inventory-input', 'completeness', 'Supply both --inventory-index and --reconciliation')
@@ -279,6 +285,8 @@ def main():
                 history.validate()
                 registry.history(history)
             validate_coverage(registry, ledger, digest)
+            from native_evidence import validate_evidence
+            claims = validate_evidence(registry, ledger, evidence, digest, dict(args.source_root))
             if args.source_root:
                 validate_sources(manifest, dict(args.source_root), report)
             if inventory is not None:
@@ -289,15 +297,20 @@ def main():
                     completeness['status'] = 'incomplete'
             summary = {
                 'activeCapabilities': sum(c['lifecycle'] == 'active' for c in manifest['capabilities']),
-                'pendingEvidence': len(ledger['coverage']),
-                'acceptedCapabilities': 0,
+                'pendingEvidence': sum(c['status'] == 'pending' for c in claims),
+                'acceptedCapabilities': sum(c['status'] == 'accepted' for c in claims),
             }
     except (OSError, ImportError) as error:
         unavailable = True
         report.error('unavailable', 'input/environment', str(error))
     except (ValueError, UnicodeError) as error:
         report.error('malformed-json', 'input', str(error))
-    unavailable = unavailable or any(e['code'] == 'source-unavailable' for e in report.errors)
+    unavailable = unavailable or any(e['code'] in ('source-unavailable', 'evidence-unavailable') for e in report.errors)
+    if report.errors:
+        summary['acceptedCapabilities'] = 0
+        for claim in claims:
+            if claim['status'] == 'accepted':
+                claim['status'] = 'invalid'
     if (args.inventory_index or args.reconciliation) and report.errors:
         completeness['status'] = 'incomplete'
     status = 'unavailable' if unavailable else 'invalid' if report.errors else 'valid'
@@ -305,6 +318,7 @@ def main():
                       'historyChecked': args.previous_manifest is not None,
                       'sourceVerification': ('checked' if args.source_root else 'not-requested'),
                       'completeness': completeness,
+                      'nativeClaims': claims,
                       'errors': report.errors}, indent=2))
     return 2 if unavailable else 1 if report.errors else 0
 

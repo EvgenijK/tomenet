@@ -1,0 +1,368 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "consumer": {
+      "const": "native-sv"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evidence\\.[a-z0-9.-]+$"
+          },
+          "kind": {
+            "const": "native-runtime"
+          },
+          "scenario": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+          },
+          "capabilityId": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+          },
+          "manifestSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "allocationSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "obligationIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "expectedOutcomes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "actualResult": {
+            "enum": [
+              "pass",
+              "fail",
+              "unavailable"
+            ]
+          },
+          "environment": {
+            "type": "object",
+            "properties": {
+              "platform": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              },
+              "osVersion": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "renderer": {
+                "enum": [
+                  "software",
+                  "accelerated"
+                ]
+              },
+              "serverVersion": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "build": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "architecture": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "platform",
+              "osVersion",
+              "renderer",
+              "serverVersion",
+              "build",
+              "architecture"
+            ],
+            "additionalProperties": false
+          },
+          "executable": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "repository",
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "configuration": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "repository",
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "report": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "repository",
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+                },
+                "role": {
+                  "enum": [
+                    "source",
+                    "fixture",
+                    "resource"
+                  ]
+                },
+                "files": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "impact": {
+                  "enum": [
+                    "complete",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "repository",
+                "path",
+                "role",
+                "files",
+                "impact"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 3,
+            "uniqueItems": true
+          },
+          "runtimeCheck": {
+            "type": "object",
+            "properties": {
+              "scenario": {
+                "type": "string",
+                "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "fallbackEntries": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "routes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "routeId": {
+                      "type": "string",
+                      "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+                    },
+                    "reason": {
+                      "enum": [
+                        "future-flow"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "routeId",
+                    "reason",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 0,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "scenario",
+              "completed",
+              "fallbackEntries",
+              "routes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "scenario",
+          "capabilityId",
+          "manifestSha256",
+          "allocationSha256",
+          "obligationIds",
+          "expectedOutcomes",
+          "actualResult",
+          "environment",
+          "executable",
+          "configuration",
+          "report",
+          "dependencies",
+          "runtimeCheck"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "fallbackRoutes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+          },
+          "capabilityId": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+          },
+          "contextId": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9.-]*$"
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "replacementStage": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F"
+            ]
+          },
+          "removalCriterion": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "id",
+          "capabilityId",
+          "contextId",
+          "owner",
+          "replacementStage",
+          "removalCriterion"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "consumer",
+    "records",
+    "fallbackRoutes"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -3,7 +3,10 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "consumer": {
       "const": "native-sv"
@@ -145,11 +148,18 @@
             "pattern": "\\S"
           },
           "evidenceStatus": {
-            "const": "pending"
+            "enum": [
+              "pending",
+              "accepted"
+            ]
           },
           "evidenceIds": {
             "type": "array",
-            "maxItems": 0
+            "items": {
+              "type": "string",
+              "pattern": "^evidence\\.[a-z0-9.-]+$"
+            },
+            "uniqueItems": true
           }
         },
         "required": [
@@ -175,5 +185,32 @@
     "manifestSha256",
     "coverage"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "coverage": {
+            "items": {
+              "properties": {
+                "evidenceStatus": {
+                  "const": "pending"
+                },
+                "evidenceIds": {
+                  "maxItems": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

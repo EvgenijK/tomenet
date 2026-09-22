@@ -250,3 +250,23 @@ from a shared handler name or silently accept a refreshed hash.
 changed bodies, dead/commented code, response-only paths and deliberate NULL
 registrations; generated candidates must exercise the production validator and
 must not alter legacy/SV runtime behavior.
+
+## Capture reviewed native dependency inventories from build outputs
+
+**Status:** proposed separately; ticket 13 validates supplied directory inventories.
+
+**Problem:** fingerprints detect drift within a declared scope, but cannot prove
+that a producer included every transitive SDK, build-script or resource-loader
+input. Reviewers currently establish that closure manually.
+
+**Affected code:** `tools/native_evidence.py`, `src/makefile.sv`,
+`src/client/sv/ui/font.c`, native scenario evidence producers.
+
+**Proposal:** generate candidate dependency inventories from compiler `.d` files,
+link metadata and explicit resource/fixture roots, retaining reviewed directory
+boundaries to catch newly introduced inputs. Keep unknown-impact snapshots broad;
+do not treat automatically collected paths as semantic acceptance.
+
+**Required checks:** header additions outside existing `.d` entries, changed SDKs
+and build switches, resource discovery changes, untracked files, missing roots,
+and unchanged Git HEAD; validate all generated artifacts through the production CLI.
