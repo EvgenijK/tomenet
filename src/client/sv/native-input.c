@@ -1,7 +1,14 @@
 #include "native-input.h"
-bool sv_native_input(SvApp *app, const SDL_Event *event)
+void sv_native_input_begin(SvNativeInput *input, SvApp *app)
+{
+    *input = (SvNativeInput){sv_app_view(app).generation, SDL_GetTicksNS()};
+}
+bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
 {
     SvAppView view = sv_app_view(app);
+    if (event->type != SDL_EVENT_TEXT_INPUT && event->type != SDL_EVENT_KEY_DOWN) return false;
+    /* Fail closed if lifecycle forgot to install the new session's input epoch. */
+    if (input->generation != view.generation || event->common.timestamp < input->since_ns) return true;
     if (!view.request.pending) return false;
     unsigned char key;
     if (event->type == SDL_EVENT_TEXT_INPUT) {
@@ -22,6 +29,6 @@ bool sv_native_input(SvApp *app, const SDL_Event *event)
             else return true; /* Printable keys arrive as text, with layout and shift applied. */
         }
     } else return false;
-    (void)sv_app_key(app, view.generation, view.request.sequence, key);
+    (void)sv_app_accept_key(app, view.generation, view.request.sequence, key);
     return true;
 }

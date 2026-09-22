@@ -9,6 +9,7 @@
 #include "hp-scenario.h"
 #include "message-scenario.h"
 #include "request-scenario.h"
+#include "lifecycle-scenario.h"
 #include "native-input.h"
 #include "arch-scenario.h"
 #include "native-frame.h"
@@ -21,7 +22,7 @@ static void usage(void)
 {
     puts("TomeNET SV Stage A shell (no live session)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
-         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--hp-check] [--arch-check] [--message-check] [--request-check]\n"
+         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check]\n"
          "Product defaults: desktop fullscreen, UI scale 100%, Cascadia Mono.\n"
          "TOMENET_PATH selects library resources, otherwise adjacent lib/.\n"
          "TOMENET_SDL3_USER_PATH may select an already marked synthetic root.\n"
@@ -33,6 +34,7 @@ int main(int argc, char **argv)
     const char *root = NULL, *library = NULL;
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
+    bool lifecycle_check = false;
     SvApp *app = NULL;
     bool synthetic = false, windowed = false, quit = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
@@ -44,6 +46,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
+        if (!strcmp(argv[i], "--lifecycle-check")) { lifecycle_check = true; continue; }
         if (!strcmp(argv[i], "--message-check")) { message_check = true; continue; }
         if (!strcmp(argv[i], "--hp-check")) { hp_check = true; continue; }
         if (i + 1 >= argc) { usage(); return 2; }
@@ -104,6 +107,7 @@ int main(int argc, char **argv)
     app = sv_app_create(sv_synthetic_alert_sink());
     if (!app) goto done;
     SvUi ui = {.window = window, .renderer = renderer, .font = font, .font_revision = 1};
+    if (lifecycle_check && !sv_lifecycle_scenario(app, &ui)) goto done;
     if (request_check && !sv_request_scenario(app, &ui)) goto done;
     if (message_check && !sv_message_scenario(app, &ui)) goto done;
     if (hp_check) {
@@ -113,17 +117,21 @@ int main(int argc, char **argv)
         if (!sv_arch_scenario(app, sv_scenario_frame, &ui)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
     if (!SDL_StartTextInput(window)) goto done;
+    SvNativeInput input;
+    sv_native_input_begin(&input, app);
     fflush(stdout);
     while (!quit) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (sv_native_input(app, &event)) continue;
+            if (sv_ui_event(&ui, &event)) continue;
+            if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) quit = true;
         }
         if (quit) break;
         /* A whole-input budget yields to UI even with buffered network backlog. */
         SvStep step = sv_app_step(app, 16);
+        (void)sv_app_dispatch_input(app, 16);
         if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_CLOSED)
             fprintf(stderr, "SV session: %s\n", sv_result_text(step.result));
         /* Explicit Stage A consumer: model/feed publication is the only

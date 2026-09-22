@@ -11,6 +11,7 @@ const char *sv_result_text(SvResult result)
     case SV_BUSY: return "Session is processing an input";
     case SV_INVALID: return "Invalid input";
     case SV_INPUT_OVERFLOW: return "Session closed: input exceeds buffer limit";
+    case SV_KEY_OVERFLOW: return "Session closed: accepted key queue exhausted";
     case SV_OUTPUT_OVERFLOW: return "Session closed: output buffer exhausted";
     case SV_DECODE_ERROR: return "Session closed: packet decode failed";
     case SV_EVENT_OVERFLOW: return "Session closed: mandatory message delivery exhausted";

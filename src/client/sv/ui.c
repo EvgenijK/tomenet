@@ -1,5 +1,32 @@
 #include "ui.h"
 #include "message-text.h"
+void sv_ui_rebuild(SvUi *ui)
+{
+    *ui = (SvUi){.window = ui->window, .renderer = ui->renderer,
+                 .font = ui->font, .font_revision = ui->font_revision};
+}
+bool sv_ui_event(SvUi *ui, const SDL_Event *event)
+{
+    switch (event->type) {
+    case SDL_EVENT_RENDER_TARGETS_RESET:
+    case SDL_EVENT_RENDER_DEVICE_RESET:
+        sv_ui_rebuild(ui);
+        return true;
+    case SDL_EVENT_WINDOW_RESIZED:
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+    case SDL_EVENT_WINDOW_RESTORED:
+        if (event->window.windowID != SDL_GetWindowID(ui->window)) return false;
+        sv_ui_rebuild(ui);
+        return true;
+    case SDL_EVENT_WINDOW_FOCUS_LOST:
+    case SDL_EVENT_WINDOW_FOCUS_GAINED:
+    case SDL_EVENT_WINDOW_MINIMIZED:
+        /* OS attention and visibility never cancel a logical interaction. */
+        return event->window.windowID == SDL_GetWindowID(ui->window);
+    default: return false;
+    }
+}
 
 static bool rectangle(SDL_Renderer *renderer, float scale, float x, float y, float w, float h)
 {

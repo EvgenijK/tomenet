@@ -15,6 +15,8 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
         int version[] = {4,7,0,2,0,layout};
         for (size_t split = 0; split <= sizeof(packet); ++split) {
             CHECK(sv_app_open(app, version) == SV_OK);
+            SvNativeInput native;
+            sv_native_input_begin(&native, app);
             uint64_t gen = sv_app_view(app).generation;
             CHECK(sv_app_receive(app, gen, packet, split) == SV_OK);
             CHECK(sv_app_step(app, 16).processed == (split == sizeof(packet) ? 1 : 0));
@@ -47,8 +49,9 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
                 CHECK(SDL_PushEvent(&input));
                 SDL_Event event;
                 bool handled = false;
-                while (SDL_PollEvent(&event)) if (sv_native_input(app, &event)) handled = true;
+                while (SDL_PollEvent(&event)) if (sv_native_input(&native, app, &event)) handled = true;
                 CHECK(handled);
+                CHECK(sv_app_dispatch_input(app, 16).dispatched == 1);
             }
             const unsigned char expected[] = {184,0x12,0x34,0x56,0x78,key};
             SvOutput reply = sv_app_take_output(app, gen, output, sizeof(output));

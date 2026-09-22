@@ -47,8 +47,10 @@ SDL text input handles one ASCII character with keyboard layout/shift applied;
 key events handle Escape, Return, Tab, Backspace and Ctrl+A–Z. Unsupported text
 keeps the request pending. Raw prompt bytes remain intact; the declared shell
 ASCII display profile supplies visible substitutes for unsupported glyphs.
-Complete macro processing, additional input contexts and lifecycle/focus evidence
-remain ticket 05; this ticket makes no broader keyboard or encoding parity claim.
+Ticket 05 adds the bounded accepted-input queue, a representative macro profile
+and lifecycle/focus evidence; see [sv-lifecycle.md](sv-lifecycle.md). Complete
+macro processing and additional contexts remain later migration work. Neither
+slice claims broader keyboard or encoding parity.
 
 ## Evidence
 

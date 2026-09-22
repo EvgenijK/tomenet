@@ -10,6 +10,7 @@ struct SvApp {
     SvAttention attention;
     int busy;
     SvInputRouter input;
+    SvInputBindings bindings;
 };
 static void release_session(SvApp *app)
 {
@@ -125,6 +126,38 @@ SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned
     if (result != SV_OK) return result;
     result = deliver_reply(app, reply);
     return result == SV_OK ? refresh_request(app) : result;
+}
+SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind)
+{
+    if (app->busy) return SV_BUSY;
+    return sv_input_bind(&app->bindings, trigger, action, kind);
+}
+SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    result = sv_input_accept(&app->input, &app->bindings, sv_session_request(app->session), sequence, key);
+    if (result == SV_KEY_OVERFLOW) fail_session(app, result);
+    return result;
+}
+SvInputStep sv_app_dispatch_input(SvApp *app, size_t budget)
+{
+    SvInputStep step = {0, 0, app->input.count, accepts(app, app->view.generation)};
+    if (step.result != SV_OK) return step;
+    app->busy = 1;
+    while (step.dispatched + step.stale < budget) {
+        SvKeyReply reply;
+        SvResult result = sv_input_next(&app->input, sv_session_request(app->session), &reply);
+        if (result == SV_WAITING) break;
+        if (result == SV_STALE) { ++step.stale; continue; }
+        if (result == SV_OK) result = deliver_reply(app, reply);
+        if (result == SV_OK) result = refresh_request(app);
+        if (result != SV_OK) { step.result = result; break; }
+        ++step.dispatched;
+    }
+    step.pending = app->input.count;
+    app->busy = 0;
+    return step;
 }
 SvStep sv_app_step(SvApp *app, size_t budget)
 {

@@ -39,4 +39,10 @@ SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t
 /* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
 SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
+/* Bindings outlive a session. Accepted input belongs to its generation/request.
+ * Matching occurs once at acceptance, dispatch is bounded and independent of UI. */
+SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind);
+SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
+typedef struct { size_t dispatched, stale, pending; SvResult result; } SvInputStep;
+SvInputStep sv_app_dispatch_input(SvApp *app, size_t budget);
 #endif
