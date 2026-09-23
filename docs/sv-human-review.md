@@ -161,3 +161,22 @@ findings**. Explicit human feedback and fresh complete gate results remain
 closure requirements; this review does not grant them.
 
 Review totals: Standards **0**, Spec **0** outstanding implementation findings.
+
+## Human feedback received — 2026-09-23
+
+The user wrote: **«выглядит нормально»** (“looks normal”). This is recorded as
+positive general visual feedback, not an assertion that all behavioral steps
+were performed. A follow-up asks whether ordinary answer, Escape, real desktop
+focus, resize/minimize/restore, F6, m and F5 all worked. No reply to that follow-up
+has yet been received, so individual action results and overall decision remain
+pending. Reviewer identity is the user in this Codex conversation; no name or
+additional physical-monitor description was supplied.
+
+The manual process exited successfully. Its executable and host dependency
+identity match the fresh gate. The [manual review archive](acceptance/stage-a-human-review-2026-09-23.tar.gz)
+contains the exact feedback record, native diagnostics and host provenance.
+Archive SHA-256: `268cc6ed4c036277789c20fd0104e0621b8a2fc4b2d022627bdc0e5102822982`.
+Extract into an empty directory and pass its `review.json` to the review checker;
+expected status is **pending**, exit **2**. The native log is supporting diagnostic
+evidence, not a replacement for the human's confirmation of actions or perceived
+response. The separate Wine Direct3D timing blocker still prevents Stage A closure.
