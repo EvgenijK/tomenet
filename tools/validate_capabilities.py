@@ -237,6 +237,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--ledger', type=Path, required=True)
+    parser.add_argument('--checkpoint', choices=['stage-a'], help='limited automated checkpoint, not full acceptance')
     parser.add_argument('--evidence', type=Path, help='scoped native runtime evidence and development routes')
     parser.add_argument('--previous-manifest', type=Path,
                         help='validate ID preservation and lifecycle transitions against retained history')
@@ -253,6 +254,7 @@ def main():
     unavailable = False
     completeness = {'status': 'not-requested'}
     claims = []
+    checkpoint = {'name': args.checkpoint, 'status': 'blocked'} if args.checkpoint else None
     try:
         manifest, digest = load(args.manifest)
         ledger, _ = load(args.ledger)
@@ -295,6 +297,9 @@ def main():
                                               registry, ledger, dict(args.source_root)))
                 if report.errors:
                     completeness['status'] = 'incomplete'
+            if args.checkpoint:
+                from stage_a_checkpoint import validate_checkpoint
+                checkpoint = validate_checkpoint(ledger, evidence, dict(args.source_root), report)
             summary = {
                 'activeCapabilities': sum(c['lifecycle'] == 'active' for c in manifest['capabilities']),
                 'pendingEvidence': sum(c['status'] == 'pending' for c in claims),
@@ -318,6 +323,7 @@ def main():
                       'historyChecked': args.previous_manifest is not None,
                       'sourceVerification': ('checked' if args.source_root else 'not-requested'),
                       'completeness': completeness,
+                      **({'checkpoint': checkpoint} if checkpoint else {}),
                       'nativeClaims': claims,
                       'errors': report.errors}, indent=2))
     return 2 if unavailable else 1 if report.errors else 0

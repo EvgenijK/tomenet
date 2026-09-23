@@ -252,3 +252,17 @@ supersede the earlier missing-SDK/no-Wine platform observations. Exact binary,
 SDK and archive hashes, runtime versions, limitations and review results are in
 [the ticket 16 verification record](sv-mingw.md#verification--2026-09-23).
 Repeat on the final build after native changes in ticket 17.
+
+## Ticket 18 scoped evidence gate — 2026-09-23
+
+The [ticket 18 evidence report](sv-stage-a-evidence.md#verification--2026-09-23)
+replaces the incomplete dependency candidates with 21 fresh production records.
+The production checker passes all eight scoped Stage A outcomes, with no
+runtime/dependency errors. Full capability acceptance remains 0/925; Wine retains
+its intermediate identity, and actual Windows obligations remain B/E/F work.
+
+The [final command report](acceptance/stage-a-ticket-18-2026-09-23.json) records
+60/61 passing commands. Linux and required Wine software matrices pass. The
+additional Direct3D timing check still fails (27.085 ms / 20 ms), so the full
+runner remains blocked; this failure is not hidden by the passed scoped gate.
+Human review under ticket 19 is still pending. No automatic approval was generated.

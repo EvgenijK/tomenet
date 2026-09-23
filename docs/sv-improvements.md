@@ -253,7 +253,7 @@ must not alter legacy/SV runtime behavior.
 
 ## Capture reviewed native dependency inventories from build outputs
 
-**Status:** proposed separately; ticket 13 validates supplied directory inventories.
+**Status:** implemented in Stage A ticket 18; see [reviewed scope and evidence gate](sv-stage-a-evidence.md). Human approval remains ticket 19.
 
 **Problem:** fingerprints detect drift within a declared scope, but cannot prove
 that a producer included every transitive SDK, build-script or resource-loader
@@ -315,3 +315,21 @@ Wine as actual Windows certification.
 negative control; repeat fresh-prefix TTF/PCF and software/accelerated scenarios,
 verify exact replies and event preservation, then measure on actual Windows 10/11.
 See `docs/sv-mingw.md` for reproducible environment and archived observations.
+
+
+## Produce host provenance on additional build distributions
+
+**Status:** proposed separately; not part of ticket 18's current-host evidence.
+
+**Problem:** the Stage A host producer uses the local pacman package database and
+reviewed Linux search paths; another distribution cannot reuse that declaration.
+
+**Affected code:** `tools/stage_a_provenance.py`, `tools/run_stage_a.py`.
+
+**Proposal:** add an equivalent reviewed package/file closure producer when a
+Fedora or actual Windows build environment is provisioned. Keep environment
+identity explicit and retain the same content/directory freshness checks.
+
+**Required checks:** compiler/SDK/runtime and Python dependency changes, package
+updates, added search inputs, missing roots, and the production checkpoint CLI;
+no inferred Windows acceptance or automatic human approval.

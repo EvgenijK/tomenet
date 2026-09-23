@@ -40,6 +40,13 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn(run.returncode, (0, 1, 2), run.stderr)
         return run.returncode, json.loads(run.stdout)
 
+    def test_empty_stage_a_checkpoint_cannot_pass(self):
+        self.row.update(implementation='pending', evidenceStatus='pending', evidenceIds=[])
+        code, report = self.run_validator('--checkpoint', 'stage-a')
+        self.assertNotEqual(code, 0, report)
+        self.assertEqual(report['checkpoint']['status'], 'blocked')
+        self.assertEqual(report['summary']['acceptedCapabilities'], 0)
+
     def test_acceptance_requires_evidence(self):
         code, report = self.run_validator()
         self.assertEqual(code, 1, report)
@@ -108,6 +115,10 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertEqual(report['nativeClaims'][0]['status'], 'stale')
                 if extra.exists():
                     extra.unlink()
+
+    def test_missing_external_root_is_unavailable(self):
+        self.candidate()['dependencies'][0]['repository'] = 'missing-sdk'
+        self.reject('evidence-unavailable', 2)
 
     def test_missing_artifact_is_unavailable(self):
         self.candidate()

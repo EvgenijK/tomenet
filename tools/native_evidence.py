@@ -2,7 +2,6 @@
 import hashlib
 import itertools
 import json
-import os
 from pathlib import Path
 
 
@@ -28,13 +27,17 @@ def local_path(reference, roots):
     return path
 
 
-def check_record(record, row, digest, roots, report):
+def check_record(record, row, digest, roots, report, dependency_cache=None):
     owner = record['id']
     start = len(report.errors)
     if record['manifestSha256'] != digest or record['allocationSha256'] != allocation_digest(row):
         report.error('evidence-stale', owner, 'Manifest or allocation changed')
     if record['capabilityId'] != row['capabilityId']:
         report.error('evidence-scope', owner, 'Evidence belongs to another outcome')
+    if record.get('checkpoint'):
+        from stage_a_checkpoint import OUTCOMES
+        if row['acceptanceStage'] != 'A' or row['capabilityId'] not in OUTCOMES:
+            report.error('checkpoint-scope', owner, 'Checkpoint is limited to the eight Stage A outcomes')
     obligations = {o['id'] for o in row['evidenceObligations']}
     if not set(record['obligationIds']) <= obligations:
         report.error('evidence-scope', owner, 'Unknown obligation')
@@ -49,7 +52,12 @@ def check_record(record, row, digest, roots, report):
     dependencies = record['dependencies']
     if {d['role'] for d in dependencies} != {'source', 'fixture', 'resource'}:
         report.error('evidence-dependencies', owner, 'Source, fixture and resource inventories required')
-    for reference in [record['executable'], record['configuration'], record['report']]:
+    artifacts = [record['executable'], record['configuration'], record['report']]
+    if 'hostProvenance' in record:
+        artifacts.append(record['hostProvenance'])
+    elif record.get('checkpoint'):
+        report.error('evidence-dependencies', owner, 'Checkpoint requires host provenance')
+    for reference in artifacts:
         try:
             raw = local_path(reference, roots).read_bytes()
             if hashlib.sha256(raw).hexdigest() != reference['sha256']:
@@ -58,25 +66,30 @@ def check_record(record, row, digest, roots, report):
             report.error('evidence-unavailable', owner, 'Artifact unavailable')
         except ValueError as error:
             report.error('evidence-path', owner, str(error))
+    if 'hostProvenance' in record:
+        try:
+            from stage_a_provenance import verify_host
+            path = local_path(record['hostProvenance'], roots)
+            cache = dependency_cache if dependency_cache is not None else {}
+            key = ('host', str(path))
+            if key not in cache:
+                verify_host(path)
+                cache[key] = True
+        except OSError:
+            report.error('evidence-unavailable', owner, 'Host provenance unavailable')
+        except (ValueError, KeyError, TypeError) as error:
+            report.error('evidence-dependencies', owner, str(error))
     for dependency in dependencies:
         try:
             if dependency['impact'] == 'unknown' and dependency['path'] != '.':
                 report.error('evidence-dependencies', owner, 'Unknown impact requires repository-wide snapshot')
             path = local_path(dependency, roots)
-            if not path.is_dir():
-                raise OSError('Dependency tree unavailable')
-            actual = {}
-            # Fail closed rather than skip unreadable dependency directories.
-            def fail(error):
-                raise error
-            for directory, directories, files in os.walk(path, onerror=fail):
-                for name in directories + files:
-                    if (Path(directory) / name).is_symlink():
-                        raise ValueError('Dependency tree contains symlink')
-                for name in files:
-                    file = Path(directory) / name
-                    actual[file.relative_to(path).as_posix()] = hashlib.sha256(file.read_bytes()).hexdigest()
-            if actual != dependency['files']:
+            from evidence_dependencies import inventory
+            cache = dependency_cache if dependency_cache is not None else {}
+            key = ('directory', str(path))
+            if key not in cache:
+                cache[key] = inventory(path)
+            if cache[key] != dependency['files']:
                 report.error('evidence-stale', owner, 'Dependency added, removed or changed')
         except OSError:
             report.error('evidence-unavailable', owner, 'Dependency tree unavailable')
@@ -97,7 +110,7 @@ def required_environments(row):
 
 def environment_key(record):
     env = record['environment']
-    return (env['platform'], env['osVersion'] if env['platform'] == 'windows' else 'linux',
+    return (env['platform'], env['osVersion'] if env['platform'] != 'linux' else 'linux',
             env['renderer'], env['serverVersion'], env['build'])
 
 
@@ -123,6 +136,7 @@ def validate_evidence(registry, ledger, evidence, digest, roots):
         elif route['replacementStage'] < row['acceptanceStage']:
             report.error('fallback-route', owner, 'Replacement precedes flow allocation')
     claims = []
+    dependency_cache = {}
     used = set()
     for row in ledger['coverage']:
         owner = row['capabilityId']
@@ -143,7 +157,10 @@ def validate_evidence(registry, ledger, evidence, digest, roots):
             if record is None:
                 report.error('evidence-missing', owner, 'Referenced evidence is missing')
                 continue
-            if check_record(record, row, digest, roots, report):
+            valid = check_record(record, row, digest, roots, report, dependency_cache)
+            if accepted and record.get('checkpoint'):
+                report.error('evidence-unsupported', owner, 'Checkpoint evidence cannot grant full acceptance')
+            if valid and not record.get('checkpoint'):
                 covered.update((obligation, environment_key(record)) for obligation in record['obligationIds'])
         if accepted:
             required = set(itertools.product((o['id'] for o in row['evidenceObligations']), required_environments(row)))

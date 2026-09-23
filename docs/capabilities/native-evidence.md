@@ -123,3 +123,12 @@ production CLI. Final findings: 0.
 Independent review found no blocking omissions or scope creep against ticket 13.
 Dependency-closure review remains explicit; this tool does not infer undeclared
 inputs or prove the truth of a producer's runtime report. Final findings: 0.
+
+## Limited Stage A checkpoint — ticket 18
+
+`--checkpoint stage-a` adds a separate automated checkpoint result. Explicitly
+marked checkpoint records may use `platform: wine` but cannot grant full
+capability acceptance. Existing full Windows 10/11 requirements are unchanged.
+Records bind additional `hostProvenance` artifacts, whose upstream package/file
+and directory fingerprints are checked as dependencies. See the
+[scope, commands and verification](../sv-stage-a-evidence.md).

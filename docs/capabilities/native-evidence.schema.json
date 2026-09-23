@@ -67,7 +67,8 @@
               "platform": {
                 "enum": [
                   "linux",
-                  "windows"
+                  "windows",
+                  "wine"
                 ]
               },
               "osVersion": {
@@ -279,6 +280,33 @@
               "completed",
               "fallbackEntries",
               "routes"
+            ],
+            "additionalProperties": false
+          },
+          "checkpoint": {
+            "const": "stage-a"
+          },
+          "hostProvenance": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "repository",
+              "path",
+              "sha256"
             ],
             "additionalProperties": false
           }

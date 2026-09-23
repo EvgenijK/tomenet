@@ -20,6 +20,9 @@ import sys
 import time
 
 from native_evidence import allocation_digest
+from stage_a_checkpoint import OUTCOMES, suites, environments
+from evidence_dependencies import capture
+from stage_a_provenance import capture_host, audit_build_inputs
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE = ('hp_checks', 'arch_native', 'message_native', 'request_native',
@@ -31,7 +34,7 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-SCENARIOS = {'hp_checks': 'hp', 'message_native': 'message', 'request_native': 'request',
+SCENARIOS = {'arch_native': 'arch', 'hp_checks': 'hp', 'message_native': 'message', 'request_native': 'request',
              'lifecycle_native': 'lifecycle', 'geometry_native': 'geometry', 'timing_native': 'timing'}
 
 
@@ -76,61 +79,65 @@ def measured_runtime(output, checks, scenario):
     return result
 
 
-def write_candidates(output, ledger, report):
-    """Bind real observations to checker inputs, explicitly lacking acceptance proof."""
+def write_candidates(output, ledger, report, dependencies):
+    """Bind limited Stage A observations; full capability allocations stay pending."""
     candidate = copy.deepcopy(ledger)
     candidate['schemaVersion'] = 2
     evidence = {'schemaVersion': 1, 'consumer': 'native-sv', 'records': [], 'fallbackRoutes': []}
-    dependencies = []
-    for role, directory in (('source', 'src/client/sv'), ('fixture', 'tests/sv'),
-                            ('resource', 'lib/xtra/font')):
-        path = ROOT / directory
-        dependencies.append({'repository': 'tomenet', 'path': directory, 'role': role,
-            'impact': 'unknown', 'files': {str(file.relative_to(path)): digest(file)
-                for file in sorted(path.rglob('*')) if file.is_file()}})
     (output / 'observations').mkdir()
 
     def artifact(repository, path, root):
         return {'repository': repository, 'path': str(path.relative_to(root)), 'sha256': digest(path)}
 
-    for observation in report['observations']:
-        row = next(r for r in candidate['coverage'] if r['capabilityId'] == observation['capabilityId'])
-        row['evidenceIds'] = []
-        row['evidenceStatus'] = 'pending'
-        for backend in ('software', 'opengl'):
-            checks = [check for check in report['checks'] if check['name'] in observation['checks']
-                      and check['name'].startswith(backend + '-')]
-            if not checks:
-                continue
-            logs = {check['log']: (output / check['log']).read_text() for check in checks}
+    for row in candidate['coverage']:
+        capability = row['capabilityId']
+        if capability not in OUTCOMES:
+            continue
+        row.update(evidenceIds=[], evidenceStatus='pending')
+        for platform_name, renderer in environments(capability):
+            wine = platform_name == 'wine'
+            backend = 'wine-software' if wine else ('software' if renderer == 'software' else 'opengl')
+            names = {backend + '-' + suite for suite in suites(capability)}
+            checks = [c for c in report['checks'] if c['name'] in names]
+            logs = {c['log']: (output / c['log']).read_text() for c in checks}
             builds = set(re.findall(r'SV startup build=(\S+)', '\n'.join(logs.values())))
             if len(builds) != 1:
-                report['limitations'].append('Candidate unavailable: ambiguous/missing build in ' + backend)
+                report['limitations'].append('Observation unavailable: missing/ambiguous build in ' + backend)
                 continue
             build = builds.pop()
-            config = ROOT / 'src/.sv-build/linux' / build.removeprefix('linux-') / 'build.txt'
-            identifier = row['capabilityId'].removeprefix('capability.') + '-' + backend
+            config = ROOT / 'src/.sv-build' / ('mingw' if wine else 'linux') / build.split('-', 1)[1] / 'build.txt'
+            binary = output / 'wine-bin/tomenet-sv.exe' if wine else ROOT / 'src/tomenet-sv'
+            if not config.exists() or not binary.exists():
+                continue
+            identifier = capability.removeprefix('capability.') + '-' + backend
+            scenario = 'scenario.stage-a.' + identifier
+            runtime = measured_runtime(output, [c for c in checks if any(
+                c['name'].endswith('-' + suite) for suite in SCENARIOS)], scenario)
+            environment = {'platform': platform_name,
+                'osVersion': (output / 'wine-version.log').read_text().strip() if wine else platform.platform(),
+                'renderer': renderer, 'architecture': 'i686' if wine else platform.machine(),
+                'serverVersion': row['conditions']['serverVersions'][0],
+                'build': row['conditions']['builds'][0]}
+            executable = artifact('stage-a' if wine else 'tomenet', binary, output if wine else ROOT)
+            configuration = artifact('tomenet', config, ROOT)
             result_path = output / 'observations' / (identifier + '.json')
-            result_path.write_text(json.dumps({'capabilityId': row['capabilityId'],
-                'build': build, 'checks': checks, 'logs': logs,
-                'runtimeCheck': measured_runtime(output, checks, 'scenario.stage-a.' + identifier),
-                'scope': 'Partial synthetic observations; delayed timing run is a negative control.'}, indent=2) + '\n')
+            result_path.write_text(json.dumps({'capabilityId': capability, 'build': build,
+                'checks': checks, 'logs': logs, 'runtimeCheck': runtime, 'environment': environment,
+                'executable': executable, 'configuration': configuration,
+                'buildChecks': [c for c in report['checks'] if c['name'] in
+                               ('build-linux', 'build-mingw', 'build-formats', 'stage-wine')],
+                'legacyUnchangedBySvBuild': report['legacyUnchangedBySvBuild'],
+                'scope': 'Stage A synthetic checkpoint only; full shipping/platform obligations deferred.'}, indent=2) + '\n')
             record = {'id': 'evidence.stage-a.' + identifier, 'kind': 'native-runtime',
-                'scenario': 'scenario.stage-a.' + identifier, 'capabilityId': row['capabilityId'],
+                'checkpoint': 'stage-a', 'scenario': scenario, 'capabilityId': capability,
                 'manifestSha256': ledger['manifestSha256'], 'allocationSha256': allocation_digest(row),
                 'obligationIds': [o['id'] for o in row['evidenceObligations']],
-                'expectedOutcomes': [o['description'] for o in row['evidenceObligations']],
-                'actualResult': 'pass' if all(c['result'] == 'pass' for c in checks) else 'fail',
-                'environment': {'platform': 'linux', 'osVersion': platform.platform(),
-                    'renderer': 'software' if backend == 'software' else 'accelerated',
-                    'architecture': platform.machine(),
-                    'serverVersion': row['conditions']['serverVersions'][0],
-                    'build': row['conditions']['builds'][0]},
-                'executable': artifact('tomenet', ROOT / 'src/tomenet-sv', ROOT),
-                'configuration': artifact('tomenet', config, ROOT),
-                'report': artifact('stage-a', result_path, output),
-                'dependencies': dependencies,
-                'runtimeCheck': measured_runtime(output, checks, 'scenario.stage-a.' + identifier)}
+                'expectedOutcomes': ['Stage A synthetic portion: ' + o['description'] for o in row['evidenceObligations']],
+                'actualResult': 'pass' if len(checks) == len(names) and all(c['result'] == 'pass' for c in checks) else 'fail',
+                'environment': environment, 'executable': executable, 'configuration': configuration,
+                'report': artifact('stage-a', result_path, output), 'dependencies': dependencies,
+                'hostProvenance': artifact('stage-a', output / 'host-provenance.json', output),
+                'runtimeCheck': runtime}
             row['evidenceIds'].append(record['id'])
             evidence['records'].append(record)
     for name, value in (('candidate-ledger.json', candidate), ('candidate-evidence.json', evidence)):
@@ -154,7 +161,6 @@ def main():
                   'Physical DPI/monitor transitions and physical 4K timing unverified.',
                   'Actual Windows 10/11 and Fedora41 shipping baseline unverified.',
                   'Synthetic peer only: no live login, complete gameplay or shipping archives.',
-                  'Complete evidence dependency closure absent; observations are not accepted evidence.',
                   'B–F capabilities remain pending; no stress/soak, recording or global memory ceiling gate.']}
 
     def save():
@@ -169,6 +175,7 @@ def main():
         if name.startswith('wine-'):
             runtime_path = 'Z:' + runtime_path.replace('/', '\\')
         env['SV_RUNTIME_REPORT'] = runtime_path
+        env['PYTHONDONTWRITEBYTECODE'] = '1'
         print('RUN', name, flush=True)
         with log.open('w') as stream:
             try:
@@ -192,6 +199,23 @@ def main():
         return code == 0
 
     python = [sys.executable, '-B']
+    overrides = [name for name in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'CPATH', 'C_INCLUDE_PATH',
+        'CPLUS_INCLUDE_PATH', 'LIBRARY_PATH', 'COMPILER_PATH', 'GCC_EXEC_PREFIX',
+        'CFLAGS', 'CPPFLAGS', 'LDFLAGS', 'MAKEFLAGS', 'PKG_CONFIG_PATH', 'PYTHONPATH',
+        'CC_LINUX', 'CC_MINGW', 'PKG_CONFIG_LINUX', 'PKG_CONFIG_MINGW', 'SV_CC', 'SV_PKG',
+        'PKG_CONFIG_LIBDIR', 'PKG_CONFIG_SYSROOT_DIR') if os.environ.get(name)]
+    if overrides:
+        report['limitations'].append('Unreviewed environment overrides: ' + ', '.join(overrides))
+        report['acceptance'] = 'blocked'
+        save()
+        return 1
+    try:
+        capture_host(output / 'host-provenance.json')
+    except (OSError, ValueError, KeyError) as error:
+        report['limitations'].append('Host dependency capture failed: ' + str(error))
+        report['acceptance'] = 'blocked'
+        save()
+        return 1
     legacy_path = ROOT / 'src/tomenet'
     legacy_before = digest(legacy_path) if legacy_path.exists() else None
     linux = run('build-linux', ['make', '-C', 'src', '-f', 'makefile.sv', 'tomenet-sv'])
@@ -220,7 +244,23 @@ def main():
     for suite in ('arch', 'message', 'request', 'lifecycle', 'runtime'):
         run(suite + '-headless', python + ['tests/sv_' + suite + '_checks.py'])
     run('runtime-producer', python + ['tests/sv_runtime_producer_checks.py'])
+    run('checkpoint-contract', python + ['tests/sv_checkpoint_checks.py'])
     run('legacy-hp', python + ['tests/sv_hp_checks.py', '--legacy-only'])
+    # Freeze dependency fingerprints before native observations, then compare at the gate.
+    scope = [('tomenet', 'src', 'source'), ('tomenet', 'tests', 'fixture'),
+             ('tomenet', 'tools', 'source'), ('tomenet', 'lib', 'resource'),
+             ('tomenet', 'docs/capabilities', 'source')]
+    roots = {'tomenet': ROOT}
+    if sdk_ready:
+        roots['mingw-sdk'] = sdk
+        scope.append(('mingw-sdk', '.', 'source'))
+    try:
+        audit_build_inputs(ROOT, sdk if sdk_ready else None, output)
+        dependencies = capture(roots, scope)
+        (output / 'dependencies.json').write_text(json.dumps(dependencies, indent=2) + '\n')
+    except (OSError, ValueError, KeyError) as error:
+        dependencies = []
+        report['limitations'].append('Dependency capture failed: ' + str(error))
     if linux:
         for backend in ('software', 'opengl'):
             for suite in NATIVE:
@@ -234,6 +274,8 @@ def main():
         run('wine-version', ['wine', '--version'], env=env)
         booted = run('wineboot', ['wineboot', '-u'], env=env)
         if staged_ok and booted:
+            dependencies += capture({'stage-a': output}, [('stage-a', 'wine-bin', 'resource')])
+            (output / 'dependencies.json').write_text(json.dumps(dependencies, indent=2) + '\n')
             report['wineStage'] = json.loads((staged / 'stage.json').read_text())
             for backend in ('software', 'direct3d'):
                 for suite in NATIVE:
@@ -270,20 +312,16 @@ def main():
         report['registry'] = {'status': 'unavailable'}
     report['stageAllocation'] = dict(Counter(row['acceptanceStage'] for row in ledger['coverage']))
     report['observations'] = []
-    suites = {'capability.status.read-hp': ('hp_checks',),
-              'capability.messages.read-occurrences': ('message_native',),
-              'capability.request.answer-key': ('request_native',),
-              'capability.request.cancel-key': ('request_native',)}
     claims = {row['capabilityId']: row for row in registry.get('nativeClaims', [])}
     for row in ledger['coverage']:
-        if row['capabilityId'] not in suites:
+        if row['capabilityId'] not in OUTCOMES:
             continue
-        names = suites[row['capabilityId']] + ('lifecycle_native', 'geometry_native', 'timing_native')
+        names = suites(row['capabilityId'])
         report['observations'].append({'capabilityId': row['capabilityId'],
             'allocationSha256': allocation_digest(row), 'obligations': row['evidenceObligations'],
             'checkerClaim': claims.get(row['capabilityId']),
             'checks': [c['name'] for c in report['checks'] if any(c['name'].endswith(n) for n in names)],
-            'scope': 'Partial synthetic observations; no accepted evidence record.'})
+            'scope': 'Limited Stage A checkpoint; no full capability acceptance.'})
     paths = [canonical / name for name in ('manifest.json', 'native-coverage.json', 'native-evidence.json',
              'reconciliation.json', 'inventories/index.json')]
     paths += [ROOT / 'src/tomenet-sv'] if linux else []
@@ -295,21 +333,28 @@ def main():
     paths += list((ROOT / 'tests').glob('sv_*.py')) + list((ROOT / 'tools').glob('*.py'))
     paths += [ROOT / 'src/makefile.sv']
     report['fingerprints'] = {str(path.relative_to(ROOT)): digest(path) for path in sorted(set(paths))}
-    report['fingerprintScope'] = 'Observation identity only; not complete transitive SDK/source dependency closure.'
-    write_candidates(output, ledger, report)
+    report['fingerprintScope'] = 'See dependencies.json and host-provenance.json for transitive input scope.'
+    if (output / 'host-provenance.json').exists():
+        write_candidates(output, ledger, report, dependencies)
     candidate_command = python + ['tools/validate_capabilities.py',
         '--manifest', str(canonical / 'manifest.json'),
         '--ledger', str(output / 'candidate-ledger.json'),
-        '--evidence', str(output / 'candidate-evidence.json'),
+        '--evidence', str(output / 'candidate-evidence.json'), '--checkpoint', 'stage-a',
         '--source-root', 'tomenet=' + str(ROOT), '--source-root', 'stage-a=' + str(output)]
+    if sdk_ready:
+        candidate_command += ['--source-root', 'mingw-sdk=' + str(sdk)]
     run('candidate-evidence-check', candidate_command)
-    report['limitations'].append('Candidate evidence checker rejection is a blocking result, not a passed negative test; canonical claims unchanged.')
+    try:
+        checked = json.loads((output / 'candidate-evidence-check.log').read_text())
+        report['checkpoint'] = checked.get('checkpoint', {'status': 'blocked'})
+    except (OSError, ValueError):
+        report['checkpoint'] = {'status': 'blocked'}
     report['finished'] = datetime.now(timezone.utc).isoformat()
     report['failedCommands'] = sum(c['result'] != 'pass' for c in report['checks'])
-    report['acceptance'] = 'blocked' if report['failedCommands'] else 'pending'
+    report['acceptance'] = 'blocked' if report['failedCommands'] or report['checkpoint']['status'] != 'passed' else 'pending'
     save()
     print('Stage A:', report['acceptance'], '; report:', output / 'report.json', flush=True)
-    return 1 if report['failedCommands'] else 2
+    return 1 if report['acceptance'] == 'blocked' else 2
 
 
 if __name__ == '__main__':
