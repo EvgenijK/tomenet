@@ -239,3 +239,9 @@ local snapshot/coverage CLI, atomic generations, conservative freshness, scoped
 prototype evidence and human approval provenance. Honest missing coverage is
 valid; no HTML claim supplies native acceptance. The actual sibling consumer was
 not synchronized; validation uses temporary local consumers.
+
+## Integrated Stage A gate — ticket 15
+
+[Stage A acceptance](../sv-stage-a-acceptance.md) provides the complete build,
+scenario, registry/evidence and local HTML commands, retained observations and
+explicit blockers. Passing registry allocation is not native acceptance.

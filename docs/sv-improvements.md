@@ -270,3 +270,25 @@ do not treat automatically collected paths as semantic acceptance.
 **Required checks:** header additions outside existing `.d` entries, changed SDKs
 and build switches, resource discovery changes, untracked files, missing roots,
 and unchanged Git HEAD; validate all generated artifacts through the production CLI.
+
+## Record runtime fallback absence before promoting Stage A observations
+
+**Status:** proposed separately; ticket 15 reports observations with pending claims.
+
+**Problem:** native scenarios currently print `fallback_routes=0` as a literal.
+The current binary has no terminal adapter, but that diagnostic is not the
+completed runtime counter required by the evidence contract. Promoting its log
+as accepted evidence would overstate the measured guarantee.
+
+**Affected code:** `src/client/sv/main.c`, `tests/sv/scenarios/*-scenario.c`,
+`tools/native_evidence.py`, `docs/capabilities/native-evidence.json`.
+
+**Proposal:** establish a production-owned scenario lifecycle/check record and
+instrument any future fallback transfer before entering the adapter. Export only
+bounded route metadata; pair it with reviewed dependency inventories (above).
+Keep existing observations pending until these evidence obligations are met.
+
+**Required checks:** completed native scenario with no entries, incomplete check,
+entry during child interaction/cancellation, session reset, registered and unknown
+routes, and exact executable/report/dependency fingerprints through the production
+evidence checker. No prompt or account data in runtime metadata.
