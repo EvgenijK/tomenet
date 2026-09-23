@@ -271,12 +271,15 @@ Human review under ticket 19 is still pending. No automatic approval was generat
 
 [Human review instructions](sv-human-review.md) describe the isolated launcher,
 manual fixture controls, actual display identity, explicit review record and
-full gate integration. No human approval has yet been received. Stage A and
-ticket 15 remain open; historical results above are not current-build approval.
+full gate integration. The user has explicitly approved the listed manual
+actions on the final Linux software build. Stage A and ticket 15 remain open
+for the retained Wine Direct3D timing failure.
 
 The [ticket 19 final gate](sv-human-review.md#current-result) supersedes prior
 build observations: **61/62 commands passed**, all eight scoped A outcomes
 covered with fresh evidence. The remaining automatic failure is Wine Direct3D
-first urgent submission **37.719 ms / 20 ms**. The manual review remains pending.
+first urgent submission **37.719 ms / 20 ms**. The manual review is now approved;
+the [supplemental assessment](acceptance/stage-a-human-assessment-2026-09-23.json)
+records that confirmation without changing the original command results.
 See the [current report](acceptance/stage-a-ticket-19-2026-09-23.json) and
 [archived evidence](acceptance/stage-a-ticket-19-2026-09-23.tar.gz).

@@ -142,8 +142,9 @@ The manual software launch uses the same Linux executable and isolated profile
 Linux 6.18.49-1-MANJARO / Wayland. Initial native output is 1357×1018,
 logical 1024.151×768.302, display scale 1.325. These are launch diagnostics,
 not a claim of human readability/focus approval or physical 4K testing.
-No positive human review has yet been received; ticket 19, ticket 15 and Stage A
-remain open for **human review and the Direct3D timing failure**.
+The user has now explicitly confirmed all listed manual actions without remarks;
+the software human review is **approved**. Ticket 19, ticket 15 and Stage A
+remain open for **the Direct3D timing failure**.
 
 ## Standards
 
@@ -164,19 +165,28 @@ Review totals: Standards **0**, Spec **0** outstanding implementation findings.
 
 ## Human feedback received — 2026-09-23
 
-The user wrote: **«выглядит нормально»** (“looks normal”). This is recorded as
-positive general visual feedback, not an assertion that all behavioral steps
-were performed. A follow-up asks whether ordinary answer, Escape, real desktop
-focus, resize/minimize/restore, F6, m and F5 all worked. No reply to that follow-up
-has yet been received, so individual action results and overall decision remain
-pending. Reviewer identity is the user in this Codex conversation; no name or
-additional physical-monitor description was supplied.
+The user first wrote **«выглядит нормально»** (“looks normal”), then explicitly
+answered **«Да, все перечисленные действия работают без замечаний»** to the
+checklist covering ordinary answer, Escape, real desktop focus,
+resize/minimize/restore, F6 surface reconstruction, m macro and F5 restart.
+The review is now **approved** for the observed Linux/Wayland software build.
+The no-remarks response is a general subjective assessment of operation and
+response, not a measured visible-latency threshold or approval of other displays
+and backends. Reviewer identity is the user in this Codex conversation; no name
+or additional physical-monitor description was supplied.
 
 The manual process exited successfully. Its executable and host dependency
-identity match the fresh gate. The [manual review archive](acceptance/stage-a-human-review-2026-09-23.tar.gz)
-contains the exact feedback record, native diagnostics and host provenance.
-Archive SHA-256: `268cc6ed4c036277789c20fd0104e0621b8a2fc4b2d022627bdc0e5102822982`.
-Extract into an empty directory and pass its `review.json` to the review checker;
-expected status is **pending**, exit **2**. The native log is supporting diagnostic
-evidence, not a replacement for the human's confirmation of actions or perceived
-response. The separate Wine Direct3D timing blocker still prevents Stage A closure.
+identity match the gate. The [manual review archive](acceptance/stage-a-human-review-2026-09-23.tar.gz)
+contains both exact feedback messages, completed action results, native diagnostics,
+host provenance and the successful review/evidence rechecks. The initial full
+command report is preserved unchanged: its pending human status predates this
+confirmation. The [supplemental assessment](acceptance/stage-a-human-assessment-2026-09-23.json)
+binds this review to that report and candidate evidence; overall acceptance remains
+**blocked**, solely by the retained Direct3D timing failure.
+
+Extract the manual archive into an empty directory and pass its `review.json`
+to the review checker with the original candidate evidence; expected review
+status is **approved**, exit **0**. This does not grant Stage A acceptance.
+
+Updated manual archive SHA-256:
+`a1bb7a684bd52694040aa7738b23e550f888f2d5bc1dcd70b4c59c8eaf122f72`.
