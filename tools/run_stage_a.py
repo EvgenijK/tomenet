@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run the existing Stage A checks and retain observations, never certify a platform.
 
-Exit 1: a command failed; exit 2: automation passed but acceptance is pending.
+Exit 0: scoped Stage A accepted with current explicit human review.
+Exit 1: a command/review failed; exit 2: automation passed, human review pending.
 Every invocation needs a new output directory so old successes cannot leak in.
 """
 import argparse
@@ -23,6 +24,7 @@ from native_evidence import allocation_digest
 from stage_a_checkpoint import OUTCOMES, suites, environments
 from evidence_dependencies import capture
 from stage_a_provenance import capture_host, audit_build_inputs
+from stage_a_review import check_review
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE = ('hp_checks', 'arch_native', 'message_native', 'request_native',
@@ -150,6 +152,7 @@ def main():
     parser.add_argument('--mingw-sdk', type=Path,
                         help='prepare pinned SDK here and stage the fresh build for Wine')
     parser.add_argument('--sdk-downloads', type=Path, help='verified archive cache for the pinned SDK')
+    parser.add_argument('--human-review', type=Path, help='explicit human record from stage_a_review.py launch')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -157,7 +160,6 @@ def main():
               'host': platform.platform(), 'python': sys.version,
               'checks': [], 'acceptance': 'pending', 'siblingSynchronized': False,
               'limitations': [
-                  'Human native review pending; no automatic approval.',
                   'Physical DPI/monitor transitions and physical 4K timing unverified.',
                   'Actual Windows 10/11 and Fedora41 shipping baseline unverified.',
                   'Synthetic peer only: no live login, complete gameplay or shipping archives.',
@@ -245,6 +247,7 @@ def main():
         run(suite + '-headless', python + ['tests/sv_' + suite + '_checks.py'])
     run('runtime-producer', python + ['tests/sv_runtime_producer_checks.py'])
     run('checkpoint-contract', python + ['tests/sv_checkpoint_checks.py'])
+    run('human-review-contract', python + ['tests/sv_review_checks.py'])
     run('legacy-hp', python + ['tests/sv_hp_checks.py', '--legacy-only'])
     # Freeze dependency fingerprints before native observations, then compare at the gate.
     scope = [('tomenet', 'src', 'source'), ('tomenet', 'tests', 'fixture'),
@@ -351,10 +354,19 @@ def main():
         report['checkpoint'] = {'status': 'blocked'}
     report['finished'] = datetime.now(timezone.utc).isoformat()
     report['failedCommands'] = sum(c['result'] != 'pass' for c in report['checks'])
-    report['acceptance'] = 'blocked' if report['failedCommands'] or report['checkpoint']['status'] != 'passed' else 'pending'
+    report['humanReview'] = check_review(args.human_review, output / 'candidate-evidence.json')
+    report['acceptance'] = acceptance_status(report)
     save()
     print('Stage A:', report['acceptance'], '; report:', output / 'report.json', flush=True)
-    return 1 if report['acceptance'] == 'blocked' else 2
+    return {'accepted': 0, 'blocked': 1, 'pending': 2}[report['acceptance']]
+
+
+def acceptance_status(report):
+    if (any(c['result'] != 'pass' or c['returncode'] != 0 for c in report['checks']) or
+            report['checkpoint']['status'] != 'passed' or
+            report['humanReview']['status'] in ('invalid', 'rejected')):
+        return 'blocked'
+    return 'accepted' if report['humanReview']['status'] == 'approved' else 'pending'
 
 
 if __name__ == '__main__':

@@ -1461,7 +1461,7 @@
     },
     {
       "path": "src/client/sv/main.c",
-      "sha256": "a173edaaac14e56a220484b0d52c65ba7628a7519ea70afa6d5fe297f118acb8"
+      "sha256": "3252e5e28fb415f14a4462420e64981773af164f5b6c5d7dfcc503821b7f661e"
     },
     {
       "path": "src/client/sv/protocol/hp-update.h",

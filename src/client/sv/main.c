@@ -59,7 +59,8 @@ static void usage(void)
 {
     puts("TomeNET SV Stage A shell (no live session)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
-         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
+         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
+         "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
          "Product defaults: desktop fullscreen, UI scale 100%, Cascadia Mono.\n"
          "TOMENET_PATH selects library resources, otherwise adjacent lib/.\n"
          "TOMENET_SDL3_USER_PATH may select an already marked synthetic root.\n"
@@ -74,6 +75,7 @@ int main(int argc, char **argv)
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
     bool synthetic = false, windowed = false, quit = false;
+    bool review = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
@@ -81,6 +83,7 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--help")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
+        if (!strcmp(argv[i], "--review")) { review = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
         if (!strcmp(argv[i], "--lifecycle-check")) { lifecycle_check = true; continue; }
@@ -138,6 +141,7 @@ int main(int argc, char **argv)
     SDL_Window **windows = SDL_GetWindows(&count);
     SDL_free(windows);
     if (count != 1) { SDL_SetError("SV requires exactly one system window"); goto done; }
+    float review_scale = 0;
     int pw, ph;
     if (!SDL_GetRenderOutputSize(renderer, &pw, &ph)) goto done;
     printf("SV startup build=%s synthetic=true windows=%d video=%s renderer=%s fullscreen=%s ui_scale=100 output=%dx%d display_scale=%.3f\n",
@@ -170,6 +174,7 @@ int main(int argc, char **argv)
     if (arch_check) {
         if (!checked_scenario(app, &ui, SV_SCENARIO_ARCH)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
+    if (review && sv_app_bind_macro(app, 'm', 'Y', SV_MACRO_NORMAL) != SV_OK) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
     sv_native_input_begin(&input, app);
@@ -177,6 +182,17 @@ int main(int argc, char **argv)
     while (!quit) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            /* Manual fixture controls supply lifecycle inputs, never replies. */
+            if (review && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                    (event.key.key == SDLK_F5 || event.key.key == SDLK_F6)) {
+                if (event.key.key == SDLK_F5) {
+                    if (!sv_synthetic_start(app)) goto done;
+                    sv_native_input_begin(&input, app);
+                    puts("SV review session restarted");
+                } else puts("SV review surfaces rebuilt");
+                sv_ui_rebuild(&ui);
+                continue;
+            }
             if (sv_ui_event(&ui, &event)) continue;
             if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
@@ -193,6 +209,25 @@ int main(int argc, char **argv)
         SvMessage delivered;
         while (sv_app_take_message(app, sv_app_view(app).generation, &delivered) == SV_OK) {}
         if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
+        if (review) {
+            int w, h;
+            if (!SDL_GetRenderOutputSize(renderer, &w, &h)) goto done;
+            float scale = sv_ui_scale(&ui);
+            if (!submitted || w != pw || h != ph || scale != review_scale) {
+                printf("SV review build=%s video=%s renderer=%s output=%dx%d logical=%.3fx%.3f display_scale=%.3f\n",
+                    SV_BUILD_ID, SDL_GetCurrentVideoDriver(), SDL_GetRendererName(renderer),
+                    w, h, w / scale, h / scale, scale);
+                pw = w; ph = h; review_scale = scale;
+            }
+            unsigned char bytes[32];
+            SvOutput reply = sv_app_take_output(app, sv_app_view(app).generation, bytes, sizeof(bytes));
+            if (reply.result == SV_OK) {
+                printf("SV review serialized reply=");
+                for (size_t i = 0; i < reply.size; ++i) printf("%02x", bytes[i]);
+                puts("");
+            }
+            fflush(stdout);
+        }
         ++submitted;
         if (frames && submitted >= frames) break;
         SDL_Delay(16);

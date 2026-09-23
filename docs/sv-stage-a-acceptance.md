@@ -30,7 +30,7 @@ Each command has a separate full log and a report entry with argv, exit code,
 duration and SHA-256. `report.json` is refreshed after each check so interrupted
 runs retain their completed observations. A command failure yields exit 1;
 automation passing with outstanding human/platform/evidence gates yields exit 2.
-There is deliberately no automatic Stage A acceptance exit 0. The output directory
+Ticket 19 adds exit 0 only when fresh automation and an explicit current human review both pass; see [human review](sv-human-review.md). The output directory
 contains the temporary HTML consumer; the sibling project is not synchronized.
 
 The pinned SDK and automatic Wine staging are documented in
@@ -266,3 +266,17 @@ The [final command report](acceptance/stage-a-ticket-18-2026-09-23.json) records
 additional Direct3D timing check still fails (27.085 ms / 20 ms), so the full
 runner remains blocked; this failure is not hidden by the passed scoped gate.
 Human review under ticket 19 is still pending. No automatic approval was generated.
+
+## Ticket 19 manual review preparation
+
+[Human review instructions](sv-human-review.md) describe the isolated launcher,
+manual fixture controls, actual display identity, explicit review record and
+full gate integration. No human approval has yet been received. Stage A and
+ticket 15 remain open; historical results above are not current-build approval.
+
+The [ticket 19 final gate](sv-human-review.md#current-result) supersedes prior
+build observations: **61/62 commands passed**, all eight scoped A outcomes
+covered with fresh evidence. The remaining automatic failure is Wine Direct3D
+first urgent submission **37.719 ms / 20 ms**. The manual review remains pending.
+See the [current report](acceptance/stage-a-ticket-19-2026-09-23.json) and
+[archived evidence](acceptance/stage-a-ticket-19-2026-09-23.tar.gz).

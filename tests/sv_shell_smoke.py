@@ -60,6 +60,9 @@ with tempfile.TemporaryDirectory(prefix="tomenet-sv-smoke-") as temporary:
     before = snapshot(root)
     run(base + ["--fixture-window", "1024x768"], contains=["fullscreen=false", "submitted_frames=3"])
     assert snapshot(root) == before, "Synthetic shell wrote settings"
+    run(base + ["--fixture-window", "1024x768", "--review"],
+        contains=["SV review build=", "logical=", "display_scale=", "submitted_frames=3"])
+    assert snapshot(root) == before, "Manual review wrote settings"
     # Failed renderer startup must be nonzero with no terminal substitution.
     run(base, success=False, contains=["no terminal fallback"], extra_env={"SDL_RENDER_DRIVER": "sv-nonexistent-renderer"})
     # User overlay first; a damaged user resource recovers to the bundled TTF.
