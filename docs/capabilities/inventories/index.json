@@ -1425,11 +1425,15 @@
     },
     {
       "path": "src/client/sv/app.c",
-      "sha256": "a0373fab62e71b8a0e0333f541cb047d9f2409cb58d8238595f2bf42c6e26cb8"
+      "sha256": "6b14d41eed6fcf5eeecd5675f55cd10545312cac81fa8a8603f58d263022915e"
     },
     {
       "path": "src/client/sv/app.h",
-      "sha256": "767ee2fcda86b73a76a8eb30ba7cdd6ccae332691eab8641c218ae4d75a2d7ef"
+      "sha256": "555ee817c4d3d5f7c82abc55080e2860d63cc99d91baeb715159bd91195be564"
+    },
+    {
+      "path": "src/client/sv/diagnostics/runtime.h",
+      "sha256": "d3ab29a5260e54ff214b66dc5b26717243dcfc1abf95a0a664c444f2c4616274"
     },
     {
       "path": "src/client/sv/diagnostics/timing.c",
@@ -1457,7 +1461,7 @@
     },
     {
       "path": "src/client/sv/main.c",
-      "sha256": "adc69f9eca157a0753d5370bafb3884e249b006bf5b6af77e68dd3408a72f8ce"
+      "sha256": "a173edaaac14e56a220484b0d52c65ba7628a7519ea70afa6d5fe297f118acb8"
     },
     {
       "path": "src/client/sv/protocol/hp-update.h",

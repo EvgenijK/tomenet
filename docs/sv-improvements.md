@@ -273,7 +273,7 @@ and unchanged Git HEAD; validate all generated artifacts through the production 
 
 ## Record runtime fallback absence before promoting Stage A observations
 
-**Status:** proposed separately; ticket 15 reports observations with pending claims.
+**Status:** implemented in Stage A ticket 17; see [runtime checks](sv-runtime-checks.md). Overall acceptance remains pending ticket 18 evidence closure.
 
 **Problem:** native scenarios currently print `fallback_routes=0` as a literal.
 The current binary has no terminal adapter, but that diagnostic is not the
@@ -295,7 +295,7 @@ evidence checker. No prompt or account data in runtime metadata.
 
 ## Profile Wine Direct3D first prompt submission
 
-**Status:** proposed separately; ticket 16 retains the failed timing gate.
+**Status:** proposed separately; tickets 16 and 17 retain the failed timing gate (ticket 17: 36.486 ms / 20 ms, runtime check incomplete).
 
 **Problem:** on the ticket 16 i686 Wine environment, the first prompt submission
 through SDL's actual `direct3d` renderer repeatedly took 30–42 ms against the

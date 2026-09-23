@@ -31,6 +31,51 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+SCENARIOS = {'hp_checks': 'hp', 'message_native': 'message', 'request_native': 'request',
+             'lifecycle_native': 'lifecycle', 'geometry_native': 'geometry', 'timing_native': 'timing'}
+
+
+def measured_runtime(output, checks, scenario):
+    """Compose required production scopes, never infer completion from a log/exit."""
+    result = {'scenario': scenario, 'completed': bool(checks), 'fallbackEntries': 0, 'routes': []}
+    for check in checks:
+        suite = next((s for s in SCENARIOS if check['name'].endswith('-' + s)), None)
+        try:
+            rows = [json.loads(line) for line in (output / check['runtimeReport']).read_text().splitlines()]
+            expected = ['scenario.stage-a.' + SCENARIOS[suite]]
+            if suite == 'timing_native':
+                expected.append('scenario.stage-a.timing-delayed')
+            if [r['scenario'] for r in rows] != expected:
+                raise ValueError('Missing, duplicate or unexpected scope')
+            for row in rows:
+                if (set(row) != {'scenario', 'completed', 'fallbackEntries', 'routes'} or
+                    type(row['completed']) is not bool or type(row['fallbackEntries']) is not int or
+                    not 0 <= row['fallbackEntries'] <= 0xffffffff or not isinstance(row['routes'], list)):
+                    raise ValueError('Invalid runtime fields')
+                total = 0
+                for route in row['routes']:
+                    if (set(route) != {'routeId', 'reason', 'count'} or route['routeId'] != 'route.terminal-handoff' or
+                        route['reason'] != 'future-flow' or type(route['count']) is not int or
+                        not 1 <= route['count'] <= 0xffffffff):
+                        raise ValueError('Invalid route')
+                    total += route['count']
+                if total != row['fallbackEntries'] or len(row['routes']) > 1:
+                    raise ValueError('Inconsistent total')
+                # Include negative-control entries too; its intentional incomplete
+                # result cannot complete (or substitute for) the positive scope.
+                result['fallbackEntries'] += total
+                result['routes'].extend(row['routes'])
+            result['completed'] &= rows[0]['completed'] and check['result'] == 'pass'
+            if suite == 'timing_native' and rows[1]['completed']:
+                result['completed'] = False
+        except (OSError, ValueError, KeyError, TypeError):
+            result['completed'] = False
+    if result['routes']:
+        result['routes'] = [{'routeId': 'route.terminal-handoff', 'reason': 'future-flow',
+                             'count': sum(r['count'] for r in result['routes'])}]
+    return result
+
+
 def write_candidates(output, ledger, report):
     """Bind real observations to checker inputs, explicitly lacking acceptance proof."""
     candidate = copy.deepcopy(ledger)
@@ -68,6 +113,7 @@ def write_candidates(output, ledger, report):
             result_path = output / 'observations' / (identifier + '.json')
             result_path.write_text(json.dumps({'capabilityId': row['capabilityId'],
                 'build': build, 'checks': checks, 'logs': logs,
+                'runtimeCheck': measured_runtime(output, checks, 'scenario.stage-a.' + identifier),
                 'scope': 'Partial synthetic observations; delayed timing run is a negative control.'}, indent=2) + '\n')
             record = {'id': 'evidence.stage-a.' + identifier, 'kind': 'native-runtime',
                 'scenario': 'scenario.stage-a.' + identifier, 'capabilityId': row['capabilityId'],
@@ -84,8 +130,7 @@ def write_candidates(output, ledger, report):
                 'configuration': artifact('tomenet', config, ROOT),
                 'report': artifact('stage-a', result_path, output),
                 'dependencies': dependencies,
-                'runtimeCheck': {'scenario': 'scenario.stage-a.' + identifier,
-                    'completed': False, 'fallbackEntries': 0, 'routes': []}}
+                'runtimeCheck': measured_runtime(output, checks, 'scenario.stage-a.' + identifier)}
             row['evidenceIds'].append(record['id'])
             evidence['records'].append(record)
     for name, value in (('candidate-ledger.json', candidate), ('candidate-evidence.json', evidence)):
@@ -109,7 +154,7 @@ def main():
                   'Physical DPI/monitor transitions and physical 4K timing unverified.',
                   'Actual Windows 10/11 and Fedora41 shipping baseline unverified.',
                   'Synthetic peer only: no live login, complete gameplay or shipping archives.',
-                  'Runtime fallback counters and complete evidence dependency closure absent; observations are not accepted evidence.',
+                  'Complete evidence dependency closure absent; observations are not accepted evidence.',
                   'B–F capabilities remain pending; no stress/soak, recording or global memory ceiling gate.']}
 
     def save():
@@ -118,6 +163,12 @@ def main():
     def run(name, command, timeout=900, env=None):
         start = time.monotonic()
         log = output / (name + '.log')
+        runtime = output / (name + '.runtime.jsonl')
+        env = dict(os.environ if env is None else env)
+        runtime_path = str(runtime)
+        if name.startswith('wine-'):
+            runtime_path = 'Z:' + runtime_path.replace('/', '\\')
+        env['SV_RUNTIME_REPORT'] = runtime_path
         print('RUN', name, flush=True)
         with log.open('w') as stream:
             try:
@@ -135,7 +186,7 @@ def main():
         report['checks'].append({'name': name, 'command': list(map(str, command)),
             'returncode': code, 'result': 'pass' if code == 0 else 'fail',
             'seconds': round(time.monotonic() - start, 3),
-            'log': log.name, 'sha256': digest(log)})
+            'log': log.name, 'sha256': digest(log), 'runtimeReport': runtime.name})
         save()
         print('PASS' if code == 0 else 'FAIL', name, flush=True)
         return code == 0
@@ -166,8 +217,9 @@ def main():
     run('legacy-x11', ['make', '-C', 'src', '-f', 'makefile', '-W', 'client/main-x11.o', 'tomenet'])
     for suite in DATA:
         run(suite, python + ['tests/sv_' + suite + '_checks.py'])
-    for suite in ('arch', 'message', 'request', 'lifecycle'):
+    for suite in ('arch', 'message', 'request', 'lifecycle', 'runtime'):
         run(suite + '-headless', python + ['tests/sv_' + suite + '_checks.py'])
+    run('runtime-producer', python + ['tests/sv_runtime_producer_checks.py'])
     run('legacy-hp', python + ['tests/sv_hp_checks.py', '--legacy-only'])
     if linux:
         for backend in ('software', 'opengl'):

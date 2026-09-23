@@ -22,6 +22,39 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct { SvUi *ui; SvRuntimeScenario scenario; } ScenarioContext;
+static int run_scenario(SvApp *app, void *context)
+{
+    ScenarioContext *check = context;
+    switch (check->scenario) {
+    case SV_SCENARIO_HP: return sv_hp_scenario(app, sv_scenario_frame, check->ui);
+    case SV_SCENARIO_MESSAGE: return sv_message_scenario(app, check->ui);
+    case SV_SCENARIO_REQUEST: return sv_request_scenario(app, check->ui);
+    case SV_SCENARIO_LIFECYCLE: return sv_lifecycle_scenario(app, check->ui);
+    case SV_SCENARIO_GEOMETRY: return sv_geometry_scenario(app, check->ui);
+    case SV_SCENARIO_TIMING: return sv_timing_scenario(app, check->ui, 0);
+    case SV_SCENARIO_TIMING_DELAYED: return sv_timing_scenario(app, check->ui, 1);
+    case SV_SCENARIO_ARCH: return sv_arch_scenario(app, sv_scenario_frame, check->ui);
+    default: return 0;
+    }
+}
+static int checked_scenario(SvApp *app, SvUi *ui, SvRuntimeScenario scenario)
+{
+    ScenarioContext context = {ui, scenario};
+    SvRuntimeCheck check = sv_app_check_run(app, scenario, run_scenario, &context);
+    const char *path = SDL_getenv("SV_RUNTIME_REPORT");
+    if (path && *path) {
+        FILE *stream = fopen(path, "a");
+        if (!stream) return SDL_SetError("Cannot open runtime report");
+        int written = sv_runtime_write(stream, check);
+        if (fclose(stream) || !written) return SDL_SetError("Cannot write runtime report");
+    }
+    /* Human-readable only: the producer consumes the dedicated JSONL artifact. */
+    printf("SV measured scenario=%d completed=%d fallback_routes=%u\n",
+        (int)scenario, check.completed, (unsigned)check.fallback_entries);
+    return check.completed && !check.fallback_entries;
+}
+
 static void usage(void)
 {
     puts("TomeNET SV Stage A shell (no live session)\n"
@@ -122,20 +155,20 @@ int main(int argc, char **argv)
            sizeof(void *) == 4 ? "i686" : "amd64", (unsigned)(sizeof(void *) * 8),
            SDL_GetVersion(), TTF_Version(), ft_major, ft_minor, ft_patch);
     printf("SV profile identity=TomenetGame/tomenet override=%s settings=%s/sv/tomenet.cfg writes=none\n", root, root);
-    printf("SV text requested=CascadiaMono-Regular.ttf effective=%s profile=sv-shell-ascii-v1 fallback_routes=0\n", sv_font_resource(font));
+    printf("SV text requested=CascadiaMono-Regular.ttf effective=%s profile=sv-shell-ascii-v1\n", sv_font_resource(font));
     app = sv_app_create(sv_synthetic_alert_sink());
     if (!app) goto done;
     SvUi ui = {.window = window, .renderer = renderer, .font = font, .font_revision = 1};
-    if (timing_check && !sv_timing_scenario(app, &ui, timing_delay)) goto done;
-    if (geometry_check && !sv_geometry_scenario(app, &ui)) goto done;
-    if (lifecycle_check && !sv_lifecycle_scenario(app, &ui)) goto done;
-    if (request_check && !sv_request_scenario(app, &ui)) goto done;
-    if (message_check && !sv_message_scenario(app, &ui)) goto done;
+    if (timing_check && !checked_scenario(app, &ui, timing_delay ? SV_SCENARIO_TIMING_DELAYED : SV_SCENARIO_TIMING)) goto done;
+    if (geometry_check && !checked_scenario(app, &ui, SV_SCENARIO_GEOMETRY)) goto done;
+    if (lifecycle_check && !checked_scenario(app, &ui, SV_SCENARIO_LIFECYCLE)) goto done;
+    if (request_check && !checked_scenario(app, &ui, SV_SCENARIO_REQUEST)) goto done;
+    if (message_check && !checked_scenario(app, &ui, SV_SCENARIO_MESSAGE)) goto done;
     if (hp_check) {
-        if (!sv_hp_scenario(app, sv_scenario_frame, &ui)) goto done;
+        if (!checked_scenario(app, &ui, SV_SCENARIO_HP)) goto done;
     }
     if (arch_check) {
-        if (!sv_arch_scenario(app, sv_scenario_frame, &ui)) goto done;
+        if (!checked_scenario(app, &ui, SV_SCENARIO_ARCH)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
@@ -165,7 +198,7 @@ int main(int argc, char **argv)
         SDL_Delay(16);
     }
     if (frames && submitted < frames) { SDL_SetError("Smoke closed before requested frame count"); goto done; }
-    printf("SV exit submitted_frames=%d session_active=%d fallback_routes=0\n", submitted, sv_app_view(app).active);
+    printf("SV exit submitted_frames=%d session_active=%d\n", submitted, sv_app_view(app).active);
     result = 0;
 done:
     if (result) fprintf(stderr, "SV startup/render failed: %s; no terminal fallback\n", SDL_GetError());

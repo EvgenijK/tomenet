@@ -130,6 +130,22 @@ class EvidenceChecks(unittest.TestCase):
         record['runtimeCheck']['fallbackEntries'] = 1
         self.reject('evidence-fallback')
 
+    def test_named_fallback_route_still_rejects(self):
+        record = self.candidate()
+        record['runtimeCheck'].update(fallbackEntries=1, routes=[{
+            'routeId': 'route.terminal-handoff', 'reason': 'future-flow', 'count': 1}])
+        self.reject('evidence-fallback')
+
+    def test_completed_runtime_only_removes_runtime_blocker(self):
+        record = self.candidate()
+        record['runtimeCheck']['completed'] = False
+        before = self.reject('evidence-runtime')
+        record['runtimeCheck']['completed'] = True
+        after = self.reject('evidence-coverage')
+        self.assertNotIn('evidence-runtime', {e['code'] for e in after['errors']})
+        self.assertEqual({e['code'] for e in before['errors']} - {'evidence-runtime'},
+                         {e['code'] for e in after['errors']})
+
     def test_runtime_trace_rejects_payloads(self):
         record = self.candidate()
         record['runtimeCheck']['routes'] = [{'routeId': 'route.future', 'reason': 'future-flow',

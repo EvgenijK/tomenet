@@ -69,6 +69,6 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
         }
     }
     CHECK(sv_app_close(app) == SV_OK);
-    printf("SV request checks passed cases=%u submitted_frames=%u fallback_routes=0\n", cases, cases * 3);
+    printf("SV request checks passed cases=%u submitted_frames=%u\n", cases, cases * 3);
     return 1;
 }

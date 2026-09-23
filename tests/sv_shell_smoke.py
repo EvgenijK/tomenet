@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix="tomenet-sv-smoke-") as temporary:
     run(["--synthetic"], success=False, contains=["Refusing existing unmarked profile"])
     root = work / "scenario"
     base = ["--synthetic", "--profile-root", native(root), "--library", native(REPO / "lib"), "--frames", "3"]
-    run(base, contains=["windows=1", "fullscreen=true", "ui_scale=100", "submitted_frames=3", "fallback_routes=0", f"renderer={args.backend}",
+    run(base, contains=["windows=1", "fullscreen=true", "ui_scale=100", "submitted_frames=3", f"renderer={args.backend}",
                         "SV runtime architecture=" + ("i686" if args.wine else "amd64"),
                         " sdl=", " sdl_ttf=", " freetype="])
     # Existing settings are deliberately not loaded/saved by the synthetic shell.

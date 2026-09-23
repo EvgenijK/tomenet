@@ -91,7 +91,7 @@ int sv_hp_scenario(SvApp *s, SvScenarioFrame submit, void *context)
         CHECK(sv_app_view(s).status.revision == 2);
         CHECK(sv_app_close(s) == SV_OK);
     }
-    printf("SV HP checks passed cases=%u submitted_frames=%u layouts=4.7.0.2.0.1,4.7.0.2.0.2 fallback_routes=0\n", count, count * 2);
+    printf("SV HP checks passed cases=%u submitted_frames=%u layouts=4.7.0.2.0.1,4.7.0.2.0.2\n", count, count * 2);
     return 1;
 failed:
     sv_app_close(s);

@@ -114,6 +114,6 @@ int sv_lifecycle_scenario(SvApp *app, SvUi *ui)
     CHECK(sv_scenario_frame(ui, sv_app_view(app)));
     CHECK(sv_app_take_output(app, fresh, output, sizeof(output)).result == SV_WAITING);
     CHECK(sv_app_close(app) == SV_OK);
-    puts("SV lifecycle checks passed transitions=6 submitted_frames=10 replies=2 fallback_routes=0");
+    puts("SV lifecycle checks passed transitions=6 submitted_frames=10 replies=2");
     return 1;
 }
