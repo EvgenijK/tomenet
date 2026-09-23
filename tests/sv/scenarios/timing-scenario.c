@@ -15,8 +15,7 @@ int sv_timing_scenario(SvApp *app, SvUi *ui, int delayed)
     SvTiming timing = {0};
     CHECK(sv_app_open(app, version) == SV_OK);
     uint64_t gen = sv_app_view(app).generation;
-    /* Renderer/window initialization is outside decode/input latency. */
-    CHECK(sv_ui_submit(ui, sv_app_view(app)));
+    /* No test-only renderer preparation: main completed production startup. */
     CHECK(sv_app_observe(app, sv_timing_observer(&timing)) == SV_OK);
     CHECK(sv_app_receive(app, gen, request, sizeof(request)) == SV_OK);
     CHECK(sv_app_step(app, 16).processed == 1);

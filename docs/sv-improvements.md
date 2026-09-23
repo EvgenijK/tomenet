@@ -295,7 +295,7 @@ evidence checker. No prompt or account data in runtime metadata.
 
 ## Profile Wine Direct3D first prompt submission
 
-**Status:** proposed separately; tickets 16 and 17 retain the failed timing gate (ticket 17: 36.486 ms / 20 ms, runtime check incomplete).
+**Status:** implemented in [Stage A ticket 20](sv-direct3d-startup.md). Production startup completes deferred first-present work before session input. Final full gate 62/62 passed; current human review approved.
 
 **Problem:** on the ticket 16 i686 Wine environment, the first prompt submission
 through SDL's actual `direct3d` renderer repeatedly took 30–42 ms against the
@@ -333,3 +333,21 @@ identity explicit and retain the same content/directory freshness checks.
 **Required checks:** compiler/SDK/runtime and Python dependency changes, package
 updates, added search inputs, missing roots, and the production checkpoint CLI;
 no inferred Windows acceptance or automatic human approval.
+
+## Publish SV executable while a prior instance is running
+
+**Status:** deferred; observed during ticket 20 acceptance, outside its renderer fix.
+
+**Problem:** `shell` copies over `src/tomenet-sv`; a concurrently running manual
+review holds that inode open, so Linux reports `Text file busy` and fails the build.
+
+**Affected code:** `src/makefile.sv` shell target; coordination of
+`tools/stage_a_review.py` and `tools/run_stage_a.py`.
+
+**Proposal:** consider atomic publication of the linked executable, or explicitly
+sequence build/gate before launching a review. Preserve the review's exact binary
+identity and avoid silently certifying a replacement build.
+
+**Required checks:** build with an existing SV process running, verify old/new
+process executable identities, failure cleanup, isolated platform outputs and
+review invalidation when executable contents change.

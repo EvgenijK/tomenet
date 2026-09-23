@@ -20,6 +20,8 @@ typedef struct {
 } SvUi;
 /* Draw only. The shell owns submission, allowing test-only readback before present.
  * Replace font => increment font_revision; reset this object for a new App lifetime. */
+/* Complete initial renderer work before admitting session decode/input. */
+bool sv_ui_start(SvUi *ui, SvAppView initial_view);
 bool sv_ui_draw(SvUi *ui, SvAppView view);
 bool sv_ui_submit(SvUi *ui, SvAppView view);
 float sv_ui_scale(const SvUi *ui);

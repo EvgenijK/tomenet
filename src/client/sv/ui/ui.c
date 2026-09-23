@@ -144,3 +144,19 @@ bool sv_ui_submit(SvUi *ui, SvAppView view)
 {
     return sv_ui_draw(ui, view) && SDL_RenderPresent(ui->renderer);
 }
+
+bool sv_ui_start(SvUi *ui, SvAppView initial_view)
+{
+    /* Wine Direct3D defers work from its first Present until the next resource
+     * upload. Submitting a frame alone therefore leaves initialization charged
+     * to the first session update. Complete both the first presentation and a
+     * draw into the replacement backbuffer before admitting any session input.
+     * Readback is deliberately startup-only, after draw and before Present as
+     * required by SDL; its pixels are discarded, not interpreted as UI state. */
+    if (!sv_ui_submit(ui, initial_view) || !sv_ui_draw(ui, initial_view)) return false;
+    SDL_Rect sample = {0, 0, 1, 1};
+    SDL_Surface *ready = SDL_RenderReadPixels(ui->renderer, &sample);
+    if (!ready) return false;
+    SDL_DestroySurface(ready);
+    return SDL_RenderPresent(ui->renderer);
+}

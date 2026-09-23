@@ -1,6 +1,11 @@
 # Stage A acceptance — ticket 15
 
-The complete gate is **not accepted**. This checkpoint runs the production
+The scoped Stage A gate is **accepted** as of ticket 20 (2026-09-23):
+**62/62 commands passed**, fresh production checkpoint passed, and current human
+review approved. See [final results, hashes and retained evidence](sv-direct3d-startup.md).
+Earlier failed runs below remain historical observations.
+
+This checkpoint runs the production
 synthetic foundation and registry tooling, and records missing evidence explicitly.
 It does not establish live login, gameplay completeness, shipping archives or
 actual Windows acceptance. The canonical native claims remain pending.

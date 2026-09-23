@@ -163,6 +163,7 @@ int main(int argc, char **argv)
     app = sv_app_create(sv_synthetic_alert_sink());
     if (!app) goto done;
     SvUi ui = {.window = window, .renderer = renderer, .font = font, .font_revision = 1};
+    if (!sv_ui_start(&ui, sv_app_view(app))) goto done;
     if (timing_check && !checked_scenario(app, &ui, timing_delay ? SV_SCENARIO_TIMING_DELAYED : SV_SCENARIO_TIMING)) goto done;
     if (geometry_check && !checked_scenario(app, &ui, SV_SCENARIO_GEOMETRY)) goto done;
     if (lifecycle_check && !checked_scenario(app, &ui, SV_SCENARIO_LIFECYCLE)) goto done;

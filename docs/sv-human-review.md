@@ -4,6 +4,16 @@ Stage A remains **pending human review** until a person explicitly approves the
 final build and the complete automated runner passes. Screenshots, injected
 focus events, elapsed time and successful tests are not human approval.
 
+## Current approval — ticket 20
+
+The user explicitly confirmed **«Все действия проверены, замечаний нет; условия
+прежние»** for the new build's complete checklist. The manual process exited
+successfully; the final full gate passed **62/62 commands**, with fresh matching
+executable/resources/host identity and **accepted** scoped Stage A. See
+[final report and archived review](sv-direct3d-startup.md#final-acceptance).
+The ticket 19 review and failed timing results below are retained as history.
+Build before launching review; close the review process before a gate rebuild.
+
 ## Launch and restart
 
 Build the synthetic client, then launch on the actual desktop:
@@ -96,7 +106,7 @@ Required virtual geometry is 1024×768/100%, 1920×1080/100%, 3840×2160/200%, a
 1024×768 logical at 125% and 150%, with TTF and PCF. A second physical 4K monitor
 is not required. Record only physical conditions actually observed by the person.
 
-## Current result
+## Historical ticket 19 result
 
 The full gate in `/tmp/sv19-final-evidence` finished **61/62 commands passing**,
 exit **1 / blocked** on 2026-09-23. The fresh production checkpoint passed:

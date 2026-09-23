@@ -70,6 +70,17 @@ cancel dispatch by 25 ms. It must fail the real submission gate and preserve the
 first HP deadline. The runner expects this failure; it never treats the delayed
 run as performance acceptance. Controlled fixture clocks are not timing evidence.
 
+## Production startup boundary (ticket 20)
+
+`main` calls `sv_ui_start` before opening a session or receiving any updates.
+It submits the initial shell, draws the replacement backbuffer and performs one
+startup-only readback before presenting it. This completes deferred first-present
+work that Wine Direct3D otherwise charged to the next texture upload. The timing
+scenario performs no separate warmup. Its first request is still sample 1, and
+all decode/input-to-successful-present intervals and budgets above are unchanged.
+See [diagnosis and fresh acceptance](sv-direct3d-startup.md) for retained failures,
+independent process/prefix checks and the final gate.
+
 ## Repeatable commands
 
 Run from the repository root, with a working graphical session:

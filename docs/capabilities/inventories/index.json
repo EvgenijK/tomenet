@@ -1461,7 +1461,7 @@
     },
     {
       "path": "src/client/sv/main.c",
-      "sha256": "3252e5e28fb415f14a4462420e64981773af164f5b6c5d7dfcc503821b7f661e"
+      "sha256": "a38fee35bb38211dc25a62cf254b3f88f35dafed2683a1cffa0509db07043a3b"
     },
     {
       "path": "src/client/sv/protocol/hp-update.h",
@@ -1537,11 +1537,11 @@
     },
     {
       "path": "src/client/sv/ui/ui.c",
-      "sha256": "87e4e39d5200ba797cb4a23b344d75a86e3ec61eddd4fc74893409f63a7ea40a"
+      "sha256": "8cee577dad13358b6d1db1e80059201f1efd5b44daccf173cefd210c241ae2aa"
     },
     {
       "path": "src/client/sv/ui/ui.h",
-      "sha256": "eb97d20491337dc0b52f7367ae0ac249856632f3c43bcbf0bb05ab3a7803a313"
+      "sha256": "7d80c2a89d46c2227c1c1bbb7ddc3db91c68ccad3805016da452fb765a987a23"
     },
     {
       "path": "src/client/tomenet4.ico",
