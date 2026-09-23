@@ -8,12 +8,13 @@ actual Windows acceptance. The canonical native claims remain pending.
 ## Reproduce
 
 From the repository root, with the compiler/SDL dependencies described in
-[the shell build instructions](sv-shell.md), Python 3.10+ and a desktop session:
+[the shell build instructions](sv-shell.md), Python 3.12+ and a desktop session:
 
 ```sh
 python3 -m venv /tmp/sv15-venv
 /tmp/sv15-venv/bin/pip install -r tools/requirements-capabilities.txt
-/tmp/sv15-venv/bin/python -B tools/run_stage_a.py --output /tmp/sv-stage-a-new-run
+/tmp/sv15-venv/bin/python -B tools/run_stage_a.py --output /tmp/sv-stage-a-new-run \
+  --mingw-sdk /tmp/sv-sdk-current
 ```
 
 Use a **new** output directory each time. The runner builds Linux amd64 and
@@ -32,15 +33,17 @@ automation passing with outstanding human/platform/evidence gates yields exit 2.
 There is deliberately no automatic Stage A acceptance exit 0. The output directory
 contains the temporary HTML consumer; the sibling project is not synchronized.
 
-To prepare cross dependencies and Wine DLLs, follow the exact temporary SDK
-recipe in [sv-shell.md](sv-shell.md#reproduce-the-temporary-mingw-sdk-used-for-verification).
-Pass its pkg-config wrapper via `PKG_CONFIG_MINGW` and use
-`--wine-binary /tmp/tomenet-sv-wine-bin/tomenet-sv.exe` after staging. The runner
-requires identical staged/current PE hashes and creates a fresh Wine prefix.
-Wine software scenarios are intermediate observations only. Accelerated Wine
-can be run separately using the individual `--wine --backend` commands from
-[geometry/timing](sv-geometry-timing.md#repeatable-commands); record actual backend,
-configuration and limitations. Windows 10/11 checkpoints remain later obligations.
+The pinned SDK and automatic Wine staging are documented in
+[sv-mingw.md](sv-mingw.md). Use a fresh output directory:
+
+```sh
+python3 -B tools/run_stage_a.py --output /tmp/sv-stage-a-current \
+  --mingw-sdk /tmp/sv-sdk-current
+```
+
+The runner builds and stages the current PE with its DLL closure, checks matching
+hashes, creates a fresh Wine prefix and runs software/direct3d scenarios. Wine
+is intermediate evidence; actual Windows 10/11 checkpoints remain B/E/F.
 
 ## What each observation establishes
 
@@ -144,12 +147,12 @@ observed behavior and perceived response. A screenshot cannot approve these
 flows. Visible-response targets are urgent 50 ms, interactive 100 ms and background
 250 ms when implemented; submission measurements do not measure human perception.
 
-## Verification — 2026-09-23
+## Original ticket 15 verification — 2026-09-23
 
 The final run returned **1 / blocked**: **33 of 35 commands passed**. The two
 nonpassing commands were MinGW build (missing SDL3/SDL3_ttf/FreeType cross SDK)
 and candidate evidence validation (8 incomplete runtime checks and 24 unknown
-scoped dependency inventories). These are remaining acceptance blockers.
+scoped dependency inventories). These were acceptance blockers at that run; the platform update below supersedes the missing SDK result.
 Wine was not run. Human review, physical DPI/monitor movement, physical 4K timing,
 Fedora41-class shipping and actual Windows checks remain unverified.
 
@@ -224,3 +227,28 @@ checker. Local pending candidates now run through it, preserving rejection of
 missing runtime/dependency checks. Final review has **0 residual implementation
 findings**; the acceptance blockers above remain open. Review used the explicit
 local ticket and parent spec; no remote tracker setup was required.
+
+
+## Ticket 16 platform update — 2026-09-23
+
+The missing MinGW SDK blocker is resolved by the
+[pinned SDK and automatic fresh-PE staging](sv-mingw.md). Final run:
+**56/58 commands passed**, exit **1 / blocked**. Linux amd64 and MinGW i686 builds
+and configuration isolation passed; the staged PE matches the current build hash.
+All **9 Wine software** invocations passed, including exact request replies,
+lifecycle, TTF/PCF geometry and submission timing. Wine 11.17 used `winex11.drv`,
+SDL `windows`, actual `software` and `direct3d` renderers.
+
+Direct3D passed **8/9** invocations but failed the first prompt submission budget:
+**41.398 ms versus 20 ms**. This is an available renderer with a failed timing
+gate. Candidate evidence also remains rejected for the same 8 incomplete runtime
+checks and 24 dependency inventories assigned to tickets 17–18. Canonical registry
+validation passes after re-auditing the diagnostic-only `main.c` fingerprint.
+Neither failure is waived; Stage A and actual Windows acceptance remain open.
+
+The [current report](acceptance/stage-a-ticket-16-2026-09-23.json) and
+[full logs/metadata archive](acceptance/stage-a-ticket-16-2026-09-23.tar.gz)
+supersede the earlier missing-SDK/no-Wine platform observations. Exact binary,
+SDK and archive hashes, runtime versions, limitations and review results are in
+[the ticket 16 verification record](sv-mingw.md#verification--2026-09-23).
+Repeat on the final build after native changes in ticket 17.

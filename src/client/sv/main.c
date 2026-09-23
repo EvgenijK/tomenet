@@ -2,6 +2,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 #include "ui/font.h"
 #include "session/session.h"
 #include "ui/status.h"
@@ -108,6 +110,17 @@ int main(int argc, char **argv)
     printf("SV startup build=%s synthetic=true windows=%d video=%s renderer=%s fullscreen=%s ui_scale=100 output=%dx%d display_scale=%.3f\n",
            SV_BUILD_ID, count, SDL_GetCurrentVideoDriver(), SDL_GetRendererName(renderer),
            SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN ? "true" : "false", pw, ph, SDL_GetWindowDisplayScale(window));
+    FT_Library version_library;
+    int ft_major, ft_minor, ft_patch;
+    if (FT_Init_FreeType(&version_library)) {
+        SDL_SetError("Cannot query direct FreeType runtime");
+        goto done;
+    }
+    FT_Library_Version(version_library, &ft_major, &ft_minor, &ft_patch);
+    FT_Done_FreeType(version_library);
+    printf("SV runtime architecture=%s pointer_bits=%u sdl=%d sdl_ttf=%d freetype=%d.%d.%d\n",
+           sizeof(void *) == 4 ? "i686" : "amd64", (unsigned)(sizeof(void *) * 8),
+           SDL_GetVersion(), TTF_Version(), ft_major, ft_minor, ft_patch);
     printf("SV profile identity=TomenetGame/tomenet override=%s settings=%s/sv/tomenet.cfg writes=none\n", root, root);
     printf("SV text requested=CascadiaMono-Regular.ttf effective=%s profile=sv-shell-ascii-v1 fallback_routes=0\n", sv_font_resource(font));
     app = sv_app_create(sv_synthetic_alert_sink());

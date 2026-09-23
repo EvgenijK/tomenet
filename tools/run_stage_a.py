@@ -95,8 +95,9 @@ def write_candidates(output, ledger, report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--wine-binary', type=Path,
-                        help='optional staged PE with DLLs; Wine is never Windows acceptance')
+    parser.add_argument('--mingw-sdk', type=Path,
+                        help='prepare pinned SDK here and stage the fresh build for Wine')
+    parser.add_argument('--sdk-downloads', type=Path, help='verified archive cache for the pinned SDK')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -140,8 +141,27 @@ def main():
         return code == 0
 
     python = [sys.executable, '-B']
+    legacy_path = ROOT / 'src/tomenet'
+    legacy_before = digest(legacy_path) if legacy_path.exists() else None
     linux = run('build-linux', ['make', '-C', 'src', '-f', 'makefile.sv', 'tomenet-sv'])
-    mingw = run('build-mingw', ['make', '-C', 'src', '-f', 'makefile.sv', 'tomenet-sv.exe'])
+    sdk_ready = False
+    cross = ['make', '-C', 'src', '-f', 'makefile.sv', 'tomenet-sv.exe']
+    if args.mingw_sdk:
+        sdk = args.mingw_sdk.resolve()
+        prepare = python + ['tools/prepare_sv_mingw.py', '--sdk', str(sdk)]
+        if args.sdk_downloads:
+            prepare += ['--downloads', str(args.sdk_downloads.resolve())]
+        sdk_ready = run('prepare-mingw-sdk', prepare)
+        cross += ['PKG_CONFIG_MINGW=' + str(sdk / 'pkg-config-i686')]
+    mingw = run('build-mingw', cross) if not args.mingw_sdk or sdk_ready else False
+    if linux and mingw:
+        run('build-formats', ['file', 'src/tomenet-sv', 'src/tomenet-sv.exe'])
+    legacy_after = digest(legacy_path) if legacy_path.exists() else None
+    report['legacyUnchangedBySvBuild'] = legacy_before == legacy_after
+    if legacy_before != legacy_after:
+        run('sv-build-isolation', python + ['-c', 'raise SystemExit("SV overwrote legacy binary")'])
+    if sdk_ready:
+        report['mingwSdk'] = json.loads((sdk / 'sdk.json').read_text())
     run('legacy-sdl3', ['make', '-C', 'src', '-f', 'makefile.sdl3', '-W', 'client/main-sdl3.linux.o', 'tomenet'])
     run('legacy-x11', ['make', '-C', 'src', '-f', 'makefile', '-W', 'client/main-x11.o', 'tomenet'])
     for suite in DATA:
@@ -154,19 +174,25 @@ def main():
             for suite in NATIVE:
                 run(backend + '-' + suite, python + ['tests/sv_' + suite + '.py', '--backend', backend])
             run(backend + '-geometry-pcf', python + ['tests/sv_geometry_native.py', '--backend', backend, '--pcf'])
-    if mingw and args.wine_binary:
-        # Isolate Wine configuration as well as every scenario's SV profile.
+    if mingw and sdk_ready:
+        staged = output / 'wine-bin'
+        staged_ok = run('stage-wine', python + ['tools/prepare_sv_mingw.py', '--sdk', str(sdk),
+            '--stage', str(staged), '--binary', str(ROOT / 'src/tomenet-sv.exe')])
         env = dict(os.environ, WINEPREFIX=str(output / 'wine-prefix'), WINEDEBUG='-all')
-        if digest(args.wine_binary) != digest(ROOT / 'src/tomenet-sv.exe'):
-            report['limitations'].append('Wine staged executable differs from current MinGW build; not run.')
-        else:
-            for suite in NATIVE:
-                run('wine-' + suite, python + ['tests/sv_' + suite + '.py', '--backend', 'software',
-                    '--wine', '--binary', str(args.wine_binary.resolve())], env=env)
-            run('wine-geometry-pcf', python + ['tests/sv_geometry_native.py', '--backend', 'software',
-                '--pcf', '--wine', '--binary', str(args.wine_binary.resolve())], env=env)
+        run('wine-version', ['wine', '--version'], env=env)
+        booted = run('wineboot', ['wineboot', '-u'], env=env)
+        if staged_ok and booted:
+            report['wineStage'] = json.loads((staged / 'stage.json').read_text())
+            for backend in ('software', 'direct3d'):
+                for suite in NATIVE:
+                    run('wine-' + backend + '-' + suite,
+                        python + ['tests/sv_' + suite + '.py', '--backend', backend,
+                        '--wine', '--binary', str(staged / 'tomenet-sv.exe')], env=env)
+                run('wine-' + backend + '-geometry-pcf', python + ['tests/sv_geometry_native.py',
+                    '--backend', backend, '--pcf', '--wine',
+                    '--binary', str(staged / 'tomenet-sv.exe')], env=env)
     else:
-        report['limitations'].append('Wine unverified: needs a successful MinGW build and --wine-binary with staged DLLs.')
+        report['limitations'].append('Wine unverified: requires successful --mingw-sdk preparation/build.')
 
     canonical = ROOT / 'docs/capabilities'
     command = python + ['tools/validate_capabilities.py', '--manifest', str(canonical / 'manifest.json'),

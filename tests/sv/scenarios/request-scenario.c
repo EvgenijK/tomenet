@@ -46,6 +46,10 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
                 SDL_Event input = {0};
                 if (key) { input.type = SDL_EVENT_TEXT_INPUT; input.text.text = "Y"; }
                 else { input.type = SDL_EVENT_KEY_DOWN; input.key.key = SDLK_ESCAPE; }
+                /* The event belongs to this session, not SDL's last pump cycle.
+                 * SDL 3.4.0 on Wine can stamp zero-time pushed keys with that
+                 * older cycle time, which the production epoch guard rejects. */
+                input.common.timestamp = SDL_GetTicksNS();
                 CHECK(SDL_PushEvent(&input));
                 SDL_Event event;
                 bool handled = false;

@@ -292,3 +292,26 @@ Keep existing observations pending until these evidence obligations are met.
 entry during child interaction/cancellation, session reset, registered and unknown
 routes, and exact executable/report/dependency fingerprints through the production
 evidence checker. No prompt or account data in runtime metadata.
+
+## Profile Wine Direct3D first prompt submission
+
+**Status:** proposed separately; ticket 16 retains the failed timing gate.
+
+**Problem:** on the ticket 16 i686 Wine environment, the first prompt submission
+through SDL's actual `direct3d` renderer repeatedly took 30–42 ms against the
+20 ms urgent budget. Software passed. Other Direct3D production scenarios ran;
+this is a measured latency failure, not renderer unavailability.
+
+**Affected code:** `src/client/sv/ui/font.c`, `src/client/sv/ui/ui.c`,
+`src/client/sv/diagnostics/timing.c`, `tests/sv/scenarios/timing-scenario.c`;
+Wine/SDL/graphics driver interaction may also contribute.
+
+**Proposal:** profile the first changed prompt frame under Wine Direct3D, separate
+font/texture creation, draw submission and driver work, then optimize the measured
+cause within SV. Do not raise the budget, hide cold work in the scenario or treat
+Wine as actual Windows certification.
+
+**Required checks:** retain unmodified urgent/interactive budgets and the delayed
+negative control; repeat fresh-prefix TTF/PCF and software/accelerated scenarios,
+verify exact replies and event preservation, then measure on actual Windows 10/11.
+See `docs/sv-mingw.md` for reproducible environment and archived observations.
