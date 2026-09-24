@@ -15,4 +15,5 @@ size_t sv_protocol_pending(const SvProtocol *protocol);
 size_t sv_protocol_capacity(const SvProtocol *protocol);
 SvOutput sv_protocol_output(SvProtocol *protocol, void *bytes, size_t capacity);
 SvResult sv_protocol_key_reply(SvProtocol *protocol, int id, unsigned char key);
+SvResult sv_protocol_raw_key(SvProtocol *protocol, unsigned char key);
 #endif

@@ -119,3 +119,9 @@ SvResult sv_protocol_key_reply(SvProtocol *p, int id, unsigned char key)
     if (p->output.size - p->output.len < 6) return SV_OUTPUT_OVERFLOW;
     return sv_send_key_reply(&p->output, id, key) > 0 ? SV_OK : SV_OUTPUT_OVERFLOW;
 }
+
+SvResult sv_protocol_raw_key(SvProtocol *p, unsigned char key)
+{
+    if (p->output.size - p->output.len < 2) return SV_OUTPUT_OVERFLOW;
+    return Packet_printf(&p->output, "%c%c", PKT_RAW_KEY, key) > 0 ? SV_OK : SV_OUTPUT_OVERFLOW;
+}

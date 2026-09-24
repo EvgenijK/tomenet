@@ -18,6 +18,7 @@
 #include "arch-scenario.h"
 #include "native-frame.h"
 #include "synthetic.h"
+#include "endpoint-run.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,7 +58,8 @@ static int checked_scenario(SvApp *app, SvUi *ui, SvRuntimeScenario scenario)
 
 static void usage(void)
 {
-    puts("TomeNET SV Stage A shell (no live session)\n"
+    puts("TomeNET SV native shell\n"
+         "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
@@ -70,19 +72,22 @@ static void usage(void)
 int main(int argc, char **argv)
 {
     const char *root = NULL, *library = NULL;
+    const char *server = NULL, *server_list = NULL, *metaserver = NULL;
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
-    bool synthetic = false, windowed = false, quit = false;
+    bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
     bool review = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
+    unsigned port = 18348;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--help")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
+        if (!strcmp(argv[i], "--endpoint")) { endpoint_mode = true; continue; }
         if (!strcmp(argv[i], "--review")) { review = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
@@ -95,6 +100,15 @@ int main(int argc, char **argv)
         if (i + 1 >= argc) { usage(); return 2; }
         if (!strcmp(argv[i], "--profile-root")) root = argv[++i];
         else if (!strcmp(argv[i], "--library")) library = argv[++i];
+        else if (!strcmp(argv[i], "--server")) server = argv[++i];
+        else if (!strcmp(argv[i], "--server-list")) server_list = argv[++i];
+        else if (!strcmp(argv[i], "--metaserver")) metaserver = argv[++i];
+        else if (!strcmp(argv[i], "--port")) {
+            char *end;
+            unsigned long value = strtoul(argv[++i],&end,10);
+            if (*end || value < 1 || value > 65535) return 2;
+            port = (unsigned)value;
+        }
         else if (!strcmp(argv[i], "--fixture-window")) {
             char extra;
             if (sscanf(argv[++i], "%dx%d%c", &width, &height, &extra) != 2 ||
@@ -107,6 +121,14 @@ int main(int argc, char **argv)
             frames = (int)n;
         } else { usage(); return 2; }
     }
+    if (endpoint_mode) {
+        if (synthetic || review || hp_check || arch_check || message_check || request_check ||
+            lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
+        return sv_endpoint_run((SvEndpointOptions){.root = root, .library = library,
+            .server = server, .server_list = server_list, .width = width, .height = height,
+            .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver});
+    }
+    if (server || server_list || metaserver || port != 18348) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");

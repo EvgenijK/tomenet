@@ -1,4 +1,5 @@
 #include "app.h"
+#include "input/native-input.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -60,6 +61,38 @@ static void split_cancel_abort(void)
 int main(void)
 {
     split_cancel_abort();
+    {
+        SvApp *raw = sv_app_create((SvAlertSink){0});
+        const int version[] = {4,7,0,2,0,2};
+        assert(raw && sv_app_open(raw,version) == SV_OK);
+        uint64_t generation = sv_app_view(raw).generation;
+        SvNativeInput native;
+        sv_native_input_begin(&native, raw);
+        SDL_Event event = {0};
+        event.type = SDL_EVENT_TEXT_INPUT;
+        event.text.text = "^";
+        assert(sv_native_input(&native,raw,&event));
+        unsigned char bytes[4];
+        SvOutput output = sv_app_take_output(raw,generation,bytes,sizeof(bytes));
+        const unsigned char expected[] = {156,'^'};
+        assert(output.result == SV_OK && output.size == sizeof(expected));
+        assert(!memcmp(bytes,expected,sizeof(expected)));
+        const unsigned char f1[] = {31,'_','F','F','B','E',13};
+        assert(sv_app_bind_physical(raw,f1,sizeof(f1),'^',SV_MACRO_NORMAL) == SV_OK);
+        event = (SDL_Event){0};
+        event.type = SDL_EVENT_KEY_DOWN;
+        event.key.key = SDLK_F1;
+        event.key.scancode = SDL_SCANCODE_F1;
+        assert(sv_native_input(&native,raw,&event));
+        output = sv_app_take_output(raw,generation,bytes,sizeof(bytes));
+        assert(output.result == SV_OK && output.size == sizeof(expected));
+        assert(!memcmp(bytes,expected,sizeof(expected)));
+        assert(sv_app_raw_key(raw,generation,27) == SV_INVALID);
+        assert(sv_app_raw_key(raw,generation,'-') == SV_INVALID);
+        assert(sv_app_raw_key(raw,generation,13) == SV_INVALID);
+        assert(sv_app_take_output(raw,generation,bytes,sizeof(bytes)).result == SV_WAITING);
+        assert(sv_app_destroy(raw) == SV_OK);
+    }
     const int version[] = {4,7,0,2,0,2};
     const unsigned char request[] = {184,0x12,0x34,0x56,0x78,'K','e','y','?',0};
     SvApp *app = sv_app_create((SvAlertSink){0});
@@ -71,12 +104,21 @@ int main(void)
     assert(view.request.pending && view.request.id == 0x12345678);
     assert(!strcmp((const char *)view.request.prompt, "Key?"));
     assert(view.context == SV_CONTEXT_KEY_REQUEST);
-    assert(sv_app_key(app, gen, view.request.sequence, 'Y') == SV_OK);
+    const unsigned char up[] = {31,'_','F','F','5','2',13};
+    assert(sv_app_bind_physical(app,up,sizeof(up),'Y',SV_MACRO_NORMAL) == SV_OK);
+    SvNativeInput native;
+    sv_native_input_begin(&native, app);
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_UP;
+    event.key.scancode = SDL_SCANCODE_UP;
+    assert(sv_native_input(&native,app,&event));
     unsigned char output[16];
     SvOutput reply = sv_app_take_output(app, gen, output, sizeof(output));
     const unsigned char expected[] = {184,0x12,0x34,0x56,0x78,'Y'};
     assert(reply.result == SV_OK && reply.size == sizeof(expected));
     assert(!memcmp(output, expected, sizeof(expected)));
+    assert(sv_app_view(app).context == SV_CONTEXT_GAME);
     assert(!sv_app_view(app).request.pending);
     assert(sv_app_view(app).context == SV_CONTEXT_GAME);
     /* Unterminated fixed-size prompt must not publish a truncated request. */

@@ -161,10 +161,41 @@ SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned
     if (result == SV_OK) publish(app, SV_PRESENT_INPUT, started, sequence, !reply.cancelled);
     return result;
 }
+SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (app->view.context != SV_CONTEXT_GAME || app->view.request.pending) return SV_BUSY;
+    if (!key || key == 27 || key == '-' || key == ' ' || key == 13 || key == 10) return SV_INVALID;
+    result = sv_protocol_raw_key(app->protocol, key);
+    if (result == SV_OUTPUT_OVERFLOW) fail_session(app, result);
+    return result;
+}
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind)
 {
     if (app->busy) return SV_BUSY;
     return sv_input_bind(&app->bindings, trigger, action, kind);
+}
+SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
+                              unsigned char action, SvMacroKind kind)
+{
+    if (app->busy) return SV_BUSY;
+    return sv_input_bind_physical(&app->bindings, bytes, size, action, kind);
+}
+SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *bytes, size_t size)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    unsigned char key;
+    bool prompt = app->view.request.pending;
+    result = sv_input_physical(&app->bindings, bytes, size, prompt, &key);
+    if (result != SV_OK) return result;
+    if (prompt) {
+        /* The request owner receives exactly one resolved byte; a macro's
+         * action is not matched again as a fresh trigger. */
+        return sv_app_key(app, generation, app->view.request.sequence, key);
+    }
+    return sv_app_raw_key(app, generation, key);
 }
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {

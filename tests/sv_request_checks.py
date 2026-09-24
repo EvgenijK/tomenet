@@ -6,16 +6,17 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+SDL_FLAGS = subprocess.check_output(['pkg-config', '--cflags', '--libs', 'sdl3'], text=True).split()
 with tempfile.TemporaryDirectory(prefix='sv-requests-') as temp:
     binary = Path(temp) / 'checks'
     sources = ['tests/sv/requests.c']
     sources += ['src/client/sv/' + name + '.c' for name in
-                ('ui/message-text', 'input/input', 'session/alerts', 'app', 'protocol/protocol', 'result', 'session/session', 'ui/status', 'protocol/version')]
+                ('ui/message-text', 'input/input', 'input/native-input', 'input/physical', 'session/alerts', 'app', 'protocol/protocol', 'result', 'session/session', 'ui/status', 'protocol/version')]
     sources += ['src/temporary/sv/peer.c']
     sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
     subprocess.run([os.environ.get('CC', 'clang'), '-std=c99', '-D_DEFAULT_SOURCE', '-DCLIENT=',
                     '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-non-prototype',
                     '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections',
                     '-Isrc/client/sv', '-O1', '-g', '-fsanitize=address,undefined',
-                    *sources, '-o', str(binary)], cwd=ROOT, check=True)
+                    *sources, *SDL_FLAGS, '-o', str(binary)], cwd=ROOT, check=True)
     subprocess.run([str(binary)], cwd=ROOT, check=True)

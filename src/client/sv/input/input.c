@@ -1,4 +1,5 @@
 #include "input/input.h"
+#include <string.h>
 static int supported(unsigned char key)
 {
     return (key >= 32 && key < 127) || key == 8 || key == 9 || key == 13 || key == 27 ||
@@ -14,6 +15,43 @@ SvResult sv_input_bind(SvInputBindings *bindings, unsigned char trigger,
         return SV_INVALID;
     bindings->keys[trigger] = (SvMacro){action, kind};
     return SV_OK;
+}
+SvResult sv_input_bind_physical(SvInputBindings *bindings, const unsigned char *bytes,
+                                size_t size, unsigned char action, SvMacroKind kind)
+{
+    if (!bindings || !bytes || !size || size > SV_PHYSICAL_BYTES || !supported(action) ||
+        action == '`' || kind < SV_MACRO_NORMAL || kind > SV_MACRO_COMMAND) return SV_INVALID;
+    for (size_t i = 0; i < bindings->physical_count; ++i) {
+        SvPhysicalBinding *binding = &bindings->physical[i];
+        if (binding->size != size || memcmp(binding->bytes, bytes, size)) continue;
+        binding->action = action;
+        binding->kind = kind;
+        return SV_OK;
+    }
+    if (bindings->physical_count == SV_PHYSICAL_BINDINGS) return SV_INPUT_OVERFLOW;
+    SvPhysicalBinding *binding = &bindings->physical[bindings->physical_count++];
+    memcpy(binding->bytes, bytes, size);
+    binding->size = size;
+    binding->action = action;
+    binding->kind = kind;
+    return SV_OK;
+}
+SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char *bytes,
+                           size_t size, bool prompt, unsigned char *key)
+{
+    if (!bindings || !bytes || !size || size > SV_PHYSICAL_BYTES || !key) return SV_INVALID;
+    /* A physical trigger is matched as one event. Its interior bytes cannot
+     * leak into the gameplay packet stream on a failed macro match. */
+    for (size_t i = bindings->physical_count; i; --i) {
+        const SvPhysicalBinding *binding = &bindings->physical[i - 1];
+        if (binding->size != size || memcmp(binding->bytes, bytes, size)) continue;
+        if (prompt && binding->kind == SV_MACRO_COMMAND) break;
+        *key = binding->action;
+        return SV_OK;
+    }
+    if (size != 1) return SV_WAITING;
+    *key = bytes[0];
+    return supported(*key) ? SV_OK : SV_INVALID;
 }
 SvResult sv_input_accept(SvInputRouter *router, const SvInputBindings *bindings,
                          SvKeyRequest request, uint64_t sequence, unsigned char key)

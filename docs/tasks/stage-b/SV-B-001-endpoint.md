@@ -1,6 +1,6 @@
 # SV-B-001 — Выбор сервера и редактирование адреса
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: implementation-ready для следующих B-задач на Linux; полное acceptance pending до поздних integration checks и платформенного matrix. [Evidence текущей реализации](../../sv-b001-evidence.md).
 
 ## Пользовательский результат
 

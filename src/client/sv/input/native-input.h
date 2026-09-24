@@ -2,7 +2,7 @@
 #define SV_NATIVE_INPUT_H
 #include <SDL3/SDL.h>
 #include "app.h"
-typedef struct { uint64_t generation, since_ns; } SvNativeInput;
+typedef struct { uint64_t generation, since_ns; SDL_Keymod latch; } SvNativeInput;
 /* Call immediately after session creation, before polling SDL input. Old events
  * retain SDL timestamps and cannot be rebound to the replacement session. */
 void sv_native_input_begin(SvNativeInput *input, SvApp *app);

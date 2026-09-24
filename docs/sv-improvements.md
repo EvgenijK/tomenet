@@ -351,3 +351,21 @@ identity and avoid silently certifying a replacement build.
 **Required checks:** build with an existing SV process running, verify old/new
 process executable identities, failure cleanup, isolated platform outputs and
 review invalidation when executable contents change.
+
+## Read complete legacy metaserver feed
+
+**Status:** proposed separately; not part of SV-B-001 legacy changes.
+
+**Problem:** `meta_read_and_close()` reads at most one available TCP chunk before
+closing the socket. A metaserver response split across TCP reads can reach Lua
+as an incomplete XML feed even when it is below the 80192-byte limit.
+
+**Affected code:** `src/client/c-birth.c:meta_read_and_close`,
+`lib/scpt/meta.lua:meta_display`.
+
+**Proposal:** read a bounded complete response before parsing while retaining
+the legacy timeout and error behavior; keep this change separate from SV.
+
+**Required checks:** split feed at every boundary, full/over-limit response,
+timeout and close during transfer, malformed XML, unchanged server ordering
+and protocol metadata on Linux and Windows.
