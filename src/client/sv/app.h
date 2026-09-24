@@ -5,6 +5,7 @@
 #include "input/input.h"
 #include "diagnostics/runtime.h"
 #include "protocol/protocol.h"
+#include "ui/flush-policy.h"
 typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;
@@ -38,16 +39,20 @@ typedef struct {
 } SvPresentationObserver;
 SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer);
 typedef struct { size_t processed, pending_bytes; SvResult result; } SvStep;
-typedef struct { int disable_flush, thin_down_flush; } SvFlushOptions;
 /* All entry points run on the owner thread. Views are copies. */
 SvApp *sv_app_create(SvAlertSink sink);
 SvResult sv_app_destroy(SvApp *app);
 SvResult sv_app_open(SvApp *app, const int version[6]);
 SvResult sv_app_close(SvApp *app);
+SvResult sv_app_close_reason(SvApp *app, SvResult reason);
 SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention attention);
 SvResult sv_app_set_flush_options(SvApp *app, SvFlushOptions options);
 SvResult sv_app_frame(SvApp *app, uint64_t generation, uint64_t now_ms);
 SvAppView sv_app_view(const SvApp *app);
+SvResult sv_app_set_character_setup(SvApp *app, uint64_t generation,
+                                    const SvContactSetup *setup);
+/* Borrowed for this generation; the session owns the server-supplied data. */
+const SvContactSetup *sv_app_character_setup(const SvApp *app, uint64_t generation);
 SvResult sv_app_receive(SvApp *app, uint64_t generation, const void *bytes, size_t size);
 /* Completion from an external producer, delivered on the owner thread.
  * BACKPRESSURE/BUSY retain input for retry. All other outcomes consume and zero it.
@@ -65,7 +70,11 @@ size_t sv_app_receive_capacity(const SvApp *app);
 SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
 /* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
 SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
-SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation, unsigned char *command);
+/* A macro interaction registers as the owner before waiting; stale owners cannot drain it. */
+SvResult sv_app_begin_confirmation(SvApp *app, uint64_t generation, uint64_t *owner);
+SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation,
+                                  uint64_t owner, unsigned char *command);
+SvResult sv_app_end_confirmation(SvApp *app, uint64_t generation, uint64_t owner);
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
 /* Caller invokes this only for an unmapped gameplay command. Reserved local
  * no-op keys are rejected and cannot become server packets. */

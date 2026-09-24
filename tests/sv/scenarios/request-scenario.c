@@ -45,7 +45,8 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
             } else {
                 SDL_Event input = {0};
                 if (key) { input.type = SDL_EVENT_TEXT_INPUT; input.text.text = "Y"; }
-                else { input.type = SDL_EVENT_KEY_DOWN; input.key.key = SDLK_ESCAPE; }
+                else { input.type = SDL_EVENT_KEY_DOWN; input.key.key = SDLK_ESCAPE;
+                       input.key.scancode = SDL_SCANCODE_ESCAPE; }
                 /* The event belongs to this session, not SDL's last pump cycle.
                  * SDL 3.4.0 on Wine can stamp zero-time pushed keys with that
                  * older cycle time, which the production epoch guard rejects. */
@@ -55,7 +56,8 @@ int sv_request_scenario(SvApp *app, SvUi *ui)
                 bool handled = false;
                 while (SDL_PollEvent(&event)) if (sv_native_input(&native, app, &event)) handled = true;
                 CHECK(handled);
-                CHECK(sv_app_dispatch_input(app, 16).dispatched == 1);
+                /* Text input queues a byte; physical Escape resolves the prompt now. */
+                CHECK(sv_app_dispatch_input(app, 16).dispatched == (key ? 1u : 0u));
             }
             const unsigned char expected[] = {184,0x12,0x34,0x56,0x78,key};
             SvOutput reply = sv_app_take_output(app, gen, output, sizeof(output));

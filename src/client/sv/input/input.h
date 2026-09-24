@@ -25,6 +25,12 @@ typedef struct { uint64_t sequence; unsigned char key; } SvQueuedKey;
 typedef struct {
     SvInputContext context, parent;
     uint64_t sequence;
+    uint64_t pause_sequence;
+    bool paused;
+    uint64_t confirmation_sequence;
+    unsigned char confirmations[32];
+    size_t confirmation_head, confirmation_count;
+    bool confirmation_waiting;
     SvQueuedKey pending[SV_KEY_PENDING];
     size_t head, count;
 } SvInputRouter;
@@ -43,4 +49,11 @@ SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char 
 SvResult sv_input_accept(SvInputRouter *router, const SvInputBindings *bindings,
                          SvKeyRequest request, uint64_t sequence, unsigned char key);
 SvResult sv_input_next(SvInputRouter *router, SvKeyRequest request, SvKeyReply *reply);
+uint64_t sv_input_pause(SvInputRouter *router);
+SvResult sv_input_ack_pause(SvInputRouter *router, uint64_t sequence);
+SvResult sv_input_begin_confirmation(SvInputRouter *router, uint64_t *sequence);
+SvResult sv_input_confirm(SvInputRouter *router, unsigned char command);
+SvResult sv_input_take_confirmation(SvInputRouter *router, uint64_t sequence,
+                                    unsigned char *command);
+SvResult sv_input_end_confirmation(SvInputRouter *router, uint64_t sequence);
 #endif

@@ -69,5 +69,5 @@ $(SV_OUT)/common/%.o: common/%.c makefile.sv | check-deps
 	$(SV_CC) $(filter-out -Werror,$(SV_CFLAGS)) $(SV_CORE_PLATFORM) -DCLIENT -D_DEFAULT_SOURCE -ffunction-sections -fdata-sections -MMD -MP -c $< -o $@
 $(SV_OUT)/$(SV_NAME): $(SV_OBJECTS)
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
-	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin;gameplay=off;audio=off;terminal=absent' > $(SV_OUT)/build.txt
+	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=off;terminal=absent' > $(SV_OUT)/build.txt
 -include $(SV_OBJECTS:.o=.d)

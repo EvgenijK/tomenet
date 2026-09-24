@@ -51,7 +51,10 @@ def serve(listener, observed):
                 time.sleep(0.001)
             observed['verify'] = exact(peer, 1) + text_field(peer) + text_field(peer) + text_field(peer)
             setup = bytes([2, 1, 122, 6]) + struct.pack('>I', 12345)
-            setup += struct.pack('>IhBBBI', 0, 20, 0, 0, 0, 13)
+            setup += struct.pack('>IhBBBI', 5, 20, 1, 1, 1, 13)
+            setup += bytes([50, 51, 49, 52, 48, 50]) + b'Human\0' + struct.pack('>I', 0x01020304)
+            setup += bytes([50] * 6) + b'1 Hidden\0' + bytes([1, 2, 3, 4, 5, 6])
+            setup += b'Trait\0' + struct.pack('>I', 0x09080706) + b'Hello'
             for byte in setup:
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
@@ -61,11 +64,11 @@ def serve(listener, observed):
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
             observed['echo'] = exact(peer, len(ping))
+            peer.sendall(b'\x96')
             peer.sendall(b'\x07')
             observed['unknown_reply'] = exact(peer, 11)
             peer.sendall(bytes([13, 11]))
-            time.sleep(0.05)
-            time.sleep(0.1)
+            time.sleep(3.5)
     except Exception as error:
         observed['error'] = error
 
@@ -87,6 +90,39 @@ def reject(listener, observed):
         observed['error'] = error
 
 
+def fail_after_contact(listener, observed, phase):
+    try:
+        peer, _ = listener.accept()
+        with peer:
+            peer.settimeout(5)
+            exact(peer, 4)
+            text_field(peer)
+            exact(peer, 3)
+            text_field(peer)
+            text_field(peer)
+            exact(peer, 26)
+            peer.sendall(bytes([255, 0]) + struct.pack('>II6I', 0, 2, 4, 9, 4, 0, 0, 0))
+            exact(peer, 1)
+            text_field(peer)
+            text_field(peer)
+            text_field(peer)
+            if phase == 'verify':
+                peer.sendall(bytes([2, 1, 0]))
+            else:
+                peer.sendall(bytes([2, 1, 122, 6]) + struct.pack('>I', 12345))
+                peer.sendall(struct.pack('>IhBBBI', 999999, 20, 0, 0, 0, 13))
+            time.sleep(0.1)
+    except Exception as error:
+        observed['error'] = error
+
+
+def native_command(port, profile):
+    return [str(ROOT / 'src/tomenet-sv'), '--endpoint', '--server', '127.0.0.1',
+            '--port', str(port), '--account', 'Test', '--password-stdin',
+            '--profile-root', str(profile), '--library', str(ROOT / 'lib'),
+            '--fixture-window', '1024x768', '--frames', '200']
+
+
 with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
     profile = Path(temp) / 'profile'
     profile.mkdir()
@@ -96,11 +132,7 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         observed = {}
         thread = threading.Thread(target=serve, args=(listener, observed), daemon=True)
         thread.start()
-        command = [str(ROOT / 'src/tomenet-sv'), '--endpoint', '--server', '127.0.0.1',
-                   '--port', str(listener.getsockname()[1]), '--account', 'Test',
-                   '--password-stdin', '--profile-root', str(profile),
-                   '--library', str(ROOT / 'lib'), '--fixture-window', '1024x768',
-                   '--frames', '200']
+        command = native_command(listener.getsockname()[1], profile)
         run = subprocess.run(command, input='pw\n', text=True, capture_output=True,
                              cwd=ROOT, timeout=15,
                              env=dict(os.environ, SDL_VIDEODRIVER='dummy',
@@ -109,6 +141,7 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert 'error' not in observed, observed.get('error')
         assert run.returncode == 0, (run.stdout, run.stderr)
         assert 'SV contact ready host=127.0.0.1' in run.stdout
+        assert 'races=1 classes=1 traits=1 motd=5' in run.stdout
         assert observed['magic'] == struct.pack('>I', 12345)
         assert observed['real'] == b'PLAYER\0'
         assert observed['port'] == b'\0\0' and observed['marker'] == b'\xff'
@@ -117,18 +150,14 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
         assert observed['echo'] == observed['ping'][:1] + b'\x01' + observed['ping'][2:]
         assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
-                                                   0, 0, 0, 166, 111, 0])
+                                                   0, 0, 0, 150, 111, 0]), observed['unknown_reply']
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)
         observed = {}
         thread = threading.Thread(target=reject, args=(listener, observed), daemon=True)
         thread.start()
-        command = [str(ROOT / 'src/tomenet-sv'), '--endpoint', '--server', '127.0.0.1',
-                   '--port', str(listener.getsockname()[1]), '--account', 'Test',
-                   '--password-stdin', '--profile-root', str(profile),
-                   '--library', str(ROOT / 'lib'), '--fixture-window', '1024x768',
-                   '--frames', '200']
+        command = native_command(listener.getsockname()[1], profile)
         run = subprocess.run(command, input='pw\n', text=True, capture_output=True,
                              cwd=ROOT, timeout=15,
                              env=dict(os.environ, SDL_VIDEODRIVER='dummy',
@@ -137,4 +166,21 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert 'error' not in observed, observed.get('error')
         assert run.returncode == 1, (run.stdout, run.stderr)
         assert 'temporarily banned' in run.stderr
+    for phase, status in [('verify', 'Verification failed'), ('setup', 'Server setup failed')]:
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1', 0))
+            listener.listen(1)
+            observed = {}
+            thread = threading.Thread(target=fail_after_contact,
+                                      args=(listener, observed, phase), daemon=True)
+            thread.start()
+            run = subprocess.run(native_command(listener.getsockname()[1], profile),
+                                 input='pw\n', text=True, capture_output=True,
+                                 cwd=ROOT, timeout=15,
+                                 env=dict(os.environ, SDL_VIDEODRIVER='dummy',
+                                          SDL_RENDER_DRIVER='software'))
+            thread.join(timeout=5)
+            assert 'error' not in observed, observed.get('error')
+            assert run.returncode == 1, (phase, run.stdout, run.stderr)
+            assert status in run.stderr, (phase, run.stderr)
 print('SV native TCP contact passed')

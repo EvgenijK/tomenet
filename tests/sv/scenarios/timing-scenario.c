@@ -62,11 +62,13 @@ int sv_timing_scenario(SvApp *app, SvUi *ui, int delayed)
     CHECK(sv_app_receive(app, gen, request, sizeof(request)) == SV_OK);
     CHECK(sv_app_step(app, 16).processed == 1);
     CHECK(sv_timing_submit(&timing, ui, sv_app_view(app)));
+    key = (SDL_Event){0};
     key.type = SDL_EVENT_KEY_DOWN; key.key.key = SDLK_ESCAPE;
+    key.key.scancode = SDL_SCANCODE_ESCAPE;
     key.key.repeat = false; key.key.mod = 0; key.key.timestamp = SDL_GetTicksNS();
     CHECK(sv_native_input(&input, app, &key));
     if (delayed) SDL_Delay(25);
-    CHECK(sv_app_dispatch_input(app, 16).dispatched == 1);
+    CHECK(sv_app_dispatch_input(app, 16).dispatched == 0);
     CHECK(sv_timing_submit(&timing, ui, sv_app_view(app)));
     CHECK(timing.samples == 8 && timing.count == 0);
     output = sv_app_take_output(app, gen, bytes, sizeof(bytes));

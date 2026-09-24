@@ -8,9 +8,7 @@ struct SvApp {
     SvAppView view;
     SvAlertSink sink;
     SvAlertOptions options;
-    SvFlushOptions flush_options;
-    unsigned flush_count;
-    uint64_t frame_ms;
+    SvFlushPolicy flush;
     SvAttention attention;
     int busy;
     SvRuntimeCheck *checks[8];
@@ -59,7 +57,8 @@ static void release_session(SvApp *app)
     memset(app->view.server_flags, 0, sizeof(app->view.server_flags));
     app->view.paused = 0;
     app->view.flush_due_ms = 0;
-    app->flush_count = 0;
+    app->flush.count = 0;
+    app->flush.frame_ms = 0;
 }
 static void fail_session(SvApp *app, SvResult reason)
 {
@@ -82,8 +81,13 @@ SvResult sv_app_destroy(SvApp *app)
 }
 SvResult sv_app_close(SvApp *app)
 {
+    return sv_app_close_reason(app, SV_CLOSED);
+}
+SvResult sv_app_close_reason(SvApp *app, SvResult reason)
+{
     if (app->busy) return SV_BUSY;
-    fail_session(app, SV_CLOSED); return SV_OK;
+    if (reason == SV_OK || reason == SV_WAITING || reason == SV_BACKPRESSURE) return SV_INVALID;
+    fail_session(app, reason); return SV_OK;
 }
 SvResult sv_app_open(SvApp *app, const int version[6])
 {
@@ -110,18 +114,31 @@ SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention atten
 SvResult sv_app_set_flush_options(SvApp *app, SvFlushOptions options)
 {
     if (app->busy) return SV_BUSY;
-    app->flush_options = options;
+    app->flush.options = options;
     return SV_OK;
 }
 SvResult sv_app_frame(SvApp *app, uint64_t generation, uint64_t now_ms)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    app->frame_ms = now_ms;
-    app->flush_count = 0;
+    sv_flush_frame(&app->flush, now_ms);
     return SV_OK;
 }
 SvAppView sv_app_view(const SvApp *app) { return app->view; }
+SvResult sv_app_set_character_setup(SvApp *app, uint64_t generation,
+                                    const SvContactSetup *setup)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    result = sv_session_set_character_setup(app->session, setup);
+    if (result == SV_OK) publish(app, SV_PRESENT_CONTROL, now(app), 0, 0);
+    return result;
+}
+const SvContactSetup *sv_app_character_setup(const SvApp *app, uint64_t generation)
+{
+    return app && app->view.active && app->view.generation == generation ?
+        sv_session_character_setup(app->session) : NULL;
+}
 static SvResult accepts(const SvApp *app, uint64_t generation)
 {
     if (app->busy) return SV_BUSY;
@@ -230,9 +247,9 @@ SvResult sv_app_ack_pause(SvApp *app, uint64_t generation, uint64_t sequence)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    if (!app->view.paused || sequence != app->view.pause_sequence) return SV_STALE;
-    app->view.paused = 0;
-    app->input.head = app->input.count = 0;
+    result = sv_input_ack_pause(&app->input, sequence);
+    if (result != SV_OK) return result;
+    app->view.paused = app->input.paused;
     publish(app, SV_PRESENT_INPUT, now(app), 0, 1);
     return SV_OK;
 }
@@ -334,17 +351,18 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
+        if (decoded.kind == SV_CHANGE_CONFIRM) {
+            step.result = sv_input_confirm(&app->input, decoded.confirmed_command);
+            if (step.result == SV_EVENT_OVERFLOW) { fail_session(app, step.result); break; }
+            step.result = SV_OK; /* Unowned confirms are discarded, as before macro wait. */
+        }
         if (decoded.kind == SV_CHANGE_NOOP) continue;
         if (decoded.kind == SV_CHANGE_PAUSE) {
-            ++app->view.pause_sequence;
-            app->view.paused = 1;
-            app->input.head = app->input.count = 0;
+            app->view.pause_sequence = sv_input_pause(&app->input);
+            app->view.paused = app->input.paused;
         } else if (decoded.kind == SV_CHANGE_FLUSH) {
             ++app->view.flush_sequence;
-            ++app->flush_count;
-            app->view.flush_due_ms = app->frame_ms +
-                (!app->flush_options.disable_flush &&
-                 (!app->flush_options.thin_down_flush || app->flush_count <= 10));
+            app->view.flush_due_ms = sv_flush_request(&app->flush);
         }
         step.result = refresh_request(app);
         if (step.result != SV_OK) break;
@@ -380,11 +398,24 @@ SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message
     if (result != SV_OK) return result;
     return sv_session_take_message(app->session, message);
 }
-SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation, unsigned char *command)
+SvResult sv_app_begin_confirmation(SvApp *app, uint64_t generation, uint64_t *owner)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    return sv_session_take_confirmation(app->session, command);
+    return sv_input_begin_confirmation(&app->input, owner);
+}
+SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation,
+                                  uint64_t owner, unsigned char *command)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    return sv_input_take_confirmation(&app->input, owner, command);
+}
+SvResult sv_app_end_confirmation(SvApp *app, uint64_t generation, uint64_t owner)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    return sv_input_end_confirmation(&app->input, owner);
 }
 
 SvRuntimeCheck sv_app_check_run(SvApp *app, SvRuntimeScenario scenario,

@@ -2,8 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "protocol/contact-socket.h"
-#include "protocol/protocol.h"
-#include "app.h"
+#include <limits.h>
 #include <string.h>
 #ifdef _WIN32
 #include <winsock2.h>
@@ -31,13 +30,11 @@ struct SvContactSocket {
     SDL_Mutex *mutex;
     SDL_AtomicInt refs, cancelled;
     SvContact *contact;
-    SvApp *app;
-    uint64_t generation;
     SvSocket socket;
     SvSocketState state;
     int worker_done;
     char host[256], service[8];
-    unsigned char sending[SV_PROTOCOL_CAPACITY];
+    unsigned char sending[SV_CONTACT_OUTPUT_CAPACITY];
     size_t send_size, sent;
     uint64_t last_progress;
     uint64_t last_sent;
@@ -177,93 +174,30 @@ SvSocketState sv_contact_socket_poll(SvContactSocket *connection)
     SDL_LockMutex(connection->mutex);
     SvSocketState state = connection->state;
     SDL_UnlockMutex(connection->mutex);
-    if (state != SV_SOCKET_NEGOTIATING && state != SV_SOCKET_READY) return state;
-    if (state == SV_SOCKET_READY && !connection->app) {
-        connection->app = sv_app_create((SvAlertSink){0});
-        if (!connection->app || sv_app_open(connection->app,
-                sv_contact_version(connection->contact)) != SV_OK)
-            return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-        connection->generation = sv_app_view(connection->app).generation;
-        SvOutput needed = sv_contact_take_remaining(connection->contact, NULL, 0);
-        if (needed.result != SV_OK && needed.result != SV_OUTPUT_TOO_SMALL)
-            return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-        unsigned char *remaining = SDL_malloc(needed.size ? needed.size : 1);
-        if (!remaining) return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-        SvOutput extra = sv_contact_take_remaining(connection->contact,
-                                                    remaining, needed.size);
-        if (extra.result != SV_OK) {
-            SDL_free(remaining);
-            return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-        }
-        for (size_t at = 0; at < extra.size;) {
-            size_t capacity = sv_app_receive_capacity(connection->app);
-            if (!capacity) {
-                SvStep step = sv_app_step(connection->app, 64);
-                if (step.result != SV_OK && step.result != SV_WAITING &&
-                    step.result != SV_RECOVERED) {
-                    SDL_free(remaining);
-                    return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-                }
-                capacity = sv_app_receive_capacity(connection->app);
-                if (!capacity) {
-                    SDL_free(remaining);
-                    return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-                }
-            }
-            size_t count = extra.size - at;
-            if (count > capacity) count = capacity;
-            if (sv_app_receive(connection->app, connection->generation,
-                               remaining + at, count) != SV_OK) {
-                SDL_free(remaining);
-                return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-            }
-            at += count;
-        }
-        SDL_free(remaining);
-    }
-    if (state == SV_SOCKET_READY && sv_app_frame(connection->app,
-            connection->generation, SDL_GetTicks()) != SV_OK)
-        return connection->state = SV_SOCKET_PROTOCOL_ERROR;
-    if (state == SV_SOCKET_NEGOTIATING && SDL_GetTicks() - connection->last_progress >
+    if (state != SV_SOCKET_NEGOTIATING) return state;
+    if (SDL_GetTicks() - connection->last_progress >
         (sv_contact_state(connection->contact) == SV_CONTACT_WAIT_CONTACT ? 10000u : 5000u))
         return connection->state = SV_SOCKET_TIMEOUT;
     if (connection->sent == connection->send_size) {
-        if (state == SV_SOCKET_READY)
-            (void)sv_app_keepalive(connection->app, connection->generation,
-                                   SDL_GetTicks(), connection->last_sent);
-        SvOutput output = state == SV_SOCKET_READY ?
-            sv_app_take_output(connection->app, connection->generation,
-                               connection->sending, sizeof(connection->sending)) :
-            sv_contact_take_output(connection->contact, connection->sending,
-                                   sizeof(connection->sending));
-        if (output.result == SV_OK) { connection->send_size = output.size; connection->sent = 0; }
+        SvOutput output = sv_contact_take_output(connection->contact,
+            connection->sending, sizeof(connection->sending));
+        if (output.result == SV_OK) {
+            connection->send_size = output.size;
+            connection->sent = 0;
+        }
     }
     if (connection->sent < connection->send_size) {
-        int sent = send(connection->socket, (const char *)connection->sending + connection->sent,
-                        (int)(connection->send_size - connection->sent),
-#ifdef MSG_NOSIGNAL
-                        MSG_NOSIGNAL);
-#else
-                        0);
-#endif
-        if (sent > 0) {
-            connection->sent += (size_t)sent;
-            connection->last_progress = connection->last_sent = SDL_GetTicks();
-        }
-        else if (sent == 0 || !sv_would_block(sv_last_error))
-            return connection->state = SV_SOCKET_CLOSED;
+        SvOutput sent = sv_contact_socket_write(connection,
+            connection->sending + connection->sent, connection->send_size - connection->sent);
+        if (sent.result == SV_CLOSED) return connection->state = SV_SOCKET_CLOSED;
+        if (sent.result == SV_OK) connection->sent += sent.size;
     }
     unsigned char incoming[4096];
     for (int i = 0; i < 4; ++i) {
-        size_t capacity = state == SV_SOCKET_READY ? sv_app_receive_capacity(connection->app) : sizeof(incoming);
-        if (!capacity) break;
-        if (capacity > sizeof(incoming)) capacity = sizeof(incoming);
-        int received = recv(connection->socket, (char *)incoming, (int)capacity, 0);
+        int received = recv(connection->socket, (char *)incoming, sizeof(incoming), 0);
         if (received > 0) {
             connection->last_progress = SDL_GetTicks();
-            SvResult parsed = state == SV_SOCKET_READY ?
-                sv_app_receive(connection->app, connection->generation, incoming, (size_t)received) :
-                sv_contact_receive(connection->contact, incoming, (size_t)received);
+            SvResult parsed = sv_contact_receive(connection->contact, incoming, (size_t)received);
             if (parsed != SV_OK) {
                 SvContactState phase = sv_contact_failure_phase(connection->contact);
                 if (phase == SV_CONTACT_WAIT_CONTACT && sv_contact_rejection(connection->contact))
@@ -271,29 +205,64 @@ SvSocketState sv_contact_socket_poll(SvContactSocket *connection)
                 return connection->state = phase == SV_CONTACT_WAIT_VERIFY ? SV_SOCKET_VERIFY_ERROR :
                     phase == SV_CONTACT_WAIT_SETUP ? SV_SOCKET_SETUP_ERROR : SV_SOCKET_PROTOCOL_ERROR;
             }
-            if (state == SV_SOCKET_NEGOTIATING && sv_contact_state(connection->contact) == SV_CONTACT_READY) {
-                connection->state = SV_SOCKET_READY;
-                return sv_contact_socket_poll(connection);
-            }
+            if (sv_contact_state(connection->contact) == SV_CONTACT_READY)
+                return connection->state = SV_SOCKET_READY;
         } else if (received == 0) {
-            if (state == SV_SOCKET_NEGOTIATING) {
-                SvContactState phase = sv_contact_state(connection->contact);
-                if (phase == SV_CONTACT_WAIT_VERIFY) return connection->state = SV_SOCKET_VERIFY_ERROR;
-                if (phase == SV_CONTACT_WAIT_SETUP) return connection->state = SV_SOCKET_SETUP_ERROR;
-            }
+            SvContactState phase = sv_contact_state(connection->contact);
+            if (phase == SV_CONTACT_WAIT_VERIFY) return connection->state = SV_SOCKET_VERIFY_ERROR;
+            if (phase == SV_CONTACT_WAIT_SETUP) return connection->state = SV_SOCKET_SETUP_ERROR;
             return connection->state = SV_SOCKET_CLOSED;
-        }
-        else if (sv_would_block(sv_last_error)) break;
+        } else if (sv_would_block(sv_last_error)) break;
         else return connection->state = SV_SOCKET_CLOSED;
-    }
-    if (state == SV_SOCKET_READY) {
-        SvStep step = sv_app_step(connection->app, 64);
-        if (step.result != SV_OK && step.result != SV_WAITING &&
-            step.result != SV_BACKPRESSURE && step.result != SV_RECOVERED)
-            return connection->state = SV_SOCKET_PROTOCOL_ERROR;
     }
     return connection->state;
 }
+
+SvOutput sv_contact_socket_read(SvContactSocket *connection, void *bytes, size_t capacity)
+{
+    if (!connection || connection->state != SV_SOCKET_READY) return (SvOutput){SV_CLOSED, 0};
+    if (!bytes || !capacity || capacity > INT_MAX) return (SvOutput){SV_INVALID, 0};
+    int received = recv(connection->socket, bytes, (int)capacity, 0);
+    if (received > 0) {
+        connection->last_progress = SDL_GetTicks();
+        return (SvOutput){SV_OK, (size_t)received};
+    }
+    if (received < 0 && sv_would_block(sv_last_error)) return (SvOutput){SV_WAITING, 0};
+    connection->state = SV_SOCKET_CLOSED;
+    return (SvOutput){SV_CLOSED, 0};
+}
+
+SvOutput sv_contact_socket_write(SvContactSocket *connection, const void *bytes, size_t size)
+{
+    if (!connection || (connection->state != SV_SOCKET_READY &&
+                        connection->state != SV_SOCKET_NEGOTIATING))
+        return (SvOutput){SV_CLOSED, 0};
+    if (!bytes || !size || size > INT_MAX) return (SvOutput){SV_INVALID, 0};
+    int sent = send(connection->socket, (const char *)bytes, (int)size,
+#ifdef MSG_NOSIGNAL
+                    MSG_NOSIGNAL);
+#else
+                    0);
+#endif
+    if (sent > 0) {
+        connection->last_progress = connection->last_sent = SDL_GetTicks();
+        return (SvOutput){SV_OK, (size_t)sent};
+    }
+    if (sent < 0 && sv_would_block(sv_last_error)) return (SvOutput){SV_WAITING, 0};
+    connection->state = SV_SOCKET_CLOSED;
+    return (SvOutput){SV_CLOSED, 0};
+}
+
+SvOutput sv_contact_socket_take_remaining(SvContactSocket *connection, void *bytes, size_t capacity)
+{
+    return sv_contact_take_remaining(connection->contact, bytes, capacity);
+}
+
+uint64_t sv_contact_socket_last_sent(const SvContactSocket *connection)
+{
+    return connection->last_sent;
+}
+
 unsigned sv_contact_socket_rejection(const SvContactSocket *connection)
 {
     return sv_contact_rejection(connection->contact);
@@ -301,6 +270,10 @@ unsigned sv_contact_socket_rejection(const SvContactSocket *connection)
 const int *sv_contact_socket_version(const SvContactSocket *connection)
 {
     return sv_contact_version(connection->contact);
+}
+const SvContactSetup *sv_contact_socket_setup(const SvContactSocket *connection)
+{
+    return sv_contact_setup(connection->contact);
 }
 void sv_contact_socket_stop(SvContactSocket *connection)
 {
@@ -310,7 +283,6 @@ void sv_contact_socket_stop(SvContactSocket *connection)
     if (connection->socket != SV_BAD_SOCKET) sv_close(connection->socket);
     if (connection->mutex) SDL_UnlockMutex(connection->mutex);
     sv_contact_destroy(connection->contact);
-    (void)sv_app_destroy(connection->app);
     if (connection->mutex) release(connection);
     else SDL_free(connection);
 }

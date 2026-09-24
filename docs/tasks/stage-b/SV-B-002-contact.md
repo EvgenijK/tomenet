@@ -1,6 +1,8 @@
 # SV-B-002 — Контакт, negotiation и обслуживание соединения
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: Linux production contact/control subset реализован и проверен;
+полное acceptance pending по оставшимся caller и platform obligations.
+[Evidence текущей реализации](../../sv-b002-evidence.md).
 
 ## Пользовательский результат
 

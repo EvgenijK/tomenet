@@ -2,6 +2,7 @@
 #define SV_SESSION_H
 #include <stdint.h>
 #include "result.h"
+#include "session/character-setup.h"
 #define SV_MESSAGE_BYTES 256
 #define SV_MESSAGE_PENDING 64
 #define SV_MESSAGE_LINES 6
@@ -67,7 +68,8 @@ SvResult sv_session_take_message(SvSession *session, SvMessage *message);
 SvMessages sv_session_messages(const SvSession *session);
 SvKeyRequest sv_session_request(const SvSession *session);
 SvControlState sv_session_controls(const SvSession *session);
-SvResult sv_session_take_confirmation(SvSession *session, unsigned char *command);
+SvResult sv_session_set_character_setup(SvSession *session, const SvContactSetup *setup);
+const SvContactSetup *sv_session_character_setup(const SvSession *session);
 void sv_session_ping_sent(SvSession *session);
 SvPingTelemetry sv_session_ping(const SvSession *session);
 SvResult sv_session_complete_request(SvSession *session, uint64_t sequence);

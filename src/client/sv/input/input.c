@@ -1,4 +1,60 @@
 #include "input/input.h"
+
+uint64_t sv_input_pause(SvInputRouter *router)
+{
+    ++router->pause_sequence;
+    router->paused = true;
+    router->head = router->count = 0;
+    return router->pause_sequence;
+}
+
+SvResult sv_input_ack_pause(SvInputRouter *router, uint64_t sequence)
+{
+    if (!router->paused || router->pause_sequence != sequence) return SV_STALE;
+    router->paused = false;
+    router->head = router->count = 0;
+    return SV_OK;
+}
+SvResult sv_input_begin_confirmation(SvInputRouter *router, uint64_t *sequence)
+{
+    if (!router || !sequence || router->confirmation_sequence == UINT64_MAX) return SV_INVALID;
+    if (router->confirmation_waiting) return SV_BUSY;
+    router->confirmation_waiting = true;
+    router->confirmation_head = router->confirmation_count = 0;
+    *sequence = ++router->confirmation_sequence;
+    return SV_OK;
+}
+SvResult sv_input_confirm(SvInputRouter *router, unsigned char command)
+{
+    if (!router->confirmation_waiting) return SV_WAITING;
+    if (router->confirmation_count == sizeof(router->confirmations)) return SV_EVENT_OVERFLOW;
+    router->confirmations[(router->confirmation_head + router->confirmation_count) %
+        sizeof(router->confirmations)] = command;
+    ++router->confirmation_count;
+    return SV_OK;
+}
+SvResult sv_input_take_confirmation(SvInputRouter *router, uint64_t sequence,
+                                    unsigned char *command)
+{
+    if (!command) return SV_INVALID;
+    if (!router->confirmation_waiting || sequence != router->confirmation_sequence)
+        return SV_STALE;
+    if (!router->confirmation_count) return SV_WAITING;
+    *command = router->confirmations[router->confirmation_head];
+    router->confirmations[router->confirmation_head] = 0;
+    router->confirmation_head = (router->confirmation_head + 1) %
+        sizeof(router->confirmations);
+    --router->confirmation_count;
+    return SV_OK;
+}
+SvResult sv_input_end_confirmation(SvInputRouter *router, uint64_t sequence)
+{
+    if (!router->confirmation_waiting || sequence != router->confirmation_sequence)
+        return SV_STALE;
+    router->confirmation_waiting = false;
+    router->confirmation_head = router->confirmation_count = 0;
+    return SV_OK;
+}
 #include <string.h>
 static int supported(unsigned char key)
 {

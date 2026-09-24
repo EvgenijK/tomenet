@@ -92,6 +92,8 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         if (!line(renderer,font,row,40,120,scale,selected) ||
             !line(renderer,font,input->contact_status ? input->contact_status :
                   "Account credentials are required for contact.",40,164,scale,normal)) return false;
+        if (input->text_error == SV_TEXT_ENCODING_ERROR &&
+            !line(renderer,font,"Cannot encode that character as a server field byte.",40,203,scale,error)) return false;
     }
     return true;
 }

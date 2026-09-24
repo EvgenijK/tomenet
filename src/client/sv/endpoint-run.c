@@ -1,12 +1,79 @@
 #include "endpoint-run.h"
+#include "app.h"
 #include "input/native-endpoint.h"
 #include "input/metaserver.h"
+#include "input/text-field.h"
 #include "ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
 #include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
+
+static void wipe_password(char *password, size_t size)
+{
+    volatile char *bytes = password;
+    while (size--) *bytes++ = 0;
+}
+
+/* The selected endpoint remains visible while credentials are entered. */
+static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
+                             SvEndpointInput *input, int frame_limit,
+                             char account[80], char password[80])
+{
+    int stage = 0, frames = 0;
+    bool incompatible_password = false;
+    char status[180];
+    for (;;) {
+        char mask[80];
+        size_t password_length = strlen(password);
+        memset(mask, '*', password_length);
+        mask[password_length] = 0;
+        SDL_snprintf(status, sizeof(status), incompatible_password ?
+            "Password contains '*' (unsupported by server). Edit it; Escape cancels." : stage == 0 ?
+            "Account: %s  (Enter continues, Escape cancels)" :
+            "Password: %s  (Enter connects, Escape cancels)",
+            stage == 0 ? account : mask);
+        input->contact_status = status;
+        if (!sv_endpoint_draw(renderer, font, endpoint, input)) return -1;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+                return 0;
+            if (event.type == SDL_EVENT_TEXT_INPUT) {
+                char *field = stage ? password : account;
+                SvTextField editor;
+                sv_text_begin(&editor, field, 79, true);
+                (void)sv_text_select(&editor, editor.length, editor.length);
+                input->text_error = sv_text_insert_utf8(&editor, event.text.text);
+                memcpy(field, editor.bytes, editor.length + 1);
+                incompatible_password = false;
+                wipe_password((char *)&editor, sizeof(editor));
+            } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+                if (event.key.key == SDLK_ESCAPE) return 0;
+                char *field = stage ? password : account;
+                size_t length = strlen(field);
+                if (event.key.key == SDLK_BACKSPACE && length) {
+                    field[length - 1] = 0;
+                    incompatible_password = false;
+                }
+                else if ((event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) && length) {
+                    if (stage) {
+                        if (endpoint->protocol >= 2 && strchr(password, '*')) {
+                            incompatible_password = true;
+                            continue;
+                        }
+                        return 1;
+                    }
+                    stage = 1;
+                    input->text_error = SV_TEXT_OK;
+                }
+            }
+        }
+        if (frame_limit && ++frames >= frame_limit) return 0;
+        SDL_Delay(16);
+    }
+}
 
 static const char *contact_status(SvSocketState state, unsigned rejection)
 {
@@ -19,7 +86,7 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
     case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. Escape exits.";
     case SV_SOCKET_TIMEOUT: return "Server timed out. Escape exits.";
     case SV_SOCKET_CLOSED: return "Server closed the connection. Escape exits.";
-    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid verification or setup response. Escape exits.";
+    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. Escape exits.";
     case SV_SOCKET_REJECTED:
         if (rejection == E_BANNED) return "Server rejected contact: temporarily banned. Escape exits.";
         if (rejection == E_VERSION_OLD) return "Server rejected contact: client version too old. Escape exits.";
@@ -29,6 +96,82 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
     case SV_SOCKET_SETUP_ERROR: return "Server setup failed. Escape exits.";
     }
     return "Contact stopped.";
+}
+
+typedef struct {
+    unsigned char sending[SV_PROTOCOL_CAPACITY];
+    size_t size, sent;
+    unsigned char *remaining;
+    size_t remaining_size, remaining_at;
+} SvSessionWire;
+
+static SvResult handoff_contact_bytes(SvContactSocket *connection, SvSessionWire *wire)
+{
+    SvOutput needed = sv_contact_socket_take_remaining(connection, NULL, 0);
+    if (needed.result != SV_OK && needed.result != SV_OUTPUT_TOO_SMALL) return needed.result;
+    wire->remaining = SDL_malloc(needed.size ? needed.size : 1);
+    if (!wire->remaining) return SV_NO_MEMORY;
+    SvOutput extra = sv_contact_socket_take_remaining(connection, wire->remaining, needed.size);
+    if (extra.result != SV_OK) return extra.result;
+    wire->remaining_size = extra.size;
+    return SV_OK;
+}
+
+static SvSocketState pump_session(SvContactSocket *connection, SvApp *app,
+                                  uint64_t generation, SvSessionWire *wire,
+                                  SvResult *failure)
+{
+    uint64_t now_ms = SDL_GetTicks();
+    *failure = sv_app_frame(app, generation, now_ms);
+    if (*failure != SV_OK) return SV_SOCKET_PROTOCOL_ERROR;
+    if (wire->sent == wire->size) {
+        (void)sv_app_keepalive(app, generation, now_ms,
+                               sv_contact_socket_last_sent(connection));
+        SvOutput output = sv_app_take_output(app, generation, wire->sending,
+                                              sizeof(wire->sending));
+        if (output.result == SV_OK) { wire->size = output.size; wire->sent = 0; }
+        else if (output.result != SV_WAITING) {
+            *failure = output.result;
+            return SV_SOCKET_PROTOCOL_ERROR;
+        }
+    }
+    if (wire->sent < wire->size) {
+        SvOutput sent = sv_contact_socket_write(connection, wire->sending + wire->sent,
+                                                 wire->size - wire->sent);
+        if (sent.result == SV_OK) wire->sent += sent.size;
+        else if (sent.result != SV_WAITING) return SV_SOCKET_CLOSED;
+    }
+    unsigned char incoming[4096];
+    for (int i = 0; i < 4; ++i) {
+        size_t capacity = sv_app_receive_capacity(app);
+        if (!capacity) break;
+        if (capacity > sizeof(incoming)) capacity = sizeof(incoming);
+        SvOutput received;
+        if (wire->remaining_at < wire->remaining_size) {
+            size_t count = wire->remaining_size - wire->remaining_at;
+            if (count > capacity) count = capacity;
+            memcpy(incoming, wire->remaining + wire->remaining_at, count);
+            wire->remaining_at += count;
+            received = (SvOutput){SV_OK, count};
+            if (wire->remaining_at == wire->remaining_size) {
+                SDL_free(wire->remaining);
+                wire->remaining = NULL;
+                wire->remaining_size = wire->remaining_at = 0;
+            }
+        } else received = sv_contact_socket_read(connection, incoming, capacity);
+        if (received.result == SV_WAITING) break;
+        if (received.result != SV_OK) return SV_SOCKET_CLOSED;
+        *failure = sv_app_receive(app, generation, incoming, received.size);
+        if (*failure != SV_OK)
+            return SV_SOCKET_PROTOCOL_ERROR;
+    }
+    SvStep step = sv_app_step(app, 64);
+    if (step.result != SV_OK && step.result != SV_WAITING &&
+        step.result != SV_BACKPRESSURE && step.result != SV_RECOVERED) {
+        *failure = step.result;
+        return SV_SOCKET_PROTOCOL_ERROR;
+    }
+    return SV_SOCKET_READY;
 }
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
@@ -47,20 +190,75 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         return 1;
     }
     SvSocketState state = SV_SOCKET_RESOLVING;
+    SvApp *app = NULL;
+    uint64_t generation = 0;
+    SvSessionWire wire = {0};
+    SvResult session_error = SV_OK;
     unsigned rejection = 0;
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
+    uint64_t pause_since_ns = 0, observed_pause = 0;
+    uint64_t presented_flush = 0;
     while (!quit) {
         if (connection) {
             state = sv_contact_socket_poll(connection);
             rejection = sv_contact_socket_rejection(connection);
         }
-        input->contact_status = contact_status(state, rejection);
-        if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
+        if (state == SV_SOCKET_READY && !app) {
+            const SvContactSetup *setup = sv_contact_socket_setup(connection);
+            app = sv_app_create((SvAlertSink){0});
+            if (!setup || !app) {
+                session_error = setup ? SV_NO_MEMORY : SV_INVALID;
+                state = SV_SOCKET_PROTOCOL_ERROR;
+            } else if ((session_error = sv_app_open(app,
+                           sv_contact_socket_version(connection))) != SV_OK)
+                state = SV_SOCKET_PROTOCOL_ERROR;
+            else {
+                generation = sv_app_view(app).generation;
+                session_error = sv_app_set_character_setup(app, generation, setup);
+                if (session_error == SV_OK)
+                    session_error = handoff_contact_bytes(connection, &wire);
+                if (session_error != SV_OK)
+                    state = SV_SOCKET_PROTOCOL_ERROR;
+            }
+        }
+        if (state == SV_SOCKET_READY && app)
+            state = pump_session(connection, app, generation, &wire, &session_error);
+        if (state == SV_SOCKET_READY && app) {
+            SvAppView view = sv_app_view(app);
+            if (view.paused && view.pause_sequence != observed_pause) {
+                observed_pause = view.pause_sequence;
+                pause_since_ns = SDL_GetTicksNS();
+            }
+            input->contact_status = view.paused ?
+                "Server paused. Press a fresh key to continue." : contact_status(state, rejection);
+        } else input->contact_status = session_error != SV_OK ?
+            sv_result_text(session_error) : contact_status(state, rejection);
+        bool present = true;
+        if (state == SV_SOCKET_READY && app) {
+            SvAppView view = sv_app_view(app);
+            if (view.flush_sequence != presented_flush && SDL_GetTicks() < view.flush_due_ms)
+                present = false;
+        }
+        if (present) {
+            if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
+            if (state == SV_SOCKET_READY && app)
+                presented_flush = sv_app_view(app).flush_sequence;
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
-                (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
+            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                quit = true;
+                break;
+            }
+            if (state == SV_SOCKET_READY && app && event.type == SDL_EVENT_KEY_DOWN &&
+                !event.key.repeat && event.common.timestamp >= pause_since_ns &&
+                sv_app_view(app).paused) {
+                (void)sv_app_ack_pause(app, generation, observed_pause);
+                SDL_FlushEvents(SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP);
+                continue;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 quit = true;
                 break;
             }
@@ -68,16 +266,23 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         if (state == SV_SOCKET_READY) {
             if (!reached_ready) {
                 const int *version = sv_contact_socket_version(connection);
-                printf("SV contact ready host=%s port=%u server=%d.%d.%d.%d.%d.%d\n",
+                const SvContactSetup *setup = sv_app_character_setup(app, generation);
+                printf("SV contact ready host=%s port=%u server=%d.%d.%d.%d.%d.%d races=%u classes=%u traits=%u motd=%u\n",
                        endpoint->host, (unsigned)endpoint->port, version[0], version[1],
-                       version[2], version[3], version[4], version[5]);
+                       version[2], version[3], version[4], version[5],
+                       (unsigned)setup->race_count, (unsigned)setup->class_count,
+                       (unsigned)setup->trait_count, (unsigned)setup->motd_size);
             }
             reached_ready = true;
             result = 0;
         } else if (state >= SV_SOCKET_DNS_ERROR) {
+            result = 1;
             if (!reported_failure) fprintf(stderr, "SV contact failed: %s (status=%u)\n",
                                            input->contact_status, rejection);
             reported_failure = true;
+            if (app && sv_app_view(app).active)
+                (void)sv_app_close_reason(app,
+                    session_error == SV_OK ? SV_CLOSED : session_error);
             if (connection) { sv_contact_socket_stop(connection); connection = NULL; }
             if (options.frames || reached_ready) break;
         }
@@ -85,6 +290,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         SDL_Delay(16);
     }
     sv_contact_socket_stop(connection);
+    SDL_free(wire.remaining);
+    (void)sv_app_destroy(app);
     (void)window;
     return result;
 }
@@ -208,8 +415,18 @@ int sv_endpoint_run(SvEndpointOptions options)
     if (endpoint.phase == SV_ENDPOINT_SELECTED) {
         printf("SV endpoint selected host=%s port=%u\n",
                endpoint.host,(unsigned)endpoint.port);
-        if (options.account && options.password) {
-            result = run_contact(window, renderer, font, &endpoint, &input, options);
+        if (!options.selected_endpoint) {
+            char account[80] = {0}, password[80] = {0};
+            int entered = 1;
+            if (!options.account || !options.password) {
+                entered = enter_credentials(renderer, font, &endpoint, &input,
+                                            options.frames, account, password);
+                options.account = account;
+                options.password = password;
+            }
+            if (entered > 0) result = run_contact(window, renderer, font, &endpoint, &input, options);
+            else result = entered < 0 ? 1 : 0;
+            wipe_password(password, sizeof(password));
             goto done;
         }
     }

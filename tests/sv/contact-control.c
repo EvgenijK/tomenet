@@ -9,9 +9,11 @@ static void control_packets_are_atomic_and_ordered(void)
     SvApp *app = sv_app_create((SvAlertSink){0});
     assert(app && sv_app_open(app, version) == SV_OK);
     uint64_t generation = sv_app_view(app).generation;
+    uint64_t owner;
+    assert(sv_app_begin_confirmation(app, generation, &owner) == SV_OK);
     const unsigned char packets[] = {13, 11, 147, 213, 0, 0, 0, 1,
                                      0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4,
-                                     146, 42};
+                                     146, 42, 146, 43};
     for (size_t i = 0; i < sizeof(packets); ++i) {
         assert(sv_app_receive(app, generation, &packets[i], 1) == SV_OK);
         SvStep step = sv_app_step(app, 20);
@@ -20,8 +22,11 @@ static void control_packets_are_atomic_and_ordered(void)
     SvAppView view = sv_app_view(app);
     assert(view.active && view.server_flags[0] == 1 && view.server_flags[3] == 4);
     unsigned char confirmed = 0;
-    assert(sv_app_take_confirmation(app, generation, &confirmed) == SV_OK && confirmed == 42);
-    assert(sv_app_take_confirmation(app, generation, &confirmed) == SV_WAITING);
+    assert(sv_app_take_confirmation(app, generation, owner, &confirmed) == SV_OK && confirmed == 42);
+    assert(sv_app_take_confirmation(app, generation, owner, &confirmed) == SV_OK && confirmed == 43);
+    assert(sv_app_take_confirmation(app, generation, owner, &confirmed) == SV_WAITING);
+    assert(sv_app_end_confirmation(app, generation, owner) == SV_OK);
+    assert(sv_app_take_confirmation(app, generation, owner, &confirmed) == SV_STALE);
     unsigned char output[32];
     assert(sv_app_take_output(app, generation, output, sizeof(output)).result == SV_WAITING);
     assert(sv_app_destroy(app) == SV_OK);
@@ -164,6 +169,26 @@ static void flush_keeps_nonblocking_pacing_choices(void)
     assert(sv_app_destroy(app) == SV_OK);
 }
 
+static void character_setup_is_owned_by_session_generation(void)
+{
+    SvApp *app = sv_app_create((SvAlertSink){0});
+    assert(app && sv_app_open(app, version) == SV_OK);
+    uint64_t generation = sv_app_view(app).generation;
+    SvContactSetup setup = {.race_count = 1, .motd_size = 5};
+    strcpy(setup.races[0].title, "Human");
+    memcpy(setup.motd, "Hello", 5);
+    assert(sv_app_set_character_setup(app, generation, &setup) == SV_OK);
+    memset(&setup, 0, sizeof(setup));
+    const SvContactSetup *stored = sv_app_character_setup(app, generation);
+    assert(stored && stored->race_count == 1 && !strcmp(stored->races[0].title, "Human"));
+    assert(sv_app_set_character_setup(app, generation, stored) == SV_INVALID);
+    assert(sv_app_close(app) == SV_OK);
+    assert(!sv_app_character_setup(app, generation));
+    assert(sv_app_open(app, version) == SV_OK);
+    assert(!sv_app_character_setup(app, sv_app_view(app).generation));
+    assert(sv_app_destroy(app) == SV_OK);
+}
+
 int main(void) {
     control_packets_are_atomic_and_ordered();
     ping_echo_waits_for_whole_packet();
@@ -172,4 +197,5 @@ int main(void) {
     idle_keepalive_is_independent_of_receive();
     pong_updates_bounded_lag_without_echo();
     flush_keeps_nonblocking_pacing_choices();
+    character_setup_is_owned_by_session_generation();
 }

@@ -20,8 +20,7 @@ struct SvSession {
     bool bar, boosted;
     uint64_t revision;
     SvControlState controls;
-    unsigned char confirmations[32];
-    size_t confirmation_head, confirmation_count;
+    SvContactSetup *character_setup;
     SvPingTelemetry ping;
 };
 SvSession *sv_session_create(void)
@@ -30,7 +29,26 @@ SvSession *sv_session_create(void)
     if (session) for (size_t i = 0; i < 60; ++i) session->ping.samples[i] = -1;
     return session;
 }
-void sv_session_destroy(SvSession *s) { free(s); }
+void sv_session_destroy(SvSession *s)
+{
+    if (!s) return;
+    free(s->character_setup);
+    free(s);
+}
+SvResult sv_session_set_character_setup(SvSession *s, const SvContactSetup *setup)
+{
+    if (!s || !setup || s->character_setup ||
+        setup->motd_size > SV_CONTACT_MOTD_CAPACITY) return SV_INVALID;
+    SvContactSetup *copy = malloc(sizeof(*copy));
+    if (!copy) return SV_NO_MEMORY;
+    memcpy(copy, setup, sizeof(*copy));
+    s->character_setup = copy;
+    return SV_OK;
+}
+const SvContactSetup *sv_session_character_setup(const SvSession *s)
+{
+    return s ? s->character_setup : NULL;
+}
 SvStatus sv_session_status(const SvSession *s)
 {
     SvStatus view = {s->player.mhp, s->player.chp, s->drain,
@@ -108,19 +126,12 @@ SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
     case SV_CHANGE_REQUEST_ABORT:
         if (s->request.pending) s->request.aborted = 1;
         break;
+    case SV_CHANGE_CONFIRM:
     case SV_CHANGE_NOOP:
     case SV_CHANGE_PAUSE:
     case SV_CHANGE_FLUSH: break;
     case SV_CHANGE_SERVER_FLAGS:
         memcpy(s->controls.server_flags, change->server_flags, sizeof(change->server_flags));
-        break;
-    case SV_CHANGE_CONFIRM:
-        if (s->confirmation_count == sizeof(s->confirmations)) {
-            applied.result = SV_EVENT_OVERFLOW; break;
-        }
-        s->confirmations[(s->confirmation_head + s->confirmation_count) % sizeof(s->confirmations)] =
-            change->confirmed_command;
-        ++s->confirmation_count;
         break;
     case SV_CHANGE_PING:
         if (change->ping.index < 60) {
@@ -158,16 +169,6 @@ void sv_session_ping_sent(SvSession *s)
     s->ping.samples[0] = -1;
 }
 SvPingTelemetry sv_session_ping(const SvSession *s) { return s->ping; }
-SvResult sv_session_take_confirmation(SvSession *s, unsigned char *command)
-{
-    if (!command) return SV_INVALID;
-    if (!s->confirmation_count) return SV_WAITING;
-    *command = s->confirmations[s->confirmation_head];
-    s->confirmations[s->confirmation_head] = 0;
-    s->confirmation_head = (s->confirmation_head + 1) % sizeof(s->confirmations);
-    --s->confirmation_count;
-    return SV_OK;
-}
 SvResult sv_session_complete_request(SvSession *s, uint64_t sequence)
 {
     if (!s->request.pending || s->request.sequence != sequence) return SV_STALE;
