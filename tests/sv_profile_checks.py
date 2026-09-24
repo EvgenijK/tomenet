@@ -2,6 +2,7 @@
 """SV-B-003 startup checks through the production SV executable."""
 from pathlib import Path
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -56,6 +57,22 @@ with tempfile.TemporaryDirectory(prefix="sv-profile-") as temporary:
     assert "invalid value for svUiScalePercent" in output, output
     assert "requested=missing.ttf effective=" in output, output
     assert "CascadiaMono-Regular.ttf" in output, output
+
+    overlay = user / "xtra/font"
+    overlay.mkdir(parents=True)
+    shutil.copyfile(ROOT / "lib/xtra/font/CascadiaMono-Regular.ttf",
+                    overlay / "CascadiaMono-Regular.ttf")
+    output = run()
+    assert f"effective={ROOT}/lib/xtra/font/CascadiaMono-Regular.ttf" in output, output
+
+    cfg.write_text("svTextFont\t16x24x.pcf\n")
+    output = run()
+    assert f"effective={ROOT}/lib/xtra/font/16x24x.pcf" in output, output
+
+    cfg.write_text("  svSchemaVersion\t2\nsvWindowMode\twindow\n")
+    output = run()
+    assert "SV profile window=fullscreen ui_scale=100" in output, output
+    assert "incompatible" in output, output
 
     cfg.write_bytes(b"svWindowMode\twindow\npass\tsecret\n\x00")
     output = run()

@@ -5,7 +5,7 @@ Status: partial implementation; full ticket readiness and acceptance remain pend
 ## Verified production path
 
 `src/tomenet-sv --endpoint` loads `U/sv/tomenet.cfg` before creating the window
-or opening its text font. No CFG or directory is created by this startup path.
+or opening its text font. No CFG or `S` directory is created by this startup path.
 The parser uses complete keys, handles LF/CRLF and duplicate assignments,
 defaults invalid values, refuses a newer schema, and ignores the `pass` field.
 The selected text font is tried from the shared user overlay before the bundled
@@ -16,7 +16,22 @@ without saving it.
 `tests/sv_profile_checks.py` invokes the production executable with an isolated
 profile, a decoy legacy CFG, a local server list and SDL's dummy/software
 renderer. It checks defaults, parsing, invalid and corrupt input, future
-schema, font fallback, command-line precedence, and unchanged CFG bytes.
+schema (including indentation), requested PCF, bundled font fallback,
+command-line precedence, and unchanged CFG bytes.
+
+Verified on Linux amd64 with build `linux-9dd5a1e98a672a5b25cd`, SDL3
+3.4.16, SDL3_ttf 3.2.2, and FreeType 26.6.20:
+`tests/sv_profile_checks.py`, `tests/sv_endpoint_checks.py`, and
+`tests/sv_contact_checks.py` passed. The bundled Cascadia TTF SHA-256 is
+`06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481`;
+the bundled `16x24x.pcf` SHA-256 is
+`fb72acdee8d41ed41d2dfc3fc769e4a629e02431376f09485d73be4c5e7758b1`.
+
+The full Stage A runner was invoked once at
+`/tmp/sv-b003-stage-a-20260924/report.json` and is blocked by the unavailable
+MinGW SDL development packages, missing `jsonschema` for the system Python,
+LeakSanitizer failing under ptrace, and no display device for native window
+checks. Linux SV, SDL3 legacy, and X11 legacy builds passed in that run.
 
 ## Pending ticket obligations
 
@@ -36,5 +51,4 @@ Source authority: `docs/tasks/stage-b/SV-B-003-profile.md`,
 `docs/capabilities/settings-policy.md`, `src/client/client.c`,
 `src/client/c-files.c`, and `src/client/sv/endpoint-run.c`.
 Fixtures use temporary `U` roots and the checkout `lib/` assets. No password
-value is read from a CFG or emitted in diagnostics. Build and test results for
-this work are recorded in the implementing commit message.
+value is read from a CFG or emitted in diagnostics.

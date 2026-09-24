@@ -146,19 +146,23 @@ bool sv_profile_load(SvProfile *profile, const char *user_root)
         char *end = strchr(cursor, '\n');
         size_t size = end ? (size_t)(end - cursor) : strlen(cursor);
         if (size && cursor[size - 1] == '\r') --size;
-        if (size >= 15 && !memcmp(cursor, "svSchemaVersion", 15) &&
-            (size == 15 || cursor[15] == ' ' || cursor[15] == '\t')) {
-            char saved = cursor[size]; cursor[size] = 0;
-            char *value = cursor + 15;
+        size_t leading = 0;
+        while (leading < size && (cursor[leading] == ' ' || cursor[leading] == '\t')) ++leading;
+        char *key = cursor + leading;
+        size -= leading;
+        if (size >= 15 && !memcmp(key, "svSchemaVersion", 15) &&
+            (size == 15 || key[15] == ' ' || key[15] == '\t')) {
+            char saved = key[size]; key[size] = 0;
+            char *value = key + 15;
             while (*value == ' ' || *value == '\t') ++value;
             if (strcmp(value, "1")) {
                 profile->incompatible_schema = true;
                 fprintf(stderr, "SV profile incompatible schema; using defaults\n");
-                cursor[size] = saved;
+                key[size] = saved;
                 free(bytes);
                 return true;
             }
-            cursor[size] = saved;
+            key[size] = saved;
         }
         cursor = end ? end + 1 : cursor + strlen(cursor);
     }

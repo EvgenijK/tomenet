@@ -21,6 +21,28 @@ static bool ascii_ttf(TTF_Font *font)
     return TTF_FontIsFixedWidth(font);
 }
 
+static bool open_pcf(SvFont *font)
+{
+    if (!font->ft && FT_Init_FreeType(&font->ft)) return false;
+    if (FT_New_Face(font->ft, font->resource, 0, &font->pcf)) return false;
+    bool valid = font->pcf->num_charmaps == 1 && font->pcf->num_fixed_sizes > 0 &&
+        !FT_Set_Charmap(font->pcf, font->pcf->charmaps[0]) &&
+        !FT_Select_Size(font->pcf, 0);
+    for (unsigned c = 32; valid && c < 127; ++c)
+        if (!FT_Get_Char_Index(font->pcf, c)) valid = false;
+    if (!valid) {
+        FT_Done_Face(font->pcf);
+        font->pcf = NULL;
+    }
+    return valid;
+}
+
+static bool pcf_name(const char *name)
+{
+    size_t length = strlen(name);
+    return length >= 4 && !SDL_strcasecmp(name + length - 4, ".pcf");
+}
+
 SvFont *sv_font_open_requested(const char *root, const char *library,
                                const char *requested)
 {
@@ -30,10 +52,16 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
     if (!font) return NULL;
     for (unsigned candidate = 0; candidate < 2; ++candidate) {
         if (candidate && !strcmp(candidates[0], candidates[1])) continue;
-        for (unsigned i = 0; i < 2; ++i) {
+        for (unsigned i = candidate ? 1 : 0; i < 2; ++i) {
             if (SDL_snprintf(font->resource, sizeof(font->resource),
                              "%s/xtra/font/%s", roots[i], candidates[candidate]) >=
                 (int)sizeof(font->resource)) continue;
+            if (pcf_name(candidates[candidate])) {
+                if (open_pcf(font)) return font;
+                fprintf(stderr, "SV resource unavailable: %s (invalid PCF); trying declared fallback\n",
+                        font->resource);
+                continue;
+            }
             font->ttf = TTF_OpenFont(font->resource, 18);
             if (font->ttf && ascii_ttf(font->ttf)) {
                 font->size = 18;
@@ -46,19 +74,11 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
         }
     }
     /* PCF is loaded directly by FreeType; numeric encoding is not reinterpreted. */
-    SDL_snprintf(font->resource, sizeof(font->resource), "%s/xtra/font/16x24x.pcf", library);
-    if (!FT_Init_FreeType(&font->ft) &&
-        !FT_New_Face(font->ft, font->resource, 0, &font->pcf) &&
-        font->pcf->num_charmaps == 1 &&
-        !FT_Set_Charmap(font->pcf, font->pcf->charmaps[0]) &&
-        !FT_Select_Size(font->pcf, 0)) {
-        bool valid = font->pcf->num_fixed_sizes > 0;
-        for (unsigned c = 32; c < 127; ++c)
-            if (!FT_Get_Char_Index(font->pcf, c)) valid = false;
-        if (valid) {
-            fprintf(stderr, "SV effective font fallback: %s (requested %s retained)\n", font->resource, requested);
-            return font;
-        }
+    if (SDL_snprintf(font->resource, sizeof(font->resource),
+                     "%s/xtra/font/16x24x.pcf", library) < (int)sizeof(font->resource) &&
+        open_pcf(font)) {
+        fprintf(stderr, "SV effective font fallback: %s (requested %s retained)\n", font->resource, requested);
+        return font;
     }
     fprintf(stderr, "SV fatal resource failure: bundled Cascadia Mono and %s unavailable or invalid\n", font->resource);
     sv_font_close(font);

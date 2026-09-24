@@ -23,7 +23,6 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
     if (!SDL_GetCurrentRenderOutputSize(renderer, &width, &height)) return false;
     float scale = SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer)) * user_scale;
     if (scale <= 0) scale = 1.0f;
-    (void)height;
     const SDL_Color title = {226,235,245,255}, normal = {185,205,223,255},
                     selected = {255,210,106,255}, error = {255,135,135,255};
     if (!SDL_SetRenderDrawColor(renderer, 15,21,28,255) || !SDL_RenderClear(renderer)) return false;
@@ -32,9 +31,12 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         if (!line(renderer,font,"Select a server, or press Q for manual address. Escape exits.",40,85,scale,normal)) return false;
         if (!endpoint->server_count &&
             !line(renderer,font,"No server list available. Press Q to enter a host.",40,130,scale,error)) return false;
-        size_t first = endpoint->selected < endpoint->server_count && endpoint->selected >= 20 ?
-            endpoint->selected - 19 : 0;
-        for (size_t i = first; i < endpoint->server_count && i < first + 20; ++i) {
+        int available = (int)(height / scale - 140) / 28;
+        size_t rows = available > 0 ? (size_t)available : 1;
+        if (rows > 20) rows = 20;
+        size_t first = endpoint->selected < endpoint->server_count && endpoint->selected >= rows ?
+            endpoint->selected - rows + 1 : 0;
+        for (size_t i = first; i < endpoint->server_count && i < first + rows; ++i) {
             char row[240];
             char ping[32];
             const SvServer *server = &endpoint->servers[i];
