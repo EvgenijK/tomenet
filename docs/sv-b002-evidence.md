@@ -87,6 +87,14 @@ are whole packets and wait on a full queue.
   run (`No available video device`), while sanitizer headless checks encounter
   the sandbox's LeakSanitizer/ptrace failure. This report does not replace the
   earlier desktop or platform observations.
+- Final rework cumulative report:
+  `/tmp/sv-b002-rework-final-20260924/report.json`, status **blocked**,
+  14/39 commands passed with `SDL_VIDEODRIVER=dummy` and software renderer.
+  Linux SV and both legacy builds, software HP/architecture/message/request,
+  shell, geometry, timing and PCF geometry passed. Dummy SDL cannot minimize or
+  provide OpenGL; MinGW development dependencies and `jsonschema` are missing;
+  LeakSanitizer fails under the sandbox tracer. No failed command was counted as
+  accepted evidence.
 
 ## Remaining acceptance work
 
