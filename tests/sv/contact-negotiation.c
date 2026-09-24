@@ -58,6 +58,26 @@ static void rejected_contact_never_sends_verify(void)
     sv_contact_destroy(contact);
 }
 
+static void raw_password_bytes_reach_verify_unchanged_before_protocol_xor(void)
+{
+    SvContactIdentity identity = {.real_name = "PLAYER", .account = "Test",
+                                  .host_name = "localhost", .password = "\xe9"};
+    SvContact *contact = sv_contact_create(2, &identity);
+    unsigned char output[256];
+    assert(contact);
+    assert(sv_contact_take_output(contact, output, sizeof(output)).result == SV_OK);
+    const unsigned char response[] = {255, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+        0, 0, 0, 4, 0, 0, 0, 9, 0, 0, 0, 4, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0};
+    assert(sv_contact_receive(contact, response, sizeof(response)) == SV_OK);
+    SvOutput sent = sv_contact_take_output(contact, output, sizeof(output));
+    const unsigned char expected[] = {1, 'P', 'L', 'A', 'Y', 'E', 'R', 0,
+                                      'T', 'e', 's', 't', 0, 0xc3, 0};
+    assert(sent.result == SV_OK && sent.size == sizeof(expected));
+    assert(!memcmp(output, expected, sizeof(expected)));
+    sv_contact_destroy(contact);
+}
+
 static void malformed_setup_releases_contact(void)
 {
     SvContactIdentity identity = {.real_name = "PLAYER", .account = "Test",
@@ -160,6 +180,7 @@ static void older_server_uses_pre_trait_setup_layout(void)
 int main(void) {
     split_negotiation_reaches_setup();
     rejected_contact_never_sends_verify();
+    raw_password_bytes_reach_verify_unchanged_before_protocol_xor();
     malformed_setup_releases_contact();
     setup_is_available_only_after_complete_input();
     invalid_contact_marker_does_not_send_verify();

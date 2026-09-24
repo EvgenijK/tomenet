@@ -29,6 +29,14 @@ static SDL_Event key_event(SDL_Keycode key, SDL_Keymod mods)
 }
 int main(void)
 {
+    SvTextField contact_field;
+    sv_text_begin(&contact_field, "pw", 79, true);
+    assert(sv_text_select(&contact_field, contact_field.length, contact_field.length));
+    assert(sv_contact_field_insert(&contact_field, "\xc3\xa9") == SV_TEXT_ENCODING_ERROR);
+    assert(contact_field.length == 2 && !strcmp(contact_field.bytes, "pw"));
+    assert(sv_contact_field_insert(&contact_field, "A") == SV_TEXT_OK);
+    assert(contact_field.length == 3 && !strcmp(contact_field.bytes, "pwA"));
+
     SvEndpoint endpoint;
     SvEndpointInput input;
     sv_endpoint_begin(&endpoint, 18348);

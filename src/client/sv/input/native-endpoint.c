@@ -14,6 +14,14 @@ void sv_endpoint_input_begin(SvEndpointInput *input)
     *input = (SvEndpointInput){.since_ns = SDL_GetTicksNS()};
 }
 
+SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8)
+{
+    if (!field || !utf8) return SV_TEXT_INVALID;
+    for (const unsigned char *byte = (const unsigned char *)utf8; *byte; ++byte)
+        if (*byte < 0x20 || *byte > 0x7e) return SV_TEXT_ENCODING_ERROR;
+    return sv_text_insert_utf8(field, utf8);
+}
+
 static void move_row(SvEndpoint *endpoint, int direction)
 {
     if (!endpoint->server_count) return;

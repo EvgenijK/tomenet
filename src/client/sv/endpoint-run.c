@@ -45,7 +45,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
                 SvTextField editor;
                 sv_text_begin(&editor, field, 79, true);
                 (void)sv_text_select(&editor, editor.length, editor.length);
-                input->text_error = sv_text_insert_utf8(&editor, event.text.text);
+                input->text_error = sv_contact_field_insert(&editor, event.text.text);
                 memcpy(field, editor.bytes, editor.length + 1);
                 incompatible_password = false;
                 wipe_password((char *)&editor, sizeof(editor));
@@ -56,8 +56,10 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
                 if (event.key.key == SDLK_BACKSPACE && length) {
                     field[length - 1] = 0;
                     incompatible_password = false;
+                    input->text_error = SV_TEXT_OK;
                 }
                 else if ((event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) && length) {
+                    if (input->text_error == SV_TEXT_ENCODING_ERROR) continue;
                     if (stage) {
                         if (endpoint->protocol >= 2 && strchr(password, '*')) {
                             incompatible_password = true;

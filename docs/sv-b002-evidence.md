@@ -14,7 +14,11 @@ trait, creation flags and MOTD data only after a complete setup. The application
 copies setup into the session generation before draining chained packet bytes.
 The endpoint runner owns the session loop and distinguishes socket, rejection,
 verification, setup and app failures. Unsupported `*` in the native password
-form leaves the draft editable.
+form leaves the draft editable. Native account/password input accepts only
+printable ASCII until the Unicode-to-wire mapping is established; an unsupported
+SDL text event leaves the private draft intact and blocks Enter until editing
+resumes. Raw CLI password bytes pass to contact unchanged before the baseline
+protocol XOR.
 
 The production decoder handles keepalive, ping echo/pong telemetry, unknown,
 partial and malformed packets, keypress/end markers, server flags, pause, flush
@@ -44,6 +48,18 @@ are whole packets and wait on a full queue.
   sandbox. It observes exact contact/verification bytes, fragmented response
   and setup, server setup handoff, ping echo, flush then unknown reply, and
   distinct ban, verification and setup failures in the native executable.
+  The 2026-09-24 rework additionally passed a fragmented 4.4.3.1 setup layout,
+  local refused TCP connect and a silent peer's 10-second contact timeout.
+- `tests/sv_endpoint_checks.py`: pass after linking the scene fixture against
+  the current production SV app and protocol. Contact field checks cover a
+  refused UTF-8 non-ASCII event preserving its private draft and subsequent
+  ASCII edit. `tests/sv_contact_checks.py` observes the exact verification
+  bytes for a raw 0xE9 password byte under protocol 2.
+- Rework Linux executable SHA-256
+  `ea5cdbd0a3039ec8c6123e9fbd3fe1ffec2193df97a5e9a7fb51eaaee92d6d01`;
+  runner `d987ea2e8ab113609920b40858ec2c7bd67c2a79c39e2c5b4d28e2f2bba883e1`;
+  native contact input `bf3ebe2c38e0e9ae84534e2ce00a849951f371c91196be3db91d704f83793a2c`;
+  live fixture `0e09339598c70647d8f15aaa71a5ea4d0f14ff602799debcc8c08a30e9b0d97e`.
 - Linux SV build, `sv_arch_checks.py`, `sv_request_checks.py` (372 cases),
   `sv_lifecycle_checks.py`, `sv_message_checks.py` and `sv_endpoint_checks.py`:
   pass in their scoped runs. Sanitizer runs used `ASAN_OPTIONS=detect_leaks=0`
@@ -61,6 +77,12 @@ are whole packets and wait on a full queue.
   software HP/architecture/message/request/shell/geometry/timing checks passed.
   The software lifecycle check needs a window manager that supports minimize;
   the runtime-headless check depends on the unavailable registry validator.
+- Rework cumulative report: `/tmp/sv-b002-rework-20260924/report.json`, status
+  **blocked**. Linux SV and both legacy builds passed; MinGW dependencies and
+  `jsonschema` are absent. The unsandboxed native scene is unavailable in this
+  run (`No available video device`), while sanitizer headless checks encounter
+  the sandbox's LeakSanitizer/ptrace failure. This report does not replace the
+  earlier desktop or platform observations.
 
 ## Remaining acceptance work
 
@@ -69,13 +91,14 @@ consumer exists yet. The input-owned confirmation waiter has a production API,
 but the future macro executor does not yet register or consume it. The contact
 view submits its own flush-triggered frame; gameplay visual submission awaits
 its renderer. A real server login/character-selection flow, broader live server
-versions, DNS/timeout and retry matrix, accelerated rendering, MinGW/Wine and
-actual Windows 10/11 evidence remain pending. The native credential form uses
-the general `src/client/sv/input/text-field.c` UTF-8→Latin-1 decoder. This
-assumes an outgoing byte mapping that the session policy does not establish.
-Baseline comparison and a real server wire round trip for ASCII, non-ASCII and
-unsupported input are required; on mapping failure the private draft must
-remain editable without transmitting or storing a changed secret. SV-B-002
+versions, DNS and retry matrix, accelerated rendering, MinGW/Wine and
+actual Windows 10/11 evidence remain pending. The general
+`src/client/sv/input/text-field.c` editor still implements UTF-8→Latin-1 for
+other fields, but the contact form rejects non-ASCII SDL events before that
+conversion. A real server wire round trip for ASCII, non-ASCII and unsupported
+input is still required to establish any broader credential mapping. The
+raw-byte unit check proves serializer behavior only; it does not prove server
+acceptance of a non-ASCII credential. SV-B-002
 owns the contact wire proof; SV-B-005 owns private raw bytes and SV-B-006 owns
 the interactive login caller. Exact follow-ups are in their task files.
 Environment blockers are tracked by

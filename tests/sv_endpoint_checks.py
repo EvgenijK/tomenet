@@ -59,8 +59,16 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/ui/endpoint-scene.c", "src/client/sv/ui/font.c",
                      "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
                      "src/client/sv/input/metaserver.c", *COMMON]
+    scene_sources += ["src/client/sv/" + name + ".c" for name in
+                      ("app", "input/input", "session/alerts", "session/session",
+                       "protocol/protocol", "protocol/version", "result")]
+    scene_sources += ["src/temporary/sv/peer.c"]
+    scene_sources += ["src/common/" + name + ".c" for name in
+                      ("sockbuf", "z-util", "z-form", "z-virt")]
     scene_binary = directory / "scene"
-    subprocess.run([CC, "-std=c99", "-Wall", "-Wextra", "-Werror",
+    subprocess.run([CC, "-std=c99", "-D_DEFAULT_SOURCE", "-DCLIENT=",
+                    "-Wall", "-Wextra", "-Werror", "-Wno-deprecated-non-prototype",
+                    "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
                     "-fsanitize=undefined", "-Isrc/client/sv", *scene_sources,
                     *SCENE_FLAGS, "-o", str(scene_binary)], cwd=ROOT, check=True)
     subprocess.run([str(scene_binary), str(profile), str(ROOT / "lib"), str(server_list)],

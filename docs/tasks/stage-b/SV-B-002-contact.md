@@ -46,12 +46,17 @@ SV, с точными входными и исходящими bytes и акту
 4. Контакт и failures: провести live TCP/серверные fixtures по всем baseline
    version branches, включая старые setup layouts; отдельно DNS, connect,
    timeout, ban, incompatible version, verification и malformed/partial setup.
+   Локальные TCP fixtures уже покрывают 4.4.3.1 layout, refused connect и
+   silent-peer contact timeout; прочие branches и server/platform matrix открыты.
    Сверить освобождение сокета, видимую причину и разрешённый retry/exit при
    `RETRY_LOGIN`/`ALWAYS_RETRY_LOGIN`/`SIMPLE_LOGIN`, а также Windows/POSIX
    socket errors. Успешный single-version loopback этого не заменяет.
-5. Контактные credential bytes: текущий общий редактор
+5. Контактные credential bytes: общий SV редактор
    `src/client/sv/input/text-field.c` переводит SDL UTF-8 в Latin-1 без
-   установленного wire contract. Установить mapping сравнением с baseline и
+   установленного wire contract. Контактная форма SV теперь удерживает
+   non-ASCII SDL ввод с видимой encoding error, не изменяя private draft;
+   raw CLI bytes в serializer остаются неизменными до protocol XOR.
+   Установить mapping сравнением с baseline и
    реальным серверным round trip до заявления non-ASCII login; проверить
    ASCII, representable non-ASCII, неподдерживаемый символ и сохранение draft
    при encoding error. Согласовать с private raw-byte owner

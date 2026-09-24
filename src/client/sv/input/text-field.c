@@ -7,6 +7,12 @@ static bool word(unsigned char c)
            (c >= '0' && c <= '9');
 }
 
+static void wipe_private(void *memory, size_t size)
+{
+    volatile unsigned char *bytes = memory;
+    while (size--) *bytes++ = 0;
+}
+
 void sv_text_begin(SvTextField *field, const char *initial, size_t limit, bool private_field)
 {
     *field = (SvTextField){0};
@@ -87,11 +93,17 @@ SvTextResult sv_text_paste(SvTextField *field, const char *utf8, size_t length)
     char decoded[4096];
     size_t count;
     SvTextResult result = decode(utf8, length, decoded, &count);
-    if (result != SV_TEXT_OK) return result;
+    if (result != SV_TEXT_OK) {
+        if (field->private_field) wipe_private(decoded, sizeof(decoded));
+        return result;
+    }
     size_t start = selection_start(field), end = selection_end(field);
     size_t capacity = field->limit - (field->length - (end - start));
     if (count > capacity) { count = capacity; result = SV_TEXT_TRUNCATED; }
-    if (!count && start == end) return result;
+    if (!count && start == end) {
+        if (field->private_field) wipe_private(decoded, sizeof(decoded));
+        return result;
+    }
     memmove(field->bytes + start + count, field->bytes + end, field->length - end + 1);
     memcpy(field->bytes + start, decoded, count);
     field->length = field->length - (end - start) + count;
@@ -99,6 +111,7 @@ SvTextResult sv_text_paste(SvTextField *field, const char *utf8, size_t length)
     field->dirty = true;
     field->preview[0] = 0;
     field->search_cursor = field->history_count;
+    if (field->private_field) wipe_private(decoded, sizeof(decoded));
     return result;
 }
 
