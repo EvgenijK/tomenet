@@ -27,11 +27,15 @@ Verified on Linux amd64 with build `linux-9dd5a1e98a672a5b25cd`, SDL3
 the bundled `16x24x.pcf` SHA-256 is
 `fb72acdee8d41ed41d2dfc3fc769e4a629e02431376f09485d73be4c5e7758b1`.
 
-The full Stage A runner was invoked once at
-`/tmp/sv-b003-stage-a-20260924/report.json` and is blocked by the unavailable
-MinGW SDL development packages, missing `jsonschema` for the system Python,
-LeakSanitizer failing under ptrace, and no display device for native window
-checks. Linux SV, SDL3 legacy, and X11 legacy builds passed in that run.
+The full Stage A runner was invoked in the sandbox at
+`/tmp/sv-b003-stage-a-20260924/report.json`, then outside the sandbox at
+`/tmp/sv-b003-stage-a-escalated-20260924/report.json`. The second run passed
+Linux SV, SDL3 legacy, and X11 legacy builds, the headless architecture,
+message, request, and lifecycle checks, and the Linux software/OpenGL native
+scenarios. The overall gate remains blocked: the MinGW SDL development packages
+and system Python `jsonschema` are unavailable. The registry-related checks
+fail because `jsonschema` cannot be imported. Sandbox-only ptrace and display
+failures did not recur outside the sandbox.
 
 ## Pending ticket obligations
 
