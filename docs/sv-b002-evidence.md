@@ -48,18 +48,22 @@ are whole packets and wait on a full queue.
   sandbox. It observes exact contact/verification bytes, fragmented response
   and setup, server setup handoff, ping echo, flush then unknown reply, and
   distinct ban, verification and setup failures in the native executable.
-  The 2026-09-24 rework additionally passed a fragmented 4.4.3.1 setup layout,
+  The 2026-09-24 rework additionally passed a fragmented 4.4.3.1 setup layout
+  with exact contact/verify bytes and an adjacent keepalive/unknown recovery,
   local refused TCP connect and a silent peer's 10-second contact timeout.
 - `tests/sv_endpoint_checks.py`: pass after linking the scene fixture against
   the current production SV app and protocol. Contact field checks cover a
   refused UTF-8 non-ASCII event preserving its private draft and subsequent
-  ASCII edit. `tests/sv_contact_checks.py` observes the exact verification
+  ASCII edit. The native SDL scene also verifies that Enter after an unsupported
+  password event does not start contact, and Escape cancels the form.
+  `tests/sv_contact_checks.py` observes the exact verification
   bytes for a raw 0xE9 password byte under protocol 2.
 - Rework Linux executable SHA-256
   `ea5cdbd0a3039ec8c6123e9fbd3fe1ffec2193df97a5e9a7fb51eaaee92d6d01`;
   runner `d987ea2e8ab113609920b40858ec2c7bd67c2a79c39e2c5b4d28e2f2bba883e1`;
   native contact input `bf3ebe2c38e0e9ae84534e2ce00a849951f371c91196be3db91d704f83793a2c`;
-  live fixture `0e09339598c70647d8f15aaa71a5ea4d0f14ff602799debcc8c08a30e9b0d97e`.
+  live fixture `f65d18c6846fcae01db3503f1b2088403a01d74116ecaf770c50ffb948debd5d`;
+  native scene `05abd504e19977074338b76140360dc29b086728881459fa236fdff6408e5354`.
 - Linux SV build, `sv_arch_checks.py`, `sv_request_checks.py` (372 cases),
   `sv_lifecycle_checks.py`, `sv_message_checks.py` and `sv_endpoint_checks.py`:
   pass in their scoped runs. Sanitizer runs used `ASAN_OPTIONS=detect_leaks=0`

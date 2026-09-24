@@ -90,9 +90,10 @@ def serve_old_setup(listener, observed):
             setup += struct.pack('>IhBBI', 3, 20, 1, 1, 12)
             setup += bytes([50] * 6) + b'R\0' + struct.pack('>I', 1)
             setup += bytes([50] * 6) + b'C\0' + b'Old'
-            for byte in setup:
+            for byte in setup + bytes([13, 7]):
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
+            observed['unknown_reply'] = exact(peer, 11)
             time.sleep(3.5)
     except Exception as error:
         observed['error'] = error
@@ -201,7 +202,15 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert 'error' not in observed, observed.get('error')
         assert run.returncode == 0, (run.stdout, run.stderr)
         assert 'server=4.4.3.1.0.0 races=1 classes=1 traits=0 motd=3' in run.stdout
+        assert observed['magic'] == struct.pack('>I', 12345)
+        assert observed['real'] == b'PLAYER\0'
+        assert observed['port_marker'] == b'\0\0\xff'
+        assert observed['account'] == b'Test\0' and observed['host'] == b'localhost\0'
+        assert observed['version_offer'] == b'\xff\xff' + struct.pack('>6I',
+            4, 9, 4, 0, 0, 402000000)
         assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
+        assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
+                                                   0, 0, 0, 13, 111, 0])
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)

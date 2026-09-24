@@ -60,6 +60,38 @@ static int events(void *data)
     }
     return 0;
 }
+static int credential_events(void *data)
+{
+    (void)data;
+    SDL_Delay(400);
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_TEXT_INPUT;
+    event.text.text = "Test";
+    assert(SDL_PushEvent(&event));
+    event = (SDL_Event){0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_RETURN;
+    event.key.scancode = SDL_SCANCODE_RETURN;
+    assert(SDL_PushEvent(&event));
+    event = (SDL_Event){0};
+    event.type = SDL_EVENT_TEXT_INPUT;
+    event.text.text = "pw";
+    assert(SDL_PushEvent(&event));
+    event.text.text = "\xc3\xa9";
+    assert(SDL_PushEvent(&event));
+    event = (SDL_Event){0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_RETURN;
+    event.key.scancode = SDL_SCANCODE_RETURN;
+    assert(SDL_PushEvent(&event));
+    SDL_Delay(250);
+    event = (SDL_Event){0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_ESCAPE;
+    event.key.scancode = SDL_SCANCODE_ESCAPE;
+    assert(SDL_PushEvent(&event));
+    return 0;
+}
 int main(int argc, char **argv)
 {
     assert(argc == 4);
@@ -86,5 +118,12 @@ int main(int argc, char **argv)
         .windowed = 1, .selected_endpoint = &failed, .source_poll = failed_feed};
     assert(sv_endpoint_run(fallback) == 0);
     assert(failed.phase == SV_ENDPOINT_MANUAL && !failed.host[0]);
+    SDL_Thread *credential_thread = SDL_CreateThread(credential_events, "sv-contact-credentials", NULL);
+    assert(credential_thread);
+    SvEndpointOptions credentials = {.root = argv[1], .library = argv[2],
+        .server = "127.0.0.1:1", .width = 1024, .height = 768,
+        .frames = 180, .windowed = 1};
+    assert(sv_endpoint_run(credentials) == 0);
+    SDL_WaitThread(credential_thread, NULL);
     return 0;
 }
