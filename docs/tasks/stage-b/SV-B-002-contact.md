@@ -16,7 +16,52 @@
 
 ## Production subsets и поздние integration checks
 
-Отдельных ранних subsets или поздних caller checks, кроме cumulative gate, не назначено.
+Открытые ниже caller checks дополняют исходные acceptance SV-B-002; они не
+меняют canonical readiness prerequisites.
+
+### Открытые follow-up после Linux contact/control subset (2026-09-24)
+
+Это незакрытые части **собственного acceptance SV-B-002**, а не передача его
+capability IDs следующим тикетам. Текущие наблюдения и ограничения — в
+[evidence](../../sv-b002-evidence.md). Завершать каждый пункт production-путём
+SV, с точными входными и исходящими bytes и актуальным session generation.
+
+1. `capability.network.server-flags`: сохранённые четыре слова должны влиять на
+   доступность соответствующих команд и режимов. Сопоставить биты с baseline
+   (`SFLG1_BIG_MAP`, `SFLG1_CIPD`/`SFLG1_SIPD`, server type/limits), проверить
+   enabled/disabled и обновление флагов в live session. Первые потребители:
+   [SV-B-006](SV-B-006-login.md) для обзора персонажей и лимитов,
+   [SV-B-014](SV-B-014-map-core.md) для big map и
+   [SV-B-031](SV-B-031-chat.md) для item-paste ветвей; прочие команды
+   проверять при появлении их caller. Одного хранения `server_flags[4]`
+   недостаточно.
+2. `capability.network.confirm`: проверить связку с реально ожидающим макросом
+   [SV-B-007](SV-B-007-macros.md): регистрация waiter, ровно одно получение
+   confirmation byte в порядке пакетов, продолжение wait, stale generation и
+   повторный redraw. Наличие input API без macro executor не закрывает пункт.
+3. `capability.network.flush`: повторить `disable_flush`/`thin_down_flush`
+   и сроки frame submission в игровом presentation caller
+   [SV-B-014](SV-B-014-map-core.md). Contact view уже выполняет submit, но
+   не доказывает отправку изменённой карты/HUD во время gameplay.
+4. Контакт и failures: провести live TCP/серверные fixtures по всем baseline
+   version branches, включая старые setup layouts; отдельно DNS, connect,
+   timeout, ban, incompatible version, verification и malformed/partial setup.
+   Сверить освобождение сокета, видимую причину и разрешённый retry/exit при
+   `RETRY_LOGIN`/`ALWAYS_RETRY_LOGIN`/`SIMPLE_LOGIN`, а также Windows/POSIX
+   socket errors. Успешный single-version loopback этого не заменяет.
+5. Контактные credential bytes: текущий общий редактор
+   `src/client/sv/input/text-field.c` переводит SDL UTF-8 в Latin-1 без
+   установленного wire contract. Установить mapping сравнением с baseline и
+   реальным серверным round trip до заявления non-ASCII login; проверить
+   ASCII, representable non-ASCII, неподдерживаемый символ и сохранение draft
+   при encoding error. Согласовать с private raw-byte owner
+   [SV-B-005](SV-B-005-vault.md) и interactive login owner
+   [SV-B-006](SV-B-006-login.md); не нормализовать secret и не предполагать
+   charset только по glyph/SDL text representation.
+
+Средовые препятствия текущего cumulative gate вынесены в
+[SV-V-001](../verification/SV-V-001-b002-matrix-environment.md); это не
+переопределяет обязательные платформы или acceptance SV-B-002.
 
 Полная таблица ответственности и связей — [coverage.json](coverage.json); [две границы готовности](../../sv-stage-b-spec.md#readiness-and-integration) различают implementation DAG и acceptance closure.
 

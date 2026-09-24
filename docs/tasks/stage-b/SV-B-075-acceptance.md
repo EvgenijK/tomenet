@@ -14,6 +14,11 @@
 
 У gate **нет новых capability IDs**. Он агрегирует evidence всех508 owners и регрессии A; никакое отсутствие platform evidence не превращается в accepted.
 
+Для текущего SV-B-002 run подготовка Python/MinGW/desktop/Windows matrix
+вынесена в [SV-V-001](../verification/SV-V-001-b002-matrix-environment.md).
+Это инженерный unblocker, не замена собственным Stage B platform records,
+реальным server round trips или human review этого gate.
+
 ## Production subsets и поздние integration checks
 
 Отдельных ранних subsets или поздних caller checks, кроме cumulative gate, не назначено.

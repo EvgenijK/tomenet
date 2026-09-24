@@ -71,6 +71,14 @@ view submits its own flush-triggered frame; gameplay visual submission awaits
 its renderer. A real server login/character-selection flow, broader live server
 versions, DNS/timeout and retry matrix, accelerated rendering, MinGW/Wine and
 actual Windows 10/11 evidence remain pending. The native credential form uses
-the shared Latin-1 byte mapping; a credential-specific approved mapping and
-non-ASCII round-trip evidence are still needed under session byte policy.
+the general `src/client/sv/input/text-field.c` UTF-8→Latin-1 decoder. This
+assumes an outgoing byte mapping that the session policy does not establish.
+Baseline comparison and a real server wire round trip for ASCII, non-ASCII and
+unsupported input are required; on mapping failure the private draft must
+remain editable without transmitting or storing a changed secret. SV-B-002
+owns the contact wire proof; SV-B-005 owns private raw bytes and SV-B-006 owns
+the interactive login caller. Exact follow-ups are in their task files.
+Environment blockers are tracked by
+[SV-V-001](tasks/verification/SV-V-001-b002-matrix-environment.md); platform
+acceptance remains with SV-B-002 and SV-B-075.
 These outcomes are not accepted by the loopback or headless observations above.

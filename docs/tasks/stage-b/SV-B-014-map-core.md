@@ -14,6 +14,14 @@
 
 ## Production subsets и поздние integration checks
 
+- `network-flush-and-flags`: игровой renderer потребляет production flush state
+  [SV-B-002](SV-B-002-contact.md) при реальных map/HUD изменениях и отправляет
+  кадр по `disable_flush`/`thin_down_flush` и срокам submission, пока сеть
+  продолжает работать. Также `SFLG1_BIG_MAP` включает/запрещает big viewport
+  согласно baseline, включая обновление флага в текущей сессии. Проверить
+  enabled/disabled, split/chained packets, resize и stale generation; вернуть
+  evidence для `capability.network.flush` и `capability.network.server-flags`
+  исходному owner SV-B-002. Контактный экран этих игровых проверок не заменяет.
 - `startup-tiles`: producer [SV-B-014](SV-B-014-map-core.md); полные owners [SV-B-039](SV-B-039-map-effects.md). 014 реализует штатную production tile/subset composition для approved graphics1 и selected16x24sv: resource/PRF mappings, terrain/foreground placement и masks по этому режиму, palette, scaled prepared assets1:1, normal/big viewport fit.039 остаётся полным owner всех tile/subset modes/gates/effects. Fresh own CFG/defaults с доступным16x24sv в014/020 действительно рисует тайлы; проверить selected/default subset и glyph/terrain placement по baseline reference. graphics0/font-only допустим только как предусмотренный failure для отсутствующего/непригодного ресурса, не обход незавершённого renderer.039 повторяет штатный M1 и достраивает mode2/прочие subsets и source branches.
 
 Поздние обязательные проверки для primary owner этого тикета: [SV-B-020](SV-B-020-first-session.md), [SV-B-029](SV-B-029-map-explore.md), [SV-B-039](SV-B-039-map-effects.md), [SV-B-041](SV-B-041-layout-settings.md). До их выполнения разрешено объявить production implementation готовой для следующих задач, но полный acceptance остаётся pending; результаты поздних checks прикладываются к исходным IDs/obligations, не передавая ownership.

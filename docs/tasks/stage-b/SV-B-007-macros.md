@@ -14,7 +14,14 @@
 
 ## Production subsets и поздние integration checks
 
-Отдельных ранних subsets или поздних caller checks, кроме cumulative gate, не назначено.
+- `network-confirm`: executor `capability.input.macro-wait` подключает
+  generation-bound confirmation waiter из production input path
+  [SV-B-002](SV-B-002-contact.md). Проверить queued macro wait с
+  interleaved `PKT_CONFIRM`, одно применение byte в порядке сети, отсутствие
+  повторного применения после redraw, teardown/новую generation и отсутствие
+  блокировки network/timers. Evidence вернуть owner
+  `capability.network.confirm` в SV-B-002; этот тикет сохраняет своё
+  `capability.input.macro-wait` acceptance.
 
 Полная таблица ответственности и связей — [coverage.json](coverage.json); [две границы готовности](../../sv-stage-b-spec.md#readiness-and-integration) различают implementation DAG и acceptance closure.
 

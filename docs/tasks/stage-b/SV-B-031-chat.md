@@ -16,6 +16,13 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 
 ## Production subsets и поздние integration checks
 
+- `server-flags-item-paste`: когда доступны item-paste ветви chat caller,
+  потреблять актуальные `SFLG1_CIPD`/`SFLG1_SIPD` из
+  [SV-B-002](SV-B-002-contact.md). Проверить enabled/disabled для
+  inventory/equipment/bag, exact отправленные bytes, обновление флагов в
+  текущей сессии и отсутствие send при запрещённой функции. Evidence для
+  `capability.network.server-flags` вернуть SV-B-002; исходное chat
+  acceptance остаётся здесь.
 - `map-chat`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-031](SV-B-031-chat.md). 029 вводит actual native chat child с map/locate continuation.Реализовать все достижимые из этого child baseline branches: ordinary/private/channel transforms, own history, available item substitutions, local-self/forwarded slash и Escape без Send_msg.029 использует real editor/clipboard001 и histories010; это не fixed-response или test-only chat.031 расширяет и принимает полные chat outcomes во всех обязательных B callers. 029 выполняет map-specific success/cancel/transform overflow/history/provider failure и exact map selection/focus/queue return с interleaved network/resize.031 повторяет map branch; Guide/sheet/final callers добавляют integration checks033/035/036, результаты прикладываются к исходному owner031.
 
 Поздние обязательные проверки для primary owner этого тикета: [SV-B-033](SV-B-033-guide-tools.md), [SV-B-035](SV-B-035-sheet.md), [SV-B-036](SV-B-036-session-end.md). До их выполнения разрешено объявить production implementation готовой для следующих задач, но полный acceptance остаётся pending; результаты поздних checks прикладываются к исходным IDs/obligations, не передавая ownership.
