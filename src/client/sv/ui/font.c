@@ -21,24 +21,29 @@ static bool ascii_ttf(TTF_Font *font)
     return TTF_FontIsFixedWidth(font);
 }
 
-SvFont *sv_font_open(const char *root, const char *library)
+SvFont *sv_font_open_requested(const char *root, const char *library,
+                               const char *requested)
 {
     SvFont *font = SDL_calloc(1, sizeof(*font));
     const char *roots[] = {root, library};
+    const char *candidates[] = {requested, "CascadiaMono-Regular.ttf"};
     if (!font) return NULL;
-    for (unsigned i = 0; i < 2; ++i) {
-        if (SDL_snprintf(font->resource, sizeof(font->resource),
-                         "%s/xtra/font/CascadiaMono-Regular.ttf", roots[i]) >= (int)sizeof(font->resource))
-            continue;
-        font->ttf = TTF_OpenFont(font->resource, 18);
-        if (font->ttf && ascii_ttf(font->ttf)) {
-            font->size = 18;
-            return font;
+    for (unsigned candidate = 0; candidate < 2; ++candidate) {
+        if (candidate && !strcmp(candidates[0], candidates[1])) continue;
+        for (unsigned i = 0; i < 2; ++i) {
+            if (SDL_snprintf(font->resource, sizeof(font->resource),
+                             "%s/xtra/font/%s", roots[i], candidates[candidate]) >=
+                (int)sizeof(font->resource)) continue;
+            font->ttf = TTF_OpenFont(font->resource, 18);
+            if (font->ttf && ascii_ttf(font->ttf)) {
+                font->size = 18;
+                return font;
+            }
+            if (font->ttf) TTF_CloseFont(font->ttf);
+            font->ttf = NULL;
+            fprintf(stderr, "SV resource unavailable: %s (%s); trying declared fallback\n",
+                    font->resource, SDL_GetError());
         }
-        if (font->ttf) TTF_CloseFont(font->ttf);
-        font->ttf = NULL;
-        fprintf(stderr, "SV resource unavailable: %s (%s); trying declared fallback\n",
-                font->resource, SDL_GetError());
     }
     /* PCF is loaded directly by FreeType; numeric encoding is not reinterpreted. */
     SDL_snprintf(font->resource, sizeof(font->resource), "%s/xtra/font/16x24x.pcf", library);
@@ -51,13 +56,18 @@ SvFont *sv_font_open(const char *root, const char *library)
         for (unsigned c = 32; c < 127; ++c)
             if (!FT_Get_Char_Index(font->pcf, c)) valid = false;
         if (valid) {
-            fprintf(stderr, "SV effective font fallback: %s (requested CascadiaMono-Regular.ttf retained)\n", font->resource);
+            fprintf(stderr, "SV effective font fallback: %s (requested %s retained)\n", font->resource, requested);
             return font;
         }
     }
     fprintf(stderr, "SV fatal resource failure: bundled Cascadia Mono and %s unavailable or invalid\n", font->resource);
     sv_font_close(font);
     return NULL;
+}
+
+SvFont *sv_font_open(const char *root, const char *library)
+{
+    return sv_font_open_requested(root, library, "CascadiaMono-Regular.ttf");
 }
 
 void sv_font_close(SvFont *font)

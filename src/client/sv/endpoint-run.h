@@ -10,7 +10,7 @@ typedef struct {
 typedef bool (*SvEndpointPoll)(void *context, SvEndpoint *endpoint, bool *failed);
 typedef struct {
     const char *root, *library, *server, *server_list;
-    int width, height, frames, windowed;
+    int width, height, frames, windowed, window_override, ui_scale_override;
     unsigned port;
     const char *metaserver;
     SvEndpointChoice *selected_endpoint;

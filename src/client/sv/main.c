@@ -60,6 +60,7 @@ static void usage(void)
 {
     puts("TomeNET SV native shell\n"
          "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
+         "  [--window-mode fullscreen|window] [--ui-scale PERCENT]\n"
          "  [--account NAME --password-stdin] (contact through standard input)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
@@ -82,6 +83,8 @@ int main(int argc, char **argv)
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
     bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
+    bool window_override = false;
+    int ui_scale_override = 0;
     bool review = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
     unsigned port = 18348;
@@ -110,6 +113,18 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--metaserver")) metaserver = argv[++i];
         else if (!strcmp(argv[i], "--account")) account = argv[++i];
         else if (!strcmp(argv[i], "--real-name")) real_name = argv[++i];
+        else if (!strcmp(argv[i], "--window-mode")) {
+            const char *mode = argv[++i];
+            if (strcmp(mode, "fullscreen") && strcmp(mode, "window")) return 2;
+            windowed = !strcmp(mode, "window");
+            window_override = true;
+        }
+        else if (!strcmp(argv[i], "--ui-scale")) {
+            char *end;
+            long value = strtol(argv[++i], &end, 10);
+            if (*end || value < 50 || value > 200 || value % 5) return 2;
+            ui_scale_override = (int)value;
+        }
         else if (!strcmp(argv[i], "--port")) {
             char *end;
             unsigned long value = strtoul(argv[++i],&end,10);
@@ -121,6 +136,7 @@ int main(int argc, char **argv)
             if (sscanf(argv[++i], "%dx%d%c", &width, &height, &extra) != 2 ||
                 width < 1024 || height < 768 || width > 8192 || height > 8192) return 2;
             windowed = true;
+            window_override = true;
         } else if (!strcmp(argv[i], "--frames")) {
             char *end;
             long n = strtol(argv[++i], &end, 10);
@@ -141,7 +157,9 @@ int main(int argc, char **argv)
         }
         int contact_result = sv_endpoint_run((SvEndpointOptions){.root = root, .library = library,
             .server = server, .server_list = server_list, .width = width, .height = height,
-            .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver,
+            .frames = frames, .windowed = windowed, .window_override = window_override,
+            .ui_scale_override = ui_scale_override,
+            .port = port, .metaserver = metaserver,
             .account = account, .password = password_stdin ? contact_password : NULL,
             .real_name = real_name});
         volatile char *secret = contact_password;
@@ -149,6 +167,7 @@ int main(int argc, char **argv)
         return contact_result;
     }
     if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name) return 2;
+    if (ui_scale_override || (window_override && !windowed)) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");

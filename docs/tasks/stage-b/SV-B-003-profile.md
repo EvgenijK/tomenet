@@ -1,6 +1,6 @@
 # SV-B-003 — Первый запуск с собственным CFG и ресурсами
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: частичная startup CFG реализация; implementation readiness и полное acceptance pending. [Evidence](../../sv-b003-evidence.md).
 
 ## Пользовательский результат
 

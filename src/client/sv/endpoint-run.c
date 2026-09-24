@@ -5,6 +5,7 @@
 #include "input/text-field.h"
 #include "ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
+#include "profile.h"
 #include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
@@ -19,7 +20,7 @@ static void wipe_password(char *password, size_t size)
 /* The selected endpoint remains visible while credentials are entered. */
 static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
                              SvEndpointInput *input, int frame_limit,
-                             char account[80], char password[80])
+                             char account[80], char password[80], float user_scale)
 {
     int stage = 0, frames = 0;
     bool incompatible_password = false;
@@ -35,7 +36,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
             "Password: %s  (Enter connects, Escape cancels)",
             stage == 0 ? account : mask);
         input->contact_status = status;
-        if (!sv_endpoint_draw(renderer, font, endpoint, input)) return -1;
+        if (!sv_endpoint_draw(renderer, font, endpoint, input, user_scale)) return -1;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
@@ -177,7 +178,8 @@ static SvSocketState pump_session(SvContactSocket *connection, SvApp *app,
 }
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
-                       SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options)
+                       SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
+                       float user_scale)
 {
     SvContactIdentity identity = {options.real_name ? options.real_name : "PLAYER",
                                   options.account, "localhost", options.password};
@@ -243,7 +245,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 present = false;
         }
         if (present) {
-            if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
+            if (!sv_endpoint_draw(renderer, font, endpoint, input, user_scale)) break;
             if (state == SV_SOCKET_READY && app)
                 presented_flush = sv_app_view(app).flush_sequence;
         }
@@ -342,12 +344,22 @@ int sv_endpoint_run(SvEndpointOptions options)
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
     SvMetaserver *provider = NULL;
+    SvProfile profile;
     int result = 1;
     if (!root) {
-        owned_root = SDL_GetPrefPath("TomenetGame", "tomenet");
-        root = owned_root;
+        root = SDL_getenv("TOMENET_SDL3_USER_PATH");
+        if (!root || !*root) {
+            owned_root = SDL_GetPrefPath("TomenetGame", "tomenet");
+            root = owned_root;
+        }
     }
-    if (!root || !SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
+    if (!root || !sv_profile_load(&profile, root)) {
+        SDL_SetError("Cannot read SV profile"); goto done;
+    }
+    if (options.window_override) profile.windowed = options.windowed;
+    if (options.ui_scale_override) profile.ui_scale = options.ui_scale_override;
+    sv_profile_report(&profile);
+    if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
     if (!options.server && !options.server_list && !options.source_poll) {
         SvEndpoint meta;
         sv_endpoint_begin(&meta, 8801);
@@ -364,28 +376,31 @@ int sv_endpoint_run(SvEndpointOptions options)
         if (!base || SDL_snprintf(adjacent,sizeof(adjacent),"%s/lib",base) >= (int)sizeof(adjacent)) goto done;
         library = adjacent;
     }
-    font = sv_font_open(root, library);
+    font = sv_font_open_requested(root, library, profile.text_font);
     if (!font) goto done;
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    if (!options.windowed) flags |= SDL_WINDOW_FULLSCREEN;
+    if (!profile.windowed) flags |= SDL_WINDOW_FULLSCREEN;
     window = SDL_CreateWindow("TomeNET SV - Server",options.width,options.height,flags);
     if (!window) goto done;
     float window_scale = SDL_GetWindowDisplayScale(window) / SDL_GetWindowPixelDensity(window);
     if (window_scale <= 0 || !SDL_SetWindowMinimumSize(window,
             (int)SDL_ceilf(1024 * window_scale), (int)SDL_ceilf(768 * window_scale))) goto done;
-    if (options.windowed && !SDL_SetWindowSize(window,
+    if (profile.windowed && !SDL_SetWindowSize(window,
             (int)SDL_roundf(options.width * window_scale),
             (int)SDL_roundf(options.height * window_scale))) goto done;
     renderer = SDL_CreateRenderer(window,NULL);
     if (!renderer) goto done;
+    printf("SV resource text requested=%s effective=%s\n", profile.text_font,
+           sv_font_resource(font));
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);
     if (window_count != 1) { SDL_SetError("SV requires exactly one system window"); goto done; }
     SvEndpointInput input;
     sv_endpoint_input_begin(&input);
-    if (!sv_endpoint_draw(renderer,font,&endpoint,&input) ||
-        !sv_endpoint_render(renderer,font,&endpoint,&input)) goto done;
+    float user_scale = profile.ui_scale / 100.0f;
+    if (!sv_endpoint_draw(renderer,font,&endpoint,&input,user_scale) ||
+        !sv_endpoint_render(renderer,font,&endpoint,&input,user_scale)) goto done;
     SDL_Rect sample = {0,0,1,1};
     SDL_Surface *ready = SDL_RenderReadPixels(renderer,&sample);
     if (!ready) goto done;
@@ -410,7 +425,7 @@ int sv_endpoint_run(SvEndpointOptions options)
                 endpoint.phase == SV_ENDPOINT_SELECTED) { quit = true; break; }
         }
         if (quit) break;
-        if (!sv_endpoint_draw(renderer,font,&endpoint,&input)) goto done;
+        if (!sv_endpoint_draw(renderer,font,&endpoint,&input,user_scale)) goto done;
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
@@ -422,11 +437,12 @@ int sv_endpoint_run(SvEndpointOptions options)
             int entered = 1;
             if (!options.account || !options.password) {
                 entered = enter_credentials(renderer, font, &endpoint, &input,
-                                            options.frames, account, password);
+                                            options.frames, account, password, user_scale);
                 options.account = account;
                 options.password = password;
             }
-            if (entered > 0) result = run_contact(window, renderer, font, &endpoint, &input, options);
+            if (entered > 0) result = run_contact(window, renderer, font, &endpoint, &input,
+                                                 options, user_scale);
             else result = entered < 0 ? 1 : 0;
             wipe_password(password, sizeof(password));
             goto done;
