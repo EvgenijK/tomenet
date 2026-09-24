@@ -110,7 +110,7 @@ static void mandatory_overflow_and_abort(void)
     assert(!sv_app_view(app).active && !sv_app_view(app).request.pending);
     assert(sv_app_dispatch_input(app, 1).result == SV_CLOSED);
     assert(sv_app_open(app, version) == SV_OK);
-    /* 170 six-byte replies fit the 1024-byte transport; the next must fail. */
+    /* 170 six-byte replies fit the 1024-byte transport; the next waits. */
     for (unsigned i = 0; i < 170; ++i) {
         view = request(app, i);
         assert(sv_app_accept_key(app, view.generation, view.request.sequence, 'Y') == SV_OK);
@@ -118,8 +118,13 @@ static void mandatory_overflow_and_abort(void)
     }
     view = request(app, 171);
     assert(sv_app_accept_key(app, view.generation, view.request.sequence, 'Y') == SV_OK);
-    assert(sv_app_dispatch_input(app, 1).result == SV_OUTPUT_OVERFLOW);
-    assert(!sv_app_view(app).active && !sv_app_view(app).request.pending);
+    assert(sv_app_dispatch_input(app, 1).result == SV_BACKPRESSURE);
+    assert(sv_app_view(app).active && sv_app_view(app).request.pending);
+    unsigned char sent[1024];
+    SvOutput output = sv_app_take_output(app, view.generation, sent, sizeof(sent));
+    assert(output.result == SV_OK && output.size == 170 * 6);
+    assert(sv_app_dispatch_input(app, 1).dispatched == 1);
+    assert(sv_app_take_output(app, view.generation, sent, sizeof(sent)).size == 6);
     sv_app_destroy(app);
 }
 int main(void)

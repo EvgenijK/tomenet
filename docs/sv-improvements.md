@@ -369,3 +369,41 @@ the legacy timeout and error behavior; keep this change separate from SV.
 **Required checks:** split feed at every boundary, full/over-limit response,
 timeout and close during transfer, malformed XML, unchanged server ordering
 and protocol metadata on Linux and Windows.
+
+## Validate complete legacy setup records before publishing them
+
+**Status:** proposed separately; SV-B-002 keeps its setup parser local to SV.
+
+**Problem:** `Net_setup()` accepts several `Packet_scanf()` results for race,
+class and trait records without checking that each complete field arrived.
+Fragmented or malformed setup data can leave partly filled legacy arrays.
+
+**Affected code:** `src/client/nclient.c:Net_setup`, `src/common/sockbuf.c:Packet_scanf`.
+
+**Proposal:** stage complete setup records and publish them only after every
+field and advertised MOTD byte has been validated, preserving supported
+version layouts. Treat malformed fields as a visible connection failure.
+
+**Required checks:** split every setup field, all version layouts, maximum
+record and string lengths, malformed fields, chained packets, cleanup after
+failure and legacy client regressions on supported platforms.
+
+## Make legacy packet queue writes atomic
+
+**Status:** proposed separately; SV-B-002 uses SV-local serializers for its
+control replies and does not modify common or legacy code.
+
+**Problem:** `Packet_printf()` in `src/common/sockbuf.c` can leave part of a
+packet in the send buffer when space runs out, including at its last-byte
+boundary. Some callers treat failure as a complete rejection.
+
+**Affected code:** `src/common/sockbuf.c:Packet_printf`, legacy send callers
+in `src/client/nclient.c`.
+
+**Proposal:** preflight complete packet size or stage bytes before committing
+to the queue; define waiting/retry behavior per caller without shifting wire
+format or packet order.
+
+**Required checks:** every byte of the queue boundary, string slot limits,
+retry after drain, adjacent replies, duplicate prevention and both client
+platform builds.

@@ -7,6 +7,7 @@ typedef struct {
     SDL_Keymod latch;
     SvTextResult text_error;
     bool clipboard_unavailable;
+    const char *contact_status;
 } SvEndpointInput;
 /* The provider boundary is the OS clipboard. NULL selects SDL's real clipboard. */
 typedef char *(*SvClipboardRead)(void *context);

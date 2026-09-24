@@ -60,6 +60,7 @@ static void usage(void)
 {
     puts("TomeNET SV native shell\n"
          "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
+         "  [--account NAME --password-stdin] (contact through standard input)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
@@ -73,6 +74,9 @@ int main(int argc, char **argv)
 {
     const char *root = NULL, *library = NULL;
     const char *server = NULL, *server_list = NULL, *metaserver = NULL;
+    const char *account = NULL, *real_name = NULL;
+    bool password_stdin = false;
+    char contact_password[80] = {0};
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
@@ -88,6 +92,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--help")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
         if (!strcmp(argv[i], "--endpoint")) { endpoint_mode = true; continue; }
+        if (!strcmp(argv[i], "--password-stdin")) { password_stdin = true; continue; }
         if (!strcmp(argv[i], "--review")) { review = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
@@ -103,6 +108,8 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--server")) server = argv[++i];
         else if (!strcmp(argv[i], "--server-list")) server_list = argv[++i];
         else if (!strcmp(argv[i], "--metaserver")) metaserver = argv[++i];
+        else if (!strcmp(argv[i], "--account")) account = argv[++i];
+        else if (!strcmp(argv[i], "--real-name")) real_name = argv[++i];
         else if (!strcmp(argv[i], "--port")) {
             char *end;
             unsigned long value = strtoul(argv[++i],&end,10);
@@ -124,11 +131,24 @@ int main(int argc, char **argv)
     if (endpoint_mode) {
         if (synthetic || review || hp_check || arch_check || message_check || request_check ||
             lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
-        return sv_endpoint_run((SvEndpointOptions){.root = root, .library = library,
+        if (!!account != password_stdin) return 2;
+        if (password_stdin) {
+            if (!fgets(contact_password, sizeof(contact_password), stdin)) return 2;
+            size_t count = strlen(contact_password);
+            while (count && (contact_password[count - 1] == '\n' || contact_password[count - 1] == '\r'))
+                contact_password[--count] = 0;
+            if (!count || count >= 16) return 2;
+        }
+        int contact_result = sv_endpoint_run((SvEndpointOptions){.root = root, .library = library,
             .server = server, .server_list = server_list, .width = width, .height = height,
-            .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver});
+            .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver,
+            .account = account, .password = password_stdin ? contact_password : NULL,
+            .real_name = real_name});
+        volatile char *secret = contact_password;
+        for (size_t i = 0; i < sizeof(contact_password); ++i) secret[i] = 0;
+        return contact_result;
     }
-    if (server || server_list || metaserver || port != 18348) return 2;
+    if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");

@@ -4,19 +4,26 @@
 #include "result.h"
 #include "input/input.h"
 #include "diagnostics/runtime.h"
+#include "protocol/protocol.h"
 typedef struct SvApp SvApp;
 typedef struct {
     uint64_t generation;
     uint64_t revision; /* Coherent presentation revision, including local outcomes. */
     SvStatus status;
     SvMessages messages;
+    SvPingTelemetry ping;
     SvKeyRequest request;
     SvInputContext context;
+    uint32_t server_flags[4];
+    uint64_t pause_sequence, flush_sequence;
+    uint64_t flush_due_ms;
+    int paused;
     int active, executor_failed;
     SvResult reason;
 } SvAppView;
 typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
-               SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE } SvPresentationOrigin;
+               SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE, SV_PRESENT_PING,
+               SV_PRESENT_CONTROL } SvPresentationOrigin;
 typedef struct {
     SvPresentationOrigin origin;
     uint64_t generation, revision, started_ns, occurrence;
@@ -31,12 +38,15 @@ typedef struct {
 } SvPresentationObserver;
 SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer);
 typedef struct { size_t processed, pending_bytes; SvResult result; } SvStep;
+typedef struct { int disable_flush, thin_down_flush; } SvFlushOptions;
 /* All entry points run on the owner thread. Views are copies. */
 SvApp *sv_app_create(SvAlertSink sink);
 SvResult sv_app_destroy(SvApp *app);
 SvResult sv_app_open(SvApp *app, const int version[6]);
 SvResult sv_app_close(SvApp *app);
 SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention attention);
+SvResult sv_app_set_flush_options(SvApp *app, SvFlushOptions options);
+SvResult sv_app_frame(SvApp *app, uint64_t generation, uint64_t now_ms);
 SvAppView sv_app_view(const SvApp *app);
 SvResult sv_app_receive(SvApp *app, uint64_t generation, const void *bytes, size_t size);
 /* Completion from an external producer, delivered on the owner thread.
@@ -55,10 +65,17 @@ size_t sv_app_receive_capacity(const SvApp *app);
 SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
 /* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
 SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
+SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation, unsigned char *command);
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
 /* Caller invokes this only for an unmapped gameplay command. Reserved local
  * no-op keys are rejected and cannot become server packets. */
 SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key);
+/* Caller supplies monotonic milliseconds and last successful socket send. */
+SvResult sv_app_keepalive(SvApp *app, uint64_t generation,
+                          uint64_t now_ms, uint64_t last_sent_ms);
+SvResult sv_app_set_ping_clock(SvApp *app, SvPingClock clock);
+SvResult sv_app_send_ping(SvApp *app, uint64_t generation);
+SvResult sv_app_ack_pause(SvApp *app, uint64_t generation, uint64_t sequence);
 /* Bindings outlive a session. Accepted input belongs to its generation/request.
  * Matching occurs once at acceptance, dispatch is bounded and independent of UI. */
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind);

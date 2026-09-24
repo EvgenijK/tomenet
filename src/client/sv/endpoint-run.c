@@ -2,9 +2,92 @@
 #include "input/native-endpoint.h"
 #include "input/metaserver.h"
 #include "ui/endpoint-scene.h"
+#include "protocol/contact-socket.h"
+#include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
+
+static const char *contact_status(SvSocketState state, unsigned rejection)
+{
+    switch (state) {
+    case SV_SOCKET_RESOLVING: return "Resolving server address...";
+    case SV_SOCKET_CONNECTING: return "Connecting to server...";
+    case SV_SOCKET_NEGOTIATING: return "Negotiating version and setup...";
+    case SV_SOCKET_READY: return "Contact established. Close this window.";
+    case SV_SOCKET_DNS_ERROR: return "Cannot resolve server address. Escape exits.";
+    case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. Escape exits.";
+    case SV_SOCKET_TIMEOUT: return "Server timed out. Escape exits.";
+    case SV_SOCKET_CLOSED: return "Server closed the connection. Escape exits.";
+    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid verification or setup response. Escape exits.";
+    case SV_SOCKET_REJECTED:
+        if (rejection == E_BANNED) return "Server rejected contact: temporarily banned. Escape exits.";
+        if (rejection == E_VERSION_OLD) return "Server rejected contact: client version too old. Escape exits.";
+        if (rejection == E_VERSION_UNKNOWN) return "Server rejected contact: incompatible version. Escape exits.";
+        return "Server rejected contact. Escape exits.";
+    case SV_SOCKET_VERIFY_ERROR: return "Verification failed. Escape exits.";
+    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. Escape exits.";
+    }
+    return "Contact stopped.";
+}
+
+static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
+                       SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options)
+{
+    SvContactIdentity identity = {options.real_name ? options.real_name : "PLAYER",
+                                  options.account, "localhost", options.password};
+    if (endpoint->protocol >= 2 && strchr(options.password, '*')) {
+        SDL_SetError("Password contains '*' and cannot round-trip through this server protocol");
+        return 1;
+    }
+    SvContactSocket *connection = sv_contact_socket_start(endpoint->host, endpoint->port,
+                                                           endpoint->protocol, &identity);
+    if (!connection) {
+        SDL_SetError("Cannot start contact (invalid identity or unavailable socket)");
+        return 1;
+    }
+    SvSocketState state = SV_SOCKET_RESOLVING;
+    unsigned rejection = 0;
+    int frames = 0, result = 1;
+    bool quit = false, reached_ready = false, reported_failure = false;
+    while (!quit) {
+        if (connection) {
+            state = sv_contact_socket_poll(connection);
+            rejection = sv_contact_socket_rejection(connection);
+        }
+        input->contact_status = contact_status(state, rejection);
+        if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
+                (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
+                quit = true;
+                break;
+            }
+        }
+        if (state == SV_SOCKET_READY) {
+            if (!reached_ready) {
+                const int *version = sv_contact_socket_version(connection);
+                printf("SV contact ready host=%s port=%u server=%d.%d.%d.%d.%d.%d\n",
+                       endpoint->host, (unsigned)endpoint->port, version[0], version[1],
+                       version[2], version[3], version[4], version[5]);
+            }
+            reached_ready = true;
+            result = 0;
+        } else if (state >= SV_SOCKET_DNS_ERROR) {
+            if (!reported_failure) fprintf(stderr, "SV contact failed: %s (status=%u)\n",
+                                           input->contact_status, rejection);
+            reported_failure = true;
+            if (connection) { sv_contact_socket_stop(connection); connection = NULL; }
+            if (options.frames || reached_ready) break;
+        }
+        if (options.frames && ++frames >= options.frames) break;
+        SDL_Delay(16);
+    }
+    sv_contact_socket_stop(connection);
+    (void)window;
+    return result;
+}
 
 static bool load_list(SvEndpoint *endpoint, const char *path)
 {
@@ -122,9 +205,14 @@ int sv_endpoint_run(SvEndpointOptions options)
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
-    if (endpoint.phase == SV_ENDPOINT_SELECTED)
-        printf("SV endpoint selected host=%s port=%u; contact pending SV-B-002\n",
+    if (endpoint.phase == SV_ENDPOINT_SELECTED) {
+        printf("SV endpoint selected host=%s port=%u\n",
                endpoint.host,(unsigned)endpoint.port);
+        if (options.account && options.password) {
+            result = run_contact(window, renderer, font, &endpoint, &input, options);
+            goto done;
+        }
+    }
     else if (endpoint.phase == SV_ENDPOINT_CANCELLED)
         puts("SV endpoint selection cancelled; no contact attempted");
     else puts("SV endpoint selection incomplete; no contact attempted");

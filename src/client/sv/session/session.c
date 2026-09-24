@@ -19,8 +19,17 @@ struct SvSession {
     unsigned char drain;
     bool bar, boosted;
     uint64_t revision;
+    SvControlState controls;
+    unsigned char confirmations[32];
+    size_t confirmation_head, confirmation_count;
+    SvPingTelemetry ping;
 };
-SvSession *sv_session_create(void) { return calloc(1, sizeof(SvSession)); }
+SvSession *sv_session_create(void)
+{
+    SvSession *session = calloc(1, sizeof(SvSession));
+    if (session) for (size_t i = 0; i < 60; ++i) session->ping.samples[i] = -1;
+    return session;
+}
 void sv_session_destroy(SvSession *s) { free(s); }
 SvStatus sv_session_status(const SvSession *s)
 {
@@ -99,12 +108,66 @@ SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
     case SV_CHANGE_REQUEST_ABORT:
         if (s->request.pending) s->request.aborted = 1;
         break;
+    case SV_CHANGE_NOOP:
+    case SV_CHANGE_PAUSE:
+    case SV_CHANGE_FLUSH: break;
+    case SV_CHANGE_SERVER_FLAGS:
+        memcpy(s->controls.server_flags, change->server_flags, sizeof(change->server_flags));
+        break;
+    case SV_CHANGE_CONFIRM:
+        if (s->confirmation_count == sizeof(s->confirmations)) {
+            applied.result = SV_EVENT_OVERFLOW; break;
+        }
+        s->confirmations[(s->confirmation_head + s->confirmation_count) % sizeof(s->confirmations)] =
+            change->confirmed_command;
+        ++s->confirmation_count;
+        break;
+    case SV_CHANGE_PING:
+        if (change->ping.index < 60) {
+            int rtt = change->ping.rtt_ms;
+            SvPingTelemetry *telemetry = &s->ping;
+            telemetry->samples[change->ping.index] = rtt;
+            telemetry->latest_ms = rtt;
+            if ((int64_t)rtt < (int64_t)telemetry->average_ms * 7 / 10) {
+                telemetry->average_ms = rtt;
+                telemetry->average_count = 1;
+            }
+            if ((int64_t)rtt <= (int64_t)telemetry->average_ms * 13 / 10 ||
+                telemetry->average_count < 10) {
+                if (telemetry->average_count == 600)
+                    telemetry->average_ms = (int)(((int64_t)telemetry->average_ms * 599 + rtt) / 600);
+                else {
+                    telemetry->average_ms =
+                        (int)(((int64_t)telemetry->average_ms * telemetry->average_count + rtt) /
+                        (telemetry->average_count + 1));
+                    ++telemetry->average_count;
+                }
+            }
+        }
+        break;
     default: applied.result = SV_INVALID; break;
     }
     return applied;
 }
 
 SvKeyRequest sv_session_request(const SvSession *s) { return s->request; }
+SvControlState sv_session_controls(const SvSession *s) { return s->controls; }
+void sv_session_ping_sent(SvSession *s)
+{
+    memmove(s->ping.samples + 1, s->ping.samples, 59 * sizeof(int));
+    s->ping.samples[0] = -1;
+}
+SvPingTelemetry sv_session_ping(const SvSession *s) { return s->ping; }
+SvResult sv_session_take_confirmation(SvSession *s, unsigned char *command)
+{
+    if (!command) return SV_INVALID;
+    if (!s->confirmation_count) return SV_WAITING;
+    *command = s->confirmations[s->confirmation_head];
+    s->confirmations[s->confirmation_head] = 0;
+    s->confirmation_head = (s->confirmation_head + 1) % sizeof(s->confirmations);
+    --s->confirmation_count;
+    return SV_OK;
+}
 SvResult sv_session_complete_request(SvSession *s, uint64_t sequence)
 {
     if (!s->request.pending || s->request.sequence != sequence) return SV_STALE;

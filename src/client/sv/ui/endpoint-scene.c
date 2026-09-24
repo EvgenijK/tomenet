@@ -90,7 +90,8 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         char row[160];
         snprintf(row,sizeof(row),"Selected: %.79s : %u",endpoint->host,(unsigned)endpoint->port);
         if (!line(renderer,font,row,40,120,scale,selected) ||
-            !line(renderer,font,"Connection continues in SV-B-002. Close this window.",40,164,scale,normal)) return false;
+            !line(renderer,font,input->contact_status ? input->contact_status :
+                  "Account credentials are required for contact.",40,164,scale,normal)) return false;
     }
     return true;
 }

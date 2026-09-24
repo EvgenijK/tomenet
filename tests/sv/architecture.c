@@ -204,7 +204,7 @@ static void partial_input_and_recovery_remain_atomic(void)
     assert(sv_app_view(app).status.revision == 2);
     sv_app_destroy(app);
 }
-static void mandatory_output_exhaustion_closes_only_session(void)
+static void mandatory_output_exhaustion_waits_for_drain(void)
 {
     const unsigned char unknown = 7;
     SvApp *app = sv_app_create((SvAlertSink){0});
@@ -215,8 +215,12 @@ static void mandatory_output_exhaustion_closes_only_session(void)
         assert(sv_app_step(app, 1).result == SV_RECOVERED);
     }
     assert(sv_app_receive(app, gen, &unknown, 1) == SV_OK);
-    assert(sv_app_step(app, 1).result == SV_OUTPUT_OVERFLOW);
-    assert(!sv_app_view(app).active && sv_app_view(app).reason == SV_OUTPUT_OVERFLOW);
+    assert(sv_app_step(app, 1).result == SV_BACKPRESSURE);
+    assert(sv_app_view(app).active);
+    unsigned char sent[1024];
+    assert(sv_app_take_output(app, gen, sent, sizeof(sent)).size == 93 * 11);
+    assert(sv_app_step(app, 1).result == SV_RECOVERED);
+    assert(sv_app_view(app).active);
     assert(sv_app_open(app, version) == SV_OK);
     unsigned char overflow[1025] = {0};
     assert(sv_app_receive(app, sv_app_view(app).generation, overflow, sizeof(overflow)) == SV_INPUT_OVERFLOW);
@@ -259,7 +263,7 @@ int main(void)
     presentation_tracks_data_and_layout_independently();
     backpressure_retains_owned_input_for_retry();
     partial_input_and_recovery_remain_atomic();
-    mandatory_output_exhaustion_closes_only_session();
+    mandatory_output_exhaustion_waits_for_drain();
     executors_cannot_reenter_model_mutation();
     budget_preserves_updates();
     alerts_survive_intermediate_and_repeated_hp();

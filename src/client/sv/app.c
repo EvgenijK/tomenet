@@ -1,12 +1,16 @@
 #include "app.h"
 #include "protocol/protocol.h"
 #include <stdlib.h>
+#include <string.h>
 struct SvApp {
     SvSession *session;
     SvProtocol *protocol;
     SvAppView view;
     SvAlertSink sink;
     SvAlertOptions options;
+    SvFlushOptions flush_options;
+    unsigned flush_count;
+    uint64_t frame_ms;
     SvAttention attention;
     int busy;
     SvRuntimeCheck *checks[8];
@@ -17,6 +21,7 @@ struct SvApp {
     SvPresentationObserver observer;
     uint64_t input_started_ns, input_sequence;
 };
+static SvResult accepts(const SvApp *app, uint64_t generation);
 static uint64_t now(SvApp *app)
 {
     return app->observer.now ? app->observer.now(app->observer.context) : 0;
@@ -50,6 +55,11 @@ static void release_session(SvApp *app)
     app->view.context = SV_CONTEXT_GAME;
     app->view.active = 0;
     app->view.messages = (SvMessages){0};
+    app->view.ping = (SvPingTelemetry){0};
+    memset(app->view.server_flags, 0, sizeof(app->view.server_flags));
+    app->view.paused = 0;
+    app->view.flush_due_ms = 0;
+    app->flush_count = 0;
 }
 static void fail_session(SvApp *app, SvResult reason)
 {
@@ -88,12 +98,27 @@ SvResult sv_app_open(SvApp *app, const int version[6])
     app->session = sv_session_create();
     if (!app->protocol || !app->session) { fail_session(app, SV_NO_MEMORY); return SV_NO_MEMORY; }
     app->view.active = 1; app->view.reason = SV_OK;
+    app->view.ping = sv_session_ping(app->session);
     return SV_OK;
 }
 SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention attention)
 {
     if (app->busy) return SV_BUSY;
     app->options = options; app->attention = attention;
+    return SV_OK;
+}
+SvResult sv_app_set_flush_options(SvApp *app, SvFlushOptions options)
+{
+    if (app->busy) return SV_BUSY;
+    app->flush_options = options;
+    return SV_OK;
+}
+SvResult sv_app_frame(SvApp *app, uint64_t generation, uint64_t now_ms)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    app->frame_ms = now_ms;
+    app->flush_count = 0;
     return SV_OK;
 }
 SvAppView sv_app_view(const SvApp *app) { return app->view; }
@@ -131,7 +156,10 @@ size_t sv_app_receive_capacity(const SvApp *app)
 static SvResult deliver_reply(SvApp *app, SvKeyReply reply)
 {
     SvResult result = sv_protocol_key_reply(app->protocol, reply.id, reply.key);
-    if (result != SV_OK) { fail_session(app, result); return result; }
+    if (result != SV_OK) {
+        if (result != SV_BACKPRESSURE) fail_session(app, result);
+        return result;
+    }
     return sv_session_complete_request(app->session, reply.sequence);
 }
 static SvResult refresh_request(SvApp *app)
@@ -153,6 +181,7 @@ SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned
     uint64_t started = now(app);
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
+    if (app->view.paused) return SV_BUSY;
     SvKeyReply reply;
     result = sv_input_key(&app->input, sv_session_request(app->session), sequence, key, &reply);
     if (result != SV_OK) return result;
@@ -165,11 +194,47 @@ SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    if (app->view.context != SV_CONTEXT_GAME || app->view.request.pending) return SV_BUSY;
+    if (app->view.paused || app->view.context != SV_CONTEXT_GAME || app->view.request.pending) return SV_BUSY;
     if (!key || key == 27 || key == '-' || key == ' ' || key == 13 || key == 10) return SV_INVALID;
     result = sv_protocol_raw_key(app->protocol, key);
     if (result == SV_OUTPUT_OVERFLOW) fail_session(app, result);
     return result;
+}
+SvResult sv_app_keepalive(SvApp *app, uint64_t generation,
+                          uint64_t now_ms, uint64_t last_sent_ms)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (now_ms < last_sent_ms || now_ms - last_sent_ms < 2000 ||
+        sv_protocol_output_capacity(app->protocol) != SV_PROTOCOL_CAPACITY) return SV_WAITING;
+    return sv_protocol_keepalive(app->protocol);
+}
+SvResult sv_app_set_ping_clock(SvApp *app, SvPingClock clock)
+{
+    if (app->busy) return SV_BUSY;
+    if (!app->view.active) return SV_CLOSED;
+    return sv_protocol_set_ping_clock(app->protocol, clock);
+}
+SvResult sv_app_send_ping(SvApp *app, uint64_t generation)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    result = sv_protocol_send_ping(app->protocol);
+    if (result == SV_OK) {
+        sv_session_ping_sent(app->session);
+        app->view.ping = sv_session_ping(app->session);
+    }
+    return result;
+}
+SvResult sv_app_ack_pause(SvApp *app, uint64_t generation, uint64_t sequence)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!app->view.paused || sequence != app->view.pause_sequence) return SV_STALE;
+    app->view.paused = 0;
+    app->input.head = app->input.count = 0;
+    publish(app, SV_PRESENT_INPUT, now(app), 0, 1);
+    return SV_OK;
 }
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind)
 {
@@ -186,6 +251,12 @@ SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *b
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
+    if (app->view.paused) {
+        unsigned char acknowledgement;
+        result = sv_input_physical(&app->bindings, bytes, size, false, &acknowledgement);
+        return result == SV_OK ? sv_app_ack_pause(app, generation,
+            app->view.pause_sequence) : result;
+    }
     unsigned char key;
     bool prompt = app->view.request.pending;
     result = sv_input_physical(&app->bindings, bytes, size, prompt, &key);
@@ -202,6 +273,7 @@ SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, u
     uint64_t started = now(app);
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
+    if (app->view.paused) return SV_BUSY;
     result = sv_input_accept(&app->input, &app->bindings, sv_session_request(app->session), sequence, key);
     if (result == SV_OK && app->input_sequence != sequence) {
         app->input_sequence = sequence;
@@ -216,6 +288,9 @@ SvInputStep sv_app_dispatch_input(SvApp *app, size_t budget)
     if (step.result != SV_OK) return step;
     app->busy = 1;
     while (step.dispatched + step.stale < budget) {
+        if (app->input.count && sv_protocol_output_capacity(app->protocol) < 6) {
+            step.result = SV_BACKPRESSURE; break;
+        }
         SvKeyReply reply;
         SvResult result = sv_input_next(&app->input, sv_session_request(app->session), &reply);
         if (result == SV_WAITING) break;
@@ -237,10 +312,19 @@ SvStep sv_app_step(SvApp *app, size_t budget)
     if (app->busy) { step.result = SV_BUSY; return step; }
     if (!app->view.active) { step.result = SV_CLOSED; return step; }
     app->busy = 1;
+    if (app->view.request.aborted) {
+        step.result = refresh_request(app);
+        if (step.result != SV_OK) {
+            step.pending_bytes = sv_protocol_pending(app->protocol);
+            app->busy = 0;
+            return step;
+        }
+    }
     while (step.processed < budget) {
         SvChange decoded;
         step.result = sv_protocol_next(app->protocol, &decoded);
         if (step.result == SV_WAITING) break;
+        if (step.result == SV_BACKPRESSURE) break;
         if (step.result != SV_OK && step.result != SV_RECOVERED) {
             fail_session(app, step.result); break;
         }
@@ -250,14 +334,32 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
+        if (decoded.kind == SV_CHANGE_NOOP) continue;
+        if (decoded.kind == SV_CHANGE_PAUSE) {
+            ++app->view.pause_sequence;
+            app->view.paused = 1;
+            app->input.head = app->input.count = 0;
+        } else if (decoded.kind == SV_CHANGE_FLUSH) {
+            ++app->view.flush_sequence;
+            ++app->flush_count;
+            app->view.flush_due_ms = app->frame_ms +
+                (!app->flush_options.disable_flush &&
+                 (!app->flush_options.thin_down_flush || app->flush_count <= 10));
+        }
         step.result = refresh_request(app);
         if (step.result != SV_OK) break;
         app->view.status = change.status.after;
         app->view.messages = sv_session_messages(app->session);
+        app->view.ping = sv_session_ping(app->session);
+        SvControlState controls = sv_session_controls(app->session);
+        memcpy(app->view.server_flags, controls.server_flags, sizeof(controls.server_flags));
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);
         if (!sv_alerts_deliver(app->sink, effects)) app->view.executor_failed = 1;
         SvPresentationOrigin origin = decoded.kind == SV_CHANGE_HP ? SV_PRESENT_HP :
-            decoded.kind == SV_CHANGE_MESSAGE ? SV_PRESENT_MESSAGE : SV_PRESENT_REQUEST;
+            decoded.kind == SV_CHANGE_MESSAGE ? SV_PRESENT_MESSAGE :
+            decoded.kind == SV_CHANGE_PING ? SV_PRESENT_PING :
+            decoded.kind == SV_CHANGE_KEY_REQUEST || decoded.kind == SV_CHANGE_REQUEST_ABORT ?
+                SV_PRESENT_REQUEST : SV_PRESENT_CONTROL;
         publish(app, origin, started,
             change.message_occurrence, change.message_chat);
     }
@@ -277,6 +379,12 @@ SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     return sv_session_take_message(app->session, message);
+}
+SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation, unsigned char *command)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    return sv_session_take_confirmation(app->session, command);
 }
 
 SvRuntimeCheck sv_app_check_run(SvApp *app, SvRuntimeScenario scenario,

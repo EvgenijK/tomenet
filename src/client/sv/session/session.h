@@ -34,11 +34,21 @@ typedef struct {
     uint64_t revision;
 } SvStatus;
 typedef struct { SvStatus before, after; } SvStatusChange;
-typedef enum { SV_CHANGE_HP, SV_CHANGE_MESSAGE, SV_CHANGE_KEY_REQUEST, SV_CHANGE_REQUEST_ABORT } SvChangeKind;
+typedef enum { SV_CHANGE_HP, SV_CHANGE_MESSAGE, SV_CHANGE_KEY_REQUEST,
+               SV_CHANGE_REQUEST_ABORT, SV_CHANGE_NOOP, SV_CHANGE_SERVER_FLAGS,
+               SV_CHANGE_CONFIRM, SV_CHANGE_PAUSE, SV_CHANGE_FLUSH,
+               SV_CHANGE_PING } SvChangeKind;
+typedef struct { int32_t rtt_ms; unsigned char index; } SvPingUpdate;
+typedef struct {
+    int samples[60], latest_ms, average_ms, average_count;
+} SvPingTelemetry;
 typedef struct {
     SvChangeKind kind;
-    union { SvHpUpdate hp; SvMessage message; SvKeyRequest request; };
+    union { SvHpUpdate hp; SvMessage message; SvKeyRequest request;
+            uint32_t server_flags[4]; unsigned char confirmed_command;
+            SvPingUpdate ping; };
 } SvChange;
+typedef struct { uint32_t server_flags[4]; } SvControlState;
 typedef struct {
     SvResult result;
     SvStatusChange status;
@@ -56,5 +66,9 @@ SvStatus sv_session_status(const SvSession *session);
 SvResult sv_session_take_message(SvSession *session, SvMessage *message);
 SvMessages sv_session_messages(const SvSession *session);
 SvKeyRequest sv_session_request(const SvSession *session);
+SvControlState sv_session_controls(const SvSession *session);
+SvResult sv_session_take_confirmation(SvSession *session, unsigned char *command);
+void sv_session_ping_sent(SvSession *session);
+SvPingTelemetry sv_session_ping(const SvSession *session);
 SvResult sv_session_complete_request(SvSession *session, uint64_t sequence);
 #endif
