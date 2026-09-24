@@ -14,6 +14,7 @@ Existing `direction.*`, `target.*`, `request.*`, `world.*` and session IDs are r
 | 13 | Validate scoped production-path evidence, fingerprints and pending-child/fallback rejection; no synthetic key request certifies item/spell cancellation. |
 
 ## Source corrections and required edge scenarios
+- The [2026-09-23 allocation](../research/sv-stage-b-allocation-proposal.md) puts the numeric quantity primitive in C, where item/store amounts call it; read-only B item/direction/target paths do not require it. `c_get_quantity` returns 0 on Escape, but accepted empty input uses `predef` (negative `predef` selects `PY_MAX_GOLD`). Historical inventory rows quoted below retain the old “Esc/empty” shorthand; the source-backed manifest correction governs acceptance.
 - Drop and verified takeoff can send quantity zero; destroy and normal purchase abort on zero. Sell/home deposit can send zero; home gold sends item marker 9999 even with zero. TV_GOLD purchase has its own zero-send path. Do not normalize these into one cancellation policy.
 - Store quantity wire becomes i32 at >=4.9.3.0.0.3, previously i16. Bag move/remove requires server >4.7.4.4.0.0; before 4.9.2.0.0.0 amount is omitted and the whole stack moves. Preserve encoded container identity.
 - Inventory revision is an internal ordering/ack contract: Receive_inventory_revision stores the revision and sends Send_inventory_revision. Its old autoinscription block is inactive. It is a scenario on item identity, not a user capability per counter.

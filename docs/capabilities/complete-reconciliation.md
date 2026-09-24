@@ -58,9 +58,13 @@ Current source corrections are explicit: SDL3's physical owner is `react_keypres
 
 ## Cross-cutting scenarios and stage prerequisites
 
-Ten explicit scenarios in `reconciliation.json` connect live entry, HP urgency, item/spell/store callers, formatted requests, live players, persistence/resources, byte boundaries, map composition, teardown and source-defined extensions. Every listed capability names its own evidence obligations. The complete registry is checked in reverse too: an active allocated outcome with no inventory/scenario reference fails.
+The ten original scenarios in `reconciliation.json` connect live entry, HP urgency, item/spell/store callers, formatted requests, live players, persistence/resources, byte boundaries, map composition, teardown and source-defined extensions. Every listed capability names its own evidence obligations. The complete registry is checked in reverse too: an active allocated outcome with no inventory/scenario reference fails.
 
-Original acceptance stages are retained. Current allocation is A=8, B=583, C=165, D=156, E=11, F=2. Live profile input explicitly requires physical/keymap/macro/wait/navigation primitives; live entry requires network/control primitives. Item/combat/spell/skill/store/direction/target callers require their B input primitives. The existing validator rejects later-stage prerequisites and cycles. Cross-cutting scenarios span stages without claiming that the early primitive accepts later callers.
+The [2026-09-23 source-backed allocation](../research/sv-stage-b-allocation-proposal.md) changes 75 of the original 583 B outcomes: 508 remain B, 11 move to C, 7 to D and 57 to E. Current totals are **A=8, B=508, C=176, D=163, E=68, F=2**. All 925 active IDs and the deprecated history are retained. The 387 prerequisite changes follow concrete callers; read-only/direction/target B paths no longer depend on the C quantity prompt. Live entry gains settings, FILE/Lua and startup dependencies. Existing B owners explicitly retain shared INS reads/conversion, eight audio CFG startup projections and early Guide/chat cancellation; full late IDs preserve their semantics.
+
+The reconciliation now contains 209 scenarios: the ten original scenarios plus 184 concrete option-consumer fixtures, five early obligation handoffs and ten late option-caller regression groups. Numeric input is removed only from early live-entry coverage; its C/D/E callers remain mapped. The quantity description corrects historical wording: Escape returns zero; accepted empty input uses the default. Immutable inventory quotations are retained and do not override this source-backed correction. For `disturb_other`, storage/default/wire slots remain required; no new effect is invented where no consumer was found.
+
+The existing validator rejects later-stage prerequisites and cycles. Scenarios may span stages: readiness prerequisites, partial startup projection and whole-caller acceptance are distinct. All native implementation/evidence remains pending; the new obligations are requirements, not runtime evidence.
 
 ## Validation
 
@@ -101,3 +105,58 @@ reported `valid`, history checked, source bytes checked, 24 inventories and
 2,077 disposed rows, zero unresolved rows, 925 pending outcomes and zero accepted.
 The omitted-outcome test removes both capability and native allocation together;
 the independent inventory still reports `inventory-allocation`.
+
+## Stage B allocation verification — 2026-09-23
+
+Applied the complete [allocation proposal](../research/sv-stage-b-allocation-proposal.md):
+75 stage changes, 387 prerequisite-list changes, no new/deleted capability IDs,
+no removed obligations and no native acceptance claims. New primary-source
+observations identify concrete consumers; the existing inventory source hashes
+and immutable audit rows did not need refreshing because code and policy sources
+were unchanged. Only the quantity and `disturb_other` descriptions were corrected;
+all other original outcome descriptions remain intact.
+
+The production validator passed with history, source, inventory, reconciliation
+and evidence verification: 925 active/pending outcomes, zero accepted, 24
+inventories, 2,077 disposed rows, no unresolved rows and no errors. Existing data
+suites passed: 12 registry tests (including 32 published negative fixtures), 13
+reconciliation tests and 21 evidence tests. `git diff --check` passed. This is a
+data-only allocation change; game binaries/platform acceptance were not rerun.
+
+The pre-edit manifest was retained at
+`/tmp/sv-b-allocation-before/manifest.json`; recover the same bytes from the
+recorded starting commit for a later checkout:
+
+```sh
+git show 887ac4d215376daaa169afca8216f65c18855107:docs/capabilities/manifest.json > /tmp/sv-b-previous-manifest.json
+/tmp/sv15-venv/bin/python tools/validate_capabilities.py \
+  --manifest docs/capabilities/manifest.json \
+  --ledger docs/capabilities/native-coverage.json \
+  --previous-manifest /tmp/sv-b-previous-manifest.json \
+  --inventory-index docs/capabilities/inventories/index.json \
+  --reconciliation docs/capabilities/reconciliation.json \
+  --evidence docs/capabilities/native-evidence.json \
+  --source-root tomenet=.
+```
+
+### Targeted review corrections — 2026-09-23
+
+Both P2 findings from review of the allocation were corrected. `subterm_flicker`
+and `misc_no_flicker` now name the real auxiliary inventory consumer, message/chat
+scope and unchanged main-map control. Their checks preserve the global animation
+override and the message exception that applies only to misc suppression, using
+semantic content roles in SV. Primary references are `fix_inven`/`display_inven`,
+`fix_message`, `flick_colour` and the approved display-option policy.
+
+The new ASCII regression mistakenly assigned to `information.unique-records` was
+removed, together with its unsupported source/scenario association. This B outcome
+still owns kill counts/names; actual artifact/monster lore glyph regressions remain.
+No obligation from the original 887 baseline was removed. Stages, prerequisites,
+capability IDs, source code and immutable inventory hashes are unchanged by these
+corrections. Targeted independent re-review reports Standards **0** / Spec **0**;
+this does not constitute native runtime acceptance.
+
+After the fixes, full validation passed against both the pre-fix manifest and the
+original 887 manifest (history/source/inventory/reconciliation/evidence). Repeated
+data suites passed: registry 12/12 including all 32 negative fixtures,
+reconciliation 13/13 and evidence 21/21. `git diff --check` passed.

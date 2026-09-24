@@ -17,7 +17,9 @@ Ticket 11 adds settings, resources, files and platform outcomes; see the
 Ticket 12 reconciles the full inventory corpus and adds explicit live HUD,
 input and network outcomes; see the [complete reconciliation](complete-reconciliation.md).
 The current registry contains 925 active outcomes, all pending, with no accepted
-native claims, plus one retained deprecated ID. The counts below describe the historical ticket 07 slice.
+native claims, plus one retained deprecated ID. Current allocation after the
+[Stage B source review](../research/sv-stage-b-allocation-proposal.md) is
+A=8, B=508, C=176, D=163, E=68, F=2. The counts below describe the historical ticket 07 slice.
 
 ## Initial slice — ticket 07
 

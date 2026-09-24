@@ -1,0 +1,88 @@
+# SV-B-066 — Опции incoming items и pickup — часть 2
+
+Статус: specified; реализация и runtime evidence не выполнены.
+
+## Пользовательский результат
+
+Игрок наблюдает эффект каждого option через его конкретного раннего consumer, сохраняя BOOL meaning, defaults и slot identity.
+
+## Зависимости и граница
+
+Завершить необходимые production части [SV-B-003](SV-B-003-profile.md), [SV-B-004](SV-B-004-save.md), [SV-B-009](SV-B-009-inventory.md), [SV-B-027](SV-B-027-pickup-store.md), [SV-B-042](SV-B-042-local-settings.md).
+
+Граф задаёт порядок готовности production implementation для следующих задач; это не автоматическое закрытие полной acceptance. Runtime branches и fixtures не обязаны исполняться последовательно. Полный primary owner сохраняет acceptance pending до всех своих obligations и перечисленных поздних integration checks; readiness prerequisites canonical ledger при этом не меняются. Точный полный список capability prerequisites, sources и obligation IDs для каждого owner находится в [coverage.json](coverage.json); hashes связывают его с неизменённым canonical registry. Инженерные зависимости выше добавляют конкретных потребителей, не меняя ledger.
+
+## Production subsets и поздние integration checks
+
+
+Этот тикет выполняет повторные/недостающие actual-caller проверки для [SV-B-027](SV-B-027-pickup-store.md). Использовать их production code, сохранить каждый исходный obligation и вернуть evidence первоначальному owner.
+
+Полная таблица ответственности и связей — [coverage.json](coverage.json); [две границы готовности](../../sv-stage-b-spec.md#readiness-and-integration) различают implementation DAG и acceptance closure.
+
+## Единственная первичная ответственность
+
+<!-- owned-capabilities:start -->
+| ID | Полный результат baseline / policy | Первичные источники |
+|---|---|---|
+| `capability.options.stack-allow-items` | Apply stack_allow_items: Allow weapons and armor to stack. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:331](../../../src/client/c-tables.c#L331)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:330](../../../src/client/c-tables.c#L330)<br>[object2.c:3699](../../../src/server/object2.c#L3699)<br>[object2.c:3688](../../../src/server/object2.c#L3688)<br>[object2.c:3693](../../../src/server/object2.c#L3693) |
+| `capability.options.stack-allow-devices` | Apply stack_allow_devices: Allow wands/staffs/rods to stack. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:333](../../../src/client/c-tables.c#L333)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:332](../../../src/client/c-tables.c#L332)<br>[object2.c:3698](../../../src/server/object2.c#L3698)<br>[object2.c:3692](../../../src/server/object2.c#L3692)<br>[object2.c:3789](../../../src/server/object2.c#L3789) |
+| `capability.options.always-pickup` | Apply always_pickup: Pick things up by default. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:339](../../../src/client/c-tables.c#L339)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:338](../../../src/client/c-tables.c#L338)<br>[cmd1.c:9429](../../../src/server/cmd1.c#L9429) |
+| `capability.options.auto-pickup` | Apply auto_pickup: Automatically pickup items (see '/apickup'). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:536](../../../src/client/c-tables.c#L536)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:535](../../../src/client/c-tables.c#L535)<br>[nclient.c:6806](../../../src/client/nclient.c#L6806)<br>[c-cmd.c:8311](../../../src/client/c-cmd.c#L8311)<br>[c-cmd.c:8312](../../../src/client/c-cmd.c#L8312) |
+| `capability.options.auto-destroy` | Apply auto_destroy: Automatically destroy items (see '/adestroy'). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:538](../../../src/client/c-tables.c#L538)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:537](../../../src/client/c-tables.c#L537)<br>[nclient.c:6711](../../../src/client/nclient.c#L6711)<br>[c-cmd.c:8316](../../../src/client/c-cmd.c#L8316)<br>[c-cmd.c:8317](../../../src/client/c-cmd.c#L8317) |
+| `capability.options.destroy-all-unmatched` | Apply destroy_all_unmatched: Destroys ALL unmatched items. (Like A'#' in &.). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:540](../../../src/client/c-tables.c#L540)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:539](../../../src/client/c-tables.c#L539)<br>[nclient.c:6685](../../../src/client/nclient.c#L6685)<br>[c-cmd.c:8321](../../../src/client/c-cmd.c#L8321)<br>[c-cmd.c:8322](../../../src/client/c-cmd.c#L8322) |
+| `capability.options.auto-inscr-off` | Apply auto_inscr_off: Disable all client-side auto-inscriptions. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:567](../../../src/client/c-tables.c#L567)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:566](../../../src/client/c-tables.c#L566)<br>[c-cmd.c:1736](../../../src/client/c-cmd.c#L1736)<br>[nclient.c:6815](../../../src/client/nclient.c#L6815)<br>[nclient.c:6836](../../../src/client/nclient.c#L6836) |
+<!-- owned-capabilities:end -->
+
+## Production SV проверки
+
+1. Для КАЖДОГО ID таблицы выполнить false/true через указанные concrete consumer fixtures; default/slot, own global/character OPT, macro directive override, Preview→Cancel и Save→reload.
+2. При server-owned значении: actual Send_options→sync_options→consumer→наблюдаемый ответ с version/inversion gates; local-only effect не получает выдуманного server consumer.
+3. Проверить cancellation/error/interleaved update/resize/teardown у consumer; поздние C/D/E callers остаются своими pending outcomes и сохраняют option-aware regressions.
+4. Особые границы: disturb_other только storage/wire без нового effect; subterm/misc — auxiliary inventory/message scopes и invariant main map; ASCII lore regressions не относятся к unique-records.
+
+Для каждого собственного ID дополнительно обязательны следующие условия; это требования будущей реализации, а не результаты выполненных тестов.
+
+| ID | Конкретные проверки и ранние handoffs |
+|---|---|
+| `capability.options.stack-allow-items` | Apply stack_allow_items: Allow weapons and armor to stack — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.stack-allow-devices` | Apply stack_allow_devices: Allow wands/staffs/rods to stack — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.always-pickup` | Apply always_pickup: Pick things up by default — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.auto-pickup` | Apply auto_pickup: Automatically pickup items (see '/apickup') — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.auto-destroy` | Apply auto_destroy: Automatically destroy items (see '/adestroy') — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.destroy-all-unmatched` | Apply destroy_all_unmatched: Destroys ALL unmatched items. (Like A'#' in &.) — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+| `capability.options.auto-inscr-off` | Apply auto_inscr_off: Disable all client-side auto-inscriptions — обе BOOL-ветви через production SV и указанный реальный consumer, не standalone parser. OPT default/slot, own global/character Save→reload, Preview→Cancel, macro directive override; применимые compile/version guards. Повторить caller-specific проверки при C/D/E; поздний caller остаётся pending до его этапа. Для server-owned значения: Send_options→sync_options→consumer→наблюдаемый ответ; сохранить инверсию slot и актуальную server-version ветвь. Для local-only значения не изобретать server effect. Consumer fixtures: capability.items.pickup-accept capability.items.autoinscribe-on-update |
+
+[Общий обязательный recipe](../../sv-stage-b-spec.md#verification) применяется к каждому пути success/cancel/error: production decoder/router/model/renderer/serializer, bytes и split/chained input, актуальный parent, macro/physical routes, interleaved network, focus/resize и stale generation. Fixture подменяет peer/clock/filesystem/provider inputs, но не реализацию поведения.
+
+### Конкретные option consumer fixtures
+
+| Option ID | Native callers из reconciliation |
+|---|---|
+| `capability.options.stack-allow-items` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.stack-allow-devices` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.always-pickup` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.auto-pickup` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.auto-destroy` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.destroy-all-unmatched` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+| `capability.options.auto-inscr-off` | `capability.items.pickup-accept`, `capability.items.autoinscribe-on-update` |
+
+Это scenario references, а не новые prerequisite edges и не перенос ответственности за caller. Если fixture ссылается на поздний C/D/E outcome, используйте раннюю ветвь ровно в пределах B option contract, а полный поздний caller сохраняйте pending с собственными регрессиями.
+
+## Версии, build gates и источники
+
+- `capability.options.stack-allow-items`, `capability.options.stack-allow-devices`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — T; E=T; —; retain consumer feature/version/runtime gates and Send_options projection..
+- `capability.options.always-pickup`, `capability.options.auto-pickup`, `capability.options.auto-destroy`, `capability.options.destroy-all-unmatched`, `capability.options.auto-inscr-off`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — F; E=T; —; retain consumer feature/version/runtime gates and Send_options projection..
+
+Версионные границы читаются в перечисленных primary sources соответствующей manifest revision; номер строки — навигация в текущем checkout, literal anchor и full-file SHA берутся из [manifest](../../capabilities/manifest.json). Не считать одну текущую server version проверкой всех ветвей. [Session byte policy](../../capabilities/session-policy.md), [persistence/resource policy](../../capabilities/settings-policy.md), [layout/stage policy](../../capabilities/item-policy.md) имеют приоритет над историческими дефектами и Terminal topology.
+
+## Evidence и Definition of Done
+
+- Production code расположен преимущественно в SV по [правилу изоляции](../../../AGENTS.md) и [архитектуре](../../sv-architecture.md). Нет test-only decoder/behavior, нового virtual Term или незапрошенного legacy refactor. Обнаруженные отдельные улучшения записаны отдельно.
+- Готовность implementation позволяет продолжать зависимые задачи; закрытие полного acceptance требует также перечисленных поздних integration checks. Каждый принадлежащий тикету ID сохраняет весь исходный outcome и ВСЕ его existing obligations; таблицы не сужают `.result`, `.lifecycle`, `.wire` или прочие условия canonical ledger. Реализация caller не принимается по успеху общего primitive.
+- Автоматизированные тесты вызывают production seam и фиксируют exact expected/actual values, safe command/reply bytes и generation/fallback observations; native visual/input review использует тот же executable. Evidence содержит revision/config/server/build/platform/renderer, проверенные source/fixture/resource/SDK fingerprints и complete dependency scope. Секреты и пользовательский private content в отчёты не попадают.
+- Linux software и accelerated, отдельный MinGW i686 build/Wine intermediate smoke; actual Windows10/11 software/accelerated обязательны для B, platform-specific behavior проверяется при появлении. Частичные наблюдения сохраняются pending; missing/failed/stale evidence не проходит gate.
+- Выполнены относящиеся к изменению cumulative A regressions и consumer scenarios; все нарушения20/50/200ms submission deadlines записаны. Нет принятого B flow с fallback entry. Полный matrix, human review и актуальность evidence сводятся в [SV-B-075](SV-B-075-acceptance.md).
+
+## Ограничения после тикета
+
+Тикет не заявляет полноту B в одиночку. Quantity/item selection/transactions C, полные lore/document/context-help/chat-cancel caller unions D, macro editing/recording/wizard, INS management, reimport и audio pack/device editors E сохраняют свои этапы. Ранние branches/handoffs проверяются у существующих B owners без сужения поздних IDs. Успешный death transition не принимает ghost powers; parse/Save значения не принимает поздний consumer.
