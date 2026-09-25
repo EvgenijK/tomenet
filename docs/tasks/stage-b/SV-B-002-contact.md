@@ -46,8 +46,9 @@ SV, с точными входными и исходящими bytes и акту
 4. Контакт и failures: провести live TCP/серверные fixtures по всем baseline
    version branches, включая старые setup layouts; отдельно DNS, connect,
    timeout, ban, incompatible version, verification и malformed/partial setup.
-   Локальные TCP fixtures уже покрывают 4.4.3.1 layout, refused connect и
-   silent-peer contact timeout; прочие branches и server/platform matrix открыты.
+   Локальные TCP fixtures уже покрывают 4.4.3.1 layout, invalid-host DNS,
+   refused connect, silent-peer contact timeout, ban, оба version rejection
+   codes и game-full; прочие branches и server/platform matrix открыты.
    Сверить освобождение сокета, видимую причину и разрешённый retry/exit при
    `RETRY_LOGIN`/`ALWAYS_RETRY_LOGIN`/`SIMPLE_LOGIN`, а также Windows/POSIX
    socket errors. Успешный single-version loopback этого не заменяет.

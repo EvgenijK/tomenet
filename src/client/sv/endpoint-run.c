@@ -91,9 +91,23 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
     case SV_SOCKET_CLOSED: return "Server closed the connection. Escape exits.";
     case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. Escape exits.";
     case SV_SOCKET_REJECTED:
-        if (rejection == E_BANNED) return "Server rejected contact: temporarily banned. Escape exits.";
-        if (rejection == E_VERSION_OLD) return "Server rejected contact: client version too old. Escape exits.";
-        if (rejection == E_VERSION_UNKNOWN) return "Server rejected contact: incompatible version. Escape exits.";
+        switch (rejection) {
+        case E_VERSION_OLD: return "Server rejected contact: client version too old. Escape exits.";
+        case E_VERSION_UNKNOWN: return "Server rejected contact: incompatible version. Escape exits.";
+        case E_GAME_FULL: return "Server rejected contact: game is full. Escape exits.";
+        case E_TWO_PLAYERS: return "Server rejected contact: another character is online. Escape exits.";
+        case E_PASSWORD: return "Server rejected contact: invalid password. Escape exits.";
+        case E_IN_USE_DUP: return "Server rejected contact: duplicate login. Escape exits.";
+        case E_LETTER: return "Server rejected contact: invalid account name. Escape exits.";
+        case E_IN_USE: return "Server rejected contact: account in use from another address. Escape exits.";
+        case E_SOCKET: return "Server rejected contact: server socket error. Escape exits.";
+        case E_INVAL: return "Server rejected contact: invalid identity. Escape exits.";
+        case E_INVITE: return "Server rejected contact: members only. Escape exits.";
+        case E_BANNED: return "Server rejected contact: temporarily banned. Escape exits.";
+        case E_LENGTH: return "Server rejected contact: account name too short. Escape exits.";
+        case E_IN_USE_PC: return "Server rejected contact: account in use on this PC. Escape exits.";
+        case E_CLOSED: return "Server rejected contact: server closing. Escape exits.";
+        }
         return "Server rejected contact. Escape exits.";
     case SV_SOCKET_VERIFY_ERROR: return "Verification failed. Escape exits.";
     case SV_SOCKET_SETUP_ERROR: return "Server setup failed. Escape exits.";

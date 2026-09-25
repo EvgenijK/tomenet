@@ -99,7 +99,7 @@ def serve_old_setup(listener, observed):
         observed['error'] = error
 
 
-def reject(listener, observed):
+def reject(listener, observed, status):
     try:
         peer, _ = listener.accept()
         with peer:
@@ -110,8 +110,8 @@ def reject(listener, observed):
             text_field(peer)
             text_field(peer)
             exact(peer, 26)
-            peer.sendall(bytes([255, 12]) + struct.pack('>II', 0, 0))
-            time.sleep(0.1)
+            peer.sendall(bytes([255, status]) + struct.pack('>II', 0, 0))
+            observed['closed'] = peer.recv(1) == b''
     except Exception as error:
         observed['error'] = error
 
@@ -211,21 +211,26 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
         assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
                                                    0, 0, 0, 13, 111, 0])
-    with socket.socket() as listener:
-        listener.bind(('127.0.0.1', 0))
-        listener.listen(1)
-        observed = {}
-        thread = threading.Thread(target=reject, args=(listener, observed), daemon=True)
-        thread.start()
-        command = native_command(listener.getsockname()[1], profile)
-        run = subprocess.run(command, input='pw\n', text=True, capture_output=True,
-                             cwd=ROOT, timeout=15,
-                             env=dict(os.environ, SDL_VIDEODRIVER='dummy',
-                                      SDL_RENDER_DRIVER='software'))
-        thread.join(timeout=5)
-        assert 'error' not in observed, observed.get('error')
-        assert run.returncode == 1, (run.stdout, run.stderr)
-        assert 'temporarily banned' in run.stderr
+    for status_code, reason in [(12, 'temporarily banned'),
+                                (1, 'client version too old'),
+                                (13, 'incompatible version'),
+                                (2, 'game is full')]:
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1', 0))
+            listener.listen(1)
+            observed = {}
+            thread = threading.Thread(target=reject,
+                                      args=(listener, observed, status_code), daemon=True)
+            thread.start()
+            command = native_command(listener.getsockname()[1], profile)
+            run = subprocess.run(command, input='pw\n', text=True, capture_output=True,
+                                 cwd=ROOT, timeout=15,
+                                 env=dict(os.environ, SDL_VIDEODRIVER='dummy',
+                                          SDL_RENDER_DRIVER='software'))
+            thread.join(timeout=5)
+            assert 'error' not in observed and observed.get('closed'), observed
+            assert run.returncode == 1, (run.stdout, run.stderr)
+            assert reason in run.stderr, (status_code, run.stderr)
     for phase, status in [('verify', 'Verification failed'), ('setup', 'Server setup failed')]:
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))
@@ -251,6 +256,14 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
                          env=dict(os.environ, SDL_VIDEODRIVER='dummy',
                                   SDL_RENDER_DRIVER='software'))
     assert run.returncode == 1 and 'Cannot open server socket' in run.stderr
+    invalid_host = 'a' * 64 + '.invalid'
+    dns_command = native_command(closed_port, profile)
+    dns_command[dns_command.index('127.0.0.1')] = invalid_host
+    run = subprocess.run(dns_command, input='pw\n', text=True, capture_output=True,
+                         cwd=ROOT, timeout=15,
+                         env=dict(os.environ, SDL_VIDEODRIVER='dummy',
+                                  SDL_RENDER_DRIVER='software'))
+    assert run.returncode == 1 and 'Cannot resolve server address' in run.stderr, run.stderr
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)

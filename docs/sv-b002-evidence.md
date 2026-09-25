@@ -51,6 +51,16 @@ are whole packets and wait on a full queue.
   The 2026-09-24 rework additionally passed a fragmented 4.4.3.1 setup layout
   with exact contact/verify bytes and an adjacent keepalive/unknown recovery,
   local refused TCP connect and a silent peer's 10-second contact timeout.
+- The next contact-failure slice passes the same production native executable
+  through invalid-host DNS failure, refused connect, ban, both version rejection
+  codes and game-full rejection. The rejection peer observes TCP EOF after each
+  failure; no verification packet follows a rejected contact. Server status
+  messages now distinguish the other defined contact rejection codes as well.
+  `python3 tests/sv_contact_live_checks.py` passed with local TCP access;
+  `python3 tests/sv_contact_checks.py` passed. Current Linux executable SHA-256
+  `3d3ae4f79ebbca93f5d169ece9cb0e3e1d9f3af09e04623ceb46a79c384a1f33`;
+  live fixture SHA-256
+  `27b28f8672a65287b839d43e6de4fe68baf9e90cb2cbdd1e77015b398b3faffc`.
 - `tests/sv_endpoint_checks.py`: pass after linking the scene fixture against
   the current production SV app and protocol. Contact field checks cover a
   refused UTF-8 non-ASCII event preserving its private draft and subsequent
@@ -103,7 +113,7 @@ consumer exists yet. The input-owned confirmation waiter has a production API,
 but the future macro executor does not yet register or consume it. The contact
 view submits its own flush-triggered frame; gameplay visual submission awaits
 its renderer. A real server login/character-selection flow, broader live server
-versions, DNS and retry matrix, accelerated rendering, MinGW/Wine and
+versions, resolver/platform DNS matrix and retry matrix, accelerated rendering, MinGW/Wine and
 actual Windows 10/11 evidence remain pending. The general
 `src/client/sv/input/text-field.c` editor still implements UTF-8→Latin-1 for
 other fields, but the contact form rejects non-ASCII SDL events before that
