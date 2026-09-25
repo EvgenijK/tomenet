@@ -2,6 +2,50 @@
 
 Status: partial implementation; full ticket readiness and acceptance remain pending.
 
+## 2026-09-25 incremental production work
+
+The endpoint executable now loads `S/options.prf`, `S/global.opt`, and
+`S/global-sv.opt` before contact. The SV-only options module holds 199 packet
+slots with the 188 currently named baseline defaults, converts every explicit
+`c-files.c` alias branch in memory (including inversion, one-to-many, and
+discard), and exposes character-layer application plus the four versioned
+`PKT_OPTIONS` lengths (97/129/155/200 bytes including the type byte). The
+character layer and packet serializer are production code exercised through
+their public seam; the current endpoint executable has no character selection
+or first option send and therefore cannot apply them in a login yet.
+
+The resource resolver gives U overlay priority over B for concrete paths and
+keeps a single owner for stat, sibling temporary path, rename, and remove.
+Writable sidecars, rename, and remove reject bundled B refs at the production
+API boundary; the test checks a B ref remains readable and unchanged after
+rejected remove and rename attempts.
+The production text-font loader uses it. Endpoint startup reports requested
+map-font, graphics, sound-pack, and music-pack names together with a found or
+missing source. These are availability observations, not effective renderer,
+pack-loader, or audio-device state.
+
+Linux amd64 worktree based on `fca870549` (uncommitted B-003 changes), build
+`linux-9dd5a1e98a672a5b25cd`, SDL3 3.4.16, SDL3_ttf 3.2.2, FreeType 26.6.20:
+`make -C src -f makefile.sv tomenet-sv -j4`,
+`python3 tests/sv_options_checks.py`,
+`python3 tests/sv_profile_checks.py`,
+`python3 tests/sv_endpoint_checks.py`,
+`python3 tests/sv_contact_checks.py`, and `git diff --check` passed. The
+options test invokes the production options/resource modules with isolated U/B
+roots, checks layer order, alias branches, versioned packet bytes, refusal of
+cross-owner rename, overlay fallback after remove, and unchanged OPT sources.
+The profile executable test checks startup source availability and missing
+pack reporting in addition to prior CFG cases. SDL video ran dummy/software;
+the OPT/resource seam used temporary filesystem roots.
+
+Source fingerprints: `src/client/c-tables.c`
+`94cc27da7b272aa7d6967a39b1731cd94fe22547088c1f455c1f1a69cb4957f4`;
+`src/client/c-files.c`
+`3e3b0c66e859b8b9780b461f6f2c2305949ab3b17fb82a166124e01f5e94ecf5`;
+SV option snapshot `src/client/sv/options-table.inc`
+`154f386de394d5f7c57380f32da0da8f3123c64f32f8840dd97112f3d19f3851`.
+The preexisting bundled font fingerprints below remain current.
+
 ## Verified production path
 
 `src/tomenet-sv --endpoint` loads `U/sv/tomenet.cfg` before creating the window
@@ -39,12 +83,14 @@ failures did not recur outside the sandbox.
 
 ## Pending ticket obligations
 
-This implementation does not yet load the global/system/character OPT layers,
-convert their aliases, or send them at the pre-login packet point. Map font,
-graphics, pack, and audio fields currently retain requested startup values;
-there is no map renderer or audio executor in this early SV executable to
-establish their effective state. Resource mutation owner and versioned
-`Send_version`/`Send_audio`/`Send_font` reporting remain unimplemented.
+Global/system OPT loading and alias conversion are implemented. Character OPT
+application and versioned packet construction are production seams without a
+current login caller. Map font, graphics, pack, and audio fields retain
+requested startup values and report source availability; there is no map
+renderer, pack loader, or audio executor in this early SV executable to
+establish their effective state. Resource owner primitives exist, but no
+settings/resource editor yet uses them for a full write transaction. Versioned
+`Send_version`/`Send_audio`/`Send_font` reporting remains unimplemented.
 Consequently none of the eight owned capability IDs or the ticket's
 implementation readiness is claimed complete. The later integration and
 Windows platform checks listed in the ticket also remain pending.

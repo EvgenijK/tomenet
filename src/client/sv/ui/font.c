@@ -1,4 +1,5 @@
 #include "ui/font.h"
+#include "resource.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -47,15 +48,19 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
                                const char *requested)
 {
     SvFont *font = SDL_calloc(1, sizeof(*font));
-    const char *roots[] = {root, library};
     const char *candidates[] = {requested, "CascadiaMono-Regular.ttf"};
     if (!font) return NULL;
     for (unsigned candidate = 0; candidate < 2; ++candidate) {
         if (candidate && !strcmp(candidates[0], candidates[1])) continue;
         for (unsigned i = candidate ? 1 : 0; i < 2; ++i) {
-            if (SDL_snprintf(font->resource, sizeof(font->resource),
-                             "%s/xtra/font/%s", roots[i], candidates[candidate]) >=
-                (int)sizeof(font->resource)) continue;
+            char relative[SV_RESOURCE_PATH];
+            SvResourceRef ref;
+            if (SDL_snprintf(relative, sizeof(relative), "xtra/font/%s",
+                             candidates[candidate]) >= (int)sizeof(relative) ||
+                !sv_resource_path(root, library, relative,
+                                  i == 0 ? SV_RESOURCE_USER : SV_RESOURCE_BUNDLED,
+                                  &ref)) continue;
+            SDL_strlcpy(font->resource, ref.path, sizeof(font->resource));
             if (pcf_name(candidates[candidate])) {
                 if (open_pcf(font)) return font;
                 fprintf(stderr, "SV resource unavailable: %s (invalid PCF); trying declared fallback\n",
@@ -74,9 +79,13 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
         }
     }
     /* PCF is loaded directly by FreeType; numeric encoding is not reinterpreted. */
-    if (SDL_snprintf(font->resource, sizeof(font->resource),
-                     "%s/xtra/font/16x24x.pcf", library) < (int)sizeof(font->resource) &&
-        open_pcf(font)) {
+    SvResourceRef fallback;
+    bool has_fallback = sv_resource_path(root, library, "xtra/font/16x24x.pcf",
+                                         SV_RESOURCE_BUNDLED, &fallback);
+    if (has_fallback) {
+        SDL_strlcpy(font->resource, fallback.path, sizeof(font->resource));
+    }
+    if (has_fallback && open_pcf(font)) {
         fprintf(stderr, "SV effective font fallback: %s (requested %s retained)\n", font->resource, requested);
         return font;
     }

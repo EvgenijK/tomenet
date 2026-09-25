@@ -40,6 +40,8 @@ with tempfile.TemporaryDirectory(prefix="sv-profile-") as temporary:
     output = run()
     assert "SV profile window=window ui_scale=105" in output, output
     assert "rate=48000" in output and "sound_subset=2" in output, output
+    assert f"map-font requested=16x24x.pcf source={ROOT}/lib/xtra/font/16x24x.pcf availability=found" in output, output
+    assert f"sound-pack requested=sound source={ROOT}/lib/xtra/sound availability=found" in output, output
     assert cfg.read_bytes() == before
     override = subprocess.run([*command, "--window-mode", "fullscreen", "--ui-scale", "115"],
                               env=env, text=True, capture_output=True, timeout=30)
@@ -58,12 +60,24 @@ with tempfile.TemporaryDirectory(prefix="sv-profile-") as temporary:
     assert "requested=missing.ttf effective=" in output, output
     assert "CascadiaMono-Regular.ttf" in output, output
 
+    (user / "xtra/font").mkdir(parents=True)
+    (user / "xtra/graphics").mkdir(parents=True)
+    (user / "xtra/customsound").mkdir(parents=True)
+    (user / "xtra/font/custom.pcf").write_bytes(b"fixture")
+    (user / "xtra/graphics/custom.bmp").write_bytes(b"fixture")
+    cfg.write_text("svMapFont\tcustom.pcf\ngraphic_tiles\tcustom\n"
+                   "soundpackFolder\tcustomsound\nmusicpackFolder\tmissingpack\n")
+    output = run()
+    assert f"map-font requested=custom.pcf source={user}/xtra/font/custom.pcf availability=found" in output, output
+    assert f"graphics requested=custom source={user}/xtra/graphics/custom.bmp availability=found" in output, output
+    assert f"sound-pack requested=customsound source={user}/xtra/customsound availability=found" in output, output
+    assert "music-pack requested=missingpack source=missing availability=missing" in output, output
+
     overlay = user / "xtra/font"
-    overlay.mkdir(parents=True)
     shutil.copyfile(ROOT / "lib/xtra/font/CascadiaMono-Regular.ttf",
                     overlay / "CascadiaMono-Regular.ttf")
     output = run()
-    assert f"effective={ROOT}/lib/xtra/font/CascadiaMono-Regular.ttf" in output, output
+    assert f"effective={user}/xtra/font/CascadiaMono-Regular.ttf" in output, output
 
     cfg.write_text("svTextFont\t16x24x.pcf\n")
     output = run()

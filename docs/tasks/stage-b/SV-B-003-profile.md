@@ -1,6 +1,19 @@
 # SV-B-003 — Первый запуск с собственным CFG и ресурсами
 
-Статус: частичная startup CFG реализация; implementation readiness и полное acceptance pending. [Evidence](../../sv-b003-evidence.md).
+Статус: частичная startup CFG/OPT и resource-owner реализация; implementation readiness и полное acceptance pending. [Evidence](../../sv-b003-evidence.md).
+
+Текущий SV executable загружает `S/options.prf`, `S/global.opt`,
+`S/global-sv.opt` до контактного экрана, не читая legacy `U/global.opt`.
+Отдельный production seam применяет `S/<character>.opt` после выбора персонажа
+и формирует `PKT_OPTIONS` по четырём исходным version gates. Он ещё не вызван
+в реальном login flow: до B-006 нет имени персонажа и первого `Send_options`.
+Alias conversions из `c-files.c` выполняются в памяти; файл не переписывается.
+
+Общий SV resolver выбирает U overlay перед B, возвращает конкретный owner
+для read/stat и raw операций над ресурсом; текстовый шрифт использует его.
+Startup показывает requested и найденный source для map font, graphics и
+audio pack folders. `source=found` означает только наличие файла/каталога:
+эффективную карту, пак и аудиоустройство проверят соответствующие consumers.
 
 ## Пользовательский результат
 

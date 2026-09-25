@@ -6,6 +6,8 @@
 #include "ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
 #include "profile.h"
+#include "options.h"
+#include "resource.h"
 #include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
@@ -340,6 +342,17 @@ static bool load_list(SvEndpoint *endpoint, const char *path)
     return true;
 }
 
+static void report_resource_source(const char *root, const char *library,
+                                   const char *category, const char *requested,
+                                   const char *relative, SDL_PathType type)
+{
+    SvResourceRef resolved;
+    bool found = sv_resource_find(root, library, relative, type, &resolved);
+    printf("SV resource %s requested=%s source=%s availability=%s\n",
+           category, requested, found ? resolved.path : "missing",
+           found ? "found" : "missing");
+}
+
 int sv_endpoint_run(SvEndpointOptions options)
 {
     SvEndpoint endpoint;
@@ -359,6 +372,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     SvFont *font = NULL;
     SvMetaserver *provider = NULL;
     SvProfile profile;
+    SvOptions options_snapshot;
     int result = 1;
     if (!root) {
         root = SDL_getenv("TOMENET_SDL3_USER_PATH");
@@ -369,6 +383,9 @@ int sv_endpoint_run(SvEndpointOptions options)
     }
     if (!root || !sv_profile_load(&profile, root)) {
         SDL_SetError("Cannot read SV profile"); goto done;
+    }
+    if (!sv_options_load_base(&options_snapshot, root)) {
+        SDL_SetError("Cannot read SV option layers"); goto done;
     }
     if (options.window_override) profile.windowed = options.windowed;
     if (options.ui_scale_override) profile.ui_scale = options.ui_scale_override;
@@ -406,6 +423,23 @@ int sv_endpoint_run(SvEndpointOptions options)
     if (!renderer) goto done;
     printf("SV resource text requested=%s effective=%s\n", profile.text_font,
            sv_font_resource(font));
+    char relative[SV_RESOURCE_PATH];
+    if (SDL_snprintf(relative, sizeof(relative), "xtra/font/%s", profile.map_font) <
+        (int)sizeof(relative))
+        report_resource_source(root, library, "map-font", profile.map_font,
+                               relative, SDL_PATHTYPE_FILE);
+    if (SDL_snprintf(relative, sizeof(relative), "xtra/graphics/%s.bmp", profile.tiles) <
+        (int)sizeof(relative))
+        report_resource_source(root, library, "graphics", profile.tiles,
+                               relative, SDL_PATHTYPE_FILE);
+    if (SDL_snprintf(relative, sizeof(relative), "xtra/%s", profile.sound_pack) <
+        (int)sizeof(relative))
+        report_resource_source(root, library, "sound-pack", profile.sound_pack,
+                               relative, SDL_PATHTYPE_DIRECTORY);
+    if (SDL_snprintf(relative, sizeof(relative), "xtra/%s", profile.music_pack) <
+        (int)sizeof(relative))
+        report_resource_source(root, library, "music-pack", profile.music_pack,
+                               relative, SDL_PATHTYPE_DIRECTORY);
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);
