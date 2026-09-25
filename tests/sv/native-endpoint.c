@@ -30,12 +30,26 @@ static SDL_Event key_event(SDL_Keycode key, SDL_Keymod mods)
 int main(void)
 {
     SvTextField contact_field;
-    sv_text_begin(&contact_field, "pw", 79, true);
+    assert(sv_contact_draft_limit(false) == 79);
+    assert(sv_contact_draft_limit(true) == 15);
+    sv_text_begin(&contact_field, "pw", sv_contact_draft_limit(true), true);
     assert(sv_text_select(&contact_field, contact_field.length, contact_field.length));
     assert(sv_contact_field_insert(&contact_field, "\xc3\xa9") == SV_TEXT_ENCODING_ERROR);
     assert(contact_field.length == 2 && !strcmp(contact_field.bytes, "pw"));
     assert(sv_contact_field_insert(&contact_field, "A") == SV_TEXT_OK);
     assert(contact_field.length == 3 && !strcmp(contact_field.bytes, "pwA"));
+    SvTextHistory history = {0};
+    sv_text_begin_history(&contact_field, &history, "", sv_contact_draft_limit(true), true);
+    assert(sv_contact_field_insert(&contact_field, "1234567890123456") == SV_TEXT_TRUNCATED);
+    assert(contact_field.length == 15);
+    sv_text_remember(&contact_field);
+    assert(history.count == 0);
+    sv_text_begin(&contact_field, "", sv_contact_draft_limit(false), true);
+    char long_account[81];
+    memset(long_account, 'a', 80);
+    long_account[80] = 0;
+    assert(sv_contact_field_insert(&contact_field, long_account) == SV_TEXT_TRUNCATED);
+    assert(contact_field.length == 79);
 
     SvEndpoint endpoint;
     SvEndpointInput input;

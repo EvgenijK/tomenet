@@ -15,6 +15,7 @@ void sv_endpoint_input_begin(SvEndpointInput *input);
 /* Contact credentials have no established Unicode-to-wire mapping. Keep the
  * private draft intact until the source bytes are unambiguous ASCII. */
 SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8);
+size_t sv_contact_draft_limit(bool password);
 bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
                        const SDL_Event *event, SvClipboardRead clipboard, void *context);
 #endif

@@ -1,8 +1,8 @@
 #include "endpoint-run.h"
 #include "app.h"
 #include "input/native-endpoint.h"
+#include "input/credentials.h"
 #include "input/metaserver.h"
-#include "input/text-field.h"
 #include "ui/endpoint-scene.h"
 #include "ui/settings-scene.h"
 #include "protocol/contact-socket.h"
@@ -20,65 +20,39 @@ static void wipe_password(char *password, size_t size)
     while (size--) *bytes++ = 0;
 }
 
-/* The selected endpoint remains visible while credentials are entered. */
+/* The endpoint scene only drives the private input interaction and drawing. */
 static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
                              SvEndpointInput *input, int frame_limit,
                              char account[80], char password[80], float user_scale)
 {
-    int stage = 0, frames = 0;
-    bool incompatible_password = false;
-    char status[180];
+    SvCredentialInput credentials;
+    sv_credentials_begin(&credentials, endpoint, account, password);
+    int outcome = 0, frames = 0;
     for (;;) {
-        char mask[80];
-        size_t password_length = strlen(password);
-        memset(mask, '*', password_length);
-        mask[password_length] = 0;
-        SDL_snprintf(status, sizeof(status), incompatible_password ?
-            "Password contains '*' (unsupported by server). Edit it; Escape cancels." : stage == 0 ?
-            "Account: %s  (Enter continues, Escape cancels)" :
-            "Password: %s  (Enter connects, Escape cancels)",
-            stage == 0 ? account : mask);
+        char status[180];
+        sv_credentials_poll(&credentials);
+        sv_credentials_status(&credentials, status);
         input->contact_status = status;
-        if (!sv_endpoint_draw(renderer, font, endpoint, input, user_scale)) return -1;
+        input->text_error = credentials.text_error;
+        input->clipboard_unavailable = credentials.clipboard_unavailable;
+        if (!sv_endpoint_draw(renderer, font, endpoint, input, user_scale)) {
+            outcome = -1;
+            break;
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
-                return 0;
-            if (event.type == SDL_EVENT_TEXT_INPUT) {
-                char *field = stage ? password : account;
-                SvTextField editor;
-                sv_text_begin(&editor, field, 79, true);
-                (void)sv_text_select(&editor, editor.length, editor.length);
-                input->text_error = sv_contact_field_insert(&editor, event.text.text);
-                memcpy(field, editor.bytes, editor.length + 1);
-                incompatible_password = false;
-                wipe_password((char *)&editor, sizeof(editor));
-            } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-                if (event.key.key == SDLK_ESCAPE) return 0;
-                char *field = stage ? password : account;
-                size_t length = strlen(field);
-                if (event.key.key == SDLK_BACKSPACE && length) {
-                    field[length - 1] = 0;
-                    incompatible_password = false;
-                    input->text_error = SV_TEXT_OK;
-                }
-                else if ((event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) && length) {
-                    if (input->text_error == SV_TEXT_ENCODING_ERROR) continue;
-                    if (stage) {
-                        if (endpoint->protocol >= 2 && strchr(password, '*')) {
-                            incompatible_password = true;
-                            continue;
-                        }
-                        return 1;
-                    }
-                    stage = 1;
-                    input->text_error = SV_TEXT_OK;
-                }
+            SvCredentialAction action = sv_credentials_event(&credentials, &event);
+            if (action != SV_CREDENTIAL_EDITING) {
+                outcome = action == SV_CREDENTIAL_ACCEPTED ? 1 : 0;
+                goto done;
             }
         }
-        if (frame_limit && ++frames >= frame_limit) return 0;
+        if (frame_limit && ++frames >= frame_limit) break;
         SDL_Delay(16);
     }
+done:
+    sv_credentials_end(&credentials);
+    return outcome;
 }
 
 static const char *contact_status(SvSocketState state, unsigned rejection)

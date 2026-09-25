@@ -9,14 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 SDL_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs", "sdl3"], text=True).split()
 SCENE_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs",
-                                      "sdl3", "sdl3-ttf", "freetype2"], text=True).split()
+                                      "sdl3", "sdl3-ttf", "freetype2", "libsecret-1"], text=True).split()
 COMMON = ["src/client/sv/input/endpoint.c", "src/client/sv/input/text-field.c"]
 
 
-def check(binary, sources, flags=()):
+def check(binary, sources, flags=(), env=None):
     subprocess.run([CC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-fsanitize=undefined",
                     "-Isrc/client/sv", *flags, *sources, "-o", str(binary)], cwd=ROOT, check=True)
-    subprocess.run([str(binary)], cwd=ROOT, check=True)
+    subprocess.run([str(binary)], cwd=ROOT, env=env, check=True)
 
 
 with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
@@ -27,6 +27,13 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
         check(directory / name, ["tests/sv/native-endpoint.c", *COMMON,
                                  "src/client/sv/input/native-endpoint.c",
                                  "src/client/sv/input/physical.c"], (*flags, *SDL_FLAGS))
+    check(directory / "credentials", ["tests/sv/credentials.c", *COMMON,
+                                      "src/client/sv/input/credentials.c",
+                                      "src/client/sv/input/native-endpoint.c",
+                                      "src/client/sv/input/physical.c",
+                                      "src/client/sv/credential/vault.c"], SCENE_FLAGS,
+          dict(os.environ, SDL_VIDEODRIVER="dummy",
+               DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-vault-no-service"))
     check(directory / "physical", ["tests/sv/physical.c",
                                    "src/client/sv/input/physical.c"], SDL_FLAGS)
     check(directory / "metaserver", ["tests/sv/metaserver.c", *COMMON,
@@ -55,6 +62,8 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                          cwd=ROOT, env=env, text=True, capture_output=True)
     assert bad.returncode == 2 and "Invalid server address" in bad.stderr
     scene_sources = ["tests/sv/scene.c", "src/client/sv/endpoint-run.c",
+                     "src/client/sv/credential/vault.c",
+                     "src/client/sv/input/credentials.c",
                      "src/client/sv/profile.c", "src/client/sv/options.c",
                      "src/client/sv/resource.c", "src/client/sv/settings.c",
                      "src/client/sv/protocol/contact.c", "src/client/sv/protocol/contact-socket.c",

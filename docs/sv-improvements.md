@@ -424,3 +424,22 @@ settings enumeration when a later CFG field requires another coordinated edit.
 **Required checks:** existing CFG parse/default/CLI precedence, every field's
 round trip, changed-record Save, unknown-record retention, conflict detection
 and startup behavior on Linux and Windows.
+
+## Align account draft capacity with contact validation
+
+**Status:** proposed separately; B-005 preserves the existing account editor
+capacity while adding the private password path.
+
+**Problem:** the endpoint account draft accepts 79 bytes, but the production
+contact parser uses `ACCNAME_LEN` 16 and rejects names over 15 bytes only after
+form submission. The form cannot explain the actual contact limit at entry.
+
+**Affected code:** `src/client/sv/input/credentials.c`,
+`src/client/sv/input/native-endpoint.c`, `src/client/sv/protocol/contact.c`.
+
+**Proposal:** establish the account field's authoritative byte limit and show
+validation in the form before contact; retain baseline account/wire semantics.
+
+**Required checks:** 14/15/16/79-byte drafts, paste and edits at capacity,
+protocol 1/2 account fields, retry after rejection and Linux/Windows native
+input observations.

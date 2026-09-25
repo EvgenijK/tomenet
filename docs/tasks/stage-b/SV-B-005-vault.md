@@ -1,6 +1,28 @@
 # SV-B-005 — Приватный ввод и системное хранилище для входа
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: частичная production-реализация для продолжения B-006; полная приёмка pending.
+
+## Реализация 2026-09-25
+
+SV vault теперь строит `tomenet-sv/v1` identity из исходных bytes адреса,
+effective port и account с length prefixes и lowercase hex. Linux использует
+binary libsecret, Windows ветвь — generic Credential Manager с local-machine
+persistence. Операции выполняются вне UI-потока; результат привязан к поколению
+формы, а поздний lookup после отмены освобождается без применения.
+
+В endpoint contact account-форма через `input/credentials.c` запускает lookup, найденный пароль остаётся
+скрытым и требует Enter, ошибка/missing record предлагает ручной session-only
+ввод. Password draft и paste ограничены 15 bytes, не попадают в history;
+неподтверждённое преобразование non-ASCII SDL text/clipboard и `*` на protocol >=2 не отправляются.
+CLI `--password-stdin` и vault сохраняют и передают исходные high bytes без преобразования. Подробности и границы проверок —
+в [evidence](../../sv-b005-evidence.md).
+
+Сохранение после успешной аутентификации, смены пароля, relogin и import не
+подключено: текущий SV executable завершается на contact/setup и не имеет
+результата login. Запись в vault намеренно не запускается от contact ready или
+settings Save. B-006 подключит production caller к `sv_vault_store` на
+подтверждённом login; change-password caller появится вместе с игровым путём.
+Поздние B-019/B-021/B-030 и реальная Windows matrix остаются обязательными.
 
 ## Пользовательский результат
 

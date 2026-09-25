@@ -22,6 +22,12 @@ SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8)
     return sv_text_insert_utf8(field, utf8);
 }
 
+size_t sv_contact_draft_limit(bool password)
+{
+    return password ? 15 : 79;
+}
+
+
 static void move_row(SvEndpoint *endpoint, int direction)
 {
     if (!endpoint->server_count) return;
