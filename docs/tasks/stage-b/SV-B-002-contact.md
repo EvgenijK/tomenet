@@ -46,12 +46,16 @@ SV, с точными входными и исходящими bytes и акту
 4. Контакт и failures: провести live TCP/серверные fixtures по всем baseline
    version branches, включая старые setup layouts; отдельно DNS, connect,
    timeout, ban, incompatible version, verification и malformed/partial setup.
-   Локальные TCP fixtures уже покрывают 4.4.3.1 layout, invalid-host DNS,
-   refused connect, silent-peer contact timeout, ban, оба version rejection
-   codes и game-full; прочие branches и server/platform matrix открыты.
-   Сверить освобождение сокета, видимую причину и разрешённый retry/exit при
-   `RETRY_LOGIN`/`ALWAYS_RETRY_LOGIN`/`SIMPLE_LOGIN`, а также Windows/POSIX
-   socket errors. Успешный single-version loopback этого не заменяет.
+   Локальные TCP fixtures покрывают границы setup 4.4.3.1/4.4.3.2 и
+   4.4.5.10.0.0/4.4.5.10.0.1, fallback без extended version, допустимый
+   `E_NEED_INFO`, все определённые contact rejection codes, invalid-host DNS,
+   refused connect, silent-peer contact timeout и partial/malformed
+   contact/verify/setup. Для rejection и новых phase-failure fixtures проверены
+   видимая причина, отсутствие ложного ready и закрытие TCP; это не доказывает все реальные
+   server versions и Windows/POSIX errors. Baseline завершает процесс при
+   contact/verify/setup failure; `RETRY_LOGIN` повторяет контакт только после
+   `Net_login` с `E_RETRY_CONTACT`/`E_RETRY_LOGIN`. Проверить эти переходы с
+   production login caller B-006, включая `ALWAYS_RETRY_LOGIN`/`SIMPLE_LOGIN`.
 5. Контактные credential bytes: общий SV редактор
    `src/client/sv/input/text-field.c` переводит SDL UTF-8 в Latin-1 без
    установленного wire contract. Контактная форма SV теперь удерживает

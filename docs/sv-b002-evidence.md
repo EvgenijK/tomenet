@@ -4,6 +4,39 @@ Date: 2026-09-24. Review base: `5945b264add55a9eac70ca56ea44348330314acd`.
 Status: TCP contact and the tested control subset run through production SV on Linux;
 full SV-B-002 acceptance remains pending.
 
+## 2026-09-25 autonomous contact/failure follow-up
+
+The production executable and contact parser are unchanged in this slice. The
+native TCP fixture now sends fragmented setup layouts at both sides of the
+legacy `Net_setup` thresholds: 4.4.3.1/4.4.3.2 for class recommendations and
+4.4.5.10.0.0/4.4.5.10.0.1 for traits. It also checks the non-extended version
+fallback and the allowed `E_NEED_INFO` contact status. Each successful case
+observes the complete contact offer, exact verify bytes, setup summary and
+ordered unknown-packet reply from `src/tomenet-sv --endpoint`.
+
+The same native path checks all defined contact rejection codes (1, 2, 4–16)
+for their distinct visible reason and peer-observed EOF. New partial/malformed
+contact, verify and setup fixtures check phase-specific failure, no false ready
+and peer-observed EOF. This supplements the earlier DNS, refused-connect and
+silent-peer timeout cases. The baseline `Net_setup` uses strict `is_newer_than`
+at both layout thresholds. Its `RETRY_LOGIN` reconnects after `Net_login`
+returns `E_RETRY_CONTACT` or `E_RETRY_LOGIN`; contact, verify and setup failures
+exit. That login retry path awaits the production login caller in B-006.
+
+On Linux x86_64 with SDL dummy/software rendering and local loopback access,
+`python3 tests/sv_contact_live_checks.py` passed (`SV native TCP contact
+passed`) and `python3 tests/sv_contact_checks.py` passed under ASan/UBSan with
+`ASAN_OPTIONS=detect_leaks=0`. `git diff --check` passed. Executable SHA-256:
+`3d3ae4f79ebbca93f5d169ece9cb0e3e1d9f3af09e04623ceb46a79c384a1f33`;
+contact parser SHA-256:
+`167dcb3d7bbf7ddce6956926f816fd01ede394eb154ffce557740819e7ed4f70`;
+socket adapter SHA-256:
+`4d9a6c0d94c93f43688fe6652883af1cb1ba45a016f401f56fc2c78902c12aa3`;
+live fixture SHA-256:
+`38992307de5f91ab075673285af0c75b40b43b0c9a92ca24888424f0c9aadbbc`.
+These fixtures use a synthetic peer; real server versions, retry after login,
+Windows errors and platform acceptance remain open.
+
 ## Production path
 
 `src/tomenet-sv --endpoint` selects a server, accepts account and private password
