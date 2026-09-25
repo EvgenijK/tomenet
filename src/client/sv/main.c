@@ -61,7 +61,7 @@ static void usage(void)
     puts("TomeNET SV native shell\n"
          "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
          "  [--window-mode fullscreen|window] [--ui-scale PERCENT]\n"
-         "  [--account NAME --password-stdin] (contact through standard input)\n"
+         "  [--account NAME --password-stdin] [--character EXISTING_NAME] [-m] (contact through standard input)\n"
          "  Endpoint settings: F10 opens settings; +/- UI scale, W window mode, T text font, S save.\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
@@ -76,8 +76,8 @@ int main(int argc, char **argv)
 {
     const char *root = NULL, *library = NULL;
     const char *server = NULL, *server_list = NULL, *metaserver = NULL;
-    const char *account = NULL, *real_name = NULL;
-    bool password_stdin = false;
+    const char *account = NULL, *real_name = NULL, *character = NULL;
+    bool password_stdin = false, skip_motd = false;
     char contact_password[80] = {0};
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
@@ -97,6 +97,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
         if (!strcmp(argv[i], "--endpoint")) { endpoint_mode = true; continue; }
         if (!strcmp(argv[i], "--password-stdin")) { password_stdin = true; continue; }
+        if (!strcmp(argv[i], "-m")) { skip_motd = true; continue; }
         if (!strcmp(argv[i], "--review")) { review = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
@@ -113,6 +114,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--server-list")) server_list = argv[++i];
         else if (!strcmp(argv[i], "--metaserver")) metaserver = argv[++i];
         else if (!strcmp(argv[i], "--account")) account = argv[++i];
+        else if (!strcmp(argv[i], "--character")) character = argv[++i];
         else if (!strcmp(argv[i], "--real-name")) real_name = argv[++i];
         else if (!strcmp(argv[i], "--window-mode")) {
             const char *mode = argv[++i];
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
         if (synthetic || review || hp_check || arch_check || message_check || request_check ||
             lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
         if (!!account != password_stdin) return 2;
+        if (character && (!account || !*character || strlen(character) >= 80)) return 2;
         if (password_stdin) {
             if (!fgets(contact_password, sizeof(contact_password), stdin)) return 2;
             size_t count = strlen(contact_password);
@@ -162,12 +165,13 @@ int main(int argc, char **argv)
             .ui_scale_override = ui_scale_override,
             .port = port, .metaserver = metaserver,
             .account = account, .password = password_stdin ? contact_password : NULL,
+            .character = character, .skip_motd = skip_motd,
             .real_name = real_name});
         volatile char *secret = contact_password;
         for (size_t i = 0; i < sizeof(contact_password); ++i) secret[i] = 0;
         return contact_result;
     }
-    if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name) return 2;
+    if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name || character || skip_motd) return 2;
     if (ui_scale_override || (window_override && !windowed)) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }

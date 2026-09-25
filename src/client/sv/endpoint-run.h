@@ -16,7 +16,8 @@ typedef struct {
     SvEndpointChoice *selected_endpoint;
     SvEndpointPoll source_poll;
     void *source_context;
-    const char *account, *password, *real_name;
+    const char *account, *password, *real_name, *character;
+    bool skip_motd;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);
 #endif

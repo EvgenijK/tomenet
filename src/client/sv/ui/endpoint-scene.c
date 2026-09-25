@@ -1,4 +1,5 @@
 #include "ui/endpoint-scene.h"
+#include "session/login-view.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -99,6 +100,29 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             !line(renderer,font,"Cannot encode that character as a server field byte.",40,203,scale,error)) return false;
         if (input->clipboard_unavailable &&
             !line(renderer,font,"Clipboard unavailable; credential draft unchanged.",40,240,scale,error)) return false;
+        if (input->login_view && input->login_view->overview) {
+            for (size_t i = 0; i < input->login_view->count; ++i) {
+                const SvLoginRowView *character = &input->login_view->rows[i];
+                char row[256];
+                snprintf(row, sizeof(row), "%c) %.79s, level %d, %.40s %.40s, mode %d  %.50s",
+                         (int)('a' + i), character->name, character->level,
+                         character->race, character->class_title, character->mode,
+                         character->location);
+                if (!line(renderer,font,row,40,275 + (int)i * 25,scale,normal)) return false;
+            }
+        }
+        if (input->login_view && input->login_view->motd && input->login_view->motd_size) {
+            size_t at = 0;
+            for (int row = 0; row < 23 && at < input->login_view->motd_size; ++row) {
+                char text[121];
+                size_t count = input->login_view->motd_size - at;
+                if (count > 120) count = 120;
+                memcpy(text, input->login_view->motd + at, count);
+                text[count] = 0;
+                if (!line(renderer,font,text,40,270 + row * 20,scale,normal)) return false;
+                at += count;
+            }
+        }
     }
     return true;
 }

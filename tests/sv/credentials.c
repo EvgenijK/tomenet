@@ -62,6 +62,29 @@ int main(int argc, char **argv)
 
     account[0] = password[0] = 0;
     sv_credentials_begin(&input, &endpoint, account, password);
+    event = text("a12345678901234567890");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(strlen(account) == 15);
+    event = key(SDLK_RETURN, 0);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    event = text("private");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    event = key(SDLK_ESCAPE, 0);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(!input.stage && !password[0] && !input.lookup);
+    assert(!strcmp(account, "A12345678901234"));
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_CANCELLED);
+    sv_credentials_end(&input);
+
+    account[0] = password[0] = 0;
+    sv_credentials_begin(&input, &endpoint, account, password);
+    event = text("9alpha?x");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(!strcmp(account, "Alpha_x"));
+    sv_credentials_end(&input);
+
+    account[0] = password[0] = 0;
+    sv_credentials_begin(&input, &endpoint, account, password);
     event = text("Other");
     assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
     event = key(SDLK_RETURN, 0);
@@ -72,8 +95,8 @@ int main(int argc, char **argv)
     }
     assert(!input.lookup);
     sv_credentials_status(&input, status);
-    if (argc == 2) assert(strstr(status, "No saved password") && strstr(status, "session-only"));
-    else assert(strstr(status, "Vault unavailable") && strstr(status, "session only"));
+    if (argc == 2) assert(strstr(status, "No saved password") && strstr(status, "manually"));
+    else assert(strstr(status, "Vault unavailable") && strstr(status, "session"));
     event = text("manual");
     assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
     event = key(SDLK_RETURN, 0);

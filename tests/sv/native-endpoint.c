@@ -30,7 +30,7 @@ static SDL_Event key_event(SDL_Keycode key, SDL_Keymod mods)
 int main(void)
 {
     SvTextField contact_field;
-    assert(sv_contact_draft_limit(false) == 79);
+    assert(sv_contact_draft_limit(false) == 15);
     assert(sv_contact_draft_limit(true) == 15);
     sv_text_begin(&contact_field, "pw", sv_contact_draft_limit(true), true);
     assert(sv_text_select(&contact_field, contact_field.length, contact_field.length));
@@ -49,7 +49,7 @@ int main(void)
     memset(long_account, 'a', 80);
     long_account[80] = 0;
     assert(sv_contact_field_insert(&contact_field, long_account) == SV_TEXT_TRUNCATED);
-    assert(contact_field.length == 79);
+    assert(contact_field.length == 15);
 
     SvEndpoint endpoint;
     SvEndpointInput input;

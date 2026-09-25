@@ -32,6 +32,25 @@ def text_field(peer):
     return data
 
 
+def overview(peer, observed, version):
+    observed['login_start'] = exact(peer, 8 if version >= (4, 9, 2, 1, 0, 2) else 2)
+    packet = bytes([162]) + struct.pack('>IIII', 8, 0, 0, 0)
+    modern = version > (4, 5, 7, 0, 0, 0)
+    mode = version > (4, 4, 9, 2, 0, 0)
+    def row(name):
+        data = bytes([12])
+        if mode:
+            data += struct.pack('>h', 0)
+        data += b'\xffW\0' if name else b'\0'
+        data += name + b'\0' + struct.pack('>hhh', 42 if name else 0, 0, 0)
+        if modern:
+            data += (b'at home\0' if name else b'\0')
+        return data
+    peer.sendall(packet + row(b'Hero') + row(b''))
+    observed['choice'] = exact(peer, 1) + text_field(peer)
+    peer.sendall(b'\0')
+
+
 def serve(listener, observed):
     try:
         peer, _ = listener.accept()
@@ -58,16 +77,7 @@ def serve(listener, observed):
             for byte in setup:
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
-            ping = bytes([166, 0]) + struct.pack('>III', 7, 8, 9) + b'xy\0'
-            observed['ping'] = ping
-            for byte in ping:
-                peer.sendall(bytes([byte]))
-                time.sleep(0.001)
-            observed['echo'] = exact(peer, len(ping))
-            peer.sendall(b'\x96')
-            peer.sendall(b'\x07')
-            observed['unknown_reply'] = exact(peer, 11)
-            peer.sendall(bytes([13, 11]))
+            overview(peer, observed, (4, 9, 4, 0, 0, 0))
             time.sleep(3.5)
     except Exception as error:
         observed['error'] = error
@@ -90,10 +100,10 @@ def serve_old_setup(listener, observed):
             setup += struct.pack('>IhBBI', 3, 20, 1, 1, 12)
             setup += bytes([50] * 6) + b'R\0' + struct.pack('>I', 1)
             setup += bytes([50] * 6) + b'C\0' + b'Old'
-            for byte in setup + bytes([13, 7]):
+            for byte in setup:
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
-            observed['unknown_reply'] = exact(peer, 11)
+            overview(peer, observed, (4, 4, 3, 1, 0, 0))
             time.sleep(3.5)
     except Exception as error:
         observed['error'] = error
@@ -182,11 +192,11 @@ def serve_version_branch(listener, observed, version, extended, status):
                 setup += bytes([1, 2, 3, 4, 5, 6])
             if has_traits:
                 setup += b'T\0' + struct.pack('>I', 0x05060708)
-            setup += b'Old' + bytes([13, 7])
+            setup += b'Old'
             for offset in range(0, len(setup), 3):
                 peer.sendall(setup[offset:offset + 3])
                 time.sleep(0.001)
-            observed['unknown_reply'] = exact(peer, 11)
+            overview(peer, observed, effective)
             time.sleep(1.5)
     except Exception as error:
         observed['error'] = error
@@ -219,6 +229,7 @@ def serve_phase_failure(listener, observed, phase, payload):
 def native_command(port, profile):
     return [str(ROOT / 'src/tomenet-sv'), '--endpoint', '--server', '127.0.0.1',
             '--port', str(port), '--account', 'Test', '--password-stdin',
+            '--character', 'Hero', '-m',
             '--profile-root', str(profile), '--library', str(ROOT / 'lib'),
             '--fixture-window', '1024x768', '--frames', '200']
 
@@ -248,9 +259,8 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert observed['account'] == b'Test\0' and observed['host'] == b'localhost\0'
         assert observed['version'] == b'\xff\xff'
         assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
-        assert observed['echo'] == observed['ping'][:1] + b'\x01' + observed['ping'][2:]
-        assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
-                                                   0, 0, 0, 150, 111, 0]), observed['unknown_reply']
+        assert observed['login_start'][:4] == b'\x0c\0\xf4\x43'
+        assert observed['choice'] == b'\x0cHero\0'
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)
@@ -273,8 +283,8 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
         assert observed['version_offer'] == b'\xff\xff' + struct.pack('>6I',
             4, 9, 4, 0, 0, 402000000)
         assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
-        assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
-                                                   0, 0, 0, 13, 111, 0])
+        assert observed['login_start'] == b'\x0c\0'
+        assert observed['choice'] == b'\x0cHero\0'
     for version, extended, status in [((4, 4, 3, 1, 0, 0), True, 0),
                                       ((4, 4, 3, 2, 0, 0), True, 0),
                                       ((4, 4, 5, 10, 0, 0), True, 0),
@@ -306,8 +316,11 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
                                          b'Test\0localhost\0\xff\xff' +
                                          struct.pack('>6I', 4, 9, 4, 0, 0, 402000000))
             assert observed['verify'] == b'\x01PLAYER\0Test\0Z]\0'
-            assert observed['unknown_reply'] == bytes([211, 0, 0, 0, 7,
-                                                       0, 0, 0, 13, 111, 0])
+            if effective >= (4, 9, 2, 1, 0, 2):
+                assert observed['login_start'][:4] == b'\x0c\0\xf4\x43'
+            else:
+                assert observed['login_start'] == b'\x0c\0'
+            assert observed['choice'] == b'\x0cHero\0'
     for phase, payload, reason in [
             ('contact', b'\xff\0\0', 'Server closed the connection'),
             ('contact', b'\x00', 'Invalid contact or network packet'),

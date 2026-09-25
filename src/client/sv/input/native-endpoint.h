@@ -2,12 +2,14 @@
 #define SV_NATIVE_ENDPOINT_H
 #include "input/endpoint.h"
 #include <SDL3/SDL.h>
+struct SvLoginView;
 typedef struct {
     uint64_t since_ns;
     SDL_Keymod latch;
     SvTextResult text_error;
     bool clipboard_unavailable;
     const char *contact_status;
+    const struct SvLoginView *login_view;
 } SvEndpointInput;
 /* The provider boundary is the OS clipboard. NULL selects SDL's real clipboard. */
 typedef char *(*SvClipboardRead)(void *context);

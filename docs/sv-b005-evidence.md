@@ -71,7 +71,7 @@ checks as open obligations, as listed below.
 
 ## Pending
 
-The current SV executable reaches contact/setup, not accepted authentication.
+At the B-005 checkpoint the SV executable reached contact/setup, not accepted authentication.
 It therefore performs no automatic vault save after login, no immediate
 password-change write, no retry/relogin restore, and no import. Those callers
 belong to B-006 and later consumers; contact ready is not treated as login
@@ -100,3 +100,13 @@ SHA-256 source/fixture/resource fingerprints for this run:
 | `tests/sv_endpoint_checks.py` | `20ddcc946782157efa042531fc03338310787fe41adac830064131943f43d06e` |
 | `src/makefile.sv` | `dc94130bc7b6bdbbfabb40a876a091b0a350db4ba31451fbeee1abf75a5e5154` |
 | `lib/xtra/font/CascadiaMono-Regular.ttf` | `06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481` |
+
+## B-006 caller handoff, 2026-09-25
+
+[SV-B-006 evidence](sv-b006-evidence.md) records the production caller that
+starts `sv_vault_store` only after the server's terminated account overview.
+The interactive account field now has the baseline 15-byte limit and Escape
+from password returns to account. A no-service loopback fixture exercised
+the confirmed-account path without writing to the user's store. Successful
+provider persistence on this caller and password-change write still require
+the remaining B-005 integration checks; this addendum does not close them.

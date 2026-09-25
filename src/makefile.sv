@@ -37,10 +37,10 @@ endif
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o endpoint-run.o profile.o options.o resource.o settings.o credential/vault.o diagnostics/timing.o ui/font.o ui/ui.o ui/endpoint-scene.o ui/settings-scene.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/physical.o input/native-endpoint.o input/credentials.o input/metaserver.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o session/session.o session/alerts.o result.o ui/status.o protocol/version.o
+SV_CLIENT_OBJECTS := main.o endpoint-run.o profile.o options.o resource.o settings.o credential/vault.o diagnostics/timing.o ui/font.o ui/ui.o ui/endpoint-scene.o ui/settings-scene.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/physical.o input/native-endpoint.o input/credentials.o input/login-interaction.o input/native-login.o input/metaserver.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o session/login-view.o session/alerts.o result.o ui/status.o protocol/version.o
 SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
-SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o
+SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o
 SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_TEMPORARY_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
 
 .PHONY: tomenet-sv tomenet-sv.exe shell check-deps

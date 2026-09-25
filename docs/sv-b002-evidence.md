@@ -160,3 +160,15 @@ Environment blockers are tracked by
 [SV-V-001](tasks/verification/SV-V-001-b002-matrix-environment.md); platform
 acceptance remains with SV-B-002 and SV-B-075.
 These outcomes are not accepted by the loopback or headless observations above.
+
+## B-006 contact handoff, 2026-09-25
+
+The native executable now routes bytes trailing setup into the login decoder
+before any play/session producer. `tests/sv/contact-login-handoff.c` verifies
+that exact production contact→login transfer; the updated local TCP fixture
+checks the versioned first-login and character-selection packets. The prior
+native pre-login ping/unknown expectation no longer matches the server's
+login sequence. `tests/sv/contact-control.c` still checks those production
+app decoder/serializer paths; actual post-play TCP delivery awaits B-020/B-025.
+The B-002 flags owner remains pending for full dynamic and action-disabled
+behavior; [B-006 evidence](sv-b006-evidence.md) records the new caller.

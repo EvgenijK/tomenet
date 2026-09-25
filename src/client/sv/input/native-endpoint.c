@@ -24,7 +24,8 @@ SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8)
 
 size_t sv_contact_draft_limit(bool password)
 {
-    return password ? 15 : 79;
+    (void)password;
+    return 15;
 }
 
 
