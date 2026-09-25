@@ -407,3 +407,20 @@ format or packet order.
 **Required checks:** every byte of the queue boundary, string slot limits,
 retry after drain, adjacent replies, duplicate prevention and both client
 platform builds.
+
+## Keep SV CFG field metadata in one place
+
+**Status:** proposed separately; not part of SV-B-004 settings behavior.
+
+**Problem:** adding a CFG field currently requires matching edits to the parse
+branch, value formatter and settings Save key list. A missed edit can leave the
+field out of dirty tracking or changed-record publication.
+
+**Affected code:** `src/client/sv/profile.c`, `src/client/sv/settings.c`.
+
+**Proposal:** use one SV-owned field descriptor for parsing, formatting and
+settings enumeration when a later CFG field requires another coordinated edit.
+
+**Required checks:** existing CFG parse/default/CLI precedence, every field's
+round trip, changed-record Save, unknown-record retention, conflict detection
+and startup behavior on Linux and Windows.

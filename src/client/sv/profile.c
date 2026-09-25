@@ -54,7 +54,7 @@ static bool choice(char *out, size_t capacity, const char *value,
            name(out, capacity, value);
 }
 
-static void apply(SvProfile *p, const SvProfile *defaults, const char *key,
+static bool apply(SvProfile *p, const SvProfile *defaults, const char *key,
                   const char *value, size_t line)
 {
     bool valid = true, known = true;
@@ -63,7 +63,7 @@ static void apply(SvProfile *p, const SvProfile *defaults, const char *key,
 #define SV_NAME(field) \
     do { p->field[0] = 0; valid = name(p->field, sizeof(p->field), value); \
          if (!valid) memcpy(p->field, defaults->field, sizeof(p->field)); } while (0)
-    if (!strcmp(key, "svSchemaVersion")) return;
+    if (!strcmp(key, "svSchemaVersion")) return false;
     else if (!strcmp(key, "svWindowMode")) {
         p->windowed = defaults->windowed;
         valid = !strcmp(value, "fullscreen") || !strcmp(value, "window");
@@ -104,6 +104,50 @@ static void apply(SvProfile *p, const SvProfile *defaults, const char *key,
 #undef SV_NAME
     if (known && !valid)
         fprintf(stderr, "SV profile invalid value for %s at line %zu; using default\n", key, line);
+    return known && valid;
+}
+
+bool sv_profile_edit(SvProfile *profile, const char *key, const char *value)
+{
+    SvProfile defaults, next;
+    if (!profile || !key || !value || strchr(value, '\n') || strchr(value, '\r') ||
+        strlen(value) > 4095) return false;
+    for (const unsigned char *p = (const unsigned char *)value; *p; ++p)
+        if (*p < 32 || *p == 127) return false;
+    sv_profile_defaults(&defaults);
+    next = *profile;
+    if (!apply(&next, &defaults, key, value, 0)) return false;
+    *profile = next;
+    return true;
+}
+
+bool sv_profile_value(const SvProfile *p, const char *key, char *out, size_t capacity)
+{
+    const char *value = NULL;
+    int number_value = 0;
+    if (!p || !key || !out || !capacity) return false;
+    if (!strcmp(key, "svWindowMode")) value = p->windowed ? "window" : "fullscreen";
+    else if (!strcmp(key, "svLayout")) value = p->wide ? "wide" : "small";
+    else if (!strcmp(key, "svTextFont")) value = p->text_font;
+    else if (!strcmp(key, "svMapFont")) value = p->map_font;
+    else if (!strcmp(key, "graphic_tiles")) value = p->tiles;
+    else if (!strcmp(key, "soundpackFolder")) value = p->sound_pack;
+    else if (!strcmp(key, "musicpackFolder")) value = p->music_pack;
+    else if (!strcmp(key, "svGraphicsFilter")) value = p->graphics_filter;
+    else if (!strcmp(key, "svPcfFilter")) value = p->pcf_filter;
+    else if (!strcmp(key, "svUiScalePercent")) number_value = p->ui_scale;
+    else if (!strcmp(key, "graphics")) number_value = p->graphics;
+    else if (!strcmp(key, "fps")) number_value = p->fps;
+    else if (!strcmp(key, "cacheAudio")) number_value = p->cache_audio ? 1 : 0;
+    else if (!strcmp(key, "audioSampleRate")) number_value = p->audio_rate;
+    else if (!strcmp(key, "audioChannels")) number_value = p->audio_tracks;
+    else if (!strcmp(key, "audioBuffer")) number_value = p->audio_buffer;
+    else if (!strcmp(key, "soundpackSubset")) number_value = p->sound_subset;
+    else if (!strcmp(key, "musicpackSubset")) number_value = p->music_subset;
+    else return false;
+    int written = value ? snprintf(out, capacity, "%s", value) :
+                          snprintf(out, capacity, "%d", number_value);
+    return written >= 0 && (size_t)written < capacity;
 }
 
 bool sv_profile_load(SvProfile *profile, const char *user_root)

@@ -4,6 +4,7 @@
 #include "input/metaserver.h"
 #include "input/text-field.h"
 #include "ui/endpoint-scene.h"
+#include "ui/settings-scene.h"
 #include "protocol/contact-socket.h"
 #include "profile.h"
 #include "options.h"
@@ -373,6 +374,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     SvMetaserver *provider = NULL;
     SvProfile profile;
     SvOptions options_snapshot;
+    SvSettingsScene settings_scene = {0};
     int result = 1;
     if (!root) {
         root = SDL_getenv("TOMENET_SDL3_USER_PATH");
@@ -468,12 +470,28 @@ int sv_endpoint_run(SvEndpointOptions options)
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
                 quit = true; break;
             }
+            if (settings_scene.open) {
+                (void)sv_settings_scene_event(&settings_scene, window, &event);
+                user_scale = profile.ui_scale / 100.0f;
+                continue;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                event.key.key == SDLK_F10) {
+                if (!sv_settings_scene_open(&settings_scene, root, library,
+                                            &profile, &options_snapshot, &font)) {
+                    SDL_SetError("Cannot open SV settings");
+                    goto done;
+                }
+                continue;
+            }
             (void)sv_endpoint_event(&input,&endpoint,&event,NULL,NULL);
             if (endpoint.phase == SV_ENDPOINT_CANCELLED ||
                 endpoint.phase == SV_ENDPOINT_SELECTED) { quit = true; break; }
         }
         if (quit) break;
-        if (!sv_endpoint_draw(renderer,font,&endpoint,&input,user_scale)) goto done;
+        if (settings_scene.open) {
+            if (!sv_settings_scene_draw(&settings_scene, renderer, font)) goto done;
+        } else if (!sv_endpoint_draw(renderer,font,&endpoint,&input,user_scale)) goto done;
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
@@ -506,6 +524,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     }
     result = 0;
 done:
+    sv_settings_scene_end(&settings_scene);
     sv_metaserver_stop(provider);
     if (result) fprintf(stderr,"SV endpoint startup failed: %s\n",SDL_GetError());
     SDL_DestroyRenderer(renderer);

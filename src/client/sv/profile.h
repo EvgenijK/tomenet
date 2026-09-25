@@ -1,6 +1,7 @@
 #ifndef SV_PROFILE_H
 #define SV_PROFILE_H
 #include <stdbool.h>
+#include <stddef.h>
 
 /* Startup preferences are owned by U/sv. These are requested values; effective
  * resource/device state is reported separately by the consumer. */
@@ -20,5 +21,9 @@ void sv_profile_defaults(SvProfile *profile);
  * reset. No file is created or modified. */
 bool sv_profile_load(SvProfile *profile, const char *user_root);
 void sv_profile_report(const SvProfile *profile);
+/* Validate one CFG scalar with the same rules as startup loading. */
+bool sv_profile_edit(SvProfile *profile, const char *key, const char *value);
+bool sv_profile_value(const SvProfile *profile, const char *key,
+                      char *out, size_t capacity);
 
 #endif

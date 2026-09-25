@@ -34,6 +34,20 @@ bool sv_options_get(const SvOptions *options, const char *name, bool *value)
     return true;
 }
 
+bool sv_options_set(SvOptions *options, const char *name, bool value)
+{
+    int slot = name ? find_option(name) : -1;
+    if (!options || slot < 0) return false;
+    options->value[slot] = value;
+    return true;
+}
+
+const char *sv_options_name(size_t index)
+{
+    return index < sizeof(option_info) / sizeof(*option_info) ?
+           option_info[index].name : NULL;
+}
+
 static void set_named(SvOptions *options, const char *name, bool value)
 {
     int slot = find_option(name);
@@ -84,10 +98,10 @@ static void apply_line(SvOptions *options, char *line, bool *converted)
     set_named(options, name, value);
 }
 
-static bool load_file(SvOptions *options, const char *path)
+static bool load_file(SvOptions *options, const char *path, bool allow_missing)
 {
     FILE *stream = fopen(path, "rb");
-    if (!stream) return errno == ENOENT; /* Missing own OPT keeps defaults. */
+    if (!stream) return allow_missing && errno == ENOENT;
     if (fseek(stream, 0, SEEK_END)) { fclose(stream); return false; }
     long length = ftell(stream);
     if (length < 0) { fclose(stream); return false; }
@@ -137,7 +151,16 @@ bool sv_options_load_base(SvOptions *options, const char *user_root)
     /* Dedicated option entrypoint precedes the global and system snapshots. */
     const char *files[] = {"options.prf", "global.opt", "global-sv.opt"};
     for (size_t i = 0; i < sizeof(files) / sizeof(*files); ++i)
-        if (!own_path(path, user_root, files[i]) || !load_file(options, path)) return false;
+        if (!own_path(path, user_root, files[i]) || !load_file(options, path, true)) return false;
+    return true;
+}
+
+bool sv_options_safe_name(const char *name)
+{
+    if (!name || !*name || strlen(name) > 500 ||
+        !strcmp(name, ".") || !strcmp(name, "..")) return false;
+    for (const unsigned char *p = (const unsigned char *)name; *p; ++p)
+        if (*p < 32 || *p == 127 || *p == '/' || *p == '\\' || *p == ':') return false;
     return true;
 }
 
@@ -145,13 +168,18 @@ bool sv_options_load_character(SvOptions *options, const char *user_root,
                                const char *character)
 {
     char name[512], path[4096];
-    if (!options || !character || !*character || strlen(character) > 500) return false;
-    for (const unsigned char *p = (const unsigned char *)character; *p; ++p)
-        if (*p < 32 || *p == 127 || *p == '/' || *p == '\\' || *p == ':') return false;
-    if (!strcmp(character, ".") || !strcmp(character, "..") ||
+    if (!options || !sv_options_safe_name(character) ||
         snprintf(name, sizeof(name), "%s.opt", character) >= (int)sizeof(name) ||
         !own_path(path, user_root, name)) return false;
-    return load_file(options, path);
+    return load_file(options, path, true);
+}
+
+bool sv_options_load_named(SvOptions *options, const char *user_root,
+                           const char *filename)
+{
+    char path[4096];
+    return options && sv_options_safe_name(filename) &&
+           own_path(path, user_root, filename) && load_file(options, path, false);
 }
 
 static bool newer(const int version[6], const int gate[6])

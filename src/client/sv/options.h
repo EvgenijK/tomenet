@@ -14,7 +14,13 @@ void sv_options_defaults(SvOptions *options);
 bool sv_options_load_base(SvOptions *options, const char *user_root);
 bool sv_options_load_character(SvOptions *options, const char *user_root,
                                const char *character);
+bool sv_options_safe_name(const char *name);
+/* Explicit named OPT load; does not change automatic startup layer order. */
+bool sv_options_load_named(SvOptions *options, const char *user_root,
+                           const char *filename);
 bool sv_options_get(const SvOptions *options, const char *name, bool *value);
+bool sv_options_set(SvOptions *options, const char *name, bool value);
+const char *sv_options_name(size_t index);
 /* Complete packet, including PKT_OPTIONS; zero means insufficient capacity. */
 size_t sv_options_packet(const SvOptions *options, const int version[6],
                          uint8_t *out, size_t capacity);

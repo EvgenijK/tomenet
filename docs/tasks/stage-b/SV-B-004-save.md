@@ -1,6 +1,34 @@
 # SV-B-004 — Preview, Save, Cancel и конфликт настроек
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: частичная production-реализация; полная implementation readiness и
+acceptance ожидают перечисленные ниже проверки и потребителей.
+
+## Реализация 2026-09-25
+
+Нативный settings child вызывается F10 из окна выбора сервера. При открытии
+создаёт snapshot, показывает preview масштаба UI, window mode и текстового
+шрифта; шрифт подготавливается до замены, ошибка сохраняет рабочий ресурс.
+Save записывает собственный CFG, Cancel восстанавливает открытые значения,
+dirty close предлагает Save / Cancel changes / Return. Нормальный выход не
+вызывает запись CFG/OPT или дополнительный prompt.
+
+SV-only settings transaction обеспечивает в production-пути изменённые
+CFG-records и явные OPT snapshots для character/global/class/named destination.
+Перед Save он перечитывает файл, сохраняет неизвестные строки, отдаёт
+same-key внешнюю правку внешнему автору с сообщением о конфликте, публикует
+через уникальный sibling temporary и замену, временный sibling backup
+удаляет. Файл с legacy `pass` не порождает backup с секретом; при явном
+CFG Save `pass` удаляется. Failed Save оставляет draft активным и dirty.
+Точные проверки и границы перечислены в
+[evidence](../../sv-b004-evidence.md).
+
+Это не закрывает ни один owned ID целиком: форма пока доступна до контакта,
+а не в игровой сессии; option editing и character/class/named actions ещё
+не представлены в native UI, а B-003 ещё не имеет всех effective
+resource/audio/map consumers. Проверки нормального выхода с
+history/DNA/bookmarks и actual Windows 10/11 также ожидают соответствующие
+пути и среду. API принимает безопасные имена в S; explicit absolute/custom
+destination и полный baseline named-file UX остаются открыты.
 
 ## Пользовательский результат
 

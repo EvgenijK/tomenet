@@ -62,6 +62,7 @@ static void usage(void)
          "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
          "  [--window-mode fullscreen|window] [--ui-scale PERCENT]\n"
          "  [--account NAME --password-stdin] (contact through standard input)\n"
+         "  Endpoint settings: F10 opens settings; +/- UI scale, W window mode, T text font, S save.\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"

@@ -44,13 +44,13 @@ static bool pcf_name(const char *name)
     return length >= 4 && !SDL_strcasecmp(name + length - 4, ".pcf");
 }
 
-SvFont *sv_font_open_requested(const char *root, const char *library,
-                               const char *requested)
+static SvFont *open_requested(const char *root, const char *library,
+                              const char *requested, bool fallback_enabled)
 {
     SvFont *font = SDL_calloc(1, sizeof(*font));
     const char *candidates[] = {requested, "CascadiaMono-Regular.ttf"};
     if (!font) return NULL;
-    for (unsigned candidate = 0; candidate < 2; ++candidate) {
+    for (unsigned candidate = 0; candidate < (fallback_enabled ? 2u : 1u); ++candidate) {
         if (candidate && !strcmp(candidates[0], candidates[1])) continue;
         for (unsigned i = candidate ? 1 : 0; i < 2; ++i) {
             char relative[SV_RESOURCE_PATH];
@@ -78,6 +78,10 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
                     font->resource, SDL_GetError());
         }
     }
+    if (!fallback_enabled) {
+        sv_font_close(font);
+        return NULL;
+    }
     /* PCF is loaded directly by FreeType; numeric encoding is not reinterpreted. */
     SvResourceRef fallback;
     bool has_fallback = sv_resource_path(root, library, "xtra/font/16x24x.pcf",
@@ -92,6 +96,18 @@ SvFont *sv_font_open_requested(const char *root, const char *library,
     fprintf(stderr, "SV fatal resource failure: bundled Cascadia Mono and %s unavailable or invalid\n", font->resource);
     sv_font_close(font);
     return NULL;
+}
+
+SvFont *sv_font_open_requested(const char *root, const char *library,
+                               const char *requested)
+{
+    return open_requested(root, library, requested, true);
+}
+
+SvFont *sv_font_open_exact(const char *root, const char *library,
+                           const char *requested)
+{
+    return open_requested(root, library, requested, false);
 }
 
 SvFont *sv_font_open(const char *root, const char *library)

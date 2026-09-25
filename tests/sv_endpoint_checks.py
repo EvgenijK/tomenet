@@ -56,9 +56,10 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
     assert bad.returncode == 2 and "Invalid server address" in bad.stderr
     scene_sources = ["tests/sv/scene.c", "src/client/sv/endpoint-run.c",
                      "src/client/sv/profile.c", "src/client/sv/options.c",
-                     "src/client/sv/resource.c",
+                     "src/client/sv/resource.c", "src/client/sv/settings.c",
                      "src/client/sv/protocol/contact.c", "src/client/sv/protocol/contact-socket.c",
-                     "src/client/sv/ui/endpoint-scene.c", "src/client/sv/ui/font.c",
+                     "src/client/sv/ui/endpoint-scene.c",
+                     "src/client/sv/ui/settings-scene.c", "src/client/sv/ui/font.c",
                      "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
                      "src/client/sv/input/metaserver.c", *COMMON]
     scene_sources += ["src/client/sv/" + name + ".c" for name in
