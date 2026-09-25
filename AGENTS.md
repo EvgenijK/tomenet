@@ -20,3 +20,17 @@
 Это правило имеет приоритет над прежними формулировками проектных документов,
 требующими общей реализации SV и legacy. Архитектура SV описана в
 [docs/sv-architecture.md](docs/sv-architecture.md).
+
+## Agent skills
+
+### Issue tracker
+
+При создании, triage и review задач используйте локальный Markdown: Wayfinder в `.scratch/`, SV implementation tickets в `docs/tasks/`. Правила путей и статусов — в [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+При triage используйте пять стандартных ролей и отдельное поле `Labels:`. Соответствие ролей — в [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Перед работой с доменными терминами или архитектурой читайте корневой `CONTEXT.md` и относящиеся к задаче ADR. Правила single-context layout — в [docs/agents/domain.md](docs/agents/domain.md).
