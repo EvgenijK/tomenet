@@ -1,0 +1,23 @@
+{
+  "scope": "Stage A shell UI text only; no map or protocol-byte decoding",
+  "profile": "sv-shell-ascii-v1",
+  "supportedScalars": { "first": 32, "last": 126 },
+  "unsupportedInput": "explicit error; never guess a game-byte charset",
+  "requested": {
+    "file": "CascadiaMono-Regular.ttf",
+    "release": "v2407.24",
+    "sha256": "06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481",
+    "license": "CascadiaMono-LICENSE.txt",
+    "lookup": ["SDL3 user root/xtra/font", "selected library/xtra/font"],
+    "mapping": "Unicode ASCII scalar identity; verified fixed-width and glyph presence on open"
+  },
+  "fallback": {
+    "file": "16x24x.pcf",
+    "lookup": "selected library/xtra/font",
+    "loader": "FreeType encoded numeric glyph lookup",
+    "mapping": "ASCII scalars 32..126 to identical proven PCF encoding IDs",
+    "raster": "nearest final-cell preparation then 1:1 output composition"
+  },
+  "allResourcesFailed": "report failed resources and stop startup",
+  "futureScope": "Game text and map profiles require their own source-backed field/glyph contracts"
+}

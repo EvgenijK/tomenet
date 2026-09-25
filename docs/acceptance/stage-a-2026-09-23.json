@@ -1,0 +1,849 @@
+{
+  "runnerSha256": "8b26b57a00e9931c61041a146045f6e5d21da19b10ac2d70c7bfc5ef679e92ef",
+  "started": "2026-09-23T08:03:38.256566+00:00",
+  "host": "Linux-6.18.49-1-MANJARO-x86_64-with-glibc2.44",
+  "python": "3.14.7 (main, Aug 10 2026, 07:46:56) [GCC 16.1.1 20260728]",
+  "checks": [
+    {
+      "name": "build-linux",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sv",
+        "tomenet-sv"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.114,
+      "log": "build-linux.log",
+      "sha256": "aea40e6c3ec8593bd34ae8a573eef4b475d019cc7cc09474d978cc04fd311f7f"
+    },
+    {
+      "name": "build-mingw",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sv",
+        "tomenet-sv.exe"
+      ],
+      "returncode": 2,
+      "result": "fail",
+      "seconds": 0.065,
+      "log": "build-mingw.log",
+      "sha256": "b85f48f77f0bcc05b1d69ceff01f74affb86969ec3652e475b8fe8e90a3a1182"
+    },
+    {
+      "name": "legacy-sdl3",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sdl3",
+        "-W",
+        "client/main-sdl3.linux.o",
+        "tomenet"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.565,
+      "log": "legacy-sdl3.log",
+      "sha256": "ef4eba7ad2ec199fb9d29db42aabf4aeb44fa13f219f414b5361ea802371e940"
+    },
+    {
+      "name": "legacy-x11",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile",
+        "-W",
+        "client/main-x11.o",
+        "tomenet"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.115,
+      "log": "legacy-x11.log",
+      "sha256": "6431da21c2ce8498a691339a1d60b4f600be3ba75f51b79522629b7f86437ebb"
+    },
+    {
+      "name": "capabilities",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_capabilities_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 204.589,
+      "log": "capabilities.log",
+      "sha256": "3732834b7ee9f30798e23f9b49d72db25bbe54dfd5b9b6c7278b6241439f94a4"
+    },
+    {
+      "name": "reconciliation",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_reconciliation_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.317,
+      "log": "reconciliation.log",
+      "sha256": "da954845f00449e3d9ca48211e7b88ed8a35469634ed01803873ffeb653bf316"
+    },
+    {
+      "name": "evidence",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_evidence_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 2.07,
+      "log": "evidence.log",
+      "sha256": "72673a051a9ccd81c46752fc9e8e26096d97191e4c478930b09ca4a84944279d"
+    },
+    {
+      "name": "html",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_html_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 8.486,
+      "log": "html.log",
+      "sha256": "61f52765ab4517cd20b77960e01265493f340d1ab27f4ffedcae922468b91162"
+    },
+    {
+      "name": "arch-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.318,
+      "log": "arch-headless.log",
+      "sha256": "bb5d9aa3557302716866e21e94b794ca155b7a8774eab026d99afea3f5c5bd61"
+    },
+    {
+      "name": "message-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.369,
+      "log": "message-headless.log",
+      "sha256": "e0ce5155e922d7e860c962b2c2a7132293db374ba883ebebfbb469ce94478610"
+    },
+    {
+      "name": "request-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.318,
+      "log": "request-headless.log",
+      "sha256": "19f058c6dbb35713572a4c7afec582a105f9dba82e5e6df8ae74b1eace9a2207"
+    },
+    {
+      "name": "lifecycle-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.318,
+      "log": "lifecycle-headless.log",
+      "sha256": "911f76ec4dbf77a178135501fe1ad34eb36ec6b5c593b938daa39e3eab2a5fdf"
+    },
+    {
+      "name": "legacy-hp",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--legacy-only"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.916,
+      "log": "legacy-hp.log",
+      "sha256": "4917f60215f0b3e633cdcba9ce14b61790e3c5b02d3e41c41a1460440e2ca5f1"
+    },
+    {
+      "name": "software-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.615,
+      "log": "software-hp_checks.log",
+      "sha256": "3db7a392de8ec2fe2eec2ca1903e4af0ab6bd47288134522587a3f482aa53533"
+    },
+    {
+      "name": "software-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.265,
+      "log": "software-arch_native.log",
+      "sha256": "1c48a0a102b1acde4c7e033b0324280cefe36c555bb7678d7273bf154d9bc9e6"
+    },
+    {
+      "name": "software-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.365,
+      "log": "software-message_native.log",
+      "sha256": "235dbd024c8ffba1c2df3a7ba10d0f955e88664332027aab24d7d0b27ae9b5f8"
+    },
+    {
+      "name": "software-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.516,
+      "log": "software-request_native.log",
+      "sha256": "4bd489d3106aa0d5db88b04c56b4cb10627bb9d29f1304f54fe37d41551f6848"
+    },
+    {
+      "name": "software-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.265,
+      "log": "software-lifecycle_native.log",
+      "sha256": "03d16ac5876719f84e5273d403e155ee0a1d7fb8311ecfe624ea8e083750167f"
+    },
+    {
+      "name": "software-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.867,
+      "log": "software-shell_smoke.log",
+      "sha256": "4e8901e2b0b39574f543488729e479555a951a03b1af9634f6e7fb9e19c82305"
+    },
+    {
+      "name": "software-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "software-geometry_native.log",
+      "sha256": "963f6d72bfb2062ab288198d32079a99174f60c24aaf831d9255a499b3fd56f5"
+    },
+    {
+      "name": "software-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.465,
+      "log": "software-timing_native.log",
+      "sha256": "ceb58b254948f9c1bc9ed9f7a551f78e31e3e5f33a79c2ec3e510f9f1f9e9240"
+    },
+    {
+      "name": "software-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software",
+        "--pcf"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "software-geometry-pcf.log",
+      "sha256": "0452abf8eb698e761f29c3c0a6bef55a816bbb86b29f1f13122487a1f9e3417e"
+    },
+    {
+      "name": "opengl-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.315,
+      "log": "opengl-hp_checks.log",
+      "sha256": "9c5e0c2d12efd8f9f9c5ecec1ea659772ecfeed77b6d268f4a03ca8c2839e499"
+    },
+    {
+      "name": "opengl-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-arch_native.log",
+      "sha256": "af52a59f1e209e7e8d8ca7ad7812edff50342bdb571dda3cb67e8da1e3965ebb"
+    },
+    {
+      "name": "opengl-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.265,
+      "log": "opengl-message_native.log",
+      "sha256": "b79a53fac2b8d65fb456900a76a09617509ca8df871381577ffe7f986c649abb"
+    },
+    {
+      "name": "opengl-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.315,
+      "log": "opengl-request_native.log",
+      "sha256": "2f2897e8d26db8bf8b7c9ad18cb1fd67a22fef8ce21296ac805ba94c9a211216"
+    },
+    {
+      "name": "opengl-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-lifecycle_native.log",
+      "sha256": "5afdd514009fd951ce51496a24d7b3d1f27c510db98c910c76e98bc1384c2dc6"
+    },
+    {
+      "name": "opengl-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.766,
+      "log": "opengl-shell_smoke.log",
+      "sha256": "e476c7789d87c787814fe17631a22402989f0042cec7ae817847b351dea6a848"
+    },
+    {
+      "name": "opengl-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-geometry_native.log",
+      "sha256": "22488694bd56523b73b9b8922321b25e7b8a07007d48a5d7ce12aae15488ee06"
+    },
+    {
+      "name": "opengl-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.415,
+      "log": "opengl-timing_native.log",
+      "sha256": "b1ee19eb0eba256f4dcd7eafea10a9edd68c81e9b60d9cd07b180d8e8932049c"
+    },
+    {
+      "name": "opengl-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "opengl",
+        "--pcf"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.214,
+      "log": "opengl-geometry-pcf.log",
+      "sha256": "71bf579a9972ba409909abebfeda8c76e12d2c63d60ef79fca63dd8bac76e56b"
+    },
+    {
+      "name": "registry",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/validate_capabilities.py",
+        "--manifest",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--ledger",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/native-coverage.json",
+        "--evidence",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/native-evidence.json",
+        "--inventory-index",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/inventories/index.json",
+        "--reconciliation",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/reconciliation.json",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 6.724,
+      "log": "registry.log",
+      "sha256": "f0d43ef9862c24d57fcfe0549c3b238bf8a0f4f3ea9f530b4f38bb3bb6bed2bd"
+    },
+    {
+      "name": "html-sync",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/html_capabilities.py",
+        "sync",
+        "--canonical",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--consumer",
+        "/tmp/sv15-final/html-consumer",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 8.934,
+      "log": "html-sync.log",
+      "sha256": "95d1738de86940ad3eb35d077f425e59c2bc2ee22793dffd44561ace429d179a"
+    },
+    {
+      "name": "html-check",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/html_capabilities.py",
+        "check",
+        "--canonical",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--consumer",
+        "/tmp/sv15-final/html-consumer",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 17.101,
+      "log": "html-check.log",
+      "sha256": "95d1738de86940ad3eb35d077f425e59c2bc2ee22793dffd44561ace429d179a"
+    },
+    {
+      "name": "candidate-evidence-check",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/validate_capabilities.py",
+        "--manifest",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--ledger",
+        "/tmp/sv15-final/candidate-ledger.json",
+        "--evidence",
+        "/tmp/sv15-final/candidate-evidence.json",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client",
+        "--source-root",
+        "stage-a=/tmp/sv15-final"
+      ],
+      "returncode": 1,
+      "result": "fail",
+      "seconds": 4.723,
+      "log": "candidate-evidence-check.log",
+      "sha256": "d3d696a8682b24e0ed22686f8ad299ebcd1ea4f4f6e1f4fc4fdcaba7482459a2"
+    }
+  ],
+  "acceptance": "blocked",
+  "siblingSynchronized": false,
+  "limitations": [
+    "Human native review pending; no automatic approval.",
+    "Physical DPI/monitor transitions and physical 4K timing unverified.",
+    "Actual Windows 10/11 and Fedora41 shipping baseline unverified.",
+    "Synthetic peer only: no live login, complete gameplay or shipping archives.",
+    "Runtime fallback counters and complete evidence dependency closure absent; observations are not accepted evidence.",
+    "B\u2013F capabilities remain pending; no stress/soak, recording or global memory ceiling gate.",
+    "Wine unverified: needs a successful MinGW build and --wine-binary with staged DLLs.",
+    "Candidate evidence checker rejection is a blocking result, not a passed negative test; canonical claims unchanged."
+  ],
+  "registry": {
+    "status": "valid",
+    "summary": {
+      "activeCapabilities": 925,
+      "pendingEvidence": 925,
+      "acceptedCapabilities": 0
+    },
+    "completeness": {
+      "status": "complete",
+      "inventoryIndexSha256": "cec3cffd769d365378516ee1a74b3ccff4d39ca231d29c5fa67396c6c056dedd",
+      "reconciliationSha256": "95faec7659c989274994fc207117dc73e68f1fb4019d1c732d5b014c0d9f1d1e",
+      "inventories": 24,
+      "inventoryRows": 2077,
+      "dispositions": {
+        "required": 1918,
+        "source-accounting": 67,
+        "excluded": 61,
+        "dead": 25,
+        "directional": 6
+      },
+      "unresolvedRows": [],
+      "scenarios": 10,
+      "acceptedCapabilities": 0
+    },
+    "manifestSha256": "57f4b26e162899c18697d044cdcc3788bd73eb96fe96d28bd9c1049f5c872d5c"
+  },
+  "stageAllocation": {
+    "A": 8,
+    "B": 583,
+    "C": 165,
+    "D": 156,
+    "E": 11,
+    "F": 2
+  },
+  "observations": [
+    {
+      "capabilityId": "capability.status.read-hp",
+      "allocationSha256": "0236d4685b24c8086e571ef418fea7b71c6d3c0585279a99050d25716bd094d1",
+      "obligations": [
+        {
+          "id": "obligation.status.read-hp.primary",
+          "description": "Both HP wire layouts preserve markers; incomplete packets publish nothing and adjacent packets remain readable.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-hp.lifecycle",
+          "description": "Native HP surface shows the coherent values; urgent submission, resize/focus and software-rendering obligations apply.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.status.read-hp",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-hp_checks",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-hp_checks",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native"
+      ],
+      "scope": "Partial synthetic observations; no accepted evidence record."
+    },
+    {
+      "capabilityId": "capability.messages.read-occurrences",
+      "allocationSha256": "c16d15af43e0abe6c7f0aefed1454af6664cc0ef08b510c83e51c34967160711",
+      "obligations": [
+        {
+          "id": "obligation.messages.read-occurrences.primary",
+          "description": "Identical adjacent messages remain distinct and ordered, including clear sentinel and original bytes.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        },
+        {
+          "id": "obligation.messages.read-occurrences.lifecycle",
+          "description": "View reconstruction does not redispatch messages; required-delivery overflow is explicit and teardown clears session occurrences.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.messages.read-occurrences",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-message_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-message_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native"
+      ],
+      "scope": "Partial synthetic observations; no accepted evidence record."
+    },
+    {
+      "capabilityId": "capability.request.answer-key",
+      "allocationSha256": "03e1eb486f13414012d5b507e41424c1dbbb96c5b6a70ad5e68c57dedcb32bc9",
+      "obligations": [
+        {
+          "id": "obligation.request.answer-key.primary",
+          "description": "Native input sends the original signed request ID and chosen key once, then restores parent context.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.answer-key.lifecycle",
+          "description": "HP/messages continue during the prompt; resize/focus/reconstruction and stale-generation input cannot duplicate a reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.request.answer-key",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-request_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-request_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native"
+      ],
+      "scope": "Partial synthetic observations; no accepted evidence record."
+    },
+    {
+      "capabilityId": "capability.request.cancel-key",
+      "allocationSha256": "5a543965054a2187f789a1df0c00cf4e2989ef3fde2b68d8f3821af1b03ee030",
+      "obligations": [
+        {
+          "id": "obligation.request.cancel-key.primary",
+          "description": "Escape sends key zero rather than ASCII 27, once, with the original request ID.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.cancel-key.lifecycle",
+          "description": "Server abort follows this owner cancellation; repeated abort and old-generation input cannot send another reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.request.cancel-key",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-request_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-request_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native"
+      ],
+      "scope": "Partial synthetic observations; no accepted evidence record."
+    }
+  ],
+  "fingerprints": {
+    "docs/capabilities/inventories/index.json": "cec3cffd769d365378516ee1a74b3ccff4d39ca231d29c5fa67396c6c056dedd",
+    "docs/capabilities/manifest.json": "57f4b26e162899c18697d044cdcc3788bd73eb96fe96d28bd9c1049f5c872d5c",
+    "docs/capabilities/native-coverage.json": "fbc21a95e1da9fcc77e255ebfbd54595b7e648cbf54be7751bb6bea61de97d5a",
+    "docs/capabilities/native-evidence.json": "1aa725c5a37c47f7355c83df5ea518d7da2ea9a4ee96fbc3da25b1018ce23f63",
+    "docs/capabilities/reconciliation.json": "95faec7659c989274994fc207117dc73e68f1fb4019d1c732d5b014c0d9f1d1e",
+    "lib/xtra/font/16x24x.pcf": "fb72acdee8d41ed41d2dfc3fc769e4a629e02431376f09485d73be4c5e7758b1",
+    "lib/xtra/font/CascadiaMono-Regular.ttf": "06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481",
+    "src/.sv-build/linux/028a446de2f035467aca/build.txt": "0a2a7cc23907a05ae8a3a0543e43f311200fe97c2724719bcee9d35c78ee0609",
+    "src/.sv-build/linux/9dd5a1e98a672a5b25cd/build.txt": "c5108a8d38f95987d0a0fc5766466cac41faca33980ad835ff69d97488db06c9",
+    "src/.sv-build/linux/d40b159e6018a2bbe18e/build.txt": "9eb12684a169d0e1e3e8d1e62031b39707489cb7decea7a9d446b11dc242fca0",
+    "src/.sv-build/linux/ebab0e4c4e0c5655dfdd/build.txt": "ba087621b8e13db27360efac3da044880c1ec3f930ce6032f91bbff62e3abecb",
+    "src/.sv-build/mingw/0449e4415f5c6125ce01/build.txt": "f8370e85024d6434acc33e95d7b0f2cd0be2260d13fdcb3d578434ce33e1d987",
+    "src/.sv-build/mingw/52b97e595b46e7e2f91c/build.txt": "809126b48b7be9462219e6120bec4e19c188558a3688092c30a20b2896437390",
+    "src/.sv-build/mingw/fda94f525612adf29445/build.txt": "6c5a61c049737887ae800292e5a21c90aeedc744660027250e874fab2e7c2688",
+    "src/client/sv/app.c": "a0373fab62e71b8a0e0333f541cb047d9f2409cb58d8238595f2bf42c6e26cb8",
+    "src/client/sv/app.h": "767ee2fcda86b73a76a8eb30ba7cdd6ccae332691eab8641c218ae4d75a2d7ef",
+    "src/client/sv/diagnostics/timing.c": "c01dd5d428bb9fcf4e19585df7baabff5223bffd5e35fb47c0e2f88667782980",
+    "src/client/sv/diagnostics/timing.h": "60fa267a33b195eb117cf151d6ddfd9f52bc9f5a27b43582890b859c3e7b135f",
+    "src/client/sv/input/input.c": "cf682d1f66dc35d394f709732698d8c16fee1eef80cfef67e5993b3d99eb85c3",
+    "src/client/sv/input/input.h": "e1953e3dedda185fec3eced1e2ecc9c361f56db3e06672e742eaa6ed8c8b450a",
+    "src/client/sv/input/native-input.c": "6968020397d4d4601ed6b54fd8cab0344b2f8d77563c188f7c7de600c1c22dd0",
+    "src/client/sv/input/native-input.h": "422e77aa3e33d50cd9df29255bc0eda59a702325618c65f5ff52db341e145c7f",
+    "src/client/sv/main.c": "355d126f0e177011dd1d5b1f2373a941ddbeb4f4d91d7c0bfb14414a2aa610c4",
+    "src/client/sv/protocol/hp-update.h": "6232c56e2407f00f20b1e0eb1e6cc2f0b35a62d467d85f9e7f811a70a06b8179",
+    "src/client/sv/protocol/key-request.h": "a0829d79ecb28d11ad20173252b3deae2067ba0173a064a396f56b54e1a06f90",
+    "src/client/sv/protocol/message-update.h": "beef83a9d2cd80b5e6b037184bdf754d2cbb97c64ea045c783c9878c22a2f376",
+    "src/client/sv/protocol/protocol.c": "4c0e5535d94a33eebfaf0a62bdf015bcf34a113259e5b42427004f87d9cf2bb6",
+    "src/client/sv/protocol/protocol.h": "6b27dfb5b98071e81d4e219b26c63f300b43dac9e66bbbbe09a3be37d745fe5d",
+    "src/client/sv/protocol/version.c": "d674827bfc73c53bd51e8db03b16200fbdc2a8eb59fec021fcbe8755443e33fc",
+    "src/client/sv/result.c": "c8cd1c29769549b52dbb8b0de9d9a04404a80bb1d5d1cf835d548c09b8c9b573",
+    "src/client/sv/result.h": "aea7f5f47a949aa7a878f1adc89b1665853e0b3aef54be2343dc2c7e6df56322",
+    "src/client/sv/session/alerts.c": "2dae30471385d4db6c9e20673613a1e7df561de7399f09b3a90a1fe58e85b4ba",
+    "src/client/sv/session/alerts.h": "6ffd67dac7cf6af19587fb2e60f6f1330fa9c5d5a884859bdc5d171781786e19",
+    "src/client/sv/session/session.c": "cb509f6e431b3400c7c47137eb8793dcd38f3e8553914a0148e8be894950f9e7",
+    "src/client/sv/session/session.h": "204248a5723ec241f2631b07156881b2a89cb1ba03fe47209f8f7efd1acabac8",
+    "src/client/sv/ui/font.c": "0b65c4c1fd8fda7ec0ad69af07208d95c962fb26bad495f66cd3f895767d2d85",
+    "src/client/sv/ui/font.h": "d9a570f390b1cb2ee28293349140806f5b29d35d2c3831a19789f66de333cc07",
+    "src/client/sv/ui/message-text.c": "4737fb833916e536f643cec56f2ee03a1a713ca8097a18117711c95a68afceff",
+    "src/client/sv/ui/message-text.h": "4b0eff6968aa090fdf96660742cb157c0c4ee075d14244229ad88c778138a2fe",
+    "src/client/sv/ui/status.c": "1aa5b16695ff853b3763c647b2cd86ed1743b2fab1f3b570903d829fe2632a86",
+    "src/client/sv/ui/status.h": "d7f29dc6b0a74295b1b8ab502d27ff55d75e0be6786b2a94612110a66a9924c2",
+    "src/client/sv/ui/ui.c": "87e4e39d5200ba797cb4a23b344d75a86e3ec61eddd4fc74893409f63a7ea40a",
+    "src/client/sv/ui/ui.h": "eb97d20491337dc0b52f7367ae0ac249856632f3c43bcbf0bb05ab3a7803a313",
+    "src/makefile.sv": "28911f31bff0c71ca67c84d27ada520aec28fc94dbf1dedc867ce984a05003fc",
+    "src/temporary/sv/peer.c": "d795435c34fb86caba643894e1cad64379136058e3724430bb303a8de8a3d11f",
+    "src/temporary/sv/synthetic.c": "23f414718bc66ca5ccb12b321b0b9bd4671bbd101b401983ef9cca0aaca60b95",
+    "src/temporary/sv/synthetic.h": "1f0ea2c8c6332e0efa8ebb0b064471fbf7204a808fb37537830342ab21a022d1",
+    "src/tomenet-sv": "dda366d39f22a64f3d78552b29c76e99d43f462715497b3319983f5527a5b1f1",
+    "tests/sv/architecture.c": "bfeaec40e0019f585fa99d9df9f0c2f5e5b11945954f74658fb388d2d8a390ae",
+    "tests/sv/lifecycle.c": "311f67430455c8021339586b6bd59f2fbcaa2b7fb5fd7644437210cd8e6733ff",
+    "tests/sv/messages.c": "77ae490ff99b287d16f901645dd20ee98404531e4888ae38b30cbdd96f6cef26",
+    "tests/sv/requests.c": "cab81d00e03e46c728ccb9c0123e1747405094f47ff349c5a29d287378651db3",
+    "tests/sv/scenarios/arch-scenario.c": "a0f6f642236125452227de9c7592fcb56997495f14321ffe63e7148134aee840",
+    "tests/sv/scenarios/arch-scenario.h": "5c459238489a3d98e85c59d2fc0663b52dd06dba0c328babe4837e7317dd1c04",
+    "tests/sv/scenarios/geometry-scenario.c": "8e0c687f3d5e1a75840b7d893d8924c118bb737de859411c4c6942ad943f56ca",
+    "tests/sv/scenarios/geometry-scenario.h": "8b00bfdff8d9b071862a0d09235fe7c6004ff36fa3d1a858e82c16135b5324c7",
+    "tests/sv/scenarios/hp-scenario.c": "63eff8ca64f619a3fecee437468d0422fd068a3b435e5a2b0102f2befacce4ce",
+    "tests/sv/scenarios/hp-scenario.h": "2723b417b540de66797dff8bec106b14bf9af8e6dc829e101f899bc1483e8035",
+    "tests/sv/scenarios/lifecycle-scenario.c": "f08041256a462a07616fe80d501d32f7a81b1b95c857188e0f0560d46a62ba4c",
+    "tests/sv/scenarios/lifecycle-scenario.h": "7175dc26b8878bad2066e9a04646306f3b96302801a619fc62708b4c2f2965a5",
+    "tests/sv/scenarios/message-scenario.c": "217e27d8e45062e691da9091d56112d76f7dccaedbb1226b8cd83dc0b19e6b98",
+    "tests/sv/scenarios/message-scenario.h": "1b2fcda18404ed489d92471692fd18a5afb4936c3fa032eb4ebff4cacb2079d0",
+    "tests/sv/scenarios/native-frame.c": "64b06e66517b2f56991c9435526a3ef153abc05348c9061af4c7a6720b09eeee",
+    "tests/sv/scenarios/native-frame.h": "8f6bc341064b1d37eb9209bbe5d9c6c8328559b22b7663ab5fc2809837520886",
+    "tests/sv/scenarios/request-scenario.c": "5309c92d7457773ad7d76e1580441d2a70a65fe4890679ee4227f5c3855f0200",
+    "tests/sv/scenarios/request-scenario.h": "15205223287f540289e63474d3baf6eac38a7705e261922b1026bccf6a8b028d",
+    "tests/sv/scenarios/timing-scenario.c": "d4776ea3547b46d8382284c7a2c9257fa93f2b581a8e642c70bbb02c7824aa47",
+    "tests/sv/scenarios/timing-scenario.h": "4a33acc158ebde64e69e911971493bdb3b8c1a065deedcd4d34fd50bc964208d",
+    "tests/sv_arch_checks.py": "b5e891e4b5c058207724d68c5267fd35853c9ad165dc5cf6663781b858f77373",
+    "tests/sv_arch_native.py": "9318deae570421134b4d3e13e3049d60903801efc14b4ac0de8fcef1da79d2a0",
+    "tests/sv_capabilities_checks.py": "bb9f625849e397a1056f1972a11cd8987b344dc49c0151e1abba89babce286e9",
+    "tests/sv_evidence_checks.py": "c8a564b331e50caada52a2e2f3d53246229c6326b78e0662b353e9ff5786372d",
+    "tests/sv_geometry_native.py": "3fc583c9593005d0e60fc7fc0e8604672501ad322317e4b36a0b700fe9e55862",
+    "tests/sv_hp_checks.py": "81607b41a95ae81db811bc9c049c90f1937bb70f2230f12f74d084094ebbb18a",
+    "tests/sv_html_checks.py": "56478a9fa21b4d949a2e4ead31f2a5296cda98da6e97e730c0aaf43e5f233956",
+    "tests/sv_lifecycle_checks.py": "015031d5e5f94c0496081c0c30d9347c5219a8ea10a3b4e259f3b4d153c5603f",
+    "tests/sv_lifecycle_native.py": "436faae55d4cf523ff4ee4747abba92a3abe46e9fa40b90097ecaad57150c816",
+    "tests/sv_message_checks.py": "3f8cfe1f0e67251a783c862969f9191b449eda3295a4ad37c708eb082956b0dc",
+    "tests/sv_message_native.py": "96027511e2fdfeb4647cb758e29b00345ea5fb64cc39ff0d83d1fb7684c0b748",
+    "tests/sv_reconciliation_checks.py": "4b2e4a40eeb118384f5ee1bb3a9063cd6746320cb22b94a24dae73f7bbe86bb9",
+    "tests/sv_request_checks.py": "f464f4082ecbe7ed68c124d792d0010f8d99d10875503ca91357cd7002c178a5",
+    "tests/sv_request_native.py": "c245dd4cb1613777d27f6b414a613605bf54a2928aa75773bdc577886062dc9a",
+    "tests/sv_shell_smoke.py": "b7746d361b247ec2cfba13a1b58492a8b7002fa903f94cb01ed2a68d69bc22ba",
+    "tests/sv_timing_native.py": "2e3c92508cf7e688bcb0f221b1375c7427b6caeff658f99b4e7686e54631e1d3",
+    "tools/html_capabilities.py": "6c0ca44c185d635b658f5ec54e3026f2ee0eac7efdda152e1f103691d11c0159",
+    "tools/html_claims.py": "4904ed06c353376e076a01f6e616c5450e14eedc053ae16cb9bde97de6dd5b0a",
+    "tools/native_evidence.py": "09b8a481c2d05e7ad680e9658ede8f4ab11c051611c51addb671950c4aa748c1",
+    "tools/reconcile_capabilities.py": "d2394d6dd1b6835dd5447165257a1fbdceedd37f57cb76cc9a527d375036196f",
+    "tools/run_stage_a.py": "8b26b57a00e9931c61041a146045f6e5d21da19b10ac2d70c7bfc5ef679e92ef",
+    "tools/validate_capabilities.py": "d3ee0743f2a81a687165d849c20d80bafdd2772bca4c0ec2ce3ff45ac26fd663"
+  },
+  "fingerprintScope": "Observation identity only; not complete transitive SDK/source dependency closure.",
+  "finished": "2026-09-23T08:08:06.065233+00:00",
+  "failedCommands": 2
+}

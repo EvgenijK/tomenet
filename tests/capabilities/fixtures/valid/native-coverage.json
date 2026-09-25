@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "consumer": "native-sv",
+  "manifestSha256": "3e8d2c691ffe8f556066d4e33e79f1c29206aa8f5196c06c675ea66af8a4e8e0",
+  "coverage": [
+    {
+      "capabilityId": "capability.status.read-hp",
+      "acceptanceStage": "A",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.baseline.hp"
+        ],
+        "serverVersions": [
+          "4.7.0.2.0.1 and 4.7.0.2.0.2 (HP wire boundary); message/key request layouts unversioned"
+        ],
+        "builds": [
+          "SV synthetic foundation; no live session acceptance"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Stage A synthetic HP/message/key-request slice; Linux software and accelerated; MinGW i686 + Wine intermediate evidence, no actual Windows claim."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-hp.primary",
+          "description": "Both HP wire layouts preserve markers; incomplete packets publish nothing and adjacent packets remain readable.",
+          "sources": [
+            "source.baseline.hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-hp.lifecycle",
+          "description": "Native HP surface shows the coherent values; urgent submission, resize/focus and software-rendering obligations apply.",
+          "sources": [
+            "source.baseline.hp"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Initial registry allocation only. Existing scenario runners and reports have not been imported as scoped native claims; ticket 13 owns evidence validation.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ]
+}

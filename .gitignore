@@ -27,6 +27,11 @@ src/preproc/preproc
 # Local release workspace
 .github/workspace/
 
+# Independently configured single-window client outputs
+src/.sv-build/
+src/tomenet-sv
+src/tomenet-sv.exe
+
 # Data files from a running server
 lib/data/*
 

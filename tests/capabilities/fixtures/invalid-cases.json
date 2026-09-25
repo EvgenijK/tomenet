@@ -1,0 +1,594 @@
+[
+  {
+    "name": "duplicate-id",
+    "expectedCode": "duplicate-id",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "actions",
+          1,
+          "id"
+        ],
+        "op": "set",
+        "value": "action.request.answer-key"
+      }
+    ]
+  },
+  {
+    "name": "wrong-id-kind",
+    "expectedCode": "id-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "states",
+          0,
+          "id"
+        ],
+        "op": "set",
+        "value": "action.player.hp"
+      }
+    ]
+  },
+  {
+    "name": "unknown-source",
+    "expectedCode": "unknown-id",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "sources"
+        ],
+        "op": "set",
+        "value": [
+          "source.unknown"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "wrong-source-type",
+    "expectedCode": "reference-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "sources"
+        ],
+        "op": "set",
+        "value": [
+          "surface.status"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "unknown-relation-endpoint",
+    "expectedCode": "unknown-id",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "relations",
+          0,
+          "to"
+        ],
+        "op": "set",
+        "value": "action.request.unknown"
+      }
+    ]
+  },
+  {
+    "name": "invalid-endpoint-type",
+    "expectedCode": "reference-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "relations",
+          0,
+          "to"
+        ],
+        "op": "set",
+        "value": "surface.status"
+      }
+    ]
+  },
+  {
+    "name": "conflicting-binding-relation",
+    "expectedCode": "binding-action",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "relations",
+          0,
+          "to"
+        ],
+        "op": "set",
+        "value": "action.request.cancel-key"
+      }
+    ]
+  },
+  {
+    "name": "missing-behavior",
+    "expectedCode": "missing-behavior",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "sources"
+        ],
+        "op": "set",
+        "value": [
+          "source.acceptance.hp"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "missing-provenance",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "sources",
+          0,
+          "revision"
+        ],
+        "op": "delete"
+      }
+    ]
+  },
+  {
+    "name": "missing-fingerprint",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "sources",
+          0,
+          "sha256"
+        ],
+        "op": "delete"
+      }
+    ]
+  },
+  {
+    "name": "missing-coverage",
+    "expectedCode": "missing-coverage",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0
+        ],
+        "op": "delete"
+      }
+    ]
+  },
+  {
+    "name": "unknown-coverage",
+    "expectedCode": "unknown-id",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "capabilityId"
+        ],
+        "op": "set",
+        "value": "capability.unknown.outcome"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-coverage",
+    "expectedCode": "duplicate-coverage",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          1,
+          "capabilityId"
+        ],
+        "op": "set",
+        "value": "capability.status.read-hp"
+      }
+    ]
+  },
+  {
+    "name": "missing-stage",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "acceptanceStage"
+        ],
+        "op": "delete"
+      }
+    ]
+  },
+  {
+    "name": "invalid-stage",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "acceptanceStage"
+        ],
+        "op": "set",
+        "value": "G"
+      }
+    ]
+  },
+  {
+    "name": "missing-conditions",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "conditions"
+        ],
+        "op": "delete"
+      }
+    ]
+  },
+  {
+    "name": "missing-evidence-obligations",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "evidenceObligations"
+        ],
+        "op": "set",
+        "value": []
+      }
+    ]
+  },
+  {
+    "name": "unknown-prerequisite",
+    "expectedCode": "unknown-id",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "prerequisites"
+        ],
+        "op": "set",
+        "value": [
+          "capability.missing.outcome"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "later-stage-prerequisite",
+    "expectedCode": "prerequisite-stage",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "prerequisites"
+        ],
+        "op": "set",
+        "value": [
+          "capability.messages.read-occurrences"
+        ]
+      },
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          1,
+          "acceptanceStage"
+        ],
+        "op": "set",
+        "value": "B"
+      }
+    ]
+  },
+  {
+    "name": "prerequisite-cycle",
+    "expectedCode": "prerequisite-cycle",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "prerequisites"
+        ],
+        "op": "set",
+        "value": [
+          "capability.messages.read-occurrences"
+        ]
+      },
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          1,
+          "prerequisites"
+        ],
+        "op": "set",
+        "value": [
+          "capability.status.read-hp"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid-keyset",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "bindings",
+          0,
+          "keyset"
+        ],
+        "op": "set",
+        "value": [
+          "made-up"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid-platform",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "bindings",
+          0,
+          "platform"
+        ],
+        "op": "set",
+        "value": [
+          "made-up"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid-context-type",
+    "expectedCode": "reference-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "bindings",
+          0,
+          "contextId"
+        ],
+        "op": "set",
+        "value": "surface.status"
+      }
+    ]
+  },
+  {
+    "name": "invalid-action-type",
+    "expectedCode": "reference-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "bindings",
+          0,
+          "actionId"
+        ],
+        "op": "set",
+        "value": "state.player.hp"
+      }
+    ]
+  },
+  {
+    "name": "invalid-lifecycle",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "lifecycle"
+        ],
+        "op": "set",
+        "value": "finished"
+      }
+    ]
+  },
+  {
+    "name": "active-replacement",
+    "expectedCode": "replacement-lifecycle",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "replacedBy"
+        ],
+        "op": "set",
+        "value": [
+          "capability.messages.read-occurrences"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "wrong-replacement-type",
+    "expectedCode": "reference-type",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "lifecycle"
+        ],
+        "op": "set",
+        "value": "retired"
+      },
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "replacedBy"
+        ],
+        "op": "set",
+        "value": [
+          "state.player.hp"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "replacement-cycle",
+    "expectedCode": "replacement-cycle",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "lifecycle"
+        ],
+        "op": "set",
+        "value": "retired"
+      },
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          1,
+          "lifecycle"
+        ],
+        "op": "set",
+        "value": "retired"
+      },
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "replacedBy"
+        ],
+        "op": "set",
+        "value": [
+          "capability.messages.read-occurrences"
+        ]
+      },
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          1,
+          "replacedBy"
+        ],
+        "op": "set",
+        "value": [
+          "capability.status.read-hp"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "native-status-in-manifest",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "capabilities",
+          0,
+          "implementation"
+        ],
+        "op": "set",
+        "value": "native"
+      }
+    ]
+  },
+  {
+    "name": "unsupported-acceptance",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "evidenceStatus"
+        ],
+        "op": "set",
+        "value": "accepted"
+      }
+    ]
+  },
+  {
+    "name": "prototype-not-native",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "ledger",
+        "path": [
+          "coverage",
+          0,
+          "implementation"
+        ],
+        "op": "set",
+        "value": "prototype-complete"
+      }
+    ]
+  },
+  {
+    "name": "source-path-escape",
+    "expectedCode": "schema",
+    "operations": [
+      {
+        "target": "manifest",
+        "path": [
+          "sources",
+          0,
+          "path"
+        ],
+        "op": "set",
+        "value": "../outside.c"
+      }
+    ]
+  }
+]
