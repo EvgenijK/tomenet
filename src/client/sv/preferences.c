@@ -1,4 +1,5 @@
 #include "preferences.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,6 +111,26 @@ static size_t message_bytes(const char *value, unsigned char *out, size_t capaci
     return size;
 }
 
+static bool keymap_record(const char *value, unsigned char *key,
+                          unsigned char *command, unsigned char *direction)
+{
+    long fields[3];
+    const char *cursor = value;
+    for (size_t i = 0; i < 3; ++i) {
+        char *end;
+        errno = 0;
+        fields[i] = strtol(cursor, &end, 0);
+        if (errno == ERANGE || end == cursor ||
+            (i < 2 ? *end != ':' : *end != 0)) return false;
+        cursor = end + 1;
+    }
+    *key = (unsigned char)(fields[0] & 127);
+    *command = (unsigned char)(fields[1] & 127);
+    *direction = (unsigned char)(fields[2] & 127);
+    if (*direction > 9 || *direction == 5) *direction = 0;
+    return true;
+}
+
 static FILE *open_layer(SvPreferences *prefs, const char *name, SvPrefOwner *owner)
 {
     char path[4096];
@@ -173,13 +194,13 @@ static void record(Loader *loader, SvPrefOwner owner, const char *name,
         return;
     }
     if (*text == 'S') {
-        unsigned key, command, direction;
-        if (sscanf(value, "%u:%u:%u", &key, &command, &direction) != 3 ||
-            key > 127 || command > 127 || direction > 9 || direction == 5) {
+        unsigned char key, command, direction;
+        if (!keymap_record(value, &key, &command, &direction)) {
             warn(loader, owner, name, line, "invalid keymap record"); return;
         }
-        prefs->keymap_command[key] = (unsigned char)command;
-        prefs->keymap_direction[key] = (unsigned char)direction;
+        prefs->keymap_command[key] = command;
+        prefs->keymap_direction[key] = direction;
+        prefs->keymap_present[key] = true;
         emit(loader, SV_PREF_KEYMAP, owner, name, line,
              (const unsigned char *)text, strlen(text));
         return;
@@ -239,6 +260,9 @@ static bool load(Loader *loader, const char *name, bool required,
         }
         return false;
     }
+    if (parent_file && loader->preferences->sink.include)
+        loader->preferences->sink.include(loader->preferences->sink.context,
+            parent_owner, parent_file, parent_line, owner, name);
     strcpy(loader->names[loader->depth++], name);
     ++loader->report.files;
     char text[1024];

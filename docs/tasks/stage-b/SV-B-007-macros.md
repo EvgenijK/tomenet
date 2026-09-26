@@ -5,14 +5,19 @@ acceptance pending.
 
 ## Follow-up после review от 2026-09-26
 
-Командная сериализация перенесена из `app.c` в SV input/command module.
+Командная сериализация перенесена из `app.c` в SV input/command module;
+macro matching, wait и action dispatch принадлежат `input/macro-executor.c`.
 `PKT_CONFIRM` для macro wait теперь проходит через generation-bound waiter
 SV-B-002 с явным begin/take/end и одним потреблением. Сохранён runtime PRF
 controller: у каждого применённого macro/option/keymap, `#`/`!` эффекта и
-warning остаются U/B owner, разрешённый путь и строка. Диагностика failed
+warning остаются U/B owner, разрешённый путь и строка; успешные `%` включения
+хранят также источник/строку и разрешённого U/B владельца цели. Диагностика failed
 `%` указывает включающий файл/строку и имя цели. Native synthetic shell
 получил Ctrl+F7 named PRF и Ctrl+F8 class PRF с Escape/parent/queue semantics;
-те же production parser, controller и `SvApp` участвуют в проверке.
+те же production parser, controller и `SvApp` участвуют в проверке. Bootstrap
+оставляет `global.prf` до character OPT; synthetic shell без персонажа грузит
+его отдельно один раз. `S` записи с нулевой командой и baseline нормализацией
+направления применяются в production command router.
 
 Остаются **pending**, без acceptance claim:
 
@@ -43,7 +48,9 @@ warning остаются U/B owner, разрешённый путь и стро�
 SV получил отдельный read-only PRF parser для shared U/user→B/user overlay:
 обычная загрузка `A/P/H/C/D`, `%` с диагностикой missing/invalid/cycle,
 `X/Y`, `S`, `#`, `!/?` с body guard. Startup загружает shipped `pref.prf` и
-`pref-sdl3.prf`, затем собственные S OPT layers, затем `global.prf`; включения
+`pref-sdl3.prf`, затем собственные S OPT layers; character path читает
+`global.prf` после character OPT, а shell без персонажа загружает его отдельно;
+включения
 legacy `options.prf` и `window.prf` в shipped bootstrap исключены. Отдельные
 production функции принимают character/race/trait/class/form и named/class PRF.
 

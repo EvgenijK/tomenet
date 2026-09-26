@@ -78,7 +78,7 @@ static unsigned char keymap(unsigned char key, bool rogue, unsigned char *dir)
 SvResult sv_command_override(SvCommandRouter *router, unsigned char key,
                              unsigned char command, unsigned char direction_value)
 {
-    if (!router || !key || key >= 128 || !command || command >= 128 ||
+    if (!router || key >= 128 || command >= 128 ||
         direction_value > 9 || direction_value == 5) return SV_INVALID;
     router->override[key] = true;
     router->override_command[key] = command;

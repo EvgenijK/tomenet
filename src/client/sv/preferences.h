@@ -11,6 +11,8 @@ typedef struct {
     void *context;
     void (*effect)(void *context, SvPrefEffectKind kind, SvPrefOwner owner,
                    const char *file, size_t line, const unsigned char *bytes, size_t size);
+    void (*include)(void *context, SvPrefOwner source_owner, const char *source_file,
+                    size_t source_line, SvPrefOwner target_owner, const char *target_file);
 } SvPreferenceSink;
 typedef struct {
     const char *user_root, *library_root;
@@ -19,6 +21,7 @@ typedef struct {
     SvPreferenceSink sink;
     bool body_macros;
     unsigned char keymap_command[128], keymap_direction[128];
+    bool keymap_present[128];
     unsigned char pending_action[SV_MACRO_ACTION];
     size_t pending_action_size;
 } SvPreferences;

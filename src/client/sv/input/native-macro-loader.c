@@ -58,7 +58,8 @@ bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRunti
             sv_preference_runtime_named(runtime, loader->name, &report);
         snprintf(loader->status, sizeof(loader->status),
                  "%s: %zu files, %zu warnings (%s)",
-                 result == SV_OK && report.files ? "Loaded" : "Load failed",
+                 result == SV_OK && report.files && report.complete ? "Loaded" :
+                 result == SV_OK && report.files ? "Load incomplete" : "Load failed",
                  report.files, report.warnings, sv_result_text(result));
         loader->attempted = result != SV_BUSY;
         if (result == SV_OK && report.files && report.complete)

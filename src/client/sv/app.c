@@ -1,5 +1,6 @@
 #include "app.h"
 #include "protocol/protocol.h"
+#include "input/macro-executor.h"
 #include "../../common/pack.h"
 #include <stdlib.h>
 #include <string.h>
@@ -20,11 +21,16 @@ struct SvApp {
     SvMacroSet *macros;
     SvMacroRunner *macro_runner;
     uint64_t macro_now_ms;
-    uint64_t macro_confirmation_owner;
+    SvMacroExecution macro_execution;
     SvCommandRouter command;
     SvPresentationObserver observer;
     uint64_t input_started_ns, input_sequence;
 };
+static SvMacroExecutor macro_executor(SvApp *app)
+{
+    return (SvMacroExecutor){app->macros, app->macro_runner, &app->input,
+        &app->bindings, &app->command, app->protocol, &app->macro_execution};
+}
 static SvResult accepts(const SvApp *app, uint64_t generation);
 static uint64_t now(SvApp *app)
 {
@@ -54,9 +60,11 @@ static void release_session(SvApp *app)
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
     app->input = (SvInputRouter){0};
-    if (app->macro_runner) sv_macros_reset(app->macro_runner);
+    if (app->macro_runner) {
+        SvMacroExecutor executor = macro_executor(app);
+        sv_macro_executor_reset(&executor);
+    }
     app->macro_now_ms = 0;
-    app->macro_confirmation_owner = 0;
     app->command.bypass = app->command.control = app->command.chat = false;
     app->command.direction_pending = SV_COMMAND_NONE;
     memset(app->command.text, 0, sizeof(app->command.text));
@@ -253,15 +261,16 @@ SvResult sv_app_keymap_record(SvApp *app, unsigned char key,
 }
 bool sv_app_macro_idle(const SvApp *app)
 {
-    return app && !app->macro_runner->active &&
-        !app->macro_runner->fresh_count && !app->macro_runner->ready_count &&
-        !app->macro_runner->waiting;
+    if (!app) return false;
+    SvMacroExecutor executor = {.runner = app->macro_runner};
+    return sv_macro_executor_idle(&executor);
 }
 SvResult sv_app_install_input_profile(SvApp *app, const SvMacroSet *macros,
-    bool roguelike, const unsigned char commands[128],
+    bool roguelike, const bool present[128], const unsigned char commands[128],
     const unsigned char directions[128])
 {
-    if (!app || !macros || !commands || !directions || macros->count > SV_MACRO_LIMIT)
+    if (!app || !macros || !present || !commands || !directions ||
+        macros->count > SV_MACRO_LIMIT)
         return SV_INVALID;
     if (app->busy || !sv_app_macro_idle(app)) return SV_BUSY;
     for (size_t i = 0; i < macros->count; ++i) {
@@ -275,8 +284,8 @@ SvResult sv_app_install_input_profile(SvApp *app, const SvMacroSet *macros,
     SvCommandRouter next = app->command;
     next.roguelike = roguelike;
     memset(next.override, 0, sizeof(next.override));
-    for (size_t i = 1; i < 128; ++i) {
-        if (!commands[i]) continue;
+    for (size_t i = 0; i < 128; ++i) {
+        if (!present[i]) continue;
         SvResult result = sv_command_override(&next, (unsigned char)i,
                                                commands[i], directions[i]);
         if (result != SV_OK) return result;
@@ -358,56 +367,18 @@ SvResult sv_app_macro_frame(SvApp *app, uint64_t generation, uint64_t now_ms, si
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     app->macro_now_ms = now_ms;
-    if (app->macro_confirmation_owner) {
-        unsigned char command;
-        result = sv_app_take_confirmation(app, generation,
-                                          app->macro_confirmation_owner, &command);
-        if (result == SV_OK) app->macro_runner->confirmed = true;
-        else if (result != SV_WAITING) return result;
-        if (!app->macro_runner->waiting || app->macro_runner->confirmed ||
-            app->macro_runner->semaphore || now_ms >= app->macro_runner->wait_deadline_ms) {
-            result = sv_app_end_confirmation(app, generation, app->macro_confirmation_owner);
-            if (result != SV_OK) return result;
-            app->macro_confirmation_owner = 0;
-        }
-    }
-    result = sv_macros_pump(app->macros, app->macro_runner,
-        !app->view.request.pending, app->command.chat, false, true, now_ms);
+    SvMacroExecutor executor = macro_executor(app);
+    result = sv_macro_executor_frame(&executor, app->view.request,
+        app->view.context, app->view.paused, now_ms, budget);
     if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
-    if (result != SV_OK && result != SV_WAITING) return result;
-    if (app->macro_runner->waiting && !app->macro_confirmation_owner) {
-        result = sv_app_begin_confirmation(app, generation, &app->macro_confirmation_owner);
-        if (result != SV_OK) return result;
-    }
-    for (size_t i = 0; i < budget; ++i) {
-        unsigned char key;
-        if (sv_macros_peek(app->macro_runner, &key) != SV_OK) break;
-        if (app->view.request.pending) {
-            if (app->input.count) break;
-            result = sv_input_enqueue_resolved(&app->input, app->view.request,
-                                                app->view.request.sequence, key);
-            if (result != SV_OK) return result;
-        } else {
-            result = command_key(app, generation, key);
-            if (result == SV_BACKPRESSURE) return result;
-            if (result == SV_INVALID) fail_session(app, result);
-            if (result != SV_OK) return result;
-        }
-        sv_macros_consume(app->macro_runner);
-        if (app->view.request.pending) break;
-    }
-    return SV_OK;
+    if (result == SV_INVALID && !app->view.request.pending) fail_session(app, result);
+    return result;
 }
 bool sv_app_macro_extended_waiting(const SvApp *app, uint64_t generation)
 {
-    return app && app->view.active && app->view.generation == generation &&
-           app->macro_runner->waiting && app->macro_runner->extended_wait;
-}
-static bool macro_path(const SvApp *app)
-{
-    return app->macros->count || app->macro_runner->direct_pending ||
-           app->macro_runner->active || app->macro_runner->fresh_count ||
-           app->macro_runner->ready_count;
+    if (!app || !app->view.active || app->view.generation != generation) return false;
+    SvMacroExecutor executor = {.runner = app->macro_runner};
+    return sv_macro_executor_extended_waiting(&executor);
 }
 SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
                               unsigned char action, SvMacroKind kind)
@@ -425,41 +396,20 @@ SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *b
         return result == SV_OK ? sv_app_ack_pause(app, generation,
             app->view.pause_sequence) : result;
     }
-    unsigned char key;
     bool prompt = app->view.request.pending;
-    result = sv_input_physical(&app->bindings, bytes, size, prompt, &key);
-    if (result != SV_OK) {
-        if (result != SV_WAITING || !app->macros->count) return result;
-        bool mapped = false;
-        for (size_t i = 0; i < app->macros->count; ++i) {
-            const SvMacroDefinition *entry = &app->macros->definitions[i];
-            if (entry->trigger_size == size &&
-                (!prompt || entry->kind != SV_MACRO_COMMAND) &&
-                (!app->command.chat || entry->kind == SV_MACRO_NORMAL) &&
-                !memcmp(entry->trigger, bytes, size)) {
-                mapped = true; break;
-            }
-        }
-        if (!mapped) return SV_WAITING;
-        result = sv_macros_feed(app->macros, app->macro_runner, bytes, size,
-            !prompt, app->command.chat, false, true, app->macro_now_ms);
-        if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
-        if (result != SV_OK && result != SV_WAITING) return result;
+    SvMacroExecutor executor = macro_executor(app);
+    SvMacroPhysicalRoute route = sv_macro_executor_physical(&executor, bytes, size,
+                                                            prompt, app->macro_now_ms);
+    if (route.result == SV_INPUT_OVERFLOW) fail_session(app, route.result);
+    if (route.pump)
         return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
-    }
-    if (macro_path(app)) {
-        result = sv_macros_feed(app->macros, app->macro_runner, &key, 1,
-            !prompt, app->command.chat, false, true, app->macro_now_ms);
-        if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
-        if (result != SV_OK && result != SV_WAITING) return result;
-        return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
-    }
+    if (route.result != SV_OK) return route.result;
     if (prompt) {
         /* The request owner receives exactly one resolved byte; a macro's
          * action is not matched again as a fresh trigger. */
-        return sv_app_key(app, generation, app->view.request.sequence, key);
+        return sv_app_key(app, generation, app->view.request.sequence, route.key);
     }
-    return command_key(app, generation, key);
+    return command_key(app, generation, route.key);
 }
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
@@ -467,10 +417,10 @@ SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, u
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     if (app->view.paused) return SV_BUSY;
-    if (macro_path(app)) {
+    SvMacroExecutor executor = macro_executor(app);
+    if (sv_macro_executor_active(&executor)) {
         if (!app->view.request.pending || app->view.request.sequence != sequence) return SV_STALE;
-        result = sv_macros_feed(app->macros, app->macro_runner, &key, 1,
-            false, false, false, true, app->macro_now_ms);
+        result = sv_macro_executor_accept(&executor, key, app->macro_now_ms);
         if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
         if (result != SV_OK && result != SV_WAITING) return result;
         return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
@@ -541,8 +491,10 @@ SvStep sv_app_step(SvApp *app, size_t budget)
             step.result = SV_OK; /* Unowned confirms are discarded, as before macro wait. */
         }
         if (decoded.kind == SV_CHANGE_NOOP) continue;
-        if (decoded.kind == SV_CHANGE_KEY_REQUEST && app->macro_runner->waiting)
-            app->macro_runner->semaphore = true;
+        if (decoded.kind == SV_CHANGE_KEY_REQUEST) {
+            SvMacroExecutor executor = macro_executor(app);
+            sv_macro_executor_key_request(&executor);
+        }
         if (decoded.kind == SV_CHANGE_PAUSE) {
             app->view.pause_sequence = sv_input_pause(&app->input);
             app->view.paused = app->input.paused;

@@ -67,7 +67,8 @@ int main(int argc, char **argv)
     assert(macros);
     Effects effects = {0};
     SvPreferences prefs = {.user_root = argv[1], .library_root = argv[2],
-        .options = &options, .macros = macros, .sink = {&effects, effect}};
+        .options = &options, .macros = macros,
+        .sink = {.context = &effects, .effect = effect}};
     SvPrefReport report = sv_preferences_bootstrap(&prefs);
     assert(report.complete && report.files >= 2);
     bool enabled;
@@ -278,18 +279,43 @@ int main(int argc, char **argv)
     SvPreferenceRuntime *runtime = sv_preference_runtime_create(app, argv[1], argv[2]);
     assert(runtime);
     assert(sv_preference_runtime_bootstrap(runtime, &report) == SV_OK);
+    assert(sv_preference_runtime_include_count(runtime) == 1);
+    const SvPrefIncludeOrigin *included = sv_preference_runtime_include(runtime, 0);
+    assert(included && included->source_owner == SV_PREF_BUNDLED &&
+           included->target_owner == SV_PREF_BUNDLED && included->source_line == 1 &&
+           strstr(included->source_path, "/B/user/pref.prf") &&
+           strstr(included->target_path, "/B/user/base.prf"));
     bool saw_bundled_option = false;
+    size_t global_effects = 0;
     for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i) {
         const SvPrefOrigin *item = sv_preference_runtime_origin(runtime, i);
+        if (strstr(item->path, "/user/global.prf")) ++global_effects;
         if (item->kind == SV_PREF_OPTION && item->owner == SV_PREF_BUNDLED &&
             item->line == 1 && strstr(item->path, "/B/user/base.prf"))
             saw_bundled_option = true;
     }
-    assert(saw_bundled_option);
+    assert(saw_bundled_option && global_effects == 0);
     generation = sv_app_view(app).generation;
     assert(sv_preference_runtime_named(runtime, "manual.prf", &report) == SV_OK &&
            report.complete && report.files == 1);
     assert(sv_app_physical(app, generation, (const unsigned char *)"m", 1) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"M", 1) == SV_OK);
+    no_output(app); /* Explicit S:77:0 overrides the earlier walk mapping. */
+    assert(sv_app_physical(app, generation, (const unsigned char *)"X", 1) == SV_OK);
+    no_output(app); /* Direction 5 is normalized to no direction. */
+    assert(sv_app_physical(app, generation, (const unsigned char *)"8", 1) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    size_t include_count = sv_preference_runtime_include_count(runtime);
+    assert(sv_preference_runtime_named(runtime, "parent.prf", &report) == SV_OK &&
+           report.complete && report.files == 2);
+    assert(sv_preference_runtime_include_count(runtime) == include_count + 1);
+    included = sv_preference_runtime_include(runtime, include_count);
+    assert(included && included->source_owner == SV_PREF_BUNDLED &&
+           included->target_owner == SV_PREF_USER && included->source_line == 1 &&
+           strstr(included->source_path, "/B/user/parent.prf") &&
+           strstr(included->target_path, "/U/user/child.prf"));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"o", 1) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     assert(sv_preference_runtime_class(runtime, "Warrior", &report) == SV_OK &&
            report.complete && report.files == 1);
@@ -302,6 +328,11 @@ int main(int argc, char **argv)
     assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
                                            "Warrior", "Wolf", &report) == SV_OK &&
            report.complete && report.files == 6);
+    global_effects = 0;
+    for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i)
+        if (strstr(sv_preference_runtime_origin(runtime, i)->path,
+                   "/user/global.prf")) ++global_effects;
+    assert(global_effects == 2); /* A and P, exactly one global load. */
     assert(sv_options_get(sv_preference_runtime_options(runtime),
                           "censor_swearing", &enabled) && !enabled);
     assert(sv_app_macro_frame(app, generation, 1, 32) == SV_OK);
@@ -344,12 +375,24 @@ int main(int argc, char **argv)
     assert(sv_native_macro_loader_event(&loader, runtime, app, &event));
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
     assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
+    assert(strstr(loader.status, "Load incomplete"));
     assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
     event.key.key = SDLK_ESCAPE;
     assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
     assert(sv_app_macro_frame(app, generation, 4, 16) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     no_output(app);
+    sv_preference_runtime_destroy(runtime);
+    assert(sv_app_destroy(app) == SV_OK);
+    app = sv_app_create((SvAlertSink){0});
+    assert(app && sv_app_open(app, version) == SV_OK);
+    runtime = sv_preference_runtime_create(app, argv[1], argv[2]);
+    assert(runtime && sv_preference_runtime_bootstrap(runtime, &report) == SV_OK);
+    assert(sv_preference_runtime_global(runtime, &report) == SV_OK && report.files == 1);
+    size_t before_character = sv_preference_runtime_origin_count(runtime);
+    assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
+                                           "Warrior", "Wolf", &report) == SV_INVALID);
+    assert(sv_preference_runtime_origin_count(runtime) == before_character);
     sv_preference_runtime_destroy(runtime);
     assert(sv_app_destroy(app) == SV_OK);
     free(macros);

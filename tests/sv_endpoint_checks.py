@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
                      "src/client/sv/input/metaserver.c", *COMMON]
     scene_sources += ["src/client/sv/" + name + ".c" for name in
-                      ("app", "input/input", "input/macros", "input/command", "session/alerts", "session/session",
+                      ("app", "input/input", "input/macros", "input/macro-executor", "input/command", "session/alerts", "session/session",
                        "protocol/protocol", "protocol/version", "result")]
     scene_sources += ["src/temporary/sv/peer.c"]
     scene_sources += ["src/common/" + name + ".c" for name in

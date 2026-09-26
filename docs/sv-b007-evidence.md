@@ -64,7 +64,8 @@ The earlier fingerprints above identify the first implementation commit; this
 section records the subsequent production changes on the same branch.
 
 - Gameplay packet selection now lives in `input/command.c`; `app.c` only
-  verifies session/context and calls its stable dispatch interface.
+  verifies session/context and calls its stable dispatch interface. Macro
+  matching, waiting and action dispatch live in `input/macro-executor.c`.
 - Macro wait registers with the generation-bound SV-B-002 confirmation waiter.
   The network decoder deposits each `PKT_CONFIRM` there; the macro frame takes
   one confirmation and ends its owner before continuing. The focused check
@@ -73,13 +74,16 @@ section records the subsequent production changes on the same branch.
 - The persistent preference runtime records every applied PRF effect's U/B
   owner, resolved `U/user` or `B/user` path and line. It publishes the parsed
   macro/keymap profile to the same `SvApp` used by physical input. Failed `%`
-  records identify the including path/line and target; a missing manual class
+  records identify the including path/line and target; successful `%` records
+  retain both that source and the target's resolved U/B owner/path. A missing manual class
   file now warns. Native Ctrl+F7 named load and Ctrl+F8 class load use this
   runtime. Escape restores gameplay input without consuming queued actions;
   a warned load cannot be repeated by a second Enter without editing the name.
 - The production-path focused fixture verified named and class movement
   packet bytes, character OPT and race/trait/class/character/form precedence,
-  include diagnostics, native close/queue exactly once, and the existing
+  one `global.prf` load after character OPT, zero-command and normalized
+  direction `S` records, include diagnostics, native close/queue exactly once,
+  incomplete-load status, and the existing
   wait/request cases under ASan/UBSan. `tests/sv_macro_checks.py`,
   `tests/sv_request_checks.py` (372 cases), `tests/sv_options_checks.py`,
   `make -C src -f makefile.sv tomenet-sv`, and `git diff --check` passed.
@@ -101,12 +105,20 @@ Native loader availability on the live endpoint depends on the same
 endpoint-to-gameplay handoff.
 
 Selected follow-up SHA-256: `preferences.c`
-`54b8a4554cf88fe4a27d740e0ea081a50258c629d93710a244020b8309936ecd`,
+`33c40bd3ae77fa0096123d1cfb2d90a9348ab3ff611bd7d21fcdfd1671fdffc1`,
 `preferences-runtime.c`
-`298cdce7c2cb0374dfdcf35a8b3bca7acfca180f9d18bcf826e285609efd1fc3`,
+`dea52d51d7fe8970501ec7d0870cac82f4f1ec5277998aefb30f18569616cfa3`,
 `input/native-macro-loader.c`
-`22704a7e9722b9d1f347d94c634706a5fa0840c0d3842f3b02430abf512cda86`,
+`01cf65eb806a201688c2437c26897ae61f07e9cbc4d70f31437812b00eba0485`,
 `input/command.c`
-`85adf72a1f774e799570143b03d18a1e07bedd7a9bd77546ab0042ceae2cbacb`,
-`app.c` `1a10d4b3001373c264e9938e70d93c10a67030d875d1bddba996f2229a759757`,
-`main.c` `32d15650510926853f88d9ca88c0966bf4be433e60033bb43fb3d7f6d4e6cfcc`.
+`e46f17d30553630453bfd79f46a8a2ebe5a0884ad478646b7a798c4dd5b567e7`,
+`input/macro-executor.c`
+`50ae0ca593059422a28e0459463cab58d73f292a26344bb4ed6b48ea274dcb3c`,
+`app.c` `d238caf00d65ad5e97e9a37107feeadfe2e01317e29b7d46e28d88e152f32edf`,
+`main.c` `11ee2c404498200b2f4b52dfe85365b87319ce029226d7c0b95378502ec4201a`,
+`makefile.sv` `a5dbd2b73cd4a11b5aada5da516f5b313093159674c8948fe6cfb6e8eae04015`,
+`tests/sv/macros.c`
+`40fe109d33ba758c3205fc91c62fa35d7b8e9cf31164d3b83032f19b47de12be`,
+`tests/sv_macro_checks.py`
+`b08b85566f97958cba2799d1b3da0959837a70ce6de21414975cca670c39529c`,
+`src/tomenet-sv` `d6a0ace669970c9c28344accf1017eefd3058c5cbb29ebf291a5ef02311d6dde`.

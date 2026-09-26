@@ -249,6 +249,7 @@ int main(int argc, char **argv)
     if (!preferences) goto done;
     SvPrefReport preference_report;
     if (sv_preference_runtime_bootstrap(preferences, &preference_report) != SV_OK) goto done;
+    if (sv_preference_runtime_global(preferences, &preference_report) != SV_OK) goto done;
     if (review && sv_app_bind_macro(app, 'm', 'Y', SV_MACRO_NORMAL) != SV_OK) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;

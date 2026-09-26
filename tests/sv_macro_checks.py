@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
     (library / "user/pref.prf").write_text("%:base.prf\n%:options.prf\nA:A\nP:a\nA:B\nP:ab\n")
     (library / "user/base.prf").write_text("X:censor_swearing\nY:instant_retaliator\n")
     (library / "user/options.prf").write_text("X:ring_bell\n")
-    (user / "user/pref-sdl3.prf").write_text("#:{+hello\nS:71:59:8\n")
+    (user / "user/pref-sdl3.prf").write_text("#:{+hello\nS:71:59:8\nS:77:59:8\n")
     (user / "sv/global-sv.opt").write_text("Y:censor_swearing\n")
     (user / "sv/Hero.opt").write_text("X:censor_swearing\n")
     (user / "user/global.prf").write_text("A:global\nP:z\n")
@@ -27,14 +27,16 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
     (user / "user/cycle.prf").write_text("%:cycle.prf\n")
     (user / "user/invalid.prf").write_text("%:missing.prf\nQ:bad\nA:C\nP:r\n")
     (user / "user/include-only.prf").write_text("%:missing.prf\n")
-    (user / "user/manual.prf").write_text("A:8\nP:m\n")
+    (user / "user/manual.prf").write_text("A:8\nP:m\nS:77:0:0\nS:0:0:0\nS:0x58:59:5\n")
     (user / "user/bad-action.prf").write_text("!:8\n%:missing.prf\n")
+    (library / "user/parent.prf").write_text("%:child.prf\n")
+    (user / "user/child.prf").write_text("A:8\nP:o\n")
     with (user / "user/Warrior.prf").open("a") as stream:
         stream.write("A:8\nP:k\n")
     (user / "user/body.prf").write_text("?:Y\n!:N\n")
     sources = ["tests/sv/macros.c"]
     sources += ["src/client/sv/" + name + ".c" for name in
-                ("preferences", "preferences-runtime", "options", "input/input", "input/macros", "input/command", "input/native-macro-loader", "ui/message-text",
+                ("preferences", "preferences-runtime", "options", "input/input", "input/macros", "input/macro-executor", "input/command", "input/native-macro-loader", "ui/message-text",
                  "session/alerts", "app", "protocol/protocol", "result", "session/session",
                  "ui/status", "protocol/version")]
     sources += ["src/common/" + name + ".c" for name in

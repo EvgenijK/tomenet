@@ -10,7 +10,7 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-') as temp:
     binary = Path(temp) / 'checks'
     sources = ['tests/sv/contact-control.c']
     sources += ['src/client/sv/' + name + '.c' for name in
-                ('input/input', 'input/macros', 'input/command', 'session/alerts', 'app', 'protocol/protocol', 'result',
+                ('input/input', 'input/macros', 'input/macro-executor', 'input/command', 'session/alerts', 'app', 'protocol/protocol', 'result',
                  'session/session', 'protocol/version')]
     sources += ['src/temporary/sv/peer.c']
     sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
