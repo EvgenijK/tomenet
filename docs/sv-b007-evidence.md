@@ -104,6 +104,55 @@ records remain diagnosed as pending and have **not** been claimed applied.
 Native loader availability on the live endpoint depends on the same
 endpoint-to-gameplay handoff.
 
+## Review corrections — 2026-09-26
+
+The named review artifact `.sandcastle/reviews/codex-sandcastle-dev-4288c03b-branch.md`
+was absent from this worktree. The follow-up addressed the actionable findings
+quoted in the task request.
+
+Ctrl+F7/Ctrl+F8 now create a worker snapshot of production SV options, macros,
+keymaps and PRF parser state. The worker performs file I/O and parsing without
+touching `SvApp` or the live preference runtime. It retains a bounded effect
+journal (8,192 records); the main thread checks generation and macro idle state,
+then applies profile and queued effects in parser order, at most 16 journal
+records per frame. Escape/F5/teardown discard a result before commit; after
+commit starts, Escape closes the loader when replay ends and F5 waits for that
+end. Main-loop gameplay input dispatch waits during replay; queued server
+request replies continue to dispatch while network/UI remain serviced.
+An interleaved decoded key request leaves committed replay intact through all
+40 fixture effects, receives its exact reply through native input, and allows
+the deferred Escape close. A closed app rejects a completed but uncommitted
+worker result even if generation is unchanged. Named/class success, missing
+include warning, cancel before commit, multi-frame replay/close and exact
+movement bytes passed through the native loader and production app under
+ASan/UBSan. A worker still blocked inside filesystem
+I/O can outlive a canceled UI view; its isolated state is reference counted and
+it cannot publish after cancellation. The fixture did not simulate a blocking
+filesystem cancellation. An effect-delivery error reports a failed/incomplete load after earlier PRF
+effects remain applied, matching ordinary preference loading's sequential
+semantics; the failure flag is cleared for the next load. The fixture forces
+queued-action overflow in one ordinary load and verifies that a later load
+succeeds.
+
+The SDL event epoch now gates key/text input before the shell UI, loader and
+gameplay adapter. The production loader test rejects old queued opener and
+Enter timestamps, including after a generation restart. Repeated character
+and form loads apply from the saved global profile; the global PRF effect
+origin count stays constant across reloads. Character OPT is loaded before
+global option effects even for global→character. `load_form_macros=true` loads
+the form layer; `false` leaves the class layer in effect. The fixture checks
+exact `PKT_RAW_KEY` output and queued character action bytes.
+
+The final Linux build and `tests/sv_macro_checks.py` passed. The full
+`tests/sv_*.py` sweep with `/opt/sv-venv/bin/python`, SDL dummy and software
+renderer was **28/31 passed**: `sv_capabilities_checks.py` and
+`sv_checkpoint_checks.py` report only the historical pinned
+`src/makefile.sv` source digest mismatch; `sv_lifecycle_native.py` reaches
+`SDL_MinimizeWindow`, which SDL dummy reports unsupported. The manifest source
+revision remains unchanged. Live login handoff, later decoded form/character
+updates, visual mapping consumer, Windows and accelerated renderer evidence
+remain pending. No full SV-B-007 capability is accepted.
+
 Selected follow-up SHA-256: `preferences.c`
 `33c40bd3ae77fa0096123d1cfb2d90a9348ab3ff611bd7d21fcdfd1671fdffc1`,
 `preferences-runtime.c`

@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
     bool window_override = false;
     int ui_scale_override = 0;
-    bool review = false;
+    bool review = false, restart_pending = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
     unsigned port = 18348;
     SDL_Window *window = NULL;
@@ -261,7 +261,13 @@ int main(int argc, char **argv)
             /* Manual fixture controls supply lifecycle inputs, never replies. */
             if (review && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
                     (event.key.key == SDLK_F5 || event.key.key == SDLK_F6)) {
+                if (event.common.timestamp && event.common.timestamp < input.since_ns) continue;
                 if (event.key.key == SDLK_F5) {
+                    if (sv_native_macro_loader_committing(&macro_loader)) {
+                        restart_pending = true;
+                        continue;
+                    }
+                    sv_native_macro_loader_reset(&macro_loader);
                     if (!sv_synthetic_start(app)) goto done;
                     sv_native_input_begin(&input, app);
                     puts("SV review session restarted");
@@ -269,8 +275,10 @@ int main(int argc, char **argv)
                 sv_ui_rebuild(&ui);
                 continue;
             }
+            if (sv_native_input_stale(&input, app, &event)) continue;
             if (sv_ui_event(&ui, &event)) continue;
-            if (sv_native_macro_loader_event(&macro_loader, preferences, app, &event)) continue;
+            if (sv_native_macro_loader_event(&macro_loader, preferences, app,
+                                             &input, &event)) continue;
             if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) quit = true;
@@ -278,12 +286,22 @@ int main(int argc, char **argv)
         if (quit) break;
         /* A whole-input budget yields to UI even with buffered network backlog. */
         SvStep step = sv_app_step(app, 16);
-        if (macro_loader.active &&
+        sv_native_macro_loader_frame(&macro_loader, preferences, app, &input);
+        if (restart_pending && !sv_native_macro_loader_committing(&macro_loader)) {
+            sv_native_macro_loader_reset(&macro_loader);
+            if (!sv_synthetic_start(app)) goto done;
+            sv_native_input_begin(&input, app);
+            sv_ui_rebuild(&ui);
+            puts("SV review session restarted");
+            restart_pending = false;
+        }
+        if (macro_loader.active && !sv_native_macro_loader_committing(&macro_loader) &&
             (sv_app_view(app).request.pending || sv_app_view(app).paused))
-            macro_loader = (SvNativeMacroLoader){0};
+            sv_native_macro_loader_reset(&macro_loader);
         if (!macro_loader.active)
             (void)sv_app_macro_frame(app, sv_app_view(app).generation, SDL_GetTicks(), 32);
-        (void)sv_app_dispatch_input(app, 16);
+        if (sv_native_macro_loader_dispatch_input(&macro_loader, app))
+            (void)sv_app_dispatch_input(app, 16);
         if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_CLOSED)
             fprintf(stderr, "SV session: %s\n", sv_result_text(step.result));
         /* Explicit Stage A consumer: model/feed publication is the only
@@ -324,6 +342,7 @@ int main(int argc, char **argv)
 done:
     if (result) fprintf(stderr, "SV startup/render failed: %s; no terminal fallback\n", SDL_GetError());
     sv_app_destroy(app);
+    sv_native_macro_loader_reset(&macro_loader);
     sv_preference_runtime_destroy(preferences);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

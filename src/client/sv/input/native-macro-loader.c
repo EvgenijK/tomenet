@@ -2,12 +2,26 @@
 #include <stdio.h>
 #include <string.h>
 
-bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRuntime *runtime,
-                                  SvApp *app, const SDL_Event *event)
+void sv_native_macro_loader_reset(SvNativeMacroLoader *loader)
 {
-    if (!loader || !runtime || !app || !event) return false;
-    if (loader->active && (sv_app_view(app).request.pending || sv_app_view(app).paused)) {
-        *loader = (SvNativeMacroLoader){0};
+    if (!loader) return;
+    sv_preference_runtime_cancel_load(loader->job);
+    *loader = (SvNativeMacroLoader){0};
+}
+
+bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRuntime *runtime,
+                                  SvApp *app, const SvNativeInput *input,
+                                  const SDL_Event *event)
+{
+    if (!loader || !runtime || !app || !input || !event) return false;
+    if (sv_native_input_stale(input, app, event)) return true;
+    if (loader->active && sv_native_macro_loader_committing(loader) &&
+        (sv_app_view(app).request.pending || sv_app_view(app).paused) &&
+        (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_TEXT_INPUT))
+        return false; /* The request or pause owns its reply while replay continues. */
+    if (loader->active && !sv_native_macro_loader_committing(loader) &&
+        (sv_app_view(app).request.pending || sv_app_view(app).paused)) {
+        sv_native_macro_loader_reset(loader);
         return false;
     }
     if (event->type == SDL_EVENT_QUIT || event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
@@ -23,6 +37,7 @@ bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRunti
         return true;
     }
     if (event->type == SDL_EVENT_TEXT_INPUT) {
+        if (loader->job) return true;
         const char *text = event->text.text;
         if (!text || strlen(text) > sizeof(loader->name) - 1 - loader->size)
             return true;
@@ -39,8 +54,11 @@ bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRunti
     }
     if (event->type != SDL_EVENT_KEY_DOWN) return true;
     if (event->key.key == SDLK_ESCAPE) {
-        *loader = (SvNativeMacroLoader){0};
+        if (sv_preference_runtime_load_committed(loader->job))
+            loader->close_after_commit = true;
+        else sv_native_macro_loader_reset(loader);
     } else if (event->key.key == SDLK_BACKSPACE) {
+        if (loader->job) return true;
         loader->attempted = false;
         loader->status[0] = 0;
         if (loader->size) {
@@ -52,20 +70,57 @@ bool sv_native_macro_loader_event(SvNativeMacroLoader *loader, SvPreferenceRunti
         }
     } else if ((event->key.key == SDLK_RETURN || event->key.key == SDLK_KP_ENTER) &&
                loader->size && !loader->attempted) {
-        SvPrefReport report = {0};
-        SvResult result = loader->class_load ?
-            sv_preference_runtime_class(runtime, loader->name, &report) :
-            sv_preference_runtime_named(runtime, loader->name, &report);
-        snprintf(loader->status, sizeof(loader->status),
-                 "%s: %zu files, %zu warnings (%s)",
-                 result == SV_OK && report.files && report.complete ? "Loaded" :
-                 result == SV_OK && report.files ? "Load incomplete" : "Load failed",
-                 report.files, report.warnings, sv_result_text(result));
-        loader->attempted = result != SV_BUSY;
-        if (result == SV_OK && report.files && report.complete)
-            *loader = (SvNativeMacroLoader){0};
+        loader->job = sv_preference_runtime_start_load(runtime, loader->name,
+                                                       loader->class_load);
+        if (loader->job) snprintf(loader->status, sizeof(loader->status), "Loading...");
+        else {
+            snprintf(loader->status, sizeof(loader->status), "Load failed to start");
+            loader->attempted = true;
+        }
     }
     return true;
+}
+
+void sv_native_macro_loader_frame(SvNativeMacroLoader *loader,
+                                  SvPreferenceRuntime *runtime, SvApp *app,
+                                  const SvNativeInput *input)
+{
+    if (!loader || !loader->job) return;
+    if (!sv_app_view(app).active || input->generation != sv_app_view(app).generation ||
+        (!sv_preference_runtime_load_committed(loader->job) &&
+         (sv_app_view(app).paused || sv_app_view(app).request.pending))) {
+        sv_native_macro_loader_reset(loader);
+        return;
+    }
+    SvPrefReport report = {0};
+    SvResult result = sv_preference_runtime_finish_load(runtime, loader->job, &report);
+    if (result == SV_WAITING || result == SV_BUSY) {
+        if (sv_preference_runtime_load_committed(loader->job))
+            snprintf(loader->status, sizeof(loader->status), "Applying PRF effects...");
+        return;
+    }
+    sv_preference_runtime_cancel_load(loader->job);
+    loader->job = NULL;
+    snprintf(loader->status, sizeof(loader->status),
+             "%s: %zu files, %zu warnings (%s)",
+             result == SV_OK && report.files && report.complete ? "Loaded" :
+             result == SV_OK && report.files ? "Load incomplete" : "Load failed",
+             report.files, report.warnings, sv_result_text(result));
+    loader->attempted = true;
+    if (loader->close_after_commit ||
+        (result == SV_OK && report.files && report.complete))
+        sv_native_macro_loader_reset(loader);
+}
+
+bool sv_native_macro_loader_committing(const SvNativeMacroLoader *loader)
+{
+    return loader && sv_preference_runtime_load_committed(loader->job);
+}
+
+bool sv_native_macro_loader_dispatch_input(const SvNativeMacroLoader *loader,
+                                           const SvApp *app)
+{
+    return !sv_native_macro_loader_committing(loader) || sv_app_view(app).request.pending;
 }
 
 bool sv_native_macro_loader_draw(const SvNativeMacroLoader *loader, SDL_Renderer *renderer,

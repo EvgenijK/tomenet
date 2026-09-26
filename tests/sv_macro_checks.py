@@ -17,8 +17,9 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
     (library / "user/options.prf").write_text("X:ring_bell\n")
     (user / "user/pref-sdl3.prf").write_text("#:{+hello\nS:71:59:8\nS:77:59:8\n")
     (user / "sv/global-sv.opt").write_text("Y:censor_swearing\n")
-    (user / "sv/Hero.opt").write_text("X:censor_swearing\n")
-    (user / "user/global.prf").write_text("A:global\nP:z\n")
+    (user / "sv/Hero.opt").write_text("X:censor_swearing\nY:ring_bell\n")
+    (user / "sv/HeroOff.opt").write_text("X:load_form_macros\n")
+    (user / "user/global.prf").write_text("X:ring_bell\nA:global\nP:z\n")
     (user / "user/Human.prf").write_text("A:race\nP:z\n")
     (user / "user/Maiar.prf").write_text("A:trait\nP:z\n")
     (user / "user/Warrior.prf").write_text("A:class\nP:z\nA:N\\w05S\nP:w\n")
@@ -29,6 +30,8 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
     (user / "user/include-only.prf").write_text("%:missing.prf\n")
     (user / "user/manual.prf").write_text("A:8\nP:m\nS:77:0:0\nS:0:0:0\nS:0x58:59:5\n")
     (user / "user/bad-action.prf").write_text("!:8\n%:missing.prf\n")
+    (user / "user/many.prf").write_text("X:ring_bell\n" * 40)
+    (user / "user/overflow.prf").write_text(("!:" + "Q" * 200 + "\n") * 8)
     (library / "user/parent.prf").write_text("%:child.prf\n")
     (user / "user/child.prf").write_text("A:8\nP:o\n")
     with (user / "user/Warrior.prf").open("a") as stream:
@@ -36,7 +39,7 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
     (user / "user/body.prf").write_text("?:Y\n!:N\n")
     sources = ["tests/sv/macros.c"]
     sources += ["src/client/sv/" + name + ".c" for name in
-                ("preferences", "preferences-runtime", "options", "input/input", "input/macros", "input/macro-executor", "input/command", "input/native-macro-loader", "ui/message-text",
+                ("preferences", "preferences-runtime", "options", "input/input", "input/macros", "input/macro-executor", "input/command", "input/native-macro-loader", "input/native-input", "input/physical", "ui/message-text",
                  "session/alerts", "app", "protocol/protocol", "result", "session/session",
                  "ui/status", "protocol/version")]
     sources += ["src/common/" + name + ".c" for name in
@@ -50,5 +53,5 @@ with tempfile.TemporaryDirectory(prefix="sv-macros-") as temp:
                     "-Wno-deprecated-non-prototype", "-ffunction-sections",
                     "-fdata-sections", "-Wl,--gc-sections", "-Isrc/client/sv", *flags,
                     "-O1", "-g", "-fsanitize=address,undefined", *sources,
-                    "-o", str(executable)], cwd=ROOT, check=True)
+                    "-o", str(executable), "-lSDL3"], cwd=ROOT, check=True)
     subprocess.run([str(executable), str(user), str(library)], cwd=ROOT, check=True)

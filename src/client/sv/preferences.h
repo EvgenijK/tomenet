@@ -35,6 +35,9 @@ SvPrefReport sv_preferences_bootstrap(SvPreferences *preferences);
 SvPrefReport sv_preferences_character(SvPreferences *preferences, const char *character,
                                       const char *race, const char *trait,
                                       const char *class_name, const char *form);
+SvPrefReport sv_preferences_character_layers(SvPreferences *preferences,
+    const char *character, const char *race, const char *trait,
+    const char *class_name, const char *form, bool load_options);
 SvPrefReport sv_preferences_load_class(SvPreferences *preferences, const char *class_name);
 size_t sv_preferences_decode(const char *text, unsigned char *out, size_t capacity);
 #endif

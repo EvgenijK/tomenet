@@ -47,6 +47,11 @@ static void expect_output(SvApp *app, const unsigned char *expected, size_t size
 {
     unsigned char actual[64] = {0};
     SvOutput output = sv_app_take_output(app, sv_app_view(app).generation, actual, sizeof(actual));
+    if (output.result != SV_OK || output.size != size) {
+        fprintf(stderr, "output mismatch result=%d size=%zu expected=%zu\n", output.result, output.size, size);
+        for (size_t i = 0; i < output.size; ++i) fprintf(stderr, "%u,", actual[i]);
+        fprintf(stderr, "\n");
+    }
     assert(output.result == SV_OK && output.size == size);
     if (memcmp(actual, expected, size)) {
         for (size_t i = 0; i < size; ++i) fprintf(stderr, "%zu expected=%u actual=%u\n", i, expected[i], actual[i]);
@@ -62,6 +67,7 @@ static void no_output(SvApp *app)
 int main(int argc, char **argv)
 {
     assert(argc == 3);
+    assert(SDL_Init(0));
     SvOptions options;
     SvMacroSet *macros = calloc(1, sizeof(*macros));
     assert(macros);
@@ -332,56 +338,161 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i)
         if (strstr(sv_preference_runtime_origin(runtime, i)->path,
                    "/user/global.prf")) ++global_effects;
-    assert(global_effects == 2); /* A and P, exactly one global load. */
+    assert(global_effects == 3); /* X, A and P, exactly one global load. */
     assert(sv_options_get(sv_preference_runtime_options(runtime),
                           "censor_swearing", &enabled) && !enabled);
+    assert(sv_options_get(sv_preference_runtime_options(runtime),
+                          "ring_bell", &enabled) && !enabled);
     assert(sv_app_macro_frame(app, generation, 1, 32) == SV_OK);
     const unsigned char queued_hero[] = {156, 'N'};
     expect_output(app, queued_hero, sizeof(queued_hero));
     assert(sv_app_physical(app, generation, (const unsigned char *)"z", 1) == SV_OK);
     const unsigned char form_action[] = {156,'f',156,'o',156,'r',156,'m'};
     expect_output(app, form_action, sizeof(form_action));
+    assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
+                                           "Warrior", "Player", &report) == SV_OK &&
+           report.complete && report.files == 4);
+    assert(sv_app_macro_frame(app, generation, 2, 32) == SV_OK);
+    expect_output(app, queued_hero, sizeof(queued_hero));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"z", 1) == SV_OK);
+    const unsigned char character_action[] = {156,'c',156,'h',156,'a',156,'r',156,'a',156,'c',156,'t',156,'e',156,'r'};
+    expect_output(app, character_action, sizeof(character_action));
+    assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
+                                           "Warrior", "Wolf", &report) == SV_OK &&
+           report.complete && report.files == 5);
+    assert(sv_app_macro_frame(app, generation, 3, 32) == SV_OK);
+    expect_output(app, queued_hero, sizeof(queued_hero));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"z", 1) == SV_OK);
+    expect_output(app, form_action, sizeof(form_action));
+    size_t global_after_reload = 0;
+    for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i)
+        if (strstr(sv_preference_runtime_origin(runtime, i)->path,
+                   "/user/global.prf")) ++global_after_reload;
+    assert(global_after_reload == 3);
     assert(sv_preference_runtime_named(runtime, "include-only.prf", &report) == SV_OK);
     origin = sv_preference_runtime_last_origin(runtime);
     assert(origin && origin->owner == SV_PREF_USER && origin->line == 1 &&
            strstr(origin->path, "/user/include-only.prf"));
     SvNativeMacroLoader loader = {0};
+    SvNativeInput native_input;
+    sv_native_input_begin(&native_input, app);
     SDL_Event event = {.type = SDL_EVENT_KEY_DOWN};
     event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    event.common.timestamp = native_input.since_ns - 1;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           !loader.active); /* A queued opener from before F5. */
+    event.common.timestamp = native_input.since_ns;
     assert(sv_app_queue_macro_action(app, (const unsigned char *)"8", 1) == SV_OK);
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.active);
     event = (SDL_Event){.type = SDL_EVENT_WINDOW_FOCUS_LOST};
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.active);
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_ESCAPE;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && !loader.active);
     assert(sv_app_macro_frame(app, generation, 2, 16) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     assert(sv_app_macro_frame(app, generation, 3, 16) == SV_OK);
     no_output(app);
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
     event.key.key = SDLK_F8; event.key.mod = SDL_KMOD_CTRL;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.class_load);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.class_load);
     event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT};
     event.text.text = "Warrior";
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event));
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    event.common.timestamp = native_input.since_ns - 1;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           !loader.job); /* A queued submit cannot start a load. */
+    event.common.timestamp = native_input.since_ns;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.job);
+    for (int wait = 0; wait < 1000 && loader.active; ++wait) {
+        sv_native_macro_loader_frame(&loader, runtime, app, &native_input);
+        SDL_Delay(1);
+    }
+    assert(!loader.active);
     assert(sv_app_physical(app, generation, (const unsigned char *)"k", 1) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
     event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.active);
     event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "bad-action.prf";
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event));
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
     event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.job);
+    for (int wait = 0; wait < 1000 && loader.job; ++wait) {
+        sv_native_macro_loader_frame(&loader, runtime, app, &native_input);
+        SDL_Delay(1);
+    }
+    assert(loader.attempted);
     assert(strstr(loader.status, "Load incomplete"));
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && loader.attempted);
     event.key.key = SDLK_ESCAPE;
-    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) && !loader.active);
     assert(sv_app_macro_frame(app, generation, 4, 16) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     no_output(app);
+    size_t before_cancel = sv_preference_runtime_origin_count(runtime);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "manual.prf";
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           loader.job);
+    SDL_Delay(10); /* Completed worker, result still uncommitted until frame. */
+    event.key.key = SDLK_ESCAPE;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           !loader.active);
+    assert(sv_preference_runtime_origin_count(runtime) == before_cancel);
+    size_t before_many = sv_preference_runtime_origin_count(runtime);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "many.prf";
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    for (int wait = 0; wait < 1000 && !sv_native_macro_loader_committing(&loader); ++wait) {
+        sv_native_macro_loader_frame(&loader, runtime, app, &native_input);
+        SDL_Delay(1);
+    }
+    assert(loader.active && sv_native_macro_loader_committing(&loader));
+    assert(sv_preference_runtime_origin_count(runtime) == before_many + 16);
+    assert(!sv_native_macro_loader_dispatch_input(&loader, app));
+    const unsigned char during_replay_request[] = {184,0,0,0,9,'K','e','y','?',0};
+    assert(sv_app_receive(app, generation, during_replay_request,
+                          sizeof(during_replay_request)) == SV_OK);
+    assert(sv_app_step(app, 1).processed == 1 && sv_app_view(app).request.pending);
+    event = (SDL_Event){.type = SDL_EVENT_WINDOW_FOCUS_LOST};
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           loader.active);
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "Y";
+    assert(!sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    assert(sv_native_input(&native_input, app, &event));
+    assert(sv_native_macro_loader_dispatch_input(&loader, app));
+    assert(sv_app_dispatch_input(app, 1).dispatched == 1);
+    const unsigned char replay_request_reply[] = {184,0,0,0,9,'Y'};
+    expect_output(app, replay_request_reply, sizeof(replay_request_reply));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_ESCAPE;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           loader.active); /* Commit finishes in later frames before close. */
+    for (int wait = 0; wait < 1000 && loader.active; ++wait)
+        sv_native_macro_loader_frame(&loader, runtime, app, &native_input);
+    assert(!loader.active && sv_preference_runtime_origin_count(runtime) == before_many + 40);
+    size_t before_teardown = sv_preference_runtime_origin_count(runtime);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "manual.prf";
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &native_input, &event) &&
+           loader.job);
+    SDL_Delay(10); /* Worker done, but no main-thread commit before teardown. */
+    assert(sv_app_close(app) == SV_OK);
+    sv_native_macro_loader_frame(&loader, runtime, app, &native_input);
+    assert(!loader.active && sv_preference_runtime_origin_count(runtime) == before_teardown);
     sv_preference_runtime_destroy(runtime);
     assert(sv_app_destroy(app) == SV_OK);
     app = sv_app_create((SvAlertSink){0});
@@ -389,12 +500,58 @@ int main(int argc, char **argv)
     runtime = sv_preference_runtime_create(app, argv[1], argv[2]);
     assert(runtime && sv_preference_runtime_bootstrap(runtime, &report) == SV_OK);
     assert(sv_preference_runtime_global(runtime, &report) == SV_OK && report.files == 1);
-    size_t before_character = sv_preference_runtime_origin_count(runtime);
     assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
-                                           "Warrior", "Wolf", &report) == SV_INVALID);
-    assert(sv_preference_runtime_origin_count(runtime) == before_character);
+                                           "Warrior", "Wolf", &report) == SV_OK &&
+           report.complete && report.files == 5);
+    assert(sv_app_macro_frame(app, sv_app_view(app).generation, 1, 32) == SV_OK);
+    expect_output(app, queued_hero, sizeof(queued_hero));
+    assert(sv_options_get(sv_preference_runtime_options(runtime),
+                          "censor_swearing", &enabled) && !enabled);
+    size_t global_after_character = 0;
+    for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i)
+        if (strstr(sv_preference_runtime_origin(runtime, i)->path,
+                   "/user/global.prf")) ++global_after_character;
+    assert(global_after_character == 3);
+    assert(sv_preference_runtime_character(runtime, "HeroOff", "Human", "Maiar",
+                                           "Warrior", "Wolf", &report) == SV_OK);
+    assert(sv_options_get(sv_preference_runtime_options(runtime),
+                          "load_form_macros", &enabled) && !enabled);
+    assert(sv_options_get(sv_preference_runtime_options(runtime),
+                          "censor_swearing", &enabled) && enabled);
+    assert(sv_app_physical(app, sv_app_view(app).generation,
+                           (const unsigned char *)"z", 1) == SV_OK);
+    const unsigned char class_action[] = {156,'c',156,'l',156,'a',156,'s',156,'s'};
+    expect_output(app, class_action, sizeof(class_action));
+    assert(sv_preference_runtime_named(runtime, "overflow.prf", &report) == SV_INVALID &&
+           !report.complete);
+    assert(sv_preference_runtime_named(runtime, "manual.prf", &report) == SV_OK &&
+           report.complete); /* Failure is scoped to one ordinary load. */
+    SvNativeMacroLoader next_loader = {0};
+    SvNativeInput next_input;
+    sv_native_input_begin(&next_input, app);
+    uint64_t old_timestamp = next_input.since_ns;
+    SDL_Delay(1);
+    assert(sv_app_close(app) == SV_OK && sv_app_open(app, version) == SV_OK);
+    sv_native_input_begin(&next_input, app);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    event.common.timestamp = old_timestamp;
+    assert(sv_native_macro_loader_event(&next_loader, runtime, app, &next_input, &event) &&
+           !next_loader.active);
+    event.common.timestamp = next_input.since_ns;
+    assert(sv_native_macro_loader_event(&next_loader, runtime, app, &next_input, &event) &&
+           next_loader.active);
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "manual.prf";
+    event.common.timestamp = next_input.since_ns;
+    assert(sv_native_macro_loader_event(&next_loader, runtime, app, &next_input, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    event.common.timestamp = old_timestamp;
+    assert(sv_native_macro_loader_event(&next_loader, runtime, app, &next_input, &event) &&
+           !next_loader.job);
+    sv_native_macro_loader_reset(&next_loader);
     sv_preference_runtime_destroy(runtime);
     assert(sv_app_destroy(app) == SV_OK);
     free(macros);
+    SDL_Quit();
     puts("PASS: PRF layers and production macro packet route");
 }

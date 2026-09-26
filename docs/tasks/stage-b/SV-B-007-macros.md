@@ -3,6 +3,36 @@
 Статус: частичная SV production implementation; полная implementation readiness и
 acceptance pending.
 
+## Follow-up после review — native load и повторные layers
+
+Native Ctrl+F7/Ctrl+F8 теперь запускает PRF parse на изолированном snapshot в
+SDL worker. Worker читает файлы и собирает ограниченный журнал effects; только
+главный поток публикует macro/keymap/option profile и применяет origin/queued
+effects по 16 записей за кадр. Escape, F5, смена generation и teardown отменяют
+результат до начала публикации; после начала commit Escape закрывает loader по
+завершении применения, F5 ждёт конца commit, обычный input dispatch
+удерживается, а ответы на server request продолжают отправляться;
+server request/pause во время commit не обрывает оставшиеся effects;
+их ответный ввод передаётся штатному input adapter. Закрытая session отменяет
+worker result даже без смены generation;
+ошибка worker или превышение лимита effects остаются видимыми в loader status.
+SDL event timestamp и generation проверяются перед UI, loader и gameplay input,
+включая queued opener и Enter после F5.
+
+Runtime character API повторно применяет character/race/trait/class/form layers
+из сохранённой global базы. `global.prf` effects не выполняются второй раз;
+записи global options повторно применяются после character OPT, чтобы сохранить
+baseline порядок даже после synthetic global→character. Form layer зависит от
+`load_form_macros`. Production-path fixture проверяет обе величины опции,
+возврат из form в Player, повторную form загрузку, смену character, exact
+command bytes, queued effects, отмену native load и stale opener/submit.
+
+Live endpoint всё ещё останавливается на `SV_LOGIN_SELECTED` без gameplay
+handoff и без version-aware character/form changes. `ui/ui.c` не имеет visual
+mapping consumer для `R/K/F/U/r/Z/E/I/V`. Следовательно live initial/later
+layers и graphical PRF acceptance остаются pending; synthetic/runtime fixture
+не является доказательством live acceptance.
+
 ## Follow-up после review от 2026-09-26
 
 Командная сериализация перенесена из `app.c` в SV input/command module;

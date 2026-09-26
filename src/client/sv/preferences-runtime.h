@@ -4,6 +4,7 @@
 #include "preferences.h"
 
 typedef struct SvPreferenceRuntime SvPreferenceRuntime;
+typedef struct SvPrefLoadJob SvPrefLoadJob;
 typedef struct {
     SvPrefEffectKind kind;
     SvPrefOwner owner;
@@ -21,7 +22,8 @@ SvPreferenceRuntime *sv_preference_runtime_create(SvApp *app, const char *user_r
 void sv_preference_runtime_destroy(SvPreferenceRuntime *runtime);
 SvResult sv_preference_runtime_bootstrap(SvPreferenceRuntime *runtime,
                                         SvPrefReport *report);
-/* Use when no character layer follows bootstrap, such as the synthetic shell. */
+/* The synthetic shell calls this before a character is known; a later character
+ * load keeps global effects single-shot and restores character OPT precedence. */
 SvResult sv_preference_runtime_global(SvPreferenceRuntime *runtime,
                                      SvPrefReport *report);
 SvResult sv_preference_runtime_named(SvPreferenceRuntime *runtime, const char *name,
@@ -39,4 +41,11 @@ size_t sv_preference_runtime_include_count(const SvPreferenceRuntime *runtime);
 const SvPrefIncludeOrigin *sv_preference_runtime_include(const SvPreferenceRuntime *runtime,
                                                          size_t index);
 const SvOptions *sv_preference_runtime_options(const SvPreferenceRuntime *runtime);
+/* Native loads parse against an isolated snapshot. Poll and commit on the owner thread. */
+SvPrefLoadJob *sv_preference_runtime_start_load(SvPreferenceRuntime *runtime,
+                                                const char *name, bool class_load);
+SvResult sv_preference_runtime_finish_load(SvPreferenceRuntime *runtime, SvPrefLoadJob *job,
+                                            SvPrefReport *report);
+void sv_preference_runtime_cancel_load(SvPrefLoadJob *job);
+bool sv_preference_runtime_load_committed(const SvPrefLoadJob *job);
 #endif

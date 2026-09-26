@@ -349,11 +349,28 @@ SvPrefReport sv_preferences_character(SvPreferences *preferences, const char *ch
     if (!sv_options_load_character(preferences->options, preferences->user_root, character))
         report.complete = false;
     merge(&report, sv_preferences_load_named(preferences, "global.prf", false));
+    merge(&report, sv_preferences_character_layers(preferences, character, race,
+                                                  trait, class_name, form, false));
+    return report;
+}
+
+SvPrefReport sv_preferences_character_layers(SvPreferences *preferences,
+    const char *character, const char *race, const char *trait,
+    const char *class_name, const char *form, bool load_options)
+{
+    SvPrefReport report = {.complete = true};
+    if (!preferences || !preferences->options || !preferences->macros ||
+        !safe_name(character)) { report.complete = false; return report; }
+    if (load_options && !sv_options_load_character(preferences->options,
+                                                   preferences->user_root, character))
+        report.complete = false;
     layer(preferences, &report, race);
     layer(preferences, &report, trait);
     layer(preferences, &report, class_name);
     layer(preferences, &report, character);
-    if (form && *form && strcmp(form, "Player")) {
+    bool load_form = true;
+    (void)sv_options_get(preferences->options, "load_form_macros", &load_form);
+    if (load_form && form && *form && strcmp(form, "Player")) {
         char file[512];
         if (!safe_name(form) || snprintf(file, sizeof(file), "%s^%s.prf", character, form) >=
             (int)sizeof(file)) report.complete = false;
