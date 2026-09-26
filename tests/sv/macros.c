@@ -1,5 +1,7 @@
 #include "app.h"
 #include "preferences.h"
+#include "preferences-runtime.h"
+#include "input/native-macro-loader.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +15,8 @@ typedef struct {
     unsigned char message[64];
     size_t message_size;
     SvPrefOwner owner;
+    char warning_file[512], warning_text[640];
+    size_t warning_line;
 } Effects;
 static void effect(void *context, SvPrefEffectKind kind, SvPrefOwner owner,
                    const char *file, size_t line, const unsigned char *bytes, size_t size)
@@ -20,14 +24,19 @@ static void effect(void *context, SvPrefEffectKind kind, SvPrefOwner owner,
     Effects *effects = context;
     assert(file && (line || kind == SV_PREF_WARNING));
     effects->owner = owner;
-    if (kind == SV_PREF_WARNING) ++effects->warnings;
+    if (kind == SV_PREF_WARNING) {
+        ++effects->warnings;
+        snprintf(effects->warning_file, sizeof(effects->warning_file), "%s", file);
+        snprintf(effects->warning_text, sizeof(effects->warning_text), "%.*s", (int)size, bytes);
+        effects->warning_line = line;
+    }
     else if (kind == SV_PREF_MESSAGE) {
         assert(size <= sizeof(effects->message));
         memcpy(effects->message, bytes, size);
         effects->message_size = size;
         ++effects->messages;
     }
-    else {
+    else if (kind == SV_PREF_ACTION) {
         assert(size <= sizeof(effects->action));
         memcpy(effects->action, bytes, size);
         effects->action_size = size;
@@ -79,12 +88,19 @@ int main(int argc, char **argv)
            effects.action[0] == 'N' && effects.action[1] == 13);
     report = sv_preferences_load_named(&prefs, "cycle.prf", true);
     assert(!report.complete && report.warnings == 1);
+    assert(!strcmp(effects.warning_file, "cycle.prf") && effects.warning_line == 1 &&
+           strstr(effects.warning_text, "cycle.prf"));
     report = sv_preferences_load_named(&prefs, "missing.prf", true);
     assert(!report.complete && report.warnings == 1);
     report = sv_preferences_load_named(&prefs, "../outside.prf", true);
     assert(!report.complete && report.warnings == 1);
     report = sv_preferences_load_named(&prefs, "invalid.prf", true);
     assert(!report.complete && report.warnings == 2);
+    /* The include diagnostic retains its parent path and line. */
+    report = sv_preferences_load_named(&prefs, "include-only.prf", true);
+    assert(!report.complete && report.warnings == 1 &&
+           !strcmp(effects.warning_file, "include-only.prf") &&
+           effects.warning_line == 1 && strstr(effects.warning_text, "missing.prf"));
     bool retained = false;
     for (size_t i = 0; i < macros->count; ++i)
         if (macros->definitions[i].trigger_size == 1 &&
@@ -137,6 +153,8 @@ int main(int argc, char **argv)
     assert(sv_app_physical(app, generation, (const unsigned char *)"w", 1) == SV_OK);
     const unsigned char before_wait[] = {156, 'N'};
     expect_output(app, before_wait, sizeof(before_wait));
+    uint64_t external_owner = 0;
+    assert(sv_app_begin_confirmation(app, generation, &external_owner) == SV_BUSY);
     assert(sv_app_macro_frame(app, generation, 200, 16) == SV_OK);
     no_output(app);
     const unsigned char interleaved[] = {46, 'n', 'e', 't', 0};
@@ -149,6 +167,10 @@ int main(int argc, char **argv)
     assert(sv_app_macro_frame(app, generation, 201, 16) == SV_OK);
     const unsigned char after_wait[] = {156, 'S'};
     expect_output(app, after_wait, sizeof(after_wait));
+    assert(sv_app_begin_confirmation(app, generation, &external_owner) == SV_OK);
+    unsigned char unused_confirm;
+    assert(sv_app_take_confirmation(app, generation, external_owner, &unused_confirm) == SV_WAITING);
+    assert(sv_app_end_confirmation(app, generation, external_owner) == SV_OK);
     assert(sv_app_macro_frame(app, generation, 202, 16) == SV_OK);
     no_output(app); /* Confirmation is not replayed after a redraw. */
     assert(sv_app_physical(app, generation, (const unsigned char *)"x", 1) == SV_OK);
@@ -248,7 +270,87 @@ int main(int argc, char **argv)
     assert(sv_app_close(app) == SV_OK);
     assert(sv_app_open(app, version) == SV_OK);
     assert(sv_app_macro_frame(app, generation, 2000, 16) == SV_STALE);
+    assert(sv_app_take_confirmation(app, generation, external_owner, &unused_confirm) == SV_STALE);
     no_output(app);
+    assert(sv_app_destroy(app) == SV_OK);
+    app = sv_app_create((SvAlertSink){0});
+    assert(app && sv_app_open(app, version) == SV_OK);
+    SvPreferenceRuntime *runtime = sv_preference_runtime_create(app, argv[1], argv[2]);
+    assert(runtime);
+    assert(sv_preference_runtime_bootstrap(runtime, &report) == SV_OK);
+    bool saw_bundled_option = false;
+    for (size_t i = 0; i < sv_preference_runtime_origin_count(runtime); ++i) {
+        const SvPrefOrigin *item = sv_preference_runtime_origin(runtime, i);
+        if (item->kind == SV_PREF_OPTION && item->owner == SV_PREF_BUNDLED &&
+            item->line == 1 && strstr(item->path, "/B/user/base.prf"))
+            saw_bundled_option = true;
+    }
+    assert(saw_bundled_option);
+    generation = sv_app_view(app).generation;
+    assert(sv_preference_runtime_named(runtime, "manual.prf", &report) == SV_OK &&
+           report.complete && report.files == 1);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"m", 1) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    assert(sv_preference_runtime_class(runtime, "Warrior", &report) == SV_OK &&
+           report.complete && report.files == 1);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"k", 1) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    assert(sv_preference_runtime_class(runtime, "Absent", &report) == SV_OK &&
+           !report.complete && report.files == 0 && report.warnings == 1);
+    const SvPrefOrigin *origin = sv_preference_runtime_last_origin(runtime);
+    assert(origin && origin->line == 0 && strstr(origin->path, "/user/Absent.prf"));
+    assert(sv_preference_runtime_character(runtime, "Hero", "Human", "Maiar",
+                                           "Warrior", "Wolf", &report) == SV_OK &&
+           report.complete && report.files == 6);
+    assert(sv_options_get(sv_preference_runtime_options(runtime),
+                          "censor_swearing", &enabled) && !enabled);
+    assert(sv_app_macro_frame(app, generation, 1, 32) == SV_OK);
+    const unsigned char queued_hero[] = {156, 'N'};
+    expect_output(app, queued_hero, sizeof(queued_hero));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"z", 1) == SV_OK);
+    const unsigned char form_action[] = {156,'f',156,'o',156,'r',156,'m'};
+    expect_output(app, form_action, sizeof(form_action));
+    assert(sv_preference_runtime_named(runtime, "include-only.prf", &report) == SV_OK);
+    origin = sv_preference_runtime_last_origin(runtime);
+    assert(origin && origin->owner == SV_PREF_USER && origin->line == 1 &&
+           strstr(origin->path, "/user/include-only.prf"));
+    SvNativeMacroLoader loader = {0};
+    SDL_Event event = {.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_app_queue_macro_action(app, (const unsigned char *)"8", 1) == SV_OK);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    event = (SDL_Event){.type = SDL_EVENT_WINDOW_FOCUS_LOST};
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_ESCAPE;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    assert(sv_app_macro_frame(app, generation, 2, 16) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    assert(sv_app_macro_frame(app, generation, 3, 16) == SV_OK);
+    no_output(app);
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F8; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.class_load);
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT};
+    event.text.text = "Warrior";
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"k", 1) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN};
+    event.key.key = SDLK_F7; event.key.mod = SDL_KMOD_CTRL;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.active);
+    event = (SDL_Event){.type = SDL_EVENT_TEXT_INPUT}; event.text.text = "bad-action.prf";
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event));
+    event = (SDL_Event){.type = SDL_EVENT_KEY_DOWN}; event.key.key = SDLK_RETURN;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && loader.attempted);
+    event.key.key = SDLK_ESCAPE;
+    assert(sv_native_macro_loader_event(&loader, runtime, app, &event) && !loader.active);
+    assert(sv_app_macro_frame(app, generation, 4, 16) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    no_output(app);
+    sv_preference_runtime_destroy(runtime);
     assert(sv_app_destroy(app) == SV_OK);
     free(macros);
     puts("PASS: PRF layers and production macro packet route");

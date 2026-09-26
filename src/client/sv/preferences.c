@@ -124,7 +124,8 @@ static FILE *open_layer(SvPreferences *prefs, const char *name, SvPrefOwner *own
     return NULL;
 }
 
-static bool load(Loader *loader, const char *name, bool required);
+static bool load(Loader *loader, const char *name, bool required,
+                 SvPrefOwner parent_owner, const char *parent_file, size_t parent_line);
 
 static void record(Loader *loader, SvPrefOwner owner, const char *name,
                    size_t line, char *text)
@@ -140,11 +141,13 @@ static void record(Loader *loader, SvPrefOwner owner, const char *name,
         if (loader->bootstrap && (!strcmp(value, "options.prf") ||
             !strcmp(value, "window.prf") ||
             (length >= 4 && !strcmp(value + length - 4, ".opt")))) return;
-        (void)load(loader, value, true); return;
+        (void)load(loader, value, true, owner, name, line); return;
     }
     if (*text == 'A') {
         loader->action_size = sv_preferences_decode(value, loader->action, sizeof(loader->action));
         if (!loader->action_size && *value) warn(loader, owner, name, line, "invalid macro action");
+        else emit(loader, SV_PREF_MACRO_ACTION, owner, name, line,
+                  (const unsigned char *)text, strlen(text));
         return;
     }
     if (*text == 'P' || *text == 'H' || *text == 'C' || *text == 'D') {
@@ -157,11 +160,16 @@ static void record(Loader *loader, SvPrefOwner owner, const char *name,
                 *text == 'H' ? SV_MACRO_HYBRID : SV_MACRO_COMMAND);
         if (result != SV_OK && result != SV_WAITING)
             warn(loader, owner, name, line, "macro table rejected record");
+        else if (result == SV_OK)
+            emit(loader, SV_PREF_MACRO, owner, name, line,
+                 (const unsigned char *)text, strlen(text));
         return;
     }
     if (*text == 'X' || *text == 'Y') {
         if (!sv_options_apply_pref(prefs->options, *text, value))
             warn(loader, owner, name, line, "unknown option");
+        else emit(loader, SV_PREF_OPTION, owner, name, line,
+                  (const unsigned char *)text, strlen(text));
         return;
     }
     if (*text == 'S') {
@@ -172,6 +180,8 @@ static void record(Loader *loader, SvPrefOwner owner, const char *name,
         }
         prefs->keymap_command[key] = (unsigned char)command;
         prefs->keymap_direction[key] = (unsigned char)direction;
+        emit(loader, SV_PREF_KEYMAP, owner, name, line,
+             (const unsigned char *)text, strlen(text));
         return;
     }
     if (*text == 'W') return; /* W is a legacy Term placement, never a new Term. */
@@ -194,28 +204,39 @@ static void record(Loader *loader, SvPrefOwner owner, const char *name,
         emit(loader, SV_PREF_ACTION, owner, name, line, action, size);
         return;
     }
-    /* Graphics mappings have no SV map consumer yet. Reject visibly rather
-     * than claim their effects or interpret them as macro records. */
-    warn(loader, owner, name, line, "unsupported PRF record");
+    /* The current SV shell has no visual mapping owner. Keep these records
+     * pending and visible until a model/renderer can consume them. */
+    if (strchr("RKFUrZEIV", *text))
+        warn(loader, owner, name, line, "SV visual mapping consumer unavailable");
+    else warn(loader, owner, name, line, "unsupported PRF record");
 }
 
-static bool load(Loader *loader, const char *name, bool required)
+static bool load(Loader *loader, const char *name, bool required,
+                 SvPrefOwner parent_owner, const char *parent_file, size_t parent_line)
 {
+    char detail[640];
+    const char *source = parent_file ? parent_file : name ? name : "";
     if (!safe_name(name)) {
-        warn(loader, SV_PREF_USER, name ? name : "", 0, "invalid PRF filename");
+        snprintf(detail, sizeof(detail), "invalid PRF filename: %s", name ? name : "(null)");
+        warn(loader, parent_owner, source, parent_line, detail);
         return false;
     }
     for (unsigned i = 0; i < loader->depth; ++i)
         if (!strcmp(loader->names[i], name)) {
-            warn(loader, SV_PREF_USER, name, 0, "recursive PRF include"); return false;
+            snprintf(detail, sizeof(detail), "recursive PRF include: %s", name);
+            warn(loader, parent_owner, source, parent_line, detail); return false;
         }
     if (loader->depth == SV_PREF_DEPTH) {
-        warn(loader, SV_PREF_USER, name, 0, "PRF include depth exceeded"); return false;
+        snprintf(detail, sizeof(detail), "PRF include depth exceeded: %s", name);
+        warn(loader, parent_owner, source, parent_line, detail); return false;
     }
     SvPrefOwner owner = SV_PREF_USER;
     FILE *stream = open_layer(loader->preferences, name, &owner);
     if (!stream) {
-        if (required) warn(loader, owner, name, 0, "missing PRF file");
+        if (required) {
+            snprintf(detail, sizeof(detail), "missing PRF file: %s", name);
+            warn(loader, parent_owner, source, parent_line, detail);
+        }
         return false;
     }
     strcpy(loader->names[loader->depth++], name);
@@ -249,7 +270,7 @@ SvPrefReport sv_preferences_load_named(SvPreferences *preferences, const char *n
     }
     memcpy(loader.action, preferences->pending_action, preferences->pending_action_size);
     loader.action_size = preferences->pending_action_size;
-    (void)load(&loader, name, manual);
+    (void)load(&loader, name, manual, SV_PREF_USER, NULL, 0);
     memcpy(preferences->pending_action, loader.action, loader.action_size);
     preferences->pending_action_size = loader.action_size;
     return loader.report;
@@ -274,8 +295,8 @@ SvPrefReport sv_preferences_bootstrap(SvPreferences *preferences)
                      .bootstrap = true};
     memcpy(loader.action, preferences->pending_action, preferences->pending_action_size);
     loader.action_size = preferences->pending_action_size;
-    (void)load(&loader, "pref.prf", false);
-    (void)load(&loader, "pref-sdl3.prf", false);
+    (void)load(&loader, "pref.prf", false, SV_PREF_BUNDLED, NULL, 0);
+    (void)load(&loader, "pref-sdl3.prf", false, SV_PREF_BUNDLED, NULL, 0);
     memcpy(preferences->pending_action, loader.action, loader.action_size);
     preferences->pending_action_size = loader.action_size;
     merge(&report, loader.report);
@@ -326,6 +347,9 @@ SvPrefReport sv_preferences_load_class(SvPreferences *preferences, const char *c
 {
     SvPrefReport report = {.complete = true};
     if (!preferences || !safe_name(class_name)) { report.complete = false; return report; }
-    layer(preferences, &report, class_name);
-    return report;
+    char file[512];
+    if (snprintf(file, sizeof(file), "%s.prf", class_name) >= (int)sizeof(file)) {
+        report.complete = false; ++report.warnings; return report;
+    }
+    return sv_preferences_load_named(preferences, file, true);
 }

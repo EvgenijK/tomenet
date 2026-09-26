@@ -19,59 +19,13 @@
 #include "native-frame.h"
 #include "synthetic.h"
 #include "endpoint-run.h"
-#include "preferences.h"
+#include "preferences-runtime.h"
+#include "input/native-macro-loader.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef struct { SvUi *ui; SvRuntimeScenario scenario; } ScenarioContext;
-typedef struct { SvApp *app; bool failed; } PreferenceApp;
-static void preference_effect(void *context, SvPrefEffectKind kind, SvPrefOwner owner,
-                              const char *file, size_t line,
-                              const unsigned char *bytes, size_t size)
-{
-    PreferenceApp *adapter = context;
-    (void)owner; (void)file; (void)line;
-    uint64_t generation = sv_app_view(adapter->app).generation;
-    if (kind == SV_PREF_ACTION) {
-        if (sv_app_queue_macro_action(adapter->app, bytes, size) != SV_OK)
-            adapter->failed = true;
-    }
-    else if (kind == SV_PREF_MESSAGE && sv_app_view(adapter->app).active)
-        if (sv_app_local_message(adapter->app, generation, bytes, size) != SV_OK)
-            adapter->failed = true;
-}
-static int load_shared_preferences(SvApp *app, const char *root, const char *library)
-{
-    SvMacroSet *macros = SDL_calloc(1, sizeof(*macros));
-    if (!macros) return 0;
-    SvOptions options;
-    PreferenceApp adapter = {.app = app};
-    SvPreferences prefs = {.user_root = root, .library_root = library,
-        .options = &options, .macros = macros,
-        .sink = {&adapter, preference_effect}};
-    SvPrefReport base = sv_preferences_bootstrap(&prefs);
-    SvPrefReport global = sv_preferences_load_named(&prefs, "global.prf", false);
-    int success = !adapter.failed;
-    bool roguelike = false;
-    if (sv_options_get(&options, "rogue_like_commands", &roguelike) &&
-        sv_app_command_mode(app, roguelike) != SV_OK) success = 0;
-    for (size_t i = 1; i < 128; ++i)
-        if (prefs.keymap_command[i] &&
-            sv_app_keymap_record(app, (unsigned char)i, prefs.keymap_command[i],
-                                  prefs.keymap_direction[i]) != SV_OK) success = 0;
-    for (size_t i = 0; i < macros->count; ++i) {
-        const SvMacroDefinition *entry = &macros->definitions[i];
-        if (sv_app_define_macro(app, entry->trigger, entry->trigger_size,
-                                entry->action, entry->action_size, entry->kind) != SV_OK)
-            success = 0;
-    }
-    if (!base.complete || !global.complete)
-        fprintf(stderr, "SV preferences: unsupported or invalid PRF records were reported\n");
-    if (!success) fprintf(stderr, "SV preferences: macro table could not be installed\n");
-    SDL_free(macros);
-    return success;
-}
 static int run_scenario(SvApp *app, void *context)
 {
     ScenarioContext *check = context;
@@ -140,6 +94,8 @@ int main(int argc, char **argv)
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
+    SvPreferenceRuntime *preferences = NULL;
+    SvNativeMacroLoader macro_loader = {0};
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--help")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
@@ -289,7 +245,10 @@ int main(int argc, char **argv)
     if (arch_check) {
         if (!checked_scenario(app, &ui, SV_SCENARIO_ARCH)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
-    if (!load_shared_preferences(app, root, library)) goto done;
+    preferences = sv_preference_runtime_create(app, root, library);
+    if (!preferences) goto done;
+    SvPrefReport preference_report;
+    if (sv_preference_runtime_bootstrap(preferences, &preference_report) != SV_OK) goto done;
     if (review && sv_app_bind_macro(app, 'm', 'Y', SV_MACRO_NORMAL) != SV_OK) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
@@ -310,6 +269,7 @@ int main(int argc, char **argv)
                 continue;
             }
             if (sv_ui_event(&ui, &event)) continue;
+            if (sv_native_macro_loader_event(&macro_loader, preferences, app, &event)) continue;
             if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) quit = true;
@@ -317,7 +277,11 @@ int main(int argc, char **argv)
         if (quit) break;
         /* A whole-input budget yields to UI even with buffered network backlog. */
         SvStep step = sv_app_step(app, 16);
-        (void)sv_app_macro_frame(app, sv_app_view(app).generation, SDL_GetTicks(), 32);
+        if (macro_loader.active &&
+            (sv_app_view(app).request.pending || sv_app_view(app).paused))
+            macro_loader = (SvNativeMacroLoader){0};
+        if (!macro_loader.active)
+            (void)sv_app_macro_frame(app, sv_app_view(app).generation, SDL_GetTicks(), 32);
         (void)sv_app_dispatch_input(app, 16);
         if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_CLOSED)
             fprintf(stderr, "SV session: %s\n", sv_result_text(step.result));
@@ -325,7 +289,11 @@ int main(int argc, char **argv)
          * implemented message effect. Acknowledgement is never a draw action. */
         SvMessage delivered;
         while (sv_app_take_message(app, sv_app_view(app).generation, &delivered) == SV_OK) {}
-        if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
+        if (macro_loader.active) {
+            if (!sv_ui_draw(&ui, sv_app_view(app)) ||
+                !sv_native_macro_loader_draw(&macro_loader, renderer, font, sv_ui_scale(&ui)) ||
+                !SDL_RenderPresent(renderer)) goto done;
+        } else if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
         if (review) {
             int w, h;
             if (!SDL_GetRenderOutputSize(renderer, &w, &h)) goto done;
@@ -355,6 +323,7 @@ int main(int argc, char **argv)
 done:
     if (result) fprintf(stderr, "SV startup/render failed: %s; no terminal fallback\n", SDL_GetError());
     sv_app_destroy(app);
+    sv_preference_runtime_destroy(preferences);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     sv_font_close(font);

@@ -109,7 +109,8 @@ bool sv_ui_draw(SvUi *ui, SvAppView view)
         view.active ? "No server connection or gameplay is active." : sv_result_text(view.reason),
         view.request.pending ? "Server key request" :
         (view.executor_failed ? "Optional alert executor failed; session continues." : "Isolated profile. Fullscreen default. UI scale 100%."),
-        view.request.pending ? "Press a key to answer; Escape cancels the request." : "One SDL window. Close or press Escape to exit."
+        view.request.pending ? "Press a key to answer; Escape cancels the request." :
+        "Ctrl+F7 loads a PRF; Ctrl+F8 loads class macros. Escape exits."
     };
     const int ys[] = {30, 112, 155, 190, 278, 365};
     for (unsigned i = 0; i < SDL_arraysize(lines); ++i)

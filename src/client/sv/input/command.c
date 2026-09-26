@@ -1,4 +1,6 @@
 #include "input/command.h"
+#include "protocol/protocol.h"
+#include "../../common/pack.h"
 #include <string.h>
 
 static unsigned char control(unsigned char key) { return key & 31; }
@@ -137,4 +139,31 @@ SvResult sv_command_key(SvCommandRouter *router, unsigned char key, SvCommand *o
     if (key == ',' && dir == 5) { output->kind = SV_COMMAND_STAND; return SV_OK; }
     output->kind = SV_COMMAND_RAW; output->key = key;
     return SV_OK;
+}
+
+SvResult sv_command_dispatch(SvCommandRouter *router, SvProtocol *protocol,
+                             unsigned char key)
+{
+    if (!router || !protocol) return SV_INVALID;
+    SvCommandRouter next = *router;
+    SvCommand command;
+    SvResult result = sv_command_key(&next, key, &command);
+    if (result != SV_OK) return result;
+    switch (command.kind) {
+    case SV_COMMAND_NONE: break;
+    case SV_COMMAND_RAW:
+        result = sv_protocol_raw_key(protocol, command.key); break;
+    case SV_COMMAND_WALK: case SV_COMMAND_RUN: case SV_COMMAND_TUNNEL:
+        result = sv_protocol_direction(protocol,
+            command.kind == SV_COMMAND_WALK ? PKT_WALK :
+            command.kind == SV_COMMAND_RUN ? PKT_RUN : PKT_TUNNEL,
+            command.direction);
+        break;
+    case SV_COMMAND_STAND: result = sv_protocol_stand(protocol); break;
+    case SV_COMMAND_CHAT:
+        result = command.size ? sv_protocol_chat(protocol, command.text, command.size) : SV_OK;
+        break;
+    }
+    if (result == SV_OK) *router = next;
+    return result;
 }

@@ -1,6 +1,6 @@
 #ifndef SV_COMMAND_H
 #define SV_COMMAND_H
-#include "result.h"
+#include "protocol/protocol.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -29,4 +29,8 @@ typedef struct {
 SvResult sv_command_key(SvCommandRouter *router, unsigned char key, SvCommand *output);
 SvResult sv_command_override(SvCommandRouter *router, unsigned char key,
                              unsigned char command, unsigned char direction);
+/* Resolve and serialize one gameplay key, committing router state only when
+ * the protocol output accepted the complete command. */
+SvResult sv_command_dispatch(SvCommandRouter *router, SvProtocol *protocol,
+                             unsigned char key);
 #endif

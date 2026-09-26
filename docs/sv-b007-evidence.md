@@ -57,3 +57,56 @@ accepted from this partial record.
 | `lib/user/pref.prf` | `75bf31092c4426de28db8b9dc1e24c21d588f6f70c2ddebc48836df089cc6751` |
 | `lib/user/pref-sdl3.prf` | `3ebe13feadd0682b5c616e694c90e3076511a2e57eea191f0c897e9f5d6b11ab` |
 | `src/tomenet-sv` | `920442f6e703e2c290686db73cbd9c4657c2100bb5b058caab161cfdd7ee420a` |
+
+## Review follow-up — 2026-09-26
+
+The earlier fingerprints above identify the first implementation commit; this
+section records the subsequent production changes on the same branch.
+
+- Gameplay packet selection now lives in `input/command.c`; `app.c` only
+  verifies session/context and calls its stable dispatch interface.
+- Macro wait registers with the generation-bound SV-B-002 confirmation waiter.
+  The network decoder deposits each `PKT_CONFIRM` there; the macro frame takes
+  one confirmation and ends its owner before continuing. The focused check
+  verifies ownership contention, interleaved message/confirm, one continuation,
+  no redraw replay and stale generation rejection.
+- The persistent preference runtime records every applied PRF effect's U/B
+  owner, resolved `U/user` or `B/user` path and line. It publishes the parsed
+  macro/keymap profile to the same `SvApp` used by physical input. Failed `%`
+  records identify the including path/line and target; a missing manual class
+  file now warns. Native Ctrl+F7 named load and Ctrl+F8 class load use this
+  runtime. Escape restores gameplay input without consuming queued actions;
+  a warned load cannot be repeated by a second Enter without editing the name.
+- The production-path focused fixture verified named and class movement
+  packet bytes, character OPT and race/trait/class/character/form precedence,
+  include diagnostics, native close/queue exactly once, and the existing
+  wait/request cases under ASan/UBSan. `tests/sv_macro_checks.py`,
+  `tests/sv_request_checks.py` (372 cases), `tests/sv_options_checks.py`,
+  `make -C src -f makefile.sv tomenet-sv`, and `git diff --check` passed.
+- Full `tests/sv_*.py` core sweep with `jsonschema==4.26.0` and SDL dummy
+  software: **28 passed, 3 failed**. `sv_capabilities_checks.py` and
+  `sv_checkpoint_checks.py` report only the existing pinned
+  `src/makefile.sv` source-digest mismatch; the canonical registry remains
+  unchanged. `sv_lifecycle_native.py` fails because SDL dummy rejects
+  `SDL_MinimizeWindow`. Linux accelerated, MinGW/Wine and Windows runtime
+  evidence remains pending.
+
+No full B-007 capability is accepted. `endpoint-run.c` stops after
+`SV_LOGIN_SELECTED` before a gameplay `SvApp` or options packet. There is no
+production character/form update change in `session/session.h`; live initial
+and later layer reloads depend on those seams. `ui/ui.c` is a synthetic shell,
+without a map visual model, mapping table or renderer consumer. Graphical PRF
+records remain diagnosed as pending and have **not** been claimed applied.
+Native loader availability on the live endpoint depends on the same
+endpoint-to-gameplay handoff.
+
+Selected follow-up SHA-256: `preferences.c`
+`54b8a4554cf88fe4a27d740e0ea081a50258c629d93710a244020b8309936ecd`,
+`preferences-runtime.c`
+`298cdce7c2cb0374dfdcf35a8b3bca7acfca180f9d18bcf826e285609efd1fc3`,
+`input/native-macro-loader.c`
+`22704a7e9722b9d1f347d94c634706a5fa0840c0d3842f3b02430abf512cda86`,
+`input/command.c`
+`85adf72a1f774e799570143b03d18a1e07bedd7a9bd77546ab0042ceae2cbacb`,
+`app.c` `1a10d4b3001373c264e9938e70d93c10a67030d875d1bddba996f2229a759757`,
+`main.c` `32d15650510926853f88d9ca88c0966bf4be433e60033bb43fb3d7f6d4e6cfcc`.

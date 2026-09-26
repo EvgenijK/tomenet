@@ -3,6 +3,41 @@
 Статус: частичная SV production implementation; полная implementation readiness и
 acceptance pending.
 
+## Follow-up после review от 2026-09-26
+
+Командная сериализация перенесена из `app.c` в SV input/command module.
+`PKT_CONFIRM` для macro wait теперь проходит через generation-bound waiter
+SV-B-002 с явным begin/take/end и одним потреблением. Сохранён runtime PRF
+controller: у каждого применённого macro/option/keymap, `#`/`!` эффекта и
+warning остаются U/B owner, разрешённый путь и строка. Диагностика failed
+`%` указывает включающий файл/строку и имя цели. Native synthetic shell
+получил Ctrl+F7 named PRF и Ctrl+F8 class PRF с Escape/parent/queue semantics;
+те же production parser, controller и `SvApp` участвуют в проверке.
+
+Остаются **pending**, без acceptance claim:
+
+- Character OPT и race/trait/class/character/form PRF реально применяются через
+  `sv_preference_runtime_character`, но live endpoint в `endpoint-run.c`
+  заканчивается на `SV_LOGIN_SELECTED` до создания gameplay `SvApp` и первой
+  отправки option packet. Нет production handoff после выбора персонажа и
+  изменений form/character; `SvChangeKind` в `session/session.h` не содержит
+  form/character update. Требуется связать этот handoff и поздние updates с
+  controller, сохраняя порядок перед options packet. Тестовый вызов controller
+  не считается live login/reload acceptance.
+- `R/K/F/U/r/Z/E/I/V` graphical PRF mappings не имеют SV visual model,
+  renderer mapping table или reload consumer. Текущий `ui/ui.c` рисует shell,
+  а не map/game visual stack; parser по-прежнему сообщает unsupported record
+  с origin. Требуется production visual consumer и version-aware update path,
+  затем применить valid mapping records и проверить rendering/packets.
+- Native loader сейчас доступен в synthetic gameplay shell. Live endpoint
+  после `SV_LOGIN_SELECTED` не передаёт управление этому gameplay shell; его
+  native load/class/close acceptance ждёт тот же handoff.
+- `input/command.c` теперь владеет сериализацией доступных B-команд
+  walk/run/tunnel/stand/chat/raw. Другие gameplay command owners ещё не
+  существуют в SV (`SvCommandKind` их не представляет); соответствующие
+  combat/inventory/target flows остаются за поздними B-тикетами. Это не
+  подтверждает весь baseline command dispatch.
+
 ## Текущий production срез (2026-09-26)
 
 SV получил отдельный read-only PRF parser для shared U/user→B/user overlay:
@@ -24,8 +59,9 @@ prefix, walk/run/tunnel и chat serialization; unhandled keys использую
 сохраняют проверенный срез без заявления полной acceptance.
 
 Пока не перенесены графические PRF mapping consumers, полноценный gameplay
-command dispatch, вызов character layers из live login, поздние form/character
-reload points и нативный экран named/class loader с close/parent semantics.
+command dispatch и вызов character layers из live login с поздними
+form/character reload points. Native loader работает только в synthetic shell
+до появления endpoint→gameplay handoff.
 Нужны также платформа Windows и matrix из Definition of Done. Поэтому ни один
 полный capability ID этого тикета не объявлен принятым.
 

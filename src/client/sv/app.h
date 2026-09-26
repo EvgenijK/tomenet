@@ -86,6 +86,11 @@ SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key);
 SvResult sv_app_command_mode(SvApp *app, bool roguelike);
 SvResult sv_app_keymap_record(SvApp *app, unsigned char key,
                               unsigned char command, unsigned char direction);
+/* Atomically publish a parsed input profile while no macro action is active. */
+SvResult sv_app_install_input_profile(SvApp *app, const SvMacroSet *macros,
+    bool roguelike, const unsigned char commands[128],
+    const unsigned char directions[128]);
+bool sv_app_macro_idle(const SvApp *app);
 /* Caller supplies monotonic milliseconds and last successful socket send. */
 SvResult sv_app_keepalive(SvApp *app, uint64_t generation,
                           uint64_t now_ms, uint64_t last_sent_ms);

@@ -4,7 +4,9 @@
 #include "options.h"
 
 typedef enum { SV_PREF_USER, SV_PREF_BUNDLED } SvPrefOwner;
-typedef enum { SV_PREF_MESSAGE, SV_PREF_ACTION, SV_PREF_WARNING } SvPrefEffectKind;
+typedef enum { SV_PREF_MESSAGE, SV_PREF_ACTION, SV_PREF_WARNING,
+               SV_PREF_OPTION, SV_PREF_KEYMAP, SV_PREF_MACRO,
+               SV_PREF_MACRO_ACTION } SvPrefEffectKind;
 typedef struct {
     void *context;
     void (*effect)(void *context, SvPrefEffectKind kind, SvPrefOwner owner,
