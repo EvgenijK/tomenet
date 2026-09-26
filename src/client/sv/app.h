@@ -107,6 +107,7 @@ SvResult sv_app_queue_macro_action(SvApp *app, const unsigned char *action, size
 /* Nonblocking macro executor. Call each UI frame after network processing. */
 SvResult sv_app_macro_frame(SvApp *app, uint64_t generation, uint64_t now_ms, size_t budget);
 bool sv_app_macro_extended_waiting(const SvApp *app, uint64_t generation);
+bool sv_app_macro_waiting(const SvApp *app, uint64_t generation);
 SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
                               unsigned char action, SvMacroKind kind);
 SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *bytes, size_t size);

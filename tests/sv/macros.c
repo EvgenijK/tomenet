@@ -200,16 +200,98 @@ int main(int argc, char **argv)
     assert(!sv_app_macro_extended_waiting(app, generation));
     assert(sv_app_macro_frame(app, generation, 1000, 16) == SV_OK);
     no_output(app);
+    const unsigned char controlled_action[] = {
+        '8', 28, 'Z', 28, 31, '_', 'F', 'F', '5', '2', 13, '8'};
+    assert(sv_app_define_macro(app, (const unsigned char *)"M", 1,
+                               controlled_action, sizeof(controlled_action),
+                               SV_MACRO_NORMAL) == SV_OK);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"M", 1) == SV_OK);
+    const unsigned char controlled_output[] = {70, 8, 156, 'Z', 70, 8};
+    expect_output(app, controlled_output, sizeof(controlled_output));
+    const unsigned char unmatched_trigger[] = {31, '_', 'N', 13};
+    assert(sv_app_physical(app, generation, unmatched_trigger,
+                           sizeof(unmatched_trigger)) == SV_WAITING);
+    no_output(app);
+    const unsigned char physical_default[] = {31, '_', 'N', 13, 28, '8', 28};
+    assert(sv_app_physical(app, generation, physical_default,
+                           sizeof(physical_default)) == SV_OK);
+    const unsigned char walk[] = {70, 8};
+    expect_output(app, walk, sizeof(walk));
+    const unsigned char rematch_action[] = {'9'};
+    assert(sv_app_define_macro(app, (const unsigned char *)"8", 1,
+                               rematch_action, sizeof(rematch_action),
+                               SV_MACRO_NORMAL) == SV_OK);
+    assert(sv_app_physical(app, generation, physical_default,
+                           sizeof(physical_default)) == SV_OK);
+    expect_output(app, walk, sizeof(walk)); /* Default bypasses macro 8 -> 9. */
+    assert(sv_app_physical(app, generation, (const unsigned char *)"a", 1) == SV_OK);
+    no_output(app);
+    assert(sv_app_physical(app, generation, physical_default,
+                           sizeof(physical_default)) == SV_OK);
+    const unsigned char prefix_then_default[] = {156, 'A', 70, 8};
+    expect_output(app, prefix_then_default, sizeof(prefix_then_default));
+    unsigned char long_action[18];
+    memset(long_action, 'Z', sizeof(long_action));
+    assert(sv_app_define_macro(app, (const unsigned char *)"L", 1,
+                               long_action, sizeof(long_action), SV_MACRO_NORMAL) == SV_OK);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"L", 1) == SV_OK);
+    unsigned char first_sixteen[32];
+    for (size_t i = 0; i < 16; ++i) {
+        first_sixteen[2 * i] = 156;
+        first_sixteen[2 * i + 1] = 'Z';
+    }
+    expect_output(app, first_sixteen, sizeof(first_sixteen));
+    assert(sv_app_physical(app, generation, physical_default,
+                           sizeof(physical_default)) == SV_OK);
+    const unsigned char ordered_default[] = {156, 'Z', 156, 'Z', 70, 8};
+    expect_output(app, ordered_default, sizeof(ordered_default));
+    /* Native Escape is owned by the wait: ordinary wait keeps its duration,
+     * while extended wait cancels the queued action. */
+    SvNativeInput wait_input;
+    sv_native_input_begin(&wait_input, app);
+    SDL_Event escape = {.type = SDL_EVENT_KEY_DOWN};
+    escape.key.key = SDLK_ESCAPE;
+    escape.key.scancode = SDL_SCANCODE_ESCAPE;
+    escape.common.timestamp = wait_input.since_ns;
+    assert(sv_app_physical(app, generation, (const unsigned char *)"w", 1) == SV_OK);
+    expect_output(app, before_wait, sizeof(before_wait));
+    assert(sv_app_macro_waiting(app, generation));
+    assert(sv_native_input(&wait_input, app, &escape));
+    const unsigned char waiting_default[] = {31, '_', 'N', 13, 28, '8', 28};
+    assert(sv_app_physical(app, generation, waiting_default,
+                           sizeof(waiting_default)) == SV_OK);
+    assert(sv_app_macro_frame(app, generation, 1200, 16) == SV_OK);
+    no_output(app);
+    assert(sv_app_macro_frame(app, generation, 1500, 16) == SV_OK);
+    const unsigned char after_wait_default[] = {156, 'S', 70, 8};
+    expect_output(app, after_wait_default, sizeof(after_wait_default));
+    assert(sv_app_physical(app, generation, (const unsigned char *)"x", 1) == SV_OK);
+    expect_output(app, before_xwait, sizeof(before_xwait));
+    assert(sv_native_input(&wait_input, app, &escape));
+    assert(!sv_app_macro_waiting(app, generation));
+    assert(sv_app_macro_frame(app, generation, 2000, 16) == SV_OK);
+    no_output(app);
+    assert(sv_app_physical(app, generation, (const unsigned char *)"x", 1) == SV_OK);
+    expect_output(app, before_xwait, sizeof(before_xwait));
+    escape.key.mod = SDL_KMOD_CTRL; /* encoded trigger plus 28, Escape, 28 */
+    assert(sv_native_input(&wait_input, app, &escape));
+    assert(!sv_app_macro_waiting(app, generation));
+    no_output(app);
+    escape.key.mod = 0;
+    assert(sv_app_delete_macro(app, (const unsigned char *)"8", 1) == SV_OK);
     const unsigned char movement_action[] = {'8'};
     assert(sv_app_define_macro(app, (const unsigned char *)"d", 1,
                                movement_action, sizeof(movement_action), SV_MACRO_NORMAL) == SV_OK);
     assert(sv_app_physical(app, generation, (const unsigned char *)"d", 1) == SV_OK);
-    const unsigned char walk[] = {70, 8};
     expect_output(app, walk, sizeof(walk));
     const unsigned char up_trigger[] = {31, '_', 'F', 'F', '5', '2', 13};
     assert(sv_app_define_macro(app, up_trigger, sizeof(up_trigger),
                                movement_action, sizeof(movement_action), SV_MACRO_NORMAL) == SV_OK);
     assert(sv_app_physical(app, generation, up_trigger, sizeof(up_trigger)) == SV_OK);
+    expect_output(app, walk, sizeof(walk));
+    const unsigned char up_with_default[] = {31, '_', 'F', 'F', '5', '2', 13, 28, 'Z', 28};
+    assert(sv_app_physical(app, generation, up_with_default,
+                           sizeof(up_with_default)) == SV_OK);
     expect_output(app, walk, sizeof(walk));
     const unsigned char chat_action[] = {':', 'h', 'i', 13};
     assert(sv_app_define_macro(app, (const unsigned char *)"t", 1,

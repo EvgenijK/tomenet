@@ -380,6 +380,12 @@ bool sv_app_macro_extended_waiting(const SvApp *app, uint64_t generation)
     SvMacroExecutor executor = {.runner = app->macro_runner};
     return sv_macro_executor_extended_waiting(&executor);
 }
+bool sv_app_macro_waiting(const SvApp *app, uint64_t generation)
+{
+    if (!app || generation != app->view.generation) return false;
+    SvMacroExecutor executor = {.runner = app->macro_runner};
+    return sv_macro_executor_waiting(&executor);
+}
 SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
                               unsigned char action, SvMacroKind kind)
 {

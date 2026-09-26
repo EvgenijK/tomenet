@@ -18,6 +18,7 @@ typedef struct {
 } SvMacroSet;
 typedef struct {
     unsigned char fresh[SV_MACRO_QUEUE], ready[SV_MACRO_QUEUE];
+    unsigned char fresh_resolved[SV_MACRO_QUEUE];
     size_t fresh_count, ready_count;
     size_t action_index;
     const SvMacroDefinition *active;
@@ -25,6 +26,7 @@ typedef struct {
     bool direct_pending;
     uint64_t match_deadline_ms, wait_deadline_ms;
     bool waiting, extended_wait, semaphore, confirmed;
+    bool action_trigger;
 } SvMacroRunner;
 
 SvResult sv_macros_define(SvMacroSet *set, const unsigned char *trigger, size_t trigger_size,
@@ -35,6 +37,9 @@ void sv_macros_reset(SvMacroRunner *runner);
 SvResult sv_macros_feed(const SvMacroSet *set, SvMacroRunner *runner,
                         const unsigned char *bytes, size_t size, bool command,
                         bool message, bool shopping, bool allow_stores, uint64_t now_ms);
+SvResult sv_macros_feed_resolved(const SvMacroSet *set, SvMacroRunner *runner,
+                                unsigned char key, bool command, bool message,
+                                bool shopping, bool allow_stores, uint64_t now_ms);
 SvResult sv_macros_pump(const SvMacroSet *set, SvMacroRunner *runner, bool command,
                         bool message, bool shopping, bool allow_stores, uint64_t now_ms);
 SvResult sv_macros_peek(const SvMacroRunner *runner, unsigned char *key);

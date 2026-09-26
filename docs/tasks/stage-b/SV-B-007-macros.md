@@ -3,76 +3,6 @@
 Статус: частичная SV production implementation; полная implementation readiness и
 acceptance pending.
 
-## Follow-up после review — native load и повторные layers
-
-Native Ctrl+F7/Ctrl+F8 теперь запускает PRF parse на изолированном snapshot в
-SDL worker. Worker читает файлы и собирает ограниченный журнал effects; только
-главный поток публикует macro/keymap/option profile и применяет origin/queued
-effects по 16 записей за кадр. Escape, F5, смена generation и teardown отменяют
-результат до начала публикации; после начала commit Escape закрывает loader по
-завершении применения, F5 ждёт конца commit, обычный input dispatch
-удерживается, а ответы на server request продолжают отправляться;
-server request/pause во время commit не обрывает оставшиеся effects;
-их ответный ввод передаётся штатному input adapter. Закрытая session отменяет
-worker result даже без смены generation;
-ошибка worker или превышение лимита effects остаются видимыми в loader status.
-SDL event timestamp и generation проверяются перед UI, loader и gameplay input,
-включая queued opener и Enter после F5.
-
-Runtime character API повторно применяет character/race/trait/class/form layers
-из сохранённой global базы. `global.prf` effects не выполняются второй раз;
-записи global options повторно применяются после character OPT, чтобы сохранить
-baseline порядок даже после synthetic global→character. Form layer зависит от
-`load_form_macros`. Production-path fixture проверяет обе величины опции,
-возврат из form в Player, повторную form загрузку, смену character, exact
-command bytes, queued effects, отмену native load и stale opener/submit.
-
-Live endpoint всё ещё останавливается на `SV_LOGIN_SELECTED` без gameplay
-handoff и без version-aware character/form changes. `ui/ui.c` не имеет visual
-mapping consumer для `R/K/F/U/r/Z/E/I/V`. Следовательно live initial/later
-layers и graphical PRF acceptance остаются pending; synthetic/runtime fixture
-не является доказательством live acceptance.
-
-## Follow-up после review от 2026-09-26
-
-Командная сериализация перенесена из `app.c` в SV input/command module;
-macro matching, wait и action dispatch принадлежат `input/macro-executor.c`.
-`PKT_CONFIRM` для macro wait теперь проходит через generation-bound waiter
-SV-B-002 с явным begin/take/end и одним потреблением. Сохранён runtime PRF
-controller: у каждого применённого macro/option/keymap, `#`/`!` эффекта и
-warning остаются U/B owner, разрешённый путь и строка; успешные `%` включения
-хранят также источник/строку и разрешённого U/B владельца цели. Диагностика failed
-`%` указывает включающий файл/строку и имя цели. Native synthetic shell
-получил Ctrl+F7 named PRF и Ctrl+F8 class PRF с Escape/parent/queue semantics;
-те же production parser, controller и `SvApp` участвуют в проверке. Bootstrap
-оставляет `global.prf` до character OPT; synthetic shell без персонажа грузит
-его отдельно один раз. `S` записи с нулевой командой и baseline нормализацией
-направления применяются в production command router.
-
-Остаются **pending**, без acceptance claim:
-
-- Character OPT и race/trait/class/character/form PRF реально применяются через
-  `sv_preference_runtime_character`, но live endpoint в `endpoint-run.c`
-  заканчивается на `SV_LOGIN_SELECTED` до создания gameplay `SvApp` и первой
-  отправки option packet. Нет production handoff после выбора персонажа и
-  изменений form/character; `SvChangeKind` в `session/session.h` не содержит
-  form/character update. Требуется связать этот handoff и поздние updates с
-  controller, сохраняя порядок перед options packet. Тестовый вызов controller
-  не считается live login/reload acceptance.
-- `R/K/F/U/r/Z/E/I/V` graphical PRF mappings не имеют SV visual model,
-  renderer mapping table или reload consumer. Текущий `ui/ui.c` рисует shell,
-  а не map/game visual stack; parser по-прежнему сообщает unsupported record
-  с origin. Требуется production visual consumer и version-aware update path,
-  затем применить valid mapping records и проверить rendering/packets.
-- Native loader сейчас доступен в synthetic gameplay shell. Live endpoint
-  после `SV_LOGIN_SELECTED` не передаёт управление этому gameplay shell; его
-  native load/class/close acceptance ждёт тот же handoff.
-- `input/command.c` теперь владеет сериализацией доступных B-команд
-  walk/run/tunnel/stand/chat/raw. Другие gameplay command owners ещё не
-  существуют в SV (`SvCommandKind` их не представляет); соответствующие
-  combat/inventory/target flows остаются за поздними B-тикетами. Это не
-  подтверждает весь baseline command dispatch.
-
 ## Текущий production срез (2026-09-26)
 
 SV получил отдельный read-only PRF parser для shared U/user→B/user overlay:
@@ -186,3 +116,79 @@ form/character reload points. Native loader работает только в syn
 ## Ограничения после тикета
 
 Тикет не заявляет полноту B в одиночку. Quantity/item selection/transactions C, полные lore/document/context-help/chat-cancel caller unions D, macro editing/recording/wizard, INS management, reimport и audio pack/device editors E сохраняют свои этапы. Ранние branches/handoffs проверяются у существующих B owners без сужения поздних IDs. Успешный death transition не принимает ghost powers; parse/Save значения не принимает поздний consumer.
+
+## Comments
+
+### Follow-up после review — native load и повторные layers
+
+Native Ctrl+F7/Ctrl+F8 теперь запускает PRF parse на изолированном snapshot в
+SDL worker. Worker читает файлы и собирает ограниченный журнал effects; только
+главный поток публикует macro/keymap/option profile и применяет origin/queued
+effects по 16 записей за кадр. Escape, F5, смена generation и teardown отменяют
+результат до начала публикации; после начала commit Escape закрывает loader по
+завершении применения, F5 ждёт конца commit, обычный input dispatch
+удерживается, а ответы на server request продолжают отправляться;
+server request/pause во время commit не обрывает оставшиеся effects;
+их ответный ввод передаётся штатному input adapter. Закрытая session отменяет
+worker result даже без смены generation;
+ошибка worker или превышение лимита effects остаются видимыми в loader status.
+SDL event timestamp и generation проверяются перед UI, loader и gameplay input,
+включая queued opener и Enter после F5.
+
+Runtime character API повторно применяет character/race/trait/class/form layers
+из сохранённой global базы. `global.prf` effects не выполняются второй раз;
+записи global options повторно применяются после character OPT, чтобы сохранить
+baseline порядок даже после synthetic global→character. Form layer зависит от
+`load_form_macros`. Production-path fixture проверяет обе величины опции,
+возврат из form в Player, повторную form загрузку, смену character, exact
+command bytes, queued effects, отмену native load и stale opener/submit.
+
+Live endpoint всё ещё останавливается на `SV_LOGIN_SELECTED` без gameplay
+handoff и без version-aware character/form changes. `ui/ui.c` не имеет visual
+mapping consumer для `R/K/F/U/r/Z/E/I/V`. Следовательно live initial/later
+layers и graphical PRF acceptance остаются pending; synthetic/runtime fixture
+не является доказательством live acceptance.
+
+### Follow-up после review от 2026-09-26
+
+Командная сериализация перенесена из `app.c` в SV input/command module;
+macro matching, wait и action dispatch принадлежат `input/macro-executor.c`.
+`PKT_CONFIRM` для macro wait теперь проходит через generation-bound waiter
+SV-B-002 с явным begin/take/end и одним потреблением. Сохранён runtime PRF
+controller: у каждого применённого macro/option/keymap, `#`/`!` эффекта и
+warning остаются U/B owner, разрешённый путь и строка; успешные `%` включения
+хранят также источник/строку и разрешённого U/B владельца цели. Диагностика failed
+`%` указывает включающий файл/строку и имя цели. Native synthetic shell
+получил Ctrl+F7 named PRF и Ctrl+F8 class PRF с Escape/parent/queue semantics;
+те же production parser, controller и `SvApp` участвуют в проверке. Bootstrap
+оставляет `global.prf` до character OPT; synthetic shell без персонажа грузит
+его отдельно один раз. `S` записи с нулевой командой и baseline нормализацией
+направления применяются в production command router.
+
+Остаются **pending**, без acceptance claim:
+
+- Character OPT и race/trait/class/character/form PRF реально применяются через
+  `sv_preference_runtime_character`, но live endpoint в `endpoint-run.c`
+  заканчивается на `SV_LOGIN_SELECTED` до создания gameplay `SvApp` и первой
+  отправки option packet. Нет production handoff после выбора персонажа и
+  изменений form/character; `SvChangeKind` в `session/session.h` не содержит
+  form/character update. Требуется связать этот handoff и поздние updates с
+  controller, сохраняя порядок перед options packet. Тестовый вызов controller
+  не считается live login/reload acceptance.
+- `R/K/F/U/r/Z/E/I/V` graphical PRF mappings не имеют SV visual model,
+  renderer mapping table или reload consumer. Текущий `ui/ui.c` рисует shell,
+  а не map/game visual stack; parser по-прежнему сообщает unsupported record
+  с origin. Требуется production visual consumer и version-aware update path,
+  затем применить valid mapping records и проверить rendering/packets.
+- Native loader сейчас доступен в synthetic gameplay shell. Live endpoint
+  после `SV_LOGIN_SELECTED` не передаёт управление этому gameplay shell; его
+  native load/class/close acceptance ждёт тот же handoff.
+- `input/command.c` теперь владеет сериализацией доступных B-команд
+  walk/run/tunnel/stand/chat/raw. Другие gameplay command owners ещё не
+  существуют в SV (`SvCommandKind` их не представляет); соответствующие
+  combat/inventory/target flows остаются за поздними B-тикетами. Это не
+  подтверждает весь baseline command dispatch.
+
+### Review follow-up, 2026-09-26: control markers and native wait
+
+SV macro execution consumes action control markers before command dispatch: action `28 … 28` removes its delimiters but delivers the enclosed command bytes, while action `31 …` strips the trigger sequence through its control terminator. The physical SDL special-key sequence uses its default byte only when no macro matches; matched sequences discard that fallback. A fallback byte joins pending macro work as resolved input, so it neither overtakes buffered action bytes nor gets matched as another macro. Native Escape stays in the gameplay input route during ordinary `\wXX` and extended `\WXXXX` waits, including encoded physical fallback during a wait. Production `SvApp` exact-byte and native-input fixtures cover these paths. The targeted macro test and Linux build pass. The core sweep is 28/31: the two registry checks report the previously recorded `src/makefile.sv` source digest mismatch, and SDL dummy does not support `SDL_MinimizeWindow` in the native lifecycle test. Full acceptance remains pending on the already listed live gameplay handoff, visual PRF consumer, platform matrix, and later integration checks.

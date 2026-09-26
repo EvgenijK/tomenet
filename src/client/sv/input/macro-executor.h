@@ -23,6 +23,7 @@ void sv_macro_executor_reset(SvMacroExecutor *executor);
 bool sv_macro_executor_idle(const SvMacroExecutor *executor);
 bool sv_macro_executor_active(const SvMacroExecutor *executor);
 bool sv_macro_executor_extended_waiting(const SvMacroExecutor *executor);
+bool sv_macro_executor_waiting(const SvMacroExecutor *executor);
 void sv_macro_executor_key_request(SvMacroExecutor *executor);
 SvResult sv_macro_executor_frame(SvMacroExecutor *executor, SvKeyRequest request,
     SvInputContext context, bool paused, uint64_t now_ms, size_t budget);

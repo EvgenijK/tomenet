@@ -25,6 +25,11 @@ bool sv_macro_executor_extended_waiting(const SvMacroExecutor *executor)
     return executor->runner->waiting && executor->runner->extended_wait;
 }
 
+bool sv_macro_executor_waiting(const SvMacroExecutor *executor)
+{
+    return executor->runner->waiting;
+}
+
 void sv_macro_executor_key_request(SvMacroExecutor *executor)
 {
     if (executor->runner->waiting) executor->runner->semaphore = true;
@@ -81,19 +86,42 @@ SvMacroPhysicalRoute sv_macro_executor_physical(SvMacroExecutor *executor,
     unsigned char key;
     route.result = sv_input_physical(executor->bindings, bytes, size, prompt, &key);
     if (route.result != SV_OK) {
-        if (route.result != SV_WAITING || !executor->macros->count) return route;
+        if (route.result != SV_WAITING || !size || bytes[0] != 31) return route;
+        const unsigned char *end = memchr(bytes, 13, size);
+        if (!end) return route;
+        size_t trigger_size = (size_t)(end - bytes) + 1;
+        bool has_default = size == trigger_size + 3 && bytes[trigger_size] == 28 &&
+            bytes[size - 1] == 28;
+        if (size != trigger_size && !has_default) return route;
         bool mapped = false;
         for (size_t i = 0; i < executor->macros->count; ++i) {
             const SvMacroDefinition *entry = &executor->macros->definitions[i];
-            if (entry->trigger_size == size &&
+            if (entry->trigger_size == trigger_size &&
                 (!prompt || entry->kind != SV_MACRO_COMMAND) &&
                 (!executor->command->chat || entry->kind == SV_MACRO_NORMAL) &&
-                !memcmp(entry->trigger, bytes, size)) {
+                !memcmp(entry->trigger, bytes, trigger_size)) {
                 mapped = true; break;
             }
         }
-        if (!mapped) return route;
-        route.result = sv_macros_feed(executor->macros, executor->runner, bytes, size,
+        if (!mapped) {
+            /* SDL's encoded special key may carry one default action between
+             * 28 delimiters.  It is physical fallback, not macro expansion. */
+            if (has_default) {
+                unsigned char fallback = bytes[trigger_size + 1];
+                const SvMacroRunner *runner = executor->runner;
+                if (runner->waiting || runner->active || runner->direct_pending ||
+                    runner->fresh_count || runner->ready_count) {
+                    route.result = sv_macros_feed_resolved(executor->macros, executor->runner,
+                        fallback, !prompt, executor->command->chat, false, true, now_ms);
+                    route.pump = route.result == SV_OK || route.result == SV_WAITING;
+                } else {
+                    route.result = SV_OK;
+                    route.key = fallback;
+                }
+            }
+            return route;
+        }
+        route.result = sv_macros_feed(executor->macros, executor->runner, bytes, trigger_size,
             !prompt, executor->command->chat, false, true, now_ms);
         route.pump = route.result == SV_OK || route.result == SV_WAITING;
         return route;

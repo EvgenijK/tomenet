@@ -69,6 +69,7 @@ static void consume_fresh(SvMacroRunner *runner, size_t count)
 {
     runner->fresh_count -= count;
     memmove(runner->fresh, runner->fresh + count, runner->fresh_count);
+    memmove(runner->fresh_resolved, runner->fresh_resolved + count, runner->fresh_count);
     runner->match_deadline_ms = 0;
 }
 
@@ -107,15 +108,27 @@ SvResult sv_macros_pump(const SvMacroSet *set, SvMacroRunner *runner, bool comma
                 }
                 runner->active = NULL;
                 runner->action_index = 0;
+                runner->action_trigger = false;
                 continue;
             }
             unsigned char byte = runner->active->action[runner->action_index++];
+            /* inkey() consumes control sequences in the caller context.  An
+             * action is already resolved input, so never rematch its bytes. */
+            if (runner->action_trigger) {
+                if (byte <= 32) runner->action_trigger = false;
+                continue;
+            }
+            /* Within a macro action after_macro is false: 28 only removes
+             * the delimiters.  The enclosed default bytes remain commands. */
+            if (byte == 28) continue;
+            if (byte == 31) { runner->action_trigger = true; continue; }
             if (byte == 29) {
                 if (runner->active == &runner->direct) {
                     runner->direct.action_size = 0;
                     runner->direct_pending = false;
                 }
                 runner->active = NULL;
+                runner->action_trigger = false;
                 continue;
             } /* completion sentinel */
             if (byte == 96 || byte == 30) {
@@ -140,20 +153,31 @@ SvResult sv_macros_pump(const SvMacroSet *set, SvMacroRunner *runner, bool comma
             continue;
         }
         if (!runner->fresh_count) return SV_OK;
+        if (runner->fresh_resolved[0]) {
+            unsigned char key = runner->fresh[0];
+            consume_fresh(runner, 1);
+            SvResult result = ready(runner, key);
+            if (result != SV_OK) return result;
+            continue;
+        }
+        size_t match_count = 0;
+        while (match_count < runner->fresh_count &&
+               !runner->fresh_resolved[match_count]) ++match_count;
         size_t best = set->count, best_size = 0;
         bool longer = false;
         for (size_t i = 0; i < set->count; ++i) {
             const SvMacroDefinition *entry = &set->definitions[i];
             if (!active(entry, command, message, shopping, allow_stores)) continue;
-            size_t common = entry->trigger_size < runner->fresh_count ?
-                entry->trigger_size : runner->fresh_count;
+            size_t common = entry->trigger_size < match_count ?
+                entry->trigger_size : match_count;
             if (memcmp(entry->trigger, runner->fresh, common)) continue;
-            if (entry->trigger_size > runner->fresh_count) longer = true;
+            if (entry->trigger_size > match_count) longer = true;
             else if (entry->trigger_size >= best_size) {
                 best = i; best_size = entry->trigger_size;
             }
         }
-        if (longer && (!runner->match_deadline_ms || now_ms < runner->match_deadline_ms)) {
+        if (longer && match_count == runner->fresh_count &&
+            (!runner->match_deadline_ms || now_ms < runner->match_deadline_ms)) {
             if (!runner->match_deadline_ms) runner->match_deadline_ms =
                 now_ms > UINT64_MAX - 500 ? UINT64_MAX : now_ms + 500;
             return SV_WAITING;
@@ -171,9 +195,10 @@ SvResult sv_macros_pump(const SvMacroSet *set, SvMacroRunner *runner, bool comma
     }
 }
 
-SvResult sv_macros_feed(const SvMacroSet *set, SvMacroRunner *runner,
-                        const unsigned char *bytes, size_t size, bool command,
-                        bool message, bool shopping, bool allow_stores, uint64_t now_ms)
+static SvResult feed(const SvMacroSet *set, SvMacroRunner *runner,
+                     const unsigned char *bytes, size_t size, bool resolved,
+                     bool command, bool message, bool shopping, bool allow_stores,
+                     uint64_t now_ms)
 {
     if (!set || !runner || (!bytes && size)) return SV_INVALID;
     if (runner->waiting && runner->extended_wait) {
@@ -187,8 +212,25 @@ SvResult sv_macros_feed(const SvMacroSet *set, SvMacroRunner *runner,
     }
     if (size > SV_MACRO_QUEUE - runner->fresh_count) return SV_INPUT_OVERFLOW;
     memcpy(runner->fresh + runner->fresh_count, bytes, size);
+    memset(runner->fresh_resolved + runner->fresh_count, resolved, size);
     runner->fresh_count += size;
     return sv_macros_pump(set, runner, command, message, shopping, allow_stores, now_ms);
+}
+
+SvResult sv_macros_feed(const SvMacroSet *set, SvMacroRunner *runner,
+                        const unsigned char *bytes, size_t size, bool command,
+                        bool message, bool shopping, bool allow_stores, uint64_t now_ms)
+{
+    return feed(set, runner, bytes, size, false, command, message, shopping,
+                allow_stores, now_ms);
+}
+
+SvResult sv_macros_feed_resolved(const SvMacroSet *set, SvMacroRunner *runner,
+                                unsigned char key, bool command, bool message,
+                                bool shopping, bool allow_stores, uint64_t now_ms)
+{
+    return feed(set, runner, &key, 1, true, command, message, shopping,
+                allow_stores, now_ms);
 }
 
 SvResult sv_macros_peek(const SvMacroRunner *runner, unsigned char *key)
