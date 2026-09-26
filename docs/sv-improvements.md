@@ -443,3 +443,20 @@ validation in the form before contact; retain baseline account/wire semantics.
 **Required checks:** 14/15/16/79-byte drafts, paste and edits at capacity,
 protocol 1/2 account fields, retry after rejection and Linux/Windows native
 input observations.
+
+## Correct legacy S keymap record field parsing
+
+**Status:** proposed separately; SV-B-007 keeps its parser isolated.
+
+**Problem:** the legacy `S:<key>:<command>:<direction>` branch reads all three
+values from `zz[0]`. A PRF record can therefore map the key to itself and
+derive its direction from the key instead of applying the command and direction
+fields.
+
+**Affected code:** `src/client/c-files.c:process_pref_file_aux_aux`, `S` case.
+
+**Proposal:** parse `zz[1]` and `zz[2]` for command and direction, then define
+whether existing files that relied on the defect need compatibility handling.
+
+**Required checks:** all three independent fields, direction bounds, old files,
+normal and roguelike keymaps, explicit and automatic PRF load on both clients.

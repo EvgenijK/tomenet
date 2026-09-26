@@ -121,6 +121,14 @@ SvResult sv_input_accept(SvInputRouter *router, const SvInputBindings *bindings,
      * inkey_aux never rematches expansion bytes. inkey maps backquote last. */
     SvMacro macro = bindings->keys[key];
     if (macro.kind == SV_MACRO_NORMAL || macro.kind == SV_MACRO_HYBRID) key = macro.action;
+    return sv_input_enqueue_resolved(router, request, sequence, key);
+}
+SvResult sv_input_enqueue_resolved(SvInputRouter *router, SvKeyRequest request,
+                                   uint64_t sequence, unsigned char key)
+{
+    if (!request.pending || request.sequence != sequence || router->sequence != sequence)
+        return SV_STALE;
+    if (router->count == SV_KEY_PENDING) return SV_KEY_OVERFLOW;
     if (key == '`') key = 27;
     router->pending[(router->head + router->count) % SV_KEY_PENDING] = (SvQueuedKey){sequence, key};
     ++router->count;

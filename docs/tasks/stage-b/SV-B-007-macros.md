@@ -1,6 +1,33 @@
 # SV-B-007 — Загрузка профиля клавиш и исполнение макросов
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: частичная SV production implementation; полная implementation readiness и
+acceptance pending.
+
+## Текущий production срез (2026-09-26)
+
+SV получил отдельный read-only PRF parser для shared U/user→B/user overlay:
+обычная загрузка `A/P/H/C/D`, `%` с диагностикой missing/invalid/cycle,
+`X/Y`, `S`, `#`, `!/?` с body guard. Startup загружает shipped `pref.prf` и
+`pref-sdl3.prf`, затем собственные S OPT layers, затем `global.prf`; включения
+legacy `options.prf` и `window.prf` в shipped bootstrap исключены. Отдельные
+production функции принимают character/race/trait/class/form и named/class PRF.
+
+SV app исполняет multi-byte longest trigger и pushback, normal/hybrid/command
+gates, двух- и четырёхзначное ожидание через неблокирующий frame, `PKT_CONFIRM`
+и request semaphore, xwait Escape/Space/fresh input, generation reset. Командный
+путь реализует baseline normal/roguelike direction maps, raw bypass, control
+prefix, walk/run/tunnel и chat serialization; unhandled keys используют
+отдельный `PKT_RAW_KEY` path. `tests/sv_macro_checks.py` проверяет exact bytes
+через production `SvApp`, parser, protocol и session.
+
+[Частичные production observations и fingerprints](../../sv-b007-evidence.md)
+сохраняют проверенный срез без заявления полной acceptance.
+
+Пока не перенесены графические PRF mapping consumers, полноценный gameplay
+command dispatch, вызов character layers из live login, поздние form/character
+reload points и нативный экран named/class loader с close/parent semantics.
+Нужны также платформа Windows и matrix из Definition of Done. Поэтому ни один
+полный capability ID этого тикета не объявлен принятым.
 
 ## Пользовательский результат
 

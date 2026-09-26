@@ -74,24 +74,59 @@ int main(void)
         assert(sv_native_input(&native,raw,&event));
         unsigned char bytes[4];
         SvOutput output = sv_app_take_output(raw,generation,bytes,sizeof(bytes));
-        const unsigned char expected[] = {156,'^'};
+        assert(output.result == SV_WAITING); /* Command control prefix awaits its byte. */
+        event.text.text = "C";
+        assert(sv_native_input(&native,raw,&event));
+        output = sv_app_take_output(raw,generation,bytes,sizeof(bytes));
+        const unsigned char expected[] = {156,3};
         assert(output.result == SV_OK && output.size == sizeof(expected));
         assert(!memcmp(bytes,expected,sizeof(expected)));
         const unsigned char f1[] = {31,'_','F','F','B','E',13};
-        assert(sv_app_bind_physical(raw,f1,sizeof(f1),'^',SV_MACRO_NORMAL) == SV_OK);
+        assert(sv_app_bind_physical(raw,f1,sizeof(f1),'Z',SV_MACRO_NORMAL) == SV_OK);
         event = (SDL_Event){0};
         event.type = SDL_EVENT_KEY_DOWN;
         event.key.key = SDLK_F1;
         event.key.scancode = SDL_SCANCODE_F1;
         assert(sv_native_input(&native,raw,&event));
         output = sv_app_take_output(raw,generation,bytes,sizeof(bytes));
-        assert(output.result == SV_OK && output.size == sizeof(expected));
-        assert(!memcmp(bytes,expected,sizeof(expected)));
+        const unsigned char physical_expected[] = {156,'Z'};
+        assert(output.result == SV_OK && output.size == sizeof(physical_expected));
+        assert(!memcmp(bytes,physical_expected,sizeof(physical_expected)));
         assert(sv_app_raw_key(raw,generation,27) == SV_INVALID);
         assert(sv_app_raw_key(raw,generation,'-') == SV_INVALID);
         assert(sv_app_raw_key(raw,generation,13) == SV_INVALID);
         assert(sv_app_take_output(raw,generation,bytes,sizeof(bytes)).result == SV_WAITING);
         assert(sv_app_destroy(raw) == SV_OK);
+    }
+    {
+        SvApp *waiting = sv_app_create((SvAlertSink){0});
+        const int version[] = {4,7,0,2,0,2};
+        const unsigned char action[] = {'Q',30,'0','0','0','5','R'};
+        assert(waiting && sv_app_open(waiting, version) == SV_OK);
+        uint64_t generation = sv_app_view(waiting).generation;
+        assert(sv_app_define_macro(waiting, (const unsigned char *)"x", 1,
+                                   action, sizeof(action), SV_MACRO_NORMAL) == SV_OK);
+        SvNativeInput native;
+        sv_native_input_begin(&native, waiting);
+        SDL_Event event = {0};
+        event.type = SDL_EVENT_TEXT_INPUT;
+        event.text.text = "x";
+        assert(sv_native_input(&native, waiting, &event));
+        unsigned char bytes[4];
+        SvOutput output = sv_app_take_output(waiting, generation, bytes, sizeof(bytes));
+        const unsigned char expected[] = {156,'Q'};
+        assert(output.result == SV_OK && output.size == sizeof(expected) &&
+               !memcmp(bytes, expected, sizeof(expected)));
+        assert(sv_app_macro_extended_waiting(waiting, generation));
+        event = (SDL_Event){0};
+        event.type = SDL_EVENT_KEY_DOWN;
+        event.key.key = SDLK_ESCAPE;
+        event.key.scancode = SDL_SCANCODE_ESCAPE;
+        assert(sv_native_input(&native, waiting, &event));
+        assert(!sv_app_macro_extended_waiting(waiting, generation));
+        assert(sv_app_macro_frame(waiting, generation, 1000, 16) == SV_OK);
+        assert(sv_app_take_output(waiting, generation, bytes, sizeof(bytes)).result == SV_WAITING);
+        assert(sv_app_destroy(waiting) == SV_OK);
     }
     const int version[] = {4,7,0,2,0,2};
     const unsigned char request[] = {184,0x12,0x34,0x56,0x78,'K','e','y','?',0};

@@ -48,20 +48,22 @@ const char *sv_options_name(size_t index)
            option_info[index].name : NULL;
 }
 
-static void set_named(SvOptions *options, const char *name, bool value)
+static bool set_named(SvOptions *options, const char *name, bool value)
 {
     int slot = find_option(name);
-    if (slot >= 0) options->value[slot] = value;
+    if (slot < 0) return false;
+    options->value[slot] = value;
+    return true;
 }
 
-static void apply_line(SvOptions *options, char *line, bool *converted)
+static bool apply_line(SvOptions *options, char *line, bool *converted)
 {
-    if ((line[0] != 'X' && line[0] != 'Y') || line[1] != ':') return;
+    if ((line[0] != 'X' && line[0] != 'Y') || line[1] != ':') return false;
     bool value = line[0] == 'Y';
     char *name = line + 2;
     size_t length = strlen(name);
     if (length && name[length - 1] == '\r') name[--length] = 0;
-    if (!length) return;
+    if (!length) return false;
     static const struct { const char *old_name, *new_name; } aliases[] = {
         {"recall_flicker", "subterm_flicker"},
         {"autoloot_depth", "autoloot_dunonly"},
@@ -79,7 +81,7 @@ static void apply_line(SvOptions *options, char *line, bool *converted)
         {"auto_insc_off", "auto_inscr_off"},
         {"stack_allow_wands", "stack_allow_devices"},
     };
-    if (!strcmp(name, "view_reduce_lite")) { *converted = true; return; }
+    if (!strcmp(name, "view_reduce_lite")) { *converted = true; return true; }
     if (!strcmp(name, "instant_retaliator")) {
         name = "new_retaliator"; value = !value; *converted = true;
     } else if (!strcmp(name, "basic_players") ||
@@ -95,7 +97,17 @@ static void apply_line(SvOptions *options, char *line, bool *converted)
                 break;
             }
     }
-    set_named(options, name, value);
+    return set_named(options, name, value);
+}
+
+bool sv_options_apply_pref(SvOptions *options, char directive, const char *name)
+{
+    char line[512];
+    bool converted = false;
+    if (!options || !name || strlen(name) > 500 ||
+        snprintf(line, sizeof(line), "%c:%s", directive, name) >= (int)sizeof(line))
+        return false;
+    return apply_line(options, line, &converted);
 }
 
 static bool load_file(SvOptions *options, const char *path, bool allow_missing)
@@ -145,9 +157,15 @@ static bool own_path(char out[4096], const char *root, const char *filename)
 
 bool sv_options_load_base(SvOptions *options, const char *user_root)
 {
-    char path[4096];
     if (!options || !user_root || !*user_root) return false;
     sv_options_defaults(options);
+    return sv_options_load_own_layers(options, user_root);
+}
+
+bool sv_options_load_own_layers(SvOptions *options, const char *user_root)
+{
+    char path[4096];
+    if (!options || !user_root || !*user_root) return false;
     /* Dedicated option entrypoint precedes the global and system snapshots. */
     const char *files[] = {"options.prf", "global.opt", "global-sv.opt"};
     for (size_t i = 0; i < sizeof(files) / sizeof(*files); ++i)

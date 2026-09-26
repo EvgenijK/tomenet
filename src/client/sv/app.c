@@ -1,5 +1,6 @@
 #include "app.h"
 #include "protocol/protocol.h"
+#include "../../common/pack.h"
 #include <stdlib.h>
 #include <string.h>
 struct SvApp {
@@ -16,6 +17,10 @@ struct SvApp {
     int check_failed[8];
     SvInputRouter input;
     SvInputBindings bindings;
+    SvMacroSet *macros;
+    SvMacroRunner *macro_runner;
+    uint64_t macro_now_ms;
+    SvCommandRouter command;
     SvPresentationObserver observer;
     uint64_t input_started_ns, input_sequence;
 };
@@ -48,6 +53,12 @@ static void release_session(SvApp *app)
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
     app->input = (SvInputRouter){0};
+    if (app->macro_runner) sv_macros_reset(app->macro_runner);
+    app->macro_now_ms = 0;
+    app->command.bypass = app->command.control = app->command.chat = false;
+    app->command.direction_pending = SV_COMMAND_NONE;
+    memset(app->command.text, 0, sizeof(app->command.text));
+    app->command.text_size = 0;
     app->input_started_ns = app->input_sequence = 0;
     app->view.request = (SvKeyRequest){0};
     app->view.context = SV_CONTEXT_GAME;
@@ -69,14 +80,21 @@ static void fail_session(SvApp *app, SvResult reason)
 SvApp *sv_app_create(SvAlertSink sink)
 {
     SvApp *app = calloc(1, sizeof(*app));
-    if (app) { app->sink = sink; app->view.reason = SV_CLOSED; }
+    if (app) {
+        app->macros = calloc(1, sizeof(*app->macros));
+        app->macro_runner = calloc(1, sizeof(*app->macro_runner));
+        if (!app->macros || !app->macro_runner) {
+            free(app->macros); free(app->macro_runner); free(app); return NULL;
+        }
+        app->sink = sink; app->view.reason = SV_CLOSED;
+    }
     return app;
 }
 SvResult sv_app_destroy(SvApp *app)
 {
     if (!app) return SV_OK;
     if (app->busy || app->check_depth) return SV_BUSY;
-    release_session(app); free(app);
+    release_session(app); free(app->macros); free(app->macro_runner); free(app);
     return SV_OK;
 }
 SvResult sv_app_close(SvApp *app)
@@ -217,6 +235,47 @@ SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key)
     if (result == SV_OUTPUT_OVERFLOW) fail_session(app, result);
     return result;
 }
+SvResult sv_app_command_mode(SvApp *app, bool roguelike)
+{
+    if (!app) return SV_INVALID;
+    if (app->busy) return SV_BUSY;
+    app->command.roguelike = roguelike;
+    return SV_OK;
+}
+SvResult sv_app_keymap_record(SvApp *app, unsigned char key,
+                              unsigned char command, unsigned char direction)
+{
+    if (!app) return SV_INVALID;
+    if (app->busy) return SV_BUSY;
+    return sv_command_override(&app->command, key, command, direction);
+}
+static SvResult command_key(SvApp *app, uint64_t generation, unsigned char key)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (app->view.paused || app->view.context != SV_CONTEXT_GAME || app->view.request.pending)
+        return SV_BUSY;
+    SvCommandRouter next = app->command;
+    SvCommand command;
+    result = sv_command_key(&next, key, &command);
+    if (result != SV_OK) return result;
+    switch (command.kind) {
+    case SV_COMMAND_NONE: break;
+    case SV_COMMAND_RAW: result = sv_app_raw_key(app, generation, command.key); break;
+    case SV_COMMAND_WALK: case SV_COMMAND_RUN: case SV_COMMAND_TUNNEL:
+        result = sv_protocol_direction(app->protocol,
+            command.kind == SV_COMMAND_WALK ? PKT_WALK :
+            command.kind == SV_COMMAND_RUN ? PKT_RUN : PKT_TUNNEL,
+            command.direction);
+        break;
+    case SV_COMMAND_STAND: result = sv_protocol_stand(app->protocol); break;
+    case SV_COMMAND_CHAT:
+        result = command.size ? sv_protocol_chat(app->protocol, command.text, command.size) : SV_OK;
+        break;
+    }
+    if (result == SV_OK) app->command = next;
+    return result;
+}
 SvResult sv_app_keepalive(SvApp *app, uint64_t generation,
                           uint64_t now_ms, uint64_t last_sent_ms)
 {
@@ -258,6 +317,64 @@ SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char acti
     if (app->busy) return SV_BUSY;
     return sv_input_bind(&app->bindings, trigger, action, kind);
 }
+SvResult sv_app_define_macro(SvApp *app, const unsigned char *trigger, size_t trigger_size,
+                             const unsigned char *action, size_t action_size, SvMacroKind kind)
+{
+    if (!app) return SV_INVALID;
+    if (app->busy || app->macro_runner->active) return SV_BUSY;
+    return sv_macros_define(app->macros, trigger, trigger_size, action, action_size, kind);
+}
+SvResult sv_app_delete_macro(SvApp *app, const unsigned char *trigger, size_t trigger_size)
+{
+    if (!app) return SV_INVALID;
+    if (app->busy || app->macro_runner->active) return SV_BUSY;
+    return sv_macros_delete(app->macros, trigger, trigger_size);
+}
+SvResult sv_app_queue_macro_action(SvApp *app, const unsigned char *action, size_t size)
+{
+    if (!app) return SV_INVALID;
+    if (app->busy) return SV_BUSY;
+    return sv_macros_queue_action(app->macro_runner, action, size);
+}
+SvResult sv_app_macro_frame(SvApp *app, uint64_t generation, uint64_t now_ms, size_t budget)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    app->macro_now_ms = now_ms;
+    result = sv_macros_pump(app->macros, app->macro_runner,
+        !app->view.request.pending, app->command.chat, false, true, now_ms);
+    if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
+    if (result != SV_OK && result != SV_WAITING) return result;
+    for (size_t i = 0; i < budget; ++i) {
+        unsigned char key;
+        if (sv_macros_peek(app->macro_runner, &key) != SV_OK) break;
+        if (app->view.request.pending) {
+            if (app->input.count) break;
+            result = sv_input_enqueue_resolved(&app->input, app->view.request,
+                                                app->view.request.sequence, key);
+            if (result != SV_OK) return result;
+        } else {
+            result = command_key(app, generation, key);
+            if (result == SV_BACKPRESSURE) return result;
+            if (result == SV_INVALID) fail_session(app, result);
+            if (result != SV_OK) return result;
+        }
+        sv_macros_consume(app->macro_runner);
+        if (app->view.request.pending) break;
+    }
+    return SV_OK;
+}
+bool sv_app_macro_extended_waiting(const SvApp *app, uint64_t generation)
+{
+    return app && app->view.active && app->view.generation == generation &&
+           app->macro_runner->waiting && app->macro_runner->extended_wait;
+}
+static bool macro_path(const SvApp *app)
+{
+    return app->macros->count || app->macro_runner->direct_pending ||
+           app->macro_runner->active || app->macro_runner->fresh_count ||
+           app->macro_runner->ready_count;
+}
 SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
                               unsigned char action, SvMacroKind kind)
 {
@@ -277,13 +394,38 @@ SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *b
     unsigned char key;
     bool prompt = app->view.request.pending;
     result = sv_input_physical(&app->bindings, bytes, size, prompt, &key);
-    if (result != SV_OK) return result;
+    if (result != SV_OK) {
+        if (result != SV_WAITING || !app->macros->count) return result;
+        bool mapped = false;
+        for (size_t i = 0; i < app->macros->count; ++i) {
+            const SvMacroDefinition *entry = &app->macros->definitions[i];
+            if (entry->trigger_size == size &&
+                (!prompt || entry->kind != SV_MACRO_COMMAND) &&
+                (!app->command.chat || entry->kind == SV_MACRO_NORMAL) &&
+                !memcmp(entry->trigger, bytes, size)) {
+                mapped = true; break;
+            }
+        }
+        if (!mapped) return SV_WAITING;
+        result = sv_macros_feed(app->macros, app->macro_runner, bytes, size,
+            !prompt, app->command.chat, false, true, app->macro_now_ms);
+        if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
+        if (result != SV_OK && result != SV_WAITING) return result;
+        return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
+    }
+    if (macro_path(app)) {
+        result = sv_macros_feed(app->macros, app->macro_runner, &key, 1,
+            !prompt, app->command.chat, false, true, app->macro_now_ms);
+        if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
+        if (result != SV_OK && result != SV_WAITING) return result;
+        return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
+    }
     if (prompt) {
         /* The request owner receives exactly one resolved byte; a macro's
          * action is not matched again as a fresh trigger. */
         return sv_app_key(app, generation, app->view.request.sequence, key);
     }
-    return sv_app_raw_key(app, generation, key);
+    return command_key(app, generation, key);
 }
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
@@ -291,6 +433,14 @@ SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, u
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     if (app->view.paused) return SV_BUSY;
+    if (macro_path(app)) {
+        if (!app->view.request.pending || app->view.request.sequence != sequence) return SV_STALE;
+        result = sv_macros_feed(app->macros, app->macro_runner, &key, 1,
+            false, false, false, true, app->macro_now_ms);
+        if (result == SV_INPUT_OVERFLOW) fail_session(app, result);
+        if (result != SV_OK && result != SV_WAITING) return result;
+        return sv_app_macro_frame(app, generation, app->macro_now_ms, 16);
+    }
     result = sv_input_accept(&app->input, &app->bindings, sv_session_request(app->session), sequence, key);
     if (result == SV_OK && app->input_sequence != sequence) {
         app->input_sequence = sequence;
@@ -352,11 +502,14 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
         if (decoded.kind == SV_CHANGE_CONFIRM) {
+            if (app->macro_runner->waiting) app->macro_runner->confirmed = true;
             step.result = sv_input_confirm(&app->input, decoded.confirmed_command);
             if (step.result == SV_EVENT_OVERFLOW) { fail_session(app, step.result); break; }
             step.result = SV_OK; /* Unowned confirms are discarded, as before macro wait. */
         }
         if (decoded.kind == SV_CHANGE_NOOP) continue;
+        if (decoded.kind == SV_CHANGE_KEY_REQUEST && app->macro_runner->waiting)
+            app->macro_runner->semaphore = true;
         if (decoded.kind == SV_CHANGE_PAUSE) {
             app->view.pause_sequence = sv_input_pause(&app->input);
             app->view.paused = app->input.paused;
@@ -397,6 +550,22 @@ SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     return sv_session_take_message(app->session, message);
+}
+SvResult sv_app_local_message(SvApp *app, uint64_t generation,
+                              const unsigned char *bytes, size_t size)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!bytes || !size || size >= SV_MESSAGE_BYTES || memchr(bytes, 0, size)) return SV_INVALID;
+    SvChange change = {.kind = SV_CHANGE_MESSAGE};
+    memcpy(change.message.bytes, bytes, size);
+    change.message.length = size;
+    SvSessionChange applied = sv_session_apply(app->session, &change);
+    if (applied.result != SV_OK) return applied.result;
+    app->view.messages = sv_session_messages(app->session);
+    publish(app, SV_PRESENT_MESSAGE, now(app), applied.message_occurrence,
+            applied.message_chat);
+    return SV_OK;
 }
 SvResult sv_app_begin_confirmation(SvApp *app, uint64_t generation, uint64_t *owner)
 {

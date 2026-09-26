@@ -258,6 +258,32 @@ SvResult sv_protocol_raw_key(SvProtocol *p, unsigned char key)
     queue_bytes(p, packet, sizeof(packet));
     return SV_OK;
 }
+SvResult sv_protocol_direction(SvProtocol *p, unsigned char packet, unsigned char direction)
+{
+    if (packet != PKT_WALK && packet != PKT_RUN && packet != PKT_TUNNEL) return SV_INVALID;
+    if (!direction || direction > 9 || direction == 5) return SV_INVALID;
+    if (sv_protocol_output_capacity(p) < 2) return SV_BACKPRESSURE;
+    const unsigned char bytes[2] = {packet, direction};
+    queue_bytes(p, bytes, sizeof(bytes));
+    return SV_OK;
+}
+SvResult sv_protocol_stand(SvProtocol *p)
+{
+    if (sv_protocol_output_capacity(p) < 1) return SV_BACKPRESSURE;
+    const unsigned char packet = PKT_STAND;
+    queue_bytes(p, &packet, 1);
+    return SV_OK;
+}
+SvResult sv_protocol_chat(SvProtocol *p, const unsigned char *text, size_t size)
+{
+    if (!text || !size || size > SV_PROTOCOL_CAPACITY - 2 || memchr(text, 0, size))
+        return SV_INVALID;
+    if (sv_protocol_output_capacity(p) < size + 2) return SV_BACKPRESSURE;
+    unsigned char bytes[SV_PROTOCOL_CAPACITY] = {PKT_MESSAGE};
+    memcpy(bytes + 1, text, size);
+    queue_bytes(p, bytes, size + 2);
+    return SV_OK;
+}
 SvResult sv_protocol_keepalive(SvProtocol *p)
 {
     if (sv_protocol_output_capacity(p) < 1) return SV_BACKPRESSURE;

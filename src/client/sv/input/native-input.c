@@ -44,7 +44,8 @@ bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
     SvPhysicalKey physical;
     if (!sv_physical_key(&event->key, input->latch, &physical)) return true;
     input->latch = 0;
-    if (!view.request.pending && physical.key == SDLK_ESCAPE) return false;
+    if (!view.request.pending && physical.key == SDLK_ESCAPE &&
+        !sv_app_macro_extended_waiting(app, view.generation)) return false;
     /* Layout-dependent printable keys are delivered by SDL_TEXT_INPUT. */
     if (physical.key >= 32 && physical.key <= 255 &&
         !(physical.modifiers & (SDL_KMOD_CTRL | SDL_KMOD_ALT))) return true;

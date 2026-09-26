@@ -3,6 +3,8 @@
 #include "session/alerts.h"
 #include "result.h"
 #include "input/input.h"
+#include "input/macros.h"
+#include "input/command.h"
 #include "diagnostics/runtime.h"
 #include "protocol/protocol.h"
 #include "ui/flush-policy.h"
@@ -70,6 +72,8 @@ size_t sv_app_receive_capacity(const SvApp *app);
 SvOutput sv_app_take_output(SvApp *app, uint64_t generation, void *bytes, size_t capacity);
 /* Explicit event consumer, independent of UI lifetime. Copies and acknowledges one occurrence. */
 SvResult sv_app_take_message(SvApp *app, uint64_t generation, SvMessage *message);
+SvResult sv_app_local_message(SvApp *app, uint64_t generation,
+                              const unsigned char *bytes, size_t size);
 /* A macro interaction registers as the owner before waiting; stale owners cannot drain it. */
 SvResult sv_app_begin_confirmation(SvApp *app, uint64_t generation, uint64_t *owner);
 SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation,
@@ -79,6 +83,9 @@ SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned
 /* Caller invokes this only for an unmapped gameplay command. Reserved local
  * no-op keys are rejected and cannot become server packets. */
 SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key);
+SvResult sv_app_command_mode(SvApp *app, bool roguelike);
+SvResult sv_app_keymap_record(SvApp *app, unsigned char key,
+                              unsigned char command, unsigned char direction);
 /* Caller supplies monotonic milliseconds and last successful socket send. */
 SvResult sv_app_keepalive(SvApp *app, uint64_t generation,
                           uint64_t now_ms, uint64_t last_sent_ms);
@@ -88,6 +95,13 @@ SvResult sv_app_ack_pause(SvApp *app, uint64_t generation, uint64_t sequence);
 /* Bindings outlive a session. Accepted input belongs to its generation/request.
  * Matching occurs once at acceptance, dispatch is bounded and independent of UI. */
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind);
+SvResult sv_app_define_macro(SvApp *app, const unsigned char *trigger, size_t trigger_size,
+                             const unsigned char *action, size_t action_size, SvMacroKind kind);
+SvResult sv_app_delete_macro(SvApp *app, const unsigned char *trigger, size_t trigger_size);
+SvResult sv_app_queue_macro_action(SvApp *app, const unsigned char *action, size_t size);
+/* Nonblocking macro executor. Call each UI frame after network processing. */
+SvResult sv_app_macro_frame(SvApp *app, uint64_t generation, uint64_t now_ms, size_t budget);
+bool sv_app_macro_extended_waiting(const SvApp *app, uint64_t generation);
 SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t size,
                               unsigned char action, SvMacroKind kind);
 SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *bytes, size_t size);

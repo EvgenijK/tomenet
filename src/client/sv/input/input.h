@@ -48,6 +48,8 @@ SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char 
                            size_t size, bool prompt, unsigned char *key);
 SvResult sv_input_accept(SvInputRouter *router, const SvInputBindings *bindings,
                          SvKeyRequest request, uint64_t sequence, unsigned char key);
+SvResult sv_input_enqueue_resolved(SvInputRouter *router, SvKeyRequest request,
+                                   uint64_t sequence, unsigned char key);
 SvResult sv_input_next(SvInputRouter *router, SvKeyRequest request, SvKeyReply *reply);
 uint64_t sv_input_pause(SvInputRouter *router);
 SvResult sv_input_ack_pause(SvInputRouter *router, uint64_t sequence);
