@@ -1,0 +1,6 @@
+.env
+auth/
+logs/
+artifacts/
+reviews/
+worktrees/

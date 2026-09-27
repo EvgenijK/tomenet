@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,">
+<title>MOTD — throwaway prototype</title>
+<!-- Three whole-window MOTD placements, ?variant=A/B/C. Planning only; no production client behavior. -->
+<style>
+*{box-sizing:border-box}body{margin:24px;background:#161917;color:#ddd9cc;font:15px system-ui}h1{font-size:24px}p{max-width:1100px;line-height:1.5}button,select,input{font:inherit;background:#272d28;color:inherit;border:1px solid #716b56;padding:6px}label{display:inline-flex;gap:8px;align-items:center;margin:5px}input{width:80px}a{color:#e1be74}#views{display:grid;gap:20px;margin:24px 0}.compare{grid-template-columns:repeat(3,minmax(0,1fr))}article{min-width:0}h2{font-size:16px}canvas{display:block;width:100%;background:#000;border:1px solid #4f5147}pre{white-space:pre-wrap;font:12px monospace;line-height:1.5}#bar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);padding:8px;border-radius:8px;background:#e3d4aa;color:#181c18;box-shadow:0 2px 16px #000}#bar button{color:#181c18;background:transparent;border-color:#8e805b}#state{margin-bottom:90px}details img{max-width:100%}
+</style>
+<h1>Серверный MOTD · варианты размещения</h1>
+<p>Целый экран до входа в игру. Текст и цвета задаёт сервер; клиент не выделяет ссылки, новости или настройки в отдельные блоки. Все 23 строки, включая пустые, сохраняются. Элементы управления ниже — только стенд.</p>
+<label>Окно <select id="size"><option>1024×768</option><option selected>1440×900</option><option>1920×1080</option></select></label>
+<label>Ячейка текста <select id="metrics"><option value="8,16">8×16</option><option value="10,20" selected>10×20</option><option value="16,24">16×24</option><option value="20,32">20×32</option></select></label>
+<label>DPI <select id="dpi"><option>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label>
+<label>Содержимое <select id="fixture"><option value="notice">Цветной серверный экран</option><option value="short">Короткий</option><option value="wide">119 колонок × 23 строки</option><option value="unknown">Незнакомая композиция</option><option value="empty">Пустой</option></select></label>
+<label><input id="compare" type="checkbox" checked>Рядом</label>
+<div id="views"></div>
+<details><summary>Присланный исходный screenshot</summary><img src="motd-reference.png" alt="Исходный серверный MOTD"></details>
+<p>Предложения: A — исходное начало координат с полем 24; B — центрирование с сохранением выбранного размера текста; C — максимальное равномерное заполнение с полем 24. A/B уменьшаются только при нехватке места. Во всех вариантах без wrap, scroll и перестановки строк. Поля 24 и выбор варианта пока не утверждены.</p>
+<p>Данные синтетические: это сравнение геометрии, не декодер setup payload и не SDL raster reference. DPI здесь моделирует размер backing buffer; монитор и OS transitions не проверяются. Метрики задаются независимо от карты. Масштаб миниатюр браузером уменьшает сцену для сравнения; значения в отчёте относятся к выбранному логическому окну.</p>
+<pre id="state"></pre>
+<div id="bar"><button id="prev" aria-label="Предыдущий вариант">←</button> <strong id="variant"></strong> <button id="next" aria-label="Следующий вариант">→</button></div>
+<script>
+const $=id=>document.getElementById(id), names={A:'От верхнего левого края',B:'По центру, размер текста',C:'По центру, максимальный fit'};
+let variant=new URLSearchParams(location.search).get('variant')||'A';if(!names[variant])variant='A';
+const colors={w:'#ffffff',s:'#aaaaaa',o:'#ff9900',g:'#00bb66',r:'#ff4444',b:'#66aaff',y:'#ffff00'};
+function rowsFor(key){
+ const rows=Array.from({length:23},()=>[]);
+ const put=(y,x,text,color='w')=>{for(const ch of text)rows[y][x++]={ch,color};};
+ if(key==='notice'){
+ put(0,7,'TomeNET / server message');put(3,4,'Documentation: ','s');put(3,19,'https://example.invalid/guide','o');
+ put(4,4,'This entire notice is supplied by the server.','s');put(8,4,'Local server settings: ','s');put(8,27,'Example realm','o');
+ put(12,2,'+'.padEnd(75,'-')+'+','g');put(19,2,'+'.padEnd(75,'-')+'+','g');
+ for(let y=13;y<19;y++){put(y,2,'|','g');put(y,77,'|','g');}
+ put(14,8,'The roads are open. The mountains are waiting.','r');put(16,8,'Keep your companions close, and your lantern lit.','r');put(22,0,'[End of server notice]','s');
+ }else if(key==='short'){put(0,0,'Welcome, traveller.');put(2,0,'Maintenance complete.','g');}
+ else if(key==='wide'){for(let y=0;y<23;y++)put(y,0,(String(y+1).padStart(2,'0')+'|'+'.'.repeat(115)+'|'),y%2?'g':'w');}
+ else if(key==='unknown'){
+ put(0,0,'[realm: experimental]','b');put(2,31,'/\\','g');put(3,30,'/  \\','g');put(4,29,'/____\\','g');
+ put(7,0,'LEFT');put(7,60,'RIGHT','o');put(10,5,'A    B        C','y');put(11,5,'1    22       333','g');
+ put(17,20,'Arbitrary server prose & symbols < > { }','r');put(22,79,'X','y');
+ }
+ return rows;
+}
+function renderScene(canvas,key,rows,w,h,cw,ch,dpi){
+ const cols=Math.max(1,...rows.map(r=>r.length)),fit=Math.min((w-48)/(cols*cw),(h-48)/(23*ch));
+ const scale=key==='C'?fit:Math.min(1,fit),width=cols*cw*scale,height=23*ch*scale;
+ const x=key==='A'?24:(w-width)/2,y=key==='A'?24:(h-height)/2;
+ canvas.width=Math.round(w*dpi);canvas.height=Math.round(h*dpi);canvas.style.aspectRatio=`${w}/${h}`;
+ const ctx=canvas.getContext('2d');ctx.scale(canvas.width/w,canvas.height/h);ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+ // Final-size browser glyphs; this is not the native font preparation/rounding policy.
+ ctx.font=`${ch*scale*.78}px monospace`;ctx.textBaseline='middle';ctx.textAlign='center';
+ let glyphs=0;rows.forEach((row,j)=>row.forEach((cell,i)=>{ctx.fillStyle=colors[cell.color];ctx.fillText(cell.ch,x+(i+.5)*cw*scale,y+(j+.5)*ch*scale,cw*scale);glyphs++;}));
+ return {variant:key,columns:cols,rows:23,glyphs,logicalWindow:[w,h],backingPixels:[canvas.width,canvas.height],textCell:[cw,ch],scale,origin:[x,y],extent:[width,height],withinWindow:x>=0&&y>=0&&x+width<=w+.001&&y+height<=h+.001};
+}
+function render(){
+ const [w,h]=$('size').value.split('×').map(Number),[cw,ch]=$('metrics').value.split(',').map(Number),dpi=+$('dpi').value,rows=rowsFor($('fixture').value);
+ $('views').className=$('compare').checked?'compare':'';$('views').replaceChildren();const reports=[];
+ for(const key of $('compare').checked?['A','B','C']:[variant]){const article=document.createElement('article'),heading=document.createElement('h2'),canvas=document.createElement('canvas'),info=document.createElement('pre');heading.textContent=`${key} · ${names[key]}`;canvas.setAttribute('aria-label',heading.textContent);article.append(heading,canvas,info);$('views').append(article);const report=renderScene(canvas,key,rows,w,h,cw,ch,dpi);reports.push(report);info.textContent=`${report.columns} × 23 cells · scale ${report.scale.toFixed(3)}\nOrigin ${report.origin.map(n=>n.toFixed(1)).join(', ')}\n${report.extent.map(n=>n.toFixed(1)).join(' × ')} logical units`;}
+ $('variant').textContent=`${variant} · ${names[variant]}`;window.prototypeState={fixture:$('fixture').value,variant,reports};$('state').textContent=JSON.stringify(window.prototypeState,null,2);
+}
+function cycle(delta){variant=['A','B','C'][(['A','B','C'].indexOf(variant)+delta+3)%3];const url=new URL(location.href);url.searchParams.set('variant',variant);history.replaceState(null,'',url);render();}
+$('prev').onclick=()=>cycle(-1);$('next').onclick=()=>cycle(1);document.querySelectorAll('select,input').forEach(el=>el.onchange=render);
+document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea,[contenteditable]'))return;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();cycle(e.key==='ArrowLeft'?-1:1);}});render();
+</script></html>

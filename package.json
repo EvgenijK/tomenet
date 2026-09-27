@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "sandbox:image": "sandcastle docker build-image --dockerfile .sandcastle/Dockerfile",
+    "sandbox:login": "node .sandcastle/login.mjs",
+    "sandbox:build": "node .sandcastle/main.mjs build",
+    "sandbox:test": "node .sandcastle/main.mjs test",
+    "sandbox:registry": "node .sandcastle/main.mjs registry",
+    "sandbox:dev": "node .sandcastle/main.mjs dev"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "0.12.0"
+  }
+}

@@ -23,7 +23,7 @@ The local `sandcastle:tomenet_modern_client` image is built from
 
 ## Setup
 
-Requires Node.js, npm, Git, and a working Docker daemon. From the repository
+Requires Node.js, npm, Git, a host Codex CLI, and a working Docker daemon. From the repository
 root:
 
 ```sh
@@ -31,11 +31,35 @@ npm ci
 npm run sandbox:image
 ```
 
-For interactive development and code review, create `.sandcastle/.env` from
-`.sandcastle/.env.example` and set `OPENAI_API_KEY` for the Codex CLI. Sandcastle
-passes it into the container and signs in Codex for the development session.
-The file is ignored by Git. Build and test commands do not require an agent
-credential. This follows the [official Codex CLI API-key login procedure](https://learn.chatgpt.com/docs/auth).
+For interactive development and code review with a ChatGPT subscription, enable
+device-code login in ChatGPT security settings. Run `npm run sandbox:login`, open
+the displayed link in a browser, and enter the one-time code. This runs the host
+Codex CLI with `CODEX_HOME` set to `.sandcastle/auth/`, creating a separate login
+that the development container then reads. The host CLI can reach the device
+authorization service even where Docker networking returns `403`. Alternatively,
+`npm run sandbox:login -- browser` uses a browser OAuth flow on the host. The
+login cache is stored in `.sandcastle/auth/`, mounted into each development
+container, and ignored by Git. Check it with `npm run sandbox:login -- status`.
+This is a separate login from the host Codex CLI; do not copy the host's
+`auth.json` into the project. [Official Codex authentication
+instructions](https://learn.chatgpt.com/docs/auth) describe browser and device
+sign-in with a ChatGPT subscription.
+
+An API key remains optional: create `.sandcastle/.env` from its example and set
+`OPENAI_API_KEY`. Sandcastle passes it into the container and signs in Codex for
+the development session. Build and test commands do not require agent
+credentials. Treat `.sandcastle/auth/auth.json` like a password; never commit it
+or copy it into task reports.
+
+Authentication and service connectivity are separate checks. `sandbox:login --
+status` only confirms that the container can read the cached credentials. The
+development container uses Docker host networking and receives the host's
+`all_proxy` (or `ALL_PROXY`) as `all_proxy`, so a host proxy bound to
+`127.0.0.1` is reachable from Codex in that container. This removes network
+isolation for the development container: it can also reach other local host
+services. Build, test, and registry containers retain Docker's default bridge.
+If Codex reports `workspace routing discovery failed`, verify a real Codex
+request; `login status` alone is not a connectivity check.
 
 ## Commands
 
@@ -43,6 +67,7 @@ credential. This follows the [official Codex CLI API-key login procedure](https:
 npm run sandbox:build
 npm run sandbox:test
 npm run sandbox:registry
+npm run sandbox:login
 npm run sandbox:dev
 ```
 
@@ -90,7 +115,9 @@ the mounted worktree and Git metadata, as well as the API key supplied for the
 session. Findings are advisory and require human inspection before integration.
 If build or tests fail, the review stage is not reached. Set
 `SANDCASTLE_MODEL` to select the Codex CLI model for development and review;
-the default is `gpt-5.4`.
+the default is `gpt-6-sol` for ChatGPT subscription sign-in. The default
+reasoning effort is `high`; set `SANDCASTLE_REASONING_EFFORT` to override it.
+The same model and effort are used for development and code review.
 
 Sandcastle creates a fresh `codex/sandcastle-*` branch from committed `HEAD`.
 Uncommitted source edits in the current checkout are not included. The tool
