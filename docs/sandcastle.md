@@ -1,133 +1,101 @@
 # Sandcastle for TomeNET SV
 
-[Sandcastle](https://github.com/mattpocock/sandcastle) creates a Docker sandbox
-and Git worktree for each run. The sandbox invokes the existing SV Makefile and
-production-path checks. The repository's native build remains Make-based.
-
-```mermaid
-flowchart LR
-    A["npm run sandbox:image"] --> B["sandcastle:tomenet_modern_client"]
-    B --> C["Git branch + worktree from HEAD"]
-    C --> D["Docker sandbox"]
-    D --> E["build: Make + executable artifact"]
-    D --> F["test: Make + SV checks"]
-    D --> H["registry: provenance checks"]
-    D --> G["dev: Codex CLI + $implement"]
-    G --> I["Make + SV checks"]
-    I --> J["$code-review for commits; codex review for WIP"]
-    J --> K["Review reports + branch for human inspection"]
-```
-
-The local `sandcastle:tomenet_modern_client` image is built from
-`node:22-trixie-slim`. No Fedora builder image is used by these commands.
+Sandcastle creates a Docker container and a Git worktree for each development
+run. The orchestrator in `.sandcastle/workflow.mjs` keeps the state of each task
+in ignored `.sandcastle/runs/<run-id>/state.json` and commits all final task
+artifacts to `modern_interface` after verification.
 
 ## Setup
 
-Requires Node.js, npm, Git, a host Codex CLI, and a working Docker daemon. From the repository
-root:
+Install Node.js, npm, Docker and a host Codex CLI. Build the container image:
 
 ```sh
 npm ci
 npm run sandbox:image
-```
-
-For interactive development and code review with a ChatGPT subscription, enable
-device-code login in ChatGPT security settings. Run `npm run sandbox:login`, open
-the displayed link in a browser, and enter the one-time code. This runs the host
-Codex CLI with `CODEX_HOME` set to `.sandcastle/auth/`, creating a separate login
-that the development container then reads. The host CLI can reach the device
-authorization service even where Docker networking returns `403`. Alternatively,
-`npm run sandbox:login -- browser` uses a browser OAuth flow on the host. The
-login cache is stored in `.sandcastle/auth/`, mounted into each development
-container, and ignored by Git. Check it with `npm run sandbox:login -- status`.
-This is a separate login from the host Codex CLI; do not copy the host's
-`auth.json` into the project. [Official Codex authentication
-instructions](https://learn.chatgpt.com/docs/auth) describe browser and device
-sign-in with a ChatGPT subscription.
-
-An API key remains optional: create `.sandcastle/.env` from its example and set
-`OPENAI_API_KEY`. Sandcastle passes it into the container and signs in Codex for
-the development session. Build and test commands do not require agent
-credentials. Treat `.sandcastle/auth/auth.json` like a password; never commit it
-or copy it into task reports.
-
-Authentication and service connectivity are separate checks. `sandbox:login --
-status` only confirms that the container can read the cached credentials. The
-development container uses Docker host networking and receives the host's
-`all_proxy` (or `ALL_PROXY`) as `all_proxy`, so a host proxy bound to
-`127.0.0.1` is reachable from Codex in that container. This removes network
-isolation for the development container: it can also reach other local host
-services. Build, test, and registry containers retain Docker's default bridge.
-If Codex reports `workspace routing discovery failed`, verify a real Codex
-request; `login status` alone is not a connectivity check.
-
-## Commands
-
-```sh
-npm run sandbox:build
-npm run sandbox:test
-npm run sandbox:registry
 npm run sandbox:login
-npm run sandbox:dev
 ```
 
-`sandbox:build` compiles `src/tomenet-sv` in the container and copies it to
-`.sandcastle/artifacts/tomenet-sv`. This Linux executable uses the container's
-shared libraries; run it in a compatible environment. `sandbox:test` builds the
-same target, runs the SV runtime and protocol checks through their production
-entry points, then runs `sv_shell_smoke.py` using SDL's dummy video and software
-renderer. `sandbox:registry` runs the capability, evidence, and review contract
-checks separately. The current committed manifest has stale source digests for
-`src/makefile.sv`, so two capability checks fail until that provenance is
-reviewed and refreshed. The headless suite does not replace desktop rendering
-reviews in the SV evidence documents.
+`npm run sandbox:login` signs in the host CLI with a separate Codex home at
+`.sandcastle/auth/`. Device-code login works with a ChatGPT subscription; an
+API key is optional. The auth directory is ignored by Git and must remain
+private. `npm run sandbox:login -- status` confirms that the container can read
+credentials; the development workflow also probes the account quota before
+creating a sandbox. It stops if that probe cannot read the weekly window.
 
-`sandbox:dev` requires `SANDCASTLE_SPEC`, the path to an originating task or
-specification file. Sandcastle passes its contents to Codex and explicitly
-invokes `$implement` through `.sandcastle/dev-prompt.md`. The `implement`,
-`tdd`, and `code-review` skills are mounted read-only from
-`~/.agents/skills/` into the container. Set `SANDCASTLE_SKILLS_ROOT` if they
-are installed elsewhere. `$implement` uses TDD where test seams are agreed
-and commits the result. Sandcastle then rebuilds, runs the runtime tests, and
-handles the skill's required code review as a separate stage in the same
-container.
+The development container uses host networking to reach the host's local proxy.
+Build, test, and registry containers use Docker bridge networking. The SV core
+checks are headless and do not replace display-backed acceptance.
 
-The development agent uses
-`--ask-for-approval never --sandbox danger-full-access` inside Docker, so its
-commands do not pause for approval. The final `$code-review` examines committed
-changes against repository standards and the supplied spec with two parallel
-sub-agents. If there are also uncommitted changes, `codex review` checks those
-separately because the skill's fixed-point diff covers committed changes.
-Reports are written to `.sandcastle/reviews/` on the host. Set
-`SANDCASTLE_CODE_REVIEW_SKILL_PATH` if that skill alone is installed elsewhere.
-The skills may still request task clarification; specify test seams in the
-task file when you want TDD to proceed without a design question.
+## Development workflow
 
-For example:
+From a clean checkout on `modern_interface`, supply a repository task/spec file:
 
 ```sh
 SANDCASTLE_SPEC='docs/tasks/<ticket>.md' npm run sandbox:dev
 ```
 
-The review also runs without an additional nested sandbox or approval prompts.
-Docker is the execution boundary. The agents have the container user's access to
-the mounted worktree and Git metadata, as well as the API key supplied for the
-session. Findings are advisory and require human inspection before integration.
-If build or tests fail, the review stage is not reached. Set
-`SANDCASTLE_MODEL` to select the Codex CLI model for development and review;
-the default is `gpt-6-sol` for ChatGPT subscription sign-in. The default
-reasoning effort is `high`; set `SANDCASTLE_REASONING_EFFORT` to override it.
-The same model and effort are used for development and code review.
+An assistant can also supply the exact request text as `SANDCASTLE_TASK`.
+The command prints a run ID. One fresh, ephemeral Codex CLI process runs at a
+time for each agent stage:
 
-Sandcastle creates a fresh `codex/sandcastle-*` branch from committed `HEAD`.
-Uncommitted source edits in the current checkout are not included. The tool
-prints the branch and worktree paths. It preserves a worktree if the session
-leaves uncommitted changes; review that path before continuing. Build and test
-worktrees are removed when clean.
+1. The `to-tickets` skill splits the request into small vertical tickets in
+   `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
+   proceed autonomously replaces its interactive approval quiz.
+2. Separate agents implement the tickets in dependency order. Each process
+   exits before the next one starts. The orchestrator commits each ticket's
+   changes to the sandbox branch.
+3. The Make build runs. A build failure starts a repair agent, then another
+   build attempt, up to 10 attempts.
+4. A testing agent checks the production SV path and may add focused tests.
+   The orchestrator runs `.sandcastle/checks.sh core`; a failure starts a repair
+   agent, followed by another build and test attempt, up to 10 failed tests.
+5. The `code-review` skill reviews Standards and Spec, using parallel review
+   sub-agents inside the review stage. Findings become new small tickets and
+   repeat steps 2–5, up to 5 review rounds.
+6. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
+   branch is fast-forwarded into `modern_interface` after the gates pass.
 
-The setup is scoped to the SV Linux target. Server, legacy, MinGW, Wine, and
-display-backed acceptance commands remain documented in their existing build
-and evidence instructions.
+The workflow asks for human action only if a critical stage fails, a cycle limit
+is reached, Codex usage becomes unavailable, or the quota guard fires. It reads
+the account's weekly Codex usage before and after each agent and stops when this
+task has consumed 25 percentage points of the weekly window. If
+`SANDCASTLE_TASK_TOKEN_LIMIT` is set to a positive integer, it also stops after
+that many reported Codex input and output tokens. These are checkpoints between
+agent processes; one running process may cross a threshold before its next
+checkpoint. No API key or auth token is copied into task reports.
+
+For a stopped task, inspect `.sandcastle/runs/<run-id>/state.json` and the
+tracked branch. After explicitly approving continuation, run:
+
+```sh
+SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>
+```
+
+This grants another 10 build attempts, 10 test attempts, 5 review rounds and a
+new 25% weekly quota allowance for that task. A process interruption before a
+limit can be resumed with `npm run sandbox:resume -- <run-id>`; the orchestrator
+commits any interrupted worktree changes before reopening the sandbox branch.
+Do not run the same task twice concurrently. If the current checkout has
+uncommitted changes or another commit advances `modern_interface`, integration
+stops for inspection rather than overwriting those changes.
+
+`SANDCASTLE_MODEL` selects the model (default `gpt-6-sol`), and
+`SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
+`to-tickets`, `code-review`, and `tdd` skills are mounted read-only from
+`~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when installed elsewhere.
+
+## Other commands
+
+```sh
+npm run sandbox:build
+npm run sandbox:test
+npm run sandbox:registry
+```
+
+`build` copies the Linux executable to `.sandcastle/artifacts/tomenet-sv`.
+`test` runs the core headless SV checks; `registry` runs provenance checks
+separately. Existing registry source digest failures remain documented in
+[the issue log](sandcastle-issues.md).
 
 ## Planned local-server and visual acceptance
 
