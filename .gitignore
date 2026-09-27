@@ -33,6 +33,14 @@ src/tomenet-sv
 src/tomenet-sv.exe
 node_modules/
 
+# Python test and tooling caches
+__pycache__/
+*.py[cod]
+
+# Local browser captures and reference bundle
+.playwright-cli/
+tomenet_modern_client_agent_pack/
+
 # Data files from a running server
 lib/data/*
 
