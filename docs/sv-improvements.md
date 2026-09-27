@@ -460,3 +460,22 @@ whether existing files that relied on the defect need compatibility handling.
 
 **Required checks:** all three independent fields, direction bounds, old files,
 normal and roguelike keymaps, explicit and automatic PRF load on both clients.
+
+## Refresh SV Makefile source provenance in capability registry
+
+**Status:** proposed separately; discovered during Sandcastle test setup.
+
+**Problem:** two canonical capability-registry tests reject the current
+`src/makefile.sv` because its SHA-256 differs from the historical digest in the
+manifest. The Sandcastle runtime checks do not alter these records.
+
+**Affected code:** `src/makefile.sv`, `docs/capabilities/manifest.json`,
+`docs/capabilities/native-coverage.json`, `tests/sv_capabilities_checks.py`.
+
+**Proposal:** review the Makefile change against the recorded behavior source,
+then update the source revision and digest through the registry's normal
+provenance workflow.
+
+**Required checks:** canonical source-root validation, capability-registry
+tests, coverage consistency, and a clean source fingerprint from committed
+`HEAD`.
