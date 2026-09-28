@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { readWeeklyUsage, updateBudget } from "./limits.mjs";
+import { validateTicketBatch, recordTicketResult, validateTicketCompletion } from "./tickets.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -88,7 +89,7 @@ async function agent(sandbox, state, role, prompt, schema = false) {
     "--json", "--ephemeral", "--enable multi_agent",
     "-s danger-full-access", "-c 'approval_policy=\"never\"'",
     `-m ${quote(model)}`, `-c ${quote(`model_reasoning_effort=${JSON.stringify(effort)}`)}`,
-    ...(schema ? ["--output-schema .sandcastle/review-output.schema.json"] : []),
+    ...(schema ? [`--output-schema ${quote(schema === true ? ".sandcastle/review-output.schema.json" : schema)}`] : []),
     "-",
   ].join(" ");
   console.log(`Agent: ${role}`);
@@ -119,20 +120,25 @@ async function plan(sandbox, state, reason = "") {
     "Use the following to-tickets skill to split this work into small, independently verifiable vertical tickets. The user has already approved automatic decomposition and asked for questions only at critical failures or limits; skip the skill's quiz/approval step.",
     skill,
     `Read AGENTS.md, CONTEXT.md, relevant ADRs, and docs/agents/issue-tracker.md. Write numbered ticket files under ${taskDir(state)}/issues/ and a JSON manifest at ${manifest}.`,
-    'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[]}]}. List tickets in dependency order; blockedBy contains earlier ticket path strings. Each ticket must have acceptance criteria.',
+    'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[]}]}. List tickets in dependency order; blockedBy may contain earlier paths in this batch or completed tickets from prior batches. Never depend on unresolved or deferred tickets. Each ticket must have acceptance criteria.',
+    `Completed tickets available as dependencies:\n${JSON.stringify(state.completedTickets)}`,
+    state.scopeNotes || "Respect the originating spec's implementation and full acceptance boundaries. Generated tickets cannot expand the authoritative scope. Record deferred checks without claiming they passed.",
     "Commit the tickets and manifest. Ask no routine questions.",
-    reason || `Originating task (${state.specPath}):\n${state.spec}`,
+    `Originating task (${state.specPath}):\n${state.spec}`,
+    reason,
   ].join("\n\n");
   await agent(sandbox, state, "ticket planning", prompt);
   await ensureCommit(sandbox.worktreePath, `Sandcastle: plan ticket batch ${state.reviewRound}`);
+  state.phase = "plan-validate";
+  await save(state);
+  await acceptPlan(sandbox, state);
+}
+async function acceptPlan(sandbox, state) {
+  const manifest = manifestPath(state);
   const parsed = JSON.parse(await readFile(resolve(sandbox.worktreePath, manifest), "utf8"));
-  if (!Array.isArray(parsed.tickets) || parsed.tickets.length < 1 || parsed.tickets.length > 30) throw new Error("Ticket manifest must contain 1–30 tickets");
-  const seen = new Set();
+  validateTicketBatch(parsed, state);
   for (const ticket of parsed.tickets) {
-    if (typeof ticket.path !== "string" || isAbsolute(ticket.path) || ticket.path.includes("..") || !ticket.path.startsWith(`${taskDir(state)}/issues/`)) throw new Error(`Invalid ticket path: ${ticket.path}`);
-    if (!Array.isArray(ticket.blockedBy) || ticket.blockedBy.some((path) => !seen.has(path))) throw new Error(`Invalid blockers for ${ticket.path}`);
     await access(resolve(sandbox.worktreePath, ticket.path));
-    seen.add(ticket.path);
   }
   state.tickets = parsed.tickets;
   state.ticketIndex = 0;
@@ -142,15 +148,21 @@ async function plan(sandbox, state, reason = "") {
 }
 async function implementTicket(sandbox, state) {
   const ticket = state.tickets[state.ticketIndex];
+  if (ticket.blockedBy.some((path) => !state.completedTickets.includes(path))) throw new Error(`Unresolved dependency for ${ticket.path}`);
   const content = await readFile(resolve(sandbox.worktreePath, ticket.path), "utf8");
   const prompt = [
     `Implement exactly ticket ${state.ticketIndex + 1}/${state.tickets.length}: ${ticket.path}.`, content,
-    "Read AGENTS.md, CONTEXT.md and relevant ADRs. Keep legacy and shared edits minimal. Exercise the SV production path. Add meaningful tests for changed behavior. Commit your changes. Do not run the whole build/test/review workflow: the orchestrator runs those gates after all tickets. Ask only on critical failure.",
+    "Read AGENTS.md, CONTEXT.md and relevant ADRs. Claim the ticket before work and preserve its history. Keep legacy and shared edits minimal. Exercise the SV production path. Add meaningful tests for changed behavior. Commit your changes. Do not run the whole build/test/review workflow: the orchestrator runs those gates after all tickets. Ask only on critical failure.",
+    state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
+    'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
-  await agent(sandbox, state, `implementation ${state.ticketIndex + 1}`, prompt);
-  await ensureCommit(sandbox.worktreePath, `Sandcastle: complete ${ticket.path}`);
-  state.completedTickets.push(ticket.path);
-  state.ticketIndex++;
+  const response = await agent(sandbox, state, `implementation ${state.ticketIndex + 1}`, prompt, ".sandcastle/ticket-output.schema.json");
+  const result = JSON.parse(response);
+  await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve ${ticket.path}`);
+  if (result.status === "completed") validateTicketCompletion(await readFile(resolve(sandbox.worktreePath, ticket.path), "utf8"), ticket.path);
+  recordTicketResult(state, ticket, result);
+  await save(state);
+  if (result.status === "blocked") throw new Error(`Ticket blocked: ${ticket.path}: ${result.summary}`);
   if (state.ticketIndex >= state.tickets.length) { state.phase = "build"; state.buildAttempts = 0; state.testAttempts = 0; }
   await save(state);
 }
@@ -210,7 +222,8 @@ async function review(sandbox, state) {
   await save(state);
   const prompt = [
     `$code-review Review the committed diff since ${state.baseCommit}. Run Standards and Spec axes as the skill directs, using parallel sub-agents. Read AGENTS.md.`,
-    "Use the complete originating task and all generated tickets as the specification. Examine all code, tests and behavior at current HEAD. Do not change files.",
+    "The complete originating task is authoritative. Generated tickets are implementation proposals and cannot override its explicit deferred integrations or expand its scope. Review current production defects; report pending acceptance accurately without requiring implementation of later-stage callers explicitly deferred by the originating task. Examine all code, tests and behavior at current HEAD. Do not change files.",
+    state.scopeNotes || "",
     "Return only the structured JSON requested by the output schema. Include every actionable issue in findings. Use an empty findings array only when the change is ready.",
     `Originating task:\n${state.spec}`,
   ].join("\n\n");
@@ -232,11 +245,13 @@ async function report(sandbox, state) {
     "## Originating request", "", state.spec, "",
     `Ticket batches: ${state.batchCount}`, `Build attempts: ${state.totalBuildAttempts}`, `Test attempts: ${state.totalTestAttempts}`, `Code review rounds: ${state.reviewRound}`, "",
     "## Completed tickets", "", ...state.completedTickets.map((path) => `- ${path}`), "",
+    "## Deferred checks (not completed)", "", ...(state.deferredTickets ?? []).map((ticket) => `- ${ticket.path}: ${ticket.reason}`), "",
     "## Reviews", "", ...state.reviews.flatMap((item, index) => [
       `### Round ${index + 1}`, "", `Reviewed HEAD: ${item.head}`, `Summary: ${item.summary}`, "",
       ...(item.findings.length ? item.findings.map((finding) => `- ${finding.severity}: ${finding.file}:${finding.line} — ${finding.problem} Fix: ${finding.fix}`) : ["- No findings"]), "",
     ]),
     "## Gates", "", "- SV Make build: passed", "- Sandcastle core checks: passed", "- Final code review: no findings", "",
+    "Headless gates do not establish full ticket acceptance. Later caller integrations, display-backed human review and platform checks remain pending unless separately evidenced.", "",
   ].join("\n");
   await mkdir(resolve(sandbox.worktreePath, "docs/tasks/sandcastle"), { recursive: true });
   await writeFile(resolve(sandbox.worktreePath, reportPath), contents);
@@ -303,6 +318,7 @@ try {
   console.log(`Worktree: ${sandbox.worktreePath}`);
   while (state.phase !== "done") {
     if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
+    else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
     else if (state.phase === "tickets") await implementTicket(sandbox, state);
     else if (state.phase === "build") await build(sandbox, state);
     else if (state.phase === "build-repair") await repairBuild(sandbox, state);

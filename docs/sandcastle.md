@@ -79,6 +79,20 @@ Do not run the same task twice concurrently. If the current checkout has
 uncommitted changes or another commit advances `modern_interface`, integration
 stops for inspection rather than overwriting those changes.
 
+Ticket dependencies may refer to earlier tickets in the same batch or completed
+tickets from earlier batches. Unresolved and deferred tickets cannot satisfy a
+dependency. Implementation agents return a structured `completed` or `blocked`
+result; `completed` also requires a resolved Markdown ticket with an Answer.
+A blocked result preserves the frontier and stops the workflow for inspection.
+An agent exiting successfully by itself is not evidence of ticket completion.
+
+Planning saves a `plan-validate` checkpoint before accepting its manifest, so a
+validation failure can be repaired and resumed without repeating decomposition.
+The originating specification controls implementation scope. Explicit later
+caller integrations and platform acceptance remain pending at their original
+owners; generated tickets and review findings cannot silently pull them into
+the current implementation or count them as passed.
+
 `SANDCASTLE_MODEL` selects the model (default `gpt-6-sol`), and
 `SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
 `to-tickets`, `code-review`, and `tdd` skills are mounted read-only from
