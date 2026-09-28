@@ -6,7 +6,7 @@ import { resolve, isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { readWeeklyUsage, updateBudget } from "./limits.mjs";
+import { readWeeklyUsage, updateBudget, extendTaskQuota } from "./limits.mjs";
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
@@ -453,14 +453,23 @@ if (command === "start") {
   state = JSON.parse(await readFile(resolve(runsDir, runId, "state.json"), "utf8"));
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
-if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1") throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
+if (extraQuota !== undefined) {
+  // Validate before acquiring the lock or changing the persisted checkpoint.
+  extendTaskQuota(structuredClone(state), Number(extraQuota));
+  if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
+}
+if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
 const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (process.env.SANDCASTLE_CONTINUE !== "1") {
+    if (extraQuota !== undefined) {
+      extendTaskQuota(state, Number(extraQuota));
+      state.phase = state.resumePhase;
+    } else if (process.env.SANDCASTLE_CONTINUE !== "1") {
       const phase = state.resumePhase;
       const reason = state.pauseReason;
       state.phase = phase;
@@ -473,6 +482,7 @@ try {
       if (state.budget) {
         state.budget.consumedPercent = 0;
         state.budget.tokens = 0;
+        state.budget.limitPercent = 25;
       }
       delete state.quotaError;
       state.phase = state.resumePhase;

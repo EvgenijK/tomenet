@@ -15,6 +15,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   const env = { ...process.env };
   delete env.SANDCASTLE_CONTINUE;
   delete env.SANDCASTLE_RECOVER;
+  delete env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
   try {
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
       assert.equal(error.status, 1);

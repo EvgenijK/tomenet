@@ -1,6 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { updateBudget } from "../.sandcastle/limits.mjs";
+import { updateBudget, extendTaskQuota } from "../.sandcastle/limits.mjs";
+import { recoveryRestriction } from "../.sandcastle/recovery.mjs";
+
+test("explicit extra quota preserves consumption and cycle limits and stops at the new cap", () => {
+  const state = { phase: "awaiting", resumePhase: "assemble", quotaError: "Task reached 25% of the weekly Codex quota", budget: { consumedPercent: 25, lastUsedPercent: 47, resetsAt: 1000, tokens: 123 }, buildLimit: 60, testLimit: 60, reviewLimit: 30 };
+  extendTaskQuota(state, 10);
+  assert.equal(state.budget.limitPercent, 35);
+  assert.equal(state.budget.consumedPercent, 25);
+  assert.equal(state.budget.tokens, 123);
+  assert.equal(state.quotaError, undefined);
+  assert.deepEqual([state.buildLimit, state.testLimit, state.reviewLimit], [60, 60, 30]);
+  assert.equal(recoveryRestriction(state), undefined);
+  updateBudget(state, { usedPercent: 56, resetsAt: 1000 });
+  assert.equal(state.budget.consumedPercent, 34);
+  assert.throws(() => updateBudget(state, { usedPercent: 57, resetsAt: 1000 }), /35%/);
+  assert.match(recoveryRestriction(state), /Quota guard/);
+});
+
+test("extra quota rejects invalid grants and account stops without changing the checkpoint", () => {
+  for (const extra of [0, -1, NaN, Infinity, 101]) {
+    const state = { phase: "awaiting", resumePhase: "assemble", quotaError: "Task reached 25% of the weekly Codex quota", budget: { consumedPercent: 25 } };
+    const before = structuredClone(state);
+    assert.throws(() => extendTaskQuota(state, extra), /EXTRA_QUOTA_PERCENT/);
+    assert.deepEqual(state, before);
+  }
+  const state = { phase: "awaiting", resumePhase: "assemble", quotaError: "Codex account usage limit reached", budget: { consumedPercent: 25 } };
+  const before = structuredClone(state);
+  assert.throws(() => extendTaskQuota(state, 10), /task quota pause/);
+  assert.deepEqual(state, before);
+});
 
 test("weekly budget counts only usage after this task starts", () => {
   const state = {};

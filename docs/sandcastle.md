@@ -105,7 +105,19 @@ SANDCASTLE_RECOVER=1 npm run sandbox:resume -- <run-id>
 ```
 
 Quota and exhausted cycle guards still require explicit continuation. After
-approving a new allowance, run:
+approving only additional quota (for example, 10 percentage points), run:
+
+```sh
+SANDCASTLE_EXTRA_QUOTA_PERCENT=10 npm run sandbox:resume -- <run-id>
+```
+
+This preserves consumed quota, token accounting and all cycle limits, records
+the grant, and raises the saved quota cap by the authorized allowance from the
+current consumption or previous cap, whichever is greater. It resumes only a
+task quota pause; account usage limits still apply. Recovery uses the saved cap
+and cannot raise it. Do not combine this with CONTINUE or RECOVER.
+
+For the broader continuation allowance, run:
 
 ```sh
 SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>

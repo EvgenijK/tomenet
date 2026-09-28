@@ -1,11 +1,12 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { validateTicketBatch } from "./tickets.mjs";
+import { taskQuotaLimit } from "./limits.mjs";
 
 // The AI chooses an action; this controller alone changes scheduler state.
 // Quota, gate limits and successful commit verification are never overridden.
 export function recoveryRestriction(state, error = "") {
-  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= 25) return "Quota guard requires human continuation";
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";
   if (/quota|account usage limit|token limit|human approval/i.test(error)) return "Usage or cycle guard requires human continuation";
   if (["build", "build-repair", "test-gate"].includes(state.phase) && state.buildAttempts >= state.buildLimit) return "Build attempt limit reached";
   if (["test-gate", "test-repair"].includes(state.phase) && state.testAttempts >= state.testLimit) return "Test attempt limit reached";

@@ -1,5 +1,22 @@
 import { spawn } from "node:child_process";
 
+export function taskQuotaLimit(state) {
+  const limit = state.budget?.limitPercent ?? 25;
+  if (!Number.isFinite(limit) || limit <= 0) throw new Error("Invalid task quota allowance");
+  return limit;
+}
+
+// Only the explicit continuation CLI calls this; recovery never grants quota.
+export function extendTaskQuota(state, extraPercent) {
+  if (!Number.isFinite(extraPercent) || extraPercent <= 0 || extraPercent > 100) throw new Error("SANDCASTLE_EXTRA_QUOTA_PERCENT must be greater than 0 and at most 100");
+  if (state.phase !== "awaiting" || !state.resumePhase || !state.budget || !/^Task reached [\d.]+% of the weekly Codex quota$/.test(state.quotaError ?? state.pauseReason ?? "")) throw new Error("Extra quota continuation requires a task quota pause");
+  const previousLimit = taskQuotaLimit(state);
+  const limitPercent = Math.max(previousLimit, state.budget.consumedPercent) + extraPercent;
+  (state.budget.allowanceHistory ??= []).push({ extraPercent, previousLimit, consumedPercent: state.budget.consumedPercent, limitPercent, grantedAt: new Date().toISOString() });
+  state.budget.limitPercent = limitPercent;
+  delete state.quotaError;
+}
+
 // Read the same account quota snapshot used by the Codex app. No credential is
 // copied into a report or sent to the development container by this probe.
 export async function readWeeklyUsage(authDir, model) {
@@ -65,7 +82,8 @@ export function updateBudget(state, snapshot) {
   budget.lastUsedPercent = snapshot.usedPercent;
   budget.resetsAt = snapshot.resetsAt;
   if (snapshot.ordinaryUsageAllowed === false) throw new Error("Codex account usage limit reached");
-  if (budget.consumedPercent >= 25) throw new Error("Task reached 25% of the weekly Codex quota");
+  const limit = taskQuotaLimit(state);
+  if (budget.consumedPercent >= limit) throw new Error(`Task reached ${limit}% of the weekly Codex quota`);
   const tokenLimit = Number(process.env.SANDCASTLE_TASK_TOKEN_LIMIT || 0);
   if (tokenLimit > 0 && budget.tokens >= tokenLimit) throw new Error(`Task reached its token limit (${tokenLimit})`);
   return budget;
