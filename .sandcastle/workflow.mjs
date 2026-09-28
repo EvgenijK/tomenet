@@ -10,6 +10,7 @@ import { readWeeklyUsage, updateBudget } from "./limits.mjs";
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
+import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord } from "./recovery.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -93,6 +94,18 @@ async function recoverWorktree(state) {
   await ensureCommit(path, `Sandcastle: preserve interrupted task ${state.id}`);
   await git(root, "worktree", "remove", path);
 }
+async function recoveryWorktree(state) {
+  const listing = await git(root, "worktree", "list", "--porcelain");
+  const entry = listing.split("\n\n").find((block) => block.includes(`branch refs/heads/${state.branch}`));
+  if (entry) {
+    const path = entry.match(/^worktree (.+)$/m)?.[1];
+    if (!path?.startsWith(resolve(root, ".sandcastle/worktrees") + "/")) throw new Error("Recovery can modify only the managed integration worktree");
+    return path;
+  }
+  const path = resolve(root, ".sandcastle/worktrees", state.branch.replaceAll("/", "-"));
+  await git(root, "worktree", "add", path, state.branch);
+  return path;
+}
 function parseAgentOutput(line, result) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
@@ -117,7 +130,7 @@ async function agent(sandbox, state, role, prompt, schema = false) {
   console.log(`Agent: ${role}`);
   const captured = { message: "", tokens: 0 };
   const result = await sandbox.exec(`codex exec ${settings}`, {
-    stdin: prompt,
+    stdin: [prompt, state.recoveryAdvice ? `Recovery guidance: ${state.recoveryAdvice}` : ""].filter(Boolean).join("\n\n"),
     onLine: (line) => parseAgentOutput(line, captured),
   });
   state.budget.tokens += captured.tokens;
@@ -134,6 +147,56 @@ async function gate(sandbox, command, input) {
   console.log(`Gate: ${command}`);
   const result = await sandbox.exec(command, { stdin: input, onLine: (line) => console.log(line) });
   return { ok: result.exitCode === 0, output: `${result.stdout}\n${result.stderr}`.slice(-12000) };
+}
+async function recoveryAgent(state, context) {
+  // Host read-only CLI remains available when a development container fails.
+  // It may diagnose Git/tickets, but cannot modify code, state, auth or limits.
+  await quotaCheckpoint(state);
+  console.log(`Agent: recovery orchestrator ${state.recovery.id}`);
+  const prompt = [
+    "Act as the Sandcastle recovery orchestrator. Diagnose the saved incident and choose a concrete recovery action. The user authorizes autonomous recovery and deferral of absent external dependencies while independent work continues.",
+    "You are read-only. Inspect AGENTS.md, the original spec, ticket files and relevant Git revisions (use git show <branch>:<path> for current integration/worker evidence). Do not edit files, commit, merge, reset, run builds or write scheduler state. Do not read credentials/auth files or print environment variables. Return only schema JSON.",
+    "retry: transient execution/tool failure; rerun the saved checkpoint, preserving successful workers. repair: a failing existing worker or unfinished assembly, build/test gate or invalid planning manifest; send focused repair guidance to its existing agent/pipeline, always through worker branches and assembly for code changes. defer: blocked implementation ticket genuinely requires an absent external owner; identify its repository-relative docs/tasks dependency document and preserve all acceptance obligations. stop: recovery needs a user decision or cannot safely proceed.",
+    "For defer, name only blocked/failed active tickets in ticketPaths; the controller also defers downstream dependents. Successful siblings must be integrated first. Required tests, builds and acceptance gates cannot be skipped. Do not defer a code defect just to pass a gate. Do not widen the originating task into an absent later-stage flow. Explicitly deferred callers stay pending; they must not repeatedly reappear in repair batches.",
+    "For retry/repair/stop use ticketPaths=[] and dependency=''. For defer use a real docs/tasks/...md dependency; read that document to confirm the missing prerequisite. Explain the concrete cause and restoration condition in summary. Existing quota/cycle limits cannot be increased or reset. At most three recovery decisions are allowed at an unchanged checkpoint.",
+    JSON.stringify(context, null, 2),
+  ].join("\n\n");
+  const captured = { message: "", tokens: 0 };
+  const operation = execFileAsync("codex", [
+    "exec", "--json", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--disable", "multi_agent",
+    "-s", "read-only", "-c", 'approval_policy="never"', "-m", model,
+    "-c", `model_reasoning_effort=${JSON.stringify(effort)}`,
+    "--output-schema", resolve(root, ".sandcastle/recovery-output.schema.json"), "-",
+  ], { cwd: root, env: { ...process.env, CODEX_HOME: authDir }, timeout: 240000, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
+  operation.child.stdin.on("error", () => {});
+  operation.child.stdin.end(prompt);
+  let result;
+  try { result = await operation; }
+  catch (error) {
+    for (const line of (error.stdout ?? "").split("\n")) parseAgentOutput(line, captured);
+    state.budget.tokens += captured.tokens;
+    await save(state);
+    throw new Error(`Recovery agent failed: ${error.killed ? "timeout" : error.code}`);
+  }
+  for (const line of result.stdout.split("\n")) parseAgentOutput(line, captured);
+  state.budget.tokens += captured.tokens;
+  await save(state);
+  try { await quotaCheckpoint(state); }
+  catch (error) { state.quotaError = error.message; }
+  await save(state);
+  return JSON.parse(captured.message);
+}
+async function recover(sandbox, state) {
+  const result = await runRecovery(state, {
+    decide: (context) => recoveryAgent(state, context), save,
+    document: async (incident, decision, preview) => {
+      const worktree = decision.action === "defer" ? sandbox?.worktreePath ?? await recoveryWorktree(state) : undefined;
+      await documentRecovery(state, incident, decision, preview, { worktree, runsDir, git, ensureCommit, manifest: manifestPath(state) });
+    },
+    event: (record) => appendStageEvent(runsDir, state, { stage: "recovery", status: record.action, summary: `Recovery ${record.id}: ${record.action}; checkpoint ${record.phase}; ${record.affectedTickets.length} tickets deferred.`, tickets: record.affectedTickets }),
+  });
+  if (!result) throw new Error(`Recovery agent requested a stop: ${state.recoveries.at(-1).summary}`);
+  return sandbox;
 }
 async function plan(sandbox, state, reason = "") {
   const skill = await readFile(resolve(skillPaths["to-tickets"], "SKILL.md"), "utf8");
@@ -168,6 +231,7 @@ async function acceptPlan(sandbox, state) {
   if (!state.repairKind) { state.buildAttempts = 0; state.testAttempts = 0; }
   delete state.repairKind;
   delete state.pendingFailure;
+  delete state.recoveryAdvice;
   state.phase = "tickets";
   await save(state);
 }
@@ -266,6 +330,7 @@ async function build(sandbox, state) {
   state.phase = "build-repair";
   await save(state);
   if (state.buildAttempts >= state.buildLimit) throw new Error(`Build failed ${state.buildAttempts} times; continuation requires human approval.\n${result.output}`);
+  throw new Error("SV build gate failed; recovery must choose the next action");
 }
 async function repairBuild(sandbox, state) {
   state.repairKind = "build";
@@ -298,7 +363,7 @@ async function testGate(sandbox, state) {
     state.phase = "build-repair";
     await save(state);
     if (state.buildAttempts >= state.buildLimit) throw new Error(`Build failed ${state.buildAttempts} times; continuation requires human approval.\n${rebuilt.output}`);
-    return;
+    throw new Error("SV rebuild gate failed; recovery must choose the next action");
   }
   state.testAttempts++;
   state.totalTestAttempts++;
@@ -310,6 +375,7 @@ async function testGate(sandbox, state) {
   state.phase = "test-repair";
   await save(state);
   if (state.testAttempts >= state.testLimit) throw new Error(`Tests failed ${state.testAttempts} times; continuation requires human approval.\n${result.output}`);
+  throw new Error("SV test gate failed; recovery must choose the next action");
 }
 async function repairTest(sandbox, state) {
   state.repairKind = "test";
@@ -331,7 +397,7 @@ async function review(sandbox, state) {
   const report = resolve(runsDir, state.id, `review-${state.reviewRound}.json`);
   await writeFile(report, JSON.stringify({ head: await git(sandbox.worktreePath, "rev-parse", "HEAD"), ...parsed }, null, 2) + "\n");
   state.reviews.push({ path: report, head: await git(sandbox.worktreePath, "rev-parse", "HEAD"), summary: parsed.summary, findings: parsed.findings });
-  if (parsed.findings.length === 0) state.phase = "report";
+  if (parsed.findings.length === 0) { state.phase = "report"; delete state.reviewFindings; }
   else { state.phase = "plan"; state.reviewFindings = parsed.findings; }
   await save(state);
   if (parsed.findings.length > 0 && state.reviewRound >= state.reviewLimit) throw new Error(`Review found ${parsed.findings.length} issues on round ${state.reviewRound}; continuation requires human approval. See ${report}`);
@@ -346,6 +412,7 @@ async function report(sandbox, state) {
     `Parallelism: ${state.parallelism}`, `Assembled waves: ${(state.waveHistory ?? []).length}`, "",
     "## Completed tickets", "", ...state.completedTickets.map((path) => `- ${path}`), "",
     "## Deferred checks (not completed)", "", ...(state.deferredTickets ?? []).map((ticket) => `- ${ticket.path}: ${ticket.reason}`), "",
+    "## Automatic recovery decisions", "", ...(state.recoveries ?? []).map((record) => `- ${record.action} at ${record.phase}: ${record.summary} Record: ${record.recordPath}`), "",
     "## Reviews", "", ...state.reviews.flatMap((item, index) => [
       `### Round ${index + 1}`, "", `Reviewed HEAD: ${item.head}`, `Summary: ${item.summary}`, "",
       ...(item.findings.length ? item.findings.map((finding) => `- ${finding.severity}: ${finding.file}:${finding.line} — ${finding.problem} Fix: ${finding.fix}`) : ["- No findings"]), "",
@@ -354,6 +421,8 @@ async function report(sandbox, state) {
     "Headless gates do not establish full ticket acceptance. Later caller integrations, display-backed human review and platform checks remain pending unless separately evidenced.", "",
   ].join("\n");
   await mkdir(resolve(sandbox.worktreePath, "docs/tasks/sandcastle"), { recursive: true });
+  await mkdir(resolve(sandbox.worktreePath, taskDir(state), "recovery"), { recursive: true });
+  for (const record of state.recoveries ?? []) await writeFile(resolve(sandbox.worktreePath, record.recordPath), recoveryRecord(record));
   await writeFile(resolve(sandbox.worktreePath, reportPath), contents);
   await ensureCommit(sandbox.worktreePath, `Sandcastle: report task ${state.id}`);
   state.phase = "integrate";
@@ -384,22 +453,30 @@ if (command === "start") {
   state = JSON.parse(await readFile(resolve(runsDir, runId, "state.json"), "utf8"));
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
-if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1") throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or leave it stopped. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1") throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
 const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    state.buildLimit += 10;
-    state.testLimit += 10;
-    state.reviewLimit += 5;
-    if (state.budget) {
-      state.budget.consumedPercent = 0;
-      state.budget.tokens = 0;
+    if (process.env.SANDCASTLE_CONTINUE !== "1") {
+      const phase = state.resumePhase;
+      const reason = state.pauseReason;
+      state.phase = phase;
+      if (phase !== "recovery" || !state.recovery) beginRecovery(state, reason, phase);
+    } else {
+      state.buildLimit += 10;
+      state.testLimit += 10;
+      state.reviewLimit += 5;
+      state.recoveryAttempts = {};
+      if (state.budget) {
+        state.budget.consumedPercent = 0;
+        state.budget.tokens = 0;
+      }
+      delete state.quotaError;
+      state.phase = state.resumePhase;
     }
-    delete state.quotaError;
-    state.phase = state.resumePhase;
     delete state.pauseReason;
     delete state.resumePhase;
     await save(state);
@@ -407,32 +484,50 @@ try {
   for (const path of Object.values(skillPaths)) await access(resolve(path, "SKILL.md"));
   await access(resolve(authDir, "auth.json"));
   console.log(`Sandcastle run: ${state.id}, branch: ${state.branch}, phase: ${state.phase}`);
-  await quotaCheckpoint(state);
-  if (command === "resume") await recoverWorktree(state);
-  sandbox = await createSandbox({
-    cwd: root, branch: state.branch, baseBranch: targetBranch,
-    sandbox: sandboxProvider(),
-  });
-  console.log(`Worktree: ${sandbox.worktreePath}`);
   await appendStageEvent(runsDir, state, { stage: "workflow", status: "running", summary: `Workflow started at ${state.phase}; parallelism ${state.parallelism}.` });
   while (state.phase !== "done") {
     const stage = state.phase;
-    if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
-    else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
-    else if (state.phase === "tickets") await startTicketWave(sandbox, state);
-    else if (state.phase === "parallel-work") await runWorkers(state);
-    else if (state.phase === "assemble") await assemble(sandbox, state);
-    else if (state.phase === "build") await build(sandbox, state);
-    else if (state.phase === "build-repair") await repairBuild(sandbox, state);
-    else if (state.phase === "test") await test(sandbox, state);
-    else if (state.phase === "test-gate") await testGate(sandbox, state);
-    else if (state.phase === "test-repair") await repairTest(sandbox, state);
-    else if (state.phase === "review") await review(sandbox, state);
-    else if (state.phase === "report") await report(sandbox, state);
-    else if (state.phase === "integrate") await integrate(sandbox, state);
-    else throw new Error(`Unknown workflow phase: ${state.phase}`);
-    await appendStageEvent(runsDir, state, { stage, ...stageOutcome(state, stage), tickets: state.wave?.members.map((member) => member.ticket.path) });
-    if (state.quotaError) throw new Error(state.quotaError);
+    try {
+      if (state.phase !== "recovery" && !sandbox) {
+        await quotaCheckpoint(state);
+        if (command === "resume") await recoverWorktree(state);
+        sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider() });
+        console.log(`Worktree: ${sandbox.worktreePath}`);
+      }
+      if (state.phase === "recovery") sandbox = await recover(sandbox, state);
+      else if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
+      else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
+      else if (state.phase === "tickets") await startTicketWave(sandbox, state);
+      else if (state.phase === "parallel-work") await runWorkers(state);
+      else if (state.phase === "assemble") await assemble(sandbox, state);
+      else if (state.phase === "build") await build(sandbox, state);
+      else if (state.phase === "build-repair") await repairBuild(sandbox, state);
+      else if (state.phase === "test") await test(sandbox, state);
+      else if (state.phase === "test-gate") await testGate(sandbox, state);
+      else if (state.phase === "test-repair") await repairTest(sandbox, state);
+      else if (state.phase === "review") await review(sandbox, state);
+      else if (state.phase === "report") await report(sandbox, state);
+      else if (state.phase === "integrate") await integrate(sandbox, state);
+      else throw new Error(`Unknown workflow phase: ${state.phase}`);
+      if (state.recoveryAdvicePhase === stage) {
+        delete state.recoveryAdvice;
+        delete state.recoveryAdvicePhase;
+        await save(state);
+      }
+      if (stage !== "recovery") await appendStageEvent(runsDir, state, { stage, ...stageOutcome(state, stage), tickets: state.wave?.members.map((member) => member.ticket.path) });
+      if (state.quotaError) throw new Error(state.quotaError);
+    } catch (error) {
+      if (state.phase === "recovery" || stage === "recovery") throw error;
+      await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: stopped before completion; examining the saved checkpoint.` });
+      if (recoveryRestriction(state, error.message)) throw error;
+      if (sandbox) {
+        // Keep conflicts for the assembly agent; do not commit conflict markers.
+        if (!(await git(sandbox.worktreePath, "ls-files", "-u"))) await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve recovery checkpoint ${state.id}`);
+      }
+      beginRecovery(state, error, stage);
+      await save(state);
+      await appendStageEvent(runsDir, state, { stage: "recovery", status: "running", summary: `Recovery ${state.recovery.id}: diagnosing failure at ${stage}.` });
+    }
   }
 } catch (error) {
   if (sandbox) {

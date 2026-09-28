@@ -65,8 +65,29 @@ for each worker:
 7. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
    branch is fast-forwarded into `modern_interface` after the gates pass.
 
-The workflow asks for human action only if a critical stage fails, a cycle limit
-is reached, Codex usage becomes unavailable, or the quota guard fires. It reads
+Recoverable stage failures invoke a dedicated AI recovery orchestrator. It runs
+as an ephemeral, read-only host Codex CLI process, so diagnosis does not depend
+on a working development container. The agent reads the saved incident,
+original scope, ticket dependencies and Git evidence, then returns one action:
+
+- `retry`: repeat the saved checkpoint, preserving completed workers.
+- `repair`: send concrete guidance to the existing worker/assembly agent, or
+  plan focused build/test/manifest repairs through the normal ticket pipeline.
+- `defer`: leave a blocked implementation ticket open until an identified,
+  existing external owner supplies its missing prerequisite; its downstream
+  dependents are also deferred while independent tickets continue.
+- `stop`: preserve the checkpoint and explain the action needed from the user.
+
+The controller validates and applies the decision. It never defers a completed
+ticket, discards an unmerged successful worker, or skips a required test gate.
+Deferral records the dependency and reason in the ticket, map, original owner,
+manifest and final report. Worker branches remain available as evidence. The
+accepted decision is saved before publishing metadata, so an interrupted
+publication replays idempotently without another AI decision.
+
+Three automatic decisions without progress at the same checkpoint stop the
+run. A failed recovery agent or invalid decision also preserves the run for
+inspection. Recovery cannot reset quota or build/test/review limits. It reads
 the account's weekly Codex usage before and after each agent and stops when this
 task has consumed 25 percentage points of the weekly window. Quota reads and
 state writes are serialized even when workers run concurrently. If
@@ -76,7 +97,15 @@ agent processes; an already-running wave may cross a threshold before its next
 checkpoint. No API key or auth token is copied into task reports.
 
 For a stopped task, inspect `.sandcastle/runs/<run-id>/state.json` and the
-tracked branch. After explicitly approving continuation, run:
+tracked branch. To ask the recovery agent to diagnose an existing stop while
+retaining all current budgets and attempt limits:
+
+```sh
+SANDCASTLE_RECOVER=1 npm run sandbox:resume -- <run-id>
+```
+
+Quota and exhausted cycle guards still require explicit continuation. After
+approving a new allowance, run:
 
 ```sh
 SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>
@@ -129,7 +158,7 @@ separately. Existing registry source digest failures remain documented in
 
 ## Stage status and delivery
 
-Each finished ticket, scheduler/assembly stage, build, test, review and
+Each finished ticket, scheduler/assembly stage, build, test, review, recovery decision and
 workflow pause produces a durable event in
 `.sandcastle/runs/<run-id>/events.jsonl`. Events have a monotonically increasing
 `seq`, survive restarts, and contain synthesized summaries and progress rather
@@ -159,7 +188,10 @@ per-stage reports with polling latency, rather than an immediate push from
 Docker. Configure the heartbeat using the app automation tool; do not write to
 Codex internal chat databases or inject messages through an unrelated CLI
 app-server process. Existing running orchestrators acquire this event journal
-and parallel scheduler when restarted with the updated workflow.
+and parallel scheduler when restarted with the updated workflow. The recovery
+orchestrator likewise becomes active on restart. Recovery decisions are saved
+in `state.json` and `recovery-<number>.json`; the final report includes their
+tracked records under `.scratch/sandcastle-<run-id>/recovery/`.
 
 ## Planned local-server and visual acceptance
 

@@ -26,6 +26,7 @@ function compactState(state) {
     ...(typeof state.branch === "string" ? { branch: state.branch } : {}),
     ...(typeof state.phase === "string" ? { phase: state.phase } : {}),
     ...(typeof state.resumePhase === "string" ? { resumePhase: state.resumePhase } : {}),
+    ...(state.recovery ? { recovery: { id: count(state.recovery.id), checkpoint: state.recovery.phase, attempt: count(state.recovery.attempt) } } : {}),
     ...(state.wave ? { wave: {
       id: count(state.wave.id), after: state.wave.after,
       members: (state.wave.members ?? []).map((member) => ({ ticket: member.ticket?.path, branch: member.branch, status: member.status, integrated: member.integrated === true })),
