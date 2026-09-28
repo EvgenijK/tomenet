@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
-import { access, mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve, isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { readWeeklyUsage, updateBudget } from "./limits.mjs";
-import { validateTicketBatch, recordTicketResult, validateTicketCompletion } from "./tickets.mjs";
+import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
+import { createWave, runWave, collectWave } from "./parallel.mjs";
+import { appendStageEvent, stageOutcome } from "./events.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -19,17 +21,34 @@ const targetBranch = "modern_interface";
 const model = process.env.SANDCASTLE_MODEL || "gpt-6-sol";
 const effort = process.env.SANDCASTLE_REASONING_EFFORT || "high";
 const skillsRoot = resolve(process.env.SANDCASTLE_SKILLS_ROOT || resolve(homedir(), ".agents/skills"));
-const skillPaths = Object.fromEntries(["to-tickets", "code-review", "tdd"].map((name) => [name, resolve(skillsRoot, name)]));
+const skillPaths = Object.fromEntries(["to-tickets", "code-review", "tdd", "resolving-merge-conflicts"].map((name) => [name, resolve(skillsRoot, name)]));
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+let saveQueue = Promise.resolve();
+let quotaQueue = Promise.resolve();
+let provisionQueue = Promise.resolve();
 
 async function git(cwd, ...args) {
   return (await execFileAsync("git", args, { cwd, maxBuffer: 4 * 1024 * 1024 })).stdout.trim();
 }
 async function save(state) {
-  const dir = resolve(runsDir, state.id);
-  await mkdir(dir, { recursive: true });
-  await writeFile(resolve(dir, "state.json.tmp"), JSON.stringify(state, null, 2) + "\n");
-  await rename(resolve(dir, "state.json.tmp"), resolve(dir, "state.json"));
+  const contents = JSON.stringify(state, null, 2) + "\n";
+  const next = saveQueue.then(async () => {
+    const dir = resolve(runsDir, state.id);
+    await mkdir(dir, { recursive: true });
+    await writeFile(resolve(dir, "state.json.tmp"), contents);
+    await rename(resolve(dir, "state.json.tmp"), resolve(dir, "state.json"));
+  });
+  saveQueue = next.catch(() => {});
+  await next;
+}
+async function quotaCheckpoint(state) {
+  const next = quotaQueue.then(async () => {
+    if (state.quotaError) throw new Error(state.quotaError);
+    updateBudget(state, await readWeeklyUsage(authDir, model));
+    await save(state);
+  });
+  quotaQueue = next.catch(() => {});
+  await next;
 }
 function taskDir(state) { return `.scratch/sandcastle-${state.id}`; }
 function manifestPath(state) { return `${taskDir(state)}/batch-${state.reviewRound}.json`; }
@@ -55,6 +74,7 @@ function skillMounts() {
   return Object.entries(skillPaths).map(([name, path]) => ({ hostPath: path, sandboxPath: `/home/agent/.agents/skills/${name}`, readonly: true }));
 }
 async function ensureCommit(worktree, message) {
+  if (await git(worktree, "ls-files", "-u")) throw new Error(`Unresolved merge preserved at ${worktree}; assembly must resolve it before committing`);
   if (!(await git(worktree, "status", "--porcelain"))) return;
   await git(worktree, "add", "-A");
   await git(worktree, "commit", "-m", message);
@@ -67,6 +87,9 @@ async function recoverWorktree(state) {
   if (!path || !path.startsWith(resolve(root, ".sandcastle/worktrees") + "/")) {
     throw new Error(`Branch ${state.branch} is checked out outside Sandcastle; resolve that worktree before resuming`);
   }
+  // Sandcastle reuses managed dirty worktrees. Preserve an interrupted merge
+  // for the assembly agent instead of committing conflict markers or resetting.
+  if (await git(path, "ls-files", "-u")) return;
   await ensureCommit(path, `Sandcastle: preserve interrupted task ${state.id}`);
   await git(root, "worktree", "remove", path);
 }
@@ -83,8 +106,7 @@ function parseAgentOutput(line, result) {
   }
 }
 async function agent(sandbox, state, role, prompt, schema = false) {
-  updateBudget(state, await readWeeklyUsage(authDir, model));
-  await save(state);
+  await quotaCheckpoint(state);
   const settings = [
     "--json", "--ephemeral", "--enable multi_agent",
     "-s danger-full-access", "-c 'approval_policy=\"never\"'",
@@ -103,7 +125,7 @@ async function agent(sandbox, state, role, prompt, schema = false) {
   if (result.exitCode !== 0) {
     throw new Error(`${role} agent exited with status ${result.exitCode}: ${result.stderr.slice(-2000)}`);
   }
-  try { updateBudget(state, await readWeeklyUsage(authDir, model)); }
+  try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
   await save(state);
   return captured.message;
@@ -143,28 +165,96 @@ async function acceptPlan(sandbox, state) {
   state.tickets = parsed.tickets;
   state.ticketIndex = 0;
   state.batchCount++;
+  if (!state.repairKind) { state.buildAttempts = 0; state.testAttempts = 0; }
+  delete state.repairKind;
+  delete state.pendingFailure;
   state.phase = "tickets";
   await save(state);
 }
-async function implementTicket(sandbox, state) {
-  const ticket = state.tickets[state.ticketIndex];
-  if (ticket.blockedBy.some((path) => !state.completedTickets.includes(path))) throw new Error(`Unresolved dependency for ${ticket.path}`);
-  const content = await readFile(resolve(sandbox.worktreePath, ticket.path), "utf8");
+async function startTicketWave(sandbox, state) {
+  if (state.tickets.every((ticket) => state.completedTickets.includes(ticket.path))) {
+    state.phase = "build";
+    await save(state);
+    return;
+  }
+  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), limit: state.parallelism });
+  await save(state);
+}
+function sandboxProvider() {
+  const proxy = process.env.all_proxy || process.env.ALL_PROXY;
+  return docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
+    ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
+  ] });
+}
+async function openWorker(state, member, wave) {
+  // Git worktree registration is serialized; agent work itself is concurrent.
+  const next = provisionQueue.then(async () => {
+    await recoverWorktree({ id: state.id, branch: member.branch });
+    return createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider() });
+  });
+  provisionQueue = next.then(() => {}, () => {});
+  return next;
+}
+async function implementWorker(worker, state, member) {
+  const ticket = member.ticket;
+  const content = await readFile(resolve(worker.worktreePath, ticket.path), "utf8");
   const prompt = [
-    `Implement exactly ticket ${state.ticketIndex + 1}/${state.tickets.length}: ${ticket.path}.`, content,
+    `Implement exactly ${ticket.path} in your isolated branch ${member.branch}. Other agents work in separate branches; do not edit or merge those branches.`, content,
     "Read AGENTS.md, CONTEXT.md and relevant ADRs. Claim the ticket before work and preserve its history. Keep legacy and shared edits minimal. Exercise the SV production path. Add meaningful tests for changed behavior. Commit your changes. Do not run the whole build/test/review workflow: the orchestrator runs those gates after all tickets. Ask only on critical failure.",
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
-  const response = await agent(sandbox, state, `implementation ${state.ticketIndex + 1}`, prompt, ".sandcastle/ticket-output.schema.json");
+  const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json");
   const result = JSON.parse(response);
-  await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve ${ticket.path}`);
-  if (result.status === "completed") validateTicketCompletion(await readFile(resolve(sandbox.worktreePath, ticket.path), "utf8"), ticket.path);
-  recordTicketResult(state, ticket, result);
-  await save(state);
-  if (result.status === "blocked") throw new Error(`Ticket blocked: ${ticket.path}: ${result.summary}`);
-  if (state.ticketIndex >= state.tickets.length) { state.phase = "build"; state.buildAttempts = 0; state.testAttempts = 0; }
-  await save(state);
+  await ensureCommit(worker.worktreePath, `Sandcastle: preserve ${ticket.path}`);
+  if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path);
+  await appendStageEvent(runsDir, state, { stage: "ticket", status: result.status, summary: `${ticket.path}: ${result.status}; changes await assembly.`, tickets: [ticket.path] });
+  return { result, head: await git(worker.worktreePath, "rev-parse", "HEAD") };
+}
+async function runWorkers(state) {
+  await runWave(state, {
+    save,
+    run: async (member, wave) => {
+      let worker;
+      try {
+        worker = await openWorker(state, member, wave);
+        return await implementWorker(worker, state, member);
+      } catch (error) {
+        await appendStageEvent(runsDir, state, { stage: "ticket", status: "failed", summary: `${member.ticket.path}: worker failed; its branch is retained.`, tickets: [member.ticket.path] });
+        throw error;
+      } finally {
+        if (worker) {
+          try { await ensureCommit(worker.worktreePath, `Sandcastle: preserve wave ${wave.id} worker`); }
+          finally { await worker.close(); }
+        }
+      }
+    },
+  });
+}
+async function assemble(sandbox, state) {
+  await collectWave(state, {
+    save,
+    assemble: async (wave) => {
+      const members = wave.members.filter((member) => member.status === "completed");
+      const prompt = [
+        `Assemble wave ${wave.id} on the current integration branch ${state.branch}. Read AGENTS.md, CONTEXT.md and each contributing ticket.`,
+        `Common base: ${wave.baseCommit}. Merge these committed worker revisions using Git, in the listed order:\n${JSON.stringify(members.map(({ ticket, branch, head }) => ({ ticket: ticket.path, branch, head })), null, 2)}`,
+        "First inspect git status and any in-progress merge. If a conflict exists, use $resolving-merge-conflicts: inspect both intents and their tickets, resolve every hunk, run focused checks, and finish the merge. Never abort, reset, discard a worker's intended behavior, or mark conflict-containing files as resolved without fixing them.",
+        "For each revision use git merge-base --is-ancestor to skip revisions already integrated, otherwise git merge --no-ff the exact revision. Preserve commit ancestry for all successful workers. Do not merge failed or blocked worker branches.",
+        "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Every contributing ticket must remain resolved with its Answer. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
+        state.scopeNotes || "Preserve the original implementation/acceptance boundary.",
+        'Return only JSON matching the schema: completed if all listed revisions are integrated and focused checks passed, otherwise blocked with a concrete reason.',
+      ].join("\n\n");
+      const response = await agent(sandbox, state, `assembly wave ${wave.id}`, prompt, ".sandcastle/ticket-output.schema.json");
+      return JSON.parse(response);
+    },
+    verify: async (member) => {
+      await git(sandbox.worktreePath, "merge-base", "--is-ancestor", member.head, "HEAD");
+      if (await git(sandbox.worktreePath, "ls-files", "-u")) throw new Error("Assembly left unmerged files");
+      if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Assembly left uncommitted changes");
+      validateTicketCompletion(await readFile(resolve(sandbox.worktreePath, member.ticket.path), "utf8"), member.ticket.path);
+    },
+  });
 }
 async function build(sandbox, state) {
   state.buildAttempts++;
@@ -178,15 +268,27 @@ async function build(sandbox, state) {
   if (state.buildAttempts >= state.buildLimit) throw new Error(`Build failed ${state.buildAttempts} times; continuation requires human approval.\n${result.output}`);
 }
 async function repairBuild(sandbox, state) {
-  await agent(sandbox, state, "build repair", `Fix the failed SV build on this branch. Read AGENTS.md. Build output:\n${state.pendingFailure}\nCommit the correction; the orchestrator will rebuild. Ask only on critical failure.`);
-  await ensureCommit(sandbox.worktreePath, "Sandcastle: repair SV build");
-  delete state.pendingFailure;
-  state.phase = "build";
+  state.repairKind = "build";
   await save(state);
+  await plan(sandbox, state, `Split the failed SV build into focused repair tickets. All code repairs must go through worker branches and assembly; preserve the original scope. Build output:\n${state.pendingFailure}`);
 }
 async function test(sandbox, state) {
-  await agent(sandbox, state, "testing", "Test the completed SV change through production paths. Inspect the tickets and add focused missing tests if needed. Run relevant focused checks. Commit any new test changes. The orchestrator runs the full headless gate next. Ask only on critical failure.");
-  await ensureCommit(sandbox.worktreePath, "Sandcastle: add focused test coverage");
+  // Testing may add code, so it uses the same isolated-worker/assembly path.
+  const issues = resolve(sandbox.worktreePath, taskDir(state), "issues");
+  const entries = await readdir(issues);
+  const number = Math.max(0, ...entries.map((name) => Number(name.match(/^(\d+)-/)?.[1] ?? 0))) + 1;
+  const path = `${taskDir(state)}/issues/${String(number).padStart(2, "0")}-focused-test-coverage.md`;
+  await writeFile(resolve(sandbox.worktreePath, path), [
+    `# ${number}: Verify focused production coverage`, "", "Type: implementation", "Status: open", "Assignee: unassigned", "Labels: enhancement", "",
+    "Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.", "",
+    "- [ ] Relevant production paths are exercised and results recorded under Answer.",
+    "- [ ] Any new tests are committed, with no test-only behavior or claims of unrun acceptance.", "",
+  ].join("\n"));
+  await ensureCommit(sandbox.worktreePath, "Sandcastle: plan focused test coverage");
+  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [] }], limit: 1, after: "test-gate" });
+  await save(state);
+}
+async function testGate(sandbox, state) {
   state.buildAttempts++;
   state.totalBuildAttempts++;
   await save(state);
@@ -210,12 +312,9 @@ async function test(sandbox, state) {
   if (state.testAttempts >= state.testLimit) throw new Error(`Tests failed ${state.testAttempts} times; continuation requires human approval.\n${result.output}`);
 }
 async function repairTest(sandbox, state) {
-  await agent(sandbox, state, "test repair", `Fix the failing SV tests through the production path. Read AGENTS.md. Test output:\n${state.pendingFailure}\nCommit the correction; the orchestrator will retest. Ask only on critical failure.`);
-  await ensureCommit(sandbox.worktreePath, "Sandcastle: repair SV tests");
-  delete state.pendingFailure;
-  state.phase = "build";
-  state.buildAttempts = 0;
+  state.repairKind = "test";
   await save(state);
+  await plan(sandbox, state, `Split the failing SV tests into focused repair tickets. Exercise the production path, keep the originating scope and route every code repair through workers and assembly. Test output:\n${state.pendingFailure}`);
 }
 async function review(sandbox, state) {
   state.reviewRound++;
@@ -244,6 +343,7 @@ async function report(sandbox, state) {
     `# Sandcastle task ${state.id}`, "", `Specification: ${state.specPath}`, `Base: ${state.baseCommit}`, `Verified code HEAD: ${head}`, "",
     "## Originating request", "", state.spec, "",
     `Ticket batches: ${state.batchCount}`, `Build attempts: ${state.totalBuildAttempts}`, `Test attempts: ${state.totalTestAttempts}`, `Code review rounds: ${state.reviewRound}`, "",
+    `Parallelism: ${state.parallelism}`, `Assembled waves: ${(state.waveHistory ?? []).length}`, "",
     "## Completed tickets", "", ...state.completedTickets.map((path) => `- ${path}`), "",
     "## Deferred checks (not completed)", "", ...(state.deferredTickets ?? []).map((ticket) => `- ${ticket.path}: ${ticket.reason}`), "",
     "## Reviews", "", ...state.reviews.flatMap((item, index) => [
@@ -283,8 +383,14 @@ if (command === "start") {
   if (!/^[a-f0-9]{8}$/.test(runId ?? "")) throw new Error("Pass the eight-character Sandcastle run ID");
   state = JSON.parse(await readFile(resolve(runsDir, runId, "state.json"), "utf8"));
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
+}
+if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1") throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or leave it stopped. Reason: ${state.pauseReason}`);
+state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
+if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
+const lockPath = await acquireLock(state);
+let sandbox;
+try {
   if (state.phase === "awaiting") {
-    if (process.env.SANDCASTLE_CONTINUE !== "1") throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or leave it stopped. Reason: ${state.pauseReason}`);
     state.buildLimit += 10;
     state.testLimit += 10;
     state.reviewLimit += 5;
@@ -298,36 +404,34 @@ if (command === "start") {
     delete state.resumePhase;
     await save(state);
   }
-}
-const proxy = process.env.all_proxy || process.env.ALL_PROXY;
-const lockPath = await acquireLock(state);
-let sandbox;
-try {
   for (const path of Object.values(skillPaths)) await access(resolve(path, "SKILL.md"));
   await access(resolve(authDir, "auth.json"));
   console.log(`Sandcastle run: ${state.id}, branch: ${state.branch}, phase: ${state.phase}`);
-  updateBudget(state, await readWeeklyUsage(authDir, model));
-  await save(state);
+  await quotaCheckpoint(state);
   if (command === "resume") await recoverWorktree(state);
   sandbox = await createSandbox({
     cwd: root, branch: state.branch, baseBranch: targetBranch,
-    sandbox: docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
-      ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
-    ] }),
+    sandbox: sandboxProvider(),
   });
   console.log(`Worktree: ${sandbox.worktreePath}`);
+  await appendStageEvent(runsDir, state, { stage: "workflow", status: "running", summary: `Workflow started at ${state.phase}; parallelism ${state.parallelism}.` });
   while (state.phase !== "done") {
+    const stage = state.phase;
     if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
     else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
-    else if (state.phase === "tickets") await implementTicket(sandbox, state);
+    else if (state.phase === "tickets") await startTicketWave(sandbox, state);
+    else if (state.phase === "parallel-work") await runWorkers(state);
+    else if (state.phase === "assemble") await assemble(sandbox, state);
     else if (state.phase === "build") await build(sandbox, state);
     else if (state.phase === "build-repair") await repairBuild(sandbox, state);
     else if (state.phase === "test") await test(sandbox, state);
+    else if (state.phase === "test-gate") await testGate(sandbox, state);
     else if (state.phase === "test-repair") await repairTest(sandbox, state);
     else if (state.phase === "review") await review(sandbox, state);
     else if (state.phase === "report") await report(sandbox, state);
     else if (state.phase === "integrate") await integrate(sandbox, state);
     else throw new Error(`Unknown workflow phase: ${state.phase}`);
+    await appendStageEvent(runsDir, state, { stage, ...stageOutcome(state, stage), tickets: state.wave?.members.map((member) => member.ticket.path) });
     if (state.quotaError) throw new Error(state.quotaError);
   }
 } catch (error) {
@@ -339,6 +443,7 @@ try {
   state.phase = "awaiting";
   state.pauseReason = error.message;
   await save(state);
+  await appendStageEvent(runsDir, state, { stage: "workflow", status: "paused", summary: `Workflow stopped at ${state.resumePhase}; details preserved in state.json.` });
   console.error(`Sandcastle paused: ${error.message}`);
   console.error(`Resume with: SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- ${state.id}`);
   process.exitCode = 1;

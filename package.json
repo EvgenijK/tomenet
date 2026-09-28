@@ -7,7 +7,8 @@
     "sandbox:test": "node .sandcastle/main.mjs test",
     "sandbox:registry": "node .sandcastle/main.mjs registry",
     "sandbox:dev": "node .sandcastle/workflow.mjs start",
-    "sandbox:resume": "node .sandcastle/workflow.mjs resume"
+    "sandbox:resume": "node .sandcastle/workflow.mjs resume",
+    "sandbox:status": "node .sandcastle/status.mjs"
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "0.12.0"

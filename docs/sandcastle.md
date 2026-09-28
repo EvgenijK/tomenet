@@ -35,33 +35,44 @@ SANDCASTLE_SPEC='docs/tasks/<ticket>.md' npm run sandbox:dev
 ```
 
 An assistant can also supply the exact request text as `SANDCASTLE_TASK`.
-The command prints a run ID. One fresh, ephemeral Codex CLI process runs at a
-time for each agent stage:
+The command prints a run ID. Fresh ephemeral Codex CLI processes implement
+ready tickets concurrently, with a separate container, Git branch and worktree
+for each worker:
 
 1. The `to-tickets` skill splits the request into small vertical tickets in
    `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
    proceed autonomously replaces its interactive approval quiz.
-2. Separate agents implement the tickets in dependency order. Each process
-   exits before the next one starts. The orchestrator commits each ticket's
-   changes to the sandbox branch.
-3. The Make build runs. A build failure starts a repair agent, then another
-   build attempt, up to 10 attempts.
-4. A testing agent checks the production SV path and may add focused tests.
+2. The scheduler selects tickets whose dependencies have been completed and
+   integrated. Up to `SANDCASTLE_PARALLELISM` workers (default 3, range 1–8)
+   start from the same committed integration revision. Workers never share
+   editable files and commit their own results.
+3. An assembly agent merges successful worker revisions with Git, resolves
+   conflicts using `resolving-merge-conflicts`, and checks the combined result.
+   The orchestrator verifies commit ancestry, resolved tickets and a clean
+   worktree before marking any new dependencies ready. Failed and blocked
+   branches are retained; successful siblings are not rerun on continuation.
+4. The Make build runs. A build failure becomes a batch of repair tickets,
+   followed by parallel workers, assembly and another build attempt, up to
+   10 attempts. Repair batches do not reset the attempt counters.
+5. A testing ticket checks the production SV path and may add focused tests
+   in its own worker branch, then passes through the same assembly stage.
    The orchestrator runs `.sandcastle/checks.sh core`; a failure starts a repair
-   agent, followed by another build and test attempt, up to 10 failed tests.
-5. The `code-review` skill reviews Standards and Spec, using parallel review
+   ticket batch, workers and assembly, followed by another build and test
+   attempt, up to 10 failed tests.
+6. The `code-review` skill reviews Standards and Spec, using parallel review
    sub-agents inside the review stage. Findings become new small tickets and
-   repeat steps 2–5, up to 5 review rounds.
-6. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
+   repeat the same scheduler/assembly/build/test cycle, up to 5 review rounds.
+7. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
    branch is fast-forwarded into `modern_interface` after the gates pass.
 
 The workflow asks for human action only if a critical stage fails, a cycle limit
 is reached, Codex usage becomes unavailable, or the quota guard fires. It reads
 the account's weekly Codex usage before and after each agent and stops when this
-task has consumed 25 percentage points of the weekly window. If
+task has consumed 25 percentage points of the weekly window. Quota reads and
+state writes are serialized even when workers run concurrently. If
 `SANDCASTLE_TASK_TOKEN_LIMIT` is set to a positive integer, it also stops after
 that many reported Codex input and output tokens. These are checkpoints between
-agent processes; one running process may cross a threshold before its next
+agent processes; an already-running wave may cross a threshold before its next
 checkpoint. No API key or auth token is copied into task reports.
 
 For a stopped task, inspect `.sandcastle/runs/<run-id>/state.json` and the
@@ -74,7 +85,11 @@ SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>
 This grants another 10 build attempts, 10 test attempts, 5 review rounds and a
 new 25% weekly quota allowance for that task. A process interruption before a
 limit can be resumed with `npm run sandbox:resume -- <run-id>`; the orchestrator
-commits any interrupted worktree changes before reopening the sandbox branch.
+commits interrupted worktree changes before reopening the sandbox branch.
+An unresolved merge stays in its managed worktree for the assembly agent;
+conflict markers are never automatically committed. Saved waves retain worker
+revisions and outcomes, so continuation retries only unfinished workers or
+assembly rather than starting the task again.
 Do not run the same task twice concurrently. If the current checkout has
 uncommitted changes or another commit advances `modern_interface`, integration
 stops for inspection rather than overwriting those changes.
@@ -95,8 +110,9 @@ the current implementation or count them as passed.
 
 `SANDCASTLE_MODEL` selects the model (default `gpt-6-sol`), and
 `SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
-`to-tickets`, `code-review`, and `tdd` skills are mounted read-only from
-`~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when installed elsewhere.
+`to-tickets`, `code-review`, `tdd` and `resolving-merge-conflicts` skills are
+mounted read-only from `~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when
+installed elsewhere.
 
 ## Other commands
 
@@ -110,6 +126,40 @@ npm run sandbox:registry
 `test` runs the core headless SV checks; `registry` runs provenance checks
 separately. Existing registry source digest failures remain documented in
 [the issue log](sandcastle-issues.md).
+
+## Stage status and delivery
+
+Each finished ticket, scheduler/assembly stage, build, test, review and
+workflow pause produces a durable event in
+`.sandcastle/runs/<run-id>/events.jsonl`. Events have a monotonically increasing
+`seq`, survive restarts, and contain synthesized summaries and progress rather
+than prompts, specification content, credentials or raw command errors.
+The replaceable `events.latest.json` snapshot is convenient for a dashboard.
+
+Read current state and all stage events, or only those after a known cursor:
+
+```sh
+npm run sandbox:status -- <run-id>
+npm run sandbox:status -- <run-id> --after 12
+```
+
+For immediate event-driven delivery, set `SANDCASTLE_STATUS_HOOK` to an absolute
+executable path. It receives one argument: an immutable JSON file for the
+event. The hook must deliver through a configured, supported messaging bridge;
+the journal itself does not post messages into Codex chats. Hook execution has
+a bounded timeout (5 seconds by default, at most 30 seconds via
+`SANDCASTLE_STATUS_HOOK_TIMEOUT_MS`) and receives only PATH in its environment.
+Delivery success/failure is recorded in `deliveries.jsonl`; a delivery failure
+does not interrupt code work. A bridge can replay unacknowledged events by seq.
+
+For status in the current Codex chat, a thread heartbeat can poll this journal
+on a minute-based schedule. It should report every new stage outcome in order,
+keep its own per-run cursor, and stay silent when no event changed. This gives
+per-stage reports with polling latency, rather than an immediate push from
+Docker. Configure the heartbeat using the app automation tool; do not write to
+Codex internal chat databases or inject messages through an unrelated CLI
+app-server process. Existing running orchestrators acquire this event journal
+and parallel scheduler when restarted with the updated workflow.
 
 ## Planned local-server and visual acceptance
 
