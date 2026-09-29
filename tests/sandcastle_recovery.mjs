@@ -22,6 +22,13 @@ function state() {
 const decision = (action = "defer") => ({ action, summary: "Real game entry is not implemented yet", ticketPaths: action === "defer" ? [path(2)] : [], dependency: action === "defer" ? "docs/tasks/dependency.md" : "" });
 const noOp = async () => {};
 
+test("quota mentioned in restoration guidance is not an exhausted usage guard", () => {
+  const s = state(); s.phase = "contract";
+  assert.equal(recoveryRestriction(s, "Controller mount is fixed; preserve quota and cycle limits during recovery"), undefined);
+  assert.doesNotThrow(() => beginRecovery(s, "Recovery agent requested a stop: move schema paths; preserve quota and cycle limits"));
+  for (const error of ["Task reached 25% of the weekly Codex quota", "Weekly Codex quota is unavailable; cannot enforce the budget", "Codex account usage limit reached", "Task reached its token limit (123)", "Build failed 10 times; continuation requires human approval."]) assert.ok(recoveryRestriction(state(), error));
+});
+
 test("deferral retains successful siblings, pending acceptance and dependent closure while independent work resumes", () => {
   const s = state(); beginRecovery(s, "Worker blocked");
   const before = structuredClone(s);
