@@ -236,6 +236,19 @@ This mode requires the exact saved contract checkpoint and available quota. It
 retains the previous three decisions and starts the new cause-specific policy
 revision; it cannot be combined with other continuation modes.
 
+If independent verification rejects both contract drafts, a user may authorize
+exactly one additional draft and independent verification round:
+
+```sh
+SANDCASTLE_EXTRA_CONTRACT_ROUND=1 npm run sandbox:resume -- <run-id>
+```
+
+The controller accepts this only at the rejected second-contract checkpoint,
+retains the verifier's missing-requirements feedback and prior round history,
+and keeps all quota/build/test/review limits unchanged. It cannot be combined
+with other continuation modes or granted a second time. A third rejection still
+stops for a new scope decision; mandatory obligations are never waived.
+
 Quota and exhausted cycle guards still require explicit continuation. After
 approving only additional quota (for example, 10 percentage points), run:
 

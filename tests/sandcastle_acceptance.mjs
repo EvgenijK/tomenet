@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, grantContractRound, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -58,6 +58,26 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   assert.equal(s.phase, "contract"); assert.equal(s.contractPending.round, 1);
   await contractStage(s, { ...ops, propose: async () => proposal(), verify: async () => approval });
   assert.equal(s.phase, "plan");
+});
+
+test("one explicitly granted third contract round preserves verification feedback and budgets", async () => {
+  const original = { id: "test", phase: "awaiting", resumePhase: "contract", pauseReason: "Acceptance: contract verification limit reached; human decision required",
+    contractPending: { round: 2, feedback: ["Separate readiness from full acceptance"] },
+    budget: { consumedPercent: 41, limitPercent: 45, tokens: 123 }, reviewRound: 13, recoveryAttempts: { checkpoint: 3 } };
+  const before = structuredClone(original);
+  grantContractRound(original);
+  assert.equal(original.phase, "contract"); assert.equal(original.contractRoundLimit, 3);
+  assert.deepEqual(original.contractPending, before.contractPending);
+  assert.deepEqual(original.budget, before.budget); assert.deepEqual(original.recoveryAttempts, before.recoveryAttempts);
+  let seenFeedback;
+  await contractStage(original, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async (_, feedback) => { seenFeedback = feedback; return proposal(); }, verify: async () => approval });
+  assert.deepEqual(seenFeedback, before.contractPending.feedback);
+  assert.equal(original.phase, "plan"); assert.equal(original.contractRoundGrant.newLimit, 3);
+  for (const mutate of [s => { s.contractPending.feedback = []; }, s => { s.budget.consumedPercent = 45; }, s => { s.pauseReason = "Different pause"; }]) {
+    const invalid = structuredClone(before); mutate(invalid); const snapshot = structuredClone(invalid);
+    assert.throws(() => grantContractRound(invalid)); assert.deepEqual(invalid, snapshot);
+  }
 });
 
 test("contract rejects missing baseline, fabricated sources, invalid mappings and unsupported full closure", () => {

@@ -1,7 +1,30 @@
 import { createHash } from "node:crypto";
+import { taskQuotaLimit } from "./limits.mjs";
 
 // Model opinions never override these controller-owned safety rules.
 export const acceptancePolicy = Object.freeze({ maxContractRounds: 2, maxDefectRepairs: 3, maxFinalAudits: 2 });
+function contractRoundLimit(state) {
+  need(state.contractRoundLimit === undefined || state.contractRoundLimit === 3, "invalid contract round grant");
+  return state.contractRoundLimit ?? acceptancePolicy.maxContractRounds;
+}
+
+// Exactly one user-approved revision after two independently checked proposals.
+// No quota, repair or review counter changes; the previous feedback is retained.
+export function grantContractRound(state) {
+  const pending = state.contractPending;
+  need(state.phase === "awaiting" && state.resumePhase === "contract" &&
+    state.pauseReason === "Acceptance: contract verification limit reached; human decision required" &&
+    !state.acceptance && state.contractRoundLimit === undefined &&
+    pending?.round === acceptancePolicy.maxContractRounds && Array.isArray(pending.feedback) && pending.feedback.length > 0 &&
+    !pending.proposal && !pending.review && !(pending.parts?.length), "additional round requires the rejected second contract and explicit authorization");
+  need(!state.quotaError && (state.budget?.consumedPercent ?? 0) < taskQuotaLimit(state), "quota still requires a separate allowance");
+  state.contractRoundLimit = 3;
+  state.contractRoundGrant = { previousLimit: acceptancePolicy.maxContractRounds, newLimit: 3, grantedAt: new Date().toISOString() };
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
 export const baselineChecks = [
   { id: "sv-build", kind: "build", command: "make -s -C src -f makefile.sv tomenet-sv", description: "SV Make build" },
   { id: "sv-core", kind: "core", command: "bash -s -- core", description: "Sandcastle core checks" },
@@ -268,7 +291,7 @@ export async function contractStage(state, ops) {
     // rejected contract. Validation/verification rejections carry feedback.
     if (pending.proposalInFlight === undefined && pending.round > 0 && !pending.feedback && !pending.review) pending.proposalInFlight = true;
     if (!pending.proposalInFlight) {
-      need(pending.round < acceptancePolicy.maxContractRounds, "contract verification limit reached; human decision required");
+      need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");
       pending.round++;
       pending.proposalInFlight = true;
     }
@@ -281,7 +304,7 @@ export async function contractStage(state, ops) {
   catch (error) {
     pending.feedback = [error.message]; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
     await ops.save(state);
-    need(pending.round < acceptancePolicy.maxContractRounds, "contract validation limit reached; human decision required");
+    need(pending.round < contractRoundLimit(state), "contract validation limit reached; human decision required");
     return;
   }
   if (!pending.review) {
@@ -292,7 +315,7 @@ export async function contractStage(state, ops) {
     pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
     await ops.save(state);
-    need(pending.round < acceptancePolicy.maxContractRounds, "contract verification limit reached; human decision required");
+    need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");
     return;
   }
   const candidate = structuredClone(state);
