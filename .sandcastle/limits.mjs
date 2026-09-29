@@ -6,6 +6,17 @@ export function taskQuotaLimit(state) {
   return limit;
 }
 
+// An explicit resume of a user pause grants no extra budget or repair cycles.
+export function resumeUserPause(state) {
+  if (state.phase !== "awaiting" || state.userRequestedPause !== true || state.pauseReason !== "Paused by user" || !state.resumePhase) throw new Error("RESUME requires a saved user-requested pause");
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Task quota guard still requires an explicit additional allowance");
+  state.phase = state.resumePhase;
+  delete state.resumePhase;
+  delete state.pauseReason;
+  delete state.userRequestedPause;
+  return state;
+}
+
 // Only the explicit continuation CLI calls this; recovery never grants quota.
 export function extendTaskQuota(state, extraPercent) {
   if (!Number.isFinite(extraPercent) || extraPercent <= 0 || extraPercent > 100) throw new Error("SANDCASTLE_EXTRA_QUOTA_PERCENT must be greater than 0 and at most 100");

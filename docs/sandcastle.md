@@ -39,10 +39,14 @@ The command prints a run ID. Fresh ephemeral Codex CLI processes implement
 ready tickets concurrently, with a separate container, Git branch and worktree
 for each worker:
 
-1. A read-only agent derives a numbered acceptance contract from the original
+1. A read-only host agent derives a numbered acceptance contract from the original
    task and AGENTS.md. A separate fresh agent checks completeness against the
    sources. At most two proposals are allowed; implementation starts only after
-   approval. The controller commits the fixed contract and check set under
+   approval. Inspectors run on the host against the managed integration
+   worktree, since nested Bubblewrap namespaces are unavailable in the Docker
+   environment; they retain a read-only sandbox and cannot modify repository
+   files. Workers, assembly and build/test execution remain in containers.
+   The controller commits the fixed contract and check set under
    `.scratch/sandcastle-<run-id>/acceptance-contract.json`.
 2. The `to-tickets` skill splits the request into small vertical tickets in
    `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
@@ -189,6 +193,19 @@ retaining all current budgets and attempt limits:
 ```sh
 SANDCASTLE_RECOVER=1 npm run sandbox:resume -- <run-id>
 ```
+
+To resume a saved user-requested pause without an AI recovery decision or any
+additional allowance, use:
+
+```sh
+SANDCASTLE_RESUME=1 npm run sandbox:resume -- <run-id>
+```
+
+This mode accepts only `Paused by user` with a saved user-pause marker. It
+preserves quota, cycle counters, completed workers and the current checkpoint,
+and rejects an exhausted quota. It cannot be combined with other continuation
+modes. An interrupted contract proposal reuses its reserved round; only a
+completed rejected proposal consumes a contract revision.
 
 Quota and exhausted cycle guards still require explicit continuation. After
 approving only additional quota (for example, 10 percentage points), run:

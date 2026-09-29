@@ -263,10 +263,18 @@ export async function contractStage(state, ops) {
   const pending = state.contractPending ??= { round: 0 };
   const sources = await ops.sources();
   if (!pending.proposal) {
-    need(pending.round < acceptancePolicy.maxContractRounds, "contract verification limit reached; human decision required");
-    pending.round++;
+    // Legacy interrupted proposals reserved a round before calling the model.
+    // An incomplete response is resumed in that round, never counted as a
+    // rejected contract. Validation/verification rejections carry feedback.
+    if (pending.proposalInFlight === undefined && pending.round > 0 && !pending.feedback && !pending.review) pending.proposalInFlight = true;
+    if (!pending.proposalInFlight) {
+      need(pending.round < acceptancePolicy.maxContractRounds, "contract verification limit reached; human decision required");
+      pending.round++;
+      pending.proposalInFlight = true;
+    }
     await ops.save(state);
     pending.proposal = await ops.propose(sources, pending.feedback ?? []);
+    delete pending.proposalInFlight;
     await ops.save(state);
   }
   try { validateContract(pending.proposal, sources); }

@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
-import { runtimeSchemaPath, runtimeSchemaMounts } from "../.sandcastle/runtime.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { createWave, runWave, collectWave } from "../.sandcastle/parallel.mjs";
 import { beginRecovery, recoveryRestriction, previewRecovery } from "../.sandcastle/recovery.mjs";
@@ -37,6 +37,27 @@ test("real Sandcastle provider accepts all runtime schema file mounts without re
     assert.ok(mounts.some((mount) => mount.sandboxPath === runtimeSchemaPath(schema) && mount.readonly));
   }
   assert.throws(() => docker({ mounts: [{ ...mounts[0], sandboxPath: "/opt/sandcastle-runtime/contract-output.schema.json" }] }), /outside the sandbox home directory/);
+});
+
+test("host inspection keeps the CLI read-only and enables parallel agents only for ordinary reviews", () => {
+  const config = { model: "gpt-6-sol", effort: "high", schemaPath: "/repo/.sandcastle/review-output.schema.json" };
+  const args = readOnlyAgentArgs(config);
+  assert.equal(args[args.indexOf("-s") + 1], "read-only");
+  assert.equal(args[args.indexOf("--output-schema") + 1], config.schemaPath);
+  assert.ok(args.includes("--ignore-user-config") && args.includes("--ignore-rules") && args.includes("--ephemeral"));
+  assert.ok(args.includes("--disable")); assert.ok(!args.includes("danger-full-access"));
+  assert.ok(readOnlyAgentArgs({ ...config, multiAgent: true }).includes("--enable"));
+});
+
+test("interrupted contract proposal resumes its reserved round instead of exhausting the ceiling", async () => {
+  const s = { id: "test", phase: "contract" };
+  const ops = { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async () => { throw new Error("Interrupted proposal"); }, verify: async () => ({ approved: false, summary: "Missing coverage", missingRequirements: ["Add feature evidence"] }) };
+  await assert.rejects(contractStage(s, ops), /Interrupted/); assert.equal(s.contractPending.round, 1);
+  await contractStage(s, { ...ops, propose: async () => proposal() });
+  assert.equal(s.phase, "contract"); assert.equal(s.contractPending.round, 1);
+  await contractStage(s, { ...ops, propose: async () => proposal(), verify: async () => approval });
+  assert.equal(s.phase, "plan");
 });
 
 test("contract rejects missing baseline, fabricated sources, invalid mappings and unsupported full closure", () => {

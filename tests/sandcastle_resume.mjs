@@ -4,6 +4,21 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { resumeUserPause } from "../.sandcastle/limits.mjs";
+
+test("explicit user-pause resume preserves budgets, wave and reserved contract attempt", () => {
+  const s = { phase: "awaiting", resumePhase: "contract", pauseReason: "Paused by user", userRequestedPause: true,
+    budget: { consumedPercent: 38, limitPercent: 40, tokens: 123 }, reviewRound: 13, reviewLimit: 30, recoveryAttempts: { checkpoint: 2 },
+    contractPending: { round: 1 }, wave: { id: 39, members: [{ status: "completed", integrated: false }] } };
+  const before = structuredClone(s); resumeUserPause(s);
+  assert.equal(s.phase, "contract"); assert.deepEqual(s.budget, before.budget); assert.deepEqual(s.wave, before.wave);
+  assert.deepEqual(s.recoveryAttempts, before.recoveryAttempts); assert.deepEqual(s.contractPending, before.contractPending); assert.equal(s.reviewLimit, 30);
+  assert.equal(s.userRequestedPause, undefined);
+  for (const mutate of [s => { s.pauseReason = "Build failed"; }, s => { s.userRequestedPause = false; }, s => { s.budget.consumedPercent = 40; }, s => { s.quotaError = "Account usage limit"; }]) {
+    const invalid = structuredClone(before); mutate(invalid); const snapshot = structuredClone(invalid);
+    assert.throws(() => resumeUserPause(invalid)); assert.deepEqual(invalid, snapshot);
+  }
+});
 
 test("unconfirmed CLI resume preserves the original pause and checkpoint without acquiring a lock", () => {
   const root = resolve(import.meta.dirname, "..");
@@ -16,6 +31,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_CONTINUE;
   delete env.SANDCASTLE_RECOVER;
   delete env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
+  delete env.SANDCASTLE_RESUME;
   try {
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
       assert.equal(error.status, 1);

@@ -11,3 +11,9 @@ export function runtimeSchemaMounts(root) {
     sandboxPath: runtimeSchemaPath(`${name}.schema.json`), readonly: true,
   }));
 }
+
+export function readOnlyAgentArgs({ model, effort, schemaPath, multiAgent = false }) {
+  return ["exec", "--json", "--ephemeral", "--ignore-user-config", "--ignore-rules", multiAgent ? "--enable" : "--disable", "multi_agent",
+    "-s", "read-only", "-c", 'approval_policy="never"', "-m", model,
+    "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "--output-schema", schemaPath, "-"];
+}

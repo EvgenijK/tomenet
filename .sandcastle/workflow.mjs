@@ -6,13 +6,13 @@ import { resolve, isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { readWeeklyUsage, updateBudget, extendTaskQuota } from "./limits.mjs";
+import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from "./limits.mjs";
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
-import { runtimeSchemaPath, runtimeSchemaMounts } from "./runtime.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "./runtime.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -121,6 +121,13 @@ function parseAgentOutput(line, result) {
   }
 }
 async function agent(sandbox, state, role, prompt, schema = false, readOnly = false) {
+  // Docker cannot provide the nested namespaces needed by Bubblewrap. Keep
+  // inspectors read-only on the host, against this exact integration worktree.
+  if (readOnly) return hostAgent(state, {
+    cwd: sandbox.worktreePath, role, prompt,
+    schemaPath: resolve(root, ".sandcastle", schema === true ? "review-output.schema.json" : schema.replace(/^\.sandcastle\//, "")),
+    multiAgent: role.startsWith("review "),
+  });
   await quotaCheckpoint(state);
   const settings = [
     "--json", "--ephemeral", "--enable multi_agent",
@@ -156,8 +163,6 @@ export async function gate(sandbox, command, input) {
 async function recoveryAgent(state, context) {
   // Host read-only CLI remains available when a development container fails.
   // It may diagnose Git/tickets, but cannot modify code, state, auth or limits.
-  await quotaCheckpoint(state);
-  console.log(`Agent: recovery orchestrator ${state.recovery.id}`);
   const prompt = [
     "Act as the Sandcastle recovery orchestrator. Diagnose the saved incident and choose a concrete recovery action. The user authorizes autonomous recovery and deferral of absent external dependencies while independent work continues.",
     "You are read-only. Inspect AGENTS.md, the original spec, ticket files and relevant Git revisions (use git show <branch>:<path> for current integration/worker evidence). Do not edit files, commit, merge, reset, run builds or write scheduler state. Do not read credentials/auth files or print environment variables. Return only schema JSON.",
@@ -166,13 +171,14 @@ async function recoveryAgent(state, context) {
     "For retry/repair/stop use ticketPaths=[] and dependency=''. For defer use a real docs/tasks/...md dependency; read that document to confirm the missing prerequisite. Explain the concrete cause and restoration condition in summary. Existing quota/cycle limits cannot be increased or reset. At most three recovery decisions are allowed at an unchanged checkpoint.",
     JSON.stringify(context, null, 2),
   ].join("\n\n");
+  return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json") }));
+}
+async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false }) {
+  await quotaCheckpoint(state);
+  console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
-  const operation = execFileAsync("codex", [
-    "exec", "--json", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--disable", "multi_agent",
-    "-s", "read-only", "-c", 'approval_policy="never"', "-m", model,
-    "-c", `model_reasoning_effort=${JSON.stringify(effort)}`,
-    "--output-schema", resolve(root, ".sandcastle/recovery-output.schema.json"), "-",
-  ], { cwd: root, env: { ...process.env, CODEX_HOME: authDir }, timeout: 240000, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
+  const operation = execFileAsync("codex", readOnlyAgentArgs({ model, effort, schemaPath, multiAgent }),
+    { cwd, env: { ...process.env, CODEX_HOME: authDir }, timeout: 240000, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
   operation.child.stdin.on("error", () => {});
   operation.child.stdin.end(prompt);
   let result;
@@ -181,7 +187,7 @@ async function recoveryAgent(state, context) {
     for (const line of (error.stdout ?? "").split("\n")) parseAgentOutput(line, captured);
     state.budget.tokens += captured.tokens;
     await save(state);
-    throw new Error(`Recovery agent failed: ${error.killed ? "timeout" : error.code}`);
+    throw new Error(`${role} agent failed: ${error.killed ? "timeout" : error.code}`);
   }
   for (const line of result.stdout.split("\n")) parseAgentOutput(line, captured);
   state.budget.tokens += captured.tokens;
@@ -189,7 +195,7 @@ async function recoveryAgent(state, context) {
   try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
   await save(state);
-  return JSON.parse(captured.message);
+  return captured.message;
 }
 async function recover(sandbox, state) {
   const result = await runRecovery(state, {
@@ -546,19 +552,26 @@ if (command === "start") {
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
+const userResume = process.env.SANDCASTLE_RESUME === "1";
+if (userResume) {
+  if (extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("User pause RESUME cannot be combined with other continuation modes");
+  resumeUserPause(structuredClone(state));
+}
 if (extraQuota !== undefined) {
   // Validate before acquiring the lock or changing the persisted checkpoint.
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
 }
-if (state.phase === "awaiting" && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_CONTINUE=1 to continue, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
 const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (extraQuota !== undefined) {
+    if (userResume) {
+      resumeUserPause(state);
+    } else if (extraQuota !== undefined) {
       extendTaskQuota(state, Number(extraQuota));
       state.phase = state.resumePhase;
     } else if (process.env.SANDCASTLE_CONTINUE !== "1") {
