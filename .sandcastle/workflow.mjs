@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { access, mkdir, open, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { resolve, isAbsolute } from "node:path";
+import { resolve, isAbsolute, basename } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -11,6 +11,7 @@ import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord } from "./recovery.mjs";
+import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -118,19 +119,19 @@ function parseAgentOutput(line, result) {
     result.tokens += (usage.input_tokens || 0) + (usage.output_tokens || 0);
   }
 }
-async function agent(sandbox, state, role, prompt, schema = false) {
+async function agent(sandbox, state, role, prompt, schema = false, readOnly = false) {
   await quotaCheckpoint(state);
   const settings = [
     "--json", "--ephemeral", "--enable multi_agent",
-    "-s danger-full-access", "-c 'approval_policy=\"never\"'",
+    `-s ${readOnly ? "read-only" : "danger-full-access"}`, "-c 'approval_policy=\"never\"'",
     `-m ${quote(model)}`, `-c ${quote(`model_reasoning_effort=${JSON.stringify(effort)}`)}`,
-    ...(schema ? [`--output-schema ${quote(schema === true ? ".sandcastle/review-output.schema.json" : schema)}`] : []),
+    ...(schema ? [`--output-schema ${quote(`/opt/sandcastle-runtime/${basename(schema === true ? "review-output.schema.json" : schema)}`)}`] : []),
     "-",
   ].join(" ");
   console.log(`Agent: ${role}`);
   const captured = { message: "", tokens: 0 };
   const result = await sandbox.exec(`codex exec ${settings}`, {
-    stdin: [prompt, state.recoveryAdvice ? `Recovery guidance: ${state.recoveryAdvice}` : ""].filter(Boolean).join("\n\n"),
+    stdin: [prompt, !readOnly && state.recoveryAdvice ? `Recovery guidance: ${state.recoveryAdvice}` : ""].filter(Boolean).join("\n\n"),
     onLine: (line) => parseAgentOutput(line, captured),
   });
   state.budget.tokens += captured.tokens;
@@ -143,10 +144,13 @@ async function agent(sandbox, state, role, prompt, schema = false) {
   await save(state);
   return captured.message;
 }
-async function gate(sandbox, command, input) {
+export async function gate(sandbox, command, input) {
+  const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
+  if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Acceptance: checks require a clean committed HEAD; human decision required");
   console.log(`Gate: ${command}`);
   const result = await sandbox.exec(command, { stdin: input, onLine: (line) => console.log(line) });
-  return { ok: result.exitCode === 0, output: `${result.stdout}\n${result.stderr}`.slice(-12000) };
+  if (await git(sandbox.worktreePath, "rev-parse", "HEAD") !== head || await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Acceptance: checks modified committed work; evidence is invalid; human decision required");
+  return { ok: result.exitCode === 0, head, output: `${result.stdout}\n${result.stderr}`.slice(-12000) };
 }
 async function recoveryAgent(state, context) {
   // Host read-only CLI remains available when a development container fails.
@@ -198,18 +202,54 @@ async function recover(sandbox, state) {
   if (!result) throw new Error(`Recovery agent requested a stop: ${state.recoveries.at(-1).summary}`);
   return sandbox;
 }
+function contractContext(state) {
+  assertContract(state);
+  return `Immutable acceptance contract (${state.acceptance.contractDigest}):\n${JSON.stringify(state.acceptance.contract, null, 2)}`;
+}
+async function inspect(sandbox, state, role, prompt, schema) {
+  const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
+  if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Acceptance inspection requires a clean committed worktree");
+  const response = await agent(sandbox, state, role, prompt, schema, true);
+  if (await git(sandbox.worktreePath, "rev-parse", "HEAD") !== head || await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Read-only acceptance inspection changed the worktree");
+  return JSON.parse(response);
+}
+async function contract(sandbox, state) {
+  await contractStage(state, {
+    save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
+    sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
+    propose: (sources, feedback) => inspect(sandbox, state, "acceptance contract", [
+      "Derive a numbered, verifiable acceptance contract BEFORE implementation. Read the originating spec's referenced documents and relevant ADRs to understand it, but cite literal quotes from the supplied authoritative sources. Do not edit files. Return schema JSON.",
+      "Separate implementation readiness from full native/platform acceptance exactly as the originating task allows. Use completionScope=implementation only when the task explicitly permits pending later integrations/acceptance. Mark deferred criteria pending with an explicit source-supported reason and real owning task/path; never weaken a currently required criterion. Preserve baseline protocol/game semantics and AGENTS.md isolation rules as mandatory criteria.",
+      "Every criterion needs stable id, requirement, mandatory, applicability (current/deferred), source {path,quote}, owner, deferralReason (empty for current), and checkIds. Only explicitly optional polish may be nonmandatory; all originating requirements are mandatory. Add optional cosmetic/maintainability criteria if applicable, without downgrading behavior. Include source requirements that cannot yet be tested as external checks; do not conceal them.",
+      "Include the exact baseline checks below. Add focused production test runners for THIS FEATURE to the fixed set (including existing feature suites and planned missing tests). Command checks may invoke only python3 -B tests/<file> [args], node tests/<file> [args], or bash tests/<file> [args], without shell operators. External checks have command=''. Current mandatory criteria need executable evidence; missing environment must block closure. The contract and fixed check set cannot be weakened in repair rounds.",
+      JSON.stringify({ sources, baselineChecks, feedback }, null, 2),
+    ].join("\n\n"), ".sandcastle/contract-output.schema.json"),
+    verify: (proposal, sources) => inspect(sandbox, state, "independent contract verification", [
+      "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
+      JSON.stringify({ sources, proposal }, null, 2),
+    ].join("\n\n"), ".sandcastle/contract-review-output.schema.json"),
+    publish: async (accepted) => {
+      await mkdir(resolve(sandbox.worktreePath, taskDir(state)), { recursive: true });
+      await writeFile(resolve(sandbox.worktreePath, taskDir(state), "acceptance-contract.json"), JSON.stringify({ contract: accepted.contract, digest: accepted.contractDigest, verification: accepted.contractReview, migration: accepted.migration }, null, 2) + "\n");
+      await ensureCommit(sandbox.worktreePath, "Sandcastle: accept independently verified contract");
+    },
+  });
+}
 async function plan(sandbox, state, reason = "") {
+  assertContract(state);
   const skill = await readFile(resolve(skillPaths["to-tickets"], "SKILL.md"), "utf8");
   const manifest = manifestPath(state);
   const prompt = [
     "Use the following to-tickets skill to split this work into small, independently verifiable vertical tickets. The user has already approved automatic decomposition and asked for questions only at critical failures or limits; skip the skill's quiz/approval step.",
     skill,
     `Read AGENTS.md, CONTEXT.md, relevant ADRs, and docs/agents/issue-tracker.md. Write numbered ticket files under ${taskDir(state)}/issues/ and a JSON manifest at ${manifest}.`,
-    'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[]}]}. List tickets in dependency order; blockedBy may contain earlier paths in this batch or completed tickets from prior batches. Never depend on unresolved or deferred tickets. Each ticket must have acceptance criteria.',
+    'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[],"findingIds":[]}]}. List tickets in dependency order; blockedBy may contain earlier paths in this batch or completed tickets from prior batches. Never depend on unresolved or deferred tickets. Each ticket must have acceptance criteria referencing contract IDs. When repairing review findings, every ticket must name its ledger findingIds and every open finding must be covered once as one coherent repair (multiple dependent tickets are allowed). Do not recreate a resolved/residual finding or repair the same defect through unrelated tickets.',
     `Completed tickets available as dependencies:\n${JSON.stringify(state.completedTickets)}`,
     state.scopeNotes || "Respect the originating spec's implementation and full acceptance boundaries. Generated tickets cannot expand the authoritative scope. Record deferred checks without claiming they passed.",
     "Commit the tickets and manifest. Ask no routine questions.",
     `Originating task (${state.specPath}):\n${state.spec}`,
+    contractContext(state),
+    state.acceptance.assessments.at(-1) ? `Preserve verified behavior:\n${JSON.stringify(state.acceptance.assessments.at(-1).preserved)}` : "",
     reason,
   ].join("\n\n");
   await agent(sandbox, state, "ticket planning", prompt);
@@ -222,6 +262,7 @@ async function acceptPlan(sandbox, state) {
   const manifest = manifestPath(state);
   const parsed = JSON.parse(await readFile(resolve(sandbox.worktreePath, manifest), "utf8"));
   validateTicketBatch(parsed, state);
+  registerRepairBatch(state, parsed.tickets, manifest);
   for (const ticket of parsed.tickets) {
     await access(resolve(sandbox.worktreePath, ticket.path));
   }
@@ -237,6 +278,8 @@ async function acceptPlan(sandbox, state) {
 }
 async function startTicketWave(sandbox, state) {
   if (state.tickets.every((ticket) => state.completedTickets.includes(ticket.path))) {
+    countIntegratedRepairs(state);
+    delete state.reviewFindings;
     state.phase = "build";
     await save(state);
     return;
@@ -248,6 +291,7 @@ function sandboxProvider() {
   const proxy = process.env.all_proxy || process.env.ALL_PROXY;
   return docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
     ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
+    ...["contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({ hostPath: resolve(root, `.sandcastle/${name}.schema.json`), sandboxPath: `/opt/sandcastle-runtime/${name}.schema.json`, readonly: true })),
   ] });
 }
 async function openWorker(state, member, wave) {
@@ -266,6 +310,8 @@ async function implementWorker(worker, state, member) {
     `Implement exactly ${ticket.path} in your isolated branch ${member.branch}. Other agents work in separate branches; do not edit or merge those branches.`, content,
     "Read AGENTS.md, CONTEXT.md and relevant ADRs. Claim the ticket before work and preserve its history. Keep legacy and shared edits minimal. Exercise the SV production path. Add meaningful tests for changed behavior. Commit your changes. Do not run the whole build/test/review workflow: the orchestrator runs those gates after all tickets. Ask only on critical failure.",
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
+    contractContext(state),
+    `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
   const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json");
@@ -296,7 +342,7 @@ async function runWorkers(state) {
   });
 }
 async function assemble(sandbox, state) {
-  await collectWave(state, {
+  try { await collectWave(state, {
     save,
     assemble: async (wave) => {
       const members = wave.members.filter((member) => member.status === "completed");
@@ -307,6 +353,7 @@ async function assemble(sandbox, state) {
         "For each revision use git merge-base --is-ancestor to skip revisions already integrated, otherwise git merge --no-ff the exact revision. Preserve commit ancestry for all successful workers. Do not merge failed or blocked worker branches.",
         "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Every contributing ticket must remain resolved with its Answer. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
         state.scopeNotes || "Preserve the original implementation/acceptance boundary.",
+        contractContext(state),
         'Return only JSON matching the schema: completed if all listed revisions are integrated and focused checks passed, otherwise blocked with a concrete reason.',
       ].join("\n\n");
       const response = await agent(sandbox, state, `assembly wave ${wave.id}`, prompt, ".sandcastle/ticket-output.schema.json");
@@ -318,13 +365,17 @@ async function assemble(sandbox, state) {
       if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Assembly left uncommitted changes");
       validateTicketCompletion(await readFile(resolve(sandbox.worktreePath, member.ticket.path), "utf8"), member.ticket.path);
     },
-  });
+  }); } finally {
+    countIntegratedRepairs(state);
+    await save(state);
+  }
 }
 async function build(sandbox, state) {
   state.buildAttempts++;
   state.totalBuildAttempts++;
   await save(state);
   const result = await gate(sandbox, "make -s -C src -f makefile.sv tomenet-sv");
+  await checkEvidence(sandbox, state, "sv-build", result);
   if (result.ok) { state.phase = "test"; await save(state); return; }
   state.pendingFailure = result.output;
   state.phase = "build-repair";
@@ -358,6 +409,7 @@ async function testGate(sandbox, state) {
   state.totalBuildAttempts++;
   await save(state);
   const rebuilt = await gate(sandbox, "make -s -C src -f makefile.sv tomenet-sv");
+  await checkEvidence(sandbox, state, "sv-build", rebuilt);
   if (!rebuilt.ok) {
     state.pendingFailure = rebuilt.output;
     state.phase = "build-repair";
@@ -368,8 +420,14 @@ async function testGate(sandbox, state) {
   state.testAttempts++;
   state.totalTestAttempts++;
   await save(state);
-  const script = await readFile(resolve(root, ".sandcastle/checks.sh"), "utf8");
-  const result = await gate(sandbox, "bash -s -- core", script);
+  let result;
+  for (const check of requiredChecks(state.acceptance.contract).filter((item) => item.id !== "sv-build")) {
+    if (check.kind === "external") throw new Error(`Acceptance: required external check ${check.id} has no runner; human decision required`);
+    const script = check.kind === "core" ? await readFile(resolve(root, ".sandcastle/checks.sh"), "utf8") : undefined;
+    result = await gate(sandbox, check.command, script);
+    await checkEvidence(sandbox, state, check.id, result);
+    if (!result.ok) { result.output = `${check.id}: ${result.output}`; break; }
+  }
   if (result.ok) { state.phase = "review"; await save(state); return; }
   state.pendingFailure = result.output;
   state.phase = "test-repair";
@@ -382,28 +440,45 @@ async function repairTest(sandbox, state) {
   await save(state);
   await plan(sandbox, state, `Split the failing SV tests into focused repair tickets. Exercise the production path, keep the originating scope and route every code repair through workers and assembly. Test output:\n${state.pendingFailure}`);
 }
-async function review(sandbox, state) {
-  state.reviewRound++;
+async function checkEvidence(sandbox, state, checkId, result) {
+  const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
+  if (head !== result.head) throw new Error("Acceptance: HEAD changed before saving check evidence; human decision required");
+  const logPath = resolve(runsDir, state.id, `check-${checkId}-${state.totalBuildAttempts}-${state.totalTestAttempts}.json`);
+  await writeFile(logPath, JSON.stringify({ head, checkId, passed: result.ok, output: result.output }, null, 2) + "\n");
+  recordCheck(state, { checkId, head, passed: result.ok, logPath });
   await save(state);
-  const prompt = [
-    `$code-review Review the committed diff since ${state.baseCommit}. Run Standards and Spec axes as the skill directs, using parallel sub-agents. Read AGENTS.md.`,
-    "The complete originating task is authoritative. Generated tickets are implementation proposals and cannot override its explicit deferred integrations or expand its scope. Review current production defects; report pending acceptance accurately without requiring implementation of later-stage callers explicitly deferred by the originating task. Examine all code, tests and behavior at current HEAD. Do not change files.",
-    state.scopeNotes || "",
-    "Return only the structured JSON requested by the output schema. Include every actionable issue in findings. Use an empty findings array only when the change is ready.",
-    `Originating task:\n${state.spec}`,
-  ].join("\n\n");
-  const response = await agent(sandbox, state, `review ${state.reviewRound}`, prompt, true);
-  const parsed = JSON.parse(response);
-  const report = resolve(runsDir, state.id, `review-${state.reviewRound}.json`);
-  await writeFile(report, JSON.stringify({ head: await git(sandbox.worktreePath, "rev-parse", "HEAD"), ...parsed }, null, 2) + "\n");
-  state.reviews.push({ path: report, head: await git(sandbox.worktreePath, "rev-parse", "HEAD"), summary: parsed.summary, findings: parsed.findings });
-  if (parsed.findings.length === 0) { state.phase = "report"; delete state.reviewFindings; }
-  else { state.phase = "plan"; state.reviewFindings = parsed.findings; }
-  await save(state);
-  if (parsed.findings.length > 0 && state.reviewRound >= state.reviewLimit) throw new Error(`Review found ${parsed.findings.length} issues on round ${state.reviewRound}; continuation requires human approval. See ${report}`);
+}
+async function review(sandbox, state, audit = false) {
+  await assessmentStage(state, {
+    save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
+    inspect: ({ head }) => inspect(sandbox, state, audit ? "fresh final acceptance auditor" : `review ${state.reviewRound}`, [
+      audit
+        ? `You are a fresh independent final auditor. You did not implement, plan or review this change. Inspect the final committed production result at ${head} and baseline ${state.baseCommit} against the original task and accepted contract. Do not read earlier review/recovery reports, ticket Answers or previous reviewers' conclusions. Check every criterion, controller evidence, preserved baseline behavior and candidate residual risk independently. Do not edit files. Return only schema JSON.`
+        : `$code-review Review the committed diff since ${state.baseCommit}. Run Standards and Spec axes in parallel as the skill directs. Reconcile both axes into a deduplicated result. Read AGENTS.md; do not edit files. Return only schema JSON.`,
+      "The original task and accepted contract are authoritative. Generated tickets cannot broaden scope or weaken requirements. Explicit deferred caller/native/platform acceptance stays pending with its owner; headless success does not prove full acceptance. Give one evidenced status per contract criterion and list verified behavior to preserve. Any failed current criterion needs a finding.",
+      "Each defect has a stable defectKey and production area identifying its root problem, not its line/file/title. Reuse exact saved id/defectKey/area when a known issue is paraphrased or moves files. New findings use id=''. Never create another ID for the same underlying defect. Deduplicate across axes; retain the strongest severity/impact. resolved requires a saved ledger ID and concrete evidence at THIS HEAD. Silence does not resolve an issue. Reopen a previously resolved/accepted issue only with new concrete evidence.",
+      "critical/high/medium, behavior, regression, protocol, security, data-loss, scope violations, false evidence and unmet mandatory requirements block closure. Only low cosmetic/maintainability findings linked exclusively to optional current criteria may be accepted in acceptedResiduals, with reason, risk, owner and returnCondition. Use its saved ledger ID, or defectKey for a new finding in this response. Residuals remain open backlog entries, not fixed issues. Independently confirm EVERY candidate residual in a final audit. A three-repair ceiling cannot make a blocker acceptable.",
+      "After three integrated repairs of a defect, make a final explicit disposition: accept it only if eligible for a documented residual, otherwise leave it open for a human decision. Never request a fourth repair. Optional low polish should not prevent readiness once mandatory behavior and checks pass.",
+      contractContext(state),
+      `Original task:\n${state.spec}`,
+      `Controller evidence at ${head}:\n${JSON.stringify(state.acceptance.evidence.filter((item) => item.head === head), null, 2)}`,
+      // Final audit receives facts and candidate risks, not previous review verdicts.
+      audit
+        ? `Candidate residuals requiring independent assessment (these proposals are not an acceptance verdict):\n${JSON.stringify(state.acceptance.ledger.filter((item) => item.status === "residual").map(({ id, defectKey, area, criterionIds, file, line, problem, residual }) => ({ id, defectKey, area, criterionIds, file, line, problem, residual })), null, 2)}`
+        : `Defect register:\n${JSON.stringify(state.acceptance.ledger, null, 2)}`,
+      !audit && state.acceptance.migration && state.acceptance.assessments.length === 0 ? `Legacy reviews for initial identity reconciliation:\n${JSON.stringify(state.reviews.map((item) => ({ head: item.head, findings: item.findings })), null, 2)}` : "",
+    ].filter(Boolean).join("\n\n"), ".sandcastle/review-output.schema.json"),
+    publish: async (parsed, { head }) => {
+      const path = resolve(runsDir, state.id, audit ? `final-audit-${state.acceptance.finalAudits.length}.json` : `review-${state.reviewRound}.json`);
+      await writeFile(path, JSON.stringify({ head, ...parsed }, null, 2) + "\n");
+      if (!audit && !state.reviews.some((item) => item.path === path)) state.reviews.push({ path, head, ...parsed });
+    },
+  }, { audit });
 }
 async function report(sandbox, state) {
-  const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
+  const head = state.acceptance.finalVerdict.head;
+  const outcome = await verifiedTree(sandbox, state);
+  state.acceptance.finalVerdict = outcome;
   const reportPath = `docs/tasks/sandcastle/${state.id}-report.md`;
   const contents = [
     `# Sandcastle task ${state.id}`, "", `Specification: ${state.specPath}`, `Base: ${state.baseCommit}`, `Verified code HEAD: ${head}`, "",
@@ -417,18 +492,26 @@ async function report(sandbox, state) {
       `### Round ${index + 1}`, "", `Reviewed HEAD: ${item.head}`, `Summary: ${item.summary}`, "",
       ...(item.findings.length ? item.findings.map((finding) => `- ${finding.severity}: ${finding.file}:${finding.line} — ${finding.problem} Fix: ${finding.fix}`) : ["- No findings"]), "",
     ]),
-    "## Gates", "", "- SV Make build: passed", "- Sandcastle core checks: passed", "- Final code review: no findings", "",
+    acceptanceReport(state), "",
     "Headless gates do not establish full ticket acceptance. Later caller integrations, display-backed human review and platform checks remain pending unless separately evidenced.", "",
   ].join("\n");
   await mkdir(resolve(sandbox.worktreePath, "docs/tasks/sandcastle"), { recursive: true });
   await mkdir(resolve(sandbox.worktreePath, taskDir(state), "recovery"), { recursive: true });
   for (const record of state.recoveries ?? []) await writeFile(resolve(sandbox.worktreePath, record.recordPath), recoveryRecord(record));
+  for (const item of state.acceptance.ledger.filter((entry) => entry.status === "residual")) {
+    await mkdir(resolve(sandbox.worktreePath, taskDir(state), "residuals"), { recursive: true });
+    await writeFile(resolve(sandbox.worktreePath, item.residual.backlogPath), [
+      `# ${item.id}: ${item.problem}`, "", "Type: implementation", "Status: open", "Assignee: unassigned", "Labels: enhancement, ready-for-human", "",
+      `Owner: ${item.residual.owner}`, `Criteria: ${item.criterionIds.join(", ")}`, `Risk: ${item.residual.risk}`, `Accepted because: ${item.residual.reason}`, `Return when: ${item.residual.returnCondition}`, `Verified HEAD: ${head}`, "", "- [ ] Residual issue is resolved and verified through the production path.", "",
+    ].join("\n"));
+  }
   await writeFile(resolve(sandbox.worktreePath, reportPath), contents);
   await ensureCommit(sandbox.worktreePath, `Sandcastle: report task ${state.id}`);
   state.phase = "integrate";
   await save(state);
 }
 async function integrate(sandbox, state) {
+  await verifiedTree(sandbox, state);
   if (await git(root, "status", "--porcelain")) throw new Error("Main checkout has uncommitted changes; cannot fast-forward modern_interface safely");
   if (await git(root, "branch", "--show-current") !== targetBranch) throw new Error(`Main checkout must be on ${targetBranch} for integration`);
   await git(root, "merge", "--ff-only", state.branch);
@@ -436,7 +519,15 @@ async function integrate(sandbox, state) {
   await save(state);
   console.log(`Task committed to ${targetBranch}: ${await git(root, "rev-parse", "HEAD")}`);
 }
+export async function verifiedTree(sandbox, state) {
+  const verified = state.acceptance?.finalVerdict?.head;
+  assertAuditedChanges(state, []);
+  await git(sandbox.worktreePath, "merge-base", "--is-ancestor", verified, "HEAD");
+  const changed = (await git(sandbox.worktreePath, "diff", "--name-only", verified, "HEAD")).split("\n").filter(Boolean);
+  return assertAuditedChanges(state, changed);
+}
 
+export async function main() {
 if (!["start", "resume"].includes(command)) throw new Error("Usage: npm run sandbox:dev (SANDCASTLE_SPEC=path) or npm run sandbox:resume -- <run-id>");
 let state;
 if (command === "start") {
@@ -446,7 +537,7 @@ if (command === "start") {
   if (await git(root, "status", "--porcelain")) throw new Error("Commit or stash local changes before starting Sandcastle; worktrees start from committed state");
   const spec = process.env.SANDCASTLE_TASK || await readFile(resolve(root, specPath), "utf8");
   const id = randomUUID().slice(0, 8);
-  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, phase: "plan", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 5 };
+  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, phase: "contract", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 5 };
   await save(state);
 } else {
   if (!/^[a-f0-9]{8}$/.test(runId ?? "")) throw new Error("Pass the eight-character Sandcastle run ID");
@@ -496,6 +587,7 @@ try {
   console.log(`Sandcastle run: ${state.id}, branch: ${state.branch}, phase: ${state.phase}`);
   await appendStageEvent(runsDir, state, { stage: "workflow", status: "running", summary: `Workflow started at ${state.phase}; parallelism ${state.parallelism}.` });
   while (state.phase !== "done") {
+    if (prepareAcceptanceMigration(state)) await save(state);
     const stage = state.phase;
     try {
       if (state.phase !== "recovery" && !sandbox) {
@@ -504,7 +596,15 @@ try {
         sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider() });
         console.log(`Worktree: ${sandbox.worktreePath}`);
       }
+      if (state.acceptance) {
+        assertContract(state);
+        if (sandbox) {
+          const artifact = JSON.parse(await readFile(resolve(sandbox.worktreePath, taskDir(state), "acceptance-contract.json"), "utf8"));
+          if (JSON.stringify(artifact.contract) !== JSON.stringify(state.acceptance.contract) || artifact.digest !== state.acceptance.contractDigest) throw new Error("Acceptance: committed contract changed; human decision required");
+        }
+      }
       if (state.phase === "recovery") sandbox = await recover(sandbox, state);
+      else if (state.phase === "contract") await contract(sandbox, state);
       else if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
       else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
       else if (state.phase === "tickets") await startTicketWave(sandbox, state);
@@ -516,6 +616,7 @@ try {
       else if (state.phase === "test-gate") await testGate(sandbox, state);
       else if (state.phase === "test-repair") await repairTest(sandbox, state);
       else if (state.phase === "review") await review(sandbox, state);
+      else if (state.phase === "final-audit") await review(sandbox, state, true);
       else if (state.phase === "report") await report(sandbox, state);
       else if (state.phase === "integrate") await integrate(sandbox, state);
       else throw new Error(`Unknown workflow phase: ${state.phase}`);
@@ -556,3 +657,6 @@ try {
   try { if (sandbox) await sandbox.close(); }
   finally { await unlink(lockPath); }
 }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) await main();

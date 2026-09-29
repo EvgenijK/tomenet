@@ -1,21 +1,174 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["summary", "findings"],
+  "required": [
+    "summary",
+    "criteria",
+    "preserved",
+    "findings",
+    "resolved",
+    "acceptedResiduals"
+  ],
   "properties": {
-    "summary": { "type": "string" },
+    "summary": {
+      "type": "string"
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "preserved": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "findings": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["severity", "file", "line", "problem", "fix"],
+        "required": [
+          "id",
+          "defectKey",
+          "area",
+          "criterionIds",
+          "severity",
+          "category",
+          "file",
+          "line",
+          "problem",
+          "fix",
+          "evidence"
+        ],
         "properties": {
-          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
-          "file": { "type": "string" },
-          "line": { "type": "integer" },
-          "problem": { "type": "string" },
-          "fix": { "type": "string" }
+          "id": {
+            "type": "string"
+          },
+          "defectKey": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "criterionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "behavior",
+              "regression",
+              "security",
+              "data-loss",
+              "protocol",
+              "scope",
+              "evidence",
+              "cosmetic",
+              "maintainability"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "resolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "acceptedResiduals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "reason",
+          "risk",
+          "owner",
+          "returnCondition"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "returnCondition": {
+            "type": "string"
+          }
         }
       }
     }

@@ -39,31 +39,117 @@ The command prints a run ID. Fresh ephemeral Codex CLI processes implement
 ready tickets concurrently, with a separate container, Git branch and worktree
 for each worker:
 
-1. The `to-tickets` skill splits the request into small vertical tickets in
+1. A read-only agent derives a numbered acceptance contract from the original
+   task and AGENTS.md. A separate fresh agent checks completeness against the
+   sources. At most two proposals are allowed; implementation starts only after
+   approval. The controller commits the fixed contract and check set under
+   `.scratch/sandcastle-<run-id>/acceptance-contract.json`.
+2. The `to-tickets` skill splits the request into small vertical tickets in
    `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
    proceed autonomously replaces its interactive approval quiz.
-2. The scheduler selects tickets whose dependencies have been completed and
+3. The scheduler selects tickets whose dependencies have been completed and
    integrated. Up to `SANDCASTLE_PARALLELISM` workers (default 3, range 1–8)
    start from the same committed integration revision. Workers never share
    editable files and commit their own results.
-3. An assembly agent merges successful worker revisions with Git, resolves
+4. An assembly agent merges successful worker revisions with Git, resolves
    conflicts using `resolving-merge-conflicts`, and checks the combined result.
    The orchestrator verifies commit ancestry, resolved tickets and a clean
    worktree before marking any new dependencies ready. Failed and blocked
    branches are retained; successful siblings are not rerun on continuation.
-4. The Make build runs. A build failure becomes a batch of repair tickets,
+5. The Make build runs. A build failure becomes a batch of repair tickets,
    followed by parallel workers, assembly and another build attempt, up to
    10 attempts. Repair batches do not reset the attempt counters.
-5. A testing ticket checks the production SV path and may add focused tests
+6. A testing ticket checks the production SV path and may add focused tests
    in its own worker branch, then passes through the same assembly stage.
-   The orchestrator runs `.sandcastle/checks.sh core`; a failure starts a repair
+   The orchestrator runs `.sandcastle/checks.sh core` and the contract's required
+   feature checks at the same committed HEAD; a failure starts a repair
    ticket batch, workers and assembly, followed by another build and test
    attempt, up to 10 failed tests.
-6. The `code-review` skill reviews Standards and Spec, using parallel review
-   sub-agents inside the review stage. Findings become new small tickets and
-   repeat the same scheduler/assembly/build/test cycle, up to 5 review rounds.
-7. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
-   branch is fast-forwarded into `modern_interface` after the gates pass.
+7. The `code-review` skill reviews Standards and Spec, using parallel review
+   sub-agents inside the review stage. It returns evidenced criterion statuses,
+   deduplicated findings, resolutions, residual decisions and behavior to keep.
+   Open findings become mapped repair tickets through the same pipeline, up to
+   5 review rounds and three integrated repair cycles per defect.
+8. A fresh read-only final auditor inspects the original task, fixed contract,
+   baseline/final code and controller check evidence. It receives candidate
+   residual risks, without previous reviews or ticket Answers, and must confirm
+   each residual independently. A failed final audit permits one repair cycle
+   and one repeat audit; remaining blockers stop the run.
+9. A tracked report is written under `docs/tasks/sandcastle/`. The sandbox
+  branch is fast-forwarded into `modern_interface` after the gates pass.
+
+## Acceptance contract and closure gate
+
+The contract records each criterion's stable ID, verifiable requirement,
+literal source quote, mandatory flag, current/deferred applicability, checks
+and owning task for deferred obligations. The independent verifier must reject
+omitted requirements, unsupported deferrals and behavior mislabeled optional.
+All originating requirements remain mandatory. Implementation readiness may
+leave later full acceptance pending only where the original task permits it;
+the report states its completion scope explicitly.
+
+The fixed automated set always includes the exact SV Make build and core
+checks, plus production feature checks needed by current mandatory criteria.
+Focused command checks can invoke `python3 -B tests/<file> [args]`,
+`node tests/<file> [args]` or `bash tests/<file> [args]`, without shell operators.
+An applicable required check without a runner/environment blocks closure; an
+agent cannot substitute its statement for a controller-executed check. The
+controller records check ID, result, log, contract digest and exact code HEAD.
+Checks and reviewers must leave the committed worktree unchanged. Changing the
+accepted contract in a worker branch stops the process for a scope decision.
+
+Closure is deterministic: every current mandatory criterion passes, every
+required check passes at the final audited HEAD, all worker commits are
+integrated, and no open blocker remains. The controller emits one verdict:
+
+- `ready`: the scoped result passes and has no accepted residual defects.
+- `ready_with_notes`: it passes with explicitly accepted optional low cosmetic
+  or maintainability issues, each with reason, risk, owner and return condition.
+- `blocked`: at least one required criterion/check, defect or final audit is
+  unresolved. A score such as 8/10 cannot override this verdict.
+
+Critical, high and medium findings block closure. Behavioral regressions,
+security, data loss, protocol changes, scope violations, false evidence and
+unmet mandatory criteria block closure even if labeled low. Residual decisions
+can reference only optional current criteria. They are published as **open**
+backlog files under `.scratch/sandcastle-<run-id>/residuals/`, alongside the final
+report's coverage, pending checks, preserved behavior and incident history.
+Deferred native/platform checks are reported as not run, rather than passed.
+
+Findings have stable `defectKey` and production `area`; controller IDs do not
+depend on a filename, line number or changing title. The review consolidator
+reuses known IDs for paraphrases/moved code and deduplicates Standards/Spec
+findings before planning. The controller folds identical keys, retains the
+strongest impact, rejects identity changes under an existing ID, and persists
+the ledger across restarts. Semantic matching of differently phrased findings
+is the review agent's responsibility; it is not inferred from line proximity.
+A missing finding in the next review stays open until an explicit resolution
+with current evidence. Resolved/accepted findings reopen on new evidence.
+
+Repair manifests name `findingIds`. A defect's counter advances once when all
+its mapped repair tickets have been verified and integrated, even across
+several waves. Failed workers, reviews of unchanged code and assembly retries
+do not consume another repair cycle. After three unsuccessful integrated
+repairs, a remaining blocker stays open and requires a human decision. Recovery
+cannot defer a review repair, waive the gate, or reset the per-defect/final-audit
+ceiling. Broader `SANDCASTLE_CONTINUE` allowances still apply only to the
+existing build/test/review/quota budgets.
+
+Contract proposals, assessments, ledger, mapped repair counters and check logs
+are checkpointed on disk before publication. Interrupted publication reuses
+the saved response. Schema files are mounted read-only from the host runtime,
+so resuming an older task branch uses the current controller schema.
+
+On an explicitly authorized resume, a legacy run first creates and verifies a
+contract, preserving its saved wave, worker commits, quota and cycle counters.
+This cannot retroactively establish a pre-implementation contract for existing
+commits; the report records that limitation. Old reviews remain available to
+reconcile identity, but per-defect counters start with mapped repair batches
+after migration. A legacy report/integration checkpoint reruns build/testing,
+review and the fresh final audit before closure. Updating the process does not
+resume stopped runs or change heartbeat settings.
+
+## Recovery and budgets
 
 Recoverable stage failures invoke a dedicated AI recovery orchestrator. It runs
 as an ephemeral, read-only host Codex CLI process, so diagnosis does not depend

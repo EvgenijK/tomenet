@@ -1,0 +1,121 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "completionScope",
+    "criteria",
+    "checks"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "completionScope": {
+      "type": "string",
+      "enum": [
+        "implementation",
+        "full_acceptance"
+      ]
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "requirement",
+          "source",
+          "mandatory",
+          "applicability",
+          "deferralReason",
+          "owner",
+          "checkIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "quote"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              }
+            }
+          },
+          "mandatory": {
+            "type": "boolean"
+          },
+          "applicability": {
+            "type": "string",
+            "enum": [
+              "current",
+              "deferred"
+            ]
+          },
+          "deferralReason": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "checkIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "command",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "build",
+              "core",
+              "command",
+              "external"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

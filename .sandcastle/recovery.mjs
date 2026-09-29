@@ -6,6 +6,7 @@ import { taskQuotaLimit } from "./limits.mjs";
 // The AI chooses an action; this controller alone changes scheduler state.
 // Quota, gate limits and successful commit verification are never overridden.
 export function recoveryRestriction(state, error = "") {
+  if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";
   if (/quota|account usage limit|token limit|human approval/i.test(error)) return "Usage or cycle guard requires human continuation";
   if (["build", "build-repair", "test-gate"].includes(state.phase) && state.buildAttempts >= state.buildLimit) return "Build attempt limit reached";
@@ -77,6 +78,7 @@ export function previewRecovery(state, decision) {
     if (state.blockedTicket) blocked.add(state.blockedTicket.path);
     for (const path of decision.ticketPaths) {
       if (!blocked.has(path) || !state.tickets.some((ticket) => ticket.path === path) || state.completedTickets.includes(path)) throw new Error(`Cannot defer an unblocked, unknown or completed ticket: ${path}`);
+      if (state.tickets.find((ticket) => ticket.path === path)?.findingIds?.length) throw new Error("Review defect repair cannot be deferred to bypass acceptance");
     }
     const deferred = new Set(decision.ticketPaths);
     // A deferred prerequisite cannot accidentally unlock its downstream work.

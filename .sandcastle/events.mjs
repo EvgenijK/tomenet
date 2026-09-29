@@ -38,11 +38,24 @@ function compactState(state) {
       reviewRound: count(state.reviewRound),
       buildAttempts: count(state.totalBuildAttempts),
       testAttempts: count(state.totalTestAttempts),
+      ...(state.acceptance ? {
+        openDefects: state.acceptance.ledger.filter((item) => item.status === "open").length,
+        residuals: state.acceptance.ledger.filter((item) => item.status === "residual").length,
+        finalAudits: state.acceptance.finalAudits.length,
+        ...(state.acceptance.finalVerdict ? { acceptanceVerdict: state.acceptance.finalVerdict.verdict } : {}),
+      } : {}),
     },
   };
 }
 
 export function stageOutcome(state, stage) {
+  if (stage === "contract") return state.phase === "contract"
+    ? { status: "needs-fixes", summary: "Acceptance contract needs another completeness check; implementation has not started." }
+    : { status: "completed", summary: "Acceptance contract independently verified and fixed before further implementation." };
+  if (["review", "final-audit"].includes(stage) && state.acceptance) return {
+    status: state.phase === "plan" ? "needs-fixes" : state.acceptance.lastVerdict.verdict,
+    summary: `${stage}: ${state.acceptance.lastVerdict.verdict}; ${state.acceptance.ledger.filter((item) => item.status === "open").length} open defects, ${state.acceptance.ledger.filter((item) => item.status === "residual").length} accepted residuals; next stage ${state.phase}.`,
+  };
   const failedGate = (stage === "build" || stage === "test-gate") && ["build-repair", "test-repair"].includes(state.phase);
   if (failedGate) return { status: "failed", summary: `${stage}: gate failed; next stage ${state.phase}.` };
   if (stage === "review" && state.phase === "plan") return { status: "needs-fixes", summary: `Review ${state.reviewRound}: ${(state.reviewFindings ?? []).length} findings; preparing repair tickets.` };
