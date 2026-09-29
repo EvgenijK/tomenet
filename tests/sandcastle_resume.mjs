@@ -32,10 +32,17 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_RECOVER;
   delete env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
   delete env.SANDCASTLE_RESUME;
+  delete env.SANDCASTLE_REPAIR_RESUME;
   try {
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
       assert.equal(error.status, 1);
       assert.match(error.stderr.toString(), /needs human confirmation/);
+      return true;
+    });
+    assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);
+    assert.equal(existsSync(resolve(dir, "run.lock")), false);
+    assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env: { ...env, SANDCASTLE_REPAIR_RESUME: "1" }, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
+      assert.match(error.stderr.toString(), /saved exhausted legacy checkpoint/);
       return true;
     });
     assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);

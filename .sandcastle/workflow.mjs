@@ -10,9 +10,10 @@ import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from 
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
-import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord } from "./recovery.mjs";
+import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
-import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "./runtime.mjs";
+import { buildContractDraft } from "./contract-draft.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs } from "./runtime.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -168,7 +169,7 @@ async function recoveryAgent(state, context) {
     "You are read-only. Inspect AGENTS.md, the original spec, ticket files and relevant Git revisions (use git show <branch>:<path> for current integration/worker evidence). Do not edit files, commit, merge, reset, run builds or write scheduler state. Do not read credentials/auth files or print environment variables. Return only schema JSON.",
     "retry: transient execution/tool failure; rerun the saved checkpoint, preserving successful workers. repair: a failing existing worker or unfinished assembly, build/test gate or invalid planning manifest; send focused repair guidance to its existing agent/pipeline, always through worker branches and assembly for code changes. defer: blocked implementation ticket genuinely requires an absent external owner; identify its repository-relative docs/tasks dependency document and preserve all acceptance obligations. stop: recovery needs a user decision or cannot safely proceed.",
     "For defer, name only blocked/failed active tickets in ticketPaths; the controller also defers downstream dependents. Successful siblings must be integrated first. Required tests, builds and acceptance gates cannot be skipped. Do not defer a code defect just to pass a gate. Do not widen the originating task into an absent later-stage flow. Explicitly deferred callers stay pending; they must not repeatedly reappear in repair batches.",
-    "For retry/repair/stop use ticketPaths=[] and dependency=''. For defer use a real docs/tasks/...md dependency; read that document to confirm the missing prerequisite. Explain the concrete cause and restoration condition in summary. Existing quota/cycle limits cannot be increased or reset. At most three recovery decisions are allowed at an unchanged checkpoint.",
+    "For retry/repair/stop use ticketPaths=[] and dependency=''. For defer use a real docs/tasks/...md dependency; read that document to confirm the missing prerequisite. Explain the concrete cause and restoration condition in summary. Existing quota/cycle limits cannot be increased or reset. At most three recovery decisions are allowed for the same cause at an unchanged checkpoint. A contract agent timeout at the 600-second ceiling cannot be retried unchanged; choose stop and explain the required bounded runtime repair.",
     JSON.stringify(context, null, 2),
   ].join("\n\n");
   return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json") }));
@@ -177,8 +178,9 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
   await quotaCheckpoint(state);
   console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
+  const startedAt = Date.now();
   const operation = execFileAsync("codex", readOnlyAgentArgs({ model, effort, schemaPath, multiAgent }),
-    { cwd, env: { ...process.env, CODEX_HOME: authDir }, timeout: 240000, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
+    { cwd, env: { ...process.env, CODEX_HOME: authDir }, timeout: readOnlyAgentTimeoutMs, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
   operation.child.stdin.on("error", () => {});
   operation.child.stdin.end(prompt);
   let result;
@@ -186,11 +188,18 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
   catch (error) {
     for (const line of (error.stdout ?? "").split("\n")) parseAgentOutput(line, captured);
     state.budget.tokens += captured.tokens;
+    const elapsedMs = Date.now() - startedAt;
+    (state.agentHistory ??= []).push({ role, status: error.killed ? "timeout" : "failed", elapsedMs, timeoutMs: readOnlyAgentTimeoutMs, at: new Date().toISOString() });
     await save(state);
-    throw new Error(`${role} agent failed: ${error.killed ? "timeout" : error.code}`);
+    const failure = new Error(`${role} agent failed: ${error.killed ? `timeout after ${readOnlyAgentTimeoutMs} ms` : error.code}`);
+    if (error.killed) failure.code = "AGENT_TIMEOUT";
+    failure.elapsedMs = elapsedMs;
+    failure.timeoutMs = readOnlyAgentTimeoutMs;
+    throw failure;
   }
   for (const line of result.stdout.split("\n")) parseAgentOutput(line, captured);
   state.budget.tokens += captured.tokens;
+  (state.agentHistory ??= []).push({ role, status: "completed", elapsedMs: Date.now() - startedAt, timeoutMs: readOnlyAgentTimeoutMs, at: new Date().toISOString() });
   await save(state);
   try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
@@ -204,7 +213,7 @@ async function recover(sandbox, state) {
       const worktree = decision.action === "defer" ? sandbox?.worktreePath ?? await recoveryWorktree(state) : undefined;
       await documentRecovery(state, incident, decision, preview, { worktree, runsDir, git, ensureCommit, manifest: manifestPath(state) });
     },
-    event: (record) => appendStageEvent(runsDir, state, { stage: "recovery", status: record.action, summary: `Recovery ${record.id}: ${record.action}; checkpoint ${record.phase}; ${record.affectedTickets.length} tickets deferred.`, tickets: record.affectedTickets }),
+    event: (record) => appendStageEvent(runsDir, state, { stage: "recovery", status: record.action, summary: `Recovery ${record.id}: ${record.action} for ${record.category}; checkpoint ${record.phase}; ${record.affectedTickets.length} tickets deferred.`, tickets: record.affectedTickets }),
   });
   if (!result) throw new Error(`Recovery agent requested a stop: ${state.recoveries.at(-1).summary}`);
   return sandbox;
@@ -224,13 +233,14 @@ async function contract(sandbox, state) {
   await contractStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
     sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
-    propose: (sources, feedback) => inspect(sandbox, state, "acceptance contract", [
-      "Derive a numbered, verifiable acceptance contract BEFORE implementation. Read the originating spec's referenced documents and relevant ADRs to understand it, but cite literal quotes from the supplied authoritative sources. Do not edit files. Return schema JSON.",
-      "Separate implementation readiness from full native/platform acceptance exactly as the originating task allows. Use completionScope=implementation only when the task explicitly permits pending later integrations/acceptance. Mark deferred criteria pending with an explicit source-supported reason and real owning task/path; never weaken a currently required criterion. Preserve baseline protocol/game semantics and AGENTS.md isolation rules as mandatory criteria.",
-      "Every criterion needs stable id, requirement, mandatory, applicability (current/deferred), source {path,quote}, owner, deferralReason (empty for current), and checkIds. Only explicitly optional polish may be nonmandatory; all originating requirements are mandatory. Add optional cosmetic/maintainability criteria if applicable, without downgrading behavior. Include source requirements that cannot yet be tested as external checks; do not conceal them.",
-      "Include the exact baseline checks below. Add focused production test runners for THIS FEATURE to the fixed set (including existing feature suites and planned missing tests). Command checks may invoke only python3 -B tests/<file> [args], node tests/<file> [args], or bash tests/<file> [args], without shell operators. External checks have command=''. Current mandatory criteria need executable evidence; missing environment must block closure. The contract and fixed check set cannot be weakened in repair rounds.",
-      JSON.stringify({ sources, baselineChecks, feedback }, null, 2),
-    ].join("\n\n"), ".sandcastle/contract-output.schema.json"),
+    propose: (sources, feedback, pending) => buildContractDraft(pending, sources, async (part, index, count) =>
+      inspect(sandbox, state, `acceptance contract part ${index + 1}/${count}`, [
+        `Draft numbered acceptance criteria for ONLY assigned source part ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source part. Do not edit files. Return schema JSON.`,
+        "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
+        "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
+        JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSource: part, baselineChecks, feedback }, null, 2),
+      ].join("\n\n"), ".sandcastle/contract-output.schema.json"),
+      () => save(state)),
     verify: (proposal, sources) => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
       JSON.stringify({ sources, proposal }, null, 2),
@@ -553,6 +563,11 @@ if (command === "start") {
 }
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
+const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
+if (improvedContractResume) {
+  if (userResume || extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
+  resumeImprovedContract(structuredClone(state));
+}
 if (userResume) {
   if (extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("User pause RESUME cannot be combined with other continuation modes");
   resumeUserPause(structuredClone(state));
@@ -562,14 +577,16 @@ if (extraQuota !== undefined) {
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
 }
-if (state.phase === "awaiting" && !userResume && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
 const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (userResume) {
+    if (improvedContractResume) {
+      resumeImprovedContract(state);
+    } else if (userResume) {
       resumeUserPause(state);
     } else if (extraQuota !== undefined) {
       extendTaskQuota(state, Number(extraQuota));
@@ -643,7 +660,9 @@ try {
       if (state.quotaError) throw new Error(state.quotaError);
     } catch (error) {
       if (state.phase === "recovery" || stage === "recovery") throw error;
-      await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: stopped before completion; examining the saved checkpoint.` });
+      const category = recoveryCategory(error);
+      const timing = Number.isFinite(error.elapsedMs) && Number.isFinite(error.timeoutMs) ? ` after ${Math.round(error.elapsedMs / 1000)}s (limit ${Math.round(error.timeoutMs / 1000)}s)` : "";
+      await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: ${category}${timing}; saved checkpoint retained.` });
       if (recoveryRestriction(state, error.message)) throw error;
       if (sandbox) {
         // Keep conflicts for the assembly agent; do not commit conflict markers.
@@ -651,7 +670,7 @@ try {
       }
       beginRecovery(state, error, stage);
       await save(state);
-      await appendStageEvent(runsDir, state, { stage: "recovery", status: "running", summary: `Recovery ${state.recovery.id}: diagnosing failure at ${stage}.` });
+      await appendStageEvent(runsDir, state, { stage: "recovery", status: "running", summary: `Recovery ${state.recovery.id}: diagnosing ${category} at ${stage}, attempt ${state.recovery.attempt}/3.` });
     }
   }
 } catch (error) {

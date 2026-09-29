@@ -273,13 +273,13 @@ export async function contractStage(state, ops) {
       pending.proposalInFlight = true;
     }
     await ops.save(state);
-    pending.proposal = await ops.propose(sources, pending.feedback ?? []);
+    pending.proposal = await ops.propose(sources, pending.feedback ?? [], pending);
     delete pending.proposalInFlight;
     await ops.save(state);
   }
   try { validateContract(pending.proposal, sources); }
   catch (error) {
-    pending.feedback = [error.message]; delete pending.proposal;
+    pending.feedback = [error.message]; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
     await ops.save(state);
     need(pending.round < acceptancePolicy.maxContractRounds, "contract validation limit reached; human decision required");
     return;
@@ -290,7 +290,7 @@ export async function contractStage(state, ops) {
   }
   if (pending.review.approved !== true || pending.review.missingRequirements?.length) {
     pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
-    delete pending.proposal; delete pending.review;
+    delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
     await ops.save(state);
     need(pending.round < acceptancePolicy.maxContractRounds, "contract verification limit reached; human decision required");
     return;

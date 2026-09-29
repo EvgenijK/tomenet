@@ -4,7 +4,8 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract } from "../.sandcastle/recovery.mjs";
+import { readOnlyAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
 const path = (number) => `.scratch/sandcastle-test/issues/${number}-ticket.md`;
@@ -93,6 +94,37 @@ test("three automatic retries without progress stop; verified progress permits a
   for (let i = 0; i < 3; i++) { beginRecovery(s, "Repeated failure"); s = previewRecovery(s, decision("retry")).next; }
   assert.throws(() => beginRecovery(s, "Different error text at same checkpoint"), /no progress/);
   s.completedTickets.push(path(4)); assert.doesNotThrow(() => beginRecovery(s, "Failure after progress"));
+});
+
+test("600-second inspection timeout and cause-specific recovery keep historical attempts", () => {
+  assert.equal(readOnlyAgentTimeoutMs, 600000);
+  const s = state(); s.phase = "contract"; s.wave.id = 39; s.completedTickets = Array(84).fill("finished"); s.reviewRound = 13; s.buildAttempts = 0; s.testAttempts = 0;
+  s.recoveryAttempts = { "contract:39:84:13:0:0": 3 };
+  s.recoveryPolicyVersion = 2;
+  const timeout = new Error("acceptance contract agent failed: timeout after 600000 ms"); timeout.timeoutMs = 600000;
+  assert.doesNotThrow(() => beginRecovery(s, timeout));
+  assert.equal(s.recovery.category, "agent_timeout");
+  assert.equal(s.recovery.attempt, 1);
+  assert.equal(s.recoveryAttempts["contract:39:84:13:0:0"], 3);
+  assert.throws(() => previewRecovery(s, decision("retry")), /unchanged timeout/);
+  let next = { ...s, phase: "contract", recovery: undefined };
+  beginRecovery(next, new Error("schema mount denied"));
+  assert.equal(next.recovery.category, "schema_mount");
+  assert.equal(next.recovery.attempt, 1);
+  assert.notEqual(next.recovery.key, s.recovery.key);
+});
+
+test("saved contract pause resumes only after policy upgrade without changing quotas or old attempts", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending = { round: 1, proposalInFlight: true }; s.budget.limitPercent = 45; s.budget.consumedPercent = 40;
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const history = structuredClone(s.recoveryAttempts);
+  resumeImprovedContract(s);
+  assert.equal(s.phase, "contract"); assert.equal(s.recoveryPolicyVersion, 2);
+  assert.deepEqual(s.recoveryAttempts, history); assert.equal(s.budget.limitPercent, 45); assert.equal(s.budget.consumedPercent, 40);
+  assert.throws(() => resumeImprovedContract(s));
+  const exhausted = state(); exhausted.phase = "awaiting"; exhausted.resumePhase = "contract"; exhausted.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint"; exhausted.contractPending = { round: 1, proposalInFlight: true }; exhausted.budget.limitPercent = 45; exhausted.budget.consumedPercent = 45; exhausted.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  assert.throws(() => resumeImprovedContract(exhausted), /quota/);
 });
 
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {

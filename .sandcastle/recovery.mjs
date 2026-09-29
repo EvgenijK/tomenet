@@ -5,6 +5,30 @@ import { taskQuotaLimit } from "./limits.mjs";
 
 // The AI chooses an action; this controller alone changes scheduler state.
 // Quota, gate limits and successful commit verification are never overridden.
+export function recoveryCategory(error) {
+  const message = String(error?.message ?? error);
+  if (error?.code === "AGENT_TIMEOUT" || /agent failed: timeout(?: after \d+ ms)?/i.test(message)) return "agent_timeout";
+  if (/file mounts outside|schema mount|processFileMountParents/i.test(message)) return "schema_mount";
+  if (/agent (?:failed|exited)/i.test(message)) return "agent_failure";
+  return "other";
+}
+
+// This one-time migration is specific to the contract runtime fix. It retains
+// the old three decisions and all budgets; it does not approve another scope.
+export function resumeImprovedContract(state) {
+  const legacyKey = ["contract", state.wave?.id ?? 0, state.completedTickets?.length ?? 0, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
+    state.pauseReason !== "Automatic recovery made no progress after three decisions at this checkpoint" ||
+    state.recoveryPolicyVersion || !state.contractPending?.proposalInFlight ||
+    (state.recoveryAttempts?.[legacyKey] ?? 0) < 3) throw new Error("Contract repair resume requires the saved exhausted legacy checkpoint");
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract repair resume requires available quota");
+  state.recoveryPolicyVersion = 2;
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 export function recoveryRestriction(state, error = "") {
   if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";
@@ -19,12 +43,17 @@ export function beginRecovery(state, error, stage = state.phase) {
   const message = String(error?.message ?? error);
   const restriction = recoveryRestriction(state, message);
   if (restriction) throw new Error(restriction);
-  const key = [state.phase, state.wave?.id ?? 0, state.completedTickets.length, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  const category = recoveryCategory(error);
+  const checkpoint = [state.phase, state.wave?.id ?? 0, state.completedTickets.length, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  const key = state.phase === "contract" && state.recoveryPolicyVersion === 2
+    ? `${checkpoint}:contract-v2:${state.contractPending?.parts?.length ?? 0}:${category}` : checkpoint;
   const attempts = (state.recoveryAttempts ??= {});
   if ((attempts[key] ?? 0) >= 3) throw new Error("Automatic recovery made no progress after three decisions at this checkpoint");
   attempts[key] = (attempts[key] ?? 0) + 1;
   const id = state.recoverySequence = (state.recoverySequence ?? 0) + 1;
-  state.recovery = { id, key, phase: state.phase, stage, error: message.slice(-8000), attempt: attempts[key] };
+  state.recovery = { id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
+    ...(Number.isFinite(error?.elapsedMs) ? { elapsedMs: error.elapsedMs } : {}),
+    ...(Number.isFinite(error?.timeoutMs) ? { timeoutMs: error.timeoutMs } : {}) };
   state.phase = "recovery";
   return state.recovery;
 }
@@ -58,6 +87,9 @@ export function previewRecovery(state, decision) {
   const next = structuredClone(state);
   const affected = [];
   next.phase = incident.phase;
+  if (decision.action === "retry" && incident.category === "agent_timeout" && incident.timeoutMs >= 600000 && incident.phase === "contract") {
+    throw new Error("Cannot retry an unchanged timeout at the 600-second contract limit");
+  }
   if (["retry", "repair"].includes(decision.action)) {
     next.recoveryAdvice = decision.summary;
     next.recoveryAdvicePhase = incident.phase;
@@ -114,7 +146,7 @@ export function previewRecovery(state, decision) {
     next.ticketIndex = next.tickets.filter((ticket) => next.completedTickets.includes(ticket.path)).length;
     next.scopeNotes = (next.scopeNotes ?? "") + `\nRecovery ${incident.id}: explicitly defer ${affected.map((ticket) => ticket.path).join(", ")} until ${decision.dependency}. ${decision.summary} Preserve original ownership and all pending acceptance. Do not implement this missing external dependency or recreate the same deferred caller as a repair ticket; continue reviewing applicable existing behavior.`;
   }
-  const record = { id: incident.id, phase: incident.phase, ...decision, affectedTickets: affected.map((ticket) => ticket.path), recordPath: `.scratch/sandcastle-${state.id}/recovery/${incident.id}.md` };
+  const record = { id: incident.id, phase: incident.phase, category: incident.category ?? "other", ...decision, affectedTickets: affected.map((ticket) => ticket.path), recordPath: `.scratch/sandcastle-${state.id}/recovery/${incident.id}.md` };
   (next.recoveries ??= []).push(record);
   delete next.recovery;
   return { next, affected, record };

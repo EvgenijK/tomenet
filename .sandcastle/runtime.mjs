@@ -17,3 +17,7 @@ export function readOnlyAgentArgs({ model, effort, schemaPath, multiAgent = fals
     "-s", "read-only", "-c", 'approval_policy="never"', "-m", model,
     "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "--output-schema", schemaPath, "-"];
 }
+
+// Host inspection includes repository reading and structured output generation.
+// A bounded ten-minute deadline replaces the former four-minute cutoff.
+export const readOnlyAgentTimeoutMs = 600000;

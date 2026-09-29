@@ -186,6 +186,24 @@ that many reported Codex input and output tokens. These are checkpoints between
 agent processes; an already-running wave may cross a threshold before its next
 checkpoint. No API key or auth token is copied into task reports.
 
+Acceptance-contract source text is partitioned at Markdown section boundaries.
+The read-only proposer returns one source-bounded contract part at a time; the
+controller saves each part and reuses it after interruption. It prefixes part
+IDs, combines the parts, validates the complete contract against the original
+sources, and still requires independent full-source verification. A rejected
+complete proposal consumes one of two contract rounds; an interrupted part does
+not. Host read-only inspectors have a 600-second per-agent deadline. Their
+duration, limit and outcome are saved as metadata in `state.json`, without
+prompts or file contents.
+
+Recovery after a contract runtime upgrade separates error categories and counts
+retries for the same cause and saved part checkpoint. Historical decisions stay
+in `recoveryAttempts` and `recoveries`; the upgrade does not reset quota or
+build/test/review counters. A contract agent that again times out at 600 seconds
+cannot simply be retried with the same settings. The stage event records the
+error category and elapsed/limit times, while recovery records include the
+category and chosen action.
+
 For a stopped task, inspect `.sandcastle/runs/<run-id>/state.json` and the
 tracked branch. To ask the recovery agent to diagnose an existing stop while
 retaining all current budgets and attempt limits:
@@ -206,6 +224,17 @@ preserves quota, cycle counters, completed workers and the current checkpoint,
 and rejects an exhausted quota. It cannot be combined with other continuation
 modes. An interrupted contract proposal reuses its reserved round; only a
 completed rejected proposal consumes a contract revision.
+
+A run stopped by the former mixed three-decision contract checkpoint can use
+the verified contract runtime upgrade once, without increasing any allowance:
+
+```sh
+SANDCASTLE_REPAIR_RESUME=1 npm run sandbox:resume -- <run-id>
+```
+
+This mode requires the exact saved contract checkpoint and available quota. It
+retains the previous three decisions and starts the new cause-specific policy
+revision; it cannot be combined with other continuation modes.
 
 Quota and exhausted cycle guards still require explicit continuation. After
 approving only additional quota (for example, 10 percentage points), run:
