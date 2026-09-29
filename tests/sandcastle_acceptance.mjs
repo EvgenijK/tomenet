@@ -6,6 +6,8 @@ import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts } from "../.sandcastle/runtime.mjs";
+import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { createWave, runWave, collectWave } from "../.sandcastle/parallel.mjs";
 import { beginRecovery, recoveryRestriction, previewRecovery } from "../.sandcastle/recovery.mjs";
 
@@ -27,6 +29,15 @@ function state() {
 const finding = (overrides = {}) => ({ id: "", defectKey: "cancel-mutates-state", area: "Guide input cancellation", criterionIds: ["AC-1"], severity: "medium", category: "behavior", file: "src/client/guide.c", line: 10, problem: "Cancel mutates state", fix: "Restore prior state", evidence: "Production cancellation loses cursor", ...overrides });
 const assessment = (findings = [], overrides = {}) => ({ summary: "Inspected production result", criteria: [{ id: "AC-1", status: "passed", evidence: "feature check at HEAD plus code inspection" }, { id: "AC-2", status: "passed", evidence: "Visual code inspection" }, { id: "AC-3", status: "pending", evidence: "Owned by SV-B075; not run" }], preserved: ["Cancellation produces no protocol packet"], findings, resolved: [], acceptedResiduals: [], ...overrides });
 const residual = (id) => ({ id, reason: "Optional whitespace only", risk: "No behavior or readability impact", owner: "docs/tasks/polish.md", returnCondition: "Next visual polish pass" });
+
+test("real Sandcastle provider accepts all runtime schema file mounts without rebuilding the image", () => {
+  const mounts = runtimeSchemaMounts(resolve(import.meta.dirname, ".."));
+  assert.doesNotThrow(() => docker({ mounts }));
+  for (const schema of [true, ".sandcastle/contract-output.schema.json", ".sandcastle/contract-review-output.schema.json", ".sandcastle/ticket-output.schema.json"]) {
+    assert.ok(mounts.some((mount) => mount.sandboxPath === runtimeSchemaPath(schema) && mount.readonly));
+  }
+  assert.throws(() => docker({ mounts: [{ ...mounts[0], sandboxPath: "/opt/sandcastle-runtime/contract-output.schema.json" }] }), /outside the sandbox home directory/);
+});
 
 test("contract rejects missing baseline, fabricated sources, invalid mappings and unsupported full closure", () => {
   validateContract(proposal(), sources);

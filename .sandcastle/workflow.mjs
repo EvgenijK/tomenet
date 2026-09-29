@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { access, mkdir, open, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { resolve, isAbsolute, basename } from "node:path";
+import { resolve, isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -12,6 +12,7 @@ import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts } from "./runtime.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -125,7 +126,7 @@ async function agent(sandbox, state, role, prompt, schema = false, readOnly = fa
     "--json", "--ephemeral", "--enable multi_agent",
     `-s ${readOnly ? "read-only" : "danger-full-access"}`, "-c 'approval_policy=\"never\"'",
     `-m ${quote(model)}`, `-c ${quote(`model_reasoning_effort=${JSON.stringify(effort)}`)}`,
-    ...(schema ? [`--output-schema ${quote(`/opt/sandcastle-runtime/${basename(schema === true ? "review-output.schema.json" : schema)}`)}`] : []),
+    ...(schema ? [`--output-schema ${quote(runtimeSchemaPath(schema))}`] : []),
     "-",
   ].join(" ");
   console.log(`Agent: ${role}`);
@@ -291,7 +292,7 @@ function sandboxProvider() {
   const proxy = process.env.all_proxy || process.env.ALL_PROXY;
   return docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
     ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
-    ...["contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({ hostPath: resolve(root, `.sandcastle/${name}.schema.json`), sandboxPath: `/opt/sandcastle-runtime/${name}.schema.json`, readonly: true })),
+    ...runtimeSchemaMounts(root),
   ] });
 }
 async function openWorker(state, member, wave) {
