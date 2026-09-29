@@ -43,7 +43,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
     assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);
     assert.equal(existsSync(resolve(dir, "run.lock")), false);
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env: { ...env, SANDCASTLE_EXTRA_CONTRACT_ROUND: "1" }, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
-      assert.match(error.stderr.toString(), /rejected second contract/);
+      assert.match(error.stderr.toString(), /rejected contract at the current limit/);
       return true;
     });
     assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);

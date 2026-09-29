@@ -4,22 +4,27 @@ import { taskQuotaLimit } from "./limits.mjs";
 // Model opinions never override these controller-owned safety rules.
 export const acceptancePolicy = Object.freeze({ maxContractRounds: 2, maxDefectRepairs: 3, maxFinalAudits: 2 });
 function contractRoundLimit(state) {
-  need(state.contractRoundLimit === undefined || state.contractRoundLimit === 3, "invalid contract round grant");
+  need(state.contractRoundLimit === undefined || [3, 4].includes(state.contractRoundLimit), "invalid contract round grant");
   return state.contractRoundLimit ?? acceptancePolicy.maxContractRounds;
 }
 
-// Exactly one user-approved revision after two independently checked proposals.
+// One user-approved revision per stopped checkpoint, with an absolute fourth-
+// round ceiling. Earlier verifier feedback and all non-contract limits survive.
 // No quota, repair or review counter changes; the previous feedback is retained.
 export function grantContractRound(state) {
   const pending = state.contractPending;
+  const previousLimit = contractRoundLimit(state);
   need(state.phase === "awaiting" && state.resumePhase === "contract" &&
     state.pauseReason === "Acceptance: contract verification limit reached; human decision required" &&
-    !state.acceptance && state.contractRoundLimit === undefined &&
-    pending?.round === acceptancePolicy.maxContractRounds && Array.isArray(pending.feedback) && pending.feedback.length > 0 &&
-    !pending.proposal && !pending.review && !(pending.parts?.length), "additional round requires the rejected second contract and explicit authorization");
+    !state.acceptance && previousLimit < 4 &&
+    pending?.round === previousLimit && Array.isArray(pending.feedback) && pending.feedback.length > 0 &&
+    !pending.proposal && !pending.review && !(pending.parts?.length), "additional round requires the rejected contract at the current limit and explicit authorization");
   need(!state.quotaError && (state.budget?.consumedPercent ?? 0) < taskQuotaLimit(state), "quota still requires a separate allowance");
-  state.contractRoundLimit = 3;
-  state.contractRoundGrant = { previousLimit: acceptancePolicy.maxContractRounds, newLimit: 3, grantedAt: new Date().toISOString() };
+  const grant = { previousLimit, newLimit: previousLimit + 1, grantedAt: new Date().toISOString() };
+  state.contractRoundGrants ??= state.contractRoundGrant ? [state.contractRoundGrant] : [];
+  state.contractRoundGrants.push(grant);
+  state.contractRoundLimit = grant.newLimit;
+  state.contractRoundGrant = grant;
   state.phase = "contract";
   delete state.resumePhase;
   delete state.pauseReason;
@@ -303,6 +308,7 @@ export async function contractStage(state, ops) {
   try { validateContract(pending.proposal, sources); }
   catch (error) {
     pending.feedback = [error.message]; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
+    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract validation limit reached; human decision required");
     return;
@@ -314,6 +320,7 @@ export async function contractStage(state, ops) {
   if (pending.review.approved !== true || pending.review.missingRequirements?.length) {
     pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
+    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");
     return;

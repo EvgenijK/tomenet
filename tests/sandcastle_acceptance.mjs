@@ -60,7 +60,7 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   assert.equal(s.phase, "plan");
 });
 
-test("one explicitly granted third contract round preserves verification feedback and budgets", async () => {
+test("one explicitly granted contract round at a time preserves feedback, budgets and history", async () => {
   const original = { id: "test", phase: "awaiting", resumePhase: "contract", pauseReason: "Acceptance: contract verification limit reached; human decision required",
     contractPending: { round: 2, feedback: ["Separate readiness from full acceptance"] },
     budget: { consumedPercent: 41, limitPercent: 45, tokens: 123 }, reviewRound: 13, recoveryAttempts: { checkpoint: 3 } };
@@ -74,6 +74,18 @@ test("one explicitly granted third contract round preserves verification feedbac
     propose: async (_, feedback) => { seenFeedback = feedback; return proposal(); }, verify: async () => approval });
   assert.deepEqual(seenFeedback, before.contractPending.feedback);
   assert.equal(original.phase, "plan"); assert.equal(original.contractRoundGrant.newLimit, 3);
+  const secondPause = structuredClone(before);
+  secondPause.contractRoundLimit = 3;
+  secondPause.contractRoundGrant = { previousLimit: 2, newLimit: 3, grantedAt: "2026-09-29T00:00:00Z" };
+  secondPause.contractPending.round = 3;
+  secondPause.contractPending.feedback = ["Reconcile cross-part requirements"];
+  grantContractRound(secondPause);
+  assert.equal(secondPause.contractRoundLimit, 4);
+  assert.deepEqual(secondPause.contractRoundGrants.map((grant) => grant.newLimit), [3, 4]);
+  assert.equal(secondPause.contractPending.round, 3);
+  secondPause.phase = "awaiting"; secondPause.resumePhase = "contract"; secondPause.pauseReason = before.pauseReason;
+  secondPause.contractPending.round = 4;
+  assert.throws(() => grantContractRound(secondPause));
   for (const mutate of [s => { s.contractPending.feedback = []; }, s => { s.budget.consumedPercent = 45; }, s => { s.pauseReason = "Different pause"; }]) {
     const invalid = structuredClone(before); mutate(invalid); const snapshot = structuredClone(invalid);
     assert.throws(() => grantContractRound(invalid)); assert.deepEqual(invalid, snapshot);

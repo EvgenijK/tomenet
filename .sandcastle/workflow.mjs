@@ -13,6 +13,7 @@ import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, grantContractRound, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
+import { reconcileContractDraft } from "./contract-reconcile.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs } from "./runtime.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -233,7 +234,8 @@ async function contract(sandbox, state) {
   await contractStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
     sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
-    propose: (sources, feedback, pending) => buildContractDraft(pending, sources, async (part, index, count) =>
+    propose: async (sources, feedback, pending) => {
+      const draft = await buildContractDraft(pending, sources, async (part, index, count) =>
       inspect(sandbox, state, `acceptance contract part ${index + 1}/${count}`, [
         `Draft numbered acceptance criteria for ONLY assigned source part ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source part. Do not edit files. Return schema JSON.`,
         "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
@@ -242,7 +244,14 @@ async function contract(sandbox, state) {
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
         JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSource: part, baselineChecks, feedback }, null, 2),
       ].join("\n\n"), ".sandcastle/contract-output.schema.json"),
-      () => save(state)),
+      () => save(state));
+      if (pending.parts.length < 2) return draft;
+      return reconcileContractDraft(pending, draft, sources, (proposal) => inspect(sandbox, state, "acceptance contract reconciliation", [
+        "Reconcile the combined contract parts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Read the original sources and relevant referenced policies. Do not edit files. Return only a focused patch using the output schema: replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
+        "Address EVERY saved verifier finding explicitly. Distinguish production implementation readiness from deferred native and later-caller evidence. The wrapped Guide article projection is current production behavior; only native visual evidence is deferred. Connected server-directed Guide opening remains owned by SV-B-008, not SV-B-020. An unterminated or oversized Receive_Guide wire field must disconnect with protocol error and no partial Guide publication. Align viewer, checksum and update on the same U/TomeNET-Guide.txt override. Cover concurrent edits and provider/read/write/replace failures. Guide source lines are lossless, not subject to the typed editor 80-byte limit; distinguish typed rejection from permitted paste/macro prefix shortening. Require executable evidence for A regressions instead of treating a no-op baseline invocation as proof. Preserve all canonical obligations and the independent final review gate.",
+        JSON.stringify({ sources, proposal, verifierFeedback: feedback }, null, 2),
+      ].join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state));
+    },
     verify: (proposal, sources) => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
       JSON.stringify({ sources, proposal }, null, 2),

@@ -179,7 +179,8 @@ Three automatic decisions without progress at the same checkpoint stop the
 run. A failed recovery agent or invalid decision also preserves the run for
 inspection. Recovery cannot reset quota or build/test/review limits. It reads
 the account's weekly Codex usage before and after each agent and stops when this
-task has consumed 25 percentage points of the weekly window. Quota reads and
+task has consumed its authorized percentage-point allowance of the weekly window
+(25 points initially). Quota reads and
 state writes are serialized even when workers run concurrently. If
 `SANDCASTLE_TASK_TOKEN_LIMIT` is set to a positive integer, it also stops after
 that many reported Codex input and output tokens. These are checkpoints between
@@ -189,9 +190,12 @@ checkpoint. No API key or auth token is copied into task reports.
 Acceptance-contract source text is partitioned at Markdown section boundaries.
 The read-only proposer returns one source-bounded contract part at a time; the
 controller saves each part and reuses it after interruption. It prefixes part
-IDs, combines the parts, validates the complete contract against the original
-sources, and still requires independent full-source verification. A rejected
-complete proposal consumes one of two contract rounds; an interrupted part does
+IDs and combines the parts. A separate read-only reconciler can replace or add
+criteria and checks to resolve contradictions across parts and prior verifier
+feedback. It cannot delete criteria or downgrade mandatory requirements. The
+controller validates the reconciled contract against the original sources and
+still requires independent full-source verification. A rejected
+complete proposal consumes one authorized contract round; an interrupted part does
 not. Host read-only inspectors have a 600-second per-agent deadline. Their
 duration, limit and outcome are saved as metadata in `state.json`, without
 prompts or file contents.
@@ -236,18 +240,19 @@ This mode requires the exact saved contract checkpoint and available quota. It
 retains the previous three decisions and starts the new cause-specific policy
 revision; it cannot be combined with other continuation modes.
 
-If independent verification rejects both contract drafts, a user may authorize
-exactly one additional draft and independent verification round:
+If independent verification exhausts the contract rounds, a user may authorize
+one additional draft and independent verification round at a time, up to four
+total rounds:
 
 ```sh
 SANDCASTLE_EXTRA_CONTRACT_ROUND=1 npm run sandbox:resume -- <run-id>
 ```
 
-The controller accepts this only at the rejected second-contract checkpoint,
-retains the verifier's missing-requirements feedback and prior round history,
-and keeps all quota/build/test/review limits unchanged. It cannot be combined
-with other continuation modes or granted a second time. A third rejection still
-stops for a new scope decision; mandatory obligations are never waived.
+The controller accepts this only at a rejected contract checkpoint with an
+exhausted current round limit, retains the verifier's missing-requirements
+feedback and full grant history, and keeps all quota/build/test/review limits
+unchanged. It cannot be combined with other continuation modes. Each rejection
+still stops for a new explicit decision; mandatory obligations are never waived.
 
 Quota and exhausted cycle guards still require explicit continuation. After
 approving only additional quota (for example, 10 percentage points), run:
