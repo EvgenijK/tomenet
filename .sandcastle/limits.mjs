@@ -30,7 +30,7 @@ export function extendTaskQuota(state, extraPercent) {
 
 // Read the same account quota snapshot used by the Codex app. No credential is
 // copied into a report or sent to the development container by this probe.
-export async function readWeeklyUsage(authDir, model) {
+export async function readWeeklyUsage(authDir, model, timeoutMs = 20000) {
   const child = spawn("codex", ["app-server", "--stdio"], {
     env: { ...process.env, CODEX_HOME: authDir },
     stdio: ["pipe", "pipe", "ignore"],
@@ -39,7 +39,7 @@ export async function readWeeklyUsage(authDir, model) {
   let initialized = false;
   const result = await new Promise((resolve, reject) => {
     let settled = false;
-    const timer = setTimeout(() => finish(new Error("Codex usage probe timed out")), 20000);
+    const timer = setTimeout(() => finish(new Error("Codex usage probe timed out")), timeoutMs);
     const finish = (error, value) => {
       if (settled) return;
       settled = true;

@@ -6,7 +6,7 @@ export function runtimeSchemaPath(schema) {
   return `${schemaDirectory}/${basename(schema === true ? "review-output.schema.json" : schema)}`;
 }
 export function runtimeSchemaMounts(root) {
-  return ["contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({
+  return ["contract-groups-output", "contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({
     hostPath: resolve(root, `.sandcastle/${name}.schema.json`),
     sandboxPath: runtimeSchemaPath(`${name}.schema.json`), readonly: true,
   }));
@@ -18,6 +18,7 @@ export function readOnlyAgentArgs({ model, effort, schemaPath, multiAgent = fals
     "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "--output-schema", schemaPath, "-"];
 }
 
-// Host inspection includes repository reading and structured output generation.
-// A bounded ten-minute deadline replaces the former four-minute cutoff.
+// Contract and final-audit inspectors include repository reading and structured output.
+// Ordinary review has no deadline; recovery receives its own longer deadline.
 export const readOnlyAgentTimeoutMs = 600000;
+export const recoveryAgentTimeoutMs = 6000000;

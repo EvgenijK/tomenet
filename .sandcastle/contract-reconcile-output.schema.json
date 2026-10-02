@@ -4,6 +4,7 @@
   "required": ["summary", "criterionEdits", "checkEdits", "criteriaToAdd", "checksToAdd"],
   "properties": {
     "summary": { "type": "string" },
+    "completionScope": { "type": "string", "enum": ["implementation", "full_acceptance"] },
     "criterionEdits": {
       "type": "array",
       "items": {

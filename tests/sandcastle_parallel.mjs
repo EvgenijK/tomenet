@@ -31,6 +31,12 @@ test("frontier is derived from dependencies and completed set, independent of ti
   assert.deepEqual(selectReadyTickets(s, 2), []);
 });
 
+test("scheduler admits ten independent workers but rejects eleven", () => {
+  const s = state(Array.from({ length: 11 }, (_, index) => ticket(String(index + 1))));
+  assert.equal(selectReadyTickets(s, 10).length, 10);
+  assert.throws(() => selectReadyTickets(s, 11), /1 to 10/);
+});
+
 test("wave captures isolated branches at one base and refuses an unresolved dead end", () => {
   const s = state([ticket("a"), ticket("b")]);
   const wave = createWave(s, { baseCommit: "base-sha", limit: 2, after: "review-fix" });

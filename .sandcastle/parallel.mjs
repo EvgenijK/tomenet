@@ -1,7 +1,7 @@
 import { recordTicketResult, validateTicketBatch } from "./tickets.mjs";
 
 export function selectReadyTickets(state, limit) {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 8) throw new Error("Parallelism must be an integer from 1 to 8");
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error("Parallelism must be an integer from 1 to 10");
   const completed = new Set(state.completedTickets);
   return state.tickets.filter((ticket) => !completed.has(ticket.path) && ticket.blockedBy.every((path) => completed.has(path))).slice(0, limit);
 }

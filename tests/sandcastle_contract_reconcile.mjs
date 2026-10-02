@@ -31,3 +31,11 @@ test("reconciliation cannot remove, fabricate or downgrade mandatory criteria", 
   ]) assert.throws(() => applyContractReconciliation(draft(), { ...patch(), criterionEdits: [edit] }, sources));
   assert.throws(() => applyContractReconciliation(draft(), { ...patch(), criteriaToAdd: [draft().criteria[0]] }, sources), /Duplicate/);
 });
+
+test("assembly can correct completion scope when parallel drafts disagree", () => {
+  const mixedDraft = { ...draft(), completionScope: "full_acceptance" };
+  const changed = applyContractReconciliation(mixedDraft, { ...patch(), completionScope: "implementation" }, sources);
+  assert.equal(changed.completionScope, "implementation");
+  assert.throws(() => applyContractReconciliation(mixedDraft, patch(), sources), /Invalid draft reconciliation/);
+  assert.throws(() => applyContractReconciliation(mixedDraft, { ...patch(), completionScope: "invalid" }, sources), /Malformed/);
+});

@@ -21,6 +21,8 @@ API key is optional. The auth directory is ignored by Git and must remain
 private. `npm run sandbox:login -- status` confirms that the container can read
 credentials; the development workflow also probes the account quota before
 creating a sandbox. It stops if that probe cannot read the weekly window.
+The startup quota probe has a 10-minute deadline; later quota checkpoints
+retain their 20-second deadline.
 
 The development container uses host networking to reach the host's local proxy.
 Build, test, and registry containers use Docker bridge networking. The SV core
@@ -39,10 +41,13 @@ The command prints a run ID. Fresh ephemeral Codex CLI processes implement
 ready tickets concurrently, with a separate container, Git branch and worktree
 for each worker:
 
-1. A read-only host agent derives a numbered acceptance contract from the original
-   task and AGENTS.md. A separate fresh agent checks completeness against the
-   sources. At most two proposals are allowed; implementation starts only after
-   approval. Inspectors run on the host against the managed integration
+1. A read-only host agent splits the original task and AGENTS.md into major
+   subtasks. Up to ten fresh agents draft their subtask contracts in parallel;
+   completed drafts are checkpointed and reused after an interruption. A
+   separate agent assembles the drafts into one contract, and another fresh
+   agent checks completeness against all sources. Rejected contracts return
+   for correction, up to twelve complete rounds. Implementation starts only
+   after approval. Inspectors run on the host against the managed integration
    worktree, since nested Bubblewrap namespaces are unavailable in the Docker
    environment; they retain a read-only sandbox and cannot modify repository
    files. Workers, assembly and build/test execution remain in containers.
@@ -52,28 +57,38 @@ for each worker:
    `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
    proceed autonomously replaces its interactive approval quiz.
 3. The scheduler selects tickets whose dependencies have been completed and
-   integrated. Up to `SANDCASTLE_PARALLELISM` workers (default 3, range 1–8)
+   integrated. Up to `SANDCASTLE_PARALLELISM` workers (default 3, range 1–10)
    start from the same committed integration revision. Workers never share
-   editable files and commit their own results.
+   editable files and commit their own results. Implementation and focused
+   testing workers receive the `tdd` skill directly. Planning names a public SV
+   production seam for each behavior-changing ticket, tied to the accepted
+   contract. The worker records a failing test before implementation and a
+   passing test afterward in the ticket Answer. A missing agreed seam blocks
+   the behavior change instead of producing test-only behavior. A focused
+   coverage ticket records checks of already implemented behavior without
+   claiming a test-first loop unless it exposes a defect to fix.
 4. An assembly agent merges successful worker revisions with Git, resolves
    conflicts using `resolving-merge-conflicts`, and checks the combined result.
    The orchestrator verifies commit ancestry, resolved tickets and a clean
    worktree before marking any new dependencies ready. Failed and blocked
    branches are retained; successful siblings are not rerun on continuation.
 5. The Make build runs. A build failure becomes a batch of repair tickets,
-   followed by parallel workers, assembly and another build attempt, up to
-   10 attempts. Repair batches do not reset the attempt counters.
+   followed by parallel workers, assembly and another build attempt. Each
+   completed repair batch starts a fresh 10-attempt build budget; the total
+   number of actual builds remains recorded.
 6. A testing ticket checks the production SV path and may add focused tests
    in its own worker branch, then passes through the same assembly stage.
    The orchestrator runs `.sandcastle/checks.sh core` and the contract's required
-   feature checks at the same committed HEAD; a failure starts a repair
-   ticket batch, workers and assembly, followed by another build and test
-   attempt, up to 10 failed tests.
+   feature checks at the same committed HEAD. The test-barrier rebuild has a
+   separate 10-attempt budget, refreshed after a completed repair batch. A
+   failed check starts repair tickets, workers and assembly, followed by
+   another build and test attempt, up to 10 failed tests.
 7. The `code-review` skill reviews Standards and Spec, using parallel review
    sub-agents inside the review stage. It returns evidenced criterion statuses,
    deduplicated findings, resolutions, residual decisions and behavior to keep.
    Open findings become mapped repair tickets through the same pipeline, up to
-   5 review rounds and three integrated repair cycles per defect.
+   10 review rounds and three integrated repair cycles per defect. The review
+   agent has no Sandcastle wall-clock timeout.
 8. A fresh read-only final auditor inspects the original task, fixed contract,
    baseline/final code and controller check evidence. It receives candidate
    residual risks, without previous reviews or ticket Answers, and must confirm
@@ -177,7 +192,8 @@ publication replays idempotently without another AI decision.
 
 Three automatic decisions without progress at the same checkpoint stop the
 run. A failed recovery agent or invalid decision also preserves the run for
-inspection. Recovery cannot reset quota or build/test/review limits. It reads
+inspection. The recovery agent has a 6000-second deadline. Recovery cannot
+reset quota or build/test/review limits. It reads
 the account's weekly Codex usage before and after each agent and stops when this
 task has consumed its authorized percentage-point allowance of the weekly window
 (25 points initially). Quota reads and
@@ -188,17 +204,19 @@ agent processes; an already-running wave may cross a threshold before its next
 checkpoint. No API key or auth token is copied into task reports.
 
 Acceptance-contract source text is partitioned at Markdown section boundaries.
-The read-only proposer returns one source-bounded contract part at a time; the
-controller saves each part and reuses it after interruption. It prefixes part
-IDs and combines the parts. A separate read-only reconciler can replace or add
-criteria and checks to resolve contradictions across parts and prior verifier
-feedback. It cannot delete criteria or downgrade mandatory requirements. The
-controller validates the reconciled contract against the original sources and
-still requires independent full-source verification. A rejected
-complete proposal consumes one authorized contract round; an interrupted part does
-not. Host read-only inspectors have a 600-second per-agent deadline. Their
-duration, limit and outcome are saved as metadata in `state.json`, without
-prompts or file contents.
+The read-only splitter groups every section into a major subtask. One read-only
+agent per group drafts a source-bounded contract in parallel; completed group
+responses are saved and reused after interruption. The controller prefixes
+group IDs and combines their drafts. A separate read-only assembly agent can
+replace or add criteria and checks to resolve contradictions across groups and
+prior verifier feedback. It cannot delete criteria or downgrade mandatory
+requirements. The controller validates the assembled contract against the
+original sources and still requires independent full-source verification. A
+rejected complete proposal consumes one of twelve contract rounds; an
+interrupted group does not. Contract agents and the final auditor have a
+600-second per-agent deadline; ordinary review has no timeout. Their duration,
+limit and outcome are saved as metadata in `state.json`, without prompts or
+file contents.
 
 Recovery after a contract runtime upgrade separates error categories and counts
 retries for the same cause and saved part checkpoint. Historical decisions stay
@@ -240,19 +258,9 @@ This mode requires the exact saved contract checkpoint and available quota. It
 retains the previous three decisions and starts the new cause-specific policy
 revision; it cannot be combined with other continuation modes.
 
-If independent verification exhausts the contract rounds, a user may authorize
-one additional draft and independent verification round at a time, up to four
-total rounds:
-
-```sh
-SANDCASTLE_EXTRA_CONTRACT_ROUND=1 npm run sandbox:resume -- <run-id>
-```
-
-The controller accepts this only at a rejected contract checkpoint with an
-exhausted current round limit, retains the verifier's missing-requirements
-feedback and full grant history, and keeps all quota/build/test/review limits
-unchanged. It cannot be combined with other continuation modes. Each rejection
-still stops for a new explicit decision; mandatory obligations are never waived.
+Independent verification can send a rejected contract back for correction up
+to twelve total rounds. Exhausting that ceiling stops the run for a scope or
+process decision; mandatory obligations are never waived.
 
 Quota and exhausted cycle guards still require explicit continuation. After
 approving only additional quota (for example, 10 percentage points), run:
@@ -273,7 +281,7 @@ For the broader continuation allowance, run:
 SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>
 ```
 
-This grants another 10 build attempts, 10 test attempts, 5 review rounds and a
+This grants another 10 build attempts, 10 test attempts, 10 review rounds and a
 new 25% weekly quota allowance for that task. A process interruption before a
 limit can be resumed with `npm run sandbox:resume -- <run-id>`; the orchestrator
 commits interrupted worktree changes before reopening the sandbox branch.
@@ -303,7 +311,8 @@ the current implementation or count them as passed.
 `SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
 `to-tickets`, `code-review`, `tdd` and `resolving-merge-conflicts` skills are
 mounted read-only from `~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when
-installed elsewhere.
+installed elsewhere. The workflow also passes the `tdd` skill text to each
+implementation worker rather than relying on the mount alone.
 
 ## Other commands
 

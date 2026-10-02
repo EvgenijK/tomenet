@@ -21,11 +21,11 @@ export function partitionContractSources(sources, targetChars = 6500) {
   return parts;
 }
 
-export function combineContractParts(parts, responses) {
+export function combineContractParts(parts, responses, { allowMixedScopes = false } = {}) {
   if (!Array.isArray(responses) || responses.length !== parts.length || !parts.length) throw new Error("Incomplete contract parts");
   const scopes = new Set(responses.map((response) => response?.completionScope));
-  if (scopes.size !== 1 || !["implementation", "full_acceptance"].includes(responses[0].completionScope)) throw new Error("Inconsistent contract completion scope");
-  const contract = { version: 1, completionScope: responses[0].completionScope, criteria: [], checks: [] };
+  if ([...scopes].some((scope) => !["implementation", "full_acceptance"].includes(scope)) || scopes.size !== 1 && !allowMixedScopes) throw new Error("Inconsistent contract completion scope");
+  const contract = { version: 1, completionScope: scopes.has("implementation") ? "implementation" : "full_acceptance", criteria: [], checks: [] };
   const baseline = new Map();
   const commandIds = new Map();
   for (let index = 0; index < parts.length; index++) {
@@ -48,7 +48,8 @@ export function combineContractParts(parts, responses) {
       }
     }
     for (const criterion of response.criteria) {
-      if (criterion?.source?.path !== parts[index].sourcePath || typeof criterion.source.quote !== "string" || !parts[index].sourceText.includes(criterion.source.quote)) throw new Error("Contract part cited a source outside its assigned section");
+      const sections = parts[index].sourceSections ?? [parts[index]];
+      if (typeof criterion?.source?.quote !== "string" || !sections.some((section) => section.sourcePath === criterion.source.path && section.sourceText.includes(criterion.source.quote))) throw new Error("Contract part cited a source outside its assigned section");
       if (!Array.isArray(criterion.checkIds) || criterion.checkIds.some((id) => !mapped.has(id))) throw new Error("Contract part has an unmapped check");
       contract.criteria.push({ ...criterion, id: `P${index + 1}-${criterion.id}`, checkIds: criterion.checkIds.map((id) => mapped.get(id)) });
     }

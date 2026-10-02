@@ -33,7 +33,8 @@ export function recoveryRestriction(state, error = "") {
   if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";
   if (/^(?:Task reached [\d.]+% of the weekly Codex quota|Weekly Codex quota is unavailable|Codex account usage limit reached|Task reached its token limit)/i.test(error) || /continuation requires human approval/i.test(error)) return "Usage or cycle guard requires human continuation";
-  if (["build", "build-repair", "test-gate"].includes(state.phase) && state.buildAttempts >= state.buildLimit) return "Build attempt limit reached";
+  if (["build", "build-repair"].includes(state.phase) && state.buildAttempts >= state.buildLimit) return "Build attempt limit reached";
+  if (state.phase === "test-gate" && (state.testBuildAttempts ?? 0) >= state.buildLimit) return "Test-gate rebuild attempt limit reached";
   if (["test-gate", "test-repair"].includes(state.phase) && state.testAttempts >= state.testLimit) return "Test attempt limit reached";
   if (state.reviewRound >= state.reviewLimit && state.reviewFindings?.length) return "Review round limit reached";
   return undefined;

@@ -11,10 +11,12 @@ import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, recoveryCategory } from "./recovery.mjs";
-import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, grantContractRound, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
+import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
+import { planContractGroups, buildGroupedContractDraft } from "./contract-groups.mjs";
 import { reconcileContractDraft } from "./contract-reconcile.mjs";
-import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs } from "./runtime.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
+import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -46,10 +48,10 @@ async function save(state) {
   saveQueue = next.catch(() => {});
   await next;
 }
-async function quotaCheckpoint(state) {
+async function quotaCheckpoint(state, timeoutMs = 20000) {
   const next = quotaQueue.then(async () => {
     if (state.quotaError) throw new Error(state.quotaError);
-    updateBudget(state, await readWeeklyUsage(authDir, model));
+    updateBudget(state, await readWeeklyUsage(authDir, model, timeoutMs));
     await save(state);
   });
   quotaQueue = next.catch(() => {});
@@ -122,13 +124,13 @@ function parseAgentOutput(line, result) {
     result.tokens += (usage.input_tokens || 0) + (usage.output_tokens || 0);
   }
 }
-async function agent(sandbox, state, role, prompt, schema = false, readOnly = false) {
+async function agent(sandbox, state, role, prompt, schema = false, readOnly = false, timeoutMs = readOnlyAgentTimeoutMs) {
   // Docker cannot provide the nested namespaces needed by Bubblewrap. Keep
   // inspectors read-only on the host, against this exact integration worktree.
   if (readOnly) return hostAgent(state, {
     cwd: sandbox.worktreePath, role, prompt,
     schemaPath: resolve(root, ".sandcastle", schema === true ? "review-output.schema.json" : schema.replace(/^\.sandcastle\//, "")),
-    multiAgent: role.startsWith("review "),
+    multiAgent: role.startsWith("review "), timeoutMs,
   });
   await quotaCheckpoint(state);
   const settings = [
@@ -173,15 +175,15 @@ async function recoveryAgent(state, context) {
     "For retry/repair/stop use ticketPaths=[] and dependency=''. For defer use a real docs/tasks/...md dependency; read that document to confirm the missing prerequisite. Explain the concrete cause and restoration condition in summary. Existing quota/cycle limits cannot be increased or reset. At most three recovery decisions are allowed for the same cause at an unchanged checkpoint. A contract agent timeout at the 600-second ceiling cannot be retried unchanged; choose stop and explain the required bounded runtime repair.",
     JSON.stringify(context, null, 2),
   ].join("\n\n");
-  return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json") }));
+  return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json"), timeoutMs: recoveryAgentTimeoutMs }));
 }
-async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false }) {
+async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false, timeoutMs = readOnlyAgentTimeoutMs }) {
   await quotaCheckpoint(state);
   console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
   const startedAt = Date.now();
   const operation = execFileAsync("codex", readOnlyAgentArgs({ model, effort, schemaPath, multiAgent }),
-    { cwd, env: { ...process.env, CODEX_HOME: authDir }, timeout: readOnlyAgentTimeoutMs, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 });
+    { cwd, env: { ...process.env, CODEX_HOME: authDir }, ...(timeoutMs ? { timeout: timeoutMs, killSignal: "SIGKILL" } : {}), maxBuffer: 8 * 1024 * 1024 });
   operation.child.stdin.on("error", () => {});
   operation.child.stdin.end(prompt);
   let result;
@@ -190,17 +192,17 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
     for (const line of (error.stdout ?? "").split("\n")) parseAgentOutput(line, captured);
     state.budget.tokens += captured.tokens;
     const elapsedMs = Date.now() - startedAt;
-    (state.agentHistory ??= []).push({ role, status: error.killed ? "timeout" : "failed", elapsedMs, timeoutMs: readOnlyAgentTimeoutMs, at: new Date().toISOString() });
+    (state.agentHistory ??= []).push({ role, status: error.killed ? "timeout" : "failed", elapsedMs, timeoutMs, at: new Date().toISOString() });
     await save(state);
-    const failure = new Error(`${role} agent failed: ${error.killed ? `timeout after ${readOnlyAgentTimeoutMs} ms` : error.code}`);
+    const failure = new Error(`${role} agent failed: ${error.killed ? `timeout after ${timeoutMs} ms` : error.code}`);
     if (error.killed) failure.code = "AGENT_TIMEOUT";
     failure.elapsedMs = elapsedMs;
-    failure.timeoutMs = readOnlyAgentTimeoutMs;
+    failure.timeoutMs = timeoutMs;
     throw failure;
   }
   for (const line of result.stdout.split("\n")) parseAgentOutput(line, captured);
   state.budget.tokens += captured.tokens;
-  (state.agentHistory ??= []).push({ role, status: "completed", elapsedMs: Date.now() - startedAt, timeoutMs: readOnlyAgentTimeoutMs, at: new Date().toISOString() });
+  (state.agentHistory ??= []).push({ role, status: "completed", elapsedMs: Date.now() - startedAt, timeoutMs, at: new Date().toISOString() });
   await save(state);
   try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
@@ -223,39 +225,60 @@ function contractContext(state) {
   assertContract(state);
   return `Immutable acceptance contract (${state.acceptance.contractDigest}):\n${JSON.stringify(state.acceptance.contract, null, 2)}`;
 }
-async function inspect(sandbox, state, role, prompt, schema) {
+async function inspect(sandbox, state, role, prompt, schema, timeoutMs = readOnlyAgentTimeoutMs) {
   const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
   if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Acceptance inspection requires a clean committed worktree");
-  const response = await agent(sandbox, state, role, prompt, schema, true);
+  const response = await agent(sandbox, state, role, prompt, schema, true, timeoutMs);
   if (await git(sandbox.worktreePath, "rev-parse", "HEAD") !== head || await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Read-only acceptance inspection changed the worktree");
   return JSON.parse(response);
+}
+async function contractSubstage(state, pending, name, run) {
+  pending.step = name;
+  await save(state);
+  await appendStageEvent(runsDir, state, { stage: `contract-${name}`, status: "running", summary: `Contract ${name} started.` });
+  try {
+    const result = await run();
+    await appendStageEvent(runsDir, state, { stage: `contract-${name}`, status: "completed", summary: `Contract ${name} completed.` });
+    return result;
+  } catch (error) {
+    await appendStageEvent(runsDir, state, { stage: `contract-${name}`, status: "failed", summary: `Contract ${name} failed; saved checkpoint retained.` });
+    throw error;
+  }
 }
 async function contract(sandbox, state) {
   await contractStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
     sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
     propose: async (sources, feedback, pending) => {
-      const draft = await buildContractDraft(pending, sources, async (part, index, count) =>
-      inspect(sandbox, state, `acceptance contract part ${index + 1}/${count}`, [
-        `Draft numbered acceptance criteria for ONLY assigned source part ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source part. Do not edit files. Return schema JSON.`,
+      const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, [
+        `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source sections. Do not edit files. Return schema JSON.`,
         "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
         "Independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
         "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
-        JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSource: part, baselineChecks, feedback }, null, 2),
-      ].join("\n\n"), ".sandcastle/contract-output.schema.json"),
-      () => save(state));
-      if (pending.parts.length < 2) return draft;
-      return reconcileContractDraft(pending, draft, sources, (proposal) => inspect(sandbox, state, "acceptance contract reconciliation", [
-        "Reconcile the combined contract parts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Read the original sources and relevant referenced policies. Do not edit files. Return only a focused patch using the output schema: replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
+        JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
+      ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+      let draft;
+      if (pending.parts || pending.partSourceDigest) {
+        // Preserve checkpoints from runs started with the former sequential draft.
+        draft = await buildContractDraft(pending, sources, proposePart, () => save(state));
+      } else {
+        const { parts, plan } = await contractSubstage(state, pending, "split", () => planContractGroups(pending, sources, (sections) => inspect(sandbox, state, "acceptance contract split", [
+          "Split the original task and AGENTS.md into major, coherent subtasks for independent contract agents. You are read-only. Group the numbered source sections by requirement area; every section index must appear exactly once. Use at least two groups when there are at least two sections, and at most ten groups. Keep related requirements together without omitting any source. Return only schema JSON.",
+          JSON.stringify({ originatingTask: state.specPath, sections: sections.map((section, index) => ({ index, ...section })), feedback }, null, 2),
+        ].join("\n\n"), ".sandcastle/contract-groups-output.schema.json"), () => save(state)));
+        draft = await contractSubstage(state, pending, "parallel", () => buildGroupedContractDraft(pending, parts, plan, proposePart, () => save(state)));
+      }
+      return contractSubstage(state, pending, "assemble", () => reconcileContractDraft(pending, draft, sources, (proposal) => inspect(sandbox, state, "acceptance contract reconciliation", [
+        "Assemble the parallel subtask contracts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Read the original sources and relevant referenced policies. Do not edit files. Return only a focused patch using the output schema: correct completionScope when needed, replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
         "Address EVERY saved verifier finding explicitly. Distinguish production implementation readiness from deferred native and later-caller evidence. The wrapped Guide article projection is current production behavior; only native visual evidence is deferred. Connected server-directed Guide opening remains owned by SV-B-008, not SV-B-020. An unterminated or oversized Receive_Guide wire field must disconnect with protocol error and no partial Guide publication. Align viewer, checksum and update on the same U/TomeNET-Guide.txt override. Cover concurrent edits and provider/read/write/replace failures. Guide source lines are lossless, not subject to the typed editor 80-byte limit; distinguish typed rejection from permitted paste/macro prefix shortening. Require executable evidence for A regressions instead of treating a no-op baseline invocation as proof. Preserve all canonical obligations and the independent final review gate.",
         JSON.stringify({ sources, proposal, verifierFeedback: feedback }, null, 2),
-      ].join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state));
+      ].join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
     },
-    verify: (proposal, sources) => inspect(sandbox, state, "independent contract verification", [
+    verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
       JSON.stringify({ sources, proposal }, null, 2),
-    ].join("\n\n"), ".sandcastle/contract-review-output.schema.json"),
+    ].join("\n\n"), ".sandcastle/contract-review-output.schema.json")),
     publish: async (accepted) => {
       await mkdir(resolve(sandbox.worktreePath, taskDir(state)), { recursive: true });
       await writeFile(resolve(sandbox.worktreePath, taskDir(state), "acceptance-contract.json"), JSON.stringify({ contract: accepted.contract, digest: accepted.contractDigest, verification: accepted.contractReview, migration: accepted.migration }, null, 2) + "\n");
@@ -272,6 +295,7 @@ async function plan(sandbox, state, reason = "") {
     skill,
     `Read AGENTS.md, CONTEXT.md, relevant ADRs, and docs/agents/issue-tracker.md. Write numbered ticket files under ${taskDir(state)}/issues/ and a JSON manifest at ${manifest}.`,
     'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[],"findingIds":[]}]}. List tickets in dependency order; blockedBy may contain earlier paths in this batch or completed tickets from prior batches. Never depend on unresolved or deferred tickets. Each ticket must have acceptance criteria referencing contract IDs. When repairing review findings, every ticket must name its ledger findingIds and every open finding must be covered once as one coherent repair (multiple dependent tickets are allowed). Do not recreate a resolved/residual finding or repair the same defect through unrelated tickets.',
+    "For each behavior-changing ticket, name the public SV production seam for TDD in the ticket and link it to an accepted contract criterion or check. Use only a seam supported by the originating task and contract; flag an absent seam as a blocker instead of inventing a test-only interface.",
     `Completed tickets available as dependencies:\n${JSON.stringify(state.completedTickets)}`,
     state.scopeNotes || "Respect the originating spec's implementation and full acceptance boundaries. Generated tickets cannot expand the authoritative scope. Record deferred checks without claiming they passed.",
     "Commit the tickets and manifest. Ask no routine questions.",
@@ -297,7 +321,8 @@ async function acceptPlan(sandbox, state) {
   state.tickets = parsed.tickets;
   state.ticketIndex = 0;
   state.batchCount++;
-  if (!state.repairKind) { state.buildAttempts = 0; state.testAttempts = 0; }
+  if (state.batchCount > 1) state.resetBuildBudgetAfterBatch = true;
+  if (!state.repairKind) state.testAttempts = 0;
   delete state.repairKind;
   delete state.pendingFailure;
   delete state.recoveryAdvice;
@@ -307,6 +332,7 @@ async function acceptPlan(sandbox, state) {
 async function startTicketWave(sandbox, state) {
   if (state.tickets.every((ticket) => state.completedTickets.includes(ticket.path))) {
     countIntegratedRepairs(state);
+    refreshBuildBudgetsAfterBatch(state);
     delete state.reviewFindings;
     state.phase = "build";
     await save(state);
@@ -334,9 +360,12 @@ async function openWorker(state, member, wave) {
 async function implementWorker(worker, state, member) {
   const ticket = member.ticket;
   const content = await readFile(resolve(worker.worktreePath, ticket.path), "utf8");
+  const tddSkill = await readFile(resolve(skillPaths.tdd, "SKILL.md"), "utf8");
   const prompt = [
     `Implement exactly ${ticket.path} in your isolated branch ${member.branch}. Other agents work in separate branches; do not edit or merge those branches.`, content,
     "Read AGENTS.md, CONTEXT.md and relevant ADRs. Claim the ticket before work and preserve its history. Keep legacy and shared edits minimal. Exercise the SV production path. Add meaningful tests for changed behavior. Commit your changes. Do not run the whole build/test/review workflow: the orchestrator runs those gates after all tickets. Ask only on critical failure.",
+    "Use the following $tdd skill for behavior-changing code. Identify the public SV production seam from the accepted contract and ticket before writing a test. At that seam, run a failing test before the minimal implementation, then rerun it to show green. Work in vertical slices. Record the seam and red/green commands and results in the ticket Answer. If no agreed production seam exists for a behavior change, do not invent a test-only implementation; return blocked with the missing seam as the reason. For a focused testing ticket that only adds coverage of already implemented behavior, record the checks without claiming a test-first loop; use TDD if its test exposes behavior that must be fixed.",
+    tddSkill,
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
@@ -399,8 +428,7 @@ async function assemble(sandbox, state) {
   }
 }
 async function build(sandbox, state) {
-  state.buildAttempts++;
-  state.totalBuildAttempts++;
+  recordBuildAttempt(state, "build");
   await save(state);
   const result = await gate(sandbox, "make -s -C src -f makefile.sv tomenet-sv");
   await checkEvidence(sandbox, state, "sv-build", result);
@@ -433,8 +461,7 @@ async function test(sandbox, state) {
   await save(state);
 }
 async function testGate(sandbox, state) {
-  state.buildAttempts++;
-  state.totalBuildAttempts++;
+  recordBuildAttempt(state, "test-gate");
   await save(state);
   const rebuilt = await gate(sandbox, "make -s -C src -f makefile.sv tomenet-sv");
   await checkEvidence(sandbox, state, "sv-build", rebuilt);
@@ -442,7 +469,7 @@ async function testGate(sandbox, state) {
     state.pendingFailure = rebuilt.output;
     state.phase = "build-repair";
     await save(state);
-    if (state.buildAttempts >= state.buildLimit) throw new Error(`Build failed ${state.buildAttempts} times; continuation requires human approval.\n${rebuilt.output}`);
+    if (state.testBuildAttempts >= state.buildLimit) throw new Error(`Test-gate rebuild failed ${state.testBuildAttempts} times; continuation requires human approval.\n${rebuilt.output}`);
     throw new Error("SV rebuild gate failed; recovery must choose the next action");
   }
   state.testAttempts++;
@@ -495,7 +522,7 @@ async function review(sandbox, state, audit = false) {
         ? `Candidate residuals requiring independent assessment (these proposals are not an acceptance verdict):\n${JSON.stringify(state.acceptance.ledger.filter((item) => item.status === "residual").map(({ id, defectKey, area, criterionIds, file, line, problem, residual }) => ({ id, defectKey, area, criterionIds, file, line, problem, residual })), null, 2)}`
         : `Defect register:\n${JSON.stringify(state.acceptance.ledger, null, 2)}`,
       !audit && state.acceptance.migration && state.acceptance.assessments.length === 0 ? `Legacy reviews for initial identity reconciliation:\n${JSON.stringify(state.reviews.map((item) => ({ head: item.head, findings: item.findings })), null, 2)}` : "",
-    ].filter(Boolean).join("\n\n"), ".sandcastle/review-output.schema.json"),
+    ].filter(Boolean).join("\n\n"), ".sandcastle/review-output.schema.json", audit ? readOnlyAgentTimeoutMs : 0),
     publish: async (parsed, { head }) => {
       const path = resolve(runsDir, state.id, audit ? `final-audit-${state.acceptance.finalAudits.length}.json` : `review-${state.reviewRound}.json`);
       await writeFile(path, JSON.stringify({ head, ...parsed }, null, 2) + "\n");
@@ -565,7 +592,7 @@ if (command === "start") {
   if (await git(root, "status", "--porcelain")) throw new Error("Commit or stash local changes before starting Sandcastle; worktrees start from committed state");
   const spec = process.env.SANDCASTLE_TASK || await readFile(resolve(root, specPath), "utf8");
   const id = randomUUID().slice(0, 8);
-  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, phase: "contract", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 5 };
+  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, phase: "contract", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testBuildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 10 };
   await save(state);
 } else {
   if (!/^[a-f0-9]{8}$/.test(runId ?? "")) throw new Error("Pass the eight-character Sandcastle run ID");
@@ -575,12 +602,7 @@ if (command === "start") {
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
 const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
-if (process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== undefined && process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== "1") throw new Error("SANDCASTLE_EXTRA_CONTRACT_ROUND must be exactly 1");
-const extraContractRound = process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND === "1";
-if (extraContractRound) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra contract round cannot be combined with other continuation modes");
-  grantContractRound(structuredClone(state));
-}
+if (process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== undefined) throw new Error("Contract rounds are capped at 12; extra contract-round grants are no longer available");
 if (improvedContractResume) {
   if (userResume || extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
   resumeImprovedContract(structuredClone(state));
@@ -594,16 +616,15 @@ if (extraQuota !== undefined) {
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && !extraContractRound && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_EXTRA_CONTRACT_ROUND=1 for one authorized contract revision, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
-if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 8) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 8");
+if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
+state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
 const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (extraContractRound) {
-      grantContractRound(state);
-    } else if (improvedContractResume) {
+    if (improvedContractResume) {
       resumeImprovedContract(state);
     } else if (userResume) {
       resumeUserPause(state);
@@ -618,7 +639,7 @@ try {
     } else {
       state.buildLimit += 10;
       state.testLimit += 10;
-      state.reviewLimit += 5;
+      state.reviewLimit += 10;
       state.recoveryAttempts = {};
       if (state.budget) {
         state.budget.consumedPercent = 0;
@@ -641,7 +662,7 @@ try {
     const stage = state.phase;
     try {
       if (state.phase !== "recovery" && !sandbox) {
-        await quotaCheckpoint(state);
+        await quotaCheckpoint(state, 600000);
         if (command === "resume") await recoverWorktree(state);
         sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider() });
         console.log(`Worktree: ${sandbox.worktreePath}`);

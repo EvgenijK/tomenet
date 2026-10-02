@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, grantContractRound, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -33,7 +33,7 @@ const residual = (id) => ({ id, reason: "Optional whitespace only", risk: "No be
 test("real Sandcastle provider accepts all runtime schema file mounts without rebuilding the image", () => {
   const mounts = runtimeSchemaMounts(resolve(import.meta.dirname, ".."));
   assert.doesNotThrow(() => docker({ mounts }));
-  for (const schema of [true, ".sandcastle/contract-output.schema.json", ".sandcastle/contract-review-output.schema.json", ".sandcastle/ticket-output.schema.json"]) {
+  for (const schema of [true, ".sandcastle/contract-groups-output.schema.json", ".sandcastle/contract-output.schema.json", ".sandcastle/contract-review-output.schema.json", ".sandcastle/ticket-output.schema.json"]) {
     assert.ok(mounts.some((mount) => mount.sandboxPath === runtimeSchemaPath(schema) && mount.readonly));
   }
   assert.throws(() => docker({ mounts: [{ ...mounts[0], sandboxPath: "/opt/sandcastle-runtime/contract-output.schema.json" }] }), /outside the sandbox home directory/);
@@ -60,36 +60,13 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   assert.equal(s.phase, "plan");
 });
 
-test("one explicitly granted contract round at a time preserves feedback, budgets and history", async () => {
-  const original = { id: "test", phase: "awaiting", resumePhase: "contract", pauseReason: "Acceptance: contract verification limit reached; human decision required",
-    contractPending: { round: 2, feedback: ["Separate readiness from full acceptance"] },
-    budget: { consumedPercent: 41, limitPercent: 45, tokens: 123 }, reviewRound: 13, recoveryAttempts: { checkpoint: 3 } };
-  const before = structuredClone(original);
-  grantContractRound(original);
-  assert.equal(original.phase, "contract"); assert.equal(original.contractRoundLimit, 3);
-  assert.deepEqual(original.contractPending, before.contractPending);
-  assert.deepEqual(original.budget, before.budget); assert.deepEqual(original.recoveryAttempts, before.recoveryAttempts);
-  let seenFeedback;
-  await contractStage(original, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
-    propose: async (_, feedback) => { seenFeedback = feedback; return proposal(); }, verify: async () => approval });
-  assert.deepEqual(seenFeedback, before.contractPending.feedback);
-  assert.equal(original.phase, "plan"); assert.equal(original.contractRoundGrant.newLimit, 3);
-  const secondPause = structuredClone(before);
-  secondPause.contractRoundLimit = 3;
-  secondPause.contractRoundGrant = { previousLimit: 2, newLimit: 3, grantedAt: "2026-09-29T00:00:00Z" };
-  secondPause.contractPending.round = 3;
-  secondPause.contractPending.feedback = ["Reconcile cross-part requirements"];
-  grantContractRound(secondPause);
-  assert.equal(secondPause.contractRoundLimit, 4);
-  assert.deepEqual(secondPause.contractRoundGrants.map((grant) => grant.newLimit), [3, 4]);
-  assert.equal(secondPause.contractPending.round, 3);
-  secondPause.phase = "awaiting"; secondPause.resumePhase = "contract"; secondPause.pauseReason = before.pauseReason;
-  secondPause.contractPending.round = 4;
-  assert.throws(() => grantContractRound(secondPause));
-  for (const mutate of [s => { s.contractPending.feedback = []; }, s => { s.budget.consumedPercent = 45; }, s => { s.pauseReason = "Different pause"; }]) {
-    const invalid = structuredClone(before); mutate(invalid); const snapshot = structuredClone(invalid);
-    assert.throws(() => grantContractRound(invalid)); assert.deepEqual(invalid, snapshot);
-  }
+test("legacy contract grants do not lower the new twelve-round ceiling", async () => {
+  const s = { id: "test", phase: "contract", contractRoundLimit: 4, contractPending: { round: 4, feedback: ["Add feature evidence"] } };
+  let receivedFeedback;
+  await contractStage(s, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async (_, feedback) => { receivedFeedback = feedback; return proposal(); }, verify: async () => approval });
+  assert.deepEqual(receivedFeedback, ["Add feature evidence"]);
+  assert.equal(s.phase, "plan");
 });
 
 test("contract rejects missing baseline, fabricated sources, invalid mappings and unsupported full closure", () => {
@@ -198,14 +175,15 @@ test("repair manifests cannot invent IDs, omit a defect or defer a review repair
   assert.throws(() => previewRecovery(s, { action: "defer", summary: "Missing prerequisite", ticketPaths: [s.tickets[0].path], dependency: "docs/tasks/owner.md" }), /cannot be deferred/);
 });
 
-test("contract phase blocks implementation until an independent check passes, with two attempts", async () => {
+test("contract phase blocks implementation until an independent check passes, with twelve attempts", async () => {
   const s = { id: "test", phase: "contract" }; let proposals = 0, reviews = 0;
   const ops = { sources: async () => sources, head: async () => head, save: noOp, publish: noOp, propose: async () => { proposals++; return proposal(); }, verify: async () => { reviews++; return reviews === 1 ? { approved: false, summary: "Missing scope detail", missingRequirements: ["Clarify platform owner"] } : approval; } };
   await contractStage(s, ops); assert.equal(s.phase, "contract"); assert.equal(s.acceptance, undefined);
   await contractStage(s, ops); assert.equal(s.phase, "plan"); assert.equal(proposals, 2); assert.equal(reviews, 2);
   const blocked = { id: "test", phase: "contract" };
   const reject = { ...ops, verify: async () => ({ approved: false, summary: "Still missing", missingRequirements: ["Mandatory requirement"] }) };
-  await contractStage(blocked, reject); await assert.rejects(contractStage(blocked, reject), /contract verification limit/);
+  for (let round = 0; round < 11; round++) await contractStage(blocked, reject);
+  await assert.rejects(contractStage(blocked, reject), /contract verification limit/);
   assert.equal(blocked.acceptance, undefined); assert.equal(blocked.phase, "contract");
 });
 

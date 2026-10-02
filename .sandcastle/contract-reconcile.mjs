@@ -5,8 +5,10 @@ import { digest, validateContract } from "./acceptance.mjs";
 // source verification still follow this draft-only normalization.
 export function applyContractReconciliation(draft, patch, sources) {
   if (!patch || typeof patch.summary !== "string" || !patch.summary.trim() ||
+    (patch.completionScope !== undefined && !["implementation", "full_acceptance"].includes(patch.completionScope)) ||
     !["criterionEdits", "checkEdits", "criteriaToAdd", "checksToAdd"].every((key) => Array.isArray(patch[key]))) throw new Error("Malformed contract reconciliation");
   const result = structuredClone(draft);
+  if (patch.completionScope) result.completionScope = patch.completionScope;
   const criteria = new Map(result.criteria.map((item) => [item.id, item]));
   const checks = new Map(result.checks.map((item) => [item.id, item]));
   const editedCriteria = new Set(); const editedChecks = new Set();

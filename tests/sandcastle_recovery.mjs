@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract } from "../.sandcastle/recovery.mjs";
-import { readOnlyAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
+import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
 const path = (number) => `.scratch/sandcastle-test/issues/${number}-ticket.md`;
@@ -98,6 +98,7 @@ test("three automatic retries without progress stop; verified progress permits a
 
 test("600-second inspection timeout and cause-specific recovery keep historical attempts", () => {
   assert.equal(readOnlyAgentTimeoutMs, 600000);
+  assert.equal(recoveryAgentTimeoutMs, 6000000);
   const s = state(); s.phase = "contract"; s.wave.id = 39; s.completedTickets = Array(84).fill("finished"); s.reviewRound = 13; s.buildAttempts = 0; s.testAttempts = 0;
   s.recoveryAttempts = { "contract:39:84:13:0:0": 3 };
   s.recoveryPolicyVersion = 2;
