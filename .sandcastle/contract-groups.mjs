@@ -1,9 +1,10 @@
 import { digest } from "./acceptance.mjs";
 import { combineContractParts, partitionContractSources } from "./contract-draft.mjs";
+import { guidanceFor } from "./recovery-guidance.mjs";
 
-export function withContractGroupRecoveryAdvice(prompt, state) {
-  if (state.recoveryAdvicePhase !== "contract" || !state.recoveryAdvice) return prompt;
-  return `${prompt}\n\nRecovery guidance for this rejected contract group: ${state.recoveryAdvice}`;
+export function withContractGroupRecoveryAdvice(prompt, state, index) {
+  const guidance = guidanceFor(state, { phase: "contract", substage: "parallel", groupIndex: index });
+  return guidance ? `${prompt}\n\n${guidance}` : prompt;
 }
 
 export function validateContractGroups(plan, parts) {
@@ -52,7 +53,12 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
     pending.groupResponses[index] = response;
     await save();
   }));
-  const failure = outcomes.find((outcome) => outcome.status === "rejected");
-  if (failure) throw failure.reason;
+  const failedIndex = outcomes.findIndex((outcome) => outcome.status === "rejected");
+  if (failedIndex !== -1) {
+    pending.failedGroupIndex = failedIndex;
+    await save();
+    throw outcomes[failedIndex].reason;
+  }
+  delete pending.failedGroupIndex;
   return combineContractParts(grouped, pending.groupResponses, { allowMixedScopes: true });
 }

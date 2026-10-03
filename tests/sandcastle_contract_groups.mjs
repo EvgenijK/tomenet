@@ -75,7 +75,7 @@ test("contract recovery advice reaches only a rejected group on checkpoint repla
   assert.deepEqual(calls.map(({ index }) => index), [0, 1, 1]);
   assert.deepEqual(pending.groupResponses[0], saved);
   assert.deepEqual(calls.slice(0, 2).map(({ prompt }) => prompt), ["Original contract proposal", "Original contract proposal"]);
-  assert.match(calls[2].prompt, /Recovery guidance for this rejected contract group: Cite exact text from assigned source sections\./);
+  assert.match(calls[2].prompt, /Recovery guidance: Cite exact text from assigned source sections\./);
   assert.equal(contract.criteria.length, 3);
   assert.equal(withContractGroupRecoveryAdvice("Independent verification", { ...state, recoveryAdvicePhase: "review" }), "Independent verification");
 });

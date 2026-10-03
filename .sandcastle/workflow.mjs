@@ -17,6 +17,7 @@ import { planContractGroups, buildGroupedContractDraft, withContractGroupRecover
 import { reconcileContractDraft } from "./contract-reconcile.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
+import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -143,7 +144,7 @@ async function agent(sandbox, state, role, prompt, schema = false, readOnly = fa
   console.log(`Agent: ${role}`);
   const captured = { message: "", tokens: 0 };
   const result = await sandbox.exec(`codex exec ${settings}`, {
-    stdin: [prompt, !readOnly && state.recoveryAdvice ? `Recovery guidance: ${state.recoveryAdvice}` : ""].filter(Boolean).join("\n\n"),
+    stdin: [prompt, guidanceForAgent(state, role)].filter(Boolean).join("\n\n"),
     onLine: (line) => parseAgentOutput(line, captured),
   });
   state.budget.tokens += captured.tokens;
@@ -257,7 +258,7 @@ async function contract(sandbox, state) {
         "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
         JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
-      ].join("\n\n"), state), ".sandcastle/contract-output.schema.json");
+      ].join("\n\n"), state, index), ".sandcastle/contract-output.schema.json");
       let draft;
       if (pending.parts || pending.partSourceDigest) {
         // Preserve checkpoints from runs started with the former sequential draft.
@@ -266,14 +267,16 @@ async function contract(sandbox, state) {
         const { parts, plan } = await contractSubstage(state, pending, "split", () => planContractGroups(pending, sources, (sections) => inspect(sandbox, state, "acceptance contract split", [
           "Split the original task and AGENTS.md into major, coherent subtasks for independent contract agents. You are read-only. Group the numbered source sections by requirement area; every section index must appear exactly once. Use at least two groups when there are at least two sections, and at most ten groups. Keep related requirements together without omitting any source. Return only schema JSON.",
           JSON.stringify({ originatingTask: state.specPath, sections: sections.map((section, index) => ({ index, ...section })), feedback }, null, 2),
-        ].join("\n\n"), ".sandcastle/contract-groups-output.schema.json"), () => save(state)));
+          guidanceFor(state, { phase: "contract", substage: "split" }),
+        ].filter(Boolean).join("\n\n"), ".sandcastle/contract-groups-output.schema.json"), () => save(state)));
         draft = await contractSubstage(state, pending, "parallel", () => buildGroupedContractDraft(pending, parts, plan, proposePart, () => save(state)));
       }
       return contractSubstage(state, pending, "assemble", () => reconcileContractDraft(pending, draft, sources, (proposal) => inspect(sandbox, state, "acceptance contract reconciliation", [
         "Assemble the parallel subtask contracts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Read the original sources and relevant referenced policies. Do not edit files. Return only a focused patch using the output schema: set completionScope to null when unchanged or to the corrected scope, replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
         "Address EVERY saved verifier finding explicitly. Distinguish production implementation readiness from deferred native and later-caller evidence. The wrapped Guide article projection is current production behavior; only native visual evidence is deferred. Connected server-directed Guide opening remains owned by SV-B-008, not SV-B-020. An unterminated or oversized Receive_Guide wire field must disconnect with protocol error and no partial Guide publication. Align viewer, checksum and update on the same U/TomeNET-Guide.txt override. Cover concurrent edits and provider/read/write/replace failures. Guide source lines are lossless, not subject to the typed editor 80-byte limit; distinguish typed rejection from permitted paste/macro prefix shortening. Require executable evidence for A regressions instead of treating a no-op baseline invocation as proof. Preserve all canonical obligations and the independent final review gate.",
         JSON.stringify({ sources, proposal, verifierFeedback: feedback }, null, 2),
-      ].join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
+        guidanceFor(state, { phase: "contract", substage: "assemble" }),
+      ].filter(Boolean).join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
     },
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
@@ -326,6 +329,7 @@ async function acceptPlan(sandbox, state) {
   delete state.repairKind;
   delete state.pendingFailure;
   delete state.recoveryAdvice;
+  delete state.recoveryAdviceTarget;
   state.phase = "tickets";
   await save(state);
 }
@@ -506,7 +510,7 @@ async function checkEvidence(sandbox, state, checkId, result) {
 async function review(sandbox, state, audit = false) {
   await assessmentStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
-    inspect: ({ head }) => inspect(sandbox, state, audit ? "fresh final acceptance auditor" : `review ${state.reviewRound}`, [
+    inspect: ({ head, validationError }) => inspect(sandbox, state, audit ? "fresh final acceptance auditor" : `review ${state.reviewRound}`, [
       audit
         ? `You are a fresh independent final auditor. You did not implement, plan or review this change. Inspect the final committed production result at ${head} and baseline ${state.baseCommit} against the original task and accepted contract. Do not read earlier review/recovery reports, ticket Answers or previous reviewers' conclusions. Check every criterion, controller evidence, preserved baseline behavior and candidate residual risk independently. Do not edit files. Return only schema JSON.`
         : `$code-review Review the committed diff since ${state.baseCommit}. Run Standards and Spec axes in parallel as the skill directs. Reconcile both axes into a deduplicated result. Read AGENTS.md; do not edit files. Return only schema JSON.`,
@@ -522,6 +526,8 @@ async function review(sandbox, state, audit = false) {
         ? `Candidate residuals requiring independent assessment (these proposals are not an acceptance verdict):\n${JSON.stringify(state.acceptance.ledger.filter((item) => item.status === "residual").map(({ id, defectKey, area, criterionIds, file, line, problem, residual }) => ({ id, defectKey, area, criterionIds, file, line, problem, residual })), null, 2)}`
         : `Defect register:\n${JSON.stringify(state.acceptance.ledger, null, 2)}`,
       !audit && state.acceptance.migration && state.acceptance.assessments.length === 0 ? `Legacy reviews for initial identity reconciliation:\n${JSON.stringify(state.reviews.map((item) => ({ head: item.head, findings: item.findings })), null, 2)}` : "",
+      guidanceFor(state, { phase: audit ? "final-audit" : "review" }),
+      validationError ? `Technical correction: the preceding response did not pass controller validation: ${validationError}. Recheck independently and return a complete schema-conforming response; do not infer a desired verdict.` : "",
     ].filter(Boolean).join("\n\n"), ".sandcastle/review-output.schema.json", audit ? readOnlyAgentTimeoutMs : 0),
     publish: async (parsed, { head }) => {
       const path = resolve(runsDir, state.id, audit ? `final-audit-${state.acceptance.finalAudits.length}.json` : `review-${state.reviewRound}.json`);
@@ -691,9 +697,12 @@ try {
       else if (state.phase === "report") await report(sandbox, state);
       else if (state.phase === "integrate") await integrate(sandbox, state);
       else throw new Error(`Unknown workflow phase: ${state.phase}`);
-      if (state.recoveryAdvicePhase === stage) {
+      const targetFinished = stage !== "parallel-work" ||
+        (state.recoveryAdviceTarget?.ticketPaths ?? []).every((path) => state.wave?.members.find((member) => member.ticket.path === path)?.status === "completed");
+      if (targetFinished && (state.recoveryAdvicePhase === stage || state.recoveryAdviceTarget?.phase === stage)) {
         delete state.recoveryAdvice;
         delete state.recoveryAdvicePhase;
+        delete state.recoveryAdviceTarget;
         await save(state);
       }
       if (stage !== "recovery") await appendStageEvent(runsDir, state, { stage, ...stageOutcome(state, stage), tickets: state.wave?.members.map((member) => member.ticket.path) });

@@ -205,6 +205,33 @@ test("review/final audit phases replay publication and stop after one final repa
   assert.equal(s.acceptance.finalAudits.length, 2); assert.equal(s.acceptance.ledger[0].status, "open"); assert.equal(s.acceptance.finalVerdict, undefined);
 });
 
+test("invalid saved review response is rejected before checkpoint and retried in the same round", async () => {
+  const s = state();
+  const wrong = assessment([], { resolved: [{ id: "D-unknown", evidence: "Imagined fix" }] });
+  s.assessmentPending = { head, audit: false, response: wrong };
+  s.reviewRound = 1;
+  let inspected = 0; let correction;
+  await assessmentStage(s, { head: async () => head, save: noOp, publish: noOp,
+    inspect: async ({ validationError }) => { inspected++; correction = validationError; return assessment(); } });
+  assert.equal(inspected, 1);
+  assert.match(correction, /unknown, duplicate or simultaneously open resolution/);
+  assert.equal(s.reviewRound, 1);
+  assert.equal(s.acceptance.assessments.length, 1);
+  assert.equal(s.acceptance.ledger.length, 0);
+  assert.equal(s.phase, "final-audit");
+});
+
+test("repeated invalid final audit responses stop without spending another audit slot", async () => {
+  const s = state(); s.phase = "final-audit";
+  let calls = 0;
+  await assert.rejects(assessmentStage(s, { head: async () => head, save: noOp, publish: noOp,
+    inspect: async () => { calls++; return assessment([], { criteria: [] }); } }, { audit: true }), /failed controller validation twice/);
+  assert.equal(calls, 2);
+  assert.equal(s.acceptance.finalAudits.length, 0);
+  assert.equal(s.assessmentPending.invalidResponses, 2);
+  assert.equal(s.acceptance.finalVerdict, undefined);
+});
+
 test("real repository feature evidence plus final audit yields truthful ready-with-notes report", async (t) => {
   const dir = await mkdtemp(resolve(tmpdir(), "sandcastle-acceptance-")); t.after(() => rm(dir, { recursive: true, force: true }));
   const git = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();

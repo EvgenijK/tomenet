@@ -323,9 +323,27 @@ export async function assessmentStage(state, ops, { audit = false } = {}) {
   }
   const pending = state.assessmentPending;
   need(pending.head === head && pending.audit === audit, "assessment checkpoint HEAD changed");
-  if (!pending.response) {
-    pending.response = await ops.inspect({ head, audit });
-    await ops.save(state);
+  // Validate against a clone before accepting a response checkpoint. A malformed
+  // saved response from an older run is also rejected here, without applying it
+  // to the real ledger or reserving another review/final-audit round.
+  if (!pending.applied) {
+    while (true) {
+      const response = pending.response ?? await ops.inspect({ head, audit, validationError: pending.validationError });
+      try {
+        applyAssessment(structuredClone(state), response, { head, audit });
+      } catch (error) {
+        pending.invalidResponses = (pending.invalidResponses ?? 0) + 1;
+        pending.validationError = String(error.message).slice(0, 1000);
+        delete pending.response;
+        await ops.save(state);
+        need(pending.invalidResponses < 2, `review response failed controller validation twice: ${pending.validationError}; human decision required`);
+        continue;
+      }
+      pending.response = response;
+      delete pending.validationError;
+      await ops.save(state);
+      break;
+    }
   }
   // Applying a saved response must be atomic and idempotent if publication fails.
   if (!pending.applied) {

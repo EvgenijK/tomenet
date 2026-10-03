@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { validateTicketBatch } from "./tickets.mjs";
 import { taskQuotaLimit } from "./limits.mjs";
+import { recoveryGuidance } from "./recovery-guidance.mjs";
 
 // The AI chooses an action; this controller alone changes scheduler state.
 // Quota, gate limits and successful commit verification are never overridden.
@@ -10,6 +11,7 @@ export function recoveryCategory(error) {
   if (error?.code === "AGENT_TIMEOUT" || /agent failed: timeout(?: after \d+ ms)?/i.test(message)) return "agent_timeout";
   if (/file mounts outside|schema mount|processFileMountParents/i.test(message)) return "schema_mount";
   if (/agent (?:failed|exited)/i.test(message)) return "agent_failure";
+  if (["EAGAIN", "EBUSY", "EMFILE", "ENFILE", "ETIMEDOUT"].includes(error?.code)) return "transient_io";
   return "other";
 }
 
@@ -53,6 +55,7 @@ export function beginRecovery(state, error, stage = state.phase) {
   attempts[key] = (attempts[key] ?? 0) + 1;
   const id = state.recoverySequence = (state.recoverySequence ?? 0) + 1;
   state.recovery = { id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
+    ...(typeof error?.code === "string" ? { errorCode: error.code } : {}),
     ...(Number.isFinite(error?.elapsedMs) ? { elapsedMs: error.elapsedMs } : {}),
     ...(Number.isFinite(error?.timeoutMs) ? { timeoutMs: error.timeoutMs } : {}) };
   state.phase = "recovery";
@@ -91,9 +94,13 @@ export function previewRecovery(state, decision) {
   if (decision.action === "retry" && incident.category === "agent_timeout" && incident.timeoutMs >= 600000 && incident.phase === "contract") {
     throw new Error("Cannot retry an unchanged timeout at the 600-second contract limit");
   }
+  if (decision.action === "retry" && incident.phase === "plan-validate" && incident.category !== "transient_io") {
+    throw new Error("Invalid planning manifest requires repair by the planner, not retry of the same file");
+  }
   if (["retry", "repair"].includes(decision.action)) {
     next.recoveryAdvice = decision.summary;
-    next.recoveryAdvicePhase = incident.phase;
+    next.recoveryAdvicePhase = incident.phase === "plan-validate" && decision.action === "repair" ? "plan" : incident.phase;
+    next.recoveryAdviceTarget = recoveryGuidance(state, incident, decision);
   }
   if (decision.action === "repair") {
     if (["build", "build-repair"].includes(incident.phase)) next.phase = "build-repair";
