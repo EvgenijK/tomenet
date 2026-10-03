@@ -55,6 +55,41 @@ export function resumeContractCitationAttempts(state, attempts) {
   return state;
 }
 
+// A user may retry one rejected group at the saved contract checkpoint without
+// repeating its successful siblings or resetting contract/recovery/quota limits.
+// A preflight failure may reuse the same grant; spent calls remain spent.
+export function resumeContractGroupAttempts(state, attempts) {
+  const pending = state.contractPending;
+  const index = pending?.failedGroupIndex;
+  const grant = pending?.groupRetryGrant;
+  const checkpoint = ["contract", state.wave?.id ?? 0, state.completedTickets?.length ?? 0, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 8) throw new Error("Contract group grant must be between 1 and 8 attempts");
+  if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
+    state.pauseReason !== "Automatic recovery made no progress after three decisions at this checkpoint" ||
+    !pending?.proposalInFlight || pending.step !== "parallel" || pending.proposal ||
+    !pending.groupPlanDigest || !Number.isInteger(index) || index < 0 || index >= (pending.groupPlan?.groups?.length ?? 0) ||
+    !Array.isArray(pending.groupResponses) || pending.groupResponses[index] ||
+    pending.groupResponses.filter(Boolean).length !== pending.groupPlan.groups.length - 1 ||
+    pending.citationRetryGrant || (state.recoveryAttempts?.[checkpoint] ?? 0) < 3) {
+    throw new Error("Contract group grant requires one rejected group at an exhausted saved checkpoint");
+  }
+  if (grant) {
+    if (grant.round !== pending.round || grant.groupIndex !== index || grant.groupPlanDigest !== pending.groupPlanDigest ||
+      grant.granted !== attempts || !Number.isInteger(grant.used) || grant.used < 0 ||
+      !Number.isInteger(grant.remaining) || grant.remaining < 1 ||
+      grant.used + grant.remaining !== grant.granted || !grant.authorizedAt) {
+      throw new Error("Contract group grant no longer matches its saved checkpoint");
+    }
+  }
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract group grant requires available task quota");
+  if (!grant) pending.groupRetryGrant = { round: pending.round, groupIndex: index, groupPlanDigest: pending.groupPlanDigest,
+    granted: attempts, remaining: attempts, used: 0, authorizedAt: new Date().toISOString() };
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 // Resume only the saved contract-assembly checkpoint after its deterministic
 // command-validation failure. This grants fresh assembly calls, not contract
 // rounds, recovery decisions, or quota. A preflight failure may reuse the same

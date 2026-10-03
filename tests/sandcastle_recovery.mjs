@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
 import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
@@ -146,6 +146,37 @@ test("five user-authorized contract proposals preserve saved groups and unrelate
   assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [true, false, true]);
   assert.equal(s.contractPending.citationRetryGrant.remaining, 5);
   assert.throws(() => resumeContractCitationAttempts(s, 5), /one rejected group/);
+});
+
+test("eight group attempts reopen only the exhausted parallel checkpoint", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending = { round: 2, proposalInFlight: true, step: "parallel", failedGroupIndex: 0,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}, {}] },
+    groupResponses: [null, { criteria: [] }, { criteria: [] }, { criteria: [] }] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recoveries = structuredClone(s.recoveryAttempts);
+  assert.throws(() => resumeContractGroupAttempts(structuredClone(s), 9), /between 1 and 8/);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses[0] = {};
+  assert.throws(() => resumeContractGroupAttempts(wrong, 8), /one rejected group/);
+  resumeContractGroupAttempts(s, 8);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recoveries);
+  assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [false, true, true, true]);
+  assert.equal(s.contractPending.groupRetryGrant.remaining, 8);
+
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending.groupRetryGrant.remaining = 6;
+  s.contractPending.groupRetryGrant.used = 2;
+  const grant = structuredClone(s.contractPending.groupRetryGrant);
+  resumeContractGroupAttempts(s, 8);
+  assert.deepEqual(s.contractPending.groupRetryGrant, grant);
+  assert.deepEqual(s.recoveryAttempts, recoveries);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  assert.throws(() => resumeContractGroupAttempts(s, 7), /no longer matches/);
 });
 
 test("assembly resume grants only saved checkpoint attempts without resetting other limits", () => {

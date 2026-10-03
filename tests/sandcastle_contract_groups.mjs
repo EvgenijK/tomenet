@@ -135,3 +135,65 @@ test("citation grant stops after exactly five failed proposals without losing sa
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async () => { calls++; throw new Error("unexpected sixth call"); }, async () => {}), /authorized contract citation attempts exhausted/);
   assert.equal(calls, 5);
 });
+
+test("eight authorized group attempts preserve accepted siblings and feed back validation errors", async () => {
+  const pending = { round: 2 };
+  const threeGroups = { groups: [
+    { title: "Feature", partIndexes: [0] },
+    { title: "Other", partIndexes: [1] },
+    { title: "Policy", partIndexes: [2] },
+  ] };
+  const { parts, plan } = await planContractGroups(pending, sources, async () => threeGroups, async () => {});
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    const draft = response(group);
+    if (index === 0) draft.criteria[0].source.quote = "Not in assigned section";
+    return draft;
+  }, async () => {}), /outside its assigned section/);
+  const siblings = [pending.groupResponses[1], pending.groupResponses[2]].map((item) => structuredClone(item));
+  pending.groupRetryGrant = { round: 2, groupIndex: 0, groupPlanDigest: pending.groupPlanDigest,
+    granted: 8, remaining: 8, used: 0 };
+  let calls = 0;
+  const prompts = [];
+  const state = { contractPending: pending };
+  const contract = await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    assert.equal(index, 0);
+    calls++;
+    prompts.push(withContractGroupRecoveryAdvice("Original instructions", state, index));
+    const draft = response(group);
+    if (calls < 3) draft.criteria[0].source.quote = "Not in assigned section";
+    return draft;
+  }, async () => {});
+  assert.equal(calls, 3);
+  assert.match(prompts[1], /outside its assigned section/);
+  assert.deepEqual([pending.groupResponses[1], pending.groupResponses[2]], siblings);
+  assert.equal(contract.criteria.length, 3);
+  assert.equal(pending.groupRetryGrant, undefined);
+});
+
+test("group retry grant spends at most eight calls and saves the last validation error", async () => {
+  const pending = { round: 2 };
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    const draft = response(group);
+    if (index === 1) draft.criteria[0].source.quote = "Not in assigned section";
+    return draft;
+  }, async () => {}), /outside its assigned section/);
+  const sibling = structuredClone(pending.groupResponses[0]);
+  pending.groupRetryGrant = { round: 2, groupIndex: 1, groupPlanDigest: pending.groupPlanDigest,
+    granted: 8, remaining: 8, used: 0 };
+  let calls = 0;
+  const fail = async (group) => {
+    calls++;
+    const draft = response(group);
+    draft.criteria[0].source.quote = "Not in assigned section";
+    return draft;
+  };
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, fail, async () => {}), /authorized contract group attempts exhausted/);
+  assert.equal(calls, 8);
+  assert.deepEqual(pending.groupResponses[0], sibling);
+  assert.equal(pending.groupRetryGrant.used, 8);
+  assert.equal(pending.groupRetryGrant.remaining, 0);
+  assert.match(pending.groupRetryGrant.lastError, /outside its assigned section/);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, fail, async () => {}), /authorized contract group attempts exhausted/);
+  assert.equal(calls, 8);
+});
