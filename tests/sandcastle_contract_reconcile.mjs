@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { applyContractReconciliation, reconcileContractDraft } from "../.sandcastle/contract-reconcile.mjs";
-import { baselineChecks } from "../.sandcastle/acceptance.mjs";
+import { applyContractReconciliation, assemblyCommandRules, reconcileContractDraft } from "../.sandcastle/contract-reconcile.mjs";
+import { baselineChecks, contractStage, validateContract } from "../.sandcastle/acceptance.mjs";
 
 const sources = { "spec.md": "The Guide projection is required now. Native visual evidence is later." };
 const draft = () => ({ version: 1, completionScope: "implementation", checks: [
@@ -55,4 +55,67 @@ test("assembly can correct completion scope when parallel drafts disagree", () =
   assert.equal(applyContractReconciliation(draft(), { ...patch(), completionScope: null }, sources).completionScope, "implementation");
   assert.throws(() => applyContractReconciliation(mixedDraft, patch(), sources), /Invalid draft reconciliation/);
   assert.throws(() => applyContractReconciliation(mixedDraft, { ...patch(), completionScope: "invalid" }, sources), /Malformed/);
+});
+
+test("assembly returns check-specific feedback and saves only a validated correction", async () => {
+  const pending = { round: 1, groupPlanDigest: "groups", groupResponses: [{}, {}, {}] };
+  const beforeGroups = structuredClone(pending.groupResponses);
+  const commands = ["node tests/guide.mjs && true", "node tests/guide.mjs"];
+  const feedback = []; const snapshots = [];
+  const revised = await reconcileContractDraft(pending, draft(), sources, async (_draft, error) => {
+    feedback.push(error);
+    return { ...patch(), checkEdits: [{ id: "guide", replacement: { ...draft().checks[2], command: commands.shift() } }] };
+  }, async () => { snapshots.push(structuredClone(pending)); });
+  assert.equal(revised.checks[2].command, "node tests/guide.mjs");
+  assert.equal(feedback.length, 2);
+  assert.match(feedback[1], /guide.*repository test/i);
+  assert.equal(snapshots[1].reconciliation, undefined);
+  assert.equal(snapshots[1].assemblyAttempts.used, 1);
+  assert.equal(snapshots[1].assemblyAttempts.remaining, 2);
+  assert.deepEqual(pending.groupResponses, beforeGroups);
+  assert.equal(pending.assemblyAttempts.used, 2);
+});
+
+test("assembly prompt states the same focused forms enforced by validation", () => {
+  for (const form of ["python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "command=''", "shell operators", "Preserve every already valid check"]) {
+    assert.ok(assemblyCommandRules.includes(form), form);
+  }
+});
+
+test("invalid assembly proposals exhaust only a persisted three-call budget", async () => {
+  const pending = { round: 1, groupPlanDigest: "groups", groupResponses: [{}, {}, {}] };
+  const invalid = { ...patch(), checkEdits: [{ id: "guide", replacement: { ...draft().checks[2], command: "node tests/guide.mjs | tee log" } }] };
+  let calls = 0;
+  await assert.rejects(reconcileContractDraft(pending, draft(), sources, async () => { calls++; return invalid; }, async () => {}), /assembly attempts exhausted.*guide/);
+  assert.equal(calls, 3);
+  assert.equal(pending.assemblyAttempts.used, 3);
+  assert.equal(pending.reconciliation, undefined);
+  await assert.rejects(reconcileContractDraft(pending, draft(), sources, async () => { calls++; return patch(); }, async () => {}), /assembly attempts exhausted/);
+  assert.equal(calls, 3);
+});
+
+test("assembly interruption consumes one reserved call and resumes at the same draft", async () => {
+  const pending = { round: 1, groupPlanDigest: "groups" };
+  await assert.rejects(reconcileContractDraft(pending, draft(), sources, async () => { throw new Error("Interrupted"); }, async () => {}), /Interrupted/);
+  assert.equal(pending.assemblyAttempts.used, 1);
+  const revised = await reconcileContractDraft(pending, draft(), sources, async () => patch(), async () => {});
+  assert.equal(revised.criteria[0].applicability, "current");
+  assert.equal(pending.assemblyAttempts.used, 2);
+  await assert.rejects(reconcileContractDraft({ ...pending, reconciliation: undefined }, { ...draft(), completionScope: "full_acceptance" }, sources, async () => patch(), async () => {}), /checkpoint/);
+});
+
+test("corrected assembly still needs independent verification before acceptance", async () => {
+  const state = { phase: "contract", contractPending: { round: 1, proposalInFlight: true }, id: "test" };
+  let verifies = 0;
+  await contractStage(state, {
+    sources: async () => sources,
+    propose: async (_sources, _feedback, pending) => reconcileContractDraft(pending, draft(), sources, async (_draft, error) => ({
+      ...patch(), checkEdits: [{ id: "guide", replacement: { ...draft().checks[2], command: error ? "node tests/guide.mjs" : "node tests/guide.mjs && true" } }],
+    }), async () => {}),
+    verify: async (proposal) => { verifies++; validateContract(proposal, sources); return { approved: true, summary: "All source obligations covered", missingRequirements: [] }; },
+    head: async () => "test-head", publish: async () => {}, save: async () => {},
+  });
+  assert.equal(verifies, 1);
+  assert.equal(state.phase, "plan");
+  assert.equal(state.acceptance.contract.checks[2].command, "node tests/guide.mjs");
 });

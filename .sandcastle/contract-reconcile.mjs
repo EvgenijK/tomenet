@@ -1,5 +1,7 @@
 import { digest, validateContract } from "./acceptance.mjs";
 
+export const assemblyCommandRules = "Preserve every already valid check unless a requirement needs its change. New or edited focused checks must use exactly python3 -B tests/<file> [args], node tests/<file> [args], or bash tests/<file> [args]. External checks must have command=''. Never use shell operators, wrappers, or a command that does not directly invoke a repository test.";
+
 // A reconciler can replace or add requirements, but cannot silently remove
 // requirements or downgrade a mandatory one. Full validation and independent
 // source verification still follow this draft-only normalization.
@@ -41,12 +43,39 @@ export async function reconcileContractDraft(pending, draft, sources, inspect, s
   const draftDigest = digest(draft);
   if (pending.reconciliation && (pending.reconciliationDraftDigest !== draftDigest || pending.reconciliationSourceDigest !== sourceDigest)) throw new Error("Contract reconciliation checkpoint changed; human decision required");
   if (!pending.reconciliation) {
-    const patch = await inspect(draft);
-    applyContractReconciliation(draft, patch, sources);
-    pending.reconciliation = patch;
-    pending.reconciliationDraftDigest = draftDigest;
-    pending.reconciliationSourceDigest = sourceDigest;
+    const attempts = pending.assemblyAttempts ??= { round: pending.round, groupPlanDigest: pending.groupPlanDigest,
+      granted: 3, remaining: 3, used: 0, draftDigest, sourceDigest };
+    if (attempts.round !== pending.round || attempts.groupPlanDigest !== pending.groupPlanDigest ||
+      (attempts.draftDigest && attempts.draftDigest !== draftDigest) ||
+      (attempts.sourceDigest && attempts.sourceDigest !== sourceDigest) ||
+      !Number.isInteger(attempts.granted) || attempts.granted < 1 || attempts.granted > 5 ||
+      !Number.isInteger(attempts.used) || attempts.used < 0 ||
+      !Number.isInteger(attempts.remaining) || attempts.remaining < 0 ||
+      attempts.used + attempts.remaining !== attempts.granted) {
+      throw new Error("Acceptance: contract assembly attempts no longer match the saved checkpoint; human decision required");
+    }
+    attempts.draftDigest ??= draftDigest;
+    attempts.sourceDigest ??= sourceDigest;
     await save();
+    while (!pending.reconciliation) {
+      if (attempts.remaining === 0) throw new Error(`Acceptance: contract assembly attempts exhausted; ${attempts.lastError ?? "no valid correction saved"}; human decision required`);
+      // Reserve before the model call, so a timeout or interrupted call cannot be replayed for free.
+      attempts.remaining--;
+      attempts.used++;
+      await save();
+      const patch = await inspect(draft, attempts.lastError);
+      try { applyContractReconciliation(draft, patch, sources); }
+      catch (error) {
+        attempts.lastError = error.message.slice(0, 1000);
+        await save();
+        continue;
+      }
+      pending.reconciliation = patch;
+      pending.reconciliationDraftDigest = draftDigest;
+      pending.reconciliationSourceDigest = sourceDigest;
+      delete attempts.lastError;
+      await save();
+    }
   }
   return applyContractReconciliation(draft, pending.reconciliation, sources);
 }

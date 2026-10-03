@@ -55,6 +55,33 @@ export function resumeContractCitationAttempts(state, attempts) {
   return state;
 }
 
+// Resume only the saved contract-assembly checkpoint after its deterministic
+// command-validation failure. This grants fresh assembly calls, not contract
+// rounds, recovery decisions, or quota. It cannot be used twice.
+export function resumeContractAssemblyAttempts(state, attempts) {
+  const pending = state.contractPending;
+  const checkpoint = ["contract", state.wave?.id ?? 0, state.completedTickets?.length ?? 0, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 5) throw new Error("Contract assembly grant must be between 1 and 5 attempts");
+  if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
+    !/focused check command does not directly invoke a repository test/i.test(state.pauseReason ?? "") ||
+    pending?.step !== "assemble" || !pending.proposalInFlight || pending.proposal || pending.reconciliation ||
+    !pending.groupPlanDigest || !Array.isArray(pending.groupResponses) ||
+    pending.groupResponses.length !== pending.groupPlan?.groups?.length ||
+    pending.groupResponses.some((response) => !response) || pending.assemblyAttempts ||
+    (state.recoveryAttempts?.[checkpoint] ?? 0) < 3) {
+    throw new Error("Contract assembly grant requires the saved command-validation failure with all groups complete");
+  }
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract assembly grant requires available task quota");
+  pending.assemblyAttempts = { round: pending.round, groupPlanDigest: pending.groupPlanDigest,
+    granted: attempts, remaining: attempts, used: 0,
+    lastError: "The previous patch added a focused check that did not directly invoke a repository test without shell operators.",
+    authorizedAt: new Date().toISOString() };
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 export function recoveryRestriction(state, error = "") {
   if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";

@@ -27,7 +27,7 @@ export function validateContract(contract, sources) {
       need(baseline && baseline.kind === check.kind && baseline.command === check.command, "baseline command cannot be weakened");
     } else if (check.kind === "command") {
       // Focused repository checks, never arbitrary shell programs or remote actions.
-      need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), "focused check must invoke a repository test without shell operators");
+      need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), `focused check ${check.id} must invoke a repository test without shell operators`);
     } else need(check.command === "", "external checks have no automatic runner");
     checks.set(check.id, check);
   }
@@ -282,7 +282,7 @@ export async function contractStage(state, ops) {
   catch (error) {
     pending.feedback = [error.message]; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
     delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.step;
-    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest;
+    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract validation limit reached; human decision required");
     return;
@@ -295,7 +295,7 @@ export async function contractStage(state, ops) {
     pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
     delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.step;
-    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest;
+    delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");
     return;

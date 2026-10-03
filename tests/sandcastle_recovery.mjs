@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
 import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
@@ -146,6 +146,25 @@ test("five user-authorized contract proposals preserve saved groups and unrelate
   assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [true, false, true]);
   assert.equal(s.contractPending.citationRetryGrant.remaining, 5);
   assert.throws(() => resumeContractCitationAttempts(s, 5), /one rejected group/);
+});
+
+test("assembly resume grants only saved checkpoint attempts without resetting other limits", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: Contract reconciliation failed validation because its focused check command does not directly invoke a repository test without shell operators.";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{}, {}, {}] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses.pop();
+  assert.throws(() => resumeContractAssemblyAttempts(wrong, 3), /all groups complete/);
+  assert.throws(() => resumeContractAssemblyAttempts(structuredClone(s), 6), /between 1 and 5/);
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.phase, "contract");
+  assert.equal(s.contractPending.assemblyAttempts.remaining, 3);
+  assert.deepEqual(s.contractPending.groupResponses, [{}, {}, {}]);
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recovery);
+  assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
 });
 
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {
