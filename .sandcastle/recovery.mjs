@@ -99,8 +99,8 @@ export function previewRecovery(state, decision) {
   }
   if (["retry", "repair"].includes(decision.action)) {
     next.recoveryAdvice = decision.summary;
-    next.recoveryAdvicePhase = incident.phase === "plan-validate" && decision.action === "repair" ? "plan" : incident.phase;
     next.recoveryAdviceTarget = recoveryGuidance(state, incident, decision);
+    next.recoveryAdvicePhase = next.recoveryAdviceTarget.phase;
   }
   if (decision.action === "repair") {
     if (["build", "build-repair"].includes(incident.phase)) next.phase = "build-repair";

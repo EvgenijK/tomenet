@@ -43,6 +43,17 @@ test("invalid manifest routes validation details to planner; unchanged retry is 
   assert.equal(previewRecovery(transient, decision("retry")).next.phase, "plan-validate");
 });
 
+test("build and test repair guidance reaches the planner instead of the failed gate", () => {
+  for (const phase of ["build", "build-repair", "test-gate", "test-repair"]) {
+    const state = base(phase);
+    beginRecovery(state, `${phase} output failed`);
+    const next = previewRecovery(state, decision("repair", `Repair ${phase} failure`)).next;
+    assert.equal(next.recoveryAdviceTarget.phase, "plan");
+    assert.match(guidanceForAgent(next, "ticket planning"), new RegExp(`Repair ${phase} failure`));
+    assert.equal(guidanceForAgent(next, "implementation issues/1.md"), "");
+  }
+});
+
 test("read-only review retries receive only technical instructions, not prior conclusions", () => {
   for (const phase of ["review", "final-audit"]) {
     const state = base(phase);

@@ -45,7 +45,8 @@ export function guidanceForAgent(state, role) {
 }
 
 export function recoveryGuidance(state, incident, decision) {
-  const target = recoveryTarget(state, incident);
+  const target = decision.action === "repair" && ["build", "build-repair", "test-gate", "test-repair"].includes(incident.phase)
+    ? { phase: "plan" } : recoveryTarget(state, incident);
   if (["review", "final-audit"].includes(incident.phase)) return { ...target, technical: true, text: technicalHint(incident) };
   return { ...target, text: incident.phase === "plan-validate" && decision.action === "repair"
     ? `${decision.summary}\nManifest validation error: ${incident.error}` : decision.summary };

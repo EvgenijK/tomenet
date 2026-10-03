@@ -211,24 +211,40 @@ test("invalid saved review response is rejected before checkpoint and retried in
   s.assessmentPending = { head, audit: false, response: wrong };
   s.reviewRound = 1;
   let inspected = 0; let correction;
-  await assessmentStage(s, { head: async () => head, save: noOp, publish: noOp,
-    inspect: async ({ validationError }) => { inspected++; correction = validationError; return assessment(); } });
+  const ops = { head: async () => head, save: noOp, publish: noOp,
+    inspect: async ({ validationError }) => { inspected++; correction = validationError; return assessment(); } };
+  await assert.rejects(assessmentStage(s, ops), /Invalid review response: Acceptance: unknown, duplicate/);
+  assert.equal(s.assessmentPending.response, undefined);
+  assert.equal(s.acceptance.assessments.length, 0);
+  assert.equal(inspected, 0);
+  beginRecovery(s, "Invalid review response: " + s.assessmentPending.validationError);
+  const { next } = previewRecovery(s, { action: "retry", summary: "Retry schema-valid review", ticketPaths: [], dependency: "" });
+  await assessmentStage(next, ops);
   assert.equal(inspected, 1);
   assert.match(correction, /unknown, duplicate or simultaneously open resolution/);
-  assert.equal(s.reviewRound, 1);
-  assert.equal(s.acceptance.assessments.length, 1);
-  assert.equal(s.acceptance.ledger.length, 0);
-  assert.equal(s.phase, "final-audit");
+  assert.equal(next.reviewRound, 1);
+  assert.equal(next.acceptance.assessments.length, 1);
+  assert.equal(next.acceptance.ledger.length, 0);
+  assert.equal(next.phase, "final-audit");
 });
 
-test("repeated invalid final audit responses stop without spending another audit slot", async () => {
-  const s = state(); s.phase = "final-audit";
+test("invalid final audit responses use existing bounded recovery without spending another audit slot", async () => {
+  let s = state(); s.phase = "final-audit";
   let calls = 0;
-  await assert.rejects(assessmentStage(s, { head: async () => head, save: noOp, publish: noOp,
-    inspect: async () => { calls++; return assessment([], { criteria: [] }); } }, { audit: true }), /failed controller validation twice/);
-  assert.equal(calls, 2);
+  const ops = { head: async () => head, save: noOp, publish: noOp,
+    inspect: async () => { calls++; return assessment([], { criteria: [] }); } };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await assert.rejects(assessmentStage(s, ops, { audit: true }), /Invalid review response/);
+    assert.equal(s.assessmentPending.response, undefined);
+    assert.equal(s.acceptance.finalAudits.length, 0);
+    beginRecovery(s, `Invalid review response: ${s.assessmentPending.validationError}`);
+    s = previewRecovery(s, { action: "retry", summary: "Retry final audit format", ticketPaths: [], dependency: "" }).next;
+  }
+  await assert.rejects(assessmentStage(s, ops, { audit: true }), /Invalid review response/);
+  assert.throws(() => beginRecovery(s, `Invalid review response: ${s.assessmentPending.validationError}`), /no progress/);
+  assert.equal(calls, 4);
   assert.equal(s.acceptance.finalAudits.length, 0);
-  assert.equal(s.assessmentPending.invalidResponses, 2);
+  assert.equal(s.assessmentPending.response, undefined);
   assert.equal(s.acceptance.finalVerdict, undefined);
 });
 

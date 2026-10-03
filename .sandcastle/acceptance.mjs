@@ -325,25 +325,23 @@ export async function assessmentStage(state, ops, { audit = false } = {}) {
   need(pending.head === head && pending.audit === audit, "assessment checkpoint HEAD changed");
   // Validate against a clone before accepting a response checkpoint. A malformed
   // saved response from an older run is also rejected here, without applying it
-  // to the real ledger or reserving another review/final-audit round.
+  // to the real ledger or reserving another review/final-audit round. Let the
+  // existing bounded recovery mechanism decide whether to retry the same round.
   if (!pending.applied) {
-    while (true) {
-      const response = pending.response ?? await ops.inspect({ head, audit, validationError: pending.validationError });
-      try {
-        applyAssessment(structuredClone(state), response, { head, audit });
-      } catch (error) {
-        pending.invalidResponses = (pending.invalidResponses ?? 0) + 1;
-        pending.validationError = String(error.message).slice(0, 1000);
-        delete pending.response;
-        await ops.save(state);
-        need(pending.invalidResponses < 2, `review response failed controller validation twice: ${pending.validationError}; human decision required`);
-        continue;
-      }
-      pending.response = response;
-      delete pending.validationError;
+    const response = pending.response ?? await ops.inspect({ head, audit, validationError: pending.validationError });
+    try {
+      applyAssessment(structuredClone(state), response, { head, audit });
+    } catch (error) {
+      pending.validationError = String(error.message);
+      delete pending.response;
       await ops.save(state);
-      break;
+      // Acceptance: is reserved for actual closure guards, which must stop.
+      // This response was never accepted, so recovery may request a new one.
+      throw new Error(`Invalid review response: ${pending.validationError}`);
     }
+    pending.response = response;
+    delete pending.validationError;
+    await ops.save(state);
   }
   // Applying a saved response must be atomic and idempotent if publication fails.
   if (!pending.applied) {
