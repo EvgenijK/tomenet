@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planContractGroups, buildGroupedContractDraft, validateContractGroups } from "../.sandcastle/contract-groups.mjs";
+import { planContractGroups, buildGroupedContractDraft, validateContractGroups, withContractGroupRecoveryAdvice } from "../.sandcastle/contract-groups.mjs";
 import { baselineChecks } from "../.sandcastle/acceptance.mjs";
 
 const sources = {
@@ -48,4 +48,34 @@ test("parallel contract agents save successful groups and resume only the failed
   assert.equal(contract.criteria.length, 3);
   assert.equal(contract.completionScope, "implementation");
   assert.ok(contract.criteria.some((criterion) => criterion.source.path === "AGENTS.md"));
+});
+
+test("contract recovery advice reaches only a rejected group on checkpoint replay", async () => {
+  const pending = {};
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  const state = {};
+  const calls = [];
+  const propose = async (group, index) => {
+    const prompt = withContractGroupRecoveryAdvice("Original contract proposal", state);
+    calls.push({ index, prompt });
+    const draft = response(group);
+    if (index === 1 && calls.filter((call) => call.index === 1).length === 1) {
+      draft.criteria[0].source.quote = "First production obligation.";
+    }
+    return draft;
+  };
+
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, propose, async () => {}), /outside its assigned section/);
+  const saved = structuredClone(pending.groupResponses[0]);
+  assert.equal(pending.groupResponses[1], undefined);
+  state.recoveryAdvice = "Cite exact text from assigned source sections.";
+  state.recoveryAdvicePhase = "contract";
+  const contract = await buildGroupedContractDraft(pending, parts, plan, propose, async () => {});
+
+  assert.deepEqual(calls.map(({ index }) => index), [0, 1, 1]);
+  assert.deepEqual(pending.groupResponses[0], saved);
+  assert.deepEqual(calls.slice(0, 2).map(({ prompt }) => prompt), ["Original contract proposal", "Original contract proposal"]);
+  assert.match(calls[2].prompt, /Recovery guidance for this rejected contract group: Cite exact text from assigned source sections\./);
+  assert.equal(contract.criteria.length, 3);
+  assert.equal(withContractGroupRecoveryAdvice("Independent verification", { ...state, recoveryAdvicePhase: "review" }), "Independent verification");
 });

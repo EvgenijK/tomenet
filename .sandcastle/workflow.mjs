@@ -13,7 +13,7 @@ import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
-import { planContractGroups, buildGroupedContractDraft } from "./contract-groups.mjs";
+import { planContractGroups, buildGroupedContractDraft, withContractGroupRecoveryAdvice } from "./contract-groups.mjs";
 import { reconcileContractDraft } from "./contract-reconcile.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
@@ -250,14 +250,14 @@ async function contract(sandbox, state) {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
     sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
     propose: async (sources, feedback, pending) => {
-      const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, [
+      const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, withContractGroupRecoveryAdvice([
         `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source sections. Do not edit files. Return schema JSON.`,
         "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
         "Independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
         "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
         JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
-      ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+      ].join("\n\n"), state), ".sandcastle/contract-output.schema.json");
       let draft;
       if (pending.parts || pending.partSourceDigest) {
         // Preserve checkpoints from runs started with the former sequential draft.

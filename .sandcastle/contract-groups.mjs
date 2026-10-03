@@ -1,6 +1,11 @@
 import { digest } from "./acceptance.mjs";
 import { combineContractParts, partitionContractSources } from "./contract-draft.mjs";
 
+export function withContractGroupRecoveryAdvice(prompt, state) {
+  if (state.recoveryAdvicePhase !== "contract" || !state.recoveryAdvice) return prompt;
+  return `${prompt}\n\nRecovery guidance for this rejected contract group: ${state.recoveryAdvice}`;
+}
+
 export function validateContractGroups(plan, parts) {
   if (!Array.isArray(plan?.groups) || !parts.length || plan.groups.length < Math.min(2, parts.length) || plan.groups.length > Math.min(10, parts.length)) {
     throw new Error("Contract split requires two or more groups when the source has multiple sections, with at most ten groups");
