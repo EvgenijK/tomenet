@@ -1,10 +1,10 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["summary", "criterionEdits", "checkEdits", "criteriaToAdd", "checksToAdd"],
+  "required": ["summary", "completionScope", "criterionEdits", "checkEdits", "criteriaToAdd", "checksToAdd"],
   "properties": {
     "summary": { "type": "string" },
-    "completionScope": { "type": "string", "enum": ["implementation", "full_acceptance"] },
+    "completionScope": { "type": ["string", "null"], "enum": ["implementation", "full_acceptance", null], "description": "Use null to keep the draft's completion scope." },
     "criterionEdits": {
       "type": "array",
       "items": {

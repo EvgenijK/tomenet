@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { applyContractReconciliation, reconcileContractDraft } from "../.sandcastle/contract-reconcile.mjs";
 import { baselineChecks } from "../.sandcastle/acceptance.mjs";
 
@@ -13,6 +14,21 @@ const draft = () => ({ version: 1, completionScope: "implementation", checks: [
 ] });
 const patch = () => ({ summary: "Require production projection now and retain native evidence later", criterionEdits: [{ id: "projection", replacement: {
   ...draft().criteria[0], applicability: "current", owner: "SV-B-008", deferralReason: "", checkIds: ["guide"] } }], checkEdits: [], criteriaToAdd: [], checksToAdd: [] });
+
+test("reconciliation output schema requires every property in every object", () => {
+  const schema = JSON.parse(readFileSync(new URL("../.sandcastle/contract-reconcile-output.schema.json", import.meta.url), "utf8"));
+  const inspect = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (value.type === "object") {
+      assert.equal(value.additionalProperties, false);
+      assert.deepEqual([...value.required].sort(), Object.keys(value.properties).sort());
+    }
+    for (const child of Object.values(value)) inspect(child);
+  };
+  inspect(schema);
+  assert.deepEqual(schema.properties.completionScope.type, ["string", "null"]);
+  assert.ok(schema.properties.completionScope.enum.includes(null));
+});
 
 test("reconciliation repairs cross-part scope without deleting obligations or skipping verification", async () => {
   const pending = {}; let calls = 0;
@@ -36,6 +52,7 @@ test("assembly can correct completion scope when parallel drafts disagree", () =
   const mixedDraft = { ...draft(), completionScope: "full_acceptance" };
   const changed = applyContractReconciliation(mixedDraft, { ...patch(), completionScope: "implementation" }, sources);
   assert.equal(changed.completionScope, "implementation");
+  assert.equal(applyContractReconciliation(draft(), { ...patch(), completionScope: null }, sources).completionScope, "implementation");
   assert.throws(() => applyContractReconciliation(mixedDraft, patch(), sources), /Invalid draft reconciliation/);
   assert.throws(() => applyContractReconciliation(mixedDraft, { ...patch(), completionScope: "invalid" }, sources), /Malformed/);
 });
