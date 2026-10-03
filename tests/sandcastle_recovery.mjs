@@ -167,6 +167,34 @@ test("assembly resume grants only saved checkpoint attempts without resetting ot
   assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
 });
 
+test("assembly resume reuses an already granted checkpoint after preflight failure", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: Contract reconciliation failed validation because its focused check command does not directly invoke a repository test without shell operators.";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{}, {}, {}] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  resumeContractAssemblyAttempts(s, 3);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  const grant = structuredClone(s.contractPending.assemblyAttempts);
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.contractPending.assemblyAttempts, grant);
+  assert.deepEqual(s.budget, budget); assert.deepEqual(s.recoveryAttempts, recovery);
+
+  s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending.assemblyAttempts.used = 1; s.contractPending.assemblyAttempts.remaining = 2;
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.contractPending.assemblyAttempts.used, 1);
+  assert.equal(s.contractPending.assemblyAttempts.remaining, 2);
+
+  s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  assert.throws(() => resumeContractAssemblyAttempts(structuredClone(s), 2), /saved command-validation failure/);
+  s.contractPending.assemblyAttempts.used = 3; s.contractPending.assemblyAttempts.remaining = 0;
+  assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
+});
+
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {
   for (const [phase, expected] of [["build-repair", "build-repair"], ["test-repair", "test-repair"], ["plan-validate", "plan"], ["parallel-work", "parallel-work"], ["assemble", "assemble"]]) {
     const s = state(); s.phase = phase; beginRecovery(s, "Concrete failure");
