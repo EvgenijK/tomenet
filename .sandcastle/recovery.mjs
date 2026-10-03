@@ -31,6 +31,30 @@ export function resumeImprovedContract(state) {
   return state;
 }
 
+// A user may authorize a bounded number of fresh proposals for one rejected
+// contract group. This does not grant another contract round, recovery decision,
+// build/test attempt, or quota allowance.
+export function resumeContractCitationAttempts(state, attempts) {
+  const pending = state.contractPending;
+  const index = pending?.failedGroupIndex;
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 5) throw new Error("Contract citation grant must be between 1 and 5 attempts");
+  if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
+    !/outside its assigned/i.test(state.pauseReason ?? "") ||
+    !pending?.proposalInFlight || pending.step !== "parallel" || !pending.groupPlanDigest ||
+    !Number.isInteger(index) || index < 0 || index >= (pending.groupPlan?.groups?.length ?? 0) ||
+    !Array.isArray(pending.groupResponses) || pending.groupResponses[index] ||
+    pending.groupResponses.filter(Boolean).length !== pending.groupPlan.groups.length - 1 ||
+    pending.citationRetryGrant) throw new Error("Contract citation grant requires one rejected group at its saved checkpoint");
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract citation grant requires available task quota");
+  pending.citationRetryGrant = { round: pending.round, groupIndex: index, groupPlanDigest: pending.groupPlanDigest,
+    granted: attempts, remaining: attempts, used: 0, authorizedAt: new Date().toISOString() };
+  pending.citationRetryError = "The previous proposal cited text outside its assigned source sections.";
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 export function recoveryRestriction(state, error = "") {
   if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";

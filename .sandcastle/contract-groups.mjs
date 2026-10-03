@@ -4,7 +4,12 @@ import { guidanceFor } from "./recovery-guidance.mjs";
 
 export function withContractGroupRecoveryAdvice(prompt, state, index) {
   const guidance = guidanceFor(state, { phase: "contract", substage: "parallel", groupIndex: index });
-  return guidance ? `${prompt}\n\n${guidance}` : prompt;
+  const pending = state.contractPending;
+  const grant = pending?.citationRetryGrant;
+  const citation = grant && grant.groupIndex === index
+    ? `Citation retry for this group: each source.path must be one of this group's assigned sourcePath values, and each source.quote must be copied verbatim as a contiguous substring of that same assigned section's sourceText. Do not quote the task overview or referenced documents. ${pending.citationRetryError ?? "The previous answer cited text outside its assigned sections."}`
+    : "";
+  return [prompt, guidance, citation].filter(Boolean).join("\n\n");
 }
 
 export function validateContractGroups(plan, parts) {
@@ -43,15 +48,41 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
   const grouped = plan.groups.map((group) => ({ title: group.title, sourceSections: group.partIndexes.map((index) => parts[index]) }));
   const planDigest = digest({ parts, plan });
   if (pending.groupPlanDigest && pending.groupPlanDigest !== planDigest) throw new Error("Contract group checkpoint changed; human decision required");
+  const grant = pending.citationRetryGrant;
+  if (grant && (grant.round !== pending.round || grant.groupPlanDigest !== planDigest ||
+    !Number.isInteger(grant.groupIndex) || grant.groupIndex < 0 || grant.groupIndex >= grouped.length ||
+    pending.groupResponses?.[grant.groupIndex] || !Number.isInteger(grant.remaining) || grant.remaining < 0 ||
+    !Number.isInteger(grant.used) || grant.used < 0 || grant.remaining + grant.used !== grant.granted)) {
+    throw new Error("Acceptance: contract citation retry grant no longer matches its checkpoint; human decision required");
+  }
   pending.groupPlanDigest = planDigest;
   pending.groupResponses ??= [];
   await save();
   const outcomes = await Promise.allSettled(grouped.map(async (group, index) => {
     if (pending.groupResponses[index]) return;
-    const response = await propose(group, index, grouped.length);
-    combineContractParts([group], [response]);
-    pending.groupResponses[index] = response;
-    await save();
+    while (true) {
+      const retry = pending.citationRetryGrant?.groupIndex === index ? pending.citationRetryGrant : undefined;
+      if (retry) {
+        if (retry.remaining === 0) throw new Error("Acceptance: user-authorized contract citation attempts exhausted; human decision required");
+        // Reserve before launching the agent so an interrupted call cannot be replayed for free.
+        retry.remaining--;
+        retry.used++;
+        await save();
+      }
+      const response = await propose(group, index, grouped.length);
+      try { combineContractParts([group], [response]); }
+      catch (error) {
+        if (!retry || error.message !== "Contract part cited a source outside its assigned section") throw error;
+        pending.citationRetryError = error.message;
+        await save();
+        if (retry.remaining > 0) continue;
+        throw new Error(`Acceptance: user-authorized contract citation attempts exhausted; ${error.message}; human decision required`);
+      }
+      pending.groupResponses[index] = response;
+      if (retry) { delete pending.citationRetryGrant; delete pending.citationRetryError; }
+      await save();
+      return;
+    }
   }));
   const failedIndex = outcomes.findIndex((outcome) => outcome.status === "rejected");
   if (failedIndex !== -1) {

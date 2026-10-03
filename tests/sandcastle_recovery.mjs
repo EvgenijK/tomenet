@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts } from "../.sandcastle/recovery.mjs";
 import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
@@ -126,6 +126,26 @@ test("saved contract pause resumes only after policy upgrade without changing qu
   assert.throws(() => resumeImprovedContract(s));
   const exhausted = state(); exhausted.phase = "awaiting"; exhausted.resumePhase = "contract"; exhausted.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint"; exhausted.contractPending = { round: 1, proposalInFlight: true }; exhausted.budget.limitPercent = 45; exhausted.budget.consumedPercent = 45; exhausted.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
   assert.throws(() => resumeImprovedContract(exhausted), /quota/);
+});
+
+test("five user-authorized contract proposals preserve saved groups and unrelated limits", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: proposer cited text outside its assigned sections";
+  s.contractPending = { round: 1, proposalInFlight: true, step: "parallel", failedGroupIndex: 1,
+    groupPlanDigest: "saved-digest", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{ criteria: [] }, null, { criteria: [] }] };
+  s.recoveryAttempts = { "contract:0:1:0:2:1": 2 };
+  const budget = structuredClone(s.budget);
+  const attempts = structuredClone(s.recoveryAttempts);
+  assert.throws(() => resumeContractCitationAttempts(structuredClone(s), 6), /between 1 and 5/);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses[1] = { criteria: [] };
+  assert.throws(() => resumeContractCitationAttempts(wrong, 5), /one rejected group/);
+  resumeContractCitationAttempts(s, 5);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, attempts);
+  assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [true, false, true]);
+  assert.equal(s.contractPending.citationRetryGrant.remaining, 5);
+  assert.throws(() => resumeContractCitationAttempts(s, 5), /one rejected group/);
 });
 
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {

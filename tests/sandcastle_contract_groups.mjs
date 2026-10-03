@@ -79,3 +79,59 @@ test("contract recovery advice reaches only a rejected group on checkpoint repla
   assert.equal(contract.criteria.length, 3);
   assert.equal(withContractGroupRecoveryAdvice("Independent verification", { ...state, recoveryAdvicePhase: "review" }), "Independent verification");
 });
+
+test("five authorized citation attempts retry only the rejected contract group", async () => {
+  const pending = { round: 1 };
+  const threeGroups = { groups: [
+    { title: "Feature", partIndexes: [0] },
+    { title: "Other", partIndexes: [1] },
+    { title: "Policy", partIndexes: [2] },
+  ] };
+  const { parts, plan } = await planContractGroups(pending, sources, async () => threeGroups, async () => {});
+  const initialCalls = [0, 0, 0];
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    initialCalls[index]++;
+    const draft = response(group);
+    if (index === 1) draft.criteria[0].source.quote = "First production obligation.";
+    return draft;
+  }, async () => {}), /outside its assigned section/);
+  assert.deepEqual(initialCalls, [1, 1, 1]);
+  assert.deepEqual([0, 2].map((index) => Boolean(pending.groupResponses[index])), [true, true]);
+
+  pending.citationRetryGrant = { round: 1, groupIndex: 1, groupPlanDigest: pending.groupPlanDigest, granted: 5, remaining: 5, used: 0 };
+  const calls = [0, 0, 0];
+  const contract = await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    calls[index]++;
+    const draft = response(group);
+    if (calls[index] < 5) draft.criteria[0].source.quote = "First production obligation.";
+    return draft;
+  }, async () => {});
+  assert.deepEqual(calls, [0, 5, 0]);
+  assert.equal(contract.criteria.length, 3);
+  assert.equal(pending.citationRetryGrant, undefined);
+});
+
+test("citation grant stops after exactly five failed proposals without losing saved groups", async () => {
+  const pending = { round: 1 };
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    const draft = response(group);
+    if (index === 1) draft.criteria[0].source.quote = "First production obligation.";
+    return draft;
+  }, async () => {}), /outside its assigned section/);
+  const saved = structuredClone(pending.groupResponses[0]);
+  pending.citationRetryGrant = { round: 1, groupIndex: 1, groupPlanDigest: pending.groupPlanDigest, granted: 5, remaining: 5, used: 0 };
+  let calls = 0;
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group) => {
+    calls++;
+    const draft = response(group);
+    draft.criteria[0].source.quote = "First production obligation.";
+    return draft;
+  }, async () => {}), /authorized contract citation attempts exhausted/);
+  assert.equal(calls, 5);
+  assert.deepEqual(pending.groupResponses[0], saved);
+  assert.equal(pending.citationRetryGrant.remaining, 0);
+  assert.equal(pending.citationRetryGrant.used, 5);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async () => { calls++; throw new Error("unexpected sixth call"); }, async () => {}), /authorized contract citation attempts exhausted/);
+  assert.equal(calls, 5);
+});

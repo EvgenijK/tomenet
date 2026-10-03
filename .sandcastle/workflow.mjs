@@ -10,7 +10,7 @@ import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from 
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
-import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, recoveryCategory } from "./recovery.mjs";
+import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractCitationAttempts, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
 import { planContractGroups, buildGroupedContractDraft, withContractGroupRecoveryAdvice } from "./contract-groups.mjs";
@@ -257,7 +257,7 @@ async function contract(sandbox, state) {
         "Independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
         "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
-        JSON.stringify({ originatingTask: { path: state.specPath, overview: state.spec.slice(0, 2300) }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
+        JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
       ].join("\n\n"), state, index), ".sandcastle/contract-output.schema.json");
       let draft;
       if (pending.parts || pending.partSourceDigest) {
@@ -608,9 +608,14 @@ if (command === "start") {
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
 const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
+const extraContractAttempts = process.env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
 if (process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== undefined) throw new Error("Contract rounds are capped at 12; extra contract-round grants are no longer available");
+if (extraContractAttempts !== undefined) {
+  if (userResume || improvedContractResume || extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract citation grant cannot be combined with other continuation modes");
+  resumeContractCitationAttempts(structuredClone(state), Number(extraContractAttempts));
+}
 if (improvedContractResume) {
-  if (userResume || extraQuota !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
+  if (userResume || extraQuota !== undefined || extraContractAttempts !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
   resumeImprovedContract(structuredClone(state));
 }
 if (userResume) {
@@ -622,7 +627,7 @@ if (extraQuota !== undefined) {
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && extraContractAttempts === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
 state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
@@ -630,7 +635,9 @@ const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (improvedContractResume) {
+    if (extraContractAttempts !== undefined) {
+      resumeContractCitationAttempts(state, Number(extraContractAttempts));
+    } else if (improvedContractResume) {
       resumeImprovedContract(state);
     } else if (userResume) {
       resumeUserPause(state);
