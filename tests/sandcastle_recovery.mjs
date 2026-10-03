@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
 import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
@@ -224,6 +224,34 @@ test("assembly resume reuses an already granted checkpoint after preflight failu
   assert.throws(() => resumeContractAssemblyAttempts(structuredClone(s), 2), /saved command-validation failure/);
   s.contractPending.assemblyAttempts.used = 3; s.contractPending.assemblyAttempts.remaining = 0;
   assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
+});
+
+test("sixteen extra assembly calls extend an exhausted checkpoint once without resetting history", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; Invalid draft reconciliation: baseline command sv-core cannot be weakened; human decision required";
+  s.contractPending = { round: 2, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}, {}] }, groupResponses: [{}, {}, {}, {}],
+    assemblyAttempts: { round: 2, groupPlanDigest: "saved", granted: 3, used: 3, remaining: 0,
+      lastError: "Invalid draft reconciliation: baseline command sv-core cannot be weakened" } };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  assert.throws(() => extendContractAssemblyAttempts(structuredClone(s), 17, "approved-16"), /between 1 and 16/);
+  extendContractAssemblyAttempts(s, 16, "approved-16");
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recovery);
+  assert.deepEqual([s.contractPending.assemblyAttempts.granted, s.contractPending.assemblyAttempts.used, s.contractPending.assemblyAttempts.remaining], [19, 3, 16]);
+  assert.deepEqual(s.contractPending.groupResponses, [{}, {}, {}, {}]);
+
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  const grant = structuredClone(s.contractPending.assemblyAttempts);
+  extendContractAssemblyAttempts(s, 16, "approved-16");
+  assert.deepEqual(s.contractPending.assemblyAttempts, grant);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; still invalid; human decision required";
+  s.contractPending.assemblyAttempts.used = 19; s.contractPending.assemblyAttempts.remaining = 0;
+  assert.throws(() => extendContractAssemblyAttempts(s, 16, "approved-16"), /cannot be granted again/);
 });
 
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {

@@ -129,6 +129,48 @@ export function resumeContractAssemblyAttempts(state, attempts) {
   return state;
 }
 
+// An explicit, uniquely identified user grant extends an exhausted assembly
+// budget on the same saved draft. Replaying the same grant after a preflight
+// failure only spends its remaining calls; it never issues a second allowance.
+export function extendContractAssemblyAttempts(state, extra, authorizationId) {
+  const pending = state.contractPending;
+  const grant = pending?.assemblyAttempts;
+  const checkpoint = ["contract", state.wave?.id ?? 0, state.completedTickets?.length ?? 0, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
+  if (!Number.isInteger(extra) || extra < 1 || extra > 16) throw new Error("Contract assembly extension must be between 1 and 16 attempts");
+  if (typeof authorizationId !== "string" || !/^[a-zA-Z0-9_-]{8,80}$/.test(authorizationId)) throw new Error("Contract assembly extension needs a unique authorization ID");
+  if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
+    pending?.step !== "assemble" || !pending.proposalInFlight || pending.proposal || pending.reconciliation ||
+    !pending.groupPlanDigest || !Array.isArray(pending.groupResponses) ||
+    pending.groupResponses.length !== pending.groupPlan?.groups?.length ||
+    pending.groupResponses.some((response) => !response) ||
+    !grant || grant.round !== pending.round || grant.groupPlanDigest !== pending.groupPlanDigest ||
+    !Number.isInteger(grant.granted) || !Number.isInteger(grant.used) ||
+    !Number.isInteger(grant.remaining) || grant.used + grant.remaining !== grant.granted ||
+    (state.recoveryAttempts?.[checkpoint] ?? 0) < 3) {
+    throw new Error("Contract assembly extension requires the exhausted saved assembly checkpoint");
+  }
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract assembly extension requires available task quota");
+  const existing = grant.extensions?.find((item) => item.id === authorizationId);
+  if (existing) {
+    if (existing.extra !== extra || grant.remaining < 1 ||
+      state.pauseReason !== "Automatic recovery made no progress after three decisions at this checkpoint") {
+      throw new Error("Contract assembly extension cannot be granted again");
+    }
+  } else {
+    if (!/^Acceptance: contract assembly attempts exhausted;/.test(state.pauseReason ?? "") || grant.remaining !== 0 || grant.used !== grant.granted) {
+      throw new Error("Contract assembly extension requires an exhausted allowance");
+    }
+    grant.baseGranted ??= grant.granted;
+    (grant.extensions ??= []).push({ id: authorizationId, extra, authorizedAt: new Date().toISOString() });
+    grant.granted += extra;
+    grant.remaining += extra;
+  }
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 export function recoveryRestriction(state, error = "") {
   if (/^Acceptance:|human decision required/i.test(error)) return "Acceptance gate requires a human decision; recovery cannot weaken it";
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) return "Quota guard requires human continuation";

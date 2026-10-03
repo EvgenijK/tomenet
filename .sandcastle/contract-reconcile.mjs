@@ -1,6 +1,6 @@
 import { digest, validateContract } from "./acceptance.mjs";
 
-export const assemblyCommandRules = "Preserve every already valid check unless a requirement needs its change. New or edited focused checks must use exactly python3 -B tests/<file> [args], node tests/<file> [args], or bash tests/<file> [args]. External checks must have command=''. Never use shell operators, wrappers, or a command that does not directly invoke a repository test.";
+export const assemblyCommandRules = "The sv-build and sv-core baseline checks are immutable: preserve their IDs, kinds and commands exactly, and never include them in checkEdits. If stronger regression evidence is needed, add a separate focused check instead of changing a baseline check. Preserve every other already valid check unless a requirement needs its change. New or edited focused checks must use exactly python3 -B tests/<file> [args], node tests/<file> [args], or bash tests/<file> [args]. External checks must have command=''. Never use shell operators, wrappers, or a command that does not directly invoke a repository test.";
 
 // A reconciler can replace or add requirements, but cannot silently remove
 // requirements or downgrade a mandatory one. Full validation and independent
@@ -45,10 +45,18 @@ export async function reconcileContractDraft(pending, draft, sources, inspect, s
   if (!pending.reconciliation) {
     const attempts = pending.assemblyAttempts ??= { round: pending.round, groupPlanDigest: pending.groupPlanDigest,
       granted: 3, remaining: 3, used: 0, draftDigest, sourceDigest };
+    const extensions = attempts.extensions ?? [];
+    const validExtensions = Array.isArray(extensions) && extensions.every((item) =>
+      typeof item.id === "string" && /^[a-zA-Z0-9_-]{8,80}$/.test(item.id) &&
+      Number.isInteger(item.extra) && item.extra >= 1 && item.extra <= 16 &&
+      typeof item.authorizedAt === "string" && item.authorizedAt.length > 0) &&
+      new Set(extensions.map((item) => item.id)).size === extensions.length;
+    const baseGranted = attempts.baseGranted ?? attempts.granted;
     if (attempts.round !== pending.round || attempts.groupPlanDigest !== pending.groupPlanDigest ||
       (attempts.draftDigest && attempts.draftDigest !== draftDigest) ||
       (attempts.sourceDigest && attempts.sourceDigest !== sourceDigest) ||
-      !Number.isInteger(attempts.granted) || attempts.granted < 1 || attempts.granted > 5 ||
+      !validExtensions || !Number.isInteger(baseGranted) || baseGranted < 1 || baseGranted > 5 ||
+      attempts.granted !== baseGranted + extensions.reduce((sum, item) => sum + item.extra, 0) ||
       !Number.isInteger(attempts.used) || attempts.used < 0 ||
       !Number.isInteger(attempts.remaining) || attempts.remaining < 0 ||
       attempts.used + attempts.remaining !== attempts.granted) {

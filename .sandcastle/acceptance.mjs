@@ -24,7 +24,7 @@ export function validateContract(contract, sources) {
     need(["build", "core", "command", "external"].includes(check.kind), "unknown check kind");
     if (["build", "core"].includes(check.kind)) {
       const baseline = baselineChecks.find((item) => item.id === check.id);
-      need(baseline && baseline.kind === check.kind && baseline.command === check.command, "baseline command cannot be weakened");
+      need(baseline && baseline.kind === check.kind && baseline.command === check.command, `baseline command ${check.id} cannot be weakened`);
     } else if (check.kind === "command") {
       // Focused repository checks, never arbitrary shell programs or remote actions.
       need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), `focused check ${check.id} must invoke a repository test without shell operators`);

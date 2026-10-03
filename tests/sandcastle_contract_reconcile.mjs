@@ -76,8 +76,8 @@ test("assembly returns check-specific feedback and saves only a validated correc
   assert.equal(pending.assemblyAttempts.used, 2);
 });
 
-test("assembly prompt states the same focused forms enforced by validation", () => {
-  for (const form of ["python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "command=''", "shell operators", "Preserve every already valid check"]) {
+test("assembly prompt states immutable baselines and the focused forms enforced by validation", () => {
+  for (const form of ["sv-build and sv-core baseline checks are immutable", "add a separate focused check", "python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "command=''", "shell operators", "Preserve every other already valid check"]) {
     assert.ok(assemblyCommandRules.includes(form), form);
   }
 });
@@ -92,6 +92,26 @@ test("invalid assembly proposals exhaust only a persisted three-call budget", as
   assert.equal(pending.reconciliation, undefined);
   await assert.rejects(reconcileContractDraft(pending, draft(), sources, async () => { calls++; return patch(); }, async () => {}), /assembly attempts exhausted/);
   assert.equal(calls, 3);
+});
+
+test("explicit extension preserves three spent calls and accepts a corrected baseline", async () => {
+  const pending = { round: 2, groupPlanDigest: "groups", groupResponses: [{}, {}, {}, {}] };
+  const invalid = { ...patch(), checkEdits: [{ id: "sv-core", replacement: { ...baselineChecks[1], command: "node tests/guide.mjs" } }] };
+  let calls = 0;
+  await assert.rejects(reconcileContractDraft(pending, draft(), sources, async () => { calls++; return invalid; }, async () => {}), /assembly attempts exhausted.*sv-core/);
+  pending.assemblyAttempts.baseGranted = 3;
+  pending.assemblyAttempts.extensions = [{ id: "approved-16", extra: 16, authorizedAt: "2026-10-03T00:00:00Z" }];
+  pending.assemblyAttempts.granted += 16;
+  pending.assemblyAttempts.remaining += 16;
+  const revised = await reconcileContractDraft(pending, draft(), sources, async (_draft, error) => {
+    calls++;
+    assert.match(error, /sv-core/);
+    return patch();
+  }, async () => {});
+  assert.equal(calls, 4);
+  assert.equal(revised.checks.find((item) => item.id === "sv-core").command, baselineChecks[1].command);
+  assert.equal(pending.assemblyAttempts.used, 4);
+  assert.equal(pending.assemblyAttempts.remaining, 15);
 });
 
 test("assembly interruption consumes one reserved call and resumes at the same draft", async () => {
