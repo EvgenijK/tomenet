@@ -38,6 +38,8 @@ test("part combiner rejects fabricated quotes, inconsistent scope and changed so
   assert.equal(combineContractParts(parts, answers).criteria.length, parts.length);
   const fabricated = structuredClone(answers); fabricated[0].criteria[0].source.quote = "fabricated";
   assert.throws(() => combineContractParts(parts, fabricated), /source/);
+  const empty = structuredClone(answers); empty[0].criteria[0].source.quote = "";
+  assert.throws(() => combineContractParts(parts, empty), /empty source quote/);
   const differentScope = structuredClone(answers); differentScope[0].completionScope = "full_acceptance";
   assert.throws(() => combineContractParts(parts, differentScope), /scope/);
   const pending = { round: 1 };

@@ -13,6 +13,7 @@ import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
+import { contractSourceCatalog, feedbackForGroup } from "./contract-feedback.mjs";
 import { planContractGroups, buildGroupedContractDraft, withContractGroupRecoveryAdvice } from "./contract-groups.mjs";
 import { assemblyCommandRules, reconcileContractDraft } from "./contract-reconcile.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
@@ -252,13 +253,15 @@ async function contract(sandbox, state) {
     sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
     propose: async (sources, feedback, pending) => {
       const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, withContractGroupRecoveryAdvice([
-        `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements; quote only the supplied source sections. Do not edit files. Return schema JSON.`,
+        `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements. Do not edit files. Return schema JSON.`,
+        part.sourceSpans ? "For every criterion, select sourceSpanId from this group's assigned sourceSpans. Do not provide source.path or source.quote; the controller inserts the exact source text. A requirement spanning groups belongs in full-source reconciliation." : "For every criterion, quote only the supplied source sections verbatim in source.path and source.quote.",
         "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
-        "Independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
+        "Assigned independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
         "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
         "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
-        JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks, feedback }, null, 2),
-      ].join("\n\n"), state, index), ".sandcastle/contract-output.schema.json");
+        JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks,
+          feedback: part.sourceSpans ? feedbackForGroup(pending, part) : feedback }, null, 2),
+      ].join("\n\n"), state, index), part.sourceSpans ? ".sandcastle/contract-group-output.schema.json" : ".sandcastle/contract-output.schema.json");
       let draft;
       if (pending.parts || pending.partSourceDigest) {
         // Preserve checkpoints from runs started with the former sequential draft.
@@ -281,8 +284,8 @@ async function contract(sandbox, state) {
       ].filter(Boolean).join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
     },
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
-      "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
-      JSON.stringify({ sources, proposal }, null, 2),
+      "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. For each missingRequirement, add one findings entry with the identical message and sourceSpanIds: cite exact IDs for one local source area, multiple IDs for a cross-area issue, or [] when provenance is uncertain/global. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
+      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal }, null, 2),
     ].join("\n\n"), ".sandcastle/contract-review-output.schema.json")),
     publish: async (accepted) => {
       await mkdir(resolve(sandbox.worktreePath, taskDir(state)), { recursive: true });

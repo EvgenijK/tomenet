@@ -2,6 +2,29 @@ import { createHash } from "node:crypto";
 
 const sourceDigest = (sources) => createHash("sha256").update(JSON.stringify(sources)).digest("hex");
 
+// IDs include the source revision, path, absolute character offset and text. They
+// survive regrouping, but cannot be reused for changed source text.
+export function sourceSpans(parts) {
+  const offsets = new Map();
+  const revision = sourceDigest(parts);
+  return parts.map((part) => {
+    const start = offsets.get(part.sourcePath) ?? 0;
+    offsets.set(part.sourcePath, start + part.sourceText.length);
+    const spans = [];
+    let position = 0;
+    for (const line of part.sourceText.match(/[^\n]*(?:\n|$)/g) ?? []) {
+      if (!line) continue;
+      const quote = line.trim();
+      if (quote) {
+        const fingerprint = createHash("sha256").update(`${revision}\0${part.sourcePath}\0${start + position}\0${quote}`).digest("hex").slice(0, 16);
+        spans.push({ id: `S-${fingerprint}`, sourcePath: part.sourcePath, quote });
+      }
+      position += line.length;
+    }
+    return spans;
+  });
+}
+
 // Keep heading blocks intact so a quoted requirement and its context reach
 // the same proposer. The size is a target, not a reason to cut a table row.
 export function partitionContractSources(sources, targetChars = 6500) {
@@ -21,7 +44,7 @@ export function partitionContractSources(sources, targetChars = 6500) {
   return parts;
 }
 
-export function combineContractParts(parts, responses, { allowMixedScopes = false } = {}) {
+export function combineContractParts(parts, responses, { allowMixedScopes = false, requireSpanIds = false, legacyIndexes = [] } = {}) {
   if (!Array.isArray(responses) || responses.length !== parts.length || !parts.length) throw new Error("Incomplete contract parts");
   const scopes = new Set(responses.map((response) => response?.completionScope));
   if ([...scopes].some((scope) => !["implementation", "full_acceptance"].includes(scope)) || scopes.size !== 1 && !allowMixedScopes) throw new Error("Inconsistent contract completion scope");
@@ -49,9 +72,20 @@ export function combineContractParts(parts, responses, { allowMixedScopes = fals
     }
     for (const criterion of response.criteria) {
       const sections = parts[index].sourceSections ?? [parts[index]];
-      if (typeof criterion?.source?.quote !== "string" || !sections.some((section) => section.sourcePath === criterion.source.path && section.sourceText.includes(criterion.source.quote))) throw new Error("Contract part cited a source outside its assigned section");
-      if (!Array.isArray(criterion.checkIds) || criterion.checkIds.some((id) => !mapped.has(id))) throw new Error("Contract part has an unmapped check");
-      contract.criteria.push({ ...criterion, id: `P${index + 1}-${criterion.id}`, checkIds: criterion.checkIds.map((id) => mapped.get(id)) });
+      let source;
+      if (requireSpanIds && !legacyIndexes.includes(index)) {
+        const span = parts[index].sourceSpans?.find((item) => item.id === criterion?.sourceSpanId);
+        if (!span || criterion.source !== undefined) throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has an unknown or stale sourceSpanId in group ${index + 1}; use an assigned source span ID (${(parts[index].sourceSpans ?? []).slice(0, 8).map((item) => item.id).join(", ")}${(parts[index].sourceSpans?.length ?? 0) > 8 ? ", ..." : ""})`);
+        source = { path: span.sourcePath, quote: span.quote };
+      } else {
+        const quote = criterion?.source?.quote;
+        if (typeof quote !== "string" || !quote.trim()) throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has an empty source quote in group ${index + 1}`);
+        if (!sections.some((section) => section.sourcePath === criterion.source.path && section.sourceText.includes(quote))) throw new Error(`Contract criterion ${criterion.id} cited a source outside its assigned section in group ${index + 1}`);
+        source = criterion.source;
+      }
+      if (!Array.isArray(criterion.checkIds) || criterion.checkIds.some((id) => !mapped.has(id))) throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has an unmapped check in group ${index + 1}`);
+      const { sourceSpanId: _sourceSpanId, ...fields } = criterion;
+      contract.criteria.push({ ...fields, source, id: `P${index + 1}-${criterion.id}`, checkIds: criterion.checkIds.map((id) => mapped.get(id)) });
     }
   }
   return contract;

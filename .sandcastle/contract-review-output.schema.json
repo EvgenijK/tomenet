@@ -4,7 +4,8 @@
   "required": [
     "approved",
     "summary",
-    "missingRequirements"
+    "missingRequirements",
+    "findings"
   ],
   "properties": {
     "approved": {
@@ -17,6 +18,28 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "sourceSpanIds"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "sourceSpanIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       }
     }
   }

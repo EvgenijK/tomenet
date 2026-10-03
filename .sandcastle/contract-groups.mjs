@@ -1,5 +1,5 @@
 import { digest } from "./acceptance.mjs";
-import { combineContractParts, partitionContractSources } from "./contract-draft.mjs";
+import { combineContractParts, partitionContractSources, sourceSpans } from "./contract-draft.mjs";
 import { guidanceFor } from "./recovery-guidance.mjs";
 
 export function withContractGroupRecoveryAdvice(prompt, state, index) {
@@ -7,10 +7,10 @@ export function withContractGroupRecoveryAdvice(prompt, state, index) {
   const pending = state.contractPending;
   const grant = pending?.citationRetryGrant;
   const citation = grant && grant.groupIndex === index
-    ? `Citation retry for this group: each source.path must be one of this group's assigned sourcePath values, and each source.quote must be copied verbatim as a contiguous substring of that same assigned section's sourceText. Do not quote the task overview or referenced documents. ${pending.citationRetryError ?? "The previous answer cited text outside its assigned sections."}`
+    ? `Citation retry for this group: use only a sourceSpanId from this group's assigned sourceSpans. The controller supplies source.path and source.quote. Do not cite the task overview or referenced documents. ${pending.citationRetryError ?? "The previous answer cited text outside its assigned sections."}`
     : "";
   const groupRetry = pending?.groupRetryGrant && pending.groupRetryGrant.groupIndex === index
-    ? `This group is the only rejected checkpoint. Correct its previous validation failure without changing the assigned source scope. Every source.quote must be copied verbatim from an assigned sourceText section, and every criterion.checkIds value must name a check in this group's response. ${pending.groupRetryGrant.lastError ?? "The previous response did not pass group validation."}`
+    ? `This group is the only rejected checkpoint. Correct its previous validation failure without changing the assigned source scope. Each criterion needs an assigned sourceSpanId, and every criterion.checkIds value must name a check in this group's response. ${pending.groupRetryGrant.lastError ?? "The previous response did not pass group validation."}`
     : "";
   return [prompt, guidance, citation, groupRetry].filter(Boolean).join("\n\n");
 }
@@ -48,7 +48,10 @@ export async function planContractGroups(pending, sources, split, save) {
 
 export async function buildGroupedContractDraft(pending, parts, plan, propose, save) {
   validateContractGroups(plan, parts);
-  const grouped = plan.groups.map((group) => ({ title: group.title, sourceSections: group.partIndexes.map((index) => parts[index]) }));
+  const spans = sourceSpans(parts);
+  const grouped = plan.groups.map((group) => ({ title: group.title,
+    sourceSections: group.partIndexes.map((index) => parts[index]),
+    sourceSpans: group.partIndexes.flatMap((index) => spans[index]) }));
   const planDigest = digest({ parts, plan });
   if (pending.groupPlanDigest && pending.groupPlanDigest !== planDigest) throw new Error("Contract group checkpoint changed; human decision required");
   const grant = pending.citationRetryGrant;
@@ -67,6 +70,19 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
     !Number.isInteger(groupGrant.used) || groupGrant.used < 0 || groupGrant.remaining + groupGrant.used !== groupGrant.granted)) {
     throw new Error("Acceptance: contract group retry grant no longer matches its checkpoint; human decision required");
   }
+  // Freeze the migration allowlist before launching any new agents. Existing
+  // accepted answers retain their exact quote/path, while every future answer
+  // must use a controller-expanded span ID. The plan digest remains unchanged.
+  if (pending.groupCitationFormat === undefined) {
+    pending.groupCitationFormat = "span-v1";
+    pending.legacyGroupIndexes = (pending.groupResponses ?? []).flatMap((response, index) => response ? [index] : []);
+  }
+  if (pending.groupCitationFormat !== "span-v1" || !Array.isArray(pending.legacyGroupIndexes) ||
+    pending.legacyGroupIndexes.some((index) => !Number.isInteger(index) || index < 0 || index >= grouped.length || !pending.groupResponses?.[index] ||
+      !pending.groupResponses[index].criteria?.every((criterion) => criterion?.source && criterion.sourceSpanId === undefined))) {
+    throw new Error("Acceptance: contract citation checkpoint format changed; human decision required");
+  }
+  const options = { requireSpanIds: true, legacyIndexes: pending.legacyGroupIndexes, allowMixedScopes: true };
   pending.groupPlanDigest = planDigest;
   pending.groupResponses ??= [];
   await save();
@@ -83,9 +99,9 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
         await save();
       }
       const response = await propose(group, index, grouped.length);
-      try { combineContractParts([group], [response]); }
+      try { combineContractParts([group], [response], { requireSpanIds: true, allowMixedScopes: true }); }
       catch (error) {
-        if (!retry || (retry === grant && error.message !== "Contract part cited a source outside its assigned section")) throw error;
+        if (!retry || (retry === grant && !/sourceSpanId|source quote|assigned section/.test(error.message))) throw error;
         if (retry === grant) pending.citationRetryError = error.message;
         else retry.lastError = error.message.slice(0, 1000);
         await save();
@@ -106,5 +122,5 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
     throw outcomes[failedIndex].reason;
   }
   delete pending.failedGroupIndex;
-  return combineContractParts(grouped, pending.groupResponses, { allowMixedScopes: true });
+  return combineContractParts(grouped, pending.groupResponses, options);
 }

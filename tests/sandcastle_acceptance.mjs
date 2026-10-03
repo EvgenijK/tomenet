@@ -33,7 +33,7 @@ const residual = (id) => ({ id, reason: "Optional whitespace only", risk: "No be
 test("real Sandcastle provider accepts all runtime schema file mounts without rebuilding the image", () => {
   const mounts = runtimeSchemaMounts(resolve(import.meta.dirname, ".."));
   assert.doesNotThrow(() => docker({ mounts }));
-  for (const schema of [true, ".sandcastle/contract-groups-output.schema.json", ".sandcastle/contract-output.schema.json", ".sandcastle/contract-review-output.schema.json", ".sandcastle/ticket-output.schema.json"]) {
+  for (const schema of [true, ".sandcastle/contract-groups-output.schema.json", ".sandcastle/contract-group-output.schema.json", ".sandcastle/contract-output.schema.json", ".sandcastle/contract-review-output.schema.json", ".sandcastle/ticket-output.schema.json"]) {
     assert.ok(mounts.some((mount) => mount.sandboxPath === runtimeSchemaPath(schema) && mount.readonly));
   }
   assert.throws(() => docker({ mounts: [{ ...mounts[0], sandboxPath: "/opt/sandcastle-runtime/contract-output.schema.json" }] }), /outside the sandbox home directory/);
@@ -57,6 +57,33 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   await contractStage(s, { ...ops, propose: async () => proposal() });
   assert.equal(s.phase, "contract"); assert.equal(s.contractPending.round, 1);
   await contractStage(s, { ...ops, propose: async () => proposal(), verify: async () => approval });
+  assert.equal(s.phase, "plan");
+});
+
+test("rejected verification preserves structured provenance for the next contract round", async () => {
+  const s = { id: "test", phase: "contract" };
+  const message = "Preserve cancellation production behavior";
+  const review = { approved: false, summary: "Missing behavior", missingRequirements: [message],
+    findings: [{ message, sourceSpanIds: [] }] };
+  await contractStage(s, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async () => proposal(), verify: async () => review });
+  assert.deepEqual(s.contractPending.feedback, [message]);
+  assert.deepEqual(s.contractPending.feedbackDetails, [{ message, sourceSpanIds: [] }]);
+  assert.equal(s.contractPending.proposal, undefined);
+});
+
+test("saved pre-upgrade review and feedback remain resumable without invented ownership", async () => {
+  const message = "Missing cross-cutting requirement";
+  const s = { id: "legacy", phase: "contract", contractPending: { round: 1, proposal: proposal(),
+    review: { approved: false, summary: message, missingRequirements: [message] } } };
+  await contractStage(s, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async () => { throw new Error("saved proposal must be used"); },
+    verify: async () => { throw new Error("saved review must be used"); } });
+  assert.deepEqual(s.contractPending.feedback, [message]);
+  assert.deepEqual(s.contractPending.feedbackDetails, [{ message, sourceSpanIds: [] }]);
+  await contractStage(s, { sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async (_sources, feedback) => { assert.deepEqual(feedback, [message]); return proposal(); },
+    verify: async () => approval });
   assert.equal(s.phase, "plan");
 });
 

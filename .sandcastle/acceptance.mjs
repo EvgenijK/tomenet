@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { verifierFeedbackDetails } from "./contract-feedback.mjs";
 
 // Model opinions never override these controller-owned safety rules.
 export const acceptancePolicy = Object.freeze({ maxContractRounds: 12, maxDefectRepairs: 3, maxFinalAudits: 2 });
@@ -280,8 +281,8 @@ export async function contractStage(state, ops) {
   }
   try { validateContract(pending.proposal, sources); }
   catch (error) {
-    pending.feedback = [error.message]; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
-    delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.step;
+    pending.feedback = [error.message]; delete pending.feedbackDetails; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
+    delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.groupCitationFormat; delete pending.legacyGroupIndexes; delete pending.step;
     delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract validation limit reached; human decision required");
@@ -293,8 +294,9 @@ export async function contractStage(state, ops) {
   }
   if (pending.review.approved !== true || pending.review.missingRequirements?.length) {
     pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
+    pending.feedbackDetails = verifierFeedbackDetails(pending.review, sources);
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
-    delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.step;
+    delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.groupCitationFormat; delete pending.legacyGroupIndexes; delete pending.step;
     delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
     need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");

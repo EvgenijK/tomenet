@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { planContractGroups, buildGroupedContractDraft, validateContractGroups, withContractGroupRecoveryAdvice } from "../.sandcastle/contract-groups.mjs";
+import { contractSourceCatalog, verifierFeedbackDetails, feedbackForGroup } from "../.sandcastle/contract-feedback.mjs";
+import { partitionContractSources, sourceSpans } from "../.sandcastle/contract-draft.mjs";
 import { baselineChecks } from "../.sandcastle/acceptance.mjs";
 
 const sources = {
@@ -13,7 +15,7 @@ const split = { groups: [
   { title: "Other behavior", partIndexes: [1] },
 ] };
 const response = (group) => ({ version: 1, completionScope: "implementation", checks: structuredClone(baselineChecks), criteria: group.sourceSections.map((section, index) => ({
-  id: `criterion-${index}`, requirement: section.sourceText, source: { path: section.sourcePath, quote: section.sourceText },
+  id: `criterion-${index}`, requirement: section.sourceText, sourceSpanId: group.sourceSpans.find((span) => span.sourcePath === section.sourcePath && span.quote === section.sourceText.trim())?.id,
   mandatory: true, applicability: "current", owner: "", deferralReason: "", checkIds: ["sv-core"],
 })) });
 
@@ -50,6 +52,88 @@ test("parallel contract agents save successful groups and resume only the failed
   assert.ok(contract.criteria.some((criterion) => criterion.source.path === "AGENTS.md"));
 });
 
+test("assigned span IDs expand to exact sources and reject foreign, stale and free-form citations", async () => {
+  const pending = {};
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  let assigned;
+  const contract = await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    if (index === 1) assigned = group.sourceSpans[0];
+    return response(group);
+  }, async () => {});
+  assert.deepEqual(contract.criteria.find((item) => item.source.path === "docs/tasks/other.md").source,
+    { path: assigned.sourcePath, quote: assigned.quote });
+  assert.ok(pending.groupResponses[1].criteria.every((item) => item.source === undefined));
+  const old = structuredClone(pending.groupResponses[0]);
+  delete pending.groupResponses[1];
+  const foreign = sourceSpans(parts)[0][0].id;
+  const revised = sourceSpans(partitionContractSources({ ...sources, "AGENTS.md": "Changed policy." }));
+  assert.notEqual(foreign, revised[0][0].id);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    assert.equal(index, 1);
+    const answer = response(group);
+    answer.criteria[0].sourceSpanId = foreign;
+    return answer;
+  }, async () => {}), /unknown or stale sourceSpanId/);
+  assert.deepEqual(pending.groupResponses[0], old);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group) => {
+    const answer = response(group);
+    answer.criteria[0].sourceSpanId = "S-0000000000000000";
+    return answer;
+  }, async () => {}), /unknown or stale sourceSpanId/);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group) => {
+    const answer = response(group);
+    answer.criteria[0].source = { path: "docs/tasks/other.md", quote: "Second production obligation." };
+    return answer;
+  }, async () => {}), /unknown or stale sourceSpanId/);
+});
+
+test("migration freezes only pre-existing legacy group answers", async () => {
+  const pending = {};
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  const firstSpans = sourceSpans(parts);
+  pending.groupResponses = [{ version: 1, completionScope: "implementation", checks: structuredClone(baselineChecks),
+    criteria: split.groups[0].partIndexes.map((partIndex, index) => ({ id: `old-${index}`, requirement: "Legacy requirement",
+      source: { path: parts[partIndex].sourcePath, quote: firstSpans[partIndex][0].quote }, mandatory: true,
+      applicability: "current", owner: "", deferralReason: "", checkIds: ["sv-core"] })) }];
+  const saved = structuredClone(pending.groupResponses[0]);
+  const contract = await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    assert.equal(index, 1);
+    return response(group);
+  }, async () => {});
+  assert.deepEqual(pending.groupResponses[0], saved);
+  assert.deepEqual(pending.legacyGroupIndexes, [0]);
+  assert.equal(contract.criteria.length, 3);
+  delete pending.groupResponses[1];
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group) => {
+    const answer = response(group);
+    answer.criteria[0].source = { path: group.sourceSections[0].sourcePath, quote: group.sourceSections[0].sourceText };
+    return answer;
+  }, async () => {}), /unknown or stale sourceSpanId/);
+});
+
+test("verifier feedback goes only to its single owner; unknown and cross-group items reach assembly only", async () => {
+  const pending = {};
+  const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
+  const spans = sourceSpans(parts);
+  const local = "Cover the first production path";
+  const cross = "Check behavior across both features";
+  const unknown = "Check platform matrix";
+  const review = { missingRequirements: [local, cross, unknown], findings: [
+    { message: local, sourceSpanIds: [spans[0][0].id] },
+    { message: cross, sourceSpanIds: [spans[0][0].id, spans[1][0].id] },
+    { message: unknown, sourceSpanIds: ["S-0000000000000000"] },
+  ] };
+  pending.feedback = review.missingRequirements;
+  pending.feedbackDetails = verifierFeedbackDetails(review, sources);
+  await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
+    assert.deepEqual(feedbackForGroup(pending, group), index === 0 ? [local] : []);
+    return response(group);
+  }, async () => {});
+  assert.deepEqual(pending.feedback, [local, cross, unknown]);
+  assert.deepEqual(pending.feedbackDetails.find((item) => item.message === unknown).sourceSpanIds, []);
+  assert.equal(contractSourceCatalog(sources).length, 3);
+});
+
 test("contract recovery advice reaches only a rejected group on checkpoint replay", async () => {
   const pending = {};
   const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
@@ -60,12 +144,12 @@ test("contract recovery advice reaches only a rejected group on checkpoint repla
     calls.push({ index, prompt });
     const draft = response(group);
     if (index === 1 && calls.filter((call) => call.index === 1).length === 1) {
-      draft.criteria[0].source.quote = "First production obligation.";
+      draft.criteria[0].sourceSpanId = "S-0000000000000000";
     }
     return draft;
   };
 
-  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, propose, async () => {}), /outside its assigned section/);
+  await assert.rejects(buildGroupedContractDraft(pending, parts, plan, propose, async () => {}), /unknown or stale sourceSpanId/);
   const saved = structuredClone(pending.groupResponses[0]);
   assert.equal(pending.groupResponses[1], undefined);
   state.recoveryAdvice = "Cite exact text from assigned source sections.";
@@ -92,9 +176,9 @@ test("five authorized citation attempts retry only the rejected contract group",
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
     initialCalls[index]++;
     const draft = response(group);
-    if (index === 1) draft.criteria[0].source.quote = "First production obligation.";
+    if (index === 1) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
-  }, async () => {}), /outside its assigned section/);
+  }, async () => {}), /unknown or stale sourceSpanId/);
   assert.deepEqual(initialCalls, [1, 1, 1]);
   assert.deepEqual([0, 2].map((index) => Boolean(pending.groupResponses[index])), [true, true]);
 
@@ -103,7 +187,7 @@ test("five authorized citation attempts retry only the rejected contract group",
   const contract = await buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
     calls[index]++;
     const draft = response(group);
-    if (calls[index] < 5) draft.criteria[0].source.quote = "First production obligation.";
+    if (calls[index] < 5) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
   }, async () => {});
   assert.deepEqual(calls, [0, 5, 0]);
@@ -116,16 +200,16 @@ test("citation grant stops after exactly five failed proposals without losing sa
   const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
     const draft = response(group);
-    if (index === 1) draft.criteria[0].source.quote = "First production obligation.";
+    if (index === 1) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
-  }, async () => {}), /outside its assigned section/);
+  }, async () => {}), /unknown or stale sourceSpanId/);
   const saved = structuredClone(pending.groupResponses[0]);
   pending.citationRetryGrant = { round: 1, groupIndex: 1, groupPlanDigest: pending.groupPlanDigest, granted: 5, remaining: 5, used: 0 };
   let calls = 0;
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group) => {
     calls++;
     const draft = response(group);
-    draft.criteria[0].source.quote = "First production obligation.";
+    draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
   }, async () => {}), /authorized contract citation attempts exhausted/);
   assert.equal(calls, 5);
@@ -146,9 +230,9 @@ test("eight authorized group attempts preserve accepted siblings and feed back v
   const { parts, plan } = await planContractGroups(pending, sources, async () => threeGroups, async () => {});
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
     const draft = response(group);
-    if (index === 0) draft.criteria[0].source.quote = "Not in assigned section";
+    if (index === 0) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
-  }, async () => {}), /outside its assigned section/);
+  }, async () => {}), /unknown or stale sourceSpanId/);
   const siblings = [pending.groupResponses[1], pending.groupResponses[2]].map((item) => structuredClone(item));
   pending.groupRetryGrant = { round: 2, groupIndex: 0, groupPlanDigest: pending.groupPlanDigest,
     granted: 8, remaining: 8, used: 0 };
@@ -160,11 +244,11 @@ test("eight authorized group attempts preserve accepted siblings and feed back v
     calls++;
     prompts.push(withContractGroupRecoveryAdvice("Original instructions", state, index));
     const draft = response(group);
-    if (calls < 3) draft.criteria[0].source.quote = "Not in assigned section";
+    if (calls < 3) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
   }, async () => {});
   assert.equal(calls, 3);
-  assert.match(prompts[1], /outside its assigned section/);
+  assert.match(prompts[1], /unknown or stale sourceSpanId/);
   assert.deepEqual([pending.groupResponses[1], pending.groupResponses[2]], siblings);
   assert.equal(contract.criteria.length, 3);
   assert.equal(pending.groupRetryGrant, undefined);
@@ -175,9 +259,9 @@ test("group retry grant spends at most eight calls and saves the last validation
   const { parts, plan } = await planContractGroups(pending, sources, async () => split, async () => {});
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, async (group, index) => {
     const draft = response(group);
-    if (index === 1) draft.criteria[0].source.quote = "Not in assigned section";
+    if (index === 1) draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
-  }, async () => {}), /outside its assigned section/);
+  }, async () => {}), /unknown or stale sourceSpanId/);
   const sibling = structuredClone(pending.groupResponses[0]);
   pending.groupRetryGrant = { round: 2, groupIndex: 1, groupPlanDigest: pending.groupPlanDigest,
     granted: 8, remaining: 8, used: 0 };
@@ -185,7 +269,7 @@ test("group retry grant spends at most eight calls and saves the last validation
   const fail = async (group) => {
     calls++;
     const draft = response(group);
-    draft.criteria[0].source.quote = "Not in assigned section";
+    draft.criteria[0].sourceSpanId = "S-0000000000000000";
     return draft;
   };
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, fail, async () => {}), /authorized contract group attempts exhausted/);
@@ -193,7 +277,7 @@ test("group retry grant spends at most eight calls and saves the last validation
   assert.deepEqual(pending.groupResponses[0], sibling);
   assert.equal(pending.groupRetryGrant.used, 8);
   assert.equal(pending.groupRetryGrant.remaining, 0);
-  assert.match(pending.groupRetryGrant.lastError, /outside its assigned section/);
+  assert.match(pending.groupRetryGrant.lastError, /unknown or stale sourceSpanId/);
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, fail, async () => {}), /authorized contract group attempts exhausted/);
   assert.equal(calls, 8);
 });

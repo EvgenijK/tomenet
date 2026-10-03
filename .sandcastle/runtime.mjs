@@ -6,7 +6,7 @@ export function runtimeSchemaPath(schema) {
   return `${schemaDirectory}/${basename(schema === true ? "review-output.schema.json" : schema)}`;
 }
 export function runtimeSchemaMounts(root) {
-  return ["contract-groups-output", "contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({
+  return ["contract-groups-output", "contract-group-output", "contract-output", "contract-review-output", "review-output", "ticket-output"].map((name) => ({
     hostPath: resolve(root, `.sandcastle/${name}.schema.json`),
     sandboxPath: runtimeSchemaPath(`${name}.schema.json`), readonly: true,
   }));
