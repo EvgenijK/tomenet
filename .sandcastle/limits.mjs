@@ -85,7 +85,12 @@ export async function readWeeklyUsage(authDir, model, timeoutMs = 20000) {
 
 export function updateBudget(state, snapshot) {
   const budget = state.budget ??= { consumedPercent: 0, lastUsedPercent: snapshot.usedPercent, resetsAt: snapshot.resetsAt, tokens: 0 };
-  if (budget.resetsAt !== snapshot.resetsAt || snapshot.usedPercent < budget.lastUsedPercent) {
+  // The account API can shift the same weekly reset timestamp by a few seconds.
+  // A real weekly rollover moves it by days; do not charge the whole window twice.
+  const resetMoved = budget.resetsAt !== snapshot.resetsAt &&
+    !(Number.isFinite(budget.resetsAt) && Number.isFinite(snapshot.resetsAt) &&
+      Math.abs(snapshot.resetsAt - budget.resetsAt) < 300);
+  if (resetMoved || snapshot.usedPercent < budget.lastUsedPercent) {
     budget.consumedPercent += snapshot.usedPercent;
   } else {
     budget.consumedPercent += Math.max(0, snapshot.usedPercent - budget.lastUsedPercent);

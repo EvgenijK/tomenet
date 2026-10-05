@@ -49,6 +49,14 @@ test("budget remains conservative when the weekly window resets", () => {
   assert.throws(() => updateBudget(state, { usedPercent: 17, resetsAt: 2000 }), /25%/);
 });
 
+test("one-second reset timestamp drift does not count the same weekly usage twice", () => {
+  const state = { budget: { consumedPercent: 41, lastUsedPercent: 14, resetsAt: 1000, tokens: 0, limitPercent: 100 } };
+  updateBudget(state, { usedPercent: 16, resetsAt: 999, ordinaryUsageAllowed: true });
+  assert.equal(state.budget.consumedPercent, 43);
+  updateBudget(state, { usedPercent: 16, resetsAt: 1000, ordinaryUsageAllowed: true });
+  assert.equal(state.budget.consumedPercent, 43);
+});
+
 test("explicit task token cap stops at the configured count", () => {
   const before = process.env.SANDCASTLE_TASK_TOKEN_LIMIT;
   try {
