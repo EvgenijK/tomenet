@@ -27,7 +27,7 @@ const runsDir = resolve(root, ".sandcastle/runs");
 const command = process.argv[2];
 const runId = process.argv[3];
 const targetBranch = "modern_interface";
-const model = process.env.SANDCASTLE_MODEL || "gpt-6-sol";
+const model = process.env.SANDCASTLE_MODEL || "gpt-5.6-sol";
 const effort = process.env.SANDCASTLE_REASONING_EFFORT || "high";
 const skillsRoot = resolve(process.env.SANDCASTLE_SKILLS_ROOT || resolve(homedir(), ".agents/skills"));
 const skillPaths = Object.fromEntries(["to-tickets", "code-review", "tdd", "resolving-merge-conflicts"].map((name) => [name, resolve(skillsRoot, name)]));

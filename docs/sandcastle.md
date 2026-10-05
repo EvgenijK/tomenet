@@ -307,7 +307,7 @@ caller integrations and platform acceptance remain pending at their original
 owners; generated tickets and review findings cannot silently pull them into
 the current implementation or count them as passed.
 
-`SANDCASTLE_MODEL` selects the model (default `gpt-6-sol`), and
+`SANDCASTLE_MODEL` selects the model (default `gpt-5.6-sol`), and
 `SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
 `to-tickets`, `code-review`, `tdd` and `resolving-merge-conflicts` skills are
 mounted read-only from `~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when
