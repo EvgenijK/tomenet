@@ -96,8 +96,8 @@ test("three automatic retries without progress stop; verified progress permits a
   s.completedTickets.push(path(4)); assert.doesNotThrow(() => beginRecovery(s, "Failure after progress"));
 });
 
-test("600-second inspection timeout and cause-specific recovery keep historical attempts", () => {
-  assert.equal(readOnlyAgentTimeoutMs, 600000);
+test("1800-second inspection timeout permits old shorter failures but keeps the ceiling and historical attempts", () => {
+  assert.equal(readOnlyAgentTimeoutMs, 1800000);
   assert.equal(recoveryAgentTimeoutMs, 6000000);
   const s = state(); s.phase = "contract"; s.wave.id = 39; s.completedTickets = Array(84).fill("finished"); s.reviewRound = 13; s.buildAttempts = 0; s.testAttempts = 0;
   s.recoveryAttempts = { "contract:39:84:13:0:0": 3 };
@@ -107,6 +107,8 @@ test("600-second inspection timeout and cause-specific recovery keep historical 
   assert.equal(s.recovery.category, "agent_timeout");
   assert.equal(s.recovery.attempt, 1);
   assert.equal(s.recoveryAttempts["contract:39:84:13:0:0"], 3);
+  assert.equal(previewRecovery(s, decision("retry")).next.phase, "contract");
+  s.recovery.timeoutMs = 1800000;
   assert.throws(() => previewRecovery(s, decision("retry")), /unchanged timeout/);
   let next = { ...s, phase: "contract", recovery: undefined };
   beginRecovery(next, new Error("schema mount denied"));

@@ -20,5 +20,5 @@ export function readOnlyAgentArgs({ model, effort, schemaPath, multiAgent = fals
 
 // Contract and final-audit inspectors include repository reading and structured output.
 // Ordinary review has no deadline; recovery receives its own longer deadline.
-export const readOnlyAgentTimeoutMs = 600000;
+export const readOnlyAgentTimeoutMs = 1800000;
 export const recoveryAgentTimeoutMs = 6000000;

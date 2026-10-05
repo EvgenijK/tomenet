@@ -214,14 +214,14 @@ requirements. The controller validates the assembled contract against the
 original sources and still requires independent full-source verification. A
 rejected complete proposal consumes one of twelve contract rounds; an
 interrupted group does not. Contract agents and the final auditor have a
-600-second per-agent deadline; ordinary review has no timeout. Their duration,
+1800-second per-agent deadline; ordinary review has no timeout. Their duration,
 limit and outcome are saved as metadata in `state.json`, without prompts or
 file contents.
 
 Recovery after a contract runtime upgrade separates error categories and counts
 retries for the same cause and saved part checkpoint. Historical decisions stay
 in `recoveryAttempts` and `recoveries`; the upgrade does not reset quota or
-build/test/review counters. A contract agent that again times out at 600 seconds
+build/test/review counters. A contract agent that again times out at 1800 seconds
 cannot simply be retried with the same settings. The stage event records the
 error category and elapsed/limit times, while recovery records include the
 category and chosen action.

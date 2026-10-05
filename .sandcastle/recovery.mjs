@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { validateTicketBatch } from "./tickets.mjs";
 import { taskQuotaLimit } from "./limits.mjs";
 import { recoveryGuidance } from "./recovery-guidance.mjs";
+import { readOnlyAgentTimeoutMs } from "./runtime.mjs";
 
 // The AI chooses an action; this controller alone changes scheduler state.
 // Quota, gate limits and successful commit verification are never overridden.
@@ -231,8 +232,8 @@ export function previewRecovery(state, decision) {
   const next = structuredClone(state);
   const affected = [];
   next.phase = incident.phase;
-  if (decision.action === "retry" && incident.category === "agent_timeout" && incident.timeoutMs >= 600000 && incident.phase === "contract") {
-    throw new Error("Cannot retry an unchanged timeout at the 600-second contract limit");
+  if (decision.action === "retry" && incident.category === "agent_timeout" && incident.timeoutMs >= readOnlyAgentTimeoutMs && incident.phase === "contract") {
+    throw new Error(`Cannot retry an unchanged timeout at the ${readOnlyAgentTimeoutMs / 1000}-second contract limit`);
   }
   if (decision.action === "retry" && incident.phase === "plan-validate" && incident.category !== "transient_io") {
     throw new Error("Invalid planning manifest requires repair by the planner, not retry of the same file");
