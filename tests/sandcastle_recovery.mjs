@@ -254,6 +254,22 @@ test("sixteen extra assembly calls extend an exhausted checkpoint once without r
   assert.throws(() => extendContractAssemblyAttempts(s, 16, "approved-16"), /cannot be granted again/);
 });
 
+test("explicit assembly grant accepts direct attempt exhaustion without recovery decisions", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; Invalid draft reconciliation: unverifiable source for P1-G08; human decision required";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}] }, groupResponses: [{}, {}],
+    assemblyAttempts: { round: 1, groupPlanDigest: "saved", granted: 3, used: 3, remaining: 0,
+      lastError: "Invalid draft reconciliation: unverifiable source for P1-G08" } };
+  delete s.recoveryAttempts;
+  const budget = structuredClone(s.budget);
+  extendContractAssemblyAttempts(s, 5, "b008-assembly-8");
+  assert.equal(s.phase, "contract");
+  assert.deepEqual([s.contractPending.assemblyAttempts.granted, s.contractPending.assemblyAttempts.used,
+    s.contractPending.assemblyAttempts.remaining], [8, 3, 5]);
+  assert.deepEqual(s.budget, budget);
+});
+
 test("code repair goes through existing build/test or planning paths and preserves counters", () => {
   for (const [phase, expected] of [["build-repair", "build-repair"], ["test-repair", "test-repair"], ["plan-validate", "plan"], ["parallel-work", "parallel-work"], ["assemble", "assemble"]]) {
     const s = state(); s.phase = phase; beginRecovery(s, "Concrete failure");

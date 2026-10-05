@@ -135,7 +135,6 @@ export function resumeContractAssemblyAttempts(state, attempts) {
 export function extendContractAssemblyAttempts(state, extra, authorizationId) {
   const pending = state.contractPending;
   const grant = pending?.assemblyAttempts;
-  const checkpoint = ["contract", state.wave?.id ?? 0, state.completedTickets?.length ?? 0, state.reviewRound, state.buildAttempts, state.testAttempts].join(":");
   if (!Number.isInteger(extra) || extra < 1 || extra > 16) throw new Error("Contract assembly extension must be between 1 and 16 attempts");
   if (typeof authorizationId !== "string" || !/^[a-zA-Z0-9_-]{8,80}$/.test(authorizationId)) throw new Error("Contract assembly extension needs a unique authorization ID");
   if (state.phase !== "awaiting" || state.resumePhase !== "contract" ||
@@ -145,12 +144,13 @@ export function extendContractAssemblyAttempts(state, extra, authorizationId) {
     pending.groupResponses.some((response) => !response) ||
     !grant || grant.round !== pending.round || grant.groupPlanDigest !== pending.groupPlanDigest ||
     !Number.isInteger(grant.granted) || !Number.isInteger(grant.used) ||
-    !Number.isInteger(grant.remaining) || grant.used + grant.remaining !== grant.granted ||
-    (state.recoveryAttempts?.[checkpoint] ?? 0) < 3) {
+    !Number.isInteger(grant.remaining) || grant.used + grant.remaining !== grant.granted) {
     throw new Error("Contract assembly extension requires the exhausted saved assembly checkpoint");
   }
   if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) throw new Error("Contract assembly extension requires available task quota");
   const existing = grant.extensions?.find((item) => item.id === authorizationId);
+  // Exhausting the assembly allowance can pause directly, before any recovery
+  // decision; the saved exhausted grant and exact pause reason authorize this path.
   if (existing) {
     if (existing.extra !== extra || grant.remaining < 1 ||
       state.pauseReason !== "Automatic recovery made no progress after three decisions at this checkpoint") {
