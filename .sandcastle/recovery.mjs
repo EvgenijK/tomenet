@@ -32,6 +32,31 @@ export function resumeImprovedContract(state) {
   return state;
 }
 
+// An explicit runtime upgrade can retry the saved contract group without
+// asking an already-failed recovery agent to approve the same timeout change.
+export function resumeContractTimeoutUpgrade(state) {
+  const incident = state.recovery;
+  if (state.phase !== "awaiting" || state.resumePhase !== "recovery" ||
+    state.pauseReason !== `recovery orchestrator ${incident?.id} agent failed: 1` ||
+    incident?.phase !== "contract" || incident.category !== "agent_timeout" ||
+    !Number.isFinite(incident.timeoutMs) || incident.timeoutMs >= readOnlyAgentTimeoutMs ||
+    incident.decision || !state.contractPending?.proposalInFlight ||
+    state.contractPending.step !== "parallel" ||
+    state.timeoutUpgradeResumes?.some((record) => record.recoveryId === incident.id)) {
+    throw new Error("Contract timeout upgrade requires a saved failed recovery at a shorter deadline");
+  }
+  if (state.quotaError || (state.budget?.consumedPercent ?? 0) >= taskQuotaLimit(state)) {
+    throw new Error("Contract timeout upgrade requires available task quota");
+  }
+  (state.timeoutUpgradeResumes ??= []).push({ recoveryId: incident.id, oldTimeoutMs: incident.timeoutMs,
+    newTimeoutMs: readOnlyAgentTimeoutMs, authorizedAt: new Date().toISOString() });
+  state.phase = "contract";
+  delete state.recovery;
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
+}
+
 // A user may authorize a bounded number of fresh proposals for one rejected
 // contract group. This does not grant another contract round, recovery decision,
 // build/test attempt, or quota allowance.

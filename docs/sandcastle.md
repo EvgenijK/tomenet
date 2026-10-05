@@ -226,6 +226,18 @@ cannot simply be retried with the same settings. The stage event records the
 error category and elapsed/limit times, while recovery records include the
 category and chosen action.
 
+If a contract group timed out at an older, shorter deadline and its recovery
+agent failed, an explicitly authorized longer deadline can resume that saved
+group checkpoint without another recovery decision:
+
+```sh
+SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 npm run sandbox:resume -- <run-id>
+```
+
+This requires the saved timeout incident and a longer configured deadline. It
+retains all quota, attempt counters, completed group responses and verifier
+feedback. It cannot be combined with another continuation mode.
+
 For a stopped task, inspect `.sandcastle/runs/<run-id>/state.json` and the
 tracked branch. To ask the recovery agent to diagnose an existing stop while
 retaining all current budgets and attempt limits:

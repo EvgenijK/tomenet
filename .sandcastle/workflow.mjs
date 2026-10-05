@@ -10,7 +10,7 @@ import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from 
 import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
-import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts, recoveryCategory } from "./recovery.mjs";
+import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractTimeoutUpgrade, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
 import { buildContractDraft } from "./contract-draft.mjs";
 import { contractSourceCatalog, feedbackForGroup } from "./contract-feedback.mjs";
@@ -613,6 +613,7 @@ if (command === "start") {
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
 const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
+const timeoutUpgradeResume = process.env.SANDCASTLE_TIMEOUT_UPGRADE_RESUME === "1";
 const extraContractAttempts = process.env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
 const extraGroupAttempts = process.env.SANDCASTLE_GROUP_RETRY_ATTEMPTS;
 const extraAssemblyAttempts = process.env.SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS;
@@ -640,6 +641,10 @@ if (improvedContractResume) {
   if (userResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
   resumeImprovedContract(structuredClone(state));
 }
+if (timeoutUpgradeResume) {
+  if (userResume || improvedContractResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract timeout upgrade RESUME cannot be combined with other continuation modes");
+  resumeContractTimeoutUpgrade(structuredClone(state));
+}
 if (userResume) {
   if (extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("User pause RESUME cannot be combined with other continuation modes");
   resumeUserPause(structuredClone(state));
@@ -649,7 +654,7 @@ if (extraQuota !== undefined) {
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
 state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
@@ -667,6 +672,8 @@ try {
       resumeContractCitationAttempts(state, Number(extraContractAttempts));
     } else if (improvedContractResume) {
       resumeImprovedContract(state);
+    } else if (timeoutUpgradeResume) {
+      resumeContractTimeoutUpgrade(state);
     } else if (userResume) {
       resumeUserPause(state);
     } else if (extraQuota !== undefined) {
@@ -693,6 +700,10 @@ try {
     delete state.pauseReason;
     delete state.resumePhase;
     await save(state);
+    if (timeoutUpgradeResume) {
+      const upgrade = state.timeoutUpgradeResumes.at(-1);
+      await appendStageEvent(runsDir, state, { stage: "recovery", status: "retry", summary: `User-authorized contract timeout upgrade ${upgrade.oldTimeoutMs / 1000}s → ${upgrade.newTimeoutMs / 1000}s; saved group checkpoint retained.` });
+    }
   }
   for (const path of Object.values(skillPaths)) await access(resolve(path, "SKILL.md"));
   await access(resolve(authDir, "auth.json"));

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractTimeoutUpgrade, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
 import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
 import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
 
@@ -115,6 +115,35 @@ test("1800-second inspection timeout permits old shorter failures but keeps the 
   assert.equal(next.recovery.category, "schema_mount");
   assert.equal(next.recovery.attempt, 1);
   assert.notEqual(next.recovery.key, s.recovery.key);
+});
+
+test("authorized longer contract timeout resumes the saved group without resetting counters", () => {
+  const s = state();
+  s.phase = "contract";
+  s.contractPending = { proposalInFlight: true, step: "parallel", groupResponses: [null, { criteria: [] }] };
+  s.budget.limitPercent = 53;
+  s.budget.consumedPercent = 48;
+  const error = new Error("contract group timed out");
+  error.code = "AGENT_TIMEOUT";
+  error.timeoutMs = 600000;
+  beginRecovery(s, error);
+  s.resumePhase = "recovery";
+  s.phase = "awaiting";
+  s.pauseReason = `recovery orchestrator ${s.recovery.id} agent failed: 1`;
+  const counters = { budget: structuredClone(s.budget), recoveryAttempts: structuredClone(s.recoveryAttempts), groupResponses: structuredClone(s.contractPending.groupResponses) };
+  resumeContractTimeoutUpgrade(s);
+  assert.equal(s.phase, "contract");
+  assert.equal(s.recovery, undefined);
+  assert.deepEqual(s.budget, counters.budget);
+  assert.deepEqual(s.recoveryAttempts, counters.recoveryAttempts);
+  assert.deepEqual(s.contractPending.groupResponses, counters.groupResponses);
+  assert.deepEqual(s.timeoutUpgradeResumes.map(({ oldTimeoutMs, newTimeoutMs }) => [oldTimeoutMs, newTimeoutMs]), [[600000, 1800000]]);
+  assert.throws(() => resumeContractTimeoutUpgrade(s), /saved failed recovery/);
+  const capped = state(); capped.phase = "contract"; capped.contractPending = { proposalInFlight: true, step: "parallel" };
+  const ceiling = new Error("contract group timed out"); ceiling.code = "AGENT_TIMEOUT"; ceiling.timeoutMs = 1800000;
+  beginRecovery(capped, ceiling); capped.resumePhase = "recovery"; capped.phase = "awaiting";
+  capped.pauseReason = `recovery orchestrator ${capped.recovery.id} agent failed: 1`;
+  assert.throws(() => resumeContractTimeoutUpgrade(capped), /saved failed recovery/);
 });
 
 test("saved contract pause resumes only after policy upgrade without changing quotas or old attempts", () => {
