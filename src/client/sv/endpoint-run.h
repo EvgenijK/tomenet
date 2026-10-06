@@ -1,6 +1,7 @@
 #ifndef SV_ENDPOINT_RUN_H
 #define SV_ENDPOINT_RUN_H
 #include "input/endpoint.h"
+#include "session/pregame.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];
@@ -8,6 +9,11 @@ typedef struct {
     int protocol;
 } SvEndpointChoice;
 typedef bool (*SvEndpointPoll)(void *context, SvEndpoint *endpoint, bool *failed);
+typedef struct {
+    uint64_t generation, revision;
+    SvPregamePhase phase;
+    char selected_character[SV_LOGIN_NAME_CAPACITY];
+} SvEndpointOutcome;
 typedef struct {
     const char *root, *library, *server, *server_list;
     int width, height, frames, windowed;
@@ -18,6 +24,7 @@ typedef struct {
     void *source_context;
     const char *account, *password, *real_name, *character;
     bool skip_motd;
+    SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);
 #endif

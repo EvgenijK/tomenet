@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "consumer": "native-sv",
-  "manifestSha256": "280d7b331a60e88c9fc49490320476d2791b73306014a35f59b520d84e9bd513",
+  "manifestSha256": "141e10ff801c596454ff215b994d12b83765635bb60c793045567af7f790377e",
   "coverage": [
     {
       "capabilityId": "capability.status.read-hp",

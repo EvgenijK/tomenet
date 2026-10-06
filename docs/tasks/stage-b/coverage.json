@@ -5,8 +5,8 @@
   "reviewedCapabilityCount": 54,
   "reviewedCapabilityIdsSha256": "f19c221d9c10d24b9e0fd837879b317833949fc5220237a32570889085830384",
   "canonicalSha256": {
-    "manifest.json": "280d7b331a60e88c9fc49490320476d2791b73306014a35f59b520d84e9bd513",
-    "native-coverage.json": "9dfd92cd3f0daa99460a7f939e88fbc7492e6472f079823121f25ee344de6783",
+    "manifest.json": "141e10ff801c596454ff215b994d12b83765635bb60c793045567af7f790377e",
+    "native-coverage.json": "58b9a0abb6d54d8b5484f5d1961b8f32800c5fe46c9af69a870fa106edff8ca4",
     "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0",
     "native-evidence.json": "1aa725c5a37c47f7355c83df5ea518d7da2ea9a4ee96fbc3da25b1018ce23f63",
     "inventories/index.json": "127a4684ff1b6e0be54bd21ccdc6a008b40a4c0ba32350edb9746d9cf68d08f8"

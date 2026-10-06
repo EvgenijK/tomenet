@@ -122,6 +122,12 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                 at += count;
             }
         }
+        if (input->login_view && input->login_view->live_handoff) {
+            if (!line(renderer,font,"Startup screens complete",40,280,scale,selected) ||
+                !line(renderer,font,"Waiting for live-session handoff (Stage C).",40,325,scale,normal) ||
+                !line(renderer,font,"Gameplay input, map and HUD are not active.",40,365,scale,normal))
+                return false;
+        }
     }
     return true;
 }

@@ -69,6 +69,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/protocol/contact.c", "src/client/sv/protocol/contact-socket.c",
                      "src/client/sv/protocol/login.c",
                      "src/client/sv/protocol/login-identity.c", "src/common/md5.c",
+                     "src/client/sv/session/pregame.c",
                      "src/client/sv/session/login-view.c",
                      "src/client/sv/ui/endpoint-scene.c",
                      "src/client/sv/ui/font.c",

@@ -30,6 +30,19 @@ int main(void)
     assert(!strcmp(sv_login_character(login, 0)->name, "Hero"));
     assert(sv_login_character(login, 0)->level == 42);
     assert(sv_login_flags(login)[0] == 8);
+    static const unsigned char controls[] = {
+        PKT_KEEPALIVE,
+        PKT_PING, 0, 0,0,0,7, 0,0,0,8, 0,0,0,9, 0
+    };
+    feed_one_at_a_time(login, controls, sizeof(controls));
+    sent = sv_login_take_output(login, output, sizeof(output));
+    assert(sent.result == SV_OK && sent.size == sizeof(controls) - 1);
+    assert(output[0] == PKT_PING && output[1] == 1);
+    assert(!memcmp(output + 2, controls + 3, sizeof(controls) - 3));
+    assert(sv_login_take_output(login, output, sizeof(output)).result == SV_WAITING);
+    assert(sv_login_keepalive(login) == SV_OK);
+    sent = sv_login_take_output(login, output, sizeof(output));
+    assert(sent.result == SV_OK && sent.size == 1 && output[0] == PKT_KEEPALIVE);
     assert(sv_login_choose(login, 1) == SV_INVALID);
     assert(sv_login_choose(login, 0) == SV_OK);
     sent = sv_login_take_output(login, output, sizeof(output));

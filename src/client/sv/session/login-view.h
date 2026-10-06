@@ -1,7 +1,6 @@
 #ifndef SV_SESSION_LOGIN_VIEW_H
 #define SV_SESSION_LOGIN_VIEW_H
-#include "protocol/login.h"
-#include "session/character-setup.h"
+#include "session/pregame.h"
 
 typedef struct {
     char name[SV_LOGIN_NAME_CAPACITY];
@@ -11,12 +10,12 @@ typedef struct {
 } SvLoginRowView;
 typedef struct SvLoginView {
     bool overview;
+    bool live_handoff;
     size_t count;
     SvLoginRowView rows[SV_LOGIN_MAX_CHARACTERS];
     const unsigned char *motd; /* Borrowed from contact setup for one frame. */
     size_t motd_size;
 } SvLoginView;
 
-void sv_login_view_prepare(SvLoginView *view, const SvLogin *login,
-                           const SvContactSetup *setup, bool motd_complete);
+void sv_login_view_prepare(SvLoginView *view, const SvPregame *pregame);
 #endif

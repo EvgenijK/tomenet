@@ -1,6 +1,7 @@
 # SV-B-020 — M1: existing-character startup screen flow
 
-Статус: specified; нулевой milestone, runtime evidence pending.
+Статус: production M1 path реализован и проверен на Linux с managed peer;
+Windows/runtime evidence и cumulative acceptance исходных owners остаются pending.
 
 ## Пользовательский результат
 
@@ -33,3 +34,23 @@ Profile/FILE/Lua, Net_start presentation, map, HP/HUD, messages, gameplay input
 4. В конце flow нет gameplay surface или ложного `session.enter-game` claim.
 
 Evidence возвращается исходным owners SV-B-001, 002, 005 и 006.
+
+## Реализация 2026-10-06
+
+- `tomenet-sv` проходит native endpoint и private credential input, contact/setup,
+  server-confirmed overview, выбор существующего персонажа, peer MOTD и остаётся
+  в явной model/UI phase `live-session-handoff` без запуска gameplay/profile/FILE/Lua.
+- SV-local pregame presentation model владеет generation/revision, overview,
+  выбранным персонажем, MOTD, failure/disconnect и handoff phase; stale generation
+  не может изменить новую модель.
+- Login protocol path принимает fragmentation/chaining, keepalive и ping echo во
+  время pregame waits. Ошибка показывает retry/exit owner; `R` создаёт новую
+  connection generation, `Q` выходит из overview, disconnect не создаёт handoff.
+- `tests/sv_first_session_checks.py` поднимает TCP peer и вызывает production
+  UI/model/input/transport/protocol code для success, disconnect, quit и
+  rejection→retry→success; отдельный executable smoke остаётся в
+  `tests/sv_login_live_checks.py`.
+
+Milestone не меняет capability ownership и не является Windows или real-server
+evidence. Platform-specific Secret Service/Credential Manager acceptance и полный
+evidence matrix остаются у SV-B-001/002/005/006.

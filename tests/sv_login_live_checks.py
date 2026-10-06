@@ -115,6 +115,7 @@ with tempfile.TemporaryDirectory(prefix="sv-login-live-") as temp:
         assert observed["login_start"][:4] == b"\x0c\0\xf4\x43"
         assert observed["choice"] == b"\x0cHero\0"
         assert "SV character selected" in run.stdout, (run.stdout, run.stderr)
+        assert "SV startup phase=live-session-handoff character=Hero" in run.stdout
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)

@@ -37,6 +37,7 @@ with tempfile.TemporaryDirectory(prefix="sv-login-") as temp:
                     "tests/sv/login-interaction.c",
                     "src/client/sv/protocol/login.c",
                     "src/client/sv/input/login-interaction.c",
+                    "src/client/sv/session/pregame.c",
                     "src/client/sv/session/login-view.c",
                     "-o", str(interaction)], cwd=root, check=True)
     subprocess.run([str(interaction)], cwd=root, check=True)

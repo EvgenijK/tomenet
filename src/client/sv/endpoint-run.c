@@ -10,6 +10,7 @@
 #include "protocol/login.h"
 #include "protocol/login-identity.h"
 #include "session/login-view.h"
+#include "session/pregame.h"
 #include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
@@ -63,11 +64,11 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
     case SV_SOCKET_CONNECTING: return "Connecting to server...";
     case SV_SOCKET_NEGOTIATING: return "Negotiating version and setup...";
     case SV_SOCKET_READY: return "Contact established; waiting for account overview.";
-    case SV_SOCKET_DNS_ERROR: return "Cannot resolve server address. Escape exits.";
-    case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. Escape exits.";
-    case SV_SOCKET_TIMEOUT: return "Server timed out. Escape exits.";
-    case SV_SOCKET_CLOSED: return "Server closed the connection. Escape exits.";
-    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. Escape exits.";
+    case SV_SOCKET_DNS_ERROR: return "Cannot resolve server address. R retries; Escape exits.";
+    case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. R retries; Escape exits.";
+    case SV_SOCKET_TIMEOUT: return "Server timed out. R retries; Escape exits.";
+    case SV_SOCKET_CLOSED: return "Server closed the connection. R retries; Escape exits.";
+    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. R retries; Escape exits.";
     case SV_SOCKET_REJECTED:
         switch (rejection) {
         case E_VERSION_OLD: return "Server rejected contact: client version too old. Escape exits.";
@@ -87,8 +88,8 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
         case E_CLOSED: return "Server rejected contact: server closing. Escape exits.";
         }
         return "Server rejected contact. Escape exits.";
-    case SV_SOCKET_VERIFY_ERROR: return "Verification failed. Escape exits.";
-    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. Escape exits.";
+    case SV_SOCKET_VERIFY_ERROR: return "Verification failed. R retries; Escape exits.";
+    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. R retries; Escape exits.";
     }
     return "Contact stopped.";
 }
@@ -115,6 +116,14 @@ static SvResult handoff_contact_bytes(SvContactSocket *connection, SvSessionWire
 static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
                                 SvSessionWire *wire, SvResult *failure)
 {
+    if (wire->sent == wire->size &&
+        SDL_GetTicks() - sv_contact_socket_last_sent(connection) >= 2000u) {
+        SvResult keepalive = sv_login_keepalive(login);
+        if (keepalive != SV_OK && keepalive != SV_BACKPRESSURE) {
+            *failure = keepalive;
+            return SV_SOCKET_PROTOCOL_ERROR;
+        }
+    }
     if (wire->sent == wire->size) {
         SvOutput output = sv_login_take_output(login, wire->sending,
                                                 sizeof(wire->sending));
@@ -155,6 +164,16 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
     return SV_SOCKET_READY;
 }
 
+static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome)
+{
+    if (!pregame || !outcome) return;
+    *outcome = (SvEndpointOutcome){.generation = pregame->generation,
+                                   .revision = pregame->revision,
+                                   .phase = pregame->phase};
+    memcpy(outcome->selected_character, pregame->selected_character,
+           sizeof(outcome->selected_character));
+}
+
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                        SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
                        const char *profile_root)
@@ -180,15 +199,20 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvLogin *login = NULL;
     SvLoginInteraction login_input = {0};
     SvLoginView login_view = {0};
+    SvPregame pregame;
     SvVaultRequest *save = NULL;
     uint64_t generation = SDL_GetTicksNS();
+    if (!generation) generation = 1;
+    sv_pregame_begin(&pregame, generation);
     SvSessionWire wire = {0};
     SvResult session_error = SV_OK;
     unsigned rejection = 0;
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
     bool save_started = false, save_failed = false, selected_reported = false;
+    bool handoff_reported = false;
     const char *save_message = NULL;
+    char failure_status[384] = {0};
     while (!quit) {
         if (connection) {
             state = sv_contact_socket_poll(connection);
@@ -198,6 +222,11 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             login = sv_login_create(sv_contact_socket_version(connection), iaddr);
             if (!login) { session_error = SV_NO_MEMORY; state = SV_SOCKET_PROTOCOL_ERROR; }
             else {
+                if (sv_pregame_contact_ready(&pregame, generation) != SV_OK) {
+                    session_error = SV_INVALID;
+                    state = SV_SOCKET_PROTOCOL_ERROR;
+                    continue;
+                }
                 sv_login_interaction_begin(&login_input, login, options.character,
                                            options.skip_motd);
                 if ((session_error = handoff_contact_bytes(connection, &wire)) != SV_OK)
@@ -208,8 +237,15 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             state = pump_login(connection, login, &wire, &session_error);
         if (state == SV_SOCKET_READY && login)
             sv_native_login_clear_previous_keys(sv_login_interaction_sync(&login_input));
+        if (state == SV_SOCKET_READY && login) {
+            SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
+                sv_contact_socket_setup(connection), login_input.motd_complete);
+            if (applied != SV_OK) { session_error = applied; state = SV_SOCKET_PROTOCOL_ERROR; }
+        }
         if (login && sv_login_state(login) == SV_LOGIN_REJECTED) {
-            input->contact_status = sv_login_reason(login);
+            SDL_snprintf(failure_status, sizeof(failure_status), "%s  Press R to retry or Escape to exit.",
+                         sv_login_reason(login));
+            input->contact_status = failure_status;
             state = SV_SOCKET_REJECTED;
         } else if (state == SV_SOCKET_READY && login) {
             SvLoginState phase = sv_login_state(login);
@@ -220,17 +256,27 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 input->contact_status = "Waiting for selected character status...";
             else if (phase == SV_LOGIN_SELECTED) {
                 if (!selected_reported) {
-                    puts("SV character selected; pre-play handshake pending");
+                    puts("SV character selected; peer MOTD acknowledgement pending");
                     selected_reported = true;
                 }
                 input->contact_status = save_failed ?
                     (login_input.motd_complete ?
-                     "MOTD complete. Password not saved. Play handshake pending." :
+                     "MOTD complete. Password not saved. Waiting for live-session handoff." :
                      "Character confirmed. Password not saved. Read MOTD; press a key.") :
                     (login_input.motd_complete ?
-                     "MOTD complete. Play handshake is pending implementation; Escape exits." :
+                     "MOTD complete. Waiting for live-session handoff; Escape exits." :
                      "Character confirmed. Read MOTD; press a key to continue.");
-                if (sv_login_interaction_complete(&login_input)) result = 0;
+                if (sv_login_interaction_complete(&login_input) &&
+                    pregame.phase == SV_PREGAME_LIVE_HANDOFF) {
+                    result = 0;
+                    if (!handoff_reported) {
+                        printf("SV startup phase=%s character=%s generation=%llu\n",
+                               sv_pregame_phase_name(pregame.phase),
+                               pregame.selected_character,
+                               (unsigned long long)pregame.generation);
+                        handoff_reported = true;
+                    }
+                }
             } else input->contact_status = contact_status(state, rejection);
         } else input->contact_status = session_error != SV_OK ?
             sv_result_text(session_error) : contact_status(state, rejection);
@@ -257,9 +303,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         }
         input->login_view = NULL;
         if (login && connection) {
-            sv_login_view_prepare(&login_view, login,
-                                  sv_contact_socket_setup(connection),
-                                  login_input.motd_complete);
+            sv_login_view_prepare(&login_view, &pregame);
             input->login_view = &login_view;
         }
         if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
@@ -269,14 +313,35 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 quit = true;
                 break;
             }
+            if (state >= SV_SOCKET_DNS_ERROR && event.type == SDL_EVENT_KEY_DOWN &&
+                !event.key.repeat && event.key.key == SDLK_R) {
+                result = 2;
+                quit = true;
+                break;
+            }
             if (state == SV_SOCKET_READY && login) {
                 SvLoginCommand command;
                 SvLoginInputResult handled = sv_native_login_command(&event, &command) ?
                     sv_login_interaction_command(&login_input, command) :
                     SV_LOGIN_INPUT_IGNORED;
-                if (handled == SV_LOGIN_INPUT_QUIT) { quit = true; break; }
+                if (handled == SV_LOGIN_INPUT_QUIT) { result = 0; quit = true; break; }
                 if (handled == SV_LOGIN_INPUT_HANDLED) {
-                    if (sv_login_interaction_complete(&login_input)) result = 0;
+                    SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
+                        sv_contact_socket_setup(connection), login_input.motd_complete);
+                    if (applied != SV_OK) {
+                        session_error = applied;
+                        state = SV_SOCKET_PROTOCOL_ERROR;
+                    } else if (sv_login_interaction_complete(&login_input) &&
+                               pregame.phase == SV_PREGAME_LIVE_HANDOFF) {
+                        result = 0;
+                        if (!handoff_reported) {
+                            printf("SV startup phase=%s character=%s generation=%llu\n",
+                                   sv_pregame_phase_name(pregame.phase),
+                                   pregame.selected_character,
+                                   (unsigned long long)pregame.generation);
+                            handoff_reported = true;
+                        }
+                    }
                     continue;
                 }
             }
@@ -297,16 +362,19 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             }
             reached_ready = true;
         } else if (state >= SV_SOCKET_DNS_ERROR) {
-            result = 1;
+            if (result != 2) result = 1;
+            if (pregame.phase != SV_PREGAME_FAILED)
+                (void)sv_pregame_disconnect(&pregame, generation, input->contact_status);
             if (!reported_failure) fprintf(stderr, "SV contact failed: %s (status=%u)\n",
                                            input->contact_status, rejection);
             reported_failure = true;
             if (connection) { sv_contact_socket_stop(connection); connection = NULL; }
-            if (options.frames || reached_ready) break;
+            if (options.frames) break;
         }
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
+    publish_outcome(&pregame, options.outcome);
     sv_contact_socket_stop(connection);
     sv_vault_cancel(&save);
     sv_login_destroy(login);
@@ -441,15 +509,26 @@ int sv_endpoint_run(SvEndpointOptions options)
         if (!options.selected_endpoint) {
             char account[80] = {0}, password[80] = {0};
             int entered = 1;
-            if (!options.account || !options.password) {
+            bool interactive_credentials = !options.account || !options.password;
+            if (interactive_credentials) {
                 entered = enter_credentials(renderer, font, &endpoint, &input,
                                             options.frames, account, password);
                 options.account = account;
                 options.password = password;
             }
-            if (entered > 0) result = run_contact(window, renderer, font, &endpoint, &input,
-                                                 options, root);
-            else result = entered < 0 ? 1 : 0;
+            while (entered > 0) {
+                result = run_contact(window, renderer, font, &endpoint, &input,
+                                     options, root);
+                if (result != 2) break;
+                input.login_view = NULL;
+                input.contact_status = "Retrying account authentication.";
+                if (interactive_credentials) {
+                    wipe_password(password, sizeof(password));
+                    entered = enter_credentials(renderer, font, &endpoint, &input,
+                                                options.frames, account, password);
+                }
+            }
+            if (entered <= 0) result = entered < 0 ? 1 : 0;
             wipe_password(password, sizeof(password));
             goto done;
         }

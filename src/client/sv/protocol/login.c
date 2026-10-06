@@ -5,16 +5,19 @@
 #include <string.h>
 
 #define SV_LOGIN_INPUT_CAPACITY (64 * 1024)
+#define SV_LOGIN_OUTPUT_CAPACITY 1024
 struct SvLogin {
     int version[6];
     SvLoginState state;
     unsigned char input[SV_LOGIN_INPUT_CAPACITY];
     size_t input_size;
-    unsigned char output[SV_LOGIN_NAME_CAPACITY + 2];
+    unsigned char output[SV_LOGIN_OUTPUT_CAPACITY];
     size_t output_size;
     uint32_t flags[4]; /* sflags3, sflags2, sflags1, sflags0 */
     SvLoginCharacter characters[SV_LOGIN_MAX_CHARACTERS];
     size_t count;
+    size_t selected_slot;
+    bool has_selected_slot;
     char reason[256];
 };
 
@@ -42,6 +45,13 @@ static void consume(SvLogin *login, size_t size)
     login->input_size -= size;
     memmove(login->input, login->input + size, login->input_size);
 }
+static SvResult append_output(SvLogin *login, const void *bytes, size_t size)
+{
+    if (size > sizeof(login->output) - login->output_size) return SV_BACKPRESSURE;
+    memcpy(login->output + login->output_size, bytes, size);
+    login->output_size += size;
+    return SV_OK;
+}
 /* A split NUL-terminated wire field must not publish a partial row. */
 static int string(const unsigned char *bytes, size_t size, size_t *at,
                   char *out, size_t capacity)
@@ -64,14 +74,14 @@ SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6])
     if (!login) return NULL;
     memcpy(login->version, version, sizeof(login->version));
     login->state = SV_LOGIN_WAIT_FLAGS;
-    login->output[0] = PKT_LOGIN;
-    login->output[1] = 0;
-    login->output_size = 2;
+    unsigned char start[8] = {PKT_LOGIN, 0};
+    size_t start_size = 2;
     const int iaddr_since[6] = {4, 9, 2, 1, 0, 2};
     if (atleast(version, iaddr_since)) {
-        memcpy(login->output + 2, iaddr, 6);
-        login->output_size += 6;
+        memcpy(start + 2, iaddr, 6);
+        start_size += 6;
     }
+    (void)append_output(login, start, start_size);
     return login;
 }
 void sv_login_destroy(SvLogin *login)
@@ -97,6 +107,11 @@ const SvLoginCharacter *sv_login_character(const SvLogin *login, size_t slot)
 {
     return login && slot < login->count ? &login->characters[slot] : NULL;
 }
+const SvLoginCharacter *sv_login_selected_character(const SvLogin *login)
+{
+    return login && login->has_selected_slot && login->selected_slot < login->count ?
+        &login->characters[login->selected_slot] : NULL;
+}
 const uint32_t *sv_login_flags(const SvLogin *login) { return login->flags; }
 const char *sv_login_reason(const SvLogin *login) { return login->reason; }
 SvResult sv_login_choose(SvLogin *login, size_t slot)
@@ -104,11 +119,20 @@ SvResult sv_login_choose(SvLogin *login, size_t slot)
     if (!login || login->state != SV_LOGIN_OVERVIEW || slot >= login->count)
         return SV_INVALID;
     size_t length = strlen(login->characters[slot].name);
-    login->output[0] = PKT_LOGIN;
-    memcpy(login->output + 1, login->characters[slot].name, length + 1);
-    login->output_size = length + 2;
+    unsigned char packet[SV_LOGIN_NAME_CAPACITY + 2] = {PKT_LOGIN};
+    memcpy(packet + 1, login->characters[slot].name, length + 1);
+    SvResult queued = append_output(login, packet, length + 2);
+    if (queued != SV_OK) return queued;
+    login->selected_slot = slot;
+    login->has_selected_slot = true;
     login->state = SV_LOGIN_WAIT_STATUS;
     return SV_OK;
+}
+SvResult sv_login_keepalive(SvLogin *login)
+{
+    if (!login || login->state == SV_LOGIN_REJECTED) return SV_CLOSED;
+    const unsigned char packet = PKT_KEEPALIVE;
+    return append_output(login, &packet, 1);
 }
 SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
 {
@@ -120,6 +144,28 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
     login->input_size += size;
     for (;;) {
         if (!login->input_size) return SV_OK;
+        if (login->input[0] == PKT_KEEPALIVE) {
+            consume(login, 1);
+            continue;
+        }
+        if (login->input[0] == PKT_PING) {
+            if (login->input_size < 15) return SV_OK;
+            size_t available = login->input_size - 14;
+            if (available > 1024) available = 1024;
+            const unsigned char *end = memchr(login->input + 14, 0, available);
+            if (!end) return available == 1024 ? SV_DECODE_ERROR : SV_OK;
+            size_t packet_size = (size_t)(end - login->input) + 1;
+            if (!login->input[1]) {
+                unsigned char reply[1024];
+                if (packet_size > sizeof(reply)) return SV_DECODE_ERROR;
+                memcpy(reply, login->input, packet_size);
+                reply[1] = 1;
+                SvResult queued = append_output(login, reply, packet_size);
+                if (queued != SV_OK) return queued;
+            }
+            consume(login, packet_size);
+            continue;
+        }
         if (login->input[0] == PKT_QUIT) {
             size_t at = 1;
             int parsed = string(login->input, login->input_size, &at,
