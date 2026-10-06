@@ -1,0 +1,357 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { beginRecovery, previewRecovery, recoveryRestriction, runRecovery, documentRecovery, resumeImprovedContract, resumeContractTimeoutUpgrade, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts } from "../.sandcastle/recovery.mjs";
+import { readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "../.sandcastle/runtime.mjs";
+import { selectReadyTickets, runWave } from "../.sandcastle/parallel.mjs";
+
+const path = (number) => `.scratch/sandcastle-test/issues/${number}-ticket.md`;
+function state() {
+  return { id: "test", branch: "codex/run", specPath: "docs/tasks/owner.md", phase: "parallel-work", completedTickets: [path(1)],
+    tickets: [{ path: path(1), blockedBy: [] }, { path: path(2), blockedBy: [] }, { path: path(3), blockedBy: [path(2)] }, { path: path(4), blockedBy: [] }],
+    ticketIndex: 1, reviewRound: 0, reviewLimit: 5, buildAttempts: 2, buildLimit: 10, testAttempts: 1, testLimit: 10,
+    budget: { consumedPercent: 7, tokens: 123 },
+    wave: { id: 1, after: "tickets", baseCommit: "a".repeat(40), members: [
+      { ticket: { path: path(1), blockedBy: [] }, status: "completed", integrated: true, head: "b".repeat(40) },
+      { ticket: { path: path(2), blockedBy: [] }, status: "blocked", branch: "codex/worker", head: "c".repeat(40), result: { status: "blocked", summary: "Absent real entry handoff" } },
+    ] },
+  };
+}
+const decision = (action = "defer") => ({ action, summary: "Real game entry is not implemented yet", ticketPaths: action === "defer" ? [path(2)] : [], dependency: action === "defer" ? "docs/tasks/dependency.md" : "" });
+const noOp = async () => {};
+
+test("quota mentioned in restoration guidance is not an exhausted usage guard", () => {
+  const s = state(); s.phase = "contract";
+  assert.equal(recoveryRestriction(s, "Controller mount is fixed; preserve quota and cycle limits during recovery"), undefined);
+  assert.doesNotThrow(() => beginRecovery(s, "Recovery agent requested a stop: move schema paths; preserve quota and cycle limits"));
+  for (const error of ["Task reached 25% of the weekly Codex quota", "Weekly Codex quota is unavailable; cannot enforce the budget", "Codex account usage limit reached", "Task reached its token limit (123)", "Build failed 10 times; continuation requires human approval."]) assert.ok(recoveryRestriction(state(), error));
+});
+
+test("deferral retains successful siblings, pending acceptance and dependent closure while independent work resumes", () => {
+  const s = state(); beginRecovery(s, "Worker blocked");
+  const before = structuredClone(s);
+  const { next, affected } = previewRecovery(s, decision());
+  assert.deepEqual(s, before);
+  assert.deepEqual(affected.map((ticket) => ticket.path), [path(2), path(3)]);
+  assert.deepEqual(next.completedTickets, [path(1)]);
+  assert.deepEqual(selectReadyTickets(next, 3).map((ticket) => ticket.path), [path(4)]);
+  assert.equal(next.phase, "tickets"); assert.equal(next.wave, undefined);
+  assert.equal(next.waveHistory[0].members[1].head, "c".repeat(40));
+  assert.deepEqual(next.budget, before.budget);
+  assert.equal(next.buildLimit, before.buildLimit);
+  assert.match(next.scopeNotes, /acceptance/);
+});
+
+test("deferral of the last blocked implementation ticket reaches build without claiming its completion", () => {
+  const s = state(); s.tickets = s.tickets.slice(0, 2); beginRecovery(s, "Worker blocked");
+  const { next } = previewRecovery(s, decision());
+  assert.equal(next.tickets.every((ticket) => next.completedTickets.includes(ticket.path)), true);
+  assert.equal(next.deferredTickets[0].path, path(2));
+  assert.equal(next.completedTickets.includes(path(2)), false);
+});
+
+test("deferring one blocker preserves other failed members and retries only unfinished work", async () => {
+  const s = state(); s.wave.members.push({ ticket: { path: path(4), blockedBy: [] }, status: "failed", branch: "codex/other", error: "Transient execution failure" });
+  beginRecovery(s, "Wave incomplete"); const { next } = previewRecovery(s, decision());
+  assert.equal(next.phase, "parallel-work");
+  const seen = [];
+  await runWave(next, { save: noOp, run: async (member) => { seen.push(member.ticket.path); return { result: { status: "completed", summary: "Verified" }, head: "d".repeat(40) }; } });
+  assert.deepEqual(seen, [path(4)]);
+  assert.equal(next.wave.members[0].integrated, true);
+});
+
+test("deferral cannot lose unmerged success, complete a blocker, or skip required test coverage", () => {
+  for (const mutate of [s => { s.wave.members[0].integrated = false; }, s => { s.wave.after = "test-gate"; }, s => { s.wave.members[1].status = "running"; }, s => { s.completedTickets.push(path(2)); }]) {
+    const s = state(); mutate(s); beginRecovery(s, "Incident");
+    assert.throws(() => previewRecovery(s, decision()));
+  }
+});
+
+test("malformed actions and external dependency paths cannot change scheduler state", () => {
+  const s = state(); beginRecovery(s, "Incident"); const before = structuredClone(s);
+  for (const d of [{ ...decision(), action: "done" }, { ...decision(), dependency: "docs/tasks/../../auth.md" }, { ...decision(), ticketPaths: [path(99)] }, { ...decision(), ticketPaths: [path(2), path(2)] }, { ...decision("retry"), ticketPaths: [path(2)] }]) assert.throws(() => previewRecovery(s, d));
+  assert.deepEqual(s, before);
+});
+
+test("quota and cycle guard stops never ask a recovery agent or extend budgets", () => {
+  for (const mutate of [s => { s.quotaError = "limit"; }, s => { s.budget.consumedPercent = 25; }, s => { s.phase = "build-repair"; s.buildAttempts = 10; }, s => { s.phase = "test-repair"; s.testAttempts = 10; }, s => { s.reviewRound = 5; s.reviewFindings = [{}]; }]) {
+    const s = state(); mutate(s); const before = structuredClone(s);
+    assert.ok(recoveryRestriction(s)); assert.throws(() => beginRecovery(s, "Failure")); assert.deepEqual(s, before);
+  }
+});
+
+test("usage guard reached by the decision agent prevents applying its proposed deferral", async () => {
+  const s = state(); beginRecovery(s, "Worker blocked"); const completed = [...s.completedTickets]; let published = false;
+  await assert.rejects(runRecovery(s, { decide: async () => { s.quotaError = "Account allowance exhausted"; return decision(); }, save: noOp, document: async () => { published = true; }, event: noOp }), /Quota guard/);
+  assert.equal(published, false); assert.deepEqual(s.completedTickets, completed); assert.equal(s.deferredTickets, undefined);
+});
+
+test("three automatic retries without progress stop; verified progress permits a fresh checkpoint", () => {
+  let s = state();
+  for (let i = 0; i < 3; i++) { beginRecovery(s, "Repeated failure"); s = previewRecovery(s, decision("retry")).next; }
+  assert.throws(() => beginRecovery(s, "Different error text at same checkpoint"), /no progress/);
+  s.completedTickets.push(path(4)); assert.doesNotThrow(() => beginRecovery(s, "Failure after progress"));
+});
+
+test("1800-second inspection timeout permits old shorter failures but keeps the ceiling and historical attempts", () => {
+  assert.equal(readOnlyAgentTimeoutMs, 1800000);
+  assert.equal(recoveryAgentTimeoutMs, 6000000);
+  const s = state(); s.phase = "contract"; s.wave.id = 39; s.completedTickets = Array(84).fill("finished"); s.reviewRound = 13; s.buildAttempts = 0; s.testAttempts = 0;
+  s.recoveryAttempts = { "contract:39:84:13:0:0": 3 };
+  s.recoveryPolicyVersion = 2;
+  const timeout = new Error("acceptance contract agent failed: timeout after 600000 ms"); timeout.timeoutMs = 600000;
+  assert.doesNotThrow(() => beginRecovery(s, timeout));
+  assert.equal(s.recovery.category, "agent_timeout");
+  assert.equal(s.recovery.attempt, 1);
+  assert.equal(s.recoveryAttempts["contract:39:84:13:0:0"], 3);
+  assert.equal(previewRecovery(s, decision("retry")).next.phase, "contract");
+  s.recovery.timeoutMs = 1800000;
+  assert.throws(() => previewRecovery(s, decision("retry")), /unchanged timeout/);
+  let next = { ...s, phase: "contract", recovery: undefined };
+  beginRecovery(next, new Error("schema mount denied"));
+  assert.equal(next.recovery.category, "schema_mount");
+  assert.equal(next.recovery.attempt, 1);
+  assert.notEqual(next.recovery.key, s.recovery.key);
+});
+
+test("authorized longer contract timeout resumes the saved group without resetting counters", () => {
+  const s = state();
+  s.phase = "contract";
+  s.contractPending = { proposalInFlight: true, step: "parallel", groupResponses: [null, { criteria: [] }] };
+  s.budget.limitPercent = 53;
+  s.budget.consumedPercent = 48;
+  const error = new Error("contract group timed out");
+  error.code = "AGENT_TIMEOUT";
+  error.timeoutMs = 600000;
+  beginRecovery(s, error);
+  s.resumePhase = "recovery";
+  s.phase = "awaiting";
+  s.pauseReason = `recovery orchestrator ${s.recovery.id} agent failed: 1`;
+  const counters = { budget: structuredClone(s.budget), recoveryAttempts: structuredClone(s.recoveryAttempts), groupResponses: structuredClone(s.contractPending.groupResponses) };
+  resumeContractTimeoutUpgrade(s);
+  assert.equal(s.phase, "contract");
+  assert.equal(s.recovery, undefined);
+  assert.deepEqual(s.budget, counters.budget);
+  assert.deepEqual(s.recoveryAttempts, counters.recoveryAttempts);
+  assert.deepEqual(s.contractPending.groupResponses, counters.groupResponses);
+  assert.deepEqual(s.timeoutUpgradeResumes.map(({ oldTimeoutMs, newTimeoutMs }) => [oldTimeoutMs, newTimeoutMs]), [[600000, 1800000]]);
+  assert.throws(() => resumeContractTimeoutUpgrade(s), /saved failed recovery/);
+  const capped = state(); capped.phase = "contract"; capped.contractPending = { proposalInFlight: true, step: "parallel" };
+  const ceiling = new Error("contract group timed out"); ceiling.code = "AGENT_TIMEOUT"; ceiling.timeoutMs = 1800000;
+  beginRecovery(capped, ceiling); capped.resumePhase = "recovery"; capped.phase = "awaiting";
+  capped.pauseReason = `recovery orchestrator ${capped.recovery.id} agent failed: 1`;
+  assert.throws(() => resumeContractTimeoutUpgrade(capped), /saved failed recovery/);
+});
+
+test("saved contract pause resumes only after policy upgrade without changing quotas or old attempts", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending = { round: 1, proposalInFlight: true }; s.budget.limitPercent = 45; s.budget.consumedPercent = 40;
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const history = structuredClone(s.recoveryAttempts);
+  resumeImprovedContract(s);
+  assert.equal(s.phase, "contract"); assert.equal(s.recoveryPolicyVersion, 2);
+  assert.deepEqual(s.recoveryAttempts, history); assert.equal(s.budget.limitPercent, 45); assert.equal(s.budget.consumedPercent, 40);
+  assert.throws(() => resumeImprovedContract(s));
+  const exhausted = state(); exhausted.phase = "awaiting"; exhausted.resumePhase = "contract"; exhausted.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint"; exhausted.contractPending = { round: 1, proposalInFlight: true }; exhausted.budget.limitPercent = 45; exhausted.budget.consumedPercent = 45; exhausted.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  assert.throws(() => resumeImprovedContract(exhausted), /quota/);
+});
+
+test("five user-authorized contract proposals preserve saved groups and unrelated limits", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: proposer cited text outside its assigned sections";
+  s.contractPending = { round: 1, proposalInFlight: true, step: "parallel", failedGroupIndex: 1,
+    groupPlanDigest: "saved-digest", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{ criteria: [] }, null, { criteria: [] }] };
+  s.recoveryAttempts = { "contract:0:1:0:2:1": 2 };
+  const budget = structuredClone(s.budget);
+  const attempts = structuredClone(s.recoveryAttempts);
+  assert.throws(() => resumeContractCitationAttempts(structuredClone(s), 6), /between 1 and 5/);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses[1] = { criteria: [] };
+  assert.throws(() => resumeContractCitationAttempts(wrong, 5), /one rejected group/);
+  resumeContractCitationAttempts(s, 5);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, attempts);
+  assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [true, false, true]);
+  assert.equal(s.contractPending.citationRetryGrant.remaining, 5);
+  assert.throws(() => resumeContractCitationAttempts(s, 5), /one rejected group/);
+});
+
+test("eight group attempts reopen only the exhausted parallel checkpoint", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending = { round: 2, proposalInFlight: true, step: "parallel", failedGroupIndex: 0,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}, {}] },
+    groupResponses: [null, { criteria: [] }, { criteria: [] }, { criteria: [] }] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recoveries = structuredClone(s.recoveryAttempts);
+  assert.throws(() => resumeContractGroupAttempts(structuredClone(s), 9), /between 1 and 8/);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses[0] = {};
+  assert.throws(() => resumeContractGroupAttempts(wrong, 8), /one rejected group/);
+  resumeContractGroupAttempts(s, 8);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recoveries);
+  assert.deepEqual(s.contractPending.groupResponses.map(Boolean), [false, true, true, true]);
+  assert.equal(s.contractPending.groupRetryGrant.remaining, 8);
+
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending.groupRetryGrant.remaining = 6;
+  s.contractPending.groupRetryGrant.used = 2;
+  const grant = structuredClone(s.contractPending.groupRetryGrant);
+  resumeContractGroupAttempts(s, 8);
+  assert.deepEqual(s.contractPending.groupRetryGrant, grant);
+  assert.deepEqual(s.recoveryAttempts, recoveries);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  assert.throws(() => resumeContractGroupAttempts(s, 7), /no longer matches/);
+});
+
+test("assembly resume grants only saved checkpoint attempts without resetting other limits", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: Contract reconciliation failed validation because its focused check command does not directly invoke a repository test without shell operators.";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{}, {}, {}] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  const wrong = structuredClone(s); wrong.contractPending.groupResponses.pop();
+  assert.throws(() => resumeContractAssemblyAttempts(wrong, 3), /all groups complete/);
+  assert.throws(() => resumeContractAssemblyAttempts(structuredClone(s), 6), /between 1 and 5/);
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.phase, "contract");
+  assert.equal(s.contractPending.assemblyAttempts.remaining, 3);
+  assert.deepEqual(s.contractPending.groupResponses, [{}, {}, {}]);
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recovery);
+  assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
+});
+
+test("assembly resume reuses an already granted checkpoint after preflight failure", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Recovery agent requested a stop: Contract reconciliation failed validation because its focused check command does not directly invoke a repository test without shell operators.";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}] }, groupResponses: [{}, {}, {}] };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  resumeContractAssemblyAttempts(s, 3);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  const grant = structuredClone(s.contractPending.assemblyAttempts);
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.contractPending.assemblyAttempts, grant);
+  assert.deepEqual(s.budget, budget); assert.deepEqual(s.recoveryAttempts, recovery);
+
+  s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.contractPending.assemblyAttempts.used = 1; s.contractPending.assemblyAttempts.remaining = 2;
+  resumeContractAssemblyAttempts(s, 3);
+  assert.equal(s.contractPending.assemblyAttempts.used, 1);
+  assert.equal(s.contractPending.assemblyAttempts.remaining, 2);
+
+  s.phase = "awaiting"; s.resumePhase = "contract"; s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  assert.throws(() => resumeContractAssemblyAttempts(structuredClone(s), 2), /saved command-validation failure/);
+  s.contractPending.assemblyAttempts.used = 3; s.contractPending.assemblyAttempts.remaining = 0;
+  assert.throws(() => resumeContractAssemblyAttempts(s, 3), /saved command-validation failure/);
+});
+
+test("sixteen extra assembly calls extend an exhausted checkpoint once without resetting history", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; Invalid draft reconciliation: baseline command sv-core cannot be weakened; human decision required";
+  s.contractPending = { round: 2, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}, {}, {}] }, groupResponses: [{}, {}, {}, {}],
+    assemblyAttempts: { round: 2, groupPlanDigest: "saved", granted: 3, used: 3, remaining: 0,
+      lastError: "Invalid draft reconciliation: baseline command sv-core cannot be weakened" } };
+  s.recoveryAttempts = { "contract:1:1:0:2:1": 3 };
+  const budget = structuredClone(s.budget); const recovery = structuredClone(s.recoveryAttempts);
+  assert.throws(() => extendContractAssemblyAttempts(structuredClone(s), 17, "approved-16"), /between 1 and 16/);
+  extendContractAssemblyAttempts(s, 16, "approved-16");
+  assert.equal(s.phase, "contract");
+  assert.deepEqual(s.budget, budget);
+  assert.deepEqual(s.recoveryAttempts, recovery);
+  assert.deepEqual([s.contractPending.assemblyAttempts.granted, s.contractPending.assemblyAttempts.used, s.contractPending.assemblyAttempts.remaining], [19, 3, 16]);
+  assert.deepEqual(s.contractPending.groupResponses, [{}, {}, {}, {}]);
+
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  const grant = structuredClone(s.contractPending.assemblyAttempts);
+  extendContractAssemblyAttempts(s, 16, "approved-16");
+  assert.deepEqual(s.contractPending.assemblyAttempts, grant);
+  s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; still invalid; human decision required";
+  s.contractPending.assemblyAttempts.used = 19; s.contractPending.assemblyAttempts.remaining = 0;
+  assert.throws(() => extendContractAssemblyAttempts(s, 16, "approved-16"), /cannot be granted again/);
+});
+
+test("explicit assembly grant accepts direct attempt exhaustion without recovery decisions", () => {
+  const s = state(); s.phase = "awaiting"; s.resumePhase = "contract";
+  s.pauseReason = "Acceptance: contract assembly attempts exhausted; Invalid draft reconciliation: unverifiable source for P1-G08; human decision required";
+  s.contractPending = { round: 1, step: "assemble", proposalInFlight: true,
+    groupPlanDigest: "saved", groupPlan: { groups: [{}, {}] }, groupResponses: [{}, {}],
+    assemblyAttempts: { round: 1, groupPlanDigest: "saved", granted: 3, used: 3, remaining: 0,
+      lastError: "Invalid draft reconciliation: unverifiable source for P1-G08" } };
+  delete s.recoveryAttempts;
+  const budget = structuredClone(s.budget);
+  extendContractAssemblyAttempts(s, 5, "b008-assembly-8");
+  assert.equal(s.phase, "contract");
+  assert.deepEqual([s.contractPending.assemblyAttempts.granted, s.contractPending.assemblyAttempts.used,
+    s.contractPending.assemblyAttempts.remaining], [8, 3, 5]);
+  assert.deepEqual(s.budget, budget);
+});
+
+test("code repair goes through existing build/test or planning paths and preserves counters", () => {
+  for (const [phase, expected] of [["build-repair", "build-repair"], ["test-repair", "test-repair"], ["plan-validate", "plan"], ["parallel-work", "parallel-work"], ["assemble", "assemble"]]) {
+    const s = state(); s.phase = phase; beginRecovery(s, "Concrete failure");
+    const { next } = previewRecovery(s, decision("repair"));
+    assert.equal(next.phase, expected); assert.equal(next.buildAttempts, 2); assert.equal(next.testAttempts, 1); assert.equal(next.pendingFailure, "Concrete failure");
+  }
+  const s = state(); s.phase = "integrate"; beginRecovery(s, "Integration failure"); assert.throws(() => previewRecovery(s, decision("repair")), /require/);
+});
+
+test("saved decision survives interrupted publication and is replayed without another AI call", async () => {
+  const s = state(); beginRecovery(s, "Worker blocked"); let calls = 0; let saved;
+  await assert.rejects(runRecovery(s, { decide: async () => { calls++; return decision(); }, save: async () => { saved = structuredClone(s); }, document: async () => { throw new Error("Interrupted"); }, event: noOp }), /Interrupted/);
+  assert.equal(saved.phase, "recovery"); assert.equal(saved.recovery.decision.action, "defer");
+  await runRecovery(saved, { decide: async () => { calls++; throw new Error("Do not rerun AI"); }, save: noOp, document: noOp, event: noOp });
+  assert.equal(calls, 1); assert.equal(saved.recoveries.length, 1); assert.equal(saved.phase, "tickets");
+});
+
+test("stop keeps the original checkpoint and every successful revision", async () => {
+  const s = state(); beginRecovery(s, "Ambiguous failure");
+  assert.equal(await runRecovery(s, { decide: async () => decision("stop"), save: noOp, document: noOp, event: noOp }), false);
+  assert.equal(s.phase, "parallel-work"); assert.equal(s.wave.members[0].head, "b".repeat(40)); assert.equal(s.recoveries[0].action, "stop");
+});
+
+test("actual recovery publisher commits pending metadata once and preserves worker Git ancestry", async () => {
+  const dir = await mkdtemp(resolve(tmpdir(), "sandcastle-recovery-"));
+  const tree = resolve(dir, "repo"); const runs = resolve(dir, "runs");
+  await mkdir(tree); await mkdir(resolve(runs, "test"), { recursive: true });
+  const git = async (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  try {
+    await git(tree, "init", "-b", "main"); await git(tree, "config", "user.name", "Recovery test"); await git(tree, "config", "user.email", "recovery@example.invalid");
+    await mkdir(resolve(tree, ".scratch/sandcastle-test/issues"), { recursive: true }); await mkdir(resolve(tree, "docs/tasks"), { recursive: true });
+    for (const n of [1, 2, 3, 4]) await writeFile(resolve(tree, path(n)), `# Ticket ${n}\nStatus: open\nAssignee: unassigned\nLabels: enhancement, ready-for-agent\n\n- [ ] Actual behavior\n`);
+    for (const [name, text] of [["docs/tasks/owner.md", "Original owner: acceptance pending\n"], ["docs/tasks/dependency.md", "Status: specified\n"], [".scratch/sandcastle-test/map.md", "Original decisions\n"]]) await writeFile(resolve(tree, name), text);
+    const manifest = ".scratch/sandcastle-test/batch-0.json"; const s = state(); const originalManifest = JSON.stringify({ tickets: s.tickets });
+    await writeFile(resolve(tree, manifest), originalManifest);
+    await git(tree, "add", "."); await git(tree, "commit", "-m", "Preserved successful worker");
+    const head = await git(tree, "rev-parse", "HEAD"); beginRecovery(s, "Absent dependency"); const d = decision(); const preview = previewRecovery(s, d);
+    const ensureCommit = async (cwd, message) => { if (await git(cwd, "status", "--porcelain")) { await git(cwd, "add", "."); await git(cwd, "commit", "-m", message); } };
+    const ops = { worktree: tree, runsDir: runs, git, ensureCommit, manifest };
+    await documentRecovery(s, s.recovery, d, preview, ops);
+    const after = await git(tree, "rev-parse", "HEAD"); assert.notEqual(after, head);
+    await git(tree, "merge-base", "--is-ancestor", head, after);
+    const ticket = await readFile(resolve(tree, path(2)), "utf8"); assert.match(ticket, /Status: open/); assert.match(ticket, /needs-info/); assert.match(ticket, /acceptance are not completed/); assert.match(ticket, /- \[ \]/);
+    assert.match(ticket, /Labels: enhancement, needs-info/);
+    assert.deepEqual(JSON.parse(await readFile(resolve(tree, manifest))).tickets.map((t) => t.path), [path(1), path(4)]);
+    assert.equal(await readFile(resolve(tree, manifest.replace(".json", "-before-recovery-1.json")), "utf8"), originalManifest);
+    await documentRecovery(s, s.recovery, d, preview, ops);
+    assert.equal(await git(tree, "rev-parse", "HEAD"), after); assert.equal(await git(tree, "status", "--porcelain"), "");
+    assert.equal((await readFile(resolve(tree, path(2)), "utf8")).match(/Sandcastle recovery 1/g).length, 1);
+    const missing = { ...d, dependency: "docs/tasks/absent.md" };
+    await assert.rejects(documentRecovery(s, s.recovery, missing, previewRecovery(s, missing), ops), /ENOENT/);
+    assert.equal(await git(tree, "status", "--porcelain"), "");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["groups"],
+  "properties": {
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "partIndexes"],
+        "properties": {
+          "title": { "type": "string" },
+          "partIndexes": { "type": "array", "items": { "type": "integer" } }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "summary", "ticketPaths", "dependency"],
+  "properties": {
+    "action": { "type": "string", "enum": ["retry", "repair", "defer", "stop"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "ticketPaths": { "type": "array", "items": { "type": "string" } },
+    "dependency": { "type": "string" }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "projectionFields": [
+    "capabilityId",
+    "acceptanceStage",
+    "prerequisites",
+    "conditions",
+    "evidenceObligations",
+    "implementation",
+    "reason",
+    "evidenceStatus",
+    "evidenceIds"
+  ],
+  "stages": [
+    {
+      "id": "A",
+      "expectedOutcomeCount": 8,
+      "capabilityIdsSha256": "0b0b052ec4f39bf52213ed0e49343d296a15bbe30cb37d65970c223e1400e047",
+      "semanticProjectionSha256": "49735ec5ffeda795b34ae89f9e6a5157c03edb2f49303749822b0c5ce1fd9d95"
+    },
+    {
+      "id": "B",
+      "expectedOutcomeCount": 54,
+      "capabilityIdsSha256": "f0734514a357b1d09f039ae9116ddb13694c82b527ea50d6c44c0590ac9abdac",
+      "semanticProjectionSha256": "f5327b4bb03127341a6d353857e821f2d1a83a317cecf1c7cc3902ae2a41b2b7",
+      "ticketOwnershipSha256": "5b9dac487a16228679620d18a3571a080b6e82fe208e91c08b9557de5241bc94"
+    }
+  ]
+}

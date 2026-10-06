@@ -1,0 +1,1694 @@
+{
+  "schemaVersion": 1,
+  "stage": "B",
+  "status": "specified-not-implemented",
+  "reviewedCapabilityCount": 54,
+  "reviewedCapabilityIdsSha256": "f19c221d9c10d24b9e0fd837879b317833949fc5220237a32570889085830384",
+  "canonicalSha256": {
+    "manifest.json": "141e10ff801c596454ff215b994d12b83765635bb60c793045567af7f790377e",
+    "native-coverage.json": "58b9a0abb6d54d8b5484f5d1961b8f32800c5fe46c9af69a870fa106edff8ca4",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0",
+    "native-evidence.json": "1aa725c5a37c47f7355c83df5ea518d7da2ea9a4ee96fbc3da25b1018ce23f63",
+    "inventories/index.json": "127a4684ff1b6e0be54bd21ccdc6a008b40a4c0ba32350edb9746d9cf68d08f8"
+  },
+  "tickets": [
+    {
+      "id": "SV-B-001",
+      "path": "SV-B-001-endpoint.md",
+      "kind": "implementation",
+      "dependsOn": [],
+      "integrationChecks": [
+        "SV-B-006",
+        "SV-B-022",
+        "SV-B-023"
+      ],
+      "owns": [
+        "capability.connection.select-server",
+        "capability.connection.enter-host",
+        "capability.connection.cancel-host",
+        "capability.input.physical-keys",
+        "capability.input.prompt-navigation",
+        "capability.input.text-edit",
+        "capability.input.confirm"
+      ]
+    },
+    {
+      "id": "SV-B-002",
+      "path": "SV-B-002-contact.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-001"
+      ],
+      "integrationChecks": [
+        "SV-B-006",
+        "SV-B-021",
+        "SV-B-022",
+        "SV-B-024"
+      ],
+      "owns": [
+        "capability.connection.contact",
+        "capability.connection.contact-failure",
+        "capability.network.keepalive",
+        "capability.network.ping-echo",
+        "capability.network.partial-packet",
+        "capability.network.malformed-packet",
+        "capability.network.server-flags"
+      ]
+    },
+    {
+      "id": "SV-B-003",
+      "path": "SV-B-003-profile.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-004",
+      "path": "SV-B-004-save.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-005",
+      "path": "SV-B-005-vault.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-001"
+      ],
+      "integrationChecks": [
+        "SV-B-006",
+        "SV-B-021"
+      ],
+      "owns": [
+        "capability.credentials.lookup",
+        "capability.credentials.provider-linux",
+        "capability.credentials.provider-windows",
+        "capability.credentials.private-input",
+        "capability.account.secret-provider-failure",
+        "capability.account.restore-secret",
+        "capability.account.save-secret"
+      ]
+    },
+    {
+      "id": "SV-B-006",
+      "path": "SV-B-006-login.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-001",
+        "SV-B-002",
+        "SV-B-005"
+      ],
+      "integrationChecks": [
+        "SV-B-020",
+        "SV-B-021",
+        "SV-B-022"
+      ],
+      "owns": [
+        "capability.account.enter-name",
+        "capability.account.cancel-name",
+        "capability.account.enter-password",
+        "capability.account.cancel-password",
+        "capability.account.reject-unencodable-password",
+        "capability.account.authenticate",
+        "capability.account.login-rejected",
+        "capability.character.read-overview",
+        "capability.character.select-existing",
+        "capability.character.quit-overview",
+        "capability.session.read-motd",
+        "capability.session.disconnect"
+      ]
+    },
+    {
+      "id": "SV-B-007",
+      "path": "SV-B-007-macros.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-008",
+      "path": "SV-B-008-guide.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "G"
+    },
+    {
+      "id": "SV-B-009",
+      "path": "SV-B-009-inventory.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-010",
+      "path": "SV-B-010-history-profile.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-011",
+      "path": "SV-B-011-transfer.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-012",
+      "path": "SV-B-012-audio-start.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-013",
+      "path": "SV-B-013-fonts-load.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-014",
+      "path": "SV-B-014-map-core.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-015",
+      "path": "SV-B-015-hud-core.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-016",
+      "path": "SV-B-016-hud-conditions.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-017",
+      "path": "SV-B-017-hud-detail.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-018",
+      "path": "SV-B-018-messages-live.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-019",
+      "path": "SV-B-019-first-import.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-020",
+      "path": "SV-B-020-first-session.md",
+      "kind": "milestone",
+      "dependsOn": [
+        "SV-B-006"
+      ],
+      "integrationChecks": [],
+      "owns": []
+    },
+    {
+      "id": "SV-B-021",
+      "path": "SV-B-021-account-manage.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-002",
+        "SV-B-005",
+        "SV-B-006"
+      ],
+      "integrationChecks": [
+        "SV-B-025"
+      ],
+      "owns": [
+        "capability.account.create"
+      ]
+    },
+    {
+      "id": "SV-B-022",
+      "path": "SV-B-022-character-manage.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-006"
+      ],
+      "integrationChecks": [
+        "SV-B-023",
+        "SV-B-025"
+      ],
+      "owns": [
+        "capability.character.create-ordinary",
+        "capability.character.create-exclusive",
+        "capability.character.name",
+        "capability.character.cancel-name",
+        "capability.character.name-rejected"
+      ]
+    },
+    {
+      "id": "SV-B-023",
+      "path": "SV-B-023-birth-choices.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-022"
+      ],
+      "integrationChecks": [
+        "SV-B-024",
+        "SV-B-025"
+      ],
+      "owns": [
+        "capability.birth.sex",
+        "capability.birth.race",
+        "capability.birth.trait",
+        "capability.birth.class",
+        "capability.birth.body",
+        "capability.birth.stats",
+        "capability.birth.mode",
+        "capability.birth.quit",
+        "capability.birth.backtrack-race",
+        "capability.birth.backtrack-trait",
+        "capability.birth.backtrack-class",
+        "capability.birth.backtrack-body",
+        "capability.birth.backtrack-stats",
+        "capability.birth.backtrack-mode"
+      ]
+    },
+    {
+      "id": "SV-B-024",
+      "path": "SV-B-024-birth-dna.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-B-023"
+      ],
+      "integrationChecks": [
+        "SV-B-025"
+      ],
+      "owns": [
+        "capability.birth.complete"
+      ]
+    },
+    {
+      "id": "SV-B-025",
+      "path": "SV-B-025-entry-complete.md",
+      "kind": "milestone",
+      "dependsOn": [
+        "SV-B-020",
+        "SV-B-021",
+        "SV-B-024"
+      ],
+      "integrationChecks": [],
+      "owns": []
+    },
+    {
+      "id": "SV-B-026",
+      "path": "SV-B-026-target.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-027",
+      "path": "SV-B-027-pickup-store.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-028",
+      "path": "SV-B-028-movement.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-029",
+      "path": "SV-B-029-map-explore.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-030",
+      "path": "SV-B-030-clipboard.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-031",
+      "path": "SV-B-031-chat.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-032",
+      "path": "SV-B-032-message-recall.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-033",
+      "path": "SV-B-033-guide-tools.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "G"
+    },
+    {
+      "id": "SV-B-034",
+      "path": "SV-B-034-exports.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-035",
+      "path": "SV-B-035-sheet.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-036",
+      "path": "SV-B-036-session-end.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-037",
+      "path": "SV-B-037-reconnect.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-038",
+      "path": "SV-B-038-font-choices.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-039",
+      "path": "SV-B-039-map-effects.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-040",
+      "path": "SV-B-040-audio-controls.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-041",
+      "path": "SV-B-041-layout-settings.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-042",
+      "path": "SV-B-042-local-settings.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-043",
+      "path": "SV-B-043-screenshots-platform.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-044",
+      "path": "SV-B-044-message-clones.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-045",
+      "path": "SV-B-045-config-identity.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-046",
+      "path": "SV-B-046-config-render.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-047",
+      "path": "SV-B-047-config-audio.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-048",
+      "path": "SV-B-048-options-input.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-049",
+      "path": "SV-B-049-options-messages-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-050",
+      "path": "SV-B-050-options-messages-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-051",
+      "path": "SV-B-051-options-alerts-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-052",
+      "path": "SV-B-052-options-alerts-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-053",
+      "path": "SV-B-053-options-hud-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-054",
+      "path": "SV-B-054-options-hud-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-055",
+      "path": "SV-B-055-options-maplight-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-056",
+      "path": "SV-B-056-options-maplight-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-057",
+      "path": "SV-B-057-options-mapidentity-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-058",
+      "path": "SV-B-058-options-mapidentity-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-059",
+      "path": "SV-B-059-options-animation-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-060",
+      "path": "SV-B-060-options-animation-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-061",
+      "path": "SV-B-061-options-movement-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-062",
+      "path": "SV-B-062-options-movement-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-063",
+      "path": "SV-B-063-options-movement-3.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-064",
+      "path": "SV-B-064-options-target.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-065",
+      "path": "SV-B-065-options-pickup-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-066",
+      "path": "SV-B-066-options-pickup-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-067",
+      "path": "SV-B-067-options-pickup-3.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-068",
+      "path": "SV-B-068-options-session-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-069",
+      "path": "SV-B-069-options-session-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-070",
+      "path": "SV-B-070-options-audio-1.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-071",
+      "path": "SV-B-071-options-audio-2.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-072",
+      "path": "SV-B-072-options-audio-3.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-073",
+      "path": "SV-B-073-options-audio-4.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-074",
+      "path": "SV-B-074-options-integration.md",
+      "kind": "moved",
+      "dependsOn": [],
+      "owns": [],
+      "integrationChecks": [],
+      "movedToStage": "C"
+    },
+    {
+      "id": "SV-B-075",
+      "path": "SV-B-075-acceptance.md",
+      "kind": "acceptance",
+      "dependsOn": [
+        "SV-B-020",
+        "SV-B-025"
+      ],
+      "integrationChecks": [],
+      "owns": []
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "capability.connection.select-server",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.connection.select-server.result",
+        "obligation.connection.select-server.lifecycle",
+        "obligation.connection.select-server.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-server",
+        "source.policy.session"
+      ],
+      "allocationSha256": "b3881e764d6a7d2a7b1ab3ae9bf4ee238974a6ac558fca042d62dd761b56a9a6"
+    },
+    {
+      "id": "capability.connection.enter-host",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.connection.enter-host.result",
+        "obligation.connection.enter-host.lifecycle",
+        "obligation.connection.enter-host.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-server",
+        "source.baseline.session-connect",
+        "source.policy.session"
+      ],
+      "allocationSha256": "d39e2458772b2fbab61819dbc2363c5893c668b8b1d47caa6a8b2bc87f6de3c1"
+    },
+    {
+      "id": "capability.connection.cancel-host",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.connection.cancel-host.result",
+        "obligation.connection.cancel-host.lifecycle",
+        "obligation.connection.cancel-host.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-server",
+        "source.policy.session"
+      ],
+      "allocationSha256": "4ebe00a8069652eeb4e543295904e26f900c43ca235fc7955b9e24acfaf6f46a"
+    },
+    {
+      "id": "capability.connection.contact",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [
+        "capability.connection.enter-host"
+      ],
+      "obligationIds": [
+        "obligation.connection.contact.result",
+        "obligation.connection.contact.lifecycle",
+        "obligation.connection.contact.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-connect",
+        "source.baseline.session-verify",
+        "source.baseline.session-setup",
+        "source.policy.session"
+      ],
+      "allocationSha256": "5d981f34f64d83c19f6731c844e2fd3e24834e81a7de48b1867f71d9deb2fb32"
+    },
+    {
+      "id": "capability.connection.contact-failure",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.connection.contact-failure.result",
+        "obligation.connection.contact-failure.lifecycle",
+        "obligation.connection.contact-failure.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-connect",
+        "source.baseline.session-verify",
+        "source.baseline.session-setup",
+        "source.policy.session"
+      ],
+      "allocationSha256": "55c58492401e672f68afe06080597610077734eeb1988fb63e4e5a651bf98a25"
+    },
+    {
+      "id": "capability.account.enter-name",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [
+        "capability.input.text-edit"
+      ],
+      "obligationIds": [
+        "obligation.account.enter-name.result",
+        "obligation.account.enter-name.lifecycle",
+        "obligation.account.enter-name.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-credentials",
+        "source.protocol.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "0e7772a098e2cca94f393156843074adb35903217a3c9d6cb91013e7348b7ac5"
+    },
+    {
+      "id": "capability.account.cancel-name",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.cancel-name.result",
+        "obligation.account.cancel-name.lifecycle",
+        "obligation.account.cancel-name.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-credentials",
+        "source.policy.session"
+      ],
+      "allocationSha256": "02872b48dcf73fa839f10ccafec8b89d2005c856b1d936c5353f6797c2d71017"
+    },
+    {
+      "id": "capability.account.enter-password",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [
+        "capability.account.enter-name",
+        "capability.account.secret-provider-failure",
+        "capability.credentials.lookup",
+        "capability.credentials.private-input",
+        "capability.input.text-edit"
+      ],
+      "obligationIds": [
+        "obligation.account.enter-password.result",
+        "obligation.account.enter-password.lifecycle",
+        "obligation.account.enter-password.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-password",
+        "source.policy.session"
+      ],
+      "allocationSha256": "37db8e65c69f10441e7c6ca4b42857299b2df9daf002fa7c5921a601529eed46"
+    },
+    {
+      "id": "capability.account.cancel-password",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.cancel-password.result",
+        "obligation.account.cancel-password.lifecycle",
+        "obligation.account.cancel-password.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-password",
+        "source.policy.session"
+      ],
+      "allocationSha256": "2c7c37407a086fbda0905b2472351ec4cb66d235b67ab6073493f67df8acbfb5"
+    },
+    {
+      "id": "capability.account.reject-unencodable-password",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.reject-unencodable-password.result",
+        "obligation.account.reject-unencodable-password.lifecycle",
+        "obligation.account.reject-unencodable-password.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-verify",
+        "source.baseline.session-change-password",
+        "source.policy.session"
+      ],
+      "allocationSha256": "d36892fabbe771bc40e41d2c92cc0fdd5d7ae8aaf410571065c19d7aa340f50e"
+    },
+    {
+      "id": "capability.account.authenticate",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [
+        "capability.account.enter-password",
+        "capability.account.restore-secret",
+        "capability.account.save-secret",
+        "capability.connection.contact"
+      ],
+      "obligationIds": [
+        "obligation.account.authenticate.result",
+        "obligation.account.authenticate.lifecycle",
+        "obligation.account.authenticate.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-verify",
+        "source.baseline.session-login",
+        "source.protocol.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "dbe3414d25964a7d4068ea4b97ffa98c949035d092069de4c0f922f2471e64f2"
+    },
+    {
+      "id": "capability.account.create",
+      "ownerTicket": "SV-B-021",
+      "prerequisites": [
+        "capability.account.enter-password",
+        "capability.account.save-secret",
+        "capability.connection.contact"
+      ],
+      "obligationIds": [
+        "obligation.account.create.result",
+        "obligation.account.create.lifecycle",
+        "obligation.account.create.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-credentials",
+        "source.protocol.session-login",
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "40a0b5a413e2880b3d0c0605fa775623d0a9660e49a2b2dc383e782d730518eb"
+    },
+    {
+      "id": "capability.account.login-rejected",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.login-rejected.result",
+        "obligation.account.login-rejected.lifecycle",
+        "obligation.account.login-rejected.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.protocol.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "ec6b89915549fc8bb5a0df055a74ab9971b3e2fa76b44b6b5d4273b107b7b251"
+    },
+    {
+      "id": "capability.account.restore-secret",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.restore-secret.result",
+        "obligation.account.restore-secret.lifecycle",
+        "obligation.account.restore-secret.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-password",
+        "source.policy.session"
+      ],
+      "allocationSha256": "732f1320adbae800d20135d88f3ebea9612b5d35cda0e475425e95e264fbfd75"
+    },
+    {
+      "id": "capability.account.save-secret",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [
+        "capability.account.secret-provider-failure",
+        "capability.credentials.lookup",
+        "capability.credentials.private-input"
+      ],
+      "obligationIds": [
+        "obligation.account.save-secret.result",
+        "obligation.account.save-secret.lifecycle",
+        "obligation.account.save-secret.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-verify",
+        "source.policy.session"
+      ],
+      "allocationSha256": "d968af3f66aea8abab40bd00d83b9b678bc49d9f7ab8c9afc1326b071dc92168"
+    },
+    {
+      "id": "capability.account.secret-provider-failure",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.account.secret-provider-failure.result",
+        "obligation.account.secret-provider-failure.lifecycle",
+        "obligation.account.secret-provider-failure.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-password",
+        "source.policy.session"
+      ],
+      "allocationSha256": "9ca9b4cc3ef30292ce3590728c5acc5c1709c9b1302058c54ff3bbbf206885f4"
+    },
+    {
+      "id": "capability.character.read-overview",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [
+        "capability.account.authenticate"
+      ],
+      "obligationIds": [
+        "obligation.character.read-overview.result",
+        "obligation.character.read-overview.lifecycle",
+        "obligation.character.read-overview.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "e24e8ef22366142288c97489039fceac6b726f47a109a0a7088d7d422c80a6b6"
+    },
+    {
+      "id": "capability.character.select-existing",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [
+        "capability.character.read-overview"
+      ],
+      "obligationIds": [
+        "obligation.character.select-existing.result",
+        "obligation.character.select-existing.lifecycle",
+        "obligation.character.select-existing.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "45cdf252550ae531a6bb882ec6a592602ee8dadb908b48e3b2c7ab7f9a703c18"
+    },
+    {
+      "id": "capability.character.create-ordinary",
+      "ownerTicket": "SV-B-022",
+      "prerequisites": [
+        "capability.character.read-overview"
+      ],
+      "obligationIds": [
+        "obligation.character.create-ordinary.result",
+        "obligation.character.create-ordinary.lifecycle",
+        "obligation.character.create-ordinary.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "027a827ad596733d045e3c0b711567c927c0d32a7b85937a9a705f81007e6c4d"
+    },
+    {
+      "id": "capability.character.create-exclusive",
+      "ownerTicket": "SV-B-022",
+      "prerequisites": [
+        "capability.character.read-overview"
+      ],
+      "obligationIds": [
+        "obligation.character.create-exclusive.result",
+        "obligation.character.create-exclusive.lifecycle",
+        "obligation.character.create-exclusive.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "482c430347f92ade8fc08eedcf353ec1327d74b87074551fdee7460d1b27a447"
+    },
+    {
+      "id": "capability.character.name",
+      "ownerTicket": "SV-B-022",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.character.name.result",
+        "obligation.character.name.lifecycle",
+        "obligation.character.name.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.protocol.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "cee6fa55c5fdae8f8dc7c7e16f65b7c05511abe9880acf4107467a4e7d2788ed"
+    },
+    {
+      "id": "capability.character.cancel-name",
+      "ownerTicket": "SV-B-022",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.character.cancel-name.result",
+        "obligation.character.cancel-name.lifecycle",
+        "obligation.character.cancel-name.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "4e84b487cc718c0f43a828bd154c0feab634f4f13d2886713184aa58ad290979"
+    },
+    {
+      "id": "capability.character.name-rejected",
+      "ownerTicket": "SV-B-022",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.character.name-rejected.result",
+        "obligation.character.name-rejected.lifecycle",
+        "obligation.character.name-rejected.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.protocol.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "82f9033c46d48ab4c60f40277d0387efbd8362209888e2e6f212c2ce9d416ab2"
+    },
+    {
+      "id": "capability.character.quit-overview",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.character.quit-overview.result",
+        "obligation.character.quit-overview.lifecycle",
+        "obligation.character.quit-overview.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-login",
+        "source.policy.session"
+      ],
+      "allocationSha256": "94c3dd774d96196709423ae7cb18540fae95bc4b51f8f6758aa5dd70ee68e034"
+    },
+    {
+      "id": "capability.birth.sex",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.sex.result",
+        "obligation.birth.sex.lifecycle",
+        "obligation.birth.sex.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-birth",
+        "source.policy.session"
+      ],
+      "allocationSha256": "d3a02f474a911e7af95e6735df09845ed935f065497d2bdd522cddc738cd63bf"
+    },
+    {
+      "id": "capability.birth.race",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.race.result",
+        "obligation.birth.race.lifecycle",
+        "obligation.birth.race.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-race",
+        "source.policy.session"
+      ],
+      "allocationSha256": "8124306a8e19b7aa1a2de27320d8279ae705dc1d9be71533e0787674693906ef"
+    },
+    {
+      "id": "capability.birth.trait",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.trait.result",
+        "obligation.birth.trait.lifecycle",
+        "obligation.birth.trait.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-trait",
+        "source.policy.session"
+      ],
+      "allocationSha256": "0168548a5a4547fc638d1cd2294114785af5e08cd596423c786ed7f3dc6f4173"
+    },
+    {
+      "id": "capability.birth.class",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.class.result",
+        "obligation.birth.class.lifecycle",
+        "obligation.birth.class.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-class",
+        "source.policy.session"
+      ],
+      "allocationSha256": "81b486dd058266a31faf6228056090be2ece58eadd28a4ae8b0dff69f6edd52c"
+    },
+    {
+      "id": "capability.birth.body",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.body.result",
+        "obligation.birth.body.lifecycle",
+        "obligation.birth.body.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-body",
+        "source.policy.session"
+      ],
+      "allocationSha256": "555cdde029e98f21b3e8183bb4f87fe23b5d92e4698bd466a69b016c99be9222"
+    },
+    {
+      "id": "capability.birth.stats",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.stats.result",
+        "obligation.birth.stats.lifecycle",
+        "obligation.birth.stats.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-stats",
+        "source.policy.session"
+      ],
+      "allocationSha256": "50bc3fbfa9414febb80ba597610e85a3ccfc27f07ea1060dd8d5a24d44766a39"
+    },
+    {
+      "id": "capability.birth.mode",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [
+        "capability.character.create-ordinary"
+      ],
+      "obligationIds": [
+        "obligation.birth.mode.result",
+        "obligation.birth.mode.lifecycle",
+        "obligation.birth.mode.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-mode",
+        "source.policy.session"
+      ],
+      "allocationSha256": "1095f9daee0636060bbe2f885f634842554b0e8a49421ce6b864e6471bad2fbf"
+    },
+    {
+      "id": "capability.birth.quit",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.quit.result",
+        "obligation.birth.quit.lifecycle",
+        "obligation.birth.quit.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-birth",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "3cf72f0eadf053a11f46ceb1b254dba9b6d3d1337498994b41064ae5ac5d3a87"
+    },
+    {
+      "id": "capability.birth.complete",
+      "ownerTicket": "SV-B-024",
+      "prerequisites": [
+        "capability.birth.body",
+        "capability.birth.class",
+        "capability.birth.mode",
+        "capability.birth.race",
+        "capability.birth.sex",
+        "capability.birth.stats",
+        "capability.birth.trait"
+      ],
+      "obligationIds": [
+        "obligation.birth.complete.result",
+        "obligation.birth.complete.lifecycle",
+        "obligation.birth.complete.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-play",
+        "source.baseline.session-dna",
+        "source.baseline.session-setup",
+        "source.policy.session"
+      ],
+      "allocationSha256": "e1da3fd0d5e0fddd913e1a62396772b2162ef09b5207b77281f6a1fb519a62d6"
+    },
+    {
+      "id": "capability.session.read-motd",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.session.read-motd.result",
+        "obligation.session.read-motd.lifecycle",
+        "obligation.session.read-motd.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-motd",
+        "source.baseline.session-connect",
+        "source.policy.session"
+      ],
+      "allocationSha256": "faabaab6c91b168a1d6d4c16fe29cd61f597587dbf41e255d98adf9bd3a90a4d"
+    },
+    {
+      "id": "capability.session.disconnect",
+      "ownerTicket": "SV-B-006",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.session.disconnect.result",
+        "obligation.session.disconnect.lifecycle",
+        "obligation.session.disconnect.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-quit",
+        "source.baseline.session-connect",
+        "source.policy.session"
+      ],
+      "allocationSha256": "0336c71b5b2a10f5d4410d7ff75a9802839eeaead02eec087db0e95feceec80f"
+    },
+    {
+      "id": "capability.birth.backtrack-race",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-race.result",
+        "obligation.birth.backtrack-race.lifecycle",
+        "obligation.birth.backtrack-race.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-race",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "f14e4e7d39e8300926a0077d5fd88b72a7887d7a548dfb3a7bc7eea3e1ee8ee2"
+    },
+    {
+      "id": "capability.birth.backtrack-trait",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-trait.result",
+        "obligation.birth.backtrack-trait.lifecycle",
+        "obligation.birth.backtrack-trait.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-trait",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "ff6026ca34d230a749dad01af58f0eca055df871c31896cc34cb972478108064"
+    },
+    {
+      "id": "capability.birth.backtrack-class",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-class.result",
+        "obligation.birth.backtrack-class.lifecycle",
+        "obligation.birth.backtrack-class.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-class",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "21c387753872bf2c0ba9307f0c7c130bcc3edf0f452729aa483820e0296b9d17"
+    },
+    {
+      "id": "capability.birth.backtrack-body",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-body.result",
+        "obligation.birth.backtrack-body.lifecycle",
+        "obligation.birth.backtrack-body.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-body",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "b6131105733d176b757dd7e54ce82bbf6b4aedf9006ce719f44340bd1a378f5f"
+    },
+    {
+      "id": "capability.birth.backtrack-stats",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-stats.result",
+        "obligation.birth.backtrack-stats.lifecycle",
+        "obligation.birth.backtrack-stats.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-stats",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "42d024a578c9a8e017e6d9dceb56a63abd84f3b6cf894397d7e997a34c782a4b"
+    },
+    {
+      "id": "capability.birth.backtrack-mode",
+      "ownerTicket": "SV-B-023",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.birth.backtrack-mode.result",
+        "obligation.birth.backtrack-mode.lifecycle",
+        "obligation.birth.backtrack-mode.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.baseline.session-mode",
+        "source.baseline.session-dna",
+        "source.policy.session"
+      ],
+      "allocationSha256": "9c269721fd3c7d7373c930e56e06d38aa3b05e0643cb4fc9ab8e6562d0254557"
+    },
+    {
+      "id": "capability.credentials.lookup",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.credentials.lookup.result",
+        "obligation.credentials.lookup.failure-lifecycle",
+        "obligation.credentials.lookup.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.behavior.settings-pass-49a7d2",
+        "source.acceptance.settings-policy-f2aa80",
+        "source.policy.session",
+        "source.allocation-b.s844"
+      ],
+      "allocationSha256": "7c5273746197a9c447f4b5b5faaaccdf3bf1b4984a62a336519cd03acace37bb"
+    },
+    {
+      "id": "capability.credentials.provider-linux",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [
+        "capability.credentials.lookup"
+      ],
+      "obligationIds": [
+        "obligation.credentials.provider-linux.result",
+        "obligation.credentials.provider-linux.failure-lifecycle",
+        "obligation.credentials.provider-linux.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.behavior.settings-pass-49a7d2",
+        "source.acceptance.settings-policy-f2aa80",
+        "source.policy.session",
+        "source.allocation-b.s844"
+      ],
+      "allocationSha256": "4cfb10d651599f05481cd67dd1daf98707484c2aeeec7796cc91d30e3b4f0a06"
+    },
+    {
+      "id": "capability.credentials.provider-windows",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [
+        "capability.credentials.lookup"
+      ],
+      "obligationIds": [
+        "obligation.credentials.provider-windows.result",
+        "obligation.credentials.provider-windows.failure-lifecycle",
+        "obligation.credentials.provider-windows.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.behavior.settings-pass-49a7d2",
+        "source.acceptance.settings-policy-f2aa80",
+        "source.policy.session",
+        "source.allocation-b.s844"
+      ],
+      "allocationSha256": "86bcbc8e403695a5d5c846120f7115586d3f6bc964a175587c40dc6c1763463c"
+    },
+    {
+      "id": "capability.credentials.private-input",
+      "ownerTicket": "SV-B-005",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.credentials.private-input.result",
+        "obligation.credentials.private-input.failure-lifecycle",
+        "obligation.credentials.private-input.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.behavior.settings-pass-49a7d2",
+        "source.acceptance.settings-policy-f2aa80",
+        "source.policy.session",
+        "source.allocation-b.s844"
+      ],
+      "allocationSha256": "94c7a3568dfe4d44e11f254374c7864ed2e5c634c5abca9632f267c9956c8381"
+    },
+    {
+      "id": "capability.network.keepalive",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.network.keepalive.result",
+        "obligation.network.keepalive.lifecycle",
+        "obligation.network.keepalive.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.network.keepalive",
+        "source.reconciliation.network.keepalive-send"
+      ],
+      "allocationSha256": "aa8bc9b4a7fab6f5a045bfde88fb3d808d1db45d813a245ec216b96e0c5653a8"
+    },
+    {
+      "id": "capability.network.ping-echo",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.network.ping-echo.result",
+        "obligation.network.ping-echo.lifecycle",
+        "obligation.network.ping-echo.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.network.ping-echo"
+      ],
+      "allocationSha256": "1a5ed6ed881b7388728c061135c55568dc0f577a36c2f0fed99651a574f148ff"
+    },
+    {
+      "id": "capability.network.partial-packet",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.network.partial-packet.result",
+        "obligation.network.partial-packet.lifecycle",
+        "obligation.network.partial-packet.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.network.partial-packet",
+        "source.reconciliation.network.unknown-packet"
+      ],
+      "allocationSha256": "a5752c2f0a76b11c2592b69df1a609bfaae22642ca68416b2f9a7ca6914711c2"
+    },
+    {
+      "id": "capability.network.malformed-packet",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.network.malformed-packet.result",
+        "obligation.network.malformed-packet.lifecycle",
+        "obligation.network.malformed-packet.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.network.malformed-packet",
+        "source.reconciliation.network.unknown-packet"
+      ],
+      "allocationSha256": "093933664305d856f47f539c958072fa979565fd09f504356b49ec987c0f642b"
+    },
+    {
+      "id": "capability.network.server-flags",
+      "ownerTicket": "SV-B-002",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.network.server-flags.result",
+        "obligation.network.server-flags.lifecycle",
+        "obligation.network.server-flags.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.network.server-flags"
+      ],
+      "allocationSha256": "824dfef1c4d6a1cf3c5a49fde06b9fd4dbc64e9ebc918722c732e5296dbcdf88"
+    },
+    {
+      "id": "capability.input.physical-keys",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.input.physical-keys.result",
+        "obligation.input.physical-keys.lifecycle",
+        "obligation.input.physical-keys.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.input.physical-keys"
+      ],
+      "allocationSha256": "c6a835a38d6c1d41bd3d3a3b729616d98f0e42694d040b3992d49ec6790617f3"
+    },
+    {
+      "id": "capability.input.prompt-navigation",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.input.prompt-navigation.result",
+        "obligation.input.prompt-navigation.lifecycle",
+        "obligation.input.prompt-navigation.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.input.prompt-navigation"
+      ],
+      "allocationSha256": "f5622638c0763ad43357adbb23ccfdaa76318845dc18d84d63074384ac4799f6"
+    },
+    {
+      "id": "capability.input.text-edit",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.input.text-edit.result",
+        "obligation.input.text-edit.lifecycle",
+        "obligation.input.text-edit.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.input.text-edit",
+        "source.behavior.information-askfor-aux"
+      ],
+      "allocationSha256": "52f651049f919751049f3a91343cda3dc136ddad224c044381f77329db400b29"
+    },
+    {
+      "id": "capability.input.confirm",
+      "ownerTicket": "SV-B-001",
+      "prerequisites": [],
+      "obligationIds": [
+        "obligation.input.confirm.result",
+        "obligation.input.confirm.lifecycle",
+        "obligation.input.confirm.allocation-checks"
+      ],
+      "sourceIds": [
+        "source.reconciliation.input.confirm"
+      ],
+      "allocationSha256": "486f424ab0b7dd25389f6cc32543020b0da2e2c588339c8e881c50d5d2a90401"
+    }
+  ],
+  "productionSubsets": []
+}
