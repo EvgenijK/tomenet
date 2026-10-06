@@ -21,6 +21,7 @@ import { resolveContractSources } from "./contract-sources.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
+import { runAcceptanceCheck } from "./core-checks.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -509,8 +510,7 @@ async function testGate(sandbox, state) {
   let result;
   for (const check of requiredChecks(state.acceptance.contract).filter((item) => item.id !== "sv-build")) {
     if (check.kind === "external") throw new Error(`Acceptance: required external check ${check.id} has no runner; human decision required`);
-    const script = check.kind === "core" ? await readFile(resolve(root, ".sandcastle/checks.sh"), "utf8") : undefined;
-    result = await gate(sandbox, check.command, script);
+    result = await runAcceptanceCheck(sandbox, check, gate);
     await checkEvidence(sandbox, state, check.id, result);
     if (!result.ok) { result.output = `${check.id}: ${result.output}`; break; }
   }
