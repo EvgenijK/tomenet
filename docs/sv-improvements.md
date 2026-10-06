@@ -481,3 +481,24 @@ provenance workflow.
 **Required checks:** canonical source-root validation, capability-registry
 tests, coverage consistency, and a clean source fingerprint from committed
 `HEAD`.
+
+## Join or drain the contact resolver before SDL shutdown
+
+**Status:** proposed separately; observed by SV-B-021 focused endpoint checks
+and not changed by the account-creation failure implementation.
+
+**Problem:** short endpoint runs repeatedly report an SDL `Leaked thread`
+diagnostic after `sv_contact_socket_stop`; the resolver is detached, so endpoint
+shutdown has no explicit completion handoff even when the socket owner has
+already released the attempt.
+
+**Affected code:** `src/client/sv/protocol/contact-socket.c`,
+`src/client/sv/endpoint-run.c`, managed-peer endpoint checks.
+
+**Proposal:** give the resolver a bounded, non-reentrant completion/join path
+owned by contact lifecycle shutdown, while retaining cancellation and keeping
+DNS/connect work off the main thread.
+
+**Required checks:** cancel during DNS and connect, rapid rejection/exit,
+retry with a fresh generation, repeated endpoint startup/shutdown under
+ASan/UBSan, and Linux/Windows socket cleanup.
