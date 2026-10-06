@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { verifierFeedbackDetails } from "./contract-feedback.mjs";
 
 // Model opinions never override these controller-owned safety rules.
-export const acceptancePolicy = Object.freeze({ maxContractRounds: 12, maxDefectRepairs: 3, maxFinalAudits: 2 });
+export const acceptancePolicy = Object.freeze({ maxContractRounds: 12, maxStalledContractReviews: 3, maxDefectRepairs: 3, maxFinalAudits: 2 });
 function contractRoundLimit() { return acceptancePolicy.maxContractRounds; }
 export const baselineChecks = [
   { id: "sv-build", kind: "build", command: "make -s -C src -f makefile.sv tomenet-sv", description: "SV Make build" },
@@ -259,10 +259,112 @@ export function acceptanceReport(state) {
   ].join("\n");
 }
 
+const contractFeedbackStatuses = new Set(["open", "addressed", "invalid-scope"]);
+
+function normalizedFeedbackMessage(message) {
+  return normalize(message).replace(/[^\p{L}\p{N}_.:/-]+/gu, " ").trim();
+}
+
+function contractFeedbackDetail(message, sourceSpanIds = []) {
+  const spans = [...new Set(Array.isArray(sourceSpanIds) ? sourceSpanIds.filter(text) : [])].sort();
+  const normalizedMessage = normalizedFeedbackMessage(message);
+  need(text(normalizedMessage), "contract feedback message is not actionable; human decision required");
+  return {
+    // Provenance can become more precise on a later review. It must not create
+    // a second identity for the same verifier message.
+    id: `CF-${digest(normalizedMessage).slice(0, 16)}`,
+    message,
+    normalizedMessage,
+    sourceSpanIds: spans,
+  };
+}
+
+function initializeContractFeedback(pending) {
+  if (pending.feedbackLedger === undefined) {
+    pending.feedbackLedger = [];
+    const details = Array.isArray(pending.feedbackDetails) ? pending.feedbackDetails : [];
+    for (const message of pending.feedback ?? []) {
+      const detail = details.find((item) => item?.message === message);
+      const finding = contractFeedbackDetail(message, detail?.sourceSpanIds);
+      if (pending.feedbackLedger.some((item) => item.id === finding.id)) continue;
+      pending.feedbackLedger.push({ ...finding, status: "open", firstRound: pending.round || 1,
+        lastSeenRound: pending.round || 1, occurrences: 1 });
+    }
+  }
+  need(Array.isArray(pending.feedbackLedger), "contract feedback checkpoint is malformed; human decision required");
+  const ids = new Set();
+  for (const item of pending.feedbackLedger) {
+    const canonical = text(item?.message) ? contractFeedbackDetail(item.message, item.sourceSpanIds) : undefined;
+    need(identifier(item?.id) && !ids.has(item.id) && text(item.message) && text(item.normalizedMessage) &&
+      canonical?.id === item.id && canonical.normalizedMessage === item.normalizedMessage &&
+      Array.isArray(item.sourceSpanIds) && contractFeedbackStatuses.has(item.status) &&
+      Number.isInteger(item.firstRound) && item.firstRound >= 1 && Number.isInteger(item.lastSeenRound) && item.lastSeenRound >= item.firstRound &&
+      Number.isInteger(item.occurrences) && item.occurrences >= 1,
+    "contract feedback checkpoint is malformed; human decision required");
+    ids.add(item.id);
+  }
+  if (pending.convergence !== undefined) need(text(pending.convergence?.openDigest) &&
+    Number.isInteger(pending.convergence.identicalOpenRounds) && pending.convergence.identicalOpenRounds >= 1 &&
+    Number.isInteger(pending.convergence.lastRound) && pending.convergence.lastRound >= 1,
+  "contract feedback convergence checkpoint is malformed; human decision required");
+  synchronizeOpenContractFeedback(pending);
+}
+
+function synchronizeOpenContractFeedback(pending) {
+  const open = pending.feedbackLedger.filter((item) => item.status === "open");
+  if (open.length) {
+    pending.feedback = open.map((item) => item.message);
+    pending.feedbackDetails = open.map((item) => ({ message: item.message, sourceSpanIds: [...item.sourceSpanIds] }));
+  } else {
+    delete pending.feedback;
+    delete pending.feedbackDetails;
+  }
+}
+
+function recordContractRejection(pending, details) {
+  initializeContractFeedback(pending);
+  const current = new Map();
+  for (const detail of details) {
+    if (!text(detail?.message)) continue;
+    const finding = contractFeedbackDetail(detail.message, detail.sourceSpanIds);
+    if (!current.has(finding.id)) current.set(finding.id, finding);
+  }
+  need(current.size > 0, "rejected contract did not provide actionable feedback; human decision required");
+  for (const finding of current.values()) {
+    const existing = pending.feedbackLedger.find((item) => item.id === finding.id);
+    if (existing) {
+      existing.message = finding.message;
+      existing.sourceSpanIds = [...new Set([...existing.sourceSpanIds, ...finding.sourceSpanIds])].sort();
+      existing.status = "open";
+      existing.lastSeenRound = pending.round;
+      existing.occurrences++;
+      delete existing.addressedRound;
+    } else {
+      pending.feedbackLedger.push({ ...finding, status: "open", firstRound: pending.round,
+        lastSeenRound: pending.round, occurrences: 1 });
+    }
+  }
+  synchronizeOpenContractFeedback(pending);
+  const openDigest = digest(pending.feedbackLedger.filter((item) => item.status === "open").map((item) => item.id).sort());
+  const previous = pending.convergence;
+  pending.convergence = {
+    openDigest,
+    identicalOpenRounds: previous?.openDigest === openDigest ? previous.identicalOpenRounds + 1 : 1,
+    lastRound: pending.round,
+  };
+}
+
+function assertContractFeedbackProgress(pending) {
+  need((pending.convergence?.identicalOpenRounds ?? 0) < acceptancePolicy.maxStalledContractReviews,
+    `contract feedback made no progress for ${pending.convergence?.identicalOpenRounds} identical reviews; human decision required`);
+}
+
 // Checkpoints contain the raw agent response before validation/publication. A
 // restart replays it instead of paying for another opinion or repair cycle.
 export async function contractStage(state, ops) {
   const pending = state.contractPending ??= { round: 0 };
+  initializeContractFeedback(pending);
+  assertContractFeedbackProgress(pending);
   const sources = await ops.sources();
   if (!pending.proposal) {
     // Legacy interrupted proposals reserved a round before calling the model.
@@ -281,10 +383,12 @@ export async function contractStage(state, ops) {
   }
   try { validateContract(pending.proposal, sources); }
   catch (error) {
-    pending.feedback = [error.message]; delete pending.feedbackDetails; delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
+    recordContractRejection(pending, [{ message: error.message, sourceSpanIds: [] }]);
+    delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;
     delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.groupCitationFormat; delete pending.legacyGroupIndexes; delete pending.step;
     delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
+    assertContractFeedbackProgress(pending);
     need(pending.round < contractRoundLimit(state), "contract validation limit reached; human decision required");
     return;
   }
@@ -293,17 +397,24 @@ export async function contractStage(state, ops) {
     await ops.save(state);
   }
   if (pending.review.approved !== true || pending.review.missingRequirements?.length) {
-    pending.feedback = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
-    pending.feedbackDetails = verifierFeedbackDetails(pending.review, sources);
+    const messages = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
+    const structured = verifierFeedbackDetails(pending.review, sources);
+    recordContractRejection(pending, messages.map((message) => structured.find((item) => item.message === message) ?? { message, sourceSpanIds: [] }));
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
     delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.groupCitationFormat; delete pending.legacyGroupIndexes; delete pending.step;
     delete pending.reconciliation; delete pending.reconciliationDraftDigest; delete pending.reconciliationSourceDigest; delete pending.assemblyAttempts;
     await ops.save(state);
+    assertContractFeedbackProgress(pending);
     need(pending.round < contractRoundLimit(state), "contract verification limit reached; human decision required");
     return;
   }
+  for (const item of pending.feedbackLedger.filter((entry) => entry.status === "open")) {
+    item.status = "addressed";
+    item.addressedRound = pending.round;
+  }
   const candidate = structuredClone(state);
   acceptContract(candidate, pending.proposal, sources, pending.review, await ops.head());
+  candidate.acceptance.contractFeedbackLedger = structuredClone(pending.feedbackLedger);
   await ops.publish(candidate.acceptance);
   state.acceptance = candidate.acceptance;
   state.phase = state.contractReturnPhase ?? "plan";

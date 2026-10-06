@@ -202,16 +202,27 @@ test("repair manifests cannot invent IDs, omit a defect or defer a review repair
   assert.throws(() => previewRecovery(s, { action: "defer", summary: "Missing prerequisite", ticketPaths: [s.tickets[0].path], dependency: "docs/tasks/owner.md" }), /cannot be deferred/);
 });
 
-test("contract phase blocks implementation until an independent check passes, with twelve attempts", async () => {
+test("contract phase blocks implementation until an independent check passes and stops stalled feedback early", async () => {
   const s = { id: "test", phase: "contract" }; let proposals = 0, reviews = 0;
   const ops = { sources: async () => sources, head: async () => head, save: noOp, publish: noOp, propose: async () => { proposals++; return proposal(); }, verify: async () => { reviews++; return reviews === 1 ? { approved: false, summary: "Missing scope detail", missingRequirements: ["Clarify platform owner"] } : approval; } };
   await contractStage(s, ops); assert.equal(s.phase, "contract"); assert.equal(s.acceptance, undefined);
   await contractStage(s, ops); assert.equal(s.phase, "plan"); assert.equal(proposals, 2); assert.equal(reviews, 2);
   const blocked = { id: "test", phase: "contract" };
   const reject = { ...ops, verify: async () => ({ approved: false, summary: "Still missing", missingRequirements: ["Mandatory requirement"] }) };
-  for (let round = 0; round < 11; round++) await contractStage(blocked, reject);
-  await assert.rejects(contractStage(blocked, reject), /contract verification limit/);
+  await contractStage(blocked, reject);
+  await contractStage(blocked, reject);
+  await assert.rejects(contractStage(blocked, reject), /contract feedback made no progress/);
+  assert.equal(blocked.contractPending.round, 3);
   assert.equal(blocked.acceptance, undefined); assert.equal(blocked.phase, "contract");
+
+  const changing = { id: "changing", phase: "contract" }; let finding = 0;
+  const rejectChanging = { ...ops, verify: async () => {
+    const message = `Mandatory requirement ${++finding}`;
+    return { approved: false, summary: message, missingRequirements: [message] };
+  } };
+  for (let round = 0; round < 11; round++) await contractStage(changing, rejectChanging);
+  await assert.rejects(contractStage(changing, rejectChanging), /contract verification limit/);
+  assert.equal(changing.acceptance, undefined); assert.equal(changing.phase, "contract");
 });
 
 test("contract publication interruption replays saved decisions without another model call", async () => {

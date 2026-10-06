@@ -16,6 +16,8 @@ import { buildContractDraft } from "./contract-draft.mjs";
 import { contractSourceCatalog, feedbackForGroup } from "./contract-feedback.mjs";
 import { planContractGroups, buildGroupedContractDraft, withContractGroupRecoveryAdvice } from "./contract-groups.mjs";
 import { assemblyCommandRules, reconcileContractDraft } from "./contract-reconcile.mjs";
+import { groupContractPromptGuidance, reconciliationContractPromptGuidance, verifierContractPromptGuidance } from "./contract-prompts.mjs";
+import { resolveContractSources } from "./contract-sources.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
@@ -248,19 +250,36 @@ async function contractSubstage(state, pending, name, run) {
   }
 }
 async function contract(sandbox, state) {
+  let sourceResolution;
   await contractStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
-    sources: async () => ({ [state.specPath]: state.spec, "AGENTS.md": await readFile(resolve(sandbox.worktreePath, "AGENTS.md"), "utf8") }),
+    sources: async () => {
+      sourceResolution = await resolveContractSources({
+        root,
+        worktree: sandbox.worktreePath,
+        specPath: state.specPath,
+        spec: state.spec,
+      });
+      const pending = state.contractPending;
+      if (pending.sourceManifest && pending.sourceManifest.digest !== sourceResolution.manifest.digest) {
+        throw new Error("Acceptance contract source manifest changed during drafting; human decision required");
+      }
+      if (!pending.sourceManifest) {
+        pending.sourceManifest = sourceResolution.manifest;
+        await save(state);
+      }
+      return sourceResolution.sources;
+    },
     propose: async (sources, feedback, pending) => {
       const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, withContractGroupRecoveryAdvice([
-        `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Read referenced documents and ADRs only as needed to understand these requirements. Do not edit files. Return schema JSON.`,
-        part.sourceSpans ? "For every criterion, select sourceSpanId from this group's assigned sourceSpans. Do not provide source.path or source.quote; the controller inserts the exact source text. A requirement spanning groups belongs in full-source reconciliation." : "For every criterion, quote only the supplied source sections verbatim in source.path and source.quote.",
-        "Preserve all requirements in this part, including baseline behavior, production seams, checks, evidence, deferral owners and AGENTS.md isolation. Do not invent or omit obligations. Use completionScope=implementation only if the originating task permits later integration/native/platform acceptance pending. Mandatory current criteria need executable checks or explicit external blockers. Missing runners and environments are blockers, not passing evidence.",
-        "Assigned independent verifier feedback is binding. Keep implementation readiness separate from full acceptance in EVERY part: do not require completion of all 34 canonical obligations, late B caller results, or the full native/platform matrix for current readiness. Keep the owned obligations mandatory, but mark their later caller and platform evidence deferred with exact owners. Do not contradict another part's deferred requirement by making the same outcome current.",
-        "For SV-B-011, explicitly define the later FILE_END/Lua replacement result: refresh Guide metadata and viewer caches, reopen replaced content, show stale content is gone, and attach evidence to SV-B-008 obligations. For Guide topic-search failures, inspect the cited baseline and specify strict/chapter/basic retry order, final failure behavior, and per-field byte boundaries. For Guide layout, include 3840×2160 at 200% and determine whether approved UX requires a readable wrapped projection; if this needs later native evidence, preserve it as deferred rather than claiming no-wrap is sufficient.",
-        "Use short IDs unique within this part. Include both baseline checks EXACTLY as supplied. Add feature-specific checks using only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller will prefix IDs and merge all saved parts before independent full-source verification.",
+        `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Informational documents may clarify ownership or terminology but cannot introduce obligations outside the fixed authoritative source set. Do not edit files. Return schema JSON.`,
+        ...groupContractPromptGuidance({ usesSourceSpans: Boolean(part.sourceSpans) }),
+        "Assigned independent verifier feedback is cumulative and binding. Address every supplied item without dropping earlier corrections.",
+        "Feature-specific checks may use only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller prefixes IDs and merges all saved parts before independent verification.",
         JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks,
-          feedback: part.sourceSpans ? feedbackForGroup(pending, part) : feedback }, null, 2),
+          feedback: part.sourceSpans ? feedbackForGroup(pending, part) : feedback,
+          sourceManifest: sourceResolution.manifest,
+          informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
       ].join("\n\n"), state, index), part.sourceSpans ? ".sandcastle/contract-group-output.schema.json" : ".sandcastle/contract-output.schema.json");
       let draft;
       if (pending.parts || pending.partSourceDigest) {
@@ -275,17 +294,20 @@ async function contract(sandbox, state) {
         draft = await contractSubstage(state, pending, "parallel", () => buildGroupedContractDraft(pending, parts, plan, proposePart, () => save(state)));
       }
       return contractSubstage(state, pending, "assemble", () => reconcileContractDraft(pending, draft, sources, (proposal, lastError) => inspect(sandbox, state, "acceptance contract reconciliation", [
-        "Assemble the parallel subtask contracts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Read the original sources and relevant referenced policies. Do not edit files. Return only a focused patch using the output schema: set completionScope to null when unchanged or to the corrected scope, replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
+        "Assemble the parallel subtask contracts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Use only the fixed authoritative source set for obligations; informational documents may clarify ownership but cannot expand scope. Do not edit files. Return only a focused patch using the output schema: set completionScope to null when unchanged or to the corrected scope, replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
         assemblyCommandRules,
-        "Address EVERY saved verifier finding explicitly. Distinguish production implementation readiness from deferred native and later-caller evidence. The wrapped Guide article projection is current production behavior; only native visual evidence is deferred. Connected server-directed Guide opening remains owned by SV-B-008, not SV-B-020. An unterminated or oversized Receive_Guide wire field must disconnect with protocol error and no partial Guide publication. Align viewer, checksum and update on the same U/TomeNET-Guide.txt override. Cover concurrent edits and provider/read/write/replace failures. Guide source lines are lossless, not subject to the typed editor 80-byte limit; distinguish typed rejection from permitted paste/macro prefix shortening. Require executable evidence for A regressions instead of treating a no-op baseline invocation as proof. Preserve all canonical obligations and the independent final review gate.",
-        JSON.stringify({ sources, proposal, verifierFeedback: feedback }, null, 2),
+        ...reconciliationContractPromptGuidance(),
+        JSON.stringify({ sources, proposal, verifierFeedback: feedback, sourceManifest: sourceResolution.manifest,
+          informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
         lastError ? `Previous reconciliation patch was rejected. Repair this exact validation error without dropping obligations: ${lastError}` : "",
         guidanceFor(state, { phase: "contract", substage: "assemble" }),
       ].filter(Boolean).join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
     },
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
-      "Independently compare the proposed acceptance contract against EVERY obligation in the originating spec and AGENTS.md. Read relevant referenced documents and ADRs. You did not create this contract. Do not edit files. Return approved=true only if all requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions/unsupported deferrals in missingRequirements. For each missingRequirement, add one findings entry with the identical message and sourceSpanIds: cite exact IDs for one local source area, multiple IDs for a cross-area issue, or [] when provenance is uncertain/global. Contract criteria must be testable; mandatory behavior cannot be relabeled optional polish. Full acceptance cannot be inferred from headless checks.",
-      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal }, null, 2),
+      "Independently compare the proposed acceptance contract against every obligation in the fixed authoritative source set. You did not create this contract. Do not edit files. Return approved=true only if requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions and unsupported deferrals in missingRequirements; each finding must use the identical message and authoritative sourceSpanIds.",
+      ...verifierContractPromptGuidance(),
+      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal, sourceManifest: sourceResolution.manifest,
+        informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
     ].join("\n\n"), ".sandcastle/contract-review-output.schema.json")),
     publish: async (accepted) => {
       await mkdir(resolve(sandbox.worktreePath, taskDir(state)), { recursive: true });
