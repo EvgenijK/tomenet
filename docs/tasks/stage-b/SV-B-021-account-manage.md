@@ -1,7 +1,8 @@
 # SV-B-021 — Создание аккаунта
 
-Статус: implementation-ready for review; build/core прошли 2026-10-06,
-controlled-peer, Linux/Windows native и SV-B-025 downstream acceptance deferred.
+Статус: implementation-ready for review; build/core и current P1-10
+controlled-peer production-path acceptance прошли 2026-10-06. Deferred остаются
+только Linux/Windows native и SV-B-025 downstream acceptance.
 
 ## Пользовательский результат
 
@@ -62,9 +63,26 @@ Core прошёл `sv_contact_checks.py`, `sv_endpoint_checks.py`,
 `sv_login_checks.py`, `sv_login_live_checks.py`,
 `sv_first_session_checks.py`, `sv_account_create_checks.py`,
 `sv_account_failure_checks.py`, `sv_vault_checks.py` и остальные перечисленные
-runner checks. Managed test peers и dummy/software rendering являются
-автоматизированным branch evidence; они не заменяют external review,
-controlled-peer checkpoint или native platform acceptance.
+runner checks. Managed loopback peers обеих account suites являются accepted
+production-path evidence для current P1-10; dummy/software rendering и provider
+doubles не заменяют Linux или Windows native acceptance.
+
+### Current P1-10 controlled-peer acceptance — passed
+
+Focused results ticket 10 и повторная проверка implementation record от
+2026-10-06 подтверждают обе production-path suites:
+
+| Suite | Команда | Результат и покрытие |
+|---|---|---|
+| Account creation | `python3 -B tests/sv_account_create_checks.py` | **pass**, exit 0; success, cancellation, credential error handling и fragmented protocol input через managed loopback peer. |
+| Account failures | `python3 -B tests/sv_account_failure_checks.py` | **pass**, exit 0; rejection, cancellation, malformed/error, partial disconnect и fresh-generation retry через managed loopback peers. |
+
+Это current обязательство P1-10, принятое на implementation gate. Suites входят
+в `P1-account-create` и вызывают публичный
+`sv_endpoint_run(SvEndpointOptions)`, production `sv_contact_*` / `sv_login_*`,
+authoritative pregame seams и production vault lifecycle. Они покрывают success,
+rejection, cancellation, error handling и fragmented input без отдельного
+test-only account flow.
 
 ### Карта production seams
 
@@ -140,9 +158,8 @@ External review checks `P1-implementation-review`,
 
 | Check | Status | Причина | Owner |
 |---|---|---|---|
-| `P1-controlled-peer-runtime` | **deferred; not run** | `Requires a controlled-peer runtime environment; no allowed executable controlled-peer runner was supplied for this checkpoint.` Иными словами, нет разрешённого executable controlled-peer runner для checkpoint. Требуются success, rejection, cancel, error и fragmentation через production path; local managed test peers не являются этим acceptance. | SV-B-021 controlled-peer verification owner |
-| `P1-linux-native-runtime` | **deferred; not run** | `Requires the Linux native input and credential-provider environment.` Dummy/software, branch coverage и provider doubles не являются native acceptance. | SV-B-021 Linux native-path verification owner |
-| `P1-windows-native-runtime` | **deferred; not run** | `Requires the Windows native input and credential-provider environment.` Wine, cross-build или branch coverage не являются Windows native acceptance. | SV-B-021 Windows native-path verification owner |
-| `P1-entry-complete-integration` | **deferred; not run** | `Downstream integration evidence belongs to SV-B-025 after SV-B-021 acceptance.` | SV-B-025 owner |
+| `P1-linux-native` | **deferred; not run** | Requires Linux native input and credential-provider runtime evidence that is unavailable at the implementation gate. | `SV-B-021` |
+| `P1-windows-native` | **deferred; not run** | Requires Windows native input and credential-provider runtime evidence that is unavailable at the implementation gate. | `SV-B-021` |
+| `P1-entry-integration` | **deferred; not run** | This is downstream integration evidence owned by the later SV-B-025 entry-completion task. | `SV-B-025` |
 
 [SV-B-025](SV-B-025-entry-complete.md) этим handoff не изменён и не закрыт.
