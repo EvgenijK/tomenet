@@ -54,12 +54,7 @@
       "properties": {
         "id": { "type": "string" },
         "kind": { "type": "string", "enum": ["build", "core", "command", "external"] },
-        "command": {
-          "oneOf": [
-            { "type": "string" },
-            { "type": "array", "minItems": 1, "items": { "type": "string" } }
-          ]
-        },
+        "command": { "type": "string" },
         "description": { "type": "string" }
       }
     }

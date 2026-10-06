@@ -111,10 +111,6 @@ The fixed automated set always includes the exact SV Make build and core
 checks, plus production feature checks needed by current mandatory criteria.
 Focused command checks can invoke `python3 -B tests/<file> [args]`,
 `node tests/<file> [args]` or `bash tests/<file> [args]`, without shell operators.
-The referenced runner script must already exist when the contract is accepted.
-When one required check needs several repository tests, its `command` is a
-non-empty array of those forms; the controller runs every entry in order and
-stops on the first failure, without a pass-through wrapper.
 An applicable required check without a runner/environment blocks closure; an
 agent cannot substitute its statement for a controller-executed check. The
 controller records check ID, result, log, contract digest and exact code HEAD.

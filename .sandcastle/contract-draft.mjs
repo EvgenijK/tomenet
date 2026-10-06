@@ -63,7 +63,7 @@ export function combineContractParts(parts, responses, { allowMixedScopes = fals
         if (!previous) { baseline.set(check.id, check); contract.checks.push(check); }
         mapped.set(check.id, check.id);
       } else {
-        const commandKey = check.kind === "command" ? JSON.stringify(check.command) : undefined;
+        const commandKey = check.kind === "command" ? check.command : undefined;
         const id = commandKey && commandIds.has(commandKey) ? commandIds.get(commandKey) : `P${index + 1}-${check.id}`;
         mapped.set(check.id, id);
         if (!commandKey || !commandIds.has(commandKey)) contract.checks.push({ ...check, id });
