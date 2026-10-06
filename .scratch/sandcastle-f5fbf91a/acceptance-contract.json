@@ -5,83 +5,15 @@
     "criteria": [
       {
         "id": "P1-1",
-        "requirement": "SV-B-021 integration requires SV-B-002 contact handling, SV-B-005 credential-vault support, and SV-B-006 login behavior.",
+        "requirement": "A valid unused account name and password follow the server's new-account handling; server-side account flags, validation, and resulting overview remain authoritative.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
+        "owner": "",
         "checkIds": [
+          "P1-account-create",
           "sv-build",
-          "sv-core",
-          "P1-implementation-review"
-        ],
-        "source": {
-          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
-          "quote": "[SV-B-005](SV-B-005-vault.md) и [SV-B-006](SV-B-006-login.md)."
-        }
-      },
-      {
-        "id": "P1-2",
-        "requirement": "SV-B-021 excludes password changes and account-information management; those capabilities remain assigned to Stage C.",
-        "mandatory": true,
-        "applicability": "current",
-        "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
-        "checkIds": [
-          "sv-core",
-          "P1-implementation-review"
-        ],
-        "source": {
-          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
-          "quote": "Смена пароля и account information перенесены в C."
-        }
-      },
-      {
-        "id": "P1-3",
-        "requirement": "Account creation uses the native private input fields and the production protocol path.",
-        "mandatory": true,
-        "applicability": "current",
-        "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
-        "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-production-path-review"
-        ],
-        "source": {
-          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
-          "quote": "Игрок создаёт новый аккаунт через те же native private fields и production"
-        }
-      },
-      {
-        "id": "P1-4",
-        "requirement": "Only a server response may confirm account creation and open the resulting overview; no optimistic or client-only transition may expose the overview.",
-        "mandatory": true,
-        "applicability": "current",
-        "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
-        "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-state-review"
-        ],
-        "source": {
-          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
-          "quote": "protocol path; только server response подтверждает создание и открывает overview."
-        }
-      },
-      {
-        "id": "P1-5",
-        "requirement": "A valid unused account name and password follow authoritative server new-account handling, including server account flags and validation, with the resulting overview remaining server-authoritative.",
-        "mandatory": true,
-        "applicability": "current",
-        "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
-        "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-protocol-review",
-          "P1-state-review"
+          "sv-core"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -89,16 +21,44 @@
         }
       },
       {
-        "id": "P1-6",
-        "requirement": "The production serializer emits the exact new-account request bytes for every supported version branch.",
+        "id": "P1-2",
+        "requirement": "Account creation uses the established native private credential fields.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
+        "owner": "",
         "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-protocol-review"
+          "P1-account-create"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "Игрок создаёт новый аккаунт через те же native private fields и production"
+        }
+      },
+      {
+        "id": "P1-3",
+        "requirement": "Account creation uses the production protocol path, and only a confirming server response marks creation successful and opens the overview.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "protocol path; только server response подтверждает создание и открывает overview."
+        }
+      },
+      {
+        "id": "P1-4",
+        "requirement": "The production serializer emits the exact new-account request bytes for every supported protocol-version branch.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -106,33 +66,44 @@
         }
       },
       {
-        "id": "P1-7",
-        "requirement": "The account-creation fields reuse the accepted-input and private-field semantics without introducing a second implementation of those field semantics.",
+        "id": "P1-5",
+        "requirement": "The account fields reuse the accepted input and private-field semantics without introducing a second implementation of those semantics.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
+        ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
           "quote": "поля переиспользуют accepted input/private semantics без второй реализации."
-        },
-        "mandatory": true,
-        "applicability": "current",
-        "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
-        "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-production-path-review"
-        ]
+        }
       },
       {
-        "id": "P1-8",
-        "requirement": "Used or invalid names, bad passwords, account-flag rejection, disconnect, and retry preserve the correct parent state and never show the overview before server confirmation.",
+        "id": "P1-6",
+        "requirement": "Used or invalid account names, bad passwords, account-flag rejection, disconnect, and retry are handled by the production account-creation flow.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
+        "owner": "",
         "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-state-review"
+          "P1-account-create"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "2. Used/invalid name, bad password, account flag rejection, disconnect и retry"
+        }
+      },
+      {
+        "id": "P1-7",
+        "requirement": "Rejection, disconnect, and retry preserve the correct parent state and never expose the overview before server confirmation.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -140,16 +111,29 @@
         }
       },
       {
-        "id": "P1-9",
-        "requirement": "After successful authentication, credential persistence follows the approved save policy; provider failure remains explicit and session-only.",
+        "id": "P1-8",
+        "requirement": "After successful authentication, credentials are saved only through the approved credential-save policy.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "SV-B-021 implementation owner",
+        "owner": "",
         "checkIds": [
-          "sv-build",
-          "sv-core",
-          "P1-credential-policy-review"
+          "P1-account-create"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "3. Successful authentication выполняет approved credential save policy; provider"
+        }
+      },
+      {
+        "id": "P1-9",
+        "requirement": "Credential-provider failure remains an explicit session-only state.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -158,13 +142,13 @@
       },
       {
         "id": "P1-10",
-        "requirement": "Controlled-peer runtime evidence covers success, rejection, cancellation, error handling, and fragmented protocol delivery through the production path.",
+        "requirement": "A controlled-peer production-path test covers success, rejection, cancellation, error handling, and fragmented protocol input.",
         "mandatory": true,
-        "applicability": "deferred",
-        "deferralReason": "Requires a controlled-peer runtime environment; no allowed executable controlled-peer runner was supplied for this checkpoint.",
-        "owner": "SV-B-021 controlled-peer verification owner",
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
         "checkIds": [
-          "P1-controlled-peer-runtime"
+          "P1-account-create"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -173,13 +157,13 @@
       },
       {
         "id": "P1-11",
-        "requirement": "Linux runtime evidence verifies the native private-input and credential-provider paths.",
+        "requirement": "The Linux native-input and credential-provider paths are verified in their native environment.",
         "mandatory": true,
         "applicability": "deferred",
-        "deferralReason": "Requires the Linux native input and credential-provider environment.",
-        "owner": "SV-B-021 Linux native-path verification owner",
+        "deferralReason": "Requires Linux native input and credential-provider runtime evidence that is unavailable at the implementation gate.",
+        "owner": "SV-B-021",
         "checkIds": [
-          "P1-linux-native-runtime"
+          "P1-linux-native"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -188,13 +172,13 @@
       },
       {
         "id": "P1-12",
-        "requirement": "Windows runtime evidence verifies the native private-input and credential-provider paths.",
+        "requirement": "The Windows native-input and credential-provider paths are verified in their native environment.",
         "mandatory": true,
         "applicability": "deferred",
-        "deferralReason": "Requires the Windows native input and credential-provider environment.",
-        "owner": "SV-B-021 Windows native-path verification owner",
+        "deferralReason": "Requires Windows native input and credential-provider runtime evidence that is unavailable at the implementation gate.",
+        "owner": "SV-B-021",
         "checkIds": [
-          "P1-windows-native-runtime"
+          "P1-windows-native"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -203,13 +187,13 @@
       },
       {
         "id": "P1-13",
-        "requirement": "The accepted SV-B-021 result is incorporated into SV-B-025 entry-completeness verification.",
+        "requirement": "The completed account-creation result is incorporated into SV-B-025 entry-completion acceptance.",
         "mandatory": true,
         "applicability": "deferred",
-        "deferralReason": "Downstream integration evidence belongs to SV-B-025 after SV-B-021 acceptance.",
-        "owner": "SV-B-025 owner",
+        "deferralReason": "This is downstream integration evidence owned by the later SV-B-025 entry-completion task.",
+        "owner": "SV-B-025",
         "checkIds": [
-          "P1-entry-complete-integration"
+          "P1-entry-integration"
         ],
         "source": {
           "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
@@ -217,16 +201,63 @@
         }
       },
       {
-        "id": "P2-1",
-        "requirement": "The change minimizes modifications to the existing client and shared files, and places implementation and adaptation in SV wherever practicable.",
+        "id": "P1-14",
+        "requirement": "Account creation retains its declared dependency on SV-B-002 contact behavior.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
         "owner": "",
         "checkIds": [
           "sv-build",
-          "sv-core",
-          "P2-isolation-review"
+          "sv-core"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "Зависит от [SV-B-002](SV-B-002-contact.md),"
+        }
+      },
+      {
+        "id": "P1-15",
+        "requirement": "Account creation retains its declared dependencies on SV-B-005 vault behavior and SV-B-006 login behavior.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create",
+          "sv-build",
+          "sv-core"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "[SV-B-005](SV-B-005-vault.md) и [SV-B-006](SV-B-006-login.md)."
+        }
+      },
+      {
+        "id": "P1-16",
+        "requirement": "Password changes and account-information functionality remain outside this implementation and deferred to stage C.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "P1-account-create"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-021-account-manage.md",
+          "quote": "Смена пароля и account information перенесены в C."
+        }
+      },
+      {
+        "id": "P2-AC1",
+        "requirement": "Changes to the existing client and shared files are minimized for the SV implementation.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "implementation",
+        "checkIds": [
+          "sv-build",
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -234,31 +265,63 @@
         }
       },
       {
-        "id": "P2-2",
-        "requirement": "Implementation duplication is permitted when it preserves SV isolation or avoids importing a large dependency set; shared code is extracted only when the current task requires it, not solely to remove duplication.",
+        "id": "P2-AC2",
+        "requirement": "Implementation and adaptation are placed within SV wherever possible.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-isolation-review"
+          "sv-build",
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
-          "quote": "размещать в SV. Дублирование реализации допустимо, если оно позволяет сохранить"
+          "quote": "существующего клиента и общих файлов. Реализацию и адаптацию по возможности"
         }
       },
       {
-        "id": "P2-3",
-        "requirement": "The port preserves the behavior baseline's protocol and gameplay semantics.",
+        "id": "P2-AC3",
+        "requirement": "Implementation may be duplicated when doing so preserves SV isolation and avoids importing a large dependency set.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
           "sv-build",
-          "sv-core",
-          "P2-behavior-review"
+          "sv-core"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "изоляцию и не подключать большой набор зависимостей. Общий код выделять, когда"
+        }
+      },
+      {
+        "id": "P2-AC4",
+        "requirement": "Shared code is extracted only when required by the current task, not solely to eliminate duplication.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "implementation",
+        "checkIds": [
+          "sv-build",
+          "sv-core"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "это нужно для текущей задачи, а не только ради устранения дублирования."
+        }
+      },
+      {
+        "id": "P2-AC5",
+        "requirement": "The port preserves the protocol and gameplay semantics of the behavior baseline.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "implementation",
+        "checkIds": [
+          "sv-build",
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -266,15 +329,15 @@
         }
       },
       {
-        "id": "P2-4",
-        "requirement": "Tests exercise the production SV path. A local SV implementation is acceptable, but a separate behavior implementation used only by tests is not.",
+        "id": "P2-AC6",
+        "requirement": "Tests exercise the production SV path; a local SV implementation is permitted, but a separate behavior implementation used only by tests is not.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "sv-core",
-          "P2-production-seam-review"
+          "sv-build",
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -282,29 +345,29 @@
         }
       },
       {
-        "id": "P2-5",
-        "requirement": "Any opportunities discovered during this work to improve legacy code, shared modules, or SV organization are recorded separately in docs/sv-improvements.md rather than implemented as part of the current feature.",
+        "id": "P2-AC7",
+        "requirement": "Any opportunities discovered to improve legacy code, shared modules, or SV organization are recorded in docs/sv-improvements.md separately from implementation of the current feature.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-improvements-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
-          "quote": "Обнаруженные возможности улучшить legacy, общие модули или организацию SV"
+          "quote": "записывать в [список улучшений](docs/sv-improvements.md), отдельно от реализации"
         }
       },
       {
-        "id": "P2-6",
-        "requirement": "Each improvement entry created for this work states the problem, affected code, proposal, status, and required checks.",
+        "id": "P2-AC8",
+        "requirement": "Each recorded improvement identifies the problem and affected code.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-improvements-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -312,15 +375,14 @@
         }
       },
       {
-        "id": "P2-7",
-        "requirement": "An improvement-list entry does not expand the current task's implementation scope, and intentional duplication used for isolation is not treated by itself as a defect or a mandatory future merge.",
+        "id": "P2-AC9",
+        "requirement": "Each recorded improvement includes a proposal, status, and required checks; recording it does not add that improvement to the current task.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-isolation-review",
-          "P2-improvements-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -328,14 +390,30 @@
         }
       },
       {
-        "id": "P2-8",
-        "requirement": "Where older project documentation requires a shared SV/legacy implementation, this repository policy takes precedence.",
+        "id": "P2-AC10",
+        "requirement": "Intentional duplication used to preserve isolation is not treated by itself as a defect or as an obligation to consolidate later.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-policy-precedence-review"
+          "sv-core"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "само по себе дефектом или обязательством последующего объединения."
+        }
+      },
+      {
+        "id": "P2-AC11",
+        "requirement": "The repository SV isolation rule takes precedence over earlier project-document wording that requires a shared SV and legacy implementation.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "implementation",
+        "checkIds": [
+          "sv-build",
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -343,14 +421,14 @@
         }
       },
       {
-        "id": "P2-9",
-        "requirement": "If tasks are created, triaged, or reviewed during this work, local Markdown is used: Wayfinder artifacts go in .scratch/ and SV implementation tickets go in docs/tasks/, with repository path and status rules followed.",
+        "id": "P2-AC12",
+        "requirement": "If tasks are created, triaged, or reviewed during this work, local Markdown is used: Wayfinder items are kept in .scratch/, SV implementation tickets are kept in docs/tasks/, and the documented path and status rules are followed.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-workflow-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -358,14 +436,14 @@
         }
       },
       {
-        "id": "P2-10",
-        "requirement": "If triage is performed during this work, it uses the five standard roles, records labels in a separate Labels: field, and follows the repository role mapping.",
+        "id": "P2-AC13",
+        "requirement": "If triage is performed during this work, it uses the five standard roles and a separate Labels field according to the documented role mapping.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-workflow-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -373,14 +451,14 @@
         }
       },
       {
-        "id": "P2-11",
-        "requirement": "Before working with domain terminology or architecture, the root CONTEXT.md and task-relevant ADRs are read, and the repository's single-context layout rules are followed.",
+        "id": "P2-AC14",
+        "requirement": "Before working with domain terminology or architecture, the root CONTEXT.md, task-relevant ADRs, and the single-context layout rules are read and followed.",
         "mandatory": true,
         "applicability": "current",
         "deferralReason": "",
-        "owner": "",
+        "owner": "implementation",
         "checkIds": [
-          "P2-domain-doc-review"
+          "sv-core"
         ],
         "source": {
           "path": "AGENTS.md",
@@ -402,107 +480,35 @@
         "description": "Sandcastle core checks"
       },
       {
-        "id": "P1-implementation-review",
-        "kind": "external",
-        "command": "",
-        "description": "External blocker: no allowed executable feature runner was supplied; review SV-B-021 dependency use and Stage C scope boundaries."
+        "id": "P1-account-create",
+        "kind": "command",
+        "command": "python3 -B tests/test_sv_account_create.py",
+        "description": "SV account-creation production-path and controlled-peer feature checks"
       },
       {
-        "id": "P1-production-path-review",
+        "id": "P1-linux-native",
         "kind": "external",
         "command": "",
-        "description": "External blocker: no allowed executable feature runner was supplied; verify native private fields, accepted-input semantics, SV isolation, and the production SV serializer path."
+        "description": "Linux native-input and credential-provider runtime verification"
       },
       {
-        "id": "P1-protocol-review",
+        "id": "P1-windows-native",
         "kind": "external",
         "command": "",
-        "description": "External blocker: no allowed executable feature runner was supplied; verify exact request bytes and every supported version branch against authoritative server handling."
+        "description": "Windows native-input and credential-provider runtime verification"
       },
       {
-        "id": "P1-state-review",
+        "id": "P1-entry-integration",
         "kind": "external",
         "command": "",
-        "description": "External blocker: no allowed executable feature runner was supplied; verify server-authoritative overview transitions and all specified rejection, disconnect, and retry states."
-      },
-      {
-        "id": "P1-credential-policy-review",
-        "kind": "external",
-        "command": "",
-        "description": "External blocker: no allowed executable feature runner was supplied; verify approved credential saving and explicit session-only provider failure."
-      },
-      {
-        "id": "P1-controlled-peer-runtime",
-        "kind": "external",
-        "command": "",
-        "description": "Run controlled-peer production-path scenarios for success, rejection, cancellation, errors, and fragmentation."
-      },
-      {
-        "id": "P1-linux-native-runtime",
-        "kind": "external",
-        "command": "",
-        "description": "Verify Linux native private-input and credential-provider paths."
-      },
-      {
-        "id": "P1-windows-native-runtime",
-        "kind": "external",
-        "command": "",
-        "description": "Verify Windows native private-input and credential-provider paths."
-      },
-      {
-        "id": "P1-entry-complete-integration",
-        "kind": "external",
-        "command": "",
-        "description": "Verify incorporation of the accepted account-creation result into SV-B-025."
-      },
-      {
-        "id": "P2-isolation-review",
-        "kind": "external",
-        "command": "",
-        "description": "Repository diff review confirms minimal legacy/shared-file changes, SV-local placement where practicable, and justified dependency or sharing decisions."
-      },
-      {
-        "id": "P2-behavior-review",
-        "kind": "external",
-        "command": "",
-        "description": "Behavior-baseline evidence confirms protocol and gameplay semantics remain unchanged."
-      },
-      {
-        "id": "P2-production-seam-review",
-        "kind": "external",
-        "command": "",
-        "description": "Test and production-path review confirms tests invoke the production SV implementation and no test-only behavior implementation exists."
-      },
-      {
-        "id": "P2-improvements-review",
-        "kind": "external",
-        "command": "",
-        "description": "Review discovered improvement opportunities and any corresponding docs/sv-improvements.md entries for separation, required fields, and scope containment."
-      },
-      {
-        "id": "P2-policy-precedence-review",
-        "kind": "external",
-        "command": "",
-        "description": "Documentation and implementation review confirms this SV isolation policy prevailed over conflicting older shared-implementation guidance."
-      },
-      {
-        "id": "P2-workflow-review",
-        "kind": "external",
-        "command": "",
-        "description": "Review any task-management or triage artifacts created by the work for the required locations, statuses, roles, and separate Labels: field."
-      },
-      {
-        "id": "P2-domain-doc-review",
-        "kind": "external",
-        "command": "",
-        "description": "Confirm the root CONTEXT.md and relevant ADRs were read before domain or architecture work and that applicable single-context layout rules were followed."
+        "description": "SV-B-025 downstream entry-completion integration evidence"
       }
     ]
   },
-  "digest": "dc89901dab16ec439be2ccf4486bcf33c56b362971321862fa6a6c172f423ab2",
+  "digest": "e706e7e1a96fefbddcf8bd3f0d9ac43f5e9e5d5bc2e9516c66f7ac9bc2b32223",
   "verification": {
     "approved": true,
-    "summary": "The proposal represents all authoritative requirements, production-path obligations, SV isolation boundaries, Stage C exclusions, and downstream SV-B-025 integration. Mandatory behavior is associated with checks, while controlled-peer and platform-native runtime evidence remains explicitly deferred rather than treated as passing; each deferral has a specific owner.",
+    "summary": "The proposal accurately represents the authoritative requirements, production SV path, scope boundaries, and dependencies. Runtime-native Linux/Windows evidence is explicitly deferred to SV-B-021, while downstream integration is owned by SV-B-025; neither is treated as passing evidence. Baseline checks are referenced without being redefined.",
     "missingRequirements": [],
     "findings": []
   }
