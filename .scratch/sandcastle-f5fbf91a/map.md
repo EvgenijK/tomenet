@@ -21,4 +21,6 @@ server-authoritative protocol и gameplay semantics, approved credential policy,
 - [Согласовать account-create acceptance check с production suites](issues/08-reconcile-account-create-acceptance-check.md)
 - [Проверить восстановленные account-create gates на assembled HEAD](issues/09-verify-recovered-account-create-gates.md)
 - [Verify focused production coverage](issues/10-focused-test-coverage.md)
+- [Вернуть change set SV-B-021 в account scope](issues/11-return-sv-b021-to-account-scope.md)
+- [Зафиксировать current controlled-peer acceptance](issues/12-record-controlled-peer-acceptance.md)
 - [Восстановить индекс и metadata Wayfinder effort](issues/13-restore-wayfinder-effort-index.md)

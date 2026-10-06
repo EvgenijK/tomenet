@@ -71,3 +71,9 @@ Focused verification:
 Linux native, Windows native или SV-B-025 integration claims не сделано. Новых
 opportunities для `docs/sv-improvements.md` в scope metadata repair не
 обнаружено.
+
+## Comments
+
+При wave 10 assembly tickets 11 и 12 также вошли со статусом `resolved` и
+сохранёнными `## Answer`, поэтому их ссылки добавлены в `Decisions so far`.
+Исходный Answer выше сохраняет состояние отдельной worker branch до assembly.
