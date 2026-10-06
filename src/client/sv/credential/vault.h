@@ -7,7 +7,8 @@
 #define SV_VAULT_SECRET_CAPACITY 79
 #define SV_VAULT_KEY_CAPACITY 512
 typedef enum { SV_VAULT_PENDING, SV_VAULT_FOUND, SV_VAULT_MISSING,
-               SV_VAULT_UNAVAILABLE, SV_VAULT_INVALID, SV_VAULT_SAVED } SvVaultResult;
+               SV_VAULT_UNAVAILABLE, SV_VAULT_LOCKED, SV_VAULT_REFUSED,
+               SV_VAULT_INVALID, SV_VAULT_ERROR, SV_VAULT_SAVED } SvVaultResult;
 typedef struct SvVaultRequest SvVaultRequest;
 
 /* Identity uses original address/account bytes. The printable key is a

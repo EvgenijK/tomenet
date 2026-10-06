@@ -46,12 +46,14 @@ with tempfile.TemporaryDirectory(prefix="sv-b021-") as temp:
         cwd=ROOT,
         check=True,
     )
-    subprocess.run(
-        [str(binary), str(profile), str(ROOT / "lib")],
-        cwd=ROOT,
-        env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
-                 ASAN_OPTIONS="detect_leaks=0"),
-        check=True,
-        timeout=15,
-    )
+    for result in ("saved", "unavailable", "locked", "refused", "invalid", "error",
+                   "pending", "retry"):
+        subprocess.run(
+            [str(binary), str(profile), str(ROOT / "lib"), result],
+            cwd=ROOT,
+            env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
+                     ASAN_OPTIONS="detect_leaks=0"),
+            check=True,
+            timeout=15,
+        )
 print("SV-B-021 new-account production flow passed")
