@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, requiredChecks, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -102,6 +102,16 @@ test("contract rejects missing baseline, fabricated sources, invalid mappings an
     const c = proposal(); mutate(c); assert.throws(() => validateContract(c, sources));
   }
   assert.throws(() => acceptContract({}, proposal(), sources, { ...approval, missingRequirements: ["Cancellation omitted"] }, head));
+});
+
+test("implementation contracts reject mandatory current external checks without a runner", () => {
+  const contract = proposal();
+  assert.doesNotMatch(requiredChecks(contract).map((check) => check.id).join(" "), /native/);
+  contract.criteria[0].checkIds = ["feature", "native"];
+  assert.throws(
+    () => validateContract(contract, sources),
+    /implementation current mandatory criterion AC-1 cannot require external check native/,
+  );
 });
 
 test("contract is immutable and silent mutation cannot weaken the closure gate", () => {

@@ -46,7 +46,14 @@ export function validateContract(contract, sources) {
     need(typeof criterion.owner === "string" && typeof criterion.deferralReason === "string", "owner/reason fields required");
     if (criterion.applicability === "deferred") {
       need(contract.completionScope === "implementation" && text(criterion.owner) && text(criterion.deferralReason), "full acceptance cannot defer required criteria");
-    } else need(criterion.deferralReason === "", "current criteria cannot carry a deferral");
+    } else {
+      need(criterion.deferralReason === "", "current criteria cannot carry a deferral");
+      if (contract.completionScope === "implementation" && criterion.mandatory) {
+        for (const id of criterion.checkIds) {
+          need(checks.get(id).kind !== "external", `implementation current mandatory criterion ${criterion.id} cannot require external check ${id}`);
+        }
+      }
+    }
   }
   need(contract.criteria.some((item) => item.mandatory && item.applicability === "current"), "at least one current mandatory criterion required");
   return contract;
