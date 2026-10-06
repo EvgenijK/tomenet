@@ -28,3 +28,4 @@ server-authoritative protocol и gameplay semantics, approved credential policy,
 - [Индексировать последний resolved Wayfinder child](issues/15-index-latest-resolved-wayfinder-child.md)
 - [Канонизировать причины contact rejection](issues/16-canonicalize-contact-rejection-reasons.md)
 - [Объединить terminal transitions pregame](issues/17-unify-pregame-terminal-transitions.md)
+- [Проверить focused production coverage после repairs](issues/18-focused-test-coverage.md)
