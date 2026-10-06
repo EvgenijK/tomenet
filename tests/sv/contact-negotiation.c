@@ -3,6 +3,59 @@
 #include <stdio.h>
 #include <string.h>
 
+static void contact_and_verify_bytes_are_exact_and_atomic(void)
+{
+    SvContactIdentity identity = {.real_name = "PLAYER", .account = "test",
+                                  .host_name = "localhost", .password = "pw"};
+    static const unsigned char modern_contact[] = {
+        0,0,0x30,0x39, 'P','L','A','Y','E','R',0, 0,0, 0xff,
+        'T','e','s','t',0, 'l','o','c','a','l','h','o','s','t',0, 0xff,0xff,
+        0,0,0,4, 0,0,0,9, 0,0,0,4, 0,0,0,0, 0,0,0,0,
+        0x17,0xf6,0x08,0x80
+    };
+    static const unsigned char old_contact[] = {
+        0,0,0x30,0x39, 'P','L','A','Y','E','R',0, 0,0, 0xff,
+        'T','e','s','t',0, 'l','o','c','a','l','h','o','s','t',0, 0x49,0x40
+    };
+    static const unsigned char modern_reply[] = {255,0, 0,0,0,0, 0,0,0,2,
+        0,0,0,4, 0,0,0,9, 0,0,0,4, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+    static const unsigned char old_reply[] = {255,0, 0,0,0,0, 0,0,0,0};
+    static const unsigned char modern_verify[] = {
+        1, 'P','L','A','Y','E','R',0, 'T','e','s','t',0, 'Z',']',0
+    };
+    static const unsigned char old_verify[] = {
+        1, 'P','L','A','Y','E','R',0, 'T','e','s','t',0, 'p','w',0
+    };
+    const unsigned char *contacts[] = {old_contact, modern_contact};
+    const size_t contact_sizes[] = {sizeof(old_contact), sizeof(modern_contact)};
+    const unsigned char *replies[] = {old_reply, modern_reply};
+    const size_t reply_sizes[] = {sizeof(old_reply), sizeof(modern_reply)};
+    const unsigned char *verifies[] = {old_verify, modern_verify};
+    const size_t verify_sizes[] = {sizeof(old_verify), sizeof(modern_verify)};
+    for (int protocol = 1; protocol <= 2; ++protocol) {
+        unsigned char output[SV_CONTACT_OUTPUT_CAPACITY] = {0xa5};
+        SvContact *contact = sv_contact_create(protocol, &identity);
+        assert(contact);
+        SvOutput sent = sv_contact_take_output(contact, output,
+                                                contact_sizes[protocol - 1] - 1);
+        assert(sent.result == SV_OUTPUT_TOO_SMALL &&
+               sent.size == contact_sizes[protocol - 1] && output[0] == 0xa5);
+        sent = sv_contact_take_output(contact, output, sizeof(output));
+        assert(sent.result == SV_OK && sent.size == contact_sizes[protocol - 1]);
+        assert(!memcmp(output, contacts[protocol - 1], sent.size));
+        assert(sv_contact_receive(contact, replies[protocol - 1],
+                                  reply_sizes[protocol - 1]) == SV_OK);
+        memset(output, 0xa5, sizeof(output));
+        sent = sv_contact_take_output(contact, output, verify_sizes[protocol - 1] - 1);
+        assert(sent.result == SV_OUTPUT_TOO_SMALL &&
+               sent.size == verify_sizes[protocol - 1] && output[0] == 0xa5);
+        sent = sv_contact_take_output(contact, output, sizeof(output));
+        assert(sent.result == SV_OK && sent.size == verify_sizes[protocol - 1]);
+        assert(!memcmp(output, verifies[protocol - 1], sent.size));
+        sv_contact_destroy(contact);
+    }
+}
+
 static void split_negotiation_reaches_setup(void)
 {
     SvContactIdentity identity = {.real_name = "PLAYER", .account = "Test",
@@ -178,6 +231,7 @@ static void older_server_uses_pre_trait_setup_layout(void)
 }
 
 int main(void) {
+    contact_and_verify_bytes_are_exact_and_atomic();
     split_negotiation_reaches_setup();
     rejected_contact_never_sends_verify();
     raw_password_bytes_reach_verify_unchanged_before_protocol_xor();

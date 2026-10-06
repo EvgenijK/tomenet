@@ -61,10 +61,13 @@ static bool publish_overview(SvPregame *pregame, const SvLogin *login,
     const uint32_t *flags = sv_login_flags(login);
     bool changed = pregame->character_count != count ||
         memcmp(pregame->characters, characters, sizeof(characters)) ||
-        memcmp(pregame->server_flags, flags, sizeof(pregame->server_flags));
+        memcmp(pregame->server_flags, flags, sizeof(pregame->server_flags)) ||
+        pregame->creation_flags != setup->creation_flags || !pregame->authenticated;
     pregame->character_count = count;
     memcpy(pregame->characters, characters, sizeof(characters));
     memcpy(pregame->server_flags, flags, sizeof(pregame->server_flags));
+    pregame->creation_flags = setup->creation_flags;
+    pregame->authenticated = true;
     return changed;
 }
 

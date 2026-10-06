@@ -15,6 +15,10 @@ int main(void)
     SvLogin *login = sv_login_create(modern, iaddr);
     assert(login);
     unsigned char output[128];
+    memset(output, 0xa5, sizeof(output));
+    SvOutput short_output = sv_login_take_output(login, output, 7);
+    assert(short_output.result == SV_OUTPUT_TOO_SMALL && short_output.size == 8 &&
+           output[0] == 0xa5);
     SvOutput sent = sv_login_take_output(login, output, sizeof(output));
     assert(sent.result == SV_OK && sent.size == 8 && output[0] == PKT_LOGIN && !output[1]);
     assert(!memcmp(output + 2, iaddr, 6));
@@ -64,6 +68,10 @@ int main(void)
 
     const int old[6] = {4, 4, 9, 2, 0, 0};
     login = sv_login_create(old, iaddr);
+    memset(output, 0xa5, sizeof(output));
+    short_output = sv_login_take_output(login, output, 1);
+    assert(short_output.result == SV_OUTPUT_TOO_SMALL && short_output.size == 2 &&
+           output[0] == 0xa5);
     sent = sv_login_take_output(login, output, sizeof(output));
     assert(sent.result == SV_OK && sent.size == 2);
     static const unsigned char rejected[] = {PKT_QUIT, 'W','r','o','n','g',0};
