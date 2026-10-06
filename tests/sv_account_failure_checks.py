@@ -54,13 +54,25 @@ with tempfile.TemporaryDirectory(prefix="sv-b021-failure-") as temp:
         DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b021-no-service",
         ASAN_OPTIONS="detect_leaks=0",
     )
+    rejection_statuses = {
+        "contact-reject": (7, "Server rejected contact: invalid account name. Escape exits."),
+        "bad-password": (5, "Server rejected contact: invalid password. Escape exits."),
+        "server-reject": (2, "Server rejected contact: game is full. Escape exits."),
+    }
     for mode in ("contact-reject", "bad-password", "server-reject", "login-reject",
                  "malformed", "disconnect", "retry", "cancel-password", "cancel-account"):
-        subprocess.run(
+        completed = subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
             env=environment,
             check=True,
             timeout=15,
+            capture_output=mode in rejection_statuses,
+            text=mode in rejection_statuses,
         )
+        if mode in rejection_statuses:
+            code, status = rejection_statuses[mode]
+            failure = next(line for line in completed.stderr.splitlines()
+                           if line.startswith("SV contact failed:"))
+            assert failure == f"SV contact failed: {status} (status={code})", completed.stderr
 print("SV-B-021 account-creation failure checks passed")

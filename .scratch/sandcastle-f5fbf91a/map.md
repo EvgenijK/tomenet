@@ -24,3 +24,4 @@ server-authoritative protocol и gameplay semantics, approved credential policy,
 - [Вернуть change set SV-B-021 в account scope](issues/11-return-sv-b021-to-account-scope.md)
 - [Зафиксировать current controlled-peer acceptance](issues/12-record-controlled-peer-acceptance.md)
 - [Восстановить индекс и metadata Wayfinder effort](issues/13-restore-wayfinder-effort-index.md)
+- [Канонизировать причины contact rejection](issues/16-canonicalize-contact-rejection-reasons.md)

@@ -57,43 +57,6 @@ done:
     return outcome;
 }
 
-static const char *contact_status(SvSocketState state, unsigned rejection)
-{
-    switch (state) {
-    case SV_SOCKET_RESOLVING: return "Resolving server address...";
-    case SV_SOCKET_CONNECTING: return "Connecting to server...";
-    case SV_SOCKET_NEGOTIATING: return "Negotiating version and setup...";
-    case SV_SOCKET_READY: return "Contact established; waiting for account overview.";
-    case SV_SOCKET_DNS_ERROR: return "Cannot resolve server address. R retries; Escape exits.";
-    case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. R retries; Escape exits.";
-    case SV_SOCKET_TIMEOUT: return "Server timed out. R retries; Escape exits.";
-    case SV_SOCKET_CLOSED: return "Server closed the connection. R retries; Escape exits.";
-    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. R retries; Escape exits.";
-    case SV_SOCKET_REJECTED:
-        switch (rejection) {
-        case E_VERSION_OLD: return "Server rejected contact: client version too old. Escape exits.";
-        case E_VERSION_UNKNOWN: return "Server rejected contact: incompatible version. Escape exits.";
-        case E_GAME_FULL: return "Server rejected contact: game is full. Escape exits.";
-        case E_TWO_PLAYERS: return "Server rejected contact: another character is online. Escape exits.";
-        case E_PASSWORD: return "Server rejected contact: invalid password. Escape exits.";
-        case E_IN_USE_DUP: return "Server rejected contact: duplicate login. Escape exits.";
-        case E_LETTER: return "Server rejected contact: invalid account name. Escape exits.";
-        case E_IN_USE: return "Server rejected contact: account in use from another address. Escape exits.";
-        case E_SOCKET: return "Server rejected contact: server socket error. Escape exits.";
-        case E_INVAL: return "Server rejected contact: invalid identity. Escape exits.";
-        case E_INVITE: return "Server rejected contact: members only. Escape exits.";
-        case E_BANNED: return "Server rejected contact: temporarily banned. Escape exits.";
-        case E_LENGTH: return "Server rejected contact: account name too short. Escape exits.";
-        case E_IN_USE_PC: return "Server rejected contact: account in use on this PC. Escape exits.";
-        case E_CLOSED: return "Server rejected contact: server closing. Escape exits.";
-        }
-        return "Server rejected contact. Escape exits.";
-    case SV_SOCKET_VERIFY_ERROR: return "Verification failed. R retries; Escape exits.";
-    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. R retries; Escape exits.";
-    }
-    return "Contact stopped.";
-}
-
 static const char *contact_rejection_reason(unsigned rejection)
 {
     switch (rejection) {
@@ -114,6 +77,29 @@ static const char *contact_rejection_reason(unsigned rejection)
     case E_CLOSED: return "Server rejected contact: server closing.";
     }
     return "Server rejected contact.";
+}
+
+static const char *contact_status(SvSocketState state, unsigned rejection,
+                                  char *status, size_t status_size)
+{
+    switch (state) {
+    case SV_SOCKET_RESOLVING: return "Resolving server address...";
+    case SV_SOCKET_CONNECTING: return "Connecting to server...";
+    case SV_SOCKET_NEGOTIATING: return "Negotiating version and setup...";
+    case SV_SOCKET_READY: return "Contact established; waiting for account overview.";
+    case SV_SOCKET_DNS_ERROR: return "Cannot resolve server address. R retries; Escape exits.";
+    case SV_SOCKET_CONNECT_ERROR: return "Cannot open server socket. R retries; Escape exits.";
+    case SV_SOCKET_TIMEOUT: return "Server timed out. R retries; Escape exits.";
+    case SV_SOCKET_CLOSED: return "Server closed the connection. R retries; Escape exits.";
+    case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. R retries; Escape exits.";
+    case SV_SOCKET_REJECTED:
+        SDL_snprintf(status, status_size, "%s Escape exits.",
+                     contact_rejection_reason(rejection));
+        return status;
+    case SV_SOCKET_VERIFY_ERROR: return "Verification failed. R retries; Escape exits.";
+    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. R retries; Escape exits.";
+    }
+    return "Contact stopped.";
 }
 
 typedef struct {
@@ -314,9 +300,13 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                         handoff_reported = true;
                     }
                 }
-            } else input->contact_status = contact_status(state, rejection);
+            } else input->contact_status = contact_status(state, rejection,
+                                                           failure_status,
+                                                           sizeof(failure_status));
         } else input->contact_status = session_error != SV_OK ?
-            sv_result_text(session_error) : contact_status(state, rejection);
+            sv_result_text(session_error) : contact_status(state, rejection,
+                                                           failure_status,
+                                                           sizeof(failure_status));
         if (state == SV_SOCKET_READY && pregame.authenticated && !save_started) {
             char key[SV_VAULT_KEY_CAPACITY];
             save_started = true;
