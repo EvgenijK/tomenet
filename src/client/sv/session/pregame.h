@@ -30,8 +30,9 @@ typedef struct {
     SvPregamePhase phase;
     SvPregameCharacter characters[SV_LOGIN_MAX_CHARACTERS];
     size_t character_count;
+    bool authenticated;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
-    uint32_t server_flags[4];
+    uint32_t server_flags[4], creation_flags;
     unsigned char motd[SV_CONTACT_MOTD_CAPACITY + 1];
     size_t motd_size;
     char reason[256];

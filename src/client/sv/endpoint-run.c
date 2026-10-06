@@ -164,12 +164,20 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
     return SV_SOCKET_READY;
 }
 
-static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome)
+static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome,
+                            bool save_started, bool credential_saved)
 {
     if (!pregame || !outcome) return;
     *outcome = (SvEndpointOutcome){.generation = pregame->generation,
                                    .revision = pregame->revision,
-                                   .phase = pregame->phase};
+                                   .phase = pregame->phase,
+                                   .authenticated = pregame->authenticated,
+                                   .character_count = pregame->character_count,
+                                   .creation_flags = pregame->creation_flags,
+                                   .credential_save_started = save_started,
+                                   .credential_saved = credential_saved};
+    memcpy(outcome->server_flags, pregame->server_flags,
+           sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
            sizeof(outcome->selected_character));
 }
@@ -209,7 +217,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     unsigned rejection = 0;
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
-    bool save_started = false, save_failed = false, selected_reported = false;
+    bool save_started = false, credential_saved = false, save_failed = false;
+    bool selected_reported = false;
     bool handoff_reported = false;
     const char *save_message = NULL;
     char failure_status[384] = {0};
@@ -280,8 +289,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             } else input->contact_status = contact_status(state, rejection);
         } else input->contact_status = session_error != SV_OK ?
             sv_result_text(session_error) : contact_status(state, rejection);
-        if (state == SV_SOCKET_READY && login &&
-            sv_login_state(login) >= SV_LOGIN_OVERVIEW && !save_started) {
+        if (state == SV_SOCKET_READY && pregame.authenticated && !save_started) {
             char key[SV_VAULT_KEY_CAPACITY];
             save_started = true;
             if (sv_vault_key(key, endpoint->host, strlen(endpoint->host), endpoint->port,
@@ -295,7 +303,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         }
         if (save) {
             SvVaultResult saved = sv_vault_poll(&save, generation, NULL, 0, NULL);
-            if (saved == SV_VAULT_SAVED) save_message = "Account confirmed. Password saved; choose a character.";
+            if (saved == SV_VAULT_SAVED) {
+                credential_saved = true;
+                save_message = "Account confirmed. Password saved; choose a character.";
+            }
             else if (saved != SV_VAULT_PENDING) {
                 save_failed = true;
                 save_message = "Account confirmed. Password not saved; choose a character.";
@@ -374,7 +385,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
-    publish_outcome(&pregame, options.outcome);
+    publish_outcome(&pregame, options.outcome, save_started, credential_saved);
     sv_contact_socket_stop(connection);
     sv_vault_cancel(&save);
     sv_login_destroy(login);

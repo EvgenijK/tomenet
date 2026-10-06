@@ -22,8 +22,42 @@ static SvLogin *overview(void)
     return login;
 }
 
+static void new_account_overview_is_published_atomically(void)
+{
+    static const int version[6] = {4,9,4,0,0,0};
+    static const unsigned char iaddr[6] = {0xf4,0x43,1,2,3,4};
+    static const unsigned char reply[] = {
+        PKT_SERVERDETAILS, 0x10,0x20,0x30,0x40, 0,0,0,3,
+        0,0,0,2, 0,0,0,1,
+        PKT_LOGIN, 0,0, 0, 0, 0,0, 0,0, 0,0, 0
+    };
+    SvContactSetup setup = {.creation_flags = 0x01020304};
+    SvLogin *login = sv_login_create(version, iaddr);
+    unsigned char output[32];
+    assert(login && sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+    SvPregame pregame;
+    sv_pregame_begin(&pregame, 11);
+    assert(sv_pregame_contact_ready(&pregame, 11) == SV_OK);
+
+    for (size_t i = 0; i + 1 < sizeof(reply); ++i) {
+        assert(sv_login_receive(login, reply + i, 1) == SV_OK);
+        assert(sv_pregame_sync_login(&pregame, 11, login, &setup, false) == SV_OK);
+        assert(pregame.phase == SV_PREGAME_AUTHENTICATING);
+        assert(!pregame.authenticated && !pregame.character_count);
+        assert(!pregame.creation_flags && !pregame.server_flags[0]);
+    }
+    assert(sv_login_receive(login, reply + sizeof(reply) - 1, 1) == SV_OK);
+    assert(sv_pregame_sync_login(&pregame, 11, login, &setup, false) == SV_OK);
+    assert(pregame.phase == SV_PREGAME_OVERVIEW && pregame.authenticated);
+    assert(!pregame.character_count && pregame.creation_flags == 0x01020304);
+    assert(pregame.server_flags[0] == 0x10203040 && pregame.server_flags[1] == 3 &&
+           pregame.server_flags[2] == 2 && pregame.server_flags[3] == 1);
+    sv_login_destroy(login);
+}
+
 int main(void)
 {
+    new_account_overview_is_published_atomically();
     SvContactSetup setup = {0};
     setup.race_count = setup.class_count = 1;
     strcpy(setup.races[0].title, "Human");

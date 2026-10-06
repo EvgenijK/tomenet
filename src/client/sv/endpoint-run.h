@@ -12,6 +12,10 @@ typedef bool (*SvEndpointPoll)(void *context, SvEndpoint *endpoint, bool *failed
 typedef struct {
     uint64_t generation, revision;
     SvPregamePhase phase;
+    bool authenticated;
+    size_t character_count;
+    uint32_t server_flags[4], creation_flags;
+    bool credential_save_started, credential_saved;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
 } SvEndpointOutcome;
 typedef struct {
