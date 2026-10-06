@@ -6,10 +6,9 @@ export async function runAcceptanceCheck(sandbox, check, execute) {
     ? await readFile(resolve(sandbox.worktreePath, ".sandcastle/checks.sh"), "utf8")
     : undefined;
   if (!Array.isArray(check.command)) return execute(sandbox, check.command, script);
-  const commands = check.command;
   const outputs = [];
   let result;
-  for (const command of commands) {
+  for (const command of check.command) {
     result = await execute(sandbox, command, script);
     outputs.push(result.output ?? "");
     if (!result.ok) break;

@@ -390,7 +390,10 @@ export async function contractStage(state, ops) {
     delete pending.proposalInFlight;
     await ops.save(state);
   }
-  try { validateContract(pending.proposal, sources); }
+  try {
+    validateContract(pending.proposal, sources);
+    await ops.validateRunners?.(pending.proposal);
+  }
   catch (error) {
     recordContractRejection(pending, [{ message: error.message, sourceSpanIds: [] }]);
     delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;

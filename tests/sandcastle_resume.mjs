@@ -102,6 +102,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_RESUME;
   delete env.SANDCASTLE_REPAIR_RESUME;
   delete env.SANDCASTLE_CONTRACT_AMEND_RESUME;
+  delete env.SANDCASTLE_CONTRACT_COMMAND_REPAIR_RESUME;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ROUND;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
   try {
