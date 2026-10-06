@@ -502,3 +502,24 @@ DNS/connect work off the main thread.
 **Required checks:** cancel during DNS and connect, rapid rejection/exit,
 retry with a fresh generation, repeated endpoint startup/shutdown under
 ASan/UBSan, and Linux/Windows socket cleanup.
+
+## Remove the obsolete common `atol` declaration
+
+**Status:** proposed separately; observed while building the final SV-B-021
+implementation and not changed by the account-creation work.
+
+**Problem:** `src/common/h-system.h` declares `extern long atol();` without a
+prototype. Current Clang diagnoses it as deprecated and conflicting with the
+standard-library declaration whenever affected common sources are compiled.
+
+**Affected code:** `src/common/h-system.h` and legacy/common translation units
+that include it, including `src/common/sockbuf.c`, `z-util.c`, `z-form.c` and
+`z-virt.c` in the SV build.
+
+**Proposal:** remove the redundant declaration or replace it through the
+project's portability-header policy, without changing numeric parsing behavior.
+Keep this legacy/shared cleanup separate from SV-B-021.
+
+**Required checks:** Linux SV and legacy builds with strict Clang warnings,
+the supported GCC build, MinGW i686 build, and focused parsing regressions for
+the legacy callers that use `atol`.

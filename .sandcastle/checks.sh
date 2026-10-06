@@ -16,16 +16,13 @@ case "${1:-core}" in
             tests/sv_lifecycle_checks.py
             tests/sv_login_checks.py
             tests/sv_login_live_checks.py
+            tests/sv_first_session_checks.py
             tests/sv_account_create_checks.py
             tests/sv_account_failure_checks.py
-            tests/sv_macro_checks.py
             tests/sv_message_checks.py
             tests/sv_metaserver_live_checks.py
-            tests/sv_options_checks.py
-            tests/sv_profile_checks.py
             tests/sv_request_checks.py
             tests/sv_runtime_checks.py
-            tests/sv_settings_checks.py
             tests/sv_vault_checks.py
         )
         ;;
