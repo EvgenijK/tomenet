@@ -26,3 +26,4 @@ server-authoritative protocol и gameplay semantics, approved credential policy,
 - [Восстановить индекс и metadata Wayfinder effort](issues/13-restore-wayfinder-effort-index.md)
 - [Verify focused production coverage](issues/14-focused-test-coverage.md)
 - [Индексировать последний resolved Wayfinder child](issues/15-index-latest-resolved-wayfinder-child.md)
+- [Канонизировать причины contact rejection](issues/16-canonicalize-contact-rejection-reasons.md)
