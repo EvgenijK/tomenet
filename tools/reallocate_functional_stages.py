@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically migrate the native ledger to functional stages C001-C059."""
+"""Deterministically migrate the native ledger to functional stages C001-C064."""
 
 import argparse
 import copy
@@ -13,25 +13,105 @@ DEFAULT_LEDGER = ROOT / 'docs/capabilities/native-coverage.json'
 DEFAULT_STAGES = ROOT / 'docs/capabilities/stages.json'
 
 DEFAULT_STAGE_BY_BLOCK = {
-    'account': 'C037', 'admin': 'C040', 'alerts': 'C045', 'audio': 'C050',
-    'birth': 'C039', 'character': 'C038', 'chat': 'C027',
-    'clipboard': 'C041', 'combat': 'C025', 'configuration': 'C051',
-    'credentials': 'C036', 'direction': 'C019', 'documents': 'C030',
-    'exports': 'C028', 'files': 'C003', 'fonts': 'C006', 'guide': 'C057',
-    'housing': 'C032', 'imports': 'C046', 'information': 'C029',
-    'input': 'C005', 'items': 'C021', 'lua': 'C053', 'macros': 'C049',
-    'map': 'C015', 'messages': 'C016', 'network': 'C008', 'options': 'C044',
-    'os': 'C055', 'platform': 'C052', 'preferences': 'C004',
-    'rendering': 'C007', 'request': 'C017', 'screenshots': 'C056',
-    'server-flow': 'C034', 'session': 'C031', 'settings': 'C043',
-    'skills': 'C022', 'social': 'C042', 'special-store': 'C033',
-    'spells': 'C023', 'status': 'C012', 'store': 'C026', 'target': 'C018',
+    'account': 'C038', 'admin': 'C041', 'alerts': 'C050', 'audio': 'C055',
+    'birth': 'C040', 'character': 'C039', 'chat': 'C028',
+    'clipboard': 'C042', 'combat': 'C026', 'configuration': 'C056',
+    'credentials': 'C037', 'direction': 'C019', 'documents': 'C031',
+    'exports': 'C029', 'files': 'C003', 'fonts': 'C006', 'guide': 'C062',
+    'housing': 'C033', 'imports': 'C051', 'information': 'C030',
+    'input': 'C005', 'lua': 'C058', 'macros': 'C054',
+    'map': 'C015', 'messages': 'C016', 'network': 'C008',
+    'os': 'C060', 'platform': 'C057', 'preferences': 'C004',
+    'rendering': 'C007', 'request': 'C017', 'screenshots': 'C061',
+    'server-flow': 'C035', 'session': 'C032', 'settings': 'C044',
+    'skills': 'C023', 'social': 'C043', 'special-store': 'C034',
+    'spells': 'C024', 'status': 'C012', 'store': 'C027', 'target': 'C018',
     'transfer': 'C010', 'world': 'C020',
 }
 
 
 def capabilities(block, *names):
     return {f'capability.{block}.{name}' for name in names}
+
+
+ITEM_DATA = capabilities(
+    'items', 'read-inventory', 'read-equipment', 'read-bag', 'read-floor',
+    'select-slot', 'select-name', 'cancel-selection', 'toggle-selection-list',
+    'read-newest', 'assign-newest', 'server-item-answer', 'server-item-cancel',
+    'autoinscribe-on-update', 'details-read', 'details-navigate',
+    'details-search', 'details-close', 'close-inventory', 'paste-inventory',
+    'close-equipment', 'paste-equipment', 'close-bag', 'paste-bag')
+ITEM_ACTIONS = capabilities(
+    'items', 'pickup-accept', 'pickup-decline', 'drop', 'cancel-drop',
+    'drop-gold', 'cancel-drop-gold', 'wield', 'cancel-wield',
+    'wield-secondary', 'cancel-wield-secondary', 'take-off',
+    'cancel-take-off', 'swap', 'cancel-swap', 'destroy', 'cancel-destroy',
+    'inscribe', 'cancel-inscribe', 'uninscribe', 'cancel-uninscribe',
+    'autoinscribe-one', 'cancel-autoinscribe-one', 'quaff', 'cancel-quaff',
+    'read', 'cancel-read', 'aim-wand', 'cancel-aim-wand', 'use-staff',
+    'cancel-use-staff', 'zap-rod', 'cancel-zap-rod', 'refill',
+    'cancel-refill', 'eat', 'cancel-eat', 'cancel-activate', 'force-stack',
+    'cancel-force-stack', 'split-stack', 'cancel-split-stack', 'stow',
+    'cancel-stow', 'unstow', 'cancel-unstow', 'inspect', 'cancel-inspect',
+    'autoinscribe-all')
+OPTIONS_INPUT_MESSAGES_ALERTS = capabilities(
+    'options', 'rogue-like-commands', 'safe-macros', 'macros-in-stores',
+    'load-form-macros', 'item-error-beep', 'newbie-hints', 'censor-swearing',
+    'highlight-chat', 'limit-chat', 'no-afk-msg', 'time-stamp-chat',
+    'keep-topline', 'taciturn-messages', 'topline-no-msg', 'topline-first',
+    'add-kind-diz', 'hide-lore-paste', 'sunburn-msg', 'highbeep-chat',
+    'page-on-privmsg', 'page-on-afk-privmsg', 'alert-hitpoint', 'alert-mana',
+    'alert-afk-dam', 'alert-offpanel-dam', 'warn-unique-credit',
+    'allow-paging', 'ring-bell', 'alert-starvation', 'flash-insane',
+    'flash-starvation', 'uniques-alive')
+OPTIONS_HUD_LIGHTING = capabilities(
+    'options', 'exp-bar', 'linear-stats', 'exp-need', 'depth-in-feet',
+    'hp-bar', 'mp-bar', 'st-bar', 'mp-huge-bar', 'sn-huge-bar',
+    'hp-huge-bar', 'stun-huge-bar', 'st-huge-bar', 'solid-bars',
+    'huge-bars-gfx', 'colourize-bignum', 'overview-startup',
+    'font-map-solid-walls', 'view-animated-light', 'wall-lighting',
+    'view-lamp-walls', 'view-shade-walls', 'floor-lighting',
+    'view-lamp-floor', 'view-shade-floor', 'view-light-extra',
+    'view-perma-grids', 'view-torch-grids', 'view-reduce-light',
+    'view-reduce-view', 'permawalls-shade', 'no-light-fainting',
+    'hide-unusable-skills', 'always-show-lists', 'player-list', 'player-list2')
+OPTIONS_MAP_MOVEMENT_TARGET = capabilities(
+    'options', 'flash-player', 'highlight-player', 'basic-players-symb',
+    'basic-players-col', 'flash-player2', 'ascii-feats', 'ascii-items',
+    'ascii-monsters', 'ascii-uniques', 'gfx-autooff-fmsw',
+    'wide-scroll-margin', 'subterm-flicker', 'misc-no-flicker', 'no-flicker',
+    'no-weather', 'disable-lightning', 'palette-animation', 'ascii-weather',
+    'no2mask-weather', 'use-color', 'always-repeat', 'find-ignore-stairs',
+    'find-ignore-doors', 'find-cut', 'find-examine', 'disturb-move',
+    'disturb-near', 'disturb-panel', 'disturb-state', 'disturb-minor',
+    'disturb-other', 'disturb-see', 'find-ignore-montraps', 'easy-open',
+    'easy-disarm', 'easy-tunnel', 'easy-disarm-montraps', 'target-history',
+    'use-old-target', 'autooff-retaliator', 'fail-no-melee', 'auto-target',
+    'targetinfo-msg', 'new-retaliator')
+OPTIONS_ITEMS_SESSION = capabilities(
+    'options', 'show-weights', 'short-item-names', 'auto-untag', 'clear-inscr',
+    'auto-inscr-server', 'stack-force-notes', 'stack-force-costs',
+    'stack-allow-items', 'stack-allow-devices', 'always-pickup', 'auto-pickup',
+    'auto-destroy', 'destroy-all-unmatched', 'auto-inscr-off',
+    'autopickup-chemicals', 'auto-inscr-server-ch', 'autoinsc-debug',
+    'autoloot-dunonly', 'autoloot-dununown', 'show-newest',
+    'equip-text-colour', 'equip-set-colour', 'newb-suicide', 'auto-afk',
+    'idle-starve-kick', 'safe-float', 'live-timeouts', 'last-words',
+    'diz-unique', 'diz-death', 'diz-death-any', 'diz-first',
+    'no-verify-sell', 'no-verify-destroy', 'whole-ammo-stack',
+    'other-query-flag', 'id-selection', 'keep-bottle', 'autoswitch-inven',
+    'prefer-subinven', 'no-house-magic')
+OPTIONS_AUDIO_INTEGRATION = capabilities(
+    'options', 'audio-paging', 'paging-master-vol', 'paging-max-vol',
+    'no-ovl-close-sfx', 'ovl-sfx-attack', 'no-combat-sfx',
+    'no-magicattack-sfx', 'no-defense-sfx', 'half-sfx-attack',
+    'cut-sfx-attack', 'ovl-sfx-command', 'ovl-sfx-misc',
+    'ovl-sfx-mon-attack', 'ovl-sfx-mon-spell', 'ovl-sfx-mon-misc',
+    'no-monsterattack-sfx', 'positional-audio', 'no-house-sfx',
+    'quiet-house-sfx', 'mute-when-idle', 'shuffle-music', 'play-all',
+    'first-song', 'log-music', 'thin-down-flush', 'disable-flush',
+    'screenshot-format', 'quiet-os', 'clone-to-stdout', 'clone-to-file',
+    'wild-resume-from-any', 'tavern-town-resume')
 
 
 # Every non-default slice is an explicit set. Catalog count validation makes
@@ -47,15 +127,22 @@ STAGE_OVERRIDES = {
     'C013': capabilities('world', 'read-map'),
     'C014': capabilities('session', 'enter-game', 'reconnect',
                          'portal-relogin', 'quit'),
-    'C024': capabilities('items', 'activate', 'server-spell-answer',
+    'C021': ITEM_DATA,
+    'C022': ITEM_ACTIONS,
+    'C025': capabilities('items', 'activate', 'server-spell-answer',
                          'server-spell-cancel', 'use-selected',
                          'cancel-use-selected'),
-    'C035': capabilities('store', 'service'),
-    'C047': capabilities('preferences', 'macro-precedence'),
-    'C048': capabilities('input', 'macro-match', 'macro-wait', 'macro-xwait'),
-    'C054': capabilities('files', 'ins-shared'),
-    'C058': capabilities('files', 'bookmarks-load', 'bookmarks-save'),
-    'C059': capabilities('guide', 'bookmark-set', 'bookmark-open',
+    'C036': capabilities('store', 'service'),
+    'C045': OPTIONS_INPUT_MESSAGES_ALERTS,
+    'C046': OPTIONS_HUD_LIGHTING,
+    'C047': OPTIONS_MAP_MOVEMENT_TARGET,
+    'C048': OPTIONS_ITEMS_SESSION,
+    'C049': OPTIONS_AUDIO_INTEGRATION,
+    'C052': capabilities('preferences', 'macro-precedence'),
+    'C053': capabilities('input', 'macro-match', 'macro-wait', 'macro-xwait'),
+    'C059': capabilities('files', 'ins-shared'),
+    'C063': capabilities('files', 'bookmarks-load', 'bookmarks-save'),
+    'C064': capabilities('guide', 'bookmark-set', 'bookmark-open',
                          'bookmark-delete'),
 }
 EXPLICIT_STAGE_BY_CAPABILITY = {
@@ -154,10 +241,10 @@ def catalog_by_id(catalog):
             raise ValueError(f'duplicate stage order: {stage["order"]}')
         result[stage['id']] = stage
         orders.add(stage['order'])
-    expected = ['A', 'B'] + [f'C{number:03d}' for number in range(1, 60)]
+    expected = ['A', 'B'] + [f'C{number:03d}' for number in range(1, 65)]
     ordered = [stage['id'] for stage in sorted(entries, key=lambda item: item['order'])]
     if ordered != expected:
-        raise ValueError('stage catalog must order A, B and C001-C059 exactly')
+        raise ValueError('stage catalog must order A, B and C001-C064 exactly')
     return result
 
 
@@ -208,6 +295,8 @@ def reallocate(ledger, catalog, catalog_sha256):
             raise ValueError(
                 f'{identifier} has {counts[identifier]} outcomes, '
                 f'expected {stage["expectedOutcomeCount"]}')
+        if identifier.startswith('C') and counts[identifier] > 50:
+            raise ValueError(f'{identifier} exceeds the 50-outcome limit')
         if identifier.startswith('C') and blocks[identifier] != {stage['block']}:
             raise ValueError(
                 f'{identifier} has blocks {sorted(blocks[identifier])}, '

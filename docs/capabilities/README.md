@@ -19,8 +19,9 @@ input and network outcomes; see the [complete reconciliation](complete-reconcili
 The current registry contains 925 active outcomes, all pending, with no accepted
 native claims, plus one retained deprecated ID. Stages A=8 and B=54 remain
 frozen. The remaining 863 outcomes are allocated to the ordered functional
-stages C001–C059 in [`stages.json`](stages.json); each post-B stage owns exactly
-one capability namespace. The governing decision is
+stages C001–C064 in [`stages.json`](stages.json); each post-B stage owns exactly
+one capability namespace and no post-B stage owns more than 50 outcomes. The
+governing decision is
 [post-B functional reallocation](../../.scratch/single-window-sdl3-client/issues/38-reallocate-post-b-by-functional-block.md#answer).
 The counts below describe the historical ticket 07 slice.
 
@@ -125,8 +126,9 @@ acceptance stage, explicit prerequisite outcome IDs (possibly empty),
 source-backed version/build/platform/scope conditions, and nonempty source-backed
 evidence obligations with unique `obligation.*` IDs. Prerequisites must have an
 active allocation at the same or an earlier catalog stage, without cycles.
-A/B are frozen aggregate checkpoints; every C001–C059 stage contains exactly one
-functional block, while a block may continue in multiple stages. Obligations
+A/B are frozen aggregate checkpoints; every C001–C064 stage contains exactly one
+functional block and at most 50 outcomes, while a block may continue in multiple
+stages. Stage B's frozen 54 outcomes are the explicit legacy exception. Obligations
 express expected results; they are not test execution records.
 
 `implementation` is `pending`, `native` or `fallback`; each requires an explicit

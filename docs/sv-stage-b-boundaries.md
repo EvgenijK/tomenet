@@ -65,7 +65,7 @@ managed-peer evidence доказательством real-server behavior. То�
 prerequisites берутся только из финального canonical registry.
 
 Текущее распределение сохраняет **A8/B54** без изменений; остальные
-**863 outcomes** принадлежат C001–C059 из
+**863 outcomes** принадлежат C001–C064 из
 [функционального плана](sv-functional-stage-plan.md).
 B54 состоит из:
 

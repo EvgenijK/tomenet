@@ -11,6 +11,10 @@ B54, их ownership, prerequisites, specs и implementation tickets заморо
 не входят в миграцию. Перераспределению подлежат 863 active outcomes из 46
 post-B namespaces.
 
+Каждый новый post-B этап владеет не более чем 50 outcomes. Замороженный B54 —
+явное исключение и не перераспределяется. Поэтому крупные `items` и `options`
+реализуются несколькими последовательными slices одного блока.
+
 Новый этап может использовать infrastructure и regressions ранее завершённых
 блоков, но не владеть их outcomes. Cross-block milestones и итоговые проверки
 живут в `docs/tasks/verification/` и не являются acceptance stages.
@@ -64,6 +68,7 @@ order, block, title и lifecycle. Обновить coverage/evidence schemas и 
 - prerequisite/replacement order определяется explicit order, не сравнением
   строк;
 - post-B stage содержит ровно один block;
+- post-B stage содержит не более 50 outcomes;
 - A/B разрешены как замороженные historical aggregate stages;
 - ledger связывается с точной версией/digest каталога;
 - negative fixtures покрывают неизвестный stage, duplicate order, mixed block,
@@ -79,7 +84,8 @@ stage-dependent conditions/obligations. Не менять A/B rows и не по�
 `implementation` или `evidenceStatus` из-за самого планового переноса.
 
 Результат обязан сохранять полный denominator 925, manifest identity и history
-deprecated IDs. Каждый post-B stage имеет один block и ненулевой owned scope.
+deprecated IDs. Каждый post-B stage имеет один block, от 1 до 50 outcomes и
+ненулевой owned scope.
 
 ### SV-REALLOC-005 — semantic text sweep
 

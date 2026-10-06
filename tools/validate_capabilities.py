@@ -215,8 +215,12 @@ def validate_stage_catalog(ledger, stages, digest, report):
         report.error('stage-sequence', 'stage-catalog',
                      'Post-B stage IDs must be contiguous from C001')
     for identifier, stage in by_id.items():
-        if identifier.startswith('C') and stage['frozen']:
-            report.error('stage-sequence', identifier, 'Post-B stages cannot be frozen')
+        if identifier.startswith('C'):
+            if stage['frozen']:
+                report.error('stage-sequence', identifier, 'Post-B stages cannot be frozen')
+            if stage['expectedOutcomeCount'] > 50:
+                report.error('stage-size', identifier,
+                             'Post-B stages may own at most 50 outcomes')
     return {identifier: stage['order'] for identifier, stage in by_id.items()}
 
 

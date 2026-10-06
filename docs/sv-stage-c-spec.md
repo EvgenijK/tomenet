@@ -1,11 +1,11 @@
 # Этап C — real-server session и первый игровой экран TomeNET SV
 
 > Исторический snapshot, superseded 2026-10-06. Broad stage C заменён этапами
-> C001–C059 из [функционального плана](sv-functional-stage-plan.md); A/B не
+> C001–C064 из [функционального плана](sv-functional-stage-plan.md); A/B не
 > изменены. Этот документ больше не задаёт canonical allocation.
 
 Статус: historical high-level scope, 2026-10-05. Исторический scope:
-**615 outcomes широкого C**. Текущее распределение задают C001–C059.
+**615 outcomes широкого C**. Текущее распределение задают C001–C064.
 
 ## Цель
 

@@ -239,6 +239,32 @@ class RegistryChecks(unittest.TestCase):
         self.assertTrue(any(error['code'] == 'stage-block' and error['entity'] == 'C001'
                             for error in report['errors']), report)
 
+    def test_v3_post_b_stage_is_capped_at_50_outcomes(self):
+        catalog = json.loads(STAGES.read_text())
+        post_b = [stage for stage in catalog['stages'] if stage['id'].startswith('C')]
+        self.assertTrue(post_b)
+        self.assertLessEqual(max(stage['expectedOutcomeCount'] for stage in post_b), 50)
+        self.assertEqual(next(stage for stage in catalog['stages']
+                              if stage['id'] == 'B')['expectedOutcomeCount'], 54)
+
+        invalid = copy.deepcopy(catalog)
+        invalid['stages'][2]['expectedOutcomeCount'] = 51
+        manifest, ledger = self.canonical_data()
+        with tempfile.TemporaryDirectory(prefix='sv-stage-limit-') as directory:
+            path = Path(directory)
+            manifest_raw = (json.dumps(manifest, indent=2) + '\n').encode()
+            stages_raw = (json.dumps(invalid, indent=2) + '\n').encode()
+            (path / 'manifest.json').write_bytes(manifest_raw)
+            (path / 'stages.json').write_bytes(stages_raw)
+            ledger['manifestSha256'] = hashlib.sha256(manifest_raw).hexdigest()
+            ledger['stageCatalogSha256'] = hashlib.sha256(stages_raw).hexdigest()
+            (path / 'ledger.json').write_text(json.dumps(ledger))
+            code, report = self.run_validator(
+                path / 'manifest.json', path / 'ledger.json',
+                '--stages', path / 'stages.json')
+        self.assertEqual(code, 1, report)
+        self.assertIn('schema', {error['code'] for error in report['errors']}, report)
+
     def test_v3_rejects_legacy_and_zero_post_b_stage_ids(self):
         for stage in ('C', 'D', 'C000'):
             with self.subTest(stage=stage):

@@ -6,8 +6,8 @@
     "schemaVersion": { "const": 1 },
     "stages": {
       "type": "array",
-      "minItems": 61,
-      "maxItems": 61,
+      "minItems": 66,
+      "maxItems": 66,
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/stage" }
     }
@@ -38,6 +38,14 @@
         },
         "else": {
           "properties": { "block": { "not": { "const": "baseline" } }, "frozen": { "const": false } }
+        }
+      }, {
+        "if": {
+          "properties": { "id": { "pattern": "^C[0-9]{3}$" } },
+          "required": ["id"]
+        },
+        "then": {
+          "properties": { "expectedOutcomeCount": { "maximum": 50 } }
         }
       }]
     }

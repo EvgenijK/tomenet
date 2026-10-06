@@ -101,7 +101,7 @@ Original file SHA-256: `6727c5d0fb7b3dd8d7da8daa61cb48f36eb1afacfeaac50eba62e6ee
 ## Approved framework
 
 The A–G table below is the historical planning snapshot. Decision 38 keeps A/B
-unchanged and replaces its post-B rows with C001–C059 from
+unchanged and replaces its post-B rows with C001–C064 from
 [`stages.json`](stages.json). Dependencies needed by a capability arrive in an
 earlier functional stage; each post-B stage owns one block. HTML completeness
 does not block native work. Previously accepted capabilities receive regression

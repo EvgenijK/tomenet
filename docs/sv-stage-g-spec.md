@@ -1,7 +1,7 @@
 # Этап G — Guide и финальная приёмка TomeNET SV
 
 > Исторический snapshot, superseded 2026-10-06. Guide распределён по поздним
-> функциональным этапам C057–C059; broad G больше не является acceptance stage.
+> функциональным этапам C062–C064; broad G больше не является acceptance stage.
 > Актуальный порядок: [функциональный план](sv-functional-stage-plan.md).
 
 Статус: specified; реализация и runtime evidence не выполнены.

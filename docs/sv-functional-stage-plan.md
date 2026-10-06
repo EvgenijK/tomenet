@@ -1,7 +1,7 @@
 # План функциональных этапов SV после B
 
 2026-10-06. Этапы A (8 outcomes) и B (54 outcomes) заморожены. Новое
-разбиение C001–C059 применяется к 863 outcomes прежних C–G; полный denominator
+разбиение C001–C064 применяется к 863 outcomes прежних C–G; полный denominator
 остаётся равен 925. Machine-readable authority —
 [`capabilities/stages.json`](capabilities/stages.json), schema —
 [`capabilities/stages.schema.json`](capabilities/stages.schema.json).
@@ -37,46 +37,51 @@
 | C018 | `target` | 8 | Targeting и inspection |
 | C019 | `direction` | 6 | Direction selection |
 | C020 | `world` | 19 | World movement и interaction |
-| C021 | `items` | 71 | Inventory и ordinary item actions |
-| C022 | `skills` | 6 | Skills и abilities |
-| C023 | `spells` | 34 | Spells и special abilities |
-| C024 | `items` | 5 | Spell-dependent item actions |
-| C025 | `combat` | 11 | Combat actions |
-| C026 | `store` | 28 | Ordinary stores без `store.service` |
-| C027 | `chat` | 6 | Chat |
-| C028 | `exports` | 2 | Data export |
-| C029 | `information` | 43 | Information surfaces |
-| C030 | `documents` | 21 | Documents |
-| C031 | `session` | 8 | End-of-session flows |
-| C032 | `housing` | 11 | Housing |
-| C033 | `special-store` | 12 | Special-store presentation |
-| C034 | `server-flow` | 15 | Server-driven gameplay flows |
-| C035 | `store` | 1 | `store.service` |
-| C036 | `credentials` | 1 | Credential update |
-| C037 | `account` | 4 | Account management |
-| C038 | `character` | 5 | Character ordering |
-| C039 | `birth` | 2 | Birth DNA persistence |
-| C040 | `admin` | 46 | Administration |
-| C041 | `clipboard` | 4 | Clipboard |
-| C042 | `social` | 23 | Party, guild и hostility |
-| C043 | `settings` | 22 | Settings interface |
-| C044 | `options` | 184 | Game options |
-| C045 | `alerts` | 5 | Game alerts |
-| C046 | `imports` | 8 | Legacy import |
-| C047 | `preferences` | 1 | Macro preference precedence |
-| C048 | `input` | 3 | Macro input runtime |
-| C049 | `macros` | 35 | Macro management |
-| C050 | `audio` | 25 | Audio |
-| C051 | `configuration` | 34 | Editable client configuration |
-| C052 | `platform` | 5 | Optional platform capabilities |
-| C053 | `lua` | 1 | Local Lua execution |
-| C054 | `files` | 1 | Shared INS files |
-| C055 | `os` | 2 | OS integration |
-| C056 | `screenshots` | 3 | Screenshots |
-| C057 | `guide` | 14 | Guide core без bookmarks |
-| C058 | `files` | 2 | Guide bookmark persistence |
-| C059 | `guide` | 3 | Guide bookmark actions |
-| **C001–C059** | **46 namespaces** | **863** | Все outcomes прежних C–G |
+| C021 | `items` | 23 | Inventory data и item-selection surfaces |
+| C022 | `items` | 48 | Ordinary item actions |
+| C023 | `skills` | 6 | Skills и abilities |
+| C024 | `spells` | 34 | Spells и special abilities |
+| C025 | `items` | 5 | Spell-dependent item actions |
+| C026 | `combat` | 11 | Combat actions |
+| C027 | `store` | 28 | Ordinary stores без `store.service` |
+| C028 | `chat` | 6 | Chat |
+| C029 | `exports` | 2 | Data export |
+| C030 | `information` | 43 | Information surfaces |
+| C031 | `documents` | 21 | Documents |
+| C032 | `session` | 8 | End-of-session flows |
+| C033 | `housing` | 11 | Housing |
+| C034 | `special-store` | 12 | Special-store presentation |
+| C035 | `server-flow` | 15 | Server-driven gameplay flows |
+| C036 | `store` | 1 | `store.service` |
+| C037 | `credentials` | 1 | Credential update |
+| C038 | `account` | 4 | Account management |
+| C039 | `character` | 5 | Character ordering |
+| C040 | `birth` | 2 | Birth DNA persistence |
+| C041 | `admin` | 46 | Administration |
+| C042 | `clipboard` | 4 | Clipboard |
+| C043 | `social` | 23 | Party, guild и hostility |
+| C044 | `settings` | 22 | Settings interface |
+| C045 | `options` | 32 | Input, messages и alert options |
+| C046 | `options` | 35 | HUD, lighting и visibility options |
+| C047 | `options` | 44 | Map identity, animation, movement и targeting options |
+| C048 | `options` | 41 | Item handling и session options |
+| C049 | `options` | 32 | Audio и client-integration options |
+| C050 | `alerts` | 5 | Game alerts |
+| C051 | `imports` | 8 | Legacy import |
+| C052 | `preferences` | 1 | Macro preference precedence |
+| C053 | `input` | 3 | Macro input runtime |
+| C054 | `macros` | 35 | Macro management |
+| C055 | `audio` | 25 | Audio |
+| C056 | `configuration` | 34 | Editable client configuration |
+| C057 | `platform` | 5 | Optional platform capabilities |
+| C058 | `lua` | 1 | Local Lua execution |
+| C059 | `files` | 1 | Shared INS files |
+| C060 | `os` | 2 | OS integration |
+| C061 | `screenshots` | 3 | Screenshots |
+| C062 | `guide` | 14 | Guide core без bookmarks |
+| C063 | `files` | 2 | Guide bookmark persistence |
+| C064 | `guide` | 3 | Guide bookmark actions |
+| **C001–C064** | **46 namespaces** | **863** | Все outcomes прежних C–G |
 
 ## Правила slices
 
@@ -84,8 +89,9 @@
 2. Повтор namespace продолжает production-путь предыдущего slice.
 3. Перенос меняет порядок acceptance, но не behavior description, implementation,
    evidence status или evidence obligations.
-4. Сумма C001–C059 обязана быть 863, каждый прежний C–G outcome назначается один
-   раз. A/B rows сохраняются semantic deep-equal.
+4. Сумма C001–C064 обязана быть 863, каждый прежний C–G outcome назначается один
+   раз. Каждый Cnnn владеет не более чем 50 outcomes; замороженный B54 является
+   явным исключением. A/B rows сохраняются semantic deep-equal.
 5. `stageCatalogSha256` ledger связывает schema v3 с exact bytes каталога.
 
 ## Late-block policy
@@ -105,7 +111,7 @@ optional invocation/integration prerequisite самого пользовател
   `preferences.macro-precedence` и `items.autoinscribe-on-update`; обязательные
   profile/settings/input data остаются;
 - `input.macro-match` удаляется из ordinary action outcomes, но сохраняется у
-  `macros.*` и внутри C048; `macro-wait/xwait` явно требуют `macro-match`, тогда
+  `macros.*` и внутри C053; `macro-wait/xwait` явно требуют `macro-match`, тогда
   как macro invocation обычного action является альтернативным binding;
 - `rendering.weather` больше не зависит от `audio.weather`: оба являются
   независимыми consumers semantic weather state;
@@ -114,7 +120,7 @@ optional invocation/integration prerequisite самого пользовател
 - `store.service` не зависит от `screenshots.capture`;
 - `chat.send/history` не зависят от optional `clipboard.paste`;
 - core font select/filter outcomes не зависят от поздней settings transaction UI;
-- credential update C036 предшествует account password management C037.
+- credential update C037 предшествует account password management C038.
 
 Полный детерминированный список удалённых edges печатает
 [`tools/reallocate_functional_stages.py`](../tools/reallocate_functional_stages.py).

@@ -48,7 +48,7 @@ Linux-first; MinGW32 build from A, Wine smoke each checkpoint, Windows 10/11 VM 
 
 Canonical active-outcome allocation after the 2026-10-05 amendments is
 Историческая таблица A–G ниже заменена для post-B scope решением 38. A8/B54
-остаются неизменными; остальные 863 outcomes распределены по C001–C059 в
+остаются неизменными; остальные 863 outcomes распределены по C001–C064 в
 [`stages.json`](stages.json).
 
 Every stage applies the existing acceptance layers to its scope, including short concurrency/lifecycle cases and submission gates 20/50/200 ms where applicable. No stress/soak, XHTML or global memory ceiling is added. Rendering/fonts and OS dependencies needed earlier cannot be postponed to E. Slash verbs, bindings, packet variants and local/Lua flows are allocated by their outcomes, not treated as a separate deferred umbrella feature.
