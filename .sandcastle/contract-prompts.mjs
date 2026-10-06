@@ -2,6 +2,7 @@ export const controllerExecutionFacts = Object.freeze([
   "Controller execution fact: baseline checks are immutable contract infrastructure; contract agents may reference them but must not redefine, replace, or repair them.",
   "Controller execution fact: the sv-core check is executed with .sandcastle/checks.sh supplied through standard input by the controller.",
   "Controller execution fact: a check's displayed command is an identifier for the controller runner, not necessarily the complete shell invocation. Do not infer missing execution behavior from that display string alone.",
+  "Controller execution fact: when one required check needs multiple repository tests, its command is a non-empty array of individually valid commands; the controller runs them in order and stops on the first failure.",
 ]);
 
 const commonScopeGuidance = Object.freeze([
