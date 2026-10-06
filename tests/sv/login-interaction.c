@@ -55,9 +55,34 @@ static void new_account_overview_is_published_atomically(void)
     sv_login_destroy(login);
 }
 
+static void disconnected_generation_rejects_late_login_results(void)
+{
+    SvContactSetup setup = {0};
+    SvLogin *login = overview();
+    SvPregame pregame;
+    sv_pregame_begin(&pregame, 21);
+    assert(sv_pregame_contact_ready(&pregame, 21) == SV_OK);
+    assert(sv_pregame_disconnect(&pregame, 21, "Connection closed during login.") == SV_OK);
+    uint64_t terminal_revision = pregame.revision;
+
+    assert(sv_pregame_disconnect(&pregame, 21, "late transport error") == SV_CLOSED);
+    assert(pregame.phase == SV_PREGAME_DISCONNECTED);
+    assert(pregame.revision == terminal_revision);
+    assert(!strcmp(pregame.reason, "Connection closed during login."));
+    assert(sv_pregame_sync_login(&pregame, 21, login, &setup, false) == SV_CLOSED);
+    assert(pregame.phase == SV_PREGAME_DISCONNECTED && !pregame.authenticated);
+    assert(!pregame.character_count && !pregame.creation_flags);
+
+    sv_pregame_begin(&pregame, 22);
+    assert(sv_pregame_sync_login(&pregame, 21, login, &setup, false) == SV_STALE);
+    assert(pregame.phase == SV_PREGAME_CONTACT && !pregame.authenticated);
+    sv_login_destroy(login);
+}
+
 int main(void)
 {
     new_account_overview_is_published_atomically();
+    disconnected_generation_rejects_late_login_results();
     SvContactSetup setup = {0};
     setup.race_count = setup.class_count = 1;
     strcpy(setup.races[0].title, "Human");

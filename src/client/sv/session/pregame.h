@@ -43,6 +43,8 @@ SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation);
 SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
                                const SvLogin *login, const SvContactSetup *setup,
                                bool motd_complete);
+SvResult sv_pregame_fail(SvPregame *pregame, uint64_t generation,
+                         const char *reason);
 SvResult sv_pregame_disconnect(SvPregame *pregame, uint64_t generation,
                                const char *reason);
 const char *sv_pregame_phase_name(SvPregamePhase phase);

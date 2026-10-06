@@ -94,6 +94,28 @@ static const char *contact_status(SvSocketState state, unsigned rejection)
     return "Contact stopped.";
 }
 
+static const char *contact_rejection_reason(unsigned rejection)
+{
+    switch (rejection) {
+    case E_VERSION_OLD: return "Server rejected contact: client version too old.";
+    case E_VERSION_UNKNOWN: return "Server rejected contact: incompatible version.";
+    case E_GAME_FULL: return "Server rejected contact: game is full.";
+    case E_TWO_PLAYERS: return "Server rejected contact: another character is online.";
+    case E_PASSWORD: return "Server rejected contact: invalid password.";
+    case E_IN_USE_DUP: return "Server rejected contact: duplicate login.";
+    case E_LETTER: return "Server rejected contact: invalid account name.";
+    case E_IN_USE: return "Server rejected contact: account in use from another address.";
+    case E_SOCKET: return "Server rejected contact: server socket error.";
+    case E_INVAL: return "Server rejected contact: invalid identity.";
+    case E_INVITE: return "Server rejected contact: members only.";
+    case E_BANNED: return "Server rejected contact: temporarily banned.";
+    case E_LENGTH: return "Server rejected contact: account name too short.";
+    case E_IN_USE_PC: return "Server rejected contact: account in use on this PC.";
+    case E_CLOSED: return "Server rejected contact: server closing.";
+    }
+    return "Server rejected contact.";
+}
+
 typedef struct {
     unsigned char sending[SV_CONTACT_OUTPUT_CAPACITY];
     size_t size, sent;
@@ -165,10 +187,12 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
 }
 
 static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome,
-                            bool save_started, bool credential_saved)
+                            uint64_t prior_generation, bool save_started,
+                            bool credential_saved)
 {
     if (!pregame || !outcome) return;
     *outcome = (SvEndpointOutcome){.generation = pregame->generation,
+                                   .prior_generation = prior_generation,
                                    .revision = pregame->revision,
                                    .phase = pregame->phase,
                                    .authenticated = pregame->authenticated,
@@ -180,11 +204,13 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
            sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
            sizeof(outcome->selected_character));
+    memcpy(outcome->reason, pregame->reason, sizeof(outcome->reason));
 }
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                        SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
-                       const char *profile_root)
+                       const char *profile_root, uint64_t generation,
+                       uint64_t prior_generation)
 {
     unsigned char iaddr[6];
     if (!sv_login_identity(profile_root, iaddr)) {
@@ -209,8 +235,6 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvLoginView login_view = {0};
     SvPregame pregame;
     SvVaultRequest *save = NULL;
-    uint64_t generation = SDL_GetTicksNS();
-    if (!generation) generation = 1;
     sv_pregame_begin(&pregame, generation);
     SvSessionWire wire = {0};
     SvResult session_error = SV_OK;
@@ -374,8 +398,14 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             reached_ready = true;
         } else if (state >= SV_SOCKET_DNS_ERROR) {
             if (result != 2) result = 1;
-            if (pregame.phase != SV_PREGAME_FAILED)
-                (void)sv_pregame_disconnect(&pregame, generation, input->contact_status);
+            if (pregame.phase != SV_PREGAME_FAILED) {
+                if (state == SV_SOCKET_REJECTED)
+                    (void)sv_pregame_fail(&pregame, generation,
+                                          contact_rejection_reason(rejection));
+                else
+                    (void)sv_pregame_disconnect(&pregame, generation,
+                                                input->contact_status);
+            }
             if (!reported_failure) fprintf(stderr, "SV contact failed: %s (status=%u)\n",
                                            input->contact_status, rejection);
             reported_failure = true;
@@ -385,7 +415,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         if (options.frames && ++frames >= options.frames) break;
         SDL_Delay(16);
     }
-    publish_outcome(&pregame, options.outcome, save_started, credential_saved);
+    publish_outcome(&pregame, options.outcome, prior_generation,
+                    save_started, credential_saved);
     sv_contact_socket_stop(connection);
     sv_vault_cancel(&save);
     sv_login_destroy(login);
@@ -527,10 +558,18 @@ int sv_endpoint_run(SvEndpointOptions options)
                 options.account = account;
                 options.password = password;
             }
+            uint64_t generation = SDL_GetTicksNS();
+            if (!generation) generation = 1;
+            uint64_t prior_generation = 0;
             while (entered > 0) {
                 result = run_contact(window, renderer, font, &endpoint, &input,
-                                     options, root);
+                                     options, root, generation, prior_generation);
                 if (result != 2) break;
+                prior_generation = generation;
+                generation = SDL_GetTicksNS();
+                if (!generation || generation == prior_generation)
+                    generation = prior_generation + 1;
+                if (!generation) generation = 1;
                 input.login_view = NULL;
                 input.contact_status = "Retrying account authentication.";
                 if (interactive_credentials) {
