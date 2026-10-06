@@ -77,7 +77,7 @@ test("assembly returns check-specific feedback and saves only a validated correc
 });
 
 test("assembly prompt states immutable baselines and the focused forms enforced by validation", () => {
-  for (const form of ["sv-build and sv-core baseline checks are immutable", "add a separate focused check", "python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "non-empty command array", "stops on the first failure", "existing repository runner script", "command=''", "shell operators", "Preserve every other already valid check"]) {
+  for (const form of ["sv-build and sv-core baseline checks are immutable", "add a separate focused check", "python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "command=''", "shell operators", "Preserve every other already valid check"]) {
     assert.ok(assemblyCommandRules.includes(form), form);
   }
 });

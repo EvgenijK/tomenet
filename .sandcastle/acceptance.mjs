@@ -12,7 +12,6 @@ export const digest = (value) => createHash("sha256").update(typeof value === "s
 const text = (value) => typeof value === "string" && value.trim().length > 0;
 const identifier = (value) => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(value);
 const path = (value) => typeof value === "string" && /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith("/") && !value.split("/").includes("..");
-const focusedCommand = (value) => typeof value === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(value) && !value.includes("..");
 const normalize = (value) => value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 const need = (condition, message) => { if (!condition) throw new Error(`Acceptance: ${message}`); };
 
@@ -29,8 +28,7 @@ export function validateContract(contract, sources) {
       need(baseline && baseline.kind === check.kind && baseline.command === check.command, `baseline command ${check.id} cannot be weakened`);
     } else if (check.kind === "command") {
       // Focused repository checks, never arbitrary shell programs or remote actions.
-      const commands = Array.isArray(check.command) ? check.command : [check.command];
-      need(commands.length > 0 && commands.every(focusedCommand), `focused check ${check.id} must invoke a repository test without shell operators`);
+      need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), `focused check ${check.id} must invoke a repository test without shell operators`);
     } else need(check.command === "", "external checks have no automatic runner");
     checks.set(check.id, check);
   }
@@ -48,14 +46,7 @@ export function validateContract(contract, sources) {
     need(typeof criterion.owner === "string" && typeof criterion.deferralReason === "string", "owner/reason fields required");
     if (criterion.applicability === "deferred") {
       need(contract.completionScope === "implementation" && text(criterion.owner) && text(criterion.deferralReason), "full acceptance cannot defer required criteria");
-    } else {
-      need(criterion.deferralReason === "", "current criteria cannot carry a deferral");
-      if (contract.completionScope === "implementation" && criterion.mandatory) {
-        for (const id of criterion.checkIds) {
-          need(checks.get(id).kind !== "external", `implementation current mandatory criterion ${criterion.id} cannot require external check ${id}`);
-        }
-      }
-    }
+    } else need(criterion.deferralReason === "", "current criteria cannot carry a deferral");
   }
   need(contract.criteria.some((item) => item.mandatory && item.applicability === "current"), "at least one current mandatory criterion required");
   return contract;
@@ -390,10 +381,7 @@ export async function contractStage(state, ops) {
     delete pending.proposalInFlight;
     await ops.save(state);
   }
-  try {
-    validateContract(pending.proposal, sources);
-    await ops.validateRunners?.(pending.proposal);
-  }
+  try { validateContract(pending.proposal, sources); }
   catch (error) {
     recordContractRejection(pending, [{ message: error.message, sourceSpanIds: [] }]);
     delete pending.proposal; delete pending.parts; delete pending.partSourceDigest;

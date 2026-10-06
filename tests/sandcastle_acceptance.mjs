@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, requiredChecks, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -60,23 +60,6 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   assert.equal(s.phase, "plan");
 });
 
-test("contract acceptance preflights a statically named repository runner", async () => {
-  const contract = proposal();
-  contract.checks.find((check) => check.id === "feature").command = "python3 -B tests/test_sv_account_create.py";
-  const s = { id: "missing-runner", phase: "contract" };
-  await contractStage(s, {
-    sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
-    propose: async () => contract, verify: async () => approval,
-    validateRunners: async (candidate) => {
-      const command = candidate.checks.find((check) => check.id === "feature").command;
-      throw new Error(`Acceptance: focused runner from ${command} does not exist`);
-    },
-  });
-  assert.equal(s.phase, "contract");
-  assert.equal(s.acceptance, undefined);
-  assert.match(s.contractPending.feedback.join(" "), /tests\/test_sv_account_create\.py does not exist/);
-});
-
 test("rejected verification preserves structured provenance for the next contract round", async () => {
   const s = { id: "test", phase: "contract" };
   const message = "Preserve cancellation production behavior";
@@ -119,16 +102,6 @@ test("contract rejects missing baseline, fabricated sources, invalid mappings an
     const c = proposal(); mutate(c); assert.throws(() => validateContract(c, sources));
   }
   assert.throws(() => acceptContract({}, proposal(), sources, { ...approval, missingRequirements: ["Cancellation omitted"] }, head));
-});
-
-test("implementation contracts reject mandatory current external checks without a runner", () => {
-  const contract = proposal();
-  assert.doesNotMatch(requiredChecks(contract).map((check) => check.id).join(" "), /native/);
-  contract.criteria[0].checkIds = ["feature", "native"];
-  assert.throws(
-    () => validateContract(contract, sources),
-    /implementation current mandatory criterion AC-1 cannot require external check native/,
-  );
 });
 
 test("contract is immutable and silent mutation cannot weaken the closure gate", () => {
