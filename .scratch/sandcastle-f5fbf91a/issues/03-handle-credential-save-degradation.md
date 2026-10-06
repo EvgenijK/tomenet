@@ -1,5 +1,7 @@
 # 03: Явно обработать отказ сохранения credentials
 
+**Type:** implementation
+
 **What to build:** После подтверждённого сервером создания аккаунта approved OS provider сохраняет exact credential bytes; если provider unavailable, locked, refused или fails, игрок продолжает подтверждённую session с явным unsaved session-only состоянием без plaintext/legacy fallback. Поздний provider result не меняет новую session.
 
 **Blocked by:** 01: Создать неиспользованный аккаунт через production flow.

@@ -1,5 +1,7 @@
 # 09: Проверить восстановленные account-create gates на assembled HEAD
 
+**Type:** implementation
+
 **What to build:** На HEAD после assembly принятый account-creation check,
 полная SV сборка и полный core gate проходят вместе. Evidence связывает точный
 assembled HEAD и новый accepted contract/state digest с результатами команд,

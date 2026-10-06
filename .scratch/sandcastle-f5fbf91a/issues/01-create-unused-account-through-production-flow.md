@@ -1,5 +1,7 @@
 # 01: Создать неиспользованный аккаунт через production flow
 
+**Type:** implementation
+
 **What to build:** Игрок вводит новое имя аккаунта и пароль в существующих native private fields; тот же contact/login conversation передаёт точные baseline bytes серверу, а overview появляется только после полного подтверждающего ответа сервера. Успешный путь включает запуск сохранения credentials только после подтверждения authentication.
 
 **Blocked by:** None (can start immediately).

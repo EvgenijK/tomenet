@@ -1,5 +1,7 @@
 # 02: Сохранить parent state при отказах создания аккаунта
 
+**Type:** implementation
+
 **What to build:** При used/invalid name, bad password, server/account-flag rejection, cancel, disconnect или retry игрок остаётся в правильном pregame owner, видит причину ровно в разрешённом состоянии и никогда не получает overview без подтверждения сервера. Retry начинает свежую session generation.
 
 **Blocked by:** 01: Создать неиспользованный аккаунт через production flow.

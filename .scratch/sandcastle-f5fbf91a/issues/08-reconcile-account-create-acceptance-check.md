@@ -1,5 +1,7 @@
 # 08: Согласовать account-create acceptance check с production suites
 
+**Type:** repair
+
 **What to build:** Принятый `P1-account-create` запускает обе существующие
 production-path suites одной обязательной проверкой: success/credential-policy
 ветви и failure/parent-state ветви. Contract artifact и соответствующий

@@ -1,5 +1,7 @@
 # 04: Подготовить implementation evidence и deferred runtime handoff
 
+**Type:** implementation
+
 **What to build:** Реализация SV-B-021 передаётся на review с воспроизводимыми build/core результатами, явной картой production seams и честным перечнем ещё не выполненных controlled-peer, platform и downstream checks. Ни один deferred check не обозначается как пройденный.
 
 **Blocked by:** 02: Сохранить parent state при отказах создания аккаунта; 03: Явно обработать отказ сохранения credentials.
