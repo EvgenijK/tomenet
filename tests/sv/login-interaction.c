@@ -79,10 +79,62 @@ static void disconnected_generation_rejects_late_login_results(void)
     sv_login_destroy(login);
 }
 
+typedef SvResult (*TerminalTransition)(SvPregame *, uint64_t, const char *);
+
+static void terminal_transition_preserves_public_outcome(
+    TerminalTransition terminal, SvPregamePhase destination)
+{
+    SvPregame pregame;
+    sv_pregame_begin(&pregame, 31);
+    assert(terminal(NULL, 31, "ignored") == SV_INVALID);
+    assert(terminal(&pregame, 0, "ignored") == SV_INVALID);
+    assert(terminal(&pregame, 30, "ignored") == SV_STALE);
+    assert(pregame.phase == SV_PREGAME_CONTACT && pregame.revision == 1);
+    assert(!pregame.reason[0] && !pregame.authenticated && !pregame.character_count);
+
+    assert(terminal(&pregame, 31, NULL) == SV_OK);
+    assert(pregame.phase == destination && pregame.revision == 2);
+    assert(!pregame.reason[0] && !pregame.authenticated && !pregame.character_count);
+    assert(terminal(&pregame, 31, NULL) == SV_CLOSED);
+    assert(pregame.phase == destination && pregame.revision == 2);
+    assert(!pregame.reason[0]);
+
+    sv_pregame_begin(&pregame, 32);
+    assert(terminal(&pregame, 32, "terminal reason") == SV_OK);
+    assert(pregame.phase == destination && pregame.revision == 2);
+    assert(!strcmp(pregame.reason, "terminal reason"));
+    assert(!pregame.authenticated && !pregame.character_count);
+    assert(terminal(&pregame, 32, "terminal reason") == SV_CLOSED);
+    assert(pregame.phase == destination && pregame.revision == 2);
+    assert(!strcmp(pregame.reason, "terminal reason"));
+}
+
+static void terminal_transitions_share_the_public_state_rule(void)
+{
+    terminal_transition_preserves_public_outcome(sv_pregame_fail,
+                                                 SV_PREGAME_FAILED);
+    terminal_transition_preserves_public_outcome(sv_pregame_disconnect,
+                                                 SV_PREGAME_DISCONNECTED);
+
+    SvPregame pregame;
+    sv_pregame_begin(&pregame, 33);
+    assert(sv_pregame_fail(&pregame, 33, "first terminal reason") == SV_OK);
+    assert(sv_pregame_disconnect(&pregame, 33, "late disconnect") == SV_CLOSED);
+    assert(pregame.phase == SV_PREGAME_FAILED && pregame.revision == 2);
+    assert(!strcmp(pregame.reason, "first terminal reason"));
+
+    sv_pregame_begin(&pregame, 34);
+    assert(sv_pregame_disconnect(&pregame, 34, "first terminal reason") == SV_OK);
+    assert(sv_pregame_fail(&pregame, 34, "late failure") == SV_CLOSED);
+    assert(pregame.phase == SV_PREGAME_DISCONNECTED && pregame.revision == 2);
+    assert(!strcmp(pregame.reason, "first terminal reason"));
+}
+
 int main(void)
 {
     new_account_overview_is_published_atomically();
     disconnected_generation_rejects_late_login_results();
+    terminal_transitions_share_the_public_state_rule();
     SvContactSetup setup = {0};
     setup.race_count = setup.class_count = 1;
     strcpy(setup.races[0].title, "Human");

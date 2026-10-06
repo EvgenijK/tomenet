@@ -128,8 +128,8 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
     return SV_INVALID;
 }
 
-SvResult sv_pregame_disconnect(SvPregame *pregame, uint64_t generation,
-                               const char *reason)
+static SvResult terminal_transition(SvPregame *pregame, uint64_t generation,
+                                    const char *reason, SvPregamePhase destination)
 {
     SvResult result = current(pregame, generation);
     if (result != SV_OK) return result;
@@ -138,22 +138,21 @@ SvResult sv_pregame_disconnect(SvPregame *pregame, uint64_t generation,
         return SV_CLOSED;
     bool changed = strcmp(pregame->reason, reason ? reason : "") != 0;
     copy_text(pregame->reason, sizeof(pregame->reason), reason);
-    transition(pregame, SV_PREGAME_DISCONNECTED, changed);
+    transition(pregame, destination, changed);
     return SV_OK;
 }
 
 SvResult sv_pregame_fail(SvPregame *pregame, uint64_t generation,
                          const char *reason)
 {
-    SvResult result = current(pregame, generation);
-    if (result != SV_OK) return result;
-    if (pregame->phase == SV_PREGAME_FAILED ||
-        pregame->phase == SV_PREGAME_DISCONNECTED)
-        return SV_CLOSED;
-    bool changed = strcmp(pregame->reason, reason ? reason : "") != 0;
-    copy_text(pregame->reason, sizeof(pregame->reason), reason);
-    transition(pregame, SV_PREGAME_FAILED, changed);
-    return SV_OK;
+    return terminal_transition(pregame, generation, reason, SV_PREGAME_FAILED);
+}
+
+SvResult sv_pregame_disconnect(SvPregame *pregame, uint64_t generation,
+                               const char *reason)
+{
+    return terminal_transition(pregame, generation, reason,
+                               SV_PREGAME_DISCONNECTED);
 }
 
 const char *sv_pregame_phase_name(SvPregamePhase phase)

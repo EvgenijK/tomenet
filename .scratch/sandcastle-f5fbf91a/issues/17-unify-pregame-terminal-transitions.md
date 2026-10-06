@@ -1,8 +1,8 @@
 # 17: Объединить terminal transitions pregame
 
 Type: repair
-Status: open
-Assignee: unassigned
+Status: resolved
+Assignee: codex/sandcastle-f5fbf91a-wave-12-3
 Labels: bug, ready-for-agent
 Finding IDs: D-49dc8d0dd64aef31
 
@@ -41,3 +41,51 @@ P2-AC6; test-only transition API не добавляется.
   **deferred; not run** с исходными owners и без claim о выполнении.
   [Contract: P1-11, P1-12, P1-13; checks: `P1-linux-native`,
   `P1-windows-native`, `P1-entry-integration`]
+
+## Answer
+
+Public production seams сохранены без расширения API: `sv_pregame_fail` и
+`sv_pregame_disconnect` имеют прежние signatures и по-прежнему публикуют
+различимые `SV_PREGAME_FAILED` / `SV_PREGAME_DISCONNECTED`. Оба entry point
+теперь делегируют одному private `terminal_transition` в
+`src/client/sv/session/pregame.c`; helper выполняет generation validation,
+terminal guard, публикацию reason и revision transition. Legacy/shared
+production sources, public pregame ownership и Stage C scope не менялись.
+
+Production-seam coverage в `tests/sv/login-interaction.c` вызывает оба public
+entry point и проверяет invalid pointer/generation, stale generation, пустую и
+непустую reason, повторную reason, already-terminal переходы в обоих
+направлениях, неизменность первой terminal reason и revision, отдельные
+destination phases и отсутствие преждевременного authenticated overview.
+
+TDD/characterization evidence 2026-10-06:
+
+- Согласованные seams: public `sv_pregame_fail`, `sv_pregame_disconnect` и
+  полный controlled-peer `sv_endpoint_run(SvEndpointOptions)`.
+- До production refactor добавлен public-seam characterization test;
+  `python3 -B tests/sv_login_checks.py` — **pass**, exit 0. Это
+  behavior-preserving repair уже реализованного публичного контракта, поэтому
+  честного behavior red не было и failing test/test-only API не создавались.
+- После минимального private-helper refactor та же команда — **pass**, exit 0;
+  после уточнения repeated non-empty reason assertion — **pass**, exit 0.
+- `python3 -B tests/sv_account_create_checks.py` — **pass**, exit 0: production
+  account creation и fresh-generation retry сохраняют server authority и не
+  публикуют overview до полного подтверждения.
+- `python3 -B tests/sv_account_failure_checks.py` — **pass**, exit 0:
+  controlled-peer rejection, malformed/error, disconnect, retry и cancel
+  сохраняют terminal parent/reason и отсутствие раннего overview.
+- `git diff --check` — **pass**, exit 0.
+
+Полные `make -s -C src -f makefile.sv tomenet-sv` (`sv-build`) и
+`bash -s -- core` (`sv-core`) не запускались по handoff: post-assembly gates
+выполняет orchestrator после объединения tickets. Наблюдавшиеся в focused suites
+SDL diagnostics `Leaked thread` уже записаны в `docs/sv-improvements.md`; scope
+этого repair не расширялся.
+
+Явные acceptance deferrals сохранены без claims о выполнении:
+
+| Check | Status | Owner |
+|---|---|---|
+| `P1-linux-native` | **deferred; not run** — native runtime evidence unavailable at implementation gate | `SV-B-021` |
+| `P1-windows-native` | **deferred; not run** — native runtime evidence unavailable at implementation gate | `SV-B-021` |
+| `P1-entry-integration` | **deferred; not run** — downstream entry-completion acceptance | `SV-B-025` |
