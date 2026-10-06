@@ -1,6 +1,10 @@
 # SV-B-030 — Clipboard и URL extraction без нарушения приватности
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,6 +27,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.clipboard.copy` | Copy decoded visible text through source profile, strip FF formatting/control markers, preserve permitted text; exclude secrets and retain exact caller selection. | [c-util.c:2074](../../../src/client/c-util.c#L2074)<br>[c-util.c:2073](../../../src/client/c-util.c#L2073) |
@@ -30,7 +41,9 @@
 | `capability.clipboard.paste` | Accept OS UTF-8 text through actual target-field byte contract, including unencodable/overflow/control handling from session-policy; test full transformed serialization limit, never infer outgoing charset from chosen font. | [c-util.c:2385](../../../src/client/c-util.c#L2385)<br>[c-util.c:2073](../../../src/client/c-util.c#L2073) |
 | `capability.clipboard.extract-url` | Repeated copy invokes baseline URL extraction from message text; preserve escaped colon handling and no-URL fallback without including private fields. | [c-util.c:47](../../../src/client/c-util.c#L47)<br>[c-util.c:2073](../../../src/client/c-util.c#L2073) |
 | `capability.os.open-url` | Open selected URL through SDL OS integration with explicit errors; retain caller and never claim external program success from request alone. | [c-cmd.c:6992](../../../src/client/c-cmd.c#L6992)<br>[c-cmd.c:7003](../../../src/client/c-cmd.c#L7003) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
@@ -42,10 +55,10 @@
 
 | ID | Конкретные проверки и ранние handoffs |
 |---|---|
-| `capability.clipboard.copy` | Visible selection decoded по source profile, FF/control stripped; clipboard содержит ровно выбранный public text, secret selection excluded Test login/chat/Guide native calls on Linux and Windows, with synthetic Unicode/legacy profiles. |
-| `capability.clipboard.failure` | Unavailable/locked OS clipboard returns visible failure, original selection/draft preserved, no reported success Test login/chat/Guide native calls on Linux and Windows, with synthetic Unicode/legacy profiles. |
-| `capability.clipboard.paste` | UTF-8 OS draft→actual target bytes with transformed wire limits, unencodable/overflow/NUL/control rejection preserves draft Test login/chat/Guide native calls on Linux and Windows, with synthetic Unicode/legacy profiles. |
-| `capability.clipboard.extract-url` | Repeated copy extracts http/www/escaped-colon URL; no-URL fallback keeps baseline copied text, unrelated private data absent Test login/chat/Guide native calls on Linux and Windows, with synthetic Unicode/legacy profiles. |
+| `capability.clipboard.copy` | Visible selection decoded по source profile, FF/control stripped; clipboard содержит ровно выбранный public text, secret selection excluded Test login/chat native calls on Linux and Windows; Guide clipboard callers remain stage G, with synthetic Unicode/legacy profiles. |
+| `capability.clipboard.failure` | Unavailable/locked OS clipboard returns visible failure, original selection/draft preserved, no reported success Test login/chat native calls on Linux and Windows; Guide clipboard callers remain stage G, with synthetic Unicode/legacy profiles. |
+| `capability.clipboard.paste` | UTF-8 OS draft→actual target bytes with transformed wire limits, unencodable/overflow/NUL/control rejection preserves draft Test login/chat native calls on Linux and Windows; Guide clipboard callers remain stage G, with synthetic Unicode/legacy profiles. |
+| `capability.clipboard.extract-url` | Repeated copy extracts http/www/escaped-colon URL; no-URL fallback keeps baseline copied text, unrelated private data absent Test login/chat native calls on Linux and Windows; Guide clipboard callers remain stage G, with synthetic Unicode/legacy profiles. |
 | `capability.os.open-url` | SDL OS handler receives exact public URL once, unavailable/failure visible; request success не выдаётся за success external browser. |
 
 [Общий обязательный recipe](../../sv-stage-b-spec.md#verification) применяется к каждому пути success/cancel/error: production decoder/router/model/renderer/serializer, bytes и split/chained input, актуальный parent, macro/physical routes, interleaved network, focus/resize и stale generation. Fixture подменяет peer/clock/filesystem/provider inputs, но не реализацию поведения.

@@ -1,6 +1,10 @@
 # SV-B-034 — Экспорт персонажа/сообщений и notes
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -25,13 +29,22 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.exports.character` | Export character sheet text from live or final-review caller via f/F; retain baseline content/glyph conversion, owned destination and explicit replace/cancel errors. | [c-files.c:2297](../../../src/client/c-files.c#L2297)<br>[c-util.c:137](../../../src/client/c-util.c#L137)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[c-files.c:2297](../../../src/client/c-files.c#L2297) |
 | `capability.exports.messages` | Explicit/exit-selected chat or all-message export retains baseline occurrence order/content and shared U/user destination; no implicit recorder. | [c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[c-util.c:137](../../../src/client/c-util.c#L137)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[c-files.c:2297](../../../src/client/c-files.c#L2297) |
 | `capability.files.notes-append` | Automatically append received private notes to shared U/user/notes-account.txt; preserve original text/order and report disk failure. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.files.export-collision` | Generated export filenames choose free suffix; explicit existing destination requires replace/cancel, never silent overwrite. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

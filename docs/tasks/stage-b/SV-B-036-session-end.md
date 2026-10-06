@@ -1,6 +1,10 @@
 # SV-B-036 — Смерть, final review и нормальный выход
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,6 +27,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.session.death` | Killed by, Committed suicide and Retired quit reasons enter the appropriate death/tomb or ghost/session handling, clear pending actions and preserve final review data until its owner closes. | [nclient.c:344](../../../src/client/nclient.c#L344)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
@@ -34,13 +45,15 @@
 | `capability.session.open-final-review` | A nonzero key other than tomb quit/dump/screenshot commands enters final review; 0 remains at tomb. | [c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.session.close-final-review` | Escape/Ctrl-Q leaves final-state review and continues the disconnect/relogin path. | [c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.session.quit` | Ctrl-Q or window close follows the live quit owner, saves owned profile/history and releases network/input resources; optional save-chat child returns correctly. | [c-init.c:4349](../../../src/client/c-init.c#L4349)<br>[c-cmd.c:274](../../../src/client/c-cmd.c#L274)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[pref.prf:51](../../../lib/user/pref.prf#L51)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
 1. Death/tomb/ack/final-review/close paths, suicide confirmation/cancel и actual server termination; surviving transition не принимает ghost powers C.
 2. Final sheet/inventory/equipment/bag/history children native, return exact final parent, capture/dump/error по owners; late input не возобновляет игровую сессию.
-3. Quit writes owned history/bookmarks по lifecycle, не auto-saves dirty CFG/OPT и не вызывает лишний prompt; teardown cancels pending requests/macros/provider work.
+3. Quit writes owned history по lifecycle; Guide bookmarks remain untouched until G, не auto-saves dirty CFG/OPT и не вызывает лишний prompt; teardown cancels pending requests/macros/provider work.
 
 Для каждого собственного ID дополнительно обязательны следующие условия; это требования будущей реализации, а не результаты выполненных тестов.
 

@@ -1,6 +1,10 @@
 # SV-B-053 — Опции чисел и status bars — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.exp-bar` | Apply exp_bar: Show experience bar instead of a number. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:242](../../../src/client/c-tables.c#L242)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:241](../../../src/client/c-tables.c#L241)<br>[c-xtra1.c:227](../../../src/client/c-xtra1.c#L227)<br>[c-util.c:12816](../../../src/client/c-util.c#L12816)<br>[c-xtra1.c:246](../../../src/client/c-xtra1.c#L246) |
@@ -31,7 +42,9 @@
 | `capability.options.mp-bar` | Apply mp_bar: Display mana pool as bar instead of numbers. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:510](../../../src/client/c-tables.c#L510)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:509](../../../src/client/c-tables.c#L509)<br>[nclient.c:3123](../../../src/client/nclient.c#L3123)<br>[c-util.c:12823](../../../src/client/c-util.c#L12823)<br>[c-util.c:12826](../../../src/client/c-util.c#L12826) |
 | `capability.options.st-bar` | Apply st_bar: Display stamina as bar instead of numbers. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:512](../../../src/client/c-tables.c#L512)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:511](../../../src/client/c-tables.c#L511)<br>[nclient.c:2247](../../../src/client/nclient.c#L2247)<br>[c-util.c:12824](../../../src/client/c-util.c#L12824)<br>[c-util.c:12827](../../../src/client/c-util.c#L12827) |
 | `capability.options.mp-huge-bar` | Apply mp_huge_bar: Also show mana pool as huge bar (big_map only). Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:543](../../../src/client/c-tables.c#L543)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:542](../../../src/client/c-tables.c#L542)<br>[nclient.c:162](../../../src/client/nclient.c#L162)<br>[nclient.c:182](../../../src/client/nclient.c#L182)<br>[nclient.c:191](../../../src/client/nclient.c#L191) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

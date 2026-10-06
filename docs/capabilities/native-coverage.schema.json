@@ -5,13 +5,18 @@
     "schemaVersion": {
       "enum": [
         1,
-        2
+        2,
+        3
       ]
     },
     "consumer": {
       "const": "native-sv"
     },
     "manifestSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "stageCatalogSha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
     },
@@ -25,14 +30,7 @@
             "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
           },
           "acceptanceStage": {
-            "enum": [
-              "A",
-              "B",
-              "C",
-              "D",
-              "E",
-              "F"
-            ]
+            "type": "string"
           },
           "prerequisites": {
             "type": "array",
@@ -187,6 +185,64 @@
   ],
   "additionalProperties": false,
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "enum": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "coverage": {
+            "items": {
+              "properties": {
+                "acceptanceStage": {
+                  "enum": [
+                    "A",
+                    "B",
+                    "C",
+                    "D",
+                    "E",
+                    "F",
+                    "G"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 3
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "stageCatalogSha256"
+        ],
+        "properties": {
+          "coverage": {
+            "items": {
+              "properties": {
+                "acceptanceStage": {
+                  "pattern": "^(?:A|B|C(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

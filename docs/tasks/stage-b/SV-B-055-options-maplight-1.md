@@ -1,6 +1,10 @@
 # SV-B-055 — Опции освещения и видимости карты — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.font-map-solid-walls` | Apply font_map_solid_walls: Certain fonts only: Walls look like solid blocks. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:214](../../../src/client/c-tables.c#L214)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:213](../../../src/client/c-tables.c#L213)<br>[nclient.c:2888](../../../src/client/nclient.c#L2888)<br>[nclient.c:2889](../../../src/client/nclient.c#L2889)<br>[c-util.c:12780](../../../src/client/c-util.c#L12780) |
@@ -31,7 +42,9 @@
 | `capability.options.view-shade-walls` | Apply view_shade_walls: Use special colors to shade wall grids. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:222](../../../src/client/c-tables.c#L222)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:221](../../../src/client/c-tables.c#L221)<br>[cave.c:3796](../../../src/server/cave.c#L3796) |
 | `capability.options.floor-lighting` | Apply floor_lighting: Generally enable lighting/shading for floor grids. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:224](../../../src/client/c-tables.c#L224)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:223](../../../src/client/c-tables.c#L223)<br>[cave.c:3317](../../../src/server/cave.c#L3317)<br>[cave.c:3520](../../../src/server/cave.c#L3520)<br>[cave.c:5448](../../../src/server/cave.c#L5448) |
 | `capability.options.view-lamp-floor` | Apply view_lamp_floor: Use special colors for lamp-lit floor grids. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:226](../../../src/client/c-tables.c#L226)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:225](../../../src/client/c-tables.c#L225)<br>[cave.c:3330](../../../src/server/cave.c#L3330) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

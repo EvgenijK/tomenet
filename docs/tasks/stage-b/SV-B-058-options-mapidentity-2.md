@@ -1,6 +1,10 @@
 # SV-B-058 — Опции glyph identity и highlighting — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.ascii-feats` | Apply ascii_feats: Disable font-specific mapping for all floor feats. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:570](../../../src/client/c-tables.c#L570)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:569](../../../src/client/c-tables.c#L569)<br>[go.c:1349](../../../src/server/go.c#L1349)<br>[c-util.c:12843](../../../src/client/c-util.c#L12843) |
@@ -30,7 +41,9 @@
 | `capability.options.ascii-uniques` | Apply ascii_uniques: Disable font-specific mapping for unique monsters. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:576](../../../src/client/c-tables.c#L576)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:575](../../../src/client/c-tables.c#L575)<br>[cave.c:2337](../../../src/server/cave.c#L2337)<br>[c-cmd.c:6412](../../../src/client/c-cmd.c#L6412) |
 | `capability.options.gfx-autooff-fmsw` | Apply gfx_autooff_fmsw: Auto-disable font_map_solid_walls for graphics. Preserve literal baseline default/build row F; E=F; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:585](../../../src/client/c-tables.c#L585)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:584](../../../src/client/c-tables.c#L584)<br>[nclient.c:2888](../../../src/client/nclient.c#L2888)<br>[c-util.c:15168](../../../src/client/c-util.c#L15168)<br>[c-init.c:4418](../../../src/client/c-init.c#L4418) |
 | `capability.options.wide-scroll-margin` | Apply wide_scroll_margin: Scroll the screen further away from the edges. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:601](../../../src/client/c-tables.c#L601)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:600](../../../src/client/c-tables.c#L600)<br>[xtra2.c:153](../../../src/server/xtra2.c#L153)<br>[xtra2.c:155](../../../src/server/xtra2.c#L155)<br>[xtra2.c:157](../../../src/server/xtra2.c#L157) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

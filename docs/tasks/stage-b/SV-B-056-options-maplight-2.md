@@ -1,6 +1,10 @@
 # SV-B-056 — Опции освещения и видимости карты — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.view-shade-floor` | Apply view_shade_floor: Use special colors to shade floor grids. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:228](../../../src/client/c-tables.c#L228)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:227](../../../src/client/c-tables.c#L227)<br>[cave.c:3559](../../../src/server/cave.c#L3559) |
@@ -32,7 +43,9 @@
 | `capability.options.view-reduce-view` | Apply view_reduce_view: Reduce view radius in town. Preserve literal baseline default/build row F; E=F; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:384](../../../src/client/c-tables.c#L384)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:383](../../../src/client/c-tables.c#L383)<br>[nserver.c:2535](../../../src/server/nserver.c#L2535)<br>[nserver.c:2536](../../../src/server/nserver.c#L2536) |
 | `capability.options.permawalls-shade` | Apply permawalls_shade: Display permanent vault walls in a special colour. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:476](../../../src/client/c-tables.c#L476)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:475](../../../src/client/c-tables.c#L475)<br>[cave.c:3886](../../../src/server/cave.c#L3886) |
 | `capability.options.no-light-fainting` | Apply no_light_fainting: Disable shading effect for fainting light source. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:533](../../../src/client/c-tables.c#L533)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:532](../../../src/client/c-tables.c#L532)<br>[nclient.c:3349](../../../src/client/nclient.c#L3349) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

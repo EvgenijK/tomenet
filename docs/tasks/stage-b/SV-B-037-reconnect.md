@@ -1,6 +1,10 @@
 # SV-B-037 — Reconnect, portal relogin и redraw
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,12 +25,21 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.session.reconnect` | Retry login after permitted disconnect/client quit using a fresh session generation; reauthenticate and reselect character without retaining old world or request state. | [c-init.c:4349](../../../src/client/c-init.c#L4349)<br>[nclient.c:344](../../../src/client/nclient.c#L344)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.session.portal-relogin` | SERVER_PORTALS control supplies host, port, account, password, character, reason and delay; treat credentials as transient private control, reset old session and use target identity for reconnect. | [nclient.c:346](../../../src/client/nclient.c#L346)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.session.redraw` | Request redraw and rebuild current projections from authoritative state without repeating gameplay commands or stale cached bars. | [nclient.c:1865](../../../src/client/nclient.c#L1865) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

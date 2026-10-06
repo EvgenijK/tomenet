@@ -1,6 +1,10 @@
 # SV-B-043 — Снимок экрана и optional platform ветви
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -24,13 +28,22 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.screenshots.capture` | Ctrl+T/Ctrl+Shift+T and /shot /screenshot plus PNG aliases capture native composed window to PNG when SDL3_image available, BMP otherwise. Retire XHTML and screenshot_keys swapping; preserve filename mode and exact caller. | [c-files.c:2172](../../../src/client/c-files.c#L2172)<br>[main-sdl3.c:8](../../../src/client/main-sdl3.c#L8)<br>[c-cmd.c:8121](../../../src/client/c-cmd.c#L8121)<br>[c-util.c:137](../../../src/client/c-util.c#L137)<br>[nclient.c:408](../../../src/client/nclient.c#L408) |
 | `capability.screenshots.server-trigger` | Preserve applicable Receive_chardump/auto-capture triggers with native PNG/BMP outcome and source gates; no XHTML output. | [c-files.c:2172](../../../src/client/c-files.c#L2172)<br>[nclient.c:408](../../../src/client/nclient.c#L408)<br>[c-util.c:137](../../../src/client/c-util.c#L137)<br>[nclient.c:408](../../../src/client/nclient.c#L408) |
 | `capability.platform.optional-image` | Exercise SDL3_image enabled PNG and disabled BMP native screenshot paths with correct filename/result reporting. | [makefile.sdl3:5](../../../src/makefile.sdl3#L5) |
 | `capability.platform.optional-sticky` | Preserve enabled SDL3_STICKY_KEYS next-key modifier semantics; disabled build remains distinguishable. | [makefile.sdl3:5](../../../src/makefile.sdl3#L5)<br>[main-sdl3.c:1173](../../../src/client/main-sdl3.c#L1173) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

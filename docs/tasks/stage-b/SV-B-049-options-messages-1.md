@@ -1,6 +1,10 @@
 # SV-B-049 — Опции входящих сообщений и их представления — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.newbie-hints` | Apply newbie_hints: Display tips/warnings for new players. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:191](../../../src/client/c-tables.c#L191)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:190](../../../src/client/c-tables.c#L190)<br>[c-xtra1.c:1101](../../../src/client/c-xtra1.c#L1101)<br>[xtra2.c:5274](../../../src/server/xtra2.c#L5274)<br>[xtra2.c:5739](../../../src/server/xtra2.c#L5739) |
@@ -29,7 +40,9 @@
 | `capability.options.limit-chat` | Apply limit_chat: Chat only with players on the same floor. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:249](../../../src/client/c-tables.c#L249)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:248](../../../src/client/c-tables.c#L248)<br>[xtra2.c:11755](../../../src/server/xtra2.c#L11755)<br>[cmd4.c:811](../../../src/server/cmd4.c#L811) |
 | `capability.options.no-afk-msg` | Apply no_afk_msg: Don't show AFK toggle messages of other players. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:251](../../../src/client/c-tables.c#L251)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:250](../../../src/client/c-tables.c#L250)<br>[util.c:6469](../../../src/server/util.c#L6469) |
 | `capability.options.time-stamp-chat` | Apply time_stamp_chat: Add half-hourly time stamps to chat window. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:274](../../../src/client/c-tables.c#L274)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:273](../../../src/client/c-tables.c#L273)<br>[nclient.c:8579](../../../src/client/nclient.c#L8579) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

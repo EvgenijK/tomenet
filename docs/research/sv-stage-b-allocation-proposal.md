@@ -1,5 +1,12 @@
 # Предложение распределения возможностей текущего B
 
+> **Guide allocation superseded, 2026-10-05.** Этот source review остаётся
+> историческим обоснованием разметки, но все `capability.guide.*` и
+> `files.bookmarks-load/save` перенесены в G по
+> [решению пользователя](../../.scratch/single-window-sdl3-client/issues/36-defer-guide-to-stage-g.md).
+> Таблицы B/D/E ниже не являются текущим Guide allocation; authoritative
+> allocation находится в `docs/capabilities/native-coverage.json`.
+
 Дата: 2026-09-23. Проверенный checkout: `887ac4d215376daaa169afca8216f65c18855107`. Исходный статус: исследование и конкретное предложение для следующего изменения canonical registry; на момент исследования код, registry и evidence не менялись.
 
 Применение, 2026-09-23: по поручению пользователя предложение внесено в canonical

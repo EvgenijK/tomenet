@@ -11,7 +11,10 @@ Status: resolved
 
 ## Notes
 
-- Planning-карта завершена 2026-09-20: открытых decision tickets и неуточнённых in-scope вопросов не осталось. Переход к реализации — по [Implementation sequence](migration-sequence.md); runtime acceptance ещё не выполнялась.
+- Planning-карта завершена 2026-09-20 и дополнена подтверждёнными поправками
+  2026-10-05 и 2026-10-06: открытых decision tickets и неуточнённых in-scope вопросов не
+  осталось. Переход к реализации — по [Implementation sequence](migration-sequence.md);
+  runtime acceptance ещё не выполнялась.
 
 - Измеряемые latency gates — только submission 20/50/200 мс; visible 50/100/250 мс остаются targets с ручной проверкой отклика. Уточнение — [Design parity evidence and acceptance](issues/09-design-parity-evidence-and-acceptance.md#q21--presentation-timing-gate-revised-2026-09-20).
 
@@ -99,6 +102,9 @@ Status: resolved
 - [Design parity evidence and acceptance](issues/09-design-parity-evidence-and-acceptance.md#answer): поэтапная evidence-based приёмка на одной машине Linux/Wine/Windows VM; software rendering обязателен, submission gates и короткие scenarios сохранены, XHTML/stress/soak и общий memory ceiling исключены.
 
 - [Sequence surface migration and retire terminal fallback](issues/29-sequence-surface-migration-and-retire-terminal-fallback.md#answer): этапы A–F с полным реестром в A, ранними Windows checks, явным handoff и постепенным отключением fallback; E полностью native, F подтверждает coverage, archives и отсутствие fallback linkage.
+- [Defer Guide to stage G](issues/36-defer-guide-to-stage-g.md#answer): Guide и его bookmarks/update полностью вынесены из A–F в новый этап G; до G все Guide entry points показывают только точную нативную заглушку `The guide is in development`, F принимает non-Guide core, G завершает общую приёмку.
+- [Narrow stage B to the native pregame flow](issues/37-narrow-stage-b-to-pregame-flow.md#answer): B принимает рабочие native screens подключения, account/auth и выбора/создания персонажа через production path с управляемым protocol peer; real-server integration, startup и первый игровой экран начинаются в C, поэтому старый `session.enter-game` не подтягивает map/HUD/FILE/Lua/profile/resources обратно в B.
+- [Reallocate post-B work by functional block](issues/38-reallocate-post-b-by-functional-block.md#answer): A8/B54 заморожены; нынешние C–G заменяются ordered post-B этапами по одному functional block, а cross-block milestones и final acceptance остаются verification gates без capability ownership.
 
 ## Not yet specified
 

@@ -1,14 +1,18 @@
 # SV-B-035 — Character sheet и ранние knowledge данные
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
-Игрок читает и переключает character pages/history/equipment flags, открывает Guide и закрывает sheet.
+Игрок читает и переключает character pages/history/equipment flags; Guide entry показывает `The guide is in development`, после чего sheet продолжается без потери state.
 
 ## Зависимости и граница
 
-Завершить необходимые production части [SV-B-008](SV-B-008-guide.md), [SV-B-029](SV-B-029-map-explore.md), [SV-B-031](SV-B-031-chat.md), [SV-B-033](SV-B-033-guide-tools.md), [SV-B-034](SV-B-034-exports.md).
+Завершить необходимые production части [SV-B-008](SV-B-008-guide.md), [SV-B-029](SV-B-029-map-explore.md), [SV-B-031](SV-B-031-chat.md), [SV-B-034](SV-B-034-exports.md).
 
 Граф задаёт порядок готовности production implementation для следующих задач; это не автоматическое закрытие полной acceptance. Runtime branches и fixtures не обязаны исполняться последовательно. Полный primary owner сохраняет acceptance pending до всех своих obligations и перечисленных поздних integration checks; readiness prerequisites canonical ledger при этом не меняются. Точный полный список capability prerequisites, sources и obligation IDs для каждого owner находится в [coverage.json](coverage.json); hashes связывают его с неизменённым canonical registry. Инженерные зависимости выше добавляют конкретных потребителей, не меняя ledger.
 
@@ -25,6 +29,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.information.read-sheet` | Read current character abilities, identity and stat sheet from decoded state, preserving glyphs, colours and missing/versioned values. | [c-cmd.c:382](../../../src/client/c-cmd.c#L382)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[c-birth.c:512](../../../src/client/c-birth.c#L512)<br>[c-cmd.c:2310](../../../src/client/c-cmd.c#L2310) |
@@ -32,22 +43,24 @@
 | `capability.information.read-equipment-flags` | Read equipment resistance/ability flag matrix and its horizontal/vertical view without changing equipment. | [c-cmd.c:382](../../../src/client/c-cmd.c#L382)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.information.navigate-sheet` | h/H cycles the three character pages; 2/8 selects help topics (not pages), 4/6 changes selection, v toggles equipment orientation only on page 2. | [c-cmd.c:382](../../../src/client/c-cmd.c#L382)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[c-birth.c:512](../../../src/client/c-birth.c#L512)<br>[c-cmd.c:2310](../../../src/client/c-cmd.c#L2310) |
 | `capability.information.close-sheet` | q/Q/Escape/C closes the sheet and restores its exact live or final-review parent without issuing a gameplay command. | [c-cmd.c:382](../../../src/client/c-cmd.c#L382)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
 1. Live/final-review data coherent, versions/absent fields, exact paging/current-state redraw и context topic.
-2. Actual character export/Guide/chat/capture children возвращают правильный sheet owner; repeat redraw не повторяет send/dump.
+2. Actual character export/chat/capture children and the Guide placeholder возвращают правильный sheet owner; repeat redraw не повторяет send/dump.
 3. Полная D lore/context-help union и glyph lookup не приписываются B unique-records.
 
 Для каждого собственного ID дополнительно обязательны следующие условия; это требования будущей реализации, а не результаты выполненных тестов.
 
 | ID | Конкретные проверки и ранние handoffs |
 |---|---|
-| `capability.information.read-sheet` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: Read current character abilities, identity and stat sheet from decoded state, preserving glyphs, colours and missing/versioned values. B caller-specific Guide topics from each birth step, final/live sheet and server opening tested through existing B caller/result obligations; full skills/lore caller-union remains D. For race/trait/class/stats/mode/body and sheet context, topic search matches exact baseline argument; close/cancel restores same caller/pending selection. Missing Guide/search failure/resize/network update preserve early owner; C skill and D lore callers require separate full-context regressions. Full deferred outcomes: capability.guide.context-help. |
+| `capability.information.read-sheet` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: Read current character abilities, identity and stat sheet from decoded state, preserving glyphs, colours and missing/versioned values. In A–F the Guide child displays exactly "The guide is in development", performs no Guide operation, and restores the same sheet caller/pending state; complete Guide behavior is stage G. |
 | `capability.information.read-history` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: Read server history lines at their original indices; updates replace only the addressed line and session reset clears old character content. |
 | `capability.information.read-equipment-flags` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: Read equipment resistance/ability flag matrix and its horizontal/vertical view without changing equipment. |
-| `capability.information.navigate-sheet` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: h/H cycles the three character pages; 2/8 selects help topics (not pages), 4/6 changes selection, v toggles equipment orientation only on page 2. B caller-specific Guide topics from each birth step, final/live sheet and server opening tested through existing B caller/result obligations; full skills/lore caller-union remains D. For race/trait/class/stats/mode/body and sheet context, topic search matches exact baseline argument; close/cancel restores same caller/pending selection. Missing Guide/search failure/resize/network update preserve early owner; C skill and D lore callers require separate full-context regressions. Full deferred outcomes: capability.guide.context-help. |
+| `capability.information.navigate-sheet` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: h/H cycles the three character pages; 2/8 selects help topics (not pages), 4/6 changes selection, v toggles equipment orientation only on page 2. In A–F the Guide child displays exactly "The guide is in development", performs no Guide operation, and restores the same sheet caller/pending state; complete Guide behavior is stage G. |
 | `capability.information.close-sheet` | Live и final-review child; coherent data/pages/help/dump/capture/chat и точное восстановление parent; версия/missing values, без повторных sends. Точный проверяемый результат: q/Q/Escape/C closes the sheet and restores its exact live or final-review parent without issuing a gameplay command. |
 
 [Общий обязательный recipe](../../sv-stage-b-spec.md#verification) применяется к каждому пути success/cancel/error: production decoder/router/model/renderer/serializer, bytes и split/chained input, актуальный parent, macro/physical routes, interleaved network, focus/resize и stale generation. Fixture подменяет peer/clock/filesystem/provider inputs, но не реализацию поведения.

@@ -1,86 +1,104 @@
-# Границы этапа B — сверка принятых решений
+# Границы этапа B — native pregame flow
 
-Дата: 2026-09-23. Статус: уточнение по существующим подтверждениям пользователя;
-новых архитектурных решений не требуется. Сверка завершена и canonical allocation
-обновлён по [таблице распределения](research/sv-stage-b-allocation-proposal.md)
-по поручению пользователя применить предложение. B содержит 508 полных outcomes;
-выбранный ранний объём шрифтов/ресурсов сохранён. Ниже сохранены основания
-исходного разбора; инженерные пункты выполнены этим изменением реестра.
+Дата решения: 2026-10-05. Статус: подтверждено пользователем и материализовано
+в canonical allocation; implementation tickets обновляются отдельно.
 
-Основания: [исследование 583 назначений B](research/sv-stage-b-scope.md),
-[согласованная последовательность](capabilities/item-policy.md#stage-detail),
-[подтверждения Q1–Q6](../.scratch/single-window-sdl3-client/issues/29-sequence-surface-migration-and-retire-terminal-fallback.md#answer)
-и [контракт настроек](capabilities/settings-policy.md).
+Нормативное решение: [Narrow stage B to the native pregame flow](../.scratch/single-window-sdl3-client/issues/37-narrow-stage-b-to-pregame-flow.md#answer).
+Оно заменяет прежнее определение B как «живая сессия и игровой экран» в
+[исходной последовательности](../.scratch/single-window-sdl3-client/issues/29-sequence-surface-migration-and-retire-terminal-fallback.md#answer).
+Перенос Guide в G из [issue 36](../.scratch/single-window-sdl3-client/issues/36-defer-guide-to-stage-g.md#answer)
+остаётся в силе.
 
-## Результат разбора
+## Новая граница
 
-Для найденных исследованием расхождений не обнаружено необходимости заново
-выбирать общие границы B/E. Исходные подтверждения уже задают правило:
-необходимые зависимости приходят вместе со своим пользовательским сценарием;
-остальная полнота настроек, импорта и интеграций завершается в E.
-Число 583 отражает текущую разметку реестра, а не отдельное пользовательское
-решение расширить этап B.
+B реализует минимально необходимый, полностью рабочий native flow экранов:
 
-Первый разбор ещё не определял исправленный состав B: он проверял источники
-механически и вручную читал ключевые переходы. Последующая таблица проверила
-конкретных consumers и стала основой текущего allocation.
+- выбор endpoint и подключение;
+- создание аккаунта и аутентификацию;
+- список, выбор и предусмотренное pregame-управление персонажами;
+- полный flow создания персонажа;
+- peer-driven MOTD, ожидание, отказ, back/cancel/retry и disconnect;
+- production UI/model/input/transport/protocol path;
+- credentials и защищённое хранение, необходимые account flow.
 
-## Основания, которые не нужно согласовывать повторно
+Внешней стороной проверки служит управляемый protocol peer. Он говорит с
+production transport/protocol path и задаёт нормативные ответы, отказы,
+фрагментацию и разрывы соединения. Он не заменяет production decoder, model,
+interaction state, input router, serializer или UI.
 
-| Вопрос | Уже принятое решение | Следствие |
-|---|---|---|
-| Что определяет границы этапов? | [План A–F](capabilities/item-policy.md#stage-detail), подтверждённый в [issue 29](../.scratch/single-window-sdl3-client/issues/29-sequence-surface-migration-and-retire-terminal-fallback.md): B — сессия/игровой экран с необходимыми зависимостями; E — оставшаяся полнота | Найденное несоответствие allocation проверяется и исправляется относительно плана; не следует автоматически принимать все 583 как минимальный объём B |
-| Макросы в B | Keyboard/macro routes сценариев B; C добавляет свои игровые действия и цепочки; E завершает editing/recording | Загрузка и исполнение для B остаются ранними. Полный editor/recording/wizard не становится обязательным B только из-за текущей записи ledger |
-| Settings/import | Ранние config/resource prerequisites включаются по потребности сценария; E завершает remaining settings/import/save/cancel | Нельзя автоматически переносить всю систему в E или весь редактор в B; требуется разметка конкретных ранних потребителей |
-| Семантика настроек и файлов | [Persistence contract](capabilities/settings-policy.md): Preview/Save/Cancel, владение файлами, ошибки, конфликты, импорт и credentials уже определены | Для включённого раннего сценария применяется полный соответствующий контракт; временное упрощение Save/Cancel или plaintext credentials не является вариантом декомпозиции |
-| Приёмка опций | [Registry contract](capabilities/README.md) и [план](capabilities/item-policy.md#registry-and-stage-gates): общая примитивная операция не принимает всех её callers | Чтение/передача значения не доказывает эффект опции в ещё не перенесённой продаже, заклинании или другом позднем действии |
-| Зависимости и fallback | [Transition contract](capabilities/item-policy.md#nativefallback-transition-and-retirement): явные будущие children, точный возврат/отмена, accepted flow не уходит в fallback | Пропущенные рёбра и границы дочерних сценариев требуют инженерной сверки; разрешение произвольного fallback повторно не обсуждается |
+Конечное состояние B — выбранный либо созданный персонаж, показанный MOTD и
+явный handoff к следующей фазе. Это ещё не `session.enter-game`, не живая игровая
+сессия и не первый игровой экран.
 
-Контракт настроек подтверждён отдельно: [issue 25](../.scratch/single-window-sdl3-client/issues/25-specify-persistence-ownership-and-ui-configuration-schema.md#answer).
-Он задаёт итоговое поведение, но сам по себе не назначает все настройки этапу B.
-[Settings reconciliation](capabilities/settings-reconciliation.md#authority-and-allocation)
-и [complete reconciliation](capabilities/complete-reconciliation.md#cross-cutting-scenarios-and-stage-prerequisites)
-описывают выполненное распределение; отдельного пользовательского подтверждения
-расширить B полным editor/import/recording в проверенных источниках не найдено.
+## Что не входит в B
 
-## Выполненная инженерная сверка
+В C переходят все outcomes, которые ранее находились в B, но не нужны для
+рабочих pregame screens, в том числе:
 
-1. **Макросы.** Загрузка и исполнение сценариев B остались ранними;
-   полные editor/recording/wizard отнесены к E вместе с зависимостями
-   от предметных и магических действий.
-2. **Настройки и импорт.** First-launch data import, общие load/parse/Save/Cancel
-   и выбранный объём шрифтов/ресурсов сохранены в B. Повторный import-management,
-   shared INS management и полные audio pack/device editors завершаются в E.
-   Startup INS/audio obligations явно сохранены у существующих B-владельцев.
-3. **Опции.** Для всех 184 исходных B-опций записаны конкретные consumers,
-   источники и проверки обеих ветвей. Поздние эффекты перенесены в C/D/E;
-   ранняя загрузка не принимает позднее действие. У `disturb_other` сохранены
-   default/storage/wire slots без выдуманного отсутствующего эффекта.
-4. **Зависимости.** Применены 387 изменений prerequisites. Добавлены реальные
-   settings/resources, FILE/Lua, Guide и startup dependencies. Удалены
-   необоснованные зависимости ранних read-only/direction/target paths от
-   numeric quantity prompt, который принимается в C. Исправлено описание:
-   Escape даёт 0, подтверждённый пустой ввод использует default.
-5. **Итог.** Из 583 исходных B IDs: 508 остались B, 11 перешли в C,
-   7 — в D, 57 — в E. Новых capability IDs нет; исходные obligations,
-   поздние полные outcomes, lifecycle/history и inventory mappings сохранены.
-   Проверка registry с исходным manifest, source verification, inventories,
-   reconciliation и evidence прошла; это не runtime acceptance B.
+- real-server integration и доказательство совместимости с живым TomeNET server;
+- post-MOTD startup и `session.enter-game`;
+- profile/settings/preferences/macros, FILE transfer и Lua reload;
+- game resources и gameplay-rendering prerequisites;
+- первая авторитетная карта, HUD/status, сообщения и чат;
+- movement, targeting, inventory/store и другие игровые действия;
+- death, gameplay quit/reconnect, final review и другие post-entry transitions;
+- прежние ранние части files/audio/import/config/rendering/platform families,
+  если они не требуются непосредственно pregame screens.
 
-## Когда действительно нужен следующий раунд вопросов
+Переносятся только прежние назначения B; уже отложенный состав D/E/G этим
+решением автоматически не переезжает в C. Guide entry points до G продолжают
+использовать утверждённую точную нативную заглушку.
 
-Задать вопрос пользователю, если конкретный сценарий допускает несколько
-различимых вариантов поведения/границ, а утверждённые источники не выбирают
-между ними. Вопрос должен содержать точный пример, последствия вариантов и
-рекомендацию. Если предложение расширяет B удобством, которое не является
-доказанной зависимостью, обозначить его как новое предложение, а не требование
-существующего контракта.
+## Правило зависимостей и atomic allocation
 
-Для выявленных сейчас расхождений новые пользовательские ответы не требуются.
-Технические пункты выше материализованы в manifest, native ledger и reconciliation.
-Следующая работа — review изменений и спецификация/тикеты B; runtime acceptance
-эти документы не подтверждают.
+Старый `session.enter-game` объединял pregame с profile/FILE/Lua/resources и
+первым игровым состоянием. Теперь этот составной outcome не может служить
+основанием подтянуть такие зависимости обратно в B. Canonical reallocation
+должен применить одно из двух правил:
 
-Новая терминология не вводится; изменение `CONTEXT.md` не требуется.
-Нового архитектурного выбора нет, поэтому новый ADR не создаётся.
-Этот разбор не меняет игровые правила; применение allocation изменяет canonical JSON, но не игровой код и не runtime evidence.
+1. оставить составной outcome и его prerequisites в C; либо
+2. разделить его на самостоятельно проверяемые outcomes pregame handoff и
+   live-session entry, если это соответствует capability policy.
+
+Нельзя принимать часть составного outcome под его старым ID или объявлять
+managed-peer evidence доказательством real-server behavior. Точные IDs и
+prerequisites берутся только из финального canonical registry.
+
+Финальное распределение active outcomes: **A8/B54/C615/D162/E64/F1/G21**.
+B54 состоит из:
+
+| Семейство | Outcomes B |
+|---|---:|
+| connection | 5 |
+| account | 11 |
+| character | 8 |
+| birth | 15 |
+| session | 2 |
+| network | 5 |
+| input | 4 |
+| credentials | 4 |
+
+## Честная граница evidence
+
+| B доказывает | B не доказывает |
+|---|---|
+| Нативные pregame/MOTD screens и переходы без terminal fallback | Совместимость с конкретным живым сервером |
+| Production decode/model/input/serialize/UI path | Post-MOTD startup side effects |
+| Server-shaped success/rejection через managed peer | Реальные server version/build branches вне peer matrix |
+| Packet fragmentation, disconnect и generation cleanup в pregame waits | Получение первого map/HUD state |
+| Field-byte rules и защищённое хранение credentials | Игровые команды, post-entry quit/reconnect/death |
+
+Real-server round trip и первый игровой экран являются обязательной приёмкой C.
+Managed peer остаётся полезным детерминированным evidence и после этого, но не
+заменяет live integration.
+
+## Связь с архитектурой
+
+ADR-0001…0006 сохраняются без изменений: session model, interaction, UI и
+protocol разделены; mutable state принадлежит main thread; module connections,
+revision views, session generation и error isolation остаются обязательными.
+Изменена stage acceptance boundary, а не архитектура модулей.
+
+Acceptance denominator B — 54 active outcomes из финального canonical registry.
+Предыдущие числа и историческая таблица распределения больше не описывают текущую
+границу и не должны использоваться как acceptance denominator.

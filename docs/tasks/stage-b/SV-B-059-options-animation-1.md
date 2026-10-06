@@ -1,6 +1,10 @@
 # SV-B-059 — Опции анимации, weather и color scopes — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,13 +26,22 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.subterm-flicker` | Apply subterm_flicker: Show animated text colours in sub-windows. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:305](../../../src/client/c-tables.c#L305)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:304](../../../src/client/c-tables.c#L304)<br>[z-term.c:1134](../../../src/client/z-term.c#L1134)<br>[c-xtra1.c:2945](../../../src/client/c-xtra1.c#L2945)<br>[c-xtra1.c:1921](../../../src/client/c-xtra1.c#L1921)<br>[c-xtra1.c:3098](../../../src/client/c-xtra1.c#L3098)<br>[nclient.c:356](../../../src/client/nclient.c#L356)<br>[nclient.c:6627](../../../src/client/nclient.c#L6627)<br>[nclient.c:420](../../../src/client/nclient.c#L420)<br>[nclient.c:423](../../../src/client/nclient.c#L423)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.options.misc-no-flicker` | Apply misc_no_flicker: Only animate colours for main screen and messages. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:641](../../../src/client/c-tables.c#L641)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:640](../../../src/client/c-tables.c#L640)<br>[z-term.c:1135](../../../src/client/z-term.c#L1135)<br>[c-xtra1.c:2945](../../../src/client/c-xtra1.c#L2945)<br>[c-xtra1.c:1921](../../../src/client/c-xtra1.c#L1921)<br>[c-xtra1.c:3098](../../../src/client/c-xtra1.c#L3098)<br>[nclient.c:356](../../../src/client/nclient.c#L356)<br>[nclient.c:6627](../../../src/client/nclient.c#L6627)<br>[nclient.c:420](../../../src/client/nclient.c#L420)<br>[nclient.c:423](../../../src/client/nclient.c#L423)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.options.no-flicker` | Apply no_flicker: Disable all fast colour animations. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:579](../../../src/client/c-tables.c#L579)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:578](../../../src/client/c-tables.c#L578)<br>[z-term.c:1133](../../../src/client/z-term.c#L1133) |
 | `capability.options.no-weather` | Apply no_weather: Disable weather visuals and sounds completely. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:289](../../../src/client/c-tables.c#L289)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:288](../../../src/client/c-tables.c#L288)<br>[nclient.c:5591](../../../src/client/nclient.c#L5591)<br>[nclient.c:5613](../../../src/client/nclient.c#L5613)<br>[nclient.c:8442](../../../src/client/nclient.c#L8442) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

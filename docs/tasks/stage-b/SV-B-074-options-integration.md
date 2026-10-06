@@ -1,6 +1,10 @@
 # SV-B-074 — Опции pacing, capture и clone outputs
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.thin-down-flush` | Apply thin_down_flush: Thin down screen flush signals to avoid freezing. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:351](../../../src/client/c-tables.c#L351)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:350](../../../src/client/c-tables.c#L350)<br>[nclient.c:4053](../../../src/client/nclient.c#L4053)<br>[nclient.c:4051](../../../src/client/nclient.c#L4051) |
@@ -29,7 +40,9 @@
 | `capability.options.quiet-os` | Apply quiet_os: Don't play beep/alert/page beeps through OS. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:518](../../../src/client/c-tables.c#L518)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:517](../../../src/client/c-tables.c#L517)<br>[c-util.c:1952](../../../src/client/c-util.c#L1952) |
 | `capability.options.clone-to-stdout` | Apply clone_to_stdout: Clone client chat and messages to stdout. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:550](../../../src/client/c-tables.c#L550)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:549](../../../src/client/c-tables.c#L549)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.options.clone-to-file` | Apply clone_to_file: Clone client chat and messages to 'stdout.txt'. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:552](../../../src/client/c-tables.c#L552)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:551](../../../src/client/c-tables.c#L551)<br>[c-util.c:4892](../../../src/client/c-util.c#L4892) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

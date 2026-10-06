@@ -1,6 +1,10 @@
 # SV-B-041 — Выбор layout, window mode и UI scale
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,12 +26,21 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.settings.layout` | Choose wide/small, preserve hidden right-panel state and full map fit; startup wide, once-per-launch small offer is ephemeral, legacy big_map cannot override saved layout. | [main-sdl3.c:1946](../../../src/client/main-sdl3.c#L1946)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.window-mode` | Choose fullscreen desktop mode or windowed; default fullscreen. Preserve saved windowed logical size separately; absent size uses work area subject to1024x768 minimum and WM limits. | [main-sdl3.c:1946](../../../src/client/main-sdl3.c#L1946)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.ui-scale` | Choose50..200% step5 with100 default and invalid-value feedback; apply OS DPI independently, resize text/controls/spacing without changing server viewport. | [main-sdl3.c:1946](../../../src/client/main-sdl3.c#L1946)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

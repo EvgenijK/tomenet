@@ -1,6 +1,10 @@
 # SV-B-016 — Состояния, голод и видимые ограничения
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.status.read-confusion` | Read authoritative confusion condition. | [nclient.c:370](../../../src/client/nclient.c#L370) |
@@ -33,7 +44,9 @@
 | `capability.status.read-stun` | Read stun severity and corresponding presentation. | [nclient.c:379](../../../src/client/nclient.c#L379) |
 | `capability.status.read-encumbrance` | Read all fifteen encumbrance conditions with version-dependent absent flags cleared. | [nclient.c:414](../../../src/client/nclient.c#L414) |
 | `capability.status.read-martyr` | Read martyr state and applicable status presentation. | [nclient.c:450](../../../src/client/nclient.c#L450) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

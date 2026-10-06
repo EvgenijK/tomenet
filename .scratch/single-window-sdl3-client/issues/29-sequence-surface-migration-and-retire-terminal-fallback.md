@@ -48,3 +48,10 @@ Draft: [Implementation sequence](../migration-sequence.md). Q4 proposes full ato
 Development-only fallback разрешён только явным будущим flows с владельцем и этапом замены; input router сохраняет queue/request/parent semantics. Принятый native flow не возвращается в fallback. E проходит все сценарии с отключённым fallback; F исключает его linkage и требует актуальное полное evidence из целевых архивов. Permanent formatted documents/canvases не являются fallback.
 
 Q1–Q6 подтверждены пользователем. Новых нерешённых planning-вопросов не выявлено. Реализация, registry/checker population, VM provisioning, runtime acceptance, очистка old modern objects и выпуск остаются следующим этапом за пределами карты.
+
+## Amendment — 2026-10-05
+
+Исходный порядок A–F сохранён как история решения, но актуальный
+контракт изменён [отдельным решением](36-defer-guide-to-stage-g.md#answer):
+Guide вынесен в G, A–F используют только точную нативную заглушку, а
+финальная полная приёмка перенесена из F в G.

@@ -1,6 +1,10 @@
 # SV-B-071 — Опции audio incoming effects и suppression — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.no-magicattack-sfx` | Apply no_magicattack_sfx: Don't play basic spell/device attack sound fx. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:406](../../../src/client/c-tables.c#L406)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:405](../../../src/client/c-tables.c#L405)<br>[dungeon.c:3332](../../../src/server/dungeon.c#L3332)<br>[spells2.c:8250](../../../src/server/spells2.c#L8250)<br>[nserver.c:2861](../../../src/server/nserver.c#L2861)<br>[spells2.c:7678](../../../src/server/spells2.c#L7678)<br>[defines.h:1282](../../../src/common/defines.h#L1282)<br>[defines.h:1286](../../../src/common/defines.h#L1286)<br>[config.h:467](../../../src/config.h#L467) |
@@ -29,7 +40,9 @@
 | `capability.options.cut-sfx-attack` | Apply cut_sfx_attack: Skip attack sounds based on speed and bpr. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:412](../../../src/client/c-tables.c#L412)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:411](../../../src/client/c-tables.c#L411)<br>[cmd1.c:49](../../../src/server/cmd1.c#L49)<br>[cmd1.c:3569](../../../src/server/cmd1.c#L3569)<br>[cmd2.c:7429](../../../src/server/cmd2.c#L7429)<br>[config.h:467](../../../src/config.h#L467) |
 | `capability.options.ovl-sfx-command` | Apply ovl_sfx_command: Allow overlapping command sounds of same type. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:414](../../../src/client/c-tables.c#L414)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:413](../../../src/client/c-tables.c#L413)<br>[snd-sdl3.c:2109](../../../src/client/snd-sdl3.c#L2109)<br>[snd-sdl.c:1907](../../../src/client/snd-sdl.c#L1907) |
 | `capability.options.ovl-sfx-misc` | Apply ovl_sfx_misc: Allow overlapping misc sounds of same type. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:416](../../../src/client/c-tables.c#L416)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:415](../../../src/client/c-tables.c#L415)<br>[snd-sdl3.c:2111](../../../src/client/snd-sdl3.c#L2111)<br>[snd-sdl.c:1909](../../../src/client/snd-sdl.c#L1909) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

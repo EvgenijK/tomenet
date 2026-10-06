@@ -1,6 +1,10 @@
 # SV-B-018 — Живая лента сообщений с точными occurrences
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,10 +27,19 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.messages.read-live` | Read real-session messages with original channel/colour/control markers, clear-topline, live feed and full-history routing; identical incoming occurrences remain distinct even if recall bundles display. This B outcome needs live decode-to-view evidence beyond the synthetic A occurrence slice. | [nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

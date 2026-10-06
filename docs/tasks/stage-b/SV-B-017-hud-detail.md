@@ -1,6 +1,10 @@
 # SV-B-017 — Личность, цели и дополнительные HUD данные
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.status.read-demographics` | Read height, weight, age, social class and source identity text. | [nclient.c:359](../../../src/client/nclient.c#L359) |
@@ -33,7 +44,9 @@
 | `capability.status.read-indicators` | Read indicator bit meanings without losing unknown bits. | [nclient.c:456](../../../src/client/nclient.c#L456) |
 | `capability.information.live-players` | Read separate live player-list snapshot: mode0 clear, mode1 full terminated replace, mode2 upsert, mode3 remove; preserve bounded source rows and rollback. | [nclient.c:457](../../../src/client/nclient.c#L457)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.information.unique-records` | Read keyed unique kill counts/names independently of server document navigation. | [nclient.c:421](../../../src/client/nclient.c#L421)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[c-files.c:2297](../../../src/client/c-files.c#L2297) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-032 — Полный recall и important history
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -24,6 +28,13 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.messages.recall-read` | Read recall message history with original ordering, channel/control markers and owner-specific filtering/bundling; do not replace stored occurrences with the display projection. | [c-xtra2.c:144](../../../src/client/c-xtra2.c#L144)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
@@ -34,7 +45,9 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 | `capability.messages.important-navigate` | Navigate important recall by line/page/top/bottom and horizontal offset while retaining the current history position and updates. | [c-xtra2.c:594](../../../src/client/c-xtra2.c#L594)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.messages.important-search` | Search/highlight important recall with the exact case/direction and optional REGEX_SEARCH rules; failed or canceled search preserves the recall owner. | [c-xtra2.c:594](../../../src/client/c-xtra2.c#L594)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.messages.important-close` | Close important recall and restore gameplay or final-review caller and its queue policy. | [c-xtra2.c:594](../../../src/client/c-xtra2.c#L594)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1425,11 +1425,11 @@
     },
     {
       "path": "src/client/sv/app.c",
-      "sha256": "6b14d41eed6fcf5eeecd5675f55cd10545312cac81fa8a8603f58d263022915e"
+      "sha256": "f428989b40027c5ad32d3606dea60c0e448ec63efcf879d4cad5d68c546bdf7f"
     },
     {
       "path": "src/client/sv/app.h",
-      "sha256": "555ee817c4d3d5f7c82abc55080e2860d63cc99d91baeb715159bd91195be564"
+      "sha256": "22a2c78605d3fcbaca95f6e7f7907ede8073a07422f119234182a9e57b60bcc2"
     },
     {
       "path": "src/client/sv/diagnostics/runtime.h",
@@ -1444,24 +1444,32 @@
       "sha256": "60fa267a33b195eb117cf151d6ddfd9f52bc9f5a27b43582890b859c3e7b135f"
     },
     {
+      "path": "src/client/sv/endpoint-run.c",
+      "sha256": "774761c589a3a99185cea3520900a5d5ab100bd40d07c6cac98ad0ad846e7151"
+    },
+    {
+      "path": "src/client/sv/endpoint-run.h",
+      "sha256": "aba94b040af70cbc86aea1ba895a0b7296efb4952dfa06c9c6015306cf16c29b"
+    },
+    {
       "path": "src/client/sv/input/input.c",
-      "sha256": "cf682d1f66dc35d394f709732698d8c16fee1eef80cfef67e5993b3d99eb85c3"
+      "sha256": "2c0a0b269afa983b13f454c4fd3fcdde008da169855ba46f2a19823d11faef07"
     },
     {
       "path": "src/client/sv/input/input.h",
-      "sha256": "e1953e3dedda185fec3eced1e2ecc9c361f56db3e06672e742eaa6ed8c8b450a"
+      "sha256": "a31108f2828837040a5f1ac994f482270cbcf5e1c3ff22bc6c0e7c8cd7578bd8"
     },
     {
       "path": "src/client/sv/input/native-input.c",
-      "sha256": "6968020397d4d4601ed6b54fd8cab0344b2f8d77563c188f7c7de600c1c22dd0"
+      "sha256": "2a7c845a713be2c7868d965d7f539992421a2d1869632eaeee7331f971d55e9a"
     },
     {
       "path": "src/client/sv/input/native-input.h",
-      "sha256": "422e77aa3e33d50cd9df29255bc0eda59a702325618c65f5ff52db341e145c7f"
+      "sha256": "8586d810739d2b63459305f967d470d33b2f5932cbd17d177dc59c9591cea9f6"
     },
     {
       "path": "src/client/sv/main.c",
-      "sha256": "a38fee35bb38211dc25a62cf254b3f88f35dafed2683a1cffa0509db07043a3b"
+      "sha256": "eb20a7ca28485f2ab509610b72b3031ec9536aa863ec2e563480032bd383d633"
     },
     {
       "path": "src/client/sv/protocol/hp-update.h",
@@ -1477,11 +1485,11 @@
     },
     {
       "path": "src/client/sv/protocol/protocol.c",
-      "sha256": "4c0e5535d94a33eebfaf0a62bdf015bcf34a113259e5b42427004f87d9cf2bb6"
+      "sha256": "ce352109934fa5a79b549efe8a289e6463a22b8a98067f2bb452e6b3592821d0"
     },
     {
       "path": "src/client/sv/protocol/protocol.h",
-      "sha256": "6b27dfb5b98071e81d4e219b26c63f300b43dac9e66bbbbe09a3be37d745fe5d"
+      "sha256": "6a9eb86557fe8fd948183b908fb8613b0f7a51ec9e83741b02e74535d1533eaf"
     },
     {
       "path": "src/client/sv/protocol/version.c",
@@ -1512,8 +1520,16 @@
       "sha256": "204248a5723ec241f2631b07156881b2a89cb1ba03fe47209f8f7efd1acabac8"
     },
     {
+      "path": "src/client/sv/ui/endpoint-scene.c",
+      "sha256": "59b1c214ae9659083d5d9643798bdfab88e91528464c31110ee85f06ecc356d9"
+    },
+    {
+      "path": "src/client/sv/ui/endpoint-scene.h",
+      "sha256": "19cd9094e2fb45ba0b9af561ad8c47d79c1e313e29a7c0ac5bf4a48dc7384b31"
+    },
+    {
       "path": "src/client/sv/ui/font.c",
-      "sha256": "0b65c4c1fd8fda7ec0ad69af07208d95c962fb26bad495f66cd3f895767d2d85"
+      "sha256": "cdb04d2bb1759f61047e755c616d12236043349f9f9e90499bb3546cde9bdeb8"
     },
     {
       "path": "src/client/sv/ui/font.h",
@@ -1893,7 +1909,7 @@
     },
     {
       "path": "src/makefile.sv",
-      "sha256": "28911f31bff0c71ca67c84d27ada520aec28fc94dbf1dedc867ce984a05003fc"
+      "sha256": "837153386009ea24bf105637ee20be39a79c96077529fda2e12bc2c490bc1984"
     },
     {
       "path": "src/makefile.win",

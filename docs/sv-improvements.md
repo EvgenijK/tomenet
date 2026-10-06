@@ -410,7 +410,8 @@ platform builds.
 
 ## Keep SV CFG field metadata in one place
 
-**Status:** proposed separately; not part of SV-B-004 settings behavior.
+**Status:** moved to Stage C with the former SV-B-004 settings scope; proposed
+separately and not part of the narrowed Stage B.
 
 **Problem:** adding a CFG field currently requires matching edits to the parse
 branch, value formatter and settings Save key list. A missed edit can leave the
@@ -446,7 +447,8 @@ input observations.
 
 ## Correct legacy S keymap record field parsing
 
-**Status:** proposed separately; SV-B-007 keeps its parser isolated.
+**Status:** moved to Stage C with the former SV-B-007 preference/macro scope;
+proposed separately and not part of the narrowed Stage B.
 
 **Problem:** the legacy `S:<key>:<command>:<direction>` branch reads all three
 values from `zz[0]`. A PRF record can therefore map the key to itself and

@@ -17,12 +17,11 @@ static bool line(SDL_Renderer *renderer, SvFont *font, const char *text,
 }
 
 bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
-                        const SvEndpoint *endpoint, const SvEndpointInput *input,
-                        float user_scale)
+                        const SvEndpoint *endpoint, const SvEndpointInput *input)
 {
     int width, height;
     if (!SDL_GetCurrentRenderOutputSize(renderer, &width, &height)) return false;
-    float scale = SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer)) * user_scale;
+    float scale = SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));
     if (scale <= 0) scale = 1.0f;
     const SDL_Color title = {226,235,245,255}, normal = {185,205,223,255},
                     selected = {255,210,106,255}, error = {255,135,135,255};
@@ -128,8 +127,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
 }
 
 bool sv_endpoint_draw(SDL_Renderer *renderer, SvFont *font,
-                      const SvEndpoint *endpoint, const SvEndpointInput *input,
-                      float user_scale)
+                      const SvEndpoint *endpoint, const SvEndpointInput *input)
 {
-    return sv_endpoint_render(renderer,font,endpoint,input,user_scale) && SDL_RenderPresent(renderer);
+    return sv_endpoint_render(renderer,font,endpoint,input) && SDL_RenderPresent(renderer);
 }

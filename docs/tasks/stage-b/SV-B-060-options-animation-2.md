@@ -1,6 +1,10 @@
 # SV-B-060 — Опции анимации, weather и color scopes — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.disable-lightning` | Apply disable_lightning: Disable visual screen flash effect for lightning. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:520](../../../src/client/c-tables.c#L520)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:519](../../../src/client/c-tables.c#L519)<br>[c-xtra1.c:5376](../../../src/client/c-xtra1.c#L5376)<br>[c-util.c:19905](../../../src/client/c-util.c#L19905)<br>[c-util.c:19906](../../../src/client/c-util.c#L19906) |
@@ -28,7 +39,9 @@
 | `capability.options.ascii-weather` | Apply ascii_weather: Always use plain ASCII symbols for weather. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:609](../../../src/client/c-tables.c#L609)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:608](../../../src/client/c-tables.c#L608)<br>[nclient.c:6588](../../../src/client/nclient.c#L6588)<br>[c-util.c:17824](../../../src/client/c-util.c#L17824) |
 | `capability.options.no2mask-weather` | Apply no2mask_weather: Never use dual-mask grapics for weather. Preserve literal baseline default/build row F; E=F; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:611](../../../src/client/c-tables.c#L611)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:610](../../../src/client/c-tables.c#L610)<br>[nclient.c:6588](../../../src/client/nclient.c#L6588)<br>[c-util.c:17824](../../../src/client/c-util.c#L17824) |
 | `capability.options.use-color` | Apply use_color: (deprecated) Use color if possible. Preserve literal baseline default/build row T; E=F; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:439](../../../src/client/c-tables.c#L439)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:438](../../../src/client/c-tables.c#L438)<br>[c-util.c:13239](../../../src/client/c-util.c#L13239)<br>[c-util.c:13251](../../../src/client/c-util.c#L13251)<br>[c-util.c:13265](../../../src/client/c-util.c#L13265) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

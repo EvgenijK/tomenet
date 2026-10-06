@@ -6,7 +6,19 @@ The local task is `.scratch/single-window-sdl3-client-stage-a/issues/10-register
 
 Current C sources define behavior/protocol. [item-policy.md](item-policy.md) retains the approved A–F allocation and native layout contract; [session-policy.md](session-policy.md) retains the field-byte/defect policy. Referenced source files are fingerprinted in the manifest. Inventory snapshots below are discovery aids, never execution evidence; source corrections take precedence over old summaries.
 
-B includes real chat/messages and the read-only character/history children of session final review. C includes AMT/NUM/STR/CFR requests and their concrete ordinary-store consumers (order, mail, donation, repair and memory services). D includes remaining information/social/house/admin, local/server documents and special stores. The existing A message/key-request rows are unchanged and prove no new caller. Each consumer must exercise its real ID/type, parent, success, rejection and cancellation, even when a shared prompt is an earlier prerequisite.
+Historical Guide/context-help stage labels in the inventories below are superseded:
+all Guide outcomes are G, while A–F entry points show only
+`The guide is in development` and restore their caller.
+
+The 2026-10-05 minimal-login boundary moves chat/messages, final-review children
+and every other information outcome previously allocated to B into C. Stage B
+contains no information-domain capability. C also includes AMT/NUM/STR/CFR
+requests and their concrete ordinary-store consumers (order, mail, donation,
+repair and memory services). D includes remaining information/social/house/admin,
+local/server documents and special stores. The existing A message/key-request
+rows are unchanged and prove no new caller. Each consumer must exercise its real
+ID/type, parent, success, rejection and cancellation, even when a shared prompt
+is an earlier prerequisite.
 
 Generic documents and special canvases are native surface obligations. They do not authorize terminal fallback. All new ledger rows carry source-backed result/lifecycle obligations; network rows additionally require exact bytes, complete/incomplete/chained decode and version gates. Every result requires the full caller scenario, not a screenshot or a synthetic isolated request.
 
@@ -14,9 +26,9 @@ Generic documents and special canvases are native surface obligations. They do n
 
 | Owner | Mapping / requirement |
 | --- | --- |
-| 08 | Reuse session MOTD, map/minimap, targeting/directions, lifecycle and final review IDs. Setup MOTD is not news/MOTD2. Final review explicitly depends on the B sheet/history children. |
+| 08 | Reuse session MOTD, map/minimap, targeting/directions, lifecycle and final review IDs. Setup MOTD is not news/MOTD2. Final review explicitly depends on the C sheet/history children. |
 | 09 | Reuse `items.details-read/navigate/search/close` for item OTHER perusal at C, and inventory/inscription/paste/skills/store actions. Ordinary store shell IDs remain shared; special canvas body is D. `store.service` now depends on concrete C server consumers. A generic D document does not delay an item C child. |
-| 11 | Own Guide load/update/search/bookmark, clipboard, screenshots/export/chardump, file persistence/import, local Lua integration, resource and OS openers. Their concrete production paths must arrive with any earlier caller needing them (sheet help at B, skills help at C, lore exports or admin upload at D); family E is not permission to postpone prerequisites. This ticket registers local spoiler/note content/navigation, not shared file ownership. |
+| 11 | Own Guide load/update/search/bookmark, clipboard, screenshots/export/chardump, file persistence/import, local Lua integration, resource and OS openers. Guide content is G; its A–F placeholder restores the actual caller. Other concrete production paths must arrive with any caller that needs them (sheet/skills at C, lore exports or admin upload at D). This ticket registers local spoiler/note content/navigation, not shared file ownership. |
 | 12 | Reconcile whole-client denominator and all server-owned slash verbs/raw keys. `chat.forward-slash` registers forwarding, not acceptance of every server command. Preserve optional builds and current unknown payload representation. |
 | 13 | Scope real native evidence and reject unsupported/stale claims. This data validation and foundation regressions do not accept future gameplay. |
 
@@ -41,25 +53,25 @@ Each row maps a concrete source owner to one ledger allocation. Full expected re
 
 | ID | Stage | Source owner | Expected result |
 | --- | --- | --- | --- |
-| `capability.information.read-sheet` | B | `src/client/c-cmd.c:cmd_character` | Read current character abilities, identity and stat sheet from decoded state, preserving glyphs, colours and missing/versioned values. |
-| `capability.information.read-history` | B | `src/client/c-cmd.c:cmd_character` | Read server history lines at their original indices; updates replace only the addressed line and session reset clears old character content. |
-| `capability.information.read-equipment-flags` | B | `src/client/c-cmd.c:cmd_character` | Read equipment resistance/ability flag matrix and its horizontal/vertical view without changing equipment. |
-| `capability.information.navigate-sheet` | B | `src/client/c-cmd.c:cmd_character` | h/H cycles the three character pages; 2/8 selects help topics (not pages), 4/6 changes selection, v toggles equipment orientation only on page 2. |
-| `capability.information.close-sheet` | B | `src/client/c-cmd.c:cmd_character` | q/Q/Escape/C closes the sheet and restores its exact live or final-review parent without issuing a gameplay command. |
-| `capability.messages.recall-read` | B | `src/client/c-xtra2.c:do_cmd_messages` | Read recall message history with original ordering, channel/control markers and owner-specific filtering/bundling; do not replace stored occurrences with the display projection. |
-| `capability.messages.recall-navigate` | B | `src/client/c-xtra2.c:do_cmd_messages` | Navigate recall recall by line/page/top/bottom and horizontal offset while retaining the current history position and updates. |
-| `capability.messages.recall-search` | B | `src/client/c-xtra2.c:do_cmd_messages` | Search/highlight recall recall with the exact case/direction and optional REGEX_SEARCH rules; failed or canceled search preserves the recall owner. |
-| `capability.messages.recall-close` | B | `src/client/c-xtra2.c:do_cmd_messages` | Close recall recall and restore gameplay or final-review caller and its queue policy. |
-| `capability.messages.important-read` | B | `src/client/c-xtra2.c:do_cmd_messages_important` | Read important message history with original ordering, channel/control markers and owner-specific filtering/bundling; do not replace stored occurrences with the display projection. |
-| `capability.messages.important-navigate` | B | `src/client/c-xtra2.c:do_cmd_messages_important` | Navigate important recall by line/page/top/bottom and horizontal offset while retaining the current history position and updates. |
-| `capability.messages.important-search` | B | `src/client/c-xtra2.c:do_cmd_messages_important` | Search/highlight important recall with the exact case/direction and optional REGEX_SEARCH rules; failed or canceled search preserves the recall owner. |
-| `capability.messages.important-close` | B | `src/client/c-xtra2.c:do_cmd_messages_important` | Close important recall and restore gameplay or final-review caller and its queue policy. |
-| `capability.chat.send` | B | `src/client/c-cmd.c:cmd_message` | Submit ordinary, private and explicit-channel chat through cmd_message and Send_msg, preserving channel/address decoration and transformed bytes; editor limit is MSG_LEN minus cname length minus 17 including the final terminator allowance. |
+| `capability.information.read-sheet` | C | `src/client/c-cmd.c:cmd_character` | Read current character abilities, identity and stat sheet from decoded state, preserving glyphs, colours and missing/versioned values. |
+| `capability.information.read-history` | C | `src/client/c-cmd.c:cmd_character` | Read server history lines at their original indices; updates replace only the addressed line and session reset clears old character content. |
+| `capability.information.read-equipment-flags` | C | `src/client/c-cmd.c:cmd_character` | Read equipment resistance/ability flag matrix and its horizontal/vertical view without changing equipment. |
+| `capability.information.navigate-sheet` | C | `src/client/c-cmd.c:cmd_character` | h/H cycles the three character pages; 2/8 selects help topics (not pages), 4/6 changes selection, v toggles equipment orientation only on page 2. |
+| `capability.information.close-sheet` | C | `src/client/c-cmd.c:cmd_character` | q/Q/Escape/C closes the sheet and restores its exact live or final-review parent without issuing a gameplay command. |
+| `capability.messages.recall-read` | C | `src/client/c-xtra2.c:do_cmd_messages` | Read recall message history with original ordering, channel/control markers and owner-specific filtering/bundling; do not replace stored occurrences with the display projection. |
+| `capability.messages.recall-navigate` | C | `src/client/c-xtra2.c:do_cmd_messages` | Navigate recall recall by line/page/top/bottom and horizontal offset while retaining the current history position and updates. |
+| `capability.messages.recall-search` | C | `src/client/c-xtra2.c:do_cmd_messages` | Search/highlight recall recall with the exact case/direction and optional REGEX_SEARCH rules; failed or canceled search preserves the recall owner. |
+| `capability.messages.recall-close` | C | `src/client/c-xtra2.c:do_cmd_messages` | Close recall recall and restore gameplay or final-review caller and its queue policy. |
+| `capability.messages.important-read` | C | `src/client/c-xtra2.c:do_cmd_messages_important` | Read important message history with original ordering, channel/control markers and owner-specific filtering/bundling; do not replace stored occurrences with the display projection. |
+| `capability.messages.important-navigate` | C | `src/client/c-xtra2.c:do_cmd_messages_important` | Navigate important recall by line/page/top/bottom and horizontal offset while retaining the current history position and updates. |
+| `capability.messages.important-search` | C | `src/client/c-xtra2.c:do_cmd_messages_important` | Search/highlight important recall with the exact case/direction and optional REGEX_SEARCH rules; failed or canceled search preserves the recall owner. |
+| `capability.messages.important-close` | C | `src/client/c-xtra2.c:do_cmd_messages_important` | Close important recall and restore gameplay or final-review caller and its queue policy. |
+| `capability.chat.send` | C | `src/client/c-cmd.c:cmd_message` | Submit ordinary, private and explicit-channel chat through cmd_message and Send_msg, preserving channel/address decoration and transformed bytes; editor limit is MSG_LEN minus cname length minus 17 including the final terminator allowance. |
 | `capability.chat.cancel` | D | `src/client/c-cmd.c:cmd_message` | Escape the chat editor sends no message and restores the actual store, lore, document, skill, map or gameplay caller; a parent permitting chat does not enable chat inside every request. |
-| `capability.chat.history` | B | `src/client/c-cmd.c:cmd_message` | Recall/edit chat text using the production text editor and its chat mode/history rules; draft edits and input method/paste respect byte limits. |
-| `capability.chat.substitute-items` | B | `src/client/c-cmd.c:cmd_message` | Expand inventory/equipment/floor/newest/bag/store shortcuts, colours, spacing and colon escaping in source order; preserve unavailable-slot and expansion-limit behavior, testing final transformed bytes. |
-| `capability.chat.local-self` | B | `src/client/c-cmd.c:cmd_message` | Route %: to local messages and %%: to local chat, except doubled-colon escape forms; no Send_msg for consumed local forms. |
-| `capability.chat.forward-slash` | B | `src/client/c-cmd.c:cmd_message` | Forward unmatched slash text, bare slash and malformed local recognizers through Send_msg once; server grammar and permission outcomes remain server-owned, with no invented local whitelist. |
+| `capability.chat.history` | C | `src/client/c-cmd.c:cmd_message` | Recall/edit chat text using the production text editor and its chat mode/history rules; draft edits and input method/paste respect byte limits. |
+| `capability.chat.substitute-items` | C | `src/client/c-cmd.c:cmd_message` | Expand inventory/equipment/floor/newest/bag/store shortcuts, colours, spacing and colon escaping in source order; preserve unavailable-slot and expansion-limit behavior, testing final transformed bytes. |
+| `capability.chat.local-self` | C | `src/client/c-cmd.c:cmd_message` | Route %: to local messages and %%: to local chat, except doubled-colon escape forms; no Send_msg for consumed local forms. |
+| `capability.chat.forward-slash` | C | `src/client/c-cmd.c:cmd_message` | Forward unmatched slash text, bare slash and malformed local recognizers through Send_msg once; server grammar and permission outcomes remain server-owned, with no invented local whitelist. |
 | `capability.documents.read` | D | `src/client/c-files.c:peruse_file` | Retain document category, title, original attributed line bytes and logical indices, total lines, page-size markers and arrival order. Unknown markup and arbitrary OTHER content remain readable without guessed semantic filtering. No automatic wrap; wide rows use horizontal scroll. |
 | `capability.documents.navigate` | D | `src/client/c-files.c:peruse_file` | Navigate server pages/lines/top/bottom/absolute line and horizontal scroll; preserve logical position, negotiated geometry and SPECIAL_LINE_POS asynchronous repositioning. |
 | `capability.documents.search` | D | `src/client/c-files.c:peruse_file` | Send forward/reverse text and optional regexp searches with the original category and logical line; preserve failed-search position and old-server search omission. |
@@ -229,7 +241,7 @@ Each row maps a concrete source owner to one ledger allocation. Full expected re
 | `capability.admin.upload-script` | D | `src/client/c-cmd.c:cmd_script_upload` | Select local script for server upload, preserving file/transfer errors and cancellation. |
 | `capability.admin.local-script` | D | `src/client/c-cmd.c:cmd_script_exec_local` | Enter up to 80 bytes of Lua source at Script> and execute string_exec_lua locally once, displaying its result; Escape sends/executes nothing. This is a text prompt, not a file selector. |
 | `capability.admin.close` | D | `src/client/c-cmd.c:cmd_master` | Escape closes the current DM owner; root Ctrl-Q only breaks the switch and stays in the loop. Successful MASTER_PLAYER dispatch closes the entire DM menu, including prefix-only dispatch after canceled text. Preserve each nested owner and hybrid macro restoration. |
-| `capability.messages.read-live` | B | `src/client/nclient.c:Receive_message` | Read real-session messages with original channel/colour/control markers, clear-topline, live feed and full-history routing; identical incoming occurrences remain distinct even if recall bundles display. This B outcome needs live decode-to-view evidence beyond the synthetic A occurrence slice. |
+| `capability.messages.read-live` | C | `src/client/nclient.c:Receive_message` | Read real-session messages with original channel/colour/control markers, clear-topline, live feed and full-history routing; identical incoming occurrences remain distinct even if recall bundles display. This C outcome needs live decode-to-view evidence beyond the synthetic A occurrence slice. |
 | `capability.housing.claim-land` | D | `src/client/c-cmd.c:cmd_king` | Confirm default-no land ownership and send KING_OWN once; decline sends nothing and server rejection does not imply ownership. |
 | `capability.information.bbs` | D | `src/client/c-cmd.c:cmd_BBS` | Send BBS request through the gameplay binding and preserve server-provided response; do not substitute a local document. |
 | `capability.information.local-file-bookmarks` | D | `src/client/c-cmd.c:browse_local_file` | Add, replace, delete and revisit local-file marks with file-specific positions and exact d/a/A/D semantics; preserve canceled editors and repeated-open state. |

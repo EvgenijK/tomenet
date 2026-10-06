@@ -1,6 +1,10 @@
 # SV-B-068 — Опции idle, death и session return — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.newb-suicide` | Apply newb_suicide: Display newbie suicides. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:268](../../../src/client/c-tables.c#L268)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:267](../../../src/client/c-tables.c#L267)<br>[xtra2.c:11516](../../../src/server/xtra2.c#L11516) |
@@ -29,7 +40,9 @@
 | `capability.options.safe-float` | Apply safe_float: Prevent floating for a short while after death. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:316](../../../src/client/c-tables.c#L316)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:315](../../../src/client/c-tables.c#L315)<br>[xtra2.c:11650](../../../src/server/xtra2.c#L11650)<br>[cmd2.c:656](../../../src/server/cmd2.c#L656) |
 | `capability.options.live-timeouts` | Apply live_timeouts: Always update item timeout numbers on every tick. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:482](../../../src/client/c-tables.c#L482)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:481](../../../src/client/c-tables.c#L481)<br>[dungeon.c:6508](../../../src/server/dungeon.c#L6508)<br>[dungeon.c:6559](../../../src/server/dungeon.c#L6559) |
 | `capability.options.last-words` | Apply last_words: Get last words when the character dies. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:487](../../../src/client/c-tables.c#L487)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:486](../../../src/client/c-tables.c#L486)<br>[xtra2.c:10719](../../../src/server/xtra2.c#L10719) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

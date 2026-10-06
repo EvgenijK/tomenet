@@ -19,8 +19,6 @@
 #include "native-frame.h"
 #include "synthetic.h"
 #include "endpoint-run.h"
-#include "preferences-runtime.h"
-#include "input/native-macro-loader.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,9 +60,7 @@ static void usage(void)
 {
     puts("TomeNET SV native shell\n"
          "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
-         "  [--window-mode fullscreen|window] [--ui-scale PERCENT]\n"
          "  [--account NAME --password-stdin] [--character EXISTING_NAME] [-m] (contact through standard input)\n"
-         "  Endpoint settings: F10 opens settings; +/- UI scale, W window mode, T text font, S save.\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
@@ -86,16 +82,12 @@ int main(int argc, char **argv)
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
     bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
-    bool window_override = false;
-    int ui_scale_override = 0;
-    bool review = false, restart_pending = false;
+    bool review = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
     unsigned port = 18348;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
-    SvPreferenceRuntime *preferences = NULL;
-    SvNativeMacroLoader macro_loader = {0};
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--help")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
@@ -120,18 +112,6 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--account")) account = argv[++i];
         else if (!strcmp(argv[i], "--character")) character = argv[++i];
         else if (!strcmp(argv[i], "--real-name")) real_name = argv[++i];
-        else if (!strcmp(argv[i], "--window-mode")) {
-            const char *mode = argv[++i];
-            if (strcmp(mode, "fullscreen") && strcmp(mode, "window")) return 2;
-            windowed = !strcmp(mode, "window");
-            window_override = true;
-        }
-        else if (!strcmp(argv[i], "--ui-scale")) {
-            char *end;
-            long value = strtol(argv[++i], &end, 10);
-            if (*end || value < 50 || value > 200 || value % 5) return 2;
-            ui_scale_override = (int)value;
-        }
         else if (!strcmp(argv[i], "--port")) {
             char *end;
             unsigned long value = strtoul(argv[++i],&end,10);
@@ -143,7 +123,6 @@ int main(int argc, char **argv)
             if (sscanf(argv[++i], "%dx%d%c", &width, &height, &extra) != 2 ||
                 width < 1024 || height < 768 || width > 8192 || height > 8192) return 2;
             windowed = true;
-            window_override = true;
         } else if (!strcmp(argv[i], "--frames")) {
             char *end;
             long n = strtol(argv[++i], &end, 10);
@@ -165,9 +144,7 @@ int main(int argc, char **argv)
         }
         int contact_result = sv_endpoint_run((SvEndpointOptions){.root = root, .library = library,
             .server = server, .server_list = server_list, .width = width, .height = height,
-            .frames = frames, .windowed = windowed, .window_override = window_override,
-            .ui_scale_override = ui_scale_override,
-            .port = port, .metaserver = metaserver,
+            .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver,
             .account = account, .password = password_stdin ? contact_password : NULL,
             .character = character, .skip_motd = skip_motd,
             .real_name = real_name});
@@ -176,7 +153,6 @@ int main(int argc, char **argv)
         return contact_result;
     }
     if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name || character || skip_motd) return 2;
-    if (ui_scale_override || (window_override && !windowed)) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");
@@ -245,11 +221,6 @@ int main(int argc, char **argv)
     if (arch_check) {
         if (!checked_scenario(app, &ui, SV_SCENARIO_ARCH)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
-    preferences = sv_preference_runtime_create(app, root, library);
-    if (!preferences) goto done;
-    SvPrefReport preference_report;
-    if (sv_preference_runtime_bootstrap(preferences, &preference_report) != SV_OK) goto done;
-    if (sv_preference_runtime_global(preferences, &preference_report) != SV_OK) goto done;
     if (review && sv_app_bind_macro(app, 'm', 'Y', SV_MACRO_NORMAL) != SV_OK) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
@@ -261,13 +232,7 @@ int main(int argc, char **argv)
             /* Manual fixture controls supply lifecycle inputs, never replies. */
             if (review && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
                     (event.key.key == SDLK_F5 || event.key.key == SDLK_F6)) {
-                if (event.common.timestamp && event.common.timestamp < input.since_ns) continue;
                 if (event.key.key == SDLK_F5) {
-                    if (sv_native_macro_loader_committing(&macro_loader)) {
-                        restart_pending = true;
-                        continue;
-                    }
-                    sv_native_macro_loader_reset(&macro_loader);
                     if (!sv_synthetic_start(app)) goto done;
                     sv_native_input_begin(&input, app);
                     puts("SV review session restarted");
@@ -275,10 +240,7 @@ int main(int argc, char **argv)
                 sv_ui_rebuild(&ui);
                 continue;
             }
-            if (sv_native_input_stale(&input, app, &event)) continue;
             if (sv_ui_event(&ui, &event)) continue;
-            if (sv_native_macro_loader_event(&macro_loader, preferences, app,
-                                             &input, &event)) continue;
             if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) quit = true;
@@ -286,33 +248,14 @@ int main(int argc, char **argv)
         if (quit) break;
         /* A whole-input budget yields to UI even with buffered network backlog. */
         SvStep step = sv_app_step(app, 16);
-        sv_native_macro_loader_frame(&macro_loader, preferences, app, &input);
-        if (restart_pending && !sv_native_macro_loader_committing(&macro_loader)) {
-            sv_native_macro_loader_reset(&macro_loader);
-            if (!sv_synthetic_start(app)) goto done;
-            sv_native_input_begin(&input, app);
-            sv_ui_rebuild(&ui);
-            puts("SV review session restarted");
-            restart_pending = false;
-        }
-        if (macro_loader.active && !sv_native_macro_loader_committing(&macro_loader) &&
-            (sv_app_view(app).request.pending || sv_app_view(app).paused))
-            sv_native_macro_loader_reset(&macro_loader);
-        if (!macro_loader.active)
-            (void)sv_app_macro_frame(app, sv_app_view(app).generation, SDL_GetTicks(), 32);
-        if (sv_native_macro_loader_dispatch_input(&macro_loader, app))
-            (void)sv_app_dispatch_input(app, 16);
+        (void)sv_app_dispatch_input(app, 16);
         if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_CLOSED)
             fprintf(stderr, "SV session: %s\n", sv_result_text(step.result));
         /* Explicit Stage A consumer: model/feed publication is the only
          * implemented message effect. Acknowledgement is never a draw action. */
         SvMessage delivered;
         while (sv_app_take_message(app, sv_app_view(app).generation, &delivered) == SV_OK) {}
-        if (macro_loader.active) {
-            if (!sv_ui_draw(&ui, sv_app_view(app)) ||
-                !sv_native_macro_loader_draw(&macro_loader, renderer, font, sv_ui_scale(&ui)) ||
-                !SDL_RenderPresent(renderer)) goto done;
-        } else if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
+        if (!sv_ui_submit(&ui, sv_app_view(app))) goto done;
         if (review) {
             int w, h;
             if (!SDL_GetRenderOutputSize(renderer, &w, &h)) goto done;
@@ -342,8 +285,6 @@ int main(int argc, char **argv)
 done:
     if (result) fprintf(stderr, "SV startup/render failed: %s; no terminal fallback\n", SDL_GetError());
     sv_app_destroy(app);
-    sv_native_macro_loader_reset(&macro_loader);
-    sv_preference_runtime_destroy(preferences);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     sv_font_close(font);

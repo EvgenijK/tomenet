@@ -1,6 +1,10 @@
 # SV-B-044 — Независимые message clone outputs
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,11 +25,20 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.files.clone-console` | clone_to_stdout initially off; when enabled emit baseline colour-stripped message order to console independently of recall retention. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.files.clone-file` | clone_to_file initially off; append/flush stripped messages to shared U/user/stdout.txt without new recorder or secret buffers. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[c-util.c:4892](../../../src/client/c-util.c#L4892)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-045 — CFG: account, endpoint и startup names
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.configuration.nick` | Read, preview, explicitly Save and reload nick in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R; U conditional on account+password, also recognizes `#nick`; N active or comment. `PLAYER`, or SET_UID login/TOMENET_PLAYER via default_set. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
@@ -31,7 +42,9 @@
 | `capability.configuration.realname` | Read, preview, explicitly Save and reload realname in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R; N comment, no U; PLAYER or SET_UID login/TOMENET_USER. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.path` | Read, preview, explicitly Save and reload path in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R; N comment, no U; empty initial buffer. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.fullauto` | Read, preview, explicitly Save and reload fullauto in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R presence returns skip=true; N comment; default absent/false. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

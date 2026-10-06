@@ -1,6 +1,10 @@
 # SV-B-029 — Обзор карты и locate
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -15,7 +19,7 @@
 ## Production subsets и поздние integration checks
 
 - `field-clipboard`: producer [SV-B-001](SV-B-001-endpoint.md); полные owners [SV-B-030](SV-B-030-clipboard.md). Первое native поле получает настоящий platform clipboard read/error bridge и передачу bounded bytes в production editor.001 реализует общий bridge,005 подключает private-field exclusions;030 остаётся полным owner clipboard, включая остальные поля/платформенные ветви. В001 проверить real address-field paste и provider unavailable, selection replacement и итоговую capacity; в005 — private draft/history/diagnostics; в030 повторить обе интеграции на полном platform matrix. До030 не заявлять полный clipboard outcome.
-- `map-chat`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-031](SV-B-031-chat.md). 029 вводит actual native chat child с map/locate continuation.Реализовать все достижимые из этого child baseline branches: ordinary/private/channel transforms, own history, available item substitutions, local-self/forwarded slash и Escape без Send_msg.029 использует real editor/clipboard001 и histories010; это не fixed-response или test-only chat.031 расширяет и принимает полные chat outcomes во всех обязательных B callers. 029 выполняет map-specific success/cancel/transform overflow/history/provider failure и exact map selection/focus/queue return с interleaved network/resize.031 повторяет map branch; Guide/sheet/final callers добавляют integration checks033/035/036, результаты прикладываются к исходному owner031.
+- `map-chat`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-031](SV-B-031-chat.md). 029 вводит actual native chat child с map/locate continuation.Реализовать все достижимые из этого child baseline branches: ordinary/private/channel transforms, own history, available item substitutions, local-self/forwarded slash и Escape без Send_msg.029 использует real editor/clipboard001 и histories010; это не fixed-response или test-only chat.031 расширяет и принимает полные chat outcomes во всех обязательных B callers. 029 выполняет map-specific success/cancel/transform overflow/history/provider failure и exact map selection/focus/queue return с interleaved network/resize.031 повторяет map branch; Guide entry uses the exact placeholder; sheet/final callers добавляют integration checks035/036, результаты прикладываются к исходному owner031.
 - `map-capture`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-034](SV-B-034-exports.md), [SV-B-043](SV-B-043-screenshots-platform.md). 029 вводит реальный native composed-frame capture child и production encoder/file-owner/collision path для доступных map bindings: PNG с SDL3_image, BMP без него, no silent overwrite, requested filename semantics и no notification inside saved frame.035/036 используют тот же production child из sheet/final scene.034 и043 сохраняют полных owners file-collision/capture/platform outcomes. 029 проверяет real image pixels/extension и success/cancel/write/encode/collision failures с возвратом map caller.034 расширяет collision tests на все exports,035/036 добавляют реальных callers,043 проверяет все aliases/server triggers и platform configurations и повторяет029/035/036. Никакого test-only screenshot callback.
 
 Поздние обязательные проверки для primary owner этого тикета: [SV-B-031](SV-B-031-chat.md), [SV-B-043](SV-B-043-screenshots-platform.md). До их выполнения разрешено объявить production implementation готовой для следующих задач, но полный acceptance остаётся pending; результаты поздних checks прикладываются к исходным IDs/obligations, не передавая ownership.
@@ -27,6 +31,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.map.view-overview` | Request mode 0 overview or forced world mode 1; display complete map stream and own player-sector marker. | [c-cmd.c:555](../../../src/client/c-cmd.c#L555)<br>[nclient.c:385](../../../src/client/nclient.c#L385)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
@@ -36,7 +47,9 @@
 | `capability.map.close-overview` | Escape/M exits map, clears local_map_active and restores parent with queue flush; do not resend map commands from redraw. | [c-cmd.c:555](../../../src/client/c-cmd.c#L555)<br>[nclient.c:385](../../../src/client/nclient.c#L385)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.map.locate` | Send_locate(5) opens panel browsing, direction sends panel movement without moving player. | [c-cmd.c:788](../../../src/client/c-cmd.c#L788)<br>[nclient.c:385](../../../src/client/nclient.c#L385)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.map.close-locate` | Exit locate with Escape/Space/L (normal) or W (roguelike), send Send_locate(0) and restore prior input policy. | [c-cmd.c:788](../../../src/client/c-cmd.c#L788)<br>[nclient.c:385](../../../src/client/nclient.c#L385)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

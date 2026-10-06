@@ -1,6 +1,10 @@
 # SV-B-062 — Опции движения, running и disturbance — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.disturb-move` | Apply disturb_move: Disturb whenever any monster moves. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:364](../../../src/client/c-tables.c#L364)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:363](../../../src/client/c-tables.c#L363)<br>[monster2.c:2625](../../../src/server/monster2.c#L2625)<br>[monster2.c:2952](../../../src/server/monster2.c#L2952) |
@@ -30,7 +41,9 @@
 | `capability.options.disturb-state` | Apply disturb_state: Disturb whenever player state changes. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:370](../../../src/client/c-tables.c#L370)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:369](../../../src/client/c-tables.c#L369)<br>[spells2.c:426](../../../src/server/spells2.c#L426)<br>[xtra2.c:335](../../../src/server/xtra2.c#L335) |
 | `capability.options.disturb-minor` | Apply disturb_minor: Disturb whenever boring things happen. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:372](../../../src/client/c-tables.c#L372)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:371](../../../src/client/c-tables.c#L371)<br>[melee2.c:10840](../../../src/server/melee2.c#L10840)<br>[dungeon.c:683](../../../src/server/dungeon.c#L683) |
 | `capability.options.disturb-other` | Preserve disturb_other default, storage and wire slots; no effect-condition consumer is present in the reviewed baseline. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:374](../../../src/client/c-tables.c#L374)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:373](../../../src/client/c-tables.c#L373)<br>[nserver.c:2842](../../../src/server/nserver.c#L2842) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

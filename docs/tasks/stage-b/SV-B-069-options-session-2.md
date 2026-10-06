@@ -1,6 +1,10 @@
 # SV-B-069 — Опции idle, death и session return — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.diz-unique` | Apply diz_unique: Displays lore when killing a unique monster. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:492](../../../src/client/c-tables.c#L492)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:491](../../../src/client/c-tables.c#L491)<br>[xtra2.c:7852](../../../src/server/xtra2.c#L7852)<br>[xtra2.c:12601](../../../src/server/xtra2.c#L12601)<br>[xtra2.c:12605](../../../src/server/xtra2.c#L12605) |
@@ -29,7 +40,9 @@
 | `capability.options.diz-first` | Apply diz_first: Displays lore on first-time monster kill. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:498](../../../src/client/c-tables.c#L498)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:497](../../../src/client/c-tables.c#L497)<br>[xtra2.c:13054](../../../src/server/xtra2.c#L13054) |
 | `capability.options.wild-resume-from-any` | Apply wild_resume_from_any: Resume wilderness music even after non-wild music. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:618](../../../src/client/c-tables.c#L618)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:617](../../../src/client/c-tables.c#L617)<br>[snd-sdl3.c:3396](../../../src/client/snd-sdl3.c#L3396)<br>[snd-sdl.c:3183](../../../src/client/snd-sdl.c#L3183) |
 | `capability.options.tavern-town-resume` | Apply tavern_town_resume: If wild_resume_from_any, also resume tavern/town. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:620](../../../src/client/c-tables.c#L620)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:619](../../../src/client/c-tables.c#L619)<br>[snd-sdl3.c:2994](../../../src/client/snd-sdl3.c#L2994) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

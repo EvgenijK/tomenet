@@ -1,6 +1,10 @@
 # SV-B-073 — Опции audio incoming effects и suppression — часть 4
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.quiet-house-sfx` | Apply quiet_house_sfx: Play quieter ambient/weather sound in buildings. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:430](../../../src/client/c-tables.c#L430)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:429](../../../src/client/c-tables.c#L429)<br>[util.c:10570](../../../src/server/util.c#L10570)<br>[snd-sdl3.c:3643](../../../src/client/snd-sdl3.c#L3643)<br>[snd-sdl.c:3483](../../../src/client/snd-sdl.c#L3483) |
@@ -30,7 +41,9 @@
 | `capability.options.no-house-magic` | Apply no_house_magic: Prevent using magic inside houses. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:531](../../../src/client/c-tables.c#L531)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:530](../../../src/client/c-tables.c#L530)<br>[dungeon.c:3202](../../../src/server/dungeon.c#L3202)<br>[cmd6.c:4084](../../../src/server/cmd6.c#L4084)<br>[cmd5.c:1780](../../../src/server/cmd5.c#L1780)<br>[defines.h:1282](../../../src/common/defines.h#L1282)<br>[defines.h:1286](../../../src/common/defines.h#L1286) |
 | `capability.options.first-song` | Apply first_song: Start with first eligible song of a music event. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:554](../../../src/client/c-tables.c#L554)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:553](../../../src/client/c-tables.c#L553)<br>[snd-sdl3.c:2946](../../../src/client/snd-sdl3.c#L2946)<br>[snd-sdl3.c:2955](../../../src/client/snd-sdl3.c#L2955) |
 | `capability.options.log-music` | Apply log_music: Log game-initiated music to 'Messages' window. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:639](../../../src/client/c-tables.c#L639)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:638](../../../src/client/c-tables.c#L638)<br>[snd-sdl3.c:3224](../../../src/client/snd-sdl3.c#L3224)<br>[snd-sdl3.c:3268](../../../src/client/snd-sdl3.c#L3268)<br>[snd-sdl3.c:3366](../../../src/client/snd-sdl3.c#L3366) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

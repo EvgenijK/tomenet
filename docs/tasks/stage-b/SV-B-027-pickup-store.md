@@ -1,6 +1,10 @@
 # SV-B-027 — Pickup и посещение read-only магазина
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -24,6 +28,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.items.pickup-accept` | Accept the server pickup check with default-no confirmation and send Send_stay exactly once; observe authoritative pickup/inventory updates. | [nclient.c:395](../../../src/client/nclient.c#L395)<br>[nclient.c:5965](../../../src/client/nclient.c#L5965)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
@@ -33,7 +44,9 @@
 | `capability.store.read-actions` | Read server-advertised action IDs, letters, flags, cost and restrictions independently of stock. Runtime action letters take priority over local keys; missing/disabled actions are not invented. | [nclient.c:409](../../../src/client/nclient.c#L409) |
 | `capability.store.leave` | Escape/Ctrl-Q leaves the store, emits Send_store_leave through the store lifecycle, clears transient stock/last selection and restores the previous owner and macro state. | [c-store.c:16](../../../src/client/c-store.c#L16)<br>[nclient.c:7942](../../../src/client/nclient.c#L7942) |
 | `capability.store.kicked` | A server STORE_LEAVE closes shopping, flushes safe macro execution and clears player-store visuals; store lifecycle cleanup restores the parent and invalidates pending transactions without duplicated effects. | [nclient.c:407](../../../src/client/nclient.c#L407) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

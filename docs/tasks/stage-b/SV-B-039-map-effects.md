@@ -1,6 +1,10 @@
 # SV-B-039 — Tiles, анимации, lighting и восстановление
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -25,6 +29,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.rendering.tiles` | Prepare authored regions and decoded single/two-mask layers to final integer cell size, draw1:1; preserve recolour/background-hole/outline semantics and server gates. | [main-sdl3.c:1947](../../../src/client/main-sdl3.c#L1947)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
@@ -34,7 +45,9 @@
 | `capability.rendering.cursor` | Present semantic self/target/cell indicators with approved HTML design and shared geometry; no required X11 XOR/SDL alpha pixel match. | [main-sdl3.c:1947](../../../src/client/main-sdl3.c#L1947)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
 | `capability.rendering.effects-restore` | After transient effect ends restore current semantic cell including updates underneath and remaining layers; never restore stale raster snapshot. | [main-sdl3.c:1947](../../../src/client/main-sdl3.c#L1947)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
 | `capability.rendering.solid-wall` | Preserve solid wall and equal-foreground/background solid-block intent; FONT_MAP_SOLID_X11 is a drawing role rather than missing control glyph. | [main-sdl3.c:1730](../../../src/client/main-sdl3.c#L1730)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

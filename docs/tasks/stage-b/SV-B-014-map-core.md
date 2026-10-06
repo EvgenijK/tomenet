@@ -1,6 +1,10 @@
 # SV-B-014 — Карта, палитра и согласованный viewport
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -33,6 +37,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.rendering.glyph-identity` | Preserve numeric legacy glyph IDs, source profile mapping, colour/control roles and font default then visible one-cell fallback; no direct TTF raw-byte decoding or guessed PCF origin. | [main-sdl3.c:1947](../../../src/client/main-sdl3.c#L1947)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
@@ -42,7 +53,9 @@
 | `capability.rendering.wipe` | Clearing a semantic rectangle removes previous glyph/tile/cursor content, preserves unaffected cells and reconstructs current state on repaint. | [main-sdl3.c:1730](../../../src/client/main-sdl3.c#L1730)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
 | `capability.rendering.weather` | Preserve weather parameters/type/start/stop/wind and redraw lifecycle, independent overlay and no2mask_weather branch; resize/recreate cannot replay start sounds or freeze packet application. | [c-xtra1.c:5457](../../../src/client/c-xtra1.c#L5457)<br>[nclient.c:422](../../../src/client/nclient.c#L422)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
 | `capability.world.read-map` | Display authoritative cells and line batches, overlays and player position, preserving glyph identity and protocol frame boundaries; normal/big-map resize never fabricates world movement. | [nclient.c:385](../../../src/client/nclient.c#L385)<br>[nclient.c:1672](../../../src/client/nclient.c#L1672)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

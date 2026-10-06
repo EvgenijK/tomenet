@@ -48,6 +48,13 @@ class SnapshotChecks(unittest.TestCase):
         self.assertFalse(report["canonicalFilesUnchanged"], report)
         self.assertTrue(report["errors"], report)
 
+    def assert_plan_rejected(self):
+        code, report = self.run_check()
+        self.assertEqual(code, 1, report)
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(report["canonicalFilesUnchanged"], report)
+        self.assertTrue(report["errors"], report)
+
     def mutate_manifest(self):
         path = self.canonical / "manifest.json"
         document = json.loads(path.read_text())
@@ -104,6 +111,27 @@ class SnapshotChecks(unittest.TestCase):
     def test_changed_scenario_with_complete_hash_map_fails(self):
         self.mutate_scenario()
         self.assert_rejected()
+
+    def test_reviewed_capability_count_is_required(self):
+        del self.plan["reviewedCapabilityCount"]
+        self.assert_plan_rejected()
+
+    def test_reviewed_capability_count_change_fails(self):
+        self.plan["reviewedCapabilityCount"] += 1
+        self.assert_plan_rejected()
+
+    def test_reviewed_capability_set_digest_is_required(self):
+        del self.plan["reviewedCapabilityIdsSha256"]
+        self.assert_plan_rejected()
+
+    def test_reviewed_capability_set_digest_change_fails(self):
+        self.plan["reviewedCapabilityIdsSha256"] = "0" * 64
+        self.assert_plan_rejected()
+
+    def test_moved_ticket_cannot_reenter_active_graph(self):
+        moved = next(t for t in self.plan["tickets"] if t["kind"] == "moved")
+        moved["dependsOn"] = ["SV-B-001"]
+        self.assert_plan_rejected()
 
 
 if __name__ == "__main__":

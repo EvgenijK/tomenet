@@ -1,6 +1,10 @@
 # SV-B-054 — Опции чисел и status bars — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.sn-huge-bar` | Apply sn_huge_bar: Also show sanity as huge bar (big_map only). Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:545](../../../src/client/c-tables.c#L545)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:544](../../../src/client/c-tables.c#L544)<br>[nclient.c:166](../../../src/client/nclient.c#L166)<br>[nclient.c:184](../../../src/client/nclient.c#L184)<br>[nclient.c:191](../../../src/client/nclient.c#L191) |
@@ -31,7 +42,9 @@
 | `capability.options.huge-bars-gfx` | Apply huge_bars_gfx: Display huge bars graphically if graphics are on. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:624](../../../src/client/c-tables.c#L624)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:623](../../../src/client/c-tables.c#L623)<br>[nclient.c:234](../../../src/client/nclient.c#L234)<br>[nclient.c:313](../../../src/client/nclient.c#L313) |
 | `capability.options.colourize-bignum` | Apply colourize_bignum: Colourize prices, AU and XP in 3-digit columns. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:560](../../../src/client/c-tables.c#L560)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:559](../../../src/client/c-tables.c#L559)<br>[c-util.c:5335](../../../src/client/c-util.c#L5335)<br>[c-util.c:12837](../../../src/client/c-util.c#L12837)<br>[c-store.c:113](../../../src/client/c-store.c#L113) |
 | `capability.options.overview-startup` | Apply overview_startup: Display overview resistance/boni page at startup. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:253](../../../src/client/c-tables.c#L253)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:252](../../../src/client/c-tables.c#L252)<br>[nclient.c:2878](../../../src/client/nclient.c#L2878) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

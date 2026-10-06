@@ -1,6 +1,10 @@
 # SV-B-038 — Выбор шрифтов и фильтров в живой сессии
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -25,6 +29,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.fonts.text-select` | Select text font/profile independently of map definitions; persist requested selection privately only on Save. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
@@ -32,7 +43,9 @@
 | `capability.fonts.graphics-filter` | Select Nearest/Linear/PixelArt for authored tiles/raw pictures; decode encoded masks first and use Nearest recolour coverage/authored outline. Unsupported PixelArt explicitly falls back to Nearest, preserving request. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
 | `capability.fonts.pcf-filter` | Independent Nearest/Linear/PixelArt PCF filter defaults Nearest; font successful identity remains unchanged and glyph boundaries do not bleed. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
 | `capability.fonts.outline` | Generate configured outlines at final size within individual tile bounds; no subsequent steady-state scaling. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

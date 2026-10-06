@@ -66,18 +66,16 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/input/credentials.c",
                      "src/client/sv/input/login-interaction.c",
                      "src/client/sv/input/native-login.c",
-                     "src/client/sv/profile.c", "src/client/sv/options.c",
-                     "src/client/sv/resource.c", "src/client/sv/settings.c",
                      "src/client/sv/protocol/contact.c", "src/client/sv/protocol/contact-socket.c",
                      "src/client/sv/protocol/login.c",
                      "src/client/sv/protocol/login-identity.c", "src/common/md5.c",
                      "src/client/sv/session/login-view.c",
                      "src/client/sv/ui/endpoint-scene.c",
-                     "src/client/sv/ui/settings-scene.c", "src/client/sv/ui/font.c",
+                     "src/client/sv/ui/font.c",
                      "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
                      "src/client/sv/input/metaserver.c", *COMMON]
     scene_sources += ["src/client/sv/" + name + ".c" for name in
-                      ("app", "input/input", "input/macros", "input/macro-executor", "input/command", "session/alerts", "session/session",
+                      ("app", "input/input", "session/alerts", "session/session",
                        "protocol/protocol", "protocol/version", "result")]
     scene_sources += ["src/temporary/sv/peer.c"]
     scene_sources += ["src/common/" + name + ".c" for name in

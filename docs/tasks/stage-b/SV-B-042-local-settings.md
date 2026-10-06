@@ -1,6 +1,10 @@
 # SV-B-042 — Локальные pickup/destroy и slash option changes
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.settings.slash-enable` | /opty /optvy exact option-name operand enables value with original verbose/redundant behavior, immediate hooks and Send_options; big_map maps approved layout owner, not competing OPT. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[nclient.c:8051](../../../src/client/nclient.c#L8051)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
@@ -29,7 +40,9 @@
 | `capability.settings.local-pickup` | Exact CI /apickup toggles local auto_pickup and feedback without Client_setup/Send_options, unlike generic option command. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.local-destroy` | Exact CI /adestroy toggles local auto_destroy and feedback without Client_setup/Send_options. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.local-destroy-unmatched` | Exact CI /daunmatched toggles local destroy_all_unmatched; reports dependency without automatically enabling auto_destroy. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

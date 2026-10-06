@@ -1,6 +1,10 @@
 # SV-B-047 — CFG: audio enabled flags и category volumes
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.configuration.sound` | Read, preview, explicitly Save and reload sound in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R under USE_SOUND; N; no normal U; true with USE_SOUND_2010, stock1. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
@@ -33,7 +44,9 @@
 | `capability.configuration.audiovolumemusic` | Read, preview, explicitly Save and reload audioVolumeMusic in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/U/N;70, stock70. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.audiovolumesound` | Read, preview, explicitly Save and reload audioVolumeSound in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/U/N;70, stock70. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.audiovolumeweather` | Read, preview, explicitly Save and reload audioVolumeWeather in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/U/N;70, stock70. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -18,8 +18,12 @@ Ticket 12 reconciles the full inventory corpus and adds explicit live HUD,
 input and network outcomes; see the [complete reconciliation](complete-reconciliation.md).
 The current registry contains 925 active outcomes, all pending, with no accepted
 native claims, plus one retained deprecated ID. Current allocation after the
-[Stage B source review](../research/sv-stage-b-allocation-proposal.md) is
-A=8, B=508, C=176, D=163, E=68, F=2. The counts below describe the historical ticket 07 slice.
+[Stage B source review](../research/sv-stage-b-allocation-proposal.md) and the
+[Stage B boundary decision](../../.scratch/single-window-sdl3-client/issues/37-narrow-stage-b-to-pregame-flow.md),
+together with the
+[Guide deferral decision](../../.scratch/single-window-sdl3-client/issues/36-defer-guide-to-stage-g.md),
+is A=8, B=54, C=615, D=162, E=64, F=1, G=21. The counts below describe the
+historical ticket 07 slice.
 
 ## Initial slice — ticket 07
 
@@ -115,7 +119,7 @@ relation, when present, must agree with its `actionId`. These restrictions
 describe baseline applicability, not current SV implementation coverage.
 
 The separate native ledger requires one row per active capability, exactly one
-acceptance stage A–F, explicit prerequisite outcome IDs (possibly empty),
+acceptance stage A–G, explicit prerequisite outcome IDs (possibly empty),
 source-backed version/build/platform/scope conditions, and nonempty source-backed
 evidence obligations with unique `obligation.*` IDs. Prerequisites must have an
 active allocation at the same or an earlier stage, without cycles. Obligations

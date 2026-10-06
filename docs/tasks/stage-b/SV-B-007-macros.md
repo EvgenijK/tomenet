@@ -1,7 +1,12 @@
 # SV-B-007 — Загрузка профиля клавиш и исполнение макросов
 
-Статус: частичная SV production implementation; полная implementation readiness и
-acceptance pending.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
+
+Полная acceptance прежнего среза оставалась pending.
 
 ## Текущий production срез (2026-09-26)
 
@@ -22,8 +27,9 @@ prefix, walk/run/tunnel и chat serialization; unhandled keys использую
 отдельный `PKT_RAW_KEY` path. `tests/sv_macro_checks.py` проверяет exact bytes
 через production `SvApp`, parser, protocol и session.
 
-[Частичные production observations и fingerprints](../../sv-b007-evidence.md)
-сохраняют проверенный срез без заявления полной acceptance.
+Partial production observations и fingerprints остаются в Git history; current
+evidence необходимо собирать заново относительно Stage C owner и его acceptance
+boundary. Исторические наблюдения не заявляют полную acceptance.
 
 Пока не перенесены графические PRF mapping consumers, полноценный gameplay
 command dispatch и вызов character layers из live login с поздними
@@ -58,6 +64,13 @@ form/character reload points. Native loader работает только в syn
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.preferences.load` | Ordinary explicit PRF loading preserves % includes, option/mapping records, !/? permitted queued actions and # message effects, exact gates and baseline warnings; this is not migration. | [c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-files.c:1068](../../../src/client/c-files.c#L1068) |
@@ -71,7 +84,9 @@ form/character reload points. Native loader работает только в syn
 | `capability.input.macro-match` | Resolve longest macro trigger, unmatched byte pushback, command/hybrid/normal policy and completion/control sentinels in the actual caller context. | [c-util.c:916](../../../src/client/c-util.c#L916) |
 | `capability.input.macro-wait` | Execute two-digit macro wait while pumping network/timers, ending on duration/semaphore/confirm; do not invent interactive cancellation. | [c-util.c:417](../../../src/client/c-util.c#L417) |
 | `capability.input.macro-xwait` | Execute four-digit extended wait; fresh Escape discards temporary queue, Space resumes/restores old queue, other fresh keys are preserved. | [c-util.c:568](../../../src/client/c-util.c#L568) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

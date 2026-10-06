@@ -1,6 +1,10 @@
 # SV-B-040 — Громкость и mute ранних audio callers
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.audio.master` | Preview master/category enable and master/music/effects/weather volumes in private CFG; defaults70 and switches enabled, Save explicit. | [snd-sdl3.c:3](../../../src/client/snd-sdl3.c#L3)<br>[nclient.c:1](../../../src/client/nclient.c#L1)<br>[c-util.c:18043](../../../src/client/c-util.c#L18043) |
@@ -28,7 +39,9 @@
 | `capability.audio.close` | Close audio settings with approved dirty-save choices and exact parent/queue restoration. | [c-util.c:17376](../../../src/client/c-util.c#L17376)<br>[nclient.c:1](../../../src/client/nclient.c#L1)<br>[c-util.c:18043](../../../src/client/c-util.c#L18043) |
 | `capability.audio.music-volume` | Apply Receive_music_vol signed volume v and alternative-track choices in all three versioned layouts; retain fallback/stop/fade semantics without redraw replay. Split/chained packets must publish only complete updates. | [nclient.c:459](../../../src/client/nclient.c#L459)<br>[nclient.c:1](../../../src/client/nclient.c#L1)<br>[c-util.c:18043](../../../src/client/c-util.c#L18043) |
 | `capability.audio.ambient-volume` | Apply ambient/weather byte volume goals and baseline30-step progression with nonzero rounding correction at1/10-second ticks; consume complete packet even when sound disabled. | [nclient.c:435](../../../src/client/nclient.c#L435)<br>[nclient.c:1](../../../src/client/nclient.c#L1)<br>[c-util.c:18043](../../../src/client/c-util.c#L18043) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

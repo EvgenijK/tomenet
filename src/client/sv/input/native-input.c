@@ -11,22 +11,14 @@ void sv_native_input_begin(SvNativeInput *input, SvApp *app)
     *input = (SvNativeInput){.generation = sv_app_view(app).generation,
                              .since_ns = SDL_GetTicksNS()};
 }
-bool sv_native_input_stale(const SvNativeInput *input, const SvApp *app,
-                           const SDL_Event *event)
-{
-    if (!input || !app || !event) return true;
-    if (event->type != SDL_EVENT_TEXT_INPUT && event->type != SDL_EVENT_KEY_DOWN)
-        return false;
-    return input->generation != sv_app_view(app).generation ||
-        (event->common.timestamp && event->common.timestamp < input->since_ns);
-}
 bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
 {
     SvAppView view = sv_app_view(app);
     if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST) { input->latch = 0; return false; }
     if (event->type != SDL_EVENT_TEXT_INPUT && event->type != SDL_EVENT_KEY_DOWN) return false;
     /* Fail closed if lifecycle forgot to install the new session's input epoch. */
-    if (sv_native_input_stale(input, app, event)) return true;
+    if (input->generation != view.generation ||
+        (event->common.timestamp && event->common.timestamp < input->since_ns)) return true;
     if (event->type == SDL_EVENT_TEXT_INPUT) {
         /* UTF-8 field editing is owned by the endpoint adapter; a server
          * one-key request and raw gameplay dispatch accept one protocol byte. */
@@ -52,8 +44,7 @@ bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
     SvPhysicalKey physical;
     if (!sv_physical_key(&event->key, input->latch, &physical)) return true;
     input->latch = 0;
-    if (!view.request.pending && physical.key == SDLK_ESCAPE &&
-        !sv_app_macro_waiting(app, view.generation)) return false;
+    if (!view.request.pending && physical.key == SDLK_ESCAPE) return false;
     /* Layout-dependent printable keys are delivered by SDL_TEXT_INPUT. */
     if (physical.key >= 32 && physical.key <= 255 &&
         !(physical.modifiers & (SDL_KMOD_CTRL | SDL_KMOD_ALT))) return true;

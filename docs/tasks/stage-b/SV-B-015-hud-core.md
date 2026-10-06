@@ -1,6 +1,10 @@
 # SV-B-015 — Живые HP, ресурсы и прогресс персонажа
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,6 +27,13 @@ Prerequisites A: `capability.status.read-hp`. См. [различие checkpoint
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.status.read-live-hp` | During a live session read authoritative current/max HP, boost and bar interpretation after each complete versioned packet, including absent-field defaults, interleaved gameplay, resize and reconnect. Stage A synthetic HP does not accept this live caller. | [nclient.c:354](../../../src/client/nclient.c#L354) |
@@ -34,7 +45,9 @@ Prerequisites A: `capability.status.read-hp`. См. [различие checkpoint
 | `capability.status.read-stats` | Read each stat current/max/index/base/temp value with version defaults. | [nclient.c:353](../../../src/client/nclient.c#L353) |
 | `capability.status.read-armour` | Read base armour class and armour bonus. | [nclient.c:355](../../../src/client/nclient.c#L355) |
 | `capability.status.read-combat-bonuses` | Read melee/ranged/misc hit and damage values without conflating them. | [nclient.c:360](../../../src/client/nclient.c#L360) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

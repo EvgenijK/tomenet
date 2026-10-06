@@ -1,6 +1,10 @@
 # SV-B-046 — CFG: frame rate, palette, tiles и decorations
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.configuration.fps` | Read, preview, explicitly Save and reload fps in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/N, no normal U; 100. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
@@ -32,7 +43,9 @@
 | `capability.configuration.graphic-tiles` | Read, preview, explicitly Save and reload graphic_tiles in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/U/N; `16x24sv`. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.graphic-tiles-i` | Read, preview, explicitly Save and reload graphic_tiles<i> in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R; U rewrites all after base tileset and discards prior indexed lines; N all false. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
 | `capability.configuration.windowdecorations` | Read, preview, explicitly Save and reload windowDecorations in independent SV CFG with the same field meaning and complete-token parsing. Retain baseline compiled/client-stock default and build gate unless settings-policy overrides it; unknown/incompatible records and failures follow settings.parse/save-failure. Source row: R/U/N SDL3; compiled false, stock1. | [client.c:69](../../../src/client/client.c#L69)<br>[client.c:1](../../../src/client/client.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

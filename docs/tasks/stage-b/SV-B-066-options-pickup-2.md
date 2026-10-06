@@ -1,6 +1,10 @@
 # SV-B-066 — Опции incoming items и pickup — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.stack-allow-items` | Apply stack_allow_items: Allow weapons and armor to stack. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:331](../../../src/client/c-tables.c#L331)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:330](../../../src/client/c-tables.c#L330)<br>[object2.c:3699](../../../src/server/object2.c#L3699)<br>[object2.c:3688](../../../src/server/object2.c#L3688)<br>[object2.c:3693](../../../src/server/object2.c#L3693) |
@@ -31,7 +42,9 @@
 | `capability.options.auto-destroy` | Apply auto_destroy: Automatically destroy items (see '/adestroy'). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:538](../../../src/client/c-tables.c#L538)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:537](../../../src/client/c-tables.c#L537)<br>[nclient.c:6711](../../../src/client/nclient.c#L6711)<br>[c-cmd.c:8316](../../../src/client/c-cmd.c#L8316)<br>[c-cmd.c:8317](../../../src/client/c-cmd.c#L8317) |
 | `capability.options.destroy-all-unmatched` | Apply destroy_all_unmatched: Destroys ALL unmatched items. (Like A'#' in &.). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:540](../../../src/client/c-tables.c#L540)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:539](../../../src/client/c-tables.c#L539)<br>[nclient.c:6685](../../../src/client/nclient.c#L6685)<br>[c-cmd.c:8321](../../../src/client/c-cmd.c#L8321)<br>[c-cmd.c:8322](../../../src/client/c-cmd.c#L8322) |
 | `capability.options.auto-inscr-off` | Apply auto_inscr_off: Disable all client-side auto-inscriptions. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:567](../../../src/client/c-tables.c#L567)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:566](../../../src/client/c-tables.c#L566)<br>[c-cmd.c:1736](../../../src/client/c-cmd.c#L1736)<br>[nclient.c:6815](../../../src/client/nclient.c#L6815)<br>[nclient.c:6836](../../../src/client/nclient.c#L6836) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-051 — Опции paging и предупреждений — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.highbeep-chat` | Apply highbeep_chat: Beep on chat messages containing your name. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:198](../../../src/client/c-tables.c#L198)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:197](../../../src/client/c-tables.c#L197)<br>[nclient.c:3557](../../../src/client/nclient.c#L3557) |
@@ -29,7 +40,9 @@
 | `capability.options.alert-hitpoint` | Apply alert_hitpoint: Beep/message about critical hitpoints/sanity. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:233](../../../src/client/c-tables.c#L233)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:232](../../../src/client/c-tables.c#L232)<br>[nclient.c:2117](../../../src/client/nclient.c#L2117)<br>[nclient.c:2218](../../../src/client/nclient.c#L2218) |
 | `capability.options.alert-mana` | Apply alert_mana: Beep/message about critically low mana pool. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:235](../../../src/client/c-tables.c#L235)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:234](../../../src/client/c-tables.c#L234)<br>[nclient.c:3125](../../../src/client/nclient.c#L3125) |
 | `capability.options.alert-afk-dam` | Apply alert_afk_dam: Beep when taking damage while AFK. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:237](../../../src/client/c-tables.c#L237)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:236](../../../src/client/c-tables.c#L236)<br>[xtra2.c:6254](../../../src/server/xtra2.c#L6254)<br>[spells1.c:2484](../../../src/server/spells1.c#L2484) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

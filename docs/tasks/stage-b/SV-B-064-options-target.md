@@ -1,6 +1,10 @@
 # SV-B-064 — Опции target и подготовленного retaliator
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.target-history` | Apply target_history: Add target informations to the message history. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:282](../../../src/client/c-tables.c#L282)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:281](../../../src/client/c-tables.c#L281)<br>[nclient.c:5528](../../../src/client/nclient.c#L5528) |
@@ -31,7 +42,9 @@
 | `capability.options.auto-target` | Apply auto_target: Automatically set target to the nearest enemy. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:349](../../../src/client/c-tables.c#L349)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:348](../../../src/client/c-tables.c#L348)<br>[xtra2.c:15213](../../../src/server/xtra2.c#L15213) |
 | `capability.options.targetinfo-msg` | Apply targetinfo_msg: Display look/target info in message window too. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:480](../../../src/client/c-tables.c#L480)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:479](../../../src/client/c-tables.c#L479)<br>[nclient.c:5537](../../../src/client/nclient.c#L5537) |
 | `capability.options.new-retaliator` | Apply new_retaliator: Grant extra energy for an escape action. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:597](../../../src/client/c-tables.c#L597)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:596](../../../src/client/c-tables.c#L596)<br>[dungeon.c:7494](../../../src/server/dungeon.c#L7494)<br>[dungeon.c:7633](../../../src/server/dungeon.c#L7633)<br>[slash.c:6953](../../../src/server/slash.c#L6953)<br>[slash.c:6954](../../../src/server/slash.c#L6954)<br>[defines.h:1282](../../../src/common/defines.h#L1282)<br>[defines.h:1286](../../../src/common/defines.h#L1286) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

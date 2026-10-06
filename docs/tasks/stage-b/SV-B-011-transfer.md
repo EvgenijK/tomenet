@@ -1,10 +1,14 @@
 # SV-B-011 — Startup FILE и Lua reload
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
-Серверные startup files проходят CHECK/INIT/DATA/END и становятся доступны Lua/Guide до соответствующего игрового сценария.
+Серверные startup files проходят CHECK/INIT/DATA/END и становятся доступны Lua до соответствующего игрового сценария. Guide content и metadata не публикуются до G.
 
 ## Зависимости и граница
 
@@ -24,22 +28,31 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.transfer.check` | Preserve original server file CHECK validation, destination mapping and checksum reply; no new resource-only allow-list and no blanket rebasing onto S. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:477](../../../src/client/nclient.c#L477)<br>[files.c:157](../../../src/common/files.c#L157) |
 | `capability.transfer.init` | Preserve FILE_INIT IDs, destination validation and temporary ownership; missing/failed open reports baseline failure. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:477](../../../src/client/nclient.c#L477)<br>[files.c:157](../../../src/common/files.c#L157) |
 | `capability.transfer.data` | Receive FILE_DATA chunks in order with original length/ID/version rules; partial packets publish no partial application and disk failure is not success. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:477](../../../src/client/nclient.c#L477)<br>[files.c:157](../../../src/common/files.c#L157) |
 | `capability.transfer.end` | Complete FILE_END and original publish/reload/ack behavior exactly once; failed transfer retains required error semantics and does not falsely reload. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:477](../../../src/client/nclient.c#L477)<br>[files.c:157](../../../src/common/files.c#L157) |
-| `capability.lua.reload` | Reload scripts at established preference/server-transfer lifecycle and regenerate Guide metadata; failure remains visible without inventing a second interpreter. | [c-script.c:533](../../../src/client/c-script.c#L533)<br>[nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:547](../../../src/client/nclient.c#L547) |
+| `capability.lua.reload` | Reload scripts at established preference/server-transfer lifecycle; Guide metadata regeneration is disabled until G, and failure remains visible without inventing a second interpreter. | [c-script.c:533](../../../src/client/c-script.c#L533)<br>[nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:547](../../../src/client/nclient.c#L547) |
 | `capability.session.transfer-startup-files` | Process server file init/data/end/check/ack/error and reload required Lua/data before dependent play; preserve file ownership and failure rather than using stale scripts as successful startup. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:18](../../../src/client/nclient.c#L18)<br>[c-init.c:4349](../../../src/client/c-init.c#L4349)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.session.startup-file-failure` | File-transfer checksum mismatch, write/read/open failure or malformed transfer fails explicitly with the defined error/ack path; dependent Lua/game setup cannot claim readiness. | [nclient.c:351](../../../src/client/nclient.c#L351)<br>[nclient.c:18](../../../src/client/nclient.c#L18)<br>[c-init.c:4349](../../../src/client/c-init.c#L4349)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
 1. Real server FILE round trip и deterministic peer fragmentation: success/ACK/ERR, version/checksum/filename boundaries, existing server mapping — без нового resource-only allow-list.
 2. Disk/temp owner failures, canceled/partial transfer, teardown while write pending; no partial publication/repeated commit/reply.
-3. Final END production reopen_lua/Guide metadata refresh; parse/load failure сохраняет baseline recovery и старое working state где предусмотрено.
+3. Final END production reopen_lua; Guide metadata refresh отложен до G. Parse/load failure сохраняет baseline recovery и старое working state где предусмотрено.
 
 Для каждого собственного ID дополнительно обязательны следующие условия; это требования будущей реализации, а не результаты выполненных тестов.
 
@@ -49,7 +62,7 @@
 | `capability.transfer.init` | Preserve FILE_INIT IDs, destination validation and temporary ownership; missing/failed open reports baseline failure. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list. |
 | `capability.transfer.data` | Receive FILE_DATA chunks in order with original length/ID/version rules; partial packets publish no partial application and disk failure is not success. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list. |
 | `capability.transfer.end` | Complete FILE_END and original publish/reload/ack behavior exactly once; failed transfer retains required error semantics and does not falsely reload. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list. |
-| `capability.lua.reload` | Last transfer completion reload once; updated guide getters rebuild; failed/missing script visible; updated_audio emits restart warning only, no false fresh audio mapping. |
+| `capability.lua.reload` | Last transfer completion reloads scripts once; Guide metadata remains disabled until G; failed/missing script is visible; updated_audio emits restart warning only, no false fresh audio mapping. |
 | `capability.session.transfer-startup-files` | Точный переход success/failure/cancel и teardown/relogin; отсутствие преждевременного gameplay, старых replies/macros/provider completions; реальные server round trips. Точный проверяемый результат: Process server file init/data/end/check/ack/error and reload required Lua/data before dependent play; preserve file ownership and failure rather than using stale scripts as successful startup. |
 | `capability.session.startup-file-failure` | File-transfer checksum mismatch, write/read/open failure or malformed transfer fails explicitly with the defined error/ack path; dependent Lua/game setup cannot claim readiness. Exercise this exact owner through native production input/model/rendering with success or rejection as applicable, resize and focus changes, and disconnect during the flow. Restore its parent and macro policy; stale session input must not submit. Record actual Linux software/accelerated and Windows 10/11 results; Wine alone is intermediate evidence. No synthetic Stage A result certifies this flow. Точный переход success/failure/cancel и teardown/relogin; отсутствие преждевременного gameplay, старых replies/macros/provider completions; реальные server round trips. Точный проверяемый результат: File-transfer checksum mismatch, write/read/open failure or malformed transfer fails explicitly with the defined error/ack path; dependent Lua/game setup cannot claim readiness. |
 

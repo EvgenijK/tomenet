@@ -1,6 +1,10 @@
 # SV-B-072 — Опции audio incoming effects и suppression — часть 3
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.ovl-sfx-mon-attack` | Apply ovl_sfx_mon_attack: Allow overlapping monster attack sfx of same type. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:418](../../../src/client/c-tables.c#L418)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:417](../../../src/client/c-tables.c#L417)<br>[snd-sdl3.c:2113](../../../src/client/snd-sdl3.c#L2113)<br>[snd-sdl.c:1911](../../../src/client/snd-sdl.c#L1911) |
@@ -29,7 +40,9 @@
 | `capability.options.no-monsterattack-sfx` | Apply no_monsterattack_sfx: Don't play basic monster attack sound fx. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:424](../../../src/client/c-tables.c#L424)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:423](../../../src/client/c-tables.c#L423)<br>[nserver.c:2866](../../../src/server/nserver.c#L2866)<br>[util.c:1328](../../../src/server/util.c#L1328)<br>[melee2.c:585](../../../src/server/melee2.c#L585)<br>[melee2.c:701](../../../src/server/melee2.c#L701) |
 | `capability.options.positional-audio` | Apply positional_audio: Play '3d' positional sound fx, via normal stereo. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:426](../../../src/client/c-tables.c#L426)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:425](../../../src/client/c-tables.c#L425)<br>[snd-sdl3.c:2201](../../../src/client/snd-sdl3.c#L2201)<br>[snd-sdl.c:1996](../../../src/client/snd-sdl.c#L1996) |
 | `capability.options.no-house-sfx` | Apply no_house_sfx: Don't play ambient/weather sound in buildings. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:428](../../../src/client/c-tables.c#L428)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:427](../../../src/client/c-tables.c#L427)<br>[util.c:10569](../../../src/server/util.c#L10569)<br>[store.c:9178](../../../src/server/store.c#L9178)<br>[util.c:10574](../../../src/server/util.c#L10574) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

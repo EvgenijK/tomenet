@@ -1,6 +1,10 @@
 # SV-B-009 — Входящие предметы, INS и read-only списки
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.items.autoinscribe-on-update` | Apply configured local auto-inscription rules when inventory/bag updates or explicit PKT_AUTOINSCRIBE request require it, with force FALSE and original ordering. Request slot byte before 4.9.2.1.0.1 versus i16 later; retain existing-inscription protection and item update eligibility. Load required rule data with profile input; rule editing belongs to E. | [nclient.c:428](../../../src/client/nclient.c#L428)<br>[nclient.c:7012](../../../src/client/nclient.c#L7012)<br>[nclient.c:356](../../../src/client/nclient.c#L356)<br>[nclient.c:464](../../../src/client/nclient.c#L464)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707)<br>[c-init.c:383](../../../src/client/c-init.c#L383)<br>[c-files.c:3005](../../../src/client/c-files.c#L3005) |
@@ -32,7 +43,9 @@
 | `capability.items.read-bag` | Read a selected bag and its contents using container slot plus contained slot, preserving the encoded (container+1)*SUBINVEN_INVEN_MUL+slot identity across updates, empty entries and parent closure. | [nclient.c:464](../../../src/client/nclient.c#L464)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.items.close-bag` | Close the bag view with Escape/default exit and restore the exact gameplay/store/final-review parent; clear list flags, bag redirection when applicable and flush queue according to this owner. Live command cases may continue in the list; this is not a one-key universal close. | [c-cmd.c:897](../../../src/client/c-cmd.c#L897)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
 | `capability.items.read-floor` | Read floor type and attributed underfoot description/visibility; absence and removal clear the right floor state without confusing floor with inventory or newest-item identities. | [nclient.c:394](../../../src/client/nclient.c#L394)<br>[nclient.c:460](../../../src/client/nclient.c#L460)<br>[c-inven.c:117](../../../src/client/c-inven.c#L117)<br>[c-util.c:17707](../../../src/client/c-util.c#L17707) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-012 — Звук, музыка и предупреждения в живой сессии
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,6 +27,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.audio.play-event` | Play original mapped sound event with baseline type/volume/position parameters; preserve USE_SOUND_2010/version branches and missing/disabled-event semantics. | [snd-sdl3.c:3](../../../src/client/snd-sdl3.c#L3)<br>[nclient.c:391](../../../src/client/nclient.c#L391)<br>[nclient.c:1](../../../src/client/nclient.c#L1)<br>[c-util.c:18043](../../../src/client/c-util.c#L18043) |
@@ -35,7 +46,9 @@
 | `capability.alerts.sanity-warning` | Deliver eligible low-sanity/damage warning using version-specific fields and baseline SHOW_SANITY rules. | [nclient.c:403](../../../src/client/nclient.c#L403) |
 | `capability.alerts.page` | Deliver each AFK page event with configured paging/audio fallback. | [nclient.c:411](../../../src/client/nclient.c#L411) |
 | `capability.alerts.warning-beep` | Deliver each warning-beep event according to audio options and supported fallback. | [nclient.c:412](../../../src/client/nclient.c#L412) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

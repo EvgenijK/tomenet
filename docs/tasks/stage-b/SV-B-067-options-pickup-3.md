@@ -1,6 +1,10 @@
 # SV-B-067 — Опции incoming items и pickup — часть 3
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.autopickup-chemicals` | Apply autopickup_chemicals: Automatically pick up freshly dropped chemicals. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:590](../../../src/client/c-tables.c#L590)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:589](../../../src/client/c-tables.c#L589)<br>[cmd1.c:2351](../../../src/server/cmd1.c#L2351)<br>[slash.c:6714](../../../src/server/slash.c#L6714)<br>[slash.c:6715](../../../src/server/slash.c#L6715) |
@@ -32,7 +43,9 @@
 | `capability.options.show-newest` | Apply show_newest: Marks the inventory slot of the 'newest' item. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:637](../../../src/client/c-tables.c#L637)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:636](../../../src/client/c-tables.c#L636)<br>[c-xtra1.c:1970](../../../src/client/c-xtra1.c#L1970)<br>[c-cmd.c:8342](../../../src/client/c-cmd.c#L8342) |
 | `capability.options.equip-text-colour` | Apply equip_text_colour: Display equipment indices/weight in yellow. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:556](../../../src/client/c-tables.c#L556)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:555](../../../src/client/c-tables.c#L555)<br>[c-xtra1.c:2261](../../../src/client/c-xtra1.c#L2261)<br>[c-util.c:12835](../../../src/client/c-util.c#L12835) |
 | `capability.options.equip-set-colour` | Apply equip_set_colour: Colourize indices of items giving set bonus. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:558](../../../src/client/c-tables.c#L558)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:557](../../../src/client/c-tables.c#L557)<br>[c-xtra1.c:2263](../../../src/client/c-xtra1.c#L2263)<br>[c-util.c:12836](../../../src/client/c-util.c#L12836) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-010 — Истории и полное применение session profile
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -25,12 +29,21 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.files.history-load` | Load private S/chathist-account.tmp with baseline bounds/order/dedup/relog semantics; never automatically read shared legacy input history. | [c-init.c:3393](../../../src/client/c-init.c#L3393)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.files.history-save` | Save input history at baseline exit lifecycle to same private path, excluding credentials/archive passwords; no dependency on settings Save. | [c-init.c:3393](../../../src/client/c-init.c#L3393)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.session.load-profile-input` | Load independent SV config/options/history and shared resource/macro files in baseline precedence; character/race/trait/class/form overrides must affect actual commands. Missing resource fallback retains requested identity under resolved policy. | [c-init.c:4349](../../../src/client/c-init.c#L4349)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[pref-sdl3.prf:21](../../../lib/user/pref-sdl3.prf#L21)<br>[pref.prf:51](../../../lib/user/pref.prf#L51)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-init.c:383](../../../src/client/c-init.c#L383)<br>[c-files.c:3005](../../../src/client/c-files.c#L3005)<br>[client.c:468](../../../src/client/client.c#L468)<br>[client.c:69](../../../src/client/client.c#L69) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

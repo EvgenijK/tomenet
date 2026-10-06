@@ -1,6 +1,10 @@
 # SV-B-013 — Рабочие шрифты и отказ ресурсов
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,6 +27,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.fonts.pcf` | Load custom/bundled PCF via FreeType encoded-ID/charmap/metrics/default semantics including nonzero origins and partial ranges; prepare glyphs at final geometry, never auto-replace successful PCF for aesthetics. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
@@ -32,7 +43,9 @@
 | `capability.fonts.tile-fallback` | Unusable selected tileset falls back to font-only map with message, preserving requested tileset/enabled preference for later startup. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
 | `capability.fonts.asset-validation` | Discover and validate every bundled font/tileset/profile; deep corpus includes9x15,9x15tg,16x24tg+16x24sv,12x24/8x16 origin and16x22 partial range. Separate Linux software/accelerated and Windows evidence. | [main-sdl3.c:1065](../../../src/client/main-sdl3.c#L1065)<br>[main-sdl3.c:1](../../../src/client/main-sdl3.c#L1) |
 | `capability.rendering.cache-generation` | Key prepared assets by source/profile/mask/subset/filter/outline/final-size generation in distinct SV namespace; atomically publish; live resize may briefly scale old assets while updates/hit testing continue. | [main-sdl3.c:1947](../../../src/client/main-sdl3.c#L1947)<br>[main-sdl3.c:4767](../../../src/client/main-sdl3.c#L4767)<br>[nclient.c:1](../../../src/client/nclient.c#L1) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

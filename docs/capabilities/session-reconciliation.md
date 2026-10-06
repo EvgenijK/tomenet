@@ -7,6 +7,17 @@ cannot certify login, death, navigation, or any command-specific cancellation.
 The scope is ticket 08 of `.scratch/single-window-sdl3-client-stage-a/issues/08-register-session-movement-and-targeting-outcomes.md`.
 The local tracker bootstrap is absent; this explicit local specification is used.
 
+**Guide amendment, 2026-10-05:** any historical B/D/E Guide allocation below is
+superseded. All `capability.guide.*` and Guide bookmark-file outcomes are G; A–F
+entry points show only `The guide is in development` and restore their caller.
+
+**Stage B boundary amendment, 2026-10-05:** B is the production native flow for
+connection, authentication, character selection and character creation through a
+controlled protocol peer. Real-server integration, profile/resource startup and
+the first gameplay surface begin in C. Historical B wording in the source audit
+below is retained only as provenance; the JSON ledger and current Stage column
+are authoritative.
+
 ## Authority and method
 
 Primary source bytes, anchors and observed revision are pinned in the manifest.
@@ -32,19 +43,17 @@ Net_start; RETRY_LOGIN sets skip_motd after the first presentation.
 
 ## Allocation and cross-domain handoff
 
-B contains real connection/account/character lifecycle, map/navigation and their
-actual prerequisites. Hostile target selection and target description are B:
-`get_dir` in walk/run/environment commands already admits `*`. C retains friendly
-targeting, standalone look and server direction requests. No movement test can
-certify the later fire/throw/spell callers. B final-state review requires native
-read-only inventory/equipment/character/history children; their full action/menu
-families remain C/D. No future stage claim is imported by these allocations.
+B contains only connection/login/account-creation, character overview/selection,
+character-creation screens and their native input/protocol-peer support. C owns
+real-server integration, profile/resource startup, entry into the first gameplay
+surface, map/navigation/targeting, death/final review and the remaining session
+lifecycle. No B screen-flow test certifies those C outcomes.
 
 | Owner ticket | Shared obligation / disposition |
 | --- | --- |
-| 09 items/combat/spells/stores | Reuse direction/target IDs; add separate fire/throw/spell/mimic/rune/breath success, abort and parent-restoration scenarios. `Receive_item`, `Receive_spell_request`, `Receive_pickup_check`, store entry and ghost powers remain owned here. B stay/open must bring along the particular pickup/store child required for its claimed route; no automatic acceptance from generic prompts. |
-| 10 information/social/server surfaces | Reuse session identity and final-review IDs; B death review needs its read-only children. Full character knowledge, social, party/guild, chat and arbitrary documents get their own outcomes. Nested chat in map/locate/look, startup guide/MOTD and alive-close save-chat must restore the exact owner. |
-| 11 rendering/resources/settings/files | Reuse startup profile, transfer, DNA, credentials and map IDs. B must supply chosen/effective font/tiles, palette/weather/resize and file/Lua prerequisites. Guide/help from birth, raster capture and tomb dump have caller-specific return/error obligations. XHTML and legacy terminal topology are excluded; no map zoom or secret in config is reinstated. |
+| 09 items/combat/spells/stores | Reuse direction/target IDs; add separate fire/throw/spell/mimic/rune/breath success, abort and parent-restoration scenarios. `Receive_item`, `Receive_spell_request`, `Receive_pickup_check`, store entry and ghost powers remain owned here. C stay/open must bring along the particular pickup/store child required for its claimed route; no automatic acceptance from generic prompts. |
+| 10 information/social/server surfaces | Reuse session identity and final-review IDs; C death review needs its read-only children. Full character knowledge, social, party/guild, chat and arbitrary documents get their own outcomes. Nested chat in map/locate/look, startup Guide/MOTD and alive-close save-chat must restore the exact owner. |
+| 11 rendering/resources/settings/files | Reuse startup profile, transfer, DNA, credentials and map IDs. C must supply chosen/effective font/tiles, palette/weather/resize and file/Lua prerequisites. Guide/help from birth, raster capture and tomb dump have caller-specific return/error obligations. XHTML and legacy terminal topology are excluded; no map zoom or secret in config is reinstated. |
 | 12 remaining reconciliation | Reconcile physical Linux/Windows/X11/SDL key decoding, macro precedence/waits/raw bypass, text/byte editors, account options and close handlers with these IDs. CLI/config/import producers keep distinct limits. Do not replace pending rows with umbrella primitive acceptance. |
 | 13 evidence | Scoped executable/config/resource/source fingerprints and real round trips; dependency invalidation, Windows 10/11, Linux software/accelerated, pending child/fallback rejection. Schema success alone is not evidence. |
 
@@ -77,10 +86,10 @@ also have action and context-specific binding references.
 | `capability.account.restore-secret` | B | `src/client/c-birth.c`: `enter_password` |
 | `capability.account.save-secret` | B | `src/client/nclient.c`: `Net_verify` |
 | `capability.account.secret-provider-failure` | B | `src/client/c-birth.c`: `enter_password` |
-| `capability.account.read-information` | B | `src/client/c-util.c`: `Change account password` |
-| `capability.account.change-password` | B | `src/client/c-util.c`: `Change account password` |
-| `capability.account.cancel-password-change` | B | `src/client/c-util.c`: `Change account password` |
-| `capability.account.password-change-failure` | B | `src/client/c-util.c`: `Change account password` |
+| `capability.account.read-information` | C | `src/client/c-util.c`: `Change account password` |
+| `capability.account.change-password` | C | `src/client/c-util.c`: `Change account password` |
+| `capability.account.cancel-password-change` | C | `src/client/c-util.c`: `Change account password` |
+| `capability.account.password-change-failure` | C | `src/client/c-util.c`: `Change account password` |
 | `capability.character.read-overview` | B | `src/client/nclient.c`: `Receive_login` |
 | `capability.character.select-existing` | B | `src/client/nclient.c`: `Receive_login` |
 | `capability.character.create-ordinary` | B | `src/client/nclient.c`: `Receive_login` |
@@ -88,11 +97,11 @@ also have action and context-specific binding references.
 | `capability.character.name` | B | `src/client/nclient.c`: `Receive_login` |
 | `capability.character.cancel-name` | B | `src/client/nclient.c`: `Receive_login` |
 | `capability.character.name-rejected` | B | `src/client/nclient.c`: `Receive_login` |
-| `capability.character.swap` | B | `src/client/nclient.c`: `reorder_characters` |
-| `capability.character.insert-before` | B | `src/client/nclient.c`: `reorder_characters` |
-| `capability.character.append-after` | B | `src/client/nclient.c`: `reorder_characters` |
-| `capability.character.cancel-reorder-first` | B | `src/client/nclient.c`: `reorder_characters` |
-| `capability.character.cancel-reorder-second` | B | `src/client/nclient.c`: `reorder_characters` |
+| `capability.character.swap` | C | `src/client/nclient.c`: `reorder_characters` |
+| `capability.character.insert-before` | C | `src/client/nclient.c`: `reorder_characters` |
+| `capability.character.append-after` | C | `src/client/nclient.c`: `reorder_characters` |
+| `capability.character.cancel-reorder-first` | C | `src/client/nclient.c`: `reorder_characters` |
+| `capability.character.cancel-reorder-second` | C | `src/client/nclient.c`: `reorder_characters` |
 | `capability.character.quit-overview` | B | `src/client/nclient.c`: `Receive_login` |
 | `capability.birth.sex` | B | `src/client/c-birth.c`: `choose_sex` |
 | `capability.birth.race` | B | `src/client/c-birth.c`: `choose_race` |
@@ -102,68 +111,68 @@ also have action and context-specific binding references.
 | `capability.birth.stats` | B | `src/client/c-birth.c`: `choose_stat_order` |
 | `capability.birth.mode` | B | `src/client/c-birth.c`: `choose_mode` |
 | `capability.birth.quit` | B | `src/client/c-birth.c`: `choose_sex` |
-| `capability.birth.restore-dna` | B | `src/client/c-birth.c`: `Save Birth DNA` |
-| `capability.birth.save-dna` | B | `src/client/c-birth.c`: `Save Birth DNA` |
+| `capability.birth.restore-dna` | C | `src/client/c-birth.c`: `Save Birth DNA` |
+| `capability.birth.save-dna` | C | `src/client/c-birth.c`: `Save Birth DNA` |
 | `capability.birth.complete` | B | `src/client/nclient.c`: `Net_start` |
 | `capability.session.read-motd` | B | `src/client/c-files.c`: `show_motd` |
-| `capability.session.enter-game` | B | `src/client/nclient.c`: `Net_start` |
-| `capability.session.load-profile-input` | B | `src/client/c-init.c`: `Net_verify` |
-| `capability.session.transfer-startup-files` | B | `src/client/nclient.c`: `Receive_file` |
+| `capability.session.enter-game` | C | `src/client/nclient.c`: `Net_start` |
+| `capability.session.load-profile-input` | C | `src/client/c-init.c`: `Net_verify` |
+| `capability.session.transfer-startup-files` | C | `src/client/nclient.c`: `Receive_file` |
 | `capability.session.disconnect` | B | `src/client/nclient.c`: `Receive_quit` |
-| `capability.session.reconnect` | B | `src/client/c-init.c`: `Net_verify` |
-| `capability.session.portal-relogin` | B | `src/client/nclient.c`: `Receive_relogin` |
-| `capability.session.quit` | B | `src/client/c-init.c`: `Net_verify` |
-| `capability.session.death` | B | `src/client/nclient.c`: `Receive_quit` |
-| `capability.session.close-tomb` | B | `src/client/c-util.c`: `c_close_game` |
-| `capability.session.review-final-state` | B | `src/client/c-util.c`: `c_close_game` |
-| `capability.session.suicide` | B | `src/client/c-cmd.c`: `void cmd_suicide` |
-| `capability.session.cancel-suicide` | B | `src/client/c-cmd.c`: `void cmd_suicide` |
-| `capability.world.walk` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.run` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.stay` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.stay-one` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.rest` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.search` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.toggle-search` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.ascend` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.descend` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.tunnel` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.open` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.close` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.bash` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.disarm` | B | `src/client/c-cmd.c`: `void cmd_walk` |
-| `capability.world.cancel-directional-action` | B | `src/client/c-util.c`: `bool get_dir` |
-| `capability.world.interrupt-repeat` | B | `src/client/c-cmd.c`: `void process_command` |
-| `capability.world.clear-command-buffer` | B | `src/client/c-cmd.c`: `void process_command` |
-| `capability.world.read-location` | B | `src/client/nclient.c`: `int Receive_depth` |
-| `capability.world.read-movement-state` | B | `src/client/nclient.c`: `Receive_state` |
-| `capability.map.view-overview` | B | `src/client/c-cmd.c`: `void cmd_mini_map` |
-| `capability.map.pan-overview` | B | `src/client/c-cmd.c`: `void cmd_mini_map` |
-| `capability.map.select-sector` | B | `src/client/c-cmd.c`: `void cmd_mini_map` |
-| `capability.map.cancel-sector` | B | `src/client/c-cmd.c`: `void cmd_mini_map` |
-| `capability.map.close-overview` | B | `src/client/c-cmd.c`: `void cmd_mini_map` |
-| `capability.map.locate` | B | `src/client/c-cmd.c`: `void cmd_locate` |
-| `capability.map.close-locate` | B | `src/client/c-cmd.c`: `void cmd_locate` |
-| `capability.direction.choose-direction` | B | `src/client/c-util.c`: `bool get_dir` |
-| `capability.direction.use-acquired` | B | `src/client/c-util.c`: `bool get_dir` |
-| `capability.direction.choose-target` | B | `src/client/c-util.c`: `bool get_dir` |
-| `capability.direction.cancel` | B | `src/client/c-util.c`: `bool get_dir` |
-| `capability.target.select-hostile` | B | `src/client/c-cmd.c`: `int cmd_target(void)` |
-| `capability.target.select-position` | B | `src/client/c-cmd.c`: `int cmd_target(void)` |
-| `capability.target.cancel` | B | `src/client/c-cmd.c`: `int cmd_target(void)` |
+| `capability.session.reconnect` | C | `src/client/c-init.c`: `Net_verify` |
+| `capability.session.portal-relogin` | C | `src/client/nclient.c`: `Receive_relogin` |
+| `capability.session.quit` | C | `src/client/c-init.c`: `Net_verify` |
+| `capability.session.death` | C | `src/client/nclient.c`: `Receive_quit` |
+| `capability.session.close-tomb` | C | `src/client/c-util.c`: `c_close_game` |
+| `capability.session.review-final-state` | C | `src/client/c-util.c`: `c_close_game` |
+| `capability.session.suicide` | C | `src/client/c-cmd.c`: `void cmd_suicide` |
+| `capability.session.cancel-suicide` | C | `src/client/c-cmd.c`: `void cmd_suicide` |
+| `capability.world.walk` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.run` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.stay` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.stay-one` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.rest` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.search` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.toggle-search` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.ascend` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.descend` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.tunnel` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.open` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.close` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.bash` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.disarm` | C | `src/client/c-cmd.c`: `void cmd_walk` |
+| `capability.world.cancel-directional-action` | C | `src/client/c-util.c`: `bool get_dir` |
+| `capability.world.interrupt-repeat` | C | `src/client/c-cmd.c`: `void process_command` |
+| `capability.world.clear-command-buffer` | C | `src/client/c-cmd.c`: `void process_command` |
+| `capability.world.read-location` | C | `src/client/nclient.c`: `int Receive_depth` |
+| `capability.world.read-movement-state` | C | `src/client/nclient.c`: `Receive_state` |
+| `capability.map.view-overview` | C | `src/client/c-cmd.c`: `void cmd_mini_map` |
+| `capability.map.pan-overview` | C | `src/client/c-cmd.c`: `void cmd_mini_map` |
+| `capability.map.select-sector` | C | `src/client/c-cmd.c`: `void cmd_mini_map` |
+| `capability.map.cancel-sector` | C | `src/client/c-cmd.c`: `void cmd_mini_map` |
+| `capability.map.close-overview` | C | `src/client/c-cmd.c`: `void cmd_mini_map` |
+| `capability.map.locate` | C | `src/client/c-cmd.c`: `void cmd_locate` |
+| `capability.map.close-locate` | C | `src/client/c-cmd.c`: `void cmd_locate` |
+| `capability.direction.choose-direction` | C | `src/client/c-util.c`: `bool get_dir` |
+| `capability.direction.use-acquired` | C | `src/client/c-util.c`: `bool get_dir` |
+| `capability.direction.choose-target` | C | `src/client/c-util.c`: `bool get_dir` |
+| `capability.direction.cancel` | C | `src/client/c-util.c`: `bool get_dir` |
+| `capability.target.select-hostile` | C | `src/client/c-cmd.c`: `int cmd_target(void)` |
+| `capability.target.select-position` | C | `src/client/c-cmd.c`: `int cmd_target(void)` |
+| `capability.target.cancel` | C | `src/client/c-cmd.c`: `int cmd_target(void)` |
 | `capability.target.select-friendly` | C | `src/client/c-cmd.c`: `int cmd_target_friendly` |
-| `capability.target.read-description` | B | `src/client/nclient.c`: `int Receive_target_info` |
+| `capability.target.read-description` | C | `src/client/nclient.c`: `int Receive_target_info` |
 | `capability.target.look` | C | `src/client/c-cmd.c`: `void cmd_look` |
 | `capability.target.look-position` | C | `src/client/c-cmd.c`: `void cmd_look` |
 | `capability.target.close-look` | C | `src/client/c-cmd.c`: `void cmd_look` |
 | `capability.direction.answer-server` | C | `src/client/nclient.c`: `int Receive_direction` |
 | `capability.direction.cancel-server` | C | `src/client/nclient.c`: `int Receive_direction` |
-| `capability.session.acknowledge-final-scene` | B | `src/client/c-util.c`: `c_close_game` |
-| `capability.session.open-final-review` | B | `src/client/c-util.c`: `c_close_game` |
-| `capability.session.close-final-review` | B | `src/client/c-util.c`: `c_close_game` |
-| `capability.session.read-identity` | B | `src/client/nclient.c`: `Receive_char_info` |
-| `capability.world.read-map` | B | `src/client/nclient.c`: `Receive_line_info` |
-| `capability.session.startup-file-failure` | B | `src/client/nclient.c`: `Receive_file` |
+| `capability.session.acknowledge-final-scene` | C | `src/client/c-util.c`: `c_close_game` |
+| `capability.session.open-final-review` | C | `src/client/c-util.c`: `c_close_game` |
+| `capability.session.close-final-review` | C | `src/client/c-util.c`: `c_close_game` |
+| `capability.session.read-identity` | C | `src/client/nclient.c`: `Receive_char_info` |
+| `capability.world.read-map` | C | `src/client/nclient.c`: `Receive_line_info` |
+| `capability.session.startup-file-failure` | C | `src/client/nclient.c`: `Receive_file` |
 | `capability.birth.backtrack-race` | B | `src/client/c-birth.c`: `choose_race` |
 | `capability.birth.backtrack-trait` | B | `src/client/c-birth.c`: `choose_trait` |
 | `capability.birth.backtrack-class` | B | `src/client/c-birth.c`: `choose_class` |
@@ -182,7 +191,7 @@ also have action and context-specific binding references.
 | CMD-01 | Every walk/run/stay/rest/search/stairs/tunnel/open/close/bash/disarm/locate/overview action has an outcome; Space interruption and right-parenthesis buffer clear remain distinct. |
 | CMD-03 / PROMPT-01 | target/direction/look outcomes here; fire/throw/skills and their callers belong to 09. |
 | CMD-05 | suicide/quit here; remaining utilities/admin are 10/11. |
-| HUD-01 / HUD-02 / DATA-03 | identity, depth, movement state, target info and world/overview map fields map below; remaining HUD and renderer effects are 10/11 with B prerequisites when visible during these flows. |
+| HUD-01 / HUD-02 / DATA-03 | identity, depth, movement state, target info and world/overview map fields map below; remaining HUD and renderer effects are 10/11 with C prerequisites when visible during these flows. |
 | FILE-01 / FILE-02 | independent profile and shared DNA/resources plus startup transfer/reload/failures here; complete import/editor/export leaves are 11. |
 | IN-01 / IN-02 / IN-03 | session.load-profile-input plus each actual caller scenario; exhaustive physical mapping and macro editing remain 12/11. |
 | Remaining baseline families | Items/stores→09; social/information/server documents→10; renderer/audio/files/platform→11/12. This ticket does not turn these families into excluded or accepted outcomes. |

@@ -1,6 +1,10 @@
 # SV-B-063 — Опции движения, running и disturbance — часть 3
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.disturb-see` | Apply disturb_see: Disturb whenever seeing any monster. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:489](../../../src/client/c-tables.c#L489)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:488](../../../src/client/c-tables.c#L488)<br>[monster2.c:2690](../../../src/server/monster2.c#L2690)<br>[monster2.c:2989](../../../src/server/monster2.c#L2989) |
@@ -30,7 +41,9 @@
 | `capability.options.easy-disarm` | Apply easy_disarm: Automatically disarm traps (except under items). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:389](../../../src/client/c-tables.c#L389)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:388](../../../src/client/c-tables.c#L388)<br>[cmd2.c:6317](../../../src/server/cmd2.c#L6317)<br>[cmd4.c:3105](../../../src/server/cmd4.c#L3105) |
 | `capability.options.easy-tunnel` | Apply easy_tunnel: Automatically tunnel walls. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:391](../../../src/client/c-tables.c#L391)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:390](../../../src/client/c-tables.c#L390)<br>[cmd1.c:8392](../../../src/server/cmd1.c#L8392) |
 | `capability.options.easy-disarm-montraps` | Apply easy_disarm_montraps: Automatically disarm monster traps ('/edmt'). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:529](../../../src/client/c-tables.c#L529)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:528](../../../src/client/c-tables.c#L528)<br>[slash.c:6390](../../../src/server/slash.c#L6390)<br>[slash.c:6391](../../../src/server/slash.c#L6391)<br>[cmd2.c:6362](../../../src/server/cmd2.c#L6362) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-070 — Опции audio incoming effects и suppression — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.audio-paging` | Apply audio_paging: Use audio system for page/alert, if available. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:394](../../../src/client/c-tables.c#L394)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:393](../../../src/client/c-tables.c#L393)<br>[c-util.c:1986](../../../src/client/c-util.c#L1986) |
@@ -29,7 +40,9 @@
 | `capability.options.no-ovl-close-sfx` | Apply no_ovl_close_sfx: Prevent re-playing sfx received after <100ms gap. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:400](../../../src/client/c-tables.c#L400)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:399](../../../src/client/c-tables.c#L399)<br>[snd-sdl3.c:2150](../../../src/client/snd-sdl3.c#L2150)<br>[snd-sdl.c:1948](../../../src/client/snd-sdl.c#L1948) |
 | `capability.options.ovl-sfx-attack` | Apply ovl_sfx_attack: Allow overlapping combat sounds of same type. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:402](../../../src/client/c-tables.c#L402)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:401](../../../src/client/c-tables.c#L401)<br>[snd-sdl3.c:2107](../../../src/client/snd-sdl3.c#L2107)<br>[snd-sdl.c:1905](../../../src/client/snd-sdl.c#L1905) |
 | `capability.options.no-combat-sfx` | Apply no_combat_sfx: Don't play melee/launcher attack/miss sound fx. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:404](../../../src/client/c-tables.c#L404)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:403](../../../src/client/c-tables.c#L403)<br>[cmd1.c:49](../../../src/server/cmd1.c#L49)<br>[cmd1.c:3712](../../../src/server/cmd1.c#L3712)<br>[nserver.c:2860](../../../src/server/nserver.c#L2860)<br>[spells2.c:8238](../../../src/server/spells2.c#L8238)<br>[spells2.c:8241](../../../src/server/spells2.c#L8241)<br>[spells2.c:8244](../../../src/server/spells2.c#L8244)<br>[config.h:467](../../../src/config.h#L467) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

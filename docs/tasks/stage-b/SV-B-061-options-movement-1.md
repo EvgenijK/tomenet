@@ -1,6 +1,10 @@
 # SV-B-061 — Опции движения, running и disturbance — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.always-repeat` | Apply always_repeat: Repeat obvious commands (eg search/tunnel). Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:337](../../../src/client/c-tables.c#L337)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:336](../../../src/client/c-tables.c#L336)<br>[cmd2.c:1797](../../../src/server/cmd2.c#L1797)<br>[cmd2.c:3308](../../../src/server/cmd2.c#L3308)<br>[cmd2.c:5277](../../../src/server/cmd2.c#L5277) |
@@ -29,7 +40,9 @@
 | `capability.options.find-ignore-doors` | Apply find_ignore_doors: Run through open doors. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:358](../../../src/client/c-tables.c#L358)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:357](../../../src/client/c-tables.c#L357)<br>[cmd1.c:9146](../../../src/server/cmd1.c#L9146) |
 | `capability.options.find-cut` | Apply find_cut: Run past known corners. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:360](../../../src/client/c-tables.c#L360)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:359](../../../src/client/c-tables.c#L359)<br>[cmd1.c:9316](../../../src/server/cmd1.c#L9316)<br>[cmd1.c:9348](../../../src/server/cmd1.c#L9348) |
 | `capability.options.find-examine` | Apply find_examine: Run into potential corners. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:362](../../../src/client/c-tables.c#L362)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:361](../../../src/client/c-tables.c#L361)<br>[cmd1.c:9316](../../../src/server/cmd1.c#L9316)<br>[cmd1.c:9316](../../../src/server/cmd1.c#L9316) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

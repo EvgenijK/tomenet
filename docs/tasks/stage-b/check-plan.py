@@ -31,6 +31,13 @@ def allocation_digest(row):
                                     separators=(",", ":")).encode()).hexdigest()
 
 
+def capability_set_digest(capability_ids):
+    """Stable review token for the exact Stage B capability denominator."""
+    payload = json.dumps(sorted(capability_ids), ensure_ascii=True,
+                         separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
 def anchors(path):
     result = set()
     used = collections.Counter()
@@ -77,11 +84,30 @@ def check():
     rows = {c["id"]: c for c in data["capabilities"]}
     require(len(rows) == len(data["capabilities"]), "Duplicate capability mapping")
     require(set(rows) == current_b, f"Owner denominator differs: missing={sorted(current_b-set(rows))}, extra={sorted(set(rows)-current_b)}")
-    require(len(current_b) == 508, "Reviewed B scope changed; re-review and update planning snapshot explicitly")
+    reviewed_count = data.get("reviewedCapabilityCount")
+    reviewed_digest = data.get("reviewedCapabilityIdsSha256")
+    require(isinstance(reviewed_count, int) and reviewed_count >= 0,
+            "Missing or invalid reviewedCapabilityCount")
+    require(isinstance(reviewed_digest, str) and
+            re.fullmatch(r"[0-9a-f]{64}", reviewed_digest) is not None,
+            "Missing or invalid reviewedCapabilityIdsSha256")
+    require(reviewed_count == len(current_b),
+            "Reviewed B capability count changed; re-review the stage scope explicitly")
+    require(reviewed_digest == capability_set_digest(current_b),
+            "Reviewed B capability set changed; re-review the stage scope explicitly")
     owner_counts = collections.Counter(cid for t in tickets.values() for cid in t["owns"])
     require(set(owner_counts) == current_b and all(n == 1 for n in owner_counts.values()), "Ticket ownership is not exactly once for every B ID")
     listed_files = set()
     for tid, ticket in tickets.items():
+        kind = ticket.get("kind")
+        require(kind in ("implementation", "milestone", "acceptance", "moved"),
+                f"Unknown ticket kind: {tid}")
+        if kind == "moved":
+            require(ticket.get("movedToStage") in ("C", "G"),
+                    f"Moved ticket lacks an explicit destination: {tid}")
+            require(not ticket["owns"] and not ticket["dependsOn"] and
+                    not ticket.get("integrationChecks", []),
+                    f"Moved ticket remains in the active Stage B graph: {tid}")
         path = PLAN / ticket["path"]
         require(path.resolve().parent == PLAN, f"Ticket outside planning directory: {tid}")
         require(path.is_file(), f"Missing ticket file: {tid}")
@@ -92,6 +118,9 @@ def check():
         if not path.is_file():
             continue
         text = path.read_text()
+        if kind == "moved":
+            marker = "superseded-to-G" if ticket.get("movedToStage") == "G" else "moved-to-C"
+            require(marker in text, f"Moved ticket lacks its archival status marker: {tid}")
         region = re.search(r"<!-- owned-capabilities:start -->(.*?)<!-- owned-capabilities:end -->", text, re.S)
         require(region is not None, f"Missing ownership region: {tid}")
         if region:
@@ -162,7 +191,12 @@ def check():
                 foundation.add(prerequisite)
 
     # Check only newly authored planning links, not historical embedded audit links.
-    files = [ROOT / "docs/sv-stage-b-spec.md", PLAN / "README.md"] + [PLAN / t["path"] for t in tickets.values()]
+    # Moved files retain their historical text verbatim where practical. Their
+    # active ownership marker and destination are checked above, but old links
+    # are not part of the current B planning contract. Current spec/index and
+    # active tickets retain full local-link and anchor validation.
+    active_tickets = [t for t in tickets.values() if t.get("kind") != "moved"]
+    files = [ROOT / "docs/sv-stage-b-spec.md", PLAN / "README.md"] + [PLAN / t["path"] for t in active_tickets]
     anchor_cache = {}
     link_count = 0
     for file in files:
@@ -190,8 +224,10 @@ def check():
                 require(fragment in anchor_cache[path], f"Missing Markdown anchor in {file.name}: {target}")
     result = {"status": "valid" if not errors else "invalid", "scope": "planning-only",
               "bCapabilities": len(current_b), "mappedOwners": len(rows),
-              "tickets": len(tickets), "owningTickets": sum(bool(t["owns"]) for t in tickets.values()),
-              "milestonesAndGates": sum(not t["owns"] for t in tickets.values()),
+              "tickets": len(tickets), "activeTickets": len(active_tickets),
+              "movedTickets": sum(t.get("kind") == "moved" for t in tickets.values()),
+              "owningTickets": sum(bool(t["owns"]) for t in active_tickets),
+              "milestonesAndGates": sum(not t["owns"] for t in active_tickets),
               "dag": "acyclic" if not pending else "invalid", "localLinksChecked": link_count,
               "aFoundationPrerequisites": sorted(foundation), "canonicalFilesUnchanged": bool(canonical_unchanged), "productionSubsets": len(subsets),
               "integrationCheckLinks": sum(len(t.get("integrationChecks", [])) for t in tickets.values()),

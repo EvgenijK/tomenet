@@ -356,14 +356,8 @@
             "pattern": "\\S"
           },
           "replacementStage": {
-            "enum": [
-              "A",
-              "B",
-              "C",
-              "D",
-              "E",
-              "F"
-            ]
+            "type": "string",
+            "pattern": "^(?:[A-G]|C(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
           },
           "removalCriterion": {
             "type": "string",

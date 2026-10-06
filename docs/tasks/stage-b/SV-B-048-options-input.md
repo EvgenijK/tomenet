@@ -1,6 +1,10 @@
 # SV-B-048 — Опции клавиш, макросов и store context
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.rogue-like-commands` | Apply rogue_like_commands: Rogue-like keyset (for covering lack of a numpad). Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:189](../../../src/client/c-tables.c#L189)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:188](../../../src/client/c-tables.c#L188)<br>[c-cmd.c:2122](../../../src/client/c-cmd.c#L2122)<br>[c-cmd.c:807](../../../src/client/c-cmd.c#L807)<br>[c-util.c:1916](../../../src/client/c-util.c#L1916) |
@@ -29,7 +40,9 @@
 | `capability.options.macros-in-stores` | Apply macros_in_stores: Eable macros while inside a store. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:522](../../../src/client/c-tables.c#L522)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:521](../../../src/client/c-tables.c#L521)<br>[c-util.c:251](../../../src/client/c-util.c#L251)<br>[c-util.c:252](../../../src/client/c-util.c#L252)<br>[c-util.c:275](../../../src/client/c-util.c#L275) |
 | `capability.options.load-form-macros` | Apply load_form_macros: Automatically load form-specific macros on change. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:565](../../../src/client/c-tables.c#L565)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:564](../../../src/client/c-tables.c#L564)<br>[nclient.c:2919](../../../src/client/nclient.c#L2919)<br>[c-util.c:12841](../../../src/client/c-util.c#L12841) |
 | `capability.options.item-error-beep` | Apply item_error_beep: Beep when an item selection fails. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:524](../../../src/client/c-tables.c#L524)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:523](../../../src/client/c-tables.c#L523)<br>[c-cmd.c:1119](../../../src/client/c-cmd.c#L1119)<br>[c-cmd.c:1189](../../../src/client/c-cmd.c#L1189)<br>[defines-features.h:502](../../../src/common/defines-features.h#L502) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-065 — Опции incoming items и pickup — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.show-weights` | Apply show_weights: Show weights in object listings. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:270](../../../src/client/c-tables.c#L270)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:269](../../../src/client/c-tables.c#L269)<br>[c-store.c:65](../../../src/client/c-store.c#L65)<br>[c-store.c:73](../../../src/client/c-store.c#L73)<br>[c-store.c:95](../../../src/client/c-store.c#L95) |
@@ -31,7 +42,9 @@
 | `capability.options.auto-inscr-server` | Apply auto_inscr_server: Also use predefined server-side auto-inscriptions. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:325](../../../src/client/c-tables.c#L325)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:324](../../../src/client/c-tables.c#L324)<br>[c-cmd.c:1744](../../../src/client/c-cmd.c#L1744) |
 | `capability.options.stack-force-notes` | Apply stack_force_notes: Merge inscriptions when stacking. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:327](../../../src/client/c-tables.c#L327)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:326](../../../src/client/c-tables.c#L326)<br>[object2.c:4158](../../../src/server/object2.c#L4158)<br>[store.c:6660](../../../src/server/store.c#L6660) |
 | `capability.options.stack-force-costs` | Apply stack_force_costs: Merge discounts when stacking. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:329](../../../src/client/c-tables.c#L329)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:328](../../../src/client/c-tables.c#L328)<br>[object2.c:4162](../../../src/server/object2.c#L4162)<br>[store.c:6663](../../../src/server/store.c#L6663) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

@@ -1,6 +1,10 @@
 # SV-B-028 — Движение, повтор и простые действия
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -24,6 +28,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.world.walk` | Use command_dir or direction prompt; send one walk intent, observe authoritative movement or blocked result. | [c-cmd.c:528](../../../src/client/c-cmd.c#L528)<br>[c-cmd.c:274](../../../src/client/c-cmd.c#L274)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[nclient.c:7536](../../../src/client/nclient.c#L7536)<br>[pref-sdl3.prf:21](../../../lib/user/pref-sdl3.prf#L21)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-cmd.c:296](../../../src/client/c-cmd.c#L296) |
@@ -45,7 +56,9 @@
 | `capability.world.clear-command-buffer` | Send_clear_buffer for right parenthesis clears server command queue without executing its contents again on redraw. | [c-cmd.c:274](../../../src/client/c-cmd.c#L274)<br>[nclient.c:7536](../../../src/client/nclient.c#L7536)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-cmd.c:13](../../../src/client/c-cmd.c#L13) |
 | `capability.world.read-location` | Publish world x/y/z, town/sector colors and location labels coherently with absent-version defaults; transitions reset obsolete map/target state. | [nclient.c:3624](../../../src/client/nclient.c#L3624)<br>[nclient.c:385](../../../src/client/nclient.c#L385)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
 | `capability.world.read-movement-state` | Observe searching/resting/paralyzed state from PKT_STATE without treating client keypress as server acknowledgement. | [nclient.c:367](../../../src/client/nclient.c#L367)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

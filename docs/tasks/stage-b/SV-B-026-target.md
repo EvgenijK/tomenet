@@ -1,6 +1,10 @@
 # SV-B-026 — Направление и выбор цели
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.direction.choose-direction` | Return mapped direction 1..9 to its caller; supplied command_dir bypasses prompt without reading another key. | [c-util.c:3672](../../../src/client/c-util.c#L3672)<br>[c-cmd.c:2040](../../../src/client/c-cmd.c#L2040)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-util.c:3672](../../../src/client/c-util.c#L3672) |
@@ -32,7 +43,9 @@
 | `capability.target.select-position` | p toggles manual mode and sends target 128; navigation sends 128+direction and acceptance sends 133. | [c-cmd.c:2040](../../../src/client/c-cmd.c#L2040)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[nclient.c:5515](../../../src/client/nclient.c#L5515)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-util.c:3672](../../../src/client/c-util.c#L3672) |
 | `capability.target.cancel` | Escape/q or any unmapped non-command key exits false without a target-confirm or invented cancel packet; clear target prompt and return to caller. | [c-cmd.c:2040](../../../src/client/c-cmd.c#L2040)<br>[c-util.c:1907](../../../src/client/c-util.c#L1907)<br>[nclient.c:5515](../../../src/client/nclient.c#L5515)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-util.c:3672](../../../src/client/c-util.c#L3672) |
 | `capability.target.read-description` | Retain original target x/y and description, render server target updates while another request is active, and clear old session target data on disconnect. | [nclient.c:5515](../../../src/client/nclient.c#L5515)<br>[c-cmd.c:2040](../../../src/client/c-cmd.c#L2040)<br>[session-policy.md:10](../../capabilities/session-policy.md#L10)<br>[c-util.c:3672](../../../src/client/c-util.c#L3672) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

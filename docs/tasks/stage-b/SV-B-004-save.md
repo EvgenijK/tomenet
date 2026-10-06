@@ -1,7 +1,13 @@
 # SV-B-004 — Preview, Save, Cancel и конфликт настроек
 
-Статус: частичная production-реализация; полная implementation readiness и
-acceptance ожидают перечисленные ниже проверки и потребителей.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
+
+Полная acceptance прежнего среза оставалась pending и ожидала перечисленные
+ниже проверки и потребителей.
 
 ## Реализация 2026-09-25
 
@@ -19,14 +25,15 @@ same-key внешнюю правку внешнему автору с сообщ
 через уникальный sibling temporary и замену, временный sibling backup
 удаляет. Файл с legacy `pass` не порождает backup с секретом; при явном
 CFG Save `pass` удаляется. Failed Save оставляет draft активным и dirty.
-Точные проверки и границы перечислены в
-[evidence](../../sv-b004-evidence.md).
+Точные проверки, границы и historical implementation observations остаются в
+Git history. Current evidence необходимо собирать заново относительно Stage C
+owner и его acceptance boundary.
 
 Это не закрывает ни один owned ID целиком: форма пока доступна до контакта,
 а не в игровой сессии; option editing и character/class/named actions ещё
 не представлены в native UI, а B-003 ещё не имеет всех effective
 resource/audio/map consumers. Проверки нормального выхода с
-history/DNA/bookmarks и actual Windows 10/11 также ожидают соответствующие
+history/DNA и actual Windows 10/11; Guide bookmarks are deferred to G также ожидают соответствующие
 пути и среду. API принимает безопасные имена в S; explicit absolute/custom
 destination и полный baseline named-file UX остаются открыты.
 
@@ -49,6 +56,13 @@ destination и полный baseline named-file UX остаются открыт
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.settings.preview` | Opening settings snapshots values; edits preview immediately. Prepare resource replacements before activation. | [client.c:69](../../../src/client/client.c#L69)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
@@ -61,7 +75,9 @@ destination и полный baseline named-file UX остаются открыт
 | `capability.settings.save-global-options` | Explicit global OPT snapshot writes S/global.opt with baseline option meanings and independent owner. | [client.c:69](../../../src/client/client.c#L69)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.save-class-options` | Explicit class OPT snapshot writes own selected class file; saving does not create automatic class loading. | [client.c:69](../../../src/client/client.c#L69)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.settings.save-named-options` | Named load/save preserves explicit destination semantics and reports failures without rewriting the source macro PRF. | [client.c:69](../../../src/client/client.c#L69)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
@@ -77,7 +93,7 @@ destination и полный baseline named-file UX остаются открыт
 | `capability.settings.save` | CFG/OPT changed-record merge для character/global/class/named; sibling temp+replace; concurrent edit/disk fault сохраняют прежний destination. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
 | `capability.settings.cancel` | Change несколько fields, game updates meanwhile, Cancel восстанавливает opening settings, не gameplay/effects. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
 | `capability.settings.dirty-close` | Все3 choices при dirty; Return сохраняет draft/focus, failed Save остаётся dirty. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
-| `capability.settings.exit-unsaved` | Normal exit с dirty settings не сохраняет и не добавляет prompt; history/DNA/bookmarks independent lifecycles продолжаются. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
+| `capability.settings.exit-unsaved` | Normal exit с dirty settings не сохраняет и не добавляет prompt; history/DNA independent lifecycles; Guide bookmarks remain deferred to G продолжаются. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
 | `capability.settings.save-failure` | Denied/open/write/replace fault: old bytes целы, edit active+dirty, visible unsaved status; без secret backups. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
 | `capability.settings.save-conflict` | External same-key wins/report, disjoint edits preserved, unknown records не теряются; повтор Save не скрывает конфликт. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |
 | `capability.settings.save-global-options` | Explicit global snapshot в S/global.opt; shared U/global.opt неизменён, option meaning/default/load order сохранены. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. |

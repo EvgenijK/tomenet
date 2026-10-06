@@ -1,6 +1,10 @@
 # SV-B-050 — Опции входящих сообщений и их представления — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.keep-topline` | Apply keep_topline: Don't clear messages in the top line if avoidable. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:280](../../../src/client/c-tables.c#L280)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:279](../../../src/client/c-tables.c#L279)<br>[c-util.c:205](../../../src/client/c-util.c#L205) |
@@ -30,7 +41,9 @@
 | `capability.options.add-kind-diz` | Apply add_kind_diz: Inv/eq window only: Item-to-chat-paste extra info. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:592](../../../src/client/c-tables.c#L592)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:591](../../../src/client/c-tables.c#L591)<br>[util.c:2943](../../../src/server/util.c#L2943)<br>[slash.c:6934](../../../src/server/slash.c#L6934)<br>[slash.c:6935](../../../src/server/slash.c#L6935) |
 | `capability.options.hide-lore-paste` | Apply hide_lore_paste: Hide artifact/monster lore pastes in public chat. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:594](../../../src/client/c-tables.c#L594)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:593](../../../src/client/c-tables.c#L593)<br>[util.c:2937](../../../src/server/util.c#L2937)<br>[slash.c:6943](../../../src/server/slash.c#L6943)<br>[slash.c:6944](../../../src/server/slash.c#L6944) |
 | `capability.options.sunburn-msg` | Apply sunburn_msg: Show message if you start/stop burning in the sun. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:599](../../../src/client/c-tables.c#L599)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:598](../../../src/client/c-tables.c#L598)<br>[xtra1.c:6823](../../../src/server/xtra1.c#L6823)<br>[xtra1.c:6824](../../../src/server/xtra1.c#L6824) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

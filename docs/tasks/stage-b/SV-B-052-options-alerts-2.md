@@ -1,6 +1,10 @@
 # SV-B-052 — Опции paging и предупреждений — часть 2
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -21,6 +25,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.alert-offpanel-dam` | Apply alert_offpanel_dam: Beep when taking damage while looking elsewhere. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:239](../../../src/client/c-tables.c#L239)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:238](../../../src/client/c-tables.c#L238)<br>[nclient.c:2096](../../../src/client/nclient.c#L2096)<br>[nclient.c:2211](../../../src/client/nclient.c#L2211) |
@@ -30,7 +41,9 @@
 | `capability.options.alert-starvation` | Apply alert_starvation: Beep when taking damage from starvation. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:434](../../../src/client/c-tables.c#L434)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:433](../../../src/client/c-tables.c#L433)<br>[spells1.c:2503](../../../src/server/spells1.c#L2503) |
 | `capability.options.flash-insane` | Apply flash_insane: Flash own character icon when going badly insane. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:484](../../../src/client/c-tables.c#L484)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:483](../../../src/client/c-tables.c#L483)<br>[cave.c:4811](../../../src/server/cave.c#L4811) |
 | `capability.options.flash-starvation` | Apply flash_starvation: Flash 'Starved' food status by colour animation. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:633](../../../src/client/c-tables.c#L633)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:632](../../../src/client/c-tables.c#L632)<br>[c-xtra1.c:1114](../../../src/client/c-xtra1.c#L1114)<br>[c-xtra1.c:1116](../../../src/client/c-xtra1.c#L1116) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

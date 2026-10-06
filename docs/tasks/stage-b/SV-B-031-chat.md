@@ -1,6 +1,10 @@
 # SV-B-031 — Чат, история и локальные формы
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -23,9 +27,9 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
   текущей сессии и отсутствие send при запрещённой функции. Evidence для
   `capability.network.server-flags` вернуть SV-B-002; исходное chat
   acceptance остаётся здесь.
-- `map-chat`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-031](SV-B-031-chat.md). 029 вводит actual native chat child с map/locate continuation.Реализовать все достижимые из этого child baseline branches: ordinary/private/channel transforms, own history, available item substitutions, local-self/forwarded slash и Escape без Send_msg.029 использует real editor/clipboard001 и histories010; это не fixed-response или test-only chat.031 расширяет и принимает полные chat outcomes во всех обязательных B callers. 029 выполняет map-specific success/cancel/transform overflow/history/provider failure и exact map selection/focus/queue return с interleaved network/resize.031 повторяет map branch; Guide/sheet/final callers добавляют integration checks033/035/036, результаты прикладываются к исходному owner031.
+- `map-chat`: producer [SV-B-029](SV-B-029-map-explore.md); полные owners [SV-B-031](SV-B-031-chat.md). 029 вводит actual native chat child с map/locate continuation.Реализовать все достижимые из этого child baseline branches: ordinary/private/channel transforms, own history, available item substitutions, local-self/forwarded slash и Escape без Send_msg.029 использует real editor/clipboard001 и histories010; это не fixed-response или test-only chat.031 расширяет и принимает полные chat outcomes во всех обязательных B callers. 029 выполняет map-specific success/cancel/transform overflow/history/provider failure и exact map selection/focus/queue return с interleaved network/resize.031 повторяет map branch; Guide entry uses the exact placeholder; sheet/final callers добавляют integration checks035/036, результаты прикладываются к исходному owner031.
 
-Поздние обязательные проверки для primary owner этого тикета: [SV-B-033](SV-B-033-guide-tools.md), [SV-B-035](SV-B-035-sheet.md), [SV-B-036](SV-B-036-session-end.md). До их выполнения разрешено объявить production implementation готовой для следующих задач, но полный acceptance остаётся pending; результаты поздних checks прикладываются к исходным IDs/obligations, не передавая ownership.
+Поздние обязательные проверки для primary owner этого тикета: [SV-B-035](SV-B-035-sheet.md), [SV-B-036](SV-B-036-session-end.md). До их выполнения разрешено объявить production implementation готовой для следующих задач, но полный acceptance остаётся pending; результаты поздних checks прикладываются к исходным IDs/obligations, не передавая ownership.
 
 Этот тикет выполняет повторные/недостающие actual-caller проверки для [SV-B-010](SV-B-010-history-profile.md), [SV-B-027](SV-B-027-pickup-store.md), [SV-B-029](SV-B-029-map-explore.md). Использовать их production code, сохранить каждый исходный obligation и вернуть evidence первоначальному owner.
 
@@ -34,6 +38,13 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.chat.send` | Submit ordinary, private and explicit-channel chat through cmd_message and Send_msg, preserving channel/address decoration and transformed bytes; editor limit is MSG_LEN minus cname length minus 17 including the final terminator allowance. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[nclient.c:6791](../../../src/client/nclient.c#L6791)<br>[nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-util.c:1649](../../../src/client/c-util.c#L1649) |
@@ -41,19 +52,21 @@ Prerequisites A: `capability.messages.read-occurrences`. См. [различие
 | `capability.chat.substitute-items` | Expand inventory/equipment/floor/newest/bag/store shortcuts, colours, spacing and colon escaping in source order; preserve unavailable-slot and expansion-limit behavior, testing final transformed bytes. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[nclient.c:6791](../../../src/client/nclient.c#L6791)<br>[nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-util.c:1649](../../../src/client/c-util.c#L1649) |
 | `capability.chat.local-self` | Route %: to local messages and %%: to local chat, except doubled-colon escape forms; no Send_msg for consumed local forms. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[nclient.c:6791](../../../src/client/nclient.c#L6791)<br>[nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-util.c:1649](../../../src/client/c-util.c#L1649) |
 | `capability.chat.forward-slash` | Forward unmatched slash text, bare slash and malformed local recognizers through Send_msg once; server grammar and permission outcomes remain server-owned, with no invented local whitelist. | [c-cmd.c:412](../../../src/client/c-cmd.c#L412)<br>[nclient.c:6791](../../../src/client/nclient.c#L6791)<br>[nclient.c:366](../../../src/client/nclient.c#L366)<br>[c-util.c:1649](../../../src/client/c-util.c#L1649) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
 1. Final transformed bytes: address/colour/colon/spacing/item expansions, MSG_LEN−cname−17 allowance, unavailable slot и bounded expansion; one send only.
 2. History load/edit/Save, macro→Enter after truncation; unmatched/bare/malformed slash forwards once без whitelist; consumed %:/%%: local forms не шлют Send_msg.
-3. Escape в early gameplay/map/Guide/character/read-only-store caller не шлёт сообщение, восстанавливает focus/draft/queue; D chat.cancel whole union не принимается этим B handoff.
+3. Escape в early gameplay/map/Guide-placeholder/character/read-only-store caller не шлёт сообщение, восстанавливает focus/draft/queue; D chat.cancel whole union не принимается этим B handoff.
 
 Для каждого собственного ID дополнительно обязательны следующие условия; это требования будущей реализации, а не результаты выполненных тестов.
 
 | ID | Конкретные проверки и ранние handoffs |
 |---|---|
-| `capability.chat.send` | Final transformed bytes после paste/item/colour/address/colon expansion, boundary+overflow; send once/cancel none; nested owner и reconnect. Точный проверяемый результат: Submit ordinary, private and explicit-channel chat through cmd_message and Send_msg, preserving channel/address decoration and transformed bytes; editor limit is MSG_LEN minus cname length minus 17 including the final terminator allowance. Уже существующий obligation.chat.send.lifecycle требует cancellation и actual caller return. cmd_message get_string guard, map child, sheet child. В каждом раннем gameplay/map/Guide/character/read-only-store caller: Escape без Send_msg, возврат focus/draft/queue, resize/network/relogin; D добавляет lore/document, C skill остаётся проверкой своего caller. Full deferred outcomes: capability.chat.cancel. |
+| `capability.chat.send` | Final transformed bytes после paste/item/colour/address/colon expansion, boundary+overflow; send once/cancel none; nested owner и reconnect. Точный проверяемый результат: Submit ordinary, private and explicit-channel chat through cmd_message and Send_msg, preserving channel/address decoration and transformed bytes; editor limit is MSG_LEN minus cname length minus 17 including the final terminator allowance. Уже существующий obligation.chat.send.lifecycle требует cancellation и actual caller return. cmd_message get_string guard, map child, sheet child. В каждом раннем gameplay/map/Guide-placeholder/character/read-only-store caller: Escape без Send_msg, возврат focus/draft/queue, resize/network/relogin; D добавляет lore/document, C skill остаётся проверкой своего caller. Full deferred outcomes: capability.chat.cancel. |
 | `capability.chat.history` | Final transformed bytes после paste/item/colour/address/colon expansion, boundary+overflow; send once/cancel none; nested owner и reconnect. Точный проверяемый результат: Recall/edit chat text using the production text editor and its chat mode/history rules; draft edits and input method/paste respect byte limits. |
 | `capability.chat.substitute-items` | Final transformed bytes после paste/item/colour/address/colon expansion, boundary+overflow; send once/cancel none; nested owner и reconnect. Точный проверяемый результат: Expand inventory/equipment/floor/newest/bag/store shortcuts, colours, spacing and colon escaping in source order; preserve unavailable-slot and expansion-limit behavior, testing final transformed bytes. |
 | `capability.chat.local-self` | Final transformed bytes после paste/item/colour/address/colon expansion, boundary+overflow; send once/cancel none; nested owner и reconnect. Точный проверяемый результат: Route %: to local messages and %%: to local chat, except doubled-colon escape forms; no Send_msg for consumed local forms. |

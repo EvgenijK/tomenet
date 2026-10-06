@@ -1,6 +1,10 @@
 # SV-B-003 — Первый запуск с собственным CFG и ресурсами
 
-Статус: частичная startup CFG/OPT и resource-owner реализация; implementation readiness и полное acceptance pending. [Evidence](../../sv-b003-evidence.md).
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 Текущий SV executable загружает `S/options.prf`, `S/global.opt`,
 `S/global-sv.opt` до контактного экрана, не читая legacy `U/global.opt`.
@@ -36,6 +40,13 @@ audio pack folders. `source=found` означает только наличие 
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.settings.load` | Load independent U/sv/tomenet.cfg and own global/system/character OPT layers; never inherit legacy user CFG/OPT through bootstrap includes. Apply character options before their first send. | [client.c:69](../../../src/client/client.c#L69)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934)<br>[client.c:468](../../../src/client/client.c#L468)<br>[client.c:69](../../../src/client/client.c#L69) |
@@ -45,8 +56,10 @@ audio pack folders. `source=found` означает только наличие 
 | `capability.settings.aliases` | Convert exact obsolete option aliases including inversions/one-to-many/discards in memory until Save; do not guess renames or rewrite legacy import sources. | [client.c:69](../../../src/client/client.c#L69)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-cmd.c:8310](../../../src/client/c-cmd.c#L8310)<br>[c-util.c:16934](../../../src/client/c-util.c#L16934) |
 | `capability.files.resource-overlay` | Resolve U overlay before bundled B for shared resources; writes retain shared owner and cover raw stat/rename/remove/temp operations, not fopen alone. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
 | `capability.files.transient-owner` | Backups, temporary/helper/IPC/diagnostic files belong to operation and are not imported as profile data; keep secrets out of all diagnostics. | [c-files.c:424](../../../src/client/c-files.c#L424)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
-| `capability.files.report-resource-identity` | Report client version/OS/Guide length, audio pack metadata and requested/effective font/graphics identity through original versioned Send_version/Send_audio/Send_font fields. Preserve full local names; only reporting copies follow approved byte limits, never truncate stored selections. Missing features report baseline values. | [nclient.c:7502](../../../src/client/nclient.c#L7502)<br>[nclient.c:9190](../../../src/client/nclient.c#L9190)<br>[nclient.c:9204](../../../src/client/nclient.c#L9204)<br>[nserver.c:448](../../../src/server/nserver.c#L448)<br>[nserver.c:442](../../../src/server/nserver.c#L442)<br>[nserver.c:449](../../../src/server/nserver.c#L449)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
-<!-- owned-capabilities:end -->
+| `capability.files.report-resource-identity` | Report client version/OS/Guide length, audio pack metadata and requested/effective font/graphics identity through original versioned Send_version/Send_audio/Send_font fields. Preserve full local names; only reporting copies follow approved byte limits, never truncate stored selections. Missing features report baseline values; Guide length reports the baseline unavailable value until G. | [nclient.c:7502](../../../src/client/nclient.c#L7502)<br>[nclient.c:9190](../../../src/client/nclient.c#L9190)<br>[nclient.c:9204](../../../src/client/nclient.c#L9204)<br>[nserver.c:448](../../../src/server/nserver.c#L448)<br>[nserver.c:442](../../../src/server/nserver.c#L442)<br>[nserver.c:449](../../../src/server/nserver.c#L449)<br>[c-init.c:3349](../../../src/client/c-init.c#L3349)<br>[nclient.c:3340](../../../src/client/nclient.c#L3340)<br>[c-util.c:4862](../../../src/client/c-util.c#L4862) |
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 

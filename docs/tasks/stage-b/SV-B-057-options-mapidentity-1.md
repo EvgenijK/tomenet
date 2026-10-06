@@ -1,6 +1,10 @@
 # SV-B-057 — Опции glyph identity и highlighting — часть 1
 
-Статус: specified; реализация и runtime evidence не выполнены.
+Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
+
+> Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
+> Stage C после сужения B до native startup screen flow. Описание ниже архивное:
+> оно не задаёт B ownership, dependencies или acceptance.
 
 ## Пользовательский результат
 
@@ -22,6 +26,13 @@
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
+<!-- Нет: прежние IDs перенесены в Stage C. -->
+<!-- owned-capabilities:end -->
+
+<details>
+<summary>Архивная таблица прежнего ownership</summary>
+
+<!-- historical-owned-capabilities:start -->
 | ID | Полный результат baseline / policy | Первичные источники |
 |---|---|---|
 | `capability.options.flash-player` | Apply flash_player: Flash own character icon after far relocation. Preserve literal baseline default/build row T; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:297](../../../src/client/c-tables.c#L297)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:296](../../../src/client/c-tables.c#L296)<br>[nserver.c:2801](../../../src/server/nserver.c#L2801)<br>[cmd2.c:856](../../../src/server/cmd2.c#L856)<br>[dungeon.c:10478](../../../src/server/dungeon.c#L10478)<br>[spells1.c:1481](../../../src/server/spells1.c#L1481)<br>[spells1.c:1725](../../../src/server/spells1.c#L1725) |
@@ -29,7 +40,9 @@
 | `capability.options.basic-players-symb` | Apply basic_players_symb: Use very basic static symbols for players. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:302](../../../src/client/c-tables.c#L302)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:301](../../../src/client/c-tables.c#L301)<br>[cave.c:4220](../../../src/server/cave.c#L4220) |
 | `capability.options.basic-players-col` | Apply basic_players_col: Use very basic static colours for players. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:347](../../../src/client/c-tables.c#L347)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:346](../../../src/client/c-tables.c#L346)<br>[cave.c:4221](../../../src/server/cave.c#L4221) |
 | `capability.options.flash-player2` | Apply flash_player2: Flash own character icon after close relocation. Preserve literal baseline default/build row F; E=T; —, boolean meaning and option slot; own global/character OPT, permitted shared macro effects, explicit Save. Final semantic display-option overlay in settings-policy.md overrides draft L/U no-op proposals. | [c-tables.c:563](../../../src/client/c-tables.c#L563)<br>[c-files.c:1047](../../../src/client/c-files.c#L1047)<br>[c-tables.c:562](../../../src/client/c-tables.c#L562)<br>[nserver.c:2983](../../../src/server/nserver.c#L2983)<br>[slash.c:5835](../../../src/server/slash.c#L5835)<br>[slash.c:5836](../../../src/server/slash.c#L5836)<br>[slash.c:5839](../../../src/server/slash.c#L5839) |
-<!-- owned-capabilities:end -->
+<!-- historical-owned-capabilities:end -->
+
+</details>
 
 ## Production SV проверки
 
