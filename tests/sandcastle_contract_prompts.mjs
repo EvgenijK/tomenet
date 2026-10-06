@@ -36,6 +36,8 @@ test("verifier guidance explains immutable baseline execution", () => {
   assert.match(facts, /sv-core/);
   assert.match(facts, /\.sandcastle\/checks\.sh supplied through standard input/);
   assert.match(facts, /not necessarily the complete shell invocation/);
+  assert.match(facts, /non-empty array/);
+  assert.match(facts, /stops on the first failure/);
   for (const fact of controllerExecutionFacts) assert.match(verifier, new RegExp(fact.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 

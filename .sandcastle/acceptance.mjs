@@ -12,6 +12,7 @@ export const digest = (value) => createHash("sha256").update(typeof value === "s
 const text = (value) => typeof value === "string" && value.trim().length > 0;
 const identifier = (value) => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(value);
 const path = (value) => typeof value === "string" && /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith("/") && !value.split("/").includes("..");
+const focusedCommand = (value) => typeof value === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(value) && !value.includes("..");
 const normalize = (value) => value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 const need = (condition, message) => { if (!condition) throw new Error(`Acceptance: ${message}`); };
 
@@ -28,7 +29,8 @@ export function validateContract(contract, sources) {
       need(baseline && baseline.kind === check.kind && baseline.command === check.command, `baseline command ${check.id} cannot be weakened`);
     } else if (check.kind === "command") {
       // Focused repository checks, never arbitrary shell programs or remote actions.
-      need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), `focused check ${check.id} must invoke a repository test without shell operators`);
+      const commands = Array.isArray(check.command) ? check.command : [check.command];
+      need(commands.length > 0 && commands.every(focusedCommand), `focused check ${check.id} must invoke a repository test without shell operators`);
     } else need(check.command === "", "external checks have no automatic runner");
     checks.set(check.id, check);
   }
