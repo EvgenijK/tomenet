@@ -511,8 +511,13 @@
   "digest": "8c107ecd47aeac23a221871fcb80ad5c9f87846ba44b10a1d97a00a0d2bd82c0",
   "verification": {
     "approved": true,
-    "summary": "The proposal accurately represents the authoritative requirements, production SV path, scope boundaries, and dependencies. Runtime-native Linux/Windows evidence is explicitly deferred to SV-B-021, while downstream integration is owned by SV-B-025; neither is treated as passing evidence. Baseline checks are referenced without being redefined.",
+    "summary": "Approved. The proposal preserves completion scope, all criteria, mandatory/deferred semantics and owners, check IDs/kinds/descriptions, and every command except P1-account-create. Its replacement is a non-empty ordered array of existing repository runners; both compile and exercise the production SV endpoint, protocol, input, session, and credential paths, with success, rejection, cancellation, error, retry, fragmentation, and credential-save outcomes covered. Baseline checks remain unchanged. Runtime execution could not proceed in the read-only review sandbox because no writable temporary directory exists, so approval is based on direct runner/source inspection rather than treating that environmental failure as passing evidence.",
     "missingRequirements": [],
     "findings": []
+  },
+  "commandRepair": {
+    "previousDigest": "e706e7e1a96fefbddcf8bd3f0d9ac43f5e9e5d5bc2e9516c66f7ac9bc2b32223",
+    "replacementDigest": "8c107ecd47aeac23a221871fcb80ad5c9f87846ba44b10a1d97a00a0d2bd82c0",
+    "checkId": "P1-account-create"
   }
 }
