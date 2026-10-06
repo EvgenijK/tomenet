@@ -2,12 +2,13 @@ export const controllerExecutionFacts = Object.freeze([
   "Controller execution fact: baseline checks are immutable contract infrastructure; contract agents may reference them but must not redefine, replace, or repair them.",
   "Controller execution fact: the sv-core check is executed with .sandcastle/checks.sh supplied through standard input by the controller.",
   "Controller execution fact: a check's displayed command is an identifier for the controller runner, not necessarily the complete shell invocation. Do not infer missing execution behavior from that display string alone.",
+  "Controller execution fact: when one required check needs multiple repository tests, its command is a non-empty array of individually valid commands; the controller runs them in order and stops on the first failure.",
 ]);
 
 const commonScopeGuidance = Object.freeze([
   "Preserve every obligation supported by the assigned authoritative sources, including baseline behavior, production seams, checks, evidence, deferral owners, and repository isolation rules. Do not invent obligations or import requirements from unrelated work.",
   "Keep implementation readiness separate from full acceptance. Every mandatory current criterion in an implementation contract must map only to runnable build, core, or focused repository command checks; external checks may be current only for full_acceptance.",
-  "A repository feature test that is expected to exist at implementation completion is a current command check, even when it does not exist at contract-drafting time. The implementation tickets create that production-path test before the gate runs.",
+  "A repository feature test expected at implementation completion is a current command check. Its command must name an existing repository runner script; implementation tickets extend that runner through the production path before the gate runs.",
   "Code inspection, diff review, policy review, and production-seam review are performed by the later review and final-audit stages. Represent their substantive requirements as criteria backed by runnable implementation checks, not as external check blockers.",
   "Later caller, downstream integration, native-platform, or genuinely unavailable environment evidence may be a deferred external check only when its exact owner and deferral reason are recorded. Deferred external evidence is not passing evidence.",
 ]);

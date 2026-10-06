@@ -109,7 +109,10 @@
             ]
           },
           "command": {
-            "type": "string"
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            ]
           },
           "description": {
             "type": "string"

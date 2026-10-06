@@ -60,6 +60,23 @@ test("interrupted contract proposal resumes its reserved round instead of exhaus
   assert.equal(s.phase, "plan");
 });
 
+test("contract acceptance preflights a statically named repository runner", async () => {
+  const contract = proposal();
+  contract.checks.find((check) => check.id === "feature").command = "python3 -B tests/test_sv_account_create.py";
+  const s = { id: "missing-runner", phase: "contract" };
+  await contractStage(s, {
+    sources: async () => sources, head: async () => head, save: noOp, publish: noOp,
+    propose: async () => contract, verify: async () => approval,
+    validateRunners: async (candidate) => {
+      const command = candidate.checks.find((check) => check.id === "feature").command;
+      throw new Error(`Acceptance: focused runner from ${command} does not exist`);
+    },
+  });
+  assert.equal(s.phase, "contract");
+  assert.equal(s.acceptance, undefined);
+  assert.match(s.contractPending.feedback.join(" "), /tests\/test_sv_account_create\.py does not exist/);
+});
+
 test("rejected verification preserves structured provenance for the next contract round", async () => {
   const s = { id: "test", phase: "contract" };
   const message = "Preserve cancellation production behavior";
