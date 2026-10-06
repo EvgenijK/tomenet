@@ -1,5 +1,7 @@
 # 06: Исправить core registry после сужения Stage B
 
+**Type:** repair
+
 **What to build:** `sv-core` снова проходит полный актуальный набор проверок до
 SV-B-021 account-creation suites и shell smoke на собранной worker revision:
 runner больше не вызывает удалённый вместе с перенесённой в Stage C macro
