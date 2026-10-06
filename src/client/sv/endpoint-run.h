@@ -9,6 +9,9 @@ typedef struct {
     int protocol;
 } SvEndpointChoice;
 typedef bool (*SvEndpointPoll)(void *context, SvEndpoint *endpoint, bool *failed);
+typedef enum { SV_CREDENTIAL_SAVE_NOT_STARTED, SV_CREDENTIAL_SAVE_PENDING,
+               SV_CREDENTIAL_SAVE_SAVED, SV_CREDENTIAL_SAVE_SESSION_ONLY }
+    SvCredentialSaveState;
 typedef struct {
     uint64_t generation, revision;
     SvPregamePhase phase;
@@ -16,6 +19,7 @@ typedef struct {
     size_t character_count;
     uint32_t server_flags[4], creation_flags;
     bool credential_save_started, credential_saved;
+    SvCredentialSaveState credential_save;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
 } SvEndpointOutcome;
 typedef struct {
