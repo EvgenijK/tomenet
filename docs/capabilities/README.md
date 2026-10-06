@@ -17,13 +17,12 @@ Ticket 11 adds settings, resources, files and platform outcomes; see the
 Ticket 12 reconciles the full inventory corpus and adds explicit live HUD,
 input and network outcomes; see the [complete reconciliation](complete-reconciliation.md).
 The current registry contains 925 active outcomes, all pending, with no accepted
-native claims, plus one retained deprecated ID. Current allocation after the
-[Stage B source review](../research/sv-stage-b-allocation-proposal.md) and the
-[Stage B boundary decision](../../.scratch/single-window-sdl3-client/issues/37-narrow-stage-b-to-pregame-flow.md),
-together with the
-[Guide deferral decision](../../.scratch/single-window-sdl3-client/issues/36-defer-guide-to-stage-g.md),
-is A=8, B=54, C=615, D=162, E=64, F=1, G=21. The counts below describe the
-historical ticket 07 slice.
+native claims, plus one retained deprecated ID. Stages A=8 and B=54 remain
+frozen. The remaining 863 outcomes are allocated to the ordered functional
+stages C001–C059 in [`stages.json`](stages.json); each post-B stage owns exactly
+one capability namespace. The governing decision is
+[post-B functional reallocation](../../.scratch/single-window-sdl3-client/issues/38-reallocate-post-b-by-functional-block.md#answer).
+The counts below describe the historical ticket 07 slice.
 
 ## Initial slice — ticket 07
 
@@ -54,6 +53,7 @@ python3 -m venv /tmp/sv-capabilities-venv
 /tmp/sv-capabilities-venv/bin/python tools/validate_capabilities.py \
   --manifest docs/capabilities/manifest.json \
   --ledger docs/capabilities/native-coverage.json \
+  --stages docs/capabilities/stages.json \
   --source-root tomenet=.
 /tmp/sv-capabilities-venv/bin/python tests/sv_capabilities_checks.py
 ```
@@ -78,7 +78,9 @@ inventory or native evidence freshness required by ticket 13.
 
 `manifest.schema.json` and `native-coverage.schema.json` are JSON Schema Draft
 2020-12, evaluated by the production validator. Unknown properties are rejected.
-`schemaVersion: 1` identifies structure, not content. The manifest's SHA-256 is
+The canonical coverage ledger uses schema version 3 and binds the exact stage
+catalog bytes through `stageCatalogSha256`; schema versions 1–2 remain supported
+for historical fixtures. The manifest's SHA-256 is
 computed from its exact bytes, including whitespace; the consumer ledger must
 match. Editing the manifest requires explicitly updating the ledger digest:
 
@@ -119,10 +121,12 @@ relation, when present, must agree with its `actionId`. These restrictions
 describe baseline applicability, not current SV implementation coverage.
 
 The separate native ledger requires one row per active capability, exactly one
-acceptance stage A–G, explicit prerequisite outcome IDs (possibly empty),
+acceptance stage, explicit prerequisite outcome IDs (possibly empty),
 source-backed version/build/platform/scope conditions, and nonempty source-backed
 evidence obligations with unique `obligation.*` IDs. Prerequisites must have an
-active allocation at the same or an earlier stage, without cycles. Obligations
+active allocation at the same or an earlier catalog stage, without cycles.
+A/B are frozen aggregate checkpoints; every C001–C059 stage contains exactly one
+functional block, while a block may continue in multiple stages. Obligations
 express expected results; they are not test execution records.
 
 `implementation` is `pending`, `native` or `fallback`; each requires an explicit

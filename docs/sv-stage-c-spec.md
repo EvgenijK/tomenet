@@ -1,13 +1,11 @@
 # Этап C — real-server session и первый игровой экран TomeNET SV
 
-> **Статус: superseded 2026-10-06.** Широкий scope C заменён
-> [post-B этапами по одному функциональному блоку](../.scratch/single-window-sdl3-client/issues/38-reallocate-post-b-by-functional-block.md#answer).
-> План миграции — [stage reallocation](tasks/stage-reallocation/README.md).
-> Текст ниже сохранён как история boundary 2026-10-05 и не задаёт
-> текущий acceptance denominator.
+> Исторический snapshot, superseded 2026-10-06. Broad stage C заменён этапами
+> C001–C059 из [функционального плана](sv-functional-stage-plan.md); A/B не
+> изменены. Этот документ больше не задаёт canonical allocation.
 
-Статус: high-level scope, 2026-10-05. Canonical scope: **615 active C outcomes**.
-Точная task-декомпозиция должна быть построена по финальной reallocation.
+Статус: historical high-level scope, 2026-10-05. Исторический scope:
+**615 outcomes широкого C**. Текущее распределение задают C001–C059.
 
 ## Цель
 
@@ -80,8 +78,7 @@ C требует одновременно:
 
 ## Неопределённые здесь детали
 
-Финальное распределение active outcomes: **A8/B54/C615/D162/E64/F1/G21**.
-Этот документ намеренно не перечисляет все 615 IDs, ticket numbers или точный DAG.
-Они берутся из обновлённого manifest/native coverage/reconciliation и затем
-материализуются в `docs/tasks/stage-c/`. Прежние количества B/C не используются
-как текущий denominator.
+Историческое распределение active outcomes было
+**A8/B54/C615/D162/E64/F1/G21**. Оно сохранено здесь только как snapshot и не
+задаёт текущий denominator или ownership. Актуальные IDs, counts и порядок
+берутся из `docs/capabilities/stages.json` и `native-coverage.json`.

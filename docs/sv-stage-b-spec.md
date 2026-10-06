@@ -19,7 +19,8 @@ protocol peer.
 
 Этап заканчивается после выбора или создания персонажа, показа MOTD и перехода
 в явное состояние ожидания live-session handoff. Реальная интеграция с TomeNET
-server, post-MOTD startup и первый игровой экран относятся к C.
+server, post-MOTD startup и первый игровой экран относятся к функциональным
+этапам после B, начиная с C001.
 
 Нормативная граница: [decision 37](../.scratch/single-window-sdl3-client/issues/37-narrow-stage-b-to-pregame-flow.md#answer)
 и [разбор границ](sv-stage-b-boundaries.md). Архитектурная основа —
@@ -27,7 +28,9 @@ server, post-MOTD startup и первый игровой экран относя
 [AGENTS.md](../AGENTS.md) имеет приоритет: production adaptation по возможности
 остаётся в SV, а изменения legacy/common минимальны.
 
-Финальное распределение active outcomes: **A8/B54/C615/D162/E64/F1/G21**.
+Текущее распределение: **A8/B54** заморожены; остальные **863 outcomes**
+распределены по C001–C059 согласно
+[функциональному плану](sv-functional-stage-plan.md).
 B содержит только следующие семейства:
 
 | Семейство | Outcomes B | Роль в результате |

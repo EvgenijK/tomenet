@@ -26,6 +26,17 @@ TRANSITIONS = {
 }
 
 
+def stage_rank(stage, schema_version, stage_orders=None):
+    """Return the acceptance order for the ledger's stage-ID dialect."""
+    if schema_version in (1, 2):
+        if stage in 'ABCDEFG' and len(stage) == 1:
+            return ord(stage) - ord('A')
+    elif schema_version == 3:
+        if stage_orders is not None and stage in stage_orders:
+            return stage_orders[stage]
+    raise ValueError(f'Invalid stage {stage!r} for ledger schema version {schema_version}')
+
+
 def check_cycles(graph, report, code):
     """Iterative DFS keeps long replacement histories independent of recursion limits."""
     done = set()
@@ -163,18 +174,77 @@ class Registry:
                 self.report.error('replacement-history', identifier, 'Historical replacement links cannot be removed')
 
 
-def validate_coverage(registry, ledger, digest):
+def validate_stage_catalog(ledger, stages, digest, report):
+    """Validate the v3 allocation's exact stage catalog and return its order map."""
+    if ledger['schemaVersion'] != 3:
+        return None
+    if stages is None:
+        report.error('stage-catalog', 'native-sv', 'Schema v3 ledger requires --stages')
+        return {}
+    if ledger['stageCatalogSha256'] != digest:
+        report.error('stage-catalog-digest', 'native-sv',
+                     'Ledger does not identify actual stage catalog bytes')
+    by_id = {}
+    by_order = {}
+    for stage in stages['stages']:
+        identifier = stage['id']
+        order = stage['order']
+        if identifier in by_id:
+            report.error('duplicate-stage', identifier, 'Stage IDs must be unique')
+        else:
+            by_id[identifier] = stage
+        if order in by_order:
+            report.error('duplicate-stage-order', identifier,
+                         f'Stage order {order} is already used by {by_order[order]}')
+        else:
+            by_order[order] = identifier
+    expected_orders = set(range(1, len(stages['stages']) + 1))
+    if set(by_order) != expected_orders:
+        report.error('stage-sequence', 'stage-catalog',
+                     'Stage order must be contiguous from 1')
+    for identifier, order in (('A', 1), ('B', 2)):
+        stage = by_id.get(identifier)
+        if stage is None:
+            report.error('stage-sequence', identifier, 'Frozen legacy stage is missing')
+        elif stage['order'] != order or stage['block'] != 'baseline' or not stage['frozen']:
+            report.error('stage-sequence', identifier,
+                         'Legacy stage must retain its order, baseline block and frozen status')
+    post_b = sorted(int(identifier[1:]) for identifier in by_id
+                    if len(identifier) == 4 and identifier.startswith('C'))
+    if post_b != list(range(1, len(post_b) + 1)):
+        report.error('stage-sequence', 'stage-catalog',
+                     'Post-B stage IDs must be contiguous from C001')
+    for identifier, stage in by_id.items():
+        if identifier.startswith('C') and stage['frozen']:
+            report.error('stage-sequence', identifier, 'Post-B stages cannot be frozen')
+    return {identifier: stage['order'] for identifier, stage in by_id.items()}
+
+
+def validate_coverage(registry, ledger, digest, stages=None, stages_digest=None):
     report = registry.report
     if ledger['manifestSha256'] != digest:
         report.error('manifest-digest', 'native-sv', 'Ledger does not identify actual manifest bytes')
     rows = {}
     obligations = set()
+    stage_blocks = {}
+    stage_counts = {}
+    stage_entries = ({stage['id']: stage for stage in stages['stages']}
+                     if ledger['schemaVersion'] == 3 and stages is not None else {})
+    stage_orders = validate_stage_catalog(ledger, stages, stages_digest, report)
     for row in ledger['coverage']:
         identifier = row['capabilityId']
         capability = registry.reference(identifier, 'capability', identifier)
         if identifier in rows:
             report.error('duplicate-coverage', identifier, 'Only one allocation row per outcome')
         rows[identifier] = row
+        stage = row['acceptanceStage']
+        if ledger['schemaVersion'] == 3:
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+            if stage not in stage_entries:
+                report.error('unknown-stage', identifier,
+                             f'Allocation references unknown stage {stage}')
+            if stage.startswith('C'):
+                stage_blocks.setdefault(stage, set()).add(identifier.split('.')[1])
         if capability and capability['lifecycle'] != 'active':
             report.error('inactive-coverage', identifier, 'Current allocation requires an active outcome')
         for source in row['conditions']['sources']:
@@ -189,6 +259,17 @@ def validate_coverage(registry, ledger, digest):
                 registry.reference(source, 'source', obligation['id'])
         for prerequisite in row['prerequisites']:
             registry.reference(prerequisite, 'capability', identifier)
+    for stage, blocks in stage_blocks.items():
+        expected = stage_entries.get(stage, {}).get('block')
+        if len(blocks) > 1 or expected is not None and blocks != {expected}:
+            report.error('stage-block', stage,
+                         f'Post-B stage block is {expected!r}, found: {", ".join(sorted(blocks))}')
+    if ledger['schemaVersion'] == 3:
+        for stage, entry in stage_entries.items():
+            actual = stage_counts.get(stage, 0)
+            if actual != entry['expectedOutcomeCount']:
+                report.error('stage-count', stage,
+                             f'Expected {entry["expectedOutcomeCount"]} outcomes, found {actual}')
     for capability in registry.manifest['capabilities']:
         if capability['lifecycle'] == 'active' and capability['id'] not in rows:
             report.error('missing-coverage', capability['id'], 'Active outcome needs an explicit stage/allocation row')
@@ -197,10 +278,15 @@ def validate_coverage(registry, ledger, digest):
             dependency = rows.get(prerequisite)
             if dependency is None:
                 report.error('missing-prerequisite', identifier, f'{prerequisite} has no current allocation')
-            elif dependency['acceptanceStage'] > row['acceptanceStage']:
-                report.error('prerequisite-stage', identifier, f'{prerequisite} is allocated to a later stage')
+            elif ledger['schemaVersion'] != 3 or (dependency['acceptanceStage'] in stage_orders and
+                                                  row['acceptanceStage'] in stage_orders):
+                if stage_rank(dependency['acceptanceStage'], ledger['schemaVersion'], stage_orders) > \
+                        stage_rank(row['acceptanceStage'], ledger['schemaVersion'], stage_orders):
+                    report.error('prerequisite-stage', identifier,
+                                 f'{prerequisite} is allocated to a later stage')
     check_cycles({identifier: row['prerequisites'] for identifier, row in rows.items()},
                  report, 'prerequisite-cycle')
+    return stage_orders
 
 
 def validate_sources(manifest, roots, report):
@@ -237,6 +323,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--ledger', type=Path, required=True)
+    parser.add_argument('--stages', type=Path,
+                        help='versioned stage catalog required by schema v3 ledgers')
     parser.add_argument('--checkpoint', choices=['stage-a'], help='limited automated checkpoint, not full acceptance')
     parser.add_argument('--evidence', type=Path, help='scoped native runtime evidence and development routes')
     parser.add_argument('--previous-manifest', type=Path,
@@ -260,6 +348,12 @@ def main():
         ledger, _ = load(args.ledger)
         report.structure(manifest, 'manifest.schema.json', 'manifest')
         report.structure(ledger, 'native-coverage.schema.json', 'ledger')
+        stages = stages_digest = None
+        if args.stages:
+            stages, stages_digest = load(args.stages)
+            report.structure(stages, 'stages.schema.json', 'stages')
+        elif ledger.get('schemaVersion') == 3:
+            report.error('stage-catalog', 'native-sv', 'Schema v3 ledger requires --stages')
         evidence = None
         if args.evidence:
             evidence, _ = load(args.evidence)
@@ -286,9 +380,10 @@ def main():
                 history = Registry(previous, report)
                 history.validate()
                 registry.history(history)
-            validate_coverage(registry, ledger, digest)
+            stage_orders = validate_coverage(registry, ledger, digest, stages, stages_digest)
             from native_evidence import validate_evidence
-            claims = validate_evidence(registry, ledger, evidence, digest, dict(args.source_root))
+            claims = validate_evidence(registry, ledger, evidence, digest,
+                                       dict(args.source_root), stage_orders)
             if args.source_root:
                 validate_sources(manifest, dict(args.source_root), report)
             if inventory is not None:

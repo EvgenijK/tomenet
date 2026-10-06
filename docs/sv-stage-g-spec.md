@@ -1,10 +1,8 @@
 # Этап G — Guide и финальная приёмка TomeNET SV
 
-> **Статус: superseded 2026-10-06.** Смешанный Guide/files/platform
-> scope G заменён [post-B этапами по одному функциональному блоку](../.scratch/single-window-sdl3-client/issues/38-reallocate-post-b-by-functional-block.md#answer).
-> Guide остаётся late block, но буква G и cross-block final gate больше
-> не нормативны. План миграции —
-> [stage reallocation](tasks/stage-reallocation/README.md). Текст ниже сохранён как история.
+> Исторический snapshot, superseded 2026-10-06. Guide распределён по поздним
+> функциональным этапам C057–C059; broad G больше не является acceptance stage.
+> Актуальный порядок: [функциональный план](sv-functional-stage-plan.md).
 
 Статус: specified; реализация и runtime evidence не выполнены.
 

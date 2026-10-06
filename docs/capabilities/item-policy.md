@@ -47,7 +47,9 @@ Linux-first; MinGW32 build from A, Wine smoke each checkpoint, Windows 10/11 VM 
 | G — Guide and final acceptance | Replace the placeholder with the complete native Guide: local/bundled content, navigation/search/help, caller-specific and server-directed opening, bookmarks, copy/chat integration, checksum/reload/update and all related persistence/platform/error paths. Re-run complete Linux/Windows, software/accelerated, optional-build, lifecycle and human regression; verify all active IDs have current evidence and no placeholder or fallback route remains. | Only approved exclusions and explicitly documented environment limits; no pending required capability, placeholder entry or runtime check can pass final acceptance. |
 
 Canonical active-outcome allocation after the 2026-10-05 amendments is
-**A8/B54/C615/D162/E64/F1/G21**.
+Историческая таблица A–G ниже заменена для post-B scope решением 38. A8/B54
+остаются неизменными; остальные 863 outcomes распределены по C001–C059 в
+[`stages.json`](stages.json).
 
 Every stage applies the existing acceptance layers to its scope, including short concurrency/lifecycle cases and submission gates 20/50/200 ms where applicable. No stress/soak, XHTML or global memory ceiling is added. Rendering/fonts and OS dependencies needed earlier cannot be postponed to E. Slash verbs, bindings, packet variants and local/Lua flows are allocated by their outcomes, not treated as a separate deferred umbrella feature.
 

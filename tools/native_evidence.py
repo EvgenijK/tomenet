@@ -5,6 +5,17 @@ import json
 from pathlib import Path
 
 
+def stage_rank(stage, schema_version, stage_orders=None):
+    """Return the acceptance order for the ledger's stage-ID dialect."""
+    if schema_version in (1, 2):
+        if stage in 'ABCDEFG' and len(stage) == 1:
+            return ord(stage) - ord('A')
+    elif schema_version == 3:
+        if stage_orders is not None and stage in stage_orders:
+            return stage_orders[stage]
+    raise ValueError(f'Invalid stage {stage!r} for ledger schema version {schema_version}')
+
+
 def allocation_digest(row):
     """Bind evidence to obligations/conditions without circular claim references."""
     contract = {k: v for k, v in row.items()
@@ -114,7 +125,7 @@ def environment_key(record):
             env['renderer'], env['serverVersion'], env['build'])
 
 
-def validate_evidence(registry, ledger, evidence, digest, roots):
+def validate_evidence(registry, ledger, evidence, digest, roots, stage_orders=None):
     report = registry.report
     evidence = evidence or {'records': [], 'fallbackRoutes': []}
     rows = {r['capabilityId']: r for r in ledger['coverage']}
@@ -133,8 +144,17 @@ def validate_evidence(registry, ledger, evidence, digest, roots):
         registry.reference(route['contextId'], 'context', owner)
         if not row or row['implementation'] != 'fallback' or row['evidenceStatus'] != 'pending':
             report.error('fallback-route', owner, 'Only explicitly allocated development fallback flows may have routes')
-        elif route['replacementStage'] < row['acceptanceStage']:
-            report.error('fallback-route', owner, 'Replacement precedes flow allocation')
+        else:
+            try:
+                replacement_rank = stage_rank(route['replacementStage'], ledger['schemaVersion'],
+                                              stage_orders)
+                allocation_rank = stage_rank(row['acceptanceStage'], ledger['schemaVersion'],
+                                             stage_orders)
+            except ValueError as error:
+                report.error('fallback-route', owner, str(error))
+            else:
+                if replacement_rank < allocation_rank:
+                    report.error('fallback-route', owner, 'Replacement precedes flow allocation')
     claims = []
     dependency_cache = {}
     used = set()

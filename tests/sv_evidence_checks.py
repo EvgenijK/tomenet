@@ -232,6 +232,14 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual(report['nativeClaims'][0], {
             'capabilityId': self.row['capabilityId'], 'implementation': 'native', 'status': 'pending'})
 
+    def test_v3_fallback_replacement_uses_numbered_stage_order(self):
+        sys.path.insert(0, str(ROOT / 'tools'))
+        from native_evidence import stage_rank
+        orders = {'A': 1, 'B': 2, 'C002': 4, 'C010': 12, 'C100': 102}
+        allocation = stage_rank('C010', 3, orders)
+        self.assertLess(stage_rank('C002', 3, orders), allocation)
+        self.assertGreater(stage_rank('C100', 3, orders), allocation)
+
 
 if __name__ == '__main__':
     unittest.main()

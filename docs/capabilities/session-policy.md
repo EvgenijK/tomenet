@@ -100,7 +100,12 @@ Original file SHA-256: `6727c5d0fb7b3dd8d7da8daa61cb48f36eb1afacfeaac50eba62e6ee
 
 ## Approved framework
 
-A–G checkpoints are cumulative. Dependencies needed by a capability (input, errors, persistence, resources, platform behavior) arrive with it, even if their broader feature family completes later. HTML completeness does not block native work. Previously accepted capabilities receive regression checks; future capabilities remain explicitly pending.
+The A–G table below is the historical planning snapshot. Decision 38 keeps A/B
+unchanged and replaces its post-B rows with C001–C059 from
+[`stages.json`](stages.json). Dependencies needed by a capability arrive in an
+earlier functional stage; each post-B stage owns one block. HTML completeness
+does not block native work. Previously accepted capabilities receive regression
+checks; future capabilities remain explicitly pending.
 
 Guide is the explicit exception to ordinary prerequisite pull-forward. All permanent
 Guide outcomes, Guide bookmarks and Guide update/management are accepted only in G.

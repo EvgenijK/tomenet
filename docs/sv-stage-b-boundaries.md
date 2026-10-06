@@ -64,7 +64,9 @@ interaction state, input router, serializer или UI.
 managed-peer evidence доказательством real-server behavior. Точные IDs и
 prerequisites берутся только из финального canonical registry.
 
-Финальное распределение active outcomes: **A8/B54/C615/D162/E64/F1/G21**.
+Текущее распределение сохраняет **A8/B54** без изменений; остальные
+**863 outcomes** принадлежат C001–C059 из
+[функционального плана](sv-functional-stage-plan.md).
 B54 состоит из:
 
 | Семейство | Outcomes B |

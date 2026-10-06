@@ -12,12 +12,18 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'tests/capabilities/fixtures'
 TOOL = ROOT / 'tools/validate_capabilities.py'
+STAGES = ROOT / 'docs/capabilities/stages.json'
 
 
 class RegistryChecks(unittest.TestCase):
     def run_validator(self, manifest, ledger, *extra):
-        run = subprocess.run([sys.executable, str(TOOL), '--manifest', str(manifest),
-                              '--ledger', str(ledger), *map(str, extra)],
+        arguments = [sys.executable, str(TOOL), '--manifest', str(manifest),
+                     '--ledger', str(ledger)]
+        if json.loads(Path(ledger).read_text()).get('schemaVersion') == 3 and \
+                '--stages' not in extra:
+            arguments.extend(('--stages', str(STAGES)))
+        arguments.extend(map(str, extra))
+        run = subprocess.run(arguments,
                              capture_output=True, text=True, cwd=ROOT)
         self.assertIn(run.returncode, (0, 1, 2), run.stderr)
         return run.returncode, json.loads(run.stdout)
@@ -29,12 +35,31 @@ class RegistryChecks(unittest.TestCase):
             (path / 'manifest.json').write_bytes(raw)
             ledger = copy.deepcopy(ledger)
             ledger['manifestSha256'] = hashlib.sha256(raw).hexdigest()
+            if ledger.get('schemaVersion') == 3:
+                ledger['stageCatalogSha256'] = hashlib.sha256(STAGES.read_bytes()).hexdigest()
             (path / 'ledger.json').write_text(json.dumps(ledger))
             return self.run_validator(path / 'manifest.json', path / 'ledger.json', *extra)
 
     def canonical_data(self):
         return (json.loads((ROOT / 'docs/capabilities/manifest.json').read_text()),
                 json.loads((ROOT / 'docs/capabilities/native-coverage.json').read_text()))
+
+    def fixture_data(self):
+        return (json.loads((FIXTURES / 'valid/manifest.json').read_text()),
+                json.loads((FIXTURES / 'valid/native-coverage.json').read_text()))
+
+    def append_capability(self, manifest, ledger, identifier, stage, prerequisites=()):
+        capability = copy.deepcopy(manifest['capabilities'][0])
+        capability['id'] = identifier
+        manifest['capabilities'].append(capability)
+        row = copy.deepcopy(ledger['coverage'][0])
+        row.update(capabilityId=identifier, acceptanceStage=stage,
+                   prerequisites=list(prerequisites))
+        suffix = identifier.removeprefix('capability.')
+        for index, obligation in enumerate(row['evidenceObligations']):
+            obligation['id'] = f'obligation.{suffix}.case-{index}'
+        ledger['coverage'].append(row)
+        return row
 
     def test_published_negative_fixtures(self):
         cases = json.loads((FIXTURES / 'invalid-cases.json').read_text())
@@ -180,6 +205,50 @@ class RegistryChecks(unittest.TestCase):
         self.assertEqual(report['summary']['activeCapabilities'], 1)
         self.assertEqual(report['summary']['pendingEvidence'], 1)
         self.assertEqual(report['summary']['acceptedCapabilities'], 0)
+
+    def test_canonical_legacy_a_b_projection_is_frozen(self):
+        _, ledger = self.canonical_data()
+        fixture = json.loads((FIXTURES / 'legacy-ab-projection.json').read_text())
+        fields = fixture['projectionFields']
+        expected = {row['id']: row for row in fixture['stages']}
+        for stage in ('A', 'B'):
+            rows = [row for row in ledger['coverage'] if row['acceptanceStage'] == stage]
+            ids = [row['capabilityId'] for row in rows]
+            projection = [{field: row[field] for field in fields} for row in rows]
+            encode = lambda value: (json.dumps(
+                value, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode()
+            self.assertEqual(len(rows), expected[stage]['expectedOutcomeCount'])
+            self.assertEqual(hashlib.sha256(encode(ids)).hexdigest(),
+                             expected[stage]['capabilityIdsSha256'])
+            self.assertEqual(hashlib.sha256(encode(projection)).hexdigest(),
+                             expected[stage]['semanticProjectionSha256'])
+
+    def test_v3_orders_numbered_post_b_stages(self):
+        sys.path.insert(0, str(ROOT / 'tools'))
+        from validate_capabilities import stage_rank
+        orders = {'A': 1, 'B': 2, 'C002': 4, 'C010': 12}
+        self.assertLess(stage_rank('C002', 3, orders), stage_rank('C010', 3, orders))
+
+    def test_v3_post_b_stage_contains_one_block(self):
+        manifest, ledger = self.canonical_data()
+        mixed = next(row for row in ledger['coverage']
+                     if row['acceptanceStage'] == 'C002')
+        mixed['acceptanceStage'] = 'C001'
+        code, report = self.validate_data(manifest, ledger)
+        self.assertEqual(code, 1, report)
+        self.assertTrue(any(error['code'] == 'stage-block' and error['entity'] == 'C001'
+                            for error in report['errors']), report)
+
+    def test_v3_rejects_legacy_and_zero_post_b_stage_ids(self):
+        for stage in ('C', 'D', 'C000'):
+            with self.subTest(stage=stage):
+                manifest, ledger = self.fixture_data()
+                ledger['schemaVersion'] = 3
+                ledger['stageCatalogSha256'] = hashlib.sha256(STAGES.read_bytes()).hexdigest()
+                ledger['coverage'][0]['acceptanceStage'] = stage
+                code, report = self.validate_data(manifest, ledger)
+                self.assertEqual(code, 1, report)
+                self.assertIn('schema', {error['code'] for error in report['errors']}, report)
 
 
 if __name__ == '__main__':

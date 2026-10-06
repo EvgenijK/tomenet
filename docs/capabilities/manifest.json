@@ -98,7 +98,7 @@
       "revision": "0ef6b362cc7676805fdd0becff680dac50fe83c1",
       "path": "docs/capabilities/session-policy.md",
       "anchor": "## Answer",
-      "sha256": "c00a350873dd5dc200bfebd9758bddc82508f8a690775c9e58b57da1bd91233d"
+      "sha256": "2bf972ab36a8b5f82ee98235e788d9f08efcffcc545ca685da4cc4b3fd02a981"
     },
     {
       "id": "source.baseline.session-server",
@@ -512,7 +512,7 @@
       "revision": "bbe7417e21d20470a7aeb075aa82650608f6e4ae",
       "path": "docs/capabilities/item-policy.md",
       "anchor": "## Acceptance sequence",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925"
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc"
     },
     {
       "id": "source.ux.items-layout",
@@ -521,7 +521,7 @@
       "revision": "bbe7417e21d20470a7aeb075aa82650608f6e4ae",
       "path": "docs/capabilities/item-policy.md",
       "anchor": "## Approved layout decision",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925"
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc"
     },
     {
       "id": "source.behavior.items-receive-inven",
@@ -1997,7 +1997,7 @@
       "revision": "399fdd38211035b0810cf721ba8e0f1efecf5629",
       "path": "docs/capabilities/item-policy.md",
       "anchor": "## Acceptance sequence",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925"
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc"
     },
     {
       "id": "source.ux.information-layout",
@@ -2006,7 +2006,7 @@
       "revision": "399fdd38211035b0810cf721ba8e0f1efecf5629",
       "path": "docs/capabilities/item-policy.md",
       "anchor": "## Approved layout decision",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925"
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc"
     },
     {
       "id": "source.behavior.information-cmd-character",
@@ -3068,7 +3068,7 @@
       "revision": "33d3582f8b73d5a853106bf7837ca28285bf9052",
       "path": "docs/capabilities/item-policy.md",
       "anchor": "## Approved layout decision",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925"
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc"
     },
     {
       "id": "source.behavior.settings-read-mangrc-49a7d2",
@@ -11113,7 +11113,7 @@
       "repository": "tomenet",
       "revision": "887ac4d215376daaa169afca8216f65c18855107",
       "path": "docs/capabilities/item-policy.md",
-      "sha256": "d57aa05235df70b8fe643c5b06104419fc7dba7bd318291acc25cd9647cd0925",
+      "sha256": "d986b245428955cae5834884c4c56848b947add35ec2bbd42e328b0735ed90cc",
       "anchor": "Guide is the explicit exception to ordinary prerequisite pull-forward."
     },
     {
