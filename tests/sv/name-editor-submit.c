@@ -118,14 +118,27 @@ static void push_mouse_race(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
-static void send_setup(int socket)
+static void push_mouse_trait(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    event.button.clicks = clicks;
+    assert(SDL_PushEvent(&event));
+}
+
+static void send_setup(int socket, const char *mode)
 {
     unsigned char setup[256], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
     *at++ = 3;
+    bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16);
+    bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip");
     *at++ = 4;
-    *at++ = 1;
+    *at++ = dummy_trait ? 1 : 4;
     unsigned char *size_at = at;
     at += 4;
 
@@ -150,10 +163,17 @@ static void send_setup(int socket)
         memset(at, 0, 6);
         at += 6;
     }
-    static const char trait[] = "Common";
-    memcpy(at, trait, sizeof(trait));
-    at += sizeof(trait);
-    put32(&at, 0x7u);
+    static const char *traits[] = {"N/A", "Dragon", "Phoenix", "Elf-only"};
+    static const uint32_t trait_choices[] = {
+        0, (1u << 0) | (1u << 2), 1u << 2, 1u << 1
+    };
+    size_t trait_count = dummy_trait ? 1 : sizeof(traits) / sizeof(traits[0]);
+    for (size_t i = 0; i < trait_count; ++i) {
+        memcpy(at, traits[i], strlen(traits[i]) + 1);
+        at += strlen(traits[i]) + 1;
+        put32(&at, dummy_trait ? 0x7u : unavailable_trait ? 1u << 1 :
+              trait_choices[i]);
+    }
     unsigned char *size_writer = size_at;
     put32(&size_writer, (uint32_t)(at - setup));
     assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
@@ -206,7 +226,7 @@ static int peer_run(void *opaque)
            field(socket, text, sizeof(text)) && field(socket, text, sizeof(text)));
     static const unsigned char verified[] = {2, 1, 122, 6, 0, 0, 0x30, 0x39};
     assert(send(socket, verified, sizeof(verified), 0) == (ssize_t)sizeof(verified));
-    send_setup(socket);
+    send_setup(socket, peer->mode);
 
     unsigned char login_start[8];
     assert(exact(socket, login_start, sizeof(login_start)));
@@ -235,7 +255,80 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "race-back")) {
+    if (!strcmp(peer->mode, "trait-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-quit") ||
+               !strcmp(peer->mode, "trait-ctrl-quit")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, !strcmp(peer->mode, "trait-ctrl-quit") ?
+            SDL_KMOD_CTRL : 0);
+    } else if (!strcmp(peer->mode, "trait-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_trait(380.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-dummy-skip-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-dummy-skip") ||
+               !strcmp(peer->mode, "trait-unavailable-skip")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-dna") ||
+        !strcmp(peer->mode, "trait-dna-incompatible") ||
+        !strcmp(peer->mode, "trait-dna-stale") ||
+        !strcmp(peer->mode, "trait-dna-missing")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-navigate")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Z, 0);
+        push_mouse_trait(380.0f, 1);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "race-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
@@ -364,7 +457,11 @@ int main(int argc, char **argv)
         .birth_dna_race_available = !strncmp(argv[3], "race-dna", 8) &&
             strcmp(argv[3], "race-dna-missing"),
         .birth_dna_race = !strcmp(argv[3], "race-dna") ? 2 :
-            !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99
+            !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99,
+        .birth_dna_trait_available = !strncmp(argv[3], "trait-dna", 9) &&
+            strcmp(argv[3], "trait-dna-missing"),
+        .birth_dna_trait = !strcmp(argv[3], "trait-dna") ? 2 :
+            !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -379,7 +476,58 @@ int main(int argc, char **argv)
     assert(outcome.birth_legal_class_count == 2);
     assert(outcome.birth_legal_classes[0] == 0);
     assert(outcome.birth_legal_classes[1] == 2);
-    if (!strcmp(argv[3], "race-back")) {
+    if (!strcmp(argv[3], "trait-back")) {
+        assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_race == 2 && outcome.birth_highlighted_trait == 2);
+        assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "trait-quit") ||
+               !strcmp(argv[3], "trait-ctrl-quit")) {
+        assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race == 2 && outcome.birth_highlighted_trait == 1);
+        assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "trait-mouse")) {
+        assert(outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_trait == 2 && outcome.birth_mouse_navigated);
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "trait-dummy-skip-back")) {
+        assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_race == 2 && outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+    } else if (!strcmp(argv[3], "trait-dummy-skip") ||
+               !strcmp(argv[3], "trait-unavailable-skip")) {
+        assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_BODY && outcome.birth_quit);
+        assert(outcome.birth_legal_trait_count == 0);
+        assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+        if (!strcmp(argv[3], "trait-dummy-skip"))
+            assert(outcome.birth_trait_count == 1);
+        else
+            assert(outcome.birth_trait_count == 4);
+    } else if (!strcmp(argv[3], "trait-dna")) {
+        assert(outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_trait_dna_used && outcome.birth_trait == 2);
+    } else if (!strncmp(argv[3], "trait-dna-", 10)) {
+        assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(!outcome.birth_trait_dna_used && outcome.birth_illegal_ignored);
+        assert(outcome.birth_class == 2 && outcome.birth_race == 2);
+        assert(outcome.birth_highlighted_trait == 1);
+        assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "trait-random")) {
+        assert(outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_trait_random_used);
+        assert(outcome.birth_trait == 1 || outcome.birth_trait == 2);
+    } else if (!strcmp(argv[3], "trait-navigate")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 2);
+        assert(outcome.birth_trait_count == 4);
+        assert(outcome.birth_legal_trait_count == 2);
+        assert(outcome.birth_legal_traits[0] == 1);
+        assert(outcome.birth_legal_traits[1] == 2);
+        assert(outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_trait == 2 && outcome.birth_highlighted_trait == 2);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "race-back")) {
         assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
         assert(!outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
         assert(outcome.birth_highlighted_class == 2);

@@ -258,6 +258,14 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->race_random_used,
                                    .birth_race_dna_used = birth &&
                                        birth->race_dna_used,
+                                   .birth_trait_confirmed = birth &&
+                                       birth->trait_confirmed,
+                                   .birth_trait_random_used = birth &&
+                                       birth->trait_random_used,
+                                   .birth_trait_dna_used = birth &&
+                                       birth->trait_dna_used,
+                                   .birth_trait_skipped = birth &&
+                                       birth->trait_skipped,
                                    .birth_owner = birth ? birth->owner : SV_BIRTH_NONE,
                                    .birth_highlighted_sex = birth ?
                                        birth->highlighted_sex : SV_BIRTH_SEX_NONE,
@@ -277,12 +285,22 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->legal_race_count : 0,
                                    .birth_race_count = birth && birth->setup ?
                                        birth->setup->race_count : 0,
+                                   .birth_highlighted_trait = birth ?
+                                       birth->highlighted_trait : SV_BIRTH_TRAIT_NONE,
+                                   .birth_trait = birth ? birth->chosen_trait :
+                                       SV_BIRTH_TRAIT_NONE,
+                                   .birth_legal_trait_count = birth ?
+                                       birth->legal_trait_count : 0,
+                                   .birth_trait_count = birth && birth->setup ?
+                                       birth->setup->trait_count : 0,
                                    .birth_generation = birth ? birth->generation : 0};
     if (birth) {
         memcpy(outcome->birth_legal_classes, birth->legal_classes,
                birth->legal_class_count);
         memcpy(outcome->birth_legal_races, birth->legal_races,
                birth->legal_race_count);
+        memcpy(outcome->birth_legal_traits, birth->legal_traits,
+               birth->legal_trait_count);
     }
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
@@ -387,7 +405,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     sv_contact_socket_setup(connection), options.birth_dna_available,
                     options.birth_dna_sex, options.birth_dna_class_available,
                     options.birth_dna_class, options.birth_dna_race_available,
-                    options.birth_dna_race);
+                    options.birth_dna_race, options.birth_dna_trait_available,
+                    options.birth_dna_trait);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
                 else birth_started = true;
             }

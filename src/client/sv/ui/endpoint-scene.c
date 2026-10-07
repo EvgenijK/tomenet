@@ -166,6 +166,16 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               input->birth_view->highlighted_race == (int)id ?
                               selected : legal ? normal : disabled)) return false;
                 }
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_TRAIT) {
+                if (!line(renderer,font,"Choose trait (* random, # DNA, Q quits)",40,290,
+                          scale,normal)) return false;
+                for (unsigned i = 0; i < input->birth_view->legal_trait_count; ++i) {
+                    unsigned id = input->birth_view->legal_traits[i];
+                    if (!line(renderer,font,input->birth_view->setup->traits[id].title,
+                              60,340 + (int)i * 40,scale,
+                              input->birth_view->highlighted_trait == (int)id ?
+                              selected : normal)) return false;
+                }
             }
         }
         if (input->login_view && input->login_view->live_handoff) {
