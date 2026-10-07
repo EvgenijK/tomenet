@@ -61,3 +61,4 @@ history.
 - [Пропустить unusable stats для unknown creation setup](issues/28-skip-unusable-stats-for-unknown-setup.md)
 - [Сделать длинные birth choice lists полностью достижимыми](issues/29-reach-long-birth-choice-lists.md)
 - [Привести SV birth decomposition к canonical tracker layout](issues/30-reconcile-sv-birth-tracker-layout.md)
+- [Verify focused production coverage](issues/31-focused-test-coverage.md)
