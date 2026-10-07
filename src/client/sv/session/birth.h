@@ -148,6 +148,9 @@ typedef struct {
     uint8_t legal_mode_count;
     bool mode_confirmed, mode_random_used, mode_dna_used, mode_ready;
     bool post_mode_trait_required;
+    bool pre_mode_trait_saved;
+    int pre_mode_highlighted_trait, pre_mode_chosen_trait;
+    bool pre_mode_trait_confirmed;
     uint32_t server_flags[4];
     uint8_t race_count, trait_count;
     bool dedicated, first_run;

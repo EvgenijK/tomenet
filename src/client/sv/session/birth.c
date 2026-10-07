@@ -134,6 +134,28 @@ static void prepare_races(SvBirth *birth);
 static void prepare_stats(SvBirth *birth);
 static void restart_stats_interaction(SvBirth *birth);
 static void prepare_modes(SvBirth *birth);
+static void prepare_traits(SvBirth *birth);
+
+static void restore_pre_mode_trait(SvBirth *birth)
+{
+    if (!birth->post_mode_trait_required) return;
+    birth->post_mode_trait_required = false;
+    if (birth->pre_mode_trait_saved) {
+        birth->highlighted_trait = birth->pre_mode_highlighted_trait;
+        birth->chosen_trait = birth->pre_mode_chosen_trait;
+        birth->trait_confirmed = birth->pre_mode_trait_confirmed;
+        birth->pre_mode_trait_saved = false;
+    }
+    prepare_traits(birth);
+}
+
+static void leave_post_mode_trait(SvBirth *birth)
+{
+    restore_pre_mode_trait(birth);
+    birth->chosen_mode = SV_BIRTH_MODE_NONE;
+    birth->mode_confirmed = false;
+    birth->mode_ready = false;
+}
 
 static void enter_stats_or_mode(SvBirth *birth)
 {
@@ -873,6 +895,7 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         return confirm_stat_order_choice(birth);
     case SV_BIRTH_BACK:
         restart_stats_interaction(birth);
+        leave_post_mode_trait(birth);
 #if SV_CLASS_BEFORE_RACE
         birth->owner = birth->body_skipped ?
             (birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT) :
@@ -946,9 +969,18 @@ static SvBirthInputResult confirm_mode(SvBirth *birth)
 #endif
     bool pvp = birth->chosen_mode == SV_BIRTH_MODE_PVP ||
         birth->chosen_mode == SV_BIRTH_MODE_DEDICATED_PVP;
-    birth->post_mode_trait_required = pvp &&
+    bool post_mode_trait_required = pvp &&
         birth->chosen_race == (int)maia_race &&
         (birth->server_flags[3] & 0x200u) != 0;
+    if (post_mode_trait_required && !birth->post_mode_trait_required) {
+        birth->pre_mode_highlighted_trait = birth->highlighted_trait;
+        birth->pre_mode_chosen_trait = birth->chosen_trait;
+        birth->pre_mode_trait_confirmed = birth->trait_confirmed;
+        birth->pre_mode_trait_saved = true;
+    }
+    if (!post_mode_trait_required && birth->post_mode_trait_required)
+        restore_pre_mode_trait(birth);
+    birth->post_mode_trait_required = post_mode_trait_required;
     if (birth->post_mode_trait_required) {
         birth->mode_ready = false;
         birth->owner = SV_BIRTH_TRAIT;

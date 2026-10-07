@@ -24,7 +24,7 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Восстановить обычный owner graph после post-mode PvP Maia](issues/32-unwind-post-mode-pvp-maia-context.md) — unclaimed; blockers 06, 15 и 23 resolved, поэтому ticket готов к работе.
+Нет открытых unblocked children.
 
 ## Decisions so far
 
@@ -59,3 +59,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Сделать длинные birth choice lists полностью достижимыми](issues/29-reach-long-birth-choice-lists.md)
 - [Привести SV birth decomposition к canonical tracker layout](issues/30-reconcile-sv-birth-tracker-layout.md)
 - [Verify focused production coverage](issues/31-focused-test-coverage.md)
+- [Восстановить обычный owner graph после post-mode PvP Maia](issues/32-unwind-post-mode-pvp-maia-context.md)
