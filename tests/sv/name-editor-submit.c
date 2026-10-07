@@ -974,6 +974,13 @@ static int peer_run(void *opaque)
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-guide-no-op")) {
+        push_key(SDLK_PERCENT, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_QUESTION, 0);
+        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-partial")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_B, 0);
@@ -2094,6 +2101,31 @@ int main(int argc, char **argv)
         assert(!outcome.birth_class_random_used &&
                !outcome.birth_race_random_used);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-guide-no-op")) {
+        static const int16_t expected_stats[] = {1, -1, -1, -1, -1, -1};
+        static const int16_t expected_committed[] = {-1, -1, -1, -1, -1, -1};
+        static const uint8_t expected_legal[] = {0, 2, 3, 4, 5};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(!outcome.birth_stats_point_buy &&
+               !outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used);
+        assert(outcome.birth_highlighted_stat == 0 &&
+               outcome.birth_stats_order_count == 1 &&
+               outcome.birth_legal_stat_count == 5);
+        assert(!memcmp(outcome.birth_stats, expected_stats,
+                       sizeof(expected_stats)));
+        assert(!memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)));
+        assert(!memcmp(outcome.birth_legal_stats, expected_legal,
+                       sizeof(expected_legal)));
+        assert(!outcome.birth_stats_confirmation_pending);
+        assert(outcome.birth_placeholder_open_count == 0);
+        assert(outcome.birth_placeholder_close_count == 0);
+        assert(outcome.birth_placeholder_owner_mask == 0);
+        assert(outcome.birth_placeholder_text[0] == '\0');
     } else if (!strcmp(argv[3], "auto-dna-ordered-partial")) {
         static const int16_t expected[] = {1, 0, 3};
         assert(outcome.creation_flags == 0u);
