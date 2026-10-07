@@ -365,6 +365,17 @@ static bool pvp_maia_case(const char *mode)
         !strcmp(mode, "stats-order-reenter-pvp-maia");
 }
 
+static bool archer_body_case(const char *mode)
+{
+    return !strcmp(mode, "archer-body-random");
+}
+
+static bool existing_character_case(const char *mode)
+{
+    return strncmp(mode, "first-run-body-", 15) &&
+        strncmp(mode, "mode-", 5);
+}
+
 static void push_to_pvp_maia_mode(void)
 {
     push_key(SDLK_RETURN, 0);
@@ -392,6 +403,36 @@ static void send_setup(int socket, const char *mode)
     unsigned char setup[4096], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
+    if (archer_body_case(mode)) {
+        *at++ = 1;
+        *at++ = 6;
+        *at++ = 1;
+        unsigned char *size_at = at;
+        at += 4;
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Human", 6);
+        at += 6;
+        put32(&at, 1u << 5);
+        for (unsigned id = 0; id < 6; ++id) {
+            memset(at, 50, 6);
+            at += 6;
+            char title[24];
+            snprintf(title, sizeof(title), id == 5 ? "Archer" : "Class %u", id);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            memset(at, 0, 6);
+            at += 6;
+        }
+        memcpy(at, "N/A", 4);
+        at += 4;
+        put32(&at, 1u);
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
     if (pvp_maia_case(mode)) {
         unsigned races = maia_race() + 1;
         *at++ = (unsigned char)races;
@@ -499,7 +540,7 @@ static void send_overview(int socket, const char *mode)
     put32(&at, !strcmp(mode, "mode-dedicated-unavailable") ? 0x40u :
           !strcmp(mode, "mode-rpg") ? 0xc1u :
           pvp_maia_case(mode) ? 0x2c0u : 0xc0u);
-    if (pvp_maia_case(mode)) {
+    if (pvp_maia_case(mode) || existing_character_case(mode)) {
         *at++ = PKT_LOGIN;
         put16(&at, 0);
         *at++ = 0;
@@ -977,7 +1018,73 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, 0);
     } else
 #endif
-    if (!strcmp(peer->mode, "body-mouse")) {
+    if (!strcmp(peer->mode, "first-run-body-direct")) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "first-run-body-reject")) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_body(380.0f, 2);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "first-run-body-random")) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "non-first-run-body-manual")) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "archer-body-random")) {
+        push_key(SDLK_ASTERISK, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+#else
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_ASTERISK, 0);
+#endif
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-mouse")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
@@ -1355,9 +1462,11 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
         .birth_dna_body_available = (!strncmp(argv[3], "body-dna", 8) &&
             strcmp(argv[3], "body-dna-missing")) ||
-            !strcmp(argv[3], "alternate-dna"),
+            !strcmp(argv[3], "alternate-dna") ||
+            !strcmp(argv[3], "first-run-body-reject"),
         .birth_dna_body = !strcmp(argv[3], "body-dna") ||
-            !strcmp(argv[3], "alternate-dna") ?
+            !strcmp(argv[3], "alternate-dna") ||
+            !strcmp(argv[3], "first-run-body-reject") ?
             SV_BIRTH_BODY_FRUIT_BAT : (SvBirthBody)99,
         .birth_dna_stats_available = !strcmp(argv[3], "stats-point-dna") ||
             !strcmp(argv[3], "stats-point-dna-over-budget") ||
@@ -1396,7 +1505,10 @@ int main(int argc, char **argv)
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
 #if SV_CLASS_BEFORE_RACE
-    if (pvp_maia_case(argv[3])) {
+    if (archer_body_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 1);
+        assert(outcome.birth_legal_classes[0] == 5);
+    } else if (pvp_maia_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
         assert(outcome.birth_legal_classes[0] == 0);
     } else {
@@ -1801,7 +1913,55 @@ int main(int argc, char **argv)
                outcome.birth_legal_classes[0] == 2);
     } else
 #endif
-    if (!strcmp(argv[3], "body-mouse")) {
+    if (!strcmp(argv[3], "first-run-body-direct") ||
+        !strcmp(argv[3], "first-run-body-reject")) {
+        assert(outcome.character_count == 0);
+        assert(outcome.birth_legal_body_count == 1);
+        assert(outcome.birth_legal_bodies[0] == SV_BIRTH_BODY_NORMAL);
+        assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+        if (!strcmp(argv[3], "first-run-body-reject")) {
+            assert(!outcome.birth_body_dna_used);
+            assert(!outcome.birth_mouse_navigated);
+        }
+    } else if (!strcmp(argv[3], "first-run-body-random")) {
+        assert(outcome.character_count == 0);
+        assert(outcome.birth_legal_body_count == 1);
+        assert(outcome.birth_legal_bodies[0] == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_body_confirmed && outcome.birth_body_random_used);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NORMAL);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_STATS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "non-first-run-body-manual")) {
+        assert(outcome.character_count == 1);
+        assert(outcome.birth_legal_body_count == 2);
+        assert(outcome.birth_body_confirmed);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_STATS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "archer-body-random")) {
+        assert(outcome.character_count == 1);
+        assert(outcome.birth_legal_body_count == 2);
+        assert(outcome.birth_body_confirmed && outcome.birth_body_random_used);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NORMAL);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_class == 5 && outcome.birth_owner == SV_BIRTH_STATS);
+#else
+        assert(outcome.birth_class == SV_BIRTH_CLASS_NONE &&
+               outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-mouse")) {
         assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
         assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
         assert(outcome.birth_mouse_navigated && outcome.birth_quit);
