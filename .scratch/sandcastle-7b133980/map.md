@@ -25,7 +25,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Возобновить automatic DNA после ordered stats](issues/34-resume-automatic-dna-after-ordered-stats.md) — unclaimed; blockers 19 и 24 resolved, поэтому ticket готов к работе.
 - [Ограничить Guide point-buy stats owner](issues/35-restrict-guide-to-point-buy-stats.md) — unclaimed; blocker 25 resolved, поэтому ticket готов к работе.
 - [Записать revision gate для birth view](issues/36-record-birth-view-revision-opportunity.md) — unclaimed; blockers отсутствуют, поэтому ticket готов к работе.
 
@@ -64,3 +63,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/31-focused-test-coverage.md)
 - [Восстановить обычный owner graph после post-mode PvP Maia](issues/32-unwind-post-mode-pvp-maia-context.md)
 - [Verify focused production coverage](issues/33-focused-test-coverage.md)
+- [Возобновить automatic DNA после ordered stats](issues/34-resume-automatic-dna-after-ordered-stats.md)

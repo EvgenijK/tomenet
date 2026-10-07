@@ -83,6 +83,11 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     )
     for mode in ("guide-sex-no-op", "guide-all-owners",
                  "birth-context-escape",
+                 "auto-dna-ordered-suspend", "auto-dna-ordered-partial",
+                 "auto-dna-ordered-keyboard",
+                 "auto-dna-ordered-mouse-dedicated",
+                 "auto-dna-ordered-mode-missing",
+                 "auto-dna-ordered-mode-illegal",
                  "auto-dna-full",
                  "auto-dna-hidden-race-mismatch",
                  "auto-dna-hidden-race-reject-stable",
@@ -172,6 +177,11 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         )
     for mode in ("guide-sex-no-op", "guide-all-owners",
                  "birth-context-escape",
+                 "auto-dna-ordered-suspend", "auto-dna-ordered-partial",
+                 "auto-dna-ordered-keyboard",
+                 "auto-dna-ordered-mouse-dedicated",
+                 "auto-dna-ordered-mode-missing",
+                 "auto-dna-ordered-mode-illegal",
                  "auto-dna-full",
                  "auto-dna-stats-normalized",
                  "auto-dna-incompatible-class", "auto-dna-missing-sex",

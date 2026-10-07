@@ -858,6 +858,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         birth->stats_random_used = true;
         return SV_BIRTH_INPUT_CONFIRMED;
     case SV_BIRTH_DNA:
+        if (!birth->stats_point_buy && birth->auto_reincarnation)
+            return SV_BIRTH_INPUT_HANDLED;
         if (!birth->stats_point_buy || !birth->dna_stats_available) {
             birth->illegal_ignored = true;
             birth->auto_reincarnation = false;
@@ -1111,8 +1113,12 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     }
     if (birth->owner == SV_BIRTH_STATS) {
         SvBirthInputResult result = stats_command(birth, command);
-        if (result == SV_BIRTH_INPUT_CONFIRMED && birth->owner == SV_BIRTH_MODE)
+        if (result == SV_BIRTH_INPUT_CONFIRMED && birth->owner == SV_BIRTH_MODE) {
             prepare_modes(birth);
+            if (!birth->stats_point_buy && birth->auto_reincarnation)
+                return sv_birth_command(birth, generation,
+                    (SvBirthCommand){.kind = SV_BIRTH_AUTOMATIC_DNA});
+        }
         return result;
     }
     if (birth->owner == SV_BIRTH_MODE)
