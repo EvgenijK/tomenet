@@ -428,9 +428,15 @@ static bool exclusive_creation_case(const char *mode)
         !strcmp(mode, "mode-dedicated-unavailable") ||
         !strcmp(mode, "mode-dedicated-iddc") ||
         !strcmp(mode, "mode-dedicated-dna") ||
+        !strcmp(mode, "auto-dna-ordered-mouse-dedicated") ||
         !strcmp(mode, "auto-dna-dedicated-iddc") ||
         !strcmp(mode, "auto-dna-dedicated-pvp-maia") ||
         !strcmp(mode, "stats-order-reenter-pvp-maia");
+}
+
+static bool automatic_ordered_case(const char *mode)
+{
+    return !strncmp(mode, "auto-dna-ordered-", 17);
 }
 
 static bool pvp_maia_deep_back_case(const char *mode)
@@ -840,7 +846,8 @@ static int peer_run(void *opaque)
         !strcmp(peer->mode, "stats-back-no-trait-body") ||
         !strcmp(peer->mode, "auto-dna-skip-trait-body");
     bool point_buy = !strncmp(peer->mode, "stats-point-", 12) ||
-        (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable);
+        (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable &&
+         !automatic_ordered_case(peer->mode));
     put32(&at, 2u | (body_unavailable ? 0x10u : point_buy ? 1u : 0u));
     const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
@@ -966,6 +973,33 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_Q);
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-partial")) {
+        push_key(SDLK_PERCENT, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_stats(340.0f, 2);
+        push_key(SDLK_D, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-mouse-dedicated")) {
+        push_key(SDLK_PERCENT, 0);
+        for (unsigned i = 0; i < 6; ++i) push_mouse_stats(340.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-keyboard") ||
+               !strcmp(peer->mode, "auto-dna-ordered-mode-missing") ||
+               !strcmp(peer->mode, "auto-dna-ordered-mode-illegal")) {
+        static const SDL_Keycode order[] = {
+            SDLK_B, SDLK_A, SDLK_C, SDLK_D, SDLK_F, SDLK_E
+        };
+        push_key(SDLK_PERCENT, 0);
+        for (unsigned i = 0; i < sizeof(order) / sizeof(order[0]); ++i) {
+            push_key(order[i], 0);
+            push_key(SDLK_RETURN, 0);
+        }
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-suspend")) {
+        push_key(SDLK_PERCENT, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "auto-dna-hidden-race-reject-stable")) {
         push_key(SDLK_PERCENT, 0);
@@ -1871,6 +1905,12 @@ int main(int argc, char **argv)
     bool auto_hidden_race_mismatch = hidden_dna_race_mismatch_case(argv[3]);
     bool auto_incompatible_class =
         !strcmp(argv[3], "auto-dna-incompatible-class");
+    bool auto_ordered_mode_missing =
+        !strcmp(argv[3], "auto-dna-ordered-mode-missing");
+    bool auto_ordered_mode_illegal =
+        !strcmp(argv[3], "auto-dna-ordered-mode-illegal");
+    bool auto_ordered_dedicated =
+        !strcmp(argv[3], "auto-dna-ordered-mouse-dedicated");
     bool normalized_dna = !strcmp(argv[3], "stats-point-dna-illegal") ||
         !strcmp(argv[3], "auto-dna-stats-normalized");
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
@@ -1963,13 +2003,15 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
             normalized_dna ? 7 : 8
         },
-        .birth_dna_mode_available = automatic ||
+        .birth_dna_mode_available = (automatic && !auto_ordered_mode_missing) ||
             !strcmp(argv[3], "mode-dna") ||
             !strcmp(argv[3], "mode-dedicated-dna") ||
             !strcmp(argv[3], "first-start-existing-mode-reject"),
         .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ||
             auto_pvp_maia ?
             SV_BIRTH_MODE_DEDICATED_PVP :
+            auto_ordered_dedicated ? SV_BIRTH_MODE_IDDC :
+            auto_ordered_mode_illegal ? SV_BIRTH_MODE_IDDC :
             !strcmp(argv[3], "first-start-existing-mode-reject") ?
             SV_BIRTH_MODE_HELLISH :
             !strcmp(argv[3], "auto-dna-dedicated-iddc") ?
@@ -2038,6 +2080,78 @@ int main(int argc, char **argv)
         assert(!outcome.birth_class_random_used &&
                !outcome.birth_race_random_used);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-partial")) {
+        static const int16_t expected[] = {1, 0, 3};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(!outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 3 &&
+               outcome.birth_legal_stat_count == 3);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(outcome.birth_keyboard_navigated &&
+               outcome.birth_mouse_navigated);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-mouse-dedicated")) {
+        static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
+        assert(outcome.creation_flags == 0u && outcome.dedicated_creation);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 6 &&
+               outcome.birth_mouse_navigated);
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_mode_dna_used &&
+               outcome.birth_mode_confirmed && outcome.birth_mode_ready &&
+               outcome.birth_mode == SV_BIRTH_MODE_IDDC);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-mode-missing") ||
+               !strcmp(argv[3], "auto-dna-ordered-mode-illegal")) {
+        static const int16_t expected[] = {1, 0, 2, 3, 5, 4};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_auto_reincarnation &&
+               outcome.birth_illegal_ignored);
+        assert(outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 6);
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(!outcome.birth_mode_dna_used &&
+               !outcome.birth_mode_confirmed && !outcome.birth_mode_ready &&
+               outcome.birth_mode == SV_BIRTH_MODE_NONE &&
+               outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-keyboard")) {
+        static const int16_t expected[] = {1, 0, 2, 3, 5, 4};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 6);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)) &&
+               !memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_mode_dna_used &&
+               outcome.birth_mode_confirmed && outcome.birth_mode_ready &&
+               outcome.birth_mode == SV_BIRTH_MODE_EVERLASTING);
+    } else if (!strcmp(argv[3], "auto-dna-ordered-suspend")) {
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation);
+        assert(!outcome.birth_illegal_ignored &&
+               !outcome.birth_stats_dna_used &&
+               !outcome.birth_stats_confirmed);
+        assert(outcome.birth_stats_order_count == 0 &&
+               outcome.birth_legal_stat_count == 6 &&
+               outcome.birth_highlighted_stat == 0);
+        for (unsigned i = 0; i < 6; ++i)
+            assert(outcome.birth_stats[i] == -1 &&
+                   outcome.birth_committed_stats[i] == -1);
     } else if (!strcmp(argv[3], "auto-dna-stats-normalized")) {
         static const int16_t expected[] = {8, 14, 12, 10, 9, 8};
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
