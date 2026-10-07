@@ -41,12 +41,20 @@ SOURCES = [
 with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     root = Path(temp)
     binary = root / "name-editor-submit"
+    alternate_binary = root / "name-editor-submit-alternate"
     profile = root / "profile"
     profile.mkdir()
     subprocess.run(
         [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-Wall", "-Wextra", "-Werror",
          "-fsanitize=address,undefined", "-Isrc/client/sv", *SOURCES, *FLAGS,
          "-o", str(binary)],
+        cwd=ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-DSV_CLASS_BEFORE_RACE=0",
+         "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined",
+         "-Isrc/client/sv", *SOURCES, *FLAGS, "-o", str(alternate_binary)],
         cwd=ROOT,
         check=True,
     )
@@ -69,6 +77,23 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
             env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
+                     DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b023-no-service",
+                     ASAN_OPTIONS="detect_leaks=0"),
+            check=True,
+            timeout=15,
+        )
+    for mode in ("alternate-order", "alternate-race-back",
+                 "alternate-trait-back", "alternate-body-back",
+                 "alternate-class-back", "alternate-class-back-no-body",
+                 "alternate-class-back-no-trait-body", "alternate-navigate",
+                 "alternate-random", "alternate-dna",
+                 "alternate-class-dna-incompatible", "alternate-mouse",
+                 "alternate-ctrl-quit"):
+        subprocess.run(
+            [str(alternate_binary), str(profile), str(ROOT / "lib"), mode],
+            cwd=ROOT,
+            env=dict(os.environ, SDL_VIDEODRIVER="dummy",
+                     SDL_RENDER_DRIVER="software",
                      DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b023-no-service",
                      ASAN_OPTIONS="detect_leaks=0"),
             check=True,

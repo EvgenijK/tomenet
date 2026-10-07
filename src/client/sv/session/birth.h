@@ -6,6 +6,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef SV_CLASS_BEFORE_RACE
+#define SV_CLASS_BEFORE_RACE 1
+#endif
+#if SV_CLASS_BEFORE_RACE != 0 && SV_CLASS_BEFORE_RACE != 1
+#error SV_CLASS_BEFORE_RACE must be 0 or 1
+#endif
+
 typedef enum {
     SV_BIRTH_NONE,
     SV_BIRTH_SEX,
