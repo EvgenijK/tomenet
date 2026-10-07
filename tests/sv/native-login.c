@@ -10,6 +10,16 @@ int main(void)
     event.key.key = SDLK_A;
     assert(sv_native_login_command(&event, &command));
     assert(command.kind == SV_LOGIN_COMMAND_CHOOSE && command.slot == 0);
+    event.key.key = SDLK_N;
+    assert(sv_native_login_command(&event, &command));
+    assert(command.kind == SV_LOGIN_COMMAND_CHOOSE && command.slot == 13);
+    event.key.mod = SDL_KMOD_SHIFT;
+    assert(sv_native_login_command(&event, &command));
+    assert(command.kind == SV_LOGIN_COMMAND_CREATE_ORDINARY);
+    event.key.mod = 0;
+    event.key.key = SDLK_ESCAPE;
+    assert(sv_native_login_command(&event, &command));
+    assert(command.kind == SV_LOGIN_COMMAND_CANCEL);
     event.key.key = SDLK_Q;
     assert(sv_native_login_command(&event, &command));
     assert(command.kind == SV_LOGIN_COMMAND_QUIT);

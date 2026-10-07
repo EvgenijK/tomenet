@@ -1,6 +1,7 @@
 # SV-B-022 — Новый slot и имя персонажа
 
-Статус: specified; реализация и runtime evidence pending.
+Статус: partially implemented; ordinary/name/rejection production path
+покрыт, exclusive completed-birth path ожидает SV-B-024.
 
 ## Пользовательский результат
 
@@ -11,6 +12,13 @@
 
 Зависит от [SV-B-006](SV-B-006-login.md). Swap/insert/append и двухшаговая
 отмена reorder перенесены в C; они не нужны минимальному creation flow.
+
+Выбор ordinary slot, native name editor/submission, cancel и recovery после
+server rejection реализованы и проверены через production endpoint.
+Exclusive `E`, eligibility/denial, IDDC/PvP propagation и проверка точных
+completed-birth transitions остаются pending до появления production birth
+seam в [SV-B-024](SV-B-024-birth-dna.md). Native/caller acceptance для этой
+ветки также не закрыта.
 
 ## Единственная первичная ответственность
 
@@ -38,3 +46,14 @@
 Actual caller повторяет SV-B-001 input primitives и SV-B-002 protocol path;
 exact bytes и screen transitions зафиксированы. Следующий owner —
 [SV-B-023](SV-B-023-birth-choices.md).
+
+Текущее частичное состояние:
+
+- done: ordinary availability/create, cancel без character request, 15-byte
+  name editor, random suggestion, reincarnation prefix, exact name submission;
+- done: forbidden/duplicate/unowned rejection, retry/exit/disconnect policy и
+  generation-scoped draft recovery;
+- pending after SV-B-024: exclusive `E`, completed-birth IDDC/PvP propagation,
+  native/caller runtime evidence и финальная acceptance всего DoD.
+
+Полный Definition of Done не закрыт.

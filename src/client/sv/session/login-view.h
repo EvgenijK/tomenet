@@ -10,11 +10,14 @@ typedef struct {
 } SvLoginRowView;
 typedef struct SvLoginView {
     bool overview;
+    bool ordinary_name_entry;
+    bool birth;
     bool live_handoff;
     size_t count;
     SvLoginRowView rows[SV_LOGIN_MAX_CHARACTERS];
     const unsigned char *motd; /* Borrowed from contact setup for one frame. */
     size_t motd_size;
+    const char *character_name_draft; /* Borrowed from the interaction for one frame. */
 } SvLoginView;
 
 void sv_login_view_prepare(SvLoginView *view, const SvPregame *pregame);

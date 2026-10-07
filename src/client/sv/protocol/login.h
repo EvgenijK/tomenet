@@ -22,11 +22,16 @@ void sv_login_destroy(SvLogin *login);
 SvOutput sv_login_take_output(SvLogin *login, void *bytes, size_t capacity);
 SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size);
 SvResult sv_login_choose(SvLogin *login, size_t slot);
+SvResult sv_login_create_character(SvLogin *login, const char *name,
+                                   bool reincarnation_requested);
 SvResult sv_login_keepalive(SvLogin *login);
 SvLoginState sv_login_state(const SvLogin *login);
 size_t sv_login_count(const SvLogin *login);
 const SvLoginCharacter *sv_login_character(const SvLogin *login, size_t slot);
 const SvLoginCharacter *sv_login_selected_character(const SvLogin *login);
+bool sv_login_creating_character(const SvLogin *login);
+bool sv_login_reincarnation_requested(const SvLogin *login);
 const uint32_t *sv_login_flags(const SvLogin *login);
+const int *sv_login_version(const SvLogin *login);
 const char *sv_login_reason(const SvLogin *login);
 #endif

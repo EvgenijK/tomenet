@@ -19,6 +19,8 @@ void sv_login_view_prepare(SvLoginView *view, const SvPregame *pregame)
             memcpy(row->race, source->race, sizeof(row->race));
             memcpy(row->class_title, source->class_title, sizeof(row->class_title));
         }
+    } else if (pregame->phase == SV_PREGAME_BIRTH) {
+        view->birth = true;
     } else if (pregame->phase == SV_PREGAME_MOTD) {
         view->motd = pregame->motd;
         view->motd_size = pregame->motd_size;

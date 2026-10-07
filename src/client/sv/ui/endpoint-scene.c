@@ -109,6 +109,14 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                          character->location);
                 if (!line(renderer,font,row,40,275 + (int)i * 25,scale,normal)) return false;
             }
+            if (input->login_view->ordinary_name_entry) {
+                char prompt[128];
+                snprintf(prompt, sizeof(prompt), "New character name: %.79s",
+                         input->login_view->character_name_draft ?
+                         input->login_view->character_name_draft : "");
+                if (!line(renderer,font,prompt,40,690,scale,selected) ||
+                    !line(renderer,font,"Escape cancels",40,720,scale,normal)) return false;
+            }
         }
         if (input->login_view && input->login_view->motd && input->login_view->motd_size) {
             size_t at = 0;
@@ -121,6 +129,11 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                 if (!line(renderer,font,text,40,270 + row * 20,scale,normal)) return false;
                 at += count;
             }
+        }
+        if (input->login_view && input->login_view->birth) {
+            if (!line(renderer,font,"Character name accepted",40,280,scale,selected) ||
+                !line(renderer,font,"Starting character creation.",40,325,scale,normal))
+                return false;
         }
         if (input->login_view && input->login_view->live_handoff) {
             if (!line(renderer,font,"Startup screens complete",40,280,scale,selected) ||

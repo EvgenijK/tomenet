@@ -5,6 +5,7 @@
 #include "input/metaserver.h"
 #include "input/login-interaction.h"
 #include "input/native-login.h"
+#include "input/native-name.h"
 #include "ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
 #include "protocol/login.h"
@@ -109,6 +110,23 @@ typedef struct {
     size_t remaining_size, remaining_at;
 } SvSessionWire;
 
+typedef struct {
+    bool started, cancelled, submitted, random_suggested, reincarnation_requested;
+    bool input_truncated, input_method_used, keyboard_edited;
+    bool mouse_selected, paste_used;
+    size_t maximum_draft_bytes;
+    SvPregamePhase submit_phase;
+    uint64_t entry_generation, cancel_generation;
+    uint64_t entry_revision, cancel_revision;
+} SvOrdinaryNameEvidence;
+
+typedef struct {
+    bool pending, rejected, started, draft_preserved;
+    uint64_t rejected_generation, recovery_generation;
+    char draft[SV_LOGIN_NAME_CAPACITY];
+    char reason[256];
+} SvNameRecovery;
+
 static SvResult handoff_contact_bytes(SvContactSocket *connection, SvSessionWire *wire)
 {
     SvOutput needed = sv_contact_socket_take_remaining(connection, NULL, 0);
@@ -174,7 +192,9 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
 
 static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome,
                             uint64_t prior_generation,
-                            SvCredentialSaveState credential_save)
+                            SvCredentialSaveState credential_save,
+                            const SvOrdinaryNameEvidence *name,
+                            const SvNameRecovery *recovery)
 {
     if (!pregame || !outcome) return;
     *outcome = (SvEndpointOutcome){.generation = pregame->generation,
@@ -188,18 +208,48 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        SV_CREDENTIAL_SAVE_NOT_STARTED,
                                    .credential_saved = credential_save ==
                                        SV_CREDENTIAL_SAVE_SAVED,
-                                   .credential_save = credential_save};
+                                   .credential_save = credential_save,
+                                   .ordinary_name_started = name && name->started,
+                                   .ordinary_name_cancelled = name && name->cancelled,
+                                   .name_submitted = name && name->submitted,
+                                   .random_name_suggested = name && name->random_suggested,
+                                   .name_input_truncated = name && name->input_truncated,
+                                   .name_input_method_used = name && name->input_method_used,
+                                   .name_keyboard_edited = name && name->keyboard_edited,
+                                   .name_mouse_selected = name && name->mouse_selected,
+                                   .name_paste_used = name && name->paste_used,
+                                   .name_maximum_draft_bytes = name ?
+                                       name->maximum_draft_bytes : 0,
+                                   .reincarnation_requested = name &&
+                                       name->reincarnation_requested,
+                                   .name_submit_phase = name ? name->submit_phase :
+                                       SV_PREGAME_CONTACT,
+                                   .name_entry_generation = name ? name->entry_generation : 0,
+                                   .name_cancel_generation = name ? name->cancel_generation : 0,
+                                   .name_entry_overview_revision = name ? name->entry_revision : 0,
+                                   .name_cancel_overview_revision = name ? name->cancel_revision : 0,
+                                   .name_rejected = recovery && recovery->rejected,
+                                   .name_recovery_started = recovery && recovery->started,
+                                   .name_recovery_draft_preserved = recovery &&
+                                       recovery->draft_preserved,
+                                   .name_rejected_generation = recovery ?
+                                       recovery->rejected_generation : 0,
+                                   .name_recovery_generation = recovery ?
+                                       recovery->recovery_generation : 0};
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
            sizeof(outcome->selected_character));
     memcpy(outcome->reason, pregame->reason, sizeof(outcome->reason));
+    if (recovery)
+        memcpy(outcome->name_rejection_reason, recovery->reason,
+               sizeof(outcome->name_rejection_reason));
 }
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                        SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
                        const char *profile_root, uint64_t generation,
-                       uint64_t prior_generation)
+                       uint64_t prior_generation, SvNameRecovery *recovery)
 {
     unsigned char iaddr[6];
     if (!sv_login_identity(profile_root, iaddr)) {
@@ -232,8 +282,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     bool quit = false, reached_ready = false, reported_failure = false;
     bool save_started = false, save_failed = false;
     SvCredentialSaveState credential_save = SV_CREDENTIAL_SAVE_NOT_STARTED;
+    SvOrdinaryNameEvidence name_evidence = {0};
     bool selected_reported = false;
     bool handoff_reported = false;
+    bool character_name_rejected = false;
     const char *save_message = NULL;
     char failure_status[384] = {0};
     while (!quit) {
@@ -258,46 +310,85 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         }
         if (state == SV_SOCKET_READY && login)
             state = pump_login(connection, login, &wire, &session_error);
-        if (state == SV_SOCKET_READY && login)
-            sv_native_login_clear_previous_keys(sv_login_interaction_sync(&login_input));
+        if (state == SV_SOCKET_READY && login) {
+            SvLoginTransition transition = sv_login_interaction_sync(&login_input);
+            sv_native_login_clear_previous_keys(transition);
+            if (transition == SV_LOGIN_TRANSITION_OVERVIEW && recovery &&
+                recovery->pending &&
+                sv_login_interaction_restore_name(&login_input, recovery->draft) ==
+                    SV_LOGIN_INPUT_NAME_STARTED) {
+                recovery->pending = false;
+                recovery->started = true;
+                recovery->recovery_generation = generation;
+                recovery->draft_preserved =
+                    !strcmp(login_input.character_name.bytes, recovery->draft);
+                name_evidence.started = true;
+                name_evidence.entry_generation = generation;
+                name_evidence.entry_revision = pregame.revision;
+            }
+        }
         if (state == SV_SOCKET_READY && login) {
             SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
                 sv_contact_socket_setup(connection), login_input.motd_complete);
             if (applied != SV_OK) { session_error = applied; state = SV_SOCKET_PROTOCOL_ERROR; }
+            else if (pregame.phase == SV_PREGAME_BIRTH) {
+                result = 0;
+                quit = true;
+            }
         }
         if (login && sv_login_state(login) == SV_LOGIN_REJECTED) {
-            SDL_snprintf(failure_status, sizeof(failure_status), "%s  Press R to retry or Escape to exit.",
+            if (recovery && sv_login_creating_character(login) && !recovery->pending) {
+                character_name_rejected = true;
+                recovery->pending = true;
+                recovery->rejected = true;
+                recovery->rejected_generation = generation;
+                SDL_strlcpy(recovery->draft, login_input.character_name.bytes,
+                            sizeof(recovery->draft));
+                SDL_strlcpy(recovery->reason, sv_login_reason(login),
+                            sizeof(recovery->reason));
+            }
+            SDL_snprintf(failure_status, sizeof(failure_status),
+                         options.retry_login_disabled && character_name_rejected ?
+                         "%s  Retry login is disabled; exiting." :
+                         "%s  Press R to retry or Escape to exit.",
                          sv_login_reason(login));
             input->contact_status = failure_status;
             state = SV_SOCKET_REJECTED;
         } else if (state == SV_SOCKET_READY && login) {
             SvLoginState phase = sv_login_state(login);
             if (phase == SV_LOGIN_OVERVIEW) {
-                input->contact_status = save_message ? save_message :
-                    "Account confirmed. Select an existing character by letter; Q quits.";
+                input->contact_status = login_input.ordinary_name_active ?
+                    "New character name: Escape cancels and returns to the overview." :
+                    (save_message ? save_message :
+                     "Account confirmed. Select a character, N creates, Q quits.");
             } else if (phase == SV_LOGIN_WAIT_STATUS)
                 input->contact_status = "Waiting for selected character status...";
             else if (phase == SV_LOGIN_SELECTED) {
-                if (!selected_reported) {
-                    puts("SV character selected; peer MOTD acknowledgement pending");
-                    selected_reported = true;
-                }
-                input->contact_status = save_failed ?
-                    (login_input.motd_complete ?
-                     "MOTD complete. Password is session only. Waiting for live-session handoff." :
-                     "Character confirmed. Password is session only. Read MOTD; press a key.") :
-                    (login_input.motd_complete ?
-                     "MOTD complete. Waiting for live-session handoff; Escape exits." :
-                     "Character confirmed. Read MOTD; press a key to continue.");
-                if (sv_login_interaction_complete(&login_input) &&
-                    pregame.phase == SV_PREGAME_LIVE_HANDOFF) {
-                    result = 0;
-                    if (!handoff_reported) {
-                        printf("SV startup phase=%s character=%s generation=%llu\n",
-                               sv_pregame_phase_name(pregame.phase),
-                               pregame.selected_character,
-                               (unsigned long long)pregame.generation);
-                        handoff_reported = true;
+                if (sv_login_creating_character(login)) {
+                    input->contact_status =
+                        "Character name accepted; handing off to character creation.";
+                } else {
+                    if (!selected_reported) {
+                        puts("SV character selected; peer MOTD acknowledgement pending");
+                        selected_reported = true;
+                    }
+                    input->contact_status = save_failed ?
+                        (login_input.motd_complete ?
+                         "MOTD complete. Password is session only. Waiting for live-session handoff." :
+                         "Character confirmed. Password is session only. Read MOTD; press a key.") :
+                        (login_input.motd_complete ?
+                         "MOTD complete. Waiting for live-session handoff; Escape exits." :
+                         "Character confirmed. Read MOTD; press a key to continue.");
+                    if (sv_login_interaction_complete(&login_input) &&
+                        pregame.phase == SV_PREGAME_LIVE_HANDOFF) {
+                        result = 0;
+                        if (!handoff_reported) {
+                            printf("SV startup phase=%s character=%s generation=%llu\n",
+                                   sv_pregame_phase_name(pregame.phase),
+                                   pregame.selected_character,
+                                   (unsigned long long)pregame.generation);
+                            handoff_reported = true;
+                        }
                     }
                 }
             } else input->contact_status = contact_status(state, rejection,
@@ -336,6 +427,9 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         input->login_view = NULL;
         if (login && connection) {
             sv_login_view_prepare(&login_view, &pregame);
+            login_view.ordinary_name_entry = login_input.ordinary_name_active;
+            login_view.character_name_draft = login_input.ordinary_name_active ?
+                login_input.character_name.bytes : NULL;
             input->login_view = &login_view;
         }
         if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
@@ -345,18 +439,56 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 quit = true;
                 break;
             }
-            if (state >= SV_SOCKET_DNS_ERROR && event.type == SDL_EVENT_KEY_DOWN &&
+            if (state >= SV_SOCKET_DNS_ERROR &&
+                !(options.retry_login_disabled && character_name_rejected) &&
+                event.type == SDL_EVENT_KEY_DOWN &&
                 !event.key.repeat && event.key.key == SDLK_R) {
                 result = 2;
                 quit = true;
                 break;
             }
             if (state == SV_SOCKET_READY && login) {
-                SvLoginCommand command;
-                SvLoginInputResult handled = sv_native_login_command(&event, &command) ?
-                    sv_login_interaction_command(&login_input, command) :
-                    SV_LOGIN_INPUT_IGNORED;
+                SvLoginInputResult handled = sv_native_name_event(&login_input, &event,
+                                                                   &input->text_error,
+                                                                   &input->clipboard_unavailable);
                 if (handled == SV_LOGIN_INPUT_QUIT) { result = 0; quit = true; break; }
+                if (handled == SV_LOGIN_INPUT_NAME_STARTED) {
+                    name_evidence.started = true;
+                    name_evidence.entry_generation = pregame.generation;
+                    name_evidence.entry_revision = pregame.revision;
+                    continue;
+                }
+                if (handled == SV_LOGIN_INPUT_NAME_CANCELLED) {
+                    name_evidence.cancelled = true;
+                    name_evidence.cancel_generation = pregame.generation;
+                    name_evidence.cancel_revision = pregame.revision;
+                    continue;
+                }
+                if (handled == SV_LOGIN_INPUT_NAME_SUGGESTED) {
+                    name_evidence.random_suggested = true;
+                    continue;
+                }
+                if (handled == SV_LOGIN_INPUT_NAME_SUBMITTED) {
+                    SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
+                        sv_contact_socket_setup(connection), login_input.motd_complete);
+                    if (applied != SV_OK) {
+                        session_error = applied;
+                        state = SV_SOCKET_PROTOCOL_ERROR;
+                    } else {
+                        name_evidence.submitted = true;
+                        name_evidence.reincarnation_requested =
+                            sv_login_reincarnation_requested(login);
+                        name_evidence.submit_phase = pregame.phase;
+                        name_evidence.input_truncated = login_input.name_input_truncated;
+                        name_evidence.input_method_used = login_input.name_input_method_used;
+                        name_evidence.keyboard_edited = login_input.name_keyboard_edited;
+                        name_evidence.mouse_selected = login_input.name_mouse_selected;
+                        name_evidence.paste_used = login_input.name_paste_used;
+                        name_evidence.maximum_draft_bytes =
+                            login_input.name_maximum_draft_bytes;
+                    }
+                    continue;
+                }
                 if (handled == SV_LOGIN_INPUT_HANDLED) {
                     SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
                         sv_contact_socket_setup(connection), login_input.motd_complete);
@@ -407,6 +539,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                                            input->contact_status, rejection);
             reported_failure = true;
             if (connection) { sv_contact_socket_stop(connection); connection = NULL; }
+            if (options.retry_login_disabled && character_name_rejected) quit = true;
             if (options.frames) break;
         }
         if (options.frames && ++frames >= options.frames) break;
@@ -418,7 +551,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             credential_save = SV_CREDENTIAL_SAVE_SESSION_ONLY;
     }
     publish_outcome(&pregame, options.outcome, prior_generation,
-                    credential_save);
+                    credential_save, &name_evidence, recovery);
     sv_contact_socket_stop(connection);
     sv_login_destroy(login);
     SDL_free(wire.remaining);
@@ -562,9 +695,11 @@ int sv_endpoint_run(SvEndpointOptions options)
             uint64_t generation = SDL_GetTicksNS();
             if (!generation) generation = 1;
             uint64_t prior_generation = 0;
+            SvNameRecovery name_recovery = {0};
             while (entered > 0) {
                 result = run_contact(window, renderer, font, &endpoint, &input,
-                                     options, root, generation, prior_generation);
+                                     options, root, generation, prior_generation,
+                                     &name_recovery);
                 if (result != 2) break;
                 prior_generation = generation;
                 generation = SDL_GetTicksNS();

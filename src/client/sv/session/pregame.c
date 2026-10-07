@@ -115,6 +115,10 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
         changed = changed || strcmp(pregame->selected_character, selected->name) != 0;
         copy_text(pregame->selected_character, sizeof(pregame->selected_character),
                   selected->name);
+        if (sv_login_creating_character(login)) {
+            transition(pregame, SV_PREGAME_BIRTH, changed);
+            return SV_OK;
+        }
         if (setup->motd_size > sizeof(pregame->motd) - 1) return SV_INVALID;
         changed = changed || pregame->motd_size != setup->motd_size ||
             memcmp(pregame->motd, setup->motd, setup->motd_size);
@@ -162,6 +166,7 @@ const char *sv_pregame_phase_name(SvPregamePhase phase)
     case SV_PREGAME_AUTHENTICATING: return "authenticating";
     case SV_PREGAME_OVERVIEW: return "overview";
     case SV_PREGAME_CHARACTER_PENDING: return "character-pending";
+    case SV_PREGAME_BIRTH: return "birth";
     case SV_PREGAME_MOTD: return "motd";
     case SV_PREGAME_LIVE_HANDOFF: return "live-session-handoff";
     case SV_PREGAME_FAILED: return "failed";

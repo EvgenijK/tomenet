@@ -20,6 +20,17 @@ typedef struct {
     uint32_t server_flags[4], creation_flags;
     bool credential_save_started, credential_saved;
     SvCredentialSaveState credential_save;
+    bool ordinary_name_started, ordinary_name_cancelled;
+    bool name_submitted, random_name_suggested, reincarnation_requested;
+    bool name_input_truncated, name_input_method_used, name_keyboard_edited;
+    bool name_mouse_selected, name_paste_used;
+    size_t name_maximum_draft_bytes;
+    SvPregamePhase name_submit_phase;
+    uint64_t name_entry_generation, name_cancel_generation;
+    uint64_t name_entry_overview_revision, name_cancel_overview_revision;
+    bool name_rejected, name_recovery_started, name_recovery_draft_preserved;
+    uint64_t name_rejected_generation, name_recovery_generation;
+    char name_rejection_reason[256];
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
 } SvEndpointOutcome;
@@ -32,7 +43,7 @@ typedef struct {
     SvEndpointPoll source_poll;
     void *source_context;
     const char *account, *password, *real_name, *character;
-    bool skip_motd;
+    bool skip_motd, retry_login_disabled;
     SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);

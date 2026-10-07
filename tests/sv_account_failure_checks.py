@@ -19,6 +19,7 @@ SOURCES = [
     "src/client/sv/input/credentials.c",
     "src/client/sv/input/login-interaction.c",
     "src/client/sv/input/native-login.c",
+    "src/client/sv/input/native-name.c",
     "src/client/sv/protocol/contact.c",
     "src/client/sv/protocol/contact-socket.c",
     "src/client/sv/protocol/login.c",

@@ -6,6 +6,10 @@ bool sv_native_login_command(const SDL_Event *event, SvLoginCommand *command)
         event->key.repeat || !event->key.key) return false;
     SDL_Keycode key = event->key.key;
     if (key == SDLK_Q) *command = (SvLoginCommand){SV_LOGIN_COMMAND_QUIT, 0};
+    else if (key == SDLK_N && (event->key.mod & (SDL_KMOD_SHIFT | SDL_KMOD_CAPS)))
+        *command = (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY, 0};
+    else if (key == SDLK_ESCAPE)
+        *command = (SvLoginCommand){SV_LOGIN_COMMAND_CANCEL, 0};
     else if (key >= SDLK_A && key <= SDLK_Z)
         *command = (SvLoginCommand){SV_LOGIN_COMMAND_CHOOSE,
                                     (size_t)(key - SDLK_A)};

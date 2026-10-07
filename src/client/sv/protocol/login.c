@@ -15,9 +15,10 @@ struct SvLogin {
     size_t output_size;
     uint32_t flags[4]; /* sflags3, sflags2, sflags1, sflags0 */
     SvLoginCharacter characters[SV_LOGIN_MAX_CHARACTERS];
+    SvLoginCharacter creation;
     size_t count;
     size_t selected_slot;
-    bool has_selected_slot;
+    bool has_selected_slot, creating_character, reincarnation_requested;
     char reason[256];
 };
 
@@ -109,10 +110,20 @@ const SvLoginCharacter *sv_login_character(const SvLogin *login, size_t slot)
 }
 const SvLoginCharacter *sv_login_selected_character(const SvLogin *login)
 {
+    if (login && login->creating_character) return &login->creation;
     return login && login->has_selected_slot && login->selected_slot < login->count ?
         &login->characters[login->selected_slot] : NULL;
 }
+bool sv_login_creating_character(const SvLogin *login)
+{
+    return login && login->creating_character;
+}
+bool sv_login_reincarnation_requested(const SvLogin *login)
+{
+    return login && login->creating_character && login->reincarnation_requested;
+}
 const uint32_t *sv_login_flags(const SvLogin *login) { return login->flags; }
+const int *sv_login_version(const SvLogin *login) { return login->version; }
 const char *sv_login_reason(const SvLogin *login) { return login->reason; }
 SvResult sv_login_choose(SvLogin *login, size_t slot)
 {
@@ -125,6 +136,25 @@ SvResult sv_login_choose(SvLogin *login, size_t slot)
     if (queued != SV_OK) return queued;
     login->selected_slot = slot;
     login->has_selected_slot = true;
+    login->state = SV_LOGIN_WAIT_STATUS;
+    return SV_OK;
+}
+SvResult sv_login_create_character(SvLogin *login, const char *name,
+                                   bool reincarnation_requested)
+{
+    if (!login || login->state != SV_LOGIN_OVERVIEW || !name || !name[0])
+        return SV_INVALID;
+    size_t length = strlen(name);
+    if (length >= SV_LOGIN_NAME_CAPACITY) return SV_INVALID;
+    unsigned char packet[SV_LOGIN_NAME_CAPACITY + 2] = {PKT_LOGIN};
+    memcpy(packet + 1, name, length + 1);
+    SvResult queued = append_output(login, packet, length + 2);
+    if (queued != SV_OK) return queued;
+    memset(&login->creation, 0, sizeof(login->creation));
+    memcpy(login->creation.name, name, length + 1);
+    login->creating_character = true;
+    login->reincarnation_requested = reincarnation_requested;
+    login->has_selected_slot = false;
     login->state = SV_LOGIN_WAIT_STATUS;
     return SV_OK;
 }

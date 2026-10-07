@@ -1,0 +1,216 @@
+#include "endpoint-run.h"
+#include "../../src/common/pack.h"
+#include <SDL3/SDL.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <netinet/in.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+typedef struct {
+    int listener;
+    bool request_exact;
+} Peer;
+
+static bool exact(int socket, void *out, size_t size)
+{
+    unsigned char *bytes = out;
+    while (size) {
+        ssize_t count = recv(socket, bytes, size, 0);
+        if (count <= 0) return false;
+        bytes += count;
+        size -= (size_t)count;
+    }
+    return true;
+}
+
+static bool field(int socket, char *out, size_t capacity)
+{
+    size_t at = 0;
+    do {
+        if (at + 1 >= capacity || !exact(socket, out + at, 1)) return false;
+    } while (out[at++]);
+    return true;
+}
+
+static void put16(unsigned char **at, uint16_t value)
+{
+    *(*at)++ = (unsigned char)(value >> 8);
+    *(*at)++ = (unsigned char)value;
+}
+
+static void put32(unsigned char **at, uint32_t value)
+{
+    *(*at)++ = (unsigned char)(value >> 24);
+    *(*at)++ = (unsigned char)(value >> 16);
+    *(*at)++ = (unsigned char)(value >> 8);
+    *(*at)++ = (unsigned char)value;
+}
+
+static void push_key(SDL_Keycode key, SDL_Keymod mod)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = key;
+    event.key.mod = mod;
+    switch (key) {
+    case SDLK_N: event.key.scancode = SDL_SCANCODE_N; break;
+    case SDLK_L: event.key.scancode = SDL_SCANCODE_L; break;
+    case SDLK_BACKSPACE: event.key.scancode = SDL_SCANCODE_BACKSPACE; break;
+    default: event.key.scancode = SDL_SCANCODE_RETURN; break;
+    }
+    assert(SDL_PushEvent(&event));
+}
+
+static void push_text(const char *text)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_TEXT_INPUT;
+    event.text.text = text;
+    assert(SDL_PushEvent(&event));
+}
+
+static void push_mouse_select_all(void)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.clicks = 2;
+    event.button.x = 220.0f;
+    event.button.y = 690.0f;
+    assert(SDL_PushEvent(&event));
+}
+
+static void send_overview(int socket)
+{
+    unsigned char response[64], *at = response;
+    *at++ = PKT_SERVERDETAILS;
+    put32(&at, 2u | (1u << 8) | (1u << 16));
+    put32(&at, 0);
+    put32(&at, 0);
+    put32(&at, 0xc0);
+    *at++ = PKT_LOGIN;
+    put16(&at, 0);
+    *at++ = 0;
+    *at++ = 0;
+    put16(&at, 0);
+    put16(&at, 0);
+    put16(&at, 0);
+    *at++ = 0;
+    assert(send(socket, response, (size_t)(at - response), 0) ==
+           (ssize_t)(at - response));
+}
+
+static int peer_run(void *opaque)
+{
+    Peer *peer = opaque;
+    int socket = accept(peer->listener, NULL, NULL);
+    assert(socket >= 0);
+    struct timeval timeout = {.tv_sec = 8};
+    assert(!setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)));
+
+    unsigned char number[40];
+    char text[80];
+    assert(exact(socket, number, 4) && field(socket, text, sizeof(text)) &&
+           exact(socket, number + 4, 3) && field(socket, text, sizeof(text)) &&
+           field(socket, text, sizeof(text)) && exact(socket, number + 7, 26));
+    unsigned char contact[34], *at = contact;
+    *at++ = 255;
+    *at++ = 0;
+    put32(&at, 0);
+    put32(&at, 2);
+    const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
+    for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
+    assert(send(socket, contact, sizeof(contact), 0) == (ssize_t)sizeof(contact));
+
+    unsigned char verify_type;
+    assert(exact(socket, &verify_type, 1) && field(socket, text, sizeof(text)) &&
+           field(socket, text, sizeof(text)) && field(socket, text, sizeof(text)));
+    static const unsigned char verified[] = {2, 1, 122, 6, 0, 0, 0x30, 0x39};
+    assert(send(socket, verified, sizeof(verified), 0) == (ssize_t)sizeof(verified));
+    unsigned char setup[13];
+    at = setup;
+    put32(&at, 0);
+    put16(&at, 20);
+    *at++ = 0;
+    *at++ = 0;
+    *at++ = 0;
+    put32(&at, 13);
+    assert(send(socket, setup, sizeof(setup), 0) == (ssize_t)sizeof(setup));
+
+    unsigned char login_start[8];
+    assert(exact(socket, login_start, sizeof(login_start)));
+    send_overview(socket);
+    SDL_Delay(200);
+    push_key(SDLK_N, SDL_KMOD_SHIFT);
+    SDL_Delay(80);
+    push_key(SDLK_RETURN, 0);
+    SDL_Delay(80);
+    push_text("abcdefghijklmnop");
+    push_mouse_select_all();
+    push_text("\xc3\xa9ve@");
+    push_key(SDLK_BACKSPACE, 0);
+    push_mouse_select_all();
+    assert(SDL_SetClipboardText("+carol$"));
+    push_key(SDLK_L, SDL_KMOD_CTRL);
+    push_key(SDLK_RETURN, 0);
+
+    unsigned char request[8];
+    assert(exact(socket, request, sizeof(request)));
+    static const unsigned char expected[] = {
+        PKT_LOGIN, 'C', 'a', 'r', 'o', 'l', '$', 0
+    };
+    peer->request_exact = !memcmp(request, expected, sizeof(expected));
+    SDL_Delay(150); /* A sent name alone must remain pending. */
+    const unsigned char permitted = 0;
+    assert(send(socket, &permitted, 1, 0) == 1);
+    unsigned char closed;
+    assert(recv(socket, &closed, 1, 0) == 0);
+    close(socket);
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    assert(argc == 3);
+    Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0)};
+    assert(peer.listener >= 0);
+    int reuse = 1;
+    assert(!setsockopt(peer.listener, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)));
+    struct sockaddr_in address = {.sin_family = AF_INET,
+                                  .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
+    assert(!bind(peer.listener, (struct sockaddr *)&address, sizeof(address)));
+    assert(!listen(peer.listener, 1));
+    socklen_t address_size = sizeof(address);
+    assert(!getsockname(peer.listener, (struct sockaddr *)&address, &address_size));
+    SDL_Thread *worker = SDL_CreateThread(peer_run, "sv-b022-name-peer", &peer);
+    assert(worker);
+
+    SvEndpointOutcome outcome = {0};
+    int result = sv_endpoint_run((SvEndpointOptions){
+        .root = argv[1], .library = argv[2], .server = "127.0.0.1",
+        .width = 1024, .height = 768, .windowed = 1,
+        .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
+        .real_name = "PLAYER", .outcome = &outcome
+    });
+    SDL_WaitThread(worker, NULL);
+    close(peer.listener);
+
+    assert(result == 0 && peer.request_exact);
+    assert(outcome.name_submitted);
+    assert(outcome.random_name_suggested);
+    assert(outcome.name_submit_phase == SV_PREGAME_CHARACTER_PENDING);
+    assert(outcome.phase == SV_PREGAME_BIRTH);
+    assert(!strcmp(outcome.selected_character, "Carol$"));
+    assert(outcome.reincarnation_requested);
+    assert(outcome.name_maximum_draft_bytes == 15);
+    assert(outcome.name_input_truncated);
+    assert(outcome.name_input_method_used);
+    assert(outcome.name_keyboard_edited);
+    assert(outcome.name_mouse_selected);
+    assert(outcome.name_paste_used);
+    return 0;
+}
