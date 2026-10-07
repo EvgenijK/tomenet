@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -151,6 +152,17 @@ static void push_mouse_stats(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_mode(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.clicks = clicks;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    assert(SDL_PushEvent(&event));
+}
+
 static void push_to_stats(void)
 {
     push_key(SDLK_RETURN, 0);
@@ -174,11 +186,89 @@ static void push_to_stats(void)
 #endif
 }
 
+static void push_to_mode(void)
+{
+    push_to_stats();
+    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+        push_key(key, 0);
+        push_key(SDLK_RETURN, 0);
+    }
+}
+
+static unsigned maia_race(void)
+{
+#ifdef ENABLE_KOBOLD
+    return 17;
+#else
+    return 16;
+#endif
+}
+
+static void push_to_pvp_maia_mode(void)
+{
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    push_key(SDLK_RETURN, 0);
+    push_mouse_race(340.0f + 40.0f * maia_race(), 1);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_F, 0);
+    push_key(SDLK_RETURN, 0);
+#else
+    push_mouse_race(340.0f + 40.0f * maia_race(), 1);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_F, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_RETURN, 0);
+#endif
+    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+        push_key(key, 0);
+        push_key(SDLK_RETURN, 0);
+    }
+}
+
 static void send_setup(int socket, const char *mode)
 {
-    unsigned char setup[256], *at = setup;
+    unsigned char setup[4096], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
+    if (!strcmp(mode, "mode-pvp-maia")) {
+        unsigned races = maia_race() + 1;
+        *at++ = (unsigned char)races;
+        *at++ = 1;
+        *at++ = 16;
+        unsigned char *size_at = at;
+        at += 4;
+        for (unsigned race = 0; race < races; ++race) {
+            memset(at, 50, 6);
+            at += 6;
+            char title[24];
+            snprintf(title, sizeof(title), race == maia_race() ? "Maia" :
+                     "Race %u", race);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            put32(&at, 1u);
+        }
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Warrior", 8);
+        at += 8;
+        memset(at, 0, 6);
+        at += 6;
+        for (unsigned trait = 0; trait < 16; ++trait) {
+            char title[24];
+            snprintf(title, sizeof(title), trait == 0 ? "N/A" :
+                     trait == 14 ? "Enlightened" :
+                     trait == 15 ? "Corrupted" : "Trait %u", trait);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            put32(&at, trait == 0 ? 1u << maia_race() : 0u);
+        }
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
     *at++ = 3;
     bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16) ||
         !strcmp(mode, "body-back-no-trait") ||
@@ -228,14 +318,28 @@ static void send_setup(int socket, const char *mode)
     assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
 }
 
-static void send_overview(int socket)
+static void send_overview(int socket, const char *mode)
 {
-    unsigned char response[64], *at = response;
+    unsigned char response[128], *at = response;
     *at++ = PKT_SERVERDETAILS;
     put32(&at, 2u | (1u << 8) | (1u << 16));
     put32(&at, 0);
     put32(&at, 0);
-    put32(&at, 0xc0);
+    put32(&at, !strcmp(mode, "mode-dedicated-unavailable") ? 0x40u :
+          !strcmp(mode, "mode-rpg") ? 0xc1u :
+          !strcmp(mode, "mode-pvp-maia") ? 0x2c0u : 0xc0u);
+    if (!strcmp(mode, "mode-pvp-maia")) {
+        *at++ = PKT_LOGIN;
+        put16(&at, 0);
+        *at++ = 0;
+        memcpy(at, "Hero", 5);
+        at += 5;
+        put16(&at, 10);
+        put16(&at, 0);
+        put16(&at, 0);
+        memcpy(at, "Home", 5);
+        at += 5;
+    }
     *at++ = PKT_LOGIN;
     put16(&at, 0);
     *at++ = 0;
@@ -284,7 +388,7 @@ static int peer_run(void *opaque)
 
     unsigned char login_start[8];
     assert(exact(socket, login_start, sizeof(login_start)));
-    send_overview(socket);
+    send_overview(socket, peer->mode);
     SDL_Delay(200);
     push_key(SDLK_N, SDL_KMOD_SHIFT);
     SDL_Delay(80);
@@ -309,7 +413,67 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "stats-order-confirm")) {
+    if (!strcmp(peer->mode, "mode-rpg")) {
+        push_to_mode();
+        push_key(SDLK_N, 0);
+        push_key(SDLK_E, 0);
+        push_key(SDLK_P, 0);
+        push_key(SDLK_S, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-dedicated-iddc")) {
+        push_to_mode();
+        push_key(SDLK_I, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-dedicated-dna")) {
+        push_to_mode();
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-pvp-maia")) {
+        push_to_pvp_maia_mode();
+        push_key(SDLK_P, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-back")) {
+        push_to_mode();
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-random")) {
+        push_to_mode();
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-ctrl-quit")) {
+        push_to_mode();
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "mode-dedicated")) {
+        push_to_mode();
+        push_key(SDLK_N, 0);
+        push_mouse_mode(460.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-dedicated-unavailable")) {
+        push_to_mode();
+        push_key(SDLK_P, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-dna") ||
+        !strcmp(peer->mode, "mode-dna-missing")) {
+        push_to_mode();
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-ordinary-ready")) {
+        push_to_mode();
+        push_key(SDLK_H, 0); /* First-character Hellish is unavailable. */
+        push_mouse_mode(380.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "stats-order-confirm")) {
         push_to_stats();
         for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
             push_key(key, 0);
@@ -809,7 +973,15 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 10,
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
             8
-        }
+        },
+        .birth_dna_mode_available = !strcmp(argv[3], "mode-dna") ||
+            !strcmp(argv[3], "mode-dedicated-dna"),
+        .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ?
+            SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_EVERLASTING,
+        .birth_dedicated = !strcmp(argv[3], "mode-dedicated") ||
+            !strcmp(argv[3], "mode-dedicated-unavailable") ||
+            !strcmp(argv[3], "mode-dedicated-iddc") ||
+            !strcmp(argv[3], "mode-dedicated-dna")
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -822,11 +994,101 @@ int main(int argc, char **argv)
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
 #if SV_CLASS_BEFORE_RACE
-    assert(outcome.birth_legal_class_count == 2);
-    assert(outcome.birth_legal_classes[0] == 0);
-    assert(outcome.birth_legal_classes[1] == 2);
+    if (!strcmp(argv[3], "mode-pvp-maia")) {
+        assert(outcome.birth_legal_class_count == 1);
+        assert(outcome.birth_legal_classes[0] == 0);
+    } else {
+        assert(outcome.birth_legal_class_count == 2);
+        assert(outcome.birth_legal_classes[0] == 0);
+        assert(outcome.birth_legal_classes[1] == 2);
+    }
 #endif
-    if (!strcmp(argv[3], "stats-order-confirm")) {
+    if (!strcmp(argv[3], "mode-rpg")) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_SOLOIST);
+        assert(outcome.birth_legal_mode_count == 2);
+        assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_SOLOIST);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "mode-dedicated-iddc")) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_IDDC);
+    } else if (!strcmp(argv[3], "mode-dedicated-dna")) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode_dna_used);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_DEDICATED_PVP);
+    } else if (!strcmp(argv[3], "mode-pvp-maia")) {
+        static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_PVP);
+        assert(outcome.birth_legal_mode_count == 6);
+        assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_NORMAL);
+        assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_SOLOIST);
+        assert(outcome.birth_legal_modes[3] == SV_BIRTH_MODE_EVERLASTING);
+        assert(outcome.birth_legal_modes[4] == SV_BIRTH_MODE_HELLISH);
+        assert(outcome.birth_legal_modes[5] == SV_BIRTH_MODE_PVP);
+        assert(outcome.birth_race == (int)maia_race());
+        assert(outcome.birth_trait_confirmed && outcome.birth_trait == 15);
+        assert(outcome.birth_stats_confirmed &&
+               !memcmp(outcome.birth_stats, expected, sizeof(expected)));
+    } else if (!strcmp(argv[3], "mode-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+    } else if (!strcmp(argv[3], "mode-random")) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode_random_used);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NORMAL ||
+               outcome.birth_mode == SV_BIRTH_MODE_NO_GHOST ||
+               outcome.birth_mode == SV_BIRTH_MODE_SOLOIST ||
+               outcome.birth_mode == SV_BIRTH_MODE_EVERLASTING);
+    } else if (!strcmp(argv[3], "mode-ctrl-quit")) {
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+    } else if (!strcmp(argv[3], "mode-dedicated")) {
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_DEDICATED_PVP);
+        assert(outcome.birth_legal_mode_count == 4);
+        assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_IDDC);
+        assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_IDDC_SOLOIST);
+        assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_IDDC_HELLISH);
+        assert(outcome.birth_legal_modes[3] == SV_BIRTH_MODE_DEDICATED_PVP);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-dedicated-unavailable")) {
+        assert(!outcome.birth_mode_ready && !outcome.birth_mode_confirmed);
+        assert(outcome.birth_legal_mode_count == 3);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_IDDC);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-dna")) {
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode_dna_used);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_EVERLASTING);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-dna-missing")) {
+        assert(!outcome.birth_mode_ready && !outcome.birth_mode_confirmed);
+        assert(!outcome.birth_mode_dna_used && outcome.birth_illegal_ignored);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-ordinary-ready")) {
+        assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_READY);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_legal_mode_count == 4);
+        assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_NORMAL);
+        assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_SOLOIST);
+        assert(outcome.birth_legal_modes[3] == SV_BIRTH_MODE_EVERLASTING);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "stats-order-confirm")) {
         static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed &&

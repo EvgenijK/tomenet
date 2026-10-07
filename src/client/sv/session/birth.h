@@ -21,7 +21,8 @@ typedef enum {
     SV_BIRTH_TRAIT,
     SV_BIRTH_BODY,
     SV_BIRTH_STATS,
-    SV_BIRTH_MODE
+    SV_BIRTH_MODE,
+    SV_BIRTH_READY
 } SvBirthOwner;
 
 typedef enum {
@@ -49,6 +50,20 @@ typedef enum {
 } SvBirthBody;
 
 typedef enum {
+    SV_BIRTH_MODE_NONE = -1,
+    SV_BIRTH_MODE_NORMAL = 0x00,
+    SV_BIRTH_MODE_SOLOIST = 0x05,
+    SV_BIRTH_MODE_HELLISH = 0x06,
+    SV_BIRTH_MODE_NO_GHOST = 0x04,
+    SV_BIRTH_MODE_EVERLASTING = 0x08,
+    SV_BIRTH_MODE_PVP = 0x10,
+    SV_BIRTH_MODE_IDDC = 0x44,
+    SV_BIRTH_MODE_IDDC_SOLOIST = 0x45,
+    SV_BIRTH_MODE_IDDC_HELLISH = 0x46,
+    SV_BIRTH_MODE_DEDICATED_PVP = 0x90
+} SvBirthMode;
+
+typedef enum {
     SV_BIRTH_MOVE_PREVIOUS,
     SV_BIRTH_MOVE_NEXT,
     SV_BIRTH_SELECT_SEX,
@@ -57,6 +72,7 @@ typedef enum {
     SV_BIRTH_SELECT_TRAIT,
     SV_BIRTH_SELECT_BODY,
     SV_BIRTH_SELECT_STAT,
+    SV_BIRTH_SELECT_MODE,
     SV_BIRTH_DECREASE_STAT,
     SV_BIRTH_INCREASE_STAT,
     SV_BIRTH_RANDOM,
@@ -74,6 +90,7 @@ typedef struct {
     int trait_id;
     SvBirthBody body;
     int stat;
+    SvBirthMode mode;
 } SvBirthCommand;
 
 typedef enum {
@@ -105,6 +122,8 @@ typedef struct {
     bool dna_body_available;
     bool dna_stats_available;
     int16_t dna_stats[6];
+    bool dna_mode_available;
+    SvBirthMode dna_mode;
     bool entered, keyboard_navigated, mouse_navigated;
     bool random_used, dna_used, illegal_ignored, confirmed, quit;
     bool class_confirmed, class_random_used, class_dna_used;
@@ -118,6 +137,14 @@ typedef struct {
     bool stats_confirmation_pending;
     bool stats_point_buy;
     int stats_remaining;
+    SvBirthMode highlighted_mode, chosen_mode;
+    SvBirthMode legal_modes[6];
+    uint8_t legal_mode_count;
+    bool mode_confirmed, mode_random_used, mode_dna_used, mode_ready;
+    bool post_mode_trait_required;
+    uint32_t server_flags[4];
+    size_t existing_characters;
+    bool dedicated;
     uint32_t random_state;
     const SvContactSetup *setup;
 } SvBirth;
@@ -140,17 +167,23 @@ typedef struct SvBirthView {
     bool stats_point_buy;
     bool stats_confirmation_pending;
     int stats_remaining;
+    SvBirthMode highlighted_mode;
+    SvBirthMode legal_modes[6];
+    uint8_t legal_mode_count;
     const SvContactSetup *setup;
     bool dna_available;
 } SvBirthView;
 
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
-                        const SvContactSetup *setup, bool dna_available,
+                        const SvContactSetup *setup, const uint32_t server_flags[4],
+                        size_t existing_characters, bool dedicated,
+                        bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
                         bool dna_trait_available, int dna_trait,
                         bool dna_body_available, SvBirthBody dna_body,
-                        bool dna_stats_available, const int16_t dna_stats[6]);
+                        bool dna_stats_available, const int16_t dna_stats[6],
+                        bool dna_mode_available, SvBirthMode dna_mode);
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command);
 void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth);

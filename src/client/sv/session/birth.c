@@ -57,6 +57,16 @@ static bool legal_race(const SvBirth *birth, int race_id)
 
 static bool legal_trait(const SvBirth *birth, int trait_id)
 {
+    unsigned maia_race =
+#ifdef ENABLE_KOBOLD
+        17;
+#else
+        16;
+#endif
+    if (birth->post_mode_trait_required)
+        return birth->chosen_race == (int)maia_race &&
+            (trait_id == 14 || trait_id == 15) &&
+            trait_id < birth->setup->trait_count;
     if (trait_id <= 0 || trait_id >= birth->setup->trait_count ||
         birth->chosen_race < 0 || birth->chosen_race >= 32 ||
         !legal_race(birth, birth->chosen_race))
@@ -86,6 +96,7 @@ static bool legal_body(const SvBirth *birth, SvBirthBody body)
 static void prepare_classes(SvBirth *birth);
 static void prepare_races(SvBirth *birth);
 static void prepare_stats(SvBirth *birth);
+static void prepare_modes(SvBirth *birth);
 
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
@@ -135,7 +146,10 @@ static SvBirthInputResult confirm_trait(SvBirth *birth)
         !legal_trait(birth, birth->highlighted_trait))
         return SV_BIRTH_INPUT_IGNORED;
     birth->chosen_trait = birth->highlighted_trait;
-    birth->owner = SV_BIRTH_BODY;
+    if (birth->post_mode_trait_required) {
+        birth->owner = SV_BIRTH_READY;
+        birth->mode_ready = true;
+    } else birth->owner = SV_BIRTH_BODY;
     birth->trait_confirmed = true;
     return SV_BIRTH_INPUT_CONFIRMED;
 }
@@ -157,14 +171,17 @@ static SvBirthInputResult confirm_body(SvBirth *birth)
 }
 
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
-                        const SvContactSetup *setup, bool dna_available,
+                        const SvContactSetup *setup, const uint32_t server_flags[4],
+                        size_t existing_characters, bool dedicated,
+                        bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
                         bool dna_trait_available, int dna_trait,
                         bool dna_body_available, SvBirthBody dna_body,
-                        bool dna_stats_available, const int16_t dna_stats[6])
+                        bool dna_stats_available, const int16_t dna_stats[6],
+                        bool dna_mode_available, SvBirthMode dna_mode)
 {
-    if (!birth || !generation || !setup || !dna_stats ||
+    if (!birth || !generation || !setup || !server_flags || !dna_stats ||
         (dna_available && !legal_sex(dna_sex)))
         return SV_INVALID;
     *birth = (SvBirth){.generation = generation, .owner = SV_BIRTH_SEX,
@@ -177,13 +194,18 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .chosen_trait = SV_BIRTH_TRAIT_NONE,
         .highlighted_body = SV_BIRTH_BODY_NONE,
         .chosen_body = SV_BIRTH_BODY_NONE,
+        .highlighted_mode = SV_BIRTH_MODE_NONE,
+        .chosen_mode = SV_BIRTH_MODE_NONE,
         .dna_sex = dna_sex, .dna_available = dna_available, .entered = true,
         .dna_class = dna_class, .dna_class_available = dna_class_available,
         .dna_race = dna_race, .dna_race_available = dna_race_available,
         .dna_trait = dna_trait, .dna_trait_available = dna_trait_available,
         .dna_body = dna_body, .dna_body_available = dna_body_available,
         .dna_stats_available = dna_stats_available,
-        .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup};
+        .dna_mode_available = dna_mode_available, .dna_mode = dna_mode,
+        .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup,
+        .existing_characters = existing_characters, .dedicated = dedicated};
+    for (unsigned i = 0; i < 4; ++i) birth->server_flags[i] = server_flags[i];
     for (unsigned i = 0; i < 6; ++i) birth->dna_stats[i] = dna_stats[i];
 #if SV_CLASS_BEFORE_RACE
     prepare_classes(birth);
@@ -369,8 +391,10 @@ static void prepare_traits(SvBirth *birth)
     if (trait_position(birth, birth->highlighted_trait) < 0)
         birth->highlighted_trait = birth->legal_trait_count ?
             birth->legal_traits[0] : SV_BIRTH_TRAIT_NONE;
-    bool dummy = birth->setup->trait_count <= 1;
-    if (!dummy && birth->chosen_race >= 0 && birth->chosen_race < 32)
+    bool dummy = !birth->post_mode_trait_required &&
+        birth->setup->trait_count <= 1;
+    if (!birth->post_mode_trait_required && !dummy &&
+        birth->chosen_race >= 0 && birth->chosen_race < 32)
         dummy = (birth->setup->traits[0].choice &
                  (1u << (unsigned)birth->chosen_race)) != 0;
     birth->trait_skipped = dummy || !birth->legal_trait_count;
@@ -735,6 +759,134 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
     }
 }
 
+static int mode_position(const SvBirth *birth, SvBirthMode mode)
+{
+    for (unsigned i = 0; i < birth->legal_mode_count; ++i)
+        if (birth->legal_modes[i] == mode) return (int)i;
+    return -1;
+}
+
+static void add_mode(SvBirth *birth, SvBirthMode mode)
+{
+    birth->legal_modes[birth->legal_mode_count++] = mode;
+}
+
+static void prepare_modes(SvBirth *birth)
+{
+    bool rpg = (birth->server_flags[3] & 0x01u) != 0;
+    birth->legal_mode_count = 0;
+    if (birth->dedicated) {
+        if (birth->server_flags[3] & 0x40u) {
+            add_mode(birth, SV_BIRTH_MODE_IDDC);
+            add_mode(birth, SV_BIRTH_MODE_IDDC_SOLOIST);
+            add_mode(birth, SV_BIRTH_MODE_IDDC_HELLISH);
+        }
+        if (!rpg && (birth->server_flags[3] & 0x80u))
+            add_mode(birth, SV_BIRTH_MODE_DEDICATED_PVP);
+        if (mode_position(birth, birth->highlighted_mode) < 0)
+            birth->highlighted_mode = birth->legal_mode_count ?
+                birth->legal_modes[0] : SV_BIRTH_MODE_NONE;
+        return;
+    }
+    if (!rpg) add_mode(birth, SV_BIRTH_MODE_NORMAL);
+    add_mode(birth, SV_BIRTH_MODE_NO_GHOST);
+    add_mode(birth, SV_BIRTH_MODE_SOLOIST);
+    if (!rpg) add_mode(birth, SV_BIRTH_MODE_EVERLASTING);
+    if (birth->existing_characters) add_mode(birth, SV_BIRTH_MODE_HELLISH);
+    if (!rpg && birth->existing_characters) add_mode(birth, SV_BIRTH_MODE_PVP);
+    if (mode_position(birth, birth->highlighted_mode) < 0)
+        birth->highlighted_mode = birth->legal_mode_count ?
+            birth->legal_modes[0] : SV_BIRTH_MODE_NONE;
+}
+
+static SvBirthInputResult confirm_mode(SvBirth *birth)
+{
+    if (birth->owner != SV_BIRTH_MODE ||
+        mode_position(birth, birth->highlighted_mode) < 0)
+        return SV_BIRTH_INPUT_IGNORED;
+    birth->chosen_mode = birth->highlighted_mode;
+    birth->mode_confirmed = true;
+    unsigned maia_race =
+#ifdef ENABLE_KOBOLD
+        17;
+#else
+        16;
+#endif
+    bool pvp = birth->chosen_mode == SV_BIRTH_MODE_PVP ||
+        birth->chosen_mode == SV_BIRTH_MODE_DEDICATED_PVP;
+    birth->post_mode_trait_required = pvp &&
+        birth->chosen_race == (int)maia_race &&
+        (birth->server_flags[3] & 0x200u) != 0;
+    if (birth->post_mode_trait_required) {
+        birth->mode_ready = false;
+        birth->owner = SV_BIRTH_TRAIT;
+        prepare_traits(birth);
+    } else {
+        birth->mode_ready = true;
+        birth->owner = SV_BIRTH_READY;
+    }
+    return SV_BIRTH_INPUT_CONFIRMED;
+}
+
+static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
+{
+    int position = mode_position(birth, birth->highlighted_mode);
+    switch (command.kind) {
+    case SV_BIRTH_MOVE_PREVIOUS:
+        if (position < 0 || !birth->legal_mode_count)
+            return SV_BIRTH_INPUT_IGNORED;
+        position = (position + birth->legal_mode_count - 1) %
+            birth->legal_mode_count;
+        birth->highlighted_mode = birth->legal_modes[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_MOVE_NEXT:
+        if (position < 0 || !birth->legal_mode_count)
+            return SV_BIRTH_INPUT_IGNORED;
+        position = (position + 1) % birth->legal_mode_count;
+        birth->highlighted_mode = birth->legal_modes[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_SELECT_MODE:
+        if (mode_position(birth, command.mode) < 0) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->highlighted_mode = command.mode;
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_RANDOM:
+        if (!birth->legal_mode_count) return SV_BIRTH_INPUT_IGNORED;
+        birth->random_state ^= birth->random_state << 13;
+        birth->random_state ^= birth->random_state >> 17;
+        birth->random_state ^= birth->random_state << 5;
+        birth->highlighted_mode = birth->legal_modes[
+            birth->random_state % birth->legal_mode_count];
+        birth->mode_random_used = true;
+        return confirm_mode(birth);
+    case SV_BIRTH_DNA:
+        if (!birth->dna_mode_available ||
+            mode_position(birth, birth->dna_mode) < 0) {
+            birth->illegal_ignored = true;
+            birth->auto_reincarnation = false;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->highlighted_mode = birth->dna_mode;
+        birth->mode_dna_used = true;
+        return confirm_mode(birth);
+    case SV_BIRTH_CONFIRM:
+        return confirm_mode(birth);
+    case SV_BIRTH_BACK:
+        birth->chosen_mode = SV_BIRTH_MODE_NONE;
+        birth->mode_confirmed = false;
+        birth->mode_ready = false;
+        birth->owner = SV_BIRTH_STATS;
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_QUIT:
+        birth->quit = true;
+        return SV_BIRTH_INPUT_QUIT;
+    default:
+        return SV_BIRTH_INPUT_IGNORED;
+    }
+}
+
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command)
 {
@@ -757,7 +909,8 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     }
     if (birth->owner == SV_BIRTH_TRAIT) {
         SvBirthInputResult result = trait_command(birth, command);
-        if (result == SV_BIRTH_INPUT_CONFIRMED) prepare_bodies(birth);
+        if (result == SV_BIRTH_INPUT_CONFIRMED && birth->owner == SV_BIRTH_BODY)
+            prepare_bodies(birth);
         return result;
     }
     if (birth->owner == SV_BIRTH_BODY) {
@@ -767,8 +920,14 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
 #endif
         return result;
     }
-    if (birth->owner == SV_BIRTH_STATS)
-        return stats_command(birth, command);
+    if (birth->owner == SV_BIRTH_STATS) {
+        SvBirthInputResult result = stats_command(birth, command);
+        if (result == SV_BIRTH_INPUT_CONFIRMED && birth->owner == SV_BIRTH_MODE)
+            prepare_modes(birth);
+        return result;
+    }
+    if (birth->owner == SV_BIRTH_MODE)
+        return mode_command(birth, command);
     if (birth->owner != SV_BIRTH_SEX) {
         if (command.kind == SV_BIRTH_QUIT) {
             birth->quit = true;
@@ -816,6 +975,7 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_SELECT_TRAIT:
     case SV_BIRTH_SELECT_BODY:
     case SV_BIRTH_SELECT_STAT:
+    case SV_BIRTH_SELECT_MODE:
     case SV_BIRTH_DECREASE_STAT:
     case SV_BIRTH_INCREASE_STAT:
     case SV_BIRTH_BACK:
@@ -843,6 +1003,8 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
         .stats_point_buy = birth->stats_point_buy,
         .stats_confirmation_pending = birth->stats_confirmation_pending,
         .stats_remaining = birth->stats_remaining,
+        .highlighted_mode = birth->highlighted_mode,
+        .legal_mode_count = birth->legal_mode_count,
         .setup = birth->setup,
         .dna_available = birth->dna_available} : (SvBirthView){0};
     if (birth) {
@@ -857,5 +1019,7 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
         for (unsigned i = 0; i < 6; ++i) view->stats[i] = birth->stats[i];
         for (unsigned i = 0; i < birth->legal_stat_count; ++i)
             view->legal_stats[i] = birth->legal_stats[i];
+        for (unsigned i = 0; i < birth->legal_mode_count; ++i)
+            view->legal_modes[i] = birth->legal_modes[i];
     }
 }

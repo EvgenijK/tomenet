@@ -17,6 +17,19 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_LEFT) {
+        if (birth->owner == SV_BIRTH_MODE) {
+            if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
+            unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
+            if (position >= birth->legal_mode_count)
+                return SV_BIRTH_INPUT_IGNORED;
+            SvBirthInputResult selected = apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_SELECT_MODE,
+                    .mode = birth->legal_modes[position]}, false, true);
+            if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
+                return selected;
+            return apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_CONFIRM}, false, true);
+        }
         if (birth->owner == SV_BIRTH_STATS) {
             if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
             unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
@@ -99,7 +112,25 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return SV_BIRTH_INPUT_IGNORED;
     SDL_Keycode key = event->key.key;
     SvBirthCommand command;
-    if (birth->owner == SV_BIRTH_STATS && key != SDLK_Q &&
+    if (birth->owner == SV_BIRTH_MODE && key != SDLK_Q &&
+        key >= SDLK_A && key <= SDLK_Z) {
+        SvBirthMode mode;
+        if (birth->dedicated)
+            mode = key == SDLK_I ? SV_BIRTH_MODE_IDDC :
+                key == SDLK_S ? SV_BIRTH_MODE_IDDC_SOLOIST :
+                key == SDLK_H ? SV_BIRTH_MODE_IDDC_HELLISH :
+                key == SDLK_P ? SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_NONE;
+        else
+            mode = key == SDLK_N ? SV_BIRTH_MODE_NORMAL :
+                key == SDLK_G ? SV_BIRTH_MODE_NO_GHOST :
+                key == SDLK_S ? SV_BIRTH_MODE_SOLOIST :
+                key == SDLK_H ? SV_BIRTH_MODE_HELLISH :
+                key == SDLK_E ? SV_BIRTH_MODE_EVERLASTING :
+                key == SDLK_P ? SV_BIRTH_MODE_PVP : SV_BIRTH_MODE_NONE;
+        return apply(birth, generation,
+            (SvBirthCommand){.kind = SV_BIRTH_SELECT_MODE, .mode = mode},
+            true, false);
+    } else if (birth->owner == SV_BIRTH_STATS && key != SDLK_Q &&
         key >= SDLK_A && key <= SDLK_Z) {
         unsigned stat = (unsigned)(key - SDLK_A);
         if (stat >= 6) {
