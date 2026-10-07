@@ -547,3 +547,43 @@ this organizational cleanup with legacy/shared extraction.
 production endpoint birth matrix, dependency-file/source-provenance behavior,
 and an include audit proving that UI and endpoint still use only the public
 interaction boundary.
+
+## Gate birth presentation view preparation by revisions
+
+**Status:** proposed separately; this record does not implement the optimization
+or extend SV-B-023, and no runtime or build check is claimed as completed.
+
+**Problem:** the production endpoint frame loop rebuilds `SvBirthView` on every
+frame. `sv_birth_view_prepare` reinitializes the view and copies the large legal
+class, race and trait choice arrays even when birth presentation state is
+unchanged. There is no revision-based invalidation gate. This leaves repeated
+presentation work on the steady-state frame path contrary to the guidance in
+[ADR-0004](adr/0004-revision-based-ui-views.md), which calls for derived UI data
+to be refreshed from model revisions instead of traversed and formatted every
+frame.
+
+**Affected code:** `src/client/sv/endpoint-run.c:run_contact` (the per-frame
+`sv_birth_view_prepare` call),
+`src/client/sv/session/birth.c:sv_birth_view_prepare`, and the `SvBirth` /
+`SvBirthView` definitions in `src/client/sv/session/birth.h`.
+
+**Proposal:** in separate measured work, add a monotonic birth presentation-model
+revision (or an equivalently scoped existing model revision) and retain the
+endpoint-owned `SvBirthView` as a derived cache. Rebuild and copy its choice arrays
+only when the cache key's generation or model revision changes. The invalidation
+key must also cover every presentation input used by the cached result, including
+logical geometry, display/UI scale, font/resource revisions and renderer lifetime
+where those inputs affect prepared birth data; model revision alone must not hide
+such changes. Instrument view preparations and copied bytes before and after the
+change: after the initial preparation, an arbitrary run of unchanged frames should
+perform zero further rebuilds, while each relevant model or presentation-input
+change should cause exactly one rebuild. Choose finer-grained revisions only if
+measurements justify their additional invalidation rules.
+
+**Required checks:** production `sv_endpoint_run` observations with instrumented
+rebuild/copy counts for idle multi-frame birth views and each model/input
+invalidation; maximum-length server-provided class, race and trait lists; owner,
+highlight and draft stability across keyboard, mouse, focus and resize events;
+font/resource, scale, renderer-lifetime and geometry invalidation; both class/race
+compile orders; ASan/UBSan and focused performance measurements demonstrating no
+stale view and the expected reduction in preparations and copied bytes.
