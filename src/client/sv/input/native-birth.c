@@ -213,6 +213,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         command = (SvBirthCommand){.kind = SV_BIRTH_RANDOM};
     else if (key == SDLK_HASH)
         command = (SvBirthCommand){.kind = SV_BIRTH_DNA};
+    else if (key == SDLK_PERCENT)
+        command = (SvBirthCommand){.kind = SV_BIRTH_AUTOMATIC_DNA};
     else if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
         command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};
     else if (key == SDLK_BACKSPACE)

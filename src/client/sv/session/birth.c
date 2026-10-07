@@ -969,6 +969,21 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
 {
     if (!birth || generation != birth->generation || !birth->active || birth->quit)
         return SV_BIRTH_INPUT_IGNORED;
+    if (command.kind == SV_BIRTH_AUTOMATIC_DNA) {
+        if (birth->owner < SV_BIRTH_SEX || birth->owner > SV_BIRTH_MODE)
+            return SV_BIRTH_INPUT_IGNORED;
+        SvBirthInputResult result = SV_BIRTH_INPUT_HANDLED;
+        birth->auto_reincarnation = true;
+        while (birth->auto_reincarnation && birth->owner >= SV_BIRTH_SEX &&
+               birth->owner <= SV_BIRTH_MODE) {
+            SvBirthOwner owner = birth->owner;
+            result = sv_birth_command(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_DNA});
+            if (result == SV_BIRTH_INPUT_IGNORED || birth->owner == owner)
+                break;
+        }
+        return result;
+    }
     if (birth->owner == SV_BIRTH_CLASS) {
         SvBirthInputResult result = class_command(birth, command);
 #if SV_CLASS_BEFORE_RACE
@@ -1055,6 +1070,7 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_SELECT_MODE:
     case SV_BIRTH_DECREASE_STAT:
     case SV_BIRTH_INCREASE_STAT:
+    case SV_BIRTH_AUTOMATIC_DNA:
     case SV_BIRTH_BACK:
         return SV_BIRTH_INPUT_IGNORED;
     }

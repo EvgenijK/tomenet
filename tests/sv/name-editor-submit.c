@@ -362,7 +362,8 @@ static bool pvp_maia_case(const char *mode)
 {
     return !strcmp(mode, "mode-pvp-maia") ||
         !strcmp(mode, "mode-pvp-maia-back") ||
-        !strcmp(mode, "stats-order-reenter-pvp-maia");
+        !strcmp(mode, "stats-order-reenter-pvp-maia") ||
+        !strcmp(mode, "auto-dna-dedicated-pvp-maia");
 }
 
 static void push_to_pvp_maia_mode(void)
@@ -435,7 +436,8 @@ static void send_setup(int socket, const char *mode)
         !strcmp(mode, "body-back-no-trait") ||
         !strcmp(mode, "alternate-class-back-no-trait-body") ||
         !strcmp(mode, "stats-back-no-trait-body");
-    bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip");
+    bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip") ||
+        !strcmp(mode, "auto-dna-skip-trait-body");
     *at++ = 4;
     *at++ = dummy_trait ? 1 : 4;
     unsigned char *size_at = at;
@@ -544,8 +546,10 @@ static int peer_run(void *opaque)
     bool body_unavailable = !strcmp(peer->mode, "body-unavailable-skip") ||
         !strcmp(peer->mode, "alternate-class-back-no-body") ||
         !strcmp(peer->mode, "alternate-class-back-no-trait-body") ||
-        !strcmp(peer->mode, "stats-back-no-trait-body");
-    bool point_buy = !strncmp(peer->mode, "stats-point-", 12);
+        !strcmp(peer->mode, "stats-back-no-trait-body") ||
+        !strcmp(peer->mode, "auto-dna-skip-trait-body");
+    bool point_buy = !strncmp(peer->mode, "stats-point-", 12) ||
+        (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable);
     put32(&at, 2u | (body_unavailable ? 0x10u : point_buy ? 1u : 0u));
     const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
@@ -670,6 +674,26 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_Q);
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-incompatible-class")) {
+        push_key(SDLK_PERCENT, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_B, 0);
+#else
+        push_key(SDLK_A, 0);
+#endif
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-missing-sex")) {
+        push_key(SDLK_PERCENT, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-stale-event")) {
+        push_stale_key(SDLK_PERCENT);
+        push_key(SDLK_Q, 0);
+    } else if (!strncmp(peer->mode, "auto-dna-", 9)) {
+        push_key(SDLK_PERCENT, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "guide-all-owners")) {
         push_guide_all_owners();
@@ -1308,6 +1332,11 @@ static int peer_run(void *opaque)
 int main(int argc, char **argv)
 {
     assert(argc == 4);
+    bool automatic = !strncmp(argv[3], "auto-dna-", 9);
+    bool auto_missing_sex = !strcmp(argv[3], "auto-dna-missing-sex");
+    bool auto_pvp_maia = !strcmp(argv[3], "auto-dna-dedicated-pvp-maia");
+    bool auto_incompatible_class =
+        !strcmp(argv[3], "auto-dna-incompatible-class");
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
     assert(peer.listener >= 0);
     int reuse = 1;
@@ -1328,38 +1357,52 @@ int main(int argc, char **argv)
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
         .real_name = "PLAYER", .outcome = &outcome,
         .birth_dna_available = !strcmp(argv[3], "dna") ||
+            (automatic && !auto_missing_sex) ||
             !strcmp(argv[3], "alternate-dna"),
         .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
         .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9) ||
             !strncmp(argv[3], "hidden-derived-dna", 18) ||
             !strcmp(argv[3], "alternate-dna") ||
+            automatic ||
             !strcmp(argv[3], "alternate-class-dna-incompatible"),
-        .birth_dna_class = !strcmp(argv[3], "hidden-derived-dna-missing") ? 99 :
+        .birth_dna_class = auto_pvp_maia ? 0 :
+            auto_incompatible_class ? 3 :
+            !strcmp(argv[3], "hidden-derived-dna-missing") ? 99 :
             !strncmp(argv[3], "hidden-derived-dna", 18) ? 1 :
             !strcmp(argv[3], "class-dna") ||
-            !strcmp(argv[3], "alternate-dna") ? 2 :
+            !strcmp(argv[3], "alternate-dna") ||
+            automatic ? 2 :
             !strcmp(argv[3], "alternate-class-dna-incompatible") ? 0 :
             !strcmp(argv[3], "class-dna-hidden") ? 1 :
             !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99,
         .birth_dna_race_available = (!strncmp(argv[3], "race-dna", 8) &&
             strcmp(argv[3], "race-dna-missing")) ||
-            !strcmp(argv[3], "alternate-dna"),
+            !strcmp(argv[3], "alternate-dna") ||
+            automatic,
         .birth_dna_race = !strcmp(argv[3], "race-dna") ||
-            !strcmp(argv[3], "alternate-dna") ? 2 :
+            !strcmp(argv[3], "alternate-dna") ||
+            (automatic && !auto_pvp_maia) ? 2 :
+            auto_pvp_maia ? (int)maia_race() :
             !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99,
         .birth_dna_trait_available = (!strncmp(argv[3], "trait-dna", 9) &&
             strcmp(argv[3], "trait-dna-missing")) ||
-            !strcmp(argv[3], "alternate-dna"),
+            !strcmp(argv[3], "alternate-dna") ||
+            automatic,
         .birth_dna_trait = !strcmp(argv[3], "trait-dna") ||
-            !strcmp(argv[3], "alternate-dna") ? 2 :
+            !strcmp(argv[3], "alternate-dna") ||
+            (automatic && !auto_pvp_maia) ? 2 :
+            auto_pvp_maia ? 14 :
             !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
         .birth_dna_body_available = (!strncmp(argv[3], "body-dna", 8) &&
             strcmp(argv[3], "body-dna-missing")) ||
-            !strcmp(argv[3], "alternate-dna"),
+            !strcmp(argv[3], "alternate-dna") ||
+            automatic,
         .birth_dna_body = !strcmp(argv[3], "body-dna") ||
-            !strcmp(argv[3], "alternate-dna") ?
-            SV_BIRTH_BODY_FRUIT_BAT : (SvBirthBody)99,
-        .birth_dna_stats_available = !strcmp(argv[3], "stats-point-dna") ||
+            !strcmp(argv[3], "alternate-dna") ||
+            (automatic && !auto_pvp_maia) ? SV_BIRTH_BODY_FRUIT_BAT :
+            auto_pvp_maia ? SV_BIRTH_BODY_NORMAL : (SvBirthBody)99,
+        .birth_dna_stats_available = automatic ||
+            !strcmp(argv[3], "stats-point-dna") ||
             !strcmp(argv[3], "stats-point-dna-over-budget") ||
             !strcmp(argv[3], "stats-point-dna-illegal") ||
             !strcmp(argv[3], "stats-point-dna-multiple-max"),
@@ -1373,14 +1416,20 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
             8
         },
-        .birth_dna_mode_available = !strcmp(argv[3], "mode-dna") ||
+        .birth_dna_mode_available = automatic ||
+            !strcmp(argv[3], "mode-dna") ||
             !strcmp(argv[3], "mode-dedicated-dna"),
-        .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ?
-            SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_EVERLASTING,
+        .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ||
+            auto_pvp_maia ?
+            SV_BIRTH_MODE_DEDICATED_PVP :
+            !strcmp(argv[3], "auto-dna-dedicated-iddc") ?
+            SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING,
         .birth_dedicated = !strcmp(argv[3], "mode-dedicated") ||
             !strcmp(argv[3], "mode-dedicated-unavailable") ||
             !strcmp(argv[3], "mode-dedicated-iddc") ||
             !strcmp(argv[3], "mode-dedicated-dna") ||
+            !strcmp(argv[3], "auto-dna-dedicated-iddc") ||
+            auto_pvp_maia ||
             !strcmp(argv[3], "stats-order-reenter-pvp-maia")
     });
     SDL_WaitThread(worker, NULL);
@@ -1413,6 +1462,67 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == owner);
         assert(!owner_confirmed(&outcome, owner));
         assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "auto-dna-full") ||
+               !strcmp(argv[3], "auto-dna-dedicated-iddc")) {
+        static const int16_t expected[] = {17, 14, 12, 10, 9, 8};
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_class_dna_used && outcome.birth_class == 2);
+        assert(outcome.birth_race_dna_used && outcome.birth_race == 2);
+        assert(outcome.birth_trait_dna_used && outcome.birth_trait == 2);
+        assert(outcome.birth_body_dna_used &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_stats_dna_used && outcome.birth_stats_confirmed);
+        assert(!memcmp(outcome.birth_committed_stats, expected, sizeof(expected)));
+        assert(outcome.birth_mode_dna_used && outcome.birth_mode_confirmed);
+        assert(outcome.birth_mode ==
+               (!strcmp(argv[3], "auto-dna-dedicated-iddc") ?
+                SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING));
+        assert(outcome.birth_mode_ready && outcome.birth_keyboard_navigated);
+        assert(outcome.birth_auto_reincarnation);
+    } else if (!strcmp(argv[3], "auto-dna-incompatible-class")) {
+        assert(!outcome.birth_auto_reincarnation && outcome.birth_illegal_ignored);
+        assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(!outcome.birth_class_dna_used && outcome.birth_class_confirmed);
+        assert(outcome.birth_class == 2 && outcome.birth_highlighted_class == 2);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_RACE && !outcome.birth_race_confirmed);
+#else
+        assert(outcome.birth_race_dna_used && outcome.birth_trait_dna_used &&
+               outcome.birth_body_dna_used);
+        assert(outcome.birth_owner == SV_BIRTH_STATS);
+#endif
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "auto-dna-missing-sex")) {
+        assert(!outcome.birth_auto_reincarnation && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_used && outcome.birth_sex_confirmed);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+#endif
+    } else if (!strcmp(argv[3], "auto-dna-stale-event")) {
+        assert(!outcome.birth_auto_reincarnation && !outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_used && !outcome.birth_sex_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_SEX && outcome.birth_quit);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_MALE);
+    } else if (!strcmp(argv[3], "auto-dna-skip-trait-body")) {
+        assert(outcome.birth_trait_skipped && outcome.birth_body_skipped);
+        assert(!outcome.birth_trait_dna_used && !outcome.birth_body_dna_used);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(!outcome.birth_auto_reincarnation && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_stats_dna_used && !outcome.birth_stats_confirmed);
+    } else if (!strcmp(argv[3], "auto-dna-dedicated-pvp-maia")) {
+        static const int16_t expected[] = {17, 14, 12, 10, 9, 8};
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_DEDICATED_PVP);
+        assert(outcome.birth_race == (int)maia_race());
+        assert(outcome.birth_trait_dna_used && outcome.birth_trait == 14);
+        assert(outcome.birth_mode_dna_used && outcome.birth_mode_ready);
+        assert(outcome.birth_stats_dna_used &&
+               !memcmp(outcome.birth_committed_stats, expected, sizeof(expected)));
+        assert(outcome.birth_auto_reincarnation);
     } else if (!strcmp(argv[3], "mode-pvp-maia-back")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
