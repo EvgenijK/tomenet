@@ -187,6 +187,34 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               input->birth_view->highlighted_body == body ?
                               selected : normal)) return false;
                 }
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_STATS) {
+                static const char *names[] = {
+                    "Strength", "Intelligence", "Wisdom", "Dexterity",
+                    "Constitution", "Charisma"
+                };
+                char prompt[96];
+                if (input->birth_view->stats_confirmation_pending)
+                    snprintf(prompt, sizeof(prompt),
+                             "%d points remain; confirm again to continue",
+                             input->birth_view->stats_remaining);
+                else if (input->birth_view->stats_point_buy)
+                    snprintf(prompt, sizeof(prompt),
+                             "Distribute stats (%d points left, # DNA, Q quits)",
+                             input->birth_view->stats_remaining);
+                else snprintf(prompt, sizeof(prompt),
+                              "Choose stat order (* random, Q quits)");
+                if (!line(renderer,font,prompt,40,290,scale,normal)) return false;
+                for (unsigned i = 0; i < input->birth_view->legal_stat_count; ++i) {
+                    unsigned stat = input->birth_view->legal_stats[i];
+                    char row[96];
+                    if (input->birth_view->stats_point_buy)
+                        snprintf(row, sizeof(row), "%s: %d", names[stat],
+                                 input->birth_view->stats[stat]);
+                    else snprintf(row, sizeof(row), "%s", names[stat]);
+                    if (!line(renderer,font,row,60,340 + (int)i * 40,scale,
+                              input->birth_view->highlighted_stat == (int)stat ?
+                              selected : normal)) return false;
+                }
             }
         }
         if (input->login_view && input->login_view->live_handoff) {

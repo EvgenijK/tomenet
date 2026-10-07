@@ -17,6 +17,19 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_LEFT) {
+        if (birth->owner == SV_BIRTH_STATS) {
+            if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
+            unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
+            if (position >= birth->legal_stat_count)
+                return SV_BIRTH_INPUT_IGNORED;
+            SvBirthInputResult selected = apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_SELECT_STAT,
+                    .stat = birth->legal_stats[position]}, false, true);
+            if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
+                return selected;
+            return apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_CONFIRM}, false, true);
+        }
         if (birth->owner == SV_BIRTH_BODY) {
             if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
             unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
@@ -86,7 +99,17 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return SV_BIRTH_INPUT_IGNORED;
     SDL_Keycode key = event->key.key;
     SvBirthCommand command;
-    if (birth->owner == SV_BIRTH_BODY && key != SDLK_Q &&
+    if (birth->owner == SV_BIRTH_STATS && key != SDLK_Q &&
+        key >= SDLK_A && key <= SDLK_Z) {
+        unsigned stat = (unsigned)(key - SDLK_A);
+        if (stat >= 6) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        return apply(birth, generation,
+            (SvBirthCommand){.kind = SV_BIRTH_SELECT_STAT, .stat = (int)stat},
+            true, false);
+    } else if (birth->owner == SV_BIRTH_BODY && key != SDLK_Q &&
         key >= SDLK_A && key <= SDLK_Z) {
         SvBirthBody body = key == SDLK_N ? SV_BIRTH_BODY_NORMAL :
             key == SDLK_F ? SV_BIRTH_BODY_FRUIT_BAT : SV_BIRTH_BODY_NONE;
@@ -128,7 +151,13 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
                 .class_id = birth->legal_classes[position]}, true, false);
     }
-    if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_KP_8 || key == SDLK_KP_4)
+    if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
+        (key == SDLK_LEFT || key == SDLK_KP_4 || key == SDLK_MINUS))
+        command = (SvBirthCommand){.kind = SV_BIRTH_DECREASE_STAT};
+    else if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
+        (key == SDLK_RIGHT || key == SDLK_KP_6 || key == SDLK_PLUS))
+        command = (SvBirthCommand){.kind = SV_BIRTH_INCREASE_STAT};
+    else if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_KP_8 || key == SDLK_KP_4)
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_PREVIOUS};
     else if (key == SDLK_DOWN || key == SDLK_RIGHT || key == SDLK_KP_2 || key == SDLK_KP_6)
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_NEXT};
