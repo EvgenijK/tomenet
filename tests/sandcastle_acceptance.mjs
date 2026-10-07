@@ -104,6 +104,16 @@ test("contract rejects missing baseline, fabricated sources, invalid mappings an
   assert.throws(() => acceptContract({}, proposal(), sources, { ...approval, missingRequirements: ["Cancellation omitted"] }, head));
 });
 
+test("implementation contracts reject mandatory current external checks without runners", () => {
+  const contract = proposal();
+  contract.checks.push({ id: "P1-dep-runtime", kind: "external", command: "", description: "Duplicate overview gate" });
+  contract.criteria[0].checkIds.push("P1-dep-runtime");
+  assert.throws(() => validateContract(contract, sources), /current mandatory criterion AC-1 cannot require external check P1-dep-runtime/);
+  contract.criteria[0].checkIds = ["sv-build", "sv-core"];
+  contract.checks = contract.checks.filter((check) => check.id !== "P1-dep-runtime");
+  assert.doesNotThrow(() => validateContract(contract, sources));
+});
+
 test("contract is immutable and silent mutation cannot weaken the closure gate", () => {
   const s = state(); s.acceptance.contract.criteria[0].mandatory = false;
   assert.throws(() => assertContract(s), /changed/); assert.throws(() => closureGate(s, head), /changed/);

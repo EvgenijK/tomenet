@@ -47,3 +47,11 @@ test("verifier guidance explains immutable baseline execution", () => {
   assert.match(facts, /not necessarily the complete shell invocation/);
   for (const fact of controllerExecutionFacts) assert.match(verifier, new RegExp(fact.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
+
+test("implementation guidance never turns a mandatory current check into unrunnable external evidence", () => {
+  const guidance = allGuidance();
+  assert.match(guidance, /mandatory current criterion/);
+  assert.match(guidance, /runnable build, core, or focused repository command checks/);
+  assert.match(guidance, /Deferred external evidence is not passing evidence/);
+  assert.match(guidance, /review and final-audit stages/);
+});

@@ -21,6 +21,7 @@ import { resolveContractSources } from "./contract-sources.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
+import { resumeExternalContractAmendment, validateContractAmendment } from "./contract-amend.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -250,6 +251,7 @@ async function contractSubstage(state, pending, name, run) {
   }
 }
 async function contract(sandbox, state) {
+  const amendment = state.contractAmendment ? structuredClone(state.contractAmendment) : undefined;
   let sourceResolution;
   await contractStage(state, {
     save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
@@ -271,11 +273,20 @@ async function contract(sandbox, state) {
       return sourceResolution.sources;
     },
     propose: async (sources, feedback, pending) => {
+      if (state.contractAmendment) {
+        const archived = state.contractAmendments.at(-1);
+        return inspect(sandbox, state, "acceptance contract amendment", [
+          "Amend the previously accepted implementation contract only to repair its unrunnable external-check mappings. Return the complete amended contract as schema JSON. Preserve every criterion ID, source, requirement, mandatory flag, applicability, owner, deferral reason, and every existing runnable mapping. Do not add or remove criteria, change completion scope, waive a requirement, claim pending evidence passed, or move a current obligation to deferred.",
+          `The audited duplicate gate ${state.contractAmendment.checkId} must be removed without replacement from its criterion; retain that criterion's other runnable mappings. Remove every other external check used by a mandatory/current criterion and map the unchanged criterion to an existing or minimal runnable focused repository check. External checks may remain only for genuinely deferred criteria with the existing exact owner and reason.`,
+          ...groupContractPromptGuidance({ usesSourceSpans: false }),
+          JSON.stringify({ sources, previousContract: archived.contract, amendment: state.contractAmendment, feedback }, null, 2),
+        ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+      }
       const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, withContractGroupRecoveryAdvice([
         `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Informational documents may clarify ownership or terminology but cannot introduce obligations outside the fixed authoritative source set. Do not edit files. Return schema JSON.`,
         ...groupContractPromptGuidance({ usesSourceSpans: Boolean(part.sourceSpans) }),
         "Assigned independent verifier feedback is cumulative and binding. Address every supplied item without dropping earlier corrections.",
-        "Feature-specific checks may use only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or external checks with command=''. Do not use shell operators. The controller prefixes IDs and merges all saved parts before independent verification.",
+        "Feature-specific checks may use only python3 -B tests/<file> [args], node tests/<file> [args], bash tests/<file> [args], or deferred external checks with command=''. For implementation scope, a future repository feature test required by the task is a current command check; later review/final-audit handles code and diff inspection. Do not use shell operators. The controller prefixes IDs and merges all saved parts before independent verification.",
         JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks,
           feedback: part.sourceSpans ? feedbackForGroup(pending, part) : feedback,
           sourceManifest: sourceResolution.manifest,
@@ -303,8 +314,12 @@ async function contract(sandbox, state) {
         guidanceFor(state, { phase: "contract", substage: "assemble" }),
       ].filter(Boolean).join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
     },
+    validateProposal: (proposal) => state.contractAmendment
+      ? validateContractAmendment(state.contractAmendments.at(-1).contract, proposal, state.contractAmendment)
+      : proposal,
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against every obligation in the fixed authoritative source set. You did not create this contract. Do not edit files. Return approved=true only if requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions and unsupported deferrals in missingRequirements; each finding must use the identical message and authoritative sourceSpanIds.",
+      state.contractAmendment ? `This is a bounded amendment of digest ${state.contractAmendment.previousDigest}. Verify that every previous criterion remains semantically unchanged and mandatory, ${state.contractAmendment.checkId} is removed as the audited duplicate, all other mandatory/current external mappings are replaced by runnable evidence, and no pending evidence is claimed passed.` : "",
       ...verifierContractPromptGuidance(),
       JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal, sourceManifest: sourceResolution.manifest,
         informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
@@ -315,6 +330,14 @@ async function contract(sandbox, state) {
       await ensureCommit(sandbox.worktreePath, "Sandcastle: accept independently verified contract");
     },
   });
+  if (amendment && state.phase !== "contract" && state.acceptance) {
+    const archive = state.contractAmendments.at(-1);
+    archive.amendedContractDigest = state.acceptance.contractDigest;
+    state.lastContractAmendment = { ...amendment, amendedContractDigest: state.acceptance.contractDigest };
+    delete state.contractAmendment;
+    await save(state);
+    await appendStageEvent(runsDir, state, { stage: "contract-amend", status: "completed", summary: `Contract amendment independently verified; ${amendment.requiredExternalCheckIds.length} unrunnable mandatory/current external mappings resolved.` });
+  }
 }
 async function plan(sandbox, state, reason = "") {
   assertContract(state);
@@ -636,6 +659,7 @@ const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
 const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
 const timeoutUpgradeResume = process.env.SANDCASTLE_TIMEOUT_UPGRADE_RESUME === "1";
+const contractAmendResume = process.env.SANDCASTLE_CONTRACT_AMEND_RESUME === "1";
 const extraContractAttempts = process.env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
 const extraGroupAttempts = process.env.SANDCASTLE_GROUP_RETRY_ATTEMPTS;
 const extraAssemblyAttempts = process.env.SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS;
@@ -644,39 +668,43 @@ const assemblyExtensionId = process.env.SANDCASTLE_ASSEMBLY_EXTENSION_ID;
 if (process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== undefined) throw new Error("Contract rounds are capped at 12; extra contract-round grants are no longer available");
 if (assemblyExtensionId !== undefined && assemblyExtension === undefined) throw new Error("Assembly extension ID requires an attempt count");
 if (assemblyExtension !== undefined) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract assembly extension cannot be combined with other continuation modes");
+  if (userResume || improvedContractResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract assembly extension cannot be combined with other continuation modes");
   extendContractAssemblyAttempts(structuredClone(state), Number(assemblyExtension), assemblyExtensionId);
 }
 if (extraGroupAttempts !== undefined) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract group grant cannot be combined with other continuation modes");
+  if (userResume || improvedContractResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract group grant cannot be combined with other continuation modes");
   resumeContractGroupAttempts(structuredClone(state), Number(extraGroupAttempts));
 }
 if (extraAssemblyAttempts !== undefined) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract assembly grant cannot be combined with other continuation modes");
+  if (userResume || improvedContractResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract assembly grant cannot be combined with other continuation modes");
   resumeContractAssemblyAttempts(structuredClone(state), Number(extraAssemblyAttempts));
 }
 if (extraContractAttempts !== undefined) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract citation grant cannot be combined with other continuation modes");
+  if (userResume || improvedContractResume || contractAmendResume || extraQuota !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract citation grant cannot be combined with other continuation modes");
   resumeContractCitationAttempts(structuredClone(state), Number(extraContractAttempts));
 }
 if (improvedContractResume) {
-  if (userResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
+  if (userResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract repair RESUME cannot be combined with other continuation modes");
   resumeImprovedContract(structuredClone(state));
 }
 if (timeoutUpgradeResume) {
-  if (userResume || improvedContractResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract timeout upgrade RESUME cannot be combined with other continuation modes");
+  if (userResume || improvedContractResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract timeout upgrade RESUME cannot be combined with other continuation modes");
   resumeContractTimeoutUpgrade(structuredClone(state));
 }
 if (userResume) {
-  if (extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("User pause RESUME cannot be combined with other continuation modes");
+  if (contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("User pause RESUME cannot be combined with other continuation modes");
   resumeUserPause(structuredClone(state));
+}
+if (contractAmendResume) {
+  if (userResume || improvedContractResume || timeoutUpgradeResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract amend RESUME cannot be combined with other continuation modes");
+  resumeExternalContractAmendment(structuredClone(state));
 }
 if (extraQuota !== undefined) {
   // Validate before acquiring the lock or changing the persisted checkpoint.
   extendTaskQuota(structuredClone(state), Number(extraQuota));
-  if (process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE or RECOVER");
+  if (contractAmendResume || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && !contractAmendResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTRACT_AMEND_RESUME=1 for the bounded unrunnable-contract amendment, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
 state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
@@ -698,6 +726,8 @@ try {
       resumeContractTimeoutUpgrade(state);
     } else if (userResume) {
       resumeUserPause(state);
+    } else if (contractAmendResume) {
+      resumeExternalContractAmendment(state);
     } else if (extraQuota !== undefined) {
       extendTaskQuota(state, Number(extraQuota));
       state.phase = state.resumePhase;

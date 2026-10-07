@@ -5,6 +5,27 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node
 import { resolve } from "node:path";
 import test from "node:test";
 import { resumeUserPause } from "../.sandcastle/limits.mjs";
+import { baselineChecks, digest, validateContract } from "../.sandcastle/acceptance.mjs";
+import { maxContractAmendments, resumeExternalContractAmendment, validateContractAmendment } from "../.sandcastle/contract-amend.mjs";
+
+const head = "a".repeat(40);
+function externalPause(overrides = {}) {
+  const contract = { version: 1, completionScope: "implementation", checks: [
+    ...structuredClone(baselineChecks),
+    { id: "P1-dep-runtime", kind: "external", command: "", description: "Duplicate login overview gate" },
+    { id: "runtime", kind: "external", command: "", description: "Historical unrunnable production check" },
+  ], criteria: [
+    { id: "P1-AC1", requirement: "Use the server overview", mandatory: true, applicability: "current", owner: "SV-B-022", deferralReason: "", checkIds: ["sv-build", "sv-core", "P1-dep-runtime"], source: { path: "spec.md", quote: "Use the server overview." } },
+    { id: "P1-AC2", requirement: "Preserve production behavior", mandatory: true, applicability: "current", owner: "SV-B-022", deferralReason: "", checkIds: ["sv-core", "runtime"], source: { path: "spec.md", quote: "Preserve production behavior." } },
+  ] };
+  const acceptance = { contract, contractDigest: digest(contract), sourceDigests: { "spec.md": "old-source" }, acceptedHead: head,
+    contractReview: { approved: true, summary: "Historical review", missingRequirements: [] }, policy: {}, ledger: [], repairBatches: [],
+    evidence: [{ checkId: "sv-core", head, passed: true, logPath: "/tmp/core.json", contractDigest: digest(contract) }], assessments: [], finalAudits: [] };
+  return Object.assign({ id: "amend", phase: "awaiting", resumePhase: "test-gate",
+    pauseReason: "Acceptance: required external check P1-dep-runtime has no runner; human decision required",
+    acceptance, completedTickets: ["one.md"], deferredTickets: [{ path: "later.md" }], reviews: [{ round: 1 }],
+    recoveries: [{ id: 2 }], budget: { consumedPercent: 7, tokens: 99 }, buildAttempts: 4, testAttempts: 2 }, overrides);
+}
 
 test("explicit user-pause resume preserves budgets, wave and reserved contract attempt", () => {
   const s = { phase: "awaiting", resumePhase: "contract", pauseReason: "Paused by user", userRequestedPause: true,
@@ -17,6 +38,56 @@ test("explicit user-pause resume preserves budgets, wave and reserved contract a
   for (const mutate of [s => { s.pauseReason = "Build failed"; }, s => { s.userRequestedPause = false; }, s => { s.budget.consumedPercent = 40; }, s => { s.quotaError = "Account usage limit"; }]) {
     const invalid = structuredClone(before); mutate(invalid); const snapshot = structuredClone(invalid);
     assert.throws(() => resumeUserPause(invalid)); assert.deepEqual(invalid, snapshot);
+  }
+});
+
+test("external-check amendment archives contract, digest and evidence while preserving progress", () => {
+  const state = externalPause();
+  const preserved = Object.fromEntries(["completedTickets", "deferredTickets", "reviews", "recoveries", "budget", "buildAttempts", "testAttempts"].map((field) => [field, structuredClone(state[field])]));
+  const oldAcceptance = structuredClone(state.acceptance);
+  resumeExternalContractAmendment(state);
+  assert.equal(state.phase, "contract");
+  assert.equal(state.contractReturnPhase, "test-gate");
+  assert.equal(state.acceptance, undefined);
+  assert.deepEqual(state.contractAmendments[0].acceptance, oldAcceptance);
+  assert.deepEqual(state.contractAmendments[0].evidence, oldAcceptance.evidence);
+  assert.deepEqual(state.contractAmendment.requiredExternalCheckIds, ["P1-dep-runtime", "runtime"]);
+  for (const [field, value] of Object.entries(preserved)) assert.deepEqual(state[field], value);
+});
+
+test("amendment removes P1-dep-runtime, remaps every current external check, and forbids waivers", () => {
+  const state = externalPause();
+  const previous = structuredClone(state.acceptance.contract);
+  resumeExternalContractAmendment(state);
+  const amended = structuredClone(previous);
+  amended.checks = amended.checks.filter((check) => !["P1-dep-runtime", "runtime"].includes(check.id));
+  amended.criteria[0].checkIds = ["sv-build", "sv-core"];
+  amended.criteria[1].checkIds = ["sv-core"];
+  const sources = { "spec.md": "Use the server overview. Preserve production behavior." };
+  assert.doesNotThrow(() => validateContract(amended, sources));
+  assert.doesNotThrow(() => validateContractAmendment(previous, amended, state.contractAmendment));
+  for (const mutate of [
+    (contract) => { contract.criteria[0].mandatory = false; },
+    (contract) => { contract.criteria[0].applicability = "deferred"; contract.criteria[0].owner = "later"; contract.criteria[0].deferralReason = "later"; },
+    (contract) => { contract.criteria.shift(); },
+    (contract) => { contract.criteria[0].checkIds = ["sv-core"]; },
+    (contract) => { contract.checks.push(previous.checks.find((check) => check.id === "P1-dep-runtime")); },
+  ]) {
+    const invalid = structuredClone(amended); mutate(invalid);
+    assert.throws(() => validateContractAmendment(previous, invalid, state.contractAmendment), /Contract amend RESUME/);
+  }
+});
+
+test("external-check amendment is one-shot and exact to a saved test-gate pause", () => {
+  for (const mutate of [
+    (state) => { state.resumePhase = "review"; },
+    (state) => { state.pauseReason = "Acceptance: required check failed"; },
+    (state) => { state.acceptance.contract.completionScope = "full_acceptance"; state.acceptance.contractDigest = digest(state.acceptance.contract); },
+    (state) => { state.contractAmendments = Array.from({ length: maxContractAmendments }, () => ({})); },
+  ]) {
+    const state = externalPause(); mutate(state); const before = structuredClone(state);
+    assert.throws(() => resumeExternalContractAmendment(state), /Contract amend RESUME/);
+    assert.deepEqual(state, before);
   }
 });
 
@@ -33,6 +104,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
   delete env.SANDCASTLE_RESUME;
   delete env.SANDCASTLE_REPAIR_RESUME;
+  delete env.SANDCASTLE_CONTRACT_AMEND_RESUME;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ROUND;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
   try {
