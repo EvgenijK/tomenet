@@ -438,6 +438,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvLoginView login_view = {0};
     SvBirth birth = {0};
     SvBirthView birth_view = {0};
+    SvBirthViewport birth_viewport = {0};
     SvBirthPlaceholderEvidence birth_placeholder = {.draft_preserved = true};
     SvBirth birth_before_placeholder = {0};
     SvPregame pregame;
@@ -619,6 +620,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         }
         input->login_view = NULL;
         input->birth_view = NULL;
+        input->birth_viewport = NULL;
         if (login && connection) {
             sv_login_view_prepare(&login_view, &pregame);
             login_view.ordinary_name_entry = login_input.ordinary_name_active;
@@ -628,6 +630,11 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             if (birth_started) {
                 sv_birth_view_prepare(&birth_view, &birth);
                 input->birth_view = &birth_view;
+                int logical_width, logical_height;
+                SDL_GetWindowSize(window, &logical_width, &logical_height);
+                (void)logical_width;
+                sv_birth_viewport_sync(&birth_viewport, &birth, logical_height);
+                input->birth_viewport = &birth_viewport;
             }
         }
         if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
@@ -667,7 +674,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 if (birth_started) {
                     SvBirthInputResult birth_result =
                         sv_native_birth_event(&birth, generation,
-                                              birth_input_since_ns, &event);
+                                              birth_input_since_ns,
+                                              &birth_viewport, &event);
                     if (birth_result == SV_BIRTH_INPUT_QUIT) {
                         result = 0;
                         quit = true;
@@ -800,6 +808,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SDL_free(wire.remaining);
     input->login_view = NULL;
     input->birth_view = NULL;
+    input->birth_viewport = NULL;
     input->temporary_surface_text = NULL;
     (void)window;
     return result;

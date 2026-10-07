@@ -202,6 +202,14 @@ static void push_mouse_mode(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_wheel(float y)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_WHEEL;
+    event.wheel.y = y;
+    assert(SDL_PushEvent(&event));
+}
+
 static void push_guide_round_trip(void)
 {
     push_key(SDLK_QUESTION, 0);
@@ -418,6 +426,21 @@ static bool archer_body_case(const char *mode)
     return !strcmp(mode, "archer-body-random");
 }
 
+static bool long_class_case(const char *mode)
+{
+    return !strcmp(mode, "long-class-viewport");
+}
+
+static bool long_race_case(const char *mode)
+{
+    return !strcmp(mode, "long-race-viewport");
+}
+
+static bool long_trait_case(const char *mode)
+{
+    return !strcmp(mode, "long-trait-viewport");
+}
+
 static bool existing_character_case(const char *mode)
 {
     return strncmp(mode, "first-run-body-", 15) &&
@@ -437,12 +460,18 @@ static void push_to_pvp_maia_mode(void)
     push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
     push_key(SDLK_RETURN, 0);
-    push_mouse_race(340.0f + 40.0f * maia_race(), 1);
+    push_key(SDLK_PAGEDOWN, 0);
+    for (unsigned i = 0; i < maia_race() - 10; ++i)
+        push_mouse_wheel(-1.0f);
+    push_mouse_race(740.0f, 1);
     push_key(SDLK_RETURN, 0);
     push_key(SDLK_F, 0);
     push_key(SDLK_RETURN, 0);
 #else
-    push_mouse_race(340.0f + 40.0f * maia_race(), 1);
+    push_key(SDLK_PAGEDOWN, 0);
+    for (unsigned i = 0; i < maia_race() - 10; ++i)
+        push_mouse_wheel(-1.0f);
+    push_mouse_race(740.0f, 1);
     push_key(SDLK_RETURN, 0);
     push_key(SDLK_F, 0);
     push_key(SDLK_RETURN, 0);
@@ -464,6 +493,72 @@ static void send_setup(int socket, const char *mode)
         *at++ = 0;
         *at++ = 0;
         put32(&at, 13);
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
+    if (long_class_case(mode)) {
+        *at++ = 1;
+        *at++ = 20;
+        *at++ = 1;
+        unsigned char *size_at = at;
+        at += 4;
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Long Race", 10);
+        at += 10;
+        put32(&at, (1u << 20) - 1u);
+        for (unsigned id = 0; id < 20; ++id) {
+            char title[24];
+            memset(at, 50, 6);
+            at += 6;
+            snprintf(title, sizeof(title), "Long Class %u", id);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            memset(at, 0, 6);
+            at += 6;
+        }
+        memcpy(at, "N/A", 4);
+        at += 4;
+        put32(&at, 1u);
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
+    if (long_race_case(mode) || long_trait_case(mode)) {
+        unsigned race_count = long_race_case(mode) ? 20 : 1;
+        unsigned trait_count = long_trait_case(mode) ? 21 : 1;
+        *at++ = (unsigned char)race_count;
+        *at++ = 1;
+        *at++ = (unsigned char)trait_count;
+        unsigned char *size_at = at;
+        at += 4;
+        for (unsigned id = 0; id < race_count; ++id) {
+            char title[24];
+            memset(at, 50, 6);
+            at += 6;
+            snprintf(title, sizeof(title), "Long Race %u", id);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            put32(&at, long_race_case(mode) && id == 12 ? 0u : 1u);
+        }
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Long Class", 11);
+        at += 11;
+        memset(at, 0, 6);
+        at += 6;
+        for (unsigned id = 0; id < trait_count; ++id) {
+            char title[24];
+            snprintf(title, sizeof(title), id ? "Long Trait %u" : "N/A", id);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            put32(&at, id || trait_count == 1 ? 1u : 0u);
+        }
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
         assert(send(socket, setup, (size_t)(at - setup), 0) ==
                (ssize_t)(at - setup));
         return;
@@ -1180,7 +1275,41 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, 0);
     } else
 #endif
-    if (!strcmp(peer->mode, "first-run-body-direct")) {
+    if (long_class_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_PAGEDOWN, 0);
+        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
+        push_mouse_class(740.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (long_race_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_PAGEDOWN, 0);
+        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
+        push_presentation_events();
+        SDL_Delay(80);
+        push_mouse_race(620.0f, 2);
+        push_mouse_race(740.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (long_trait_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_PAGEDOWN, 0);
+        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
+        push_presentation_events();
+        SDL_Delay(80);
+        push_mouse_trait(740.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "first-run-body-direct")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
@@ -1719,6 +1848,10 @@ int main(int argc, char **argv)
 #if SV_CLASS_BEFORE_RACE
     if (!strcmp(argv[3], "class-random-empty")) {
         assert(outcome.birth_legal_class_count == 0);
+    } else if (long_class_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 20);
+    } else if (long_race_case(argv[3]) || long_trait_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 1);
     } else if (archer_body_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
         assert(outcome.birth_legal_classes[0] == 5);
@@ -2601,6 +2734,21 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
         assert(outcome.birth_highlighted_class == 0 &&
                outcome.birth_illegal_ignored);
+    } else if (long_class_case(argv[3])) {
+        assert(outcome.birth_class_confirmed);
+        assert(outcome.birth_class == 15 && outcome.birth_highlighted_class == 15);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_quit);
+    } else if (long_race_case(argv[3])) {
+        assert(outcome.birth_race_confirmed);
+        assert(outcome.birth_race == 15 && outcome.birth_highlighted_race == 15);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (long_trait_case(argv[3])) {
+        assert(outcome.birth_trait_confirmed);
+        assert(outcome.birth_trait == 16 && outcome.birth_highlighted_trait == 16);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_quit);
     } else if (!strcmp(argv[3], "race-back")) {
         assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
         assert(!outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);

@@ -1,6 +1,7 @@
 #include "ui/endpoint-scene.h"
 #include "session/login-view.h"
 #include "input/birth-interaction.h"
+#include "input/native-birth.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -150,32 +151,50 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_CLASS) {
                 if (!line(renderer,font,"Choose class (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
-                for (unsigned i = 0; i < input->birth_view->legal_class_count; ++i) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->legal_class_count;
+                for (unsigned i = first; i < input->birth_view->legal_class_count &&
+                     i < first + rows; ++i) {
                     unsigned id = input->birth_view->legal_classes[i];
                     if (!line(renderer,font,input->birth_view->setup->classes[id].title,
-                              60,340 + (int)i * 40,scale,
+                              60,SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_class == (int)id ?
                               selected : normal)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_RACE) {
                 if (!line(renderer,font,"Choose race (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
-                for (unsigned id = 0; id < input->birth_view->setup->race_count; ++id) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->setup->race_count;
+                for (unsigned id = first; id < input->birth_view->setup->race_count &&
+                     id < first + rows; ++id) {
                     bool legal = false;
                     for (unsigned i = 0; i < input->birth_view->legal_race_count; ++i)
                         if (input->birth_view->legal_races[i] == id) legal = true;
                     if (!line(renderer,font,input->birth_view->setup->races[id].title,
-                              60,340 + (int)id * 40,scale,
+                              60,SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(id - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_race == (int)id ?
                               selected : legal ? normal : disabled)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_TRAIT) {
                 if (!line(renderer,font,"Choose trait (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
-                for (unsigned i = 0; i < input->birth_view->legal_trait_count; ++i) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->legal_trait_count;
+                for (unsigned i = first; i < input->birth_view->legal_trait_count &&
+                     i < first + rows; ++i) {
                     unsigned id = input->birth_view->legal_traits[i];
                     if (!line(renderer,font,input->birth_view->setup->traits[id].title,
-                              60,340 + (int)i * 40,scale,
+                              60,SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_trait == (int)id ?
                               selected : normal)) return false;
                 }
