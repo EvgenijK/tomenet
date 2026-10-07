@@ -17,6 +17,19 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_LEFT) {
+        if (birth->owner == SV_BIRTH_TRAIT) {
+            if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
+            unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
+            if (position >= birth->legal_trait_count)
+                return SV_BIRTH_INPUT_IGNORED;
+            SvBirthInputResult selected = apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_SELECT_TRAIT,
+                    .trait_id = birth->legal_traits[position]}, false, true);
+            if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
+                return selected;
+            return apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_CONFIRM}, false, true);
+        }
         if (birth->owner == SV_BIRTH_RACE) {
             if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
             unsigned id = (unsigned)((event->button.y - 320.0f) / 40.0f);
@@ -60,7 +73,17 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return SV_BIRTH_INPUT_IGNORED;
     SDL_Keycode key = event->key.key;
     SvBirthCommand command;
-    if (birth->owner == SV_BIRTH_RACE && key != SDLK_Q &&
+    if (birth->owner == SV_BIRTH_TRAIT && key != SDLK_Q &&
+        key >= SDLK_A && key <= SDLK_Z) {
+        unsigned position = (unsigned)(key - SDLK_A);
+        if (position >= birth->legal_trait_count) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        return apply(birth, generation,
+            (SvBirthCommand){.kind = SV_BIRTH_SELECT_TRAIT,
+                .trait_id = birth->legal_traits[position]}, true, false);
+    } else if (birth->owner == SV_BIRTH_RACE && key != SDLK_Q &&
         key >= SDLK_A && key <= SDLK_Z) {
         unsigned id = (unsigned)(key - SDLK_A);
         if (id >= birth->setup->race_count) {
