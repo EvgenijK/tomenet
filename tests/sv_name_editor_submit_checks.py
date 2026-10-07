@@ -85,6 +85,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "birth-context-escape",
                  "auto-dna-full",
                  "auto-dna-hidden-race-mismatch",
+                 "auto-dna-hidden-race-reject-stable",
                  "auto-dna-stats-normalized",
                  "auto-dna-incompatible-class", "auto-dna-missing-sex",
                  "auto-dna-stale-event", "auto-dna-skip-trait-body",
