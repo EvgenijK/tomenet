@@ -279,6 +279,40 @@ static void push_to_mode(void)
     }
 }
 
+static void push_to_unknown_setup_mode(void)
+{
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    push_key(SDLK_B, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_C, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_B, 0);
+    push_key(SDLK_RETURN, 0);
+#else
+    push_key(SDLK_C, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_B, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_RETURN, 0);
+#endif
+}
+
+static void push_to_unknown_setup_mode_no_trait(void)
+{
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    push_key(SDLK_B, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_C, 0);
+    push_key(SDLK_RETURN, 0);
+#else
+    push_key(SDLK_C, 0);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_RETURN, 0);
+#endif
+}
+
 static void push_to_quit_owner(const char *owner)
 {
     if (!strcmp(owner, "sex")) return;
@@ -621,7 +655,8 @@ static int peer_run(void *opaque)
     *at++ = 255;
     *at++ = 0;
     put32(&at, 0);
-    bool body_unavailable = !strcmp(peer->mode, "body-unavailable-skip") ||
+    bool body_unavailable = !strncmp(peer->mode, "unknown-setup-", 14) ||
+        !strcmp(peer->mode, "body-unavailable-skip") ||
         !strcmp(peer->mode, "alternate-class-back-no-body") ||
         !strcmp(peer->mode, "alternate-class-back-no-trait-body") ||
         !strcmp(peer->mode, "stats-back-no-trait-body") ||
@@ -849,6 +884,33 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "unknown-setup-disconnect")) {
+        push_to_unknown_setup_mode();
+        SDL_Delay(50);
+        assert(!shutdown(socket, SHUT_WR));
+        SDL_Delay(100);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+        SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
+        assert(SDL_PushEvent(&close));
+    } else if (!strcmp(peer->mode, "unknown-setup-mode")) {
+        push_to_unknown_setup_mode();
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "unknown-setup-mode-back")) {
+        push_to_unknown_setup_mode();
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "unknown-setup-mode-reenter")) {
+        push_to_unknown_setup_mode();
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_RETURN, 0);
+        push_stale_key(SDLK_RETURN);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "unknown-setup-ready")) {
+        push_to_unknown_setup_mode();
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "mode-back")) {
         push_to_mode();
         push_key(SDLK_BACKSPACE, 0);
@@ -929,8 +991,11 @@ static int peer_run(void *opaque)
         push_to_stats();
         for (unsigned i = 0; i < 6; ++i) push_mouse_stats(340.0f, 2);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "stats-back") ||
-               !strcmp(peer->mode, "stats-back-no-trait-body")) {
+    } else if (!strcmp(peer->mode, "stats-back-no-trait-body")) {
+        push_to_unknown_setup_mode_no_trait();
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "stats-back")) {
         push_to_stats();
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_Q, 0);
@@ -1631,7 +1696,9 @@ int main(int argc, char **argv)
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
 
-    assert(result == (!strcmp(argv[3], "session-disconnect") ? 1 : 0) &&
+    bool disconnected = !strcmp(argv[3], "session-disconnect") ||
+        !strcmp(argv[3], "unknown-setup-disconnect");
+    assert(result == (disconnected ? 1 : 0) &&
            peer.request_exact);
     assert(outcome.name_submitted);
     assert(outcome.dedicated_creation == exclusive_creation_case(argv[3]));
@@ -1639,7 +1706,7 @@ int main(int argc, char **argv)
     assert(outcome.ordinary_name_started != exclusive_creation_case(argv[3]));
     assert(outcome.random_name_suggested);
     assert(outcome.name_submit_phase == SV_PREGAME_CHARACTER_PENDING);
-    assert(outcome.phase == (!strcmp(argv[3], "session-disconnect") ?
+    assert(outcome.phase == (disconnected ?
         SV_PREGAME_DISCONNECTED : SV_PREGAME_BIRTH));
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
@@ -1754,9 +1821,10 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "auto-dna-skip-trait-body")) {
         assert(outcome.birth_trait_skipped && outcome.birth_body_skipped);
         assert(!outcome.birth_trait_dna_used && !outcome.birth_body_dna_used);
-        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
-        assert(!outcome.birth_auto_reincarnation && outcome.birth_illegal_ignored);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_auto_reincarnation && !outcome.birth_illegal_ignored);
         assert(!outcome.birth_stats_dna_used && !outcome.birth_stats_confirmed);
+        assert(outcome.birth_mode_dna_used && outcome.birth_mode_ready);
     } else if (!strcmp(argv[3], "auto-dna-dedicated-pvp-maia")) {
         static const int16_t expected[] = {17, 14, 12, 10, 9, 8};
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
@@ -1934,6 +2002,50 @@ int main(int argc, char **argv)
         assert(outcome.birth_trait_confirmed && outcome.birth_trait == 15);
         assert(outcome.birth_stats_confirmed &&
                !memcmp(outcome.birth_stats, expected, sizeof(expected)));
+    } else if (!strcmp(argv[3], "unknown-setup-disconnect")) {
+        assert(outcome.creation_flags == 0x10u);
+        assert(!outcome.birth_active && outcome.birth_closed);
+        assert(outcome.birth_owner == SV_BIRTH_NONE && !outcome.birth_quit);
+        assert(outcome.birth_body_skipped && !outcome.birth_stats_confirmed);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+    } else if (!strcmp(argv[3], "unknown-setup-mode") ||
+               !strcmp(argv[3], "unknown-setup-mode-reenter")) {
+        assert(outcome.creation_flags == 0x10u);
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
+        for (unsigned i = 0; i < 6; ++i) {
+            assert(outcome.birth_stats[i] == -1);
+            assert(outcome.birth_committed_stats[i] == -1);
+        }
+        assert(outcome.birth_sex_confirmed && outcome.birth_race_confirmed &&
+               outcome.birth_trait_confirmed && outcome.birth_class_confirmed);
+        assert(outcome.birth_race == 2 && outcome.birth_trait == 2 &&
+               outcome.birth_class == 2);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+    } else if (!strcmp(argv[3], "unknown-setup-mode-back")) {
+        assert(outcome.creation_flags == 0x10u && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
+        assert(outcome.birth_race == 2 && outcome.birth_trait == 2 &&
+               outcome.birth_class == 2);
+    } else if (!strcmp(argv[3], "unknown-setup-ready")) {
+        assert(outcome.creation_flags == 0x10u);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready &&
+               outcome.birth_mode_random_used);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
+        for (unsigned i = 0; i < 6; ++i)
+            assert(outcome.birth_committed_stats[i] == -1);
     } else if (!strcmp(argv[3], "mode-back")) {
         static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
@@ -2308,10 +2420,12 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "body-unavailable-skip")) {
         assert(outcome.creation_flags == 0x10u);
         assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
-        assert(outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_owner == SV_BIRTH_MODE);
         assert(outcome.birth_body_count == 0 && outcome.birth_legal_body_count == 0);
         assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NONE);
         assert(outcome.birth_body == SV_BIRTH_BODY_NONE && outcome.birth_quit);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
     } else if (!strcmp(argv[3], "body-back-no-trait")) {
         assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
         assert(outcome.birth_legal_body_count == 2);
