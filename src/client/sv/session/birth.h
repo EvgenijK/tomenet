@@ -133,6 +133,7 @@ typedef struct {
     bool body_confirmed, body_random_used, body_dna_used, body_skipped;
     int highlighted_stat;
     int16_t stats[6];
+    int16_t committed_stats[6];
     uint8_t legal_stats[6], legal_stat_count, stats_order_count;
     bool stats_prepared, stats_confirmed, stats_random_used, stats_dna_used;
     bool stats_confirmation_pending;

@@ -96,6 +96,7 @@ static bool legal_body(const SvBirth *birth, SvBirthBody body)
 static void prepare_classes(SvBirth *birth);
 static void prepare_races(SvBirth *birth);
 static void prepare_stats(SvBirth *birth);
+static void restart_stats_interaction(SvBirth *birth);
 static void prepare_modes(SvBirth *birth);
 
 static SvBirthInputResult confirm_sex(SvBirth *birth)
@@ -456,6 +457,8 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
     case SV_BIRTH_BACK:
         birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
         birth->trait_confirmed = false;
+        if (birth->post_mode_trait_required)
+            restart_stats_interaction(birth);
         birth->owner = birth->post_mode_trait_required ?
             SV_BIRTH_STATS : SV_BIRTH_RACE;
         return SV_BIRTH_INPUT_HANDLED;
@@ -563,18 +566,28 @@ static int stat_position(const SvBirth *birth, int stat)
     return -1;
 }
 
+static void restart_stats_interaction(SvBirth *birth)
+{
+    birth->legal_stat_count = birth->setup->creation_flags <= 1 ? 6 : 0;
+    birth->stats_order_count = 0;
+    birth->stats_confirmation_pending = false;
+    if (birth->highlighted_stat < 0 || birth->highlighted_stat >= 6)
+        birth->highlighted_stat = birth->legal_stat_count ? 0 : -1;
+    for (unsigned i = 0; i < 6; ++i) {
+        birth->stats[i] = birth->stats_point_buy ? 10 : -1;
+        birth->legal_stats[i] = (uint8_t)i;
+    }
+    birth->stats_remaining = birth->stats_point_buy ? 30 : 0;
+}
+
 static void prepare_stats(SvBirth *birth)
 {
     if (birth->stats_prepared) return;
     birth->stats_prepared = true;
     birth->highlighted_stat = birth->setup->creation_flags <= 1 ? 0 : -1;
-    birth->legal_stat_count = birth->setup->creation_flags <= 1 ? 6 : 0;
     birth->stats_point_buy = birth->setup->creation_flags == 1;
-    birth->stats_remaining = birth->stats_point_buy ? 30 : 0;
-    for (unsigned i = 0; i < 6; ++i) {
-        birth->stats[i] = birth->stats_point_buy ? 10 : -1;
-        birth->legal_stats[i] = (uint8_t)i;
-    }
+    for (unsigned i = 0; i < 6; ++i) birth->committed_stats[i] = -1;
+    restart_stats_interaction(birth);
 }
 
 static int stat_cost(int value)
@@ -626,6 +639,8 @@ static SvBirthInputResult confirm_stat_order_choice(SvBirth *birth)
         birth->legal_stats[i] = birth->legal_stats[i + 1];
     --birth->legal_stat_count;
     if (!birth->legal_stat_count) {
+        for (unsigned i = 0; i < 6; ++i)
+            birth->committed_stats[i] = birth->stats[i];
         birth->stats_confirmed = true;
         birth->owner = SV_BIRTH_MODE;
         return SV_BIRTH_INPUT_CONFIRMED;
@@ -721,6 +736,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
             return SV_BIRTH_INPUT_IGNORED;
         }
         for (unsigned i = 0; i < 6; ++i) birth->stats[i] = birth->dna_stats[i];
+        for (unsigned i = 0; i < 6; ++i)
+            birth->committed_stats[i] = birth->stats[i];
         birth->stats_remaining = point_buy_remaining(birth->stats);
         birth->stats_dna_used = true;
         birth->stats_confirmed = true;
@@ -738,6 +755,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
                 birth->stats_confirmation_pending = true;
                 return SV_BIRTH_INPUT_HANDLED;
             }
+            for (unsigned i = 0; i < 6; ++i)
+                birth->committed_stats[i] = birth->stats[i];
             birth->stats_confirmed = true;
             birth->stats_confirmation_pending = false;
             birth->owner = SV_BIRTH_MODE;
@@ -745,8 +764,7 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         }
         return confirm_stat_order_choice(birth);
     case SV_BIRTH_BACK:
-        birth->stats_confirmed = false;
-        birth->stats_confirmation_pending = false;
+        restart_stats_interaction(birth);
 #if SV_CLASS_BEFORE_RACE
         birth->owner = birth->body_skipped ?
             (birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT) :
@@ -882,6 +900,7 @@ static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
         birth->mode_confirmed = false;
         birth->mode_ready = false;
         birth->owner = SV_BIRTH_STATS;
+        restart_stats_interaction(birth);
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;
