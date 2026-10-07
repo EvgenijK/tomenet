@@ -392,6 +392,15 @@ static void send_setup(int socket, const char *mode)
     unsigned char setup[4096], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
+    if (!strcmp(mode, "class-random-empty")) {
+        *at++ = 0;
+        *at++ = 0;
+        *at++ = 0;
+        put32(&at, 13);
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
     if (pvp_maia_case(mode)) {
         unsigned races = maia_race() + 1;
         *at++ = (unsigned char)races;
@@ -1137,6 +1146,10 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-random-empty")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "hidden-derived")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1396,7 +1409,9 @@ int main(int argc, char **argv)
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
 #if SV_CLASS_BEFORE_RACE
-    if (pvp_maia_case(argv[3])) {
+    if (!strcmp(argv[3], "class-random-empty")) {
+        assert(outcome.birth_legal_class_count == 0);
+    } else if (pvp_maia_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
         assert(outcome.birth_legal_classes[0] == 0);
     } else {
@@ -1413,6 +1428,25 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == owner);
         assert(!owner_confirmed(&outcome, owner));
         assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "class-random-empty")) {
+        assert(outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_MALE);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+#endif
+        assert(outcome.birth_legal_class_count == 0 &&
+               outcome.birth_legal_race_count == 0);
+        assert(outcome.birth_highlighted_class == SV_BIRTH_CLASS_NONE &&
+               outcome.birth_highlighted_race == SV_BIRTH_RACE_NONE);
+        assert(outcome.birth_class == SV_BIRTH_CLASS_NONE &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE);
+        assert(!outcome.birth_class_confirmed &&
+               !outcome.birth_race_confirmed);
+        assert(!outcome.birth_class_random_used &&
+               !outcome.birth_race_random_used);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
     } else if (!strcmp(argv[3], "mode-pvp-maia-back")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(outcome.birth_mode_confirmed && !outcome.birth_mode_ready);

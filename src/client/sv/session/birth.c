@@ -305,6 +305,10 @@ static SvBirthInputResult class_command(SvBirth *birth, SvBirthCommand command)
         birth->highlighted_class = command.class_id;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_RANDOM:
+        if (!birth->legal_class_count) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
         birth->random_state ^= birth->random_state << 13;
         birth->random_state ^= birth->random_state >> 17;
         birth->random_state ^= birth->random_state << 5;
@@ -387,7 +391,10 @@ static SvBirthInputResult race_command(SvBirth *birth, SvBirthCommand command)
         birth->highlighted_race = command.race_id;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_RANDOM:
-        if (!birth->legal_race_count) return SV_BIRTH_INPUT_IGNORED;
+        if (!birth->legal_race_count) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
         birth->random_state ^= birth->random_state << 13;
         birth->random_state ^= birth->random_state >> 17;
         birth->random_state ^= birth->random_state << 5;
