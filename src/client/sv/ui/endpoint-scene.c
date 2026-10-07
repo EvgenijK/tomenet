@@ -1,5 +1,6 @@
 #include "ui/endpoint-scene.h"
 #include "session/login-view.h"
+#include "session/birth.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -131,9 +132,21 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             }
         }
         if (input->login_view && input->login_view->birth) {
-            if (!line(renderer,font,"Character name accepted",40,280,scale,selected) ||
-                !line(renderer,font,"Starting character creation.",40,325,scale,normal))
+            if (!line(renderer,font,"Character name accepted",40,240,scale,selected))
                 return false;
+            if (input->birth_view && input->birth_view->owner == SV_BIRTH_SEX) {
+                if (!line(renderer,font,"Choose sex (* random, # DNA, Q quits)",40,270,
+                          scale,normal) ||
+                    !line(renderer,font,"Male",60,310,scale,
+                          input->birth_view->highlighted_sex == SV_BIRTH_SEX_MALE ?
+                          selected : normal) ||
+                    !line(renderer,font,"Female",60,360,scale,
+                          input->birth_view->highlighted_sex == SV_BIRTH_SEX_FEMALE ?
+                          selected : normal)) return false;
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_CLASS) {
+                if (!line(renderer,font,"Sex accepted. Choose class.",40,300,scale,normal))
+                    return false;
+            }
         }
         if (input->login_view && input->login_view->live_handoff) {
             if (!line(renderer,font,"Startup screens complete",40,280,scale,selected) ||

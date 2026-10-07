@@ -6,6 +6,7 @@
 #include "input/login-interaction.h"
 #include "input/native-login.h"
 #include "input/native-name.h"
+#include "input/native-birth.h"
 #include "ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
 #include "protocol/login.h"
@@ -194,7 +195,7 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                             uint64_t prior_generation,
                             SvCredentialSaveState credential_save,
                             const SvOrdinaryNameEvidence *name,
-                            const SvNameRecovery *recovery)
+                            const SvNameRecovery *recovery, const SvBirth *birth)
 {
     if (!pregame || !outcome) return;
     *outcome = (SvEndpointOutcome){.generation = pregame->generation,
@@ -235,7 +236,22 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                    .name_rejected_generation = recovery ?
                                        recovery->rejected_generation : 0,
                                    .name_recovery_generation = recovery ?
-                                       recovery->recovery_generation : 0};
+                                       recovery->recovery_generation : 0,
+                                   .birth_entered = birth && birth->entered,
+                                   .birth_sex_confirmed = birth && birth->confirmed,
+                                   .birth_keyboard_navigated = birth &&
+                                       birth->keyboard_navigated,
+                                   .birth_mouse_navigated = birth && birth->mouse_navigated,
+                                   .birth_random_used = birth && birth->random_used,
+                                   .birth_dna_used = birth && birth->dna_used,
+                                   .birth_illegal_ignored = birth && birth->illegal_ignored,
+                                   .birth_quit = birth && birth->quit,
+                                   .birth_owner = birth ? birth->owner : SV_BIRTH_NONE,
+                                   .birth_highlighted_sex = birth ?
+                                       birth->highlighted_sex : SV_BIRTH_SEX_NONE,
+                                   .birth_sex = birth ? birth->chosen_sex :
+                                       SV_BIRTH_SEX_NONE,
+                                   .birth_generation = birth ? birth->generation : 0};
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
@@ -272,6 +288,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvLogin *login = NULL;
     SvLoginInteraction login_input = {0};
     SvLoginView login_view = {0};
+    SvBirth birth = {0};
+    SvBirthView birth_view = {0};
     SvPregame pregame;
     SvVaultRequest *save = NULL;
     sv_pregame_begin(&pregame, generation);
@@ -280,6 +298,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     unsigned rejection = 0;
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
+    bool birth_started = false;
     bool save_started = false, save_failed = false;
     SvCredentialSaveState credential_save = SV_CREDENTIAL_SAVE_NOT_STARTED;
     SvOrdinaryNameEvidence name_evidence = {0};
@@ -331,9 +350,12 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
                 sv_contact_socket_setup(connection), login_input.motd_complete);
             if (applied != SV_OK) { session_error = applied; state = SV_SOCKET_PROTOCOL_ERROR; }
-            else if (pregame.phase == SV_PREGAME_BIRTH) {
-                result = 0;
-                quit = true;
+            else if (pregame.phase == SV_PREGAME_BIRTH && !birth_started) {
+                session_error = sv_birth_begin(&birth, generation,
+                    sv_contact_socket_setup(connection), options.birth_dna_available,
+                    options.birth_dna_sex);
+                if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
+                else birth_started = true;
             }
         }
         if (login && sv_login_state(login) == SV_LOGIN_REJECTED) {
@@ -425,12 +447,17 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             }
         }
         input->login_view = NULL;
+        input->birth_view = NULL;
         if (login && connection) {
             sv_login_view_prepare(&login_view, &pregame);
             login_view.ordinary_name_entry = login_input.ordinary_name_active;
             login_view.character_name_draft = login_input.ordinary_name_active ?
                 login_input.character_name.bytes : NULL;
             input->login_view = &login_view;
+            if (birth_started) {
+                sv_birth_view_prepare(&birth_view, &birth);
+                input->birth_view = &birth_view;
+            }
         }
         if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
         SDL_Event event;
@@ -448,6 +475,16 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 break;
             }
             if (state == SV_SOCKET_READY && login) {
+                if (birth_started) {
+                    SvBirthInputResult birth_result =
+                        sv_native_birth_event(&birth, generation, &event);
+                    if (birth_result == SV_BIRTH_INPUT_QUIT) {
+                        result = 0;
+                        quit = true;
+                        break;
+                    }
+                    if (birth_result != SV_BIRTH_INPUT_IGNORED) continue;
+                }
                 SvLoginInputResult handled = sv_native_name_event(&login_input, &event,
                                                                    &input->text_error,
                                                                    &input->clipboard_unavailable);
@@ -551,11 +588,13 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             credential_save = SV_CREDENTIAL_SAVE_SESSION_ONLY;
     }
     publish_outcome(&pregame, options.outcome, prior_generation,
-                    credential_save, &name_evidence, recovery);
+                    credential_save, &name_evidence, recovery,
+                    birth_started ? &birth : NULL);
     sv_contact_socket_stop(connection);
     sv_login_destroy(login);
     SDL_free(wire.remaining);
     input->login_view = NULL;
+    input->birth_view = NULL;
     (void)window;
     return result;
 }

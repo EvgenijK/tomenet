@@ -221,6 +221,8 @@ static int peer_run(void *opaque)
         !strcmp(request, peer->corrected);
     const unsigned char accepted = 0;
     assert(send(second, &accepted, 1, 0) == 1);
+    SDL_Delay(100);
+    push_key(SDLK_Q, 0);
     peer->closed = recv(second, &extra, 1, 0) == 0;
     close(second);
     return 0;
