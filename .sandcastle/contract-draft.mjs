@@ -57,9 +57,9 @@ export function combineContractParts(parts, responses, { allowMixedScopes = fals
     const mapped = new Map();
     for (const check of response.checks) {
       if (typeof check?.id !== "string") throw new Error("Malformed contract check");
-      if (["sv-build", "sv-core"].includes(check.id)) {
+      if (["sv-build", "sv-core", "controller-review"].includes(check.id)) {
         const previous = baseline.get(check.id);
-        if (previous && (previous.kind !== check.kind || previous.command !== check.command)) throw new Error(`Conflicting baseline check ${check.id}`);
+        if (previous && (previous.kind !== check.kind || previous.command !== check.command || check.id === "controller-review" && previous.description !== check.description)) throw new Error(`Conflicting controller check ${check.id}`);
         if (!previous) { baseline.set(check.id, check); contract.checks.push(check); }
         mapped.set(check.id, check.id);
       } else {

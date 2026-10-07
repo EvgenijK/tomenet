@@ -53,5 +53,9 @@ test("implementation guidance never turns a mandatory current check into unrunna
   assert.match(guidance, /mandatory current criterion/);
   assert.match(guidance, /runnable build, core, or focused repository command checks/);
   assert.match(guidance, /Deferred external evidence is not passing evidence/);
-  assert.match(guidance, /review and final-audit stages/);
+  assert.match(guidance, /review and fresh final audit/);
+  assert.match(guidance, /controller-review/);
+  assert.match(guidance, /exact contract digest and HEAD/);
+  assert.match(guidance, /never disguise policy evidence as sv-core/);
+  assert.match(guidance, /Never invent a future test path/);
 });

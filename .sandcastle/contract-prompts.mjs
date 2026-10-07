@@ -2,13 +2,14 @@ export const controllerExecutionFacts = Object.freeze([
   "Controller execution fact: baseline checks are immutable contract infrastructure; contract agents may reference them but must not redefine, replace, or repair them.",
   "Controller execution fact: the sv-core check is executed with .sandcastle/checks.sh supplied through standard input by the controller.",
   "Controller execution fact: a check's displayed command is an identifier for the controller runner, not necessarily the complete shell invocation. Do not infer missing execution behavior from that display string alone.",
+  "Controller execution fact: controller-review is a real controller-owned gate. It passes only when every mapped criterion is evidenced as passed by both review and fresh final audit at the exact contract digest and HEAD; it has no shell command.",
 ]);
 
 const commonScopeGuidance = Object.freeze([
   "Preserve every obligation supported by the assigned authoritative sources, including baseline behavior, production seams, checks, evidence, deferral owners, and repository isolation rules. Do not invent obligations or import requirements from unrelated work.",
   "Keep implementation readiness separate from full acceptance. Every mandatory current criterion in an implementation contract must map only to runnable build, core, or focused repository command checks; external checks may be current only for full_acceptance.",
-  "A repository feature test that is expected to exist at implementation completion is a current command check, even when it does not exist at contract-drafting time. The implementation tickets create that production-path test before the gate runs.",
-  "Code inspection, diff review, policy review, and production-seam review are performed by the later review and final-audit stages. Represent their substantive requirements as criteria backed by runnable implementation checks, not as external check blockers.",
+  "A focused command check may reference only a repository test present in the controller-supplied runner inventory at contract time. Never invent a future test path; missing implementation evidence remains for the controller review/final-audit stages or an existing broader runner.",
+  "Code inspection, diff review, repository-policy review, workflow-policy review, and production-seam review are performed by the controller-review gate during later review and fresh final audit. Map those criteria to controller-review, optionally alongside runnable implementation checks; never disguise policy evidence as sv-core or as an external blocker.",
   "Later caller, downstream integration, native-platform, or genuinely unavailable environment evidence may be a deferred external check only when its exact owner and deferral reason are recorded. Deferred external evidence is not passing evidence.",
 ]);
 

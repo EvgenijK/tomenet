@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { resumeUserPause } from "../.sandcastle/limits.mjs";
 import { baselineChecks, digest, validateContract } from "../.sandcastle/acceptance.mjs";
-import { maxContractAmendments, resumeExternalContractAmendment, validateContractAmendment } from "../.sandcastle/contract-amend.mjs";
+import { maxContractAmendments, maxContractAmendmentRetryAttempts, resumeExternalContractAmendment, resumeContractAmendmentRetry, validateContractAmendment } from "../.sandcastle/contract-amend.mjs";
 
 const head = "a".repeat(40);
 function externalPause(overrides = {}) {
@@ -91,6 +91,31 @@ test("external-check amendment is one-shot and exact to a saved test-gate pause"
   }
 });
 
+test("identical-feedback amendment retry requires a unique bounded authorization and preserves history", () => {
+  const state = externalPause();
+  resumeExternalContractAmendment(state);
+  const ledger = [{ id: "CF-123", message: "Missing runner", normalizedMessage: "missing runner", sourceSpanIds: [], status: "open", firstRound: 1, lastSeenRound: 4, occurrences: 3 }];
+  state.phase = "awaiting";
+  state.resumePhase = "contract";
+  state.pauseReason = "Acceptance: contract feedback made no progress for 3 identical reviews; human decision required";
+  state.contractPending = { round: 4, sourceManifest: { digest: "sources" }, feedbackLedger: ledger, convergence: { openDigest: "same", identicalOpenRounds: 3, lastRound: 4 } };
+  const preserved = { budget: structuredClone(state.budget), completedTickets: structuredClone(state.completedTickets), archive: structuredClone(state.contractAmendments) };
+  resumeContractAmendmentRetry(state, "svb022-amend-inventory-20261007");
+  assert.equal(state.phase, "contract");
+  assert.equal(state.contractAmendmentAttemptLimit, maxContractAmendmentRetryAttempts);
+  assert.equal(state.contractPending.round, 0);
+  assert.equal(state.contractPending.convergence, undefined);
+  assert.deepEqual(state.contractPending.feedbackLedger, ledger);
+  assert.equal(state.contractAmendmentRetryHistory[0].pending.round, 4);
+  assert.deepEqual(state.budget, preserved.budget);
+  assert.deepEqual(state.completedTickets, preserved.completedTickets);
+  assert.deepEqual(state.contractAmendments, preserved.archive);
+  state.phase = "awaiting"; state.resumePhase = "contract";
+  state.pauseReason = "Acceptance: contract feedback made no progress for 3 identical reviews; human decision required";
+  state.contractPending.convergence = { openDigest: "same", identicalOpenRounds: 3, lastRound: 3 };
+  assert.throws(() => resumeContractAmendmentRetry(state, "another-id"), /authorization limit reached/);
+});
+
 test("unconfirmed CLI resume preserves the original pause and checkpoint without acquiring a lock", () => {
   const root = resolve(import.meta.dirname, "..");
   const id = randomBytes(4).toString("hex");
@@ -105,6 +130,7 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_RESUME;
   delete env.SANDCASTLE_REPAIR_RESUME;
   delete env.SANDCASTLE_CONTRACT_AMEND_RESUME;
+  delete env.SANDCASTLE_CONTRACT_AMEND_RETRY_ID;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ROUND;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
   try {

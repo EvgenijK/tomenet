@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { baselineChecks, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, controllerReviewCheck, validateContract, acceptContract, assertContract, prepareAcceptanceMigration, recordCheck, applyAssessment, closureGate, repairFindings, registerRepairBatch, countIntegratedRepairs, contractStage, assessmentStage, acceptanceReport } from "../.sandcastle/acceptance.mjs";
 import { gate, verifiedTree } from "../.sandcastle/workflow.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs } from "../.sandcastle/runtime.mjs";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -112,6 +112,22 @@ test("implementation contracts reject mandatory current external checks without 
   contract.criteria[0].checkIds = ["sv-build", "sv-core"];
   contract.checks = contract.checks.filter((check) => check.id !== "P1-dep-runtime");
   assert.doesNotThrow(() => validateContract(contract, sources));
+});
+
+test("controller-owned review gate is fixed and requires review evidence at the exact HEAD", () => {
+  const contract = proposal();
+  contract.checks.push(structuredClone(controllerReviewCheck));
+  contract.criteria[1].mandatory = true;
+  contract.criteria[1].checkIds = ["controller-review"];
+  validateContract(contract, sources);
+  const s = { id: "review-gate", phase: "review", reviewRound: 0, reviewLimit: 10, completedTickets: [], tickets: [] };
+  acceptContract(s, contract, sources, approval, head);
+  for (const checkId of ["sv-build", "sv-core", "feature"]) recordCheck(s, { checkId, head, passed: true, logPath: `/tmp/${checkId}.json` });
+  assert.equal(applyAssessment(s, assessment(), { head, audit: true }).verdict, "ready");
+  assert.equal(closureGate(s, "b".repeat(40)).verdict, "blocked");
+  const invalid = structuredClone(contract);
+  invalid.checks.find((check) => check.id === "controller-review").description = "Agent-defined review";
+  assert.throws(() => validateContract(invalid, sources), /cannot be redefined/);
 });
 
 test("contract is immutable and silent mutation cannot weaken the closure gate", () => {

@@ -53,7 +53,7 @@
       "required": ["id", "kind", "command", "description"],
       "properties": {
         "id": { "type": "string" },
-        "kind": { "type": "string", "enum": ["build", "core", "command", "external"] },
+        "kind": { "type": "string", "enum": ["build", "core", "command", "review", "external"] },
         "command": { "type": "string" },
         "description": { "type": "string" }
       }

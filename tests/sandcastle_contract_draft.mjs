@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { partitionContractSources, combineContractParts, buildContractDraft } from "../.sandcastle/contract-draft.mjs";
+import { controllerReviewCheck } from "../.sandcastle/acceptance.mjs";
 
 const sources = {
   "docs/tasks/feature.md": "# Feature\n\n## Current\nCurrent behavior is required.\n\n## Later\nLater platform checks remain pending.\n",
@@ -45,4 +46,17 @@ test("part combiner rejects fabricated quotes, inconsistent scope and changed so
   const pending = { round: 1 };
   await buildContractDraft(pending, sources, async (part, index) => response(part, index), async () => {}, 70);
   await assert.rejects(buildContractDraft(pending, { ...sources, "AGENTS.md": "Changed policy" }, async () => { throw new Error("must not run"); }, async () => {}, 70), /source.*changed/);
+});
+
+test("grouped policy criteria share the fixed controller-review gate without prefixing it", () => {
+  const parts = partitionContractSources(sources, 70);
+  const answers = parts.map((part, index) => {
+    const answer = response(part, index);
+    answer.checks.push(structuredClone(controllerReviewCheck));
+    answer.criteria[0].checkIds.push("controller-review");
+    return answer;
+  });
+  const result = combineContractParts(parts, answers);
+  assert.equal(result.checks.filter((check) => check.id === "controller-review").length, 1);
+  assert.ok(result.criteria.every((criterion) => criterion.checkIds.includes("controller-review")));
 });

@@ -1,6 +1,8 @@
 import { assertContract, requiredChecks } from "./acceptance.mjs";
 
 export const maxContractAmendments = 1;
+export const maxContractAmendmentRetryAttempts = 3;
+export const maxContractAmendmentRetryAuthorizations = 1;
 const externalRunnerPause = /^Acceptance: required external check ([a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}) has no runner; human decision required$/;
 const need = (condition, message) => { if (!condition) throw new Error(`Contract amend RESUME: ${message}`); };
 
@@ -73,6 +75,11 @@ export function validateContractAmendment(previous, next, amendment) {
     const oldRunnable = oldCriterion.checkIds.filter((checkId) => priorChecks.get(checkId)?.kind !== "external");
     need(oldRunnable.every((checkId) => newCriterion.checkIds.includes(checkId)), `cannot remove runnable evidence from criterion ${id}`);
   }
+  for (const oldCriterion of previous.criteria.filter((criterion) => criterion.checkIds.includes(amendment.checkId))) {
+    const expected = oldCriterion.checkIds.filter((id) => id !== amendment.checkId).sort();
+    const actual = after.get(oldCriterion.id).checkIds.slice().sort();
+    need(JSON.stringify(actual) === JSON.stringify(expected), `audited duplicate ${amendment.checkId} must be removed without changing other mappings for ${oldCriterion.id}`);
+  }
   const removeIds = new Set(amendment?.requiredExternalCheckIds ?? []);
   need(removeIds.size > 0, "requires recorded external mappings");
   for (const id of removeIds) {
@@ -83,4 +90,29 @@ export function validateContractAmendment(previous, next, amendment) {
   }
   need(!nextChecks.has(amendment.checkId), `audited duplicate check ${amendment.checkId} must be removed`);
   return next;
+}
+
+export function resumeContractAmendmentRetry(state, authorizationId) {
+  need(typeof authorizationId === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(authorizationId), "requires a valid authorization ID");
+  need(state?.phase === "awaiting" && state.resumePhase === "contract", "requires a paused contract amendment checkpoint");
+  need(state.pauseReason === "Acceptance: contract feedback made no progress for 3 identical reviews; human decision required", "requires the saved identical-feedback convergence stop");
+  need(state.contractAmendment && Array.isArray(state.contractAmendments) && state.contractAmendments.length === 1, "requires an active archived amendment");
+  need((state.contractPending?.convergence?.identicalOpenRounds ?? 0) >= 3, "requires exhausted identical verifier feedback");
+  const authorizations = state.contractAmendmentAuthorizations ?? [];
+  need(Array.isArray(authorizations) && authorizations.length < maxContractAmendmentRetryAuthorizations, "amendment retry authorization limit reached");
+  need(!authorizations.some((item) => item.id === authorizationId), "authorization ID already used");
+
+  const previousPending = structuredClone(state.contractPending);
+  state.contractAmendmentRetryHistory = [...(state.contractAmendmentRetryHistory ?? []), { authorizationId, pending: previousPending, pauseReason: state.pauseReason }];
+  state.contractAmendmentAuthorizations = [...authorizations, { id: authorizationId, maxAttempts: maxContractAmendmentRetryAttempts }];
+  state.contractPending = {
+    round: 0,
+    sourceManifest: structuredClone(previousPending.sourceManifest),
+    feedbackLedger: structuredClone(previousPending.feedbackLedger),
+  };
+  state.contractAmendmentAttemptLimit = maxContractAmendmentRetryAttempts;
+  state.phase = "contract";
+  delete state.resumePhase;
+  delete state.pauseReason;
+  return state;
 }

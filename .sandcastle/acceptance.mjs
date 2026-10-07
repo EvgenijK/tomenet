@@ -3,11 +3,12 @@ import { verifierFeedbackDetails } from "./contract-feedback.mjs";
 
 // Model opinions never override these controller-owned safety rules.
 export const acceptancePolicy = Object.freeze({ maxContractRounds: 12, maxStalledContractReviews: 3, maxDefectRepairs: 3, maxFinalAudits: 2 });
-function contractRoundLimit() { return acceptancePolicy.maxContractRounds; }
+function contractRoundLimit(state) { return state.contractAmendmentAttemptLimit ?? acceptancePolicy.maxContractRounds; }
 export const baselineChecks = [
   { id: "sv-build", kind: "build", command: "make -s -C src -f makefile.sv tomenet-sv", description: "SV Make build" },
   { id: "sv-core", kind: "core", command: "bash -s -- core", description: "Sandcastle core checks" },
 ];
+export const controllerReviewCheck = Object.freeze({ id: "controller-review", kind: "review", command: "", description: "Controller-owned review and fresh final-audit gate at the exact contract digest and HEAD" });
 export const digest = (value) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex");
 const text = (value) => typeof value === "string" && value.trim().length > 0;
 const identifier = (value) => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(value);
@@ -22,13 +23,15 @@ export function validateContract(contract, sources) {
   const checks = new Map();
   for (const check of contract.checks) {
     need(identifier(check.id) && !checks.has(check.id) && text(check.description), "invalid/duplicate check");
-    need(["build", "core", "command", "external"].includes(check.kind), "unknown check kind");
+    need(["build", "core", "command", "review", "external"].includes(check.kind), "unknown check kind");
     if (["build", "core"].includes(check.kind)) {
       const baseline = baselineChecks.find((item) => item.id === check.id);
       need(baseline && baseline.kind === check.kind && baseline.command === check.command, `baseline command ${check.id} cannot be weakened`);
     } else if (check.kind === "command") {
       // Focused repository checks, never arbitrary shell programs or remote actions.
       need(typeof check.command === "string" && /^(?:python3 -B|node|bash) tests\/[a-zA-Z0-9_./-]+(?: [a-zA-Z0-9_=./:-]+)*$/.test(check.command) && !check.command.includes(".."), `focused check ${check.id} must invoke a repository test without shell operators`);
+    } else if (check.kind === "review") {
+      need(check.id === controllerReviewCheck.id && check.command === controllerReviewCheck.command && check.description === controllerReviewCheck.description, "controller review gate cannot be redefined");
     } else need(check.command === "", "external checks have no automatic runner");
     checks.set(check.id, check);
   }
@@ -186,6 +189,11 @@ export function closureGate(state, head, { final = true } = {}) {
   const reasons = [];
   if (!assessment || assessment.head !== head || assessment.contractDigest !== a.contractDigest) reasons.push("Fresh assessment of the final HEAD is missing");
   for (const check of requiredChecks(a.contract)) {
+    if (check.kind === "review") {
+      const mapped = a.contract.criteria.filter((criterion) => criterion.mandatory && criterion.applicability === "current" && criterion.checkIds.includes(check.id));
+      if (!assessment || mapped.some((criterion) => assessment.criteria.find((item) => item.id === criterion.id)?.status !== "passed")) reasons.push(`Required controller review ${check.id} did not pass at final HEAD`);
+      continue;
+    }
     const evidence = a.evidence.filter((item) => item.checkId === check.id && item.head === head && item.contractDigest === a.contractDigest).at(-1);
     if (!evidence?.passed) reasons.push(`Required check ${check.id} did not pass at final HEAD`);
   }
@@ -258,6 +266,12 @@ export function acceptanceReport(state) {
       const result = a.finalAudits.at(-1)?.criteria.find((item) => item.id === criterion.id);
       return `- ${criterion.id}: ${result?.status ?? "pending"} — ${criterion.requirement}. Source: ${criterion.source.path}. Evidence: ${result?.evidence ?? "not checked"}${criterion.applicability === "deferred" ? `; pending at ${criterion.owner}: ${criterion.deferralReason}` : ""}`;
     }), "", "## Controller checks", "", ...a.contract.checks.map((check) => {
+      if (check.kind === "review") {
+        const audit = a.finalAudits.at(-1);
+        const mapped = a.contract.criteria.filter((criterion) => criterion.mandatory && criterion.applicability === "current" && criterion.checkIds.includes(check.id));
+        const passed = audit?.head === g?.head && audit.contractDigest === a.contractDigest && mapped.every((criterion) => audit.criteria.find((item) => item.id === criterion.id)?.status === "passed");
+        return `- ${check.id}: ${passed ? "passed" : "not run"}; ${check.description}`;
+      }
       const evidence = a.evidence.filter((item) => item.head === g?.head && item.checkId === check.id).at(-1);
       return `- ${check.id}: ${evidence ? evidence.passed ? "passed" : "failed" : "not run"}; ${evidence?.logPath ?? check.description}`;
     }), "",

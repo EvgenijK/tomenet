@@ -92,7 +92,8 @@
               "build",
               "core",
               "command",
-              "external"
+              "external",
+              "review"
             ]
           },
           "command": {
