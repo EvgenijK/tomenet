@@ -20,7 +20,8 @@ typedef enum {
     SV_BIRTH_RACE,
     SV_BIRTH_TRAIT,
     SV_BIRTH_BODY,
-    SV_BIRTH_STATS
+    SV_BIRTH_STATS,
+    SV_BIRTH_MODE
 } SvBirthOwner;
 
 typedef enum {
@@ -55,6 +56,9 @@ typedef enum {
     SV_BIRTH_SELECT_RACE,
     SV_BIRTH_SELECT_TRAIT,
     SV_BIRTH_SELECT_BODY,
+    SV_BIRTH_SELECT_STAT,
+    SV_BIRTH_DECREASE_STAT,
+    SV_BIRTH_INCREASE_STAT,
     SV_BIRTH_RANDOM,
     SV_BIRTH_DNA,
     SV_BIRTH_CONFIRM,
@@ -69,6 +73,7 @@ typedef struct {
     int race_id;
     int trait_id;
     SvBirthBody body;
+    int stat;
 } SvBirthCommand;
 
 typedef enum {
@@ -98,12 +103,21 @@ typedef struct {
     bool dna_race_available;
     bool dna_trait_available;
     bool dna_body_available;
+    bool dna_stats_available;
+    int16_t dna_stats[6];
     bool entered, keyboard_navigated, mouse_navigated;
     bool random_used, dna_used, illegal_ignored, confirmed, quit;
     bool class_confirmed, class_random_used, class_dna_used;
     bool race_confirmed, race_random_used, race_dna_used;
     bool trait_confirmed, trait_random_used, trait_dna_used, trait_skipped;
     bool body_confirmed, body_random_used, body_dna_used, body_skipped;
+    int highlighted_stat;
+    int16_t stats[6];
+    uint8_t legal_stats[6], legal_stat_count, stats_order_count;
+    bool stats_prepared, stats_confirmed, stats_random_used, stats_dna_used;
+    bool stats_confirmation_pending;
+    bool stats_point_buy;
+    int stats_remaining;
     uint32_t random_state;
     const SvContactSetup *setup;
 } SvBirth;
@@ -120,6 +134,12 @@ typedef struct SvBirthView {
     SvBirthBody highlighted_body;
     SvBirthBody legal_bodies[2];
     uint8_t legal_body_count;
+    int highlighted_stat;
+    int16_t stats[6];
+    uint8_t legal_stats[6], legal_stat_count, stats_order_count;
+    bool stats_point_buy;
+    bool stats_confirmation_pending;
+    int stats_remaining;
     const SvContactSetup *setup;
     bool dna_available;
 } SvBirthView;
@@ -129,7 +149,8 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
                         bool dna_trait_available, int dna_trait,
-                        bool dna_body_available, SvBirthBody dna_body);
+                        bool dna_body_available, SvBirthBody dna_body,
+                        bool dna_stats_available, const int16_t dna_stats[6]);
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command);
 void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth);

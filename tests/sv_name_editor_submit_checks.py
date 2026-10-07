@@ -72,7 +72,15 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "body-navigate", "body-random", "body-dna",
                  "body-dna-stale", "body-dna-missing", "body-back",
                  "body-back-no-trait", "body-unavailable-skip", "body-mouse",
-                 "body-quit", "body-ctrl-quit"):
+                 "body-quit", "body-ctrl-quit", "stats-order-navigate",
+                 "stats-order-confirm", "stats-order-random", "stats-order-mouse",
+                 "stats-back", "stats-back-no-trait-body", "stats-quit",
+                 "stats-ctrl-quit", "stats-point-navigate",
+                 "stats-point-confirm-warning", "stats-point-confirm",
+                 "stats-point-mouse", "stats-point-dna",
+                 "stats-point-dna-over-budget", "stats-point-dna-illegal",
+                 "stats-point-dna-multiple-max", "stats-point-dna-missing",
+                 "stats-point-lower-bound"):
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -88,7 +96,15 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "alternate-class-back-no-trait-body", "alternate-navigate",
                  "alternate-random", "alternate-dna",
                  "alternate-class-dna-incompatible", "alternate-mouse",
-                 "alternate-ctrl-quit"):
+                 "alternate-ctrl-quit", "stats-order-navigate",
+                 "stats-order-confirm", "stats-order-random", "stats-order-mouse",
+                 "stats-back", "stats-back-no-trait-body", "stats-quit",
+                 "stats-ctrl-quit", "stats-point-navigate",
+                 "stats-point-confirm-warning", "stats-point-confirm",
+                 "stats-point-mouse", "stats-point-dna",
+                 "stats-point-dna-over-budget", "stats-point-dna-illegal",
+                 "stats-point-dna-multiple-max", "stats-point-dna-missing",
+                 "stats-point-lower-bound"):
         subprocess.run(
             [str(alternate_binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -99,4 +115,4 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-print("SV-B-022 name handoff and SV-B-023 sex/class/race/trait/body production checks passed")
+print("SV-B-022 name handoff and SV-B-023 birth choice production checks passed")

@@ -85,6 +85,7 @@ static bool legal_body(const SvBirth *birth, SvBirthBody body)
 
 static void prepare_classes(SvBirth *birth);
 static void prepare_races(SvBirth *birth);
+static void prepare_stats(SvBirth *birth);
 
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
@@ -111,6 +112,7 @@ static SvBirthInputResult confirm_class(SvBirth *birth)
     birth->owner = SV_BIRTH_RACE;
 #else
     birth->owner = SV_BIRTH_STATS;
+    prepare_stats(birth);
 #endif
     birth->class_confirmed = true;
     return SV_BIRTH_INPUT_CONFIRMED;
@@ -146,6 +148,7 @@ static SvBirthInputResult confirm_body(SvBirth *birth)
     birth->chosen_body = birth->highlighted_body;
 #if SV_CLASS_BEFORE_RACE
     birth->owner = SV_BIRTH_STATS;
+    prepare_stats(birth);
 #else
     birth->owner = SV_BIRTH_CLASS;
 #endif
@@ -158,9 +161,11 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
                         bool dna_trait_available, int dna_trait,
-                        bool dna_body_available, SvBirthBody dna_body)
+                        bool dna_body_available, SvBirthBody dna_body,
+                        bool dna_stats_available, const int16_t dna_stats[6])
 {
-    if (!birth || !generation || !setup || (dna_available && !legal_sex(dna_sex)))
+    if (!birth || !generation || !setup || !dna_stats ||
+        (dna_available && !legal_sex(dna_sex)))
         return SV_INVALID;
     *birth = (SvBirth){.generation = generation, .owner = SV_BIRTH_SEX,
         .highlighted_sex = SV_BIRTH_SEX_MALE, .chosen_sex = SV_BIRTH_SEX_NONE,
@@ -177,7 +182,9 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .dna_race = dna_race, .dna_race_available = dna_race_available,
         .dna_trait = dna_trait, .dna_trait_available = dna_trait_available,
         .dna_body = dna_body, .dna_body_available = dna_body_available,
+        .dna_stats_available = dna_stats_available,
         .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup};
+    for (unsigned i = 0; i < 6; ++i) birth->dna_stats[i] = dna_stats[i];
 #if SV_CLASS_BEFORE_RACE
     prepare_classes(birth);
 #else
@@ -450,6 +457,7 @@ static void prepare_bodies(SvBirth *birth)
         birth->body_confirmed = false;
 #if SV_CLASS_BEFORE_RACE
         birth->owner = SV_BIRTH_STATS;
+        prepare_stats(birth);
 #else
         birth->owner = SV_BIRTH_CLASS;
         prepare_classes(birth);
@@ -520,6 +528,213 @@ static SvBirthInputResult body_command(SvBirth *birth, SvBirthCommand command)
     }
 }
 
+static int stat_position(const SvBirth *birth, int stat)
+{
+    for (unsigned i = 0; i < birth->legal_stat_count; ++i)
+        if (birth->legal_stats[i] == stat) return (int)i;
+    return -1;
+}
+
+static void prepare_stats(SvBirth *birth)
+{
+    if (birth->stats_prepared) return;
+    birth->stats_prepared = true;
+    birth->highlighted_stat = birth->setup->creation_flags <= 1 ? 0 : -1;
+    birth->legal_stat_count = birth->setup->creation_flags <= 1 ? 6 : 0;
+    birth->stats_point_buy = birth->setup->creation_flags == 1;
+    birth->stats_remaining = birth->stats_point_buy ? 30 : 0;
+    for (unsigned i = 0; i < 6; ++i) {
+        birth->stats[i] = birth->stats_point_buy ? 10 : -1;
+        birth->legal_stats[i] = (uint8_t)i;
+    }
+}
+
+static int stat_cost(int value)
+{
+    if (value <= 12) return value - 10;
+    if (value <= 14) return 2 + (value - 12) * 2;
+    if (value <= 16) return 6 + (value - 14) * 3;
+    return 16;
+}
+
+static int stat_bonus(const SvBirth *birth, int stat)
+{
+    if (stat < 0 || stat >= 6 || birth->chosen_class < 0 ||
+        birth->chosen_class >= birth->setup->class_count ||
+        birth->chosen_race < 0 || birth->chosen_race >= birth->setup->race_count)
+        return 0;
+    return birth->setup->classes[birth->chosen_class].adjustment[stat] +
+        birth->setup->races[birth->chosen_race].adjustment[stat];
+}
+
+static int point_buy_remaining(const int16_t stats[6])
+{
+    int remaining = 30;
+    for (unsigned i = 0; i < 6; ++i) remaining -= stat_cost(stats[i]);
+    return remaining;
+}
+
+static bool legal_point_buy(const SvBirth *birth, const int16_t stats[6])
+{
+    unsigned maxed = 0;
+    for (unsigned i = 0; i < 6; ++i) {
+        if (stats[i] < 8 || stats[i] > 17) return false;
+        if (stats[i] == 17 && ++maxed > 1) return false;
+        if (stats[i] < 10 && stats[i] + stat_bonus(birth, (int)i) < 3)
+            return false;
+    }
+    return point_buy_remaining(stats) >= 0;
+}
+
+static SvBirthInputResult confirm_stat_order_choice(SvBirth *birth)
+{
+    int position = stat_position(birth, birth->highlighted_stat);
+    if (position < 0 || birth->stats_order_count >= 6) {
+        birth->illegal_ignored = true;
+        return SV_BIRTH_INPUT_IGNORED;
+    }
+    birth->stats[birth->stats_order_count++] = (int16_t)birth->highlighted_stat;
+    for (unsigned i = (unsigned)position; i + 1 < birth->legal_stat_count; ++i)
+        birth->legal_stats[i] = birth->legal_stats[i + 1];
+    --birth->legal_stat_count;
+    if (!birth->legal_stat_count) {
+        birth->stats_confirmed = true;
+        birth->owner = SV_BIRTH_MODE;
+        return SV_BIRTH_INPUT_CONFIRMED;
+    }
+    birth->highlighted_stat = birth->legal_stats[0];
+    return SV_BIRTH_INPUT_HANDLED;
+}
+
+static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
+{
+    int position = stat_position(birth, birth->highlighted_stat);
+    if (birth->stats_confirmation_pending &&
+        command.kind != SV_BIRTH_CONFIRM && command.kind != SV_BIRTH_QUIT &&
+        !(command.kind == SV_BIRTH_SELECT_STAT &&
+          command.stat == birth->highlighted_stat))
+        birth->stats_confirmation_pending = false;
+    switch (command.kind) {
+    case SV_BIRTH_MOVE_PREVIOUS:
+        if (position < 0 || !birth->legal_stat_count)
+            return SV_BIRTH_INPUT_IGNORED;
+        position = (position + birth->legal_stat_count - 1) %
+            birth->legal_stat_count;
+        birth->highlighted_stat = birth->legal_stats[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_MOVE_NEXT:
+        if (position < 0 || !birth->legal_stat_count)
+            return SV_BIRTH_INPUT_IGNORED;
+        position = (position + 1) % birth->legal_stat_count;
+        birth->highlighted_stat = birth->legal_stats[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_SELECT_STAT:
+        if (stat_position(birth, command.stat) < 0) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->highlighted_stat = command.stat;
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_DECREASE_STAT: {
+        if (!birth->stats_point_buy || birth->highlighted_stat < 0 ||
+            birth->highlighted_stat >= 6)
+            return SV_BIRTH_INPUT_IGNORED;
+        int stat = birth->highlighted_stat;
+        int value = birth->stats[stat];
+        if (value <= 8 || (value <= 10 && value + stat_bonus(birth, stat) <= 3)) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->stats[stat] = (int16_t)(value - 1);
+        birth->stats_remaining = point_buy_remaining(birth->stats);
+        return SV_BIRTH_INPUT_HANDLED;
+    }
+    case SV_BIRTH_INCREASE_STAT: {
+        if (!birth->stats_point_buy || birth->highlighted_stat < 0 ||
+            birth->highlighted_stat >= 6)
+            return SV_BIRTH_INPUT_IGNORED;
+        int stat = birth->highlighted_stat;
+        int value = birth->stats[stat];
+        if (value >= 17) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        int16_t candidate[6];
+        for (unsigned i = 0; i < 6; ++i) candidate[i] = birth->stats[i];
+        candidate[stat] = (int16_t)(value + 1);
+        if (!legal_point_buy(birth, candidate)) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->stats[stat] = candidate[stat];
+        birth->stats_remaining = point_buy_remaining(birth->stats);
+        return SV_BIRTH_INPUT_HANDLED;
+    }
+    case SV_BIRTH_RANDOM:
+        if (birth->stats_point_buy) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        while (birth->legal_stat_count) {
+            birth->random_state ^= birth->random_state << 13;
+            birth->random_state ^= birth->random_state >> 17;
+            birth->random_state ^= birth->random_state << 5;
+            birth->highlighted_stat = birth->legal_stats[
+                birth->random_state % birth->legal_stat_count];
+            (void)confirm_stat_order_choice(birth);
+        }
+        birth->stats_random_used = true;
+        return SV_BIRTH_INPUT_CONFIRMED;
+    case SV_BIRTH_DNA:
+        if (!birth->stats_point_buy || !birth->dna_stats_available ||
+            !legal_point_buy(birth, birth->dna_stats)) {
+            birth->illegal_ignored = true;
+            birth->auto_reincarnation = false;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        for (unsigned i = 0; i < 6; ++i) birth->stats[i] = birth->dna_stats[i];
+        birth->stats_remaining = point_buy_remaining(birth->stats);
+        birth->stats_dna_used = true;
+        birth->stats_confirmed = true;
+        birth->stats_confirmation_pending = false;
+        birth->owner = SV_BIRTH_MODE;
+        return SV_BIRTH_INPUT_CONFIRMED;
+    case SV_BIRTH_CONFIRM:
+        if (birth->stats_point_buy) {
+            if (!legal_point_buy(birth, birth->stats)) {
+                birth->illegal_ignored = true;
+                return SV_BIRTH_INPUT_IGNORED;
+            }
+            if (birth->stats_remaining > 0 &&
+                !birth->stats_confirmation_pending) {
+                birth->stats_confirmation_pending = true;
+                return SV_BIRTH_INPUT_HANDLED;
+            }
+            birth->stats_confirmed = true;
+            birth->stats_confirmation_pending = false;
+            birth->owner = SV_BIRTH_MODE;
+            return SV_BIRTH_INPUT_CONFIRMED;
+        }
+        return confirm_stat_order_choice(birth);
+    case SV_BIRTH_BACK:
+        birth->stats_confirmed = false;
+        birth->stats_confirmation_pending = false;
+#if SV_CLASS_BEFORE_RACE
+        birth->owner = birth->body_skipped ?
+            (birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT) :
+            SV_BIRTH_BODY;
+#else
+        birth->owner = SV_BIRTH_CLASS;
+#endif
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_QUIT:
+        birth->quit = true;
+        return SV_BIRTH_INPUT_QUIT;
+    default:
+        return SV_BIRTH_INPUT_IGNORED;
+    }
+}
+
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command)
 {
@@ -552,6 +767,8 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
 #endif
         return result;
     }
+    if (birth->owner == SV_BIRTH_STATS)
+        return stats_command(birth, command);
     if (birth->owner != SV_BIRTH_SEX) {
         if (command.kind == SV_BIRTH_QUIT) {
             birth->quit = true;
@@ -598,6 +815,9 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_SELECT_RACE:
     case SV_BIRTH_SELECT_TRAIT:
     case SV_BIRTH_SELECT_BODY:
+    case SV_BIRTH_SELECT_STAT:
+    case SV_BIRTH_DECREASE_STAT:
+    case SV_BIRTH_INCREASE_STAT:
     case SV_BIRTH_BACK:
         return SV_BIRTH_INPUT_IGNORED;
     }
@@ -617,6 +837,12 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
         .legal_trait_count = birth->legal_trait_count,
         .highlighted_body = birth->highlighted_body,
         .legal_body_count = birth->legal_body_count,
+        .highlighted_stat = birth->highlighted_stat,
+        .legal_stat_count = birth->legal_stat_count,
+        .stats_order_count = birth->stats_order_count,
+        .stats_point_buy = birth->stats_point_buy,
+        .stats_confirmation_pending = birth->stats_confirmation_pending,
+        .stats_remaining = birth->stats_remaining,
         .setup = birth->setup,
         .dna_available = birth->dna_available} : (SvBirthView){0};
     if (birth) {
@@ -628,5 +854,8 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
             view->legal_traits[i] = birth->legal_traits[i];
         for (unsigned i = 0; i < birth->legal_body_count; ++i)
             view->legal_bodies[i] = birth->legal_bodies[i];
+        for (unsigned i = 0; i < 6; ++i) view->stats[i] = birth->stats[i];
+        for (unsigned i = 0; i < birth->legal_stat_count; ++i)
+            view->legal_stats[i] = birth->legal_stats[i];
     }
 }
