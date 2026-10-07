@@ -144,8 +144,15 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                           input->birth_view->highlighted_sex == SV_BIRTH_SEX_FEMALE ?
                           selected : normal)) return false;
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_CLASS) {
-                if (!line(renderer,font,"Sex accepted. Choose class.",40,300,scale,normal))
-                    return false;
+                if (!line(renderer,font,"Choose class (* random, # DNA, Q quits)",40,290,
+                          scale,normal)) return false;
+                for (unsigned i = 0; i < input->birth_view->legal_class_count; ++i) {
+                    unsigned id = input->birth_view->legal_classes[i];
+                    if (!line(renderer,font,input->birth_view->setup->classes[id].title,
+                              60,340 + (int)i * 40,scale,
+                              input->birth_view->highlighted_class == (int)id ?
+                              selected : normal)) return false;
+                }
             }
         }
         if (input->login_view && input->login_view->live_handoff) {

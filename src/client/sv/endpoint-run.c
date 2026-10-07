@@ -246,12 +246,27 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                    .birth_dna_used = birth && birth->dna_used,
                                    .birth_illegal_ignored = birth && birth->illegal_ignored,
                                    .birth_quit = birth && birth->quit,
+                                   .birth_class_confirmed = birth &&
+                                       birth->class_confirmed,
+                                   .birth_class_random_used = birth &&
+                                       birth->class_random_used,
+                                   .birth_class_dna_used = birth &&
+                                       birth->class_dna_used,
                                    .birth_owner = birth ? birth->owner : SV_BIRTH_NONE,
                                    .birth_highlighted_sex = birth ?
                                        birth->highlighted_sex : SV_BIRTH_SEX_NONE,
                                    .birth_sex = birth ? birth->chosen_sex :
                                        SV_BIRTH_SEX_NONE,
+                                   .birth_highlighted_class = birth ?
+                                       birth->highlighted_class : SV_BIRTH_CLASS_NONE,
+                                   .birth_class = birth ? birth->chosen_class :
+                                       SV_BIRTH_CLASS_NONE,
+                                   .birth_legal_class_count = birth ?
+                                       birth->legal_class_count : 0,
                                    .birth_generation = birth ? birth->generation : 0};
+    if (birth)
+        memcpy(outcome->birth_legal_classes, birth->legal_classes,
+               birth->legal_class_count);
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
@@ -353,7 +368,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             else if (pregame.phase == SV_PREGAME_BIRTH && !birth_started) {
                 session_error = sv_birth_begin(&birth, generation,
                     sv_contact_socket_setup(connection), options.birth_dna_available,
-                    options.birth_dna_sex);
+                    options.birth_dna_sex, options.birth_dna_class_available,
+                    options.birth_dna_class);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
                 else birth_started = true;
             }
