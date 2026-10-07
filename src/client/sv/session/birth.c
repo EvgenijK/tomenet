@@ -196,7 +196,8 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .chosen_body = SV_BIRTH_BODY_NONE,
         .highlighted_mode = SV_BIRTH_MODE_NONE,
         .chosen_mode = SV_BIRTH_MODE_NONE,
-        .dna_sex = dna_sex, .dna_available = dna_available, .entered = true,
+        .dna_sex = dna_sex, .dna_available = dna_available,
+        .entered = true, .active = true,
         .dna_class = dna_class, .dna_class_available = dna_class_available,
         .dna_race = dna_race, .dna_race_available = dna_race_available,
         .dna_trait = dna_trait, .dna_trait_available = dna_trait_available,
@@ -204,7 +205,9 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .dna_stats_available = dna_stats_available,
         .dna_mode_available = dna_mode_available, .dna_mode = dna_mode,
         .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup,
-        .existing_characters = existing_characters, .dedicated = dedicated};
+        .existing_characters = existing_characters,
+        .race_count = setup->race_count, .trait_count = setup->trait_count,
+        .dedicated = dedicated};
     for (unsigned i = 0; i < 4; ++i) birth->server_flags[i] = server_flags[i];
     for (unsigned i = 0; i < 6; ++i) birth->dna_stats[i] = dna_stats[i];
 #if SV_CLASS_BEFORE_RACE
@@ -891,7 +894,7 @@ static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command)
 {
-    if (!birth || generation != birth->generation || birth->quit)
+    if (!birth || generation != birth->generation || !birth->active || birth->quit)
         return SV_BIRTH_INPUT_IGNORED;
     if (birth->owner == SV_BIRTH_CLASS) {
         SvBirthInputResult result = class_command(birth, command);
@@ -983,6 +986,15 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
         return SV_BIRTH_INPUT_IGNORED;
     }
     return SV_BIRTH_INPUT_IGNORED;
+}
+
+void sv_birth_close(SvBirth *birth, uint64_t generation)
+{
+    if (!birth || generation != birth->generation || !birth->active) return;
+    birth->active = false;
+    birth->closed = true;
+    birth->owner = SV_BIRTH_NONE;
+    birth->setup = NULL;
 }
 
 void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)

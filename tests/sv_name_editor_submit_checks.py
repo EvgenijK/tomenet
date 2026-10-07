@@ -65,6 +65,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         check=True,
     )
     for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+                 "session-interleave", "session-stale-input", "session-disconnect",
+                 "session-retry-generation",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-back", "mode-random", "mode-ctrl-quit",
                  "mode-pvp-maia", "mode-pvp-maia-back", "mode-rpg",

@@ -246,6 +246,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                    .birth_dna_used = birth && birth->dna_used,
                                    .birth_illegal_ignored = birth && birth->illegal_ignored,
                                    .birth_quit = birth && birth->quit,
+                                   .birth_active = birth && birth->active,
+                                   .birth_closed = birth && birth->closed,
                                    .birth_class_confirmed = birth &&
                                        birth->class_confirmed,
                                    .birth_class_random_used = birth &&
@@ -307,16 +309,14 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->legal_class_count : 0,
                                    .birth_legal_race_count = birth ?
                                        birth->legal_race_count : 0,
-                                   .birth_race_count = birth && birth->setup ?
-                                       birth->setup->race_count : 0,
+                                   .birth_race_count = birth ? birth->race_count : 0,
                                    .birth_highlighted_trait = birth ?
                                        birth->highlighted_trait : SV_BIRTH_TRAIT_NONE,
                                    .birth_trait = birth ? birth->chosen_trait :
                                        SV_BIRTH_TRAIT_NONE,
                                    .birth_legal_trait_count = birth ?
                                        birth->legal_trait_count : 0,
-                                   .birth_trait_count = birth && birth->setup ?
-                                       birth->setup->trait_count : 0,
+                                   .birth_trait_count = birth ? birth->trait_count : 0,
                                    .birth_highlighted_body = birth ?
                                        birth->highlighted_body : SV_BIRTH_BODY_NONE,
                                    .birth_body = birth ? birth->chosen_body :
@@ -402,6 +402,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
     bool birth_started = false;
+    uint64_t birth_input_since_ns = 0;
     bool save_started = false, save_failed = false;
     SvCredentialSaveState credential_save = SV_CREDENTIAL_SAVE_NOT_STARTED;
     SvOrdinaryNameEvidence name_evidence = {0};
@@ -466,7 +467,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     options.birth_dna_stats, options.birth_dna_mode_available,
                     options.birth_dna_mode);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
-                else birth_started = true;
+                else {
+                    birth_started = true;
+                    birth_input_since_ns = SDL_GetTicksNS();
+                }
             }
         }
         if (login && sv_login_state(login) == SV_LOGIN_REJECTED) {
@@ -531,6 +535,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             sv_result_text(session_error) : contact_status(state, rejection,
                                                            failure_status,
                                                            sizeof(failure_status));
+        if (birth_started && birth.active && state >= SV_SOCKET_DNS_ERROR)
+            sv_birth_close(&birth, generation);
         if (state == SV_SOCKET_READY && pregame.authenticated && !save_started) {
             char key[SV_VAULT_KEY_CAPACITY];
             save_started = true;
@@ -588,7 +594,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             if (state == SV_SOCKET_READY && login) {
                 if (birth_started) {
                     SvBirthInputResult birth_result =
-                        sv_native_birth_event(&birth, generation, &event);
+                        sv_native_birth_event(&birth, generation,
+                                              birth_input_since_ns, &event);
                     if (birth_result == SV_BIRTH_INPUT_QUIT) {
                         result = 0;
                         quit = true;
