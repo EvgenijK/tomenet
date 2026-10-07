@@ -453,7 +453,8 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
     case SV_BIRTH_BACK:
         birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
         birth->trait_confirmed = false;
-        birth->owner = SV_BIRTH_RACE;
+        birth->owner = birth->post_mode_trait_required ?
+            SV_BIRTH_STATS : SV_BIRTH_RACE;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;

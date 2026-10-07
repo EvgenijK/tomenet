@@ -195,6 +195,75 @@ static void push_to_mode(void)
     }
 }
 
+static void push_to_quit_owner(const char *owner)
+{
+    if (!strcmp(owner, "sex")) return;
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    if (!strcmp(owner, "class")) return;
+    push_key(SDLK_RETURN, 0);
+    if (!strcmp(owner, "race")) return;
+#else
+    if (!strcmp(owner, "race")) return;
+#endif
+    push_key(SDLK_RETURN, 0);
+    if (!strcmp(owner, "trait")) return;
+    push_key(SDLK_RETURN, 0);
+    if (!strcmp(owner, "body")) return;
+    push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+    if (!strcmp(owner, "class")) return;
+    push_key(SDLK_RETURN, 0);
+#endif
+    if (!strcmp(owner, "stats")) return;
+    assert(!strcmp(owner, "mode"));
+    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+        push_key(key, 0);
+        push_key(SDLK_RETURN, 0);
+    }
+}
+
+static bool quit_matrix_case(const char *mode, const char **owner, bool *control)
+{
+    if (!strncmp(mode, "quit-", 5)) {
+        *owner = mode + 5;
+        *control = false;
+        return true;
+    }
+    if (!strncmp(mode, "ctrl-quit-", 10)) {
+        *owner = mode + 10;
+        *control = true;
+        return true;
+    }
+    return false;
+}
+
+static SvBirthOwner named_owner(const char *owner)
+{
+    if (!strcmp(owner, "sex")) return SV_BIRTH_SEX;
+    if (!strcmp(owner, "race")) return SV_BIRTH_RACE;
+    if (!strcmp(owner, "trait")) return SV_BIRTH_TRAIT;
+    if (!strcmp(owner, "class")) return SV_BIRTH_CLASS;
+    if (!strcmp(owner, "body")) return SV_BIRTH_BODY;
+    if (!strcmp(owner, "stats")) return SV_BIRTH_STATS;
+    assert(!strcmp(owner, "mode"));
+    return SV_BIRTH_MODE;
+}
+
+static bool owner_confirmed(const SvEndpointOutcome *outcome, SvBirthOwner owner)
+{
+    switch (owner) {
+    case SV_BIRTH_SEX: return outcome->birth_sex_confirmed;
+    case SV_BIRTH_RACE: return outcome->birth_race_confirmed;
+    case SV_BIRTH_TRAIT: return outcome->birth_trait_confirmed;
+    case SV_BIRTH_CLASS: return outcome->birth_class_confirmed;
+    case SV_BIRTH_BODY: return outcome->birth_body_confirmed;
+    case SV_BIRTH_STATS: return outcome->birth_stats_confirmed;
+    case SV_BIRTH_MODE: return outcome->birth_mode_confirmed;
+    default: assert(false); return true;
+    }
+}
+
 static unsigned maia_race(void)
 {
 #ifdef ENABLE_KOBOLD
@@ -231,7 +300,8 @@ static void send_setup(int socket, const char *mode)
     unsigned char setup[4096], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
-    if (!strcmp(mode, "mode-pvp-maia")) {
+    if (!strcmp(mode, "mode-pvp-maia") ||
+        !strcmp(mode, "mode-pvp-maia-back")) {
         unsigned races = maia_race() + 1;
         *at++ = (unsigned char)races;
         *at++ = 1;
@@ -327,8 +397,10 @@ static void send_overview(int socket, const char *mode)
     put32(&at, 0);
     put32(&at, !strcmp(mode, "mode-dedicated-unavailable") ? 0x40u :
           !strcmp(mode, "mode-rpg") ? 0xc1u :
-          !strcmp(mode, "mode-pvp-maia") ? 0x2c0u : 0xc0u);
-    if (!strcmp(mode, "mode-pvp-maia")) {
+          (!strcmp(mode, "mode-pvp-maia") ||
+           !strcmp(mode, "mode-pvp-maia-back")) ? 0x2c0u : 0xc0u);
+    if (!strcmp(mode, "mode-pvp-maia") ||
+        !strcmp(mode, "mode-pvp-maia-back")) {
         *at++ = PKT_LOGIN;
         put16(&at, 0);
         *at++ = 0;
@@ -413,7 +485,12 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "mode-rpg")) {
+    const char *quit_owner = NULL;
+    bool control_quit = false;
+    if (quit_matrix_case(peer->mode, &quit_owner, &control_quit)) {
+        push_to_quit_owner(quit_owner);
+        push_key(SDLK_Q, control_quit ? SDL_KMOD_CTRL : 0);
+    } else if (!strcmp(peer->mode, "mode-rpg")) {
         push_to_mode();
         push_key(SDLK_N, 0);
         push_key(SDLK_E, 0);
@@ -436,6 +513,12 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-pvp-maia-back")) {
+        push_to_pvp_maia_mode();
+        push_key(SDLK_P, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "mode-back")) {
         push_to_mode();
@@ -994,7 +1077,8 @@ int main(int argc, char **argv)
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
 #if SV_CLASS_BEFORE_RACE
-    if (!strcmp(argv[3], "mode-pvp-maia")) {
+    if (!strcmp(argv[3], "mode-pvp-maia") ||
+        !strcmp(argv[3], "mode-pvp-maia-back")) {
         assert(outcome.birth_legal_class_count == 1);
         assert(outcome.birth_legal_classes[0] == 0);
     } else {
@@ -1003,7 +1087,21 @@ int main(int argc, char **argv)
         assert(outcome.birth_legal_classes[1] == 2);
     }
 #endif
-    if (!strcmp(argv[3], "mode-rpg")) {
+    const char *quit_owner = NULL;
+    bool control_quit = false;
+    if (quit_matrix_case(argv[3], &quit_owner, &control_quit)) {
+        (void)control_quit;
+        SvBirthOwner owner = named_owner(quit_owner);
+        assert(outcome.birth_owner == owner);
+        assert(!owner_confirmed(&outcome, owner));
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-pvp-maia-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_PVP);
+        assert(outcome.birth_race == (int)maia_race());
+        assert(!outcome.birth_trait_confirmed);
+    } else if (!strcmp(argv[3], "mode-rpg")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode == SV_BIRTH_MODE_SOLOIST);

@@ -38,6 +38,11 @@ SOURCES = [
     "src/common/md5.c",
 ]
 ONLY_CASE = os.environ.get("SV_BIRTH_CASE")
+QUIT_CASES = tuple(
+    prefix + owner
+    for prefix in ("quit-", "ctrl-quit-")
+    for owner in ("sex", "race", "trait", "class", "body", "stats", "mode")
+)
 
 with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     root = Path(temp)
@@ -62,7 +67,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-back", "mode-random", "mode-ctrl-quit",
-                 "mode-pvp-maia", "mode-rpg", "mode-dedicated-iddc",
+                 "mode-pvp-maia", "mode-pvp-maia-back", "mode-rpg",
+                 "mode-dedicated-iddc",
                  "mode-dedicated-dna",
                  "navigate", "mouse", "random", "dna", "dna-missing", "quit",
                  "ctrl-quit", "class-navigate", "class-mouse", "class-random",
@@ -86,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-mouse", "stats-point-dna",
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
-                 "stats-point-lower-bound"):
+                 "stats-point-lower-bound", *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         subprocess.run(
@@ -103,6 +109,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",
                  "mode-random",
                  "mode-ctrl-quit", "mode-rpg", "mode-pvp-maia",
+                 "mode-pvp-maia-back",
                  "alternate-order", "alternate-race-back",
                  "alternate-trait-back", "alternate-body-back",
                  "alternate-class-back", "alternate-class-back-no-body",
@@ -117,7 +124,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-mouse", "stats-point-dna",
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
-                 "stats-point-lower-bound"):
+                 "stats-point-lower-bound", *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         subprocess.run(
