@@ -124,7 +124,7 @@ typedef struct {
     int16_t dna_stats[6];
     bool dna_mode_available;
     SvBirthMode dna_mode;
-    bool entered, keyboard_navigated, mouse_navigated;
+    bool entered, active, closed, keyboard_navigated, mouse_navigated;
     bool random_used, dna_used, illegal_ignored, confirmed, quit;
     bool class_confirmed, class_random_used, class_dna_used;
     bool race_confirmed, race_random_used, race_dna_used;
@@ -144,6 +144,7 @@ typedef struct {
     bool post_mode_trait_required;
     uint32_t server_flags[4];
     size_t existing_characters;
+    uint8_t race_count, trait_count;
     bool dedicated;
     uint32_t random_state;
     const SvContactSetup *setup;
@@ -186,6 +187,7 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         bool dna_mode_available, SvBirthMode dna_mode);
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command);
+void sv_birth_close(SvBirth *birth, uint64_t generation);
 void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth);
 
 #endif

@@ -14,6 +14,8 @@
 typedef struct {
     int listener;
     bool request_exact;
+    unsigned interleaved_pongs;
+    unsigned attempt;
     const char *mode;
 } Peer;
 
@@ -65,6 +67,43 @@ static void push_key(SDL_Keycode key, SDL_Keymod mod)
     default: event.key.scancode = SDL_SCANCODE_RETURN; break;
     }
     assert(SDL_PushEvent(&event));
+}
+
+static void push_stale_key(SDL_Keycode key)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.common.timestamp = 1;
+    event.key.key = key;
+    event.key.scancode = key == SDLK_BACKSPACE ? SDL_SCANCODE_BACKSPACE :
+        key == SDLK_Q ? SDL_SCANCODE_Q : SDL_SCANCODE_RETURN;
+    assert(SDL_PushEvent(&event));
+}
+
+static void push_presentation_events(void)
+{
+    const Uint32 types[] = {SDL_EVENT_WINDOW_FOCUS_LOST,
+                            SDL_EVENT_WINDOW_FOCUS_GAINED,
+                            SDL_EVENT_WINDOW_RESIZED};
+    for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
+        SDL_Event event = {0};
+        event.type = types[i];
+        event.window.data1 = 1024;
+        event.window.data2 = 768;
+        assert(SDL_PushEvent(&event));
+    }
+}
+
+static void interleave_ping(Peer *peer, int socket, unsigned sequence)
+{
+    unsigned char ping[15] = {PKT_PING, 0};
+    ping[5] = (unsigned char)sequence;
+    assert(send(socket, ping, sizeof(ping), 0) == (ssize_t)sizeof(ping));
+    unsigned char reply[15];
+    assert(exact(socket, reply, sizeof(reply)));
+    assert(reply[0] == PKT_PING && reply[1] == 1 &&
+           !memcmp(reply + 2, ping + 2, sizeof(ping) - 2));
+    ++peer->interleaved_pongs;
 }
 
 static void push_text(const char *text)
@@ -355,6 +394,7 @@ static void send_overview(int socket, const char *mode)
 static int peer_run(void *opaque)
 {
     Peer *peer = opaque;
+    unsigned attempt = peer->attempt++;
     int socket = accept(peer->listener, NULL, NULL);
     assert(socket >= 0);
     struct timeval timeout = {.tv_sec = 8};
@@ -413,7 +453,83 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "mode-rpg")) {
+    if (!strcmp(peer->mode, "session-interleave")) {
+        push_key(SDLK_F, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_presentation_events();
+        push_mouse_sex(360.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 2);
+        push_presentation_events();
+        push_mouse_class(380.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 3);
+        push_presentation_events();
+        push_mouse_race(420.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 4);
+        push_presentation_events();
+        push_mouse_trait(380.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 5);
+        push_presentation_events();
+        push_mouse_body(380.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_A, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 6);
+        push_presentation_events();
+        push_mouse_stats(340.0f, 1);
+        for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+            push_key(key, 0);
+            push_key(SDLK_RETURN, 0);
+        }
+        push_key(SDLK_S, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 7);
+        push_presentation_events();
+        push_mouse_mode(420.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "session-stale-input")) {
+        push_stale_key(SDLK_RETURN);
+        push_stale_key(SDLK_BACKSPACE);
+        push_stale_key(SDLK_Q);
+        push_stale_key((SDL_Keycode)'?');
+        push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "session-disconnect")) {
+        push_key(SDLK_F, 0);
+        SDL_Delay(50);
+        assert(!shutdown(socket, SHUT_WR));
+        SDL_Delay(100);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+        push_key((SDL_Keycode)'?', 0);
+        SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
+        assert(SDL_PushEvent(&close));
+    } else if (!strcmp(peer->mode, "session-retry-generation") && !attempt) {
+        assert(!shutdown(socket, SHUT_WR));
+        SDL_Delay(100);
+        push_key(SDLK_R, 0);
+    } else if (!strcmp(peer->mode, "session-retry-generation")) {
+        push_stale_key(SDLK_RETURN);
+        push_stale_key(SDLK_BACKSPACE);
+        push_stale_key(SDLK_Q);
+        push_stale_key((SDL_Keycode)'?');
+        push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-rpg")) {
         push_to_mode();
         push_key(SDLK_N, 0);
         push_key(SDLK_E, 0);
@@ -906,6 +1022,8 @@ static int peer_run(void *opaque)
     unsigned char closed;
     assert(recv(socket, &closed, 1, 0) == 0);
     close(socket);
+    if (!strcmp(peer->mode, "session-retry-generation") && !attempt)
+        return peer_run(opaque);
     return 0;
 }
 
@@ -986,11 +1104,13 @@ int main(int argc, char **argv)
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
 
-    assert(result == 0 && peer.request_exact);
+    assert(result == (!strcmp(argv[3], "session-disconnect") ? 1 : 0) &&
+           peer.request_exact);
     assert(outcome.name_submitted);
     assert(outcome.random_name_suggested);
     assert(outcome.name_submit_phase == SV_PREGAME_CHARACTER_PENDING);
-    assert(outcome.phase == SV_PREGAME_BIRTH);
+    assert(outcome.phase == (!strcmp(argv[3], "session-disconnect") ?
+        SV_PREGAME_DISCONNECTED : SV_PREGAME_BIRTH));
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
 #if SV_CLASS_BEFORE_RACE
@@ -1003,7 +1123,38 @@ int main(int argc, char **argv)
         assert(outcome.birth_legal_classes[1] == 2);
     }
 #endif
-    if (!strcmp(argv[3], "mode-rpg")) {
+    if (!strcmp(argv[3], "session-interleave")) {
+        static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
+        assert(peer.interleaved_pongs == 7);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_class == 2 && outcome.birth_race == 2);
+        assert(outcome.birth_trait == 2);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(outcome.birth_mode == SV_BIRTH_MODE_SOLOIST);
+        assert(outcome.birth_mode_ready);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+    } else if (!strcmp(argv[3], "session-stale-input")) {
+        assert(outcome.birth_owner == SV_BIRTH_SEX);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
+        assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
+        assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "session-disconnect")) {
+        assert(!outcome.birth_active && outcome.birth_closed);
+        assert(outcome.birth_owner == SV_BIRTH_NONE);
+        assert(!outcome.birth_sex_confirmed && !outcome.birth_quit);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
+    } else if (!strcmp(argv[3], "session-retry-generation")) {
+        assert(peer.attempt == 2);
+        assert(outcome.prior_generation &&
+               outcome.prior_generation != outcome.generation);
+        assert(outcome.birth_generation == outcome.generation);
+        assert(outcome.birth_owner == SV_BIRTH_SEX);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
+        assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
+        assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "mode-rpg")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode == SV_BIRTH_MODE_SOLOIST);

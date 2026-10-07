@@ -12,9 +12,12 @@ static SvBirthInputResult apply(SvBirth *birth, uint64_t generation,
 }
 
 SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
-                                          const SDL_Event *event)
+                                         uint64_t since_ns,
+                                         const SDL_Event *event)
 {
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
+    if (event->common.timestamp && event->common.timestamp < since_ns)
+        return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_LEFT) {
         if (birth->owner == SV_BIRTH_MODE) {
