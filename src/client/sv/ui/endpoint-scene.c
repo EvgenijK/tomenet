@@ -1,6 +1,6 @@
 #include "ui/endpoint-scene.h"
 #include "session/login-view.h"
-#include "session/birth.h"
+#include "input/birth-interaction.h"
 #include <stdio.h>
 #include <string.h>
 

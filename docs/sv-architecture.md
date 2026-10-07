@@ -63,6 +63,12 @@ Session использует локальный `protocol/hp-update.h` для ba
 семантическое состояние HP принадлежит session model. Временный bootstrap/peer
 живёт в `src/temporary/sv`, сценарии — в `tests/sv/scenarios`.
 
+Незавершённое birth interaction доступно production-коду только через публичную
+границу `input/birth-interaction.h`; native SDL adapter переводит gestures в её
+semantic commands. Текущая SV-local реализация состояния остаётся в
+`session/birth.[ch]`, но endpoint и UI не используют этот backing header напрямую:
+владельцем input context остаётся input router / interactions.
+
 ## Потоки данных
 
 ```mermaid

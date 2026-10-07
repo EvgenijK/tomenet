@@ -65,6 +65,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         check=True,
     )
     for mode in ("guide-all-owners",
+                 "birth-context-escape",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "session-interleave", "session-stale-input", "session-disconnect",
                  "session-retry-generation",
@@ -91,11 +92,13 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-order-confirm", "stats-order-random", "stats-order-mouse",
                  "stats-back", "stats-back-no-trait-body", "stats-quit",
                  "stats-ctrl-quit", "stats-point-navigate",
-                 "stats-point-confirm-warning", "stats-point-confirm",
+                 "stats-point-confirm-warning", "stats-point-escape-warning",
+                 "stats-point-confirm", "stats-point-escape-confirm",
                  "stats-point-mouse", "stats-point-dna",
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
-                 "stats-point-lower-bound", *QUIT_CASES):
+                 "stats-point-lower-bound", "stats-point-escape-no-warning",
+                 *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         subprocess.run(
@@ -108,6 +111,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             timeout=15,
         )
     for mode in ("guide-all-owners",
+                 "birth-context-escape",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",
@@ -124,11 +128,13 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-order-confirm", "stats-order-random", "stats-order-mouse",
                  "stats-back", "stats-back-no-trait-body", "stats-quit",
                  "stats-ctrl-quit", "stats-point-navigate",
-                 "stats-point-confirm-warning", "stats-point-confirm",
+                 "stats-point-confirm-warning", "stats-point-escape-warning",
+                 "stats-point-confirm", "stats-point-escape-confirm",
                  "stats-point-mouse", "stats-point-dna",
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
-                 "stats-point-lower-bound", *QUIT_CASES):
+                 "stats-point-lower-bound", "stats-point-escape-no-warning",
+                 *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         subprocess.run(
