@@ -123,6 +123,7 @@ typedef struct {
 
 typedef struct {
     bool started, cancelled, submitted, random_suggested, reincarnation_requested;
+    bool dedicated;
     bool input_truncated, input_method_used, keyboard_edited;
     bool mouse_selected, paste_used;
     size_t maximum_draft_bytes;
@@ -133,6 +134,7 @@ typedef struct {
 
 typedef struct {
     bool pending, rejected, started, draft_preserved;
+    bool dedicated;
     uint64_t rejected_generation, recovery_generation;
     char draft[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
@@ -228,8 +230,16 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                    .credential_saved = credential_save ==
                                        SV_CREDENTIAL_SAVE_SAVED,
                                    .credential_save = credential_save,
-                                   .ordinary_name_started = name && name->started,
-                                   .ordinary_name_cancelled = name && name->cancelled,
+                                   .ordinary_name_started = name && name->started &&
+                                       !name->dedicated,
+                                   .ordinary_name_cancelled = name && name->cancelled &&
+                                       !name->dedicated,
+                                   .exclusive_name_started = name && name->started &&
+                                       name->dedicated,
+                                   .exclusive_name_cancelled = name && name->cancelled &&
+                                       name->dedicated,
+                                   .dedicated_creation = pregame->dedicated_creation,
+                                   .dedicated_mode_flags = pregame->dedicated_mode_flags,
                                    .name_submitted = name && name->submitted,
                                    .random_name_suggested = name && name->random_suggested,
                                    .name_input_truncated = name && name->input_truncated,
@@ -465,7 +475,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     continue;
                 }
                 sv_login_interaction_begin(&login_input, login, options.character,
-                                           options.skip_motd);
+                                           options.skip_motd, pregame.first_run);
                 if ((session_error = handoff_contact_bytes(connection, &wire)) != SV_OK)
                     state = SV_SOCKET_PROTOCOL_ERROR;
             }
@@ -477,7 +487,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             sv_native_login_clear_previous_keys(transition);
             if (transition == SV_LOGIN_TRANSITION_OVERVIEW && recovery &&
                 recovery->pending &&
-                sv_login_interaction_restore_name(&login_input, recovery->draft) ==
+                sv_login_interaction_restore_name(&login_input, recovery->draft,
+                    recovery->dedicated) ==
                     SV_LOGIN_INPUT_NAME_STARTED) {
                 recovery->pending = false;
                 recovery->started = true;
@@ -485,6 +496,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 recovery->draft_preserved =
                     !strcmp(login_input.character_name.bytes, recovery->draft);
                 name_evidence.started = true;
+                name_evidence.dedicated = login_input.dedicated_creation;
                 name_evidence.entry_generation = generation;
                 name_evidence.entry_revision = pregame.revision;
             }
@@ -496,7 +508,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             else if (pregame.phase == SV_PREGAME_BIRTH && !birth_started) {
                 session_error = sv_birth_begin(&birth, generation,
                     sv_contact_socket_setup(connection), pregame.server_flags,
-                    pregame.first_run, options.birth_dedicated,
+                    pregame.first_run, pregame.dedicated_mode_flags,
                     options.birth_dna_available,
                     options.birth_dna_sex, options.birth_dna_class_available,
                     options.birth_dna_class, options.birth_dna_race_available,
@@ -518,6 +530,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 recovery->pending = true;
                 recovery->rejected = true;
                 recovery->rejected_generation = generation;
+                recovery->dedicated = login_input.dedicated_creation;
                 SDL_strlcpy(recovery->draft, login_input.character_name.bytes,
                             sizeof(recovery->draft));
                 SDL_strlcpy(recovery->reason, sv_login_reason(login),
@@ -536,7 +549,9 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 input->contact_status = login_input.ordinary_name_active ?
                     "New character name: Escape cancels and returns to the overview." :
                     (save_message ? save_message :
-                     "Account confirmed. Select a character, N creates, Q quits.");
+                     (sv_login_interaction_exclusive_modes(&login_input) ?
+                      "Account confirmed. Select a character, N creates, E creates exclusive, Q quits." :
+                      "Account confirmed. Select a character, N creates, Q quits."));
             } else if (phase == SV_LOGIN_WAIT_STATUS)
                 input->contact_status = "Waiting for selected character status...";
             else if (phase == SV_LOGIN_SELECTED) {
@@ -675,6 +690,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 if (handled == SV_LOGIN_INPUT_QUIT) { result = 0; quit = true; break; }
                 if (handled == SV_LOGIN_INPUT_NAME_STARTED) {
                     name_evidence.started = true;
+                    name_evidence.dedicated = login_input.dedicated_creation;
                     name_evidence.entry_generation = pregame.generation;
                     name_evidence.entry_revision = pregame.revision;
                     continue;
@@ -690,8 +706,13 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     continue;
                 }
                 if (handled == SV_LOGIN_INPUT_NAME_SUBMITTED) {
-                    SvResult applied = sv_pregame_sync_login(&pregame, generation, login,
-                        sv_contact_socket_setup(connection), login_input.motd_complete);
+                    SvResult applied = sv_pregame_creation_submitted(&pregame, generation,
+                        login_input.dedicated_creation,
+                        login_input.dedicated_mode_flags);
+                    if (applied == SV_OK)
+                        applied = sv_pregame_sync_login(&pregame, generation, login,
+                            sv_contact_socket_setup(connection),
+                            login_input.motd_complete);
                     if (applied != SV_OK) {
                         session_error = applied;
                         state = SV_SOCKET_PROTOCOL_ERROR;

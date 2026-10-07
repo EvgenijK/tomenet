@@ -363,7 +363,21 @@ static bool pvp_maia_case(const char *mode)
     return !strcmp(mode, "mode-pvp-maia") ||
         !strcmp(mode, "mode-pvp-maia-back") ||
         !strcmp(mode, "stats-order-reenter-pvp-maia") ||
-        !strcmp(mode, "auto-dna-dedicated-pvp-maia");
+        !strcmp(mode, "auto-dna-dedicated-pvp-maia") ||
+        !strcmp(mode, "exclusive-pvp-maia-production");
+}
+
+static bool exclusive_creation_case(const char *mode)
+{
+    return !strcmp(mode, "exclusive-iddc-production") ||
+        !strcmp(mode, "exclusive-pvp-maia-production") ||
+        !strcmp(mode, "mode-dedicated") ||
+        !strcmp(mode, "mode-dedicated-unavailable") ||
+        !strcmp(mode, "mode-dedicated-iddc") ||
+        !strcmp(mode, "mode-dedicated-dna") ||
+        !strcmp(mode, "auto-dna-dedicated-iddc") ||
+        !strcmp(mode, "auto-dna-dedicated-pvp-maia") ||
+        !strcmp(mode, "stats-order-reenter-pvp-maia");
 }
 
 static bool archer_body_case(const char *mode)
@@ -560,7 +574,9 @@ static void send_overview(int socket, const char *mode)
     put32(&at, 2u | (1u << 8) | (1u << 16));
     put32(&at, 0);
     put32(&at, 0);
-    put32(&at, !strcmp(mode, "mode-dedicated-unavailable") ? 0x40u :
+    put32(&at, !strcmp(mode, "exclusive-pvp-maia-production") ? 0x280u :
+          (!strcmp(mode, "mode-dedicated-unavailable") ||
+                !strcmp(mode, "exclusive-iddc-production")) ? 0x40u :
           (!strcmp(mode, "mode-rpg") ||
            !strcmp(mode, "returning-empty-mode-rpg")) ? 0xc1u :
           pvp_maia_case(mode) ? 0x2c0u : 0xc0u);
@@ -629,7 +645,8 @@ static int peer_run(void *opaque)
     assert(exact(socket, login_start, sizeof(login_start)));
     send_overview(socket, peer->mode);
     SDL_Delay(200);
-    push_key(SDLK_N, SDL_KMOD_SHIFT);
+    push_key(exclusive_creation_case(peer->mode) ? SDLK_E : SDLK_N,
+             SDL_KMOD_SHIFT);
     SDL_Delay(80);
     push_key(SDLK_RETURN, 0);
     SDL_Delay(80);
@@ -790,7 +807,8 @@ static int peer_run(void *opaque)
         push_key(SDLK_S, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "mode-dedicated-iddc")) {
+    } else if (!strcmp(peer->mode, "mode-dedicated-iddc") ||
+               !strcmp(peer->mode, "exclusive-iddc-production")) {
         push_to_mode();
         push_key(SDLK_I, 0);
         push_key(SDLK_RETURN, 0);
@@ -812,7 +830,8 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "stats-order-reenter-pvp-maia")) {
+    } else if (!strcmp(peer->mode, "stats-order-reenter-pvp-maia") ||
+               !strcmp(peer->mode, "exclusive-pvp-maia-production")) {
         push_to_pvp_maia_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
@@ -1605,13 +1624,6 @@ int main(int argc, char **argv)
             SV_BIRTH_MODE_HELLISH :
             !strcmp(argv[3], "auto-dna-dedicated-iddc") ?
             SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING,
-        .birth_dedicated = !strcmp(argv[3], "mode-dedicated") ||
-            !strcmp(argv[3], "mode-dedicated-unavailable") ||
-            !strcmp(argv[3], "mode-dedicated-iddc") ||
-            !strcmp(argv[3], "mode-dedicated-dna") ||
-            !strcmp(argv[3], "auto-dna-dedicated-iddc") ||
-            auto_pvp_maia ||
-            !strcmp(argv[3], "stats-order-reenter-pvp-maia")
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -1619,6 +1631,9 @@ int main(int argc, char **argv)
     assert(result == (!strcmp(argv[3], "session-disconnect") ? 1 : 0) &&
            peer.request_exact);
     assert(outcome.name_submitted);
+    assert(outcome.dedicated_creation == exclusive_creation_case(argv[3]));
+    assert(outcome.exclusive_name_started == exclusive_creation_case(argv[3]));
+    assert(outcome.ordinary_name_started != exclusive_creation_case(argv[3]));
     assert(outcome.random_name_suggested);
     assert(outcome.name_submit_phase == SV_PREGAME_CHARACTER_PENDING);
     assert(outcome.phase == (!strcmp(argv[3], "session-disconnect") ?
@@ -1755,7 +1770,8 @@ int main(int argc, char **argv)
         assert(outcome.birth_mode == SV_BIRTH_MODE_PVP);
         assert(outcome.birth_race == (int)maia_race());
         assert(!outcome.birth_trait_confirmed);
-    } else if (!strcmp(argv[3], "stats-order-reenter-pvp-maia")) {
+    } else if (!strcmp(argv[3], "stats-order-reenter-pvp-maia") ||
+               !strcmp(argv[3], "exclusive-pvp-maia-production")) {
         static const int16_t expected[] = {5, 4, 3, 2, 1, 0};
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
@@ -1767,6 +1783,12 @@ int main(int argc, char **argv)
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(!memcmp(outcome.birth_committed_stats, expected,
                        sizeof(expected)));
+        if (!strcmp(argv[3], "exclusive-pvp-maia-production")) {
+            assert(outcome.birth_legal_mode_count == 1);
+            assert(outcome.birth_legal_modes[0] ==
+                   SV_BIRTH_MODE_DEDICATED_PVP);
+            assert(outcome.dedicated_mode_flags == 0x80u);
+        }
     } else if (!strcmp(argv[3], "session-interleave")) {
         static const int16_t expected[] = {0, 1, 2, 3, 4, 5};
         assert(peer.interleaved_pongs == 7);
@@ -1867,10 +1889,17 @@ int main(int argc, char **argv)
         if (expected_count == 3)
             assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_HELLISH);
         assert(outcome.birth_illegal_ignored);
-    } else if (!strcmp(argv[3], "mode-dedicated-iddc")) {
+    } else if (!strcmp(argv[3], "mode-dedicated-iddc") ||
+               !strcmp(argv[3], "exclusive-iddc-production")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode == SV_BIRTH_MODE_IDDC);
+        if (!strcmp(argv[3], "exclusive-iddc-production")) {
+            assert(outcome.birth_legal_mode_count == 3);
+            assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_IDDC);
+            assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_IDDC_SOLOIST);
+            assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_IDDC_HELLISH);
+        }
     } else if (!strcmp(argv[3], "mode-dedicated-dna")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);

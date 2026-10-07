@@ -148,7 +148,7 @@ int main(void)
     sv_pregame_begin(&pregame, 7, false);
     assert(sv_pregame_contact_ready(&pregame, 7) == SV_OK);
     assert(sv_pregame_contact_ready(&pregame, 8) == SV_STALE);
-    sv_login_interaction_begin(&input, login, NULL, false);
+    sv_login_interaction_begin(&input, login, NULL, false, false);
     sv_login_interaction_sync(&input);
     assert(sv_pregame_sync_login(&pregame, 7, login, &setup, false) == SV_OK);
     uint64_t overview_revision = pregame.revision;
@@ -185,7 +185,7 @@ int main(void)
     login = overview();
     sv_pregame_begin(&pregame, 9, false);
     assert(sv_pregame_contact_ready(&pregame, 9) == SV_OK);
-    sv_login_interaction_begin(&input, login, "hero", true);
+    sv_login_interaction_begin(&input, login, "hero", true, false);
     sv_login_interaction_sync(&input);
     assert(sv_pregame_sync_login(&pregame, 9, login, &setup, false) == SV_OK);
     assert(sv_login_state(login) == SV_LOGIN_WAIT_STATUS);

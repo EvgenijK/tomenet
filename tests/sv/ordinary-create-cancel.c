@@ -10,7 +10,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-typedef enum { ORDINARY_AVAILABLE, ORDINARY_FIRST_RUN, ORDINARY_FULL } PeerMode;
+typedef enum {
+    ORDINARY_AVAILABLE, ORDINARY_FIRST_RUN, ORDINARY_FULL,
+    EXCLUSIVE_AVAILABLE, EXCLUSIVE_UNAVAILABLE, EXCLUSIVE_FIRST_RUN
+} PeerMode;
 
 typedef struct {
     int listener;
@@ -58,7 +61,7 @@ static void push_key(SDL_Keycode key)
     SDL_Event event = {0};
     event.type = SDL_EVENT_KEY_DOWN;
     event.key.key = key;
-    if (key == SDLK_N) event.key.mod = SDL_KMOD_SHIFT;
+    if (key == SDLK_N || key == SDLK_E) event.key.mod = SDL_KMOD_SHIFT;
     assert(SDL_PushEvent(&event));
 }
 
@@ -89,8 +92,10 @@ static void send_overview(int socket, PeerMode mode)
     put32(&at, 0);
     put32(&at, 0xc0);
     if (mode != ORDINARY_FIRST_RUN) {
-        send_row(&at, 0x40, "Dive");
-        send_row(&at, 0x80, "Duel");
+        if (mode != EXCLUSIVE_AVAILABLE && mode != EXCLUSIVE_FIRST_RUN) {
+            send_row(&at, 0x40, "Dive");
+            send_row(&at, 0x80, "Duel");
+        }
         send_row(&at, 0, "Hero");
         if (mode == ORDINARY_FULL) send_row(&at, 0, "Mage");
     }
@@ -149,9 +154,11 @@ static int peer_run(void *opaque)
     send_overview(socket, peer->mode);
 
     SDL_Delay(200);
-    push_key(SDLK_N);
+    bool exclusive = peer->mode >= EXCLUSIVE_AVAILABLE;
+    push_key(exclusive ? SDLK_E : SDLK_N);
     SDL_Delay(100);
-    if (peer->mode != ORDINARY_FULL) {
+    if (peer->mode != ORDINARY_FULL && peer->mode != EXCLUSIVE_UNAVAILABLE &&
+        peer->mode != EXCLUSIVE_FIRST_RUN) {
         push_key(SDLK_ESCAPE);
         SDL_Delay(100);
     }
@@ -194,7 +201,15 @@ static void run_case(const char *profile, const char *library, PeerMode mode)
     assert(peer.no_character_request && peer.closed);
     assert(outcome.phase == SV_PREGAME_OVERVIEW && outcome.authenticated);
     assert(!outcome.selected_character[0]);
-    if (mode != ORDINARY_FULL) {
+    if (mode == EXCLUSIVE_AVAILABLE) {
+        assert(outcome.exclusive_name_started && outcome.exclusive_name_cancelled);
+        assert(!outcome.ordinary_name_started && !outcome.ordinary_name_cancelled);
+        assert(!outcome.dedicated_creation && !outcome.dedicated_mode_flags);
+        assert(outcome.name_entry_generation == outcome.generation);
+        assert(outcome.name_cancel_generation == outcome.generation);
+        assert(outcome.name_entry_overview_revision == outcome.revision);
+        assert(outcome.name_cancel_overview_revision == outcome.revision);
+    } else if (mode != ORDINARY_FULL && mode < EXCLUSIVE_AVAILABLE) {
         assert(outcome.ordinary_name_started && outcome.ordinary_name_cancelled);
         assert(outcome.name_entry_generation == outcome.generation);
         assert(outcome.name_cancel_generation == outcome.generation);
@@ -202,14 +217,21 @@ static void run_case(const char *profile, const char *library, PeerMode mode)
         assert(outcome.name_cancel_overview_revision == outcome.revision);
     } else {
         assert(!outcome.ordinary_name_started && !outcome.ordinary_name_cancelled);
+        assert(!outcome.exclusive_name_started && !outcome.exclusive_name_cancelled);
+        assert(!outcome.name_submitted && !outcome.birth_entered);
     }
 }
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
-    run_case(argv[1], argv[2], ORDINARY_AVAILABLE);
-    run_case(argv[1], argv[2], ORDINARY_FIRST_RUN);
-    run_case(argv[1], argv[2], ORDINARY_FULL);
+    assert(argc == 4);
+    PeerMode mode = !strcmp(argv[3], "ordinary-available") ? ORDINARY_AVAILABLE :
+        !strcmp(argv[3], "ordinary-first-run") ? ORDINARY_FIRST_RUN :
+        !strcmp(argv[3], "ordinary-full") ? ORDINARY_FULL :
+        !strcmp(argv[3], "exclusive-available") ? EXCLUSIVE_AVAILABLE :
+        !strcmp(argv[3], "exclusive-unavailable") ? EXCLUSIVE_UNAVAILABLE :
+        EXCLUSIVE_FIRST_RUN;
+    assert(mode != EXCLUSIVE_FIRST_RUN || !strcmp(argv[3], "exclusive-first-run"));
+    run_case(argv[1], argv[2], mode);
     return 0;
 }

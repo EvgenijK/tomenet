@@ -16,6 +16,9 @@ int main(void)
     event.key.mod = SDL_KMOD_SHIFT;
     assert(sv_native_login_command(&event, &command));
     assert(command.kind == SV_LOGIN_COMMAND_CREATE_ORDINARY);
+    event.key.key = SDLK_E;
+    assert(sv_native_login_command(&event, &command));
+    assert(command.kind == SV_LOGIN_COMMAND_CREATE_EXCLUSIVE);
     event.key.mod = 0;
     event.key.key = SDLK_ESCAPE;
     assert(sv_native_login_command(&event, &command));

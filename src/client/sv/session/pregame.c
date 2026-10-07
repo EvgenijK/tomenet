@@ -39,6 +39,18 @@ SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation)
     return SV_OK;
 }
 
+SvResult sv_pregame_creation_submitted(SvPregame *pregame, uint64_t generation,
+                                       bool dedicated_creation,
+                                       uint32_t dedicated_mode_flags)
+{
+    SvResult result = current(pregame, generation);
+    if (result != SV_OK) return result;
+    if (pregame->phase != SV_PREGAME_OVERVIEW) return SV_INVALID;
+    pregame->dedicated_creation = dedicated_creation;
+    pregame->dedicated_mode_flags = dedicated_creation ? dedicated_mode_flags : 0;
+    return SV_OK;
+}
+
 static bool publish_overview(SvPregame *pregame, const SvLogin *login,
                              const SvContactSetup *setup)
 {

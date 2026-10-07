@@ -50,13 +50,22 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-ordinary-") as temp:
         cwd=ROOT,
         check=True,
     )
-    subprocess.run(
-        [str(binary), str(profile), str(ROOT / "lib")],
-        cwd=ROOT,
-        env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
-                 DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b022-no-service",
-                 ASAN_OPTIONS="detect_leaks=0"),
-        check=True,
-        timeout=15,
-    )
+    config = profile / "sv" / "tomenet.cfg"
+    for mode in ("ordinary-available", "ordinary-first-run", "ordinary-full",
+                 "exclusive-available", "exclusive-unavailable",
+                 "exclusive-first-run"):
+        if mode.endswith("first-run"):
+            config.unlink(missing_ok=True)
+        else:
+            config.parent.mkdir(exist_ok=True)
+            config.write_text("svSchemaVersion\t1\n", encoding="ascii")
+        subprocess.run(
+            [str(binary), str(profile), str(ROOT / "lib"), mode],
+            cwd=ROOT,
+            env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
+                     DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b022-no-service",
+                     ASAN_OPTIONS="detect_leaks=0"),
+            check=True,
+            timeout=15,
+        )
 print("SV-B-022 ordinary creation cancel production checks passed")
