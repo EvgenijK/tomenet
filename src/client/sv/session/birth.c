@@ -47,12 +47,47 @@ static bool legal_race(const SvBirth *birth, int race_id)
 {
     if (race_id < 0 || race_id >= birth->setup->race_count) return false;
 #if SV_CLASS_BEFORE_RACE
-    if (birth->chosen_class < 0 || birth->chosen_class >= 32) return false;
+    if (birth->chosen_visible_class < 0 || birth->chosen_visible_class >= 32)
+        return false;
     return (birth->setup->races[race_id].choice &
-            (1u << (unsigned)birth->chosen_class)) != 0;
+            (1u << (unsigned)birth->chosen_visible_class)) != 0;
 #else
     return compatible_race(birth->setup, (unsigned)race_id);
 #endif
+}
+
+static int resolved_class(const SvBirth *birth, int visible_class, int race_id)
+{
+    if (visible_class < 0 || visible_class >= birth->setup->class_count ||
+        race_id < 0 || race_id >= birth->setup->race_count ||
+        visible_class >= 32 ||
+        !(birth->setup->races[race_id].choice &
+          (1u << (unsigned)visible_class)))
+        return visible_class;
+    for (unsigned id = 0; id < birth->setup->class_count && id < 32; ++id) {
+        const SvContactClass *candidate = &birth->setup->classes[id];
+        if (candidate->hidden && candidate->base_class == visible_class &&
+            (birth->setup->races[race_id].choice & (1u << id)))
+            return (int)id;
+    }
+    return visible_class;
+}
+
+static int dna_visible_class(const SvBirth *birth, int server_class)
+{
+    if (legal_class(birth, server_class)) return server_class;
+    if (server_class < 0 || server_class >= birth->setup->class_count ||
+        server_class >= 32 || !birth->setup->classes[server_class].hidden)
+        return SV_BIRTH_CLASS_NONE;
+    int visible_class = birth->setup->classes[server_class].base_class;
+    if (!legal_class(birth, visible_class)) return SV_BIRTH_CLASS_NONE;
+    if (birth->chosen_race >= 0)
+        return resolved_class(birth, visible_class, birth->chosen_race) ==
+            server_class ? visible_class : SV_BIRTH_CLASS_NONE;
+    for (unsigned race = 0; race < birth->setup->race_count; ++race)
+        if (resolved_class(birth, visible_class, (int)race) == server_class)
+            return visible_class;
+    return SV_BIRTH_CLASS_NONE;
 }
 
 static bool legal_trait(const SvBirth *birth, int trait_id)
@@ -72,7 +107,7 @@ static bool legal_trait(const SvBirth *birth, int trait_id)
         !legal_race(birth, birth->chosen_race))
         return false;
 #if SV_CLASS_BEFORE_RACE
-    if (!legal_class(birth, birth->chosen_class)) return false;
+    if (!legal_class(birth, birth->chosen_visible_class)) return false;
 #endif
     return (birth->setup->traits[trait_id].choice &
             (1u << (unsigned)birth->chosen_race)) != 0;
@@ -87,7 +122,7 @@ static bool legal_body(const SvBirth *birth, SvBirthBody body)
     if (birth->setup->creation_flags > 1) return false;
     if (!legal_race(birth, birth->chosen_race)) return false;
 #if SV_CLASS_BEFORE_RACE
-    if (!legal_class(birth, birth->chosen_class)) return false;
+    if (!legal_class(birth, birth->chosen_visible_class)) return false;
 #endif
     return
         (birth->trait_skipped || legal_trait(birth, birth->chosen_trait));
@@ -119,10 +154,13 @@ static SvBirthInputResult confirm_class(SvBirth *birth)
     if (birth->owner != SV_BIRTH_CLASS ||
         !legal_class(birth, birth->highlighted_class))
         return SV_BIRTH_INPUT_IGNORED;
+    birth->chosen_visible_class = birth->highlighted_class;
     birth->chosen_class = birth->highlighted_class;
 #if SV_CLASS_BEFORE_RACE
     birth->owner = SV_BIRTH_RACE;
 #else
+    birth->chosen_class = resolved_class(birth, birth->chosen_visible_class,
+                                         birth->chosen_race);
     birth->owner = SV_BIRTH_STATS;
     prepare_stats(birth);
 #endif
@@ -136,6 +174,10 @@ static SvBirthInputResult confirm_race(SvBirth *birth)
         !legal_race(birth, birth->highlighted_race))
         return SV_BIRTH_INPUT_IGNORED;
     birth->chosen_race = birth->highlighted_race;
+#if SV_CLASS_BEFORE_RACE
+    birth->chosen_class = resolved_class(birth, birth->chosen_visible_class,
+                                         birth->chosen_race);
+#endif
     birth->owner = SV_BIRTH_TRAIT;
     birth->race_confirmed = true;
     return SV_BIRTH_INPUT_CONFIRMED;
@@ -188,6 +230,7 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
     *birth = (SvBirth){.generation = generation, .owner = SV_BIRTH_SEX,
         .highlighted_sex = SV_BIRTH_SEX_MALE, .chosen_sex = SV_BIRTH_SEX_NONE,
         .highlighted_class = SV_BIRTH_CLASS_NONE,
+        .chosen_visible_class = SV_BIRTH_CLASS_NONE,
         .chosen_class = SV_BIRTH_CLASS_NONE,
         .highlighted_race = SV_BIRTH_RACE_NONE,
         .chosen_race = SV_BIRTH_RACE_NONE,
@@ -269,18 +312,22 @@ static SvBirthInputResult class_command(SvBirth *birth, SvBirthCommand command)
             birth->random_state % birth->legal_class_count];
         birth->class_random_used = true;
         return confirm_class(birth);
-    case SV_BIRTH_DNA:
-        if (!birth->dna_class_available || !legal_class(birth, birth->dna_class)) {
+    case SV_BIRTH_DNA: {
+        int visible_class = birth->dna_class_available ?
+            dna_visible_class(birth, birth->dna_class) : SV_BIRTH_CLASS_NONE;
+        if (visible_class == SV_BIRTH_CLASS_NONE) {
             birth->illegal_ignored = true;
             birth->auto_reincarnation = false;
             return SV_BIRTH_INPUT_IGNORED;
         }
-        birth->highlighted_class = birth->dna_class;
+        birth->highlighted_class = visible_class;
         birth->class_dna_used = true;
         return confirm_class(birth);
+    }
     case SV_BIRTH_CONFIRM:
         return confirm_class(birth);
     case SV_BIRTH_BACK:
+        birth->chosen_visible_class = SV_BIRTH_CLASS_NONE;
         birth->chosen_class = SV_BIRTH_CLASS_NONE;
         birth->class_confirmed = false;
 #if SV_CLASS_BEFORE_RACE
@@ -363,6 +410,7 @@ static SvBirthInputResult race_command(SvBirth *birth, SvBirthCommand command)
         birth->chosen_race = SV_BIRTH_RACE_NONE;
         birth->race_confirmed = false;
 #if SV_CLASS_BEFORE_RACE
+        birth->chosen_class = birth->chosen_visible_class;
         birth->owner = SV_BIRTH_CLASS;
 #else
         birth->owner = SV_BIRTH_SEX;
@@ -461,6 +509,8 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
             restart_stats_interaction(birth);
         birth->owner = birth->post_mode_trait_required ?
             SV_BIRTH_STATS : SV_BIRTH_RACE;
+        if (birth->owner == SV_BIRTH_RACE)
+            birth->chosen_class = birth->chosen_visible_class;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;
@@ -550,6 +600,8 @@ static SvBirthInputResult body_command(SvBirth *birth, SvBirthCommand command)
         birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
         birth->trait_confirmed = false;
         birth->owner = birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT;
+        if (birth->owner == SV_BIRTH_RACE)
+            birth->chosen_class = birth->chosen_visible_class;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;
@@ -769,6 +821,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         birth->owner = birth->body_skipped ?
             (birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT) :
             SV_BIRTH_BODY;
+        if (birth->owner == SV_BIRTH_RACE)
+            birth->chosen_class = birth->chosen_visible_class;
 #else
         birth->owner = SV_BIRTH_CLASS;
 #endif
