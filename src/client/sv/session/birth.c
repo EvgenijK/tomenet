@@ -41,6 +41,18 @@ static bool legal_trait(const SvBirth *birth, int trait_id)
             (1u << (unsigned)birth->chosen_race)) != 0;
 }
 
+static bool legal_body(const SvBirth *birth, SvBirthBody body)
+{
+    if (body != SV_BIRTH_BODY_NORMAL && body != SV_BIRTH_BODY_FRUIT_BAT)
+        return false;
+    /* The baseline protocol defines only the traditional (0) and point-buy (1)
+       birth setups.  A different authoritative setup has no known body step. */
+    if (birth->setup->creation_flags > 1) return false;
+    return legal_class(birth, birth->chosen_class) &&
+        legal_race(birth, birth->chosen_race) &&
+        (birth->trait_skipped || legal_trait(birth, birth->chosen_trait));
+}
+
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
     if (birth->owner != SV_BIRTH_SEX || !legal_sex(birth->highlighted_sex))
@@ -84,11 +96,23 @@ static SvBirthInputResult confirm_trait(SvBirth *birth)
     return SV_BIRTH_INPUT_CONFIRMED;
 }
 
+static SvBirthInputResult confirm_body(SvBirth *birth)
+{
+    if (birth->owner != SV_BIRTH_BODY ||
+        !legal_body(birth, birth->highlighted_body))
+        return SV_BIRTH_INPUT_IGNORED;
+    birth->chosen_body = birth->highlighted_body;
+    birth->owner = SV_BIRTH_STATS;
+    birth->body_confirmed = true;
+    return SV_BIRTH_INPUT_CONFIRMED;
+}
+
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         const SvContactSetup *setup, bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
-                        bool dna_trait_available, int dna_trait)
+                        bool dna_trait_available, int dna_trait,
+                        bool dna_body_available, SvBirthBody dna_body)
 {
     if (!birth || !generation || !setup || (dna_available && !legal_sex(dna_sex)))
         return SV_INVALID;
@@ -100,10 +124,13 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .chosen_race = SV_BIRTH_RACE_NONE,
         .highlighted_trait = SV_BIRTH_TRAIT_NONE,
         .chosen_trait = SV_BIRTH_TRAIT_NONE,
+        .highlighted_body = SV_BIRTH_BODY_NONE,
+        .chosen_body = SV_BIRTH_BODY_NONE,
         .dna_sex = dna_sex, .dna_available = dna_available, .entered = true,
         .dna_class = dna_class, .dna_class_available = dna_class_available,
         .dna_race = dna_race, .dna_race_available = dna_race_available,
         .dna_trait = dna_trait, .dna_trait_available = dna_trait_available,
+        .dna_body = dna_body, .dna_body_available = dna_body_available,
         .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup};
     for (unsigned id = 0; id < setup->class_count; ++id) {
         if (setup->classes[id].hidden || !compatible_class(setup, id)) continue;
@@ -254,6 +281,8 @@ static int trait_position(const SvBirth *birth, int trait_id)
     return -1;
 }
 
+static void prepare_bodies(SvBirth *birth);
+
 static void prepare_traits(SvBirth *birth)
 {
     birth->legal_trait_count = 0;
@@ -334,6 +363,89 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
     }
 }
 
+static int body_position(const SvBirth *birth, SvBirthBody body)
+{
+    for (unsigned i = 0; i < birth->legal_body_count; ++i)
+        if (birth->legal_bodies[i] == body) return (int)i;
+    return -1;
+}
+
+static void prepare_bodies(SvBirth *birth)
+{
+    birth->legal_body_count = 0;
+    /* Do not give ownership to a choice surface for an unknown server setup. */
+    birth->body_skipped = birth->setup->creation_flags > 1;
+    if (birth->body_skipped) {
+        birth->highlighted_body = SV_BIRTH_BODY_NONE;
+        birth->chosen_body = SV_BIRTH_BODY_NONE;
+        birth->body_confirmed = false;
+        birth->owner = SV_BIRTH_STATS;
+        return;
+    }
+    birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_NORMAL;
+    birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_FRUIT_BAT;
+    if (body_position(birth, birth->highlighted_body) < 0)
+        birth->highlighted_body = birth->legal_bodies[0];
+}
+
+static SvBirthInputResult body_command(SvBirth *birth, SvBirthCommand command)
+{
+    int position = body_position(birth, birth->highlighted_body);
+    switch (command.kind) {
+    case SV_BIRTH_MOVE_PREVIOUS:
+        if (position < 0) return SV_BIRTH_INPUT_IGNORED;
+        position = (position + birth->legal_body_count - 1) %
+            birth->legal_body_count;
+        birth->highlighted_body = birth->legal_bodies[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_MOVE_NEXT:
+        if (position < 0) return SV_BIRTH_INPUT_IGNORED;
+        position = (position + 1) % birth->legal_body_count;
+        birth->highlighted_body = birth->legal_bodies[position];
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_SELECT_BODY:
+        if (!legal_body(birth, command.body)) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->highlighted_body = command.body;
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_RANDOM:
+        if (!birth->legal_body_count) return SV_BIRTH_INPUT_IGNORED;
+        birth->random_state ^= birth->random_state << 13;
+        birth->random_state ^= birth->random_state >> 17;
+        birth->random_state ^= birth->random_state << 5;
+        birth->highlighted_body = birth->legal_bodies[
+            birth->random_state % birth->legal_body_count];
+        birth->body_random_used = true;
+        return confirm_body(birth);
+    case SV_BIRTH_DNA:
+        if (!birth->dna_body_available ||
+            !legal_body(birth, birth->dna_body)) {
+            birth->illegal_ignored = true;
+            birth->auto_reincarnation = false;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        birth->highlighted_body = birth->dna_body;
+        birth->body_dna_used = true;
+        return confirm_body(birth);
+    case SV_BIRTH_CONFIRM:
+        return confirm_body(birth);
+    case SV_BIRTH_BACK:
+        birth->chosen_body = SV_BIRTH_BODY_NONE;
+        birth->body_confirmed = false;
+        birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
+        birth->trait_confirmed = false;
+        birth->owner = birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT;
+        return SV_BIRTH_INPUT_HANDLED;
+    case SV_BIRTH_QUIT:
+        birth->quit = true;
+        return SV_BIRTH_INPUT_QUIT;
+    default:
+        return SV_BIRTH_INPUT_IGNORED;
+    }
+}
+
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command)
 {
@@ -346,17 +458,19 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     }
     if (birth->owner == SV_BIRTH_RACE) {
         SvBirthInputResult result = race_command(birth, command);
-        if (result == SV_BIRTH_INPUT_CONFIRMED) prepare_traits(birth);
+        if (result == SV_BIRTH_INPUT_CONFIRMED) {
+            prepare_traits(birth);
+            if (birth->owner == SV_BIRTH_BODY) prepare_bodies(birth);
+        }
         return result;
     }
-    if (birth->owner == SV_BIRTH_TRAIT)
-        return trait_command(birth, command);
-    if (birth->owner == SV_BIRTH_BODY && command.kind == SV_BIRTH_BACK) {
-        birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
-        birth->trait_confirmed = false;
-        birth->owner = birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT;
-        return SV_BIRTH_INPUT_HANDLED;
+    if (birth->owner == SV_BIRTH_TRAIT) {
+        SvBirthInputResult result = trait_command(birth, command);
+        if (result == SV_BIRTH_INPUT_CONFIRMED) prepare_bodies(birth);
+        return result;
     }
+    if (birth->owner == SV_BIRTH_BODY)
+        return body_command(birth, command);
     if (birth->owner != SV_BIRTH_SEX) {
         if (command.kind == SV_BIRTH_QUIT) {
             birth->quit = true;
@@ -402,6 +516,7 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_SELECT_CLASS:
     case SV_BIRTH_SELECT_RACE:
     case SV_BIRTH_SELECT_TRAIT:
+    case SV_BIRTH_SELECT_BODY:
     case SV_BIRTH_BACK:
         return SV_BIRTH_INPUT_IGNORED;
     }
@@ -419,6 +534,8 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
         .legal_race_count = birth->legal_race_count,
         .highlighted_trait = birth->highlighted_trait,
         .legal_trait_count = birth->legal_trait_count,
+        .highlighted_body = birth->highlighted_body,
+        .legal_body_count = birth->legal_body_count,
         .setup = birth->setup,
         .dna_available = birth->dna_available} : (SvBirthView){0};
     if (birth) {
@@ -428,5 +545,7 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
             view->legal_races[i] = birth->legal_races[i];
         for (unsigned i = 0; i < birth->legal_trait_count; ++i)
             view->legal_traits[i] = birth->legal_traits[i];
+        for (unsigned i = 0; i < birth->legal_body_count; ++i)
+            view->legal_bodies[i] = birth->legal_bodies[i];
     }
 }

@@ -39,6 +39,8 @@ typedef struct {
     bool birth_race_confirmed, birth_race_random_used, birth_race_dna_used;
     bool birth_trait_confirmed, birth_trait_random_used, birth_trait_dna_used;
     bool birth_trait_skipped;
+    bool birth_body_confirmed, birth_body_random_used, birth_body_dna_used;
+    bool birth_body_skipped;
     SvBirthOwner birth_owner;
     SvBirthSex birth_highlighted_sex, birth_sex;
     int birth_highlighted_class, birth_class;
@@ -47,6 +49,9 @@ typedef struct {
     uint8_t birth_legal_races[255], birth_legal_race_count, birth_race_count;
     int birth_highlighted_trait, birth_trait;
     uint8_t birth_legal_traits[255], birth_legal_trait_count, birth_trait_count;
+    SvBirthBody birth_highlighted_body, birth_body;
+    SvBirthBody birth_legal_bodies[2];
+    uint8_t birth_legal_body_count, birth_body_count;
     uint64_t birth_generation;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
@@ -69,6 +74,8 @@ typedef struct {
     int birth_dna_race;
     bool birth_dna_trait_available;
     int birth_dna_trait;
+    bool birth_dna_body_available;
+    SvBirthBody birth_dna_body;
     SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);

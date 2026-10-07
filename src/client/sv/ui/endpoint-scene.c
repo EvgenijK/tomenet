@@ -176,6 +176,17 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               input->birth_view->highlighted_trait == (int)id ?
                               selected : normal)) return false;
                 }
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_BODY) {
+                if (!line(renderer,font,"Choose body (* random, # DNA, Q quits)",40,290,
+                          scale,normal)) return false;
+                for (unsigned i = 0; i < input->birth_view->legal_body_count; ++i) {
+                    SvBirthBody body = input->birth_view->legal_bodies[i];
+                    const char *title = body == SV_BIRTH_BODY_FRUIT_BAT ?
+                        "Fruit bat" : "Normal body";
+                    if (!line(renderer,font,title,60,340 + (int)i * 40,scale,
+                              input->birth_view->highlighted_body == body ?
+                              selected : normal)) return false;
+                }
             }
         }
         if (input->login_view && input->login_view->live_handoff) {

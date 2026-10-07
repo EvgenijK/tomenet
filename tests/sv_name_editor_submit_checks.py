@@ -60,7 +60,11 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "trait-dna", "trait-dna-incompatible", "trait-dna-stale",
                  "trait-dna-missing", "trait-dummy-skip",
                  "trait-dummy-skip-back", "trait-unavailable-skip",
-                 "trait-back", "trait-quit", "trait-ctrl-quit", "trait-mouse"):
+                 "trait-back", "trait-quit", "trait-ctrl-quit", "trait-mouse",
+                 "body-navigate", "body-random", "body-dna",
+                 "body-dna-stale", "body-dna-missing", "body-back",
+                 "body-back-no-trait", "body-unavailable-skip", "body-mouse",
+                 "body-quit", "body-ctrl-quit"):
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -70,4 +74,4 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-print("SV-B-022 name handoff and SV-B-023 sex/class/race/trait production checks passed")
+print("SV-B-022 name handoff and SV-B-023 sex/class/race/trait/body production checks passed")
