@@ -60,3 +60,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Привести SV birth decomposition к canonical tracker layout](issues/30-reconcile-sv-birth-tracker-layout.md)
 - [Verify focused production coverage](issues/31-focused-test-coverage.md)
 - [Восстановить обычный owner graph после post-mode PvP Maia](issues/32-unwind-post-mode-pvp-maia-context.md)
+- [Verify focused production coverage](issues/33-focused-test-coverage.md)
