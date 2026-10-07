@@ -245,7 +245,7 @@ static void push_guide_all_owners(void)
     push_guide_round_trip();
     push_key(SDLK_RETURN, 0);
 #endif
-    push_guide_round_trip();
+    push_key(SDLK_QUESTION, 0);
     for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
         push_key(key, 0);
         push_key(SDLK_RETURN, 0);
@@ -1035,6 +1035,20 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "guide-all-owners")) {
         push_guide_all_owners();
+    } else if (!strcmp(peer->mode, "guide-ordered-stats-no-op")) {
+        push_to_stats();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_QUESTION, 0);
+        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "stats-point-guide")) {
+        push_to_stats();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_guide_round_trip();
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "first-start-existing-mode-reject")) {
         push_to_mode();
         push_key(SDLK_H, 0);
@@ -2364,9 +2378,9 @@ int main(int argc, char **argv)
         assert(outcome.birth_placeholder_text[0] == '\0');
     } else if (!strcmp(argv[3], "guide-all-owners")) {
         static const int16_t expected_stats[] = {0, 1, 2, 3, 4, 5};
-        assert(outcome.birth_placeholder_open_count == 6);
-        assert(outcome.birth_placeholder_close_count == 6);
-        assert(outcome.birth_placeholder_owner_mask == 0xfcu);
+        assert(outcome.birth_placeholder_open_count == 5);
+        assert(outcome.birth_placeholder_close_count == 5);
+        assert(outcome.birth_placeholder_owner_mask == 0xbcu);
         assert(outcome.birth_placeholder_draft_preserved);
         assert(!strcmp(outcome.birth_placeholder_text,
                        "The guide is in development"));
@@ -2383,6 +2397,54 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
         assert(!outcome.birth_mode_confirmed &&
                outcome.birth_mode == SV_BIRTH_MODE_NONE);
+    } else if (!strcmp(argv[3], "guide-ordered-stats-no-op")) {
+        static const int16_t expected_stats[] = {1, -1, -1, -1, -1, -1};
+        static const int16_t expected_committed[] = {-1, -1, -1, -1, -1, -1};
+        static const uint8_t expected_legal[] = {0, 2, 3, 4, 5};
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(!outcome.birth_stats_point_buy && !outcome.birth_stats_confirmed);
+        assert(outcome.birth_highlighted_stat == 0);
+        assert(outcome.birth_stats_order_count == 1 &&
+               outcome.birth_legal_stat_count == 5);
+        assert(!memcmp(outcome.birth_stats, expected_stats,
+                       sizeof(expected_stats)));
+        assert(!memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)));
+        assert(!memcmp(outcome.birth_legal_stats, expected_legal,
+                       sizeof(expected_legal)));
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_placeholder_open_count == 0);
+        assert(outcome.birth_placeholder_close_count == 0);
+        assert(outcome.birth_placeholder_owner_mask == 0);
+        assert(outcome.birth_placeholder_text[0] == '\0');
+    } else if (!strcmp(argv[3], "stats-point-guide")) {
+        static const int16_t expected_stats[] = {10, 12, 10, 10, 10, 10};
+        static const int16_t expected_committed[] = {-1, -1, -1, -1, -1, -1};
+        static const uint8_t expected_legal[] = {0, 1, 2, 3, 4, 5};
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_stats_point_buy && !outcome.birth_stats_confirmed);
+        assert(outcome.birth_highlighted_stat == 1);
+        assert(outcome.birth_stats_order_count == 0 &&
+               outcome.birth_legal_stat_count == 6 &&
+               outcome.birth_stats_remaining == 28);
+        assert(!memcmp(outcome.birth_stats, expected_stats,
+                       sizeof(expected_stats)));
+        assert(!memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)));
+        assert(!memcmp(outcome.birth_legal_stats, expected_legal,
+                       sizeof(expected_legal)));
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_placeholder_open_count == 1);
+        assert(outcome.birth_placeholder_close_count == 1);
+        assert(outcome.birth_placeholder_owner_mask ==
+               (1u << (unsigned)SV_BIRTH_STATS));
+        assert(outcome.birth_placeholder_draft_preserved);
+        assert(!strcmp(outcome.birth_placeholder_text,
+                       "The guide is in development"));
     } else if (!strcmp(argv[3], "first-start-existing-mode-reject")) {
         static const int16_t committed[] = {0, 1, 2, 3, 4, 5};
         assert(outcome.character_count == 1);

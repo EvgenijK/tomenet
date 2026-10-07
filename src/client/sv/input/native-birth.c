@@ -242,7 +242,9 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return SV_BIRTH_INPUT_IGNORED;
     SDL_Keycode key = event->key.key;
     if (key == SDLK_QUESTION) {
-        if (birth->owner == SV_BIRTH_SEX) return SV_BIRTH_INPUT_HANDLED;
+        if (birth->owner == SV_BIRTH_SEX ||
+            (birth->owner == SV_BIRTH_STATS && !birth->stats_point_buy))
+            return SV_BIRTH_INPUT_HANDLED;
         if (birth->owner >= SV_BIRTH_CLASS && birth->owner <= SV_BIRTH_MODE)
             return SV_BIRTH_INPUT_PLACEHOLDER;
     }
