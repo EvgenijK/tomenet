@@ -17,6 +17,19 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_LEFT) {
+        if (birth->owner == SV_BIRTH_CLASS) {
+            if (event->button.y < 320.0f) return SV_BIRTH_INPUT_IGNORED;
+            unsigned position = (unsigned)((event->button.y - 320.0f) / 40.0f);
+            if (position >= birth->legal_class_count) return SV_BIRTH_INPUT_IGNORED;
+            SvBirthInputResult selected = apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
+                    .class_id = birth->legal_classes[position]}, false, true);
+            if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
+                return selected;
+            return apply(birth, generation,
+                (SvBirthCommand){.kind = SV_BIRTH_CONFIRM}, false, true);
+        }
+        if (birth->owner != SV_BIRTH_SEX) return SV_BIRTH_INPUT_IGNORED;
         SvBirthSex sex;
         if (event->button.y >= 300.0f && event->button.y < 350.0f)
             sex = SV_BIRTH_SEX_MALE;
@@ -24,33 +37,48 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             sex = SV_BIRTH_SEX_FEMALE;
         else return SV_BIRTH_INPUT_IGNORED;
         SvBirthInputResult selected = apply(birth, generation,
-            (SvBirthCommand){SV_BIRTH_SELECT_SEX, sex}, false, true);
+            (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX, .sex = sex}, false, true);
         if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
             return selected;
         return apply(birth, generation,
-                     (SvBirthCommand){SV_BIRTH_CONFIRM, SV_BIRTH_SEX_NONE},
+                     (SvBirthCommand){.kind = SV_BIRTH_CONFIRM},
                      false, true);
     }
     if (event->type != SDL_EVENT_KEY_DOWN || event->key.repeat)
         return SV_BIRTH_INPUT_IGNORED;
     SDL_Keycode key = event->key.key;
     SvBirthCommand command;
+    if (birth->owner == SV_BIRTH_CLASS && key != SDLK_Q &&
+        key >= SDLK_A && key <= SDLK_Z) {
+        unsigned position = (unsigned)(key - SDLK_A);
+        if (position >= birth->legal_class_count) {
+            birth->illegal_ignored = true;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+        return apply(birth, generation,
+            (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
+                .class_id = birth->legal_classes[position]}, true, false);
+    }
     if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_KP_8 || key == SDLK_KP_4)
-        command = (SvBirthCommand){SV_BIRTH_MOVE_PREVIOUS, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_PREVIOUS};
     else if (key == SDLK_DOWN || key == SDLK_RIGHT || key == SDLK_KP_2 || key == SDLK_KP_6)
-        command = (SvBirthCommand){SV_BIRTH_MOVE_NEXT, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_NEXT};
     else if (key == SDLK_M)
-        command = (SvBirthCommand){SV_BIRTH_SELECT_SEX, SV_BIRTH_SEX_MALE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
+            .sex = SV_BIRTH_SEX_MALE};
     else if (key == SDLK_F)
-        command = (SvBirthCommand){SV_BIRTH_SELECT_SEX, SV_BIRTH_SEX_FEMALE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
+            .sex = SV_BIRTH_SEX_FEMALE};
     else if (key == SDLK_ASTERISK || key == SDLK_KP_MULTIPLY)
-        command = (SvBirthCommand){SV_BIRTH_RANDOM, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_RANDOM};
     else if (key == SDLK_HASH)
-        command = (SvBirthCommand){SV_BIRTH_DNA, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_DNA};
     else if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
-        command = (SvBirthCommand){SV_BIRTH_CONFIRM, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};
+    else if (key == SDLK_BACKSPACE)
+        command = (SvBirthCommand){.kind = SV_BIRTH_BACK};
     else if (key == SDLK_Q || ((event->key.mod & SDL_KMOD_CTRL) && key == SDLK_Q))
-        command = (SvBirthCommand){SV_BIRTH_QUIT, SV_BIRTH_SEX_NONE};
+        command = (SvBirthCommand){.kind = SV_BIRTH_QUIT};
     else {
         birth->illegal_ignored = true;
         return SV_BIRTH_INPUT_IGNORED;

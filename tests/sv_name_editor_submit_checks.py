@@ -51,7 +51,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         check=True,
     )
     for mode in ("navigate", "mouse", "random", "dna", "dna-missing", "quit",
-                 "ctrl-quit"):
+                 "ctrl-quit", "class-navigate", "class-mouse", "class-random",
+                 "class-dna", "class-dna-hidden", "class-dna-incompatible",
+                 "class-dna-stale", "class-back", "class-ctrl-quit"):
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -61,4 +63,4 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-print("SV-B-022 name handoff and SV-B-023 sex choice production checks passed")
+print("SV-B-022 name handoff and SV-B-023 sex/class production checks passed")

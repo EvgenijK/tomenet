@@ -96,6 +96,50 @@ static void push_mouse_sex(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_class(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    event.button.clicks = clicks;
+    assert(SDL_PushEvent(&event));
+}
+
+static void send_setup(int socket)
+{
+    unsigned char setup[256], *at = setup;
+    put32(&at, 0);
+    put16(&at, 20);
+    *at++ = 2;
+    *at++ = 4;
+    *at++ = 0;
+    unsigned char *size_at = at;
+    at += 4;
+
+    for (int race = 0; race < 2; ++race) {
+        memset(at, 50, 6);
+        at += 6;
+        const char *title = race ? "Elf" : "Human";
+        memcpy(at, title, strlen(title) + 1);
+        at += strlen(title) + 1;
+        put32(&at, (1u << 0) | (1u << 2));
+    }
+    static const char *classes[] = {"Warrior", "0 Hidden", "Mage", "Orphan"};
+    for (size_t i = 0; i < sizeof(classes) / sizeof(classes[0]); ++i) {
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, classes[i], strlen(classes[i]) + 1);
+        at += strlen(classes[i]) + 1;
+        memset(at, 0, 6);
+        at += 6;
+    }
+    unsigned char *size_writer = size_at;
+    put32(&size_writer, (uint32_t)(at - setup));
+    assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
+}
+
 static void send_overview(int socket)
 {
     unsigned char response[64], *at = response;
@@ -143,15 +187,7 @@ static int peer_run(void *opaque)
            field(socket, text, sizeof(text)) && field(socket, text, sizeof(text)));
     static const unsigned char verified[] = {2, 1, 122, 6, 0, 0, 0x30, 0x39};
     assert(send(socket, verified, sizeof(verified), 0) == (ssize_t)sizeof(verified));
-    unsigned char setup[13];
-    at = setup;
-    put32(&at, 0);
-    put16(&at, 20);
-    *at++ = 0;
-    *at++ = 0;
-    *at++ = 0;
-    put32(&at, 13);
-    assert(send(socket, setup, sizeof(setup), 0) == (ssize_t)sizeof(setup));
+    send_setup(socket);
 
     unsigned char login_start[8];
     assert(exact(socket, login_start, sizeof(login_start)));
@@ -180,7 +216,38 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "navigate")) {
+    if (!strcmp(peer->mode, "class-navigate")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Z, 0);
+        push_mouse_class(380.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_mouse_class(380.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-dna") ||
+               !strcmp(peer->mode, "class-dna-hidden") ||
+               !strcmp(peer->mode, "class-dna-incompatible") ||
+               !strcmp(peer->mode, "class-dna-stale")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_mouse_class(380.0f, 1);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-ctrl-quit")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "navigate")) {
         push_key(SDLK_X, 0);
         push_mouse_sex(360.0f, 1);
         push_mouse_sex(310.0f, 1);
@@ -232,7 +299,11 @@ int main(int argc, char **argv)
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
         .real_name = "PLAYER", .outcome = &outcome,
         .birth_dna_available = !strcmp(argv[3], "dna"),
-        .birth_dna_sex = SV_BIRTH_SEX_FEMALE
+        .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
+        .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9),
+        .birth_dna_class = !strcmp(argv[3], "class-dna") ? 2 :
+            !strcmp(argv[3], "class-dna-hidden") ? 1 :
+            !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -244,7 +315,37 @@ int main(int argc, char **argv)
     assert(outcome.phase == SV_PREGAME_BIRTH);
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
-    if (!strcmp(argv[3], "navigate")) {
+    assert(outcome.birth_legal_class_count == 2);
+    assert(outcome.birth_legal_classes[0] == 0);
+    assert(outcome.birth_legal_classes[1] == 2);
+    if (!strcmp(argv[3], "class-navigate")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class == 2 && outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "class-mouse")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class == 2 && outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_mouse_navigated && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "class-random")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class_random_used);
+        assert(outcome.birth_class == 0 || outcome.birth_class == 2);
+    } else if (!strcmp(argv[3], "class-dna")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class_dna_used && outcome.birth_class == 2);
+    } else if (!strcmp(argv[3], "class-back")) {
+        assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_SEX);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_class == SV_BIRTH_CLASS_NONE && outcome.birth_quit);
+    } else if (!strncmp(argv[3], "class-dna-", 10)) {
+        assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(!outcome.birth_class_dna_used && outcome.birth_illegal_ignored);
+        assert(outcome.birth_highlighted_class == 0 && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "class-ctrl-quit")) {
+        assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "navigate")) {
         assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
         assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);

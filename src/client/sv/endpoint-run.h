@@ -35,8 +35,11 @@ typedef struct {
     bool birth_entered, birth_sex_confirmed, birth_keyboard_navigated;
     bool birth_mouse_navigated, birth_random_used, birth_dna_used;
     bool birth_illegal_ignored, birth_quit;
+    bool birth_class_confirmed, birth_class_random_used, birth_class_dna_used;
     SvBirthOwner birth_owner;
     SvBirthSex birth_highlighted_sex, birth_sex;
+    int birth_highlighted_class, birth_class;
+    uint8_t birth_legal_classes[255], birth_legal_class_count;
     uint64_t birth_generation;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
@@ -53,6 +56,8 @@ typedef struct {
     bool skip_motd, retry_login_disabled;
     bool birth_dna_available;
     SvBirthSex birth_dna_sex;
+    bool birth_dna_class_available;
+    int birth_dna_class;
     SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);
