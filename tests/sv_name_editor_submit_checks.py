@@ -20,12 +20,14 @@ SOURCES = [
     "src/client/sv/input/login-interaction.c",
     "src/client/sv/input/native-login.c",
     "src/client/sv/input/native-name.c",
+    "src/client/sv/input/native-birth.c",
     "src/client/sv/protocol/contact.c",
     "src/client/sv/protocol/contact-socket.c",
     "src/client/sv/protocol/login.c",
     "src/client/sv/protocol/login-identity.c",
     "src/client/sv/session/pregame.c",
     "src/client/sv/session/login-view.c",
+    "src/client/sv/session/birth.c",
     "src/client/sv/ui/endpoint-scene.c",
     "src/client/sv/ui/font.c",
     "src/client/sv/input/endpoint.c",
@@ -48,13 +50,15 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         cwd=ROOT,
         check=True,
     )
-    subprocess.run(
-        [str(binary), str(profile), str(ROOT / "lib")],
-        cwd=ROOT,
-        env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
-                 DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b022-no-service",
-                 ASAN_OPTIONS="detect_leaks=0"),
-        check=True,
-        timeout=15,
-    )
-print("SV-B-022 name editor submit production checks passed")
+    for mode in ("navigate", "mouse", "random", "dna", "dna-missing", "quit",
+                 "ctrl-quit"):
+        subprocess.run(
+            [str(binary), str(profile), str(ROOT / "lib"), mode],
+            cwd=ROOT,
+            env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
+                     DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b023-no-service",
+                     ASAN_OPTIONS="detect_leaks=0"),
+            check=True,
+            timeout=15,
+        )
+print("SV-B-022 name handoff and SV-B-023 sex choice production checks passed")

@@ -13,6 +13,7 @@
 typedef struct {
     int listener;
     bool request_exact;
+    const char *mode;
 } Peer;
 
 static bool exact(int socket, void *out, size_t size)
@@ -81,6 +82,17 @@ static void push_mouse_select_all(void)
     event.button.clicks = 2;
     event.button.x = 220.0f;
     event.button.y = 690.0f;
+    assert(SDL_PushEvent(&event));
+}
+
+static void push_mouse_sex(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    event.button.clicks = clicks;
     assert(SDL_PushEvent(&event));
 }
 
@@ -167,6 +179,30 @@ static int peer_run(void *opaque)
     SDL_Delay(150); /* A sent name alone must remain pending. */
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
+    SDL_Delay(150);
+    if (!strcmp(peer->mode, "navigate")) {
+        push_key(SDLK_X, 0);
+        push_mouse_sex(360.0f, 1);
+        push_mouse_sex(310.0f, 1);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+    } else if (!strcmp(peer->mode, "mouse")) {
+        push_mouse_sex(360.0f, 2);
+    } else if (!strcmp(peer->mode, "random")) {
+        push_key(SDLK_ASTERISK, 0);
+    } else if (!strcmp(peer->mode, "dna") || !strcmp(peer->mode, "dna-missing")) {
+        push_key(SDLK_HASH, 0);
+    } else if (!strcmp(peer->mode, "ctrl-quit")) {
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else {
+        assert(!strcmp(peer->mode, "quit"));
+        push_key(SDLK_Q, 0);
+    }
+    SDL_Delay(100);
+    if (!strcmp(peer->mode, "navigate") || !strcmp(peer->mode, "mouse") ||
+        !strcmp(peer->mode, "random") ||
+        !strcmp(peer->mode, "dna") || !strcmp(peer->mode, "dna-missing"))
+        push_key(SDLK_Q, 0);
     unsigned char closed;
     assert(recv(socket, &closed, 1, 0) == 0);
     close(socket);
@@ -175,8 +211,8 @@ static int peer_run(void *opaque)
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
-    Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0)};
+    assert(argc == 4);
+    Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
     assert(peer.listener >= 0);
     int reuse = 1;
     assert(!setsockopt(peer.listener, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)));
@@ -194,7 +230,9 @@ int main(int argc, char **argv)
         .root = argv[1], .library = argv[2], .server = "127.0.0.1",
         .width = 1024, .height = 768, .windowed = 1,
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
-        .real_name = "PLAYER", .outcome = &outcome
+        .real_name = "PLAYER", .outcome = &outcome,
+        .birth_dna_available = !strcmp(argv[3], "dna"),
+        .birth_dna_sex = SV_BIRTH_SEX_FEMALE
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -204,6 +242,33 @@ int main(int argc, char **argv)
     assert(outcome.random_name_suggested);
     assert(outcome.name_submit_phase == SV_PREGAME_CHARACTER_PENDING);
     assert(outcome.phase == SV_PREGAME_BIRTH);
+    assert(outcome.birth_entered);
+    assert(outcome.birth_generation == outcome.generation);
+    if (!strcmp(argv[3], "navigate")) {
+        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mouse")) {
+        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_mouse_navigated && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "random")) {
+        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_random_used);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_MALE ||
+               outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+    } else if (!strcmp(argv[3], "dna")) {
+        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+    } else {
+        assert(!outcome.birth_sex_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_SEX && outcome.birth_quit);
+        if (!strcmp(argv[3], "dna-missing")) {
+            assert(outcome.birth_illegal_ignored && !outcome.birth_dna_used);
+            assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_MALE);
+        }
+    }
     assert(!strcmp(outcome.selected_character, "Carol$"));
     assert(outcome.reincarnation_requested);
     assert(outcome.name_maximum_draft_bytes == 15);

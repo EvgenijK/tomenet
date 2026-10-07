@@ -3,6 +3,7 @@
 #include "input/endpoint.h"
 #include <SDL3/SDL.h>
 struct SvLoginView;
+struct SvBirthView;
 typedef struct {
     uint64_t since_ns;
     SDL_Keymod latch;
@@ -10,6 +11,7 @@ typedef struct {
     bool clipboard_unavailable;
     const char *contact_status;
     const struct SvLoginView *login_view;
+    const struct SvBirthView *birth_view;
 } SvEndpointInput;
 /* The provider boundary is the OS clipboard. NULL selects SDL's real clipboard. */
 typedef char *(*SvClipboardRead)(void *context);

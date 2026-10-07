@@ -19,6 +19,7 @@ case "${1:-core}" in
             tests/sv_first_session_checks.py
             tests/sv_account_create_checks.py
             tests/sv_account_failure_checks.py
+            tests/sv_name_editor_submit_checks.py
             tests/sv_message_checks.py
             tests/sv_metaserver_live_checks.py
             tests/sv_request_checks.py

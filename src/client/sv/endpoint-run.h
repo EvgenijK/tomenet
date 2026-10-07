@@ -2,6 +2,7 @@
 #define SV_ENDPOINT_RUN_H
 #include "input/endpoint.h"
 #include "session/pregame.h"
+#include "session/birth.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];
@@ -31,6 +32,12 @@ typedef struct {
     bool name_rejected, name_recovery_started, name_recovery_draft_preserved;
     uint64_t name_rejected_generation, name_recovery_generation;
     char name_rejection_reason[256];
+    bool birth_entered, birth_sex_confirmed, birth_keyboard_navigated;
+    bool birth_mouse_navigated, birth_random_used, birth_dna_used;
+    bool birth_illegal_ignored, birth_quit;
+    SvBirthOwner birth_owner;
+    SvBirthSex birth_highlighted_sex, birth_sex;
+    uint64_t birth_generation;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
 } SvEndpointOutcome;
@@ -44,6 +51,8 @@ typedef struct {
     void *source_context;
     const char *account, *password, *real_name, *character;
     bool skip_motd, retry_login_disabled;
+    bool birth_dna_available;
+    SvBirthSex birth_dna_sex;
     SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);
