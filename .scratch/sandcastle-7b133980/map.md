@@ -16,7 +16,7 @@ Immutable acceptance contract:
 [acceptance-contract.json](acceptance-contract.json), digest
 `690a04cefb7fd0e1615dce46d1a538e1dcbd856232af1a1373be93f987095c82`.
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
-[batch 2](batch-2.json), [batch 3](batch-3.json).
+[batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
@@ -24,10 +24,7 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-Открытых child records нет. Последний repair edge: record 30 был blocked by
-focused production coverage 26 (resolved). Новые repair records добавляются
-сюда по своим blocking edges; после resolution их ссылка переносится в decision
-history.
+- [Восстановить обычный owner graph после post-mode PvP Maia](issues/32-unwind-post-mode-pvp-maia-context.md) — unclaimed; blockers 06, 15 и 23 resolved, поэтому ticket готов к работе.
 
 ## Decisions so far
 
