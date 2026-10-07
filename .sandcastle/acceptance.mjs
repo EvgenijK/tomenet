@@ -37,17 +37,19 @@ export function validateContract(contract, sources) {
     need(check?.kind === baseline.kind && check.command === baseline.command, `missing or weakened mandatory ${baseline.id}`);
   }
   const ids = new Set();
+  const invalidCheckMappings = [];
   for (const criterion of contract.criteria) {
     need(identifier(criterion.id) && !ids.has(criterion.id) && text(criterion.requirement), "invalid/duplicate criterion");
     ids.add(criterion.id);
     need(typeof criterion.mandatory === "boolean" && ["current", "deferred"].includes(criterion.applicability), "criterion needs explicit applicability");
     need(text(criterion.source?.quote) && typeof sources[criterion.source.path] === "string" && sources[criterion.source.path].includes(criterion.source.quote), `unverifiable source for ${criterion.id}`);
-    need(Array.isArray(criterion.checkIds) && criterion.checkIds.length > 0 && new Set(criterion.checkIds).size === criterion.checkIds.length && criterion.checkIds.every((id) => checks.has(id)), `invalid check mapping for ${criterion.id}`);
+    if (!Array.isArray(criterion.checkIds) || criterion.checkIds.length === 0 || new Set(criterion.checkIds).size !== criterion.checkIds.length || !criterion.checkIds.every((id) => checks.has(id))) invalidCheckMappings.push(criterion.id);
     need(typeof criterion.owner === "string" && typeof criterion.deferralReason === "string", "owner/reason fields required");
     if (criterion.applicability === "deferred") {
       need(contract.completionScope === "implementation" && text(criterion.owner) && text(criterion.deferralReason), "full acceptance cannot defer required criteria");
     } else need(criterion.deferralReason === "", "current criteria cannot carry a deferral");
   }
+  need(invalidCheckMappings.length === 0, `invalid check mapping for criteria: ${invalidCheckMappings.join(", ")}`);
   need(contract.criteria.some((item) => item.mandatory && item.applicability === "current"), "at least one current mandatory criterion required");
   return contract;
 }

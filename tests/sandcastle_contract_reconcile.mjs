@@ -76,6 +76,38 @@ test("assembly returns check-specific feedback and saves only a validated correc
   assert.equal(pending.assemblyAttempts.used, 2);
 });
 
+test("assembly reports and repairs every invalid mapping from the original draft in one patch", async () => {
+  const broken = draft();
+  broken.criteria = [
+    { ...broken.criteria[0], id: "P1-AC8", checkIds: [] },
+    { ...broken.criteria[1], id: "P1-AC9", checkIds: [] },
+  ];
+  const original = structuredClone(broken);
+  const pending = { round: 2, groupPlanDigest: "groups", groupResponses: [{}, {}] };
+  let calls = 0;
+  const revised = await reconcileContractDraft(pending, broken, sources, async (proposal, error) => {
+    calls++;
+    assert.deepEqual(proposal, original, "each retry must receive the unchanged original draft");
+    if (!error) return { summary: "Inspect the draft", completionScope: null, criterionEdits: [], checkEdits: [], criteriaToAdd: [], checksToAdd: [] };
+    assert.match(error, /P1-AC8/);
+    assert.match(error, /P1-AC9/);
+    return {
+      summary: "Repair both invalid mappings in one patch against the original draft",
+      completionScope: null,
+      criterionEdits: [
+        { id: "P1-AC8", replacement: { ...broken.criteria[0], applicability: "current", owner: "SV-B-022", deferralReason: "", checkIds: ["guide"] } },
+        { id: "P1-AC9", replacement: { ...broken.criteria[1], checkIds: ["native"] } },
+      ],
+      checkEdits: [], criteriaToAdd: [], checksToAdd: [],
+    };
+  }, async () => {});
+  assert.equal(calls, 2);
+  assert.deepEqual(revised.criteria.map((criterion) => [criterion.id, criterion.checkIds]), [
+    ["P1-AC8", ["guide"]],
+    ["P1-AC9", ["native"]],
+  ]);
+});
+
 test("assembly prompt states immutable baselines and the focused forms enforced by validation", () => {
   for (const form of ["sv-build and sv-core baseline checks are immutable", "add a separate focused check", "python3 -B tests/<file>", "node tests/<file>", "bash tests/<file>", "command=''", "shell operators", "Preserve every other already valid check"]) {
     assert.ok(assemblyCommandRules.includes(form), form);

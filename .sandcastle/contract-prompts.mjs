@@ -23,6 +23,8 @@ export function groupContractPromptGuidance({ usesSourceSpans = true } = {}) {
 export function reconciliationContractPromptGuidance() {
   return [
     "Reconcile the grouped drafts only against the fixed authoritative source set. Resolve cross-group inconsistencies and every saved verifier finding without broadening the originating task.",
+    "Each retry is applied to the unchanged original grouped draft, never to a previous rejected patch. Return one complete patch that repairs all known validation failures together; partial fixes from rejected attempts are not accumulated.",
+    "Repair all criterion IDs named in validation feedback in the same patch. Every criterion, including deferred criteria, must map to at least one valid check ID; add a focused or external check only when the authoritative requirement needs it.",
     "Preserve criteria already supported by authoritative sources. Do not add criteria unsupported by that source set; replace an inaccurate criterion only when saved verifier feedback justifies the correction.",
     "Keep production implementation criteria distinct from deferred native, platform, and later-caller evidence. Deferred criteria must retain an exact owner and reason.",
     ...controllerExecutionFacts,

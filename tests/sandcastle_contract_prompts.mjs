@@ -29,6 +29,15 @@ test("group guidance selects the controller citation format", () => {
   assert.match(groupContractPromptGuidance({ usesSourceSpans: false }).join("\n"), /quote only the supplied source sections/);
 });
 
+test("reconciliation guidance requires one complete patch against the original draft", () => {
+  const guidance = reconciliationContractPromptGuidance().join("\n");
+  assert.match(guidance, /unchanged original grouped draft/);
+  assert.match(guidance, /one complete patch/);
+  assert.match(guidance, /all criterion IDs named in validation feedback/);
+  assert.match(guidance, /including deferred criteria/);
+  assert.match(guidance, /at least one valid check ID/);
+});
+
 test("verifier guidance explains immutable baseline execution", () => {
   const facts = controllerExecutionFacts.join("\n");
   const verifier = verifierContractPromptGuidance().join("\n");
