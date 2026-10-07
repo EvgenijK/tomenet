@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SV-B-022 name editing/submission through the production endpoint seam."""
+"""SV-B-022 name handoff and SV-B-023 choices through the production endpoint seam."""
 from pathlib import Path
 import os
 import subprocess
@@ -53,7 +53,10 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     for mode in ("navigate", "mouse", "random", "dna", "dna-missing", "quit",
                  "ctrl-quit", "class-navigate", "class-mouse", "class-random",
                  "class-dna", "class-dna-hidden", "class-dna-incompatible",
-                 "class-dna-stale", "class-back", "class-ctrl-quit"):
+                 "class-dna-stale", "class-back", "class-ctrl-quit",
+                 "race-navigate", "race-random", "race-dna",
+                 "race-dna-incompatible", "race-dna-stale", "race-dna-missing",
+                 "race-back", "race-ctrl-quit"):
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -63,4 +66,4 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-print("SV-B-022 name handoff and SV-B-023 sex/class production checks passed")
+print("SV-B-022 name handoff and SV-B-023 sex/class/race production checks passed")

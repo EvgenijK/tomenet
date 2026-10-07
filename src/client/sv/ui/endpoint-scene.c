@@ -25,7 +25,8 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
     float scale = SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));
     if (scale <= 0) scale = 1.0f;
     const SDL_Color title = {226,235,245,255}, normal = {185,205,223,255},
-                    selected = {255,210,106,255}, error = {255,135,135,255};
+                    selected = {255,210,106,255}, disabled = {92,108,121,255},
+                    error = {255,135,135,255};
     if (!SDL_SetRenderDrawColor(renderer, 15,21,28,255) || !SDL_RenderClear(renderer)) return false;
     if (!line(renderer,font,"TomeNET SV - Server",40,34,scale,title)) return false;
     if (endpoint->phase == SV_ENDPOINT_LIST) {
@@ -152,6 +153,18 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               60,340 + (int)i * 40,scale,
                               input->birth_view->highlighted_class == (int)id ?
                               selected : normal)) return false;
+                }
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_RACE) {
+                if (!line(renderer,font,"Choose race (* random, # DNA, Q quits)",40,290,
+                          scale,normal)) return false;
+                for (unsigned id = 0; id < input->birth_view->setup->race_count; ++id) {
+                    bool legal = false;
+                    for (unsigned i = 0; i < input->birth_view->legal_race_count; ++i)
+                        if (input->birth_view->legal_races[i] == id) legal = true;
+                    if (!line(renderer,font,input->birth_view->setup->races[id].title,
+                              60,340 + (int)id * 40,scale,
+                              input->birth_view->highlighted_race == (int)id ?
+                              selected : legal ? normal : disabled)) return false;
                 }
             }
         }
