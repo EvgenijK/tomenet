@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** `%` включает baseline automatic reincarnation: production birth interaction последовательно применяет legal DNA identity на каждом доступном owner, пропускает только действительно unavailable steps и безопасно останавливается на missing/incompatible DNA, оставляя игроку согласованный ручной выбор без persistence.
 
 **Blocked by:** 14: Изолировать production birth input context.

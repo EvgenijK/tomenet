@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** После race игрок выбирает legal compatible trait из server setup, а когда trait unavailable или единственный dummy choice не требует выбора, production interaction сразу назначает следующего реального owner; Backspace никогда не останавливается на пропущенном шаге.
 
 **Blocked by:** 03: Выбрать race с class compatibility.

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Пока birth interaction активна, каждый keyboard/mouse gesture обрабатывается только её input context: известные gestures становятся semantic birth commands, остальные безопасно потребляются, а Escape в point-buy выполняет baseline confirmation. Никакой birth input не подтверждает login/MOTD state и не завершает endpoint в обход birth owner.
 
 **Blocked by:** 13: Verify focused production coverage (completed).

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Body choice учитывает production first-run eligibility и текущий class: первый персонаж не может напрямую выбрать Fruit Bat, а random для Archer всегда подтверждает Normal; legal non-first-run manual choices продолжают работать по behavior baseline.
 
 **Blocked by:** 05: Выбрать или пропустить body (completed).

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Когда legal server setup связывает выбранный visible base class и race с hidden derived class, подтверждение race сохраняет в draft derived server identity, при этом backtracking продолжает показывать и подсвечивать выбранный игроком visible base class.
 
 **Blocked by:** 06: Сохранить alternate class/race compile order (completed).

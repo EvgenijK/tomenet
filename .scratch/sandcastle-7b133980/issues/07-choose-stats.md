@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** После последнего class/race/body owner игрок завершает baseline stats choice через production interaction: legal server-compatible distribution/order, random/DNA choice, stable highlight, keyboard/mouse confirmation и Backspace к реальному предыдущему owner без сетевого результата.
 
 **Blocked by:** 06: Сохранить alternate class/race compile order.

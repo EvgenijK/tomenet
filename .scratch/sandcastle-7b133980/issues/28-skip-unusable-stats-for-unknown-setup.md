@@ -2,6 +2,8 @@
 
 **Type:** repair
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Игрок с authoritative `creation_flags > 1` не попадает на пустую stats surface: после последнего доступного выбора production birth flow безопасно сохраняет baseline draft и переходит к mode. Backspace из mode возвращает к фактически предшествующему доступному owner в обеих compile-time class/race order configurations, а повторный проход снова пропускает недоступные body/stats без partial или completed send.
 
 **Blocked by:** 08: Выбрать mode и завершить draft (completed); 09: Завершить или вернуться без send (completed).

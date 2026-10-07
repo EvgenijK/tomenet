@@ -2,6 +2,8 @@
 
 **Type:** repair
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Игрок может увидеть и выбрать keyboard и mouse любой legal server-provided class, race или trait даже когда список длиннее доступной высоты surface. Bounded viewport прокручивается или перелистывается вместе со stable highlighted identity, а rendering и hit testing используют одну и ту же видимую область, включая disabled race entries.
 
 **Blocked by:** 02: Выбрать class в default order (completed); 03: Выбрать совместимую race (completed); 04: Выбрать или пропустить trait (completed).

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Второй поддержанный compile order ведёт игрока по sex → race → optional trait → optional body → class, сохраняя те же legal choices и compatibility, а каждый Backspace возвращает реального предыдущего owner; default order продолжает работать без расхождения semantics.
 
 **Blocked by:** 05: Выбрать или пропустить body.

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** В production build с `CLASS_BEFORE_RACE` игрок после sex выбирает legal server-provided class, сохраняет устойчивую подсветку при keyboard/mouse/random/DNA input, подтверждает выбор для перехода к race либо возвращается Backspace к sex без сетевого результата.
 
 **Blocked by:** 01: Войти в birth и выбрать пол.

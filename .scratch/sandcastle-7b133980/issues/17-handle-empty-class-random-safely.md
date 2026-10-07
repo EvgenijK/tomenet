@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Если authoritative birth setup не даёт ни одного viable visible class/race path, random class input завершается предсказуемым production error/ignored outcome без arithmetic fault, изменения draft или сетевой отправки; lifecycle получает смысловой результат для безопасного продолжения или закрытия.
 
 **Blocked by:** 02: Выбрать класс в default compile order (completed).

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Во время любого birth choice сеть продолжает обслуживаться, а focus и resize обновляют только presentation; interleaving не меняет owner, selection или draft. Disconnect и stale generation немедленно закрывают interaction и запрещают любые последующие sends.
 
 **Blocked by:** 08: Выбрать mode и завершить draft.
