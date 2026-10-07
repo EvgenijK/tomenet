@@ -284,6 +284,12 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->stats_point_buy,
                                    .birth_stats_confirmation_pending = birth &&
                                        birth->stats_confirmation_pending,
+                                   .birth_mode_confirmed = birth &&
+                                       birth->mode_confirmed,
+                                   .birth_mode_random_used = birth &&
+                                       birth->mode_random_used,
+                                   .birth_mode_dna_used = birth && birth->mode_dna_used,
+                                   .birth_mode_ready = birth && birth->mode_ready,
                                    .birth_owner = birth ? birth->owner : SV_BIRTH_NONE,
                                    .birth_highlighted_sex = birth ?
                                        birth->highlighted_sex : SV_BIRTH_SEX_NONE,
@@ -327,6 +333,12 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->stats_order_count : 0,
                                    .birth_stats_remaining = birth ?
                                        birth->stats_remaining : 0,
+                                   .birth_highlighted_mode = birth ?
+                                       birth->highlighted_mode : SV_BIRTH_MODE_NONE,
+                                   .birth_mode = birth ? birth->chosen_mode :
+                                       SV_BIRTH_MODE_NONE,
+                                   .birth_legal_mode_count = birth ?
+                                       birth->legal_mode_count : 0,
                                    .birth_generation = birth ? birth->generation : 0};
     if (birth) {
         memcpy(outcome->birth_legal_classes, birth->legal_classes,
@@ -340,6 +352,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
         memcpy(outcome->birth_stats, birth->stats, sizeof(birth->stats));
         memcpy(outcome->birth_legal_stats, birth->legal_stats,
                birth->legal_stat_count);
+        memcpy(outcome->birth_legal_modes, birth->legal_modes,
+               birth->legal_mode_count * sizeof(birth->legal_modes[0]));
     }
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
@@ -441,13 +455,16 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             if (applied != SV_OK) { session_error = applied; state = SV_SOCKET_PROTOCOL_ERROR; }
             else if (pregame.phase == SV_PREGAME_BIRTH && !birth_started) {
                 session_error = sv_birth_begin(&birth, generation,
-                    sv_contact_socket_setup(connection), options.birth_dna_available,
+                    sv_contact_socket_setup(connection), pregame.server_flags,
+                    pregame.character_count, options.birth_dedicated,
+                    options.birth_dna_available,
                     options.birth_dna_sex, options.birth_dna_class_available,
                     options.birth_dna_class, options.birth_dna_race_available,
                     options.birth_dna_race, options.birth_dna_trait_available,
                     options.birth_dna_trait, options.birth_dna_body_available,
                     options.birth_dna_body, options.birth_dna_stats_available,
-                    options.birth_dna_stats);
+                    options.birth_dna_stats, options.birth_dna_mode_available,
+                    options.birth_dna_mode);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
                 else birth_started = true;
             }

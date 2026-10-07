@@ -215,6 +215,25 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               input->birth_view->highlighted_stat == (int)stat ?
                               selected : normal)) return false;
                 }
+            } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_MODE) {
+                if (!line(renderer,font,"Choose mode (* random, # DNA, Q quits)",40,290,
+                          scale,normal)) return false;
+                for (unsigned i = 0; i < input->birth_view->legal_mode_count; ++i) {
+                    SvBirthMode mode = input->birth_view->legal_modes[i];
+                    const char *title = mode == SV_BIRTH_MODE_NORMAL ? "Normal" :
+                        mode == SV_BIRTH_MODE_NO_GHOST ? "No Ghost" :
+                        mode == SV_BIRTH_MODE_SOLOIST ? "Soloist" :
+                        mode == SV_BIRTH_MODE_HELLISH ? "Hellish" :
+                        mode == SV_BIRTH_MODE_EVERLASTING ? "Everlasting" :
+                        mode == SV_BIRTH_MODE_PVP ? "PvP" :
+                        mode == SV_BIRTH_MODE_IDDC ? "IDDC" :
+                        mode == SV_BIRTH_MODE_IDDC_SOLOIST ? "IDDC Soloist" :
+                        mode == SV_BIRTH_MODE_IDDC_HELLISH ? "Hellish IDDC" :
+                        "Dedicated PvP";
+                    if (!line(renderer,font,title,60,340 + (int)i * 40,scale,
+                              input->birth_view->highlighted_mode == mode ?
+                              selected : normal)) return false;
+                }
             }
         }
         if (input->login_view && input->login_view->live_handoff) {

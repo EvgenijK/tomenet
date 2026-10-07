@@ -37,6 +37,7 @@ SOURCES = [
     "src/client/sv/input/metaserver.c",
     "src/common/md5.c",
 ]
+ONLY_CASE = os.environ.get("SV_BIRTH_CASE")
 
 with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     root = Path(temp)
@@ -58,7 +59,12 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         cwd=ROOT,
         check=True,
     )
-    for mode in ("navigate", "mouse", "random", "dna", "dna-missing", "quit",
+    for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+                 "mode-dedicated", "mode-dedicated-unavailable",
+                 "mode-back", "mode-random", "mode-ctrl-quit",
+                 "mode-pvp-maia", "mode-rpg", "mode-dedicated-iddc",
+                 "mode-dedicated-dna",
+                 "navigate", "mouse", "random", "dna", "dna-missing", "quit",
                  "ctrl-quit", "class-navigate", "class-mouse", "class-random",
                  "class-dna", "class-dna-hidden", "class-dna-incompatible",
                  "class-dna-stale", "class-back", "class-ctrl-quit",
@@ -81,6 +87,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound"):
+        if ONLY_CASE and mode != ONLY_CASE:
+            continue
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -90,7 +98,12 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-    for mode in ("alternate-order", "alternate-race-back",
+    for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+                 "mode-dedicated", "mode-dedicated-unavailable",
+                 "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",
+                 "mode-random",
+                 "mode-ctrl-quit", "mode-rpg", "mode-pvp-maia",
+                 "alternate-order", "alternate-race-back",
                  "alternate-trait-back", "alternate-body-back",
                  "alternate-class-back", "alternate-class-back-no-body",
                  "alternate-class-back-no-trait-body", "alternate-navigate",
@@ -105,6 +118,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound"):
+        if ONLY_CASE and mode != ONLY_CASE:
+            continue
         subprocess.run(
             [str(alternate_binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
