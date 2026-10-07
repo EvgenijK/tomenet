@@ -32,7 +32,8 @@ typedef enum {
 } SvBirthSex;
 
 typedef enum {
-    SV_BIRTH_CLASS_NONE = -1
+    SV_BIRTH_CLASS_NONE = -1,
+    SV_BIRTH_CLASS_ARCHER = 5
 } SvBirthClass;
 
 typedef enum {
@@ -107,6 +108,7 @@ typedef struct {
     SvBirthSex highlighted_sex, chosen_sex;
     SvBirthSex dna_sex;
     int highlighted_class, chosen_visible_class, chosen_class, dna_class;
+    int last_confirmed_class;
     uint8_t legal_classes[255], legal_class_count;
     int highlighted_race, chosen_race, dna_race;
     uint8_t legal_races[255], legal_race_count;
@@ -147,7 +149,7 @@ typedef struct {
     uint32_t server_flags[4];
     size_t existing_characters;
     uint8_t race_count, trait_count;
-    bool dedicated;
+    bool dedicated, first_run;
     uint32_t random_state;
     const SvContactSetup *setup;
 } SvBirth;
