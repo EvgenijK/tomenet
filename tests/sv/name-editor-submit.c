@@ -391,6 +391,13 @@ static bool existing_character_case(const char *mode)
         strncmp(mode, "mode-", 5);
 }
 
+static bool hidden_dna_race_mismatch_case(const char *mode)
+{
+    return !strcmp(mode, "auto-dna-hidden-race-mismatch") ||
+        !strcmp(mode, "auto-dna-hidden-race-reject-stable") ||
+        !strcmp(mode, "hidden-derived-dna-race-mismatch");
+}
+
 static void push_to_pvp_maia_mode(void)
 {
     push_key(SDLK_RETURN, 0);
@@ -519,16 +526,14 @@ static void send_setup(int socket, const char *mode)
         memcpy(at, title, strlen(title) + 1);
         at += strlen(title) + 1;
         put32(&at, race_choices[race] |
-              ((!strcmp(mode, "auto-dna-hidden-race-mismatch") ||
-                !strcmp(mode, "hidden-derived-dna-race-compatible") ||
-                !strcmp(mode, "hidden-derived-dna-race-mismatch")) && race == 1 ?
+              ((hidden_dna_race_mismatch_case(mode) ||
+                !strcmp(mode, "hidden-derived-dna-race-compatible")) && race == 1 ?
                1u << 3 : 0u) |
-              ((!strcmp(mode, "auto-dna-hidden-race-mismatch") ||
+              ((hidden_dna_race_mismatch_case(mode) ||
                 !strcmp(mode, "hidden-derived") ||
                 !strcmp(mode, "hidden-derived-base-mismatch") ||
                 !strcmp(mode, "hidden-derived-dna") ||
                 !strcmp(mode, "hidden-derived-dna-race-compatible") ||
-                !strcmp(mode, "hidden-derived-dna-race-mismatch") ||
                 !strcmp(mode, "hidden-derived-dna-stale") ||
                 !strcmp(mode, "hidden-derived-mouse") ||
                 !strcmp(mode, "hidden-derived-reconfirm") ||
@@ -541,9 +546,8 @@ static void send_setup(int socket, const char *mode)
         at += 6;
         const char *title = !strcmp(mode, "hidden-derived-dna-stale") && i == 1 ?
             "9 Hidden" :
-            (!strcmp(mode, "auto-dna-hidden-race-mismatch") ||
-             !strcmp(mode, "hidden-derived-dna-race-compatible") ||
-             !strcmp(mode, "hidden-derived-dna-race-mismatch")) && i == 3 ?
+            (hidden_dna_race_mismatch_case(mode) ||
+             !strcmp(mode, "hidden-derived-dna-race-compatible")) && i == 3 ?
             "0 Hidden Other" : classes[i];
         memcpy(at, title, strlen(title) + 1);
         at += strlen(title) + 1;
@@ -753,6 +757,9 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_Q);
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-hidden-race-reject-stable")) {
+        push_key(SDLK_PERCENT, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "auto-dna-hidden-race-mismatch")) {
         push_key(SDLK_PERCENT, 0);
@@ -1520,8 +1527,7 @@ int main(int argc, char **argv)
     bool automatic = !strncmp(argv[3], "auto-dna-", 9);
     bool auto_missing_sex = !strcmp(argv[3], "auto-dna-missing-sex");
     bool auto_pvp_maia = !strcmp(argv[3], "auto-dna-dedicated-pvp-maia");
-    bool auto_hidden_race_mismatch =
-        !strcmp(argv[3], "auto-dna-hidden-race-mismatch");
+    bool auto_hidden_race_mismatch = hidden_dna_race_mismatch_case(argv[3]);
     bool auto_incompatible_class =
         !strcmp(argv[3], "auto-dna-incompatible-class");
     bool normalized_dna = !strcmp(argv[3], "stats-point-dna-illegal") ||
@@ -1715,6 +1721,16 @@ int main(int argc, char **argv)
                 SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING));
         assert(outcome.birth_mode_ready && outcome.birth_keyboard_navigated);
         assert(outcome.birth_auto_reincarnation);
+    } else if (!strcmp(argv[3], "auto-dna-hidden-race-reject-stable")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_class == 0 && outcome.birth_highlighted_class == 0);
+        assert(!outcome.birth_race_confirmed && !outcome.birth_race_dna_used);
+        assert(outcome.birth_race == SV_BIRTH_RACE_NONE &&
+               outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_illegal_ignored &&
+               !outcome.birth_auto_reincarnation);
     } else if (!strcmp(argv[3], "auto-dna-hidden-race-mismatch")) {
         assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
         assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
@@ -2460,7 +2476,7 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == 0 && outcome.birth_highlighted_class == 0);
         assert(!outcome.birth_race_confirmed && !outcome.birth_race_dna_used);
         assert(outcome.birth_race == SV_BIRTH_RACE_NONE &&
-               outcome.birth_highlighted_race == 1);
+               outcome.birth_highlighted_race == 0);
         assert(outcome.birth_illegal_ignored &&
                !outcome.birth_auto_reincarnation);
     } else if (!strcmp(argv[3], "hidden-derived-dna-missing") ||

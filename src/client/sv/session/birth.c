@@ -429,6 +429,15 @@ static SvBirthInputResult race_command(SvBirth *birth, SvBirthCommand command)
             birth->auto_reincarnation = false;
             return SV_BIRTH_INPUT_IGNORED;
         }
+#if SV_CLASS_BEFORE_RACE
+        if (birth->requested_class != SV_BIRTH_CLASS_NONE &&
+            resolved_class(birth, birth->chosen_visible_class,
+                           birth->dna_race) != birth->requested_class) {
+            birth->illegal_ignored = true;
+            birth->auto_reincarnation = false;
+            return SV_BIRTH_INPUT_IGNORED;
+        }
+#endif
         birth->highlighted_race = birth->dna_race;
         SvBirthInputResult result = confirm_race(birth);
         if (result == SV_BIRTH_INPUT_CONFIRMED) birth->race_dna_used = true;
