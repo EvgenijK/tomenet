@@ -10,6 +10,7 @@ typedef struct {
     SvTextResult text_error;
     bool clipboard_unavailable;
     const char *contact_status;
+    const char *temporary_surface_text;
     const struct SvLoginView *login_view;
     const struct SvBirthView *birth_view;
 } SvEndpointInput;

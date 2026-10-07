@@ -128,6 +128,13 @@ typedef struct {
     char reason[256];
 } SvNameRecovery;
 
+typedef struct {
+    unsigned open_count, close_count;
+    uint32_t owner_mask;
+    bool draft_preserved;
+    char text[64];
+} SvBirthPlaceholderEvidence;
+
 static SvResult handoff_contact_bytes(SvContactSocket *connection, SvSessionWire *wire)
 {
     SvOutput needed = sv_contact_socket_take_remaining(connection, NULL, 0);
@@ -195,7 +202,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                             uint64_t prior_generation,
                             SvCredentialSaveState credential_save,
                             const SvOrdinaryNameEvidence *name,
-                            const SvNameRecovery *recovery, const SvBirth *birth)
+                            const SvNameRecovery *recovery, const SvBirth *birth,
+                            const SvBirthPlaceholderEvidence *placeholder)
 {
     if (!pregame || !outcome) return;
     *outcome = (SvEndpointOutcome){.generation = pregame->generation,
@@ -339,6 +347,14 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        SV_BIRTH_MODE_NONE,
                                    .birth_legal_mode_count = birth ?
                                        birth->legal_mode_count : 0,
+                                   .birth_placeholder_open_count = placeholder ?
+                                       placeholder->open_count : 0,
+                                   .birth_placeholder_close_count = placeholder ?
+                                       placeholder->close_count : 0,
+                                   .birth_placeholder_owner_mask = placeholder ?
+                                       placeholder->owner_mask : 0,
+                                   .birth_placeholder_draft_preserved = placeholder &&
+                                       placeholder->draft_preserved,
                                    .birth_generation = birth ? birth->generation : 0};
     if (birth) {
         memcpy(outcome->birth_legal_classes, birth->legal_classes,
@@ -355,6 +371,9 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
         memcpy(outcome->birth_legal_modes, birth->legal_modes,
                birth->legal_mode_count * sizeof(birth->legal_modes[0]));
     }
+    if (placeholder)
+        memcpy(outcome->birth_placeholder_text, placeholder->text,
+               sizeof(outcome->birth_placeholder_text));
     memcpy(outcome->server_flags, pregame->server_flags,
            sizeof(outcome->server_flags));
     memcpy(outcome->selected_character, pregame->selected_character,
@@ -393,6 +412,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvLoginView login_view = {0};
     SvBirth birth = {0};
     SvBirthView birth_view = {0};
+    SvBirthPlaceholderEvidence birth_placeholder = {.draft_preserved = true};
+    SvBirth birth_before_placeholder = {0};
     SvPregame pregame;
     SvVaultRequest *save = NULL;
     sv_pregame_begin(&pregame, generation);
@@ -402,6 +423,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
     bool birth_started = false;
+    bool birth_placeholder_open = false, birth_placeholder_drawn = false;
+    SvBirthOwner birth_placeholder_owner = SV_BIRTH_NONE;
     bool save_started = false, save_failed = false;
     SvCredentialSaveState credential_save = SV_CREDENTIAL_SAVE_NOT_STARTED;
     SvOrdinaryNameEvidence name_evidence = {0};
@@ -571,11 +594,29 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             }
         }
         if (!sv_endpoint_draw(renderer, font, endpoint, input)) break;
+        if (birth_placeholder_open && !birth_placeholder_drawn) {
+            birth_placeholder.open_count++;
+            birth_placeholder.owner_mask |= 1u << (unsigned)birth_placeholder_owner;
+            SDL_strlcpy(birth_placeholder.text, input->temporary_surface_text,
+                        sizeof(birth_placeholder.text));
+            birth_placeholder_drawn = true;
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
                 quit = true;
                 break;
+            }
+            if (birth_placeholder_open) {
+                if ((event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) ||
+                    event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                    birth_placeholder.draft_preserved &=
+                        !memcmp(&birth, &birth_before_placeholder, sizeof(birth));
+                    birth_placeholder_open = false;
+                    input->temporary_surface_text = NULL;
+                    birth_placeholder.close_count++;
+                }
+                continue;
             }
             if (state >= SV_SOCKET_DNS_ERROR &&
                 !(options.retry_login_disabled && character_name_rejected) &&
@@ -592,6 +633,15 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     if (birth_result == SV_BIRTH_INPUT_QUIT) {
                         result = 0;
                         quit = true;
+                        break;
+                    }
+                    if (birth_result == SV_BIRTH_INPUT_PLACEHOLDER) {
+                        birth_placeholder_open = true;
+                        birth_placeholder_drawn = false;
+                        birth_placeholder_owner = birth.owner;
+                        memcpy(&birth_before_placeholder, &birth, sizeof(birth));
+                        input->temporary_surface_text =
+                            SV_BIRTH_GUIDE_PLACEHOLDER_TEXT;
                         break;
                     }
                     if (birth_result != SV_BIRTH_INPUT_IGNORED) continue;
@@ -700,12 +750,13 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     }
     publish_outcome(&pregame, options.outcome, prior_generation,
                     credential_save, &name_evidence, recovery,
-                    birth_started ? &birth : NULL);
+                    birth_started ? &birth : NULL, &birth_placeholder);
     sv_contact_socket_stop(connection);
     sv_login_destroy(login);
     SDL_free(wire.remaining);
     input->login_view = NULL;
     input->birth_view = NULL;
+    input->temporary_surface_text = NULL;
     (void)window;
     return result;
 }
