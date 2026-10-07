@@ -23,11 +23,11 @@ static void transition(SvPregame *pregame, SvPregamePhase phase, bool content_ch
     } else if (content_changed) ++pregame->revision;
 }
 
-void sv_pregame_begin(SvPregame *pregame, uint64_t generation)
+void sv_pregame_begin(SvPregame *pregame, uint64_t generation, bool first_run)
 {
     if (!pregame) return;
     *pregame = (SvPregame){.generation = generation, .revision = 1,
-                           .phase = SV_PREGAME_CONTACT};
+                           .phase = SV_PREGAME_CONTACT, .first_run = first_run};
 }
 
 SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation)

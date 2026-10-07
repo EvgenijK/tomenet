@@ -217,7 +217,7 @@ static SvBirthInputResult confirm_body(SvBirth *birth)
 
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         const SvContactSetup *setup, const uint32_t server_flags[4],
-                        size_t existing_characters, bool dedicated,
+                        bool first_run, bool dedicated,
                         bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
@@ -252,9 +252,8 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .dna_stats_available = dna_stats_available,
         .dna_mode_available = dna_mode_available, .dna_mode = dna_mode,
         .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup,
-        .existing_characters = existing_characters,
         .race_count = setup->race_count, .trait_count = setup->trait_count,
-        .dedicated = dedicated, .first_run = existing_characters == 0};
+        .dedicated = dedicated, .first_run = first_run};
     for (unsigned i = 0; i < 4; ++i) birth->server_flags[i] = server_flags[i];
     for (unsigned i = 0; i < 6; ++i) birth->dna_stats[i] = dna_stats[i];
 #if SV_CLASS_BEFORE_RACE
@@ -887,8 +886,8 @@ static void prepare_modes(SvBirth *birth)
     add_mode(birth, SV_BIRTH_MODE_NO_GHOST);
     add_mode(birth, SV_BIRTH_MODE_SOLOIST);
     if (!rpg) add_mode(birth, SV_BIRTH_MODE_EVERLASTING);
-    if (birth->existing_characters) add_mode(birth, SV_BIRTH_MODE_HELLISH);
-    if (!rpg && birth->existing_characters) add_mode(birth, SV_BIRTH_MODE_PVP);
+    if (!birth->first_run) add_mode(birth, SV_BIRTH_MODE_HELLISH);
+    if (!rpg && !birth->first_run) add_mode(birth, SV_BIRTH_MODE_PVP);
     if (mode_position(birth, birth->highlighted_mode) < 0)
         birth->highlighted_mode = birth->legal_mode_count ?
             birth->legal_modes[0] : SV_BIRTH_MODE_NONE;

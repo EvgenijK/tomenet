@@ -24,6 +24,16 @@ static void wipe_password(char *password, size_t size)
     while (size--) *bytes++ = 0;
 }
 
+static bool profile_first_run(const char *root)
+{
+    char path[4096];
+    int length = SDL_snprintf(path, sizeof(path), "%s/sv/tomenet.cfg", root);
+    if (length < 0 || (size_t)length >= sizeof(path))
+        return true;
+    SDL_PathInfo info;
+    return !SDL_GetPathInfo(path, &info) || info.type != SDL_PATHTYPE_FILE;
+}
+
 /* The endpoint scene only drives the private input interaction and drawing. */
 static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
                              SvEndpointInput *input, int frame_limit,
@@ -392,7 +402,7 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                        SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
-                       const char *profile_root, uint64_t generation,
+                       const char *profile_root, bool first_run, uint64_t generation,
                        uint64_t prior_generation, SvNameRecovery *recovery)
 {
     unsigned char iaddr[6];
@@ -422,7 +432,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     SvBirth birth_before_placeholder = {0};
     SvPregame pregame;
     SvVaultRequest *save = NULL;
-    sv_pregame_begin(&pregame, generation);
+    sv_pregame_begin(&pregame, generation, first_run);
     SvSessionWire wire = {0};
     SvResult session_error = SV_OK;
     unsigned rejection = 0;
@@ -486,7 +496,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             else if (pregame.phase == SV_PREGAME_BIRTH && !birth_started) {
                 session_error = sv_birth_begin(&birth, generation,
                     sv_contact_socket_setup(connection), pregame.server_flags,
-                    pregame.character_count, options.birth_dedicated,
+                    pregame.first_run, options.birth_dedicated,
                     options.birth_dna_available,
                     options.birth_dna_sex, options.birth_dna_class_available,
                     options.birth_dna_class, options.birth_dna_race_available,
@@ -819,6 +829,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     SvFont *font = NULL;
     SvMetaserver *provider = NULL;
     int result = 1;
+    bool first_run = true;
     if (!root) {
         root = SDL_getenv("TOMENET_SDL3_USER_PATH");
         if (!root || !*root) {
@@ -827,6 +838,7 @@ int sv_endpoint_run(SvEndpointOptions options)
         }
     }
     if (!root || !SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
+    first_run = profile_first_run(root);
     if (!options.server && !options.server_list && !options.source_poll) {
         SvEndpoint meta;
         sv_endpoint_begin(&meta, 8801);
@@ -912,7 +924,7 @@ int sv_endpoint_run(SvEndpointOptions options)
             SvNameRecovery name_recovery = {0};
             while (entered > 0) {
                 result = run_contact(window, renderer, font, &endpoint, &input,
-                                     options, root, generation, prior_generation,
+                                     options, root, first_run, generation, prior_generation,
                                      &name_recovery);
                 if (result != 2) break;
                 prior_generation = generation;
