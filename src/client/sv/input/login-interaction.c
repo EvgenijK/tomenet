@@ -13,6 +13,13 @@
 #define SV_SFLAG0_DED_IDDC 0x40u
 #define SV_SFLAG0_DED_PVP 0x80u
 
+typedef struct {
+    size_t ordinary_limit, baseline_ordinary_limit;
+    size_t iddc_limit, pvp_limit, total_limit;
+    size_t ordinary_count, iddc_count, pvp_count;
+    bool iddc_supported, pvp_supported;
+} SvCreationAvailability;
+
 static bool version_newer(const int version[6], const int threshold[6])
 {
     for (int i = 0; i < 6; ++i)
@@ -25,20 +32,23 @@ static bool version_older(const int version[6], const int threshold[6])
     return version_newer(threshold, version);
 }
 
-bool sv_login_interaction_ordinary_available(const SvLoginInteraction *input)
+static bool creation_availability(const SvLoginInteraction *input,
+                                  SvCreationAvailability *available)
 {
     if (!input || !input->login || sv_login_state(input->login) != SV_LOGIN_OVERVIEW)
         return false;
     const uint32_t *flags = sv_login_flags(input->login);
     const int *version = sv_login_version(input->login);
     uint32_t limits = flags[0], server = flags[3];
-    size_t ordinary_limit = limits & 0xffu;
-    size_t iddc_limit = (limits >> 8) & 0xffu;
-    size_t pvp_limit = (limits >> 16) & 0xffu;
-    if (!ordinary_limit) {
-        ordinary_limit = 8;
-        if (!(limits & 0xff00u)) iddc_limit = 2;
-        if (!(limits & 0xff0000u)) pvp_limit = 1;
+    *available = (SvCreationAvailability){
+        .ordinary_limit = limits & 0xffu,
+        .iddc_limit = (limits >> 8) & 0xffu,
+        .pvp_limit = (limits >> 16) & 0xffu
+    };
+    if (!available->ordinary_limit) {
+        available->ordinary_limit = 8;
+        if (!(limits & 0xff00u)) available->iddc_limit = 2;
+        if (!(limits & 0xff0000u)) available->pvp_limit = 1;
     }
 
     const int dynamic_dedicated_since[6] = {4, 5, 8, 1, 0, 0};
@@ -46,38 +56,67 @@ bool sv_login_interaction_ordinary_available(const SvLoginInteraction *input)
     bool arcade = (server & SV_SFLAG0_ARCADE) != 0;
     bool rpg = (server & SV_SFLAG0_RPG) != 0;
     if (version_older(version, encoded_limits_since) && (arcade || rpg)) {
-        if (rpg && !(server & SV_SFLAG0_RPG_ADMIN)) ordinary_limit = 1;
-        iddc_limit = pvp_limit = 0;
+        if (rpg && !(server & SV_SFLAG0_RPG_ADMIN)) available->ordinary_limit = 1;
+        available->iddc_limit = available->pvp_limit = 0;
     }
 
     size_t dedicated_capacity = 0;
     if (version_newer(version, dynamic_dedicated_since)) {
-        if (server & SV_SFLAG0_DED_IDDC) dedicated_capacity += iddc_limit;
-        if (server & SV_SFLAG0_DED_PVP) dedicated_capacity += pvp_limit;
+        available->iddc_supported = (server & SV_SFLAG0_DED_IDDC) != 0;
+        available->pvp_supported = (server & SV_SFLAG0_DED_PVP) != 0;
     } else if (!arcade && !rpg) {
-        if (server & SV_SFLAG0_DED_IDDC) ++dedicated_capacity;
-        if (server & SV_SFLAG0_DED_PVP) ++dedicated_capacity;
+        available->iddc_supported = (server & SV_SFLAG0_DED_IDDC) != 0;
+        available->pvp_supported = (server & SV_SFLAG0_DED_PVP) != 0;
+        if (available->iddc_supported) available->iddc_limit = 1;
+        if (available->pvp_supported) available->pvp_limit = 1;
     }
+    if (available->iddc_supported) dedicated_capacity += available->iddc_limit;
+    if (available->pvp_supported) dedicated_capacity += available->pvp_limit;
 
-    size_t total_limit = ordinary_limit + dedicated_capacity;
-    if (total_limit > SV_LOGIN_MAX_CHARACTERS) total_limit = SV_LOGIN_MAX_CHARACTERS;
-    size_t reserved = iddc_limit + pvp_limit;
-    size_t baseline_ordinary_limit = total_limit > reserved ? total_limit - reserved : 0;
-    size_t ordinary_count = 0;
+    available->total_limit = available->ordinary_limit + dedicated_capacity;
+    if (available->total_limit > SV_LOGIN_MAX_CHARACTERS)
+        available->total_limit = SV_LOGIN_MAX_CHARACTERS;
+    size_t reserved = available->iddc_limit + available->pvp_limit;
+    available->baseline_ordinary_limit = available->total_limit > reserved ?
+        available->total_limit - reserved : 0;
     for (size_t slot = 0; slot < sv_login_count(input->login); ++slot) {
         int16_t mode = sv_login_character(input->login, slot)->mode;
-        if (!(mode & (SV_MODE_DED_IDDC | SV_MODE_DED_PVP))) ++ordinary_count;
+        if (mode & SV_MODE_DED_IDDC) ++available->iddc_count;
+        else if (mode & SV_MODE_DED_PVP) ++available->pvp_count;
+        else ++available->ordinary_count;
     }
+    return true;
+}
+
+bool sv_login_interaction_ordinary_available(const SvLoginInteraction *input)
+{
+    SvCreationAvailability available;
+    if (!creation_availability(input, &available)) return false;
     /* Baseline first-run state restricts exclusive E, not ordinary N. */
-    return sv_login_count(input->login) < total_limit &&
-           ordinary_count < baseline_ordinary_limit;
+    return sv_login_count(input->login) < available.total_limit &&
+           available.ordinary_count < available.baseline_ordinary_limit;
+}
+
+uint32_t sv_login_interaction_exclusive_modes(const SvLoginInteraction *input)
+{
+    SvCreationAvailability available;
+    if (!creation_availability(input, &available) || input->first_run ||
+        sv_login_count(input->login) >= available.total_limit)
+        return 0;
+    uint32_t modes = 0;
+    if (available.iddc_supported && available.iddc_count < available.iddc_limit)
+        modes |= SV_SFLAG0_DED_IDDC;
+    if (available.pvp_supported && available.pvp_count < available.pvp_limit)
+        modes |= SV_SFLAG0_DED_PVP;
+    return modes;
 }
 
 void sv_login_interaction_begin(SvLoginInteraction *input, SvLogin *login,
-                                const char *default_character, bool skip_motd)
+                                const char *default_character, bool skip_motd,
+                                bool first_run)
 {
     *input = (SvLoginInteraction){.login = login, .default_character = default_character,
-                                   .skip_motd = skip_motd};
+                                   .skip_motd = skip_motd, .first_run = first_run};
 }
 
 SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
@@ -199,6 +238,8 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
     if (key == SV_EDIT_CANCEL) {
         sv_text_key(&input->character_name, key);
         input->ordinary_name_active = false;
+        input->dedicated_creation = false;
+        input->dedicated_mode_flags = 0;
         return SV_LOGIN_INPUT_NAME_CANCELLED;
     }
     if (key != SV_EDIT_ACCEPT) {
@@ -237,11 +278,13 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
 }
 
 SvLoginInputResult sv_login_interaction_restore_name(SvLoginInteraction *input,
-                                                      const char *draft)
+                                                      const char *draft,
+                                                      bool dedicated_creation)
 {
     if (!input || !draft || strlen(draft) > 15 ||
         sv_login_interaction_command(input,
-            (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY, 0}) !=
+            (SvLoginCommand){dedicated_creation ?
+                SV_LOGIN_COMMAND_CREATE_EXCLUSIVE : SV_LOGIN_COMMAND_CREATE_ORDINARY, 0}) !=
             SV_LOGIN_INPUT_NAME_STARTED)
         return SV_LOGIN_INPUT_IGNORED;
     sv_text_begin(&input->character_name, draft, 15, false);
@@ -257,6 +300,8 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
         if (command.kind != SV_LOGIN_COMMAND_CANCEL) return SV_LOGIN_INPUT_IGNORED;
         sv_text_key(&input->character_name, SV_EDIT_CANCEL);
         input->ordinary_name_active = false;
+        input->dedicated_creation = false;
+        input->dedicated_mode_flags = 0;
         return SV_LOGIN_INPUT_NAME_CANCELLED;
     }
     if (state == SV_LOGIN_OVERVIEW) {
@@ -265,6 +310,16 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
             sv_login_interaction_ordinary_available(input)) {
             sv_text_begin(&input->character_name, "", 15, false);
             input->ordinary_name_active = true;
+            input->dedicated_creation = false;
+            input->dedicated_mode_flags = 0;
+            return SV_LOGIN_INPUT_NAME_STARTED;
+        }
+        uint32_t dedicated_modes = sv_login_interaction_exclusive_modes(input);
+        if (command.kind == SV_LOGIN_COMMAND_CREATE_EXCLUSIVE && dedicated_modes) {
+            sv_text_begin(&input->character_name, "", 15, false);
+            input->ordinary_name_active = true;
+            input->dedicated_creation = true;
+            input->dedicated_mode_flags = dedicated_modes;
             return SV_LOGIN_INPUT_NAME_STARTED;
         }
         if (command.kind == SV_LOGIN_COMMAND_CHOOSE &&

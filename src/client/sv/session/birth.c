@@ -227,7 +227,7 @@ static SvBirthInputResult confirm_body(SvBirth *birth)
 
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         const SvContactSetup *setup, const uint32_t server_flags[4],
-                        bool first_run, bool dedicated,
+                        bool first_run, uint32_t dedicated_mode_flags,
                         bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
@@ -264,7 +264,8 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
         .dna_mode_available = dna_mode_available, .dna_mode = dna_mode,
         .random_state = (uint32_t)(generation ^ 0x9e3779b9u), .setup = setup,
         .race_count = setup->race_count, .trait_count = setup->trait_count,
-        .dedicated = dedicated, .first_run = first_run};
+        .dedicated = dedicated_mode_flags != 0, .first_run = first_run,
+        .dedicated_mode_flags = dedicated_mode_flags};
     for (unsigned i = 0; i < 4; ++i) birth->server_flags[i] = server_flags[i];
     for (unsigned i = 0; i < 6; ++i) birth->dna_stats[i] = dna_stats[i];
 #if SV_CLASS_BEFORE_RACE
@@ -890,12 +891,12 @@ static void prepare_modes(SvBirth *birth)
     bool rpg = (birth->server_flags[3] & 0x01u) != 0;
     birth->legal_mode_count = 0;
     if (birth->dedicated) {
-        if (birth->server_flags[3] & 0x40u) {
+        if (birth->dedicated_mode_flags & 0x40u) {
             add_mode(birth, SV_BIRTH_MODE_IDDC);
             add_mode(birth, SV_BIRTH_MODE_IDDC_SOLOIST);
             add_mode(birth, SV_BIRTH_MODE_IDDC_HELLISH);
         }
-        if (!rpg && (birth->server_flags[3] & 0x80u))
+        if (!rpg && (birth->dedicated_mode_flags & 0x80u))
             add_mode(birth, SV_BIRTH_MODE_DEDICATED_PVP);
         if (mode_position(birth, birth->highlighted_mode) < 0)
             birth->highlighted_mode = birth->legal_mode_count ?

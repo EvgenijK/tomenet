@@ -22,6 +22,9 @@ typedef struct {
     bool credential_save_started, credential_saved;
     SvCredentialSaveState credential_save;
     bool ordinary_name_started, ordinary_name_cancelled;
+    bool exclusive_name_started, exclusive_name_cancelled;
+    bool dedicated_creation;
+    uint32_t dedicated_mode_flags;
     bool name_submitted, random_name_suggested, reincarnation_requested;
     bool name_input_truncated, name_input_method_used, name_keyboard_edited;
     bool name_mouse_selected, name_paste_used;
@@ -98,7 +101,6 @@ typedef struct {
     int16_t birth_dna_stats[6];
     bool birth_dna_mode_available;
     SvBirthMode birth_dna_mode;
-    bool birth_dedicated;
     SvEndpointOutcome *outcome;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);

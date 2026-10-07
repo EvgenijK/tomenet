@@ -31,7 +31,8 @@ typedef struct {
     SvPregamePhase phase;
     SvPregameCharacter characters[SV_LOGIN_MAX_CHARACTERS];
     size_t character_count;
-    bool authenticated, first_run;
+    bool authenticated, first_run, dedicated_creation;
+    uint32_t dedicated_mode_flags;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     uint32_t server_flags[4], creation_flags;
     unsigned char motd[SV_CONTACT_MOTD_CAPACITY + 1];
@@ -41,6 +42,9 @@ typedef struct {
 
 void sv_pregame_begin(SvPregame *pregame, uint64_t generation, bool first_run);
 SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation);
+SvResult sv_pregame_creation_submitted(SvPregame *pregame, uint64_t generation,
+                                       bool dedicated_creation,
+                                       uint32_t dedicated_mode_flags);
 SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
                                const SvLogin *login, const SvContactSetup *setup,
                                bool motd_complete);

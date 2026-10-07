@@ -50,7 +50,12 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-rejection-") as temp:
         cwd=ROOT,
         check=True,
     )
-    for mode in ("forbidden", "duplicate", "unowned", "forbidden-exit", "disconnect"):
+    for mode in ("forbidden", "duplicate", "unowned", "forbidden-exit", "disconnect",
+                 "exclusive-forbidden"):
+        if mode == "exclusive-forbidden":
+            config = profile / "sv" / "tomenet.cfg"
+            config.parent.mkdir(exist_ok=True)
+            config.write_text("svSchemaVersion\t1\n", encoding="ascii")
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,

@@ -16,7 +16,7 @@ typedef struct {
     bool first_request_exact, corrected_request_exact, closed;
     unsigned char login_start[8];
     const char *draft, *corrected, *reason;
-    bool cancel_recovery, retry_disabled, disconnect_after_submit;
+    bool cancel_recovery, retry_disabled, disconnect_after_submit, exclusive;
 } Peer;
 
 static bool exact(int socket, void *out, size_t size)
@@ -161,7 +161,7 @@ static int peer_run(void *opaque)
     contact_ready(peer, first);
     send_overview(first);
     SDL_Delay(180);
-    push_key(SDLK_N, SDL_KMOD_SHIFT);
+    push_key(peer->exclusive ? SDLK_E : SDLK_N, SDL_KMOD_SHIFT);
     push_text(peer->draft);
     push_key(SDLK_RETURN, 0);
     unsigned char request_type;
@@ -233,13 +233,15 @@ int main(int argc, char **argv)
     assert(argc == 4);
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0)};
     assert(peer.listener >= 0);
-    if (!strcmp(argv[3], "forbidden") || !strcmp(argv[3], "forbidden-exit") ||
+    if (!strcmp(argv[3], "forbidden") || !strcmp(argv[3], "exclusive-forbidden") ||
+        !strcmp(argv[3], "forbidden-exit") ||
         !strcmp(argv[3], "disconnect")) {
         peer.draft = "Forbidden";
         peer.corrected = "Forbiddea";
         peer.reason = "Forbidden character name. Please choose a different name.";
         peer.retry_disabled = !strcmp(argv[3], "forbidden-exit");
         peer.disconnect_after_submit = !strcmp(argv[3], "disconnect");
+        peer.exclusive = !strcmp(argv[3], "exclusive-forbidden");
     } else if (!strcmp(argv[3], "duplicate")) {
         peer.draft = "Duplicate";
         peer.corrected = "Duplicata";
@@ -306,6 +308,10 @@ int main(int argc, char **argv)
     assert(outcome.prior_generation && outcome.prior_generation != outcome.generation);
     assert(outcome.character_count == 1 && outcome.server_flags[0] ==
            (2u | (1u << 8) | (1u << 16)));
+    assert(outcome.dedicated_creation == peer.exclusive);
+    assert(outcome.exclusive_name_started == peer.exclusive);
+    assert(outcome.ordinary_name_started != peer.exclusive);
+    assert(outcome.dedicated_mode_flags == (peer.exclusive ? 0xc0u : 0));
     assert(!strcmp(outcome.name_rejection_reason, peer.reason));
     return 0;
 }
