@@ -64,6 +64,10 @@ typedef struct {
     SvBirthMode birth_highlighted_mode, birth_mode;
     SvBirthMode birth_legal_modes[6];
     uint8_t birth_legal_mode_count;
+    unsigned birth_placeholder_open_count, birth_placeholder_close_count;
+    uint32_t birth_placeholder_owner_mask;
+    bool birth_placeholder_draft_preserved;
+    char birth_placeholder_text[64];
     uint64_t birth_generation;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];

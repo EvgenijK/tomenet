@@ -202,6 +202,52 @@ static void push_mouse_mode(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_guide_round_trip(void)
+{
+    push_key(SDLK_QUESTION, 0);
+    SDL_Delay(80);
+    push_key(SDLK_ESCAPE, 0);
+    SDL_Delay(40);
+}
+
+static void push_guide_all_owners(void)
+{
+    push_key(SDLK_F, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    push_key(SDLK_B, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_C, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+#else
+    push_key(SDLK_C, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+#endif
+    push_key(SDLK_B, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_F, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+    push_key(SDLK_B, 0);
+    push_guide_round_trip();
+    push_key(SDLK_RETURN, 0);
+#endif
+    push_guide_round_trip();
+    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+        push_key(key, 0);
+        push_key(SDLK_RETURN, 0);
+    }
+    push_key(SDLK_G, 0);
+    push_guide_round_trip();
+    push_key(SDLK_Q, 0);
+}
+
 static void push_to_stats(void)
 {
     push_key(SDLK_RETURN, 0);
@@ -606,6 +652,8 @@ static int peer_run(void *opaque)
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "guide-all-owners")) {
+        push_guide_all_owners();
     } else if (!strcmp(peer->mode, "mode-rpg")) {
         push_to_mode();
         push_key(SDLK_N, 0);
@@ -1252,6 +1300,27 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
         assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
         assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "guide-all-owners")) {
+        static const int16_t expected_stats[] = {0, 1, 2, 3, 4, 5};
+        assert(outcome.birth_placeholder_open_count == 7);
+        assert(outcome.birth_placeholder_close_count == 7);
+        assert(outcome.birth_placeholder_owner_mask == 0xfeu);
+        assert(outcome.birth_placeholder_draft_preserved);
+        assert(!strcmp(outcome.birth_placeholder_text,
+                       "The guide is in development"));
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_highlighted_class == 2 && outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_race == 2 && outcome.birth_race == 2);
+        assert(outcome.birth_highlighted_trait == 2 && outcome.birth_trait == 2);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(!memcmp(outcome.birth_stats, expected_stats,
+                       sizeof(expected_stats)));
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(!outcome.birth_mode_confirmed &&
+               outcome.birth_mode == SV_BIRTH_MODE_NONE);
     } else if (!strcmp(argv[3], "mode-rpg")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);

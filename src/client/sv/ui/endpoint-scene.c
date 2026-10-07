@@ -29,6 +29,9 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                     error = {255,135,135,255};
     if (!SDL_SetRenderDrawColor(renderer, 15,21,28,255) || !SDL_RenderClear(renderer)) return false;
     if (!line(renderer,font,"TomeNET SV - Server",40,34,scale,title)) return false;
+    if (input->temporary_surface_text)
+        return line(renderer, font, input->temporary_surface_text,
+                    40, 180, scale, normal);
     if (endpoint->phase == SV_ENDPOINT_LIST) {
         if (!line(renderer,font,"Select a server, or press Q for manual address. Escape exits.",40,85,scale,normal)) return false;
         if (!endpoint->server_count &&

@@ -64,7 +64,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         cwd=ROOT,
         check=True,
     )
-    for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+    for mode in ("guide-all-owners",
+                 "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "session-interleave", "session-stale-input", "session-disconnect",
                  "session-retry-generation",
                  "mode-dedicated", "mode-dedicated-unavailable",
@@ -106,7 +107,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             check=True,
             timeout=15,
         )
-    for mode in ("mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+    for mode in ("guide-all-owners",
+                 "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",
                  "mode-random",
