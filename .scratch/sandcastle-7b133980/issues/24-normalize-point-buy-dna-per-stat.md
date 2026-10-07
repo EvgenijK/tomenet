@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** На production stats owner point-buy DNA применяет каждое значение по baseline: in-range stat сохраняется, out-of-range stat заменяется minimum, после чего staged или automatic reincarnation продолжает birth независимо от общего budget и числа maximum values.
 
 **Blocked by:** 07: Выбрать stats (completed); 19: Продолжить automatic DNA choices через birth flow (completed).

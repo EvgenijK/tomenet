@@ -2,6 +2,8 @@
 
 **Type:** verification
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Готовая реализация SV-B-023 передаётся на implementation review с воспроизводимыми build/core результатами для обеих compile configurations, картой production birth seams и честно deferred full-acceptance runtime evidence; ни DNA persistence, ни final send, ни Stage G Guide capability не объявляются частью результата.
 
 **Blocked by:** 09: Завершить или откатить creation без send; 10: Сохранить owner при session events; 11: Вернуться из birth Guide placeholder.

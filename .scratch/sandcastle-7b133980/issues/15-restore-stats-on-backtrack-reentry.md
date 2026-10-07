@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** После Backspace из mode или другого допустимого возврата к stats игрок получает снова пригодное к редактированию stats interaction: может заменить частичный или уже завершённый ordered-stat выбор, подтвердить новый legal результат и снова перейти вперёд без stale consumption или сетевой отправки.
 
 **Blocked by:** 09: Завершить или откатить creation без send (completed).

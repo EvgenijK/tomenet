@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** После подтверждённого сервером создания имени игрок остаётся в production pregame session, видит native sex choice из authoritative birth setup, меняет устойчиво подсвеченный вариант клавиатурой или мышью, использует допустимый random/DNA choice и подтверждает legal выбор без отправки partial или completed character result.
 
 **Blocked by:** None (can start immediately).

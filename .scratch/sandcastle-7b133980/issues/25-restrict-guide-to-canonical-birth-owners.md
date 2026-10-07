@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** `?` открывает временный native Guide placeholder только у birth owners, чьи canonical baseline handlers вызывают Guide; на sex owner этот input безопасно потребляется как no-op без placeholder, state mutation или network operation.
 
 **Blocked by:** 11: Вернуться из birth Guide placeholder (completed); 14: Изолировать production birth input context (completed).

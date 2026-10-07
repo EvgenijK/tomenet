@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** В default compile order игрок выбирает legal server-provided race, причём class/race compatibility, random/DNA semantics, stable highlight, keyboard/mouse navigation, confirmation и возврат к class совпадают с behavior baseline и ничего не отправляют как завершённого персонажа.
 
 **Blocked by:** 02: Выбрать класс в default compile order.

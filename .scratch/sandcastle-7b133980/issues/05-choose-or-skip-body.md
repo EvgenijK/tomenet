@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Игрок выбирает legal body modification, когда она доступна для текущего server setup и draft, либо проходит дальше без фиктивного owner; Backspace возвращает к trait или сразу к race, если trait был недоступен.
 
 **Blocked by:** 04: Выбрать или пропустить trait.

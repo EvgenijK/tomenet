@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** В class-before-race flow выбранная DNA hidden class остаётся обязательной identity до подтверждения race: совместимая race завершает исходный hidden choice, а race, разрешающая другую derived class от того же visible base, останавливает staged или automatic DNA без подмены requested class и оставляет согласованный ручной выбор.
 
 **Blocked by:** 16: Разрешить hidden derived class при выборе race (completed); 19: Продолжить automatic DNA choices через birth flow (completed).

@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Игрок выбирает legal mode для server flags и текущего draft, включая dedicated IDDC/PvP paths; после mode обычный draft становится готовым для будущего SV-B-024 send, а PvP Maia при обязательном post-mode trait возвращается к trait owner и затем снова к mode без преждевременной отправки.
 
 **Blocked by:** 07: Выбрать stats.

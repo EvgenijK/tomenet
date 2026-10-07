@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** `?` на каждом birth owner открывает native временную поверхность с точным текстом `The guide is in development`; закрытие возвращает того же caller с неизменными selection и draft, не создавая Guide state и не выполняя network operation.
 
 **Blocked by:** 08: Выбрать mode и завершить draft.

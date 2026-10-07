@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** На каждом достижимом birth owner Q и Ctrl-Q завершают creation через baseline quit/retry handling, а Backspace проходит по точному owner graph; ни cancel, ни backtracking, ни готовый draft не отправляют partial или completed character packet.
 
 **Blocked by:** 08: Выбрать mode и завершить draft.

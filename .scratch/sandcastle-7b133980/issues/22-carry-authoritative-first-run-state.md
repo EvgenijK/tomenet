@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Production character-management/session owner передаёт first-run eligibility независимо от roster count, поэтому returning player с пустым roster получает legal Fruit Bat, Hellish и PvP choices, а реальный first startup остаётся ограничен даже при непустом server overview.
 
 **Blocked by:** 18: Соблюсти first-run и Archer body legality (completed).

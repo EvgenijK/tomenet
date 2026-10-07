@@ -2,6 +2,8 @@
 
 **Type:** repair
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** После явного human disposition class-before-race flow либо получает разрешённое узкое исправление, при котором отклонённая DNA race не меняет прежнюю highlighted race, owner или draft, либо сохраняет обязательный дефект открытым без четвёртого автоматического repair. Совместимая DNA race и сохранённые random/DNA semantics продолжают работать как раньше.
 
 **Blocked by:** 21: Сохранить hidden DNA class до подтверждения race (completed).

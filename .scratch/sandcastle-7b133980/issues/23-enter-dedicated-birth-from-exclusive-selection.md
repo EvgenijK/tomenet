@@ -2,6 +2,8 @@
 
 **Type:** implementation
 
+**Tracker role:** Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
+
 **What to build:** Игрок с разрешённым exclusive slot нажимает `E` в production character overview, проходит тот же native name/server-confirmation flow и входит в dedicated IDDC или PvP birth с сохранённым intent; недоступный или first-run exclusive action не начинает creation и не отправляет request.
 
 **Blocked by:** 08: Выбрать mode и завершить draft (completed); 22: Передать authoritative first-run state в birth.
