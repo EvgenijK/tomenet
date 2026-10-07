@@ -818,13 +818,14 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         birth->stats_random_used = true;
         return SV_BIRTH_INPUT_CONFIRMED;
     case SV_BIRTH_DNA:
-        if (!birth->stats_point_buy || !birth->dna_stats_available ||
-            !legal_point_buy(birth, birth->dna_stats)) {
+        if (!birth->stats_point_buy || !birth->dna_stats_available) {
             birth->illegal_ignored = true;
             birth->auto_reincarnation = false;
             return SV_BIRTH_INPUT_IGNORED;
         }
-        for (unsigned i = 0; i < 6; ++i) birth->stats[i] = birth->dna_stats[i];
+        for (unsigned i = 0; i < 6; ++i)
+            birth->stats[i] = birth->dna_stats[i] >= 8 &&
+                birth->dna_stats[i] <= 17 ? birth->dna_stats[i] : 8;
         for (unsigned i = 0; i < 6; ++i)
             birth->committed_stats[i] = birth->stats[i];
         birth->stats_remaining = point_buy_remaining(birth->stats);
