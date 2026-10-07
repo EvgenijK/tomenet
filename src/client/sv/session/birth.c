@@ -135,6 +135,16 @@ static void prepare_stats(SvBirth *birth);
 static void restart_stats_interaction(SvBirth *birth);
 static void prepare_modes(SvBirth *birth);
 
+static void enter_stats_or_mode(SvBirth *birth)
+{
+    birth->owner = SV_BIRTH_STATS;
+    prepare_stats(birth);
+    if (!birth->legal_stat_count) {
+        birth->owner = SV_BIRTH_MODE;
+        prepare_modes(birth);
+    }
+}
+
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
     if (birth->owner != SV_BIRTH_SEX || !legal_sex(birth->highlighted_sex))
@@ -162,8 +172,7 @@ static SvBirthInputResult confirm_class(SvBirth *birth)
 #else
     birth->chosen_class = resolved_class(birth, birth->chosen_visible_class,
                                          birth->chosen_race);
-    birth->owner = SV_BIRTH_STATS;
-    prepare_stats(birth);
+    enter_stats_or_mode(birth);
 #endif
     birth->last_confirmed_class = birth->chosen_class;
     birth->class_confirmed = true;
@@ -575,8 +584,7 @@ static void prepare_bodies(SvBirth *birth)
         birth->chosen_body = SV_BIRTH_BODY_NONE;
         birth->body_confirmed = false;
 #if SV_CLASS_BEFORE_RACE
-        birth->owner = SV_BIRTH_STATS;
-        prepare_stats(birth);
+        enter_stats_or_mode(birth);
 #else
         birth->owner = SV_BIRTH_CLASS;
         prepare_classes(birth);
@@ -1001,8 +1009,17 @@ static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
         birth->chosen_mode = SV_BIRTH_MODE_NONE;
         birth->mode_confirmed = false;
         birth->mode_ready = false;
-        birth->owner = SV_BIRTH_STATS;
-        restart_stats_interaction(birth);
+        if (birth->setup->creation_flags <= 1) {
+            birth->owner = SV_BIRTH_STATS;
+            restart_stats_interaction(birth);
+        } else {
+#if SV_CLASS_BEFORE_RACE
+            birth->owner = birth->trait_skipped ?
+                SV_BIRTH_RACE : SV_BIRTH_TRAIT;
+#else
+            birth->owner = SV_BIRTH_CLASS;
+#endif
+        }
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;
