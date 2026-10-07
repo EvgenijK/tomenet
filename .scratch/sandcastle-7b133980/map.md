@@ -64,3 +64,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Возобновить automatic DNA после ordered stats](issues/34-resume-automatic-dna-after-ordered-stats.md)
 - [Ограничить Guide point-buy stats owner](issues/35-restrict-guide-to-point-buy-stats.md)
 - [Записать revision gate для birth view](issues/36-record-birth-view-revision-opportunity.md)
+- [Verify focused production coverage](issues/37-focused-test-coverage.md)
