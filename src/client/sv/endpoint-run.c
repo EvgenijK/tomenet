@@ -365,7 +365,11 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                birth->legal_trait_count);
         memcpy(outcome->birth_legal_bodies, birth->legal_bodies,
                birth->legal_body_count * sizeof(birth->legal_bodies[0]));
-        memcpy(outcome->birth_stats, birth->stats, sizeof(birth->stats));
+        memcpy(outcome->birth_stats,
+               birth->stats_confirmed ? birth->committed_stats : birth->stats,
+               sizeof(outcome->birth_stats));
+        memcpy(outcome->birth_committed_stats, birth->committed_stats,
+               sizeof(birth->committed_stats));
         memcpy(outcome->birth_legal_stats, birth->legal_stats,
                birth->legal_stat_count);
         memcpy(outcome->birth_legal_modes, birth->legal_modes,

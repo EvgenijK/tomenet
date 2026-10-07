@@ -59,6 +59,7 @@ typedef struct {
     uint8_t birth_legal_body_count, birth_body_count;
     int birth_highlighted_stat;
     int16_t birth_stats[6];
+    int16_t birth_committed_stats[6];
     uint8_t birth_legal_stats[6], birth_legal_stat_count, birth_stats_order_count;
     int birth_stats_remaining;
     SvBirthMode birth_highlighted_mode, birth_mode;
