@@ -16,6 +16,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
                                          const SDL_Event *event)
 {
     if (!birth || !event) return SV_BIRTH_INPUT_IGNORED;
+    if (generation != birth->generation || !birth->active || birth->quit)
+        return SV_BIRTH_INPUT_IGNORED;
     if (event->common.timestamp && event->common.timestamp < since_ns)
         return SV_BIRTH_INPUT_IGNORED;
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
@@ -189,6 +191,9 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
                 .class_id = birth->legal_classes[position]}, true, false);
     }
     if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
+        key == SDLK_ESCAPE)
+        command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};
+    else if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
         (key == SDLK_LEFT || key == SDLK_KP_4 || key == SDLK_MINUS))
         command = (SvBirthCommand){.kind = SV_BIRTH_DECREASE_STAT};
     else if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&

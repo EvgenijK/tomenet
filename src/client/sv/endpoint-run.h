@@ -2,7 +2,7 @@
 #define SV_ENDPOINT_RUN_H
 #include "input/endpoint.h"
 #include "session/pregame.h"
-#include "session/birth.h"
+#include "input/birth-interaction.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];

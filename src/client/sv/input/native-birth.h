@@ -1,6 +1,6 @@
 #ifndef SV_INPUT_NATIVE_BIRTH_H
 #define SV_INPUT_NATIVE_BIRTH_H
-#include "session/birth.h"
+#include "input/birth-interaction.h"
 #include <SDL3/SDL.h>
 
 #define SV_BIRTH_GUIDE_PLACEHOLDER_TEXT "The guide is in development"

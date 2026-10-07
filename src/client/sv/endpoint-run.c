@@ -651,7 +651,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                             SV_BIRTH_GUIDE_PLACEHOLDER_TEXT;
                         break;
                     }
-                    if (birth_result != SV_BIRTH_INPUT_IGNORED) continue;
+                    continue;
                 }
                 SvLoginInputResult handled = sv_native_name_event(&login_input, &event,
                                                                    &input->text_error,

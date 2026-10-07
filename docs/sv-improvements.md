@@ -523,3 +523,27 @@ Keep this legacy/shared cleanup separate from SV-B-021.
 **Required checks:** Linux SV and legacy builds with strict Clang warnings,
 the supported GCC build, MinGW i686 build, and focused parsing regressions for
 the legacy callers that use `atol`.
+
+## Relocate the birth interaction backing implementation
+
+**Status:** proposed separately; ticket 14 exposes the interaction through the
+documented `input/birth-interaction.h` boundary without broad source movement.
+
+**Problem:** the unfinished birth interaction is owned by input router /
+interactions, but its current SV-local backing implementation is physically in
+`src/client/sv/session/birth.[ch]`. The path can misleadingly suggest that birth
+draft transitions belong to the session presentation model.
+
+**Affected code:** `src/client/sv/session/birth.[ch]`,
+`src/client/sv/input/birth-interaction.h`, `src/makefile.sv`, and focused test
+source lists.
+
+**Proposal:** when a current implementation task needs coordinated source
+movement, relocate the backing implementation under `input/` while retaining
+the existing public interaction boundary and semantic commands. Do not combine
+this organizational cleanup with legacy/shared extraction.
+
+**Required checks:** default and `SV_CLASS_BEFORE_RACE=0` SV builds, complete
+production endpoint birth matrix, dependency-file/source-provenance behavior,
+and an include audit proving that UI and endpoint still use only the public
+interaction boundary.

@@ -630,6 +630,11 @@ static int peer_run(void *opaque)
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "birth-context-escape")) {
+        push_key(SDLK_Z, 0);
+        push_key(SDLK_ESCAPE, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "session-disconnect")) {
         push_key(SDLK_F, 0);
         SDL_Delay(50);
@@ -745,19 +750,25 @@ static int peer_run(void *opaque)
         push_to_stats();
         push_key(SDLK_Q, !strcmp(peer->mode, "stats-ctrl-quit") ?
             SDL_KMOD_CTRL : 0);
-    } else if (!strcmp(peer->mode, "stats-point-confirm-warning")) {
+    } else if (!strcmp(peer->mode, "stats-point-confirm-warning") ||
+               !strcmp(peer->mode, "stats-point-escape-warning")) {
         push_to_stats();
-        push_key(SDLK_RETURN, 0);
+        push_key(!strcmp(peer->mode, "stats-point-escape-warning") ?
+            SDLK_ESCAPE : SDLK_RETURN, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "stats-point-confirm") ||
+               !strcmp(peer->mode, "stats-point-escape-confirm") ||
                !strcmp(peer->mode, "stats-point-mouse")) {
         push_to_stats();
         if (!strcmp(peer->mode, "stats-point-mouse")) {
             push_mouse_stats(340.0f, 2);
             push_mouse_stats(340.0f, 2);
         } else {
-            push_key(SDLK_RETURN, 0);
-            push_key(SDLK_RETURN, 0);
+            SDL_Keycode confirm =
+                !strcmp(peer->mode, "stats-point-escape-confirm") ?
+                SDLK_ESCAPE : SDLK_RETURN;
+            push_key(confirm, 0);
+            push_key(confirm, 0);
         }
         push_key(SDLK_Q, 0);
     } else if (!strncmp(peer->mode, "stats-point-dna", 15)) {
@@ -768,6 +779,16 @@ static int peer_run(void *opaque)
         push_to_stats();
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_LEFT, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "stats-point-escape-no-warning")) {
+        static const unsigned increases[] = {7, 6, 2};
+        push_to_stats();
+        for (unsigned stat = 0; stat < 3; ++stat) {
+            push_key((SDL_Keycode)(SDLK_A + stat), 0);
+            for (unsigned i = 0; i < increases[stat]; ++i)
+                push_key(SDLK_RIGHT, 0);
+        }
+        push_key(SDLK_ESCAPE, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "stats-point-navigate")) {
         push_to_stats();
@@ -1286,6 +1307,11 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
         assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
         assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "birth-context-escape")) {
+        assert(outcome.birth_owner == SV_BIRTH_SEX);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
+        assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
+        assert(outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "session-disconnect")) {
         assert(!outcome.birth_active && outcome.birth_closed);
         assert(outcome.birth_owner == SV_BIRTH_NONE);
@@ -1445,12 +1471,18 @@ int main(int argc, char **argv)
                !strcmp(argv[3], "stats-ctrl-quit")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed);
-    } else if (!strcmp(argv[3], "stats-point-confirm-warning")) {
+    } else if (!strcmp(argv[3], "stats-point-confirm-warning") ||
+               !strcmp(argv[3], "stats-point-escape-warning")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed &&
                outcome.birth_stats_confirmation_pending);
         assert(outcome.birth_stats_remaining == 30);
+        assert(outcome.birth_highlighted_stat == 0);
+        for (unsigned i = 0; i < 6; ++i) assert(outcome.birth_stats[i] == 10);
+        if (!strcmp(argv[3], "stats-point-escape-warning"))
+            assert(!outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "stats-point-confirm") ||
+               !strcmp(argv[3], "stats-point-escape-confirm") ||
                !strcmp(argv[3], "stats-point-mouse")) {
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_point_buy);
@@ -1478,6 +1510,13 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_stat == 0 && outcome.birth_stats[0] == 9);
         assert(outcome.birth_stats_remaining == 31 &&
                outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "stats-point-escape-no-warning")) {
+        static const int16_t expected[] = {17, 16, 12, 10, 10, 10};
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed && outcome.birth_stats_point_buy);
+        assert(!outcome.birth_stats_confirmation_pending);
+        assert(outcome.birth_stats_remaining == 0);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
     } else if (!strcmp(argv[3], "stats-point-navigate")) {
         assert(outcome.creation_flags == 1u);
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
