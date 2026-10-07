@@ -374,6 +374,7 @@ static bool archer_body_case(const char *mode)
 static bool existing_character_case(const char *mode)
 {
     return strncmp(mode, "first-run-body-", 15) &&
+        strncmp(mode, "returning-empty-", 16) &&
         strncmp(mode, "mode-", 5);
 }
 
@@ -560,7 +561,8 @@ static void send_overview(int socket, const char *mode)
     put32(&at, 0);
     put32(&at, 0);
     put32(&at, !strcmp(mode, "mode-dedicated-unavailable") ? 0x40u :
-          !strcmp(mode, "mode-rpg") ? 0xc1u :
+          (!strcmp(mode, "mode-rpg") ||
+           !strcmp(mode, "returning-empty-mode-rpg")) ? 0xc1u :
           pvp_maia_case(mode) ? 0x2c0u : 0xc0u);
     if (pvp_maia_case(mode) || existing_character_case(mode)) {
         *at++ = PKT_LOGIN;
@@ -763,7 +765,24 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "guide-all-owners")) {
         push_guide_all_owners();
-    } else if (!strcmp(peer->mode, "mode-rpg")) {
+    } else if (!strcmp(peer->mode, "first-start-existing-mode-reject")) {
+        push_to_mode();
+        push_key(SDLK_H, 0);
+        push_key(SDLK_P, 0);
+        push_mouse_mode(500.0f, 2);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "first-start-existing-mode-random")) {
+        push_to_mode();
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "returning-empty-mode-pvp")) {
+        push_to_mode();
+        push_key(SDLK_P, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "mode-rpg") ||
+               !strcmp(peer->mode, "returning-empty-mode-rpg")) {
         push_to_mode();
         push_key(SDLK_N, 0);
         push_key(SDLK_E, 0);
@@ -1079,7 +1098,8 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "first-run-body-reject")) {
+    } else if (!strcmp(peer->mode, "first-run-body-reject") ||
+               !strcmp(peer->mode, "first-start-existing-body-reject")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
@@ -1092,7 +1112,8 @@ static int peer_run(void *opaque)
         push_mouse_body(380.0f, 2);
         push_key(SDLK_HASH, 0);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "first-run-body-random")) {
+    } else if (!strcmp(peer->mode, "first-run-body-random") ||
+               !strcmp(peer->mode, "first-start-existing-body-random")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
@@ -1104,7 +1125,8 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
         push_key(SDLK_Q, 0);
-    } else if (!strcmp(peer->mode, "non-first-run-body-manual")) {
+    } else if (!strcmp(peer->mode, "non-first-run-body-manual") ||
+               !strcmp(peer->mode, "returning-empty-body-manual")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
@@ -1546,10 +1568,12 @@ int main(int argc, char **argv)
             strcmp(argv[3], "body-dna-missing")) ||
             !strcmp(argv[3], "alternate-dna") ||
             !strcmp(argv[3], "first-run-body-reject") ||
+            !strcmp(argv[3], "first-start-existing-body-reject") ||
             automatic,
         .birth_dna_body = !strcmp(argv[3], "body-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
-            !strcmp(argv[3], "first-run-body-reject") ?
+            !strcmp(argv[3], "first-run-body-reject") ||
+            !strcmp(argv[3], "first-start-existing-body-reject") ?
             SV_BIRTH_BODY_FRUIT_BAT :
             (automatic && !auto_pvp_maia) ? SV_BIRTH_BODY_FRUIT_BAT :
             auto_pvp_maia ? SV_BIRTH_BODY_NORMAL : (SvBirthBody)99,
@@ -1570,10 +1594,13 @@ int main(int argc, char **argv)
         },
         .birth_dna_mode_available = automatic ||
             !strcmp(argv[3], "mode-dna") ||
-            !strcmp(argv[3], "mode-dedicated-dna"),
+            !strcmp(argv[3], "mode-dedicated-dna") ||
+            !strcmp(argv[3], "first-start-existing-mode-reject"),
         .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ||
             auto_pvp_maia ?
             SV_BIRTH_MODE_DEDICATED_PVP :
+            !strcmp(argv[3], "first-start-existing-mode-reject") ?
+            SV_BIRTH_MODE_HELLISH :
             !strcmp(argv[3], "auto-dna-dedicated-iddc") ?
             SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING,
         .birth_dedicated = !strcmp(argv[3], "mode-dedicated") ||
@@ -1783,13 +1810,48 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
         assert(!outcome.birth_mode_confirmed &&
                outcome.birth_mode == SV_BIRTH_MODE_NONE);
-    } else if (!strcmp(argv[3], "mode-rpg")) {
+    } else if (!strcmp(argv[3], "first-start-existing-mode-reject")) {
+        static const int16_t committed[] = {0, 1, 2, 3, 4, 5};
+        assert(outcome.character_count == 1);
+        assert(outcome.birth_legal_mode_count == 4);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NONE &&
+               outcome.birth_owner == SV_BIRTH_MODE);
+        assert(!outcome.birth_mode_dna_used && !outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+        assert(!memcmp(outcome.birth_committed_stats, committed,
+                       sizeof(committed)));
+    } else if (!strcmp(argv[3], "first-start-existing-mode-random")) {
+        assert(outcome.character_count == 1);
+        assert(outcome.birth_legal_mode_count == 4);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode_random_used && outcome.birth_quit);
+        assert(outcome.birth_mode != SV_BIRTH_MODE_HELLISH &&
+               outcome.birth_mode != SV_BIRTH_MODE_PVP);
+    } else if (!strcmp(argv[3], "returning-empty-mode-pvp")) {
+        assert(outcome.character_count == 0);
+        assert(outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_legal_mode_count == 6);
+        assert(outcome.birth_legal_modes[4] == SV_BIRTH_MODE_HELLISH);
+        assert(outcome.birth_legal_modes[5] == SV_BIRTH_MODE_PVP);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_PVP &&
+               outcome.birth_owner == SV_BIRTH_READY);
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "mode-rpg") ||
+               !strcmp(argv[3], "returning-empty-mode-rpg")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode == SV_BIRTH_MODE_SOLOIST);
-        assert(outcome.birth_legal_mode_count == 2);
+        unsigned expected_count = !strcmp(argv[3], "mode-rpg") ? 2u : 3u;
+        assert(outcome.character_count == 0);
+        assert(outcome.birth_legal_mode_count == expected_count);
         assert(outcome.birth_legal_modes[0] == SV_BIRTH_MODE_NO_GHOST);
         assert(outcome.birth_legal_modes[1] == SV_BIRTH_MODE_SOLOIST);
+        if (expected_count == 3)
+            assert(outcome.birth_legal_modes[2] == SV_BIRTH_MODE_HELLISH);
         assert(outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "mode-dedicated-iddc")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
@@ -2097,20 +2159,25 @@ int main(int argc, char **argv)
     } else
 #endif
     if (!strcmp(argv[3], "first-run-body-direct") ||
-        !strcmp(argv[3], "first-run-body-reject")) {
-        assert(outcome.character_count == 0);
+        !strcmp(argv[3], "first-run-body-reject") ||
+        !strcmp(argv[3], "first-start-existing-body-reject")) {
+        assert(outcome.character_count ==
+               !strcmp(argv[3], "first-start-existing-body-reject"));
         assert(outcome.birth_legal_body_count == 1);
         assert(outcome.birth_legal_bodies[0] == SV_BIRTH_BODY_NORMAL);
         assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
         assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
         assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
-        if (!strcmp(argv[3], "first-run-body-reject")) {
+        if (!strcmp(argv[3], "first-run-body-reject") ||
+            !strcmp(argv[3], "first-start-existing-body-reject")) {
             assert(!outcome.birth_body_dna_used);
             assert(!outcome.birth_mouse_navigated);
         }
-    } else if (!strcmp(argv[3], "first-run-body-random")) {
-        assert(outcome.character_count == 0);
+    } else if (!strcmp(argv[3], "first-run-body-random") ||
+               !strcmp(argv[3], "first-start-existing-body-random")) {
+        assert(outcome.character_count ==
+               !strcmp(argv[3], "first-start-existing-body-random"));
         assert(outcome.birth_legal_body_count == 1);
         assert(outcome.birth_legal_bodies[0] == SV_BIRTH_BODY_NORMAL);
         assert(outcome.birth_body_confirmed && outcome.birth_body_random_used);
@@ -2121,8 +2188,10 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == SV_BIRTH_CLASS);
 #endif
         assert(outcome.birth_quit);
-    } else if (!strcmp(argv[3], "non-first-run-body-manual")) {
-        assert(outcome.character_count == 1);
+    } else if (!strcmp(argv[3], "non-first-run-body-manual") ||
+               !strcmp(argv[3], "returning-empty-body-manual")) {
+        assert(outcome.character_count ==
+               (!strcmp(argv[3], "non-first-run-body-manual") ? 1u : 0u));
         assert(outcome.birth_legal_body_count == 2);
         assert(outcome.birth_body_confirmed);
         assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);

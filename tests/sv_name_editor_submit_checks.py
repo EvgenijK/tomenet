@@ -38,11 +38,28 @@ SOURCES = [
     "src/common/md5.c",
 ]
 ONLY_CASE = os.environ.get("SV_BIRTH_CASE")
+FIRST_START_CASES = {
+    "mode-ordinary-ready",
+    "mode-random",
+    "mode-rpg",
+}
 QUIT_CASES = tuple(
     prefix + owner
     for prefix in ("quit-", "ctrl-quit-")
     for owner in ("sex", "race", "trait", "class", "body", "stats", "mode")
 )
+
+
+def set_profile_startup_state(profile: Path, mode: str) -> None:
+    config = profile / "sv" / "tomenet.cfg"
+    first_start = (mode.startswith("first-run-body-") or
+                   mode.startswith("first-start-existing-") or
+                   mode in FIRST_START_CASES)
+    if first_start:
+        config.unlink(missing_ok=True)
+        return
+    config.parent.mkdir(exist_ok=True)
+    config.write_text("svSchemaVersion\t1\n", encoding="ascii")
 
 with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     root = Path(temp)
@@ -72,6 +89,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "auto-dna-stale-event", "auto-dna-skip-trait-body",
                  "auto-dna-dedicated-iddc", "auto-dna-dedicated-pvp-maia",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+                 "returning-empty-mode-pvp", "returning-empty-mode-rpg",
+                 "first-start-existing-mode-reject",
+                 "first-start-existing-mode-random",
                  "session-interleave", "session-stale-input", "session-disconnect",
                  "session-retry-generation",
                  "mode-dedicated", "mode-dedicated-unavailable",
@@ -103,6 +123,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "trait-back", "trait-quit", "trait-ctrl-quit", "trait-mouse",
                  "first-run-body-direct", "first-run-body-reject",
                  "first-run-body-random", "non-first-run-body-manual",
+                 "returning-empty-body-manual",
+                 "first-start-existing-body-reject",
+                 "first-start-existing-body-random",
                  "archer-body-random",
                  "body-navigate", "body-random", "body-dna",
                  "body-dna-stale", "body-dna-missing", "body-back",
@@ -120,6 +143,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
+        set_profile_startup_state(profile, mode)
         subprocess.run(
             [str(binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,
@@ -136,6 +160,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "auto-dna-stale-event", "auto-dna-skip-trait-body",
                  "auto-dna-dedicated-iddc", "auto-dna-dedicated-pvp-maia",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
+                 "returning-empty-mode-pvp", "returning-empty-mode-rpg",
+                 "first-start-existing-mode-reject",
+                 "first-start-existing-mode-random",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",
                  "mode-random", "stats-order-reenter-completed",
@@ -157,7 +184,10 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "hidden-derived-dna-stale",
                  "alternate-mouse", "first-run-body-direct",
                  "first-run-body-reject", "first-run-body-random",
-                 "non-first-run-body-manual", "archer-body-random",
+                 "non-first-run-body-manual", "returning-empty-body-manual",
+                 "first-start-existing-body-reject",
+                 "first-start-existing-body-random",
+                 "archer-body-random",
                  "alternate-ctrl-quit", "stats-order-navigate",
                  "stats-order-confirm", "stats-order-random", "stats-order-mouse",
                  "stats-back", "stats-back-no-trait-body", "stats-quit",
@@ -171,6 +201,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  *QUIT_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
+        set_profile_startup_state(profile, mode)
         subprocess.run(
             [str(alternate_binary), str(profile), str(ROOT / "lib"), mode],
             cwd=ROOT,

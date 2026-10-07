@@ -149,7 +149,6 @@ typedef struct {
     bool mode_confirmed, mode_random_used, mode_dna_used, mode_ready;
     bool post_mode_trait_required;
     uint32_t server_flags[4];
-    size_t existing_characters;
     uint8_t race_count, trait_count;
     bool dedicated, first_run;
     uint32_t random_state;
@@ -183,7 +182,7 @@ typedef struct SvBirthView {
 
 SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         const SvContactSetup *setup, const uint32_t server_flags[4],
-                        size_t existing_characters, bool dedicated,
+                        bool first_run, bool dedicated,
                         bool dna_available,
                         SvBirthSex dna_sex, bool dna_class_available,
                         int dna_class, bool dna_race_available, int dna_race,
