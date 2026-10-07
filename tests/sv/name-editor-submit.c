@@ -147,7 +147,8 @@ static void send_setup(int socket, const char *mode)
     put16(&at, 20);
     *at++ = 3;
     bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16) ||
-        !strcmp(mode, "body-back-no-trait");
+        !strcmp(mode, "body-back-no-trait") ||
+        !strcmp(mode, "alternate-class-back-no-trait-body");
     bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip");
     *at++ = 4;
     *at++ = dummy_trait ? 1 : 4;
@@ -228,7 +229,10 @@ static int peer_run(void *opaque)
     *at++ = 255;
     *at++ = 0;
     put32(&at, 0);
-    put32(&at, 2u | (!strcmp(peer->mode, "body-unavailable-skip") ? 0x10u : 0u));
+    bool body_unavailable = !strcmp(peer->mode, "body-unavailable-skip") ||
+        !strcmp(peer->mode, "alternate-class-back-no-body") ||
+        !strcmp(peer->mode, "alternate-class-back-no-trait-body");
+    put32(&at, 2u | (body_unavailable ? 0x10u : 0u));
     const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
     assert(send(socket, contact, sizeof(contact), 0) == (ssize_t)sizeof(contact));
@@ -267,6 +271,117 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
+#if !SV_CLASS_BEFORE_RACE
+    if (!strcmp(peer->mode, "alternate-race-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-trait-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-body-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-class-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-class-back-no-trait-body")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-class-back-no-body")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-navigate")) {
+        push_mouse_sex(360.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Z, 0);
+        push_mouse_race(340.0f, 1);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_trait(340.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_body(380.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Z, 0);
+        push_mouse_class(380.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-random")) {
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-dna")) {
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-class-dna-incompatible")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-mouse")) {
+        push_mouse_sex(360.0f, 2);
+        push_mouse_race(420.0f, 2);
+        push_mouse_trait(380.0f, 2);
+        push_mouse_body(380.0f, 2);
+        push_mouse_class(340.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "alternate-ctrl-quit")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "alternate-order")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else
+#endif
     if (!strcmp(peer->mode, "body-mouse")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -547,23 +662,34 @@ int main(int argc, char **argv)
         .width = 1024, .height = 768, .windowed = 1,
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
         .real_name = "PLAYER", .outcome = &outcome,
-        .birth_dna_available = !strcmp(argv[3], "dna"),
+        .birth_dna_available = !strcmp(argv[3], "dna") ||
+            !strcmp(argv[3], "alternate-dna"),
         .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
-        .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9),
-        .birth_dna_class = !strcmp(argv[3], "class-dna") ? 2 :
+        .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9) ||
+            !strcmp(argv[3], "alternate-dna") ||
+            !strcmp(argv[3], "alternate-class-dna-incompatible"),
+        .birth_dna_class = !strcmp(argv[3], "class-dna") ||
+            !strcmp(argv[3], "alternate-dna") ? 2 :
+            !strcmp(argv[3], "alternate-class-dna-incompatible") ? 0 :
             !strcmp(argv[3], "class-dna-hidden") ? 1 :
             !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99,
-        .birth_dna_race_available = !strncmp(argv[3], "race-dna", 8) &&
-            strcmp(argv[3], "race-dna-missing"),
-        .birth_dna_race = !strcmp(argv[3], "race-dna") ? 2 :
+        .birth_dna_race_available = (!strncmp(argv[3], "race-dna", 8) &&
+            strcmp(argv[3], "race-dna-missing")) ||
+            !strcmp(argv[3], "alternate-dna"),
+        .birth_dna_race = !strcmp(argv[3], "race-dna") ||
+            !strcmp(argv[3], "alternate-dna") ? 2 :
             !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99,
-        .birth_dna_trait_available = !strncmp(argv[3], "trait-dna", 9) &&
-            strcmp(argv[3], "trait-dna-missing"),
-        .birth_dna_trait = !strcmp(argv[3], "trait-dna") ? 2 :
+        .birth_dna_trait_available = (!strncmp(argv[3], "trait-dna", 9) &&
+            strcmp(argv[3], "trait-dna-missing")) ||
+            !strcmp(argv[3], "alternate-dna"),
+        .birth_dna_trait = !strcmp(argv[3], "trait-dna") ||
+            !strcmp(argv[3], "alternate-dna") ? 2 :
             !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
-        .birth_dna_body_available = !strncmp(argv[3], "body-dna", 8) &&
-            strcmp(argv[3], "body-dna-missing"),
-        .birth_dna_body = !strcmp(argv[3], "body-dna") ?
+        .birth_dna_body_available = (!strncmp(argv[3], "body-dna", 8) &&
+            strcmp(argv[3], "body-dna-missing")) ||
+            !strcmp(argv[3], "alternate-dna"),
+        .birth_dna_body = !strcmp(argv[3], "body-dna") ||
+            !strcmp(argv[3], "alternate-dna") ?
             SV_BIRTH_BODY_FRUIT_BAT : (SvBirthBody)99
     });
     SDL_WaitThread(worker, NULL);
@@ -576,9 +702,102 @@ int main(int argc, char **argv)
     assert(outcome.phase == SV_PREGAME_BIRTH);
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
+#if SV_CLASS_BEFORE_RACE
     assert(outcome.birth_legal_class_count == 2);
     assert(outcome.birth_legal_classes[0] == 0);
     assert(outcome.birth_legal_classes[1] == 2);
+#endif
+#if !SV_CLASS_BEFORE_RACE
+    if (!strcmp(argv[3], "alternate-race-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_SEX && outcome.birth_quit);
+        assert(!outcome.birth_race_confirmed &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE);
+        assert(outcome.birth_highlighted_race == 2);
+    } else if (!strcmp(argv[3], "alternate-trait-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 2);
+        assert(!outcome.birth_trait_confirmed &&
+               outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+        assert(outcome.birth_highlighted_trait == 2);
+    } else if (!strcmp(argv[3], "alternate-body-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
+        assert(!outcome.birth_trait_confirmed &&
+               outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+        assert(!outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+    } else if (!strcmp(argv[3], "alternate-class-back")) {
+        assert(outcome.birth_owner == SV_BIRTH_BODY && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+    } else if (!strcmp(argv[3], "alternate-class-back-no-trait-body")) {
+        assert(outcome.birth_trait_skipped && outcome.birth_body_skipped);
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed && outcome.birth_race == 2);
+    } else if (!strcmp(argv[3], "alternate-class-back-no-body")) {
+        assert(outcome.creation_flags == 0x10u);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race == 2 && outcome.birth_trait == 2);
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "alternate-navigate")) {
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_race == 0 && outcome.birth_trait == 1);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_class == 2 && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_legal_class_count == 2);
+        assert(outcome.birth_legal_classes[0] == 0 &&
+               outcome.birth_legal_classes[1] == 2);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "alternate-random")) {
+        assert(outcome.birth_random_used && outcome.birth_race_random_used);
+        assert(outcome.birth_trait_random_used && outcome.birth_body_random_used);
+        assert(outcome.birth_class_random_used && outcome.birth_quit);
+        assert(outcome.birth_owner == SV_BIRTH_STATS);
+        assert((outcome.birth_race == 0 &&
+                (outcome.birth_class == 0 || outcome.birth_class == 2)) ||
+               (outcome.birth_race == 1 && outcome.birth_class == 0) ||
+               (outcome.birth_race == 2 && outcome.birth_class == 2));
+    } else if (!strcmp(argv[3], "alternate-dna")) {
+        assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_race_dna_used && outcome.birth_race == 2);
+        assert(outcome.birth_trait_dna_used && outcome.birth_trait == 2);
+        assert(outcome.birth_body_dna_used &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_class_dna_used && outcome.birth_class == 2);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "alternate-class-dna-incompatible")) {
+        assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed && !outcome.birth_class_dna_used);
+        assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_highlighted_class == 2 &&
+               outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "alternate-mouse")) {
+        assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_race == 2 && outcome.birth_trait == 2);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_class == 2 && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_mouse_navigated && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "alternate-ctrl-quit")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(!outcome.birth_race_confirmed &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE);
+    } else if (!strcmp(argv[3], "alternate-order")) {
+        assert(outcome.birth_sex_confirmed && outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 2);
+        assert(outcome.birth_trait_confirmed && outcome.birth_trait == 2);
+        assert(outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_legal_race_count == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+    } else
+#endif
     if (!strcmp(argv[3], "body-mouse")) {
         assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
         assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);

@@ -9,6 +9,10 @@ PKG_CONFIG_MINGW ?= i686-w64-mingw32-pkg-config
 CFLAGS ?= -O2 -g
 CPPFLAGS ?=
 LDFLAGS ?=
+SV_CLASS_BEFORE_RACE ?= 1
+ifneq ($(filter $(SV_CLASS_BEFORE_RACE),0 1),$(SV_CLASS_BEFORE_RACE))
+$(error SV_CLASS_BEFORE_RACE must be 0 or 1)
+endif
 ifeq ($(PLATFORM),linux)
 SV_CC := $(CC_LINUX)
 SV_PKG := $(PKG_CONFIG_LINUX)
@@ -28,7 +32,7 @@ ifeq ($(PLATFORM),linux)
 SV_MODULES += libsecret-1
 endif
 SV_DEPS := $(shell $(SV_PKG) --modversion $(SV_MODULES) 2>/dev/null)
-SV_CFLAGS := -Iclient/sv -Itemporary/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong $(CPPFLAGS) $(CFLAGS) $(shell $(SV_PKG) --cflags $(SV_MODULES) 2>/dev/null)
+SV_CFLAGS := -Iclient/sv -Itemporary/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong -DSV_CLASS_BEFORE_RACE=$(SV_CLASS_BEFORE_RACE) $(CPPFLAGS) $(CFLAGS) $(shell $(SV_PKG) --cflags $(SV_MODULES) 2>/dev/null)
 SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
 ifeq ($(PLATFORM),mingw)
 SV_LIBS += -lws2_32 -ladvapi32
