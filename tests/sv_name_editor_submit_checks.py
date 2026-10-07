@@ -82,6 +82,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         check=True,
     )
     for mode in ("guide-sex-no-op", "guide-all-owners",
+                 "guide-ordered-stats-no-op",
+                 "stats-point-guide",
                  "birth-context-escape",
                  "auto-dna-full",
                  "auto-dna-hidden-race-mismatch",
@@ -171,6 +173,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
             timeout=15,
         )
     for mode in ("guide-sex-no-op", "guide-all-owners",
+                 "guide-ordered-stats-no-op",
+                 "stats-point-guide",
                  "birth-context-escape",
                  "auto-dna-full",
                  "auto-dna-stats-normalized",
