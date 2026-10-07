@@ -106,7 +106,7 @@ typedef struct {
     SvBirthOwner owner;
     SvBirthSex highlighted_sex, chosen_sex;
     SvBirthSex dna_sex;
-    int highlighted_class, chosen_class, dna_class;
+    int highlighted_class, chosen_visible_class, chosen_class, dna_class;
     uint8_t legal_classes[255], legal_class_count;
     int highlighted_race, chosen_race, dna_race;
     uint8_t legal_races[255], legal_race_count;
