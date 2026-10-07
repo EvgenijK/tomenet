@@ -66,6 +66,10 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     )
     for mode in ("guide-all-owners",
                  "birth-context-escape",
+                 "auto-dna-full",
+                 "auto-dna-incompatible-class", "auto-dna-missing-sex",
+                 "auto-dna-stale-event", "auto-dna-skip-trait-body",
+                 "auto-dna-dedicated-iddc", "auto-dna-dedicated-pvp-maia",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "session-interleave", "session-stale-input", "session-disconnect",
                  "session-retry-generation",
@@ -124,6 +128,10 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
         )
     for mode in ("guide-all-owners",
                  "birth-context-escape",
+                 "auto-dna-full",
+                 "auto-dna-incompatible-class", "auto-dna-missing-sex",
+                 "auto-dna-stale-event", "auto-dna-skip-trait-body",
+                 "auto-dna-dedicated-iddc", "auto-dna-dedicated-pvp-maia",
                  "mode-ordinary-ready", "mode-dna", "mode-dna-missing",
                  "mode-dedicated", "mode-dedicated-unavailable",
                  "mode-dedicated-iddc", "mode-dedicated-dna", "mode-back",

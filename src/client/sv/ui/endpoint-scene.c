@@ -139,7 +139,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             if (!line(renderer,font,"Character name accepted",40,240,scale,selected))
                 return false;
             if (input->birth_view && input->birth_view->owner == SV_BIRTH_SEX) {
-                if (!line(renderer,font,"Choose sex (* random, # DNA, Q quits)",40,270,
+                if (!line(renderer,font,"Choose sex (* random, # DNA, % automatic DNA, Q quits)",40,270,
                           scale,normal) ||
                     !line(renderer,font,"Male",60,310,scale,
                           input->birth_view->highlighted_sex == SV_BIRTH_SEX_MALE ?
@@ -148,7 +148,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                           input->birth_view->highlighted_sex == SV_BIRTH_SEX_FEMALE ?
                           selected : normal)) return false;
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_CLASS) {
-                if (!line(renderer,font,"Choose class (* random, # DNA, Q quits)",40,290,
+                if (!line(renderer,font,"Choose class (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
                 for (unsigned i = 0; i < input->birth_view->legal_class_count; ++i) {
                     unsigned id = input->birth_view->legal_classes[i];
@@ -158,7 +158,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               selected : normal)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_RACE) {
-                if (!line(renderer,font,"Choose race (* random, # DNA, Q quits)",40,290,
+                if (!line(renderer,font,"Choose race (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
                 for (unsigned id = 0; id < input->birth_view->setup->race_count; ++id) {
                     bool legal = false;
@@ -170,7 +170,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               selected : legal ? normal : disabled)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_TRAIT) {
-                if (!line(renderer,font,"Choose trait (* random, # DNA, Q quits)",40,290,
+                if (!line(renderer,font,"Choose trait (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
                 for (unsigned i = 0; i < input->birth_view->legal_trait_count; ++i) {
                     unsigned id = input->birth_view->legal_traits[i];
@@ -180,7 +180,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               selected : normal)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_BODY) {
-                if (!line(renderer,font,"Choose body (* random, # DNA, Q quits)",40,290,
+                if (!line(renderer,font,"Choose body (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
                 for (unsigned i = 0; i < input->birth_view->legal_body_count; ++i) {
                     SvBirthBody body = input->birth_view->legal_bodies[i];
@@ -202,7 +202,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                              input->birth_view->stats_remaining);
                 else if (input->birth_view->stats_point_buy)
                     snprintf(prompt, sizeof(prompt),
-                             "Distribute stats (%d points left, # DNA, Q quits)",
+                             "Distribute stats (%d points left, # DNA, %% automatic DNA, Q quits)",
                              input->birth_view->stats_remaining);
                 else snprintf(prompt, sizeof(prompt),
                               "Choose stat order (* random, Q quits)");
@@ -219,7 +219,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                               selected : normal)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_MODE) {
-                if (!line(renderer,font,"Choose mode (* random, # DNA, Q quits)",40,290,
+                if (!line(renderer,font,"Choose mode (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
                 for (unsigned i = 0; i < input->birth_view->legal_mode_count; ++i) {
                     SvBirthMode mode = input->birth_view->legal_modes[i];
