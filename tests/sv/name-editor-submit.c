@@ -1457,6 +1457,8 @@ int main(int argc, char **argv)
     bool auto_pvp_maia = !strcmp(argv[3], "auto-dna-dedicated-pvp-maia");
     bool auto_incompatible_class =
         !strcmp(argv[3], "auto-dna-incompatible-class");
+    bool normalized_dna = !strcmp(argv[3], "stats-point-dna-illegal") ||
+        !strcmp(argv[3], "auto-dna-stats-normalized");
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
     assert(peer.listener >= 0);
     int reuse = 1;
@@ -1530,14 +1532,14 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-illegal") ||
             !strcmp(argv[3], "stats-point-dna-multiple-max"),
         .birth_dna_stats = {
-            !strcmp(argv[3], "stats-point-dna-illegal") ? 18 : 17,
+            normalized_dna ? 18 : 17,
             !strcmp(argv[3], "stats-point-dna-over-budget") ? 16 :
                 !strcmp(argv[3], "stats-point-dna-multiple-max") ? 17 : 14,
             !strcmp(argv[3], "stats-point-dna-over-budget") ? 16 :
                 !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 12,
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 10,
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
-            8
+            normalized_dna ? 7 : 8
         },
         .birth_dna_mode_available = automatic ||
             !strcmp(argv[3], "mode-dna") ||
@@ -1609,6 +1611,18 @@ int main(int argc, char **argv)
         assert(!outcome.birth_class_random_used &&
                !outcome.birth_race_random_used);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "auto-dna-stats-normalized")) {
+        static const int16_t expected[] = {8, 14, 12, 10, 9, 8};
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_stats_remaining == 27);
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_mode_dna_used && outcome.birth_mode_ready);
+        assert(outcome.birth_auto_reincarnation);
     } else if (!strcmp(argv[3], "auto-dna-full") ||
                !strcmp(argv[3], "auto-dna-dedicated-iddc")) {
         static const int16_t expected[] = {17, 14, 12, 10, 9, 8};
@@ -1925,10 +1939,37 @@ int main(int argc, char **argv)
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(outcome.birth_stats_remaining == 9);
-    } else if (!strcmp(argv[3], "stats-point-dna-over-budget") ||
-               !strcmp(argv[3], "stats-point-dna-illegal") ||
-               !strcmp(argv[3], "stats-point-dna-multiple-max") ||
-               !strcmp(argv[3], "stats-point-dna-missing")) {
+    } else if (!strcmp(argv[3], "stats-point-dna-illegal")) {
+        static const int16_t expected[] = {8, 14, 12, 10, 9, 8};
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_stats_remaining == 27);
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "stats-point-dna-over-budget")) {
+        static const int16_t expected[] = {17, 16, 16, 10, 9, 8};
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_stats_remaining == -7);
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "stats-point-dna-multiple-max")) {
+        static const int16_t expected[] = {17, 17, 8, 8, 8, 8};
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
+        assert(!memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_stats_remaining == 6);
+        assert(!outcome.birth_stats_confirmation_pending &&
+               !outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "stats-point-dna-missing")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed && !outcome.birth_stats_dna_used);
         assert(outcome.birth_highlighted_stat == 0);
