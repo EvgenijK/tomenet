@@ -107,24 +107,39 @@ static void push_mouse_class(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_race(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    event.button.clicks = clicks;
+    assert(SDL_PushEvent(&event));
+}
+
 static void send_setup(int socket)
 {
     unsigned char setup[256], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
-    *at++ = 2;
+    *at++ = 3;
     *at++ = 4;
-    *at++ = 0;
+    *at++ = 1;
     unsigned char *size_at = at;
     at += 4;
 
-    for (int race = 0; race < 2; ++race) {
+    static const char *races[] = {"Human", "Elf", "Dwarf"};
+    static const uint32_t race_choices[] = {
+        (1u << 0) | (1u << 2), 1u << 0, 1u << 2
+    };
+    for (size_t race = 0; race < sizeof(races) / sizeof(races[0]); ++race) {
         memset(at, 50, 6);
         at += 6;
-        const char *title = race ? "Elf" : "Human";
+        const char *title = races[race];
         memcpy(at, title, strlen(title) + 1);
         at += strlen(title) + 1;
-        put32(&at, (1u << 0) | (1u << 2));
+        put32(&at, race_choices[race]);
     }
     static const char *classes[] = {"Warrior", "0 Hidden", "Mage", "Orphan"};
     for (size_t i = 0; i < sizeof(classes) / sizeof(classes[0]); ++i) {
@@ -135,6 +150,10 @@ static void send_setup(int socket)
         memset(at, 0, 6);
         at += 6;
     }
+    static const char trait[] = "Common";
+    memcpy(at, trait, sizeof(trait));
+    at += sizeof(trait);
+    put32(&at, 0x7u);
     unsigned char *size_writer = size_at;
     put32(&size_writer, (uint32_t)(at - setup));
     assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
@@ -216,7 +235,45 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "class-navigate")) {
+    if (!strcmp(peer->mode, "race-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "race-ctrl-quit")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "race-dna") ||
+        !strcmp(peer->mode, "race-dna-incompatible") ||
+        !strcmp(peer->mode, "race-dna-stale") ||
+        !strcmp(peer->mode, "race-dna-missing")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "race-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "race-navigate")) {
+        push_key(SDLK_RETURN, 0);
+        push_mouse_class(380.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_mouse_race(380.0f, 1);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_LEFT, 0);
+        push_mouse_race(420.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "class-navigate")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Z, 0);
         push_mouse_class(380.0f, 1);
@@ -303,7 +360,11 @@ int main(int argc, char **argv)
         .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9),
         .birth_dna_class = !strcmp(argv[3], "class-dna") ? 2 :
             !strcmp(argv[3], "class-dna-hidden") ? 1 :
-            !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99
+            !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99,
+        .birth_dna_race_available = !strncmp(argv[3], "race-dna", 8) &&
+            strcmp(argv[3], "race-dna-missing"),
+        .birth_dna_race = !strcmp(argv[3], "race-dna") ? 2 :
+            !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -318,7 +379,40 @@ int main(int argc, char **argv)
     assert(outcome.birth_legal_class_count == 2);
     assert(outcome.birth_legal_classes[0] == 0);
     assert(outcome.birth_legal_classes[1] == 2);
-    if (!strcmp(argv[3], "class-navigate")) {
+    if (!strcmp(argv[3], "race-back")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(!outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_highlighted_race == 2);
+        assert(outcome.birth_race == SV_BIRTH_RACE_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "race-ctrl-quit")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && !outcome.birth_race_confirmed);
+        assert(outcome.birth_highlighted_race == 0 && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "race-dna")) {
+        assert(outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race_dna_used && outcome.birth_race == 2);
+    } else if (!strncmp(argv[3], "race-dna-", 9)) {
+        assert(!outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(!outcome.birth_race_dna_used && outcome.birth_illegal_ignored);
+        assert(outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_race == SV_BIRTH_RACE_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "race-random")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race_random_used);
+        assert(outcome.birth_race == 0 || outcome.birth_race == 2);
+    } else if (!strcmp(argv[3], "race-navigate")) {
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_race_count == 3);
+        assert(outcome.birth_legal_race_count == 2);
+        assert(outcome.birth_legal_races[0] == 0);
+        assert(outcome.birth_legal_races[1] == 2);
+        assert(outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race == 2 && outcome.birth_highlighted_race == 2);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "class-navigate")) {
         assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
         assert(outcome.birth_class == 2 && outcome.birth_highlighted_class == 2);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
