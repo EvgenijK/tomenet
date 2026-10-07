@@ -129,13 +129,25 @@ static void push_mouse_trait(float y, unsigned clicks)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_body(float y, unsigned clicks)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.clicks = clicks;
+    event.button.x = 90.0f;
+    event.button.y = y;
+    assert(SDL_PushEvent(&event));
+}
+
 static void send_setup(int socket, const char *mode)
 {
     unsigned char setup[256], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
     *at++ = 3;
-    bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16);
+    bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16) ||
+        !strcmp(mode, "body-back-no-trait");
     bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip");
     *at++ = 4;
     *at++ = dummy_trait ? 1 : 4;
@@ -216,7 +228,7 @@ static int peer_run(void *opaque)
     *at++ = 255;
     *at++ = 0;
     put32(&at, 0);
-    put32(&at, 2);
+    put32(&at, 2u | (!strcmp(peer->mode, "body-unavailable-skip") ? 0x10u : 0u));
     const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
     assert(send(socket, contact, sizeof(contact), 0) == (ssize_t)sizeof(contact));
@@ -255,7 +267,94 @@ static int peer_run(void *opaque)
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
-    if (!strcmp(peer->mode, "trait-back")) {
+    if (!strcmp(peer->mode, "body-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_body(380.0f, 2);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-quit") ||
+               !strcmp(peer->mode, "body-ctrl-quit")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, !strcmp(peer->mode, "body-ctrl-quit") ?
+            SDL_KMOD_CTRL : 0);
+    } else if (!strcmp(peer->mode, "body-unavailable-skip")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-back-no-trait")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-back")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_F, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-dna") ||
+        !strcmp(peer->mode, "body-dna-stale") ||
+        !strcmp(peer->mode, "body-dna-missing")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_HASH, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_ASTERISK, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "body-navigate")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Z, 0);
+        push_key(SDLK_N, 0);
+        push_mouse_body(380.0f, 1);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "trait-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
@@ -461,7 +560,11 @@ int main(int argc, char **argv)
         .birth_dna_trait_available = !strncmp(argv[3], "trait-dna", 9) &&
             strcmp(argv[3], "trait-dna-missing"),
         .birth_dna_trait = !strcmp(argv[3], "trait-dna") ? 2 :
-            !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99
+            !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
+        .birth_dna_body_available = !strncmp(argv[3], "body-dna", 8) &&
+            strcmp(argv[3], "body-dna-missing"),
+        .birth_dna_body = !strcmp(argv[3], "body-dna") ?
+            SV_BIRTH_BODY_FRUIT_BAT : (SvBirthBody)99
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
@@ -476,7 +579,60 @@ int main(int argc, char **argv)
     assert(outcome.birth_legal_class_count == 2);
     assert(outcome.birth_legal_classes[0] == 0);
     assert(outcome.birth_legal_classes[1] == 2);
-    if (!strcmp(argv[3], "trait-back")) {
+    if (!strcmp(argv[3], "body-mouse")) {
+        assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_mouse_navigated && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-quit") ||
+               !strcmp(argv[3], "body-ctrl-quit")) {
+        assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-unavailable-skip")) {
+        assert(outcome.creation_flags == 0x10u);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body_count == 0 && outcome.birth_legal_body_count == 0);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-back-no-trait")) {
+        assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
+        assert(outcome.birth_legal_body_count == 2);
+        assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_race == 2 && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-back")) {
+        assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(!outcome.birth_trait_confirmed && outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+        assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-dna")) {
+        assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body_dna_used);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+    } else if (!strncmp(argv[3], "body-dna-", 9)) {
+        assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
+        assert(!outcome.birth_body_dna_used && outcome.birth_illegal_ignored);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NONE && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "body-random")) {
+        assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body_random_used);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NORMAL ||
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+    } else if (!strcmp(argv[3], "body-navigate")) {
+        assert(outcome.birth_body_count == 2);
+        assert(outcome.birth_legal_body_count == 2);
+        assert(outcome.birth_legal_bodies[0] == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_legal_bodies[1] == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "trait-back")) {
         assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
         assert(outcome.birth_race == 2 && outcome.birth_highlighted_trait == 2);
         assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE && outcome.birth_quit);
