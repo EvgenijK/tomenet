@@ -213,7 +213,6 @@ static void push_guide_round_trip(void)
 static void push_guide_all_owners(void)
 {
     push_key(SDLK_F, 0);
-    push_guide_round_trip();
     push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
     push_key(SDLK_B, 0);
@@ -779,6 +778,10 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, 0);
     } else if (!strncmp(peer->mode, "auto-dna-", 9)) {
         push_key(SDLK_PERCENT, 0);
+        push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "guide-sex-no-op")) {
+        push_key(SDLK_QUESTION, 0);
+        push_key(SDLK_Q, 0);
         push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "guide-all-owners")) {
         push_guide_all_owners();
@@ -1825,11 +1828,21 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_FEMALE);
         assert(!outcome.birth_sex_confirmed && outcome.birth_quit);
         assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "guide-sex-no-op")) {
+        assert(outcome.birth_owner == SV_BIRTH_SEX && outcome.birth_quit);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_MALE);
+        assert(!outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_NONE);
+        assert(!outcome.birth_illegal_ignored);
+        assert(outcome.birth_placeholder_open_count == 0);
+        assert(outcome.birth_placeholder_close_count == 0);
+        assert(outcome.birth_placeholder_owner_mask == 0);
+        assert(outcome.birth_placeholder_text[0] == '\0');
     } else if (!strcmp(argv[3], "guide-all-owners")) {
         static const int16_t expected_stats[] = {0, 1, 2, 3, 4, 5};
-        assert(outcome.birth_placeholder_open_count == 7);
-        assert(outcome.birth_placeholder_close_count == 7);
-        assert(outcome.birth_placeholder_owner_mask == 0xfeu);
+        assert(outcome.birth_placeholder_open_count == 6);
+        assert(outcome.birth_placeholder_close_count == 6);
+        assert(outcome.birth_placeholder_owner_mask == 0xfcu);
         assert(outcome.birth_placeholder_draft_preserved);
         assert(!strcmp(outcome.birth_placeholder_text,
                        "The guide is in development"));
