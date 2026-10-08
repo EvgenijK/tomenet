@@ -509,9 +509,15 @@ static bool case_sensitive_class_case(const char *mode)
     return !strcmp(mode, "case-sensitive-class-binding");
 }
 
+static bool shift_caps_class_case(const char *mode)
+{
+    return !strcmp(mode, "case-sensitive-shift-caps-class-binding");
+}
+
 static bool long_class_setup_case(const char *mode)
 {
-    return long_class_case(mode) || case_sensitive_class_case(mode);
+    return long_class_case(mode) || case_sensitive_class_case(mode) ||
+        shift_caps_class_case(mode);
 }
 
 static bool long_race_case(const char *mode)
@@ -1658,7 +1664,16 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else
 #endif
-    if (case_sensitive_class_case(peer->mode)) {
+    if (shift_caps_class_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_Q, SDL_KMOD_SHIFT | SDL_KMOD_CAPS);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (case_sensitive_class_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
 #if !SV_CLASS_BEFORE_RACE
         push_key(SDLK_RETURN, 0);
@@ -3542,6 +3557,12 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
         assert(outcome.birth_highlighted_class == 0 &&
                outcome.birth_illegal_ignored);
+    } else if (shift_caps_class_case(argv[3])) {
+        assert(outcome.birth_class_confirmed);
+        assert(outcome.birth_class == 16 &&
+               outcome.birth_highlighted_class == 16);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_quit);
+        assert(!outcome.birth_illegal_ignored);
     } else if (case_sensitive_class_case(argv[3])) {
         assert(outcome.birth_class_confirmed);
         assert(outcome.birth_class == 16 &&
