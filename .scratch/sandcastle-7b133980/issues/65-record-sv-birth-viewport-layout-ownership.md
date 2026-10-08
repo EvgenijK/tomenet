@@ -8,9 +8,9 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-**Assignee:** Unassigned
+**Assignee:** Codex (`codex/sandcastle-7b133980-wave-44-1`)
 
 Labels: enhancement, ready-for-agent
 
@@ -18,9 +18,52 @@ Labels: enhancement, ready-for-agent
 
 **Production seam:** Not applicable. This documentation-only repair must not change public SV behavior, production or test code, or invent a test-only interface. The accepted production interaction/input-router path remains unchanged and is guarded by `controller-review`. [Contract: P1-AC28, P2-AC05]
 
-- [ ] The SV improvement register contains exactly one standalone record describing the misplaced birth row geometry and viewport presentation ownership as a UI/input boundary problem. [Contract: P2-AC06, P2-AC07; check: `controller-review`]
-- [ ] The record states Status, Problem, Affected code, Proposal and Required checks, identifies both the native birth input adapter and endpoint birth renderer, and proposes a UI-owned viewport/layout and hit-test contract consumed by native input. [Contract: P2-AC06, P2-AC07, P2-AC12; check: `controller-review`]
-- [ ] The proposal preserves stable server-provided identity, highlighted selection, keyboard/mouse navigation, resize handling and owner transitions, and marks the refactor as separate future SV-local work rather than changing production behavior or legacy/shared code in this repair. [Contract: P1-AC10, P1-AC11, P1-AC21, P1-AC28, P2-AC01, P2-AC03, P2-AC04, P2-AC08, P2-AC09; check: `controller-review`]
-- [ ] Required future checks cover renderer/hit-test geometry agreement for every choice owner, clipped and visible-row mouse input, keyboard and wheel/Page navigation, focus/resize interleaving, both class/race compile orders, and the existing production interaction/input-router regression path; they are recorded as required and explicitly not claimed passed by this documentation repair. [Contract: P1-AC10, P1-AC11, P1-AC19, P1-AC21, P1-AC28, P2-AC04, P2-AC05, P2-AC07, P2-AC08; checks: `sv-build`, `sv-core`, `controller-review`]
+- [x] The SV improvement register contains exactly one standalone record describing the misplaced birth row geometry and viewport presentation ownership as a UI/input boundary problem. [Contract: P2-AC06, P2-AC07; check: `controller-review`]
+- [x] The record states Status, Problem, Affected code, Proposal and Required checks, identifies both the native birth input adapter and endpoint birth renderer, and proposes a UI-owned viewport/layout and hit-test contract consumed by native input. [Contract: P2-AC06, P2-AC07, P2-AC12; check: `controller-review`]
+- [x] The proposal preserves stable server-provided identity, highlighted selection, keyboard/mouse navigation, resize handling and owner transitions, and marks the refactor as separate future SV-local work rather than changing production behavior or legacy/shared code in this repair. [Contract: P1-AC10, P1-AC11, P1-AC21, P1-AC28, P2-AC01, P2-AC03, P2-AC04, P2-AC08, P2-AC09; check: `controller-review`]
+- [x] Required future checks cover renderer/hit-test geometry agreement for every choice owner, clipped and visible-row mouse input, keyboard and wheel/Page navigation, focus/resize interleaving, both class/race compile orders, and the existing production interaction/input-router regression path; they are recorded as required and explicitly not claimed passed by this documentation repair. [Contract: P1-AC10, P1-AC11, P1-AC19, P1-AC21, P1-AC28, P2-AC04, P2-AC05, P2-AC07, P2-AC08; checks: `sv-build`, `sv-core`, `controller-review`]
 
 **Deferred check:** `P1-birth-runtime-evidence` / P1-AC30 remains deferred to its named producer and verifier at full acceptance. This documentation repair neither performs nor claims that evidence.
+
+## Comments
+
+- 2026-10-08: Claimed by `codex/sandcastle-7b133980-wave-44-1` before
+  inspecting the native birth viewport/layout boundary and adding the standalone
+  improvement record.
+
+## Answer
+
+В `docs/sv-improvements.md` добавлена ровно одна самостоятельная запись
+`Move SV birth viewport and row layout ownership into UI`. Она фиксирует
+нарушенную UI/input boundary: native birth input adapter объявляет row geometry,
+владеет `SvBirthViewport`, рассчитывает visible range/scroll и выполняет
+hit-test, а endpoint birth renderer напрямую импортирует и использует эти
+input-owned presentation данные.
+
+Proposal оставлен отдельной будущей SV-local работой: UI владеет viewport,
+row layout и scroll presentation state и предоставляет read-only layout и
+hit-test contract, потребляемые native input adapter. Запись требует сохранить
+stable server-provided identity, highlight, keyboard/mouse и wheel/Page
+navigation, resize/focus interleaving и owner transitions. Production/test code,
+legacy/shared code, accepted behavior и область SV-B-023 не изменены.
+
+Production seam для этого documentation-only repair неприменим, как явно задано
+тикетом. Поэтому behavioral TDD, production-path session и новые behavior tests
+не запускались, test-only seam не создавался; навык TDD применён как ограничение
+против искусственного интерфейса. Выполнена сфокусированная структурная проверка:
+
+- до записи `grep -c '^## Move SV birth viewport and row layout ownership into UI$' docs/sv-improvements.md` — **RED**, exit 1,
+  `heading_count=0`;
+- после записи shell assertions для единственного заголовка, полей Status,
+  Problem, Affected code, Proposal и Required checks и всех ownership,
+  preservation и future-check требований — **GREEN**, exit 0,
+  `heading_count=1; structure_and_contract=present`;
+- `git diff --check` и проверка documentation-only scope — **PASS**, exit 0.
+
+Полный build/test/review workflow не запускался: поведение не менялось, а общие
+gates выполняет orchestrator. Будущие renderer/hit-test checks для всех owners,
+clipping/visible rows, keyboard/mouse/wheel/Page navigation, focus/resize, обеих
+compile-time class/race orders и production interaction/input-router regressions
+записаны как обязательные, но не заявляются пройденными. Deferred
+`P1-birth-runtime-evidence` / P1-AC30 остаётся у named producer/verifier на full
+acceptance и этой задачей не производится.
