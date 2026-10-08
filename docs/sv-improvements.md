@@ -745,3 +745,55 @@ interleaving, disconnect and stale-generation regression matrix; and run the
 applicable future `sv-build`, `sv-core` and `controller-review` checks. These
 checks belong to the future refactor and remain unrun by this documentation-only
 record.
+
+## Decode SV birth semantic identities authoritatively
+
+**Status:** proposed separately as future SV-local work only. This record does
+not implement the mapping, change production or test behavior, touch
+legacy/shared code, or widen the accepted SV-B-023 scope. None of the future
+checks below is claimed as run or passed by this documentation-only repair.
+
+**Problem:** birth compatibility, trait-derived hidden-class handling and the
+post-mode PvP Maia rules recognize related server domain identities through a
+mixture of presentation and layout primitives. `maia_race_id` compares the
+server-provided display title with `"Maia"`; `trait_derived_hidden_class`
+compares decoded hidden-class titles with `"Hell Knight"` and
+`"Corrupted Priest"`; and the same rules use raw trait IDs `14` (Enlightened)
+and `15` (Corrupted) together with raw server feature bit `0x200` in
+`server_flags[3]`. Treating these race, class, trait and feature identities as
+separate string and integer literals obscures that they form one semantic-
+identity mapping and makes protocol/layout changes easy to apply inconsistently.
+
+**Affected code:** `src/client/sv/session/birth.c`, specifically
+`maia_race_id`, `trait_derived_hidden_class`, `dna_visible_class`, `legal_trait`
+and `confirm_mode`; the decoded setup types in
+`src/client/sv/session/character-setup.h`; setup title/hidden-class decoding in
+`src/client/sv/protocol/contact.c`; and server-feature decoding in
+`src/client/sv/protocol/protocol.c`.
+
+**Proposal:** in a separate task, establish one authoritative SV-local decoded
+identity/feature mapping for the Maia race, Hell Knight and Corrupted Priest
+hidden classes, Enlightened and Corrupted traits, and the PvP Maia post-mode
+feature. Prefer explicit semantic identities attached at the existing decoded
+setup/control boundary; if the wire data cannot support that representation
+without inventing identity, use one set of named SV-local semantic constants and
+mapping helpers instead. In either form, preserve the server-provided display
+titles, race/class order and choice-bit layout, hidden-class prefix/base-class
+decode, trait IDs and `server_flags[3]` feature-bit layout. Preserve all current
+compatibility filtering, both trait-derived hidden-class rules and post-mode PvP
+Maia selection/backtracking semantics. Do not use this mapping work to extract a
+legacy/shared abstraction or add capability scope to SV-B-023.
+
+**Required checks:** the future change must verify the decoded identity/layout
+mapping while retaining the exact server-provided title, race/class order,
+choice-bit, hidden-class base, trait-ID and feature-flag layouts; Maia matching
+at every server-provided race position; Hell Knight and Corrupted Priest
+resolution and compatibility; Enlightened (`14`) and Corrupted (`15`) post-mode
+trait identities; and the PvP Maia `server_flags[3] & 0x200` feature. Exercise
+both compile-time class/race orders and retain the existing production
+interaction/input-router regression matrix for server-provided lists,
+compatibility, hidden-class DNA, post-mode selection and backtracking,
+navigation, confirmation, quit, interleaved events, disconnect, stale-generation
+and send suppression. Run the applicable future `sv-build`, `sv-core` and
+`controller-review` checks. All of these checks are requirements for the future
+mapping work and are not run or passed by this documentation-only record.
