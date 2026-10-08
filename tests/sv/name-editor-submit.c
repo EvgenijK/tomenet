@@ -505,6 +505,9 @@ static bool pvp_maia_case(const char *mode)
         !strcmp(mode, "unknown-setup-pvp-maia-back") ||
         !strcmp(mode, "unknown-setup-pvp-maia-back-confirm") ||
         !strcmp(mode, "unknown-setup-pvp-maia-back-disconnect") ||
+        !strcmp(mode, "unknown-setup-pvp-maia-deep-back") ||
+        !strcmp(mode, "unknown-setup-pvp-maia-trait-reenter") ||
+        !strcmp(mode, "unknown-setup-exclusive-pvp-maia-trait-reenter") ||
         !strcmp(mode, "unknown-setup-exclusive-pvp-maia-back-random") ||
         !strcmp(mode, "mode-pvp-maia-deep-back") ||
         !strcmp(mode, "exclusive-pvp-maia-deep-back") ||
@@ -528,6 +531,7 @@ static bool exclusive_creation_case(const char *mode)
         !strcmp(mode, "exclusive-pvp-maia-trait-reenter") ||
         !strcmp(mode, "exclusive-pvp-maia-race-reenter") ||
         !strcmp(mode, "unknown-setup-exclusive-pvp-maia-back-random") ||
+        !strcmp(mode, "unknown-setup-exclusive-pvp-maia-trait-reenter") ||
         !strcmp(mode, "mode-dedicated") ||
         !strcmp(mode, "mode-dedicated-unavailable") ||
         !strcmp(mode, "mode-dedicated-iddc") ||
@@ -572,7 +576,9 @@ static bool pvp_maia_ordinary_trait_case(const char *mode)
 {
     return pvp_maia_deep_back_case(mode) ||
         pvp_maia_trait_reenter_case(mode) ||
-        pvp_maia_race_reenter_case(mode);
+        pvp_maia_race_reenter_case(mode) ||
+        !strcmp(mode, "unknown-setup-pvp-maia-trait-reenter") ||
+        !strcmp(mode, "unknown-setup-exclusive-pvp-maia-trait-reenter");
 }
 
 static bool archer_body_case(const char *mode)
@@ -687,6 +693,24 @@ static void push_to_unknown_setup_pvp_maia_mode(void)
     for (unsigned i = 0; i < maia_race() - 10; ++i)
         push_mouse_wheel(-1.0f);
     push_mouse_race(740.0f, 1);
+    push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+    push_key(SDLK_RETURN, 0);
+#endif
+}
+
+static void push_to_unknown_setup_pvp_maia_ordinary_mode(void)
+{
+    push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+    push_key(SDLK_RETURN, 0);
+#endif
+    push_key(SDLK_PAGEDOWN, 0);
+    for (unsigned i = 0; i < maia_race() - 10; ++i)
+        push_mouse_wheel(-1.0f);
+    push_mouse_race(740.0f, 1);
+    push_key(SDLK_RETURN, 0);
+    push_key(SDLK_B, 0);
     push_key(SDLK_RETURN, 0);
 #if !SV_CLASS_BEFORE_RACE
     push_key(SDLK_RETURN, 0);
@@ -953,7 +977,9 @@ static void send_overview(int socket, const char *mode)
                 !strcmp(mode, "exclusive-pvp-maia-skip-deep-back") ||
                 !strcmp(mode, "exclusive-pvp-maia-trait-reenter") ||
                 !strcmp(mode, "exclusive-pvp-maia-race-reenter") ||
-                !strcmp(mode, "unknown-setup-exclusive-pvp-maia-back-random")) ?
+                !strcmp(mode, "unknown-setup-exclusive-pvp-maia-back-random") ||
+                !strcmp(mode,
+                        "unknown-setup-exclusive-pvp-maia-trait-reenter")) ?
               0x280u :
           (!strcmp(mode, "mode-dedicated-unavailable") ||
                 !strcmp(mode, "exclusive-iddc-production")) ? 0x40u :
@@ -1358,6 +1384,32 @@ static int peer_run(void *opaque)
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "unknown-setup-pvp-maia-deep-back")) {
+        push_to_unknown_setup_pvp_maia_mode();
+        push_key(SDLK_P, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0); /* post-mode trait -> mode */
+        push_key(SDLK_BACKSPACE, 0); /* mode -> ordinary owner graph */
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "unknown-setup-pvp-maia-trait-reenter") ||
+               !strcmp(peer->mode,
+                       "unknown-setup-exclusive-pvp-maia-trait-reenter")) {
+        push_to_unknown_setup_pvp_maia_ordinary_mode();
+        if (!exclusive_creation_case(peer->mode)) push_key(SDLK_P, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0); /* post-mode trait -> mode */
+        push_key(SDLK_BACKSPACE, 0); /* mode -> ordinary owner graph */
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_BACKSPACE, 0); /* class -> restored ordinary trait */
+#endif
+        push_key(SDLK_Z, 0);
+        push_key(SDLK_RETURN, 0); /* restored highlighted trait 2 */
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0); /* class */
+#endif
+        push_key(SDLK_RETURN, 0); /* PvP mode again */
+        push_key(SDLK_Z, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-pvp-maia-back-confirm")) {
         push_to_unknown_setup_pvp_maia_mode();
@@ -2833,6 +2885,52 @@ int main(int argc, char **argv)
             assert(outcome.birth_stats[i] == -1);
             assert(outcome.birth_committed_stats[i] == -1);
         }
+    } else if (!strcmp(argv[3], "unknown-setup-pvp-maia-deep-back")) {
+        assert(outcome.creation_flags == 0x10u && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 0);
+        assert(outcome.birth_race_confirmed &&
+               outcome.birth_race == (int)maia_race());
+        assert(outcome.birth_trait_skipped &&
+               outcome.birth_legal_trait_count == 0);
+        assert(outcome.birth_highlighted_trait == SV_BIRTH_TRAIT_NONE &&
+               outcome.birth_trait == SV_BIRTH_TRAIT_NONE &&
+               !outcome.birth_trait_confirmed);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NONE &&
+               !outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+    } else if (!strcmp(argv[3], "unknown-setup-pvp-maia-trait-reenter") ||
+               !strcmp(argv[3],
+                       "unknown-setup-exclusive-pvp-maia-trait-reenter")) {
+        assert(outcome.creation_flags == 0x10u && outcome.birth_quit);
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 0);
+        assert(outcome.birth_race_confirmed &&
+               outcome.birth_race == (int)maia_race());
+        assert(outcome.birth_legal_trait_count == 2);
+        assert(outcome.birth_legal_traits[0] == 14 &&
+               outcome.birth_legal_traits[1] == 15);
+        assert(outcome.birth_highlighted_trait == 14);
+        assert(outcome.birth_trait == 2 && outcome.birth_trait_confirmed);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_legal_stat_count == 0);
+        assert(outcome.birth_mode == (exclusive_creation_case(argv[3]) ?
+               SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_PVP) &&
+               outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "unknown-setup-pvp-maia-back-confirm")) {
         assert(outcome.creation_flags == 0x10u);
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);

@@ -1051,9 +1051,7 @@ static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
     case SV_BIRTH_CONFIRM:
         return confirm_mode(birth);
     case SV_BIRTH_BACK:
-        birth->chosen_mode = SV_BIRTH_MODE_NONE;
-        birth->mode_confirmed = false;
-        birth->mode_ready = false;
+        leave_post_mode_trait(birth);
         if (birth->setup->creation_flags <= 1) {
             birth->owner = SV_BIRTH_STATS;
             restart_stats_interaction(birth);
