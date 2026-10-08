@@ -1,9 +1,10 @@
 # 59: Verify focused production coverage
 
 Type: implementation
+Tracker role: Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
 Status: resolved
 Assignee: codex/sandcastle-7b133980-wave-39-1
-Labels: enhancement
+Labels: enhancement, ready-for-agent
 
 Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.
 
