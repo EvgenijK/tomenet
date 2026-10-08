@@ -518,6 +518,7 @@ char *re_name;
  */
 header *d_head;
 dungeon_info_type *d_info;
+room_template_dungeon_rule room_template_dungeon_rules[MAX_D_IDX];
 char *d_name;
 char *d_text;
 

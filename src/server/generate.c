@@ -2381,6 +2381,73 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 }
 
 
+static bool room_template_size_fits(int width, int height) {
+	int block_width = ((width - 1) / BLOCK_WID) + 1;
+	int block_height = ((height - 1) / BLOCK_HGT) + 1;
+
+	return(width <= dun->l_ptr->wid - 2 && height <= dun->l_ptr->hgt - 2 &&
+		block_width <= dun->col_rooms && block_height <= dun->row_rooms);
+}
+
+
+static bool room_template_is_eligible(size_t index, int real_dungeon,
+		int effective_dungeon, int depth) {
+	room_template_type *room;
+	room_template_dungeon_rule *rule;
+	bool listed;
+
+	if (index >= room_template_count || real_dungeon < 0 ||
+	    real_dungeon >= max_d_idx || effective_dungeon < 0 ||
+	    effective_dungeon >= max_d_idx) return(FALSE);
+	if (d_info[real_dungeon].no_room_templates) return(FALSE);
+
+	rule = &room_template_dungeon_rules[effective_dungeon];
+	listed = rule->members && rule->members[index];
+	if (rule->mode == ROOM_TEMPLATE_LIST_ALLOW && !listed) return(FALSE);
+	if (rule->mode == ROOM_TEMPLATE_LIST_DENY && listed) return(FALSE);
+
+	room = &room_templates[index];
+	if (depth < room->min_depth || depth > room->max_depth) return(FALSE);
+	return(room_template_size_fits(room->wid, room->hgt) ||
+		room_template_size_fits(room->hgt, room->wid));
+}
+
+
+static u32b room_template_total_weight(int real_dungeon,
+		int effective_dungeon, int depth) {
+	u32b total = 0;
+	size_t i;
+
+	for (i = 0; i < room_template_count; i++) {
+		if (!room_template_is_eligible(i, real_dungeon, effective_dungeon,
+		    depth)) continue;
+		if (total > 0x7fffffffU - room_templates[i].weight) {
+			s_printf("Room-template weight total exceeds generator limit.\n");
+			return(0);
+		}
+		total += room_templates[i].weight;
+	}
+	return(total);
+}
+
+
+static room_template_type *room_template_pick(int real_dungeon,
+		int effective_dungeon, int depth, u32b total_weight) {
+	u32b choice;
+	size_t i;
+
+	if (!total_weight) return(NULL);
+	choice = rand_int(total_weight);
+	for (i = 0; i < room_template_count; i++) {
+		if (!room_template_is_eligible(i, real_dungeon, effective_dungeon,
+		    depth)) continue;
+		if (choice < room_templates[i].weight) return(&room_templates[i]);
+		choice -= room_templates[i].weight;
+	}
+	return(NULL);
+}
+
+
 /*
  * The following functions create a rectangle (e.g. outer wall of rooms)
  */
@@ -8665,6 +8732,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 #endif
 
 	bool streamers = FALSE, wall_streamers = FALSE;
+	u32b room_template_weight = 0;
 
 	u32b df1_small = DF1_SMALL, df1_smallest = DF1_SMALLEST;
 	int dtype = 0;
@@ -9304,6 +9372,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 	dun->row_rooms = dun->l_ptr->hgt / BLOCK_HGT;
 	dun->col_rooms = dun->l_ptr->wid / BLOCK_WID;
+	if (!destroyed)
+		room_template_weight = room_template_total_weight(d_ptr->type,
+			dtype, dun_lev);
 
 	/* Initialize the room table */
 	for (y = 0; y < dun->row_rooms; y++)
@@ -9394,12 +9465,24 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 			/* Attempt an "unusual" room */
 			if (rand_int(DUN_UNUSUAL) < dun_lev) {
+				bool very_unusual;
+
 				/* Roll for room type */
 				k = rand_int(100);
 
 				/* Attempt a very unusual room */
+				very_unusual = rand_int(DUN_UNUSUAL) < dun_lev;
+				if (very_unusual && room_template_weight &&
+				    rand_int(110) < 10) {
+					room_template_type *room_template = room_template_pick(
+						d_ptr->type, dtype, dun_lev, room_template_weight);
 
-				if (rand_int(DUN_UNUSUAL) < dun_lev
+					if (room_template)
+						build_room_template(wpos, y, x, room_template);
+					continue;
+				}
+
+				if (very_unusual
 #if 1 /* tiny levels don't get any DUN_UNUSUAL room types at all */
 				    && !tiny_level) {
 #else /* tiny levels don't get nests, pits or greater vaults */

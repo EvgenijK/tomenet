@@ -281,6 +281,7 @@ extern header *re_head;
 extern monster_ego *re_info;
 extern header *d_head;
 extern dungeon_info_type *d_info;
+extern room_template_dungeon_rule room_template_dungeon_rules[MAX_D_IDX];
 extern char *d_name;
 extern char *d_text;
 extern char *re_name;

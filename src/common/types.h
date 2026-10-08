@@ -4821,6 +4821,7 @@ struct dungeon_info_type {
 	u32b flags2;			/* Flags 2 */
 	u32b flags3;			/* Flags 3 */
 	u32b flagsw;			/* Wilderness terrain type flags */
+	bool no_room_templates;		/* F:NO_ROOM_TEMPLATES */
 
 	byte rule_percents[100];	/* Flat rule percents */
 	rule_type rules[10];		/* Monster generation rules */
@@ -4841,6 +4842,18 @@ struct dungeon_info_type {
 	s16b t_idx[TOWN_DUNGEON];	/* The towns */
 	s16b t_level[TOWN_DUNGEON];	/* The towns levels */
 	s16b t_num;			/* Number of towns */
+};
+
+typedef enum {
+	ROOM_TEMPLATE_LIST_ALL,
+	ROOM_TEMPLATE_LIST_ALLOW,
+	ROOM_TEMPLATE_LIST_DENY
+} room_template_list_mode;
+
+typedef struct room_template_dungeon_rule room_template_dungeon_rule;
+struct room_template_dungeon_rule {
+	room_template_list_mode mode;
+	bool *members;
 };
 
 /*

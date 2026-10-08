@@ -6029,6 +6029,11 @@ errr init_t_info_txt(FILE *fp, char *buf) {
 static errr grab_one_dungeon_flag(dungeon_info_type *d_ptr, cptr what) {
 	int i;
 
+	if (streq(what, "NO_ROOM_TEMPLATES")) {
+		d_ptr->no_room_templates = TRUE;
+		return(0);
+	}
+
 	/* Scan flags1 */
 	for (i = 0; i < 32; i++)
 		if (streq(what, d_info_flags1[i])) {
@@ -6197,6 +6202,12 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 	/* Start the "fake" stuff */
 	d_head->name_size = 0;
 	d_head->text_size = 0;
+	for (i = 0; i < MAX_D_IDX; i++) {
+		if (room_template_dungeon_rules[i].members)
+			free(room_template_dungeon_rules[i].members);
+		room_template_dungeon_rules[i].members = NULL;
+		room_template_dungeon_rules[i].mode = ROOM_TEMPLATE_LIST_ALL;
+	}
 
 	/* Parse */
 	while (0 == my_fgets(fp, buf, 1024, FALSE)) {
@@ -6320,6 +6331,39 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 
 		/* There better be a current d_ptr */
 		if (!d_ptr) return(3);
+
+		/* Process 'I' for room-template allow/deny lists. */
+		if (buf[0] == 'I') {
+			room_template_dungeon_rule *rule =
+				&room_template_dungeon_rules[error_idx];
+			room_template_list_mode mode;
+			size_t template_index;
+
+			if ((buf[2] != '+' && buf[2] != '-') || buf[3] != ':' ||
+			    !buf[4] || strchr(buf + 4, ':')) return(1);
+			mode = buf[2] == '+' ? ROOM_TEMPLATE_LIST_ALLOW :
+				ROOM_TEMPLATE_LIST_DENY;
+			if (rule->mode != ROOM_TEMPLATE_LIST_ALL && rule->mode != mode) {
+				s_printf("Mixed room-template allow/deny lists in dungeon %d.\n",
+					error_idx);
+				return(1);
+			}
+			for (template_index = 0; template_index < room_template_count;
+			    template_index++)
+				if (streq(room_templates[template_index].code, buf + 4)) break;
+			if (template_index == room_template_count) {
+				s_printf("Unknown room-template code '%s' in dungeon %d.\n",
+					buf + 4, error_idx);
+				return(1);
+			}
+			if (!rule->members) {
+				rule->members = calloc(room_template_count, sizeof(*rule->members));
+				if (!rule->members) return(7);
+			}
+			rule->mode = mode;
+			rule->members[template_index] = TRUE;
+			continue;
+		}
 
 		/* Process 'D' for "Description */
 		if (buf[0] == 'D') {

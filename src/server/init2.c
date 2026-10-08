@@ -1254,47 +1254,8 @@ static errr init_d_info(void) {
 
 
 #ifdef ALLOW_TEMPLATES
-#ifdef USE_RAW_FILES	/* Don't delete it or I'LL SCORCH YOU!	- Jir - */
-
-	/*** Load the binary image file ***/
-
-	/* Build the filename */
-	path_build(buf, 1024, ANGBAND_DIR_DATA, "d_info.raw");
-
-	/* Grab permission */
-	safe_setuid_grab();
-
-	/* Attempt to open the "raw" file */
-	fd = fd_open(buf, O_RDONLY);
-
-	/* Drop permission */
-	safe_setuid_drop();
-
-	/* Process existing "raw" file */
-	if (fd >= 0) {
-#ifdef CHECK_MODIFICATION_TIME
-//#if 1
-		err = check_modification_date(fd, "d_info.txt");
-#endif /* CHECK_MODIFICATION_TIME */
-#ifdef CHECK_MODIFICATION_ALWAYS
-		err = 0;
-#endif
-
-		/* Attempt to parse the "raw" file */
-		if (!err)
-			err = init_d_info_raw(fd);
-
-		/* Close it */
-		(void)fd_close(fd);
-
-		/* Success */
-		if (!err) return(0);
-
-		/* Information */
-		msg_print("Ignoring obsolete/defective 'd_info.raw' file.");
-		msg_print(NULL);
-	}
-#endif	// USE_RAW_FILES
+	/* Always parse d_info.txt: room-template lists are validated against the
+	 * separately loaded catalog and are not part of d_info.raw. */
 
 
 	/*** Make the fake arrays ***/
