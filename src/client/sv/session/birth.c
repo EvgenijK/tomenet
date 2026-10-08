@@ -1,4 +1,5 @@
 #include "session/birth.h"
+#include <string.h>
 
 static bool legal_sex(SvBirthSex sex)
 {
@@ -45,6 +46,23 @@ static bool legal_class(const SvBirth *birth, int class_id)
 
 static int resolved_class(const SvBirth *birth, int visible_class, int race_id);
 
+static unsigned maia_race_id(void)
+{
+#ifdef ENABLE_KOBOLD
+    return 17;
+#else
+    return 16;
+#endif
+}
+
+static bool trait_derived_hidden_class(const SvBirth *birth, int class_id)
+{
+    return class_id >= 0 && class_id < birth->setup->class_count &&
+        birth->setup->classes[class_id].hidden &&
+        (!strcmp(birth->setup->classes[class_id].title, "Hell Knight") ||
+         !strcmp(birth->setup->classes[class_id].title, "Corrupted Priest"));
+}
+
 static bool legal_race(const SvBirth *birth, int race_id)
 {
     if (race_id < 0 || race_id >= birth->setup->race_count) return false;
@@ -54,8 +72,10 @@ static bool legal_race(const SvBirth *birth, int race_id)
     if (!(birth->setup->races[race_id].choice &
           (1u << (unsigned)birth->chosen_visible_class)))
         return false;
-    return birth->requested_class == SV_BIRTH_CLASS_NONE ||
-        resolved_class(birth, birth->chosen_visible_class, race_id) ==
+    if (birth->requested_class == SV_BIRTH_CLASS_NONE) return true;
+    if (trait_derived_hidden_class(birth, birth->requested_class))
+        return race_id == (int)maia_race_id();
+    return resolved_class(birth, birth->chosen_visible_class, race_id) ==
         birth->requested_class;
 #else
     return compatible_race(birth->setup, (unsigned)race_id);
@@ -87,6 +107,17 @@ static int dna_visible_class(const SvBirth *birth, int server_class)
         return SV_BIRTH_CLASS_NONE;
     int visible_class = birth->setup->classes[server_class].base_class;
     if (!legal_class(birth, visible_class)) return SV_BIRTH_CLASS_NONE;
+    if (trait_derived_hidden_class(birth, server_class)) {
+#if SV_CLASS_BEFORE_RACE
+        if (birth->chosen_race >= 0 &&
+            birth->chosen_race != (int)maia_race_id())
+#else
+        if (birth->chosen_race != (int)maia_race_id() ||
+            birth->chosen_trait != 15)
+#endif
+            return SV_BIRTH_CLASS_NONE;
+        return visible_class;
+    }
     if (birth->chosen_race >= 0)
         return resolved_class(birth, visible_class, birth->chosen_race) ==
             server_class ? visible_class : SV_BIRTH_CLASS_NONE;
@@ -98,14 +129,8 @@ static int dna_visible_class(const SvBirth *birth, int server_class)
 
 static bool legal_trait(const SvBirth *birth, int trait_id)
 {
-    unsigned maia_race =
-#ifdef ENABLE_KOBOLD
-        17;
-#else
-        16;
-#endif
     if (birth->post_mode_trait_required)
-        return birth->chosen_race == (int)maia_race &&
+        return birth->chosen_race == (int)maia_race_id() &&
             (trait_id == 14 || trait_id == 15) &&
             trait_id < birth->setup->trait_count;
     if (trait_id <= 0 || trait_id >= birth->setup->trait_count ||
@@ -114,6 +139,9 @@ static bool legal_trait(const SvBirth *birth, int trait_id)
         return false;
 #if SV_CLASS_BEFORE_RACE
     if (!legal_class(birth, birth->chosen_visible_class)) return false;
+    if (trait_derived_hidden_class(birth, birth->requested_class) &&
+        trait_id != 15)
+        return false;
 #endif
     return (birth->setup->traits[trait_id].choice &
             (1u << (unsigned)birth->chosen_race)) != 0;
@@ -216,6 +244,7 @@ static SvBirthInputResult confirm_race(SvBirth *birth)
     int resolved = resolved_class(birth, birth->chosen_visible_class,
                                   birth->highlighted_race);
     if (birth->requested_class != SV_BIRTH_CLASS_NONE &&
+        !trait_derived_hidden_class(birth, birth->requested_class) &&
         resolved != birth->requested_class) {
         birth->illegal_ignored = true;
         birth->auto_reincarnation = false;
@@ -224,8 +253,10 @@ static SvBirthInputResult confirm_race(SvBirth *birth)
 #endif
     birth->chosen_race = birth->highlighted_race;
 #if SV_CLASS_BEFORE_RACE
-    birth->chosen_class = resolved;
-    birth->requested_class = SV_BIRTH_CLASS_NONE;
+    bool trait_derived =
+        trait_derived_hidden_class(birth, birth->requested_class);
+    birth->chosen_class = trait_derived ? birth->chosen_visible_class : resolved;
+    if (!trait_derived) birth->requested_class = SV_BIRTH_CLASS_NONE;
 #endif
     birth->owner = SV_BIRTH_TRAIT;
     birth->race_confirmed = true;
@@ -238,6 +269,10 @@ static SvBirthInputResult confirm_trait(SvBirth *birth)
         !legal_trait(birth, birth->highlighted_trait))
         return SV_BIRTH_INPUT_IGNORED;
     birth->chosen_trait = birth->highlighted_trait;
+#if SV_CLASS_BEFORE_RACE
+    if (trait_derived_hidden_class(birth, birth->requested_class))
+        birth->requested_class = SV_BIRTH_CLASS_NONE;
+#endif
     if (birth->post_mode_trait_required) {
         birth->owner = SV_BIRTH_READY;
         birth->mode_ready = true;
@@ -468,6 +503,7 @@ static SvBirthInputResult race_command(SvBirth *birth, SvBirthCommand command)
         }
 #if SV_CLASS_BEFORE_RACE
         if (birth->requested_class != SV_BIRTH_CLASS_NONE &&
+            !trait_derived_hidden_class(birth, birth->requested_class) &&
             resolved_class(birth, birth->chosen_visible_class,
                            birth->dna_race) != birth->requested_class) {
             birth->illegal_ignored = true;
