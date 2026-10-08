@@ -111,6 +111,7 @@ typedef struct {
     int highlighted_class, chosen_visible_class, chosen_class, requested_class;
     int dna_class;
     int last_confirmed_class;
+    uint8_t visible_classes[255], visible_class_count;
     uint8_t legal_classes[255], legal_class_count;
     int highlighted_race, chosen_race, dna_race;
     uint8_t legal_races[255], legal_race_count;
@@ -163,6 +164,7 @@ typedef struct SvBirthView {
     SvBirthOwner owner;
     SvBirthSex highlighted_sex;
     int highlighted_class;
+    uint8_t visible_classes[255], visible_class_count;
     uint8_t legal_classes[255], legal_class_count;
     int highlighted_race;
     uint8_t legal_races[255], legal_race_count;

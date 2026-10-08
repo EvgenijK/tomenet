@@ -154,15 +154,19 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                 unsigned first = input->birth_viewport ?
                     input->birth_viewport->first : 0;
                 unsigned rows = input->birth_viewport ?
-                    input->birth_viewport->rows : input->birth_view->legal_class_count;
-                for (unsigned i = first; i < input->birth_view->legal_class_count &&
+                    input->birth_viewport->rows : input->birth_view->visible_class_count;
+                for (unsigned i = first; i < input->birth_view->visible_class_count &&
                      i < first + rows; ++i) {
-                    unsigned id = input->birth_view->legal_classes[i];
+                    unsigned id = input->birth_view->visible_classes[i];
+                    bool legal = false;
+                    for (unsigned j = 0;
+                         j < input->birth_view->legal_class_count; ++j)
+                        if (input->birth_view->legal_classes[j] == id) legal = true;
                     if (!line(renderer,font,input->birth_view->setup->classes[id].title,
                               60,SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
                               (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_class == (int)id ?
-                              selected : normal)) return false;
+                              selected : legal ? normal : disabled)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_RACE) {
                 if (!line(renderer,font,"Choose race (* random, # DNA, % automatic DNA, Q quits)",40,290,

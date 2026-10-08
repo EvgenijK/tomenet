@@ -355,9 +355,16 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
 
 static void prepare_classes(SvBirth *birth)
 {
+    birth->visible_class_count = 0;
     birth->legal_class_count = 0;
     bool highlighted_legal = false;
     for (unsigned id = 0; id < birth->setup->class_count; ++id) {
+#if SV_CLASS_BEFORE_RACE
+        if (!legal_class(birth, (int)id)) continue;
+#else
+        if (birth->setup->classes[id].hidden) continue;
+#endif
+        birth->visible_classes[birth->visible_class_count++] = (uint8_t)id;
         if (!legal_class(birth, (int)id)) continue;
         birth->legal_classes[birth->legal_class_count++] = (uint8_t)id;
         highlighted_legal |= birth->highlighted_class == (int)id;
@@ -1245,6 +1252,7 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
     *view = birth ? (SvBirthView){.owner = birth->owner,
         .highlighted_sex = birth->highlighted_sex,
         .highlighted_class = birth->highlighted_class,
+        .visible_class_count = birth->visible_class_count,
         .legal_class_count = birth->legal_class_count,
         .highlighted_race = birth->highlighted_race,
         .legal_race_count = birth->legal_race_count,
@@ -1263,6 +1271,8 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
         .setup = birth->setup,
         .dna_available = birth->dna_available} : (SvBirthView){0};
     if (birth) {
+        for (unsigned i = 0; i < birth->visible_class_count; ++i)
+            view->visible_classes[i] = birth->visible_classes[i];
         for (unsigned i = 0; i < birth->legal_class_count; ++i)
             view->legal_classes[i] = birth->legal_classes[i];
         for (unsigned i = 0; i < birth->legal_race_count; ++i)

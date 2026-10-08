@@ -620,6 +620,11 @@ static bool long_class_case(const char *mode)
     return !strcmp(mode, "long-class-viewport");
 }
 
+static bool visible_class_viewport_case(const char *mode)
+{
+    return !strcmp(mode, "alternate-visible-class-viewport");
+}
+
 static bool case_sensitive_class_case(const char *mode)
 {
     return !strcmp(mode, "case-sensitive-class-binding");
@@ -633,7 +638,7 @@ static bool shift_caps_class_case(const char *mode)
 static bool long_class_setup_case(const char *mode)
 {
     return long_class_case(mode) || case_sensitive_class_case(mode) ||
-        shift_caps_class_case(mode);
+        shift_caps_class_case(mode) || visible_class_viewport_case(mode);
 }
 
 static bool long_race_case(const char *mode)
@@ -811,7 +816,8 @@ static void send_setup(int socket, const char *mode)
         at += 6;
         memcpy(at, "Long Race", 10);
         at += 10;
-        put32(&at, (1u << 20) - 1u);
+        put32(&at, visible_class_viewport_case(mode) ?
+              (1u << 0) | (1u << 15) : (1u << 20) - 1u);
         for (unsigned id = 0; id < 20; ++id) {
             char title[24];
             memset(at, 50, 6);
@@ -1901,6 +1907,41 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "alternate-visible-class-letter")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_N, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_A, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "alternate-visible-class-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_N, 0);
+        push_key(SDLK_RETURN, 0);
+        push_mouse_class(340.0f, 2);
+        push_mouse_class(380.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "alternate-visible-class-viewport")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_P, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_presentation_events();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_PAGEUP, 0);
+        push_key(SDLK_PAGEDOWN, 0);
+        push_mouse_wheel(-1.0f);
+        push_mouse_class(340.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-random")) {
         push_random();
@@ -3826,6 +3867,43 @@ int main(int argc, char **argv)
                outcome.birth_legal_classes[1] == 2);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "alternate-visible-class-letter")) {
+        assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "alternate-visible-class-mouse")) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+        assert(outcome.birth_illegal_ignored && outcome.birth_mouse_navigated);
+    } else if (!strcmp(argv[3], "alternate-visible-class-viewport")) {
+        assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_highlighted_class == 15);
+        assert(outcome.birth_visible_class_count == 20);
+        for (unsigned i = 0; i < outcome.birth_visible_class_count; ++i)
+            assert(outcome.birth_visible_classes[i] == i);
+        assert(outcome.birth_legal_class_count == 2);
+        assert(outcome.birth_legal_classes[0] == 0 &&
+               outcome.birth_legal_classes[1] == 15);
+        assert(outcome.birth_illegal_ignored);
+        assert(outcome.birth_keyboard_navigated);
+        assert(peer.interleaved_pongs == 1);
     } else if (!strcmp(argv[3], "alternate-random")) {
         assert(outcome.birth_random_used && outcome.birth_race_random_used);
         assert(outcome.birth_trait_random_used && outcome.birth_body_random_used);

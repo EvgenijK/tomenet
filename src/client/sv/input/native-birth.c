@@ -39,7 +39,7 @@ static SDL_Keycode layout_key(const SDL_KeyboardEvent *event)
 static unsigned choice_count(const SvBirth *birth)
 {
     switch (birth->owner) {
-    case SV_BIRTH_CLASS: return birth->legal_class_count;
+    case SV_BIRTH_CLASS: return birth->visible_class_count;
     case SV_BIRTH_RACE: return birth->setup->race_count;
     case SV_BIRTH_TRAIT: return birth->legal_trait_count;
     case SV_BIRTH_BODY: return birth->legal_body_count;
@@ -71,7 +71,7 @@ static int highlighted_position(const SvBirth *birth)
     for (unsigned position = 0; position < count; ++position) {
         int candidate;
         switch (birth->owner) {
-        case SV_BIRTH_CLASS: candidate = birth->legal_classes[position]; break;
+        case SV_BIRTH_CLASS: candidate = birth->visible_classes[position]; break;
         case SV_BIRTH_TRAIT: candidate = birth->legal_traits[position]; break;
         case SV_BIRTH_BODY: candidate = birth->legal_bodies[position]; break;
         case SV_BIRTH_STATS: candidate = birth->legal_stats[position]; break;
@@ -129,7 +129,7 @@ static SvBirthCommand select_position(const SvBirth *birth, unsigned position)
     switch (birth->owner) {
     case SV_BIRTH_CLASS:
         return (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
-            .class_id = birth->legal_classes[position]};
+            .class_id = birth->visible_classes[position]};
     case SV_BIRTH_RACE:
         return (SvBirthCommand){.kind = SV_BIRTH_SELECT_RACE,
             .race_id = (int)position};
@@ -143,6 +143,13 @@ static SvBirthCommand select_position(const SvBirth *birth, unsigned position)
 
 static bool selectable_position(const SvBirth *birth, unsigned position)
 {
+    if (birth->owner == SV_BIRTH_CLASS) {
+        if (position >= birth->visible_class_count) return false;
+        for (unsigned i = 0; i < birth->legal_class_count; ++i)
+            if (birth->legal_classes[i] == birth->visible_classes[position])
+                return true;
+        return false;
+    }
     if (birth->owner != SV_BIRTH_RACE) return true;
     for (unsigned i = 0; i < birth->legal_race_count; ++i)
         if (birth->legal_races[i] == position) return true;
@@ -253,7 +260,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             if (!visible) return SV_BIRTH_INPUT_IGNORED;
             SvBirthInputResult selected = apply(birth, generation, viewport,
                 (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
-                    .class_id = birth->legal_classes[position]}, false, true);
+                    .class_id = birth->visible_classes[position]}, false, true);
             if (selected == SV_BIRTH_INPUT_IGNORED || event->button.clicks < 2)
                 return selected;
             return apply(birth, generation, viewport,
@@ -355,13 +362,13 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     } else if (birth->owner == SV_BIRTH_CLASS &&
         lowercase_letter(&event->key, key)) {
         unsigned position = (unsigned)(key - SDLK_A);
-        if (position >= birth->legal_class_count) {
+        if (position >= birth->visible_class_count) {
             birth->illegal_ignored = true;
             return SV_BIRTH_INPUT_IGNORED;
         }
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_CLASS,
-                .class_id = birth->legal_classes[position]}, true, false);
+                .class_id = birth->visible_classes[position]}, true, false);
     }
     if (viewport && birth->owner >= SV_BIRTH_CLASS &&
         birth->owner <= SV_BIRTH_TRAIT &&
