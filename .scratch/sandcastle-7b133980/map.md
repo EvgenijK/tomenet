@@ -25,8 +25,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md) — unclaimed; blocker 37 resolved, поэтому ticket готов к работе.
-
 ## Decisions so far
 
 - [Войти в birth и выбрать пол](issues/01-enter-birth-and-choose-sex.md)
@@ -67,3 +65,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Записать revision gate для birth view](issues/36-record-birth-view-revision-opportunity.md)
 - [Verify focused production coverage](issues/37-focused-test-coverage.md)
 - [Отклонить новый automatic DNA command в ordered stats](issues/38-reject-new-auto-dna-in-ordered-stats.md)
+- [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md)
