@@ -68,3 +68,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md)
 - [Verify focused production coverage](issues/40-focused-test-coverage.md)
 - [Получить human disposition для tracker metadata child 40](issues/41-disposition-child-40-tracker-metadata.md)
+- [Verify focused production coverage](issues/42-focused-test-coverage.md)
