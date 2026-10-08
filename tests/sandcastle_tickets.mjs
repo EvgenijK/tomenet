@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateTicketBatch, recordTicketResult, validateTicketCompletion } from "../.sandcastle/tickets.mjs";
+import { focusedTestTicketContents, validateTicketBatch, recordTicketResult, validateTicketCompletion } from "../.sandcastle/tickets.mjs";
 
 const path = (id) => `.scratch/sandcastle-test/issues/${id}.md`;
 const state = () => ({ id: "test", completedTickets: [path("11")], ticketIndex: 0 });
@@ -59,4 +59,12 @@ test("completion also requires resolved Markdown and a persisted Answer", () => 
   }
   validateTicketCompletion("Status: resolved\n\n## Answer\nImplemented and verified", path("22"));
   validateTicketCompletion("**Status:** resolved\n\n## Answer\nImplemented and verified", path("22"));
+});
+
+test("focused coverage ticket is non-owning canonical history with a triage state", () => {
+  const content = focusedTestTicketContents({ specPath: "docs/tasks/stage-b/SV-B-023-birth-choices.md" }, 64);
+  assert.match(content, /^# 64: Verify focused production coverage$/m);
+  assert.match(content, /^Tracker role: Wayfinder planning\/execution history for canonical \[SV-B-023\]\(\.\.\/\.\.\/\.\.\/docs\/tasks\/stage-b\/SV-B-023-birth-choices\.md\); this child does not own Stage B capability IDs\.$/m);
+  assert.match(content, /^Status: open$/m);
+  assert.match(content, /^Labels: enhancement, ready-for-agent$/m);
 });

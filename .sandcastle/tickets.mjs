@@ -1,4 +1,22 @@
-import { isAbsolute } from "node:path";
+import { basename, isAbsolute } from "node:path";
+
+export function focusedTestTicketContents(state, number) {
+  const specPath = state?.specPath;
+  if (typeof specPath !== "string" || !specPath || isAbsolute(specPath) || specPath.split("/").includes("..")) throw new Error(`Invalid canonical spec path: ${specPath}`);
+  if (!Number.isInteger(number) || number < 1) throw new Error(`Invalid focused ticket number: ${number}`);
+  const specName = basename(specPath, ".md");
+  const canonicalId = specName.match(/^[A-Z]+-[A-Z]+-\d+/)?.[0] ?? specName;
+  const stage = specPath.match(/(?:^|\/)stage-([^/]+)(?:\/|$)/i)?.[1]?.toUpperCase();
+  const ownership = stage ? `Stage ${stage}` : "canonical task";
+  return [
+    `# ${number}: Verify focused production coverage`, "", "Type: implementation",
+    `Tracker role: Wayfinder planning/execution history for canonical [${canonicalId}](../../../${specPath}); this child does not own ${ownership} capability IDs.`,
+    "Status: open", "Assignee: unassigned", "Labels: enhancement, ready-for-agent", "",
+    "Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.", "",
+    "- [ ] Relevant production paths are exercised and results recorded under Answer.",
+    "- [ ] Any new tests are committed, with no test-only behavior or claims of unrun acceptance.", "",
+  ].join("\n");
+}
 
 export function validateTicketBatch(parsed, state) {
   if (!Array.isArray(parsed.tickets) || parsed.tickets.length < 1 || parsed.tickets.length > 30) throw new Error("Ticket manifest must contain 1–30 tickets");

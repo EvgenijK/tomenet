@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from "./limits.mjs";
-import { validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
+import { focusedTestTicketContents, validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractTimeoutUpgrade, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts, recoveryCategory } from "./recovery.mjs";
@@ -515,12 +515,7 @@ async function test(sandbox, state) {
   const entries = await readdir(issues);
   const number = Math.max(0, ...entries.map((name) => Number(name.match(/^(\d+)-/)?.[1] ?? 0))) + 1;
   const path = `${taskDir(state)}/issues/${String(number).padStart(2, "0")}-focused-test-coverage.md`;
-  await writeFile(resolve(sandbox.worktreePath, path), [
-    `# ${number}: Verify focused production coverage`, "", "Type: implementation", "Status: open", "Assignee: unassigned", "Labels: enhancement", "",
-    "Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.", "",
-    "- [ ] Relevant production paths are exercised and results recorded under Answer.",
-    "- [ ] Any new tests are committed, with no test-only behavior or claims of unrun acceptance.", "",
-  ].join("\n"));
+  await writeFile(resolve(sandbox.worktreePath, path), focusedTestTicketContents(state, number));
   await ensureCommit(sandbox.worktreePath, "Sandcastle: plan focused test coverage");
   createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [] }], limit: 1, after: "test-gate" });
   await save(state);
