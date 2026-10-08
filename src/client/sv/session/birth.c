@@ -1071,6 +1071,8 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     if (command.kind == SV_BIRTH_AUTOMATIC_DNA) {
         if (birth->owner < SV_BIRTH_SEX || birth->owner > SV_BIRTH_MODE)
             return SV_BIRTH_INPUT_IGNORED;
+        if (birth->owner == SV_BIRTH_STATS && !birth->stats_point_buy)
+            return SV_BIRTH_INPUT_IGNORED;
         SvBirthInputResult result = SV_BIRTH_INPUT_HANDLED;
         birth->auto_reincarnation = true;
         while (birth->auto_reincarnation && birth->owner >= SV_BIRTH_SEX &&
