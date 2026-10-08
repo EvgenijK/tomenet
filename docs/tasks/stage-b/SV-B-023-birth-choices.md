@@ -1,6 +1,8 @@
 # SV-B-023 — Birth choices, backtracking и cancel
 
-Статус: specified; реализация и runtime evidence pending.
+Статус: production implementation complete, ready for review; native runtime
+evidence и full acceptance остаются pending для exact accepted contract digest
+и HEAD.
 
 ## Пользовательский результат
 

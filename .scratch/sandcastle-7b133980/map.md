@@ -28,7 +28,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 ## Frontier
 
 - [Синхронизировать viewport выбора body, stats и mode](issues/60-align-body-stats-mode-choice-viewports.md)
-- [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
 
 ## Decisions so far
 
@@ -91,3 +90,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Сохранить compatible traits в post-mode PvP Maia](issues/57-retain-compatible-post-mode-maia-traits.md)
 - [Сохранить identities видимого class list](issues/58-preserve-visible-class-choice-identities.md)
 - [Verify focused production coverage](issues/59-focused-test-coverage.md)
+- [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
