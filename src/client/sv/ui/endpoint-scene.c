@@ -205,11 +205,18 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_BODY) {
                 if (!line(renderer,font,"Choose body (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
-                for (unsigned i = 0; i < input->birth_view->legal_body_count; ++i) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->legal_body_count;
+                for (unsigned i = first; i < input->birth_view->legal_body_count &&
+                     i < first + rows; ++i) {
                     SvBirthBody body = input->birth_view->legal_bodies[i];
                     const char *title = body == SV_BIRTH_BODY_FRUIT_BAT ?
                         "Fruit bat" : "Normal body";
-                    if (!line(renderer,font,title,60,340 + (int)i * 40,scale,
+                    if (!line(renderer,font,title,60,
+                              SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_body == body ?
                               selected : normal)) return false;
                 }
@@ -230,21 +237,33 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                 else snprintf(prompt, sizeof(prompt),
                               "Choose stat order (* random, Q quits)");
                 if (!line(renderer,font,prompt,40,290,scale,normal)) return false;
-                for (unsigned i = 0; i < input->birth_view->legal_stat_count; ++i) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->legal_stat_count;
+                for (unsigned i = first; i < input->birth_view->legal_stat_count &&
+                     i < first + rows; ++i) {
                     unsigned stat = input->birth_view->legal_stats[i];
                     char row[96];
                     if (input->birth_view->stats_point_buy)
                         snprintf(row, sizeof(row), "%s: %d", names[stat],
                                  input->birth_view->stats[stat]);
                     else snprintf(row, sizeof(row), "%s", names[stat]);
-                    if (!line(renderer,font,row,60,340 + (int)i * 40,scale,
+                    if (!line(renderer,font,row,60,
+                              SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_stat == (int)stat ?
                               selected : normal)) return false;
                 }
             } else if (input->birth_view && input->birth_view->owner == SV_BIRTH_MODE) {
                 if (!line(renderer,font,"Choose mode (* random, # DNA, % automatic DNA, Q quits)",40,290,
                           scale,normal)) return false;
-                for (unsigned i = 0; i < input->birth_view->legal_mode_count; ++i) {
+                unsigned first = input->birth_viewport ?
+                    input->birth_viewport->first : 0;
+                unsigned rows = input->birth_viewport ?
+                    input->birth_viewport->rows : input->birth_view->legal_mode_count;
+                for (unsigned i = first; i < input->birth_view->legal_mode_count &&
+                     i < first + rows; ++i) {
                     SvBirthMode mode = input->birth_view->legal_modes[i];
                     const char *title = mode == SV_BIRTH_MODE_NORMAL ? "Normal" :
                         mode == SV_BIRTH_MODE_NO_GHOST ? "No Ghost" :
@@ -256,7 +275,9 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                         mode == SV_BIRTH_MODE_IDDC_SOLOIST ? "IDDC Soloist" :
                         mode == SV_BIRTH_MODE_IDDC_HELLISH ? "Hellish IDDC" :
                         "Dedicated PvP";
-                    if (!line(renderer,font,title,60,340 + (int)i * 40,scale,
+                    if (!line(renderer,font,title,60,
+                              SV_BIRTH_CHOICE_ROW_TOP + SV_BIRTH_CHOICE_TEXT_INSET +
+                              (int)(i - first) * SV_BIRTH_CHOICE_ROW_HEIGHT,scale,
                               input->birth_view->highlighted_mode == mode ?
                               selected : normal)) return false;
                 }
