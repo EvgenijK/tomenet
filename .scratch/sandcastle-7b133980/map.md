@@ -66,3 +66,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/37-focused-test-coverage.md)
 - [Отклонить новый automatic DNA command в ordered stats](issues/38-reject-new-auto-dna-in-ordered-stats.md)
 - [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md)
+- [Verify focused production coverage](issues/40-focused-test-coverage.md)

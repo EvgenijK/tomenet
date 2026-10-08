@@ -989,6 +989,13 @@ static int peer_run(void *opaque)
         push_to_stats();
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_Q, 0);
+    } else if (!strcmp(peer->mode, "auto-dna-ordered-local-partial-reject")) {
+        push_to_stats();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_D, 0);
+        push_key(SDLK_PERCENT, 0);
+        push_key(SDLK_Q, 0);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-guide-no-op")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_B, 0);
@@ -2151,6 +2158,28 @@ int main(int argc, char **argv)
                        sizeof(expected_draft)));
         assert(!memcmp(outcome.birth_committed_stats, expected_draft,
                        sizeof(expected_draft)));
+        assert(!memcmp(outcome.birth_legal_stats, expected_legal,
+                       sizeof(expected_legal)));
+        assert(!outcome.birth_stats_confirmation_pending);
+    } else if (!strcmp(argv[3],
+                       "auto-dna-ordered-local-partial-reject")) {
+        static const int16_t expected_draft[] = {1, -1, -1, -1, -1, -1};
+        static const int16_t expected_committed[] = {-1, -1, -1, -1, -1, -1};
+        static const uint8_t expected_legal[] = {0, 2, 3, 4, 5};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(!outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(!outcome.birth_stats_point_buy &&
+               !outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used);
+        assert(outcome.birth_highlighted_stat == 3 &&
+               outcome.birth_stats_order_count == 1 &&
+               outcome.birth_legal_stat_count == 5);
+        assert(!memcmp(outcome.birth_stats, expected_draft,
+                       sizeof(expected_draft)));
+        assert(!memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)));
         assert(!memcmp(outcome.birth_legal_stats, expected_legal,
                        sizeof(expected_legal)));
         assert(!outcome.birth_stats_confirmation_pending);
