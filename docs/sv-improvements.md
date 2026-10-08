@@ -587,3 +587,43 @@ highlight and draft stability across keyboard, mouse, focus and resize events;
 font/resource, scale, renderer-lifetime and geometry invalidation; both class/race
 compile orders; ASan/UBSan and focused performance measurements demonstrating no
 stale view and the expected reduction in preparations and copied bytes.
+
+## Centralize production-path birth scenario descriptors
+
+**Status:** proposed separately as future work; this record does not implement the
+harness refactor, change accepted behavior, or extend SV-B-023. No deferred
+refactor check or P1-AC30 runtime evidence is claimed as completed.
+
+**Problem:** the SV birth production-path scenario harness repeatedly dispatches
+the same raw-string scenario identity. The Python runner enumerates string IDs,
+while the C harness independently interprets `argv[3]` / `Peer.mode` when building
+peer setup, scripting native SDL input, initializing `SvEndpointOptions`, and
+selecting expected `SvEndpointOutcome` and peer assertions. These separate
+branches can drift so that one scenario is configured under one identity but
+driven or asserted as another.
+
+**Affected code:** `tests/sv_name_editor_submit_checks.py` (scenario selection,
+profile setup, and default/alternate compile-order invocation) and
+`tests/sv/name-editor-submit.c` (`Peer.mode`, `send_setup`, `send_overview`,
+`peer_run`, endpoint options, and outcome/peer assertions).
+
+**Proposal:** in separate future harness work, replace redispatch of raw strings
+with a typed scenario identity and descriptor table that is the single source for
+each scenario's peer setup, native SDL input script, endpoint options, and expected
+outcome. Keep the scenario runner on the existing production `sv_endpoint_run`
+path and preserve all accepted protocol and gameplay semantics. Descriptor lookup
+must fail for an unknown or duplicate identity, and a scenario must pass one
+resolved descriptor through setup, input, options, and assertions so it cannot be
+configured under one identity and asserted under another. This organizational
+refactor must not add capability scope to SV-B-023 or move production behavior
+into a test-only interface.
+
+**Required checks:** descriptor completeness for every scenario selected by the
+runner in both compile configurations; uniqueness of every typed scenario
+identity and rejection of unknown/duplicate identities; explicit agreement of
+peer setup, native input script, endpoint options, and expected assertions from
+the same descriptor; and the existing production-path birth regression matrix,
+including both class/race compile orders, server-provided lists, automatic/staged
+DNA, navigation, backtracking, quit, Guide, interleaving, disconnect, and stale
+generation cases. These checks belong to the future refactor and have not been
+run or passed by this documentation-only record.
