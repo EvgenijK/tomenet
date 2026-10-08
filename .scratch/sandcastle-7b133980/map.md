@@ -27,7 +27,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 ## Frontier
 
 - [Пропустить пустые stats после post-mode PvP Maia Backspace](issues/43-skip-empty-stats-after-post-mode-maia-backtrack.md) — unclaimed; blockers 28 и 32 resolved, поэтому ticket готов к работе.
-- [Сохранить регистр native birth bindings](issues/44-preserve-case-sensitive-native-birth-bindings.md) — unclaimed; blockers 09, 14 и 29 resolved, поэтому ticket готов к работе.
 
 ## Decisions so far
 
@@ -73,3 +72,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/40-focused-test-coverage.md)
 - [Получить human disposition для tracker metadata child 40](issues/41-disposition-child-40-tracker-metadata.md)
 - [Verify focused production coverage](issues/42-focused-test-coverage.md)
+- [Сохранить регистр native birth bindings](issues/44-preserve-case-sensitive-native-birth-bindings.md)
