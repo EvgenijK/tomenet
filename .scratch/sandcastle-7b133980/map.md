@@ -74,3 +74,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Сохранить регистр native birth bindings](issues/44-preserve-case-sensitive-native-birth-bindings.md)
 - [Verify focused production coverage](issues/45-focused-test-coverage.md)
 - [Записать централизацию birth scenario descriptors](issues/46-record-birth-scenario-descriptor-opportunity.md)
+- [Verify focused production coverage](issues/47-focused-test-coverage.md)
