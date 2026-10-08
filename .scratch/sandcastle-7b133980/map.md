@@ -90,3 +90,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/59-focused-test-coverage.md)
 - [Синхронизировать viewport выбора body, stats и mode](issues/60-align-body-stats-mode-choice-viewports.md)
 - [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
+- [Verify focused production coverage](issues/62-focused-test-coverage.md)

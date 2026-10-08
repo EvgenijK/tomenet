@@ -699,17 +699,25 @@ static bool long_trait_setup_case(const char *mode)
 
 static bool body_viewport_case(const char *mode)
 {
-    return !strcmp(mode, "body-viewport");
+    return !strcmp(mode, "body-viewport") ||
+        !strcmp(mode, "body-viewport-page-up");
 }
 
 static bool stats_viewport_case(const char *mode)
 {
-    return !strcmp(mode, "stats-viewport");
+    return !strcmp(mode, "stats-viewport") ||
+        !strcmp(mode, "stats-viewport-page-up");
 }
 
 static bool mode_viewport_case(const char *mode)
 {
-    return !strcmp(mode, "mode-viewport");
+    return !strcmp(mode, "mode-viewport") ||
+        !strcmp(mode, "mode-viewport-page-up");
+}
+
+static bool viewport_page_up_case(const char *mode)
+{
+    return strstr(mode, "-viewport-page-up") != NULL;
 }
 
 static bool existing_character_case(const char *mode)
@@ -1514,6 +1522,7 @@ static int peer_run(void *opaque)
         push_mouse_wheel(-1.0f);
         push_mouse_wheel(1.0f);
         push_key(SDLK_PAGEDOWN, 0);
+        if (viewport_page_up_case(peer->mode)) push_key(SDLK_PAGEUP, 0);
         push_mouse_mode(380.0f, 2);
         SDL_Delay(50);
         interleave_ping(peer, socket, 1);
@@ -1927,6 +1936,7 @@ static int peer_run(void *opaque)
         push_mouse_wheel(-1.0f);
         push_mouse_wheel(1.0f);
         push_key(SDLK_PAGEDOWN, 0);
+        if (viewport_page_up_case(peer->mode)) push_key(SDLK_PAGEUP, 0);
         push_mouse_stats(380.0f, 2);
         SDL_Delay(50);
         interleave_ping(peer, socket, 1);
@@ -2315,6 +2325,7 @@ static int peer_run(void *opaque)
         push_mouse_wheel(-1.0f);
         push_mouse_wheel(1.0f);
         push_key(SDLK_PAGEDOWN, 0);
+        if (viewport_page_up_case(peer->mode)) push_key(SDLK_PAGEUP, 0);
         push_mouse_body(380.0f, 2);
         SDL_Delay(50);
         interleave_ping(peer, socket, 1);
@@ -3617,10 +3628,12 @@ int main(int argc, char **argv)
                outcome.birth_owner == SV_BIRTH_READY);
         assert(outcome.birth_quit);
     } else if (mode_viewport_case(argv[3])) {
+        SvBirthMode expected = viewport_page_up_case(argv[3]) ?
+            SV_BIRTH_MODE_NORMAL : SV_BIRTH_MODE_NO_GHOST;
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
-        assert(outcome.birth_mode == SV_BIRTH_MODE_NO_GHOST);
-        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_mode == expected);
+        assert(outcome.birth_highlighted_mode == expected);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(!outcome.birth_illegal_ignored);
         assert(peer.interleaved_pongs == 1);
@@ -4005,7 +4018,8 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed);
         assert(outcome.birth_stats_order_count == 1);
-        assert(outcome.birth_stats[0] == 1);
+        assert(outcome.birth_stats[0] ==
+               (viewport_page_up_case(argv[3]) ? 0 : 1));
         assert(outcome.birth_legal_stat_count == 5);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(!outcome.birth_illegal_ignored);
@@ -4250,14 +4264,16 @@ int main(int argc, char **argv)
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
     } else if (body_viewport_case(argv[3])) {
+        SvBirthBody expected = viewport_page_up_case(argv[3]) ?
+            SV_BIRTH_BODY_NORMAL : SV_BIRTH_BODY_FRUIT_BAT;
         assert(outcome.birth_body_confirmed && outcome.birth_owner ==
 #if SV_CLASS_BEFORE_RACE
                SV_BIRTH_STATS);
 #else
                SV_BIRTH_CLASS);
 #endif
-        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
-        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_body == expected);
+        assert(outcome.birth_highlighted_body == expected);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(!outcome.birth_illegal_ignored && outcome.birth_quit);
         assert(peer.interleaved_pongs == 1);
