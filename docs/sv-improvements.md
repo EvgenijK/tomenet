@@ -627,3 +627,47 @@ including both class/race compile orders, server-provided lists, automatic/stage
 DNA, navigation, backtracking, quit, Guide, interleaving, disconnect, and stale
 generation cases. These checks belong to the future refactor and have not been
 run or passed by this documentation-only record.
+
+## Group SV birth DNA draft fields in a typed aggregate
+
+**Status:** proposed separately as future SV-local work only. This record does
+not perform the refactor, extract shared or legacy code, add DNA persistence,
+accept `birth.restore-dna` or `birth.save-dna`, or change any verified SV-B-023
+behavior. No future build, runtime, or review check is claimed as passed here.
+
+**Problem:** seven DNA choices cross the endpoint-to-birth boundary as repeated
+availability/value pairs: sex, class, race, trait, body, stats, and mode. The
+same logical draft is expanded into individual fields in `SvEndpointOptions`,
+copied through the production handoff to the long `sv_birth_begin` parameter
+list, and stored again as parallel members of `SvBirth`. Keeping each
+availability flag separate from its value at all four sites makes field omission,
+pair mismatch, or reordered handoff possible when the draft evolves.
+
+**Affected code:** `src/client/sv/endpoint-run.h:SvEndpointOptions` (endpoint
+options), `src/client/sv/endpoint-run.c:run_contact` (production handoff),
+`src/client/sv/input/birth-interaction.h` (the existing public interaction
+boundary), and `src/client/sv/session/birth.h:SvBirth` / `sv_birth_begin` plus
+`src/client/sv/session/birth.c:sv_birth_begin` (birth state and initialization).
+
+**Proposal:** in a separate task, introduce a typed SV-local DNA draft aggregate
+whose sex, class, race, trait, body, stats, and mode members each retain explicit
+availability alongside the current value type. Pass that aggregate
+field-for-field from endpoint options through the existing production
+`input/birth-interaction.h` boundary into birth initialization and state. Preserve
+the current meaning of every availability flag and value, including values paired
+with an unavailable flag, the six-stat array contents and copy semantics, and all
+random, staged-DNA, and automatic-DNA behavior. Do not use this cleanup to move
+ownership into endpoint code, introduce persistence, widen SV-B-023, or create a
+shared/legacy abstraction.
+
+**Required checks:** the future refactor must prove field-for-field mapping from
+endpoint options through production handoff and initialization into birth state,
+including unavailable/value pairing without sentinel substitution or dropped
+values. Exercise every one of the seven choice owners (sex, class, race, trait,
+body, stats, and mode), both compile-time class/race orders, and the existing
+production-path random, staged-DNA, and automatic-DNA regressions. Verify that
+protocol bytes, send timing and suppression (including partial/completed-character
+sends), owner transitions, legality, highlighting, and value semantics remain
+unchanged. Run the applicable `sv-build`, `sv-core`, and `controller-review`
+checks for that future change; these checks are required but were not run or
+passed by this documentation-only record.
