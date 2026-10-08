@@ -17,13 +17,15 @@ Immutable acceptance contract:
 `690a04cefb7fd0e1615dce46d1a538e1dcbd856232af1a1373be93f987095c82`.
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
-[batch 5](batch-5.json), [batch 6](batch-6.json).
+[batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
 объявляет этот check выполненным и не меняет production behavior или evidence.
 
 ## Frontier
+
+- [Получить human disposition для tracker metadata child 40](issues/41-disposition-child-40-tracker-metadata.md) — ready-for-human; blocked only by completed child 40.
 
 ## Decisions so far
 
