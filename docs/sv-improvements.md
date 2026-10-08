@@ -797,3 +797,57 @@ navigation, confirmation, quit, interleaved events, disconnect, stale-generation
 and send suppression. Run the applicable future `sv-build`, `sv-core` and
 `controller-review` checks. All of these checks are requirements for the future
 mapping work and are not run or passed by this documentation-only record.
+
+## Move SV birth viewport and row layout ownership into UI
+
+**Status:** proposed separately as future SV-local work only. This record does
+not perform the ownership refactor, change production or test behavior, touch
+legacy/shared code, or widen the accepted SV-B-023 scope. None of the future
+checks below is claimed as run or passed by this documentation-only repair.
+
+**Problem:** the native birth input adapter currently owns presentation state in
+`SvBirthViewport` together with the choice-row top, height and text-inset
+geometry. It derives the visible range from window height, updates scrolling and
+maps mouse coordinates back to choice positions. The endpoint birth renderer
+then imports that input header and directly consumes the viewport and row
+constants to decide which choices to draw and where. This reverses the intended
+UI/input boundary: renderer layout is constrained by state and geometry owned by
+the input adapter, while hit testing is only implicitly kept in agreement with
+the pixels produced by the UI.
+
+**Affected code:** `src/client/sv/input/native-birth.h` (`SvBirthViewport` and
+`SV_BIRTH_CHOICE_ROW_*`), `src/client/sv/input/native-birth.c`
+(`sv_birth_viewport_sync`, scrolling, Page navigation and mouse hit testing),
+`src/client/sv/input/native-endpoint.h:SvEndpointInput`,
+`src/client/sv/endpoint-run.c:run_contact`, and the endpoint birth renderer in
+`src/client/sv/ui/endpoint-scene.c:sv_endpoint_render`.
+
+**Proposal:** in a separate task, introduce an SV-local, UI-owned birth
+viewport/layout contract. The UI should own row geometry and presentation state,
+including the visible range and scroll position, and expose the resulting
+read-only layout plus a hit-test operation that resolves UI coordinates to a
+stable server-provided choice identity (or no hit). The native input adapter
+should consume that contract for mouse selection and request semantic scrolling
+for wheel and Page navigation instead of defining renderer geometry. Preserve
+the current server-provided identities, highlighted selection, keyboard and
+mouse navigation, resize behavior, and every birth owner transition, including
+backtracking and skipped owners in either class/race order. Keep birth rules and
+the production interaction/input-router path outside the renderer. Do not use
+this boundary cleanup to change gameplay or protocol behavior, extract a
+legacy/shared abstraction, or add capability scope to SV-B-023.
+
+**Required checks:** for every choice owner, verify renderer and hit-test
+geometry agreement; this includes the sex owner's two current targets and the
+class, race, trait, body, stats and mode row lists. Exercise clicks above, below
+and within the viewport, partially or fully clipped rows, every visible row,
+single-click selection and double-click confirmation. Verify stable
+server-provided identity and highlighting through keyboard movement, mouse
+wheel, Page Up/Page Down, focus and resize interleaving, scrolling, owner
+transitions, backtracking and skipped owners. Run both compile-time class/race
+orders and retain the existing production `sv_endpoint_run` interaction/input-
+router regression path, including disconnect, stale-generation and send-
+suppression coverage. Run the applicable future `sv-build`, `sv-core` and
+`controller-review` checks. These checks are requirements for the future
+ownership refactor and are explicitly not run or passed by this documentation-
+only record; `P1-birth-runtime-evidence` remains deferred to its named producer
+and verifier at full acceptance.
