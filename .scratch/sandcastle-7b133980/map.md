@@ -26,7 +26,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Снять post-mode Maia context перед глубоким Backspace](issues/54-unwind-post-mode-maia-before-mode-back.md)
 
 ## Decisions so far
 
@@ -83,3 +82,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/51-focused-test-coverage.md)
 - [Принять trait-derived hidden classes из DNA](issues/52-accept-trait-derived-hidden-dna-classes.md)
 - [Обновить race list после hidden DNA confirm](issues/53-refresh-races-after-hidden-dna-confirm.md)
+- [Снять post-mode Maia context перед глубоким Backspace](issues/54-unwind-post-mode-maia-before-mode-back.md)
