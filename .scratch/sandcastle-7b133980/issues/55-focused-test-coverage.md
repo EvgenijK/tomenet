@@ -1,9 +1,10 @@
 # 55: Verify focused production coverage
 
 Type: implementation
+Tracker role: Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.
 Status: resolved
 Assignee: codex/sandcastle-7b133980-wave-36-1
-Labels: enhancement
+Labels: enhancement, ready-for-agent
 
 Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.
 
@@ -19,6 +20,10 @@ Test the completed SV change through production paths. Inspect the active ticket
   boundary. It observes owner, server-provided lists, stable selection, draft
   and outbound-send suppression; it does not replace deferred native runtime
   evidence P1-AC30.
+- 2026-10-08: Review 17 повторно обнаружил отсутствие non-owning tracker role
+  и стандартного state label. После явного разрешения пользователя metadata
+  приведены к принятому формату ticket 51; canonical capability ownership
+  остаётся у `docs/tasks/stage-b/SV-B-023-birth-choices.md`.
 
 ## Answer
 
