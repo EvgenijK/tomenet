@@ -18,13 +18,17 @@ Immutable acceptance contract:
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
 [batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json),
-[batch 8](batch-8.json), [batch 12](batch-12.json).
+[batch 8](batch-8.json), [batch 12](batch-12.json), [batch 16](batch-16.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
 объявляет этот check выполненным и не меняет production behavior или evidence.
 
 ## Frontier
+
+- [Принять trait-derived hidden classes из DNA](issues/52-accept-trait-derived-hidden-dna-classes.md)
+- [Обновить race list после hidden DNA confirm](issues/53-refresh-races-after-hidden-dna-confirm.md)
+- [Снять post-mode Maia context перед глубоким Backspace](issues/54-unwind-post-mode-maia-before-mode-back.md)
 
 ## Decisions so far
 
