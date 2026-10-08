@@ -331,6 +331,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        birth->highlighted_class : SV_BIRTH_CLASS_NONE,
                                    .birth_class = birth ? birth->chosen_class :
                                        SV_BIRTH_CLASS_NONE,
+                                   .birth_visible_class_count = birth ?
+                                       birth->visible_class_count : 0,
                                    .birth_highlighted_race = birth ?
                                        birth->highlighted_race : SV_BIRTH_RACE_NONE,
                                    .birth_race = birth ? birth->chosen_race :
@@ -379,6 +381,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                        placeholder->draft_preserved,
                                    .birth_generation = birth ? birth->generation : 0};
     if (birth) {
+        memcpy(outcome->birth_visible_classes, birth->visible_classes,
+               birth->visible_class_count);
         memcpy(outcome->birth_legal_classes, birth->legal_classes,
                birth->legal_class_count);
         memcpy(outcome->birth_legal_races, birth->legal_races,

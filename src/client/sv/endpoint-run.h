@@ -53,6 +53,7 @@ typedef struct {
     SvBirthOwner birth_owner;
     SvBirthSex birth_highlighted_sex, birth_sex;
     int birth_highlighted_class, birth_class;
+    uint8_t birth_visible_classes[255], birth_visible_class_count;
     uint8_t birth_legal_classes[255], birth_legal_class_count;
     int birth_highlighted_race, birth_race;
     uint8_t birth_legal_races[255], birth_legal_race_count, birth_race_count;

@@ -27,7 +27,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Сохранить identities видимого class list](issues/58-preserve-visible-class-choice-identities.md)
 
 ## Decisions so far
 
@@ -88,3 +87,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/55-focused-test-coverage.md)
 - [Verify focused production coverage](issues/56-focused-test-coverage.md)
 - [Сохранить compatible traits в post-mode PvP Maia](issues/57-retain-compatible-post-mode-maia-traits.md)
+- [Сохранить identities видимого class list](issues/58-preserve-visible-class-choice-identities.md)
