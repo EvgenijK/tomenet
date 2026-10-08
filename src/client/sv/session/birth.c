@@ -46,13 +46,13 @@ static bool legal_class(const SvBirth *birth, int class_id)
 
 static int resolved_class(const SvBirth *birth, int visible_class, int race_id);
 
-static unsigned maia_race_id(void)
+static int maia_race_id(const SvBirth *birth)
 {
-#ifdef ENABLE_KOBOLD
-    return 17;
-#else
-    return 16;
-#endif
+    if (!birth || !birth->setup) return SV_BIRTH_RACE_NONE;
+    for (unsigned race = 0; race < birth->setup->race_count; ++race)
+        if (!strcmp(birth->setup->races[race].title, "Maia"))
+            return (int)race;
+    return SV_BIRTH_RACE_NONE;
 }
 
 static bool trait_derived_hidden_class(const SvBirth *birth, int class_id)
@@ -74,7 +74,7 @@ static bool legal_race(const SvBirth *birth, int race_id)
         return false;
     if (birth->requested_class == SV_BIRTH_CLASS_NONE) return true;
     if (trait_derived_hidden_class(birth, birth->requested_class))
-        return race_id == (int)maia_race_id();
+        return race_id == maia_race_id(birth);
     return resolved_class(birth, birth->chosen_visible_class, race_id) ==
         birth->requested_class;
 #else
@@ -110,9 +110,9 @@ static int dna_visible_class(const SvBirth *birth, int server_class)
     if (trait_derived_hidden_class(birth, server_class)) {
 #if SV_CLASS_BEFORE_RACE
         if (birth->chosen_race >= 0 &&
-            birth->chosen_race != (int)maia_race_id())
+            birth->chosen_race != maia_race_id(birth))
 #else
-        if (birth->chosen_race != (int)maia_race_id() ||
+        if (birth->chosen_race != maia_race_id(birth) ||
             birth->chosen_trait != 15)
 #endif
             return SV_BIRTH_CLASS_NONE;
@@ -130,7 +130,7 @@ static int dna_visible_class(const SvBirth *birth, int server_class)
 static bool legal_trait(const SvBirth *birth, int trait_id)
 {
     if (birth->post_mode_trait_required)
-        return birth->chosen_race == (int)maia_race_id() &&
+        return birth->chosen_race == maia_race_id(birth) &&
             (trait_id == 14 || trait_id == 15) &&
             trait_id < birth->setup->trait_count;
     if (trait_id <= 0 || trait_id >= birth->setup->trait_count ||
@@ -1011,16 +1011,12 @@ static SvBirthInputResult confirm_mode(SvBirth *birth)
         return SV_BIRTH_INPUT_IGNORED;
     birth->chosen_mode = birth->highlighted_mode;
     birth->mode_confirmed = true;
-    unsigned maia_race =
-#ifdef ENABLE_KOBOLD
-        17;
-#else
-        16;
-#endif
+    int maia_race = maia_race_id(birth);
     bool pvp = birth->chosen_mode == SV_BIRTH_MODE_PVP ||
         birth->chosen_mode == SV_BIRTH_MODE_DEDICATED_PVP;
     bool post_mode_trait_required = pvp &&
-        birth->chosen_race == (int)maia_race &&
+        maia_race != SV_BIRTH_RACE_NONE &&
+        birth->chosen_race == maia_race &&
         (birth->server_flags[3] & 0x200u) != 0;
     if (post_mode_trait_required && !birth->post_mode_trait_required) {
         birth->pre_mode_highlighted_trait = birth->highlighted_trait;

@@ -491,16 +491,14 @@ static bool owner_confirmed(const SvEndpointOutcome *outcome, SvBirthOwner owner
 
 static unsigned maia_race(void)
 {
-#ifdef ENABLE_KOBOLD
     return 17;
-#else
-    return 16;
-#endif
 }
 
 static bool pvp_maia_case(const char *mode)
 {
     return !strcmp(mode, "mode-pvp-maia") ||
+        !strcmp(mode, "mode-pvp-race16-control") ||
+        !strcmp(mode, "exclusive-pvp-race16-control") ||
         !strcmp(mode, "mode-pvp-maia-back") ||
         !strcmp(mode, "unknown-setup-pvp-maia-back") ||
         !strcmp(mode, "unknown-setup-pvp-maia-back-confirm") ||
@@ -542,6 +540,7 @@ static bool exclusive_creation_case(const char *mode)
 {
     return !strcmp(mode, "exclusive-iddc-production") ||
         !strcmp(mode, "exclusive-pvp-maia-production") ||
+        !strcmp(mode, "exclusive-pvp-race16-control") ||
         !strcmp(mode, "exclusive-pvp-maia-deep-back") ||
         !strcmp(mode, "exclusive-pvp-maia-skip-deep-back") ||
         !strcmp(mode, "exclusive-pvp-maia-trait-reenter") ||
@@ -677,13 +676,13 @@ static bool hidden_dna_race_mismatch_case(const char *mode)
         !strcmp(mode, "hidden-derived-dna-race-refresh-skip-body");
 }
 
-static void push_to_pvp_maia_mode(void)
+static void push_to_pvp_race_mode(unsigned race)
 {
     push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
     push_key(SDLK_RETURN, 0);
     push_key(SDLK_PAGEDOWN, 0);
-    for (unsigned i = 0; i < maia_race() - 10; ++i)
+    for (unsigned i = 0; i < race - 10; ++i)
         push_mouse_wheel(-1.0f);
     push_mouse_race(740.0f, 1);
     push_key(SDLK_RETURN, 0);
@@ -691,7 +690,7 @@ static void push_to_pvp_maia_mode(void)
     push_key(SDLK_RETURN, 0);
 #else
     push_key(SDLK_PAGEDOWN, 0);
-    for (unsigned i = 0; i < maia_race() - 10; ++i)
+    for (unsigned i = 0; i < race - 10; ++i)
         push_mouse_wheel(-1.0f);
     push_mouse_race(740.0f, 1);
     push_key(SDLK_RETURN, 0);
@@ -703,6 +702,11 @@ static void push_to_pvp_maia_mode(void)
         push_key(key, 0);
         push_key(SDLK_RETURN, 0);
     }
+}
+
+static void push_to_pvp_maia_mode(void)
+{
+    push_to_pvp_race_mode(maia_race());
 }
 
 static void push_to_unknown_setup_pvp_maia_mode(void)
@@ -1045,6 +1049,7 @@ static void send_overview(int socket, const char *mode)
     put32(&at, 0);
     put32(&at, 0);
     put32(&at, (!strcmp(mode, "exclusive-pvp-maia-production") ||
+                !strcmp(mode, "exclusive-pvp-race16-control") ||
                 !strcmp(mode, "exclusive-pvp-maia-deep-back") ||
                 !strcmp(mode, "exclusive-pvp-maia-skip-deep-back") ||
                 !strcmp(mode, "exclusive-pvp-maia-trait-reenter") ||
@@ -1457,6 +1462,12 @@ static int peer_run(void *opaque)
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "mode-pvp-race16-control") ||
+               !strcmp(peer->mode, "exclusive-pvp-race16-control")) {
+        push_to_pvp_race_mode(16);
+        push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode,
@@ -3457,6 +3468,15 @@ int main(int argc, char **argv)
         assert(outcome.birth_trait_confirmed && outcome.birth_trait == 15);
         assert(outcome.birth_stats_confirmed &&
                !memcmp(outcome.birth_stats, expected, sizeof(expected)));
+    } else if (!strcmp(argv[3], "mode-pvp-race16-control") ||
+               !strcmp(argv[3], "exclusive-pvp-race16-control")) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode ==
+            (!strcmp(argv[3], "exclusive-pvp-race16-control") ?
+             SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_PVP));
+        assert(outcome.birth_race == 16);
+        assert(outcome.birth_race != (int)maia_race());
     } else if (!strcmp(argv[3], "unknown-setup-disconnect")) {
         assert(outcome.creation_flags == 0x10u);
         assert(!outcome.birth_active && outcome.birth_closed);
