@@ -556,6 +556,12 @@ static void prepare_traits(SvBirth *birth)
         if (!legal_trait(birth, (int)id)) continue;
         birth->legal_traits[birth->legal_trait_count++] = (uint8_t)id;
     }
+    if (birth->post_mode_trait_required && !birth->legal_trait_count) {
+        restore_pre_mode_trait(birth);
+        birth->mode_ready = true;
+        birth->owner = SV_BIRTH_READY;
+        return;
+    }
     if (trait_position(birth, birth->highlighted_trait) < 0)
         birth->highlighted_trait = birth->legal_trait_count ?
             birth->legal_traits[0] : SV_BIRTH_TRAIT_NONE;
