@@ -93,3 +93,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/62-focused-test-coverage.md)
 - [Записать semantic identity mapping для SV birth](issues/63-record-sv-birth-semantic-identity-mapping.md)
 - [Verify focused production coverage](issues/64-focused-test-coverage.md)
+- [Зафиксировать единый inventory production endpoint test sources](issues/67-record-sv-endpoint-test-source-inventory.md)

@@ -797,3 +797,52 @@ navigation, confirmation, quit, interleaved events, disconnect, stale-generation
 and send suppression. Run the applicable future `sv-build`, `sv-core` and
 `controller-review` checks. All of these checks are requirements for the future
 mapping work and are not run or passed by this documentation-only record.
+
+## Centralize production endpoint test build inventory
+
+**Status:** proposed separately as future test-infrastructure work only. This
+record does not consolidate the runners, change production, legacy or shared
+code, or widen the accepted SV-B-023 scope. None of the future build, runtime or
+review checks below is claimed as run or passed by this documentation-only
+repair.
+
+**Problem:** seven Python runners independently enumerate the production sources
+used to compile their endpoint test binaries. The lists substantially duplicate
+the same endpoint, native input, interaction, protocol, session and UI source
+inventory. When a production endpoint dependency is added or removed, one runner
+can omit the matching source update while the others continue to build, causing
+dependency drift and inconsistent production-path coverage.
+
+**Affected code:** the seven current production endpoint runners:
+`tests/sv_endpoint_checks.py`, `tests/sv_account_create_checks.py`,
+`tests/sv_account_failure_checks.py`, `tests/sv_first_session_checks.py`,
+`tests/sv_name_editor_submit_checks.py`,
+`tests/sv_name_rejection_recovery_checks.py`, and
+`tests/sv_ordinary_create_cancel_checks.py`; specifically their `SOURCES` or
+`scene_sources` inventories and compile commands.
+
+**Proposal:** in separate future test-infrastructure work, provide one
+authoritative endpoint test build inventory/helper for the ordered common
+production sources. Each of the seven runners should consume that inventory and
+retain its own scenario harness, orchestration, executable, runner-specific
+sources, compiler/linker flags and environment so the runners remain isolated.
+The helper must continue to compile and execute the real production
+`sv_endpoint_run(SvEndpointOptions)` endpoint, the native birth adapter and the
+birth interaction/input-router path. It must not replace any production behavior
+with a test-only implementation. Do not use this consolidation to change
+production, legacy or shared code, alter protocol/gameplay semantics, add
+capability scope to SV-B-023, or absorb runner-specific scenarios into a shared
+test flow.
+
+**Required checks:** for the future consolidation, verify that the authoritative
+inventory is complete and has deterministic ordering; all seven runners consume
+it while preserving their runner-specific harness sources, extra production
+sources, compiler/linker flags, sanitizers and environment; and adding or removing
+a production endpoint dependency produces the corresponding inventory change and
+consistent build outcome in every consumer. Exercise both birth compile orders
+where applicable and retain the existing production endpoint regression runs
+through the real endpoint, native birth adapter and birth interaction/input-router
+path. Run the applicable `sv-build`, `sv-core` and `controller-review` gates for
+that future change. These checks are required but were not run or passed by this
+documentation-only record; `P1-birth-runtime-evidence` / P1-AC30 remains deferred
+to its named full-acceptance producer and verifier.
