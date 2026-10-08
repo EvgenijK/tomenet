@@ -27,8 +27,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
-
 ## Decisions so far
 
 - [Войти в birth и выбрать пол](issues/01-enter-birth-and-choose-sex.md)
@@ -91,3 +89,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Сохранить identities видимого class list](issues/58-preserve-visible-class-choice-identities.md)
 - [Verify focused production coverage](issues/59-focused-test-coverage.md)
 - [Синхронизировать viewport выбора body, stats и mode](issues/60-align-body-stats-mode-choice-viewports.md)
+- [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
