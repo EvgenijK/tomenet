@@ -627,3 +627,41 @@ including both class/race compile orders, server-provided lists, automatic/stage
 DNA, navigation, backtracking, quit, Guide, interleaving, disconnect, and stale
 generation cases. These checks belong to the future refactor and have not been
 run or passed by this documentation-only record.
+
+## Extract an SV-local birth random-state step
+
+**Status:** proposed separately as future work; this record does not implement the
+helper, change production SV or tests, touch legacy/shared code, alter protocol or
+gameplay semantics, or extend the accepted SV-B-023 scope. The required future
+checks below have not been run or passed by this documentation-only repair.
+
+**Problem:** the seven owner-specific random command handlers for sex, class,
+race, trait, body, stats and mode repeat the same three-operation xorshift state
+transition on `SvBirth.random_state`. Keeping identical state evolution inline in
+each handler makes a future correction or audit easy to apply inconsistently even
+though the owner-specific selection and confirmation rules intentionally differ.
+
+**Affected code:** `src/client/sv/session/birth.c`: the `SV_BIRTH_RANDOM`
+branches in `sv_birth_command`, `class_command`, `race_command`, `trait_command`,
+`body_command`, `stats_command` and `mode_command`; and the `random_state` field in
+`src/client/sv/session/birth.h:SvBirth`.
+
+**Proposal:** in separate future SV-local work, introduce a narrowly scoped
+random-step helper that owns only the existing unsigned xorshift state transition
+and returns/stores its deterministic next state. Preserve exactly when each
+handler advances the state. Keep server-provided legal-list selection and its
+owner-specific modulo or sex-bit mapping, compatibility and flag handling,
+confirmation, repeated ordered-stat selection, and empty-list or unavailable-step
+rejection in the current owner handlers. Do not extract this into legacy/shared
+code or turn the opportunity into a broader random-dispatch refactor.
+
+**Required checks:** fixed-seed deterministic next-state vectors for the exact
+xorshift transition, including consecutive steps; unchanged owner-specific
+modulo/list selection, sex-bit mapping and legality; production-path random
+behavior for all seven server-provided choice owners; empty-list and unavailable-
+step handling, including Archer body and point-buy/ordered-stats conditions; both
+compile-time class/race orders; and the existing production interaction/input-
+router regression matrix for navigation, compatibility, flags, confirmation,
+backtracking, quit, interleaved events, disconnect and stale-generation send
+suppression. These are requirements for the future helper work and are not
+claimed as passed by this documentation-only record.
