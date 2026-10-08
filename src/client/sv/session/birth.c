@@ -226,6 +226,7 @@ static SvBirthInputResult confirm_race(SvBirth *birth)
 #if SV_CLASS_BEFORE_RACE
     birth->chosen_class = resolved;
     birth->requested_class = SV_BIRTH_CLASS_NONE;
+    prepare_races(birth);
 #endif
     birth->owner = SV_BIRTH_TRAIT;
     birth->race_confirmed = true;
@@ -589,8 +590,6 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
                 birth->owner = SV_BIRTH_MODE;
             }
         } else birth->owner = SV_BIRTH_RACE;
-        if (birth->owner == SV_BIRTH_RACE)
-            birth->chosen_class = birth->chosen_visible_class;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;
@@ -688,8 +687,6 @@ static SvBirthInputResult body_command(SvBirth *birth, SvBirthCommand command)
         birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
         birth->trait_confirmed = false;
         birth->owner = birth->trait_skipped ? SV_BIRTH_RACE : SV_BIRTH_TRAIT;
-        if (birth->owner == SV_BIRTH_RACE)
-            birth->chosen_class = birth->chosen_visible_class;
         return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_QUIT:
         birth->quit = true;

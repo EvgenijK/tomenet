@@ -646,7 +646,13 @@ static bool hidden_dna_race_mismatch_case(const char *mode)
         !strcmp(mode, "hidden-derived-dna-race-direct") ||
         !strcmp(mode, "hidden-derived-dna-race-mouse") ||
         !strcmp(mode, "hidden-derived-dna-race-navigate") ||
-        !strcmp(mode, "hidden-derived-dna-race-random");
+        !strcmp(mode, "hidden-derived-dna-race-random") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-trait") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-body-mouse") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-stats-random") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-trait") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-trait-stats") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-body");
 }
 
 static void push_to_pvp_maia_mode(void)
@@ -877,7 +883,9 @@ static void send_setup(int socket, const char *mode)
     bool dummy_trait = !strncmp(mode, "trait-dummy-skip", 16) ||
         !strcmp(mode, "body-back-no-trait") ||
         !strcmp(mode, "alternate-class-back-no-trait-body") ||
-        !strcmp(mode, "stats-back-no-trait-body");
+        !strcmp(mode, "stats-back-no-trait-body") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-trait") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-trait-stats");
     bool unavailable_trait = !strcmp(mode, "trait-unavailable-skip") ||
         !strcmp(mode, "auto-dna-skip-trait-body");
     *at++ = 4;
@@ -1007,7 +1015,8 @@ static int peer_run(void *opaque)
         !strcmp(peer->mode, "alternate-class-back-no-body") ||
         !strcmp(peer->mode, "alternate-class-back-no-trait-body") ||
         !strcmp(peer->mode, "stats-back-no-trait-body") ||
-        !strcmp(peer->mode, "auto-dna-skip-trait-body");
+        !strcmp(peer->mode, "auto-dna-skip-trait-body") ||
+        !strcmp(peer->mode, "hidden-derived-dna-race-refresh-skip-body");
     bool point_buy = !strncmp(peer->mode, "stats-point-", 12) ||
         (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable &&
          !automatic_ordered_case(peer->mode));
@@ -2119,6 +2128,67 @@ static int peer_run(void *opaque)
         push_mouse_class(340.0f, 2);
 #endif
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "hidden-derived-dna-race-refresh-trait")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_stale_key(SDLK_RETURN);
+        push_stale_key(SDLK_BACKSPACE);
+        push_stale_key(SDLK_Q);
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "hidden-derived-dna-race-refresh-body-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_mouse_race(420.0f, 1);
+        push_mouse_race(380.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "hidden-derived-dna-race-refresh-stats-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_random();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "hidden-derived-dna-race-refresh-skip-trait")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "hidden-derived-dna-race-refresh-skip-trait-stats")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "hidden-derived-dna-race-refresh-skip-body")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
     } else if (!strcmp(peer->mode, "hidden-derived-dna-race-direct") ||
                !strcmp(peer->mode, "hidden-derived-dna-race-mouse") ||
                !strcmp(peer->mode, "hidden-derived-dna-race-navigate") ||
@@ -3680,6 +3750,68 @@ int main(int argc, char **argv)
                outcome.birth_highlighted_race == 0);
         assert(outcome.birth_illegal_ignored &&
                !outcome.birth_auto_reincarnation);
+    } else if (!strcmp(argv[3], "hidden-derived-dna-race-refresh-trait")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_class == 1 && outcome.birth_highlighted_class == 0);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 0);
+        assert(outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_legal_race_count == 2);
+        assert(outcome.birth_legal_races[0] == 0 &&
+               outcome.birth_legal_races[1] == 1);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3],
+                       "hidden-derived-dna-race-refresh-body-mouse")) {
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_class == 3 && outcome.birth_highlighted_class == 0);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 1);
+        assert(outcome.birth_highlighted_race == 1);
+        assert(outcome.birth_legal_race_count == 2);
+        assert(outcome.birth_legal_races[0] == 0 &&
+               outcome.birth_legal_races[1] == 1);
+        assert(outcome.birth_mouse_navigated && outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3],
+                       "hidden-derived-dna-race-refresh-stats-random")) {
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
+        assert(outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_highlighted_class == 0);
+        assert(outcome.birth_race_confirmed && outcome.birth_race_random_used);
+        assert(outcome.birth_race == 0 || outcome.birth_race == 1);
+        assert(outcome.birth_class == 1 || outcome.birth_class == 3);
+        assert(outcome.birth_legal_race_count == 2);
+        assert(outcome.birth_legal_races[0] == 0 &&
+               outcome.birth_legal_races[1] == 1);
+    } else if (!strcmp(argv[3],
+                       "hidden-derived-dna-race-refresh-skip-trait")) {
+        assert(outcome.birth_owner == SV_BIRTH_BODY && outcome.birth_quit);
+        assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 0);
+        assert(outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_class == 1 && outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_legal_race_count == 2);
+    } else if (!strcmp(argv[3],
+                       "hidden-derived-dna-race-refresh-skip-trait-stats")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
+        assert(!outcome.birth_body_confirmed && !outcome.birth_stats_confirmed);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 0);
+        assert(outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_class == 1 && outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_legal_race_count == 2);
+    } else if (!strcmp(argv[3],
+                       "hidden-derived-dna-race-refresh-skip-body")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(!outcome.birth_stats_confirmed);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 0);
+        assert(outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_class == 1 && outcome.birth_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_legal_race_count == 2);
     } else if (!strcmp(argv[3], "hidden-derived-dna-race-direct") ||
                !strcmp(argv[3], "hidden-derived-dna-race-mouse") ||
                !strcmp(argv[3], "hidden-derived-dna-race-navigate") ||
@@ -3689,8 +3821,9 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == 1 && outcome.birth_highlighted_class == 0);
         assert(outcome.birth_race_confirmed && !outcome.birth_race_dna_used);
         assert(outcome.birth_race == 0 && outcome.birth_highlighted_race == 0);
-        assert(outcome.birth_legal_race_count == 1 &&
-               outcome.birth_legal_races[0] == 0);
+        assert(outcome.birth_legal_race_count == 2 &&
+               outcome.birth_legal_races[0] == 0 &&
+               outcome.birth_legal_races[1] == 1);
         if (!strcmp(argv[3], "hidden-derived-dna-race-direct"))
             assert(outcome.birth_illegal_ignored);
         else if (!strcmp(argv[3], "hidden-derived-dna-race-mouse"))
