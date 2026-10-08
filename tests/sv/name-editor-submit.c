@@ -11,6 +11,24 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+static bool synthetic_altgr_dna_layout;
+static bool synthetic_level5_random_layout;
+
+extern SDL_Keycode SDLCALL __real_SDL_GetKeyFromScancode(
+    SDL_Scancode scancode, SDL_Keymod modstate, bool key_event);
+
+SDL_Keycode SDLCALL __wrap_SDL_GetKeyFromScancode(
+    SDL_Scancode scancode, SDL_Keymod modstate, bool key_event)
+{
+    if (synthetic_altgr_dna_layout && scancode == SDL_SCANCODE_M &&
+        (modstate & SDL_KMOD_MODE))
+        return SDLK_HASH;
+    if (synthetic_level5_random_layout && scancode == SDL_SCANCODE_8 &&
+        (modstate & SDL_KMOD_LEVEL5))
+        return SDLK_ASTERISK;
+    return __real_SDL_GetKeyFromScancode(scancode, modstate, key_event);
+}
+
 typedef struct {
     int listener;
     bool request_exact;
@@ -60,12 +78,9 @@ static void push_key(SDL_Keycode key, SDL_Keymod mod)
     event.type = SDL_EVENT_KEY_DOWN;
     event.key.key = key;
     event.key.mod = mod;
-    switch (key) {
-    case SDLK_N: event.key.scancode = SDL_SCANCODE_N; break;
-    case SDLK_L: event.key.scancode = SDL_SCANCODE_L; break;
-    case SDLK_BACKSPACE: event.key.scancode = SDL_SCANCODE_BACKSPACE; break;
-    default: event.key.scancode = SDL_SCANCODE_RETURN; break;
-    }
+    SDL_Keymod layout_modifiers = SDL_KMOD_NONE;
+    event.key.scancode = SDL_GetScancodeFromKey(key, &layout_modifiers);
+    assert(event.key.scancode != SDL_SCANCODE_UNKNOWN);
     assert(SDL_PushEvent(&event));
 }
 
@@ -2199,11 +2214,16 @@ static int peer_run(void *opaque)
     } else if (!strcmp(peer->mode, "mouse")) {
         push_mouse_sex(360.0f, 2);
     } else if (!strcmp(peer->mode, "random") ||
-               !strcmp(peer->mode, "keypad-random")) {
+               !strcmp(peer->mode, "keypad-random") ||
+               !strcmp(peer->mode, "level5-random")) {
         if (!strcmp(peer->mode, "keypad-random"))
             push_physical_key(SDLK_KP_MULTIPLY, SDL_SCANCODE_KP_MULTIPLY, 0);
+        else if (!strcmp(peer->mode, "level5-random"))
+            push_physical_key(SDLK_8, SDL_SCANCODE_8, SDL_KMOD_LEVEL5);
         else
             push_random();
+    } else if (!strcmp(peer->mode, "altgr-dna")) {
+        push_physical_key(SDLK_M, SDL_SCANCODE_M, SDL_KMOD_MODE);
     } else if (!strcmp(peer->mode, "dna") || !strcmp(peer->mode, "dna-missing")) {
         push_dna();
     } else if (!strcmp(peer->mode, "ctrl-quit")) {
@@ -2215,7 +2235,9 @@ static int peer_run(void *opaque)
     SDL_Delay(100);
     if (!strcmp(peer->mode, "navigate") || !strcmp(peer->mode, "mouse") ||
         !strcmp(peer->mode, "random") || !strcmp(peer->mode, "keypad-random") ||
-        !strcmp(peer->mode, "dna") || !strcmp(peer->mode, "dna-missing"))
+        !strcmp(peer->mode, "level5-random") ||
+        !strcmp(peer->mode, "altgr-dna") || !strcmp(peer->mode, "dna") ||
+        !strcmp(peer->mode, "dna-missing"))
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     unsigned char closed;
     assert(recv(socket, &closed, 1, 0) == 0);
@@ -2228,6 +2250,8 @@ static int peer_run(void *opaque)
 int main(int argc, char **argv)
 {
     assert(argc == 4);
+    synthetic_altgr_dna_layout = !strcmp(argv[3], "altgr-dna");
+    synthetic_level5_random_layout = !strcmp(argv[3], "level5-random");
     bool automatic = !strncmp(argv[3], "auto-dna-", 9);
     bool auto_missing_sex = !strcmp(argv[3], "auto-dna-missing-sex");
     bool auto_pvp_maia = !strcmp(argv[3], "auto-dna-dedicated-pvp-maia");
@@ -2262,6 +2286,7 @@ int main(int argc, char **argv)
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
         .real_name = "PLAYER", .outcome = &outcome,
         .birth_dna_available = !strcmp(argv[3], "dna") ||
+            !strcmp(argv[3], "altgr-dna") ||
             (automatic && !auto_missing_sex) ||
             !strcmp(argv[3], "alternate-dna"),
         .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
@@ -3748,13 +3773,24 @@ int main(int argc, char **argv)
         assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
         assert(outcome.birth_mouse_navigated && outcome.birth_quit);
     } else if (!strcmp(argv[3], "random") ||
-               !strcmp(argv[3], "keypad-random")) {
-        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+               !strcmp(argv[3], "keypad-random") ||
+               !strcmp(argv[3], "level5-random")) {
+        assert(outcome.birth_sex_confirmed);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+#endif
         assert(outcome.birth_random_used);
         assert(outcome.birth_sex == SV_BIRTH_SEX_MALE ||
                outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
-    } else if (!strcmp(argv[3], "dna")) {
-        assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
+    } else if (!strcmp(argv[3], "dna") || !strcmp(argv[3], "altgr-dna")) {
+        assert(outcome.birth_sex_confirmed);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+#endif
         assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
     } else {
         assert(!outcome.birth_sex_confirmed);

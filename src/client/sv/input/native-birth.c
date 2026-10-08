@@ -5,25 +5,32 @@ static bool letter_key(SDL_Keycode key)
     return key >= SDLK_A && key <= SDLK_Z;
 }
 
-static bool uppercase_letter(const SDL_KeyboardEvent *event)
+static bool letter_modifiers(const SDL_KeyboardEvent *event)
+{
+    return !(event->mod & (SDL_KMOD_LEVEL5 | SDL_KMOD_CTRL | SDL_KMOD_ALT |
+                           SDL_KMOD_GUI | SDL_KMOD_MODE));
+}
+
+static bool symbol_modifiers(const SDL_KeyboardEvent *event)
+{
+    return !(event->mod & (SDL_KMOD_CTRL | SDL_KMOD_LALT | SDL_KMOD_GUI));
+}
+
+static bool uppercase_letter(const SDL_KeyboardEvent *event, SDL_Keycode key)
 {
     bool shifted = (event->mod & SDL_KMOD_SHIFT) != 0;
     bool caps_locked = (event->mod & SDL_KMOD_CAPS) != 0;
-    return letter_key(event->key) && shifted != caps_locked;
+    return letter_key(key) && shifted != caps_locked;
 }
 
-static bool lowercase_letter(const SDL_KeyboardEvent *event)
+static bool lowercase_letter(const SDL_KeyboardEvent *event, SDL_Keycode key)
 {
-    return letter_key(event->key) && !(event->mod & SDL_KMOD_CTRL) &&
-        !uppercase_letter(event);
+    return letter_key(key) && letter_modifiers(event) &&
+        !uppercase_letter(event, key);
 }
 
-static SDL_Keycode printable_key(const SDL_KeyboardEvent *event)
+static SDL_Keycode layout_key(const SDL_KeyboardEvent *event)
 {
-    if (letter_key(event->key) || !(event->mod & SDL_KMOD_SHIFT) ||
-        (event->mod & (SDL_KMOD_LEVEL5 | SDL_KMOD_CTRL | SDL_KMOD_ALT |
-                       SDL_KMOD_GUI | SDL_KMOD_MODE)))
-        return event->key;
     SDL_Keycode translated = SDL_GetKeyFromScancode(
         event->scancode, event->mod, false);
     return translated == SDLK_UNKNOWN ? event->key : translated;
@@ -269,8 +276,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
     }
     if (event->type != SDL_EVENT_KEY_DOWN || event->key.repeat)
         return SV_BIRTH_INPUT_IGNORED;
-    SDL_Keycode key = printable_key(&event->key);
-    if (key == SDLK_QUESTION) {
+    SDL_Keycode key = layout_key(&event->key);
+    if (key == SDLK_QUESTION && symbol_modifiers(&event->key)) {
         if (birth->owner == SV_BIRTH_SEX ||
             (birth->owner == SV_BIRTH_STATS && !birth->stats_point_buy))
             return SV_BIRTH_INPUT_HANDLED;
@@ -278,13 +285,14 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             return SV_BIRTH_INPUT_PLACEHOLDER;
     }
     SvBirthCommand command;
-    if (key == SDLK_Q && ((event->key.mod & SDL_KMOD_CTRL) ||
-                         uppercase_letter(&event->key)))
+    if (event->key.key == SDLK_Q && ((event->key.mod & SDL_KMOD_CTRL) ||
+        (letter_modifiers(&event->key) &&
+         uppercase_letter(&event->key, event->key.key))))
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_QUIT}, true, false);
     if (birth->owner == SV_BIRTH_MODE && letter_key(key) &&
-        !(event->key.mod & SDL_KMOD_CTRL)) {
-        bool uppercase = uppercase_letter(&event->key);
+        letter_modifiers(&event->key)) {
+        bool uppercase = uppercase_letter(&event->key, key);
         SvBirthMode mode;
         if (birth->dedicated)
             mode = uppercase && key == SDLK_H ? SV_BIRTH_MODE_IDDC_HELLISH :
@@ -304,7 +312,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_MODE, .mode = mode},
             true, false);
     } else if (birth->owner == SV_BIRTH_STATS &&
-        lowercase_letter(&event->key)) {
+        lowercase_letter(&event->key, key)) {
         unsigned stat = (unsigned)(key - SDLK_A);
         if (stat >= 6) {
             birth->illegal_ignored = true;
@@ -314,7 +322,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_STAT, .stat = (int)stat},
             true, false);
     } else if (birth->owner == SV_BIRTH_BODY &&
-        lowercase_letter(&event->key)) {
+        lowercase_letter(&event->key, key)) {
         SvBirthBody body = key == SDLK_N ? SV_BIRTH_BODY_NORMAL :
             key == SDLK_F ? SV_BIRTH_BODY_FRUIT_BAT : SV_BIRTH_BODY_NONE;
         if (body == SV_BIRTH_BODY_NONE) {
@@ -325,7 +333,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_BODY, .body = body},
             true, false);
     } else if (birth->owner == SV_BIRTH_TRAIT &&
-        lowercase_letter(&event->key)) {
+        lowercase_letter(&event->key, key)) {
         unsigned position = (unsigned)(key - SDLK_A);
         if (position >= birth->legal_trait_count) {
             birth->illegal_ignored = true;
@@ -335,7 +343,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_TRAIT,
                 .trait_id = birth->legal_traits[position]}, true, false);
     } else if (birth->owner == SV_BIRTH_RACE &&
-        lowercase_letter(&event->key)) {
+        lowercase_letter(&event->key, key)) {
         unsigned id = (unsigned)(key - SDLK_A);
         if (id >= birth->setup->race_count) {
             birth->illegal_ignored = true;
@@ -345,7 +353,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_RACE,
                 .race_id = (int)id}, true, false);
     } else if (birth->owner == SV_BIRTH_CLASS &&
-        lowercase_letter(&event->key)) {
+        lowercase_letter(&event->key, key)) {
         unsigned position = (unsigned)(key - SDLK_A);
         if (position >= birth->legal_class_count) {
             birth->illegal_ignored = true;
@@ -380,26 +388,29 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         key == SDLK_ESCAPE)
         command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};
     else if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
-        (key == SDLK_LEFT || key == SDLK_KP_4 || key == SDLK_MINUS))
+        (key == SDLK_LEFT || key == SDLK_KP_4 ||
+         (key == SDLK_MINUS && symbol_modifiers(&event->key))))
         command = (SvBirthCommand){.kind = SV_BIRTH_DECREASE_STAT};
     else if (birth->owner == SV_BIRTH_STATS && birth->stats_point_buy &&
-        (key == SDLK_RIGHT || key == SDLK_KP_6 || key == SDLK_PLUS))
+        (key == SDLK_RIGHT || key == SDLK_KP_6 ||
+         (key == SDLK_PLUS && symbol_modifiers(&event->key))))
         command = (SvBirthCommand){.kind = SV_BIRTH_INCREASE_STAT};
     else if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_KP_8 || key == SDLK_KP_4)
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_PREVIOUS};
     else if (key == SDLK_DOWN || key == SDLK_RIGHT || key == SDLK_KP_2 || key == SDLK_KP_6)
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_NEXT};
-    else if (key == SDLK_M && lowercase_letter(&event->key))
+    else if (key == SDLK_M && lowercase_letter(&event->key, key))
         command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
             .sex = SV_BIRTH_SEX_MALE};
-    else if (key == SDLK_F && lowercase_letter(&event->key))
+    else if (key == SDLK_F && lowercase_letter(&event->key, key))
         command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
             .sex = SV_BIRTH_SEX_FEMALE};
-    else if (key == SDLK_ASTERISK || key == SDLK_KP_MULTIPLY)
+    else if ((key == SDLK_ASTERISK || key == SDLK_KP_MULTIPLY) &&
+        symbol_modifiers(&event->key))
         command = (SvBirthCommand){.kind = SV_BIRTH_RANDOM};
-    else if (key == SDLK_HASH)
+    else if (key == SDLK_HASH && symbol_modifiers(&event->key))
         command = (SvBirthCommand){.kind = SV_BIRTH_DNA};
-    else if (key == SDLK_PERCENT)
+    else if (key == SDLK_PERCENT && symbol_modifiers(&event->key))
         command = (SvBirthCommand){.kind = SV_BIRTH_AUTOMATIC_DNA};
     else if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
         command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};

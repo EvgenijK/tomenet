@@ -709,3 +709,39 @@ router regression matrix for navigation, compatibility, flags, confirmation,
 backtracking, quit, interleaved events, disconnect and stale-generation send
 suppression. These are requirements for the future helper work and are not
 claimed as passed by this documentation-only record.
+
+## Consolidate SV native birth owner dispatch
+
+**Status:** proposed separately as future SV-local work only. This record does
+not implement the refactor, change production or test behavior, touch
+legacy/shared code, or widen the accepted SV-B-023 scope. None of the future
+checks below is claimed as run or passed here.
+
+**Problem:** native birth presentation and input repeat owner-specific dispatch
+across choice counting, highlighted identity lookup, identity-to-position
+mapping, semantic selection, and six near-identical mouse select/double-click
+confirm branches. A new owner or owner-specific correction can therefore be
+added to one dispatch site but omitted from another even though each path is
+describing the same active birth owner.
+
+**Affected code:** `src/client/sv/input/native-birth.c`, specifically
+`choice_count`, `highlighted_identity`, `highlighted_position`,
+`select_position`, and the class/race/trait/body/stats/mode mouse branches in
+`sv_native_birth_event`.
+
+**Proposal:** in a separate task, introduce one narrowly scoped SV-local owner
+descriptor/helper boundary for presentation lookup and mouse selection. Keep
+owner-specific identities, legal lists, command kinds, double-click confirmation
+and stable-highlight semantics explicit. Do not move birth rules into the UI,
+share the implementation with legacy code, or combine this cleanup with new
+birth capability work.
+
+**Required checks:** exercise single-click selection and double-click
+confirmation for class, race, trait, body, stats and mode through the production
+`sv_endpoint_run` input path; verify legal-list identities, viewport positions,
+stable highlighting, owner transitions, draft state and send suppression in both
+class/race compile orders; retain the existing keyboard, Guide, backtracking,
+interleaving, disconnect and stale-generation regression matrix; and run the
+applicable future `sv-build`, `sv-core` and `controller-review` checks. These
+checks belong to the future refactor and remain unrun by this documentation-only
+record.

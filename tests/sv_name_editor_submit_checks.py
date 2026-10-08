@@ -74,14 +74,15 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     subprocess.run(
         [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-Wall", "-Wextra", "-Werror",
          "-fsanitize=address,undefined", "-Isrc/client/sv", *SOURCES, *FLAGS,
-         "-o", str(binary)],
+         "-Wl,--wrap=SDL_GetKeyFromScancode", "-o", str(binary)],
         cwd=ROOT,
         check=True,
     )
     subprocess.run(
         [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-DSV_CLASS_BEFORE_RACE=0",
          "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined",
-         "-Isrc/client/sv", *SOURCES, *FLAGS, "-o", str(alternate_binary)],
+         "-Isrc/client/sv", *SOURCES, *FLAGS,
+         "-Wl,--wrap=SDL_GetKeyFromScancode", "-o", str(alternate_binary)],
         cwd=ROOT,
         check=True,
     )
@@ -142,7 +143,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "case-sensitive-mode-uppercase-reject",
                  "case-sensitive-mode-ordinary-hellish",
                  "case-sensitive-mode-dedicated-hellish",
-                 "navigate", "mouse", "random", "keypad-random", "dna",
+                 "navigate", "mouse", "random", "keypad-random",
+                 "level5-random", "altgr-dna", "dna",
                  "dna-missing", "quit",
                  "ctrl-quit", "class-random-empty", "hidden-derived",
                  "hidden-derived-back",
@@ -254,7 +256,8 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "alternate-trait-back", "alternate-body-back",
                  "alternate-class-back", "alternate-class-back-no-body",
                  "alternate-class-back-no-trait-body", "alternate-navigate",
-                 "alternate-random", "alternate-dna",
+                 "alternate-random", "level5-random", "altgr-dna",
+                 "alternate-dna",
                  "alternate-class-dna-incompatible", "class-random-empty",
                  "hidden-derived",
                  "hidden-derived-base-mismatch",
