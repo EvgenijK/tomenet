@@ -129,10 +129,15 @@ static int dna_visible_class(const SvBirth *birth, int server_class)
 
 static bool legal_trait(const SvBirth *birth, int trait_id)
 {
-    if (birth->post_mode_trait_required)
-        return birth->chosen_race == maia_race_id(birth) &&
-            (trait_id == 14 || trait_id == 15) &&
-            trait_id < birth->setup->trait_count;
+    if (birth->post_mode_trait_required) {
+        if (trait_id <= 0 || trait_id >= birth->setup->trait_count ||
+            birth->chosen_race != maia_race_id(birth))
+            return false;
+        if (trait_id == 14 || trait_id == 15) return true;
+        return birth->chosen_race < 32 &&
+            (birth->setup->traits[trait_id].choice &
+             (1u << (unsigned)birth->chosen_race)) != 0;
+    }
     if (trait_id <= 0 || trait_id >= birth->setup->trait_count ||
         birth->chosen_race < 0 || birth->chosen_race >= 32 ||
         !legal_race(birth, birth->chosen_race))
