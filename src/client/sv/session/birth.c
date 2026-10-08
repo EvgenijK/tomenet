@@ -43,14 +43,20 @@ static bool legal_class(const SvBirth *birth, int class_id)
 #endif
 }
 
+static int resolved_class(const SvBirth *birth, int visible_class, int race_id);
+
 static bool legal_race(const SvBirth *birth, int race_id)
 {
     if (race_id < 0 || race_id >= birth->setup->race_count) return false;
 #if SV_CLASS_BEFORE_RACE
     if (birth->chosen_visible_class < 0 || birth->chosen_visible_class >= 32)
         return false;
-    return (birth->setup->races[race_id].choice &
-            (1u << (unsigned)birth->chosen_visible_class)) != 0;
+    if (!(birth->setup->races[race_id].choice &
+          (1u << (unsigned)birth->chosen_visible_class)))
+        return false;
+    return birth->requested_class == SV_BIRTH_CLASS_NONE ||
+        resolved_class(birth, birth->chosen_visible_class, race_id) ==
+        birth->requested_class;
 #else
     return compatible_race(birth->setup, (unsigned)race_id);
 #endif

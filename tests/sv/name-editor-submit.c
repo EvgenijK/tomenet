@@ -642,7 +642,11 @@ static bool hidden_dna_race_mismatch_case(const char *mode)
 {
     return !strcmp(mode, "auto-dna-hidden-race-mismatch") ||
         !strcmp(mode, "auto-dna-hidden-race-reject-stable") ||
-        !strcmp(mode, "hidden-derived-dna-race-mismatch");
+        !strcmp(mode, "hidden-derived-dna-race-mismatch") ||
+        !strcmp(mode, "hidden-derived-dna-race-direct") ||
+        !strcmp(mode, "hidden-derived-dna-race-mouse") ||
+        !strcmp(mode, "hidden-derived-dna-race-navigate") ||
+        !strcmp(mode, "hidden-derived-dna-race-random");
 }
 
 static void push_to_pvp_maia_mode(void)
@@ -2114,6 +2118,23 @@ static int peer_run(void *opaque)
         push_mouse_body(340.0f, 2);
         push_mouse_class(340.0f, 2);
 #endif
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "hidden-derived-dna-race-direct") ||
+               !strcmp(peer->mode, "hidden-derived-dna-race-mouse") ||
+               !strcmp(peer->mode, "hidden-derived-dna-race-navigate") ||
+               !strcmp(peer->mode, "hidden-derived-dna-race-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        if (!strcmp(peer->mode, "hidden-derived-dna-race-direct"))
+            push_key(SDLK_B, 0);
+        else if (!strcmp(peer->mode, "hidden-derived-dna-race-mouse"))
+            push_mouse_race(380.0f, 1);
+        else if (!strcmp(peer->mode, "hidden-derived-dna-race-navigate"))
+            push_key(SDLK_RIGHT, 0);
+        else
+            push_random();
+        if (strcmp(peer->mode, "hidden-derived-dna-race-random"))
+            push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-dna") ||
                !strcmp(peer->mode, "hidden-derived-dna-race-compatible") ||
@@ -3659,6 +3680,27 @@ int main(int argc, char **argv)
                outcome.birth_highlighted_race == 0);
         assert(outcome.birth_illegal_ignored &&
                !outcome.birth_auto_reincarnation);
+    } else if (!strcmp(argv[3], "hidden-derived-dna-race-direct") ||
+               !strcmp(argv[3], "hidden-derived-dna-race-mouse") ||
+               !strcmp(argv[3], "hidden-derived-dna-race-navigate") ||
+               !strcmp(argv[3], "hidden-derived-dna-race-random")) {
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_class == 1 && outcome.birth_highlighted_class == 0);
+        assert(outcome.birth_race_confirmed && !outcome.birth_race_dna_used);
+        assert(outcome.birth_race == 0 && outcome.birth_highlighted_race == 0);
+        assert(outcome.birth_legal_race_count == 1 &&
+               outcome.birth_legal_races[0] == 0);
+        if (!strcmp(argv[3], "hidden-derived-dna-race-direct"))
+            assert(outcome.birth_illegal_ignored);
+        else if (!strcmp(argv[3], "hidden-derived-dna-race-mouse"))
+            assert(!outcome.birth_mouse_navigated &&
+                   outcome.birth_illegal_ignored);
+        else if (!strcmp(argv[3], "hidden-derived-dna-race-navigate"))
+            assert(outcome.birth_keyboard_navigated && !outcome.birth_illegal_ignored);
+        else
+            assert(outcome.birth_race_random_used &&
+                   !outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "hidden-derived-dna-missing") ||
                !strcmp(argv[3], "hidden-derived-dna-incompatible") ||
                !strcmp(argv[3], "hidden-derived-dna-stale")) {
