@@ -680,6 +680,7 @@ int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
 	return(matches);
 }
 
+
 /*
  * Trap flags (PernAngband)
  */
@@ -1029,6 +1030,32 @@ cptr esp_flags[] = {
 	"R_ESP_ANY",
 	"ESP_ALL",
 };
+
+
+/* Resolve a real, unambiguous k_info flag, excluding trap aliases. */
+int lookup_room_template_item_flag(cptr name, int *set, u32b *mask) {
+	static cptr *tables[ROOM_TEMPLATE_ITEM_FLAG_SETS] = {
+		[ROOM_TEMPLATE_ITEM_FLAGS1] = k_info_flags1,
+		[ROOM_TEMPLATE_ITEM_FLAGS2] = k_info_flags2,
+		[ROOM_TEMPLATE_ITEM_FLAGS3] = k_info_flags3,
+		[ROOM_TEMPLATE_ITEM_FLAGS4] = k_info_flags4,
+		[ROOM_TEMPLATE_ITEM_FLAGS5] = k_info_flags5,
+		[ROOM_TEMPLATE_ITEM_FLAGS6] = k_info_flags6,
+		[ROOM_TEMPLATE_ITEM_FLAGS_ESP] = esp_flags
+	};
+	int family, bit, matches = 0;
+
+	if (!name || !name[0] || !strncmp(name, "XXX", 3)) return(0);
+	for (family = 0; family < ROOM_TEMPLATE_ITEM_FLAG_SETS; family++) {
+		for (bit = 0; bit < 32; bit++) {
+			if (!tables[family][bit] || !streq(name, tables[family][bit])) continue;
+			matches++;
+			*set = family;
+			*mask = (1U << bit);
+		}
+	}
+	return(matches);
+}
 
 /* Specially handled properties for ego-items */
 
@@ -9367,6 +9394,13 @@ static int i = 0;
 #endif
 
 int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
+	(void)name;
+	(void)set;
+	(void)mask;
+	return(0);
+}
+
+int lookup_room_template_item_flag(cptr name, int *set, u32b *mask) {
 	(void)name;
 	(void)set;
 	(void)mask;

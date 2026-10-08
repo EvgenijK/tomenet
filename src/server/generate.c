@@ -2532,6 +2532,118 @@ static int room_template_place_monster(worldpos *wpos, int y, int x,
 }
 
 
+static room_template_item_profile *room_template_item_profile_hook;
+static int room_template_item_depth_hook;
+
+
+static int room_template_item_okay(int k_idx, u64b resf) {
+	if (k_info[k_idx].level > room_template_item_depth_hook) return(0);
+	if (!room_template_item_profile_matches(room_template_item_profile_hook,
+	    k_idx)) return(0);
+	return(room_template_item_quality_weight(k_idx, resf,
+		room_template_item_profile_hook->quality));
+}
+
+
+static int room_template_pick_item(room_template_item_profile *profile,
+		int depth) {
+	int (*old_hook)(int k_idx, u64b resf) = get_obj_num_hook;
+	int k_idx;
+
+	if (profile->tval_defined && profile->sval_defined) {
+		k_idx = lookup_kind(profile->tval, profile->sval);
+		init_match_theme(default_obj_theme);
+		if (!k_idx || k_info[k_idx].level > depth ||
+		    (k_info[k_idx].flags5 & TR5_WINNERS_ONLY) ||
+		    !kind_is_legal(k_idx, RESF_NONE)) return(0);
+		return(k_idx);
+	}
+
+	init_match_theme(default_obj_theme);
+	room_template_item_profile_hook = profile;
+	room_template_item_depth_hook = depth;
+	get_obj_num_hook = room_template_item_okay;
+	get_obj_num_prep(RESF_NONE);
+	k_idx = get_obj_num(depth, RESF_NONE);
+	get_obj_num_hook = old_hook;
+	room_template_item_profile_hook = NULL;
+	get_obj_num_prep(RESF_NONE);
+	return(k_idx);
+}
+
+
+static bool room_template_carry_item(worldpos *wpos, int y, int x,
+		object_type *forge) {
+	cave_type **zcave = getcave(wpos);
+	cave_type *cell;
+	object_type *item;
+	int i, o_idx;
+	u32b f1, f2, f3, f4, f5, f6, esp;
+
+	if (!zcave || !in_bounds(y, x) || !cave_clean_bold(zcave, y, x))
+		return(FALSE);
+	cell = &zcave[y][x];
+	object_flags(forge, &f1, &f2, &f3, &f4, &f5, &f6, &esp);
+	if (feat_is_water(cell->feat) && hates_water(forge) &&
+	    !(f5 & TR5_IGNORE_WATER)) return(FALSE);
+	if ((feat_is_fire(cell->feat) || feat_is_lava(cell->feat)) &&
+	    hates_fire(forge) && !(f3 & TR3_IGNORE_FIRE)) return(FALSE);
+	o_idx = o_pop();
+	if (!o_idx) return(FALSE);
+	item = &o_list[o_idx];
+	object_copy(item, forge);
+	item->iy = y;
+	item->ix = x;
+	wpcopy(&item->wpos, wpos);
+	item->marked = 0;
+	item->marked2 = ITEM_REMOVAL_NEVER;
+	item->held_m_idx = 0;
+	item->next_o_idx = 0;
+	item->stack_pos = 0;
+	cell->o_idx = o_idx;
+	for (i = 1; i <= NumPlayers; i++) Players[i]->obj_vis[o_idx] = FALSE;
+	note_spot_depth(wpos, y, x);
+	everyone_lite_spot(wpos, y, x);
+	return(TRUE);
+}
+
+
+static bool room_template_place_item(worldpos *wpos, int y, int x,
+		room_template_item_profile *profile) {
+	object_type forge;
+	cave_type **zcave = getcave(wpos);
+	int depth = getlevel(wpos);
+	int k_idx;
+	bool good = profile->quality != ROOM_TEMPLATE_ITEM_NORMAL;
+	bool great = profile->quality == ROOM_TEMPLATE_ITEM_GREAT;
+
+	/* Reject the target before creation so a failed cell has no item side effects. */
+	if (!zcave || !cave_clean_bold(zcave, y, x)) return(FALSE);
+	k_idx = room_template_pick_item(profile, depth);
+	if (!k_idx) return(FALSE);
+	invcopy(&forge, k_idx);
+	apply_magic(wpos, &forge, depth, TRUE, good, great, FALSE, RESF_NONE);
+	if (!forge.k_idx) return(FALSE);
+	if (!forge.name1) {
+		switch (forge.tval) {
+		case TV_SPIKE:
+			forge.number = damroll(6, 7);
+			break;
+		case TV_SHOT:
+		case TV_ARROW:
+		case TV_BOLT:
+			forge.number = forge.sval == SV_AMMO_MAGIC ? 1 : damroll(6, 7);
+			if (forge.name2 == EGO_ETHEREAL || forge.name2b == EGO_ETHEREAL)
+				forge.number /= ETHEREAL_AMMO_REDUCTION;
+			if (!forge.number) forge.number = 1;
+			if (forge.sval == SV_AMMO_CHARRED) forge.number = randint(6);
+			break;
+		}
+	}
+	return(room_template_carry_item(wpos, y, x, &forge));
+}
+
+
 /* Try every rotation/reflection at one block; commit only after preflight. */
 bool build_room_template(worldpos *wpos, int by0, int bx0,
 		room_template_type *room) {
@@ -2650,7 +2762,17 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			dun->cent_n++;
 		}
 
-		/* Item placement precedes this phase once item profiles are implemented. */
+		/* Items are independent primaries and never move away from their marker. */
+		for (sy = 0; sy < room->hgt; sy++) {
+			for (sx = 0; sx < room->wid; sx++) {
+				unsigned char symbol = room->item_map[sy * room->wid + sx];
+
+				if (symbol == '_') continue;
+				room_template_transform(room, orientation, sx, sy, &dx, &dy);
+				(void)room_template_place_item(wpos, top + dy, left + dx,
+					&room->item_profiles[symbol]);
+			}
+		}
 		for (sy = 0; sy < room->hgt; sy++) {
 			for (sx = 0; sx < room->wid; sx++) {
 				unsigned char symbol = room->monster_map[sy * room->wid + sx];

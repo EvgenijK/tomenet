@@ -1856,6 +1856,203 @@ static errr room_template_validate_monster_profiles(cptr path,
 }
 
 
+static u32b room_template_item_kind_flags(object_kind *kind, int set) {
+	switch (set) {
+	case ROOM_TEMPLATE_ITEM_FLAGS1: return(kind->flags1);
+	case ROOM_TEMPLATE_ITEM_FLAGS2: return(kind->flags2);
+	case ROOM_TEMPLATE_ITEM_FLAGS3: return(kind->flags3);
+	case ROOM_TEMPLATE_ITEM_FLAGS4: return(kind->flags4);
+	case ROOM_TEMPLATE_ITEM_FLAGS5: return(kind->flags5);
+	case ROOM_TEMPLATE_ITEM_FLAGS6: return(kind->flags6);
+	default: return(kind->esp);
+	}
+}
+
+
+bool room_template_item_profile_matches(
+		room_template_item_profile *profile, int k_idx) {
+	object_kind *kind;
+	int i;
+
+	if (k_idx <= 0 || k_idx >= max_k_idx || !k_info[k_idx].name) return(FALSE);
+	kind = &k_info[k_idx];
+	if (profile->tval_defined && kind->tval != profile->tval) return(FALSE);
+	if (profile->sval_defined && kind->sval != profile->sval) return(FALSE);
+	if (profile->level_defined &&
+	    (kind->level < profile->min_level || kind->level > profile->max_level))
+		return(FALSE);
+	if (profile->glyph_defined && kind->k_char != (unsigned char)profile->glyph)
+		return(FALSE);
+	for (i = 0; i < ROOM_TEMPLATE_ITEM_FLAG_SETS; i++) {
+		if ((room_template_item_kind_flags(kind, i) & profile->flags[i]) !=
+		    profile->flags[i]) return(FALSE);
+	}
+	return(TRUE);
+}
+
+
+static void room_template_init_item_profiles(room_template_type *room) {
+	int i;
+
+	for (i = 0; i < 128; i++) {
+		room->item_profiles[i].tval = -1;
+		room->item_profiles[i].sval = -1;
+		room->item_profiles[i].min_level = -1;
+		room->item_profiles[i].max_level = -1;
+		room->item_profiles[i].quality = ROOM_TEMPLATE_ITEM_NORMAL;
+	}
+}
+
+
+static errr room_template_parse_item_profile(cptr path, int line,
+		char *buf, room_template_type *room) {
+	room_template_item_profile *profile;
+	unsigned char symbol;
+	char *field, *value, *second;
+	long parsed, parsed2;
+	int set, matches;
+	u32b mask;
+
+	if (strlen(buf) < 4 || buf[3] != ':')
+		return(room_template_error(path, line, "invalid I directive"));
+	symbol = (unsigned char)buf[2];
+	if (!room_template_symbol(symbol))
+		return(room_template_error(path, line, "invalid item profile symbol"));
+	profile = &room->item_profiles[symbol];
+	if (!profile->defined) profile->line = line;
+	profile->defined = TRUE;
+	field = buf + 4;
+	if (!field[0]) {
+		if (profile->empty_declared)
+			return(room_template_error(path, line,
+				"duplicate empty item profile declaration"));
+		profile->empty_declared = TRUE;
+		return(0);
+	}
+	value = strchr(field, ':');
+	if (!value)
+		return(room_template_error(path, line, "item profile field has no value"));
+	*value++ = '\0';
+
+	if (streq(field, "tval")) {
+		if (profile->tval_defined || !room_template_number(value, 0, 255, &parsed))
+			return(room_template_error(path, line, "invalid or duplicate item tval"));
+		profile->tval_defined = TRUE;
+		profile->tval = parsed;
+		return(0);
+	}
+	if (streq(field, "sval")) {
+		if (profile->sval_defined || !room_template_number(value, 0, 255, &parsed))
+			return(room_template_error(path, line, "invalid or duplicate item sval"));
+		profile->sval_defined = TRUE;
+		profile->sval = parsed;
+		return(0);
+	}
+	if (streq(field, "level")) {
+		second = strchr(value, ':');
+		if (profile->level_defined || !second)
+			return(room_template_error(path, line,
+				"invalid or duplicate item level range"));
+		*second++ = '\0';
+		if (!room_template_number(value, 0, 254, &parsed) ||
+		    !room_template_number(second, parsed, 254, &parsed2))
+			return(room_template_error(path, line, "invalid item level range"));
+		profile->level_defined = TRUE;
+		profile->min_level = parsed;
+		profile->max_level = parsed2;
+		return(0);
+	}
+	if (streq(field, "flag")) {
+		matches = lookup_room_template_item_flag(value, &set, &mask);
+		if (matches != 1)
+			return(room_template_error(path, line,
+				"unknown, ambiguous, placeholder, or trap-alias item flag"));
+		if (profile->flags[set] & mask)
+			return(room_template_error(path, line, "duplicate item flag"));
+		profile->flags[set] |= mask;
+		return(0);
+	}
+	if (streq(field, "glyph")) {
+		if (profile->glyph_defined || strlen(value) != 1)
+			return(room_template_error(path, line, "invalid or duplicate item glyph"));
+		profile->glyph_defined = TRUE;
+		profile->glyph = value[0];
+		return(0);
+	}
+	if (streq(field, "quality")) {
+		if (profile->quality_defined)
+			return(room_template_error(path, line, "duplicate item quality"));
+		profile->quality_defined = TRUE;
+		if (streq(value, "normal")) profile->quality = ROOM_TEMPLATE_ITEM_NORMAL;
+		else if (streq(value, "good")) profile->quality = ROOM_TEMPLATE_ITEM_GOOD;
+		else if (streq(value, "great")) profile->quality = ROOM_TEMPLATE_ITEM_GREAT;
+		else return(room_template_error(path, line, "invalid item quality"));
+		return(0);
+	}
+	if (streq(field, "ego")) {
+		if (profile->ego_defined || !streq(value, "default"))
+			return(room_template_error(path, line,
+				"only the default item ego mode is supported here"));
+		profile->ego_defined = TRUE;
+		return(0);
+	}
+	return(room_template_error(path, line, "unknown item profile field"));
+}
+
+
+static errr room_template_validate_item_profiles(cptr path,
+		room_template_type *room) {
+	int symbol, i, j;
+	char reason[160];
+
+	init_match_theme(default_obj_theme);
+	for (symbol = 0; symbol < 128; symbol++) {
+		room_template_item_profile *profile = &room->item_profiles[symbol];
+		bool exact, has_flags = FALSE, candidate = FALSE;
+
+		if (!profile->defined) continue;
+		for (i = 0; i < ROOM_TEMPLATE_ITEM_FLAG_SETS; i++)
+			if (profile->flags[i]) has_flags = TRUE;
+		if (profile->sval_defined && !profile->tval_defined) {
+			snprintf(reason, sizeof(reason),
+				"item profile '%c' has sval without tval", symbol);
+			return(room_template_error(path, profile->line, reason));
+		}
+		exact = profile->tval_defined && profile->sval_defined;
+		if (exact && (profile->level_defined || profile->glyph_defined || has_flags)) {
+			snprintf(reason, sizeof(reason),
+				"exact item profile '%c' has random-kind filters", symbol);
+			return(room_template_error(path, profile->line, reason));
+		}
+		if (exact) {
+			if (!lookup_kind(profile->tval, profile->sval)) {
+				snprintf(reason, sizeof(reason),
+					"item profile '%c' references an unknown tval/sval", symbol);
+				return(room_template_error(path, profile->line, reason));
+			}
+			continue;
+		}
+		for (i = 1; i < max_k_idx; i++) {
+			bool allocated = FALSE;
+
+			for (j = 0; j < 4; j++) if (k_info[i].chance[j]) allocated = TRUE;
+			if (!allocated) continue;
+			if (!room_template_item_profile_matches(profile, i)) continue;
+			if (!room_template_item_quality_weight(i, RESF_NONE,
+			    profile->quality)) continue;
+			candidate = TRUE;
+			break;
+		}
+		if (!candidate) {
+			snprintf(reason, sizeof(reason),
+				"item profile '%c' has no static candidates", symbol);
+			return(room_template_error(path, profile->line, reason));
+		}
+	}
+	return(0);
+}
+
+
 static void room_template_discard(room_template_type *room) {
 	int i;
 
@@ -1896,6 +2093,7 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	memset(defined, 0, sizeof(defined));
 	for (i = 0; i < 128; i++) room->terrain_feature[i] = -1;
 	room_template_init_monster_profiles(room);
+	room_template_init_item_profiles(room);
 	room->max_depth = MAX_DEPTH - 1;
 	room->weight = 1;
 
@@ -1957,9 +2155,21 @@ static errr room_template_parse_file(cptr path, cptr filename,
 					}
 				}
 				if (state == ROOM_TEMPLATE_PARSE_ITEMS && symbol != '_') {
-					my_fclose(fp);
-					return(room_template_error(path, line,
-						"item maps must be empty until item profiles are implemented"));
+					int cell = row * room->wid + i;
+					unsigned char terrain = (unsigned char)room->terrain_map[cell];
+
+					if (!room->item_profiles[symbol].defined) {
+						snprintf(reason, sizeof(reason),
+							"item symbol '%c' has no I definition", symbol);
+						my_fclose(fp);
+						return(room_template_error(path, line, reason));
+					}
+					if (terrain == '_' || room->terrain_feature[terrain] < 0 ||
+					    !(f_info[room->terrain_feature[terrain]].flags1 & FF1_FLOOR)) {
+						my_fclose(fp);
+						return(room_template_error(path, line,
+							"item marker must be on active floor terrain"));
+					}
 				}
 				target[row * room->wid + i] = symbol;
 			}
@@ -2178,9 +2388,18 @@ static errr room_template_parse_file(cptr path, cptr filename,
 		}
 
 		if (!strncmp(buf, "I:", 2)) {
-			my_fclose(fp);
-			return(room_template_error(path, line,
-				"item profiles are not implemented yet"));
+			errr r;
+
+			if (!got_name || !got_size || state != ROOM_TEMPLATE_PARSE_HEADER) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "I directive is misplaced"));
+			}
+			r = room_template_parse_item_profile(path, line, buf, room);
+			if (r) {
+				my_fclose(fp);
+				return(r);
+			}
+			continue;
 		}
 
 		if (streq(buf, "DT:")) {
@@ -2208,7 +2427,8 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			return(room_template_error(path, room->entrances[i].source_line,
 				"entrance must be on active passable terrain"));
 	}
-	return(room_template_validate_monster_profiles(path, room));
+	if (room_template_validate_monster_profiles(path, room)) return(1);
+	return(room_template_validate_item_profiles(path, room));
 }
 
 

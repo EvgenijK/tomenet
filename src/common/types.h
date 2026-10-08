@@ -576,6 +576,43 @@ struct room_template_monster_profile {
 	s16b ego_idx;
 };
 
+typedef enum {
+	ROOM_TEMPLATE_ITEM_FLAGS1,
+	ROOM_TEMPLATE_ITEM_FLAGS2,
+	ROOM_TEMPLATE_ITEM_FLAGS3,
+	ROOM_TEMPLATE_ITEM_FLAGS4,
+	ROOM_TEMPLATE_ITEM_FLAGS5,
+	ROOM_TEMPLATE_ITEM_FLAGS6,
+	ROOM_TEMPLATE_ITEM_FLAGS_ESP,
+	ROOM_TEMPLATE_ITEM_FLAG_SETS
+} room_template_item_flag_set;
+
+typedef enum {
+	ROOM_TEMPLATE_ITEM_NORMAL,
+	ROOM_TEMPLATE_ITEM_GOOD,
+	ROOM_TEMPLATE_ITEM_GREAT
+} room_template_item_quality;
+
+typedef struct room_template_item_profile room_template_item_profile;
+struct room_template_item_profile {
+	bool defined;
+	bool empty_declared;
+	bool tval_defined;
+	bool sval_defined;
+	bool level_defined;
+	bool glyph_defined;
+	bool quality_defined;
+	bool ego_defined;
+	int line;
+	s16b tval;
+	s16b sval;
+	s16b min_level;
+	s16b max_level;
+	char glyph;
+	u32b flags[ROOM_TEMPLATE_ITEM_FLAG_SETS];
+	room_template_item_quality quality;
+};
+
 typedef struct room_template_type room_template_type;
 struct room_template_type {
 	char code[64];
@@ -587,6 +624,7 @@ struct room_template_type {
 	u16b weight;
 	s16b terrain_feature[128];
 	room_template_monster_profile monster_profiles[128];
+	room_template_item_profile item_profiles[128];
 	char *terrain_map;
 	char *monster_map;
 	char *item_map;

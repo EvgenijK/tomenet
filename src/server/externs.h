@@ -1118,6 +1118,7 @@ extern errr init_e_info_txt(FILE *fp, char *buf);
 extern errr init_d_info_txt(FILE *fp, char *buf);
 extern errr init_r_info_txt(FILE *fp, char *buf);
 extern int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask);
+extern int lookup_room_template_item_flag(cptr name, int *set, u32b *mask);
 extern errr init_re_info_txt(FILE *fp, char *buf);
 extern errr init_t_info_txt(FILE *fp, char *buf);
 extern errr init_ow_info_txt(FILE *fp, char *buf);
@@ -1128,6 +1129,10 @@ extern errr init_q_info_txt(FILE *fp, char *buf);
 extern errr init_room_templates(void);
 extern bool room_template_monster_profile_matches(
 	room_template_monster_profile *profile, int r_idx, bool fallback);
+extern bool room_template_item_profile_matches(
+	room_template_item_profile *profile, int k_idx);
+extern int room_template_item_quality_weight(int k_idx, u64b resf,
+	room_template_item_quality quality);
 
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);

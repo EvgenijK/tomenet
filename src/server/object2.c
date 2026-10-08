@@ -8283,6 +8283,20 @@ static int kind_is_good_reward(int k_idx, u64b resf) {
 }
 
 
+/* Use the ordinary themed base-kind weights for room-template quality. */
+int room_template_item_quality_weight(int k_idx, u64b resf,
+		room_template_item_quality quality) {
+	switch (quality) {
+	case ROOM_TEMPLATE_ITEM_GOOD:
+		return(kind_is_good(k_idx, resf));
+	case ROOM_TEMPLATE_ITEM_GREAT:
+		return(kind_is_great(k_idx, resf));
+	default:
+		return(kind_is_normal(k_idx, resf));
+	}
+}
+
+
 /* Hack -- inscribe items that a unique drops */
 s32b unique_quark = 0;
 
