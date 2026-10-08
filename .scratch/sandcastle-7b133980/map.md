@@ -18,7 +18,8 @@ Immutable acceptance contract:
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
 [batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json),
-[batch 8](batch-8.json), [batch 12](batch-12.json), [batch 16](batch-16.json).
+[batch 8](batch-8.json), [batch 12](batch-12.json), [batch 16](batch-16.json),
+[batch 20](batch-20.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
@@ -26,6 +27,8 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
+- [Сохранить compatible traits в post-mode PvP Maia](issues/57-retain-compatible-post-mode-maia-traits.md)
+- [Сохранить identities видимого class list](issues/58-preserve-visible-class-choice-identities.md)
 
 ## Decisions so far
 
