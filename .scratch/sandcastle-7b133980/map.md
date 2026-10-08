@@ -19,7 +19,7 @@ Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
 [batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json),
 [batch 8](batch-8.json), [batch 12](batch-12.json), [batch 16](batch-16.json),
-[batch 20](batch-20.json).
+[batch 20](batch-20.json), [batch 22](batch-22.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
@@ -27,6 +27,8 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
+- [Синхронизировать viewport выбора body, stats и mode](issues/60-align-body-stats-mode-choice-viewports.md)
+- [Отразить implementation status SV-B-023](issues/61-report-sv-b-023-implementation-status.md)
 
 ## Decisions so far
 
