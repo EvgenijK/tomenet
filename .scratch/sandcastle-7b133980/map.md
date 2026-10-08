@@ -98,3 +98,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Зафиксировать единый inventory production endpoint test sources](issues/67-record-sv-endpoint-test-source-inventory.md)
 - [Verify focused production coverage](issues/68-focused-test-coverage.md)
 - [Декодировать hidden classes старых серверов](issues/69-decode-legacy-server-hidden-classes.md)
+- [Verify focused production coverage](issues/70-focused-test-coverage.md)
