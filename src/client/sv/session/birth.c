@@ -574,10 +574,15 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
     case SV_BIRTH_BACK:
         birth->chosen_trait = SV_BIRTH_TRAIT_NONE;
         birth->trait_confirmed = false;
-        if (birth->post_mode_trait_required)
-            restart_stats_interaction(birth);
-        birth->owner = birth->post_mode_trait_required ?
-            SV_BIRTH_STATS : SV_BIRTH_RACE;
+        if (birth->post_mode_trait_required) {
+            if (birth->setup->creation_flags <= 1) {
+                restart_stats_interaction(birth);
+                birth->owner = SV_BIRTH_STATS;
+            } else {
+                prepare_modes(birth);
+                birth->owner = SV_BIRTH_MODE;
+            }
+        } else birth->owner = SV_BIRTH_RACE;
         if (birth->owner == SV_BIRTH_RACE)
             birth->chosen_class = birth->chosen_visible_class;
         return SV_BIRTH_INPUT_HANDLED;
