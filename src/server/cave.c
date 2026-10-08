@@ -8893,18 +8893,13 @@ int custom_place_item_module(worldpos *wpos, int y, int x, int tval, int sval,
  * Returns 0 on success.
  */
 bool level_generation_time = FALSE;
-int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
-	player_type *p_ptr;
+int cave_set_feat_resolve(worldpos *wpos, int y, int x, int feat) {
 	cave_type **zcave;
 	cave_type *c_ptr;
-	int i, rad = 0;
-
-	/* for Submerged Ruins: ensure all deep water; also affects Small Water Cave. */
 	dun_level *l_ptr = getfloor(wpos);
 	bool deep_water = l_ptr && (l_ptr->flags1 & LF1_DEEP_WATER);
 
-	if (!(zcave = getcave(wpos))) return(1);
-	if (!in_bounds_array(y, x)) return(2);
+	if (!(zcave = getcave(wpos)) || !in_bounds_array(y, x)) return(-1);
 	c_ptr = &zcave[y][x];
 
 	/* Trees in greater fire become dead trees at once */
@@ -8953,6 +8948,23 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 		default:
 			if (feat_is_shal_water(feat)) feat = FEAT_DEEP_WATER;
 	}
+	return(feat);
+}
+
+
+int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
+	player_type *p_ptr;
+	cave_type **zcave;
+	cave_type *c_ptr;
+	int i, rad = 0;
+
+	if (!(zcave = getcave(wpos))) return(1);
+	if (!in_bounds_array(y, x)) return(2);
+	c_ptr = &zcave[y][x];
+	if (level_generation_time && (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) &&
+	    !is_stair(feat)) return(3);
+	feat = cave_set_feat_resolve(wpos, y, x, feat);
+	if (feat < 0) return(2);
 
 	/* Change the feature */
 	c_ptr->feat = feat;

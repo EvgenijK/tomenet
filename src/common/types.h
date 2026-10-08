@@ -529,6 +529,22 @@ struct vault_type {
 #endif	/* 0 */
 };
 
+/* A data-driven room template loaded from lib/game/room_templates. */
+typedef struct room_template_type room_template_type;
+struct room_template_type {
+	char code[64];
+	char *name;
+	byte wid;
+	byte hgt;
+	byte min_depth;
+	byte max_depth;
+	u16b weight;
+	s16b terrain_feature[128];
+	char *terrain_map;
+	char *monster_map;
+	char *item_map;
+};
+
 typedef struct swear_info {
 	char word[NAME_LEN];
 	int level;

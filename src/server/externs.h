@@ -405,6 +405,8 @@ extern header *v_head;
 extern vault_type *v_info;
 extern char *v_name;
 extern char *v_text;
+extern room_template_type *room_templates;
+extern size_t room_template_count;
 extern header *f_head;
 extern feature_type *f_info;
 extern char *f_name;
@@ -558,6 +560,7 @@ extern c_special *ReplaceCS(cave_type *c_ptr, byte type);
 extern void FreeCS(cave_type *c_ptr);
 extern dun_level *getfloor(struct worldpos *wpos);
 extern int cave_set_feat(worldpos *wpos, int y, int x, int feat);
+extern int cave_set_feat_resolve(worldpos *wpos, int y, int x, int feat);
 extern bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
 extern bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat);
 #ifdef DM_MODULES
@@ -1018,6 +1021,8 @@ extern void arcade_wipe(worldpos *wpos);
 #endif
 
 extern bool room_alloc(worldpos *wpos, int x, int y, bool crowded, int by0, int bx0, int *xx, int *yy);
+extern bool build_room_template(worldpos *wpos, int by0, int bx0,
+	room_template_type *room);
 extern bool dungeon_aux(int r_idx);
 extern bool xorder_aux(int r_idx);
 extern bool xorder_aux_extra;
@@ -1118,6 +1123,7 @@ extern errr init_ba_info_txt(FILE *fp, char *buf);
 extern errr init_st_info_txt(FILE *fp, char *buf);
 extern errr init_s_info_txt(FILE *fp, char *buf);
 extern errr init_q_info_txt(FILE *fp, char *buf);
+extern errr init_room_templates(void);
 
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);

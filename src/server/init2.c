@@ -10,6 +10,8 @@
 
 #include "angband.h"
 
+#include <dirent.h>
+
 
 /*
  * This file is used to initialize various variables and arrays for the
@@ -1621,6 +1623,386 @@ static errr init_v_info(void) {
 	}
 
 	/* Success */
+	return(0);
+}
+
+
+/* Report a room-template error with the location required by the format. */
+static errr room_template_error(cptr path, int line, cptr reason) {
+	s_printf("Room template error in '%s' at line %d: %s.\n", path, line, reason);
+	return(1);
+}
+
+
+static bool room_template_number(cptr text, long min, long max, long *value) {
+	char *end;
+	long parsed;
+
+	if (!text || !text[0]) return(FALSE);
+	errno = 0;
+	parsed = strtol(text, &end, 10);
+	if (errno || *end || parsed < min || parsed > max) return(FALSE);
+	*value = parsed;
+	return(TRUE);
+}
+
+
+static bool room_template_symbol(int symbol) {
+	return(symbol >= 0x21 && symbol <= 0x7e && symbol != ':' && symbol != '_');
+}
+
+
+/* Terrain which needs data or generation context beyond one f_idx is unsafe. */
+static bool room_template_terrain_allowed(int feat) {
+	if (f_info[feat].flags1 & FF1_PERMANENT) return(FALSE);
+	if (is_stair(feat)) return(FALSE);
+	switch (feat) {
+	case FEAT_FOUNTAIN:
+	case FEAT_FOUNTAIN_BLOOD:
+	case FEAT_TRAP:
+	case FEAT_MON_TRAP:
+	case FEAT_SECRET:
+	case FEAT_BETWEEN:
+	case FEAT_BETWEEN_TEMP:
+	case FEAT_SHOP:
+	case FEAT_HOME:
+	case FEAT_HOME_OPEN:
+	case FEAT_QUEST_ENTER:
+	case FEAT_QUEST_EXIT:
+	case FEAT_QUEST_DOWN:
+	case FEAT_QUEST_UP:
+	case FEAT_SHAFT_DOWN:
+	case FEAT_SHAFT_UP:
+	case FEAT_ALPHA:
+		return(FALSE);
+	default:
+		return(TRUE);
+	}
+}
+
+
+static void room_template_discard(room_template_type *room) {
+	if (room->name) string_free(room->name);
+	if (room->terrain_map) free(room->terrain_map);
+	if (room->monster_map) free(room->monster_map);
+	if (room->item_map) free(room->item_map);
+	memset(room, 0, sizeof(*room));
+}
+
+
+typedef enum {
+	ROOM_TEMPLATE_PARSE_HEADER,
+	ROOM_TEMPLATE_PARSE_TERRAIN,
+	ROOM_TEMPLATE_PARSE_MONSTER_MARKER,
+	ROOM_TEMPLATE_PARSE_MONSTERS,
+	ROOM_TEMPLATE_PARSE_ITEM_MARKER,
+	ROOM_TEMPLATE_PARSE_ITEMS,
+	ROOM_TEMPLATE_PARSE_DONE
+} room_template_parse_state;
+
+
+static errr room_template_parse_file(cptr path, cptr filename,
+		room_template_type *room, int *code_line) {
+	FILE *fp;
+	char buf[1024], reason[256], file_code[64];
+	bool got_version = FALSE, got_name = FALSE, got_size = FALSE;
+	bool got_depth = FALSE, got_weight = FALSE, defined[128];
+	room_template_parse_state state = ROOM_TEMPLATE_PARSE_HEADER;
+	int row = 0, line = 0, i;
+	long value, value2;
+	size_t cells;
+
+	memset(room, 0, sizeof(*room));
+	*code_line = 0;
+	memset(defined, 0, sizeof(defined));
+	for (i = 0; i < 128; i++) room->terrain_feature[i] = -1;
+	room->max_depth = MAX_DEPTH - 1;
+	room->weight = 1;
+
+	if (strlen(filename) < 5 || !suffix(filename, ".txt") ||
+	    strlen(filename) - 4 >= sizeof(file_code))
+		return(room_template_error(path, 0, "filename must be <code>.txt"));
+	strncpy(file_code, filename, strlen(filename) - 4);
+	file_code[strlen(filename) - 4] = '\0';
+
+	fp = my_fopen(path, "r");
+	if (!fp) return(room_template_error(path, 0, "cannot open file"));
+
+	while (0 == my_fgets(fp, buf, sizeof(buf), FALSE)) {
+		char *first, *second;
+
+		line++;
+
+		/* Map rows are data, even when they begin with '#'. */
+		if (state == ROOM_TEMPLATE_PARSE_TERRAIN ||
+		    state == ROOM_TEMPLATE_PARSE_MONSTERS ||
+		    state == ROOM_TEMPLATE_PARSE_ITEMS) {
+			char *target = state == ROOM_TEMPLATE_PARSE_TERRAIN ? room->terrain_map :
+				state == ROOM_TEMPLATE_PARSE_MONSTERS ? room->monster_map : room->item_map;
+
+			if ((int)strlen(buf) != room->wid) {
+				snprintf(reason, sizeof(reason), "map row has width %lu, expected %d",
+					(unsigned long)strlen(buf), room->wid);
+				my_fclose(fp);
+				return(room_template_error(path, line, reason));
+			}
+			for (i = 0; i < room->wid; i++) {
+				unsigned char symbol = (unsigned char)buf[i];
+
+				if (symbol < 0x21 || symbol > 0x7e || symbol == ':') {
+					my_fclose(fp);
+					return(room_template_error(path, line, "invalid map symbol"));
+				}
+				if (state == ROOM_TEMPLATE_PARSE_TERRAIN &&
+				    symbol != '_' && !defined[symbol]) {
+					snprintf(reason, sizeof(reason), "terrain symbol '%c' has no T definition", symbol);
+					my_fclose(fp);
+					return(room_template_error(path, line, reason));
+				}
+				if (state != ROOM_TEMPLATE_PARSE_TERRAIN && symbol != '_') {
+					my_fclose(fp);
+					return(room_template_error(path, line,
+						"entity maps must be empty until their profiles are defined"));
+				}
+				target[row * room->wid + i] = symbol;
+			}
+			row++;
+			if (row == room->hgt) {
+				state++;
+				row = 0;
+			}
+			continue;
+		}
+
+		if (!buf[0] || buf[0] == '#') continue;
+
+		if (state == ROOM_TEMPLATE_PARSE_MONSTER_MARKER) {
+			if (!streq(buf, "DM:")) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "expected DM: after terrain map"));
+			}
+			state = ROOM_TEMPLATE_PARSE_MONSTERS;
+			continue;
+		}
+		if (state == ROOM_TEMPLATE_PARSE_ITEM_MARKER) {
+			if (!streq(buf, "DI:")) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "expected DI: after monster map"));
+			}
+			state = ROOM_TEMPLATE_PARSE_ITEMS;
+			continue;
+		}
+		if (state == ROOM_TEMPLATE_PARSE_DONE) {
+			my_fclose(fp);
+			return(room_template_error(path, line, "unexpected content after item map"));
+		}
+
+		if (streq(buf, "V:1")) {
+			if (got_version || got_name || got_size) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "V:1 must be the first directive"));
+			}
+			got_version = TRUE;
+			continue;
+		}
+		if (!got_version) {
+			my_fclose(fp);
+			return(room_template_error(path, line, "missing V:1 before data"));
+		}
+
+		if (!strncmp(buf, "N:", 2)) {
+			first = strchr(buf + 2, ':');
+			if (got_name || !first || first == buf + 2 || !first[1]) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "invalid or duplicate N directive"));
+			}
+			*first++ = '\0';
+			if (strlen(buf + 2) > 63 || !islower((unsigned char)buf[2])) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "code must be lower_snake_case and at most 63 bytes"));
+			}
+			for (i = 2; buf[i]; i++) if (!(islower((unsigned char)buf[i]) ||
+				isdigit((unsigned char)buf[i]) || buf[i] == '_')) break;
+			if (buf[i]) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "code must be lower_snake_case"));
+			}
+			strcpy(room->code, buf + 2);
+			if (!streq(room->code, file_code)) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "code does not match filename"));
+			}
+			room->name = string_make(first);
+			if (!room->name) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "out of memory"));
+			}
+			*code_line = line;
+			got_name = TRUE;
+			continue;
+		}
+
+		if (!strncmp(buf, "S:", 2)) {
+			first = strchr(buf + 2, ':');
+			if (!got_name || got_size || !first) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "invalid, duplicate, or misplaced S directive"));
+			}
+			*first++ = '\0';
+			if (!room_template_number(buf + 2, 1, 80, &value) ||
+			    !room_template_number(first, 1, 80, &value2) ||
+			    MIN(value, value2) > 40 || MAX(value, value2) > 80) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "size must fit within 40 by 80 cells"));
+			}
+			room->wid = value;
+			room->hgt = value2;
+			cells = (size_t)room->wid * room->hgt;
+			room->terrain_map = malloc(cells);
+			room->monster_map = malloc(cells);
+			room->item_map = malloc(cells);
+			if (!room->terrain_map || !room->monster_map || !room->item_map) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "out of memory"));
+			}
+			got_size = TRUE;
+			continue;
+		}
+
+		if (!strncmp(buf, "P:", 2)) {
+			if (!got_name || !got_size) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "P directive precedes N or S"));
+			}
+			if (!strncmp(buf + 2, "depth:", 6)) {
+				first = buf + 8;
+				second = strchr(first, ':');
+				if (got_depth || !second) {
+					my_fclose(fp);
+					return(room_template_error(path, line, "invalid or duplicate P:depth"));
+				}
+				*second++ = '\0';
+				if (!room_template_number(first, 1, MAX_DEPTH - 1, &value) ||
+				    !room_template_number(second, value, MAX_DEPTH - 1, &value2)) {
+					my_fclose(fp);
+					return(room_template_error(path, line, "invalid P:depth range"));
+				}
+				room->min_depth = value;
+				room->max_depth = value2;
+				got_depth = TRUE;
+				continue;
+			}
+			if (!strncmp(buf + 2, "weight:", 7)) {
+				if (got_weight || !room_template_number(buf + 9, 1, 1000, &value)) {
+					my_fclose(fp);
+					return(room_template_error(path, line, "invalid or duplicate P:weight"));
+				}
+				room->weight = value;
+				got_weight = TRUE;
+				continue;
+			}
+			my_fclose(fp);
+			return(room_template_error(path, line, "unknown P directive"));
+		}
+
+		if (!strncmp(buf, "T:", 2)) {
+			unsigned char symbol;
+
+			if (!got_name || !got_size || strlen(buf) < 5 || buf[3] != ':') {
+				my_fclose(fp);
+				return(room_template_error(path, line, "invalid T directive"));
+			}
+			symbol = (unsigned char)buf[2];
+			if (!room_template_symbol(symbol) || defined[symbol] ||
+			    !room_template_number(buf + 4, 0, MAX_F_IDX - 1, &value)) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "invalid or duplicate terrain definition"));
+			}
+			if (value >= max_f_idx || !f_info[value].name) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "terrain references an unknown f_idx"));
+			}
+			if (!room_template_terrain_allowed(value)) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "terrain needs extra context or is permanent"));
+			}
+			defined[symbol] = TRUE;
+			room->terrain_feature[symbol] = value;
+			continue;
+		}
+
+		if (!strncmp(buf, "M:", 2) || !strncmp(buf, "I:", 2) ||
+		    !strncmp(buf, "E:", 2)) {
+			my_fclose(fp);
+			return(room_template_error(path, line,
+				"entity profiles and entrances are not part of terrain placement"));
+		}
+
+		if (streq(buf, "DT:")) {
+			if (!got_name || !got_size) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "DT precedes required header"));
+			}
+			state = ROOM_TEMPLATE_PARSE_TERRAIN;
+			continue;
+		}
+
+		my_fclose(fp);
+		return(room_template_error(path, line, "unknown directive"));
+	}
+
+	my_fclose(fp);
+	if (!got_version || !got_name || !got_size ||
+	    state != ROOM_TEMPLATE_PARSE_DONE)
+		return(room_template_error(path, line + 1, "incomplete template or missing map rows"));
+	return(0);
+}
+
+
+/* Load each <code>.txt file from the room-template catalog. */
+errr init_room_templates(void) {
+	DIR *dir;
+	struct dirent *entry;
+	char directory[1024], path[1024];
+
+	path_build(directory, sizeof(directory), ANGBAND_DIR_GAME, "room_templates");
+	dir = opendir(directory);
+	if (!dir) {
+		if (errno == ENOENT) return(0);
+		return(room_template_error(directory, 0, "cannot open directory"));
+	}
+
+	while ((entry = readdir(dir))) {
+		room_template_type room, *grown;
+		int code_line;
+		size_t i;
+
+		if (entry->d_name[0] == '.' || !suffix(entry->d_name, ".txt")) continue;
+		path_build(path, sizeof(path), directory, entry->d_name);
+		if (room_template_parse_file(path, entry->d_name, &room, &code_line)) {
+			room_template_discard(&room);
+			closedir(dir);
+			return(1);
+		}
+		for (i = 0; i < room_template_count; i++) {
+			if (streq(room_templates[i].code, room.code)) {
+				room_template_discard(&room);
+				closedir(dir);
+				return(room_template_error(path, code_line, "duplicate room-template code"));
+			}
+		}
+		grown = realloc(room_templates,
+			(room_template_count + 1) * sizeof(*room_templates));
+		if (!grown) {
+			room_template_discard(&room);
+			closedir(dir);
+			return(room_template_error(path, 0, "out of memory"));
+		}
+		room_templates = grown;
+		room_templates[room_template_count++] = room;
+	}
+
+	closedir(dir);
 	return(0);
 }
 
@@ -3604,6 +3986,10 @@ void init_some_arrays(void) {
 	/* Initialize feature info */
 	s_printf("[Initializing arrays... (features)]\n");
 	if (init_f_info()) quit("Cannot initialize features");
+
+	/* Room-template terrain refers to initialized f_info entries. */
+	s_printf("[Initializing arrays... (room templates)]\n");
+	if (init_room_templates()) quit("Cannot initialize room templates");
 
 	/* Initialize skill info */
 	s_printf("[Initializing arrays... (skills)]\n");

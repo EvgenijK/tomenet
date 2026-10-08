@@ -748,6 +748,9 @@ u16b max_k_idx = 0;
  */
 u16b max_v_idx = 0;
 
+room_template_type *room_templates = NULL;
+size_t room_template_count = 0;
+
 /*
  * Maximum number of terrain features in f_info.txt
  */
