@@ -45,7 +45,11 @@ FIRST_START_CASES = {
 }
 QUIT_CASES = tuple(
     prefix + owner
-    for prefix in ("quit-", "ctrl-quit-")
+    for prefix in ("quit-", "ctrl-quit-", "caps-quit-")
+    for owner in ("sex", "race", "trait", "class", "body", "stats", "mode")
+)
+LOWERCASE_Q_CASES = tuple(
+    "lower-q-" + owner
     for owner in ("sex", "race", "trait", "class", "body", "stats", "mode")
 )
 
@@ -132,6 +136,12 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "mode-pvp-maia", "mode-pvp-maia-back", "mode-rpg",
                  "mode-dedicated-iddc",
                  "mode-dedicated-dna",
+                 "case-sensitive-sex-direct", "case-sensitive-body-direct",
+                 "case-sensitive-stats-direct",
+                 "case-sensitive-mode-lower-h",
+                 "case-sensitive-mode-uppercase-reject",
+                 "case-sensitive-mode-ordinary-hellish",
+                 "case-sensitive-mode-dedicated-hellish",
                  "navigate", "mouse", "random", "dna", "dna-missing", "quit",
                  "ctrl-quit", "class-random-empty", "hidden-derived",
                  "hidden-derived-back",
@@ -141,8 +151,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "hidden-derived-dna-race-compatible",
                  "hidden-derived-dna-race-mismatch",
                  "hidden-derived-dna-incompatible", "hidden-derived-dna-stale",
-                 "long-class-viewport", "long-race-viewport",
-                 "long-trait-viewport",
+                 "long-class-viewport", "case-sensitive-class-binding",
+                 "long-race-viewport", "case-sensitive-race-binding",
+                 "long-trait-viewport", "case-sensitive-trait-binding",
                  "class-navigate", "class-mouse", "class-random",
                  "class-dna", "class-dna-hidden", "class-dna-incompatible",
                  "class-dna-stale", "class-back", "class-ctrl-quit",
@@ -172,7 +183,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound", "stats-point-escape-no-warning",
-                 *QUIT_CASES):
+                 *QUIT_CASES, *LOWERCASE_Q_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         set_profile_startup_state(profile, mode)
@@ -222,6 +233,12 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-order-reenter-partial",
                  "stats-order-reenter-reject",
                  "mode-ctrl-quit", "mode-rpg", "mode-pvp-maia",
+                 "case-sensitive-sex-direct", "case-sensitive-body-direct",
+                 "case-sensitive-stats-direct",
+                 "case-sensitive-mode-lower-h",
+                 "case-sensitive-mode-uppercase-reject",
+                 "case-sensitive-mode-ordinary-hellish",
+                 "case-sensitive-mode-dedicated-hellish",
                  "mode-pvp-maia-back", "mode-pvp-maia-deep-back",
                  "exclusive-pvp-maia-deep-back",
                  "mode-pvp-maia-skip-deep-back",
@@ -243,8 +260,9 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "hidden-derived-dna",
                  "hidden-derived-dna-missing", "hidden-derived-dna-incompatible",
                  "hidden-derived-dna-stale",
-                 "long-class-viewport", "long-race-viewport",
-                 "long-trait-viewport",
+                 "long-class-viewport", "case-sensitive-class-binding",
+                 "long-race-viewport", "case-sensitive-race-binding",
+                 "long-trait-viewport", "case-sensitive-trait-binding",
                  "alternate-mouse", "first-run-body-direct",
                  "first-run-body-reject", "first-run-body-random",
                  "non-first-run-body-manual", "returning-empty-body-manual",
@@ -261,7 +279,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-over-budget", "stats-point-dna-illegal",
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound", "stats-point-escape-no-warning",
-                 *QUIT_CASES):
+                 *QUIT_CASES, *LOWERCASE_Q_CASES):
         if ONLY_CASE and mode != ONLY_CASE:
             continue
         set_profile_startup_state(profile, mode)

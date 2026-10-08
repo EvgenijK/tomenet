@@ -1,5 +1,23 @@
 #include "input/native-birth.h"
 
+static bool letter_key(SDL_Keycode key)
+{
+    return key >= SDLK_A && key <= SDLK_Z;
+}
+
+static bool uppercase_letter(const SDL_KeyboardEvent *event)
+{
+    bool shifted = (event->mod & SDL_KMOD_SHIFT) != 0;
+    bool caps_locked = (event->mod & SDL_KMOD_CAPS) != 0;
+    return letter_key(event->key) && shifted != caps_locked;
+}
+
+static bool lowercase_letter(const SDL_KeyboardEvent *event)
+{
+    return letter_key(event->key) && !(event->mod & SDL_KMOD_CTRL) &&
+        !uppercase_letter(event);
+}
+
 static unsigned choice_count(const SvBirth *birth)
 {
     switch (birth->owner) {
@@ -249,26 +267,33 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
             return SV_BIRTH_INPUT_PLACEHOLDER;
     }
     SvBirthCommand command;
-    if (birth->owner == SV_BIRTH_MODE && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    if (key == SDLK_Q && ((event->key.mod & SDL_KMOD_CTRL) ||
+                         uppercase_letter(&event->key)))
+        return apply(birth, generation, viewport,
+            (SvBirthCommand){.kind = SV_BIRTH_QUIT}, true, false);
+    if (birth->owner == SV_BIRTH_MODE && letter_key(key) &&
+        !(event->key.mod & SDL_KMOD_CTRL)) {
+        bool uppercase = uppercase_letter(&event->key);
         SvBirthMode mode;
         if (birth->dedicated)
-            mode = key == SDLK_I ? SV_BIRTH_MODE_IDDC :
-                key == SDLK_S ? SV_BIRTH_MODE_IDDC_SOLOIST :
-                key == SDLK_H ? SV_BIRTH_MODE_IDDC_HELLISH :
-                key == SDLK_P ? SV_BIRTH_MODE_DEDICATED_PVP : SV_BIRTH_MODE_NONE;
+            mode = uppercase && key == SDLK_H ? SV_BIRTH_MODE_IDDC_HELLISH :
+                !uppercase && key == SDLK_I ? SV_BIRTH_MODE_IDDC :
+                !uppercase && key == SDLK_S ? SV_BIRTH_MODE_IDDC_SOLOIST :
+                !uppercase && key == SDLK_P ? SV_BIRTH_MODE_DEDICATED_PVP :
+                SV_BIRTH_MODE_NONE;
         else
-            mode = key == SDLK_N ? SV_BIRTH_MODE_NORMAL :
-                key == SDLK_G ? SV_BIRTH_MODE_NO_GHOST :
-                key == SDLK_S ? SV_BIRTH_MODE_SOLOIST :
-                key == SDLK_H ? SV_BIRTH_MODE_HELLISH :
-                key == SDLK_E ? SV_BIRTH_MODE_EVERLASTING :
-                key == SDLK_P ? SV_BIRTH_MODE_PVP : SV_BIRTH_MODE_NONE;
+            mode = uppercase && key == SDLK_H ? SV_BIRTH_MODE_HELLISH :
+                !uppercase && key == SDLK_N ? SV_BIRTH_MODE_NORMAL :
+                !uppercase && key == SDLK_G ? SV_BIRTH_MODE_NO_GHOST :
+                !uppercase && key == SDLK_S ? SV_BIRTH_MODE_SOLOIST :
+                !uppercase && key == SDLK_E ? SV_BIRTH_MODE_EVERLASTING :
+                !uppercase && key == SDLK_P ? SV_BIRTH_MODE_PVP :
+                SV_BIRTH_MODE_NONE;
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_MODE, .mode = mode},
             true, false);
-    } else if (birth->owner == SV_BIRTH_STATS && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    } else if (birth->owner == SV_BIRTH_STATS &&
+        lowercase_letter(&event->key)) {
         unsigned stat = (unsigned)(key - SDLK_A);
         if (stat >= 6) {
             birth->illegal_ignored = true;
@@ -277,8 +302,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_STAT, .stat = (int)stat},
             true, false);
-    } else if (birth->owner == SV_BIRTH_BODY && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    } else if (birth->owner == SV_BIRTH_BODY &&
+        lowercase_letter(&event->key)) {
         SvBirthBody body = key == SDLK_N ? SV_BIRTH_BODY_NORMAL :
             key == SDLK_F ? SV_BIRTH_BODY_FRUIT_BAT : SV_BIRTH_BODY_NONE;
         if (body == SV_BIRTH_BODY_NONE) {
@@ -288,8 +313,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_BODY, .body = body},
             true, false);
-    } else if (birth->owner == SV_BIRTH_TRAIT && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    } else if (birth->owner == SV_BIRTH_TRAIT &&
+        lowercase_letter(&event->key)) {
         unsigned position = (unsigned)(key - SDLK_A);
         if (position >= birth->legal_trait_count) {
             birth->illegal_ignored = true;
@@ -298,8 +323,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_TRAIT,
                 .trait_id = birth->legal_traits[position]}, true, false);
-    } else if (birth->owner == SV_BIRTH_RACE && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    } else if (birth->owner == SV_BIRTH_RACE &&
+        lowercase_letter(&event->key)) {
         unsigned id = (unsigned)(key - SDLK_A);
         if (id >= birth->setup->race_count) {
             birth->illegal_ignored = true;
@@ -308,8 +333,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_SELECT_RACE,
                 .race_id = (int)id}, true, false);
-    } else if (birth->owner == SV_BIRTH_CLASS && key != SDLK_Q &&
-        key >= SDLK_A && key <= SDLK_Z) {
+    } else if (birth->owner == SV_BIRTH_CLASS &&
+        lowercase_letter(&event->key)) {
         unsigned position = (unsigned)(key - SDLK_A);
         if (position >= birth->legal_class_count) {
             birth->illegal_ignored = true;
@@ -353,10 +378,10 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_PREVIOUS};
     else if (key == SDLK_DOWN || key == SDLK_RIGHT || key == SDLK_KP_2 || key == SDLK_KP_6)
         command = (SvBirthCommand){.kind = SV_BIRTH_MOVE_NEXT};
-    else if (key == SDLK_M)
+    else if (key == SDLK_M && lowercase_letter(&event->key))
         command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
             .sex = SV_BIRTH_SEX_MALE};
-    else if (key == SDLK_F)
+    else if (key == SDLK_F && lowercase_letter(&event->key))
         command = (SvBirthCommand){.kind = SV_BIRTH_SELECT_SEX,
             .sex = SV_BIRTH_SEX_FEMALE};
     else if (key == SDLK_ASTERISK || key == SDLK_KP_MULTIPLY)
@@ -369,8 +394,6 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         command = (SvBirthCommand){.kind = SV_BIRTH_CONFIRM};
     else if (key == SDLK_BACKSPACE)
         command = (SvBirthCommand){.kind = SV_BIRTH_BACK};
-    else if (key == SDLK_Q || ((event->key.mod & SDL_KMOD_CTRL) && key == SDLK_Q))
-        command = (SvBirthCommand){.kind = SV_BIRTH_QUIT};
     else {
         birth->illegal_ignored = true;
         return SV_BIRTH_INPUT_IGNORED;

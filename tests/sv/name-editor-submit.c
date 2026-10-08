@@ -69,6 +69,11 @@ static void push_key(SDL_Keycode key, SDL_Keymod mod)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_lowercase_q(void)
+{
+    push_key(SDLK_Q, 0);
+}
+
 static void push_stale_key(SDL_Keycode key)
 {
     SDL_Event event = {0};
@@ -252,7 +257,7 @@ static void push_guide_all_owners(void)
     }
     push_key(SDLK_G, 0);
     push_guide_round_trip();
-    push_key(SDLK_Q, 0);
+    push_key(SDLK_Q, SDL_KMOD_SHIFT);
 }
 
 static void push_to_stats(void)
@@ -349,19 +354,32 @@ static void push_to_quit_owner(const char *owner)
     }
 }
 
-static bool quit_matrix_case(const char *mode, const char **owner, bool *control)
+static bool quit_matrix_case(const char *mode, const char **owner,
+                             SDL_Keymod *modifier)
 {
     if (!strncmp(mode, "quit-", 5)) {
         *owner = mode + 5;
-        *control = false;
+        *modifier = SDL_KMOD_SHIFT;
         return true;
     }
     if (!strncmp(mode, "ctrl-quit-", 10)) {
         *owner = mode + 10;
-        *control = true;
+        *modifier = SDL_KMOD_CTRL;
+        return true;
+    }
+    if (!strncmp(mode, "caps-quit-", 10)) {
+        *owner = mode + 10;
+        *modifier = SDL_KMOD_CAPS;
         return true;
     }
     return false;
+}
+
+static bool lowercase_q_matrix_case(const char *mode, const char **owner)
+{
+    if (strncmp(mode, "lower-q-", 8)) return false;
+    *owner = mode + 8;
+    return true;
 }
 
 static SvBirthOwner named_owner(const char *owner)
@@ -433,6 +451,7 @@ static bool exclusive_creation_case(const char *mode)
         !strcmp(mode, "mode-dedicated-unavailable") ||
         !strcmp(mode, "mode-dedicated-iddc") ||
         !strcmp(mode, "mode-dedicated-dna") ||
+        !strcmp(mode, "case-sensitive-mode-dedicated-hellish") ||
         !strcmp(mode, "auto-dna-ordered-mouse-dedicated") ||
         !strcmp(mode, "auto-dna-dedicated-iddc") ||
         !strcmp(mode, "auto-dna-dedicated-pvp-maia") ||
@@ -485,14 +504,44 @@ static bool long_class_case(const char *mode)
     return !strcmp(mode, "long-class-viewport");
 }
 
+static bool case_sensitive_class_case(const char *mode)
+{
+    return !strcmp(mode, "case-sensitive-class-binding");
+}
+
+static bool long_class_setup_case(const char *mode)
+{
+    return long_class_case(mode) || case_sensitive_class_case(mode);
+}
+
 static bool long_race_case(const char *mode)
 {
     return !strcmp(mode, "long-race-viewport");
 }
 
+static bool case_sensitive_race_case(const char *mode)
+{
+    return !strcmp(mode, "case-sensitive-race-binding");
+}
+
+static bool long_race_setup_case(const char *mode)
+{
+    return long_race_case(mode) || case_sensitive_race_case(mode);
+}
+
 static bool long_trait_case(const char *mode)
 {
     return !strcmp(mode, "long-trait-viewport");
+}
+
+static bool case_sensitive_trait_case(const char *mode)
+{
+    return !strcmp(mode, "case-sensitive-trait-binding");
+}
+
+static bool long_trait_setup_case(const char *mode)
+{
+    return long_trait_case(mode) || case_sensitive_trait_case(mode);
 }
 
 static bool existing_character_case(const char *mode)
@@ -597,7 +646,7 @@ static void send_setup(int socket, const char *mode)
                (ssize_t)(at - setup));
         return;
     }
-    if (long_class_case(mode)) {
+    if (long_class_setup_case(mode)) {
         *at++ = 1;
         *at++ = 20;
         *at++ = 1;
@@ -627,9 +676,9 @@ static void send_setup(int socket, const char *mode)
                (ssize_t)(at - setup));
         return;
     }
-    if (long_race_case(mode) || long_trait_case(mode)) {
-        unsigned race_count = long_race_case(mode) ? 20 : 1;
-        unsigned trait_count = long_trait_case(mode) ? 21 : 1;
+    if (long_race_setup_case(mode) || long_trait_setup_case(mode)) {
+        unsigned race_count = long_race_setup_case(mode) ? 20 : 1;
+        unsigned trait_count = long_trait_setup_case(mode) ? 21 : 1;
         *at++ = (unsigned char)race_count;
         *at++ = 1;
         *at++ = (unsigned char)trait_count;
@@ -642,7 +691,7 @@ static void send_setup(int socket, const char *mode)
             snprintf(title, sizeof(title), "Long Race %u", id);
             memcpy(at, title, strlen(title) + 1);
             at += strlen(title) + 1;
-            put32(&at, long_race_case(mode) && id == 12 ? 0u : 1u);
+            put32(&at, long_race_setup_case(mode) && id == 12 ? 0u : 1u);
         }
         memset(at, 50, 6);
         at += 6;
@@ -912,10 +961,53 @@ static int peer_run(void *opaque)
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(150);
     const char *quit_owner = NULL;
-    bool control_quit = false;
-    if (quit_matrix_case(peer->mode, &quit_owner, &control_quit)) {
+    SDL_Keymod quit_modifier = SDL_KMOD_NONE;
+    const char *lowercase_q_owner = NULL;
+    if (lowercase_q_matrix_case(peer->mode, &lowercase_q_owner)) {
+        push_to_quit_owner(lowercase_q_owner);
+        push_lowercase_q();
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-sex-direct")) {
+        push_key(SDLK_M, SDL_KMOD_SHIFT);
+        push_key(SDLK_F, SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-body-direct")) {
+        push_to_quit_owner("body");
+        push_key(SDLK_N, SDL_KMOD_SHIFT);
+        push_key(SDLK_F, SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-stats-direct")) {
+        push_to_quit_owner("stats");
+        for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key)
+            push_key(key, key & 1 ? SDL_KMOD_SHIFT : SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-mode-lower-h")) {
+        push_to_quit_owner("mode");
+        push_key(SDLK_H, 0);
+        push_key(SDLK_H, SDL_KMOD_SHIFT | SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-mode-uppercase-reject")) {
+        push_to_quit_owner("mode");
+        push_key(SDLK_N, SDL_KMOD_SHIFT);
+        push_key(SDLK_G, SDL_KMOD_CAPS);
+        push_key(SDLK_S, SDL_KMOD_SHIFT);
+        push_key(SDLK_E, SDL_KMOD_CAPS);
+        push_key(SDLK_P, SDL_KMOD_SHIFT);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode, "case-sensitive-mode-ordinary-hellish")) {
+        push_to_quit_owner("mode");
+        push_key(SDLK_H, SDL_KMOD_SHIFT);
+        push_key(SDLK_H, SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (!strcmp(peer->mode,
+                       "case-sensitive-mode-dedicated-hellish")) {
+        push_to_quit_owner("mode");
+        push_key(SDLK_H, 0);
+        push_key(SDLK_H, SDL_KMOD_CAPS);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (quit_matrix_case(peer->mode, &quit_owner, &quit_modifier)) {
         push_to_quit_owner(quit_owner);
-        push_key(SDLK_Q, control_quit ? SDL_KMOD_CTRL : 0);
+        push_key(SDLK_Q, quit_modifier);
     } else if (!strcmp(peer->mode, "session-interleave")) {
         push_key(SDLK_F, 0);
         SDL_Delay(50);
@@ -962,19 +1054,19 @@ static int peer_run(void *opaque)
         push_presentation_events();
         push_mouse_mode(420.0f, 1);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "session-stale-input")) {
         push_stale_key(SDLK_RETURN);
         push_stale_key(SDLK_BACKSPACE);
         push_stale_key(SDLK_Q);
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "birth-context-escape")) {
         push_key(SDLK_Z, 0);
         push_key(SDLK_ESCAPE, 0);
         push_key(SDLK_F, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "session-disconnect")) {
         push_key(SDLK_F, 0);
         SDL_Delay(50);
@@ -982,7 +1074,7 @@ static int peer_run(void *opaque)
         SDL_Delay(100);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
         push_key((SDL_Keycode)'?', 0);
         SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
         assert(SDL_PushEvent(&close));
@@ -996,7 +1088,7 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_Q);
         push_stale_key((SDL_Keycode)'?');
         push_key(SDLK_F, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-local-manual")) {
         static const SDL_Keycode order[] = {
             SDLK_B, SDLK_A, SDLK_C, SDLK_D, SDLK_F, SDLK_E
@@ -1007,25 +1099,25 @@ static int peer_run(void *opaque)
             push_key(order[i], 0);
             push_key(SDLK_RETURN, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-local-reject")) {
         push_to_stats();
         push_key(SDLK_PERCENT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-local-partial-reject")) {
         push_to_stats();
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_D, 0);
         push_key(SDLK_PERCENT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-guide-no-op")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_QUESTION, 0);
-        push_key(SDLK_Q, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-partial")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_B, 0);
@@ -1033,11 +1125,11 @@ static int peer_run(void *opaque)
         push_mouse_stats(340.0f, 2);
         push_key(SDLK_D, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-mouse-dedicated")) {
         push_key(SDLK_PERCENT, 0);
         for (unsigned i = 0; i < 6; ++i) push_mouse_stats(340.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-keyboard") ||
                !strcmp(peer->mode, "auto-dna-ordered-mode-missing") ||
                !strcmp(peer->mode, "auto-dna-ordered-mode-illegal")) {
@@ -1051,18 +1143,18 @@ static int peer_run(void *opaque)
             push_key(order[i], 0);
             push_key(SDLK_RETURN, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-suspend")) {
         push_key(SDLK_PERCENT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-hidden-race-reject-stable")) {
         push_key(SDLK_PERCENT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-hidden-race-mismatch")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_A, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-incompatible-class")) {
         push_key(SDLK_PERCENT, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1071,22 +1163,22 @@ static int peer_run(void *opaque)
         push_key(SDLK_A, 0);
 #endif
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-missing-sex")) {
         push_key(SDLK_PERCENT, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-stale-event")) {
         push_stale_key(SDLK_PERCENT);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strncmp(peer->mode, "auto-dna-", 9)) {
         push_key(SDLK_PERCENT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "guide-sex-no-op")) {
         push_key(SDLK_QUESTION, 0);
-        push_key(SDLK_Q, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "guide-all-owners")) {
         push_guide_all_owners();
     } else if (!strcmp(peer->mode, "guide-ordered-stats-no-op")) {
@@ -1094,31 +1186,31 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_QUESTION, 0);
-        push_key(SDLK_Q, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-guide")) {
         push_to_stats();
         push_key(SDLK_B, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RIGHT, 0);
         push_guide_round_trip();
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-start-existing-mode-reject")) {
         push_to_mode();
-        push_key(SDLK_H, 0);
+        push_key(SDLK_H, SDL_KMOD_SHIFT);
         push_key(SDLK_P, 0);
         push_mouse_mode(500.0f, 2);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-start-existing-mode-random")) {
         push_to_mode();
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "returning-empty-mode-pvp")) {
         push_to_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-rpg") ||
                !strcmp(peer->mode, "returning-empty-mode-rpg")) {
         push_to_mode();
@@ -1127,24 +1219,24 @@ static int peer_run(void *opaque)
         push_key(SDLK_P, 0);
         push_key(SDLK_S, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-dedicated-iddc") ||
                !strcmp(peer->mode, "exclusive-iddc-production")) {
         push_to_mode();
         push_key(SDLK_I, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-dedicated-dna")) {
         push_to_mode();
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-pvp-maia")) {
         push_to_pvp_maia_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode,
                        "unknown-setup-exclusive-pvp-maia-back-random")) {
         push_to_unknown_setup_pvp_maia_mode();
@@ -1160,13 +1252,13 @@ static int peer_run(void *opaque)
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-pvp-maia-back")) {
         push_to_unknown_setup_pvp_maia_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-pvp-maia-back-confirm")) {
         push_to_unknown_setup_pvp_maia_mode();
         push_key(SDLK_P, 0);
@@ -1177,7 +1269,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode,
                        "unknown-setup-pvp-maia-back-disconnect")) {
         push_to_unknown_setup_pvp_maia_mode();
@@ -1190,7 +1282,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
         push_stale_key(SDLK_RETURN);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
         SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
         assert(SDL_PushEvent(&close));
     } else if (pvp_maia_trait_reenter_case(peer->mode)) {
@@ -1218,7 +1310,7 @@ static int peer_run(void *opaque)
         }
         if (!exclusive_creation_case(peer->mode)) push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (pvp_maia_race_reenter_case(peer->mode)) {
         push_to_pvp_maia_deep_back_mode();
         push_key(SDLK_P, 0);
@@ -1246,21 +1338,21 @@ static int peer_run(void *opaque)
         }
         if (!exclusive_creation_case(peer->mode)) push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (pvp_maia_deep_back_case(peer->mode)) {
         push_to_pvp_maia_deep_back_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0); /* post-mode trait -> stats */
         push_key(SDLK_BACKSPACE, 0); /* stats -> ordinary owner graph */
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (pvp_maia_skip_deep_back_case(peer->mode)) {
         push_to_pvp_maia_mode();
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-reenter-pvp-maia") ||
                !strcmp(peer->mode, "exclusive-pvp-maia-production")) {
         push_to_pvp_maia_mode();
@@ -1276,7 +1368,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-disconnect")) {
         push_to_unknown_setup_mode();
         SDL_Delay(50);
@@ -1284,16 +1376,16 @@ static int peer_run(void *opaque)
         SDL_Delay(100);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
         SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
         assert(SDL_PushEvent(&close));
     } else if (!strcmp(peer->mode, "unknown-setup-mode")) {
         push_to_unknown_setup_mode();
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-mode-back")) {
         push_to_unknown_setup_mode();
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "unknown-setup-mode-reenter")) {
         push_to_unknown_setup_mode();
         push_key(SDLK_BACKSPACE, 0);
@@ -1303,11 +1395,11 @@ static int peer_run(void *opaque)
     } else if (!strcmp(peer->mode, "unknown-setup-ready")) {
         push_to_unknown_setup_mode();
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-back")) {
         push_to_mode();
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-reenter-completed")) {
         push_to_mode();
         push_key(SDLK_BACKSPACE, 0);
@@ -1316,7 +1408,7 @@ static int peer_run(void *opaque)
             push_key(key, 0);
             push_key(SDLK_RETURN, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-reenter-partial")) {
         push_to_stats();
         push_key(SDLK_B, 0);
@@ -1329,18 +1421,18 @@ static int peer_run(void *opaque)
             push_key(key, 0);
             push_key(SDLK_RETURN, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-reenter-reject")) {
         push_to_mode();
         push_key(SDLK_BACKSPACE, 0);
         push_stale_key(SDLK_F);
         push_key(SDLK_Z, 0);
         push_mouse_stats(540.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-random")) {
         push_to_mode();
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-ctrl-quit")) {
         push_to_mode();
         push_key(SDLK_Q, SDL_KMOD_CTRL);
@@ -1351,58 +1443,58 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-dedicated-unavailable")) {
         push_to_mode();
         push_key(SDLK_P, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-dna") ||
         !strcmp(peer->mode, "mode-dna-missing")) {
         push_to_mode();
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-ordinary-ready")) {
         push_to_mode();
-        push_key(SDLK_H, 0); /* First-character Hellish is unavailable. */
+        push_key(SDLK_H, SDL_KMOD_SHIFT); /* First-character Hellish is unavailable. */
         push_mouse_mode(380.0f, 1);
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-confirm")) {
         push_to_stats();
         for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
             push_key(key, 0);
             push_key(SDLK_RETURN, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-random")) {
         push_to_stats();
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-mouse")) {
         push_to_stats();
         for (unsigned i = 0; i < 6; ++i) push_mouse_stats(340.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-back-no-trait-body")) {
         push_to_unknown_setup_mode_no_trait();
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-back")) {
         push_to_stats();
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-quit") ||
                !strcmp(peer->mode, "stats-ctrl-quit")) {
         push_to_stats();
         push_key(SDLK_Q, !strcmp(peer->mode, "stats-ctrl-quit") ?
-            SDL_KMOD_CTRL : 0);
+            SDL_KMOD_CTRL : SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-confirm-warning") ||
                !strcmp(peer->mode, "stats-point-escape-warning")) {
         push_to_stats();
         push_key(!strcmp(peer->mode, "stats-point-escape-warning") ?
             SDLK_ESCAPE : SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-confirm") ||
                !strcmp(peer->mode, "stats-point-escape-confirm") ||
                !strcmp(peer->mode, "stats-point-mouse")) {
@@ -1417,16 +1509,16 @@ static int peer_run(void *opaque)
             push_key(confirm, 0);
             push_key(confirm, 0);
         }
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strncmp(peer->mode, "stats-point-dna", 15)) {
         push_to_stats();
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-lower-bound")) {
         push_to_stats();
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_LEFT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-escape-no-warning")) {
         static const unsigned increases[] = {7, 6, 2};
         push_to_stats();
@@ -1436,7 +1528,7 @@ static int peer_run(void *opaque)
                 push_key(SDLK_RIGHT, 0);
         }
         push_key(SDLK_ESCAPE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-navigate")) {
         push_to_stats();
         push_key(SDLK_Z, 0);
@@ -1445,7 +1537,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_LEFT, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-order-navigate")) {
         push_to_stats();
         push_key(SDLK_Z, 0);
@@ -1453,21 +1545,21 @@ static int peer_run(void *opaque)
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else
 #if !SV_CLASS_BEFORE_RACE
     if (!strcmp(peer->mode, "alternate-race-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-trait-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-body-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
@@ -1476,7 +1568,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-class-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
@@ -1486,13 +1578,13 @@ static int peer_run(void *opaque)
         push_key(SDLK_F, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-class-back-no-trait-body")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-class-back-no-body")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
@@ -1500,7 +1592,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-navigate")) {
         push_mouse_sex(360.0f, 1);
         push_key(SDLK_RETURN, 0);
@@ -1520,21 +1612,21 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-random")) {
         push_key(SDLK_ASTERISK, 0);
         push_key(SDLK_ASTERISK, 0);
         push_key(SDLK_ASTERISK, 0);
         push_key(SDLK_ASTERISK, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-dna")) {
         push_key(SDLK_HASH, 0);
         push_key(SDLK_HASH, 0);
         push_key(SDLK_HASH, 0);
         push_key(SDLK_HASH, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-class-dna-incompatible")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
@@ -1543,14 +1635,14 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-mouse")) {
         push_mouse_sex(360.0f, 2);
         push_mouse_race(420.0f, 2);
         push_mouse_trait(380.0f, 2);
         push_mouse_body(380.0f, 2);
         push_mouse_class(340.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_CTRL);
@@ -1563,10 +1655,21 @@ static int peer_run(void *opaque)
         push_key(SDLK_F, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else
 #endif
-    if (long_class_case(peer->mode)) {
+    if (case_sensitive_class_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_lowercase_q();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT | SDL_KMOD_CAPS);
+        push_key(SDLK_P, SDL_KMOD_SHIFT);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (long_class_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
 #if !SV_CLASS_BEFORE_RACE
         push_key(SDLK_RETURN, 0);
@@ -1575,7 +1678,16 @@ static int peer_run(void *opaque)
         push_key(SDLK_PAGEDOWN, 0);
         for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
         push_mouse_class(740.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (case_sensitive_race_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_lowercase_q();
+        push_key(SDLK_P, SDL_KMOD_CAPS);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
     } else if (long_race_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1587,7 +1699,17 @@ static int peer_run(void *opaque)
         SDL_Delay(80);
         push_mouse_race(620.0f, 2);
         push_mouse_race(740.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (case_sensitive_trait_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_RETURN, 0);
+        push_lowercase_q();
+        push_key(SDLK_P, SDL_KMOD_SHIFT);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
     } else if (long_trait_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1599,7 +1721,7 @@ static int peer_run(void *opaque)
         push_presentation_events();
         SDL_Delay(80);
         push_mouse_trait(740.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-run-body-direct")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1611,7 +1733,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-run-body-reject") ||
                !strcmp(peer->mode, "first-start-existing-body-reject")) {
         push_key(SDLK_RETURN, 0);
@@ -1625,7 +1747,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_mouse_body(380.0f, 2);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-run-body-random") ||
                !strcmp(peer->mode, "first-start-existing-body-random")) {
         push_key(SDLK_RETURN, 0);
@@ -1638,7 +1760,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "non-first-run-body-manual") ||
                !strcmp(peer->mode, "returning-empty-body-manual")) {
         push_key(SDLK_RETURN, 0);
@@ -1652,7 +1774,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "archer-body-random")) {
         push_key(SDLK_ASTERISK, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1668,7 +1790,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_ASTERISK, 0);
 #endif
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-mouse")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1678,7 +1800,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_mouse_body(380.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-quit") ||
                !strcmp(peer->mode, "body-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);
@@ -1689,7 +1811,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, !strcmp(peer->mode, "body-ctrl-quit") ?
-            SDL_KMOD_CTRL : 0);
+            SDL_KMOD_CTRL : SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-unavailable-skip")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1698,7 +1820,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-back-no-trait")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1707,7 +1829,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1718,7 +1840,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-dna") ||
         !strcmp(peer->mode, "body-dna-stale") ||
         !strcmp(peer->mode, "body-dna-missing")) {
@@ -1730,7 +1852,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-random")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1740,7 +1862,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "body-navigate")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1755,7 +1877,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1764,7 +1886,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-quit") ||
                !strcmp(peer->mode, "trait-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);
@@ -1773,7 +1895,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, !strcmp(peer->mode, "trait-ctrl-quit") ?
-            SDL_KMOD_CTRL : 0);
+            SDL_KMOD_CTRL : SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-mouse")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1781,7 +1903,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_mouse_trait(380.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-dummy-skip-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1789,7 +1911,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-dummy-skip") ||
                !strcmp(peer->mode, "trait-unavailable-skip")) {
         push_key(SDLK_RETURN, 0);
@@ -1797,7 +1919,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-dna") ||
         !strcmp(peer->mode, "trait-dna-incompatible") ||
         !strcmp(peer->mode, "trait-dna-stale") ||
@@ -1808,7 +1930,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-random")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1816,7 +1938,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-navigate")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1828,11 +1950,11 @@ static int peer_run(void *opaque)
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-random-empty")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1844,14 +1966,14 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
 #endif
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-base-mismatch")) {
         push_key(SDLK_RETURN, 0);
 #if SV_CLASS_BEFORE_RACE
@@ -1865,14 +1987,14 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
 #endif
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-reconfirm")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_BACKSPACE, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-mouse")) {
         push_mouse_sex(310.0f, 2);
 #if SV_CLASS_BEFORE_RACE
@@ -1884,7 +2006,7 @@ static int peer_run(void *opaque)
         push_mouse_body(340.0f, 2);
         push_mouse_class(340.0f, 2);
 #endif
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "hidden-derived-dna") ||
                !strcmp(peer->mode, "hidden-derived-dna-race-compatible") ||
                !strcmp(peer->mode, "hidden-derived-dna-race-mismatch") ||
@@ -1905,14 +2027,14 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
 #endif
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "race-back")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "race-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -1926,13 +2048,13 @@ static int peer_run(void *opaque)
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "race-random")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "race-navigate")) {
         push_key(SDLK_RETURN, 0);
         push_mouse_class(380.0f, 1);
@@ -1943,7 +2065,7 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_mouse_race(420.0f, 1);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-navigate")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Z, 0);
@@ -1951,27 +2073,27 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-mouse")) {
         push_key(SDLK_RETURN, 0);
         push_mouse_class(380.0f, 2);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-random")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_ASTERISK, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-dna") ||
                !strcmp(peer->mode, "class-dna-hidden") ||
                !strcmp(peer->mode, "class-dna-incompatible") ||
                !strcmp(peer->mode, "class-dna-stale")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_HASH, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-back")) {
         push_key(SDLK_RETURN, 0);
         push_mouse_class(380.0f, 1);
         push_key(SDLK_BACKSPACE, 0);
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_CTRL);
@@ -1991,13 +2113,13 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, SDL_KMOD_CTRL);
     } else {
         assert(!strcmp(peer->mode, "quit"));
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     }
     SDL_Delay(100);
     if (!strcmp(peer->mode, "navigate") || !strcmp(peer->mode, "mouse") ||
         !strcmp(peer->mode, "random") ||
         !strcmp(peer->mode, "dna") || !strcmp(peer->mode, "dna-missing"))
-        push_key(SDLK_Q, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     unsigned char closed;
     assert(recv(socket, &closed, 1, 0) == 0);
     close(socket);
@@ -2148,9 +2270,10 @@ int main(int argc, char **argv)
 #if SV_CLASS_BEFORE_RACE
     if (!strcmp(argv[3], "class-random-empty")) {
         assert(outcome.birth_legal_class_count == 0);
-    } else if (long_class_case(argv[3])) {
+    } else if (long_class_setup_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 20);
-    } else if (long_race_case(argv[3]) || long_trait_case(argv[3])) {
+    } else if (long_race_setup_case(argv[3]) ||
+               long_trait_setup_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
     } else if (archer_body_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
@@ -2165,9 +2288,56 @@ int main(int argc, char **argv)
     }
 #endif
     const char *quit_owner = NULL;
-    bool control_quit = false;
-    if (quit_matrix_case(argv[3], &quit_owner, &control_quit)) {
-        (void)control_quit;
+    SDL_Keymod quit_modifier = SDL_KMOD_NONE;
+    const char *lowercase_q_owner = NULL;
+    if (lowercase_q_matrix_case(argv[3], &lowercase_q_owner)) {
+        SvBirthOwner owner = named_owner(lowercase_q_owner);
+        assert(outcome.birth_owner == owner);
+        assert(!owner_confirmed(&outcome, owner));
+        assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3], "case-sensitive-sex-direct")) {
+        assert(outcome.birth_owner == SV_BIRTH_SEX && outcome.birth_quit);
+        assert(!outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_NONE);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "case-sensitive-body-direct")) {
+        assert(outcome.birth_owner == SV_BIRTH_BODY && outcome.birth_quit);
+        assert(!outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "case-sensitive-stats-direct")) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(!outcome.birth_stats_confirmed &&
+               outcome.birth_stats_order_count == 0);
+        assert(outcome.birth_highlighted_stat == 0);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "case-sensitive-mode-lower-h")) {
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NONE);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "case-sensitive-mode-uppercase-reject")) {
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NONE);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "case-sensitive-mode-ordinary-hellish")) {
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_HELLISH);
+        assert(!outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3],
+                       "case-sensitive-mode-dedicated-hellish")) {
+        assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
+        assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_IDDC_HELLISH);
+        assert(outcome.birth_illegal_ignored);
+    } else if (quit_matrix_case(argv[3], &quit_owner, &quit_modifier)) {
+        (void)quit_modifier;
         SvBirthOwner owner = named_owner(quit_owner);
         assert(outcome.birth_owner == owner);
         assert(!owner_confirmed(&outcome, owner));
@@ -3372,16 +3542,31 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
         assert(outcome.birth_highlighted_class == 0 &&
                outcome.birth_illegal_ignored);
+    } else if (case_sensitive_class_case(argv[3])) {
+        assert(outcome.birth_class_confirmed);
+        assert(outcome.birth_class == 16 &&
+               outcome.birth_highlighted_class == 16);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_quit);
     } else if (long_class_case(argv[3])) {
         assert(outcome.birth_class_confirmed);
         assert(outcome.birth_class == 15 && outcome.birth_highlighted_class == 15);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_quit);
+    } else if (case_sensitive_race_case(argv[3])) {
+        assert(outcome.birth_race_confirmed);
+        assert(outcome.birth_race == 16 &&
+               outcome.birth_highlighted_race == 16);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_quit);
     } else if (long_race_case(argv[3])) {
         assert(outcome.birth_race_confirmed);
         assert(outcome.birth_race == 15 && outcome.birth_highlighted_race == 15);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (case_sensitive_trait_case(argv[3])) {
+        assert(outcome.birth_trait_confirmed);
+        assert(outcome.birth_trait == 17 &&
+               outcome.birth_highlighted_trait == 17);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_quit);
     } else if (long_trait_case(argv[3])) {
         assert(outcome.birth_trait_confirmed);
         assert(outcome.birth_trait == 16 && outcome.birth_highlighted_trait == 16);
