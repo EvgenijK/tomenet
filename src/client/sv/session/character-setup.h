@@ -13,6 +13,7 @@ typedef struct {
     int16_t adjustment[6];
     uint8_t recommendation[6];
     uint8_t hidden;
+    uint8_t trait_derived;
     int32_t base_class;
 } SvContactClass;
 typedef struct { char title[SV_CONTACT_NAME_CAPACITY]; uint32_t choice; } SvContactTrait;

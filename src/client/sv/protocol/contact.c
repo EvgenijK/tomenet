@@ -173,6 +173,7 @@ static int parse_setup(SvContact *contact, size_t *used)
     SvContactSetup *setup = contact->setup;
     const int traits_since[6] = {4, 4, 5, 10, 0, 0};
     const int recommendations_since[6] = {4, 4, 3, 1, 0, 0};
+    const int encoded_hidden_classes_since[6] = {4, 7, 0, 2, 0, 0};
     int traits = version_newer(contact->version, traits_since);
     size_t header = traits ? 13 : 12;
     if (size < header) return 0;
@@ -212,6 +213,14 @@ static int parse_setup(SvContact *contact, size_t *used)
             setup->classes[i].base_class = (int32_t)base_class;
             memmove(setup->classes[i].title, setup->classes[i].title + 2,
                     strlen(setup->classes[i].title + 2) + 1);
+        }
+        /* Older servers sent the three derived identities without the later
+           base-class prefix.  Their fixed order is part of that wire layout. */
+        if (!version_newer(contact->version, encoded_hidden_classes_since) &&
+            !setup->classes[i].hidden && i >= 13 && i <= 15) {
+            setup->classes[i].hidden = 1;
+            setup->classes[i].trait_derived = i >= 14;
+            setup->classes[i].base_class = i == 15 ? 2 : 6;
         }
         if (version_newer(contact->version, recommendations_since)) {
             if (size - at < 6) return 0;

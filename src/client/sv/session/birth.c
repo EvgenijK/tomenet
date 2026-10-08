@@ -59,7 +59,8 @@ static bool trait_derived_hidden_class(const SvBirth *birth, int class_id)
 {
     return class_id >= 0 && class_id < birth->setup->class_count &&
         birth->setup->classes[class_id].hidden &&
-        (!strcmp(birth->setup->classes[class_id].title, "Hell Knight") ||
+        (birth->setup->classes[class_id].trait_derived ||
+         !strcmp(birth->setup->classes[class_id].title, "Hell Knight") ||
          !strcmp(birth->setup->classes[class_id].title, "Corrupted Priest"));
 }
 
