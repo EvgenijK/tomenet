@@ -530,6 +530,13 @@ struct vault_type {
 };
 
 /* A data-driven room template loaded from lib/game/room_templates. */
+typedef struct room_template_entrance room_template_entrance;
+struct room_template_entrance {
+	byte x;
+	byte y;
+	int source_line;
+};
+
 typedef struct room_template_type room_template_type;
 struct room_template_type {
 	char code[64];
@@ -543,6 +550,8 @@ struct room_template_type {
 	char *terrain_map;
 	char *monster_map;
 	char *item_map;
+	u16b entrance_count;
+	room_template_entrance *entrances;
 };
 
 typedef struct swear_info {

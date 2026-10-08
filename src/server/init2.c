@@ -1642,11 +1642,17 @@ static bool room_template_terrain_allowed(int feat) {
 }
 
 
+static bool room_template_terrain_passable(int feat) {
+	return((f_info[feat].flags1 & FF1_FLOOR) != 0);
+}
+
+
 static void room_template_discard(room_template_type *room) {
 	if (room->name) string_free(room->name);
 	if (room->terrain_map) free(room->terrain_map);
 	if (room->monster_map) free(room->monster_map);
 	if (room->item_map) free(room->item_map);
+	if (room->entrances) free(room->entrances);
 	memset(room, 0, sizeof(*room));
 }
 
@@ -1667,7 +1673,7 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	FILE *fp;
 	char buf[1024], reason[256], file_code[64];
 	bool got_version = FALSE, got_name = FALSE, got_size = FALSE;
-	bool got_depth = FALSE, got_weight = FALSE, defined[128];
+	bool got_depth = FALSE, got_weight = FALSE, got_terrain = FALSE, defined[128];
 	room_template_parse_state state = ROOM_TEMPLATE_PARSE_HEADER;
 	int row = 0, line = 0, i;
 	long value, value2;
@@ -1822,7 +1828,9 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			room->terrain_map = malloc(cells);
 			room->monster_map = malloc(cells);
 			room->item_map = malloc(cells);
-			if (!room->terrain_map || !room->monster_map || !room->item_map) {
+			room->entrances = malloc(cells * sizeof(*room->entrances));
+			if (!room->terrain_map || !room->monster_map || !room->item_map ||
+			    !room->entrances) {
 				my_fclose(fp);
 				return(room_template_error(path, line, "out of memory"));
 			}
@@ -1866,6 +1874,37 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			return(room_template_error(path, line, "unknown P directive"));
 		}
 
+		if (!strncmp(buf, "E:", 2)) {
+			bool duplicate = FALSE;
+
+			first = strchr(buf + 2, ':');
+			if (!got_name || !got_size || got_terrain || !first ||
+			    strchr(first + 1, ':')) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "invalid E directive"));
+			}
+			*first++ = '\0';
+			if (!room_template_number(buf + 2, 0, room->wid - 1, &value) ||
+			    !room_template_number(first, 0, room->hgt - 1, &value2)) {
+				my_fclose(fp);
+				return(room_template_error(path, line,
+					"entrance coordinate is outside the map"));
+			}
+			for (i = 0; i < room->entrance_count; i++) {
+				if (room->entrances[i].x != value || room->entrances[i].y != value2)
+					continue;
+				duplicate = TRUE;
+				break;
+			}
+			if (!duplicate) {
+				room->entrances[room->entrance_count].x = value;
+				room->entrances[room->entrance_count].y = value2;
+				room->entrances[room->entrance_count].source_line = line;
+				room->entrance_count++;
+			}
+			continue;
+		}
+
 		if (!strncmp(buf, "T:", 2)) {
 			unsigned char symbol;
 
@@ -1889,14 +1928,14 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			}
 			defined[symbol] = TRUE;
 			room->terrain_feature[symbol] = value;
+			got_terrain = TRUE;
 			continue;
 		}
 
-		if (!strncmp(buf, "M:", 2) || !strncmp(buf, "I:", 2) ||
-		    !strncmp(buf, "E:", 2)) {
+		if (!strncmp(buf, "M:", 2) || !strncmp(buf, "I:", 2)) {
 			my_fclose(fp);
 			return(room_template_error(path, line,
-				"entity profiles and entrances are not part of terrain placement"));
+				"entity profiles are not part of terrain placement"));
 		}
 
 		if (streq(buf, "DT:")) {
@@ -1916,6 +1955,14 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	if (!got_version || !got_name || !got_size ||
 	    state != ROOM_TEMPLATE_PARSE_DONE)
 		return(room_template_error(path, line + 1, "incomplete template or missing map rows"));
+	for (i = 0; i < room->entrance_count; i++) {
+		unsigned char symbol = room->terrain_map[
+			room->entrances[i].y * room->wid + room->entrances[i].x];
+
+		if (symbol == '_' || !room_template_terrain_passable(room->terrain_feature[symbol]))
+			return(room_template_error(path, room->entrances[i].source_line,
+				"entrance must be on active passable terrain"));
+	}
 	return(0);
 }
 

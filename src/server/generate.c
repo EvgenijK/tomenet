@@ -2256,6 +2256,134 @@ static void room_template_transform(room_template_type *room,
 }
 
 
+static bool room_template_cell_is_connectable(cave_type *cell) {
+	if (cell->special || (cell->info2 & CAVE2_ROOM_TEMPLATE) ||
+	    (cell->info & (CAVE_ICKY | CAVE_NO_TFORM)) ||
+	    cell->feat == FEAT_WALL_SOLID ||
+	    (f_info[cell->feat].flags1 & FF1_PERMANENT) ||
+	    (f_info[cell->feat].flags2 & (FF2_BOUNDARY | FF2_NO_TFORM))) return(FALSE);
+	return(TRUE);
+}
+
+
+static bool room_template_connection_route(cave_type **zcave,
+		room_template_type *room, room_template_orientation orientation,
+		int top, int left, coord *connection, int *connection_n) {
+	bool passable[80][80], reached[80][80], *visited = NULL;
+	coord internal[80 * 80], *pending = NULL, *previous = NULL;
+	int width, height, head = 0, tail = 0, route_head = 0, route_tail = 0;
+	int i, j, sx, sy, dx, dy;
+	static const int directions[4][2] = {
+		{ -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }
+	};
+
+	*connection_n = 0;
+	if (!dun->cent_n) return(FALSE);
+	visited = calloc(MAX_HGT * MAX_WID, sizeof(*visited));
+	pending = malloc(MAX_HGT * MAX_WID * sizeof(*pending));
+	previous = malloc(MAX_HGT * MAX_WID * sizeof(*previous));
+	if (!visited || !pending || !previous) goto cleanup;
+	room_template_dimensions(room, orientation, &width, &height);
+	memset(passable, 0, sizeof(passable));
+	memset(reached, 0, sizeof(reached));
+	for (sy = 0; sy < room->hgt; sy++) {
+		for (sx = 0; sx < room->wid; sx++) {
+			unsigned char symbol = room->terrain_map[sy * room->wid + sx];
+
+			if (symbol == '_' ||
+			    !(f_info[room->terrain_feature[symbol]].flags1 & FF1_FLOOR)) continue;
+			room_template_transform(room, orientation, sx, sy, &dx, &dy);
+			passable[dy][dx] = TRUE;
+		}
+	}
+	for (i = 0; i < room->entrance_count; i++) {
+		room_template_transform(room, orientation,
+			room->entrances[i].x, room->entrances[i].y, &dx, &dy);
+		if (reached[dy][dx]) continue;
+		reached[dy][dx] = TRUE;
+		internal[tail].x = dx;
+		internal[tail].y = dy;
+		tail++;
+	}
+	while (head < tail) {
+		coord current = internal[head++];
+
+		for (i = 0; i < 4; i++) {
+			int next_x = current.x + directions[i][0];
+			int next_y = current.y + directions[i][1];
+			int global_x, global_y, index;
+
+			if (next_x >= 0 && next_x < width && next_y >= 0 && next_y < height) {
+				if (!passable[next_y][next_x] || reached[next_y][next_x]) continue;
+				reached[next_y][next_x] = TRUE;
+				internal[tail].x = next_x;
+				internal[tail].y = next_y;
+				tail++;
+				continue;
+			}
+			global_y = top + next_y;
+			global_x = left + next_x;
+			if (!in_bounds_floor(dun->l_ptr, global_y, global_x) ||
+			    !room_template_cell_is_connectable(&zcave[global_y][global_x])) continue;
+			index = global_y * MAX_WID + global_x;
+			if (visited[index]) continue;
+			visited[index] = TRUE;
+			previous[index].y = global_y;
+			previous[index].x = global_x;
+			pending[route_tail].y = global_y;
+			pending[route_tail].x = global_x;
+			route_tail++;
+		}
+	}
+	while (route_head < route_tail) {
+		coord current = pending[route_head++];
+
+		for (i = 0; i < dun->cent_n; i++) {
+			coord cursor;
+
+			if (dun->cent[i].y != current.y || dun->cent[i].x != current.x) continue;
+			cursor = current;
+			while (TRUE) {
+				coord prior;
+
+				connection[*connection_n] = cursor;
+				(*connection_n)++;
+				prior = previous[cursor.y * MAX_WID + cursor.x];
+				if (prior.y == cursor.y && prior.x == cursor.x) break;
+				cursor = prior;
+			}
+			free(previous);
+			free(pending);
+			free(visited);
+			return(TRUE);
+		}
+		for (j = 0; j < 4; j++) {
+			int next_x = current.x + directions[j][0];
+			int next_y = current.y + directions[j][1];
+			int next_index;
+
+			if (!in_bounds_floor(dun->l_ptr, next_y, next_x) ||
+			    (next_y >= top && next_y < top + height &&
+			    next_x >= left && next_x < left + width) ||
+			    !room_template_cell_is_connectable(&zcave[next_y][next_x])) continue;
+			next_index = next_y * MAX_WID + next_x;
+			if (visited[next_index]) continue;
+			visited[next_index] = TRUE;
+			previous[next_index] = current;
+			pending[route_tail].y = next_y;
+			pending[route_tail].x = next_x;
+			route_tail++;
+		}
+	}
+
+cleanup:
+	if (previous) free(previous);
+	if (pending) free(pending);
+	if (visited) free(visited);
+	return(FALSE);
+}
+
+
 /* Reserve room blocks without check_room_boundary(), which would fill holes. */
 static bool room_template_blocks(room_template_type *room,
 		room_template_orientation orientation,
@@ -2282,11 +2410,6 @@ static bool room_template_blocks(room_template_type *room,
 
 	for (by = by1; by <= by2; by++)
 		for (bx = bx1; bx <= bx2; bx++) dun->room_map[by][bx] = TRUE;
-	if (dun->cent_n < CENT_MAX) {
-		dun->cent[dun->cent_n].y = *center_y;
-		dun->cent[dun->cent_n].x = *center_x;
-		dun->cent_n++;
-	}
 	return(TRUE);
 }
 
@@ -2296,8 +2419,10 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 		room_template_type *room) {
 	cave_type **zcave;
 	room_template_orientation order[ROOM_TEMPLATE_ORIENTATION_COUNT], orientation;
+	coord connection[MAX_HGT * MAX_WID];
 	int i, j, center_y, center_x;
 	int width, height, left, top, sx, sy, dx, dy, feat;
+	int connection_n = 0;
 	bool valid;
 	u32b *transparent_info;
 
@@ -2333,6 +2458,10 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			}
 		}
 		if (!valid) continue;
+		if (room->entrance_count &&
+		    (dun->cent_n >= CENT_MAX ||
+		    !room_template_connection_route(zcave, room, orientation,
+			    top, left, connection, &connection_n))) continue;
 
 		transparent_info = malloc((size_t)room->wid * room->hgt *
 			sizeof(*transparent_info));
@@ -2375,6 +2504,25 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			}
 		}
 		free(transparent_info);
+		if (dun->cent_n < CENT_MAX) {
+			if (room->entrance_count) {
+				for (j = 0; j < connection_n; j++) {
+					int by = connection[j].y / BLOCK_HGT;
+					int bx = connection[j].x / BLOCK_WID;
+
+					/* Keep later rooms from overwriting the verified route. */
+					if (by >= 0 && by < dun->row_rooms &&
+					    bx >= 0 && bx < dun->col_rooms) dun->room_map[by][bx] = TRUE;
+					if (cave_floor_bold(zcave, connection[j].y, connection[j].x)) continue;
+					place_floor(wpos, connection[j].y, connection[j].x);
+				}
+				dun->cent[dun->cent_n] = connection[connection_n - 1];
+			} else {
+				dun->cent[dun->cent_n].y = center_y;
+				dun->cent[dun->cent_n].x = center_x;
+			}
+			dun->cent_n++;
+		}
 		return(TRUE);
 	}
 	return(FALSE);
