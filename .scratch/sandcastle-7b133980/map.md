@@ -18,13 +18,17 @@ Immutable acceptance contract:
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
 [batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json),
-[batch 8](batch-8.json).
+[batch 8](batch-8.json), [batch 12](batch-12.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
 объявляет этот check выполненным и не меняет production behavior или evidence.
 
 ## Frontier
+
+- [Разрешить shifted punctuation в native birth bindings](issues/48-resolve-shifted-native-birth-punctuation.md)
+- [Записать SV-local DNA draft aggregate](issues/49-record-sv-birth-dna-draft-aggregate-opportunity.md)
+- [Записать SV-local random-step helper](issues/50-record-sv-birth-random-step-helper-opportunity.md)
 
 ## Decisions so far
 
