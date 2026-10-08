@@ -26,7 +26,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Разрешить shifted punctuation в native birth bindings](issues/48-resolve-shifted-native-birth-punctuation.md)
 - [Записать SV-local DNA draft aggregate](issues/49-record-sv-birth-dna-draft-aggregate-opportunity.md)
 - [Записать SV-local random-step helper](issues/50-record-sv-birth-random-step-helper-opportunity.md)
 
@@ -79,3 +78,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/45-focused-test-coverage.md)
 - [Записать централизацию birth scenario descriptors](issues/46-record-birth-scenario-descriptor-opportunity.md)
 - [Verify focused production coverage](issues/47-focused-test-coverage.md)
+- [Разрешить shifted punctuation в native birth bindings](issues/48-resolve-shifted-native-birth-punctuation.md)
