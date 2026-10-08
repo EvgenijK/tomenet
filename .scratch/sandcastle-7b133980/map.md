@@ -97,3 +97,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Зафиксировать birth-owned outcome snapshot boundary](issues/66-record-sv-birth-outcome-snapshot-boundary.md)
 - [Зафиксировать единый inventory production endpoint test sources](issues/67-record-sv-endpoint-test-source-inventory.md)
 - [Verify focused production coverage](issues/68-focused-test-coverage.md)
+- [Декодировать hidden classes старых серверов](issues/69-decode-legacy-server-hidden-classes.md)

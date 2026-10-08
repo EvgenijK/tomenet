@@ -546,11 +546,40 @@ static bool trait_hidden_dna_case(const char *mode)
 {
     return !strcmp(mode, "trait-hidden-dna-hell-knight") ||
         !strcmp(mode, "trait-hidden-dna-corrupted-priest") ||
+        !strcmp(mode, "legacy-hidden-dna-hell-knight") ||
+        !strcmp(mode, "auto-dna-legacy-hidden-corrupted-priest") ||
         !strcmp(mode, "trait-hidden-dna-race-refresh") ||
         !strcmp(mode, "auto-dna-trait-hidden-hell-knight") ||
         !strcmp(mode, "auto-dna-trait-hidden-corrupted-priest") ||
         !strcmp(mode, "auto-dna-trait-hidden-wrong-race") ||
         !strcmp(mode, "auto-dna-trait-hidden-wrong-trait");
+}
+
+static bool legacy_hidden_direct_case(const char *mode)
+{
+    return !strcmp(mode, "legacy-hidden-class-direct") ||
+        !strcmp(mode, "legacy-hidden-class-random") ||
+        !strcmp(mode, "legacy-hidden-class-back") ||
+        !strcmp(mode, "legacy-hidden-class-stale") ||
+        !strcmp(mode, "legacy-hidden-class-disconnect");
+}
+
+static bool legacy_hidden_random_case(const char *mode)
+{
+    return !strcmp(mode, "legacy-hidden-class-random");
+}
+
+static bool legacy_hidden_death_dna_case(const char *mode)
+{
+    return !strcmp(mode, "legacy-hidden-dna-death-knight");
+}
+
+static bool legacy_hidden_class_case(const char *mode)
+{
+    return legacy_hidden_direct_case(mode) ||
+        legacy_hidden_death_dna_case(mode) ||
+        !strcmp(mode, "legacy-hidden-dna-hell-knight") ||
+        !strcmp(mode, "auto-dna-legacy-hidden-corrupted-priest");
 }
 
 static int trait_hidden_dna_class(const char *mode)
@@ -855,6 +884,43 @@ static void send_setup(int socket, const char *mode)
                (ssize_t)(at - setup));
         return;
     }
+    if (legacy_hidden_direct_case(mode)) {
+        *at++ = 1;
+        *at++ = 16;
+        *at++ = 4;
+        unsigned char *size_at = at;
+        at += 4;
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Human", 6);
+        at += 6;
+        put32(&at, (1u << 16) - 1u);
+        for (unsigned id = 0; id < 16; ++id) {
+            char title[32];
+            memset(at, 50, 6);
+            at += 6;
+            snprintf(title, sizeof(title), id == 2 ? "Priest" :
+                     id == 6 ? "Paladin" :
+                     id == 13 ? "Death Knight" :
+                     id == 14 ? "Hell Knight" :
+                     id == 15 ? "Corrupted Priest" : "Class %u", id);
+            memcpy(at, title, strlen(title) + 1);
+            at += strlen(title) + 1;
+            memset(at, 0, 6);
+            at += 6;
+        }
+        static const char *traits[] = {"N/A", "Trait 1", "Trait 2", "Trait 3"};
+        for (unsigned id = 0; id < 4; ++id) {
+            memcpy(at, traits[id], strlen(traits[id]) + 1);
+            at += strlen(traits[id]) + 1;
+            put32(&at, id ? 1u : 0u);
+        }
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
     if (long_class_setup_case(mode)) {
         *at++ = 1;
         *at++ = 20;
@@ -996,7 +1062,7 @@ static void send_setup(int socket, const char *mode)
                (ssize_t)(at - setup));
         return;
     }
-    if (trait_hidden_dna_case(mode)) {
+    if (trait_hidden_dna_case(mode) || legacy_hidden_death_dna_case(mode)) {
         unsigned races = maia_race() + 1;
         *at++ = (unsigned char)races;
         *at++ = 16;
@@ -1011,8 +1077,9 @@ static void send_setup(int socket, const char *mode)
                      "Race %u", race);
             memcpy(at, title, strlen(title) + 1);
             at += strlen(title) + 1;
-            put32(&at, race == maia_race() ?
-                  (1u << 2) | (1u << 6) :
+            put32(&at, legacy_hidden_death_dna_case(mode) && race == 16 ?
+                  (1u << 6) | (1u << 13) :
+                  race == maia_race() ? (1u << 2) | (1u << 6) :
                   (!strcmp(mode, "trait-hidden-dna-race-refresh") &&
                    race == 0) ? (1u << 0) | (1u << 6) : 1u);
         }
@@ -1022,8 +1089,14 @@ static void send_setup(int socket, const char *mode)
             char title[32];
             snprintf(title, sizeof(title), id == 2 ? "Priest" :
                      id == 6 ? "Paladin" :
-                     id == 14 ? "06Hell Knight" :
-                     id == 15 ? "02Corrupted Priest" : "Class %u", id);
+                     id == 13 ? "Death Knight" :
+                     id == 14 ?
+                     (legacy_hidden_class_case(mode) ?
+                      "Hell Knight" : "06Hell Knight") :
+                     id == 15 ?
+                     (legacy_hidden_class_case(mode) ?
+                      "Priest" : "02Corrupted Priest") :
+                     "Class %u", id);
             memcpy(at, title, strlen(title) + 1);
             at += strlen(title) + 1;
             memset(at, 0, 6);
@@ -1035,7 +1108,8 @@ static void send_setup(int socket, const char *mode)
                      trait == 15 ? "Corrupted" : "Trait %u", trait);
             memcpy(at, title, strlen(title) + 1);
             at += strlen(title) + 1;
-            put32(&at, trait == 15 ? 1u << maia_race() :
+            put32(&at, legacy_hidden_death_dna_case(mode) && trait == 1 ?
+                  1u << 16 : trait == 15 ? 1u << maia_race() :
                   trait == 1 ? (1u << maia_race()) | 1u : 0u);
         }
         unsigned char *size_writer = size_at;
@@ -1194,7 +1268,10 @@ static int peer_run(void *opaque)
         (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable &&
          !automatic_ordered_case(peer->mode));
     put32(&at, 2u | (body_unavailable ? 0x10u : point_buy ? 1u : 0u));
-    const uint32_t version[6] = {4, 9, 4, 0, 0, 0};
+    const uint32_t modern_version[6] = {4, 9, 4, 0, 0, 0};
+    const uint32_t legacy_version[6] = {4, 7, 0, 2, 0, 0};
+    const uint32_t *version = legacy_hidden_class_case(peer->mode) ?
+        legacy_version : modern_version;
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
     assert(send(socket, contact, sizeof(contact), 0) == (ssize_t)sizeof(contact));
 
@@ -2090,6 +2167,51 @@ static int peer_run(void *opaque)
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else
 #endif
+    if (legacy_hidden_direct_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
+        if (legacy_hidden_random_case(peer->mode)) {
+            push_random();
+        } else if (!strcmp(peer->mode, "legacy-hidden-class-back")) {
+            push_key(SDLK_BACKSPACE, 0);
+            push_key(SDLK_Q, SDL_KMOD_CTRL);
+        } else if (!strcmp(peer->mode, "legacy-hidden-class-stale")) {
+            push_stale_physical_key(SDLK_N, SDL_SCANCODE_N, 0);
+            push_stale_key(SDLK_RETURN);
+            push_stale_key(SDLK_BACKSPACE);
+            push_stale_key(SDLK_Q);
+            push_key(SDLK_Q, SDL_KMOD_CTRL);
+        } else if (!strcmp(peer->mode, "legacy-hidden-class-disconnect")) {
+            SDL_Delay(50);
+            assert(!shutdown(socket, SHUT_WR));
+            SDL_Delay(100);
+            push_key(SDLK_RETURN, 0);
+            push_key(SDLK_BACKSPACE, 0);
+            push_key(SDLK_Q, SDL_KMOD_SHIFT);
+            SDL_Event close = {.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED};
+            assert(SDL_PushEvent(&close));
+        } else {
+            push_key(SDLK_RIGHT, 0);
+            push_key(SDLK_LEFT, 0);
+            push_mouse_class(340.0f, 1);
+            push_key(SDLK_N, 0);
+        }
+        if (strcmp(peer->mode, "legacy-hidden-class-back") &&
+            strcmp(peer->mode, "legacy-hidden-class-stale") &&
+            strcmp(peer->mode, "legacy-hidden-class-disconnect"))
+            push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (legacy_hidden_death_dna_case(peer->mode)) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_dna();
+        push_dna();
+        push_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else
     if (shift_caps_class_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
 #if !SV_CLASS_BEFORE_RACE
@@ -2717,16 +2839,19 @@ int main(int argc, char **argv)
         .birth_dna_available = !strcmp(argv[3], "dna") ||
             !strcmp(argv[3], "altgr-dna") ||
             trait_hidden_dna_case(argv[3]) ||
+            legacy_hidden_death_dna_case(argv[3]) ||
             (automatic && !auto_missing_sex) ||
             !strcmp(argv[3], "alternate-dna"),
         .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
         .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9) ||
             !strncmp(argv[3], "hidden-derived-dna", 18) ||
             trait_hidden_dna_case(argv[3]) ||
+            legacy_hidden_death_dna_case(argv[3]) ||
             !strcmp(argv[3], "alternate-dna") ||
             automatic ||
             !strcmp(argv[3], "alternate-class-dna-incompatible"),
-        .birth_dna_class = trait_hidden_dna_case(argv[3]) ?
+        .birth_dna_class = legacy_hidden_death_dna_case(argv[3]) ? 13 :
+            trait_hidden_dna_case(argv[3]) ?
             trait_hidden_dna_class(argv[3]) :
             auto_pvp_maia ? 0 :
             auto_hidden_race_mismatch ? 1 :
@@ -2740,6 +2865,7 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "class-dna-hidden") ? 1 :
             !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99,
         .birth_dna_race_available = trait_hidden_dna_case(argv[3]) ||
+            legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "race-dna", 8) &&
             strcmp(argv[3], "race-dna-missing")) ||
             !strcmp(argv[3], "hidden-derived-dna-race-compatible") ||
@@ -2748,6 +2874,7 @@ int main(int argc, char **argv)
             automatic,
         .birth_dna_race = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-race") ? 0 :
+            legacy_hidden_death_dna_case(argv[3]) ? 16 :
             trait_hidden_dna_case(argv[3]) ? (int)maia_race() :
             !strcmp(argv[3], "race-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
@@ -2758,6 +2885,7 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "hidden-derived-dna-race-mismatch") ? 1 :
             !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99,
         .birth_dna_trait_available = trait_hidden_dna_case(argv[3]) ||
+            legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "trait-dna", 9) &&
             strcmp(argv[3], "trait-dna-missing")) ||
             !strcmp(argv[3], "alternate-dna") ||
@@ -2765,6 +2893,7 @@ int main(int argc, char **argv)
             automatic,
         .birth_dna_trait = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-trait") ? 1 :
+            legacy_hidden_death_dna_case(argv[3]) ? 1 :
             trait_hidden_dna_case(argv[3]) ? 15 :
             !strcmp(argv[3], "trait-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
@@ -2773,13 +2902,15 @@ int main(int argc, char **argv)
             auto_pvp_maia ? 14 :
             !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
         .birth_dna_body_available = trait_hidden_dna_case(argv[3]) ||
+            legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "body-dna", 8) &&
             strcmp(argv[3], "body-dna-missing")) ||
             !strcmp(argv[3], "alternate-dna") ||
             !strcmp(argv[3], "first-run-body-reject") ||
             !strcmp(argv[3], "first-start-existing-body-reject") ||
             automatic,
-        .birth_dna_body = trait_hidden_dna_case(argv[3]) ?
+        .birth_dna_body = legacy_hidden_death_dna_case(argv[3]) ?
+            SV_BIRTH_BODY_NORMAL : trait_hidden_dna_case(argv[3]) ?
             SV_BIRTH_BODY_FRUIT_BAT :
             !strcmp(argv[3], "body-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
@@ -2821,6 +2952,7 @@ int main(int argc, char **argv)
     close(peer.listener);
 
     bool disconnected = !strcmp(argv[3], "session-disconnect") ||
+        !strcmp(argv[3], "legacy-hidden-class-disconnect") ||
         !strcmp(argv[3], "unknown-setup-disconnect") ||
         !strcmp(argv[3], "unknown-setup-pvp-maia-back-disconnect");
     assert(result == (disconnected ? 1 : 0) &&
@@ -2838,6 +2970,13 @@ int main(int argc, char **argv)
 #if SV_CLASS_BEFORE_RACE
     if (!strcmp(argv[3], "class-random-empty")) {
         assert(outcome.birth_legal_class_count == 0);
+    } else if (legacy_hidden_direct_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 13);
+    } else if (legacy_hidden_death_dna_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 3);
+        assert(outcome.birth_legal_classes[0] == 0);
+        assert(outcome.birth_legal_classes[1] == 2);
+        assert(outcome.birth_legal_classes[2] == 6);
     } else if (long_class_setup_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 20);
     } else if (long_race_setup_case(argv[3]) ||
@@ -2863,7 +3002,66 @@ int main(int argc, char **argv)
     const char *quit_owner = NULL;
     SDL_Keymod quit_modifier = SDL_KMOD_NONE;
     const char *lowercase_q_owner = NULL;
-    if (trait_hidden_dna_case(argv[3])) {
+    if (legacy_hidden_direct_case(argv[3])) {
+        assert(outcome.birth_visible_class_count == 13);
+        assert(outcome.birth_legal_class_count == 13);
+        for (unsigned i = 0; i < 13; ++i) {
+            assert(outcome.birth_visible_classes[i] == i);
+            assert(outcome.birth_legal_classes[i] == i);
+        }
+        if (legacy_hidden_random_case(argv[3])) {
+#if SV_CLASS_BEFORE_RACE
+            assert(outcome.birth_owner == SV_BIRTH_RACE);
+#else
+            assert(outcome.birth_owner == SV_BIRTH_STATS);
+#endif
+            assert(outcome.birth_class_confirmed &&
+                   outcome.birth_class_random_used);
+            assert(outcome.birth_class >= 0 && outcome.birth_class < 13);
+        } else if (!strcmp(argv[3], "legacy-hidden-class-back")) {
+#if SV_CLASS_BEFORE_RACE
+            assert(outcome.birth_owner == SV_BIRTH_SEX);
+#else
+            assert(outcome.birth_owner == SV_BIRTH_BODY);
+#endif
+            assert(!outcome.birth_class_confirmed &&
+                   outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        } else if (!strcmp(argv[3], "legacy-hidden-class-disconnect")) {
+            assert(!outcome.birth_active && outcome.birth_closed);
+            assert(outcome.birth_owner == SV_BIRTH_NONE);
+            assert(!outcome.birth_class_confirmed && !outcome.birth_quit);
+        } else if (!strcmp(argv[3], "legacy-hidden-class-stale")) {
+            assert(outcome.birth_owner == SV_BIRTH_CLASS);
+            assert(!outcome.birth_class_confirmed &&
+                   outcome.birth_class == SV_BIRTH_CLASS_NONE);
+            assert(outcome.birth_highlighted_class == 0);
+        } else {
+            assert(outcome.birth_owner == SV_BIRTH_CLASS);
+            assert(!outcome.birth_class_confirmed &&
+                   outcome.birth_class == SV_BIRTH_CLASS_NONE);
+            assert(outcome.birth_highlighted_class == 0);
+            assert(outcome.birth_keyboard_navigated &&
+                   outcome.birth_mouse_navigated);
+        }
+        if (strcmp(argv[3], "legacy-hidden-class-disconnect"))
+            assert(outcome.birth_quit);
+    } else if (legacy_hidden_death_dna_case(argv[3])) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_visible_class_count == 3);
+#else
+        assert(outcome.birth_visible_class_count == 13);
+#endif
+        assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+        assert(outcome.birth_class == 13 &&
+               outcome.birth_highlighted_class == 6);
+        assert(outcome.birth_race_confirmed && outcome.birth_race_dna_used);
+        assert(outcome.birth_race == 16 && outcome.birth_highlighted_race == 16);
+        assert(outcome.birth_trait_confirmed && outcome.birth_trait_dna_used);
+        assert(outcome.birth_trait == 1);
+        assert(outcome.birth_body_confirmed && outcome.birth_body_dna_used);
+        assert(outcome.birth_body == SV_BIRTH_BODY_NORMAL);
+    } else if (trait_hidden_dna_case(argv[3])) {
         int base_class = trait_hidden_dna_class(argv[3]) == 14 ? 6 : 2;
         bool race_refresh = !strcmp(argv[3],
             "trait-hidden-dna-race-refresh");
