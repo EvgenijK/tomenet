@@ -1131,8 +1131,11 @@ extern bool room_template_monster_profile_matches(
 	room_template_monster_profile *profile, int r_idx, bool fallback);
 extern bool room_template_item_profile_matches(
 	room_template_item_profile *profile, int k_idx);
+extern bool room_template_item_egos_match(int k_idx, int first, int second);
 extern int room_template_item_quality_weight(int k_idx, u64b resf,
 	room_template_item_quality quality);
+extern bool room_template_make_artifact_special(struct worldpos *wpos,
+	object_type *o_ptr, room_template_item_profile *profile, u64b resf);
 
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);

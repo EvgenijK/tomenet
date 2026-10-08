@@ -1891,6 +1891,70 @@ bool room_template_item_profile_matches(
 }
 
 
+static bool room_template_item_ego_fits_kind(int k_idx, int e_idx) {
+	ego_item_type *ego = &e_info[e_idx];
+	object_kind *kind = &k_info[k_idx];
+	int i;
+
+	for (i = 0; i < MAX_EGO_BASETYPES; i++)
+		if (ego->tval[i] == kind->tval && ego->min_sval[i] <= kind->sval &&
+		    ego->max_sval[i] >= kind->sval) return(TRUE);
+	return(FALSE);
+}
+
+
+static bool room_template_item_ego_pair_forbidden(int first, int second) {
+	if ((first == EGO_RESIST_FIRE && second == EGO_DWARVEN_ARMOR) ||
+	    (second == EGO_RESIST_FIRE && first == EGO_DWARVEN_ARMOR)) return(TRUE);
+	if (((first == EGO_RESIST_FIRE || first == EGO_RESIST_COLD ||
+	      first == EGO_RESIST_ELEC || first == EGO_RESIST_ACID) &&
+	     second == EGO_ELVENKIND) ||
+	    ((second == EGO_RESIST_FIRE || second == EGO_RESIST_COLD ||
+	      second == EGO_RESIST_ELEC || second == EGO_RESIST_ACID) &&
+	     first == EGO_ELVENKIND)) return(TRUE);
+	if ((first == EGO_CLOAK_LORDLY_RES &&
+	     (second == EGO_AURA_ELEC2 || second == EGO_AURA_COLD2 ||
+	      second == EGO_AURA_FIRE2)) ||
+	    (second == EGO_CLOAK_LORDLY_RES &&
+	     (first == EGO_AURA_ELEC2 || first == EGO_AURA_COLD2 ||
+	      first == EGO_AURA_FIRE2))) return(TRUE);
+	if ((first == EGO_SPECTRAL &&
+	     (second == EGO_FURY || second == EGO_DRAGON || second == EGO_LIFE)) ||
+	    (second == EGO_SPECTRAL &&
+	     (first == EGO_FURY || first == EGO_DRAGON || first == EGO_LIFE)))
+		return(TRUE);
+	if ((first == EGO_CLOAK_INVIS &&
+	     (second == EGO_AURA_ELEC2 || second == EGO_AURA_COLD2 ||
+	      second == EGO_AURA_FIRE2)) ||
+	    (second == EGO_CLOAK_INVIS &&
+	     (first == EGO_AURA_ELEC2 || first == EGO_AURA_COLD2 ||
+	      first == EGO_AURA_FIRE2))) return(TRUE);
+	if (((first == EGO_CORRUPTED || first == EGO_CHAOTIC) &&
+	     (second == EGO_HA || second == EGO_LIFE)) ||
+	    ((second == EGO_CORRUPTED || second == EGO_CHAOTIC) &&
+	     (first == EGO_HA || first == EGO_LIFE))) return(TRUE);
+	if ((first == EGO_MORGUL && second == EGO_BLESSED_WEAPON) ||
+	    (second == EGO_MORGUL && first == EGO_BLESSED_WEAPON)) return(TRUE);
+	return(FALSE);
+}
+
+
+bool room_template_item_egos_match(int k_idx, int first, int second) {
+	if (k_idx <= 0 || k_idx >= max_k_idx || first <= 0 ||
+	    first >= max_e_idx || !e_info[first].name ||
+	    !room_template_item_ego_fits_kind(k_idx, first)) return(FALSE);
+	if (!second) return(TRUE);
+	if (second >= max_e_idx || !e_info[second].name || first == second ||
+	    !room_template_item_ego_fits_kind(k_idx, second)) return(FALSE);
+	if ((k_info[k_idx].flags6 & TR6_INSTA_EGO) ||
+	    (e_info[first].fego1[0] & ETR1_NO_DOUBLE_EGO) ||
+	    (e_info[second].fego1[0] & ETR1_NO_DOUBLE_EGO) ||
+	    e_info[first].before == e_info[second].before ||
+	    room_template_item_ego_pair_forbidden(first, second)) return(FALSE);
+	return(TRUE);
+}
+
+
 static void room_template_init_item_profiles(room_template_type *room) {
 	int i;
 
@@ -1990,10 +2054,38 @@ static errr room_template_parse_item_profile(cptr path, int line,
 		return(0);
 	}
 	if (streq(field, "ego")) {
-		if (profile->ego_defined || !streq(value, "default"))
-			return(room_template_error(path, line,
-				"only the default item ego mode is supported here"));
+		char *third;
+
+		if (profile->ego_defined)
+			return(room_template_error(path, line, "duplicate item ego mode"));
 		profile->ego_defined = TRUE;
+		if (streq(value, "default"))
+			profile->ego_mode = ROOM_TEMPLATE_ITEM_EGO_DEFAULT;
+		else if (streq(value, "required"))
+			profile->ego_mode = ROOM_TEMPLATE_ITEM_EGO_REQUIRED;
+		else if (!strncmp(value, "exact:", 6)) {
+			value += 6;
+			third = strchr(value, ':');
+			if (third) *third++ = '\0';
+			if (!room_template_number(value, 1,
+			    max_e_idx ? max_e_idx - 1 : 0, &parsed) ||
+			    !e_info[parsed].name)
+				return(room_template_error(path, line,
+					"item exact ego references an unknown e_idx"));
+			profile->ego_idx[profile->ego_count++] = parsed;
+			if (third) {
+				if (!room_template_number(third, 1,
+				    max_e_idx ? max_e_idx - 1 : 0, &parsed2) ||
+				    !e_info[parsed2].name)
+					return(room_template_error(path, line,
+						"item exact ego references an unknown e_idx"));
+				if (parsed == parsed2)
+					return(room_template_error(path, line,
+						"item exact ego pair repeats an e_idx"));
+				profile->ego_idx[profile->ego_count++] = parsed2;
+			}
+			profile->ego_mode = ROOM_TEMPLATE_ITEM_EGO_EXACT;
+		} else return(room_template_error(path, line, "invalid item ego mode"));
 		return(0);
 	}
 	return(room_template_error(path, line, "unknown item profile field"));
@@ -2025,9 +2117,18 @@ static errr room_template_validate_item_profiles(cptr path,
 			return(room_template_error(path, profile->line, reason));
 		}
 		if (exact) {
-			if (!lookup_kind(profile->tval, profile->sval)) {
+			int k_idx = lookup_kind(profile->tval, profile->sval);
+
+			if (!k_idx) {
 				snprintf(reason, sizeof(reason),
 					"item profile '%c' references an unknown tval/sval", symbol);
+				return(room_template_error(path, profile->line, reason));
+			}
+			if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_EXACT &&
+			    !room_template_item_egos_match(k_idx, profile->ego_idx[0],
+			    profile->ego_idx[1])) {
+				snprintf(reason, sizeof(reason),
+					"item profile '%c' has incompatible exact ego", symbol);
 				return(room_template_error(path, profile->line, reason));
 			}
 			continue;
@@ -2041,11 +2142,14 @@ static errr room_template_validate_item_profiles(cptr path,
 			if (!room_template_item_quality_weight(i, RESF_NONE,
 			    profile->quality)) continue;
 			candidate = TRUE;
-			break;
+			if (profile->ego_mode != ROOM_TEMPLATE_ITEM_EGO_EXACT ||
+			    room_template_item_egos_match(i, profile->ego_idx[0],
+			    profile->ego_idx[1])) break;
 		}
-		if (!candidate) {
+		if (!candidate || (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_EXACT &&
+		    i == max_k_idx)) {
 			snprintf(reason, sizeof(reason),
-				"item profile '%c' has no static candidates", symbol);
+				"item profile '%c' has no compatible static candidates", symbol);
 			return(room_template_error(path, profile->line, reason));
 		}
 	}

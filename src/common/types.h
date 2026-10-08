@@ -593,6 +593,12 @@ typedef enum {
 	ROOM_TEMPLATE_ITEM_GREAT
 } room_template_item_quality;
 
+typedef enum {
+	ROOM_TEMPLATE_ITEM_EGO_DEFAULT,
+	ROOM_TEMPLATE_ITEM_EGO_REQUIRED,
+	ROOM_TEMPLATE_ITEM_EGO_EXACT
+} room_template_item_ego_mode;
+
 typedef struct room_template_item_profile room_template_item_profile;
 struct room_template_item_profile {
 	bool defined;
@@ -611,6 +617,9 @@ struct room_template_item_profile {
 	char glyph;
 	u32b flags[ROOM_TEMPLATE_ITEM_FLAG_SETS];
 	room_template_item_quality quality;
+	room_template_item_ego_mode ego_mode;
+	s16b ego_idx[2];
+	byte ego_count;
 };
 
 typedef struct room_template_type room_template_type;

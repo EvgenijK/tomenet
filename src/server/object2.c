@@ -4647,7 +4647,8 @@ s_printf("TRUEART_R-OOD: %d failed, a %d vs d %d (%d%%)\n", aidx, alev, dlev, d)
  *
  * Note -- see "make_artifact()" and "apply_magic()"
  */
-static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr, u64b resf) {
+static bool make_artifact_special_profile(struct worldpos *wpos,
+		object_type *o_ptr, u64b resf, room_template_item_profile *profile) {
 	int i, dlev = getlevel(wpos);
 	int k_idx = 0;
 	bool winner_arts_only = ((resf & RESF_NOTRUEART) && (resf & RESF_WINNER));
@@ -4718,6 +4719,10 @@ static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr, u64
 			s_printf("INSTA_ART_NONEXISTANT: %d failed\n", i);
 			continue; //base item does not exist/is commented out
 		}
+		/* Room templates apply all base-kind filters before accepting or
+		   marking an early artifact. */
+		if (profile && (a_ptr->level > dlev || k_info[k_idx].level > dlev ||
+		    !room_template_item_profile_matches(profile, k_idx))) continue;
 
 		/* enforce minimum/maximum ood */
 		if (true_artifact_ood(i, dlev)) continue;
@@ -4751,6 +4756,18 @@ static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr, u64
 
 	/* Failure */
 	return(FALSE);
+}
+
+
+static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr,
+		u64b resf) {
+	return(make_artifact_special_profile(wpos, o_ptr, resf, NULL));
+}
+
+
+bool room_template_make_artifact_special(struct worldpos *wpos,
+		object_type *o_ptr, room_template_item_profile *profile, u64b resf) {
+	return(make_artifact_special_profile(wpos, o_ptr, resf, profile));
 }
 
 

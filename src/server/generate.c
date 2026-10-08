@@ -2614,16 +2614,48 @@ static bool room_template_place_item(worldpos *wpos, int y, int x,
 	cave_type **zcave = getcave(wpos);
 	int depth = getlevel(wpos);
 	int k_idx;
+	bool special = FALSE, placed;
 	bool good = profile->quality != ROOM_TEMPLATE_ITEM_NORMAL;
 	bool great = profile->quality == ROOM_TEMPLATE_ITEM_GREAT;
 
 	/* Reject the target before creation so a failed cell has no item side effects. */
 	if (!zcave || !cave_clean_bold(zcave, y, x)) return(FALSE);
-	k_idx = room_template_pick_item(profile, depth);
-	if (!k_idx) return(FALSE);
-	invcopy(&forge, k_idx);
-	apply_magic(wpos, &forge, depth, TRUE, good, great, FALSE, RESF_NONE);
+	invwipe(&forge);
+	if (profile->ego_mode != ROOM_TEMPLATE_ITEM_EGO_EXACT &&
+	    !rand_int(good || great ? 300 : 10000))
+		special = room_template_make_artifact_special(wpos, &forge, profile,
+			RESF_NONE);
+	if (!special) {
+		k_idx = room_template_pick_item(profile, depth);
+		if (!k_idx) return(FALSE);
+		invcopy(&forge, k_idx);
+	}
+	if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_EXACT) {
+		if (!room_template_item_egos_match(forge.k_idx,
+		    profile->ego_idx[0], profile->ego_idx[1]) ||
+		    e_info[profile->ego_idx[0]].level > depth ||
+		    (profile->ego_idx[1] &&
+		     e_info[profile->ego_idx[1]].level > depth)) return(FALSE);
+		forge.name2 = profile->ego_idx[0];
+		forge.name2b = profile->ego_idx[1];
+		if (!(e_info[forge.name2].fego1[0] & ETR1_NO_SEED) ||
+		    (forge.name2b &&
+		     !(e_info[forge.name2b].fego1[0] & ETR1_NO_SEED))) {
+			forge.name3 = (u32b)rand_int(0xFFFF) << 16;
+			forge.name3 += rand_int(0xFFFF);
+		}
+		apply_magic(wpos, &forge, depth, FALSE, good, great, FALSE,
+			RESF_MASK_NOART);
+		if (forge.name1 || forge.name2 != profile->ego_idx[0] ||
+		    forge.name2b != profile->ego_idx[1]) {
+			if (true_artifact_p(&forge)) handle_art_dnum(forge.name1);
+			return(FALSE);
+		}
+	} else apply_magic(wpos, &forge, depth, TRUE, good, great, FALSE,
+		RESF_NONE);
 	if (!forge.k_idx) return(FALSE);
+	if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_REQUIRED &&
+	    !forge.name1 && !forge.name2 && !forge.name2b) return(FALSE);
 	if (!forge.name1) {
 		switch (forge.tval) {
 		case TV_SPIKE:
@@ -2640,7 +2672,9 @@ static bool room_template_place_item(worldpos *wpos, int y, int x,
 			break;
 		}
 	}
-	return(room_template_carry_item(wpos, y, x, &forge));
+	placed = room_template_carry_item(wpos, y, x, &forge);
+	if (!placed && true_artifact_p(&forge)) handle_art_dnum(forge.name1);
+	return(placed);
 }
 
 
