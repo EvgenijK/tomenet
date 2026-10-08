@@ -26,7 +26,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 ## Frontier
 
 - [Отклонить новый automatic DNA command в ordered stats](issues/38-reject-new-auto-dna-in-ordered-stats.md) — unclaimed; blocker 34 resolved, human disposition дан, поэтому ticket готов к работе.
-- [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md) — unclaimed; blocker 37 resolved, поэтому ticket готов к работе.
 
 ## Decisions so far
 
@@ -67,3 +66,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Ограничить Guide point-buy stats owner](issues/35-restrict-guide-to-point-buy-stats.md)
 - [Записать revision gate для birth view](issues/36-record-birth-view-revision-opportunity.md)
 - [Verify focused production coverage](issues/37-focused-test-coverage.md)
+- [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md)
