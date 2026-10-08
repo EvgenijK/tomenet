@@ -650,6 +650,36 @@ static cptr r_info_flagsA[] = {
 	"X80000000",
 };
 
+
+/* Resolve a real, unambiguous r_info flag for room-template profiles. */
+int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
+	static cptr *tables[ROOM_TEMPLATE_MONSTER_FLAG_SETS] = {
+		[ROOM_TEMPLATE_MONSTER_FLAGS1] = r_info_flags1,
+		[ROOM_TEMPLATE_MONSTER_FLAGS2] = r_info_flags2,
+		[ROOM_TEMPLATE_MONSTER_FLAGS3] = r_info_flags3,
+		[ROOM_TEMPLATE_MONSTER_FLAGS4] = r_info_flags4,
+		[ROOM_TEMPLATE_MONSTER_FLAGS5] = r_info_flags5,
+		[ROOM_TEMPLATE_MONSTER_FLAGS6] = r_info_flags6,
+		[ROOM_TEMPLATE_MONSTER_FLAGS7] = r_info_flags7,
+		[ROOM_TEMPLATE_MONSTER_FLAGS8] = r_info_flags8,
+		[ROOM_TEMPLATE_MONSTER_FLAGS9] = r_info_flags9,
+		[ROOM_TEMPLATE_MONSTER_FLAGS0] = r_info_flags0,
+		[ROOM_TEMPLATE_MONSTER_FLAGSA] = r_info_flagsA
+	};
+	int family, bit, matches = 0;
+
+	if (!name || !name[0] || name[0] == 'X') return(0);
+	for (family = 0; family < ROOM_TEMPLATE_MONSTER_FLAG_SETS; family++) {
+		for (bit = 0; bit < 32; bit++) {
+			if (!tables[family][bit] || !streq(name, tables[family][bit])) continue;
+			matches++;
+			*set = family;
+			*mask = (1U << bit);
+		}
+	}
+	return(matches);
+}
+
 /*
  * Trap flags (PernAngband)
  */
@@ -9335,6 +9365,13 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 #ifdef MACINTOSH
 static int i = 0;
 #endif
+
+int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
+	(void)name;
+	(void)set;
+	(void)mask;
+	return(0);
+}
 
 #endif	/* ALLOW_TEMPLATES */
 

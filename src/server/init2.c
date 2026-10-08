@@ -1647,8 +1647,220 @@ static bool room_template_terrain_passable(int feat) {
 }
 
 
+static u32b room_template_monster_race_flags(monster_race *race, int set) {
+	switch (set) {
+	case ROOM_TEMPLATE_MONSTER_FLAGS1: return(race->flags1);
+	case ROOM_TEMPLATE_MONSTER_FLAGS2: return(race->flags2);
+	case ROOM_TEMPLATE_MONSTER_FLAGS3: return(race->flags3);
+	case ROOM_TEMPLATE_MONSTER_FLAGS4: return(race->flags4);
+	case ROOM_TEMPLATE_MONSTER_FLAGS5: return(race->flags5);
+	case ROOM_TEMPLATE_MONSTER_FLAGS6: return(race->flags6);
+	case ROOM_TEMPLATE_MONSTER_FLAGS7: return(race->flags7);
+	case ROOM_TEMPLATE_MONSTER_FLAGS8: return(race->flags8);
+	case ROOM_TEMPLATE_MONSTER_FLAGS9: return(race->flags9);
+	case ROOM_TEMPLATE_MONSTER_FLAGS0: return(race->flags0);
+	default: return(race->flagsA);
+	}
+}
+
+
+bool room_template_monster_profile_matches(
+		room_template_monster_profile *profile, int r_idx, bool fallback) {
+	monster_race *race;
+	int i;
+
+	if (r_idx <= 0 || r_idx >= max_r_idx || !r_info[r_idx].name) return(FALSE);
+	race = &r_info[r_idx];
+	if (!fallback && profile->r_idx >= 0 && profile->r_idx != r_idx) return(FALSE);
+	if (fallback && (race->flags1 & RF1_UNIQUE)) return(FALSE);
+	for (i = 0; i < ROOM_TEMPLATE_MONSTER_FLAG_SETS; i++) {
+		u32b required = profile->flags[i];
+
+		if (fallback && i == 0) required &= ~RF1_UNIQUE;
+		if ((room_template_monster_race_flags(race, i) & required) != required)
+			return(FALSE);
+	}
+	if (profile->glyph && race->d_char != (unsigned char)profile->glyph) return(FALSE);
+	if (profile->min_level >= 0 && race->level < profile->min_level) return(FALSE);
+	if (profile->max_level >= 0 && race->level > profile->max_level) return(FALSE);
+	if (!fallback && profile->only_count) {
+		for (i = 0; i < profile->only_count; i++)
+			if (profile->only_r_idx[i] == r_idx) break;
+		if (i == profile->only_count) return(FALSE);
+	}
+	if (!(profile->flags[ROOM_TEMPLATE_MONSTER_FLAGS1] & RF1_UNIQUE) &&
+	    (profile->ego_mode == ROOM_TEMPLATE_EGO_REQUIRED ||
+	     profile->ego_mode == ROOM_TEMPLATE_EGO_EXACT) &&
+	    (race->flags1 & RF1_UNIQUE)) return(FALSE);
+	return(TRUE);
+}
+
+
+static void room_template_init_monster_profiles(room_template_type *room) {
+	int i;
+
+	for (i = 0; i < 128; i++) {
+		room->monster_profiles[i].r_idx = -1;
+		room->monster_profiles[i].min_level = -1;
+		room->monster_profiles[i].max_level = -1;
+		room->monster_profiles[i].ego_mode = ROOM_TEMPLATE_EGO_AUTO;
+	}
+}
+
+
+static errr room_template_parse_monster_profile(cptr path, int line,
+		char *buf, room_template_type *room) {
+	room_template_monster_profile *profile;
+	unsigned char symbol;
+	char *field, *value, *second;
+	long parsed, parsed2;
+	int i, set, matches;
+	u32b mask;
+	s16b *grown;
+
+	if (strlen(buf) < 4 || buf[3] != ':')
+		return(room_template_error(path, line, "invalid M directive"));
+	symbol = (unsigned char)buf[2];
+	if (!room_template_symbol(symbol))
+		return(room_template_error(path, line, "invalid monster profile symbol"));
+	profile = &room->monster_profiles[symbol];
+	if (!profile->defined) profile->line = line;
+	profile->defined = TRUE;
+	field = buf + 4;
+	if (!field[0]) {
+		if (profile->empty_declared)
+			return(room_template_error(path, line, "duplicate empty monster profile declaration"));
+		profile->empty_declared = TRUE;
+		return(0);
+	}
+	value = strchr(field, ':');
+	if (!value)
+		return(room_template_error(path, line, "monster profile field has no value"));
+	*value++ = '\0';
+
+	if (streq(field, "r_idx")) {
+		if (profile->r_idx >= 0 || !room_template_number(value, 1,
+		    max_r_idx ? max_r_idx - 1 : 0, &parsed) || !r_info[parsed].name)
+			return(room_template_error(path, line, "invalid or duplicate monster r_idx"));
+		profile->r_idx = parsed;
+		return(0);
+	}
+	if (streq(field, "flag")) {
+		matches = lookup_room_template_monster_flag(value, &set, &mask);
+		if (matches != 1)
+			return(room_template_error(path, line,
+				"unknown, ambiguous, or placeholder monster flag"));
+		if (profile->flags[set] & mask)
+			return(room_template_error(path, line, "duplicate monster flag"));
+		profile->flags[set] |= mask;
+		return(0);
+	}
+	if (streq(field, "glyph")) {
+		if (profile->glyph || strlen(value) != 1)
+			return(room_template_error(path, line, "invalid or duplicate monster glyph"));
+		profile->glyph = value[0];
+		return(0);
+	}
+	if (streq(field, "level")) {
+		second = strchr(value, ':');
+		if (profile->min_level >= 0 || !second)
+			return(room_template_error(path, line, "invalid or duplicate monster level range"));
+		*second++ = '\0';
+		if (!room_template_number(value, 0, 254, &parsed) ||
+		    !room_template_number(second, parsed, 254, &parsed2))
+			return(room_template_error(path, line, "invalid monster level range"));
+		profile->min_level = parsed;
+		profile->max_level = parsed2;
+		return(0);
+	}
+	if (streq(field, "only_r_idx")) {
+		if (!room_template_number(value, 1, max_r_idx ? max_r_idx - 1 : 0,
+		    &parsed) || !r_info[parsed].name)
+			return(room_template_error(path, line, "monster only_r_idx is unknown"));
+		for (i = 0; i < profile->only_count; i++)
+			if (profile->only_r_idx[i] == parsed)
+				return(room_template_error(path, line, "duplicate monster only_r_idx"));
+		grown = realloc(profile->only_r_idx,
+			(profile->only_count + 1) * sizeof(*profile->only_r_idx));
+		if (!grown) return(room_template_error(path, line, "out of memory"));
+		profile->only_r_idx = grown;
+		profile->only_r_idx[profile->only_count++] = parsed;
+		return(0);
+	}
+	if (streq(field, "ego")) {
+		if (profile->ego_defined)
+			return(room_template_error(path, line, "duplicate monster ego mode"));
+		profile->ego_defined = TRUE;
+		if (streq(value, "auto")) profile->ego_mode = ROOM_TEMPLATE_EGO_AUTO;
+		else if (streq(value, "none")) profile->ego_mode = ROOM_TEMPLATE_EGO_NONE;
+		else if (streq(value, "required")) profile->ego_mode = ROOM_TEMPLATE_EGO_REQUIRED;
+		else if (!strncmp(value, "exact:", 6) &&
+		    room_template_number(value + 6, 1, MAX_RE_IDX - 1, &parsed) &&
+		    parsed < max_re_idx && re_info[parsed].name) {
+			profile->ego_mode = ROOM_TEMPLATE_EGO_EXACT;
+			profile->ego_idx = parsed;
+		} else return(room_template_error(path, line, "invalid monster ego mode"));
+		return(0);
+	}
+	return(room_template_error(path, line, "unknown monster profile field"));
+}
+
+
+static errr room_template_validate_monster_profiles(cptr path,
+		room_template_type *room) {
+	int symbol, r_idx;
+	char reason[160];
+
+	for (symbol = 0; symbol < 128; symbol++) {
+		room_template_monster_profile *profile = &room->monster_profiles[symbol];
+		monster_race *race;
+		bool candidate = FALSE;
+
+		if (!profile->defined) continue;
+		if (profile->r_idx >= 0 && profile->only_count) {
+			snprintf(reason, sizeof(reason),
+				"monster profile '%c' combines r_idx with only_r_idx", symbol);
+			return(room_template_error(path, profile->line, reason));
+		}
+		if (profile->r_idx >= 0) {
+			race = &r_info[profile->r_idx];
+			if ((race->flags1 & RF1_UNIQUE) &&
+				    !(profile->flags[ROOM_TEMPLATE_MONSTER_FLAGS1] & RF1_UNIQUE) &&
+			    (profile->ego_mode == ROOM_TEMPLATE_EGO_REQUIRED ||
+			     profile->ego_mode == ROOM_TEMPLATE_EGO_EXACT)) {
+				snprintf(reason, sizeof(reason),
+					"unique r_idx in profile '%c' conflicts with mandatory ego", symbol);
+				return(room_template_error(path, profile->line, reason));
+			}
+			if (!room_template_monster_profile_matches(profile,
+			    profile->r_idx, FALSE)) {
+				snprintf(reason, sizeof(reason),
+					"monster r_idx in profile '%c' contradicts its filters", symbol);
+				return(room_template_error(path, profile->line, reason));
+			}
+			continue;
+		}
+		for (r_idx = 1; r_idx < max_r_idx; r_idx++) {
+			if (room_template_monster_profile_matches(profile, r_idx, FALSE)) {
+				candidate = TRUE;
+				break;
+			}
+		}
+		if (!candidate) {
+			snprintf(reason, sizeof(reason),
+				"monster profile '%c' has no static candidates", symbol);
+			return(room_template_error(path, profile->line, reason));
+		}
+	}
+	return(0);
+}
+
+
 static void room_template_discard(room_template_type *room) {
+	int i;
+
 	if (room->name) string_free(room->name);
+	for (i = 0; i < 128; i++) free(room->monster_profiles[i].only_r_idx);
 	if (room->terrain_map) free(room->terrain_map);
 	if (room->monster_map) free(room->monster_map);
 	if (room->item_map) free(room->item_map);
@@ -1683,6 +1895,7 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	*code_line = 0;
 	memset(defined, 0, sizeof(defined));
 	for (i = 0; i < 128; i++) room->terrain_feature[i] = -1;
+	room_template_init_monster_profiles(room);
 	room->max_depth = MAX_DEPTH - 1;
 	room->weight = 1;
 
@@ -1726,10 +1939,27 @@ static errr room_template_parse_file(cptr path, cptr filename,
 					my_fclose(fp);
 					return(room_template_error(path, line, reason));
 				}
-				if (state != ROOM_TEMPLATE_PARSE_TERRAIN && symbol != '_') {
+				if (state == ROOM_TEMPLATE_PARSE_MONSTERS && symbol != '_') {
+					int cell = row * room->wid + i;
+					unsigned char terrain = (unsigned char)room->terrain_map[cell];
+
+					if (!room->monster_profiles[symbol].defined) {
+						snprintf(reason, sizeof(reason),
+							"monster symbol '%c' has no M definition", symbol);
+						my_fclose(fp);
+						return(room_template_error(path, line, reason));
+					}
+					if (terrain == '_' || room->terrain_feature[terrain] < 0 ||
+					    !(f_info[room->terrain_feature[terrain]].flags1 & FF1_FLOOR)) {
+						my_fclose(fp);
+						return(room_template_error(path, line,
+							"monster marker must be on active floor terrain"));
+					}
+				}
+				if (state == ROOM_TEMPLATE_PARSE_ITEMS && symbol != '_') {
 					my_fclose(fp);
 					return(room_template_error(path, line,
-						"entity maps must be empty until their profiles are defined"));
+						"item maps must be empty until item profiles are implemented"));
 				}
 				target[row * room->wid + i] = symbol;
 			}
@@ -1932,10 +2162,25 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			continue;
 		}
 
-		if (!strncmp(buf, "M:", 2) || !strncmp(buf, "I:", 2)) {
+		if (!strncmp(buf, "M:", 2)) {
+			errr r;
+
+			if (!got_name || !got_size || state != ROOM_TEMPLATE_PARSE_HEADER) {
+				my_fclose(fp);
+				return(room_template_error(path, line, "M directive is misplaced"));
+			}
+			r = room_template_parse_monster_profile(path, line, buf, room);
+			if (r) {
+				my_fclose(fp);
+				return(r);
+			}
+			continue;
+		}
+
+		if (!strncmp(buf, "I:", 2)) {
 			my_fclose(fp);
 			return(room_template_error(path, line,
-				"entity profiles are not part of terrain placement"));
+				"item profiles are not implemented yet"));
 		}
 
 		if (streq(buf, "DT:")) {
@@ -1963,7 +2208,7 @@ static errr room_template_parse_file(cptr path, cptr filename,
 			return(room_template_error(path, room->entrances[i].source_line,
 				"entrance must be on active passable terrain"));
 	}
-	return(0);
+	return(room_template_validate_monster_profiles(path, room));
 }
 
 
@@ -3995,10 +4240,6 @@ void init_some_arrays(void) {
 	s_printf("[Initializing arrays... (features)]\n");
 	if (init_f_info()) quit("Cannot initialize features");
 
-	/* Room-template terrain refers to initialized f_info entries. */
-	s_printf("[Initializing arrays... (room templates)]\n");
-	if (init_room_templates()) quit("Cannot initialize room templates");
-
 	/* Initialize skill info */
 	s_printf("[Initializing arrays... (skills)]\n");
 	if (init_s_info()) quit("Cannot initialize skills");
@@ -4024,6 +4265,10 @@ void init_some_arrays(void) {
 	s_printf("[Initializing arrays... (ego-monsters)]\n");
 	if (init_re_info()) quit("Cannot initialize ego monsters");
 #endif	// RANDUNIS
+
+	/* Room templates validate terrain, monsters and monster egos. */
+	s_printf("[Initializing arrays... (room templates)]\n");
+	if (init_room_templates()) quit("Cannot initialize room templates");
 
 	/* Initialize dungeon type info */
 	s_printf("[Initializing arrays... (dungeon types)]\n");

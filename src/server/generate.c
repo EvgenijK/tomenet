@@ -2414,6 +2414,124 @@ static bool room_template_blocks(room_template_type *room,
 }
 
 
+static room_template_monster_profile *room_template_monster_profile_hook;
+static bool room_template_monster_fallback_hook;
+static bool (*room_template_monster_base_hook)(int r_idx);
+
+
+static bool room_template_monster_okay(int r_idx) {
+	if (room_template_monster_base_hook &&
+	    !room_template_monster_base_hook(r_idx)) return(FALSE);
+	return(room_template_monster_profile_matches(
+		room_template_monster_profile_hook, r_idx,
+		room_template_monster_fallback_hook));
+}
+
+
+static bool room_template_monster_entry_eligible(alloc_entry *entry, int depth) {
+	monster_race *race = &r_info[entry->index];
+
+	if (entry->prob2 <= 0 || race->level > depth) return(FALSE);
+	if ((race->flags9 & RF9_ONLY_DEPTH) && race->level != depth) return(FALSE);
+	return(TRUE);
+}
+
+
+/* Pick from normal rarity weights after dungeon, terrain and profile filters. */
+static int room_template_pick_monster(worldpos *wpos,
+		room_template_monster_profile *profile, int feat, bool fallback) {
+	dungeon_type *dt_ptr = getdungeon(wpos);
+	dun_level *l_ptr = getfloor(wpos);
+	bool (*old_hook)(int r_idx) = get_mon_num_hook;
+	bool (*old_hook2)(int r_idx) = get_mon_num2_hook;
+	int dun_type = 0, depth = getlevel(wpos), i, chosen = 0;
+	s32b total = 0, value;
+
+#ifdef IRONDEEPDIVE_MIXED_TYPES
+	if (in_irondeepdive(wpos)) dun_type = iddc[ABS(wpos->wz)].type;
+	else
+#endif
+	if (dt_ptr) dun_type = dt_ptr->theme ? dt_ptr->theme : dt_ptr->type;
+
+	set_mon_num_hook(wpos);
+	room_template_monster_base_hook = get_mon_num_hook;
+	room_template_monster_profile_hook = profile;
+	room_template_monster_fallback_hook = fallback;
+	get_mon_num_hook = room_template_monster_okay;
+	set_mon_num2_hook(feat);
+	get_mon_num_prep(dun_type, l_ptr ? l_ptr->uniques_killed : NULL);
+
+	for (i = 0; i < alloc_race_size; i++) {
+		alloc_entry *entry = &alloc_race_table[i];
+
+		if (!room_template_monster_entry_eligible(entry, depth)) continue;
+		total += entry->prob2;
+	}
+	if (total) {
+		value = rand_int(total);
+		for (i = 0; i < alloc_race_size; i++) {
+			alloc_entry *entry = &alloc_race_table[i];
+
+			if (!room_template_monster_entry_eligible(entry, depth)) continue;
+			if (value < entry->prob2) {
+				chosen = entry->index;
+				break;
+			}
+			value -= entry->prob2;
+		}
+	}
+
+	get_mon_num_hook = old_hook;
+	get_mon_num2_hook = old_hook2;
+	room_template_monster_profile_hook = NULL;
+	room_template_monster_base_hook = NULL;
+	return(chosen);
+}
+
+
+static int room_template_monster_ego(room_template_monster_profile *profile,
+		int r_idx, int depth) {
+	if (profile->flags[ROOM_TEMPLATE_MONSTER_FLAGS1] & RF1_UNIQUE) return(0);
+	switch (profile->ego_mode) {
+	case ROOM_TEMPLATE_EGO_NONE:
+		return(0);
+	case ROOM_TEMPLATE_EGO_REQUIRED:
+		return(pick_ego_monster_required(r_idx, depth));
+	case ROOM_TEMPLATE_EGO_EXACT:
+		return(mego_ok(r_idx, profile->ego_idx) ? profile->ego_idx : 0);
+	default:
+		return(pick_ego_monster(r_idx, depth));
+	}
+}
+
+
+/* Place one prescribed primary. A failed unique gets one ordinary fallback. */
+static int room_template_place_monster(worldpos *wpos, int y, int x,
+		room_template_monster_profile *profile, int feat) {
+	int depth = getlevel(wpos), r_idx, ego;
+	bool unique_profile =
+		(profile->flags[ROOM_TEMPLATE_MONSTER_FLAGS1] & RF1_UNIQUE) != 0;
+
+	r_idx = room_template_pick_monster(wpos, profile, feat, FALSE);
+	if (!r_idx && (unique_profile ||
+	    (profile->r_idx > 0 && (r_info[profile->r_idx].flags1 & RF1_UNIQUE))))
+		r_idx = room_template_pick_monster(wpos, profile, feat, TRUE);
+	if (!r_idx) return(0);
+
+	ego = room_template_monster_ego(profile, r_idx, depth);
+	if (place_monster_one(wpos, y, x, r_idx, ego, 0, FALSE, 0, 0) == 0)
+		return(r_idx);
+	if (!(r_info[r_idx].flags1 & RF1_UNIQUE)) return(0);
+
+	r_idx = room_template_pick_monster(wpos, profile, feat, TRUE);
+	if (!r_idx) return(0);
+	ego = room_template_monster_ego(profile, r_idx, depth);
+	if (place_monster_one(wpos, y, x, r_idx, ego, 0, FALSE, 0, 0) == 0)
+		return(r_idx);
+	return(0);
+}
+
+
 /* Try every rotation/reflection at one block; commit only after preflight. */
 bool build_room_template(worldpos *wpos, int by0, int bx0,
 		room_template_type *room) {
@@ -2425,6 +2543,7 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 	int connection_n = 0;
 	bool valid;
 	u32b *transparent_info;
+	s16b *primary_monsters;
 
 	if (!(zcave = getcave(wpos)) || !room) return(FALSE);
 	for (i = 0; i < ROOM_TEMPLATE_ORIENTATION_COUNT; i++) order[i] = i;
@@ -2465,7 +2584,13 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 
 		transparent_info = malloc((size_t)room->wid * room->hgt *
 			sizeof(*transparent_info));
-		if (!transparent_info) return(FALSE);
+		primary_monsters = calloc((size_t)room->wid * room->hgt,
+			sizeof(*primary_monsters));
+		if (!transparent_info || !primary_monsters) {
+			free(transparent_info);
+			free(primary_monsters);
+			return(FALSE);
+		}
 		for (sy = 0; sy < room->hgt; sy++) {
 			for (sx = 0; sx < room->wid; sx++) {
 				if (room->terrain_map[sy * room->wid + sx] != '_') continue;
@@ -2479,6 +2604,7 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 		if (!room_template_blocks(room, orientation, by0, bx0, TRUE,
 			&center_y, &center_x)) {
 			free(transparent_info);
+			free(primary_monsters);
 			return(FALSE);
 		}
 		for (sy = 0; sy < room->hgt; sy++) {
@@ -2523,6 +2649,46 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			}
 			dun->cent_n++;
 		}
+
+		/* Item placement precedes this phase once item profiles are implemented. */
+		for (sy = 0; sy < room->hgt; sy++) {
+			for (sx = 0; sx < room->wid; sx++) {
+				unsigned char symbol = room->monster_map[sy * room->wid + sx];
+				cave_type *cell;
+
+				if (symbol == '_') continue;
+				room_template_transform(room, orientation, sx, sy, &dx, &dy);
+				cell = &zcave[top + dy][left + dx];
+				primary_monsters[sy * room->wid + sx] =
+					room_template_place_monster(wpos, top + dy, left + dx,
+						&room->monster_profiles[symbol],
+						cell->feat);
+				/* Keep companions out of a prescribed cell whose primary failed. */
+				if (!primary_monsters[sy * room->wid + sx] &&
+				    !(cell->info & CAVE_NO_MONSTER)) {
+					cell->info |= CAVE_NO_MONSTER;
+					primary_monsters[sy * room->wid + sx] = -1;
+				}
+			}
+		}
+		for (sy = 0; sy < room->hgt; sy++) {
+			for (sx = 0; sx < room->wid; sx++) {
+				int r_idx = primary_monsters[sy * room->wid + sx];
+
+				if (r_idx <= 0) continue;
+				room_template_transform(room, orientation, sx, sy, &dx, &dy);
+				place_monster_companions(wpos, top + dy, left + dx,
+					r_idx, FALSE, 0, 0);
+			}
+		}
+		for (sy = 0; sy < room->hgt; sy++) {
+			for (sx = 0; sx < room->wid; sx++) {
+				if (primary_monsters[sy * room->wid + sx] != -1) continue;
+				room_template_transform(room, orientation, sx, sy, &dx, &dy);
+				zcave[top + dy][left + dx].info &= ~CAVE_NO_MONSTER;
+			}
+		}
+		free(primary_monsters);
 		return(TRUE);
 	}
 	return(FALSE);

@@ -1117,6 +1117,7 @@ extern errr init_a_info_txt(FILE *fp, char *buf);
 extern errr init_e_info_txt(FILE *fp, char *buf);
 extern errr init_d_info_txt(FILE *fp, char *buf);
 extern errr init_r_info_txt(FILE *fp, char *buf);
+extern int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask);
 extern errr init_re_info_txt(FILE *fp, char *buf);
 extern errr init_t_info_txt(FILE *fp, char *buf);
 extern errr init_ow_info_txt(FILE *fp, char *buf);
@@ -1125,6 +1126,8 @@ extern errr init_st_info_txt(FILE *fp, char *buf);
 extern errr init_s_info_txt(FILE *fp, char *buf);
 extern errr init_q_info_txt(FILE *fp, char *buf);
 extern errr init_room_templates(void);
+extern bool room_template_monster_profile_matches(
+	room_template_monster_profile *profile, int r_idx, bool fallback);
 
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);
@@ -1228,6 +1231,7 @@ extern void update_player(int Ind);
 extern void update_player_flicker(int Ind);
 extern void update_players(void);
 extern int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool forbid_ego, bool slp, bool grp, int clo, int clone_summoning);
+extern void place_monster_companions(struct worldpos *wpos, int y, int x, int r_idx, bool slp, int clo, int clone_summoning);
 extern int place_monster_one(struct worldpos *wpos, int y, int x, int r_idx, int ego, int randuni, bool slp, int clo, int clone_summoning);
 extern bool place_monster(struct worldpos *wpos, int y, int x, bool slp, bool grp);
 #ifdef DM_MODULES
@@ -1261,6 +1265,8 @@ extern void monster_carry(monster_type *m_ptr, int m_idx, object_type *q_ptr);
 extern void player_desc(int Ind, char *desc, int Ind2, int mode);
 extern int monster_check_experience(int m_idx, bool silent);
 extern bool mego_ok(int r_idx, int ego);
+extern int pick_ego_monster(int r_idx, int Level);
+extern int pick_ego_monster_required(int r_idx, int Level);
 extern monster_race* race_inf(monster_type *m_ptr);
 extern monster_race* race_info_idx(int r_idx, int ego, int randuni);
 extern void py2mon_init(void);

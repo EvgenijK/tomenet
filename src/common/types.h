@@ -537,6 +537,45 @@ struct room_template_entrance {
 	int source_line;
 };
 
+typedef enum {
+	ROOM_TEMPLATE_MONSTER_FLAGS1,
+	ROOM_TEMPLATE_MONSTER_FLAGS2,
+	ROOM_TEMPLATE_MONSTER_FLAGS3,
+	ROOM_TEMPLATE_MONSTER_FLAGS4,
+	ROOM_TEMPLATE_MONSTER_FLAGS5,
+	ROOM_TEMPLATE_MONSTER_FLAGS6,
+	ROOM_TEMPLATE_MONSTER_FLAGS7,
+	ROOM_TEMPLATE_MONSTER_FLAGS8,
+	ROOM_TEMPLATE_MONSTER_FLAGS9,
+	ROOM_TEMPLATE_MONSTER_FLAGS0,
+	ROOM_TEMPLATE_MONSTER_FLAGSA,
+	ROOM_TEMPLATE_MONSTER_FLAG_SETS
+} room_template_monster_flag_set;
+
+typedef enum {
+	ROOM_TEMPLATE_EGO_AUTO,
+	ROOM_TEMPLATE_EGO_NONE,
+	ROOM_TEMPLATE_EGO_REQUIRED,
+	ROOM_TEMPLATE_EGO_EXACT
+} room_template_monster_ego_mode;
+
+typedef struct room_template_monster_profile room_template_monster_profile;
+struct room_template_monster_profile {
+	bool defined;
+	bool empty_declared;
+	bool ego_defined;
+	int line;
+	s16b r_idx;
+	s16b min_level;
+	s16b max_level;
+	char glyph;
+	u32b flags[ROOM_TEMPLATE_MONSTER_FLAG_SETS];
+	s16b *only_r_idx;
+	u16b only_count;
+	room_template_monster_ego_mode ego_mode;
+	s16b ego_idx;
+};
+
 typedef struct room_template_type room_template_type;
 struct room_template_type {
 	char code[64];
@@ -547,6 +586,7 @@ struct room_template_type {
 	byte max_depth;
 	u16b weight;
 	s16b terrain_feature[128];
+	room_template_monster_profile monster_profiles[128];
 	char *terrain_map;
 	char *monster_map;
 	char *item_map;

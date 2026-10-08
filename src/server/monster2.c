@@ -113,6 +113,7 @@ static cptr funny_comments[MAX_COMMENT] = {
 
 
 int pick_ego_monster(int r_idx, int Level);
+int pick_ego_monster_required(int r_idx, int Level);
 
 
 /* Monster gain a few levels ? */
@@ -4169,7 +4170,6 @@ static bool place_monster_okay_escort(int r_idx) {
  * the "get_mon_num()" function to "legal" escort types.
  */
 int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool forbid_ego, bool slp, bool grp, int clo, int clone_summoning) {
-	int i;
 	monster_race *r_ptr = &r_info[r_idx];
 	cave_type **zcave;
 	int dlevel = getlevel(wpos), res;
@@ -4199,10 +4199,22 @@ int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool forbi
 	}
 	/* Success (==0) */
 
-	/* Require the "group" flag */
-	if (!grp) return(0);
+	if (grp) place_monster_companions(wpos, y, x, r_idx, slp, clo, clone_summoning);
+	return(0);
+}
+
+
+/* Add friends and escorts only after every prescribed primary is in place. */
+void place_monster_companions(struct worldpos *wpos, int y, int x, int r_idx,
+		bool slp, int clo, int clone_summoning) {
+	int i;
+	monster_race *r_ptr = &r_info[r_idx];
+	cave_type **zcave;
+	int dlevel = getlevel(wpos);
+
+	if (!(zcave = getcave(wpos))) return;
 #ifdef BLOODLETTER_SUMMON_GROUP_NERF
-	if (r_idx == RI_BLOODLETTER && !level_generation_time && summon_override_checks != SO_ALL) return(0);
+	if (r_idx == RI_BLOODLETTER && !level_generation_time && summon_override_checks != SO_ALL) return;
 #endif
 
 	/* Friend for certain monsters */
@@ -4282,8 +4294,6 @@ int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool forbi
 	}
 
 
-	/* Success */
-	return(0);
 }
 
 #ifdef DM_MODULES
@@ -5807,7 +5817,7 @@ bool mego_ok(int r_idx, int ego) {
 /* Choose an ego type */
 /* 'Level' is a transitional index for dun_depth.	- Jir -
  */
-int pick_ego_monster(int r_idx, int Level) {
+static int pick_ego_monster_mode(int r_idx, int Level, bool required) {
 	/* Assume no ego */
 	int ego = 0, lvl;
 	int tries = MAX_RE_IDX + 10;
@@ -5817,7 +5827,7 @@ int pick_ego_monster(int r_idx, int Level) {
 	if (!r_info[r_idx].level) return(0);
 
 	/* First are we allowed to find an ego */
-	if (!magik(MEGO_CHANCE)) return(0);
+	if (!required && !magik(MEGO_CHANCE)) return(0);
 
 	/* Ego Uniques are NOT to be created */
 	if ((r_info[r_idx].flags1 & RF1_UNIQUE)) return(0);
@@ -5859,6 +5869,16 @@ int pick_ego_monster(int r_idx, int Level) {
 
 	/* Found none ? so sad, well no ego for the time being */
 	return(0);
+}
+
+
+int pick_ego_monster(int r_idx, int Level) {
+	return(pick_ego_monster_mode(r_idx, Level, FALSE));
+}
+
+
+int pick_ego_monster_required(int r_idx, int Level) {
+	return(pick_ego_monster_mode(r_idx, Level, TRUE));
 }
 
 #if 0
