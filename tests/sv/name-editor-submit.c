@@ -180,6 +180,21 @@ static void push_presentation_events(void)
     }
 }
 
+static void push_small_birth_surface_events(void)
+{
+    const Uint32 types[] = {SDL_EVENT_WINDOW_RESIZED,
+                            SDL_EVENT_WINDOW_FOCUS_LOST,
+                            SDL_EVENT_WINDOW_FOCUS_GAINED,
+                            SDL_EVENT_WINDOW_RESIZED};
+    for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
+        SDL_Event event = {0};
+        event.type = types[i];
+        event.window.data1 = 640;
+        event.window.data2 = i ? 359 : 360;
+        assert(SDL_PushEvent(&event));
+    }
+}
+
 static void interleave_ping(Peer *peer, int socket, unsigned sequence)
 {
     unsigned char ping[15] = {PKT_PING, 0};
@@ -680,6 +695,21 @@ static bool case_sensitive_trait_case(const char *mode)
 static bool long_trait_setup_case(const char *mode)
 {
     return long_trait_case(mode) || case_sensitive_trait_case(mode);
+}
+
+static bool body_viewport_case(const char *mode)
+{
+    return !strcmp(mode, "body-viewport");
+}
+
+static bool stats_viewport_case(const char *mode)
+{
+    return !strcmp(mode, "stats-viewport");
+}
+
+static bool mode_viewport_case(const char *mode)
+{
+    return !strcmp(mode, "mode-viewport");
 }
 
 static bool existing_character_case(const char *mode)
@@ -1478,6 +1508,18 @@ static int peer_run(void *opaque)
         push_key(SDLK_P, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (mode_viewport_case(peer->mode)) {
+        push_to_quit_owner("mode");
+        push_small_birth_surface_events();
+        push_mouse_wheel(-1.0f);
+        push_mouse_wheel(1.0f);
+        push_key(SDLK_PAGEDOWN, 0);
+        push_mouse_mode(380.0f, 2);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_small_birth_surface_events();
+        push_mouse_mode(340.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "mode-rpg") ||
                !strcmp(peer->mode, "returning-empty-mode-rpg")) {
         push_to_mode();
@@ -1879,6 +1921,18 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (stats_viewport_case(peer->mode)) {
+        push_to_quit_owner("stats");
+        push_small_birth_surface_events();
+        push_mouse_wheel(-1.0f);
+        push_mouse_wheel(1.0f);
+        push_key(SDLK_PAGEDOWN, 0);
+        push_mouse_stats(380.0f, 2);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_small_birth_surface_events();
+        push_mouse_stats(340.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else
 #if !SV_CLASS_BEFORE_RACE
     if (!strcmp(peer->mode, "alternate-race-back")) {
@@ -2254,6 +2308,18 @@ static int peer_run(void *opaque)
         push_key(SDLK_LEFT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (body_viewport_case(peer->mode)) {
+        push_to_quit_owner("body");
+        push_small_birth_surface_events();
+        push_mouse_wheel(-1.0f);
+        push_mouse_wheel(1.0f);
+        push_key(SDLK_PAGEDOWN, 0);
+        push_mouse_body(380.0f, 2);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_small_birth_surface_events();
+        push_mouse_body(340.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-back")) {
         push_key(SDLK_RETURN, 0);
@@ -3550,6 +3616,14 @@ int main(int argc, char **argv)
         assert(outcome.birth_mode == SV_BIRTH_MODE_PVP &&
                outcome.birth_owner == SV_BIRTH_READY);
         assert(outcome.birth_quit);
+    } else if (mode_viewport_case(argv[3])) {
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NO_GHOST);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(!outcome.birth_illegal_ignored);
+        assert(peer.interleaved_pongs == 1);
     } else if (!strcmp(argv[3], "mode-rpg") ||
                !strcmp(argv[3], "returning-empty-mode-rpg")) {
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
@@ -3927,6 +4001,15 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_stat == 0);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored);
+    } else if (stats_viewport_case(argv[3])) {
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(!outcome.birth_stats_confirmed);
+        assert(outcome.birth_stats_order_count == 1);
+        assert(outcome.birth_stats[0] == 1);
+        assert(outcome.birth_legal_stat_count == 5);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(!outcome.birth_illegal_ignored);
+        assert(peer.interleaved_pongs == 1);
     } else
 #if !SV_CLASS_BEFORE_RACE
     if (!strcmp(argv[3], "alternate-race-back")) {
@@ -4166,6 +4249,18 @@ int main(int argc, char **argv)
         assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (body_viewport_case(argv[3])) {
+        assert(outcome.birth_body_confirmed && outcome.birth_owner ==
+#if SV_CLASS_BEFORE_RACE
+               SV_BIRTH_STATS);
+#else
+               SV_BIRTH_CLASS);
+#endif
+        assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
+        assert(!outcome.birth_illegal_ignored && outcome.birth_quit);
+        assert(peer.interleaved_pongs == 1);
     } else if (!strcmp(argv[3], "trait-back")) {
         assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
         assert(outcome.birth_race == 2 && outcome.birth_highlighted_trait == 2);

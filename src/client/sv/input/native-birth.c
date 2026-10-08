@@ -136,6 +136,15 @@ static SvBirthCommand select_position(const SvBirth *birth, unsigned position)
     case SV_BIRTH_TRAIT:
         return (SvBirthCommand){.kind = SV_BIRTH_SELECT_TRAIT,
             .trait_id = birth->legal_traits[position]};
+    case SV_BIRTH_BODY:
+        return (SvBirthCommand){.kind = SV_BIRTH_SELECT_BODY,
+            .body = birth->legal_bodies[position]};
+    case SV_BIRTH_STATS:
+        return (SvBirthCommand){.kind = SV_BIRTH_SELECT_STAT,
+            .stat = birth->legal_stats[position]};
+    case SV_BIRTH_MODE:
+        return (SvBirthCommand){.kind = SV_BIRTH_SELECT_MODE,
+            .mode = birth->legal_modes[position]};
     default:
         return (SvBirthCommand){.kind = SV_BIRTH_MOVE_NEXT};
     }
@@ -371,7 +380,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
                 .class_id = birth->visible_classes[position]}, true, false);
     }
     if (viewport && birth->owner >= SV_BIRTH_CLASS &&
-        birth->owner <= SV_BIRTH_TRAIT &&
+        birth->owner <= SV_BIRTH_MODE &&
         (key == SDLK_PAGEUP || key == SDLK_PAGEDOWN) &&
         choice_count(birth)) {
         int current = highlighted_position(birth);
