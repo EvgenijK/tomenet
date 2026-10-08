@@ -83,3 +83,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Принять trait-derived hidden classes из DNA](issues/52-accept-trait-derived-hidden-dna-classes.md)
 - [Обновить race list после hidden DNA confirm](issues/53-refresh-races-after-hidden-dna-confirm.md)
 - [Снять post-mode Maia context перед глубоким Backspace](issues/54-unwind-post-mode-maia-before-mode-back.md)
+- [Verify focused production coverage](issues/55-focused-test-coverage.md)

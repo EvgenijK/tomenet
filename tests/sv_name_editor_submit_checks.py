@@ -108,6 +108,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "auto-dna-dedicated-iddc", "auto-dna-dedicated-pvp-maia",
                  "trait-hidden-dna-hell-knight",
                  "trait-hidden-dna-corrupted-priest",
+                 "trait-hidden-dna-race-refresh",
                  "auto-dna-trait-hidden-hell-knight",
                  "auto-dna-trait-hidden-corrupted-priest",
                  "auto-dna-trait-hidden-wrong-race",

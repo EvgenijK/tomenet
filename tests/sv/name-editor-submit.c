@@ -526,6 +526,7 @@ static bool trait_hidden_dna_case(const char *mode)
 {
     return !strcmp(mode, "trait-hidden-dna-hell-knight") ||
         !strcmp(mode, "trait-hidden-dna-corrupted-priest") ||
+        !strcmp(mode, "trait-hidden-dna-race-refresh") ||
         !strcmp(mode, "auto-dna-trait-hidden-hell-knight") ||
         !strcmp(mode, "auto-dna-trait-hidden-corrupted-priest") ||
         !strcmp(mode, "auto-dna-trait-hidden-wrong-race") ||
@@ -934,7 +935,9 @@ static void send_setup(int socket, const char *mode)
             memcpy(at, title, strlen(title) + 1);
             at += strlen(title) + 1;
             put32(&at, race == maia_race() ?
-                  (1u << 2) | (1u << 6) : 1u);
+                  (1u << 2) | (1u << 6) :
+                  (!strcmp(mode, "trait-hidden-dna-race-refresh") &&
+                   race == 0) ? (1u << 0) | (1u << 6) : 1u);
         }
         for (unsigned id = 0; id < 16; ++id) {
             memset(at, 50, 6);
@@ -1284,6 +1287,16 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_Q);
         push_stale_layout_key(SDLK_QUESTION);
         push_key(SDLK_F, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "trait-hidden-dna-race-refresh")) {
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_dna();
+        push_dna();
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_RIGHT, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (trait_hidden_dna_case(peer->mode) &&
                strncmp(peer->mode, "auto-dna-", 9)) {
@@ -2651,12 +2664,28 @@ int main(int argc, char **argv)
     const char *lowercase_q_owner = NULL;
     if (trait_hidden_dna_case(argv[3])) {
         int base_class = trait_hidden_dna_class(argv[3]) == 14 ? 6 : 2;
+        bool race_refresh = !strcmp(argv[3],
+            "trait-hidden-dna-race-refresh");
         bool wrong_race = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-race");
         bool wrong_trait = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-trait");
         bool automatic_trait_hidden = !strncmp(argv[3], "auto-dna-", 9);
-        if (!wrong_race && !wrong_trait)
+        if (race_refresh) {
+            assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+            assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
+            assert(outcome.birth_class == 6 &&
+                   outcome.birth_highlighted_class == 6);
+            assert(outcome.birth_race_confirmed && outcome.birth_race_dna_used);
+            assert(outcome.birth_race == (int)maia_race() &&
+                   outcome.birth_highlighted_race == (int)maia_race());
+            assert(!outcome.birth_trait_confirmed &&
+                   outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
+            assert(outcome.birth_legal_race_count == 2);
+            assert(outcome.birth_legal_races[0] == 0 &&
+                   outcome.birth_legal_races[1] == maia_race());
+            assert(outcome.birth_keyboard_navigated);
+        } else if (!wrong_race && !wrong_trait)
             assert(outcome.birth_owner == (automatic_trait_hidden ?
                    SV_BIRTH_READY : SV_BIRTH_STATS) && outcome.birth_quit);
         else
@@ -2690,7 +2719,7 @@ int main(int argc, char **argv)
                    outcome.birth_highlighted_class == 2);
         }
 #endif
-        if (!wrong_race && !wrong_trait) {
+        if (!race_refresh && !wrong_race && !wrong_trait) {
             assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
             assert(outcome.birth_class == base_class &&
                    outcome.birth_highlighted_class == base_class);
