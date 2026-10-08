@@ -851,3 +851,59 @@ suppression coverage. Run the applicable future `sv-build`, `sv-core` and
 ownership refactor and are explicitly not run or passed by this documentation-
 only record; `P1-birth-runtime-evidence` remains deferred to its named producer
 and verifier at full acceptance.
+
+## Publish birth evidence through a birth-owned snapshot
+
+**Status:** proposed separately as future SV-local work only. This record does
+not implement the refactor, change production or test behavior, touch
+legacy/shared code, or widen the accepted SV-B-023 scope. None of the future
+checks below, including deferred P1-AC30 runtime evidence, is claimed as run or
+passed by this documentation-only repair.
+
+**Problem:** the application-level endpoint outcome publishes almost the entire
+detailed birth interaction state as a flat diagnostic surface. `publish_outcome`
+reads owner, highlights, chosen draft values, legal and visible lists, navigation
+and confirmation flags, lifecycle/generation data, and Guide placeholder evidence
+directly from the birth backing state and expands them into dozens of
+`birth_*` members of `SvEndpointOutcome`. This couples application orchestration
+and its public diagnostics type to birth-owned gameplay detail: adding or
+reorganizing birth evidence requires coordinated edits outside the responsible
+interaction interface even when endpoint lifecycle behavior is unchanged.
+
+**Affected code:** `src/client/sv/endpoint-run.c:publish_outcome` (endpoint
+outcome publication), `src/client/sv/endpoint-run.h:SvEndpointOutcome` (the
+public outcome type), `src/client/sv/input/birth-interaction.h` (the stable
+production interaction boundary), the birth state currently backed by
+`src/client/sv/session/birth.[ch]`, and production endpoint scenario assertions
+in `tests/sv/name-editor-submit.c`.
+
+**Proposal:** in a separate future task, introduce a birth-owned, copied
+snapshot/evidence aggregate and expose its construction through the existing
+`input/birth-interaction.h` boundary. Make that aggregate the birth diagnostics
+portion consumed by endpoint outcome publication, so application orchestration
+does not enumerate or read the backing interaction fields individually. Keep
+gameplay details and snapshot derivation behind the responsible birth interface;
+do not move transition, legality, selection, Guide, lifecycle, or send rules into
+the endpoint. Preserve the public production entry seam
+`sv_endpoint_run(SvEndpointOptions)` and every currently observable evidence
+meaning, value, default, ordering, copy/lifetime property, and suppression
+result. Keep this refactor SV-local and separate from SV-B-023 capability work;
+do not use it to extract shared/legacy code or add a test-only behavior path.
+
+**Required checks:** the future refactor must provide a complete, reviewed
+field-to-snapshot mapping for every current birth evidence member of
+`SvEndpointOutcome`, including zero/default states, bounded arrays and copied
+values. Verify generation and lifecycle evidence for entry, active, quit, close,
+disconnect and stale-generation paths; every owner, stable highlight, chosen and
+in-progress draft, legal/visible list and stats state; and Guide evidence with the
+exact `The guide is in development` placeholder, open/close counts, owner mask,
+unchanged caller, selection and draft, and no Guide-state or network operation.
+Retain explicit peer evidence that advancing, backtracking, cancelling, quitting,
+disconnect and stale generations suppress every partial or completed-character
+send. Exercise
+both compile-time class/race orders and the complete existing production
+`sv_endpoint_run` birth scenario matrix through the production interaction state
+and native input router. Run the applicable future `sv-build`, `sv-core` and
+`controller-review` checks. These requirements belong to the future refactor and
+are not run or passed by this documentation-only record; P1-AC30 remains deferred
+to its named full-acceptance producer and verifier.

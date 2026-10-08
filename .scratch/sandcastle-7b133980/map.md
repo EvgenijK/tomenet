@@ -94,3 +94,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Записать semantic identity mapping для SV birth](issues/63-record-sv-birth-semantic-identity-mapping.md)
 - [Verify focused production coverage](issues/64-focused-test-coverage.md)
 - [Зафиксировать UI-владение birth viewport и layout](issues/65-record-sv-birth-viewport-layout-ownership.md)
+- [Зафиксировать birth-owned outcome snapshot boundary](issues/66-record-sv-birth-outcome-snapshot-boundary.md)
