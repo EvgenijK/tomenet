@@ -20,21 +20,13 @@ static bool lowercase_letter(const SDL_KeyboardEvent *event)
 
 static SDL_Keycode printable_key(const SDL_KeyboardEvent *event)
 {
-    if (!(event->mod & SDL_KMOD_SHIFT) ||
+    if (letter_key(event->key) || !(event->mod & SDL_KMOD_SHIFT) ||
         (event->mod & (SDL_KMOD_LEVEL5 | SDL_KMOD_CTRL | SDL_KMOD_ALT |
                        SDL_KMOD_GUI | SDL_KMOD_MODE)))
         return event->key;
-    if (event->scancode == SDL_SCANCODE_SLASH && event->key == SDLK_SLASH)
-        return SDLK_QUESTION;
-    if (event->scancode == SDL_SCANCODE_EQUALS && event->key == SDLK_EQUALS)
-        return SDLK_PLUS;
-    if (event->scancode == SDL_SCANCODE_8 && event->key == SDLK_8)
-        return SDLK_ASTERISK;
-    if (event->scancode == SDL_SCANCODE_3 && event->key == SDLK_3)
-        return SDLK_HASH;
-    if (event->scancode == SDL_SCANCODE_5 && event->key == SDLK_5)
-        return SDLK_PERCENT;
-    return event->key;
+    SDL_Keycode translated = SDL_GetKeyFromScancode(
+        event->scancode, event->mod, false);
+    return translated == SDLK_UNKNOWN ? event->key : translated;
 }
 
 static unsigned choice_count(const SvBirth *birth)

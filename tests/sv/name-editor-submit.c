@@ -80,30 +80,35 @@ static void push_physical_key(SDL_Keycode base_key, SDL_Scancode scancode,
     assert(SDL_PushEvent(&event));
 }
 
-static void push_shifted_punctuation(SDL_Keycode base_key,
-                                     SDL_Scancode scancode)
+static void push_layout_key(SDL_Keycode key)
 {
-    push_physical_key(base_key, scancode, SDL_KMOD_SHIFT);
+    SDL_Keymod modifiers = SDL_KMOD_NONE;
+    SDL_Scancode scancode = SDL_GetScancodeFromKey(key, &modifiers);
+    assert(scancode != SDL_SCANCODE_UNKNOWN);
+    SDL_Keycode base_key = SDL_GetKeyFromScancode(
+        scancode, SDL_KMOD_NONE, false);
+    assert(base_key != SDLK_UNKNOWN);
+    push_physical_key(base_key, scancode, modifiers);
 }
 
 static void push_guide(void)
 {
-    push_shifted_punctuation(SDLK_SLASH, SDL_SCANCODE_SLASH);
+    push_layout_key(SDLK_QUESTION);
 }
 
 static void push_random(void)
 {
-    push_shifted_punctuation(SDLK_8, SDL_SCANCODE_8);
+    push_layout_key(SDLK_ASTERISK);
 }
 
 static void push_dna(void)
 {
-    push_shifted_punctuation(SDLK_3, SDL_SCANCODE_3);
+    push_layout_key(SDLK_HASH);
 }
 
 static void push_automatic_dna(void)
 {
-    push_shifted_punctuation(SDLK_5, SDL_SCANCODE_5);
+    push_layout_key(SDLK_PERCENT);
 }
 
 static void push_lowercase_q(void)
@@ -133,6 +138,17 @@ static void push_stale_physical_key(SDL_Keycode base_key,
     event.key.scancode = scancode;
     event.key.mod = modifiers;
     assert(SDL_PushEvent(&event));
+}
+
+static void push_stale_layout_key(SDL_Keycode key)
+{
+    SDL_Keymod modifiers = SDL_KMOD_NONE;
+    SDL_Scancode scancode = SDL_GetScancodeFromKey(key, &modifiers);
+    assert(scancode != SDL_SCANCODE_UNKNOWN);
+    SDL_Keycode base_key = SDL_GetKeyFromScancode(
+        scancode, SDL_KMOD_NONE, false);
+    assert(base_key != SDLK_UNKNOWN);
+    push_stale_physical_key(base_key, scancode, modifiers);
 }
 
 static void push_presentation_events(void)
@@ -1115,8 +1131,7 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_RETURN);
         push_stale_key(SDLK_BACKSPACE);
         push_stale_key(SDLK_Q);
-        push_stale_physical_key(SDLK_SLASH, SDL_SCANCODE_SLASH,
-                                SDL_KMOD_SHIFT);
+        push_stale_layout_key(SDLK_QUESTION);
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "birth-context-escape")) {
@@ -1130,7 +1145,6 @@ static int peer_run(void *opaque)
                           SDL_KMOD_SHIFT | SDL_KMOD_CTRL);
         push_physical_key(SDLK_5, SDL_SCANCODE_5,
                           SDL_KMOD_SHIFT | SDL_KMOD_MODE);
-        push_physical_key(SDLK_8, SDL_SCANCODE_3, SDL_KMOD_SHIFT);
         push_key(SDLK_ESCAPE, 0);
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
@@ -1153,8 +1167,7 @@ static int peer_run(void *opaque)
         push_stale_key(SDLK_RETURN);
         push_stale_key(SDLK_BACKSPACE);
         push_stale_key(SDLK_Q);
-        push_stale_physical_key(SDLK_SLASH, SDL_SCANCODE_SLASH,
-                                SDL_KMOD_SHIFT);
+        push_stale_layout_key(SDLK_QUESTION);
         push_key(SDLK_F, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-local-manual")) {
@@ -1604,7 +1617,7 @@ static int peer_run(void *opaque)
         push_physical_key(SDLK_EQUALS, SDL_SCANCODE_EQUALS, 0);
         push_physical_key(SDLK_EQUALS, SDL_SCANCODE_EQUALS,
                           SDL_KMOD_SHIFT | SDL_KMOD_CTRL);
-        push_shifted_punctuation(SDLK_EQUALS, SDL_SCANCODE_EQUALS);
+        push_layout_key(SDLK_PLUS);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_RIGHT, 0);
         push_key(SDLK_LEFT, 0);
