@@ -25,8 +25,6 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Frontier
 
-- [Получить human disposition для tracker metadata child 40](issues/41-disposition-child-40-tracker-metadata.md) — ready-for-human; blocked only by completed child 40.
-
 ## Decisions so far
 
 - [Войти в birth и выбрать пол](issues/01-enter-birth-and-choose-sex.md)
@@ -69,3 +67,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Отклонить новый automatic DNA command в ordered stats](issues/38-reject-new-auto-dna-in-ordered-stats.md)
 - [Классифицировать focused record 37 как Wayfinder history](issues/39-classify-focused-record-37.md)
 - [Verify focused production coverage](issues/40-focused-test-coverage.md)
+- [Получить human disposition для tracker metadata child 40](issues/41-disposition-child-40-tracker-metadata.md)
