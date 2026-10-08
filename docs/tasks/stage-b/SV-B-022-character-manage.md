@@ -1,7 +1,8 @@
 # SV-B-022 — Новый slot и имя персонажа
 
-Статус: partially implemented; ordinary/name/rejection production path
-покрыт, exclusive completed-birth path ожидает SV-B-024.
+Статус: partially implemented; ordinary/name/rejection и exclusive entry
+через B-023 реализованы, completed-character transition и native/caller
+acceptance ожидают SV-B-024.
 
 ## Пользовательский результат
 
@@ -15,10 +16,10 @@
 
 Выбор ordinary slot, native name editor/submission, cancel и recovery после
 server rejection реализованы и проверены через production endpoint.
-Exclusive `E`, eligibility/denial, IDDC/PvP propagation и проверка точных
-completed-birth transitions остаются pending до появления production birth
-seam в [SV-B-024](SV-B-024-birth-dna.md). Native/caller acceptance для этой
-ветки также не закрыта.
+Exclusive `E`, eligibility/denial и IDDC/PvP propagation в B-023 реализованы и
+проверены через production endpoint. Точный completed-character transition и
+его native/caller acceptance остаются pending у
+[SV-B-024](SV-B-024-birth-dna.md).
 
 ## Единственная первичная ответственность
 
@@ -53,7 +54,8 @@ exact bytes и screen transitions зафиксированы. Следующий
   name editor, random suggestion, reincarnation prefix, exact name submission;
 - done: forbidden/duplicate/unowned rejection, retry/exit/disconnect policy и
   generation-scoped draft recovery;
-- pending after SV-B-024: exclusive `E`, completed-birth IDDC/PvP propagation,
-  native/caller runtime evidence и финальная acceptance всего DoD.
+- done: exclusive `E`, eligibility/denial и IDDC/PvP propagation в B-023;
+- pending у SV-B-024: final completed-character transition, native/caller
+  runtime evidence и финальная acceptance всего DoD.
 
 Полный Definition of Done не закрыт.
