@@ -910,7 +910,7 @@ to its named full-acceptance producer and verifier.
 
 ## Restore the ordinary Hellish case-sensitive fixture setup
 
-**Status:** proposed separately; not part of ticket 73's DNA fixture repair.
+**Status:** resolved by the exact-HEAD recovery for ticket 73.
 
 **Problem:** the production endpoint scenario
 `case-sensitive-mode-ordinary-hellish` fails both focused and unfiltered
@@ -934,6 +934,14 @@ and caps-lock ordinary Hellish selection plus lowercase/uppercase rejection
 controls through `sv_endpoint_run`; run both compile orders and the complete
 unfiltered `sv-core` with `SV_BIRTH_CASE` unset; confirm no protocol/gameplay,
 legacy/shared, sanitizer, compiler, or assertion regression.
+
+**Resolution:** authoritative profile setup already made the scenario a
+returning-player flow and exposed six legal ordinary modes. The native adapter
+instead lost uppercase Latin layout identities after SDL translation. Normalize
+translated ASCII `A..Z` to the lowercase binding identity while continuing to
+derive semantic case from Shift/Caps modifiers. Focused ordinary/dedicated
+Hellish and rejection controls pass in both compile orders; the exact resolved
+HEAD passes the full unfiltered `sv-core`.
 
 ## Centralize production endpoint test build inventory
 

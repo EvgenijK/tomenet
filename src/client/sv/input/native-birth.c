@@ -33,6 +33,8 @@ static SDL_Keycode layout_key(const SDL_KeyboardEvent *event)
 {
     SDL_Keycode translated = SDL_GetKeyFromScancode(
         event->scancode, event->mod, false);
+    if (translated >= 'A' && translated <= 'Z')
+        translated += 'a' - 'A';
     return translated == SDLK_UNKNOWN ? event->key : translated;
 }
 
