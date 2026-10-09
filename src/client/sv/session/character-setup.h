@@ -20,6 +20,7 @@ typedef struct { char title[SV_CONTACT_NAME_CAPACITY]; uint32_t choice; } SvCont
 typedef struct {
     uint16_t frames_per_second;
     uint8_t race_count, class_count, trait_count;
+    uint8_t body_step_available;
     uint32_t setup_size, motd_size, creation_flags;
     SvContactRace races[255];
     SvContactClass classes[255];

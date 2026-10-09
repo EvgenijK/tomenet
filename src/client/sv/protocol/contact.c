@@ -174,6 +174,9 @@ static int parse_setup(SvContact *contact, size_t *used)
     const int traits_since[6] = {4, 4, 5, 10, 0, 0};
     const int recommendations_since[6] = {4, 4, 3, 1, 0, 0};
     const int encoded_hidden_classes_since[6] = {4, 7, 0, 2, 0, 0};
+    /* Before 4.4.1a, Fruit Bat was part of mode rather than a separate
+       body-choice step. */
+    const int separate_body_step_since[6] = {4, 4, 1, 0, 0, 0};
     int traits = version_newer(contact->version, traits_since);
     size_t header = traits ? 13 : 12;
     if (size < header) return 0;
@@ -185,6 +188,8 @@ static int parse_setup(SvContact *contact, size_t *used)
     setup->race_count = (uint8_t)races;
     setup->class_count = (uint8_t)classes;
     setup->trait_count = (uint8_t)trait_count;
+    setup->body_step_available =
+        (uint8_t)version_newer(contact->version, separate_body_step_since);
     setup->setup_size = get32(in + header - 4);
     size_t at = header;
     for (unsigned i = 0; i < races; ++i) {
