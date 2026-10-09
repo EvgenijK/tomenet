@@ -1011,14 +1011,18 @@ the state it represents and can mislead later maintenance of the common flow.
 `src/client/sv/input/login-interaction.h`; both activation paths and the generic
 insert, key, cancel and submit consumers in
 `src/client/sv/input/login-interaction.c`; the generic native name-event router
-in `src/client/sv/input/native-name.c`; and the shared contact-status and login
-view consumers in `src/client/sv/endpoint-run.c`.
+in `src/client/sv/input/native-name.c`; the shared `SvOrdinaryNameEvidence`
+type and `ordinary_name_entry` login-view field in
+`src/client/sv/endpoint-run.c`; and the corresponding shared view consumer in
+`src/client/sv/endpoint-scene.c`.
 
 **Proposal:** in separate future production cleanup, rename
 `ordinary_name_active` to a scope-neutral state name such as
-`name_entry_active` and migrate every production reference together. Preserve
-the existing `dedicated_creation` intent and dedicated mode flags, the ordinary
-and exclusive/dedicated activation and exit semantics, and the current handoff
+`name_entry_active`, rename `SvOrdinaryNameEvidence` and
+`ordinary_name_entry` to corresponding scope-neutral evidence/view names, and
+migrate every production reference together. Preserve the existing
+`dedicated_creation` intent and dedicated mode flags, the ordinary and
+exclusive/dedicated activation and exit semantics, and the current handoff
 through the production birth interaction and input router. Do not use the rename
 to change protocol/gameplay behavior, introduce a test-only interface, modify
 legacy/shared gameplay code or add capability scope to SV-B-023.
