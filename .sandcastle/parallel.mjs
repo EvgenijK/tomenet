@@ -6,12 +6,15 @@ export function selectReadyTickets(state, limit) {
   return state.tickets.filter((ticket) => !completed.has(ticket.path) && ticket.blockedBy.every((path) => completed.has(path))).slice(0, limit);
 }
 
-export function createWave(state, { baseCommit, limit, after = "tickets", tickets = selectReadyTickets(state, limit) }) {
+export function createWave(state, { baseCommit, limit, after = "tickets", tickets = selectReadyTickets(state, limit), usedBranches = [] }) {
   if (state.wave) throw new Error("Finish the existing wave before creating another");
   if (!tickets.length) throw new Error("No ready tickets; inspect unresolved dependencies");
+  if (!Array.isArray(usedBranches) || !usedBranches.every((branch) => typeof branch === "string" && branch)) throw new Error("Used worker branches must be a string array");
   validateTicketBatch({ tickets }, state);
   if (tickets.some((ticket) => state.completedTickets.includes(ticket.path) || ticket.blockedBy.some((path) => !state.completedTickets.includes(path)))) throw new Error("Wave contains completed or blocked tickets");
-  const id = (state.waveSequence ?? 0) + 1;
+  const occupied = new Set(usedBranches);
+  let id = (state.waveSequence ?? 0) + 1;
+  while (tickets.some((_, index) => occupied.has(`codex/sandcastle-${state.id}-wave-${id}-${index + 1}`))) id++;
   state.waveSequence = id;
   state.wave = {
     id, baseCommit, after,
@@ -19,6 +22,35 @@ export function createWave(state, { baseCommit, limit, after = "tickets", ticket
   };
   state.phase = "parallel-work";
   return state.wave;
+}
+
+export function resumeWorkerProvisioning(state, { usedBranches }) {
+  const need = (condition, message) => { if (!condition) throw new Error(`Worker provisioning RESUME: ${message}`); };
+  need(state?.phase === "awaiting" && state.resumePhase === "parallel-work", "requires a paused parallel-work checkpoint");
+  need(state.pauseReason === "Automatic recovery made no progress after three decisions at this checkpoint", "requires the saved no-progress recovery stop");
+  need(state.wave && Array.isArray(state.wave.members) && state.wave.members.length > 0, "requires a saved worker wave");
+  need(state.wave.members.every((member) => member.status === "failed" && !member.head && !member.result && !member.integrated && /^ENOENT: no such file or directory, open /.test(member.error ?? "")), "requires only deterministic missing-ticket provisioning failures");
+  const oldWave = structuredClone(state.wave);
+  const history = state.workerProvisioningResumes ?? [];
+  need(!history.some((item) => item.oldWave.id === oldWave.id), "saved wave was already reprovisioned");
+  const candidate = structuredClone(state);
+  delete candidate.wave;
+  createWave(candidate, {
+    baseCommit: oldWave.baseCommit,
+    after: oldWave.after,
+    tickets: oldWave.members.map((member) => member.ticket),
+    limit: oldWave.members.length,
+    usedBranches,
+  });
+  state.waveSequence = candidate.waveSequence;
+  state.wave = candidate.wave;
+  state.phase = candidate.phase;
+  state.workerProvisioningResumes = [...history, { oldWave, newWaveId: candidate.wave.id }];
+  delete state.resumePhase;
+  delete state.pauseReason;
+  delete state.blockedTicket;
+  delete state.recovery;
+  return state;
 }
 
 function validResult(result) {

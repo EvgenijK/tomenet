@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { resumeUserPause } from "../.sandcastle/limits.mjs";
 import { baselineChecks, digest, validateContract } from "../.sandcastle/acceptance.mjs";
-import { maxContractAmendments, maxContractAmendmentRetryAttempts, resumeExternalContractAmendment, resumeContractAmendmentRetry, validateContractAmendment } from "../.sandcastle/contract-amend.mjs";
+import { contractAmendmentVerificationContext, maxContractAmendments, maxContractAmendmentRetryAttempts, resumeExternalContractAmendment, resumeSemanticContractAmendment, resumeContractAmendmentRetry, validateContractAmendment } from "../.sandcastle/contract-amend.mjs";
 
 const head = "a".repeat(40);
 function externalPause(overrides = {}) {
@@ -91,6 +91,88 @@ test("external-check amendment is one-shot and exact to a saved test-gate pause"
   }
 });
 
+test("user-authorized semantic amendment archives acceptance and preserves every represented obligation", () => {
+  const state = externalPause({
+    phase: "awaiting",
+    resumePhase: "plan",
+    pauseReason: "User-approved requirement amendment is not represented in the immutable acceptance contract: unsupported setup must fail fast.",
+    specPath: "spec.md",
+    spec: "# Original\n\nUse the server overview. Preserve production behavior.\n",
+  });
+  state.acceptance.contract.checks = state.acceptance.contract.checks.filter((check) => !["P1-dep-runtime", "runtime"].includes(check.id));
+  state.acceptance.contract.criteria[0].checkIds = ["sv-build", "sv-core"];
+  state.acceptance.contract.criteria[1].checkIds = ["sv-core"];
+  state.acceptance.contractDigest = digest(state.acceptance.contract);
+  const amendedSpec = `${state.spec}\n## User-approved amendment\n\nUnsupported character creation mode.\n`;
+  const oldAcceptance = structuredClone(state.acceptance);
+  resumeSemanticContractAmendment(state, amendedSpec, {
+    authorizationId: "svb023-unsupported-mode-20261009",
+    decision: "Reject unsupported normalized creation modes before birth starts.",
+    requiredQuotes: ["Unsupported character creation mode."],
+  });
+  assert.equal(state.phase, "contract");
+  assert.equal(state.contractReturnPhase, "plan");
+  assert.equal(state.acceptance, undefined);
+  assert.equal(state.spec, amendedSpec);
+  assert.deepEqual(state.contractAmendments[0].acceptance, oldAcceptance);
+  assert.equal(state.contractAmendment.type, "semantic-user-requirement");
+  assert.deepEqual(contractAmendmentVerificationContext(state), {
+    previousContract: oldAcceptance.contract,
+    amendment: state.contractAmendment,
+  });
+
+  const amended = structuredClone(oldAcceptance.contract);
+  amended.criteria.push({
+    id: "P1-AC3",
+    requirement: "Unsupported creation modes fail before birth starts.",
+    mandatory: true,
+    applicability: "current",
+    owner: "SV-B-023 implementation owner",
+    deferralReason: "",
+    checkIds: ["sv-core"],
+    source: { path: "spec.md", quote: "Unsupported character creation mode." },
+  });
+  assert.doesNotThrow(() => validateContract(amended, { "spec.md": amendedSpec }));
+  assert.doesNotThrow(() => validateContractAmendment(oldAcceptance.contract, amended, state.contractAmendment));
+
+  for (const mutate of [
+    (contract) => { contract.criteria[0].requirement = "Weakened"; },
+    (contract) => { contract.criteria[0].checkIds = ["sv-build"]; },
+    (contract) => { contract.criteria.shift(); },
+    (contract) => { contract.criteria.at(-1).source.quote = "Preserve production behavior."; },
+  ]) {
+    const invalid = structuredClone(amended); mutate(invalid);
+    assert.throws(() => validateContractAmendment(oldAcceptance.contract, invalid, state.contractAmendment), /Contract amend RESUME/);
+  }
+});
+
+test("semantic amendment rejects missing quotes, removed represented sources, and duplicate authorization", () => {
+  const base = externalPause({
+    phase: "awaiting",
+    resumePhase: "plan",
+    pauseReason: "User-approved requirement amendment is not represented in the immutable acceptance contract: unsupported setup must fail fast.",
+    specPath: "spec.md",
+    spec: "Use the server overview. Preserve production behavior.",
+  });
+  base.acceptance.contract.checks = base.acceptance.contract.checks.filter((check) => !["P1-dep-runtime", "runtime"].includes(check.id));
+  base.acceptance.contract.criteria[0].checkIds = ["sv-build", "sv-core"];
+  base.acceptance.contract.criteria[1].checkIds = ["sv-core"];
+  base.acceptance.contractDigest = digest(base.acceptance.contract);
+  const decision = { authorizationId: "svb023-unsupported-mode-20261009", decision: "Fail fast.", requiredQuotes: ["Unsupported character creation mode"] };
+  for (const amendedSpec of [
+    `${base.spec}\nDifferent text.`,
+    "Preserve production behavior. Unsupported character creation mode",
+  ]) {
+    const state = structuredClone(base);
+    assert.throws(() => resumeSemanticContractAmendment(state, amendedSpec, decision), /Contract amend RESUME/);
+  }
+  const state = structuredClone(base);
+  resumeSemanticContractAmendment(state, `${base.spec}\nUnsupported character creation mode`, decision);
+  state.phase = "awaiting"; state.resumePhase = "plan"; state.acceptance = structuredClone(base.acceptance);
+  state.pauseReason = base.pauseReason;
+  assert.throws(() => resumeSemanticContractAmendment(state, `${base.spec}\nUnsupported character creation mode`, decision), /authorization ID already used/);
+});
+
 test("identical-feedback amendment retry requires a unique bounded authorization and preserves history", () => {
   const state = externalPause();
   resumeExternalContractAmendment(state);
@@ -133,6 +215,8 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
   delete env.SANDCASTLE_CONTRACT_AMEND_RETRY_ID;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ROUND;
   delete env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
+  delete env.SANDCASTLE_SEMANTIC_AMENDMENT_JSON;
+  delete env.SANDCASTLE_REPROVISION_WAVE;
   try {
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
       assert.equal(error.status, 1);

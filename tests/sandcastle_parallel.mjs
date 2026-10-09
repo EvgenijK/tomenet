@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { selectReadyTickets, createWave, runWave, collectWave } from "../.sandcastle/parallel.mjs";
+import { selectReadyTickets, createWave, resumeWorkerProvisioning, runWave, collectWave } from "../.sandcastle/parallel.mjs";
 
 const ticket = (id, blockedBy = []) => ({ path: `.scratch/sandcastle-test/issues/${id}.md`, blockedBy });
 const revision = "a".repeat(40);
@@ -49,6 +49,87 @@ test("wave captures isolated branches at one base and refuses an unresolved dead
   assert.ok(wave.members.every((m) => typeof m.branch === "string" && m.branch));
   const dead = state([ticket("blocked", [ticket("missing").path])]);
   assert.throws(() => createWave(dead, { baseCommit: "base-sha", limit: 2 }));
+});
+
+test("wave allocation skips historical worker branch names", () => {
+  const s = state([ticket("a")]);
+  s.waveSequence = 59;
+  const wave = createWave(s, {
+    baseCommit: "accepted-plan-head",
+    limit: 1,
+    usedBranches: [
+      "codex/sandcastle-test-wave-60-1",
+      "codex/sandcastle-test-wave-61-1",
+    ],
+  });
+  assert.equal(wave.id, 62);
+  assert.equal(wave.baseCommit, "accepted-plan-head");
+  assert.equal(wave.members[0].branch, "codex/sandcastle-test-wave-62-1");
+  assert.equal(wave.members[0].ticket.path, ticket("a").path);
+});
+
+test("explicit provisioning resume keeps counters and moves only the failed ticket to a fresh branch", () => {
+  const s = state([ticket("83")]);
+  s.phase = "awaiting";
+  s.resumePhase = "parallel-work";
+  s.pauseReason = "Automatic recovery made no progress after three decisions at this checkpoint";
+  s.waveSequence = 60;
+  s.wave = {
+    id: 60,
+    baseCommit: "1b2b3b3058a1d14aa5b47b24741344f6f796c6d2",
+    after: "tickets",
+    members: [{ ticket: s.tickets[0], branch: "codex/sandcastle-test-wave-60-1", status: "failed", error: "ENOENT: no such file or directory, open /managed/.scratch/sandcastle-test/issues/83.md" }],
+  };
+  s.budget = { consumedPercent: 70, limitPercent: 71, tokens: 139435935 };
+  s.buildAttempts = 55;
+  s.testAttempts = 30;
+  s.reviewRound = 38;
+  s.recoveryAttempts = { "parallel-work:60:82:38:3:0": 3 };
+  const counters = Object.fromEntries(["budget", "buildAttempts", "testAttempts", "reviewRound", "recoveryAttempts"].map((key) => [key, structuredClone(s[key])]));
+
+  resumeWorkerProvisioning(s, { usedBranches: ["codex/sandcastle-test-wave-60-1", "codex/sandcastle-test-wave-61-1"] });
+
+  assert.equal(s.phase, "parallel-work");
+  assert.equal(s.wave.id, 62);
+  assert.equal(s.wave.baseCommit, "1b2b3b3058a1d14aa5b47b24741344f6f796c6d2");
+  assert.equal(s.wave.members[0].ticket.path, ticket("83").path);
+  assert.equal(s.wave.members[0].branch, "codex/sandcastle-test-wave-62-1");
+  assert.equal(s.wave.members[0].status, "pending");
+  for (const [key, value] of Object.entries(counters)) assert.deepEqual(s[key], value);
+  assert.equal(s.resumePhase, undefined);
+  assert.equal(s.pauseReason, undefined);
+  assert.equal(s.workerProvisioningResumes.length, 1);
+});
+
+test("provisioning resume rejects unsafe checkpoints atomically", () => {
+  const original = state([ticket("83")]);
+  Object.assign(original, {
+    phase: "awaiting",
+    resumePhase: "parallel-work",
+    pauseReason: "Automatic recovery made no progress after three decisions at this checkpoint",
+    waveSequence: 60,
+    wave: {
+      id: 60,
+      baseCommit: "accepted-plan-head",
+      after: "tickets",
+      members: [{ ticket: original.tickets[0], branch: "codex/sandcastle-test-wave-60-1", status: "failed", error: "ENOENT: no such file or directory, open /managed/ticket.md" }],
+    },
+  });
+  for (const mutate of [
+    (candidate) => { candidate.pauseReason = "A worker is blocked"; },
+    (candidate) => { candidate.wave.members[0].error = "Worker process failed"; },
+    (candidate) => { candidate.wave.members[0].head = revision; },
+  ]) {
+    const candidate = structuredClone(original);
+    mutate(candidate);
+    const before = structuredClone(candidate);
+    assert.throws(() => resumeWorkerProvisioning(candidate, { usedBranches: [] }), /Worker provisioning RESUME/);
+    assert.deepEqual(candidate, before);
+  }
+  const malformed = structuredClone(original);
+  const before = structuredClone(malformed);
+  assert.throws(() => resumeWorkerProvisioning(malformed, { usedBranches: [""] }), /Used worker branches/);
+  assert.deepEqual(malformed, before);
 });
 
 test("workers start concurrently and only successful assembly plus verification completes tickets", async () => {

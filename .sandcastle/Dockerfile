@@ -12,7 +12,9 @@ RUN python3 -m venv /opt/sv-venv \
     && rm /tmp/requirements-capabilities.txt
 ENV PATH="/opt/sv-venv/bin:${PATH}"
 
-RUN npm install -g @openai/codex
+# Keep worker model/auth routing aligned with the verified host CLI.
+ARG CODEX_CLI_VERSION=0.161.0
+RUN npm install -g @openai/codex@${CODEX_CLI_VERSION}
 
 ARG AGENT_UID=1000
 ARG AGENT_GID=1000

@@ -8,7 +8,7 @@ import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from "./limits.mjs";
 import { focusedTestTicketContents, validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
-import { createWave, runWave, collectWave } from "./parallel.mjs";
+import { createWave, resumeWorkerProvisioning, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
 import { beginRecovery, recoveryRestriction, runRecovery, documentRecovery, recoveryRecord, resumeImprovedContract, resumeContractTimeoutUpgrade, resumeContractCitationAttempts, resumeContractGroupAttempts, resumeContractAssemblyAttempts, extendContractAssemblyAttempts, recoveryCategory } from "./recovery.mjs";
 import { baselineChecks, controllerReviewCheck, assertContract, prepareAcceptanceMigration, contractStage, assessmentStage, requiredChecks, recordCheck, registerRepairBatch, countIntegratedRepairs, assertAuditedChanges, acceptanceReport } from "./acceptance.mjs";
@@ -18,11 +18,13 @@ import { planContractGroups, buildGroupedContractDraft, withContractGroupRecover
 import { assemblyCommandRules, reconcileContractDraft } from "./contract-reconcile.mjs";
 import { groupContractPromptGuidance, reconciliationContractPromptGuidance, verifierContractPromptGuidance } from "./contract-prompts.mjs";
 import { resolveContractSources } from "./contract-sources.mjs";
-import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
+import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, sandboxAgentArgs, sandcastleAgentSettings, delegatedAgentPolicy, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
-import { resumeExternalContractAmendment, resumeContractAmendmentRetry, validateContractAmendment } from "./contract-amend.mjs";
+import { contractAmendmentVerificationContext, resumeExternalContractAmendment, resumeSemanticContractAmendment, resumeContractAmendmentRetry, validateContractAmendment } from "./contract-amend.mjs";
 import { contractExecutionContext, validateContractRunnerInventory } from "./contract-runners.mjs";
+import { parseAgentOutput, agentFailureDetail } from "./agent-output.mjs";
+import { resumeWorkerRuntimeUpgrade } from "./worker-runtime.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -31,8 +33,7 @@ const runsDir = resolve(root, ".sandcastle/runs");
 const command = process.argv[2];
 const runId = process.argv[3];
 const targetBranch = "modern_interface";
-const model = process.env.SANDCASTLE_MODEL || "gpt-5.6-sol";
-const effort = process.env.SANDCASTLE_REASONING_EFFORT || "high";
+const { model } = sandcastleAgentSettings("orchestrator");
 const skillsRoot = resolve(process.env.SANDCASTLE_SKILLS_ROOT || resolve(homedir(), ".agents/skills"));
 const skillPaths = Object.fromEntries(["to-tickets", "code-review", "tdd", "resolving-merge-conflicts"].map((name) => [name, resolve(skillsRoot, name)]));
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
@@ -42,6 +43,10 @@ let provisionQueue = Promise.resolve();
 
 async function git(cwd, ...args) {
   return (await execFileAsync("git", args, { cwd, maxBuffer: 4 * 1024 * 1024 })).stdout.trim();
+}
+async function workerBranchNames(state) {
+  const output = await git(root, "for-each-ref", "--format=%(refname:short)", `refs/heads/codex/sandcastle-${state.id}-wave-*`);
+  return output.split("\n").filter(Boolean);
 }
 async function save(state) {
   const contents = JSON.stringify(state, null, 2) + "\n";
@@ -118,18 +123,6 @@ async function recoveryWorktree(state) {
   await git(root, "worktree", "add", path, state.branch);
   return path;
 }
-function parseAgentOutput(line, result) {
-  let event;
-  try { event = JSON.parse(line); } catch { return; }
-  if (event.type === "item.completed" && event.item?.type === "agent_message") {
-    result.message = event.item.text;
-    console.log(event.item.text.slice(0, 1500));
-  }
-  if (event.type === "turn.completed") {
-    const usage = event.usage ?? {};
-    result.tokens += (usage.input_tokens || 0) + (usage.output_tokens || 0);
-  }
-}
 async function agent(sandbox, state, role, prompt, schema = false, readOnly = false, timeoutMs = readOnlyAgentTimeoutMs) {
   // Docker cannot provide the nested namespaces needed by Bubblewrap. Keep
   // inspectors read-only on the host, against this exact integration worktree.
@@ -139,23 +132,18 @@ async function agent(sandbox, state, role, prompt, schema = false, readOnly = fa
     multiAgent: role.startsWith("review "), timeoutMs,
   });
   await quotaCheckpoint(state);
-  const settings = [
-    "--json", "--ephemeral", "--enable multi_agent",
-    `-s ${readOnly ? "read-only" : "danger-full-access"}`, "-c 'approval_policy=\"never\"'",
-    `-m ${quote(model)}`, `-c ${quote(`model_reasoning_effort=${JSON.stringify(effort)}`)}`,
-    ...(schema ? [`--output-schema ${quote(runtimeSchemaPath(schema))}`] : []),
-    "-",
-  ].join(" ");
+  const settings = sandboxAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy),
+    schemaPath: schema ? runtimeSchemaPath(schema) : undefined }).map(quote).join(" ");
   console.log(`Agent: ${role}`);
   const captured = { message: "", tokens: 0 };
-  const result = await sandbox.exec(`codex exec ${settings}`, {
-    stdin: [prompt, guidanceForAgent(state, role)].filter(Boolean).join("\n\n"),
+  const result = await sandbox.exec(`codex ${settings}`, {
+    stdin: [prompt, delegatedAgentPolicy, guidanceForAgent(state, role)].filter(Boolean).join("\n\n"),
     onLine: (line) => parseAgentOutput(line, captured),
   });
   state.budget.tokens += captured.tokens;
   await save(state);
   if (result.exitCode !== 0) {
-    throw new Error(`${role} agent exited with status ${result.exitCode}: ${result.stderr.slice(-2000)}`);
+    throw new Error(`${role} agent exited with status ${result.exitCode}: ${agentFailureDetail(captured, result.stderr)}`);
   }
   try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
@@ -188,10 +176,10 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
   console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
   const startedAt = Date.now();
-  const operation = execFileAsync("codex", readOnlyAgentArgs({ model, effort, schemaPath, multiAgent }),
+  const operation = execFileAsync("codex", readOnlyAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy), schemaPath, multiAgent }),
     { cwd, env: { ...process.env, CODEX_HOME: authDir }, ...(timeoutMs ? { timeout: timeoutMs, killSignal: "SIGKILL" } : {}), maxBuffer: 8 * 1024 * 1024 });
   operation.child.stdin.on("error", () => {});
-  operation.child.stdin.end(prompt);
+  operation.child.stdin.end([prompt, delegatedAgentPolicy].join("\n\n"));
   let result;
   try { result = await operation; }
   catch (error) {
@@ -200,7 +188,7 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
     const elapsedMs = Date.now() - startedAt;
     (state.agentHistory ??= []).push({ role, status: error.killed ? "timeout" : "failed", elapsedMs, timeoutMs, at: new Date().toISOString() });
     await save(state);
-    const failure = new Error(`${role} agent failed: ${error.killed ? `timeout after ${timeoutMs} ms` : error.code}`);
+    const failure = new Error(`${role} agent failed: ${error.killed ? `timeout after ${timeoutMs} ms` : error.code}: ${agentFailureDetail(captured, error.stderr)}`);
     if (error.killed) failure.code = "AGENT_TIMEOUT";
     failure.elapsedMs = elapsedMs;
     failure.timeoutMs = timeoutMs;
@@ -278,6 +266,15 @@ async function contract(sandbox, state) {
     propose: async (sources, feedback, pending) => {
       if (state.contractAmendment) {
         const archived = state.contractAmendments.at(-1);
+        if (state.contractAmendment.type === "semantic-user-requirement") {
+          return inspect(sandbox, state, "acceptance contract semantic amendment", [
+            "Amend the previously accepted implementation contract only for the explicit user-authorized semantic decision. Return the complete amended contract as schema JSON. Preserve every prior criterion ID, source, requirement, mandatory flag, applicability, owner, deferral reason, and check mapping exactly; preserve every prior check exactly. Do not remove, weaken, defer, or reinterpret any prior obligation and do not claim pending evidence passed.",
+            "Add the smallest mandatory/current criterion set that fully represents the new decision and cites the required new quotes from the amended originating spec. Map new implementation behavior only to existing runnable evidence from runnerInventory, or to controller-review for inspection-only obligations. Do not invent commands or alter completion scope.",
+            ...groupContractPromptGuidance({ usesSourceSpans: false }),
+            JSON.stringify({ sources, previousContract: archived.contract, amendment: state.contractAmendment, controllerReviewCheck, runnerInventory: executionContext }, null, 2),
+            feedback.length ? `Saved verifier feedback is cumulative. Repair every still-applicable item without changing prior criteria:\n${JSON.stringify(feedback)}` : "",
+          ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+        }
         return inspect(sandbox, state, "acceptance contract amendment", [
           "Amend the previously accepted implementation contract only to repair its unrunnable external-check mappings. Return the complete amended contract as schema JSON. Preserve every criterion ID, source, requirement, mandatory flag, applicability, owner, deferral reason, and every existing runnable mapping. Do not add or remove criteria, change completion scope, waive a requirement, claim pending evidence passed, or move a current obligation to deferred.",
           `The audited duplicate gate ${state.contractAmendment.checkId} must be removed without replacement from its criterion; retain that criterion's other runnable mappings exactly. P1-AC1 therefore remains mapped only to sv-build and sv-core. The expanded sv-core inventory below is controller fact and includes tests/sv_login_checks.py plus tests/sv_login_live_checks.py, which exercise the SV-B-006 production overview dependency. Do not add another P1-AC1 check.`,
@@ -329,9 +326,13 @@ async function contract(sandbox, state) {
     },
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
       "Independently compare the proposed acceptance contract against every obligation in the fixed authoritative source set. You did not create this contract. Do not edit files. Return approved=true only if requirements, production-path checks, scope boundaries and deferred owners are accurately represented. Scoring is not a gate. List omissions and unsupported deferrals in missingRequirements; each finding must use the identical message and authoritative sourceSpanIds.",
-      state.contractAmendment ? `This is a bounded amendment of digest ${state.contractAmendment.previousDigest}. Verify that every previous criterion remains semantically unchanged and mandatory, ${state.contractAmendment.checkId} is removed as the audited duplicate, all other mandatory/current external mappings are replaced by runnable evidence, and no pending evidence is claimed passed. Treat runnerInventory and controller checks as authoritative execution facts: sv-core expands to the listed exact repository tests; controller-review is the deterministic review plus fresh-final-audit gate at the exact digest and HEAD.` : "",
+      state.contractAmendment?.type === "semantic-user-requirement"
+        ? `This is a user-authorized semantic amendment of digest ${state.contractAmendment.previousDigest}. Verify that every prior criterion and check remains exactly preserved, the explicit decision and every required quote are represented by new mandatory/current criteria, no unrelated requirement is added, and no pending evidence is claimed passed.`
+        : state.contractAmendment ? `This is a bounded amendment of digest ${state.contractAmendment.previousDigest}. Verify that every previous criterion remains semantically unchanged and mandatory, ${state.contractAmendment.checkId} is removed as the audited duplicate, all other mandatory/current external mappings are replaced by runnable evidence, and no pending evidence is claimed passed. Treat runnerInventory and controller checks as authoritative execution facts: sv-core expands to the listed exact repository tests; controller-review is the deterministic review plus fresh-final-audit gate at the exact digest and HEAD.` : "",
       ...verifierContractPromptGuidance(),
-      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal, sourceManifest: sourceResolution.manifest, runnerInventory: executionContext,
+      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal,
+        ...(state.contractAmendment ? contractAmendmentVerificationContext(state) : {}),
+        sourceManifest: sourceResolution.manifest, runnerInventory: executionContext,
         informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
     ].join("\n\n"), ".sandcastle/contract-review-output.schema.json")),
     publish: async (accepted) => {
@@ -347,7 +348,9 @@ async function contract(sandbox, state) {
     delete state.contractAmendment;
     delete state.contractAmendmentAttemptLimit;
     await save(state);
-    await appendStageEvent(runsDir, state, { stage: "contract-amend", status: "completed", summary: `Contract amendment independently verified; ${amendment.requiredExternalCheckIds.length} unrunnable mandatory/current external mappings resolved.` });
+    await appendStageEvent(runsDir, state, { stage: "contract-amend", status: "completed", summary: amendment.type === "semantic-user-requirement"
+      ? `User-authorized semantic amendment ${amendment.authorizationId} independently verified; prior criteria preserved.`
+      : `Contract amendment independently verified; ${amendment.requiredExternalCheckIds.length} unrunnable mandatory/current external mappings resolved.` });
   }
 }
 async function plan(sandbox, state, reason = "") {
@@ -403,7 +406,7 @@ async function startTicketWave(sandbox, state) {
     await save(state);
     return;
   }
-  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), limit: state.parallelism });
+  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), limit: state.parallelism, usedBranches: await workerBranchNames(state) });
   await save(state);
 }
 function sandboxProvider() {
@@ -517,7 +520,7 @@ async function test(sandbox, state) {
   const path = `${taskDir(state)}/issues/${String(number).padStart(2, "0")}-focused-test-coverage.md`;
   await writeFile(resolve(sandbox.worktreePath, path), focusedTestTicketContents(state, number));
   await ensureCommit(sandbox.worktreePath, "Sandcastle: plan focused test coverage");
-  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [] }], limit: 1, after: "test-gate" });
+  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [] }], limit: 1, after: "test-gate", usedBranches: await workerBranchNames(state) });
   await save(state);
 }
 async function testGate(sandbox, state) {
@@ -669,11 +672,42 @@ const timeoutUpgradeResume = process.env.SANDCASTLE_TIMEOUT_UPGRADE_RESUME === "
 const contractAmendResume = process.env.SANDCASTLE_CONTRACT_AMEND_RESUME === "1";
 const contractAmendRetryId = process.env.SANDCASTLE_CONTRACT_AMEND_RETRY_ID;
 const contractAmendRetry = contractAmendRetryId !== undefined;
+const semanticAmendmentJson = process.env.SANDCASTLE_SEMANTIC_AMENDMENT_JSON;
+const semanticAmendResume = semanticAmendmentJson !== undefined;
+const workerProvisioningResume = process.env.SANDCASTLE_REPROVISION_WAVE === "1";
+const workerRuntimeResume = process.env.SANDCASTLE_WORKER_CLI_UPGRADE_RESUME === "1";
+let workerRuntimeProof;
+if (workerRuntimeResume) {
+  const incompatible = ["SANDCASTLE_RESUME", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
+    "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_EXTRA_QUOTA_PERCENT",
+    "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS",
+    "SANDCASTLE_CONTINUE", "SANDCASTLE_RECOVER"];
+  if (incompatible.some((key) => process.env[key] !== undefined)) throw new Error("Worker CLI upgrade cannot be combined with continuation modes");
+  const image = "sandcastle:tomenet_modern_client";
+  const { stdout: version } = await execFileAsync("docker", ["run", "--rm", "--entrypoint", "codex", image, "--version"], { timeout: 30000 });
+  const { stdout: imageId } = await execFileAsync("docker", ["image", "inspect", "--format={{.Id}}", image], { timeout: 30000 });
+  workerRuntimeProof = { version: version.trim().replace(/^codex-cli /, ""), imageId: imageId.trim() };
+  resumeWorkerRuntimeUpgrade(structuredClone(state), workerRuntimeProof);
+}
+let semanticAmendment;
+let semanticAmendedSpec;
+if (semanticAmendResume) {
+  try { semanticAmendment = JSON.parse(semanticAmendmentJson); }
+  catch { throw new Error("SANDCASTLE_SEMANTIC_AMENDMENT_JSON must be valid JSON"); }
+  semanticAmendedSpec = await git(root, "show", `${state.branch}:${state.specPath}`);
+}
 const extraContractAttempts = process.env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
 const extraGroupAttempts = process.env.SANDCASTLE_GROUP_RETRY_ATTEMPTS;
 const extraAssemblyAttempts = process.env.SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS;
 const assemblyExtension = process.env.SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS;
 const assemblyExtensionId = process.env.SANDCASTLE_ASSEMBLY_EXTENSION_ID;
+let reprovisionBranches;
+if (workerProvisioningResume) {
+  if (userResume || improvedContractResume || timeoutUpgradeResume || contractAmendResume || contractAmendRetry || semanticAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Worker provisioning RESUME cannot be combined with other continuation modes");
+  reprovisionBranches = await workerBranchNames(state);
+  resumeWorkerProvisioning(structuredClone(state), { usedBranches: reprovisionBranches });
+}
+if (semanticAmendResume && (userResume || improvedContractResume || timeoutUpgradeResume || contractAmendResume || contractAmendRetry || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1")) throw new Error("Semantic contract amendment cannot be combined with other continuation modes");
 if (process.env.SANDCASTLE_EXTRA_CONTRACT_ROUND !== undefined) throw new Error("Contract rounds are capped at 12; extra contract-round grants are no longer available");
 if (assemblyExtensionId !== undefined && assemblyExtension === undefined) throw new Error("Assembly extension ID requires an attempt count");
 if (assemblyExtension !== undefined) {
@@ -712,12 +746,13 @@ if (contractAmendRetry) {
   if (userResume || improvedContractResume || timeoutUpgradeResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract amend retry cannot be combined with other continuation modes");
   resumeContractAmendmentRetry(structuredClone(state), contractAmendRetryId);
 }
+if (semanticAmendResume) resumeSemanticContractAmendment(structuredClone(state), semanticAmendedSpec, semanticAmendment);
 if (extraQuota !== undefined) {
   // Validate before acquiring the lock or changing the persisted checkpoint.
   extendTaskQuota(structuredClone(state), Number(extraQuota));
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && !contractAmendResume && !contractAmendRetry && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTRACT_AMEND_RESUME=1 for the initial bounded unrunnable-contract amendment, SANDCASTLE_CONTRACT_AMEND_RETRY_ID for an explicitly authorized bounded amendment retry, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && !contractAmendResume && !contractAmendRetry && !semanticAmendResume && !workerProvisioningResume && !workerRuntimeResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTRACT_AMEND_RESUME=1 for the initial bounded unrunnable-contract amendment, SANDCASTLE_CONTRACT_AMEND_RETRY_ID for an explicitly authorized bounded amendment retry, SANDCASTLE_SEMANTIC_AMENDMENT_JSON for an explicit user-authorized semantic amendment, SANDCASTLE_REPROVISION_WAVE=1 for a verified stale worker-branch provisioning failure, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
 state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
@@ -725,7 +760,11 @@ const lockPath = await acquireLock(state);
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (assemblyExtension !== undefined) {
+    if (workerRuntimeResume) {
+      resumeWorkerRuntimeUpgrade(state, workerRuntimeProof);
+    } else if (workerProvisioningResume) {
+      resumeWorkerProvisioning(state, { usedBranches: reprovisionBranches });
+    } else if (assemblyExtension !== undefined) {
       extendContractAssemblyAttempts(state, Number(assemblyExtension), assemblyExtensionId);
     } else if (extraGroupAttempts !== undefined) {
       resumeContractGroupAttempts(state, Number(extraGroupAttempts));
@@ -743,6 +782,8 @@ try {
       resumeExternalContractAmendment(state);
     } else if (contractAmendRetry) {
       resumeContractAmendmentRetry(state, contractAmendRetryId);
+    } else if (semanticAmendResume) {
+      resumeSemanticContractAmendment(state, semanticAmendedSpec, semanticAmendment);
     } else if (extraQuota !== undefined) {
       extendTaskQuota(state, Number(extraQuota));
       state.phase = state.resumePhase;
@@ -767,12 +808,20 @@ try {
     delete state.pauseReason;
     delete state.resumePhase;
     await save(state);
+    if (workerRuntimeResume) await appendStageEvent(runsDir, state, { stage: "runtime-upgrade", status: "retry", summary: "Verified worker Codex CLI upgraded from 0.157.1 to 0.161.0 for requested GPT-6.1 Sol; saved wave, quota and exhausted recovery counters retained." });
     if (timeoutUpgradeResume) {
       const upgrade = state.timeoutUpgradeResumes.at(-1);
       await appendStageEvent(runsDir, state, { stage: "recovery", status: "retry", summary: `User-authorized contract timeout upgrade ${upgrade.oldTimeoutMs / 1000}s → ${upgrade.newTimeoutMs / 1000}s; saved group checkpoint retained.` });
     }
     if (contractAmendRetry) {
       await appendStageEvent(runsDir, state, { stage: "contract-amend", status: "retry", summary: `User-authorized bounded amendment retry ${contractAmendRetryId}; at most 3 fresh proposal/verify attempts; implementation progress retained.` });
+    }
+    if (semanticAmendResume) {
+      await appendStageEvent(runsDir, state, { stage: "contract-amend", status: "running", summary: `User-authorized semantic amendment ${semanticAmendment.authorizationId}; previous acceptance archived and prior criteria must be preserved.` });
+    }
+    if (workerProvisioningResume) {
+      const reprovision = state.workerProvisioningResumes.at(-1);
+      await appendStageEvent(runsDir, state, { stage: "parallel-work", status: "retry", summary: `Verified stale worker branch collision; wave ${reprovision.oldWave.id} reprovisioned as wave ${reprovision.newWaveId}; ticket, base commit, quota and attempt counters retained.` });
     }
   }
   for (const path of Object.values(skillPaths)) await access(resolve(path, "SKILL.md"));

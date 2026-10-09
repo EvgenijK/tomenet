@@ -319,8 +319,22 @@ caller integrations and platform acceptance remain pending at their original
 owners; generated tickets and review findings cannot silently pull them into
 the current implementation or count them as passed.
 
-`SANDCASTLE_MODEL` selects the model (default `gpt-5.6-sol`), and
-`SANDCASTLE_REASONING_EFFORT` selects its effort (default `high`). The
+All Sandcastle agents use `gpt-6.1-sol`. AI orchestrators use `high` reasoning
+effort; the current AI orchestrator is the recovery orchestrator. The main
+workflow controller is JavaScript and does not invoke a model for itself.
+Ticket planning, implementation (including focused coverage), assembly,
+contract splitting/drafting/reconciliation/amendment/verification, ordinary
+review and final acceptance audit use `medium`, whether they run on the host
+or in a container. Delegated agents inherit `gpt-6.1-sol` and `medium`.
+Both launch paths ignore user Codex configuration so an old profile cannot
+override the role policy. No image rebuild is needed for this configuration
+change; it takes effect on the next workflow launch/resume.
+
+The former global `SANDCASTLE_MODEL` and `SANDCASTLE_REASONING_EFFORT` overrides
+cannot change this policy. Unset stale values before launching: conflicting
+values stop startup with an actionable error. Matching `gpt-6.1-sol` and
+`medium` values are tolerated; `medium` does not lower orchestrators from `high`.
+Changing the policy does not resume paused runs or increase their quota. The
 `to-tickets`, `code-review`, `tdd` and `resolving-merge-conflicts` skills are
 mounted read-only from `~/.agents/skills/`; set `SANDCASTLE_SKILLS_ROOT` when
 installed elsewhere. The workflow also passes the `tdd` skill text to each
