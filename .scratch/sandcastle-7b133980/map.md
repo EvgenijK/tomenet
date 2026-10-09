@@ -103,3 +103,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/72-focused-test-coverage.md)
 - [Восстановить общую валидность DNA success fixtures](issues/73-restore-aggregate-dna-success-fixtures.md)
 - [Verify focused production coverage](issues/74-focused-test-coverage.md)
+- [Сохранить DNA при явном вводе в ordered stats](issues/75-ignore-explicit-dna-during-ordered-stats.md)
