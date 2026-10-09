@@ -34,6 +34,10 @@ name, birth, partial или completed-character packet.
 Это явно принятое отличие SV от behavior baseline для неизвестных и будущих
 режимов: SV fail-fast, а не предполагает семантику неизвестного server setup.
 
+Проверка выполняется на production endpoint seam для ordinary и
+dedicated/exclusive creation в обоих compile orders и подтверждает точный текст,
+неизменный character-selection state и отсутствие draft mutation и packet send.
+
 ## Единственная первичная ответственность
 
 <!-- owned-capabilities:start -->
@@ -65,12 +69,6 @@ name, birth, partial или completed-character packet.
    stale generation запрещают дальнейший send.
 4. Каждый достижимый Guide entry показывает ровно `The guide is in development`
    и возвращает тот же birth caller без Guide state/network operation.
-5. Нормализованный `creation_flags > 1` блокирует ordinary и
-   dedicated/exclusive creation на production endpoint seam в обоих compile
-   orders: точный текст `Unsupported character creation mode`, phase остаётся
-   character selection, name/birth interaction не начинается, draft не меняется
-   и после create action не отправляется ни одного packet.
-
 ## Definition of Done
 
 Все ветви идут через production interaction state и input router; fixed-response
