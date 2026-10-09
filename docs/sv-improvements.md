@@ -992,3 +992,43 @@ path. Run the applicable `sv-build`, `sv-core` and `controller-review` gates for
 that future change. These checks are required but were not run or passed by this
 documentation-only record; `P1-birth-runtime-evidence` / P1-AC30 remains deferred
 to its named full-acceptance producer and verifier.
+
+## Give the shared login name-entry state a neutral name
+
+**Status:** proposed separately as future production-state cleanup only. This
+record does not rename the state, change ordinary or exclusive/dedicated
+creation, alter production behavior, touch legacy/shared gameplay code or widen
+the accepted SV-B-023 scope. None of the future checks below is claimed as run
+or passed by this documentation-only repair.
+
+**Problem:** `SvLoginInteraction.ordinary_name_active` now gates the shared name
+editor for both ordinary creation started by
+`SV_LOGIN_COMMAND_CREATE_ORDINARY` and exclusive/dedicated creation started by
+`SV_LOGIN_COMMAND_CREATE_EXCLUSIVE`. Its ordinary-only name no longer describes
+the state it represents and can mislead later maintenance of the common flow.
+
+**Affected code:** the state declaration in
+`src/client/sv/input/login-interaction.h`; both activation paths and the generic
+insert, key, cancel and submit consumers in
+`src/client/sv/input/login-interaction.c`; the generic native name-event router
+in `src/client/sv/input/native-name.c`; and the shared contact-status and login
+view consumers in `src/client/sv/endpoint-run.c`.
+
+**Proposal:** in separate future production cleanup, rename
+`ordinary_name_active` to a scope-neutral state name such as
+`name_entry_active` and migrate every production reference together. Preserve
+the existing `dedicated_creation` intent and dedicated mode flags, the ordinary
+and exclusive/dedicated activation and exit semantics, and the current handoff
+through the production birth interaction and input router. Do not use the rename
+to change protocol/gameplay behavior, introduce a test-only interface, modify
+legacy/shared gameplay code or add capability scope to SV-B-023.
+
+**Required checks:** for the future rename, verify a complete production
+reference migration; ordinary and exclusive/dedicated name-entry activation,
+editing, submit, cancel and exit; the accepted-name handoff into the existing
+birth interaction/input router; quit behavior; and suppression of sends after
+disconnect or stale-generation detection. Run the applicable `sv-build`,
+`sv-core` and `controller-review` gates. These future rename checks are required
+but were not run or passed by this documentation-only record;
+`P1-birth-runtime-evidence` / P1-AC30 remains deferred to its named
+full-acceptance producer and verifier.
