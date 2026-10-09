@@ -12,7 +12,13 @@
 
 typedef enum {
     ORDINARY_AVAILABLE, ORDINARY_FIRST_RUN, ORDINARY_FULL,
-    EXCLUSIVE_AVAILABLE, EXCLUSIVE_UNAVAILABLE, EXCLUSIVE_FIRST_RUN
+    EXCLUSIVE_AVAILABLE, EXCLUSIVE_UNAVAILABLE, EXCLUSIVE_FIRST_RUN,
+    CAPACITY_NEITHER_AVAILABLE, CAPACITY_NEITHER_FULL,
+    CAPACITY_IDDC_AVAILABLE, CAPACITY_IDDC_FULL,
+    CAPACITY_PVP_AVAILABLE, CAPACITY_PVP_FULL,
+    CAPACITY_BOTH_AVAILABLE, CAPACITY_BOTH_FULL,
+    DEDICATED_IDDC_AVAILABLE, DEDICATED_IDDC_FULL,
+    DEDICATED_PVP_AVAILABLE, DEDICATED_PVP_FULL
 } PeerMode;
 
 typedef struct {
@@ -65,6 +71,62 @@ static void push_key(SDL_Keycode key)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_create_mouse(void)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 120.0f;
+    event.button.y = 235.0f;
+    assert(SDL_PushEvent(&event));
+}
+
+static bool capacity_case(PeerMode mode)
+{
+    return mode >= CAPACITY_NEITHER_AVAILABLE && mode <= CAPACITY_BOTH_FULL;
+}
+
+static bool capacity_full(PeerMode mode)
+{
+    return capacity_case(mode) &&
+        ((mode - CAPACITY_NEITHER_AVAILABLE) % 2) != 0;
+}
+
+static unsigned capacity_features(PeerMode mode)
+{
+    if (!capacity_case(mode)) return 0;
+    return (unsigned)(mode - CAPACITY_NEITHER_AVAILABLE) / 2u;
+}
+
+static bool capacity_mouse(PeerMode mode)
+{
+    return capacity_case(mode) && (capacity_features(mode) & 1u) != 0;
+}
+
+static size_t capacity_existing_dedicated(PeerMode mode)
+{
+    unsigned features = capacity_features(mode);
+    bool full = capacity_full(mode);
+    return ((features & 1u) && (full || features == 3u) ? 2u : 0u) +
+           ((features & 2u) ? 1u : 0u);
+}
+
+static bool dedicated_boundary_case(PeerMode mode)
+{
+    return mode >= DEDICATED_IDDC_AVAILABLE;
+}
+
+static bool dedicated_boundary_full(PeerMode mode)
+{
+    return dedicated_boundary_case(mode) &&
+        ((mode - DEDICATED_IDDC_AVAILABLE) % 2) != 0;
+}
+
+static bool dedicated_boundary_iddc(PeerMode mode)
+{
+    return mode == DEDICATED_IDDC_AVAILABLE || mode == DEDICATED_IDDC_FULL;
+}
+
 static void send_row(unsigned char **at, int16_t mode, const char *name)
 {
     *(*at)++ = PKT_LOGIN;
@@ -84,13 +146,49 @@ static void send_row(unsigned char **at, int16_t mode, const char *name)
 
 static void send_overview(int socket, PeerMode mode)
 {
-    unsigned char response[256], *at = response;
+    unsigned char response[2048], *at = response;
     *at++ = PKT_SERVERDETAILS;
-    /* Two ordinary slots plus one IDDC and one PvP dedicated slot. */
-    put32(&at, 2u | (1u << 8) | (1u << 16));
+    /* The capacity matrix uses 12 ordinary, two IDDC and one PvP slots. */
+    put32(&at, capacity_case(mode) ? 12u | (2u << 8) | (1u << 16) :
+          dedicated_boundary_case(mode) ? 12u | (2u << 8) | (1u << 16) :
+          2u | (1u << 8) | (1u << 16));
     put32(&at, 0);
     put32(&at, 0);
-    put32(&at, 0xc0);
+    put32(&at, capacity_case(mode) ? capacity_features(mode) << 6 :
+          dedicated_boundary_case(mode) ?
+          (dedicated_boundary_iddc(mode) ? 0x40u : 0x80u) : 0xc0);
+    if (capacity_case(mode)) {
+        unsigned features = capacity_features(mode);
+        if ((features & 1u) &&
+            (capacity_full(mode) || features == 3u)) {
+            send_row(&at, 0x40, "DiveOne");
+            send_row(&at, 0x40, "DiveTwo");
+        }
+        if (features & 2u) send_row(&at, 0x80, "Duel");
+        size_t ordinary = capacity_full(mode) ? 12 : 11;
+        for (size_t i = 0; i < ordinary; ++i) {
+            char name[16];
+            SDL_snprintf(name, sizeof(name), "Hero%02u", (unsigned)i);
+            send_row(&at, 0, name);
+        }
+        send_row(&at, 0, "");
+        assert(send(socket, response, (size_t)(at - response), 0) ==
+               (ssize_t)(at - response));
+        return;
+    }
+    if (dedicated_boundary_case(mode)) {
+        send_row(&at, 0, "Hero");
+        if (dedicated_boundary_iddc(mode)) {
+            send_row(&at, 0x40, "DiveOne");
+            if (dedicated_boundary_full(mode))
+                send_row(&at, 0x40, "DiveTwo");
+        } else if (dedicated_boundary_full(mode))
+            send_row(&at, 0x80, "Duel");
+        send_row(&at, 0, "");
+        assert(send(socket, response, (size_t)(at - response), 0) ==
+               (ssize_t)(at - response));
+        return;
+    }
     if (mode != ORDINARY_FIRST_RUN) {
         if (mode != EXCLUSIVE_AVAILABLE && mode != EXCLUSIVE_FIRST_RUN) {
             send_row(&at, 0x40, "Dive");
@@ -154,10 +252,20 @@ static int peer_run(void *opaque)
     send_overview(socket, peer->mode);
 
     SDL_Delay(200);
-    bool exclusive = peer->mode >= EXCLUSIVE_AVAILABLE;
-    push_key(exclusive ? SDLK_E : SDLK_N);
+    bool exclusive = (peer->mode >= EXCLUSIVE_AVAILABLE &&
+                      peer->mode <= EXCLUSIVE_FIRST_RUN) ||
+                     dedicated_boundary_case(peer->mode);
+    if (capacity_mouse(peer->mode)) push_create_mouse();
+    else push_key(exclusive ? SDLK_E : SDLK_N);
     SDL_Delay(100);
-    if (peer->mode != ORDINARY_FULL && peer->mode != EXCLUSIVE_UNAVAILABLE &&
+    if ((capacity_case(peer->mode) && !capacity_full(peer->mode)) ||
+        (dedicated_boundary_case(peer->mode) &&
+         !dedicated_boundary_full(peer->mode))) {
+        push_key(SDLK_ESCAPE);
+        SDL_Delay(100);
+    } else if (!capacity_case(peer->mode) &&
+        !dedicated_boundary_case(peer->mode) && peer->mode != ORDINARY_FULL &&
+        peer->mode != EXCLUSIVE_UNAVAILABLE &&
         peer->mode != EXCLUSIVE_FIRST_RUN) {
         push_key(SDLK_ESCAPE);
         SDL_Delay(100);
@@ -201,7 +309,37 @@ static void run_case(const char *profile, const char *library, PeerMode mode)
     assert(peer.no_character_request && peer.closed);
     assert(outcome.phase == SV_PREGAME_OVERVIEW && outcome.authenticated);
     assert(!outcome.selected_character[0]);
-    if (mode == EXCLUSIVE_AVAILABLE) {
+    if (capacity_case(mode)) {
+        assert(outcome.character_count ==
+               (capacity_full(mode) ? 12u : 11u) +
+               capacity_existing_dedicated(mode));
+        if (!capacity_full(mode)) {
+            assert(outcome.ordinary_name_started && outcome.ordinary_name_cancelled);
+            assert(outcome.name_entry_generation == outcome.generation);
+            assert(outcome.name_cancel_generation == outcome.generation);
+            assert(outcome.name_entry_overview_revision == outcome.revision);
+            assert(outcome.name_cancel_overview_revision == outcome.revision);
+        } else {
+            assert(!outcome.ordinary_name_started &&
+                   !outcome.ordinary_name_cancelled && !outcome.name_submitted &&
+                   !outcome.birth_entered);
+        }
+    } else if (dedicated_boundary_case(mode)) {
+        size_t dedicated = dedicated_boundary_iddc(mode) ?
+            (dedicated_boundary_full(mode) ? 2u : 1u) :
+            (dedicated_boundary_full(mode) ? 1u : 0u);
+        assert(outcome.character_count == 1u + dedicated);
+        if (!dedicated_boundary_full(mode)) {
+            assert(outcome.exclusive_name_started &&
+                   outcome.exclusive_name_cancelled);
+            assert(outcome.name_entry_generation == outcome.generation);
+            assert(outcome.name_cancel_generation == outcome.generation);
+        } else {
+            assert(!outcome.exclusive_name_started &&
+                   !outcome.exclusive_name_cancelled && !outcome.name_submitted &&
+                   !outcome.birth_entered);
+        }
+    } else if (mode == EXCLUSIVE_AVAILABLE) {
         assert(outcome.exclusive_name_started && outcome.exclusive_name_cancelled);
         assert(!outcome.ordinary_name_started && !outcome.ordinary_name_cancelled);
         assert(!outcome.dedicated_creation && !outcome.dedicated_mode_flags);
@@ -230,8 +368,21 @@ int main(int argc, char **argv)
         !strcmp(argv[3], "ordinary-full") ? ORDINARY_FULL :
         !strcmp(argv[3], "exclusive-available") ? EXCLUSIVE_AVAILABLE :
         !strcmp(argv[3], "exclusive-unavailable") ? EXCLUSIVE_UNAVAILABLE :
-        EXCLUSIVE_FIRST_RUN;
-    assert(mode != EXCLUSIVE_FIRST_RUN || !strcmp(argv[3], "exclusive-first-run"));
+        !strcmp(argv[3], "exclusive-first-run") ? EXCLUSIVE_FIRST_RUN :
+        !strcmp(argv[3], "capacity-neither-available") ? CAPACITY_NEITHER_AVAILABLE :
+        !strcmp(argv[3], "capacity-neither-full") ? CAPACITY_NEITHER_FULL :
+        !strcmp(argv[3], "capacity-iddc-available") ? CAPACITY_IDDC_AVAILABLE :
+        !strcmp(argv[3], "capacity-iddc-full") ? CAPACITY_IDDC_FULL :
+        !strcmp(argv[3], "capacity-pvp-available") ? CAPACITY_PVP_AVAILABLE :
+        !strcmp(argv[3], "capacity-pvp-full") ? CAPACITY_PVP_FULL :
+        !strcmp(argv[3], "capacity-both-available") ? CAPACITY_BOTH_AVAILABLE :
+        !strcmp(argv[3], "capacity-both-full") ? CAPACITY_BOTH_FULL :
+        !strcmp(argv[3], "dedicated-iddc-available") ? DEDICATED_IDDC_AVAILABLE :
+        !strcmp(argv[3], "dedicated-iddc-full") ? DEDICATED_IDDC_FULL :
+        !strcmp(argv[3], "dedicated-pvp-available") ? DEDICATED_PVP_AVAILABLE :
+        DEDICATED_PVP_FULL;
+    assert(mode != DEDICATED_PVP_FULL ||
+           !strcmp(argv[3], "dedicated-pvp-full"));
     run_case(argv[1], argv[2], mode);
     return 0;
 }

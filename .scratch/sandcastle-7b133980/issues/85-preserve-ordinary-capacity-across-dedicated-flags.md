@@ -8,7 +8,9 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** claimed
+
+**Assignee:** codex/sandcastle-7b133980-wave-64-1
 
 Labels: bug, ready-for-agent
 

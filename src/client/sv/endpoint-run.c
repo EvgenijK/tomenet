@@ -632,6 +632,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         if (login && connection) {
             sv_login_view_prepare(&login_view, &pregame);
             login_view.ordinary_name_entry = login_input.ordinary_name_active;
+            login_view.ordinary_creation_available =
+                sv_login_interaction_ordinary_available(&login_input);
             login_view.character_name_draft = login_input.ordinary_name_active ?
                 login_input.character_name.bytes : NULL;
             input->login_view = &login_view;

@@ -76,9 +76,9 @@ static bool creation_availability(const SvLoginInteraction *input,
     available->total_limit = available->ordinary_limit + dedicated_capacity;
     if (available->total_limit > SV_LOGIN_MAX_CHARACTERS)
         available->total_limit = SV_LOGIN_MAX_CHARACTERS;
-    size_t reserved = available->iddc_limit + available->pvp_limit;
-    available->baseline_ordinary_limit = available->total_limit > reserved ?
-        available->total_limit - reserved : 0;
+    available->baseline_ordinary_limit = available->ordinary_limit;
+    if (available->baseline_ordinary_limit > SV_LOGIN_MAX_CHARACTERS)
+        available->baseline_ordinary_limit = SV_LOGIN_MAX_CHARACTERS;
     for (size_t slot = 0; slot < sv_login_count(input->login); ++slot) {
         int16_t mode = sv_login_character(input->login, slot)->mode;
         if (mode & SV_MODE_DED_IDDC) ++available->iddc_count;

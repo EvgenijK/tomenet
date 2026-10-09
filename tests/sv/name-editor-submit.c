@@ -226,6 +226,16 @@ static void push_mouse_select_all(void)
     assert(SDL_PushEvent(&event));
 }
 
+static void push_mouse_ordinary_create(void)
+{
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 120.0f;
+    event.button.y = 235.0f;
+    assert(SDL_PushEvent(&event));
+}
+
 static void push_mouse_sex(float y, unsigned clicks)
 {
     SDL_Event event = {0};
@@ -1312,8 +1322,11 @@ static int peer_run(void *opaque)
     assert(exact(socket, login_start, sizeof(login_start)));
     send_overview(socket, peer->mode);
     SDL_Delay(200);
-    push_key(exclusive_creation_case(peer->mode) ? SDLK_E : SDLK_N,
-             SDL_KMOD_SHIFT);
+    if (!strcmp(peer->mode, "unsupported-creation-ordinary"))
+        push_mouse_ordinary_create();
+    else
+        push_key(exclusive_creation_case(peer->mode) ? SDLK_E : SDLK_N,
+                 SDL_KMOD_SHIFT);
     if (unsupported_creation_case(peer->mode)) {
         SDL_Delay(150);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
