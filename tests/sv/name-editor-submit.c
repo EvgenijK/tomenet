@@ -639,7 +639,8 @@ static uint32_t creation_flags_for_case(const char *mode)
 {
     if (!strcmp(mode, "unsupported-creation-ordinary")) return 4u;
     if (!strcmp(mode, "unsupported-creation-exclusive")) return 0x10u;
-    if (!strcmp(mode, "body-unavailable-mouse")) return 1u;
+    if (!strcmp(mode, "body-unavailable-mouse") ||
+        !strcmp(mode, "legacy-mode-point")) return 1u;
     if (!strncmp(mode, "stats-point-", 12)) return 1u;
     if (!strncmp(mode, "auto-dna-", 9) && !automatic_ordered_case(mode))
         return 1u;
@@ -648,7 +649,8 @@ static uint32_t creation_flags_for_case(const char *mode)
 
 static bool body_unavailable_case(const char *mode)
 {
-    return !strcmp(mode, "body-unavailable-keyboard") ||
+    return !strncmp(mode, "legacy-mode-", 12) ||
+        !strcmp(mode, "body-unavailable-keyboard") ||
         !strcmp(mode, "body-unavailable-mouse");
 }
 
@@ -1286,7 +1288,8 @@ static void send_overview(int socket, const char *mode)
           (!strcmp(mode, "mode-dedicated-unavailable") ||
                 !strcmp(mode, "exclusive-iddc-production")) ? 0x40u :
           (!strcmp(mode, "mode-rpg") ||
-           !strcmp(mode, "returning-empty-mode-rpg")) ? 0xc1u :
+           !strcmp(mode, "returning-empty-mode-rpg") ||
+           !strcmp(mode, "legacy-mode-rpg")) ? 0xc1u :
           pvp_maia_case(mode) ? 0x2c0u : 0xc0u);
     if (body_unavailable_case(mode)) {
         *at++ = PKT_LOGIN;
@@ -1402,7 +1405,58 @@ static int peer_run(void *opaque)
     const char *quit_owner = NULL;
     SDL_Keymod quit_modifier = SDL_KMOD_NONE;
     const char *lowercase_q_owner = NULL;
-    if (body_unavailable_case(peer->mode)) {
+    if (!strncmp(peer->mode, "legacy-mode-", 12)) {
+        push_key(SDLK_RETURN, 0); /* sex */
+        push_key(SDLK_RETURN, 0); /* class or race */
+        push_key(SDLK_RETURN, 0); /* race or class: trait/body skipped */
+        bool point = !strcmp(peer->mode, "legacy-mode-point");
+        if (point) {
+            push_key(SDLK_RETURN, 0);
+            push_key(SDLK_RETURN, 0);
+        } else {
+            for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+                push_key(key, 0);
+                push_key(SDLK_RETURN, 0);
+            }
+        }
+        push_key(SDLK_F, 0);
+        if (!strcmp(peer->mode, "legacy-mode-back") ||
+            !strcmp(peer->mode, "legacy-mode-predecessor")) {
+            push_key(SDLK_BACKSPACE, 0);
+            if (!strcmp(peer->mode, "legacy-mode-predecessor"))
+                push_key(SDLK_BACKSPACE, 0);
+        } else if (!strcmp(peer->mode, "legacy-mode-reenter")) {
+            push_key(SDLK_BACKSPACE, 0);
+            for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+                push_key(key, 0);
+                push_key(SDLK_RETURN, 0);
+            }
+            push_key(SDLK_RETURN, 0);
+        } else if (!strcmp(peer->mode, "legacy-mode-random")) {
+            push_random();
+        } else if (!strcmp(peer->mode, "legacy-mode-auto-dna")) {
+            push_automatic_dna();
+        } else if (!strcmp(peer->mode, "legacy-mode-dna") ||
+                   !strcmp(peer->mode, "legacy-mode-invalid-dna")) {
+            push_dna();
+        } else if (!strcmp(peer->mode, "legacy-mode-first-run") ||
+                   !strcmp(peer->mode, "legacy-mode-rpg")) {
+            /* Fruit Bat is illegal here: keep the current legal identity. */
+        } else if (!strcmp(peer->mode, "legacy-mode-mouse")) {
+            push_mouse_mode(580.0f, 1);
+            push_mouse_mode(580.0f, 2);
+        } else if (!strcmp(peer->mode, "legacy-mode-normal")) {
+            push_key(SDLK_N, 0);
+            push_mouse_mode(340.0f, 2);
+        } else {
+            push_key(SDLK_UP, 0);
+            push_key(SDLK_DOWN, 0); /* highlighted Fruit Bat survives navigation */
+            push_stale_key(SDLK_N);
+            push_key(SDLK_Z, 0); /* unknown identity must not advance */
+            push_key(SDLK_RETURN, 0);
+        }
+        push_key(SDLK_Q, SDL_KMOD_CTRL);
+    } else if (body_unavailable_case(peer->mode)) {
         bool mouse = !strcmp(peer->mode, "body-unavailable-mouse");
         if (mouse) push_mouse_sex(360.0f, 1);
         push_key(SDLK_RETURN, 0);
@@ -3066,7 +3120,10 @@ int main(int argc, char **argv)
         .width = 1024, .height = 768, .windowed = 1,
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
         .real_name = "PLAYER", .outcome = &outcome,
-        .birth_dna_available = !strcmp(argv[3], "dna") ||
+        .birth_dna_available = !strcmp(argv[3], "legacy-mode-auto-dna") ||
+            !strcmp(argv[3], "legacy-mode-dna") ||
+            !strcmp(argv[3], "legacy-mode-invalid-dna") ||
+            !strcmp(argv[3], "dna") ||
             !strcmp(argv[3], "altgr-dna") ||
             explicit_ordered_dna_case(argv[3]) ||
             direct_dna_success ||
@@ -3180,12 +3237,19 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
             normalized_dna ? 7 : 8
         },
-        .birth_dna_mode_available = explicit_ordered_dna_case(argv[3]) ||
+        .birth_dna_mode_available = !strcmp(argv[3], "legacy-mode-auto-dna") ||
+            !strcmp(argv[3], "legacy-mode-dna") ||
+            !strcmp(argv[3], "legacy-mode-invalid-dna") ||
+            explicit_ordered_dna_case(argv[3]) ||
             (automatic && !auto_ordered_mode_missing) ||
             !strcmp(argv[3], "mode-dna") ||
             !strcmp(argv[3], "mode-dedicated-dna") ||
             !strcmp(argv[3], "first-start-existing-mode-reject"),
-        .birth_dna_mode = !strcmp(argv[3], "mode-dedicated-dna") ||
+        .birth_dna_mode = (!strcmp(argv[3], "legacy-mode-auto-dna") ||
+            !strcmp(argv[3], "legacy-mode-dna")) ?
+            SV_BIRTH_MODE_FRUIT_BAT :
+            !strcmp(argv[3], "legacy-mode-invalid-dna") ? (SvBirthMode)99 :
+            !strcmp(argv[3], "mode-dedicated-dna") ||
             auto_pvp_maia ?
             SV_BIRTH_MODE_DEDICATED_PVP :
             auto_ordered_dedicated ? SV_BIRTH_MODE_IDDC :
@@ -3267,6 +3331,71 @@ int main(int argc, char **argv)
         SV_PREGAME_DISCONNECTED : SV_PREGAME_BIRTH));
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
+    if (!strncmp(argv[3], "legacy-mode-", 12)) {
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(outcome.birth_body_count == 0 && outcome.birth_legal_body_count == 0);
+        assert(outcome.birth_trait_skipped);
+        bool first = !strcmp(argv[3], "legacy-mode-first-run");
+        bool rpg = !strcmp(argv[3], "legacy-mode-rpg");
+        assert(outcome.birth_legal_mode_count == (first ? 4 : rpg ? 3 : 7));
+        assert(outcome.birth_legal_modes[0] ==
+               (rpg ? SV_BIRTH_MODE_NO_GHOST : SV_BIRTH_MODE_NORMAL));
+        if (!first && !rpg)
+            assert(outcome.birth_legal_modes[6] == SV_BIRTH_MODE_FRUIT_BAT);
+        if (!strcmp(argv[3], "legacy-mode-back") ||
+            !strcmp(argv[3], "legacy-mode-predecessor")) {
+            if (!strcmp(argv[3], "legacy-mode-back"))
+                assert(outcome.birth_owner == SV_BIRTH_STATS);
+            else {
+#if SV_CLASS_BEFORE_RACE
+                assert(outcome.birth_owner == SV_BIRTH_RACE);
+#else
+                assert(outcome.birth_owner == SV_BIRTH_CLASS);
+#endif
+            }
+            assert(outcome.birth_mode == SV_BIRTH_MODE_NONE);
+            assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
+            assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_FRUIT_BAT);
+            assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+            return 0;
+        }
+        if (first || rpg || !strcmp(argv[3], "legacy-mode-invalid-dna")) {
+            assert(outcome.birth_owner == SV_BIRTH_MODE);
+            assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+            assert(outcome.birth_mode == SV_BIRTH_MODE_NONE);
+            assert(outcome.birth_body == SV_BIRTH_BODY_NONE);
+            assert(outcome.birth_highlighted_mode ==
+                   (first ? SV_BIRTH_MODE_NORMAL : rpg ?
+                    SV_BIRTH_MODE_NO_GHOST : SV_BIRTH_MODE_FRUIT_BAT));
+            if (!strcmp(argv[3], "legacy-mode-invalid-dna"))
+                assert(!outcome.birth_dna_available);
+            else assert(outcome.birth_illegal_ignored);
+            return 0;
+        }
+        bool normal = !strcmp(argv[3], "legacy-mode-normal");
+        if (!strcmp(argv[3], "legacy-mode-random")) {
+            bool legal = false;
+            for (unsigned i = 0; i < outcome.birth_legal_mode_count; ++i)
+                if (outcome.birth_mode == outcome.birth_legal_modes[i]) legal = true;
+            assert(legal && outcome.birth_mode_random_used);
+        } else {
+            assert(outcome.birth_mode == (normal ?
+                   SV_BIRTH_MODE_NORMAL : SV_BIRTH_MODE_FRUIT_BAT));
+        }
+        assert(outcome.birth_highlighted_mode == outcome.birth_mode);
+        assert(outcome.birth_body == (outcome.birth_mode == SV_BIRTH_MODE_FRUIT_BAT ?
+               SV_BIRTH_BODY_FRUIT_BAT : SV_BIRTH_BODY_NORMAL));
+        assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+        assert(outcome.birth_owner == SV_BIRTH_READY);
+        if (!strcmp(argv[3], "legacy-mode-dna") ||
+            !strcmp(argv[3], "legacy-mode-auto-dna"))
+            assert(outcome.birth_mode_dna_used);
+        if (!strcmp(argv[3], "legacy-mode-mouse") || normal)
+            assert(outcome.birth_mouse_navigated);
+        if (!strcmp(argv[3], "legacy-mode-fruit-bat"))
+            assert(outcome.birth_illegal_ignored);
+        return 0;
+    }
     if (body_unavailable_case(argv[3])) {
         assert(outcome.creation_flags ==
                (!strcmp(argv[3], "body-unavailable-mouse") ? 1u : 0u));

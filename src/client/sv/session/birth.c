@@ -998,6 +998,8 @@ static void prepare_modes(SvBirth *birth)
     if (!rpg) add_mode(birth, SV_BIRTH_MODE_EVERLASTING);
     if (!birth->first_run) add_mode(birth, SV_BIRTH_MODE_HELLISH);
     if (!rpg && !birth->first_run) add_mode(birth, SV_BIRTH_MODE_PVP);
+    if (!birth->setup->body_step_available && !rpg && !birth->first_run)
+        add_mode(birth, SV_BIRTH_MODE_FRUIT_BAT);
     if (mode_position(birth, birth->highlighted_mode) < 0)
         birth->highlighted_mode = birth->legal_mode_count ?
             birth->legal_modes[0] : SV_BIRTH_MODE_NONE;
@@ -1009,6 +1011,11 @@ static SvBirthInputResult confirm_mode(SvBirth *birth)
         mode_position(birth, birth->highlighted_mode) < 0)
         return SV_BIRTH_INPUT_IGNORED;
     birth->chosen_mode = birth->highlighted_mode;
+    /* Old servers combine body and mode. The absent body owner remains skipped,
+       while the mode result retains the historical body outcome. */
+    if (!birth->setup->body_step_available)
+        birth->chosen_body = birth->chosen_mode == SV_BIRTH_MODE_FRUIT_BAT ?
+            SV_BIRTH_BODY_FRUIT_BAT : SV_BIRTH_BODY_NORMAL;
     birth->mode_confirmed = true;
     int maia_race = maia_race_id(birth);
     bool pvp = birth->chosen_mode == SV_BIRTH_MODE_PVP ||

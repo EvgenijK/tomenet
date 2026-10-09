@@ -8,7 +8,9 @@
 
 **Blocked by:** [86: Пропустить authoritative unavailable body step](86-skip-authoritatively-unavailable-body-step.md) (completed; establishes the version-aware absence of the separate body owner that this repair must preserve).
 
-**Status:** ready-for-agent
+**Status:** claimed
+
+**Assignee:** codex/sandcastle-7b133980-wave-66-1
 
 Labels: bug, ready-for-agent
 
@@ -23,3 +25,7 @@ Labels: bug, ready-for-agent
 - [ ] Repair остаётся SV-local по возможности, использует production interaction state/input router и не добавляет fixed-response либо test-only behavior; unrelated legacy/shared/SV organization improvements записываются отдельно с требуемыми полями и не включаются в repair. [Contract: P1-AC28, P2-AC01, P2-AC02, P2-AC03, P2-AC05, P2-AC06, P2-AC07, P2-AC08, P2-AC09; check: `controller-review`]
 
 **Deferred check:** `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у named full-acceptance producer/verifier и не считается пройденным этим repair; evidence собирается только на exact accepted contract digest `15de367676b8c4c23c1ba787bb60b4e976455f27926f4b7688e17fc75204dbe6` и implementation HEAD.
+
+## Comments
+
+- 2026-10-09: Claimed on the retained isolated worker branch before implementation. Public production seam is the ticket-approved `sv_endpoint_run(SvEndpointOptions)` with authoritative pre-4.4.1a setup, SDL gestures, `SvEndpointOutcome` and controlled-peer outbound-byte checks. Startup and diagnostic tool execution succeeded; no launcher failure recurred in this worker turn.

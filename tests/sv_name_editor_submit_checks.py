@@ -37,7 +37,7 @@ SOURCES = [
     "src/client/sv/input/metaserver.c",
     "src/common/md5.c",
 ]
-ONLY_CASE = os.environ.get("SV_BIRTH_CASE")
+ONLY_CASE = set(filter(None, os.environ.get("SV_BIRTH_CASE", "").split(",")))
 FIRST_START_CASES = {
     "mode-ordinary-ready",
     "mode-random",
@@ -58,6 +58,7 @@ def set_profile_startup_state(profile: Path, mode: str) -> None:
     config = profile / "sv" / "tomenet.cfg"
     first_start = (mode.startswith("first-run-body-") or
                    mode.startswith("first-start-existing-") or
+                   mode == "legacy-mode-first-run" or
                    mode in FIRST_START_CASES)
     if first_start:
         config.unlink(missing_ok=True)
@@ -204,6 +205,11 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "trait-dummy-skip-back", "trait-unavailable-skip",
                  "trait-back", "trait-quit", "trait-ctrl-quit", "trait-mouse",
                  "body-unavailable-keyboard", "body-unavailable-mouse",
+                 "legacy-mode-fruit-bat", "legacy-mode-back",
+                 "legacy-mode-normal", "legacy-mode-mouse", "legacy-mode-reenter",
+                 "legacy-mode-random", "legacy-mode-dna", "legacy-mode-invalid-dna",
+                 "legacy-mode-first-run", "legacy-mode-rpg", "legacy-mode-point",
+                 "legacy-mode-auto-dna", "legacy-mode-predecessor",
                  "first-run-body-direct", "first-run-body-reject",
                  "first-run-body-random", "non-first-run-body-manual",
                  "returning-empty-body-manual",
@@ -227,7 +233,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound", "stats-point-escape-no-warning",
                  *QUIT_CASES, *LOWERCASE_Q_CASES):
-        if ONLY_CASE and mode != ONLY_CASE:
+        if ONLY_CASE and mode not in ONLY_CASE:
             continue
         set_profile_startup_state(profile, mode)
         subprocess.run(
@@ -334,6 +340,11 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "long-trait-viewport", "case-sensitive-trait-binding",
                  "trait-unavailable-skip",
                  "body-unavailable-keyboard", "body-unavailable-mouse",
+                 "legacy-mode-fruit-bat", "legacy-mode-back",
+                 "legacy-mode-normal", "legacy-mode-mouse", "legacy-mode-reenter",
+                 "legacy-mode-random", "legacy-mode-dna", "legacy-mode-invalid-dna",
+                 "legacy-mode-first-run", "legacy-mode-rpg", "legacy-mode-point",
+                 "legacy-mode-auto-dna", "legacy-mode-predecessor",
                  "alternate-mouse", "first-run-body-direct",
                  "first-run-body-reject", "first-run-body-random",
                  "non-first-run-body-manual", "returning-empty-body-manual",
@@ -354,7 +365,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "stats-point-dna-multiple-max", "stats-point-dna-missing",
                  "stats-point-lower-bound", "stats-point-escape-no-warning",
                  *QUIT_CASES, *LOWERCASE_Q_CASES):
-        if ONLY_CASE and mode != ONLY_CASE:
+        if ONLY_CASE and mode not in ONLY_CASE:
             continue
         set_profile_startup_state(profile, mode)
         subprocess.run(

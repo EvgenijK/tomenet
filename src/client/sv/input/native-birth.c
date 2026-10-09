@@ -321,6 +321,7 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
         else
             mode = uppercase && key == SDLK_H ? SV_BIRTH_MODE_HELLISH :
                 !uppercase && key == SDLK_N ? SV_BIRTH_MODE_NORMAL :
+                !uppercase && key == SDLK_F ? SV_BIRTH_MODE_FRUIT_BAT :
                 !uppercase && key == SDLK_G ? SV_BIRTH_MODE_NO_GHOST :
                 !uppercase && key == SDLK_S ? SV_BIRTH_MODE_SOLOIST :
                 !uppercase && key == SDLK_E ? SV_BIRTH_MODE_EVERLASTING :

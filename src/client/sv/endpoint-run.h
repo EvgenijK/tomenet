@@ -68,7 +68,7 @@ typedef struct {
     uint8_t birth_legal_stats[6], birth_legal_stat_count, birth_stats_order_count;
     int birth_stats_remaining;
     SvBirthMode birth_highlighted_mode, birth_mode;
-    SvBirthMode birth_legal_modes[6];
+    SvBirthMode birth_legal_modes[7];
     uint8_t birth_legal_mode_count;
     unsigned birth_placeholder_open_count, birth_placeholder_close_count;
     uint32_t birth_placeholder_owner_mask;
