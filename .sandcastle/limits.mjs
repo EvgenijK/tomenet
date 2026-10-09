@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 export function taskQuotaLimit(state) {
   const limit = state.budget?.limitPercent ?? 25;
@@ -18,12 +19,15 @@ export function resumeUserPause(state) {
 }
 
 // Only the explicit continuation CLI calls this; recovery never grants quota.
-export function extendTaskQuota(state, extraPercent) {
+export function extendTaskQuota(state, extraPercent, { authorizationId = randomUUID(), explanation = "Explicit additional task quota authorization" } = {}) {
   if (!Number.isFinite(extraPercent) || extraPercent <= 0 || extraPercent > 100) throw new Error("SANDCASTLE_EXTRA_QUOTA_PERCENT must be greater than 0 and at most 100");
   if (state.phase !== "awaiting" || !state.resumePhase || !state.budget || !/^Task reached [\d.]+% of the weekly Codex quota$/.test(state.quotaError ?? state.pauseReason ?? "")) throw new Error("Extra quota continuation requires a task quota pause");
   const previousLimit = taskQuotaLimit(state);
+  if (typeof authorizationId !== "string" || !authorizationId.trim() || typeof explanation !== "string" || !explanation.trim()) throw new Error("Quota grant requires an authorization ID and explanation");
+  if (state.budget.allowanceHistory?.some((entry) => entry.id === authorizationId)) throw new Error("Quota grant authorization already recorded");
+  if (!Number.isFinite(state.budget.consumedPercent) || state.budget.consumedPercent < 0) throw new Error("Invalid task quota consumption");
   const limitPercent = Math.max(previousLimit, state.budget.consumedPercent) + extraPercent;
-  (state.budget.allowanceHistory ??= []).push({ extraPercent, previousLimit, consumedPercent: state.budget.consumedPercent, limitPercent, grantedAt: new Date().toISOString() });
+  (state.budget.allowanceHistory ??= []).push({ id: authorizationId, windowId: state.budget.windowId ?? windowIdentity(state.budget.resetsAt), deltaPercent: limitPercent - previousLimit, extraPercent, previousLimit, consumedPercent: state.budget.consumedPercent, limitPercent, explanation, snapshot: { usedPercent: state.budget.lastUsedPercent ?? null, resetsAt: state.budget.resetsAt ?? null, tokens: state.budget.tokens ?? null }, grantedAt: new Date().toISOString() });
   state.budget.limitPercent = limitPercent;
   delete state.quotaError;
 }
@@ -83,20 +87,70 @@ export async function readWeeklyUsage(authDir, model, timeoutMs = 20000) {
   return { usedPercent: weekly.usedPercent, resetsAt: weekly.resetsAt, ordinaryUsageAllowed: result.ordinaryUsageAllowed };
 }
 
+function windowIdentity(resetsAt) {
+  return Number.isFinite(resetsAt) ? `weekly:${resetsAt}` : "weekly:unknown";
+}
+
+function usageRecord(budget, snapshot, deltaPercent, explanation, windowId = budget.windowId) {
+  (budget.usageHistory ??= []).push({ id: randomUUID(), sequence: budget.usageHistory.length + 1, windowId, snapshot: { usedPercent: snapshot.usedPercent ?? null, resetsAt: snapshot.resetsAt ?? null, ordinaryUsageAllowed: snapshot.ordinaryUsageAllowed ?? null, tokens: budget.tokens ?? null }, deltaPercent, consumedPercent: budget.consumedPercent, explanation, observedAt: new Date().toISOString() });
+}
+
+// Consumption is a lifetime accumulator. Window samples are account-wide, so
+// they provide a conservative allowance guard, not per-task billing attribution.
 export function updateBudget(state, snapshot) {
+  if (!snapshot || !Number.isFinite(snapshot.usedPercent) || snapshot.usedPercent < 0 || snapshot.usedPercent > 100 ||
+    (snapshot.resetsAt != null && !Number.isFinite(snapshot.resetsAt))) throw new Error("Invalid Codex usage snapshot");
+  const existing = state.budget;
+  if (existing && (!Number.isFinite(existing.consumedPercent) || existing.consumedPercent < 0 ||
+    (existing.lastUsedPercent != null && (!Number.isFinite(existing.lastUsedPercent) || existing.lastUsedPercent < 0 || existing.lastUsedPercent > 100)) ||
+    (existing.windowHighWaterPercent != null && (!Number.isFinite(existing.windowHighWaterPercent) || existing.windowHighWaterPercent < 0 || existing.windowHighWaterPercent > 100)))) throw new Error("Invalid saved task quota accounting");
   const budget = state.budget ??= { consumedPercent: 0, lastUsedPercent: snapshot.usedPercent, resetsAt: snapshot.resetsAt, tokens: 0 };
-  // The account API can shift the same weekly reset timestamp by a few seconds.
-  // A real weekly rollover moves it by days; do not charge the whole window twice.
-  const resetMoved = budget.resetsAt !== snapshot.resetsAt &&
-    !(Number.isFinite(budget.resetsAt) && Number.isFinite(snapshot.resetsAt) &&
-      Math.abs(snapshot.resetsAt - budget.resetsAt) < 300);
-  if (resetMoved || snapshot.usedPercent < budget.lastUsedPercent) {
-    budget.consumedPercent += snapshot.usedPercent;
-  } else {
-    budget.consumedPercent += Math.max(0, snapshot.usedPercent - budget.lastUsedPercent);
+  if (!budget.windowId) {
+    budget.windowId = windowIdentity(budget.resetsAt);
   }
-  budget.lastUsedPercent = snapshot.usedPercent;
-  budget.resetsAt = snapshot.resetsAt;
+  budget.windowResetAt ??= budget.resetsAt ?? null;
+  budget.windowHighWaterPercent ??= budget.lastUsedPercent ?? snapshot.usedPercent;
+  if (!budget.usageHistory) {
+    usageRecord(budget, { usedPercent: budget.lastUsedPercent, resetsAt: budget.resetsAt }, 0, existing
+      ? "Legacy accounting baseline imported; existing consumption retained. Cannot reconstruct consumption lost to past unrecorded resets."
+      : "Initial task baseline; account usage before this snapshot is excluded.");
+  }
+  const knownWindow = Number.isFinite(budget.windowResetAt) && Number.isFinite(snapshot.resetsAt);
+  const resetDelta = knownWindow ? snapshot.resetsAt - budget.windowResetAt : 0;
+  let deltaPercent = 0;
+  let explanation;
+  if (knownWindow && resetDelta <= -300) {
+    // An older response must not reopen an already accounted window.
+    usageRecord(budget, snapshot, 0, "Ignored stale earlier-window snapshot", windowIdentity(snapshot.resetsAt));
+  } else {
+    if (knownWindow && resetDelta >= 300) {
+      budget.windowId = windowIdentity(snapshot.resetsAt);
+      budget.windowResetAt = snapshot.resetsAt;
+      deltaPercent = snapshot.usedPercent;
+      budget.windowHighWaterPercent = snapshot.usedPercent;
+      explanation = "Confirmed account window rollover; charged observed new-window usage conservatively. Unobserved usage between snapshots cannot reconstruct missing history.";
+    } else {
+      const newlyIdentifiedWindow = !Number.isFinite(budget.windowResetAt) && Number.isFinite(snapshot.resetsAt);
+      deltaPercent = Math.max(0, snapshot.usedPercent - budget.windowHighWaterPercent);
+      explanation = newlyIdentifiedWindow
+        ? "Window identity became available; charged observed positive growth and established the current snapshot baseline"
+        : snapshot.usedPercent < budget.windowHighWaterPercent
+        ? "Same-window usage correction; high-water baseline retained, no rollover inferred."
+        : "Same-window usage increase above recorded high-water baseline";
+      budget.windowHighWaterPercent = newlyIdentifiedWindow ? snapshot.usedPercent : Math.max(budget.windowHighWaterPercent, snapshot.usedPercent);
+      if (!knownWindow && budget.resetsAt !== snapshot.resetsAt) {
+        explanation += "; window identity unavailable, missing rollover history cannot reconstruct consumption";
+        if (!Number.isFinite(budget.windowResetAt) && Number.isFinite(snapshot.resetsAt)) {
+          budget.windowResetAt = snapshot.resetsAt;
+          budget.windowId = windowIdentity(snapshot.resetsAt);
+        }
+      }
+    }
+    budget.consumedPercent += deltaPercent;
+    budget.lastUsedPercent = snapshot.usedPercent;
+    budget.resetsAt = snapshot.resetsAt;
+    usageRecord(budget, snapshot, deltaPercent, explanation);
+  }
   if (snapshot.ordinaryUsageAllowed === false) throw new Error("Codex account usage limit reached");
   const limit = taskQuotaLimit(state);
   if (budget.consumedPercent >= limit) throw new Error(`Task reached ${limit}% of the weekly Codex quota`);

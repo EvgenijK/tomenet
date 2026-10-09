@@ -6,7 +6,7 @@ import { resolve, isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { readWeeklyUsage, updateBudget, extendTaskQuota, resumeUserPause } from "./limits.mjs";
+import { readWeeklyUsage, updateBudget, resumeUserPause } from "./limits.mjs";
 import { focusedTestTicketContents, validateTicketBatch, validateTicketCompletion } from "./tickets.mjs";
 import { createWave, resumeWorkerProvisioning, runWave, collectWave } from "./parallel.mjs";
 import { appendStageEvent, stageOutcome } from "./events.mjs";
@@ -25,6 +25,12 @@ import { contractAmendmentVerificationContext, resumeExternalContractAmendment, 
 import { contractExecutionContext, validateContractRunnerInventory } from "./contract-runners.mjs";
 import { parseAgentOutput, agentFailureDetail } from "./agent-output.mjs";
 import { resumeWorkerRuntimeUpgrade } from "./worker-runtime.mjs";
+import { rejectLegacyContinue, readAttemptGrant, applyAllowanceGrant } from "./continuation.mjs";
+import { classifyFailure, pauseStatus, clearCurrentFailure } from "./failure.mjs";
+import { controllerExecutionIdentity, preflightExecution, preflightWorker } from "./execution.mjs";
+import { dispatchVerified, resumeExecutionCheckpoint, closeExecution } from "./dispatch.mjs";
+import { repositoryGateInput } from "./gate-input.mjs";
+import { sandcastleRunAgentPolicy } from "./runtime.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -40,6 +46,7 @@ const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 let saveQueue = Promise.resolve();
 let quotaQueue = Promise.resolve();
 let provisionQueue = Promise.resolve();
+let loadedControllerDigest;
 
 async function git(cwd, ...args) {
   return (await execFileAsync("git", args, { cwd, maxBuffer: 4 * 1024 * 1024 })).stdout.trim();
@@ -49,6 +56,7 @@ async function workerBranchNames(state) {
   return output.split("\n").filter(Boolean);
 }
 async function save(state) {
+  state.updatedAt = new Date().toISOString();
   const contents = JSON.stringify(state, null, 2) + "\n";
   const next = saveQueue.then(async () => {
     const dir = resolve(runsDir, state.id);
@@ -123,7 +131,21 @@ async function recoveryWorktree(state) {
   await git(root, "worktree", "add", path, state.branch);
   return path;
 }
-async function agent(sandbox, state, role, prompt, schema = false, readOnly = false, timeoutMs = readOnlyAgentTimeoutMs) {
+async function recordExecution(state, role, manifest) {
+  const id = randomUUID();
+  const path = resolve(runsDir, state.id, `execution-${id}.json`);
+  const record = { id, role, at: new Date().toISOString(), ...manifest };
+  await writeFile(path, JSON.stringify(record, null, 2) + "\n");
+  (state.executionHistory ??= []).push({ id, role, at: record.at, digest: manifest.digest, path });
+  await save(state);
+}
+function executionContext(state, role, worktree, extra = {}) {
+  return { controllerRoot: root, expectedControllerDigest: loadedControllerDigest,
+    worktree, expectedBranch: state.branch, baseCommit: state.baseCommit,
+    contractDigest: state.acceptance?.contractDigest,
+    ...sandcastleAgentSettings(role, process.env, state.agentPolicy), ...extra };
+}
+async function agent(sandbox, state, role, prompt, schema = false, readOnly = false, timeoutMs = readOnlyAgentTimeoutMs, workerContext = {}) {
   // Docker cannot provide the nested namespaces needed by Bubblewrap. Keep
   // inspectors read-only on the host, against this exact integration worktree.
   if (readOnly) return hostAgent(state, {
@@ -131,14 +153,20 @@ async function agent(sandbox, state, role, prompt, schema = false, readOnly = fa
     schemaPath: resolve(root, ".sandcastle", schema === true ? "review-output.schema.json" : schema.replace(/^\.sandcastle\//, "")),
     multiAgent: role.startsWith("review "), timeoutMs,
   });
-  await quotaCheckpoint(state);
   const settings = sandboxAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy),
     schemaPath: schema ? runtimeSchemaPath(schema) : undefined }).map(quote).join(" ");
   console.log(`Agent: ${role}`);
   const captured = { message: "", tokens: 0 };
-  const result = await sandbox.exec(`codex ${settings}`, {
-    stdin: [prompt, delegatedAgentPolicy, guidanceForAgent(state, role)].filter(Boolean).join("\n\n"),
-    onLine: (line) => parseAgentOutput(line, captured),
+  const schemaPath = schema ? resolve(root, ".sandcastle", schema === true ? "review-output.schema.json" : schema.replace(/^\.sandcastle\//, "")) : undefined;
+  const result = await dispatchVerified(executionContext(state, role, sandbox.worktreePath, {
+    sandbox, schemaPath, allowDirty: role.startsWith("assembly "), ...workerContext,
+  }), {
+    preflight: execution => preflightExecution(execution, { sandboxSchemaPath: schema ? runtimeSchemaPath(schema) : undefined }),
+    record: manifest => recordExecution(state, role, manifest), quota: () => quotaCheckpoint(state),
+    invoke: () => sandbox.exec(`codex ${settings}`, {
+      stdin: [prompt, delegatedAgentPolicy, guidanceForAgent(state, role)].filter(Boolean).join("\n\n"),
+      onLine: (line) => parseAgentOutput(line, captured),
+    }),
   });
   state.budget.tokens += captured.tokens;
   await save(state);
@@ -158,6 +186,11 @@ export async function gate(sandbox, command, input) {
   if (await git(sandbox.worktreePath, "rev-parse", "HEAD") !== head || await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Acceptance: checks modified committed work; evidence is invalid; human decision required");
   return { ok: result.exitCode === 0, head, output: `${result.stdout}\n${result.stderr}`.slice(-12000) };
 }
+export async function runRequiredCheck(sandbox, check) {
+  const input = await repositoryGateInput(sandbox.worktreePath, check);
+  const result = await gate(sandbox, check.command, input.stdin);
+  return { ...result, runnerPath: input.runnerPath, runnerDigest: input.runnerDigest };
+}
 async function recoveryAgent(state, context) {
   // Host read-only CLI remains available when a development container fails.
   // It may diagnose Git/tickets, but cannot modify code, state, auth or limits.
@@ -172,17 +205,24 @@ async function recoveryAgent(state, context) {
   return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json"), timeoutMs: recoveryAgentTimeoutMs }));
 }
 async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false, timeoutMs = readOnlyAgentTimeoutMs }) {
-  await quotaCheckpoint(state);
   console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
   const startedAt = Date.now();
-  const operation = execFileAsync("codex", readOnlyAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy), schemaPath, multiAgent }),
-    { cwd, env: { ...process.env, CODEX_HOME: authDir }, ...(timeoutMs ? { timeout: timeoutMs, killSignal: "SIGKILL" } : {}), maxBuffer: 8 * 1024 * 1024 });
-  operation.child.stdin.on("error", () => {});
-  operation.child.stdin.end([prompt, delegatedAgentPolicy].join("\n\n"));
   let result;
-  try { result = await operation; }
+  try { result = await dispatchVerified(executionContext(state, role, cwd, {
+    schemaPath, ...(role.startsWith("recovery orchestrator ") ? { expectedBranch: targetBranch, allowDirty: true } : {}),
+  }), {
+    record: manifest => recordExecution(state, role, manifest), quota: () => quotaCheckpoint(state),
+    invoke: () => {
+      const operation = execFileAsync("codex", readOnlyAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy), schemaPath, multiAgent }),
+        { cwd, env: { ...process.env, CODEX_HOME: authDir }, ...(timeoutMs ? { timeout: timeoutMs, killSignal: "SIGKILL" } : {}), maxBuffer: 8 * 1024 * 1024 });
+      operation.child.stdin.on("error", () => {});
+      operation.child.stdin.end([prompt, delegatedAgentPolicy].join("\n\n"));
+      return operation;
+    },
+  }); }
   catch (error) {
+    if (error.deterministic || classifyFailure(error).category === "quota") throw error;
     for (const line of (error.stdout ?? "").split("\n")) parseAgentOutput(line, captured);
     state.budget.tokens += captured.tokens;
     const elapsedMs = Date.now() - startedAt;
@@ -260,7 +300,7 @@ async function contract(sandbox, state) {
         pending.sourceManifest = sourceResolution.manifest;
         await save(state);
       }
-      executionContext ??= await contractExecutionContext(sandbox.worktreePath, root);
+      executionContext ??= await contractExecutionContext(sandbox.worktreePath);
       return sourceResolution.sources;
     },
     propose: async (sources, feedback, pending) => {
@@ -439,7 +479,8 @@ async function implementWorker(worker, state, member) {
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
-  const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json");
+  const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json", false, readOnlyAgentTimeoutMs,
+    { expectedBranch: member.branch, baseCommit: state.wave.baseCommit, ticketPath: ticket.path });
   const result = JSON.parse(response);
   await ensureCommit(worker.worktreePath, `Sandcastle: preserve ${ticket.path}`);
   if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path);
@@ -450,17 +491,18 @@ async function runWorkers(state) {
   await runWave(state, {
     save,
     run: async (member, wave) => {
-      let worker;
+      let worker, failure;
       try {
         worker = await openWorker(state, member, wave);
+        await preflightWorker({ worktree: worker.worktreePath, expectedBranch: member.branch, baseCommit: wave.baseCommit, ticketPath: member.ticket.path });
         return await implementWorker(worker, state, member);
       } catch (error) {
+        failure = error;
         await appendStageEvent(runsDir, state, { stage: "ticket", status: "failed", summary: `${member.ticket.path}: worker failed; its branch is retained.`, tickets: [member.ticket.path] });
         throw error;
       } finally {
         if (worker) {
-          try { await ensureCommit(worker.worktreePath, `Sandcastle: preserve wave ${wave.id} worker`); }
-          finally { await worker.close(); }
+          await closeExecution(worker, { failure, preserve: () => ensureCommit(worker.worktreePath, `Sandcastle: preserve wave ${wave.id} worker`) });
         }
       }
     },
@@ -470,7 +512,7 @@ async function assemble(sandbox, state) {
   try { await collectWave(state, {
     save,
     assemble: async (wave) => {
-      const members = wave.members.filter((member) => member.status === "completed");
+      const members = wave.members.filter((member) => member.status === "completed" && !member.integrated);
       const prompt = [
         `Assemble wave ${wave.id} on the current integration branch ${state.branch}. Read AGENTS.md, CONTEXT.md and each contributing ticket.`,
         `Common base: ${wave.baseCommit}. Merge these committed worker revisions using Git, in the listed order:\n${JSON.stringify(members.map(({ ticket, branch, head }) => ({ ticket: ticket.path, branch, head })), null, 2)}`,
@@ -542,8 +584,7 @@ async function testGate(sandbox, state) {
   for (const check of requiredChecks(state.acceptance.contract).filter((item) => item.id !== "sv-build")) {
     if (check.kind === "external") throw new Error(`Acceptance: required external check ${check.id} has no runner; human decision required`);
     if (check.kind === "review") continue;
-    const script = check.kind === "core" ? await readFile(resolve(root, ".sandcastle/checks.sh"), "utf8") : undefined;
-    result = await gate(sandbox, check.command, script);
+    result = await runRequiredCheck(sandbox, check);
     await checkEvidence(sandbox, state, check.id, result);
     if (!result.ok) { result.output = `${check.id}: ${result.output}`; break; }
   }
@@ -563,7 +604,7 @@ async function checkEvidence(sandbox, state, checkId, result) {
   const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
   if (head !== result.head) throw new Error("Acceptance: HEAD changed before saving check evidence; human decision required");
   const logPath = resolve(runsDir, state.id, `check-${checkId}-${state.totalBuildAttempts}-${state.totalTestAttempts}.json`);
-  await writeFile(logPath, JSON.stringify({ head, checkId, passed: result.ok, output: result.output }, null, 2) + "\n");
+  await writeFile(logPath, JSON.stringify({ head, checkId, passed: result.ok, output: result.output, runnerPath: result.runnerPath, runnerDigest: result.runnerDigest }, null, 2) + "\n");
   recordCheck(state, { checkId, head, passed: result.ok, logPath });
   await save(state);
 }
@@ -649,8 +690,21 @@ export async function verifiedTree(sandbox, state) {
 }
 
 export async function main() {
+rejectLegacyContinue();
+const attemptGrant = readAttemptGrant();
+const modeKeys = ["SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+  "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
+  "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
+  "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
+const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
+const booleanModes = ["SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
+  "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
+for (const key of booleanModes) if (process.env[key] !== undefined && process.env[key] !== "1") throw new Error(`${key} must equal 1 when explicitly requested; no checkpoint was changed`);
+if (requestedModes.length > 1) throw new Error("Continuation modes cannot be combined; authorize and validate one saved checkpoint operation at a time");
 if (!["start", "resume"].includes(command)) throw new Error("Usage: npm run sandbox:dev (SANDCASTLE_SPEC=path) or npm run sandbox:resume -- <run-id>");
-let state;
+if (command === "start" && requestedModes.length) throw new Error("Continuation grants require a saved run; no allowances were changed");
+loadedControllerDigest = (await controllerExecutionIdentity(root)).digest;
+let state, checkpointAtRead;
 if (command === "start") {
   const specPath = process.env.SANDCASTLE_SPEC || "inline task";
   if (!process.env.SANDCASTLE_TASK && (!process.env.SANDCASTLE_SPEC || isAbsolute(specPath) || specPath.includes(".."))) throw new Error("Set SANDCASTLE_SPEC to a repository-relative spec path or SANDCASTLE_TASK to task text");
@@ -658,15 +712,19 @@ if (command === "start") {
   if (await git(root, "status", "--porcelain")) throw new Error("Commit or stash local changes before starting Sandcastle; worktrees start from committed state");
   const spec = process.env.SANDCASTLE_TASK || await readFile(resolve(root, specPath), "utf8");
   const id = randomUUID().slice(0, 8);
-  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, phase: "contract", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testBuildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 10 };
+  state = { id, branch: `codex/sandcastle-dev-${id}`, baseCommit: await git(root, "rev-parse", "HEAD"), specPath, spec, agentPolicy: { ...sandcastleRunAgentPolicy }, phase: "contract", reviewRound: 0, reviews: [], batchCount: 0, completedTickets: [], buildAttempts: 0, testBuildAttempts: 0, testAttempts: 0, totalBuildAttempts: 0, totalTestAttempts: 0, buildLimit: 10, testLimit: 10, reviewLimit: 10 };
   await save(state);
 } else {
   if (!/^[a-f0-9]{8}$/.test(runId ?? "")) throw new Error("Pass the eight-character Sandcastle run ID");
   state = JSON.parse(await readFile(resolve(runsDir, runId, "state.json"), "utf8"));
+  checkpointAtRead = JSON.stringify(state);
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
+const preflightResume = process.env.SANDCASTLE_PREFLIGHT_RESUME === "1";
+if (preflightResume) resumeExecutionCheckpoint(structuredClone(state));
+if (process.env.SANDCASTLE_RECOVER === "1" && pauseStatus(state)?.fatalPreflight) throw new Error("Deterministic execution faults require correcting preflight and SANDCASTLE_PREFLIGHT_RESUME=1, not an AI recovery retry");
 const improvedContractResume = process.env.SANDCASTLE_REPAIR_RESUME === "1";
 const timeoutUpgradeResume = process.env.SANDCASTLE_TIMEOUT_UPGRADE_RESUME === "1";
 const contractAmendResume = process.env.SANDCASTLE_CONTRACT_AMEND_RESUME === "1";
@@ -701,6 +759,7 @@ const extraGroupAttempts = process.env.SANDCASTLE_GROUP_RETRY_ATTEMPTS;
 const extraAssemblyAttempts = process.env.SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS;
 const assemblyExtension = process.env.SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS;
 const assemblyExtensionId = process.env.SANDCASTLE_ASSEMBLY_EXTENSION_ID;
+if (attemptGrant) applyAllowanceGrant(structuredClone(state), attemptGrant);
 let reprovisionBranches;
 if (workerProvisioningResume) {
   if (userResume || improvedContractResume || timeoutUpgradeResume || contractAmendResume || contractAmendRetry || semanticAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Worker provisioning RESUME cannot be combined with other continuation modes");
@@ -749,18 +808,30 @@ if (contractAmendRetry) {
 if (semanticAmendResume) resumeSemanticContractAmendment(structuredClone(state), semanticAmendedSpec, semanticAmendment);
 if (extraQuota !== undefined) {
   // Validate before acquiring the lock or changing the persisted checkpoint.
-  extendTaskQuota(structuredClone(state), Number(extraQuota));
+  applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
-if (state.phase === "awaiting" && !userResume && !improvedContractResume && !timeoutUpgradeResume && !contractAmendResume && !contractAmendRetry && !semanticAmendResume && !workerProvisioningResume && !workerRuntimeResume && extraContractAttempts === undefined && extraGroupAttempts === undefined && extraAssemblyAttempts === undefined && assemblyExtension === undefined && process.env.SANDCASTLE_CONTINUE !== "1" && process.env.SANDCASTLE_RECOVER !== "1" && extraQuota === undefined) throw new Error(`Run ${runId} needs human confirmation. Set SANDCASTLE_RESUME=1 for a user pause, SANDCASTLE_CONTRACT_AMEND_RESUME=1 for the initial bounded unrunnable-contract amendment, SANDCASTLE_CONTRACT_AMEND_RETRY_ID for an explicitly authorized bounded amendment retry, SANDCASTLE_SEMANTIC_AMENDMENT_JSON for an explicit user-authorized semantic amendment, SANDCASTLE_REPROVISION_WAVE=1 for a verified stale worker-branch provisioning failure, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS for an explicitly granted citation retry, SANDCASTLE_GROUP_RETRY_ATTEMPTS for a saved rejected group, SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS for the saved command-validation failure, SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS and SANDCASTLE_ASSEMBLY_EXTENSION_ID for an explicitly granted exhausted assembly, SANDCASTLE_REPAIR_RESUME=1 for the verified contract runtime upgrade, SANDCASTLE_TIMEOUT_UPGRADE_RESUME=1 for an authorized longer contract deadline, SANDCASTLE_CONTINUE=1 for extra budgets, or SANDCASTLE_RECOVER=1 to diagnose without resetting limits. Reason: ${state.pauseReason}`);
+if (state.phase === "awaiting" && !requestedModes.length) {
+  const pause = pauseStatus(state);
+  throw new Error(`Run ${runId} needs human confirmation. ${pause.reason} ${pause.requiredAction} Consult sandbox:status for the matching continuation mode; no allowances were changed.`);
+}
 state.parallelism = Number(process.env.SANDCASTLE_PARALLELISM || state.parallelism || 3);
 if (!Number.isInteger(state.parallelism) || state.parallelism < 1 || state.parallelism > 10) throw new Error("SANDCASTLE_PARALLELISM must be an integer from 1 to 10");
-state.reviewLimit = Math.max(state.reviewLimit ?? 0, 10);
+state.reviewLimit ??= 10;
 const lockPath = await acquireLock(state);
+try {
+  if (checkpointAtRead && JSON.stringify(JSON.parse(await readFile(resolve(runsDir, state.id, "state.json"), "utf8"))) !== checkpointAtRead) {
+    throw new Error("Saved run changed before continuation lock; re-read status and retry the explicitly authorized operation");
+  }
+} catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (workerRuntimeResume) {
+    if (preflightResume) {
+      resumeExecutionCheckpoint(state);
+    } else if (attemptGrant) {
+      applyAllowanceGrant(state, attemptGrant);
+    } else if (workerRuntimeResume) {
       resumeWorkerRuntimeUpgrade(state, workerRuntimeProof);
     } else if (workerProvisioningResume) {
       resumeWorkerProvisioning(state, { usedBranches: reprovisionBranches });
@@ -785,25 +856,19 @@ try {
     } else if (semanticAmendResume) {
       resumeSemanticContractAmendment(state, semanticAmendedSpec, semanticAmendment);
     } else if (extraQuota !== undefined) {
-      extendTaskQuota(state, Number(extraQuota));
-      state.phase = state.resumePhase;
-    } else if (process.env.SANDCASTLE_CONTINUE !== "1") {
+      applyAllowanceGrant(state, { kind: "quota", extra: Number(extraQuota) });
+    } else {
       const phase = state.resumePhase;
       const reason = state.pauseReason;
       state.phase = phase;
       if (phase !== "recovery" || !state.recovery) beginRecovery(state, reason, phase);
-    } else {
-      state.buildLimit += 10;
-      state.testLimit += 10;
-      state.reviewLimit += 10;
-      state.recoveryAttempts = {};
-      if (state.budget) {
-        state.budget.consumedPercent = 0;
-        state.budget.tokens = 0;
-        state.budget.limitPercent = 25;
-      }
-      delete state.quotaError;
-      state.phase = state.resumePhase;
+    }
+    if (state.phase === "awaiting") {
+      state.currentFailure = classifyFailure(state.pauseReason, { phase: state.resumePhase });
+      await save(state);
+      await appendStageEvent(runsDir, state, { stage: "allowance", status: "paused", summary: "Authorized allowance recorded; another independent checkpoint allowance remains exhausted." });
+      console.error(`Sandcastle remains paused: ${pauseStatus(state).requiredAction}`);
+      return;
     }
     delete state.pauseReason;
     delete state.resumePhase;
@@ -833,10 +898,13 @@ try {
     const stage = state.phase;
     try {
       if (state.phase !== "recovery" && !sandbox) {
-        await quotaCheckpoint(state, 600000);
         if (command === "resume") await recoverWorktree(state);
         sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider() });
         console.log(`Worktree: ${sandbox.worktreePath}`);
+        await dispatchVerified(executionContext(state, "orchestrator", sandbox.worktreePath, {
+          sandbox, allowDirty: state.phase === "assemble",
+        }), { record: manifest => recordExecution(state, "workflow preflight", manifest),
+          quota: () => quotaCheckpoint(state, 600000), invoke: async () => {} });
       }
       if (state.acceptance) {
         assertContract(state);
@@ -870,14 +938,21 @@ try {
         delete state.recoveryAdviceTarget;
         await save(state);
       }
-      if (stage !== "recovery") await appendStageEvent(runsDir, state, { stage, ...stageOutcome(state, stage), tickets: state.wave?.members.map((member) => member.ticket.path) });
+      if (stage !== "recovery") {
+        const outcome = stageOutcome(state, stage);
+        if (["build", "test-gate", "review", "final-audit", "integrate"].includes(stage) && ["completed", "ready", "ready_with_notes"].includes(outcome.status)) clearCurrentFailure(state, { stage, verified: true });
+        await save(state);
+        await appendStageEvent(runsDir, state, { stage, ...outcome, tickets: state.wave?.members.map((member) => member.ticket.path) });
+      }
       if (state.quotaError) throw new Error(state.quotaError);
     } catch (error) {
       if (state.phase === "recovery" || stage === "recovery") throw error;
       const category = recoveryCategory(error);
+      state.currentFailure = classifyFailure(error, { phase: stage });
+      (state.failureHistory ??= []).push({ stage, at: new Date().toISOString(), ...state.currentFailure });
       const timing = Number.isFinite(error.elapsedMs) && Number.isFinite(error.timeoutMs) ? ` after ${Math.round(error.elapsedMs / 1000)}s (limit ${Math.round(error.timeoutMs / 1000)}s)` : "";
       await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: ${category}${timing}; saved checkpoint retained.` });
-      if (recoveryRestriction(state, error.message)) throw error;
+      if (state.currentFailure.fatalPreflight || recoveryRestriction(state, error.message)) throw error;
       if (sandbox) {
         // Keep conflicts for the assembly agent; do not commit conflict markers.
         if (!(await git(sandbox.worktreePath, "ls-files", "-u"))) await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve recovery checkpoint ${state.id}`);
@@ -888,17 +963,20 @@ try {
     }
   }
 } catch (error) {
-  if (sandbox) {
+  if (sandbox && !classifyFailure(error).fatalPreflight) {
     try { await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve interrupted task ${state.id}`); }
     catch (commitError) { console.error(`Could not preserve worktree changes: ${commitError.message}`); }
   }
   state.resumePhase = state.phase;
   state.phase = "awaiting";
   state.pauseReason = error.message;
+  state.currentFailure = classifyFailure(error, { phase: state.resumePhase });
   await save(state);
   await appendStageEvent(runsDir, state, { stage: "workflow", status: "paused", summary: `Workflow stopped at ${state.resumePhase}; details preserved in state.json.` });
-  console.error(`Sandcastle paused: ${error.message}`);
-  console.error(`Resume with: SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- ${state.id}`);
+  const pause = pauseStatus(state);
+  console.error(`Sandcastle paused [${pause.code}]: ${pause.reason}`);
+  console.error(`Required action: ${pause.requiredAction}`);
+  if (pause.resume.environment) console.error(`Resume authorization: ${JSON.stringify(pause.resume.environment)}; npm run sandbox:resume -- ${state.id}`);
   process.exitCode = 1;
 } finally {
   try { if (sandbox) await sandbox.close(); }

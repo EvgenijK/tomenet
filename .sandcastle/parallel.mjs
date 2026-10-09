@@ -27,9 +27,14 @@ export function createWave(state, { baseCommit, limit, after = "tickets", ticket
 export function resumeWorkerProvisioning(state, { usedBranches }) {
   const need = (condition, message) => { if (!condition) throw new Error(`Worker provisioning RESUME: ${message}`); };
   need(state?.phase === "awaiting" && state.resumePhase === "parallel-work", "requires a paused parallel-work checkpoint");
-  need(state.pauseReason === "Automatic recovery made no progress after three decisions at this checkpoint", "requires the saved no-progress recovery stop");
+  const modern = state.wave?.members.some(member => member.failure?.deterministic);
+  if (!modern) need(state.pauseReason === "Automatic recovery made no progress after three decisions at this checkpoint", "requires the saved no-progress recovery stop");
   need(state.wave && Array.isArray(state.wave.members) && state.wave.members.length > 0, "requires a saved worker wave");
-  need(state.wave.members.every((member) => member.status === "failed" && !member.head && !member.result && !member.integrated && /^ENOENT: no such file or directory, open /.test(member.error ?? "")), "requires only deterministic missing-ticket provisioning failures");
+  const unfinished = state.wave.members.filter(member => !member.integrated);
+  const provisioningCodes = ["TICKET_UNREADABLE", "TICKET_NOT_COMMITTED", "BASE_MISMATCH", "BRANCH_MISMATCH"];
+  need(unfinished.length > 0 && unfinished.every((member) => member.status === "failed" && !member.head && !member.result && !member.integrated &&
+    (modern ? member.failure?.deterministic && provisioningCodes.includes(member.failure.code) : /^ENOENT: no such file or directory, open /.test(member.error ?? ""))), "requires only deterministic missing-ticket provisioning failures");
+  need(state.wave.members.every(member => !member.integrated || state.completedTickets.includes(member.ticket.path)), "successful siblings must be integrated before reprovisioning");
   const oldWave = structuredClone(state.wave);
   const history = state.workerProvisioningResumes ?? [];
   need(!history.some((item) => item.oldWave.id === oldWave.id), "saved wave was already reprovisioned");
@@ -38,8 +43,8 @@ export function resumeWorkerProvisioning(state, { usedBranches }) {
   createWave(candidate, {
     baseCommit: oldWave.baseCommit,
     after: oldWave.after,
-    tickets: oldWave.members.map((member) => member.ticket),
-    limit: oldWave.members.length,
+    tickets: unfinished.map((member) => member.ticket),
+    limit: unfinished.length,
     usedBranches,
   });
   state.waveSequence = candidate.waveSequence;
@@ -64,6 +69,7 @@ export async function runWave(state, ops) {
     if (member.integrated || member.status === "completed") return;
     member.status = "running";
     delete member.error;
+    delete member.failure;
     await ops.save(state);
     try {
       const output = await ops.run(member, wave);
@@ -75,6 +81,7 @@ export async function runWave(state, ops) {
     } catch (error) {
       member.status = "failed";
       member.error = error.message;
+      if (error.deterministic) member.failure = { code: error.code, deterministic: true };
     }
     await ops.save(state);
   }));
@@ -87,7 +94,7 @@ export async function runWave(state, ops) {
 export async function collectWave(state, ops) {
   const wave = state.wave;
   if (!wave) throw new Error("Missing saved wave");
-  const completed = wave.members.filter((member) => member.status === "completed");
+  const completed = wave.members.filter((member) => member.status === "completed" && !member.integrated);
   if (completed.length) {
     const result = await ops.assemble(wave);
     validResult(result);
@@ -108,9 +115,12 @@ export async function collectWave(state, ops) {
   const failures = wave.members.filter((member) => member.status !== "completed");
   if (failures.length) {
     state.phase = "parallel-work";
-    state.blockedTicket = { path: failures[0].ticket.path, status: "blocked", summary: failures[0].error ?? failures[0].result?.summary ?? "Worker did not complete" };
+    const failed = failures.find((member) => member.failure?.deterministic) ?? failures[0];
+    state.blockedTicket = { path: failed.ticket.path, status: "blocked", summary: failed.error ?? failed.result?.summary ?? "Worker did not complete" };
     await ops.save(state);
-    throw new Error(`Wave ${wave.id} incomplete: ${state.blockedTicket.path}: ${state.blockedTicket.summary}`);
+    const error = new Error(`Wave ${wave.id} incomplete: ${state.blockedTicket.path}: ${state.blockedTicket.summary}`);
+    if (failed.failure?.deterministic) Object.assign(error, failed.failure);
+    throw error;
   }
   delete state.blockedTicket;
   (state.waveHistory ??= []).push(wave);

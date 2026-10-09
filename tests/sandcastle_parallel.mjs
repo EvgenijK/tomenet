@@ -19,6 +19,47 @@ const deferred = () => {
 const workerSuccess = async () => ({ result: completedResult, head: revision });
 const callbacks = (overrides = {}) => ({ save: async () => {}, run: workerSuccess, assemble: async () => completedResult, verify: async () => {}, ...overrides });
 
+test("deterministic worker preflight failure keeps its code across wave collection without losing siblings", async () => {
+  const s = state([ticket("good"), ticket("bad")]);
+  createWave(s, { baseCommit: revision, limit: 2 });
+  const failure = Object.assign(new Error("Worker ticket is missing from saved branch"), {
+    code: "PREFLIGHT_TICKET_MISSING", deterministic: true,
+  });
+  await runWave(s, callbacks({ run: async (member) => {
+    if (member.ticket.path === ticket("bad").path) throw failure;
+    return workerSuccess();
+  } }));
+  await assert.rejects(collectWave(s, callbacks()), (error) => {
+    assert.equal(error.code, failure.code);
+    assert.equal(error.deterministic, true);
+    return true;
+  });
+  assert.deepEqual(s.completedTickets, [ticket("good").path]);
+  assert.equal(s.wave.members[0].integrated, true);
+  assert.equal(s.wave.members[1].status, "failed");
+});
+test("preflight reprovisioning replaces only failed stale workers and preserves integrated siblings", async () => {
+  const s = state([ticket("good"), ticket("bad")]);
+  s.budget = { consumedPercent: 18, tokens: 500 }; s.recoveryAttempts = { startup: 3 };
+  createWave(s, { baseCommit: revision, limit: 2 });
+  await runWave(s, callbacks({ run: async member => {
+    if (member.ticket.path === ticket("bad").path) throw Object.assign(new Error("Execution preflight: stale base"), { code: "BASE_MISMATCH", deterministic: true });
+    return workerSuccess();
+  } }));
+  await assert.rejects(collectWave(s, callbacks()), /stale base/);
+  s.resumePhase = s.phase; s.phase = "awaiting"; s.pauseReason = "Execution preflight: stale base";
+  const before = structuredClone(s), oldBranches = s.wave.members.map(member => member.branch);
+  resumeWorkerProvisioning(s, { usedBranches: oldBranches });
+  assert.equal(s.phase, "parallel-work"); assert.equal(s.wave.members.length, 1);
+  assert.equal(s.wave.members[0].ticket.path, ticket("bad").path);
+  assert.ok(!oldBranches.includes(s.wave.members[0].branch));
+  assert.deepEqual(s.completedTickets, before.completedTickets);
+  assert.deepEqual(s.budget, before.budget); assert.deepEqual(s.recoveryAttempts, before.recoveryAttempts);
+  assert.deepEqual(s.workerProvisioningResumes[0].oldWave, before.wave);
+  const unsafe = structuredClone(before); unsafe.wave.members[0].integrated = false;
+  assert.throws(() => resumeWorkerProvisioning(unsafe, { usedBranches: oldBranches }));
+});
+
 test("frontier is derived from dependencies and completed set, independent of ticketIndex", () => {
   const a = ticket("a"), b = ticket("b", [a.path]), c = ticket("c"), d = ticket("d", [b.path]);
   const s = state([a, b, c, d]);
@@ -193,7 +234,9 @@ test("failed worker retains the successful sibling and retry runs only the faile
   await runWave(s, callbacks({ run: async (member) => { calls.push(member.ticket.path); return workerSuccess(); } }));
   assert.equal(calls.filter((path) => path === s.tickets[0].path).length, 1);
   assert.equal(calls.filter((path) => path === s.tickets[1].path).length, 2);
-  await collectWave(s, callbacks());
+  const verified = [];
+  await collectWave(s, callbacks({ verify: async member => verified.push(member.ticket.path) }));
+  assert.deepEqual(verified, [s.tickets[1].path]);
   assert.equal(s.completedTickets.length, 2);
   assert.equal(new Set(s.completedTickets).size, 2);
 });

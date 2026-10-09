@@ -284,17 +284,28 @@ SANDCASTLE_EXTRA_QUOTA_PERCENT=10 npm run sandbox:resume -- <run-id>
 This preserves consumed quota, token accounting and all cycle limits, records
 the grant, and raises the saved quota cap by the authorized allowance from the
 current consumption or previous cap, whichever is greater. It resumes only a
-task quota pause; account usage limits still apply. Recovery uses the saved cap
-and cannot raise it. Do not combine this with CONTINUE or RECOVER.
+task quota pause or an exhausted quota guard accompanying an attempt-limit pause;
+account usage limits still apply. Recovery uses the saved cap and cannot raise it.
+Do not combine continuation modes.
 
-For the broader continuation allowance, run:
+Grant a bounded allowance for the matching saved exhausted checkpoint only:
 
 ```sh
-SANDCASTLE_CONTINUE=1 npm run sandbox:resume -- <run-id>
+SANDCASTLE_EXTRA_BUILD_ATTEMPTS=10 npm run sandbox:resume -- <run-id>
+SANDCASTLE_EXTRA_TEST_ATTEMPTS=10 npm run sandbox:resume -- <run-id>
+SANDCASTLE_EXTRA_REVIEW_ATTEMPTS=10 npm run sandbox:resume -- <run-id>
 ```
 
-This grants another 10 build attempts, 10 test attempts, 10 review rounds and a
-new 25% weekly quota allowance for that task. A process interruption before a
+Run only the one command explicitly authorized for the saved limit pause. These
+commands preserve consumption, tokens, total/local counters, recovery history and
+all other limits. `SANDCASTLE_CONTINUE` is rejected: it formerly reset accounting
+and granted unrelated allowances. If multiple guards are exhausted, a grant
+changes only its allowance and keeps the checkpoint paused until each remaining
+guard has a separate explicit grant. Build counters reset per repair batch by
+design; `totalBuildAttempts` and `totalTestAttempts` remain lifetime counters.
+Quota snapshots retain window IDs, deltas and high-water accounting across
+same-window corrections and weekly resets. Missing historical usage is reported
+as unknown, never reconstructed or reset to zero. A process interruption before a
 limit can be resumed with `npm run sandbox:resume -- <run-id>`; the orchestrator
 commits interrupted worktree changes before reopening the sandbox branch.
 An unresolved merge stays in its managed worktree for the assembly agent;
@@ -304,6 +315,42 @@ assembly rather than starting the task again.
 Do not run the same task twice concurrently. If the current checkout has
 uncommitted changes or another commit advances `modern_interface`, integration
 stops for inspection rather than overwriting those changes.
+
+### Execution preflight and durable monitoring
+
+Before quota probing or each model dispatch, Sandcastle verifies the actual
+worktree branch/HEAD/base ancestry, committed ticket, host and worker CLI (stable
+`>=0.161.0`), mounted schema/checks and running container image identity. The
+`execution-*.json` manifests record those identities, controller digest, contract
+digest, model and effort. New runs save GPT-6.1 Sol policy: orchestrator high,
+other agents medium. A controller edited while the process runs requires restart.
+Deterministic setup faults pause immediately without AI recovery attempts.
+After correcting a saved setup fault, explicitly recheck its checkpoint with:
+
+```sh
+SANDCASTLE_PREFLIGHT_RESUME=1 npm run sandbox:resume -- <run-id>
+```
+
+This grants no quota or attempts. Missing-ticket/stale-base workers may instead
+use the bounded `SANDCASTLE_REPROVISION_WAVE=1` mode: it retains old branches and
+already integrated siblings, and provisions only the failed unfinished tickets.
+Core gate input is loaded from the checked worktree, not the launch checkout;
+its digest is saved with gate evidence.
+
+`sandbox:status` reports structured pause reasons/actions, task quota separately
+from observed account usage, actual last activity and implementation/full-acceptance
+scope. Current failures are cleared only after verified successful gates; historical
+diagnostics remain. Monitor checkpoints live in `runs/<run-id>/monitor.json`:
+
+```sh
+npm run sandbox:monitor -- read <run-id>
+npm run sandbox:monitor -- ack <run-id> --processed <seq> --notified <seq>
+```
+
+Read is non-mutating. Acknowledge processed events after handling them; acknowledge
+notified outcomes only after reporting them. The independent monotonic cursors
+preserve pending outcomes across restart and suppress an acknowledged unchanged
+pause. Read/ack commands do not create automations or change workflow state.
 
 Ticket dependencies may refer to earlier tickets in the same batch or completed
 tickets from earlier batches. Unresolved and deferred tickets cannot satisfy a

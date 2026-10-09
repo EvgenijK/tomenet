@@ -4,7 +4,7 @@ import { appendFile, chmod, copyFile, mkdir, mkdtemp, open, readFile, rm, writeF
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { resolve } from "node:path";
-import { appendStageEvent, readRunStatus, stageOutcome } from "../.sandcastle/events.mjs";
+import { appendStageEvent, readRunStatus, stageOutcome, compactStatus } from "../.sandcastle/events.mjs";
 
 const execute = promisify(execFile);
 const modulePath = resolve(import.meta.dirname, "../.sandcastle/events.mjs");
@@ -97,6 +97,25 @@ test("reports whitelist fields instead of copying specs, prompts or credentials"
   assert.equal(report.progress.completed, 1);
 });
 
+test("compact status distinguishes allowance, observed account usage, scope and current pause", async (t) => {
+  const dir = await fixture(t);
+  const current = { ...state, phase: "awaiting", resumePhase: "integrate", pauseReason: "Main checkout dirty SECRET=never-publish", pendingFailure: "never-publish", budget: { consumedPercent: 83, limitPercent: 91, lastUsedPercent: 12, resetsAt: 99, tokens: 200 }, acceptance: { contract: { completionScope: "implementation", criteria: [{ id: "P1-AC30", applicability: "deferred", owner: "never-publish" }] }, ledger: [], finalAudits: [], finalVerdict: { verdict: "ready" } } };
+  await mkdir(resolve(dir, state.id));
+  await writeFile(resolve(dir, state.id, "state.json"), JSON.stringify(current));
+  assert.equal((await readRunStatus(dir, state.id)).lastActivityAt, undefined);
+  await appendStageEvent(dir, current, details("Bearer never-publish TOKEN=never-publish"));
+  const report = await readRunStatus(dir, state.id);
+  assert.equal(report.pause.category, "git");
+  assert.equal(report.quota.consumedPercent, 83);
+  assert.equal(report.quota.limitPercent, 91);
+  assert.equal(report.quota.observedAccount.usedPercent, 12);
+  assert.deepEqual(report.acceptance, { scope: "implementation", verdict: "ready", deferredCriteria: ["P1-AC30"] });
+  assert.equal(report.lastActivityAt, report.events[0].time);
+  assert.equal(report.changedAt, undefined);
+  assert.ok(!JSON.stringify(report).includes("never-publish"));
+  assert.equal(compactStatus({ ...current, phase: "done" }).pause, undefined);
+});
+
 test("hook receives only an immutable event path; failure is recorded without interrupting stages", async (t) => {
   const dir = await fixture(t);
   const hook = resolve(dir, "hook.sh");
@@ -144,6 +163,7 @@ test("CLI reads multiple cursor events and excludes sensitive state", async (t) 
   const scripts = resolve(dir, ".sandcastle");
   await mkdir(scripts);
   await copyFile(modulePath, resolve(scripts, "events.mjs"));
+  await copyFile(resolve(import.meta.dirname, "../.sandcastle/failure.mjs"), resolve(scripts, "failure.mjs"));
   await copyFile(resolve(import.meta.dirname, "../.sandcastle/status.mjs"), resolve(scripts, "status.mjs"));
   const runs = resolve(scripts, "runs");
   for (let index = 0; index < 3; index++) await appendStageEvent(runs, state, details(`Stage ${index}`));
@@ -171,4 +191,6 @@ test("invalid IDs, cursors and event fields cannot escape the run or corrupt its
   await assert.rejects(readRunStatus(dir, state.id, { after: -1 }), /Invalid event cursor/);
   await assert.rejects(appendStageEvent(dir, state, { ...details(), head: "not-a-hash" }), /Invalid event HEAD/);
   assert.equal((await appendStageEvent(dir, state, details())).seq, 1);
+  await writeFile(resolve(dir, state.id, "state.json"), JSON.stringify({ id: "wrong-run", phase: "done" }));
+  await assert.rejects(readRunStatus(dir, state.id), /cross-run/);
 });

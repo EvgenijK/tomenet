@@ -1,6 +1,7 @@
 import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { execFile } from "node:child_process";
+import { pauseStatus } from "./failure.mjs";
 
 const queues = new Map();
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -17,15 +18,35 @@ function summary(value) {
   if (typeof value !== "string" || !value.trim()) throw new Error("Event summary is required");
   // Only caller-supplied summaries belong here. Never copy prompts, specs,
   // environment, agent output, or raw command errors into this channel.
-  return value.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 2000);
+  return value.replace(/\b(?:Bearer|Basic)\s+\S+/gi, "Bearer <REDACTED>")
+    .replace(/\b(?:[a-z0-9_-]*(?:token|password|secret|api[_-]?key)[a-z0-9_-]*)\s*[=:]\s*(?:"[^"]*"|'[^']*'|[^\s,;&]+)/gi, "<REDACTED>")
+    .replace(/\bsk-[A-Za-z0-9_-]+/g, "<REDACTED>")
+    .replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/gi, "$1<REDACTED>@")
+    .replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 2000);
 }
 function count(value) { return Number.isSafeInteger(value) && value >= 0 ? value : 0; }
-function compactState(state) {
+function percent(value) { return Number.isFinite(value) && value >= 0 ? value : undefined; }
+function timestamp(value) { return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) && Number.isFinite(Date.parse(value)) ? value : undefined; }
+export function compactStatus(state) {
   return {
     id: state.id,
     ...(typeof state.branch === "string" ? { branch: state.branch } : {}),
     ...(typeof state.phase === "string" ? { phase: state.phase } : {}),
     ...(typeof state.resumePhase === "string" ? { resumePhase: state.resumePhase } : {}),
+    ...(pauseStatus(state) ? { pause: pauseStatus(state) } : {}),
+    ...(timestamp(state.changedAt ?? state.updatedAt) ? { changedAt: timestamp(state.changedAt ?? state.updatedAt) } : {}),
+    ...(state.budget ? { quota: {
+      consumedPercent: percent(state.budget.consumedPercent),
+      limitPercent: percent(state.budget.limitPercent ?? 25),
+      tokens: Number.isSafeInteger(state.budget.tokens) && state.budget.tokens >= 0 ? state.budget.tokens : undefined,
+      // This is observed account usage, not usage attributable to this run.
+      observedAccount: { usedPercent: percent(state.budget.lastUsedPercent), ...(Number.isFinite(state.budget.resetsAt) ? { resetsAt: state.budget.resetsAt } : {}), ...(timestamp(state.budget.usageHistory?.at(-1)?.observedAt) ? { observedAt: state.budget.usageHistory.at(-1).observedAt } : {}) },
+    } } : {}),
+    ...(state.acceptance?.contract ? { acceptance: {
+      scope: ["implementation", "full_acceptance"].includes(state.acceptance.contract.completionScope) ? state.acceptance.contract.completionScope : undefined,
+      ...(state.acceptance.finalVerdict && ["ready", "ready_with_notes", "blocked"].includes(state.acceptance.finalVerdict.verdict) ? { verdict: state.acceptance.finalVerdict.verdict } : {}),
+      deferredCriteria: (state.acceptance.contract.criteria ?? []).filter((item) => item.applicability === "deferred" && /^[A-Za-z0-9_-]{1,100}$/.test(item.id)).map((item) => item.id),
+    } } : {}),
     ...(state.recovery ? { recovery: { id: count(state.recovery.id), checkpoint: state.recovery.phase, attempt: count(state.recovery.attempt) } } : {}),
     ...(state.wave ? { wave: {
       id: count(state.wave.id), after: state.wave.after,
@@ -39,10 +60,10 @@ function compactState(state) {
       buildAttempts: count(state.totalBuildAttempts),
       testAttempts: count(state.totalTestAttempts),
       ...(state.acceptance ? {
-        openDefects: state.acceptance.ledger.filter((item) => item.status === "open").length,
-        residuals: state.acceptance.ledger.filter((item) => item.status === "residual").length,
-        finalAudits: state.acceptance.finalAudits.length,
-        ...(state.acceptance.finalVerdict ? { acceptanceVerdict: state.acceptance.finalVerdict.verdict } : {}),
+        openDefects: (state.acceptance.ledger ?? []).filter((item) => item.status === "open").length,
+        residuals: (state.acceptance.ledger ?? []).filter((item) => item.status === "residual").length,
+        finalAudits: (state.acceptance.finalAudits ?? []).length,
+        ...(state.acceptance.finalVerdict && ["ready", "ready_with_notes", "blocked"].includes(state.acceptance.finalVerdict.verdict) ? { acceptanceVerdict: state.acceptance.finalVerdict.verdict } : {}),
       } : {}),
     },
   };
@@ -143,7 +164,8 @@ export async function appendStageEvent(runsDir, state, details) {
         seq: events.length + 1, time: new Date().toISOString(), runId: state.id,
         ...(typeof state.branch === "string" ? { branch: state.branch } : {}),
         stage: label(details.stage, "stage"), status: label(details.status, "status"),
-        summary: summary(details.summary), progress: compactState(state).progress,
+        summary: summary(details.summary), progress: compactStatus(state).progress,
+        ...(details.status === "paused" && pauseStatus(state) ? { pause: pauseStatus(state) } : {}),
       };
       if (details.tickets !== undefined) {
         if (!Array.isArray(details.tickets) || details.tickets.some((ticket) => typeof ticket !== "string" || /[\x00-\x1f]/.test(ticket))) throw new Error("Invalid event tickets");
@@ -186,10 +208,13 @@ export async function readRunStatus(runsDir, id, { after = 0 } = {}) {
   ]);
   if (!stateText && !journal) throw new Error(`Sandcastle run ${id} does not exist`);
   const { events } = parseJournal(journal);
+  const state = stateText ? JSON.parse(stateText) : { id };
+  if ((state.id !== undefined && state.id !== id) || events.some((event) => event.runId !== id)) throw new Error("Sandcastle status contains cross-run data");
   const deliveries = new Map(deliveryText.slice(0, deliveryText.lastIndexOf("\n") + 1).split("\n").filter(Boolean).map((line) => { const item = JSON.parse(line); return [item.seq, item]; }));
   return {
-    ...compactState(stateText ? JSON.parse(stateText) : { id }),
+    ...compactStatus(state),
     cursor: events.at(-1)?.seq ?? 0,
+    ...(timestamp(events.at(-1)?.time) ? { lastActivityAt: events.at(-1).time } : {}),
     events: events.filter((event) => event.seq > after).map((event) => deliveries.has(event.seq) ? { ...event, delivery: deliveries.get(event.seq) } : event),
   };
 }

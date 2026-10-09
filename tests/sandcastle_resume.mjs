@@ -225,6 +225,20 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
     });
     assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);
     assert.equal(existsSync(resolve(dir, "run.lock")), false);
+    for (const [extraEnv, expected] of [
+      [{ SANDCASTLE_CONTINUE: "1" }, /deprecated/],
+      [{ SANDCASTLE_EXTRA_TEST_ATTEMPTS: "5" }, /saved quota or attempt limit pause/],
+      [{ SANDCASTLE_EXTRA_QUOTA_PERCENT: "5", SANDCASTLE_EXTRA_BUILD_ATTEMPTS: "5" }, /cannot be combined/],
+      [{ SANDCASTLE_PREFLIGHT_RESUME: "1" }, /saved execution preflight failure/],
+      [{ SANDCASTLE_RESUME: "0" }, /must equal 1/],
+      [{ SANDCASTLE_RECOVER: "0" }, /must equal 1/],
+    ]) {
+      assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env: { ...env, ...extraEnv }, stdio: ["ignore", "pipe", "pipe"] }), error => {
+        assert.match(error.stderr.toString(), expected); return true;
+      });
+      assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);
+      assert.equal(existsSync(resolve(dir, "run.lock")), false);
+    }
     assert.throws(() => execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env: { ...env, SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS: "5" }, stdio: ["ignore", "pipe", "pipe"] }), (error) => {
       assert.match(error.stderr.toString(), /one rejected group/);
       return true;
@@ -243,5 +257,25 @@ test("unconfirmed CLI resume preserves the original pause and checkpoint without
     });
     assert.equal(readFileSync(resolve(dir, "state.json"), "utf8"), text);
     assert.equal(existsSync(resolve(dir, "run.lock")), false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test("actual workflow CLI records partial quota grant and stays paused without provisioning or inference", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const id = randomBytes(4).toString("hex"), dir = resolve(root, ".sandcastle/runs", id);
+  const before = { id, branch: `codex/sandcastle-test-${id}`, phase: "awaiting", resumePhase: "build-repair",
+    pauseReason: "Build failed 10 times; continuation requires human approval.", completedTickets: ["one.md"],
+    budget: { consumedPercent: 25, limitPercent: 25, tokens: 123 }, buildAttempts: 10, testBuildAttempts: 0,
+    buildLimit: 10, testAttempts: 0, testLimit: 10, reviewRound: 0, reviewLimit: 10, parallelism: 3, recoveryAttempts: { gate: 3 } };
+  mkdirSync(dir, { recursive: true }); writeFileSync(resolve(dir, "state.json"), JSON.stringify(before));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("SANDCASTLE_")));
+  try {
+    const output = execFileSync(process.execPath, [".sandcastle/workflow.mjs", "resume", id], { cwd: root, env: { ...env, SANDCASTLE_EXTRA_QUOTA_PERCENT: "5" }, stdio: ["ignore", "pipe", "pipe"] }).toString();
+    assert.doesNotMatch(output, /Agent:|Worktree:/);
+    const saved = JSON.parse(readFileSync(resolve(dir, "state.json"), "utf8"));
+    assert.equal(saved.phase, "awaiting"); assert.equal(saved.resumePhase, "build-repair");
+    assert.equal(saved.budget.limitPercent, 30); assert.equal(saved.budget.consumedPercent, 25); assert.equal(saved.budget.tokens, 123);
+    assert.equal(saved.buildLimit, 10); assert.equal(saved.buildAttempts, 10);
+    assert.deepEqual(saved.recoveryAttempts, before.recoveryAttempts); assert.deepEqual(saved.completedTickets, before.completedTickets);
+    assert.equal(saved.executionHistory, undefined); assert.equal(existsSync(resolve(dir, "run.lock")), false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
