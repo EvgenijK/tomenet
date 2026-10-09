@@ -2872,6 +2872,9 @@ int main(int argc, char **argv)
         !strcmp(argv[3], "trait-dna") ||
         !strcmp(argv[3], "body-dna") ||
         !strcmp(argv[3], "stats-point-dna") ||
+        !strcmp(argv[3], "stats-point-dna-over-budget") ||
+        !strcmp(argv[3], "stats-point-dna-illegal") ||
+        !strcmp(argv[3], "stats-point-dna-multiple-max") ||
         !strcmp(argv[3], "mode-dna") ||
         !strcmp(argv[3], "mode-dedicated-dna") ||
         !strcmp(argv[3],
@@ -4290,6 +4293,7 @@ int main(int argc, char **argv)
         static const int16_t expected[] = {8, 14, 12, 10, 9, 8};
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(outcome.birth_dna_available);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(!memcmp(outcome.birth_committed_stats, expected,
                        sizeof(expected)));
@@ -4300,6 +4304,7 @@ int main(int argc, char **argv)
         static const int16_t expected[] = {17, 16, 16, 10, 9, 8};
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(outcome.birth_dna_available);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(!memcmp(outcome.birth_committed_stats, expected,
                        sizeof(expected)));
@@ -4310,6 +4315,7 @@ int main(int argc, char **argv)
         static const int16_t expected[] = {17, 17, 8, 8, 8, 8};
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(outcome.birth_dna_available);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(!memcmp(outcome.birth_committed_stats, expected,
                        sizeof(expected)));

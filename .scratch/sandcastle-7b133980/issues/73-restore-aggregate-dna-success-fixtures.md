@@ -91,6 +91,9 @@ illegal и shared-invalidation controls сохраняют отказ и false a
 Последующий unfiltered tracer выявил тот же stale aggregate setup в 13
 `hidden-derived-dna*` success/mismatch flows. Они теперь также начинают с valid
 aggregate; exact `missing`, `incompatible` и `stale` controls остаются false.
+Тот же repair применён к трём point-buy DNA normalization variants
+(`illegal`, `over-budget`, `multiple-max`), которые подтверждают загруженные
+stats после owner-local normalization; `stats-point-dna-missing` остаётся false.
 
 При exact-HEAD проверке обнаружился не связанный с DNA fixture, но обязательный
 для полного gate дефект production native adapter. Authoritative profile setup
@@ -117,6 +120,10 @@ Red → green через тот же production seam:
   — после первого recovery slice **RED**, exit 1 / SIGABRT: false aggregate
   останавливал class DNA success; после aggregate fixture correction **GREEN**,
   exit 0 в обеих compile-order configurations.
+- `SV_BIRTH_CASE=stats-point-dna-over-budget python3 -B tests/sv_name_editor_submit_checks.py`
+  — unfiltered tracer дал **RED**, exit 1 / SIGABRT: false aggregate не позволял
+  перейти к Mode; после fixture correction **GREEN**, exit 0 в обеих
+  compile-order configurations.
 
 Focused evidence:
 
@@ -132,6 +139,10 @@ Focused evidence:
   `missing/incompatible/stale` controls — **PASS**; inventoried configurations
   выполнены тем же runner. Race mismatch подтверждает успешный class DNA до
   необратимой aggregate invalidation на несовместимом race fragment.
+- `stats-point-dna-illegal`, `stats-point-dna-over-budget`,
+  `stats-point-dna-multiple-max` и `stats-point-dna-missing` — **PASS**, exit 0,
+  в обеих compile-order configurations; success variants сохраняют aggregate,
+  missing control явно наблюдает false.
 - `env -u SV_BIRTH_CASE bash .sandcastle/checks.sh core` — **PASS**, exit 0,
   на exact resolved-ticket HEAD; полный output сохранён в
   `/tmp/sandcastle-7b133980-ticket-73-sv-core-exact-head.log`. Runner завершил
