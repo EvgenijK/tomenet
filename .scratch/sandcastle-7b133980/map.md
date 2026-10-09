@@ -106,3 +106,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Сохранить DNA при явном вводе в ordered stats](issues/75-ignore-explicit-dna-during-ordered-stats.md)
 - [Verify focused production coverage](issues/76-focused-test-coverage.md)
 - [Зафиксировать нейтральное имя состояния ввода имени](issues/77-record-neutral-login-name-entry-state.md)
+- [Verify focused production coverage](issues/78-focused-test-coverage.md)
