@@ -114,3 +114,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/82-focused-test-coverage.md)
 - [Проверить production coverage unsupported creation mode](issues/83-verify-unsupported-creation-mode-coverage.md)
 - [Verify focused production coverage](issues/84-focused-test-coverage.md)
+- [Пропустить authoritative unavailable body step](issues/86-skip-authoritatively-unavailable-body-step.md)
