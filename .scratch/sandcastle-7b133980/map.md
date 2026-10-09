@@ -110,3 +110,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Восстановить identities class list в default order](issues/79-restore-default-order-visible-class-identities.md)
 - [Verify focused production coverage](issues/80-focused-test-coverage.md)
 - [Verify focused production coverage](issues/81-focused-test-coverage.md)
+- [Verify focused production coverage](issues/82-focused-test-coverage.md)
