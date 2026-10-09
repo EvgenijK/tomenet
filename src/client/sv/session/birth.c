@@ -371,11 +371,7 @@ static void prepare_classes(SvBirth *birth)
     birth->legal_class_count = 0;
     bool highlighted_legal = false;
     for (unsigned id = 0; id < birth->setup->class_count; ++id) {
-#if SV_CLASS_BEFORE_RACE
-        if (!legal_class(birth, (int)id)) continue;
-#else
         if (birth->setup->classes[id].hidden) continue;
-#endif
         birth->visible_classes[birth->visible_class_count++] = (uint8_t)id;
         if (!legal_class(birth, (int)id)) continue;
         birth->legal_classes[birth->legal_class_count++] = (uint8_t)id;

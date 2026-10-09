@@ -681,9 +681,18 @@ static bool long_class_case(const char *mode)
     return !strcmp(mode, "long-class-viewport");
 }
 
+static bool default_visible_class_case(const char *mode)
+{
+    return !strcmp(mode, "default-visible-class-letter") ||
+        !strcmp(mode, "default-visible-class-keyboard-confirm") ||
+        !strcmp(mode, "default-visible-class-mouse") ||
+        !strcmp(mode, "default-visible-class-random");
+}
+
 static bool visible_class_viewport_case(const char *mode)
 {
-    return !strcmp(mode, "alternate-visible-class-viewport");
+    return !strcmp(mode, "alternate-visible-class-viewport") ||
+        !strcmp(mode, "default-visible-class-viewport");
 }
 
 static bool case_sensitive_class_case(const char *mode)
@@ -1149,7 +1158,9 @@ static void send_setup(int socket, const char *mode)
         const char *title = races[race];
         memcpy(at, title, strlen(title) + 1);
         at += strlen(title) + 1;
-        put32(&at, race_choices[race] |
+        uint32_t choices = default_visible_class_case(mode) ?
+            (race == 0 ? 1u << 2 : 0u) : race_choices[race];
+        put32(&at, choices |
               ((hidden_dna_race_mismatch_case(mode) ||
                 !strcmp(mode, "hidden-derived-dna-race-compatible")) && race == 1 ?
                1u << 3 : 0u) |
@@ -1364,6 +1375,39 @@ static int peer_run(void *opaque)
     } else if (quit_matrix_case(peer->mode, &quit_owner, &quit_modifier)) {
         push_to_quit_owner(quit_owner);
         push_key(SDLK_Q, quit_modifier);
+    } else if (!strcmp(peer->mode, "default-visible-class-letter")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_A, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "default-visible-class-keyboard-confirm")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_A, 0);
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "default-visible-class-mouse")) {
+        push_key(SDLK_RETURN, 0);
+        push_mouse_class(340.0f, 2);
+        push_mouse_class(380.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "default-visible-class-random")) {
+        push_key(SDLK_RETURN, 0);
+        push_random();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "default-visible-class-viewport")) {
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RIGHT, 0);
+        push_key(SDLK_LEFT, 0);
+        push_key(SDLK_PAGEDOWN, 0);
+        SDL_Delay(50);
+        interleave_ping(peer, socket, 1);
+        push_presentation_events();
+        push_key(SDLK_PAGEUP, 0);
+        push_key(SDLK_PAGEDOWN, 0);
+        push_mouse_wheel(-1.0f);
+        push_mouse_class(340.0f, 2);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "session-interleave")) {
         push_key(SDLK_F, 0);
         SDL_Delay(50);
@@ -3087,8 +3131,15 @@ int main(int argc, char **argv)
         assert(outcome.birth_legal_classes[0] == 0);
         assert(outcome.birth_legal_classes[1] == 2);
         assert(outcome.birth_legal_classes[2] == 6);
+    } else if (!strcmp(argv[3], "default-visible-class-viewport")) {
+        assert(outcome.birth_legal_class_count == 2);
+        assert(outcome.birth_legal_classes[0] == 0);
+        assert(outcome.birth_legal_classes[1] == 15);
     } else if (long_class_setup_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 20);
+    } else if (default_visible_class_case(argv[3])) {
+        assert(outcome.birth_legal_class_count == 1);
+        assert(outcome.birth_legal_classes[0] == 2);
     } else if (long_race_setup_case(argv[3]) ||
                long_trait_setup_case(argv[3])) {
         assert(outcome.birth_legal_class_count == 1);
@@ -3157,11 +3208,9 @@ int main(int argc, char **argv)
             assert(outcome.birth_quit);
     } else if (legacy_hidden_death_dna_case(argv[3])) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
-#if SV_CLASS_BEFORE_RACE
-        assert(outcome.birth_visible_class_count == 3);
-#else
         assert(outcome.birth_visible_class_count == 13);
-#endif
+        for (unsigned i = 0; i < outcome.birth_visible_class_count; ++i)
+            assert(outcome.birth_visible_classes[i] == i);
         assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
         assert(outcome.birth_class == 13 &&
                outcome.birth_highlighted_class == 6);
@@ -4937,6 +4986,20 @@ int main(int argc, char **argv)
         assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
         assert(outcome.birth_highlighted_class == 0 &&
                outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3], "default-visible-class-viewport")) {
+        assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_highlighted_class == 15);
+        assert(outcome.birth_visible_class_count == 20);
+        for (unsigned i = 0; i < outcome.birth_visible_class_count; ++i)
+            assert(outcome.birth_visible_classes[i] == i);
+        assert(outcome.birth_legal_class_count == 2);
+        assert(outcome.birth_legal_classes[0] == 0 &&
+               outcome.birth_legal_classes[1] == 15);
+        assert(outcome.birth_illegal_ignored);
+        assert(outcome.birth_keyboard_navigated);
+        assert(peer.interleaved_pongs == 1);
     } else if (shift_caps_class_case(argv[3])) {
         assert(outcome.birth_class_confirmed);
         assert(outcome.birth_class == 16 &&
@@ -5042,6 +5105,53 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "class-ctrl-quit")) {
         assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
         assert(outcome.birth_quit);
+    } else if (!strcmp(argv[3], "default-visible-class-random")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_class_random_used);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+    } else if (!strcmp(argv[3], "default-visible-class-letter")) {
+        assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+        assert(outcome.birth_illegal_ignored);
+    } else if (!strcmp(argv[3],
+                       "default-visible-class-keyboard-confirm")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+        assert(outcome.birth_illegal_ignored &&
+               outcome.birth_keyboard_navigated);
+    } else if (!strcmp(argv[3], "default-visible-class-mouse")) {
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2);
+        assert(outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_visible_class_count == 3);
+        assert(outcome.birth_visible_classes[0] == 0 &&
+               outcome.birth_visible_classes[1] == 2 &&
+               outcome.birth_visible_classes[2] == 3);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 2);
+        assert(outcome.birth_illegal_ignored && outcome.birth_mouse_navigated);
     } else if (!strcmp(argv[3], "navigate")) {
         assert(outcome.birth_sex_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
         assert(outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
