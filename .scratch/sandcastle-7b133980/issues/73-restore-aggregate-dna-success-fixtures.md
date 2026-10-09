@@ -156,11 +156,16 @@ Focused evidence:
 - `alternate-mouse` — **PASS**, exit 0; реальный SDL double-click подтверждает
   legal server identity `2` в alternate compile order, сохраняя disabled
   visible identity `0` в production list.
-- `env -u SV_BIRTH_CASE bash .sandcastle/checks.sh core` — **PASS**, exit 0,
+- `env -u SV_BIRTH_CASE PATH=/opt/sv-venv/bin:/usr/local/bin:/usr/bin:/bin bash .sandcastle/checks.sh core`
+  — **PASS**, exit 0,
   на exact resolved-ticket HEAD; полный output сохранён в
   `/tmp/sandcastle-7b133980-ticket-73-sv-core-exact-head.log`. Runner завершил
   весь inventoried scenario set в обеих compile-order configurations без
   compiler, sanitizer или assertion failures.
+  Предшествующий запуск с неполным ambient PATH успешно завершил всю birth
+  matrix, затем остановился в общем `sv_runtime_checks.py` на недоступном из
+  этого PATH `jsonschema`; повтор использует provisioned pinned
+  `/opt/sv-venv` (`jsonschema==4.26.0`), не меняя repository или test scope.
 - `git diff --check` — **PASS**.
 
 DNA persistence, `birth.restore-dna`, `birth.save-dna`, fixed-response wizard и
