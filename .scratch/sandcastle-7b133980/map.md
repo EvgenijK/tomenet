@@ -30,6 +30,8 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Decisions so far
 
+- [Verify focused production coverage](issues/89-focused-test-coverage.md) — resolved; 72 birth and 18 capacity endpoint executions passed; full gates and native acceptance pending.
+
 - [Сохранить legacy Fruit Bat outcome в mode step](issues/88-preserve-legacy-fruit-bat-mode-outcome.md) — resolved; production endpoint RED/GREEN and 61 focused executions, full gates pending.
 
 - [Войти в birth и выбрать пол](issues/01-enter-birth-and-choose-sex.md)
