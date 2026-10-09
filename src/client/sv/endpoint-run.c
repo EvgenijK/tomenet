@@ -482,7 +482,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     continue;
                 }
                 sv_login_interaction_begin(&login_input, login, options.character,
-                                           options.skip_motd, pregame.first_run);
+                    options.skip_motd, pregame.first_run,
+                    sv_contact_socket_setup(connection)->creation_flags);
                 if ((session_error = handoff_contact_bytes(connection, &wire)) != SV_OK)
                     state = SV_SOCKET_PROTOCOL_ERROR;
             }
@@ -553,7 +554,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         } else if (state == SV_SOCKET_READY && login) {
             SvLoginState phase = sv_login_state(login);
             if (phase == SV_LOGIN_OVERVIEW) {
-                input->contact_status = login_input.ordinary_name_active ?
+                input->contact_status = pregame.reason[0] ? pregame.reason :
+                    login_input.ordinary_name_active ?
                     "New character name: Escape cancels and returns to the overview." :
                     (save_message ? save_message :
                      (sv_login_interaction_exclusive_modes(&login_input) ?
@@ -717,6 +719,15 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
                 if (handled == SV_LOGIN_INPUT_NAME_SUGGESTED) {
                     name_evidence.random_suggested = true;
+                    continue;
+                }
+                if (handled == SV_LOGIN_INPUT_CREATION_UNSUPPORTED) {
+                    SvResult applied = sv_pregame_creation_unsupported(
+                        &pregame, generation);
+                    if (applied != SV_OK) {
+                        session_error = applied;
+                        state = SV_SOCKET_PROTOCOL_ERROR;
+                    }
                     continue;
                 }
                 if (handled == SV_LOGIN_INPUT_NAME_SUBMITTED) {

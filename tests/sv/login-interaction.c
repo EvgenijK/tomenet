@@ -148,7 +148,7 @@ int main(void)
     sv_pregame_begin(&pregame, 7, false);
     assert(sv_pregame_contact_ready(&pregame, 7) == SV_OK);
     assert(sv_pregame_contact_ready(&pregame, 8) == SV_STALE);
-    sv_login_interaction_begin(&input, login, NULL, false, false);
+    sv_login_interaction_begin(&input, login, NULL, false, false, 0);
     sv_login_interaction_sync(&input);
     assert(sv_pregame_sync_login(&pregame, 7, login, &setup, false) == SV_OK);
     uint64_t overview_revision = pregame.revision;
@@ -185,7 +185,7 @@ int main(void)
     login = overview();
     sv_pregame_begin(&pregame, 9, false);
     assert(sv_pregame_contact_ready(&pregame, 9) == SV_OK);
-    sv_login_interaction_begin(&input, login, "hero", true, false);
+    sv_login_interaction_begin(&input, login, "hero", true, false, 0);
     sv_login_interaction_sync(&input);
     assert(sv_pregame_sync_login(&pregame, 9, login, &setup, false) == SV_OK);
     assert(sv_login_state(login) == SV_LOGIN_WAIT_STATUS);
@@ -194,6 +194,27 @@ int main(void)
     assert(sv_login_interaction_complete(&input));
     assert(sv_pregame_sync_login(&pregame, 9, login, &setup, true) == SV_OK);
     assert(pregame.phase == SV_PREGAME_LIVE_HANDOFF);
+    sv_login_destroy(login);
+
+    login = overview();
+    sv_login_interaction_begin(&input, login, NULL, false, false, 0x10u);
+    sv_login_interaction_sync(&input);
+    assert(sv_login_interaction_command(&input,
+        (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY, 0}) ==
+        SV_LOGIN_INPUT_CREATION_UNSUPPORTED);
+    assert(sv_login_interaction_command(&input,
+        (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_EXCLUSIVE, 0}) ==
+        SV_LOGIN_INPUT_CREATION_UNSUPPORTED);
+    assert(!input.ordinary_name_active && !input.dedicated_creation &&
+           !input.character_name.length);
+    assert(sv_login_take_output(login, NULL, 0).result == SV_WAITING);
+    sv_pregame_begin(&pregame, 10, false);
+    assert(sv_pregame_contact_ready(&pregame, 10) == SV_OK);
+    setup.creation_flags = 0x10u;
+    assert(sv_pregame_sync_login(&pregame, 10, login, &setup, false) == SV_OK);
+    assert(sv_pregame_creation_unsupported(&pregame, 10) == SV_OK);
+    assert(pregame.phase == SV_PREGAME_OVERVIEW &&
+           !strcmp(pregame.reason, SV_PREGAME_UNSUPPORTED_CREATION_MODE));
     sv_login_destroy(login);
     return 0;
 }

@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define SV_PREGAME_UNSUPPORTED_CREATION_MODE "Unsupported character creation mode"
+
 typedef enum {
     SV_PREGAME_CONTACT,
     SV_PREGAME_AUTHENTICATING,
@@ -45,6 +47,8 @@ SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation);
 SvResult sv_pregame_creation_submitted(SvPregame *pregame, uint64_t generation,
                                        bool dedicated_creation,
                                        uint32_t dedicated_mode_flags);
+SvResult sv_pregame_creation_unsupported(SvPregame *pregame,
+                                         uint64_t generation);
 SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
                                const SvLogin *login, const SvContactSetup *setup,
                                bool motd_complete);

@@ -51,6 +51,24 @@ SvResult sv_pregame_creation_submitted(SvPregame *pregame, uint64_t generation,
     return SV_OK;
 }
 
+SvResult sv_pregame_creation_unsupported(SvPregame *pregame,
+                                         uint64_t generation)
+{
+    SvResult result = current(pregame, generation);
+    if (result != SV_OK) return result;
+    if (pregame->phase != SV_PREGAME_OVERVIEW ||
+        pregame->creation_flags <= 1)
+        return SV_INVALID;
+    bool changed = strcmp(pregame->reason,
+                          SV_PREGAME_UNSUPPORTED_CREATION_MODE) != 0;
+    copy_text(pregame->reason, sizeof(pregame->reason),
+              SV_PREGAME_UNSUPPORTED_CREATION_MODE);
+    pregame->dedicated_creation = false;
+    pregame->dedicated_mode_flags = 0;
+    transition(pregame, SV_PREGAME_OVERVIEW, changed);
+    return SV_OK;
+}
+
 static bool publish_overview(SvPregame *pregame, const SvLogin *login,
                              const SvContactSetup *setup)
 {

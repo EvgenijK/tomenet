@@ -589,7 +589,8 @@ static int trait_hidden_dna_class(const char *mode)
 
 static bool exclusive_creation_case(const char *mode)
 {
-    return !strcmp(mode, "exclusive-iddc-production") ||
+    return !strcmp(mode, "unsupported-creation-exclusive") ||
+        !strcmp(mode, "exclusive-iddc-production") ||
         !strcmp(mode, "exclusive-pvp-maia-production") ||
         !strcmp(mode, "exclusive-pvp-maia-no-post-traits") ||
         !strcmp(mode, "unknown-setup-exclusive-pvp-maia-no-post-traits") ||
@@ -610,6 +611,19 @@ static bool exclusive_creation_case(const char *mode)
         !strcmp(mode, "auto-dna-dedicated-iddc") ||
         !strcmp(mode, "auto-dna-dedicated-pvp-maia") ||
         !strcmp(mode, "stats-order-reenter-pvp-maia");
+}
+
+static bool unsupported_creation_case(const char *mode)
+{
+    return !strncmp(mode, "unknown-setup-", 14) ||
+        !strcmp(mode, "unsupported-creation-ordinary") ||
+        !strcmp(mode, "unsupported-creation-exclusive") ||
+        !strcmp(mode, "body-unavailable-skip") ||
+        !strcmp(mode, "alternate-class-back-no-body") ||
+        !strcmp(mode, "alternate-class-back-no-trait-body") ||
+        !strcmp(mode, "stats-back-no-trait-body") ||
+        !strcmp(mode, "auto-dna-skip-trait-body") ||
+        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-body");
 }
 
 static bool automatic_ordered_case(const char *mode)
@@ -1214,6 +1228,7 @@ static void send_overview(int socket, const char *mode)
     put32(&at, 0);
     put32(&at, (!strcmp(mode, "exclusive-pvp-maia-production") ||
                 !strcmp(mode, "exclusive-pvp-maia-no-post-traits") ||
+                !strcmp(mode, "unsupported-creation-exclusive") ||
                 !strcmp(mode,
                         "unknown-setup-exclusive-pvp-maia-no-post-traits") ||
                 !strcmp(mode,
@@ -1274,17 +1289,11 @@ static int peer_run(void *opaque)
     *at++ = 255;
     *at++ = 0;
     put32(&at, 0);
-    bool body_unavailable = !strncmp(peer->mode, "unknown-setup-", 14) ||
-        !strcmp(peer->mode, "body-unavailable-skip") ||
-        !strcmp(peer->mode, "alternate-class-back-no-body") ||
-        !strcmp(peer->mode, "alternate-class-back-no-trait-body") ||
-        !strcmp(peer->mode, "stats-back-no-trait-body") ||
-        !strcmp(peer->mode, "auto-dna-skip-trait-body") ||
-        !strcmp(peer->mode, "hidden-derived-dna-race-refresh-skip-body");
+    bool unsupported_setup = unsupported_creation_case(peer->mode);
     bool point_buy = !strncmp(peer->mode, "stats-point-", 12) ||
-        (!strncmp(peer->mode, "auto-dna-", 9) && !body_unavailable &&
+        (!strncmp(peer->mode, "auto-dna-", 9) && !unsupported_setup &&
          !automatic_ordered_case(peer->mode));
-    put32(&at, 2u | (body_unavailable ? 0x10u : point_buy ? 1u : 0u));
+    put32(&at, 2u | (unsupported_setup ? 0x10u : point_buy ? 1u : 0u));
     const uint32_t modern_version[6] = {4, 9, 4, 0, 0, 0};
     const uint32_t legacy_version[6] = {4, 7, 0, 2, 0, 0};
     const uint32_t *version = legacy_hidden_class_case(peer->mode) ?
@@ -1305,6 +1314,14 @@ static int peer_run(void *opaque)
     SDL_Delay(200);
     push_key(exclusive_creation_case(peer->mode) ? SDLK_E : SDLK_N,
              SDL_KMOD_SHIFT);
+    if (unsupported_creation_case(peer->mode)) {
+        SDL_Delay(150);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+        unsigned char closed;
+        peer->request_exact = recv(socket, &closed, 1, 0) == 0;
+        close(socket);
+        return 0;
+    }
     SDL_Delay(80);
     push_key(SDLK_RETURN, 0);
     SDL_Delay(80);
@@ -3104,6 +3121,24 @@ int main(int argc, char **argv)
     });
     SDL_WaitThread(worker, NULL);
     close(peer.listener);
+
+    if (unsupported_creation_case(argv[3])) {
+        assert(result == 0 && peer.request_exact);
+        assert(outcome.phase == SV_PREGAME_OVERVIEW);
+        assert(outcome.creation_flags == 0x10u);
+        assert(!strcmp(outcome.reason, "Unsupported character creation mode"));
+        assert(!outcome.name_submitted && !outcome.ordinary_name_started &&
+               !outcome.exclusive_name_started);
+        assert(!outcome.dedicated_creation && !outcome.dedicated_mode_flags);
+        assert(!outcome.birth_entered && !outcome.birth_active &&
+               !outcome.birth_closed && outcome.birth_owner == SV_BIRTH_NONE &&
+               !outcome.birth_generation);
+        assert(!outcome.birth_sex_confirmed && !outcome.birth_class_confirmed &&
+               !outcome.birth_race_confirmed && !outcome.birth_trait_confirmed &&
+               !outcome.birth_body_confirmed && !outcome.birth_stats_confirmed &&
+               !outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        return 0;
+    }
 
     bool disconnected = !strcmp(argv[3], "session-disconnect") ||
         !strcmp(argv[3], "legacy-hidden-class-disconnect") ||
