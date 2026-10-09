@@ -58,6 +58,8 @@ typedef enum {
     SV_BIRTH_MODE_NO_GHOST = 0x04,
     SV_BIRTH_MODE_EVERLASTING = 0x08,
     SV_BIRTH_MODE_PVP = 0x10,
+    /* Historical pre-4.4.1a mode identity (MODE_FRUIT_BAT_OLD). */
+    SV_BIRTH_MODE_FRUIT_BAT = 0x20,
     SV_BIRTH_MODE_IDDC = 0x44,
     SV_BIRTH_MODE_IDDC_SOLOIST = 0x45,
     SV_BIRTH_MODE_IDDC_HELLISH = 0x46,
@@ -145,7 +147,7 @@ typedef struct {
     bool stats_point_buy;
     int stats_remaining;
     SvBirthMode highlighted_mode, chosen_mode;
-    SvBirthMode legal_modes[6];
+    SvBirthMode legal_modes[7];
     uint8_t legal_mode_count;
     bool mode_confirmed, mode_random_used, mode_dna_used, mode_ready;
     bool post_mode_trait_required;
@@ -180,7 +182,7 @@ typedef struct SvBirthView {
     bool stats_confirmation_pending;
     int stats_remaining;
     SvBirthMode highlighted_mode;
-    SvBirthMode legal_modes[6];
+    SvBirthMode legal_modes[7];
     uint8_t legal_mode_count;
     const SvContactSetup *setup;
     bool dna_available;

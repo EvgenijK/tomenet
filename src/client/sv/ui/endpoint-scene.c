@@ -275,6 +275,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                         mode == SV_BIRTH_MODE_HELLISH ? "Hellish" :
                         mode == SV_BIRTH_MODE_EVERLASTING ? "Everlasting" :
                         mode == SV_BIRTH_MODE_PVP ? "PvP" :
+                        mode == SV_BIRTH_MODE_FRUIT_BAT ? "Fruit bat" :
                         mode == SV_BIRTH_MODE_IDDC ? "IDDC" :
                         mode == SV_BIRTH_MODE_IDDC_SOLOIST ? "IDDC Soloist" :
                         mode == SV_BIRTH_MODE_IDDC_HELLISH ? "Hellish IDDC" :

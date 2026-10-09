@@ -30,6 +30,8 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 
 ## Decisions so far
 
+- [Сохранить legacy Fruit Bat outcome в mode step](issues/88-preserve-legacy-fruit-bat-mode-outcome.md) — resolved; production endpoint RED/GREEN and 61 focused executions, full gates pending.
+
 - [Войти в birth и выбрать пол](issues/01-enter-birth-and-choose-sex.md)
 - [Выбрать класс в default compile order](issues/02-choose-class-in-default-order.md)
 - [Выбрать race с class compatibility](issues/03-choose-race-with-class-compatibility.md)
