@@ -11,6 +11,7 @@ typedef struct {
 typedef struct SvLoginView {
     bool overview;
     bool ordinary_name_entry;
+    bool ordinary_creation_available;
     bool birth;
     bool live_handoff;
     size_t count;

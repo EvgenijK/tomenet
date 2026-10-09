@@ -2,8 +2,16 @@
 
 bool sv_native_login_command(const SDL_Event *event, SvLoginCommand *command)
 {
-    if (!event || !command || event->type != SDL_EVENT_KEY_DOWN ||
-        event->key.repeat || !event->key.key) return false;
+    if (!event || !command) return false;
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.button == SDL_BUTTON_LEFT && event->button.x >= 40.0f &&
+        event->button.x <= 360.0f && event->button.y >= 215.0f &&
+        event->button.y <= 255.0f) {
+        *command = (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY, 0};
+        return true;
+    }
+    if (event->type != SDL_EVENT_KEY_DOWN || event->key.repeat ||
+        !event->key.key) return false;
     SDL_Keycode key = event->key.key;
     if (key == SDLK_Q) *command = (SvLoginCommand){SV_LOGIN_COMMAND_QUIT, 0};
     else if (key == SDLK_N && (event->key.mod & (SDL_KMOD_SHIFT | SDL_KMOD_CAPS)))

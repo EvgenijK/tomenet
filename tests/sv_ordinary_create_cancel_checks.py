@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SV-B-022 ordinary name entry/cancel through the production endpoint seam."""
+"""SV ordinary/dedicated creation availability through the production endpoint seam."""
 from pathlib import Path
 import os
 import subprocess
@@ -53,7 +53,13 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-ordinary-") as temp:
     config = profile / "sv" / "tomenet.cfg"
     for mode in ("ordinary-available", "ordinary-first-run", "ordinary-full",
                  "exclusive-available", "exclusive-unavailable",
-                 "exclusive-first-run"):
+                 "exclusive-first-run", "capacity-neither-available",
+                 "capacity-neither-full", "capacity-iddc-available",
+                 "capacity-iddc-full", "capacity-pvp-available",
+                 "capacity-pvp-full", "capacity-both-available",
+                 "capacity-both-full", "dedicated-iddc-available",
+                 "dedicated-iddc-full", "dedicated-pvp-available",
+                 "dedicated-pvp-full"):
         if mode.endswith("first-run"):
             config.unlink(missing_ok=True)
         else:
@@ -68,4 +74,4 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-ordinary-") as temp:
             check=True,
             timeout=15,
         )
-print("SV-B-022 ordinary creation cancel production checks passed")
+print("SV creation availability production checks passed")

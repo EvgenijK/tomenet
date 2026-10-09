@@ -106,6 +106,10 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         if (input->clipboard_unavailable &&
             !line(renderer,font,"Clipboard unavailable; credential draft unchanged.",40,240,scale,error)) return false;
         if (input->login_view && input->login_view->overview) {
+            if (!input->login_view->ordinary_name_entry &&
+                input->login_view->ordinary_creation_available &&
+                !line(renderer,font,"N) Create a new character",40,225,scale,normal))
+                return false;
             for (size_t i = 0; i < input->login_view->count; ++i) {
                 const SvLoginRowView *character = &input->login_view->rows[i];
                 char row[256];
