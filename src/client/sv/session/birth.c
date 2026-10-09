@@ -1277,3 +1277,24 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
             view->legal_modes[i] = birth->legal_modes[i];
     }
 }
+
+bool sv_birth_committed_play(const SvBirth *birth, uint64_t generation,
+                             SvBirthPlayDraft *draft)
+{
+    if (!birth || !draft || birth->generation != generation || !generation ||
+        !birth->active || birth->closed || birth->quit ||
+        birth->owner != SV_BIRTH_READY || !birth->mode_ready ||
+        !birth->confirmed || !birth->class_confirmed || !birth->race_confirmed ||
+        (!birth->trait_confirmed && !birth->trait_skipped) ||
+        (!birth->body_confirmed && !birth->body_skipped) ||
+        !birth->stats_confirmed || !birth->mode_confirmed) return false;
+    *draft = (SvBirthPlayDraft){
+        .mode = (int16_t)(birth->chosen_mode |
+            (birth->chosen_sex == SV_BIRTH_SEX_MALE ? 0x100 : 0) |
+            (birth->chosen_body == SV_BIRTH_BODY_FRUIT_BAT ? 0x200 : 0)),
+        .race = (int16_t)birth->chosen_race,
+        .class_id = (int16_t)birth->chosen_class,
+        .trait = (int16_t)(birth->trait_skipped ? 0 : birth->chosen_trait)};
+    memcpy(draft->stats, birth->committed_stats, sizeof(draft->stats));
+    return true;
+}

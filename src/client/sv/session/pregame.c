@@ -138,6 +138,12 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
         transition(pregame, SV_PREGAME_CHARACTER_PENDING, changed);
         return SV_OK;
     }
+    if (state == SV_LOGIN_WAIT_PLAY || state == SV_LOGIN_PLAY_ACKNOWLEDGED) {
+        if (!sv_login_creating_character(login)) return SV_INVALID;
+        transition(pregame, state == SV_LOGIN_WAIT_PLAY ? SV_PREGAME_PLAY_PENDING :
+                   SV_PREGAME_PLAY_ACKNOWLEDGED, false);
+        return SV_OK;
+    }
     if (state == SV_LOGIN_SELECTED) {
         bool changed = publish_overview(pregame, login, setup);
         const SvLoginCharacter *selected = sv_login_selected_character(login);
@@ -197,6 +203,8 @@ const char *sv_pregame_phase_name(SvPregamePhase phase)
     case SV_PREGAME_OVERVIEW: return "overview";
     case SV_PREGAME_CHARACTER_PENDING: return "character-pending";
     case SV_PREGAME_BIRTH: return "birth";
+    case SV_PREGAME_PLAY_PENDING: return "play-pending";
+    case SV_PREGAME_PLAY_ACKNOWLEDGED: return "play-acknowledged";
     case SV_PREGAME_MOTD: return "motd";
     case SV_PREGAME_LIVE_HANDOFF: return "live-session-handoff";
     case SV_PREGAME_FAILED: return "failed";

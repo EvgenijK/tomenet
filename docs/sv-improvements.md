@@ -1036,3 +1036,25 @@ disconnect or stale-generation detection. Run the applicable `sv-build`,
 but were not run or passed by this documentation-only record;
 `P1-birth-runtime-evidence` / P1-AC30 remains deferred to its named
 full-acceptance producer and verifier.
+
+## Keep controlled-peer workers outside endpoint SDL teardown
+
+**Status:** proposed separately; existing fixtures unchanged by handshake slice 01.
+
+**Problem:** selected SV-B-023 endpoint checks print `Leaked thread` because their
+controlled-peer `SDL_Thread` is joined after `sv_endpoint_run` has already called
+`SDL_Quit`. This obscures resource diagnostics even when protocol assertions pass.
+
+**Affected code:** `tests/sv/name-editor-submit.c` worker creation/join around
+`sv_endpoint_run`; inspect equivalent worker lifetimes in the other endpoint
+fixtures before changing them.
+
+**Proposal:** in a separate test-organization task, give peer workers a lifetime
+independent of the endpoint-owned SDL lifecycle, or join them before its teardown
+through an agreed production boundary. Slice 01 uses a pthread peer; no new
+production callback or legacy/shared change is needed.
+
+**Required checks:** rerun affected native endpoint cases under sanitizers;
+verify peer completion, bounded timeout, socket cleanup, retry and repeated
+endpoint invocation, and absence of SDL thread diagnostics. Preserve production
+endpoint evidence and do not replace it with protocol-only tests.
