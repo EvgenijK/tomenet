@@ -8,9 +8,9 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-**Assignee:** unassigned
+**Assignee:** codex/sandcastle-7b133980-wave-62-1
 
 Labels: enhancement, ready-for-agent
 
