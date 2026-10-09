@@ -108,3 +108,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Зафиксировать нейтральное имя состояния ввода имени](issues/77-record-neutral-login-name-entry-state.md)
 - [Verify focused production coverage](issues/78-focused-test-coverage.md)
 - [Восстановить identities class list в default order](issues/79-restore-default-order-visible-class-identities.md)
+- [Verify focused production coverage](issues/80-focused-test-coverage.md)
