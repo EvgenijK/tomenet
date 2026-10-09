@@ -1537,6 +1537,18 @@ static int peer_run(void *opaque)
         push_key(SDLK_A, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "auto-dna-shared-manual-advance")) {
+        push_automatic_dna();
+        push_key(SDLK_RETURN, 0);
+        push_dna();
+        push_automatic_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "auto-dna-shared-backtrack-reentry")) {
+        push_automatic_dna();
+        push_key(SDLK_BACKSPACE, 0);
+        push_dna();
+        push_automatic_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-incompatible-class")) {
         push_automatic_dna();
 #if SV_CLASS_BEFORE_RACE
@@ -2809,6 +2821,10 @@ int main(int argc, char **argv)
     bool auto_hidden_race_mismatch = hidden_dna_race_mismatch_case(argv[3]);
     bool auto_incompatible_class =
         !strcmp(argv[3], "auto-dna-incompatible-class");
+    bool auto_shared_manual =
+        !strcmp(argv[3], "auto-dna-shared-manual-advance");
+    bool auto_shared_reentry =
+        !strcmp(argv[3], "auto-dna-shared-backtrack-reentry");
     bool auto_ordered_mode_missing =
         !strcmp(argv[3], "auto-dna-ordered-mode-missing");
     bool auto_ordered_mode_illegal =
@@ -2848,14 +2864,15 @@ int main(int argc, char **argv)
             trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             !strcmp(argv[3], "alternate-dna") ||
-            automatic ||
+            (automatic && !(auto_shared_manual && SV_CLASS_BEFORE_RACE)) ||
             !strcmp(argv[3], "alternate-class-dna-incompatible"),
         .birth_dna_class = legacy_hidden_death_dna_case(argv[3]) ? 13 :
             trait_hidden_dna_case(argv[3]) ?
             trait_hidden_dna_class(argv[3]) :
             auto_pvp_maia ? 0 :
             auto_hidden_race_mismatch ? 1 :
-            auto_incompatible_class ? 3 :
+            auto_incompatible_class ||
+                (auto_shared_reentry && !SV_CLASS_BEFORE_RACE) ? 3 :
             !strcmp(argv[3], "hidden-derived-dna-missing") ? 99 :
             !strncmp(argv[3], "hidden-derived-dna", 18) ? 1 :
             !strcmp(argv[3], "class-dna") ||
@@ -2871,9 +2888,11 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "hidden-derived-dna-race-compatible") ||
             !strcmp(argv[3], "hidden-derived-dna-race-mismatch") ||
             !strcmp(argv[3], "alternate-dna") ||
-            automatic,
+            (automatic && !(auto_shared_manual && !SV_CLASS_BEFORE_RACE) &&
+             !(auto_shared_reentry && SV_CLASS_BEFORE_RACE)),
         .birth_dna_race = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-race") ? 0 :
+            auto_shared_manual ? 0 :
             legacy_hidden_death_dna_case(argv[3]) ? 16 :
             trait_hidden_dna_case(argv[3]) ? (int)maia_race() :
             !strcmp(argv[3], "race-dna") ||
@@ -2893,6 +2912,7 @@ int main(int argc, char **argv)
             automatic,
         .birth_dna_trait = !strcmp(argv[3],
             "auto-dna-trait-hidden-wrong-trait") ? 1 :
+            auto_shared_manual ? 1 :
             legacy_hidden_death_dna_case(argv[3]) ? 1 :
             trait_hidden_dna_case(argv[3]) ? 15 :
             !strcmp(argv[3], "trait-dna") ||
@@ -3400,7 +3420,8 @@ int main(int argc, char **argv)
                (!strcmp(argv[3], "auto-dna-dedicated-iddc") ?
                 SV_BIRTH_MODE_IDDC : SV_BIRTH_MODE_EVERLASTING));
         assert(outcome.birth_mode_ready && outcome.birth_keyboard_navigated);
-        assert(outcome.birth_auto_reincarnation);
+        assert(outcome.birth_auto_reincarnation &&
+               outcome.birth_dna_available);
     } else if (!strcmp(argv[3], "auto-dna-hidden-race-reject-stable")) {
         assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
         assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
@@ -3420,6 +3441,55 @@ int main(int argc, char **argv)
         assert(outcome.birth_race == 0 && outcome.birth_highlighted_race == 0);
         assert(outcome.birth_illegal_ignored &&
                !outcome.birth_auto_reincarnation);
+    } else if (!strcmp(argv[3], "auto-dna-shared-manual-advance")) {
+        assert(outcome.birth_dna_used && outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_illegal_ignored &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_dna_available && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 0 &&
+               outcome.birth_highlighted_class == 0 &&
+               !outcome.birth_class_dna_used);
+        assert(!outcome.birth_race_confirmed && !outcome.birth_race_dna_used &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE &&
+               outcome.birth_highlighted_race == 0);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_TRAIT);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 0 &&
+               outcome.birth_highlighted_race == 0 &&
+               !outcome.birth_race_dna_used);
+        assert(!outcome.birth_trait_confirmed &&
+               !outcome.birth_trait_dna_used &&
+               outcome.birth_trait == SV_BIRTH_TRAIT_NONE &&
+               outcome.birth_highlighted_trait == 1);
+#endif
+    } else if (!strcmp(argv[3], "auto-dna-shared-backtrack-reentry")) {
+        assert(outcome.birth_dna_used && outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_FEMALE);
+        assert(outcome.birth_illegal_ignored &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_dna_available && outcome.birth_quit);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_owner == SV_BIRTH_CLASS);
+        assert(outcome.birth_class_confirmed &&
+               outcome.birth_class == 2 &&
+               outcome.birth_highlighted_class == 2 &&
+               outcome.birth_class_dna_used);
+        assert(!outcome.birth_race_confirmed && !outcome.birth_race_dna_used &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE);
+#else
+        assert(outcome.birth_owner == SV_BIRTH_BODY);
+        assert(outcome.birth_race_confirmed && outcome.birth_race_dna_used &&
+               outcome.birth_trait_confirmed && outcome.birth_trait_dna_used);
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE &&
+               !outcome.birth_class_dna_used);
+        assert(outcome.birth_body_confirmed && outcome.birth_body_dna_used &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT &&
+               outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+#endif
     } else if (!strcmp(argv[3], "auto-dna-incompatible-class")) {
         assert(!outcome.birth_auto_reincarnation && outcome.birth_illegal_ignored);
         assert(outcome.birth_dna_used && outcome.birth_sex == SV_BIRTH_SEX_FEMALE);

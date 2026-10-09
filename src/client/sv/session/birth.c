@@ -6,6 +6,14 @@ static bool legal_sex(SvBirthSex sex)
     return sex == SV_BIRTH_SEX_MALE || sex == SV_BIRTH_SEX_FEMALE;
 }
 
+static SvBirthInputResult invalidate_dna(SvBirth *birth)
+{
+    birth->dna_available = false;
+    birth->auto_reincarnation = false;
+    birth->illegal_ignored = true;
+    return SV_BIRTH_INPUT_IGNORED;
+}
+
 #if SV_CLASS_BEFORE_RACE
 static bool compatible_class(const SvContactSetup *setup, unsigned class_id)
 {
@@ -252,9 +260,7 @@ static SvBirthInputResult confirm_race(SvBirth *birth)
     if (birth->requested_class != SV_BIRTH_CLASS_NONE &&
         !trait_derived_hidden_class(birth, birth->requested_class) &&
         resolved != birth->requested_class) {
-        birth->illegal_ignored = true;
-        birth->auto_reincarnation = false;
-        return SV_BIRTH_INPUT_IGNORED;
+        return invalidate_dna(birth);
     }
 #endif
     birth->chosen_race = birth->highlighted_race;
@@ -424,11 +430,7 @@ static SvBirthInputResult class_command(SvBirth *birth, SvBirthCommand command)
     case SV_BIRTH_DNA: {
         int visible_class = birth->dna_class_available ?
             dna_visible_class(birth, birth->dna_class) : SV_BIRTH_CLASS_NONE;
-        if (visible_class == SV_BIRTH_CLASS_NONE) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+        if (visible_class == SV_BIRTH_CLASS_NONE) return invalidate_dna(birth);
         birth->highlighted_class = visible_class;
         birth->class_dna_used = true;
 #if SV_CLASS_BEFORE_RACE
@@ -514,19 +516,14 @@ static SvBirthInputResult race_command(SvBirth *birth, SvBirthCommand command)
         birth->race_random_used = true;
         return confirm_race(birth);
     case SV_BIRTH_DNA:
-        if (!birth->dna_race_available || !legal_race(birth, birth->dna_race)) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+        if (!birth->dna_race_available || !legal_race(birth, birth->dna_race))
+            return invalidate_dna(birth);
 #if SV_CLASS_BEFORE_RACE
         if (birth->requested_class != SV_BIRTH_CLASS_NONE &&
             !trait_derived_hidden_class(birth, birth->requested_class) &&
             resolved_class(birth, birth->chosen_visible_class,
                            birth->dna_race) != birth->requested_class) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
+            return invalidate_dna(birth);
         }
 #endif
         birth->highlighted_race = birth->dna_race;
@@ -627,11 +624,8 @@ static SvBirthInputResult trait_command(SvBirth *birth, SvBirthCommand command)
         return confirm_trait(birth);
     case SV_BIRTH_DNA:
         if (!birth->dna_trait_available ||
-            !legal_trait(birth, birth->dna_trait)) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+            !legal_trait(birth, birth->dna_trait))
+            return invalidate_dna(birth);
         birth->highlighted_trait = birth->dna_trait;
         birth->trait_dna_used = true;
         return confirm_trait(birth);
@@ -727,11 +721,8 @@ static SvBirthInputResult body_command(SvBirth *birth, SvBirthCommand command)
         return confirm_body(birth);
     case SV_BIRTH_DNA:
         if (!birth->dna_body_available ||
-            !legal_body(birth, birth->dna_body)) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+            !legal_body(birth, birth->dna_body))
+            return invalidate_dna(birth);
         birth->highlighted_body = birth->dna_body;
         birth->body_dna_used = true;
         return confirm_body(birth);
@@ -928,9 +919,7 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         if (!birth->stats_point_buy && birth->auto_reincarnation)
             return SV_BIRTH_INPUT_HANDLED;
         if (!birth->stats_point_buy || !birth->dna_stats_available) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
+            return invalidate_dna(birth);
         }
         for (unsigned i = 0; i < 6; ++i)
             birth->stats[i] = birth->dna_stats[i] >= 8 &&
@@ -1092,11 +1081,8 @@ static SvBirthInputResult mode_command(SvBirth *birth, SvBirthCommand command)
         return confirm_mode(birth);
     case SV_BIRTH_DNA:
         if (!birth->dna_mode_available ||
-            mode_position(birth, birth->dna_mode) < 0) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+            mode_position(birth, birth->dna_mode) < 0)
+            return invalidate_dna(birth);
         birth->highlighted_mode = birth->dna_mode;
         birth->mode_dna_used = true;
         return confirm_mode(birth);
@@ -1129,6 +1115,9 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
 {
     if (!birth || generation != birth->generation || !birth->active || birth->quit)
         return SV_BIRTH_INPUT_IGNORED;
+    if ((command.kind == SV_BIRTH_DNA ||
+         command.kind == SV_BIRTH_AUTOMATIC_DNA) && !birth->dna_available)
+        return invalidate_dna(birth);
     if (command.kind == SV_BIRTH_AUTOMATIC_DNA) {
         if (birth->owner < SV_BIRTH_SEX || birth->owner > SV_BIRTH_MODE)
             return SV_BIRTH_INPUT_IGNORED;
@@ -1215,11 +1204,7 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
         birth->random_used = true;
         return confirm_sex(birth);
     case SV_BIRTH_DNA:
-        if (!birth->dna_available || !legal_sex(birth->dna_sex)) {
-            birth->illegal_ignored = true;
-            birth->auto_reincarnation = false;
-            return SV_BIRTH_INPUT_IGNORED;
-        }
+        if (!legal_sex(birth->dna_sex)) return invalidate_dna(birth);
         birth->highlighted_sex = birth->dna_sex;
         birth->dna_used = true;
         return confirm_sex(birth);
