@@ -14,12 +14,13 @@ records этого effort не являются вторым набором SV i
 
 Immutable acceptance contract:
 [acceptance-contract.json](acceptance-contract.json), digest
-`690a04cefb7fd0e1615dce46d1a538e1dcbd856232af1a1373be93f987095c82`.
+`15de367676b8c4c23c1ba787bb60b4e976455f27926f4b7688e17fc75204dbe6`.
 Batch manifests: [batch 0](batch-0.json), [batch 1](batch-1.json),
 [batch 2](batch-2.json), [batch 3](batch-3.json), [batch 4](batch-4.json),
 [batch 5](batch-5.json), [batch 6](batch-6.json), [batch 7](batch-7.json),
 [batch 8](batch-8.json), [batch 12](batch-12.json), [batch 16](batch-16.json),
-[batch 20](batch-20.json), [batch 22](batch-22.json).
+[batch 20](batch-20.json), [batch 22](batch-22.json),
+[batch 38](batch-38.json).
 
 `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у указанного в
 immutable contract producer/verifier ownership. Wayfinder reconciliation не
@@ -111,3 +112,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Verify focused production coverage](issues/80-focused-test-coverage.md)
 - [Verify focused production coverage](issues/81-focused-test-coverage.md)
 - [Verify focused production coverage](issues/82-focused-test-coverage.md)
+- [Проверить production coverage unsupported creation mode](issues/83-verify-unsupported-creation-mode-coverage.md)
