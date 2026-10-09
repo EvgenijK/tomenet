@@ -590,6 +590,7 @@ static int trait_hidden_dna_class(const char *mode)
 static bool exclusive_creation_case(const char *mode)
 {
     return !strcmp(mode, "unsupported-creation-exclusive") ||
+        !strcmp(mode, "stats-point-dedicated") ||
         !strcmp(mode, "exclusive-iddc-production") ||
         !strcmp(mode, "exclusive-pvp-maia-production") ||
         !strcmp(mode, "exclusive-pvp-maia-no-post-traits") ||
@@ -615,20 +616,23 @@ static bool exclusive_creation_case(const char *mode)
 
 static bool unsupported_creation_case(const char *mode)
 {
-    return !strncmp(mode, "unknown-setup-", 14) ||
-        !strcmp(mode, "unsupported-creation-ordinary") ||
-        !strcmp(mode, "unsupported-creation-exclusive") ||
-        !strcmp(mode, "body-unavailable-skip") ||
-        !strcmp(mode, "alternate-class-back-no-body") ||
-        !strcmp(mode, "alternate-class-back-no-trait-body") ||
-        !strcmp(mode, "stats-back-no-trait-body") ||
-        !strcmp(mode, "auto-dna-skip-trait-body") ||
-        !strcmp(mode, "hidden-derived-dna-race-refresh-skip-body");
+    return !strcmp(mode, "unsupported-creation-ordinary") ||
+        !strcmp(mode, "unsupported-creation-exclusive");
 }
 
 static bool automatic_ordered_case(const char *mode)
 {
     return !strncmp(mode, "auto-dna-ordered-", 17);
+}
+
+static uint32_t creation_flags_for_case(const char *mode)
+{
+    if (!strcmp(mode, "unsupported-creation-ordinary")) return 4u;
+    if (!strcmp(mode, "unsupported-creation-exclusive")) return 0x10u;
+    if (!strncmp(mode, "stats-point-", 12)) return 1u;
+    if (!strncmp(mode, "auto-dna-", 9) && !automatic_ordered_case(mode))
+        return 1u;
+    return 0u;
 }
 
 static bool explicit_ordered_dna_case(const char *mode)
@@ -1289,11 +1293,7 @@ static int peer_run(void *opaque)
     *at++ = 255;
     *at++ = 0;
     put32(&at, 0);
-    bool unsupported_setup = unsupported_creation_case(peer->mode);
-    bool point_buy = !strncmp(peer->mode, "stats-point-", 12) ||
-        (!strncmp(peer->mode, "auto-dna-", 9) && !unsupported_setup &&
-         !automatic_ordered_case(peer->mode));
-    put32(&at, 2u | (unsupported_setup ? 0x10u : point_buy ? 1u : 0u));
+    put32(&at, 2u | creation_flags_for_case(peer->mode));
     const uint32_t modern_version[6] = {4, 9, 4, 0, 0, 0};
     const uint32_t legacy_version[6] = {4, 7, 0, 2, 0, 0};
     const uint32_t *version = legacy_hidden_class_case(peer->mode) ?
@@ -2105,7 +2105,8 @@ static int peer_run(void *opaque)
         }
         push_key(SDLK_ESCAPE, 0);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
-    } else if (!strcmp(peer->mode, "stats-point-navigate")) {
+    } else if (!strcmp(peer->mode, "stats-point-navigate") ||
+               !strcmp(peer->mode, "stats-point-dedicated")) {
         push_to_stats();
         push_key(SDLK_Z, 0);
         push_mouse_stats(380.0f, 1);
@@ -2611,10 +2612,15 @@ static int peer_run(void *opaque)
     } else if (!strcmp(peer->mode, "trait-dummy-skip") ||
                !strcmp(peer->mode, "trait-unavailable-skip")) {
         push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
+#else
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "trait-dna") ||
         !strcmp(peer->mode, "trait-dna-incompatible") ||
@@ -3123,12 +3129,22 @@ int main(int argc, char **argv)
     close(peer.listener);
 
     if (unsupported_creation_case(argv[3])) {
+        const uint32_t expected_creation_flags =
+            creation_flags_for_case(argv[3]);
         assert(result == 0 && peer.request_exact);
-        assert(outcome.phase == SV_PREGAME_OVERVIEW);
-        assert(outcome.creation_flags == 0x10u);
+        assert(outcome.phase == SV_PREGAME_OVERVIEW && outcome.authenticated);
+        assert(outcome.character_count == 1 && !outcome.selected_character[0]);
+        assert(outcome.creation_flags == expected_creation_flags &&
+               expected_creation_flags > 1u);
         assert(!strcmp(outcome.reason, "Unsupported character creation mode"));
         assert(!outcome.name_submitted && !outcome.ordinary_name_started &&
                !outcome.exclusive_name_started);
+        assert(!outcome.ordinary_name_cancelled &&
+               !outcome.exclusive_name_cancelled &&
+               !outcome.random_name_suggested &&
+               !outcome.name_maximum_draft_bytes &&
+               !outcome.name_entry_generation &&
+               !outcome.name_entry_overview_revision);
         assert(!outcome.dedicated_creation && !outcome.dedicated_mode_flags);
         assert(!outcome.birth_entered && !outcome.birth_active &&
                !outcome.birth_closed && outcome.birth_owner == SV_BIRTH_NONE &&
@@ -3137,6 +3153,31 @@ int main(int argc, char **argv)
                !outcome.birth_race_confirmed && !outcome.birth_trait_confirmed &&
                !outcome.birth_body_confirmed && !outcome.birth_stats_confirmed &&
                !outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
+        assert(outcome.birth_highlighted_sex == SV_BIRTH_SEX_NONE &&
+               outcome.birth_sex == SV_BIRTH_SEX_NONE &&
+               outcome.birth_highlighted_class == SV_BIRTH_CLASS_NONE &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE &&
+               outcome.birth_highlighted_race == SV_BIRTH_RACE_NONE &&
+               outcome.birth_race == SV_BIRTH_RACE_NONE &&
+               outcome.birth_highlighted_trait == SV_BIRTH_TRAIT_NONE &&
+               outcome.birth_trait == SV_BIRTH_TRAIT_NONE &&
+               outcome.birth_highlighted_body == SV_BIRTH_BODY_NONE &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE &&
+               outcome.birth_highlighted_stat == -1 &&
+               outcome.birth_highlighted_mode == SV_BIRTH_MODE_NONE &&
+               outcome.birth_mode == SV_BIRTH_MODE_NONE);
+        static const int16_t untouched_stats[6] = {0};
+        assert(!memcmp(outcome.birth_stats, untouched_stats,
+                       sizeof(untouched_stats)) &&
+               !memcmp(outcome.birth_committed_stats, untouched_stats,
+                       sizeof(untouched_stats)));
+        assert(!outcome.birth_visible_class_count &&
+               !outcome.birth_legal_class_count &&
+               !outcome.birth_legal_race_count &&
+               !outcome.birth_legal_trait_count &&
+               !outcome.birth_legal_body_count &&
+               !outcome.birth_legal_stat_count &&
+               !outcome.birth_legal_mode_count);
         return 0;
     }
 
@@ -4365,6 +4406,7 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(!outcome.birth_mode_confirmed && !outcome.birth_mode_ready);
     } else if (!strcmp(argv[3], "mode-dedicated")) {
+        assert(outcome.creation_flags == 0u && outcome.dedicated_creation);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode == SV_BIRTH_MODE_DEDICATED_PVP);
         assert(outcome.birth_legal_mode_count == 4);
@@ -4520,8 +4562,11 @@ int main(int argc, char **argv)
         assert(!outcome.birth_stats_confirmation_pending);
         assert(outcome.birth_stats_remaining == 0);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
-    } else if (!strcmp(argv[3], "stats-point-navigate")) {
+    } else if (!strcmp(argv[3], "stats-point-navigate") ||
+               !strcmp(argv[3], "stats-point-dedicated")) {
         assert(outcome.creation_flags == 1u);
+        assert(outcome.dedicated_creation ==
+               !strcmp(argv[3], "stats-point-dedicated"));
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(outcome.birth_stats_point_buy && !outcome.birth_stats_confirmed);
         assert(outcome.birth_highlighted_stat == 1);
@@ -4531,6 +4576,7 @@ int main(int argc, char **argv)
         assert(outcome.birth_keyboard_navigated && outcome.birth_mouse_navigated);
         assert(outcome.birth_illegal_ignored);
     } else if (!strcmp(argv[3], "stats-order-navigate")) {
+        assert(outcome.creation_flags == 0u && !outcome.dedicated_creation);
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed);
         assert(outcome.birth_stats_order_count == 1);
@@ -4681,6 +4727,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[3], "first-run-body-direct") ||
         !strcmp(argv[3], "first-run-body-reject") ||
         !strcmp(argv[3], "first-start-existing-body-reject")) {
+        assert(outcome.creation_flags == 0u);
         assert(outcome.character_count ==
                !strcmp(argv[3], "first-start-existing-body-reject"));
         assert(outcome.birth_legal_body_count == 1);
@@ -4828,6 +4875,7 @@ int main(int argc, char **argv)
         assert(outcome.birth_race == 2 && outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
     } else if (!strcmp(argv[3], "trait-dummy-skip") ||
                !strcmp(argv[3], "trait-unavailable-skip")) {
+        assert(outcome.creation_flags == 0u);
         assert(outcome.birth_trait_skipped && !outcome.birth_trait_confirmed);
         assert(outcome.birth_owner == SV_BIRTH_BODY && outcome.birth_quit);
         assert(outcome.birth_legal_trait_count == 0);
