@@ -200,6 +200,13 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         bool dna_mode_available, SvBirthMode dna_mode);
 SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
                                     SvBirthCommand command);
+/* Committed creation identity for the transport owner; unfinished drafts
+ * cannot cross this public interaction boundary. */
+typedef struct {
+    int16_t mode, race, class_id, trait, stats[6];
+} SvBirthPlayDraft;
+bool sv_birth_committed_play(const SvBirth *birth, uint64_t generation,
+                             SvBirthPlayDraft *draft);
 void sv_birth_close(SvBirth *birth, uint64_t generation);
 void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth);
 

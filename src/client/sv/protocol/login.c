@@ -5,7 +5,8 @@
 #include <string.h>
 
 #define SV_LOGIN_INPUT_CAPACITY (64 * 1024)
-#define SV_LOGIN_OUTPUT_CAPACITY 1024
+#define SV_LOGIN_OUTPUT_CAPACITY (32 * 1024)
+#include "protocol/play-defaults.h"
 struct SvLogin {
     int version[6];
     SvLoginState state;
@@ -158,6 +159,43 @@ SvResult sv_login_create_character(SvLogin *login, const char *name,
     login->state = SV_LOGIN_WAIT_STATUS;
     return SV_OK;
 }
+static void put16(unsigned char **at, int16_t value)
+{
+    *(*at)++ = (unsigned char)((uint16_t)value >> 8);
+    *(*at)++ = (unsigned char)value;
+}
+SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
+                              int16_t class_id, int16_t trait,
+                              const int16_t stats[6], const char *font)
+{
+    const int current_baseline[6] = {4, 9, 4, 0, 0, 0};
+    if (!login || login->state != SV_LOGIN_SELECTED || !login->creating_character ||
+        !stats || !font || strlen(font) > 1023 || race < 0 || class_id < 0 || trait < 0 ||
+        !atleast(login->version, current_baseline)) return SV_INVALID;
+    /* Current baseline Net_start wire order. Older version gates belong to
+     * the following versioned-handshake slice. Audio/graphics are disabled
+     * in the native executable, so report the actual production outcome. */
+    unsigned char packet[32 * 1024], *at = packet;
+    *at++ = PKT_PLAY;
+    put16(&at, mode); put16(&at, race); put16(&at, class_id); put16(&at, trait);
+    put16(&at, 0); put16(&at, 0); put16(&at, 0);
+    memcpy(at, "NO_GRAPHICS", sizeof("NO_GRAPHICS")); at += sizeof("NO_GRAPHICS");
+    memcpy(at, font, strlen(font) + 1); at += strlen(font) + 1;
+    for (unsigned i = 0; i < 6; ++i) put16(&at, stats[i]);
+    memcpy(at, play_options, sizeof(play_options)); at += sizeof(play_options);
+    /* Map viewport, not UI window pixels (baseline SCREEN_WID/SCREEN_HGT). */
+    const unsigned char geometry[] = {0, 0, 0, 66, 0, 0, 0, 22};
+    memcpy(at, geometry, sizeof(geometry)); at += sizeof(geometry);
+    /* Complete baseline redefinition tables: unknown, features, kinds,
+     * monsters. This text-only resource outcome has no custom font mapping.
+     * Each zero attr/u32 character means retain authoritative server identity,
+     * exactly as handle_process_font_file initializes Client_setup. */
+    size_t visual_size = 5u * (127u + 512u + 1280u + 1280u);
+    memset(at, 0, visual_size); at += visual_size;
+    SvResult queued = append_output(login, packet, (size_t)(at - packet));
+    if (queued == SV_OK) login->state = SV_LOGIN_WAIT_PLAY;
+    return queued;
+}
 SvResult sv_login_keepalive(SvLogin *login)
 {
     if (!login || login->state == SV_LOGIN_REJECTED) return SV_CLOSED;
@@ -206,7 +244,23 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             login->state = SV_LOGIN_REJECTED;
             return SV_OK;
         }
-        if ((login->state == SV_LOGIN_OVERVIEW || login->state == SV_LOGIN_SELECTED) &&
+        if (login->state == SV_LOGIN_WAIT_PLAY && login->input[0] == PKT_REPLY) {
+            if (login->input_size < 3) return SV_OK;
+            if (login->input[1] != PKT_PLAY) return SV_DECODE_ERROR;
+            unsigned status = login->input[2];
+            consume(login, 3);
+            if (status != PKT_SUCCESS) {
+                snprintf(login->reason, sizeof(login->reason),
+                         "Start play not allowed (%u).", status);
+                login->state = SV_LOGIN_REJECTED;
+                return SV_OK;
+            }
+            login->state = SV_LOGIN_PLAY_ACKNOWLEDGED;
+            continue;
+        }
+        if ((login->state == SV_LOGIN_OVERVIEW || login->state == SV_LOGIN_SELECTED ||
+             login->state == SV_LOGIN_WAIT_PLAY ||
+             login->state == SV_LOGIN_PLAY_ACKNOWLEDGED) &&
             login->input[0] == PKT_SFLAGS) {
             if (login->input_size < 17) return SV_OK;
             for (int i = 0; i < 4; ++i)
