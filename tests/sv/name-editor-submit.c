@@ -617,6 +617,12 @@ static bool automatic_ordered_case(const char *mode)
     return !strncmp(mode, "auto-dna-ordered-", 17);
 }
 
+static bool explicit_ordered_dna_case(const char *mode)
+{
+    return !strcmp(mode, "ordered-stats-explicit-dna-partial-no-op") ||
+        !strcmp(mode, "ordered-stats-explicit-dna-no-op");
+}
+
 static bool pvp_maia_deep_back_case(const char *mode)
 {
     return !strcmp(mode, "mode-pvp-maia-deep-back") ||
@@ -1471,6 +1477,31 @@ static int peer_run(void *opaque)
         push_dna();
 #endif
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "ordered-stats-explicit-dna-partial-no-op")) {
+        push_to_stats();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_D, 0);
+        push_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode, "ordered-stats-explicit-dna-no-op")) {
+        static const SDL_Keycode remaining_order[] = {
+            SDLK_A, SDLK_C, SDLK_F, SDLK_E
+        };
+        push_to_stats();
+        push_key(SDLK_B, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_D, 0);
+        push_dna();
+        push_key(SDLK_RETURN, 0);
+        for (unsigned i = 0;
+             i < sizeof(remaining_order) / sizeof(remaining_order[0]); ++i) {
+            push_key(remaining_order[i], 0);
+            push_key(SDLK_RETURN, 0);
+        }
+        push_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-local-manual")) {
         static const SDL_Keycode order[] = {
             SDLK_B, SDLK_A, SDLK_C, SDLK_D, SDLK_F, SDLK_E
@@ -1520,7 +1551,7 @@ static int peer_run(void *opaque)
         };
         push_automatic_dna();
         if (!strcmp(peer->mode, "auto-dna-ordered-keyboard"))
-            push_automatic_dna();
+            push_dna();
         for (unsigned i = 0; i < sizeof(order) / sizeof(order[0]); ++i) {
             push_key(order[i], 0);
             push_key(SDLK_RETURN, 0);
@@ -2900,6 +2931,7 @@ int main(int argc, char **argv)
         .real_name = "PLAYER", .outcome = &outcome,
         .birth_dna_available = !strcmp(argv[3], "dna") ||
             !strcmp(argv[3], "altgr-dna") ||
+            explicit_ordered_dna_case(argv[3]) ||
             direct_dna_success ||
             hidden_derived_dna_success ||
             trait_hidden_dna_case(argv[3]) ||
@@ -2907,7 +2939,8 @@ int main(int argc, char **argv)
             (automatic && !auto_missing_sex) ||
             !strcmp(argv[3], "alternate-dna"),
         .birth_dna_sex = SV_BIRTH_SEX_FEMALE,
-        .birth_dna_class_available = !strncmp(argv[3], "class-dna", 9) ||
+        .birth_dna_class_available = explicit_ordered_dna_case(argv[3]) ||
+            !strncmp(argv[3], "class-dna", 9) ||
             !strncmp(argv[3], "hidden-derived-dna", 18) ||
             trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
@@ -2923,13 +2956,15 @@ int main(int argc, char **argv)
                 (auto_shared_reentry && !SV_CLASS_BEFORE_RACE) ? 3 :
             !strcmp(argv[3], "hidden-derived-dna-missing") ? 99 :
             !strncmp(argv[3], "hidden-derived-dna", 18) ? 1 :
+            explicit_ordered_dna_case(argv[3]) ? 2 :
             !strcmp(argv[3], "class-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
             automatic ? 2 :
             !strcmp(argv[3], "alternate-class-dna-incompatible") ? 0 :
             !strcmp(argv[3], "class-dna-hidden") ? 1 :
             !strcmp(argv[3], "class-dna-incompatible") ? 3 : 99,
-        .birth_dna_race_available = trait_hidden_dna_case(argv[3]) ||
+        .birth_dna_race_available = explicit_ordered_dna_case(argv[3]) ||
+            trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "race-dna", 8) &&
             strcmp(argv[3], "race-dna-missing")) ||
@@ -2943,6 +2978,7 @@ int main(int argc, char **argv)
             auto_shared_manual ? 0 :
             legacy_hidden_death_dna_case(argv[3]) ? 16 :
             trait_hidden_dna_case(argv[3]) ? (int)maia_race() :
+            explicit_ordered_dna_case(argv[3]) ? 2 :
             !strcmp(argv[3], "race-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
             (automatic && !auto_pvp_maia && !auto_hidden_race_mismatch) ? 2 :
@@ -2951,7 +2987,8 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "hidden-derived-dna-race-compatible") ? 0 :
             !strcmp(argv[3], "hidden-derived-dna-race-mismatch") ? 1 :
             !strcmp(argv[3], "race-dna-incompatible") ? 1 : 99,
-        .birth_dna_trait_available = trait_hidden_dna_case(argv[3]) ||
+        .birth_dna_trait_available = explicit_ordered_dna_case(argv[3]) ||
+            trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "trait-dna", 9) &&
             strcmp(argv[3], "trait-dna-missing")) ||
@@ -2963,13 +3000,15 @@ int main(int argc, char **argv)
             auto_shared_manual ? 1 :
             legacy_hidden_death_dna_case(argv[3]) ? 1 :
             trait_hidden_dna_case(argv[3]) ? 15 :
+            explicit_ordered_dna_case(argv[3]) ? 2 :
             !strcmp(argv[3], "trait-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
             post_mode_ordinary_dna || auto_pvp_maia_ordinary ? 2 :
             (automatic && !auto_pvp_maia) ? 2 :
             auto_pvp_maia ? 14 :
             !strcmp(argv[3], "trait-dna-incompatible") ? 3 : 99,
-        .birth_dna_body_available = trait_hidden_dna_case(argv[3]) ||
+        .birth_dna_body_available = explicit_ordered_dna_case(argv[3]) ||
+            trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             (!strncmp(argv[3], "body-dna", 8) &&
             strcmp(argv[3], "body-dna-missing")) ||
@@ -2980,6 +3019,7 @@ int main(int argc, char **argv)
         .birth_dna_body = legacy_hidden_death_dna_case(argv[3]) ?
             SV_BIRTH_BODY_NORMAL : trait_hidden_dna_case(argv[3]) ?
             SV_BIRTH_BODY_FRUIT_BAT :
+            explicit_ordered_dna_case(argv[3]) ? SV_BIRTH_BODY_FRUIT_BAT :
             !strcmp(argv[3], "body-dna") ||
             !strcmp(argv[3], "alternate-dna") ||
             !strcmp(argv[3], "first-run-body-reject") ||
@@ -2988,6 +3028,7 @@ int main(int argc, char **argv)
             (automatic && !auto_pvp_maia) ? SV_BIRTH_BODY_FRUIT_BAT :
             auto_pvp_maia ? SV_BIRTH_BODY_NORMAL : (SvBirthBody)99,
         .birth_dna_stats_available = automatic ||
+            explicit_ordered_dna_case(argv[3]) ||
             !strcmp(argv[3], "stats-point-dna") ||
             !strcmp(argv[3], "stats-point-dna-over-budget") ||
             !strcmp(argv[3], "stats-point-dna-illegal") ||
@@ -3002,7 +3043,8 @@ int main(int argc, char **argv)
             !strcmp(argv[3], "stats-point-dna-multiple-max") ? 8 : 9,
             normalized_dna ? 7 : 8
         },
-        .birth_dna_mode_available = (automatic && !auto_ordered_mode_missing) ||
+        .birth_dna_mode_available = explicit_ordered_dna_case(argv[3]) ||
+            (automatic && !auto_ordered_mode_missing) ||
             !strcmp(argv[3], "mode-dna") ||
             !strcmp(argv[3], "mode-dedicated-dna") ||
             !strcmp(argv[3], "first-start-existing-mode-reject"),
@@ -3277,6 +3319,58 @@ int main(int argc, char **argv)
         assert(!outcome.birth_class_random_used &&
                !outcome.birth_race_random_used);
         assert(outcome.birth_illegal_ignored && outcome.birth_quit);
+    } else if (!strcmp(argv[3],
+                       "ordered-stats-explicit-dna-partial-no-op")) {
+        static const int16_t expected_draft[] = {1, -1, -1, -1, -1, -1};
+        static const int16_t expected_committed[] = {-1, -1, -1, -1, -1, -1};
+        static const uint8_t expected_legal[] = {0, 2, 3, 4, 5};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_dna_available &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(!outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 1 &&
+               outcome.birth_highlighted_stat == 3 &&
+               outcome.birth_legal_stat_count == 5 &&
+               !outcome.birth_stats_confirmation_pending);
+        assert(!memcmp(outcome.birth_stats, expected_draft,
+                       sizeof(expected_draft)) &&
+               !memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)) &&
+               !memcmp(outcome.birth_legal_stats, expected_legal,
+                       sizeof(expected_legal)));
+    } else if (!strcmp(argv[3], "ordered-stats-explicit-dna-no-op")) {
+        static const int16_t expected[] = {1, 3, 0, 2, 5, 4};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
+        assert(outcome.birth_dna_available &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_illegal_ignored);
+        assert(outcome.birth_sex_confirmed &&
+               outcome.birth_sex == SV_BIRTH_SEX_MALE &&
+               outcome.birth_highlighted_sex == SV_BIRTH_SEX_MALE);
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 2 &&
+               outcome.birth_highlighted_class == 2);
+        assert(outcome.birth_race_confirmed && outcome.birth_race == 2 &&
+               outcome.birth_highlighted_race == 2);
+        assert(outcome.birth_trait_confirmed && outcome.birth_trait == 2 &&
+               outcome.birth_highlighted_trait == 2);
+        assert(outcome.birth_body_confirmed &&
+               outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT &&
+               outcome.birth_highlighted_body == SV_BIRTH_BODY_FRUIT_BAT);
+        assert(outcome.birth_stats_confirmed &&
+               !outcome.birth_stats_dna_used &&
+               outcome.birth_stats_order_count == 6 &&
+               outcome.birth_highlighted_stat == 4);
+        assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)) &&
+               !memcmp(outcome.birth_committed_stats, expected,
+                       sizeof(expected)));
+        assert(outcome.birth_mode_dna_used && outcome.birth_mode_confirmed &&
+               outcome.birth_mode_ready &&
+               outcome.birth_mode == SV_BIRTH_MODE_EVERLASTING &&
+               outcome.birth_highlighted_mode == SV_BIRTH_MODE_EVERLASTING);
     } else if (!strcmp(argv[3], "auto-dna-ordered-local-manual")) {
         static const int16_t expected[] = {1, 0, 2, 3, 5, 4};
         assert(outcome.creation_flags == 0u);
