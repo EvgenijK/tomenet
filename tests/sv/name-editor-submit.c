@@ -1526,6 +1526,20 @@ static int peer_run(void *opaque)
             push_key(SDLK_RETURN, 0);
         }
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (!strcmp(peer->mode,
+                       "auto-dna-ordered-shared-mode-backtrack")) {
+        static const SDL_Keycode order[] = {
+            SDLK_B, SDLK_A, SDLK_C, SDLK_D, SDLK_F, SDLK_E
+        };
+        push_automatic_dna();
+        for (unsigned i = 0; i < sizeof(order) / sizeof(order[0]); ++i) {
+            push_key(order[i], 0);
+            push_key(SDLK_RETURN, 0);
+        }
+        push_key(SDLK_BACKSPACE, 0);
+        push_dna();
+        push_automatic_dna();
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "auto-dna-ordered-suspend")) {
         push_automatic_dna();
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
@@ -2825,8 +2839,11 @@ int main(int argc, char **argv)
         !strcmp(argv[3], "auto-dna-shared-manual-advance");
     bool auto_shared_reentry =
         !strcmp(argv[3], "auto-dna-shared-backtrack-reentry");
+    bool auto_shared_mode_back =
+        !strcmp(argv[3], "auto-dna-ordered-shared-mode-backtrack");
     bool auto_ordered_mode_missing =
-        !strcmp(argv[3], "auto-dna-ordered-mode-missing");
+        !strcmp(argv[3], "auto-dna-ordered-mode-missing") ||
+        auto_shared_mode_back;
     bool auto_ordered_mode_illegal =
         !strcmp(argv[3], "auto-dna-ordered-mode-illegal");
     bool auto_ordered_dedicated =
@@ -3352,6 +3369,28 @@ int main(int argc, char **argv)
                outcome.birth_stats_order_count == 6);
         assert(!memcmp(outcome.birth_committed_stats, expected,
                        sizeof(expected)));
+        assert(!outcome.birth_mode_dna_used &&
+               !outcome.birth_mode_confirmed && !outcome.birth_mode_ready &&
+               outcome.birth_mode == SV_BIRTH_MODE_NONE &&
+               outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
+    } else if (!strcmp(argv[3],
+                       "auto-dna-ordered-shared-mode-backtrack")) {
+        static const int16_t expected_committed[] = {1, 0, 2, 3, 5, 4};
+        assert(outcome.creation_flags == 0u);
+        assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
+        assert(outcome.birth_illegal_ignored &&
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_dna_available);
+        assert(!outcome.birth_stats_point_buy);
+        assert(outcome.birth_stats_confirmed);
+        assert(!outcome.birth_stats_dna_used);
+        assert(outcome.birth_stats_order_count == 0);
+        assert(outcome.birth_legal_stat_count == 6);
+        assert(outcome.birth_highlighted_stat == 4);
+        assert(!memcmp(outcome.birth_stats, expected_committed,
+                       sizeof(expected_committed)));
+        assert(!memcmp(outcome.birth_committed_stats, expected_committed,
+                       sizeof(expected_committed)));
         assert(!outcome.birth_mode_dna_used &&
                !outcome.birth_mode_confirmed && !outcome.birth_mode_ready &&
                outcome.birth_mode == SV_BIRTH_MODE_NONE &&
