@@ -2176,7 +2176,7 @@ static int peer_run(void *opaque)
         push_mouse_race(420.0f, 2);
         push_mouse_trait(380.0f, 2);
         push_mouse_body(380.0f, 2);
-        push_mouse_class(340.0f, 2);
+        push_mouse_class(380.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "alternate-ctrl-quit")) {
         push_key(SDLK_RETURN, 0);

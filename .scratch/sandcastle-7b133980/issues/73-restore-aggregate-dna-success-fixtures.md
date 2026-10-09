@@ -94,6 +94,11 @@ aggregate; exact `missing`, `incompatible` и `stale` controls остаются 
 Тот же repair применён к трём point-buy DNA normalization variants
 (`illegal`, `over-budget`, `multiple-max`), которые подтверждают загруженные
 stats после owner-local normalization; `stats-point-dna-missing` остаётся false.
+Последующий полный tracer также исправил stale mouse-fixture в alternate order:
+class list сохраняет server-visible identities `[0, 2, 3]`, поэтому legal class
+`2` выбирается второй строкой, а не первой disabled строкой. Изменён только
+координатный setup реального SDL double-click; production mouse behavior и
+visible/legal semantics не ослаблены.
 
 При exact-HEAD проверке обнаружился не связанный с DNA fixture, но обязательный
 для полного gate дефект production native adapter. Authoritative profile setup
@@ -124,6 +129,11 @@ Red → green через тот же production seam:
   — unfiltered tracer дал **RED**, exit 1 / SIGABRT: false aggregate не позволял
   перейти к Mode; после fixture correction **GREEN**, exit 0 в обеих
   compile-order configurations.
+- `SV_BIRTH_CASE=alternate-mouse python3 -B tests/sv_name_editor_submit_checks.py`
+  — следующий unfiltered tracer дал **RED**, exit 1 / SIGABRT в alternate
+  compile order: double-click попадал в disabled visible class `0`, оставляя
+  legal highlight `2` неподтверждённым; после переноса double-click на строку
+  server identity `2` — **GREEN**, exit 0.
 
 Focused evidence:
 
@@ -143,6 +153,9 @@ Focused evidence:
   `stats-point-dna-multiple-max` и `stats-point-dna-missing` — **PASS**, exit 0,
   в обеих compile-order configurations; success variants сохраняют aggregate,
   missing control явно наблюдает false.
+- `alternate-mouse` — **PASS**, exit 0; реальный SDL double-click подтверждает
+  legal server identity `2` в alternate compile order, сохраняя disabled
+  visible identity `0` в production list.
 - `env -u SV_BIRTH_CASE bash .sandcastle/checks.sh core` — **PASS**, exit 0,
   на exact resolved-ticket HEAD; полный output сохранён в
   `/tmp/sandcastle-7b133980-ticket-73-sv-core-exact-head.log`. Runner завершил
