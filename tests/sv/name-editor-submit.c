@@ -2862,6 +2862,11 @@ int main(int argc, char **argv)
         !strcmp(argv[3], "auto-dna-ordered-mouse-dedicated");
     bool normalized_dna = !strcmp(argv[3], "stats-point-dna-illegal") ||
         !strcmp(argv[3], "auto-dna-stats-normalized");
+    bool hidden_derived_dna_success =
+        !strncmp(argv[3], "hidden-derived-dna", 18) &&
+        strcmp(argv[3], "hidden-derived-dna-missing") &&
+        strcmp(argv[3], "hidden-derived-dna-incompatible") &&
+        strcmp(argv[3], "hidden-derived-dna-stale");
     bool direct_dna_success = !strcmp(argv[3], "class-dna") ||
         !strcmp(argv[3], "race-dna") ||
         !strcmp(argv[3], "trait-dna") ||
@@ -2893,6 +2898,7 @@ int main(int argc, char **argv)
         .birth_dna_available = !strcmp(argv[3], "dna") ||
             !strcmp(argv[3], "altgr-dna") ||
             direct_dna_success ||
+            hidden_derived_dna_success ||
             trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             (automatic && !auto_missing_sex) ||
@@ -4718,11 +4724,13 @@ int main(int argc, char **argv)
 #endif
         assert(outcome.birth_class_confirmed && outcome.birth_race_confirmed);
         assert(outcome.birth_class_dna_used);
+        assert(outcome.birth_dna_available);
         assert(outcome.birth_class == 1 && outcome.birth_highlighted_class == 0);
     } else if (!strcmp(argv[3], "hidden-derived-dna-race-compatible")) {
         assert(outcome.birth_owner == SV_BIRTH_TRAIT && outcome.birth_quit);
         assert(outcome.birth_class_confirmed && outcome.birth_class_dna_used);
         assert(outcome.birth_race_confirmed && outcome.birth_race_dna_used);
+        assert(outcome.birth_dna_available);
         assert(outcome.birth_class == 1 && outcome.birth_highlighted_class == 0);
         assert(outcome.birth_race == 0 && outcome.birth_highlighted_race == 0);
         assert(!outcome.birth_illegal_ignored);
@@ -4734,7 +4742,8 @@ int main(int argc, char **argv)
         assert(outcome.birth_race == SV_BIRTH_RACE_NONE &&
                outcome.birth_highlighted_race == 0);
         assert(outcome.birth_illegal_ignored &&
-               !outcome.birth_auto_reincarnation);
+               !outcome.birth_auto_reincarnation &&
+               !outcome.birth_dna_available);
     } else if (!strcmp(argv[3], "hidden-derived-dna-race-refresh-trait")) {
         assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
         assert(outcome.birth_sex_confirmed &&
@@ -4824,6 +4833,7 @@ int main(int argc, char **argv)
                !strcmp(argv[3], "hidden-derived-dna-stale")) {
         assert(outcome.birth_owner == SV_BIRTH_CLASS && outcome.birth_quit);
         assert(!outcome.birth_class_confirmed && !outcome.birth_class_dna_used);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_class == SV_BIRTH_CLASS_NONE);
         assert(outcome.birth_highlighted_class == 0 &&
                outcome.birth_illegal_ignored);

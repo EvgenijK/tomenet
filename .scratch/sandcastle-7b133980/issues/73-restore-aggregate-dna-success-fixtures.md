@@ -88,14 +88,18 @@ seam `sv_endpoint_run(SvEndpointOptions)`. Commit `166bbe508f` сохранил 
 fixture repair: шесть direct DNA success scenarios и два companion success flow
 получают valid loaded-DNA aggregate вместе с owner-local fragment; missing,
 illegal и shared-invalidation controls сохраняют отказ и false aggregate.
+Последующий unfiltered tracer выявил тот же stale aggregate setup в 13
+`hidden-derived-dna*` success/mismatch flows. Они теперь также начинают с valid
+aggregate; exact `missing`, `incompatible` и `stale` controls остаются false.
 
 При exact-HEAD проверке обнаружился не связанный с DNA fixture, но обязательный
 для полного gate дефект production native adapter. Authoritative profile setup
 уже передавал `first_run=false`, а outcome содержал все шесть legal ordinary
 modes. SDL layout translation возвращала ASCII uppercase для Shift/Caps+letter,
 после чего `letter_key()` не распознавала identity вне lowercase `SDLK_A..Z`.
-SV-local `input/native-birth.c` теперь нормализует только переведённые ASCII
-`A..Z` в lowercase identity; регистр по-прежнему вычисляется из Shift/Caps.
+SV-local `input/native-birth.c` теперь только для mode owner нормализует
+переведённые ASCII `A..Z` в lowercase identity; регистр по-прежнему вычисляется
+из Shift/Caps. Остальные owners сохраняют прежнее отклонение uppercase bindings.
 Mode legality, case-sensitive binding semantics, protocol и legacy/shared
 gameplay не изменены.
 
@@ -109,6 +113,10 @@ Red → green через тот же production seam:
   **RED**, exit 1 / SIGABRT: legal-mode count был 6, но uppercase layout key
   отклонялся и highlight оставался Normal; после native identity normalization
   **GREEN**, exit 0 в обеих compile-order configurations.
+- `SV_BIRTH_CASE=hidden-derived-dna python3 -B tests/sv_name_editor_submit_checks.py`
+  — после первого recovery slice **RED**, exit 1 / SIGABRT: false aggregate
+  останавливал class DNA success; после aggregate fixture correction **GREEN**,
+  exit 0 в обеих compile-order configurations.
 
 Focused evidence:
 
@@ -119,6 +127,11 @@ Focused evidence:
   `case-sensitive-mode-dedicated-hellish` и
   `case-sensitive-shift-caps-class-binding` — **PASS**, exit 0, в обеих
   compile-order configurations.
+- `hidden-derived-dna`, `hidden-derived-dna-race-compatible`,
+  `hidden-derived-dna-race-mismatch`, representative race-refresh flow и exact
+  `missing/incompatible/stale` controls — **PASS**; inventoried configurations
+  выполнены тем же runner. Race mismatch подтверждает успешный class DNA до
+  необратимой aggregate invalidation на несовместимом race fragment.
 - `env -u SV_BIRTH_CASE bash .sandcastle/checks.sh core` — **PASS**, exit 0,
   на exact resolved-ticket HEAD; полный output сохранён в
   `/tmp/sandcastle-7b133980-ticket-73-sv-core-exact-head.log`. Runner завершил
