@@ -166,9 +166,6 @@ static bool legal_body(const SvBirth *birth, SvBirthBody body)
     if (body != SV_BIRTH_BODY_NORMAL && body != SV_BIRTH_BODY_FRUIT_BAT)
         return false;
     if (body == SV_BIRTH_BODY_FRUIT_BAT && birth->first_run) return false;
-    /* The baseline protocol defines only the traditional (0) and point-buy (1)
-       birth setups.  A different authoritative setup has no known body step. */
-    if (birth->setup->creation_flags > 1) return false;
     if (!legal_race(birth, birth->chosen_race)) return false;
 #if SV_CLASS_BEFORE_RACE
     if (!legal_class(birth, birth->chosen_visible_class)) return false;
@@ -205,6 +202,7 @@ static void leave_post_mode_trait(SvBirth *birth)
     birth->mode_ready = false;
 }
 
+#if !SV_CLASS_BEFORE_RACE
 static void enter_stats_or_mode(SvBirth *birth)
 {
     birth->owner = SV_BIRTH_STATS;
@@ -214,6 +212,7 @@ static void enter_stats_or_mode(SvBirth *birth)
         prepare_modes(birth);
     }
 }
+#endif
 
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
@@ -325,7 +324,8 @@ SvResult sv_birth_begin(SvBirth *birth, uint64_t generation,
                         bool dna_stats_available, const int16_t dna_stats[6],
                         bool dna_mode_available, SvBirthMode dna_mode)
 {
-    if (!birth || !generation || !setup || !server_flags || !dna_stats ||
+    if (!birth || !generation || !setup || setup->creation_flags > 1 ||
+        !server_flags || !dna_stats ||
         (dna_available && !legal_sex(dna_sex)))
         return SV_INVALID;
     *birth = (SvBirth){.generation = generation, .owner = SV_BIRTH_SEX,
@@ -658,20 +658,7 @@ static int body_position(const SvBirth *birth, SvBirthBody body)
 static void prepare_bodies(SvBirth *birth)
 {
     birth->legal_body_count = 0;
-    /* Do not give ownership to a choice surface for an unknown server setup. */
-    birth->body_skipped = birth->setup->creation_flags > 1;
-    if (birth->body_skipped) {
-        birth->highlighted_body = SV_BIRTH_BODY_NONE;
-        birth->chosen_body = SV_BIRTH_BODY_NONE;
-        birth->body_confirmed = false;
-#if SV_CLASS_BEFORE_RACE
-        enter_stats_or_mode(birth);
-#else
-        birth->owner = SV_BIRTH_CLASS;
-        prepare_classes(birth);
-#endif
-        return;
-    }
+    birth->body_skipped = false;
     birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_NORMAL;
     if (!birth->first_run)
         birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_FRUIT_BAT;

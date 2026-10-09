@@ -7,7 +7,8 @@ typedef enum { SV_LOGIN_INPUT_IGNORED, SV_LOGIN_INPUT_HANDLED,
                SV_LOGIN_INPUT_QUIT, SV_LOGIN_INPUT_NAME_STARTED,
                SV_LOGIN_INPUT_NAME_CANCELLED,
                SV_LOGIN_INPUT_NAME_SUBMITTED,
-               SV_LOGIN_INPUT_NAME_SUGGESTED } SvLoginInputResult;
+               SV_LOGIN_INPUT_NAME_SUGGESTED,
+               SV_LOGIN_INPUT_CREATION_UNSUPPORTED } SvLoginInputResult;
 typedef enum { SV_LOGIN_COMMAND_QUIT, SV_LOGIN_COMMAND_CHOOSE,
                SV_LOGIN_COMMAND_ACK_MOTD, SV_LOGIN_COMMAND_CREATE_ORDINARY,
                SV_LOGIN_COMMAND_CREATE_EXCLUSIVE,
@@ -18,7 +19,8 @@ typedef enum { SV_LOGIN_TRANSITION_NONE, SV_LOGIN_TRANSITION_OVERVIEW,
 typedef struct {
     SvLogin *login;
     const char *default_character;
-    bool skip_motd, first_run, overview_seen, selected_seen, motd_complete;
+    bool skip_motd, first_run, creation_supported;
+    bool overview_seen, selected_seen, motd_complete;
     bool ordinary_name_active;
     bool dedicated_creation;
     uint32_t dedicated_mode_flags;
@@ -30,7 +32,7 @@ typedef struct {
 
 void sv_login_interaction_begin(SvLoginInteraction *input, SvLogin *login,
                                 const char *default_character, bool skip_motd,
-                                bool first_run);
+                                bool first_run, uint32_t creation_flags);
 SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input);
 SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
                                                  SvLoginCommand command);

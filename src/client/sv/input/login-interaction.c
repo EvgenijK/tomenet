@@ -113,10 +113,11 @@ uint32_t sv_login_interaction_exclusive_modes(const SvLoginInteraction *input)
 
 void sv_login_interaction_begin(SvLoginInteraction *input, SvLogin *login,
                                 const char *default_character, bool skip_motd,
-                                bool first_run)
+                                bool first_run, uint32_t creation_flags)
 {
     *input = (SvLoginInteraction){.login = login, .default_character = default_character,
-                                   .skip_motd = skip_motd, .first_run = first_run};
+                                   .skip_motd = skip_motd, .first_run = first_run,
+                                   .creation_supported = creation_flags <= 1};
 }
 
 SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
@@ -306,6 +307,10 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
     }
     if (state == SV_LOGIN_OVERVIEW) {
         if (command.kind == SV_LOGIN_COMMAND_QUIT) return SV_LOGIN_INPUT_QUIT;
+        if ((command.kind == SV_LOGIN_COMMAND_CREATE_ORDINARY ||
+             command.kind == SV_LOGIN_COMMAND_CREATE_EXCLUSIVE) &&
+            !input->creation_supported)
+            return SV_LOGIN_INPUT_CREATION_UNSUPPORTED;
         if (command.kind == SV_LOGIN_COMMAND_CREATE_ORDINARY &&
             sv_login_interaction_ordinary_available(input)) {
             sv_text_begin(&input->character_name, "", 15, false);
