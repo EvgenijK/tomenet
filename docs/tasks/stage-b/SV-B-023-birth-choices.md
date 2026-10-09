@@ -47,19 +47,19 @@ name, birth, partial или completed-character packet.
 | `capability.birth.stats` | Complete the stats choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-stats`, `source.policy.session` |
 | `capability.birth.mode` | Complete the mode choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-mode`, `source.policy.session` |
 | `capability.birth.quit` | Q or Ctrl-Q terminates creation through baseline quit/retry handling without sending a completed character. | `source.baseline.session-birth`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-race` | Backspace from race returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-race`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-trait` | Backspace from trait returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-trait`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-class` | Backspace from class returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-class`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-body` | Backspace from body returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-body`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-stats` | Backspace from stats returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-stats`, `source.baseline.session-dna`, `source.policy.session` |
-| `capability.birth.backtrack-mode` | Backspace from mode returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-mode`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-race` | Backspace from race returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-race`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-trait` | Backspace from trait returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-trait`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-class` | Backspace from class returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-class`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-body` | Backspace from body returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-body`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-stats` | Backspace from stats returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-stats`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-mode` | Backspace from mode returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-mode`, `source.baseline.session-dna`, `source.policy.session` |
 <!-- owned-capabilities:end -->
 
 ## Production SV проверки
 
 1. Каждый legal/illegal/random choice и server-provided list, highlighted stable
    identity, keyboard/mouse navigation, confirm и quit.
-2. Оба compile orders, skipped unavailable trait, dedicated IDDC/PvP и
+2. Оба compile orders, skipped unavailable trait/body, dedicated IDDC/PvP и
    post-mode PvP Maia return; Backspace не отправляет completed packet.
 3. Interleaved network/focus/resize не меняет owner или selection; disconnect и
    stale generation запрещают дальнейший send.
