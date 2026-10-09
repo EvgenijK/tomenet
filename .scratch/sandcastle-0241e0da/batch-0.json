@@ -1,0 +1,55 @@
+{
+  "tickets": [
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md",
+      "blockedBy": [],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/02-versioned-handshake.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md"
+      ],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/03-dedicated-completion.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md"
+      ],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/04-single-submission.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md"
+      ],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/05-authoritative-reply.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md"
+      ],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/06-guide-motd-handoff.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/01-complete-handshake.md"
+      ],
+      "findingIds": []
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/07-runtime-audit.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/02-versioned-handshake.md",
+        ".scratch/sandcastle-0241e0da/issues/03-dedicated-completion.md",
+        ".scratch/sandcastle-0241e0da/issues/04-single-submission.md",
+        ".scratch/sandcastle-0241e0da/issues/05-authoritative-reply.md",
+        ".scratch/sandcastle-0241e0da/issues/06-guide-motd-handoff.md"
+      ],
+      "findingIds": []
+    }
+  ]
+}
