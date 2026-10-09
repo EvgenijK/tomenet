@@ -61,6 +61,43 @@ test("completion also requires resolved Markdown and a persisted Answer", () => 
   validateTicketCompletion("**Status:** resolved\n\n## Answer\nImplemented and verified", path("22"));
 });
 
+const canonicalImplementation = [
+  "Type: implementation",
+  "Tracker role: Wayfinder planning/execution history for canonical [SV-B-023](../../../docs/tasks/stage-b/SV-B-023-birth-choices.md); this child does not own Stage B capability IDs.",
+  "Status: resolved",
+  "Labels: enhancement, ready-for-agent",
+  "",
+  "## Answer",
+  "Implemented and verified",
+].join("\n");
+
+test("completed implementation requires a canonical non-owning Tracker role", () => {
+  const withoutRole = canonicalImplementation.replace(/^Tracker role:.*\n/m, "");
+  assert.throws(() => validateTicketCompletion(withoutRole, path("22")), /canonical Tracker role/);
+
+  const mismatchedRole = canonicalImplementation.replace("[SV-B-023]", "[SV-B-099]");
+  assert.throws(() => validateTicketCompletion(mismatchedRole, path("22")), /canonical Tracker role/);
+});
+
+test("focused coverage completion cannot bypass metadata checks by losing Type", () => {
+  const focusedWithoutTypeOrRole = canonicalImplementation
+    .replace(/^Type:.*\n/m, "")
+    .replace(/^Tracker role:.*\n/m, "");
+  assert.throws(() => validateTicketCompletion(focusedWithoutTypeOrRole, path("22-focused-test-coverage")), /canonical Tracker role/);
+});
+
+test("completed implementation requires exactly one standard triage-state label", () => {
+  const withoutTriageState = canonicalImplementation.replace("Labels: enhancement, ready-for-agent", "Labels: enhancement");
+  assert.throws(() => validateTicketCompletion(withoutTriageState, path("22")), /exactly one standard triage-state label/);
+
+  const conflictingStates = canonicalImplementation.replace("Labels: enhancement, ready-for-agent", "Labels: enhancement, needs-triage, ready-for-agent");
+  assert.throws(() => validateTicketCompletion(conflictingStates, path("22")), /exactly one standard triage-state label/);
+});
+
+test("completed implementation accepts canonical tracker and triage metadata", () => {
+  validateTicketCompletion(canonicalImplementation, path("22"));
+});
+
 test("focused coverage ticket is non-owning canonical history with a triage state", () => {
   const content = focusedTestTicketContents({ specPath: "docs/tasks/stage-b/SV-B-023-birth-choices.md" }, 64);
   assert.match(content, /^# 64: Verify focused production coverage$/m);

@@ -1,5 +1,30 @@
 import { basename, isAbsolute } from "node:path";
 
+const TRIAGE_STATE_LABELS = new Set(["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"]);
+
+function fieldValue(content, field) {
+  return content.match(new RegExp(`^\\*{0,2}${field}:\\*{0,2}\\s*(.+?)\\s*$`, "mi"))?.[1];
+}
+
+function hasCanonicalTrackerRole(content) {
+  const role = fieldValue(content, "Tracker role");
+  const match = role?.match(/^Wayfinder planning\/execution history for canonical \[([^\]]+)\]\(\.\.\/\.\.\/\.\.\/([^\)]+)\); this child does not own (.+) capability IDs\.$/);
+  if (!match) return false;
+
+  const [, recordedId, specPath, recordedOwnership] = match;
+  if (isAbsolute(specPath) || specPath.split("/").includes("..") || !specPath.endsWith(".md")) return false;
+  const specName = basename(specPath, ".md");
+  const canonicalId = specName.match(/^[A-Z]+-[A-Z]+-\d+/)?.[0] ?? specName;
+  const stage = specPath.match(/(?:^|\/)stage-([^/]+)(?:\/|$)/i)?.[1]?.toUpperCase();
+  const ownership = stage ? `Stage ${stage}` : "canonical task";
+  return recordedId === canonicalId && recordedOwnership === ownership;
+}
+
+function hasSingleTriageStateLabel(content) {
+  const labels = fieldValue(content, "Labels")?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];
+  return labels.filter((label) => TRIAGE_STATE_LABELS.has(label)).length === 1;
+}
+
 export function focusedTestTicketContents(state, number) {
   const specPath = state?.specPath;
   if (typeof specPath !== "string" || !specPath || isAbsolute(specPath) || specPath.split("/").includes("..")) throw new Error(`Invalid canonical spec path: ${specPath}`);
@@ -45,4 +70,9 @@ export function recordTicketResult(state, ticket, result) {
 
 export function validateTicketCompletion(content, path) {
   if (!/^\*{0,2}Status:\*{0,2}\s*resolved\s*$/mi.test(content) || !/^## Answer\s*$/m.test(content)) throw new Error(`Completed result requires resolved ticket and Answer: ${path}`);
+  const metadata = content.split(/^## Answer\s*$/m, 1)[0];
+  const isFocusedCoverage = /(?:^|\/)\d+-focused-test-coverage\.md$/.test(path);
+  if (fieldValue(metadata, "Type")?.toLowerCase() !== "implementation" && !isFocusedCoverage) return;
+  if (!hasCanonicalTrackerRole(metadata)) throw new Error(`Completed implementation ticket requires canonical Tracker role: ${path}`);
+  if (!hasSingleTriageStateLabel(metadata)) throw new Error(`Completed implementation ticket requires exactly one standard triage-state label: ${path}`);
 }
