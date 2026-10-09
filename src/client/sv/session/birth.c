@@ -916,11 +916,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
         birth->stats_random_used = true;
         return SV_BIRTH_INPUT_CONFIRMED;
     case SV_BIRTH_DNA:
-        if (!birth->stats_point_buy && birth->auto_reincarnation)
-            return SV_BIRTH_INPUT_HANDLED;
-        if (!birth->stats_point_buy || !birth->dna_stats_available) {
-            return invalidate_dna(birth);
-        }
+        if (!birth->stats_point_buy) return SV_BIRTH_INPUT_IGNORED;
+        if (!birth->dna_stats_available) return invalidate_dna(birth);
         for (unsigned i = 0; i < 6; ++i)
             birth->stats[i] = birth->dna_stats[i] >= 8 &&
                 birth->dna_stats[i] <= 17 ? birth->dna_stats[i] : 8;
