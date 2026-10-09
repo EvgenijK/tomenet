@@ -306,6 +306,8 @@ SvBirthInputResult sv_native_birth_event(SvBirth *birth, uint64_t generation,
          uppercase_letter(&event->key, event->key.key))))
         return apply(birth, generation, viewport,
             (SvBirthCommand){.kind = SV_BIRTH_QUIT}, true, false);
+    if (birth->owner == SV_BIRTH_MODE && key >= 'A' && key <= 'Z')
+        key += 'a' - 'A';
     if (birth->owner == SV_BIRTH_MODE && letter_key(key) &&
         letter_modifiers(&event->key)) {
         bool uppercase = uppercase_letter(&event->key, key);
