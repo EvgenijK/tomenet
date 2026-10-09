@@ -639,10 +639,17 @@ static uint32_t creation_flags_for_case(const char *mode)
 {
     if (!strcmp(mode, "unsupported-creation-ordinary")) return 4u;
     if (!strcmp(mode, "unsupported-creation-exclusive")) return 0x10u;
+    if (!strcmp(mode, "body-unavailable-mouse")) return 1u;
     if (!strncmp(mode, "stats-point-", 12)) return 1u;
     if (!strncmp(mode, "auto-dna-", 9) && !automatic_ordered_case(mode))
         return 1u;
     return 0u;
+}
+
+static bool body_unavailable_case(const char *mode)
+{
+    return !strcmp(mode, "body-unavailable-keyboard") ||
+        !strcmp(mode, "body-unavailable-mouse");
 }
 
 static bool explicit_ordered_dna_case(const char *mode)
@@ -918,6 +925,26 @@ static void send_setup(int socket, const char *mode)
     unsigned char setup[4096], *at = setup;
     put32(&at, 0);
     put16(&at, 20);
+    if (body_unavailable_case(mode)) {
+        *at++ = 1;
+        *at++ = 1;
+        unsigned char *size_at = at;
+        at += 4;
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Human", 6);
+        at += 6;
+        put32(&at, 1u);
+        memset(at, 50, 6);
+        at += 6;
+        memcpy(at, "Warrior", 8);
+        at += 8;
+        unsigned char *size_writer = size_at;
+        put32(&size_writer, (uint32_t)(at - setup));
+        assert(send(socket, setup, (size_t)(at - setup), 0) ==
+               (ssize_t)(at - setup));
+        return;
+    }
     if (!strcmp(mode, "class-random-empty")) {
         *at++ = 0;
         *at++ = 0;
@@ -1261,6 +1288,17 @@ static void send_overview(int socket, const char *mode)
           (!strcmp(mode, "mode-rpg") ||
            !strcmp(mode, "returning-empty-mode-rpg")) ? 0xc1u :
           pvp_maia_case(mode) ? 0x2c0u : 0xc0u);
+    if (body_unavailable_case(mode)) {
+        *at++ = PKT_LOGIN;
+        *at++ = 0;
+        *at++ = 0;
+        put16(&at, 0);
+        put16(&at, 0);
+        put16(&at, 0);
+        assert(send(socket, response, (size_t)(at - response), 0) ==
+               (ssize_t)(at - response));
+        return;
+    }
     if (pvp_maia_case(mode) || existing_character_case(mode)) {
         *at++ = PKT_LOGIN;
         put16(&at, 0);
@@ -1306,7 +1344,9 @@ static int peer_run(void *opaque)
     put32(&at, 2u | creation_flags_for_case(peer->mode));
     const uint32_t modern_version[6] = {4, 9, 4, 0, 0, 0};
     const uint32_t legacy_version[6] = {4, 7, 0, 2, 0, 0};
-    const uint32_t *version = legacy_hidden_class_case(peer->mode) ?
+    const uint32_t body_before_separate_step[6] = {4, 4, 1, 0, 0, 0};
+    const uint32_t *version = body_unavailable_case(peer->mode) ?
+        body_before_separate_step : legacy_hidden_class_case(peer->mode) ?
         legacy_version : modern_version;
     for (size_t i = 0; i < 6; ++i) put32(&at, version[i]);
     assert(send(socket, contact, sizeof(contact), 0) == (ssize_t)sizeof(contact));
@@ -1319,7 +1359,9 @@ static int peer_run(void *opaque)
     send_setup(socket, peer->mode);
 
     unsigned char login_start[8];
-    assert(exact(socket, login_start, sizeof(login_start)));
+    size_t login_start_size = body_unavailable_case(peer->mode) ? 2 :
+        sizeof(login_start);
+    assert(exact(socket, login_start, login_start_size));
     send_overview(socket, peer->mode);
     SDL_Delay(200);
     if (!strcmp(peer->mode, "unsupported-creation-ordinary"))
@@ -1360,7 +1402,22 @@ static int peer_run(void *opaque)
     const char *quit_owner = NULL;
     SDL_Keymod quit_modifier = SDL_KMOD_NONE;
     const char *lowercase_q_owner = NULL;
-    if (lowercase_q_matrix_case(peer->mode, &lowercase_q_owner)) {
+    if (body_unavailable_case(peer->mode)) {
+        bool mouse = !strcmp(peer->mode, "body-unavailable-mouse");
+        if (mouse) push_mouse_sex(360.0f, 1);
+        push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
+        if (mouse) push_mouse_class(340.0f, 1);
+        push_key(SDLK_RETURN, 0);
+        if (mouse) push_mouse_race(340.0f, 1);
+        push_key(SDLK_RETURN, 0);
+#else
+        if (mouse) push_mouse_race(340.0f, 1);
+        push_key(SDLK_RETURN, 0);
+#endif
+        push_key(SDLK_BACKSPACE, 0);
+        push_key(SDLK_Q, SDL_KMOD_SHIFT);
+    } else if (lowercase_q_matrix_case(peer->mode, &lowercase_q_owner)) {
         push_to_quit_owner(lowercase_q_owner);
         push_lowercase_q();
         push_key(SDLK_Q, SDL_KMOD_CTRL);
@@ -3210,6 +3267,32 @@ int main(int argc, char **argv)
         SV_PREGAME_DISCONNECTED : SV_PREGAME_BIRTH));
     assert(outcome.birth_entered);
     assert(outcome.birth_generation == outcome.generation);
+    if (body_unavailable_case(argv[3])) {
+        assert(outcome.creation_flags ==
+               (!strcmp(argv[3], "body-unavailable-mouse") ? 1u : 0u));
+        assert(outcome.birth_body_skipped && !outcome.birth_body_confirmed);
+        assert(outcome.birth_body_count == 0 &&
+               outcome.birth_legal_body_count == 0);
+        assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NONE &&
+               outcome.birth_body == SV_BIRTH_BODY_NONE);
+        assert(outcome.birth_trait_skipped &&
+               !outcome.birth_trait_confirmed);
+        assert(outcome.birth_sex_confirmed && outcome.birth_race_confirmed);
+        assert(outcome.birth_owner == SV_BIRTH_RACE && outcome.birth_quit);
+        assert(outcome.birth_highlighted_race == 0 && outcome.birth_race == 0);
+#if SV_CLASS_BEFORE_RACE
+        assert(outcome.birth_class_confirmed && outcome.birth_class == 0);
+        assert(outcome.birth_legal_stat_count == 6);
+#else
+        assert(!outcome.birth_class_confirmed &&
+               outcome.birth_class == SV_BIRTH_CLASS_NONE);
+        assert(outcome.birth_legal_class_count == 1 &&
+               outcome.birth_legal_classes[0] == 0);
+#endif
+        assert(outcome.birth_mouse_navigated ==
+               !strcmp(argv[3], "body-unavailable-mouse"));
+        return 0;
+    }
 #if SV_CLASS_BEFORE_RACE
     if (!strcmp(argv[3], "class-random-empty")) {
         assert(outcome.birth_legal_class_count == 0);

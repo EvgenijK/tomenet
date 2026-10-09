@@ -163,6 +163,7 @@ static bool legal_trait(const SvBirth *birth, int trait_id)
 
 static bool legal_body(const SvBirth *birth, SvBirthBody body)
 {
+    if (!birth->setup->body_step_available) return false;
     if (body != SV_BIRTH_BODY_NORMAL && body != SV_BIRTH_BODY_FRUIT_BAT)
         return false;
     if (body == SV_BIRTH_BODY_FRUIT_BAT && birth->first_run) return false;
@@ -202,7 +203,6 @@ static void leave_post_mode_trait(SvBirth *birth)
     birth->mode_ready = false;
 }
 
-#if !SV_CLASS_BEFORE_RACE
 static void enter_stats_or_mode(SvBirth *birth)
 {
     birth->owner = SV_BIRTH_STATS;
@@ -212,7 +212,6 @@ static void enter_stats_or_mode(SvBirth *birth)
         prepare_modes(birth);
     }
 }
-#endif
 
 static SvBirthInputResult confirm_sex(SvBirth *birth)
 {
@@ -658,7 +657,19 @@ static int body_position(const SvBirth *birth, SvBirthBody body)
 static void prepare_bodies(SvBirth *birth)
 {
     birth->legal_body_count = 0;
-    birth->body_skipped = false;
+    birth->body_skipped = !birth->setup->body_step_available;
+    if (birth->body_skipped) {
+        birth->highlighted_body = SV_BIRTH_BODY_NONE;
+        birth->chosen_body = SV_BIRTH_BODY_NONE;
+        birth->body_confirmed = false;
+#if SV_CLASS_BEFORE_RACE
+        enter_stats_or_mode(birth);
+#else
+        birth->owner = SV_BIRTH_CLASS;
+        prepare_classes(birth);
+#endif
+        return;
+    }
     birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_NORMAL;
     if (!birth->first_run)
         birth->legal_bodies[birth->legal_body_count++] = SV_BIRTH_BODY_FRUIT_BAT;
