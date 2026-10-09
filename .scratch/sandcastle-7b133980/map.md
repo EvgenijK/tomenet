@@ -100,3 +100,4 @@ immutable contract producer/verifier ownership. Wayfinder reconciliation не
 - [Декодировать hidden classes старых серверов](issues/69-decode-legacy-server-hidden-classes.md)
 - [Verify focused production coverage](issues/70-focused-test-coverage.md)
 - [Сохранить общий lifecycle валидности birth DNA](issues/71-enforce-shared-dna-validity-lifecycle.md)
+- [Verify focused production coverage](issues/72-focused-test-coverage.md)
