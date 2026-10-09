@@ -8,9 +8,9 @@
 
 **Blocked by:** 71: Сохранить общий lifecycle валидности birth DNA (completed).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-**Assignee:** unassigned
+**Assignee:** codex/sandcastle-7b133980-wave-50-1
 
 Labels: bug, ready-for-agent
 
@@ -18,10 +18,65 @@ Labels: bug, ready-for-agent
 
 **Production seam for repair verification:** публичный `sv_endpoint_run(SvEndpointOptions)` получает authoritative server-provided birth setup и loaded DNA fixture; реальные SDL `#` и последующие quit events проходят native birth adapter и публичную production birth-interaction/input-router boundary. `SvEndpointOutcome` наблюдает owner, confirmed value, DNA-used marker, aggregate availability и отсутствие запрещённых outbound bytes. Seam принят P1-AC03–P1-AC10, P1-AC26, P1-AC28 и P2-AC05; проверка — `sv-core`. Ticket меняет только setup production-path tests, а не production behavior или отдельную test-only реализацию.
 
-- [ ] Direct success scenarios `class-dna`, `race-dna`, `trait-dna`, `body-dna`, `stats-point-dna` и `mode-dna` объявляют валидным общий loaded DNA outcome вместе с нужным owner-local fragment; каждый реальный `#` снова подтверждает ожидаемое server identity/value через production seam в обеих compile-order configurations. [Contract: P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC10, P1-AC19, P1-AC26, P1-AC28, P2-AC04, P2-AC05; checks: `sv-core`]
-- [ ] Missing/illegal direct DNA controls сохраняют false aggregate либо отклоняются по своему intended owner-local constraint; scenarios из ticket 71 сохраняют необратимую общую invalidation после missing/illegal обязательного component, так что fixture repair не ослабляет production guard и не создаёт ложноположительных результатов. [Contract: P1-AC02, P1-AC03, P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC10, P1-AC26, P1-AC28, P2-AC04, P2-AC05; checks: `sv-core`]
-- [ ] До исправления хотя бы один затронутый direct success scenario воспроизводит rejection из-за false aggregate, а после исправления все шесть success scenarios и репрезентативные missing/illegal/shared-invalidation controls проходят через тот же production seam без изменения production-кода, legacy/shared gameplay или протокольной семантики. [Contract: P1-AC03, P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC26, P1-AC28, P2-AC01, P2-AC04, P2-AC05, P2-AC09; checks: `sv-core`, `controller-review`]
+- [x] Direct success scenarios `class-dna`, `race-dna`, `trait-dna`, `body-dna`, `stats-point-dna` и `mode-dna` объявляют валидным общий loaded DNA outcome вместе с нужным owner-local fragment; каждый реальный `#` снова подтверждает ожидаемое server identity/value через production seam в обеих compile-order configurations. [Contract: P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC10, P1-AC19, P1-AC26, P1-AC28, P2-AC04, P2-AC05; checks: `sv-core`]
+- [x] Missing/illegal direct DNA controls сохраняют false aggregate либо отклоняются по своему intended owner-local constraint; scenarios из ticket 71 сохраняют необратимую общую invalidation после missing/illegal обязательного component, так что fixture repair не ослабляет production guard и не создаёт ложноположительных результатов. [Contract: P1-AC02, P1-AC03, P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC10, P1-AC26, P1-AC28, P2-AC04, P2-AC05; checks: `sv-core`]
+- [x] До исправления хотя бы один затронутый direct success scenario воспроизводит rejection из-за false aggregate, а после исправления все шесть success scenarios и репрезентативные missing/illegal/shared-invalidation controls проходят через тот же production seam без изменения production-кода, legacy/shared gameplay или протокольной семантики. [Contract: P1-AC03, P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC26, P1-AC28, P2-AC01, P2-AC04, P2-AC05, P2-AC09; checks: `sv-core`, `controller-review`]
 - [ ] На exact repair HEAD выполняется полный unfiltered `sv-core` с явно снятой переменной `SV_BIRTH_CASE`; сохраняется полный output, доказывающий запуск всего inventoried scenario set, успешное завершение обеих compile-order configurations и отсутствие compiler, sanitizer или assertion failures. Focused-only запуск не выдаётся за эту проверку. [Contract: P1-AC02, P1-AC03, P1-AC04, P1-AC05, P1-AC06, P1-AC07, P1-AC08, P1-AC09, P1-AC10, P1-AC19, P1-AC20, P1-AC21, P1-AC22, P1-AC24, P1-AC25, P1-AC28, P2-AC04, P2-AC05; checks: `sv-core`]
-- [ ] Repair не добавляет DNA persistence, `birth.restore-dna`, `birth.save-dna`, final completed-character send, fixed-response wizard или test-only behavior implementation; новые unrelated improvement opportunities только записываются отдельно с обязательными полями и не входят в этот ticket. [Contract: P1-AC26, P1-AC27, P1-AC28, P1-AC29, P2-AC01, P2-AC02, P2-AC03, P2-AC05, P2-AC06, P2-AC07, P2-AC08, P2-AC09; checks: `controller-review`]
+- [x] Repair не добавляет DNA persistence, `birth.restore-dna`, `birth.save-dna`, final completed-character send, fixed-response wizard или test-only behavior implementation; новые unrelated improvement opportunities только записываются отдельно с обязательными полями и не входят в этот ticket. [Contract: P1-AC26, P1-AC27, P1-AC28, P1-AC29, P2-AC01, P2-AC02, P2-AC03, P2-AC05, P2-AC06, P2-AC07, P2-AC08, P2-AC09; checks: `controller-review`]
 
 **Deferred check:** `P1-birth-runtime-evidence` / P1-AC30 остаётся deferred у named full-acceptance producer/verifier и не считается пройденным этим fixture/evidence repair; native evidence собирается только на exact accepted contract digest `690a04cefb7fd0e1615dce46d1a538e1dcbd856232af1a1373be93f987095c82` и exact accepted HEAD.
+
+## Comments
+
+- 2026-10-09: Claimed by `codex/sandcastle-7b133980-wave-50-1`.
+  Confirmed the ticket-approved production seam `sv_endpoint_run(SvEndpointOptions)`
+  before changing the fixture.
+
+## Progress
+
+Исправлен только production-path test setup. Шесть прямых success fixtures
+(`class-dna`, `race-dna`, `trait-dna`, `body-dna`, `stats-point-dna`,
+`mode-dna`) теперь передают общий valid loaded-DNA aggregate вместе со своим
+owner-local fragment. Их assertions дополнительно наблюдают сохранённую общую
+availability через `SvEndpointOutcome`. Missing/illegal controls явно проверяют
+false aggregate после отказа; сценарии общей необратимой invalidation из ticket
+71 остались без изменений. Та же fixture correction применена к двум companion
+success flows (`mode-dedicated-dna` и post-mode DNA trait), найденным обязательным
+unfiltered matrix; reject controls не расширены. Production, legacy/shared
+gameplay и protocol code не менялись.
+
+Production seam: публичный `sv_endpoint_run(SvEndpointOptions)`. Authoritative
+setup и loaded DNA поступают в endpoint, реальный SDL `#` проходит native birth
+adapter и production birth-interaction/input-router boundary, а outcome наблюдает
+owner, confirmed server identity/value, DNA-used marker и aggregate availability.
+Controlled peer по-прежнему требует отсутствие запрещённых outbound bytes.
+
+Red → green:
+
+- `SV_BIRTH_CASE=class-dna python3 -B tests/sv_name_editor_submit_checks.py`
+  — **RED**, exit 1 / SIGABRT: `birth_class_confirmed` оставался false из-за
+  false aggregate; после fixture repair — **GREEN**, exit 0.
+
+Focused verification:
+
+- Все шесть direct success cases тем же runner — **PASS**, exit 0 в обеих
+  compile-order configurations.
+- `class-dna-incompatible`, `race-dna-missing`, `trait-dna-incompatible`,
+  `body-dna-missing`, `stats-point-dna-missing`, `mode-dna-missing`,
+  `auto-dna-shared-manual-advance` и `auto-dna-shared-backtrack-reentry` —
+  **PASS**, exit 0; shared-invalidation cases выполнены в обеих configurations.
+- `env -u SV_BIRTH_CASE bash .sandcastle/checks.sh core` на exact committed
+  repair HEAD — DNA success/invalidation matrix проходит исправленные места,
+  но полный gate **FAIL**, exit 1 позже на unrelated existing scenario
+  `case-sensitive-mode-ordinary-hellish`: assertion
+  `birth_highlighted_mode == SV_BIRTH_MODE_HELLISH`. Та же ошибка воспроизводится
+  focused. Полный output сохранён в
+  `/tmp/sandcastle-7b133980-ticket-73-sv-core.log`; обе compile-order
+  configurations поэтому не завершены, и full check не объявляется пройденным.
+- `git diff --check` — **PASS**.
+
+Unrelated blocker записан отдельно в `docs/sv-improvements.md`; его исправление
+не включено в DNA fixture repair. Полный build/review workflow не запускался;
+его выполняет orchestrator. `P1-birth-runtime-evidence`
+/ P1-AC30 остаётся **deferred; not run** у named full-acceptance owner на exact
+accepted contract digest и HEAD.

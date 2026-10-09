@@ -334,6 +334,7 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
                  "alternate-visible-class-viewport",
                  "alternate-random", "level5-random", "altgr-dna",
                  "alternate-dna",
+                 "class-dna", "race-dna", "trait-dna", "body-dna",
                  "alternate-class-dna-incompatible", "class-random-empty",
                  "hidden-derived",
                  "hidden-derived-base-mismatch",

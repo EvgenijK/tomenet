@@ -2434,8 +2434,10 @@ static int peer_run(void *opaque)
         !strcmp(peer->mode, "body-dna-stale") ||
         !strcmp(peer->mode, "body-dna-missing")) {
         push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
+#endif
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_B, 0);
@@ -2527,8 +2529,10 @@ static int peer_run(void *opaque)
         !strcmp(peer->mode, "trait-dna-stale") ||
         !strcmp(peer->mode, "trait-dna-missing")) {
         push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
+#endif
         push_key(SDLK_C, 0);
         push_key(SDLK_RETURN, 0);
         push_dna();
@@ -2725,8 +2729,10 @@ static int peer_run(void *opaque)
         !strcmp(peer->mode, "race-dna-stale") ||
         !strcmp(peer->mode, "race-dna-missing")) {
         push_key(SDLK_RETURN, 0);
+#if SV_CLASS_BEFORE_RACE
         push_key(SDLK_B, 0);
         push_key(SDLK_RETURN, 0);
+#endif
         push_dna();
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "race-random")) {
@@ -2767,6 +2773,12 @@ static int peer_run(void *opaque)
                !strcmp(peer->mode, "class-dna-incompatible") ||
                !strcmp(peer->mode, "class-dna-stale")) {
         push_key(SDLK_RETURN, 0);
+#if !SV_CLASS_BEFORE_RACE
+        push_key(SDLK_C, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+        push_key(SDLK_RETURN, 0);
+#endif
         push_dna();
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "class-back")) {
@@ -2850,6 +2862,15 @@ int main(int argc, char **argv)
         !strcmp(argv[3], "auto-dna-ordered-mouse-dedicated");
     bool normalized_dna = !strcmp(argv[3], "stats-point-dna-illegal") ||
         !strcmp(argv[3], "auto-dna-stats-normalized");
+    bool direct_dna_success = !strcmp(argv[3], "class-dna") ||
+        !strcmp(argv[3], "race-dna") ||
+        !strcmp(argv[3], "trait-dna") ||
+        !strcmp(argv[3], "body-dna") ||
+        !strcmp(argv[3], "stats-point-dna") ||
+        !strcmp(argv[3], "mode-dna") ||
+        !strcmp(argv[3], "mode-dedicated-dna") ||
+        !strcmp(argv[3],
+            "unknown-setup-exclusive-pvp-maia-no-post-traits");
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
     assert(peer.listener >= 0);
     int reuse = 1;
@@ -2871,6 +2892,7 @@ int main(int argc, char **argv)
         .real_name = "PLAYER", .outcome = &outcome,
         .birth_dna_available = !strcmp(argv[3], "dna") ||
             !strcmp(argv[3], "altgr-dna") ||
+            direct_dna_success ||
             trait_hidden_dna_case(argv[3]) ||
             legacy_hidden_death_dna_case(argv[3]) ||
             (automatic && !auto_missing_sex) ||
@@ -3972,6 +3994,7 @@ int main(int argc, char **argv)
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode_dna_used);
+        assert(outcome.birth_dna_available);
         assert(outcome.birth_mode == SV_BIRTH_MODE_DEDICATED_PVP);
     } else if (pvp_maia_no_post_traits_case(argv[3])) {
         bool unknown = !strncmp(argv[3], "unknown-setup-", 14);
@@ -4011,6 +4034,7 @@ int main(int argc, char **argv)
                            "unknown-setup-exclusive-pvp-maia-no-post-traits")) {
             assert(outcome.birth_owner == SV_BIRTH_READY);
             assert(outcome.birth_mode_confirmed && outcome.birth_mode_ready);
+            assert(outcome.birth_dna_available);
             assert(outcome.birth_trait_dna_used &&
                    outcome.birth_trait == 2 &&
                    outcome.birth_highlighted_trait == 2 &&
@@ -4171,11 +4195,13 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "mode-dna")) {
         assert(outcome.birth_mode_ready && outcome.birth_mode_confirmed);
         assert(outcome.birth_mode_dna_used);
+        assert(outcome.birth_dna_available);
         assert(outcome.birth_mode == SV_BIRTH_MODE_EVERLASTING);
         assert(outcome.birth_owner == SV_BIRTH_READY && outcome.birth_quit);
     } else if (!strcmp(argv[3], "mode-dna-missing")) {
         assert(!outcome.birth_mode_ready && !outcome.birth_mode_confirmed);
         assert(!outcome.birth_mode_dna_used && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_highlighted_mode == SV_BIRTH_MODE_NORMAL);
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
     } else if (!strcmp(argv[3], "mode-ordinary-ready")) {
@@ -4251,6 +4277,7 @@ int main(int argc, char **argv)
         static const int16_t expected[] = {17, 14, 12, 10, 9, 8};
         assert(outcome.birth_owner == SV_BIRTH_MODE && outcome.birth_quit);
         assert(outcome.birth_stats_confirmed && outcome.birth_stats_dna_used);
+        assert(outcome.birth_dna_available);
         assert(!memcmp(outcome.birth_stats, expected, sizeof(expected)));
         assert(outcome.birth_stats_remaining == 9);
     } else if (!strcmp(argv[3], "stats-point-dna-illegal")) {
@@ -4286,6 +4313,7 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "stats-point-dna-missing")) {
         assert(outcome.birth_owner == SV_BIRTH_STATS && outcome.birth_quit);
         assert(!outcome.birth_stats_confirmed && !outcome.birth_stats_dna_used);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_highlighted_stat == 0);
         for (unsigned i = 0; i < 6; ++i) assert(outcome.birth_stats[i] == 10);
         assert(outcome.birth_stats_remaining == 30 &&
@@ -4547,12 +4575,19 @@ int main(int argc, char **argv)
         assert(!outcome.birth_trait_confirmed && outcome.birth_trait == SV_BIRTH_TRAIT_NONE);
         assert(outcome.birth_quit);
     } else if (!strcmp(argv[3], "body-dna")) {
-        assert(outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_STATS);
+        assert(outcome.birth_body_confirmed && outcome.birth_owner ==
+#if SV_CLASS_BEFORE_RACE
+               SV_BIRTH_STATS);
+#else
+               SV_BIRTH_CLASS);
+#endif
         assert(outcome.birth_body_dna_used);
+        assert(outcome.birth_dna_available);
         assert(outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
     } else if (!strncmp(argv[3], "body-dna-", 9)) {
         assert(!outcome.birth_body_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
         assert(!outcome.birth_body_dna_used && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_highlighted_body == SV_BIRTH_BODY_NORMAL);
         assert(outcome.birth_body == SV_BIRTH_BODY_NONE && outcome.birth_quit);
     } else if (!strcmp(argv[3], "body-random")) {
@@ -4614,9 +4649,11 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "trait-dna")) {
         assert(outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_BODY);
         assert(outcome.birth_trait_dna_used && outcome.birth_trait == 2);
+        assert(outcome.birth_dna_available);
     } else if (!strncmp(argv[3], "trait-dna-", 10)) {
         assert(!outcome.birth_trait_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
         assert(!outcome.birth_trait_dna_used && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_class == 2 && outcome.birth_race == 2);
         assert(outcome.birth_highlighted_trait == 1);
         assert(outcome.birth_trait == SV_BIRTH_TRAIT_NONE && outcome.birth_quit);
@@ -4838,9 +4875,11 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[3], "race-dna")) {
         assert(outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_TRAIT);
         assert(outcome.birth_race_dna_used && outcome.birth_race == 2);
+        assert(outcome.birth_dna_available);
     } else if (!strncmp(argv[3], "race-dna-", 9)) {
         assert(!outcome.birth_race_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
         assert(!outcome.birth_race_dna_used && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_class == 2);
         assert(outcome.birth_highlighted_race == 0);
         assert(outcome.birth_race == SV_BIRTH_RACE_NONE && outcome.birth_quit);
@@ -4873,8 +4912,14 @@ int main(int argc, char **argv)
         assert(outcome.birth_class_random_used);
         assert(outcome.birth_class == 0 || outcome.birth_class == 2);
     } else if (!strcmp(argv[3], "class-dna")) {
-        assert(outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_RACE);
+        assert(outcome.birth_class_confirmed && outcome.birth_owner ==
+#if SV_CLASS_BEFORE_RACE
+               SV_BIRTH_RACE);
+#else
+               SV_BIRTH_STATS);
+#endif
         assert(outcome.birth_class_dna_used && outcome.birth_class == 2);
+        assert(outcome.birth_dna_available);
     } else if (!strcmp(argv[3], "class-back")) {
         assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_SEX);
         assert(outcome.birth_highlighted_class == 2);
@@ -4882,6 +4927,7 @@ int main(int argc, char **argv)
     } else if (!strncmp(argv[3], "class-dna-", 10)) {
         assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
         assert(!outcome.birth_class_dna_used && outcome.birth_illegal_ignored);
+        assert(!outcome.birth_dna_available);
         assert(outcome.birth_highlighted_class == 0 && outcome.birth_quit);
     } else if (!strcmp(argv[3], "class-ctrl-quit")) {
         assert(!outcome.birth_class_confirmed && outcome.birth_owner == SV_BIRTH_CLASS);
