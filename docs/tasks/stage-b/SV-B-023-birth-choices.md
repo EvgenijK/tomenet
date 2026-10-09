@@ -69,6 +69,7 @@ dedicated/exclusive creation в обоих compile orders и подтвержд�
    stale generation запрещают дальнейший send.
 4. Каждый достижимый Guide entry показывает ровно `The guide is in development`
    и возвращает тот же birth caller без Guide state/network operation.
+
 ## Definition of Done
 
 Все ветви идут через production interaction state и input router; fixed-response
