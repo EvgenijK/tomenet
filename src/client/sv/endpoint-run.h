@@ -37,7 +37,7 @@ typedef struct {
     char name_rejection_reason[256];
     bool birth_entered, birth_sex_confirmed, birth_keyboard_navigated;
     bool birth_mouse_navigated, birth_random_used, birth_dna_used;
-    bool birth_illegal_ignored, birth_auto_reincarnation;
+    bool birth_illegal_ignored, birth_auto_reincarnation, birth_dna_available;
     bool birth_quit, birth_active, birth_closed;
     bool birth_class_confirmed, birth_class_random_used, birth_class_dna_used;
     bool birth_race_confirmed, birth_race_random_used, birth_race_dna_used;

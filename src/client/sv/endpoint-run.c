@@ -275,6 +275,8 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
                                    .birth_illegal_ignored = birth && birth->illegal_ignored,
                                    .birth_auto_reincarnation = birth &&
                                        birth->auto_reincarnation,
+                                   .birth_dna_available = birth &&
+                                       birth->dna_available,
                                    .birth_quit = birth && birth->quit,
                                    .birth_active = birth && birth->active,
                                    .birth_closed = birth && birth->closed,
