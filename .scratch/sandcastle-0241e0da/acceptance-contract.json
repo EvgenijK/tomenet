@@ -1,0 +1,380 @@
+{
+  "contract": {
+    "version": 1,
+    "completionScope": "implementation",
+    "criteria": [
+      {
+        "id": "P1-ac1",
+        "requirement": "1. After all required creation steps and dedicated mode adjustments, submit the complete versioned creation/play handshake exactly once and wait for authoritative play acknowledgement.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-build",
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "| `capability.birth.complete` | Only after all required creation steps and dedicated mode adjustments submit final identity, stats, options, geometry and graphics/resource handshake and wait for play acknowledgement. | `source.baseline.session-play`, `source.baseline.session-dna`, `source.baseline.session-setup`, `source.policy.session` |"
+        }
+      },
+      {
+        "id": "P1-ac2",
+        "requirement": "2. Use production defaults and identity bytes required by the baseline outcome.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "Handshake использует production defaults/identity bytes, требуемые полным"
+        }
+      },
+      {
+        "id": "P1-ac3",
+        "requirement": "3. Verify exact bytes and version gates for final identity, stats, options, geometry, graphics, font/resource fields and dedicated adjustments through the production SV serializer. Controller review and fresh final audit must establish production-path evidence; baseline runner success alone does not establish this evidence.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "font/resource fields и dedicated adjustments через production serializer."
+        }
+      },
+      {
+        "id": "P1-ac4",
+        "requirement": "4. Send no final request before all legal creation steps complete; double confirm, resize, focus and interleaved packets must not duplicate the final request.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "2. До завершения всех legal steps send отсутствует; double confirm, resize,"
+        }
+      },
+      {
+        "id": "P1-ac5",
+        "requirement": "5. Acknowledgement, rejection, disconnect, partial replies and malformed replies return control to the correct owner; stale generations never open the next surface.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "правильный owner; stale generation никогда не открывает следующий surface."
+        }
+      },
+      {
+        "id": "P1-ac6",
+        "requirement": "6. Fulfil the Guide placeholder obligation through the actual production caller, without substituting Guide implementation or a test-only callback. Controller review and fresh final audit verify this production seam.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "4. Guide placeholder obligation выполняется через actual caller, не через Guide"
+        }
+      },
+      {
+        "id": "P1-ac7",
+        "requirement": "7. After authoritative acknowledgement, peer-driven MOTD leads to live-session handoff without opening a gameplay surface.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "MOTD ведёт в live-session handoff, не в gameplay surface."
+        }
+      },
+      {
+        "id": "P1-ac8",
+        "requirement": "8. Provide controlled-peer runtime evidence showing the exact handshake bytes and authoritative acknowledgement. Implementation readiness or baseline check success alone does not satisfy this full-acceptance evidence requirement; the controller verifies it during review and fresh final audit.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "Controlled peer видит точные bytes и authoritative acknowledgement. Успех"
+        }
+      },
+      {
+        "id": "P1-ac9",
+        "requirement": "9. Preserve the dependency on SV-B-023 birth choices and the historical ticket filename for references; DNA load/save remains owned by stage C and is outside this implementation.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024; stage C owns DNA load/save",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "сохранено для ссылок; DNA load/save в этом тикете больше нет и относится к C."
+        }
+      },
+      {
+        "id": "P1-ac10",
+        "requirement": "10. Keep profile/resource workflows, real-server integration, session.enter-game and the first gameplay surface outside SV-B-024 acceptance; these remain stage C responsibilities. Handshake resource fields remain required.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024; stage C owns the excluded workflows and integration",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "integration, `session.enter-game` или первый gameplay surface — они остаются C."
+        }
+      },
+      {
+        "id": "P1-ac11",
+        "requirement": "11. End successful SV-B-024 acceptance at the startup screen flow boundary; gameplay presentation is not required.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "заканчивается на границе startup screen flow; gameplay presentation не требуется."
+        }
+      },
+      {
+        "id": "P1-ac12",
+        "requirement": "12. Preserve SV-B-025 ownership of the end-to-end entry verification. Its deferred evidence is not passing evidence for this checkpoint.",
+        "mandatory": true,
+        "applicability": "deferred",
+        "deferralReason": "The assigned source places end-to-end verification in the downstream SV-B-025 ticket; this checkpoint covers SV-B-024 birth completion.",
+        "owner": "SV-B-025",
+        "checkIds": [
+          "P1-entry-evidence"
+        ],
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-024-birth-dna.md",
+          "quote": "Сквозная проверка — [SV-B-025](SV-B-025-entry-complete.md)."
+        }
+      },
+      {
+        "id": "P2-1",
+        "requirement": "1. Minimize changes to the existing client and shared files when implementing this SV task.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Правило пользователя от 2026-09-22: при разработке SV минимизировать изменения"
+        }
+      },
+      {
+        "id": "P2-2",
+        "requirement": "2. Place implementation and adaptation in SV where possible. Permit duplication that preserves isolation and avoids a large dependency set; extract shared code only when needed for this task, rather than solely to eliminate duplication.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "размещать в SV. Дублирование реализации допустимо, если оно позволяет сохранить"
+        }
+      },
+      {
+        "id": "P2-3",
+        "requirement": "3. Preserve the protocol and gameplay semantics of the behavior baseline during the transfer. Require the immutable SV build and core checks for implementation readiness; assess baseline preservation separately through controller review and fresh final audit.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author; controller verifies",
+        "checkIds": [
+          "sv-build",
+          "sv-core",
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При переносе сохранять протокольную и игровую семантику behavior baseline."
+        }
+      },
+      {
+        "id": "P2-4",
+        "requirement": "4. Tests must invoke the production SV path. A local SV implementation is permitted; a separate implementation of behavior used only by tests is prohibited. Verify the production seam through controller review and fresh final audit.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author; controller verifies",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Тесты должны вызывать production-путь SV; локальная SV-реализация допустима,"
+        }
+      },
+      {
+        "id": "P2-5",
+        "requirement": "5. Record any discovered opportunities to improve legacy code, shared modules, or SV organization in docs/sv-improvements.md, separately from implementing the current feature.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "записывать в [список улучшений](docs/sv-improvements.md), отдельно от реализации"
+        }
+      },
+      {
+        "id": "P2-6",
+        "requirement": "6. Each improvement entry must identify the problem, affected code, proposal, status, and necessary checks. Recording an improvement does not bring it into this task's implementation scope.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "предложение, статус и необходимые проверки. Запись сама по себе не включает"
+        }
+      },
+      {
+        "id": "P2-7",
+        "requirement": "7. Do not treat intentional duplication for isolation as a defect or an obligation to consolidate later. Apply the repository isolation rule with priority over older project-document requirements for a shared SV and legacy implementation.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Implementation author; controller verifies",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Это правило имеет приоритет над прежними формулировками проектных документов,"
+        }
+      },
+      {
+        "id": "P2-8",
+        "requirement": "8. When creating, triaging, or reviewing tasks, use local Markdown: Wayfinder tasks in .scratch/ and SV implementation tickets in docs/tasks/, following the referenced issue-tracker path and status rules without expanding this task's authoritative obligations.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Agent performing task creation, triage, or review",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При создании, triage и review задач используйте локальный Markdown: Wayfinder в `.scratch/`, SV implementation tickets в `docs/tasks/`. Правила путей и статусов — в [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)."
+        }
+      },
+      {
+        "id": "P2-9",
+        "requirement": "9. When performing triage, use the five standard roles and a separate Labels: field, with role correspondence clarified by docs/agents/triage-labels.md.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Agent performing triage",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При triage используйте пять стандартных ролей и отдельное поле `Labels:`. Соответствие ролей — в [docs/agents/triage-labels.md](docs/agents/triage-labels.md)."
+        }
+      },
+      {
+        "id": "P2-10",
+        "requirement": "10. Before working with domain terminology or architecture, read the root CONTEXT.md and task-relevant ADRs; use the referenced domain documentation to clarify the single-context layout without introducing obligations outside the fixed authoritative sources.",
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Agent performing domain or architecture work",
+        "checkIds": [
+          "controller-review"
+        ],
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Перед работой с доменными терминами или архитектурой читайте корневой `CONTEXT.md` и относящиеся к задаче ADR. Правила single-context layout — в [docs/agents/domain.md](docs/agents/domain.md)."
+        }
+      }
+    ],
+    "checks": [
+      {
+        "id": "sv-build",
+        "kind": "build",
+        "command": "make -s -C src -f makefile.sv tomenet-sv",
+        "description": "SV Make build"
+      },
+      {
+        "id": "sv-core",
+        "kind": "core",
+        "command": "bash -s -- core",
+        "description": "Sandcastle core checks"
+      },
+      {
+        "id": "controller-review",
+        "kind": "review",
+        "command": "",
+        "description": "Controller-owned review and fresh final-audit gate at the exact contract digest and HEAD"
+      },
+      {
+        "id": "P1-entry-evidence",
+        "kind": "external",
+        "command": "",
+        "description": "Deferred downstream end-to-end verification owned by SV-B-025; does not constitute passing evidence for this checkpoint."
+      }
+    ]
+  },
+  "digest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+  "verification": {
+    "approved": true,
+    "summary": "The proposal covers every obligation in the fixed authoritative sources, including production-path and controlled-peer evidence, scope boundaries, and exact SV-B-025 ownership of deferred end-to-end verification. Controller review requires fresh evidence at the exact contract digest and HEAD; baseline success or runner absence cannot substitute for it.",
+    "missingRequirements": [],
+    "findings": []
+  }
+}
