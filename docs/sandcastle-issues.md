@@ -222,6 +222,21 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
   fixes из пунктов 13–15 должны возвращаться только отдельным change set, чтобы
   controller maintenance не смешивался с product feature.
 
+## Startup preflight SV-B-024
+
+### 17. Host networking скрывал Docker ID в hostname
+
+- **Симптом:** запуск `1bd0d014` остановился до model dispatch с
+  `IMAGE_UNVERIFIABLE`: probe возвращал hostname компьютера вместо Docker ID.
+- **Причина:** при `network: host` Docker наследует UTS hostname хоста;
+  проверка ошибочно требовала hex container ID в `os.hostname()`.
+- **Решение:** probe получает фактический container ID из hostname bind mount
+  в `/proc/self/mountinfo`, затем host Docker inspect проверяет точный образ.
+  Для контейнеров с обычным hostname сохранён прежний путь проверки.
+- **Состояние:** исправлено отдельным maintenance change перед новым запуском
+  SV-B-024; regression test воспроизвёл сбой и прошёл после исправления.
+  Execution/dispatch suites проверяют сохранение preflight до quota/inference.
+
 ## Запланированные, но ещё отсутствующие gates
 
 - **Локальный сервер:** отдельный тестовый сервер и контент на private Docker

@@ -137,3 +137,30 @@ test("host-only dispatch and intentional conflict repair use explicit context", 
   assert.equal(manifest.agent.effort, "high");
   await assert.rejects(preflightExecution({ ...f.input, allowDirty: true, model: "gpt-5.6-sol" }, f.ops), code("AGENT_POLICY_INVALID"));
 });
+
+test("host networking identifies the Docker container from its hostname mount", async t => {
+  const f = await fixture(t);
+  const containerId = "d".repeat(64);
+  const originalExec = f.input.sandbox.exec;
+  const sandbox = { exec: async (command, options) => {
+    const injection = `const originalRead = require('node:fs').readFileSync;
+require('node:fs').readFileSync = function(path, ...args) {
+  if (path === '/proc/self/mountinfo') return ${JSON.stringify(`723 713 259:7 /var/lib/docker/containers/${containerId}/hostname /etc/hostname rw,relatime - ext4 /dev/nvme1n1p2 rw\n`)};
+  return originalRead.call(this, path, ...args);
+};\n`;
+    return originalExec(command, { ...options, stdin: injection + options.stdin });
+  } };
+  const inspected = [];
+  const hostExec = async (file, args, options) => {
+    if (file !== "docker") return f.ops.hostExec(file, args, options);
+    inspected.push(args);
+    if (args[0] === "inspect") {
+      assert.equal(args[2], containerId);
+      return { stdout: `sha256:${"b".repeat(64)}\n` };
+    }
+    return { stdout: "[]\n" };
+  };
+  const manifest = await preflightExecution({ ...f.input, sandbox }, { ...f.ops, hostExec, imageProvenance: undefined });
+  assert.equal(manifest.runtime.imageId, `sha256:${"b".repeat(64)}`);
+  assert.equal(inspected.length, 2);
+});

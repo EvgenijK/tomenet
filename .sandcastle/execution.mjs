@@ -107,6 +107,12 @@ const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const run = (file,args) => { const r=cp.spawnSync(file,args,{encoding:'utf8'}); if(r.status!==0) throw Error('probe'); return r.stdout.trim(); };
 try {
   const output = { branch: run('git',['branch','--show-current']), head: run('git',['rev-parse','HEAD']), hostname: require('node:os').hostname(), cli: run('codex',['--version']) };
+  // Host networking can inherit the host's UTS hostname. Docker's hostname
+  // bind mount still identifies the actual container independently of UTS.
+  if(fs.existsSync('/proc/self/mountinfo')) {
+    const mount = fs.readFileSync('/proc/self/mountinfo','utf8').split('\\n').map(line => line.split(' ')).find(fields => fields[4] === '/etc/hostname');
+    output.containerId = mount?.[3]?.match(new RegExp('/containers/([a-f0-9]{64})/hostname$'))?.[1];
+  }
   if(input.ticketPath) output.ticketDigest = hash(fs.readFileSync(input.ticketPath));
   if(input.schemaPath) { const content = fs.readFileSync(input.schemaPath); JSON.parse(content); output.schemaDigest = hash(content); }
   if(input.checksPath) output.checksDigest = hash(fs.readFileSync(input.checksPath));
@@ -154,7 +160,7 @@ export async function preflightExecution({ controllerRoot, worktree, expectedBra
       if (schemaDigest && probe.schemaDigest !== schemaDigest) fail("SANDBOX_SCHEMA_MISMATCH", "Mounted dispatch schema differs from the current controller schema");
       if (probe.checksDigest !== checksDigest) fail("SANDBOX_CHECKS_MISMATCH", "Mounted checks differ from the validated worktree checks");
       const cliVersion = verifyCliVersion(probe.cli, minimumCliVersion);
-      const image = await checked(() => ops.imageProvenance ? ops.imageProvenance(probe) : dockerProvenance(probe.hostname, hostExec), "IMAGE_UNVERIFIABLE", "Cannot inspect the actual running container image");
+      const image = await checked(() => ops.imageProvenance ? ops.imageProvenance(probe) : dockerProvenance(probe.containerId ?? probe.hostname, hostExec), "IMAGE_UNVERIFIABLE", "Cannot inspect the actual running container image");
       if (!/^sha256:[a-f0-9]{64}$/.test(image?.imageId ?? "")) fail("IMAGE_UNVERIFIABLE", "Actual sandbox image must have a content-addressed identity");
       runtime = { kind: "sandbox", cliVersion, imageId: image.imageId, repoDigests: image.repoDigests ?? [] };
     }
