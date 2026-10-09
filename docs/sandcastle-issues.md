@@ -1,12 +1,14 @@
 # Проблемы настройки Sandcastle, Docker и Codex
 
-Состояние на 2026-09-27. Это журнал **наблюдавшихся** проблем при настройке
-Sandcastle и выполнении SV-B-007. Для каждой проблемы указано, что удалось
-проверить, как её обошли и что ещё остаётся сделать. Планируемые проверки
+Состояние на 2026-10-06. Это журнал **наблюдавшихся** проблем при настройке
+Sandcastle и выполнении SV-B-007 и SV-B-021. Для каждой проблемы указано, что
+удалось проверить, как её обошли и что ещё остаётся сделать. Планируемые проверки
 отделены от уже произошедших сбоев. Секреты, коды входа и содержимое
 `.sandcastle/auth/` сюда не записываются.
 
 Основная конфигурация и команды описаны в [docs/sandcastle.md](sandcastle.md).
+Подробное ретро второго запуска находится в
+[ретро SV-B-021](sandcastle-retro-sv-b-021.md).
 
 ## Состояние после изменения процесса
 
@@ -167,6 +169,58 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
 - **Состояние:** это ограничение выбранного video backend для данного
   сценария. Запускать lifecycle/визуальные сценарии с настоящим дисплеем или
   Xvfb и оконным менеджером; dummy smoke не считать визуальной приёмкой.
+
+## Контракт и recovery SV-B-021
+
+### 12. Contract verification не сходился
+
+- **Симптом:** run `b5cc0b14` повторял completeness verification без устойчивого
+  прогресса.
+- **Причины:** generic prompts содержали контекст другой задачи; authoritative
+  sources не были ограничены; отображаемая команда `sv-core` скрывала stdin
+  script controller; verifier feedback перезаписывался между раундами.
+- **Решение:** `fec73b88c` добавил source-bounded prompts, фиксированный source
+  set, накопительный feedback ledger и guard трёх одинаковых open sets.
+- **Состояние:** исправление сохранено в текущей ветке.
+
+### 13. Core gate читал manifest не из integration worktree
+
+- **Симптом:** исправленный в run `.sandcastle/checks.sh` не влиял на реально
+  выполняемый `sv-core`; controller продолжал запускать stale root script.
+- **Решение для run:** `338de1039` переключил источник на
+  `sandbox.worktreePath` и добавил regression test.
+- **Состояние:** исправление помогло завершить run, но было удалено из feature
+  diff как общий framework change. В текущей ветке проблема снова возможна;
+  требуется отдельная maintenance-задача.
+
+### 14. Валидный implementation contract оказался невыполнимым
+
+- **Симптом:** test-gate остановился на mandatory/current external check без
+  runner после успешных build и core checks.
+- **Решение для run:** `3c6a4b69b` запретил такое сочетание и добавил bounded
+  independently verified contract amendment.
+- **Состояние:** recovery fix позднее удалён из feature diff. Текущий validator
+  и prompts снова допускают противоречие; требуется отдельная maintenance-задача.
+
+### 15. Контракт принял несуществующий command runner
+
+- **Симптом:** accepted check ссылался на отсутствующий
+  `tests/test_sv_account_create.py`; последующий worker commit изменил artifact,
+  но не controller digest, и immutable guard остановил run.
+- **Решение для run:** `6c6e0426a` добавил runner preflight и bounded
+  controller-owned command-only repair с новой независимой verification.
+- **Состояние:** подход проверен red-to-green и восстановил run, но fix удалён
+  из feature diff. В текущей ветке preflight отсутствует.
+
+### 16. Recovery fixes расширили feature scope
+
+- **Симптом:** review SV-B-021 обнаружил в three-dot diff общие изменения
+  Sandcastle controller, не относящиеся к account creation.
+- **Решение:** controller changes удалены из feature diff; account implementation
+  повторно прошла build, tests, три review-раунда и final audit.
+- **Состояние:** SV-B-021 завершена с implementation verdict `ready`. Общие
+  fixes из пунктов 13–15 должны возвращаться только отдельным change set, чтобы
+  controller maintenance не смешивался с product feature.
 
 ## Запланированные, но ещё отсутствующие gates
 
