@@ -44,7 +44,13 @@ export function validateExecutionPlan(plan,contract,contractDigest,tickets=[]) {
 }
 export function acceptExecutionPlan(state,plan,review,tickets=[]) {
   validateExecutionPlan(plan,state.acceptance.contract,state.acceptance.contractDigest,tickets);
-  need(review?.approved===true&&typeof review.summary==='string'&&review.summary.trim()&&Array.isArray(review.missingRequirements)&&review.missingRequirements.length===0,'PLAN_REVIEW','independent binding coverage verification required');
+  if (!(review?.approved===true && typeof review.summary==='string' && review.summary.trim() && Array.isArray(review.missingRequirements) && review.missingRequirements.length===0)) {
+    const error=verificationError('PLAN_REVIEW','independent binding coverage verification required');
+    if (typeof review?.approved==='boolean' && typeof review.summary==='string' && review.summary.trim() && Array.isArray(review.missingRequirements) && review.missingRequirements.every(item=>typeof item==='string')) {
+      error.planReview={bindingDigest:digest(plan),contractDigest:state.acceptance.contractDigest,review:structuredClone(review)};
+    }
+    throw error;
+  }
   const bindingDigest=digest(plan);
   if(state.executionPlan&&state.executionPlan.digest!==bindingDigest)need(!state.verificationTarget,'PLAN_FROZEN','cannot replace a frozen verification plan');
   state.verificationVersion=1;state.executionPlan={plan:structuredClone(plan),digest:bindingDigest,review:structuredClone(review)};

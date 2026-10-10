@@ -14,4 +14,9 @@ export function isDeliveryReady(state,member) {
   need((state.deliveryReceipts??[]).some(saved=>saved.digest===hash&&digest(saved)===digest(receipt)),'controller receipt is not recorded');
   return true;
 }
+// Shared production readiness check is also the assembly prompt authority.
+// A saved historical blocked result alone never authorizes integration.
+export function assemblyContributions(state,wave) {
+  return wave.members.filter(member=>!member.integrated && (member.status==='completed'||isDeliveryReady(state,member))).map(member=>({ticket:member.ticket.path,branch:member.branch,head:member.head,...(isDeliveryReady(state,member)?{deliveryReceipt:structuredClone(member.deliveryReceipt)}:{})}));
+}
 export function dependencyReadyTickets(state) { return new Set([...(state.completedTickets??[]),...(state.deliveredTickets??[])]); }

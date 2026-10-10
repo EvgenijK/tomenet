@@ -220,7 +220,7 @@ export function beginRecovery(state, error, stage = state.phase) {
   if ((attempts[key] ?? 0) >= 3) throw new Error("Automatic recovery made no progress after three decisions at this checkpoint");
   attempts[key] = (attempts[key] ?? 0) + 1;
   const id = state.recoverySequence = (state.recoverySequence ?? 0) + 1;
-  state.recovery = { id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
+  state.recovery = { ...(error?.planReview ? { planReview: structuredClone(error.planReview) } : {}), id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
     ...(typeof error?.code === "string" ? { errorCode: error.code } : {}),
     ...(Number.isFinite(error?.elapsedMs) ? { elapsedMs: error.elapsedMs } : {}),
     ...(Number.isFinite(error?.timeoutMs) ? { timeoutMs: error.timeoutMs } : {}) };

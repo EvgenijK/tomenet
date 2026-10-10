@@ -303,3 +303,27 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
   maintenance reconciliation remain unapplied and require separate review.
 - **Checks:** real Git divergent main/feature blocks freeze unchanged; explicit
   reviewed merge allows final FF; main advancement after freeze blocks again.
+
+
+### 21. Independent plan rejection stopped before bounded planner recovery
+
+- **Problem:** `PLAN_REVIEW` inherited the generic deterministic verification
+  error marker, so stage catch stopped before the existing recovery/planner path.
+  The concrete independent review remarks were also discarded. Assembly listed
+  blocked delivery revisions without their validated receipts.
+- **Affected code:** workflow, failure classification, verification plan,
+  recovery guidance, and delivery prompt construction.
+- **Resolution:** only a complete contextual independent plan rejection at
+  `plan-validate` reaches bounded recovery. Record the exact reviewed binding,
+  HEAD, contract and review before acceptance; route its remarks to the planner.
+  Unchanged validation retry is still prohibited. Environment, identity and
+  evidence integrity failures remain fatal. Assembly includes exact recorded
+  delivery receipts through the same production readiness check.
+- **Status:** framework repair implemented; collector inventory corrections and
+  the three review-2 feature findings remain normal worker tasks. Feature
+  acceptance still requires fresh independent plan verification, delivery,
+  integrated-HEAD gates and audit. No contract or allowance change is granted.
+- **Checks:** the real accept/classify/recovery/guidance path fails before repair
+  and passes after it; ordinary blocked revisions are excluded; changed receipt
+  identity fails; replanning archives target identity and retains old evidence.
+  Full Sandcastle suite: 223 passed, one opt-in Docker test skipped.

@@ -1,3 +1,10 @@
+// Only a complete independent review rejection is repairable. Identity,
+// environment and artifact integrity failures remain deterministic hard stops.
+export function isPlanReviewRejection(error) {
+  const record=error?.planReview, review=record?.review;
+  return error?.code==='PLAN_REVIEW' && /^[a-f0-9]{64}$/.test(record?.bindingDigest??'') && /^[a-f0-9]{64}$/.test(record?.contractDigest??'') && typeof review?.approved==='boolean' && typeof review.summary==='string' && !!review.summary.trim() && Array.isArray(review.missingRequirements) && review.missingRequirements.every(item=>typeof item==='string') && (review.approved===false || review.missingRequirements.length>0);
+}
+
 // Status is a public channel: classify private diagnostics, never echo them.
 const definitions = {
   quota: ["quota", "Task quota allowance is exhausted.", "Grant a specific additional quota allowance to continue."],
@@ -10,6 +17,7 @@ const definitions = {
   test: ["test", "A build or test gate failed or exhausted its attempts.", "Repair the failing gate; an exhausted limit requires a specific attempt grant."],
   git: ["git", "Git integration or worker ownership prevents progress.", "Preserve local changes and resolve the saved Git or worktree condition before resuming."],
   attempts: ["attempts", "The saved checkpoint exhausted its attempt allowance.", "Inspect the checkpoint and grant a bounded number of attempts for that operation."],
+  plan_review: ['plan', 'Independent execution-plan review rejected the proposed binding.', 'Repair the plan through the planner and repeat independent verification.'],
   other: ["other", "Workflow requires attention at the saved checkpoint.", "Inspect the private checkpoint artifacts to determine the required repair or decision."],
 };
 
@@ -54,6 +62,7 @@ export function classifyFailure(error, { phase } = {}) {
     const [category, reason, requiredAction] = preflightDefinitions[code];
     return { code: category, category, diagnosticCode: code, reason, requiredAction, fatalPreflight: true, automaticRetry: false };
   }
+  if (phase === 'plan-validate' && isPlanReviewRejection(error)) return { code:'plan_review', category:'plan', diagnosticCode:'PLAN_REVIEW', reason:'Independent execution-plan review rejected the proposed binding.', requiredAction:'Repair the plan through the planner and repeat independent verification.', fatalPreflight:false, automaticRetry:false };
   let kind = "other";
   if (/^Task reached .*quota|^Task reached its token limit|task quota.*(?:guard|exhaust|allowance|limit)/i.test(message)) kind = "quota";
   else if (/weekly.*quota.*unavailable|account usage|usage probe|usage read|rate limit/i.test(message)) kind = "account_usage";
