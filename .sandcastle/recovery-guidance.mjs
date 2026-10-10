@@ -49,5 +49,5 @@ export function recoveryGuidance(state, incident, decision) {
     ? { phase: "plan" } : recoveryTarget(state, incident);
   if (["review", "final-audit"].includes(incident.phase)) return { ...target, technical: true, text: technicalHint(incident) };
   return { ...target, text: incident.phase === "plan-validate" && decision.action === "repair"
-    ? `${decision.summary}\nManifest validation error: ${incident.error}${incident.planReview ? `\nIndependent plan review: ${JSON.stringify(incident.planReview)}` : ''}` : decision.summary };
+    ? `${decision.summary}\nManifest validation error: ${incident.error}${incident.planReview ? `\nIndependent plan review: ${JSON.stringify(incident.planReview)}` : ''}${incident.planRepair ? `\nRepair-plan registration error: ${JSON.stringify(incident.planRepair)}` : ''}` : decision.summary };
 }

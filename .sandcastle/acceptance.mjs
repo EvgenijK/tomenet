@@ -1,4 +1,5 @@
-import { assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
+import { validateTicketBatch } from './tickets.mjs';
+import { assertExecutionPlan, requiredArtifactChecks, validateExecutionPlan } from "./verification-plan.mjs";
 import { createHash } from "node:crypto";
 import { verifierFeedbackDetails } from "./contract-feedback.mjs";
 
@@ -236,18 +237,41 @@ export function assertAuditedChanges(state, changedPaths) {
   return outcome;
 }
 
+export function isRepairPrerequisite(state,ticketPath) {
+  return (state.acceptance?.repairBatches??[]).some(batch=>(batch.prerequisites??[]).some(item=>item.ticketPath===ticketPath));
+}
+
 export function registerRepairBatch(state, tickets, key) {
   if (!state.reviewFindings?.length) return;
-  const open = repairFindings(state);
-  const wanted = new Set(open.map((item) => item.id));
-  const mapped = new Set();
-  for (const ticket of tickets) {
-    need(![...state.completedTickets, ...(state.deliveredTickets ?? [])].includes(ticket.path), "a new repair cannot reuse an already completed or delivered ticket");
-    need(Array.isArray(ticket.findingIds) && ticket.findingIds.length > 0 && new Set(ticket.findingIds).size === ticket.findingIds.length && ticket.findingIds.every((id) => wanted.has(id)), "repair ticket must name open ledger IDs");
-    for (const id of ticket.findingIds) mapped.add(id);
+  const open = repairFindings(state), wanted = new Set(open.map(item=>item.id)), mapped=new Set(), prerequisites=[];
+  const check=(condition,message)=>{
+    if(condition)return;
+    if(state.verificationVersion!==1)need(false,message);
+    const error=new Error(`Repair plan validation: ${message}`);error.code='REPAIR_PLAN_INVALID';
+    error.planRepair={contractDigest:state.acceptance.contractDigest,bindingDigest:state.executionPlan?.digest,ticketPaths:tickets.map(t=>t.path),reason:message};throw error;
+  };
+  const needsProducers=tickets.some(ticket=>Array.isArray(ticket.findingIds)&&ticket.findingIds.length===0);
+  if(needsProducers) {
+    const binding=state.executionPlan;
+    check(binding?.review?.approved===true && Array.isArray(binding.review.missingRequirements) && binding.review.missingRequirements.length===0 && binding.digest===digest(binding.plan),'collector prerequisite requires an independently approved exact execution binding');
+    validateTicketBatch({tickets},state);
+    validateExecutionPlan(binding.plan,state.acceptance.contract,state.acceptance.contractDigest,tickets);
   }
-  need(mapped.size === wanted.size, "repair batch omitted open defects");
-  if (!state.acceptance.repairBatches.some((item) => item.key === key)) state.acceptance.repairBatches.push({ key, tickets: structuredClone(tickets), counted: [] });
+  for(const ticket of tickets) {
+    check(![...state.completedTickets,...(state.deliveredTickets??[])].includes(ticket.path),'a new repair cannot reuse an already completed or delivered ticket');
+    check(Array.isArray(ticket.findingIds)&&new Set(ticket.findingIds).size===ticket.findingIds.length&&ticket.findingIds.every(id=>wanted.has(id)),'repair ticket must name open ledger IDs');
+    if(ticket.findingIds.length) {for(const id of ticket.findingIds)mapped.add(id);continue;}
+    const checks=state.executionPlan.plan.artifactChecks.filter(item=>item.producedBy===ticket.path);
+    const links=checks.flatMap(item=>state.executionPlan.plan.criteria.filter(binding=>binding.artifactCheckIds.includes(item.id)).map(binding=>({check:item.id,criterion:state.acceptance.contract.criteria.find(c=>c.id===binding.id)}))).filter(link=>link.criterion?.mandatory&&link.criterion.applicability==='current');
+    const linked=open.filter(entry=>links.some(link=>entry.criterionIds.includes(link.criterion.id)));
+    check(checks.length>0&&linked.length>0,'empty finding IDs require an explicit controller artifact producer linked to an open immutable criterion');
+    const findingIds=linked.map(entry=>entry.id),criterionIds=[...new Set(links.filter(link=>linked.some(entry=>entry.criterionIds.includes(link.criterion.id))).map(link=>link.criterion.id))];
+    prerequisites.push({ticketPath:ticket.path,artifactCheckIds:checks.map(item=>item.id),criterionIds,findingIds});
+  }
+  check(mapped.size===wanted.size,'repair batch omitted open defects');
+  const prior=state.acceptance.repairBatches.find(item=>item.key===key);
+  if(prior)check(digest(prior.tickets)===digest(tickets),'registered repair batch changed under the same identity');
+  else state.acceptance.repairBatches.push({key,tickets:structuredClone(tickets),prerequisites,counted:[]});
 }
 
 export function countIntegratedRepairs(state) {
@@ -255,7 +279,8 @@ export function countIntegratedRepairs(state) {
   for (const batch of state.acceptance.repairBatches) {
     const ids = new Set(batch.tickets.flatMap((ticket) => ticket.findingIds));
     for (const id of ids) {
-      if (batch.counted.includes(id) || !batch.tickets.filter((ticket) => ticket.findingIds.includes(id)).every((ticket) => [...(state.completedTickets ?? []), ...(state.deliveredTickets ?? [])].includes(ticket.path))) continue;
+      const required=[...batch.tickets.filter(ticket=>ticket.findingIds.includes(id)).map(ticket=>ticket.path),...(batch.prerequisites??[]).filter(item=>item.findingIds.includes(id)).map(item=>item.ticketPath)];
+      if (batch.counted.includes(id) || !required.every(path=>[...(state.completedTickets??[]),...(state.deliveredTickets??[])].includes(path))) continue;
       const entry = state.acceptance.ledger.find((item) => item.id === id);
       need(entry.repairs < acceptancePolicy.maxDefectRepairs, `defect repair limit reached for ${id}`);
       entry.repairs++;

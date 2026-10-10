@@ -35,6 +35,7 @@ import { digest, verifyEvidence, verificationError } from "./verification.mjs";
 import { validateExecutionPlan, acceptExecutionPlan, assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
 import { assertIntegrationBase, freezeVerificationTarget, assertVerificationTarget, releaseVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts, toolchainIdentity } from "./verification-gates.mjs";
 import { isDeliveryReady, dependencyReadyTickets, assemblyContributions } from "./delivery.mjs";
+import { resumeRepairPlanCheckpoint } from './repair-plan.mjs';
 import { resumeVerificationMigration } from "./verification-migration.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -756,12 +757,12 @@ export async function verifiedTree(sandbox, state) {
 export async function main() {
 rejectLegacyContinue();
 const attemptGrant = readAttemptGrant();
-const modeKeys = ["SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+const modeKeys = ["SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
-const booleanModes = ["SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
+const booleanModes = ["SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
 for (const key of booleanModes) if (process.env[key] !== undefined && process.env[key] !== "1") throw new Error(`${key} must equal 1 when explicitly requested; no checkpoint was changed`);
 if (requestedModes.length > 1) throw new Error("Continuation modes cannot be combined; authorize and validate one saved checkpoint operation at a time");
@@ -784,6 +785,8 @@ if (command === "start") {
   checkpointAtRead = JSON.stringify(state);
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
+const planRepairResume = process.env.SANDCASTLE_PLAN_REPAIR_RESUME === '1';
+if(planRepairResume)resumeRepairPlanCheckpoint(structuredClone(state));
 const verificationResume = process.env.SANDCASTLE_VERIFICATION_RESUME === "1";
 if (verificationResume) resumeVerificationMigration(structuredClone(state));
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
@@ -893,7 +896,9 @@ try {
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (verificationResume) {
+    if(planRepairResume) {
+      resumeRepairPlanCheckpoint(state);
+    } else if (verificationResume) {
       resumeVerificationMigration(state);
     } else if (preflightResume) {
       resumeExecutionCheckpoint(state);

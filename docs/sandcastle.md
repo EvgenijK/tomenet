@@ -661,3 +661,24 @@ the rejected manifest nor grants attempts/quota. Any repeated rejection now
 carries its exact remarks into bounded recovery. Assembly receives the exact
 controller-validated delivery receipt with every exceptional blocked revision;
 its controller acceptance remains pending.
+
+
+During defect repair, an empty `findingIds` array is allowed only for a bounded
+collector delivery prerequisite derived by the controller from an independently
+approved exact execution binding. The ticket must be named by `producedBy` for a
+controller-owned artifact check, whose current mandatory immutable criterion
+intersects an open finding. The controller saves its artifact/criterion/finding
+mapping separately in the repair batch. Every open finding still needs a direct
+repair ticket. Repair accounting waits for both the direct repair and linked
+producer delivery; generic deferral cannot skip either. This does not authorize
+arbitrary technical tasks or infer approval from a ticket's wording.
+
+Correctable typed repair registration mistakes enter bounded planner recovery,
+with the same prohibition on unchanged validation retry. Defect repair exhaustion,
+contract identity, evidence integrity and mandatory scope gates remain hard stops.
+A legacy paused registration error `Acceptance: repair ticket must name open
+ledger IDs` with its saved approved exact binding can use
+`SANDCASTLE_PLAN_REPAIR_RESUME=1 npm run sandbox:resume -- <run-id>` after independently
+reviewed maintenance installation/reconciliation. This resumes `plan-validate`
+and repeats independent verification before registration or dispatch. It grants
+no attempts/quota and preserves prior review, evidence and checkpoint history.
