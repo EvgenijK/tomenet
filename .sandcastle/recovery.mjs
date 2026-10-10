@@ -1,3 +1,4 @@
+import { isRepairPrerequisite } from './acceptance.mjs';
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { validateTicketBatch } from "./tickets.mjs";
@@ -220,7 +221,7 @@ export function beginRecovery(state, error, stage = state.phase) {
   if ((attempts[key] ?? 0) >= 3) throw new Error("Automatic recovery made no progress after three decisions at this checkpoint");
   attempts[key] = (attempts[key] ?? 0) + 1;
   const id = state.recoverySequence = (state.recoverySequence ?? 0) + 1;
-  state.recovery = { ...(error?.planReview ? { planReview: structuredClone(error.planReview) } : {}), id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
+  state.recovery = { ...(error?.planReview ? { planReview: structuredClone(error.planReview) } : {}), ...(error?.planRepair ? { planRepair: structuredClone(error.planRepair) } : {}), id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],
     ...(typeof error?.code === "string" ? { errorCode: error.code } : {}),
     ...(Number.isFinite(error?.elapsedMs) ? { elapsedMs: error.elapsedMs } : {}),
     ...(Number.isFinite(error?.timeoutMs) ? { timeoutMs: error.timeoutMs } : {}) };
@@ -284,7 +285,7 @@ export function previewRecovery(state, decision) {
     if (state.blockedTicket) blocked.add(state.blockedTicket.path);
     for (const path of decision.ticketPaths) {
       if (!blocked.has(path) || !state.tickets.some((ticket) => ticket.path === path) || state.completedTickets.includes(path)) throw new Error(`Cannot defer an unblocked, unknown or completed ticket: ${path}`);
-      if (state.tickets.find((ticket) => ticket.path === path)?.findingIds?.length) throw new Error("Review defect repair cannot be deferred to bypass acceptance");
+      if (state.tickets.find((ticket) => ticket.path === path)?.findingIds?.length || isRepairPrerequisite(state,path)) throw new Error("Review defect repair cannot be deferred to bypass acceptance");
     }
     const deferred = new Set(decision.ticketPaths);
     // A deferred prerequisite cannot accidentally unlock its downstream work.

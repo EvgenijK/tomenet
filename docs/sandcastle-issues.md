@@ -327,3 +327,27 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
   and passes after it; ordinary blocked revisions are excluded; changed receipt
   identity fails; replanning archives target identity and retains old evidence.
   Full Sandcastle suite: 223 passed, one opt-in Docker test skipped.
+
+
+### 22. Repair ledger rejected an independently approved collector prerequisite
+
+- **Problem:** execution bindings support `producedBy` worker delivery before
+  controller capture, but repair registration required a direct open finding on
+  every ticket. Batch 2's approved collector inventory prerequisite had no defect
+  ID of its own and stopped at registration after successful independent review.
+- **Affected code:** acceptance repair registration/accounting, deferral guards,
+  planning recovery classification and supported continuation.
+- **Resolution:** derive a separate prerequisite record from the independently
+  approved exact binding, explicit artifact producer, current mandatory immutable
+  criterion and matching open finding. Do not invent finding IDs. Direct repair
+  coverage remains mandatory. Counting waits for every linked direct repair and
+  producer delivery; neither may be deferred. Unlinked, reused, cyclic, unknown
+  or unapproved work remains rejected. Typed registration mistakes return to
+  bounded planner repair; defect limits and contract/integrity gates stay strict.
+- **Status:** framework implemented; actual collector repairs remain worker work
+  and require independent final feature acceptance.
+- **Checks:** production registration on the actual accepted batch succeeds in a
+  read-only state clone. Positive and negative registration/accounting/deferral
+  tests plus supported continuation verify preservation of original contract,
+  base, attempts, budgets and review history. Continuation repeats independent
+  plan validation and never approves the saved manifest by itself.

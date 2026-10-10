@@ -17,6 +17,7 @@ const definitions = {
   test: ["test", "A build or test gate failed or exhausted its attempts.", "Repair the failing gate; an exhausted limit requires a specific attempt grant."],
   git: ["git", "Git integration or worker ownership prevents progress.", "Preserve local changes and resolve the saved Git or worktree condition before resuming."],
   attempts: ["attempts", "The saved checkpoint exhausted its attempt allowance.", "Inspect the checkpoint and grant a bounded number of attempts for that operation."],
+  repair_plan: ['plan', 'Repair-plan registration rejected the proposed batch.', 'Repair the bounded batch through the planner and repeat independent verification.'],
   plan_review: ['plan', 'Independent execution-plan review rejected the proposed binding.', 'Repair the plan through the planner and repeat independent verification.'],
   other: ["other", "Workflow requires attention at the saved checkpoint.", "Inspect the private checkpoint artifacts to determine the required repair or decision."],
 };
@@ -63,6 +64,7 @@ export function classifyFailure(error, { phase } = {}) {
     return { code: category, category, diagnosticCode: code, reason, requiredAction, fatalPreflight: true, automaticRetry: false };
   }
   if (phase === 'plan-validate' && isPlanReviewRejection(error)) return { code:'plan_review', category:'plan', diagnosticCode:'PLAN_REVIEW', reason:'Independent execution-plan review rejected the proposed binding.', requiredAction:'Repair the plan through the planner and repeat independent verification.', fatalPreflight:false, automaticRetry:false };
+  if(phase==='plan-validate' && error?.code==='REPAIR_PLAN_INVALID' && /^[a-f0-9]{64}$/.test(error.planRepair?.contractDigest??'') && /^[a-f0-9]{64}$/.test(error.planRepair?.bindingDigest??'') && Array.isArray(error.planRepair.ticketPaths) && typeof error.planRepair.reason==='string') return {code:'repair_plan',category:'plan',diagnosticCode:'REPAIR_PLAN_INVALID',reason:definitions.repair_plan[1],requiredAction:definitions.repair_plan[2],fatalPreflight:false,automaticRetry:false};
   let kind = "other";
   if (/^Task reached .*quota|^Task reached its token limit|task quota.*(?:guard|exhaust|allowance|limit)/i.test(message)) kind = "quota";
   else if (/weekly.*quota.*unavailable|account usage|usage probe|usage read|rate limit/i.test(message)) kind = "account_usage";
