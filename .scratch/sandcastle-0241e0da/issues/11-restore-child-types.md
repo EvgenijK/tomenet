@@ -1,6 +1,7 @@
 # 11: Restore Wayfinder child Type metadata
 
 Type: implementation
+Tracker role: Wayfinder planning/execution history for canonical [SV-B-024](../../../docs/tasks/stage-b/SV-B-024-birth-dna.md); this child does not own Stage B capability IDs.
 Status: open
 Assignee: unassigned
 Labels: bug, ready-for-agent

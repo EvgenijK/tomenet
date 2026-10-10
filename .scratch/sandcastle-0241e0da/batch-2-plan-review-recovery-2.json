@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "manifest": ".scratch/sandcastle-0241e0da/batch-2.json",
+  "bindingDigest": "adfac9546d385ed0888eb2e5a8c4c79346554d83653dd0457251f8a2c5221664",
+  "contractDigest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+  "reviewer": "/root/binding_review_retry",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "checkpoint": "plan-validate:0:8:2:1:1",
+  "recoveryAttempt": 2,
+  "inspectedBaseHead": "e78c3a5367c77327d9f41285f4fa887ebf54f45e",
+  "review": {
+    "approved": true,
+    "summary": "Corrected binding approved for plan-validate only. Exact canonical Tracker role metadata on tickets 11/12 removes the worker-completion blocker. Production batch/plan validators and simulated completion of 10\u201313 pass with controller obligations pending. All 22 immutable criteria, exclusive finding ownership, explicit collector prerequisite, source-supported 108-session matrix and full final integrated-HEAD gates are preserved.",
+    "missingRequirements": [],
+    "findings": []
+  },
+  "ticketFingerprints": {
+    ".scratch/sandcastle-0241e0da/issues/10-accurate-ack-transcript.md": "db6d4169a9acd56ced660919180c2e5d8ec9a618de0b8cb4ce3c10a2d744f30f",
+    ".scratch/sandcastle-0241e0da/issues/11-restore-child-types.md": "80c84edaa9dcd4eb7597d2800a34442281dd613c971af5b34fc49ca6e34b4d43",
+    ".scratch/sandcastle-0241e0da/issues/12-index-resolved-decisions.md": "4af2704a14f154624afe18b92dd6446cebadc27d1f201afa4bd8e16df89d2d6d",
+    ".scratch/sandcastle-0241e0da/issues/13-complete-runtime-input-inventory.md": "87f71a2091e731fcc9f6e0b6c61ff4cf011e6e7f67a396950bbb015ee641918f"
+  },
+  "evidence": [
+    "Independent production validateTicketBatch and validateExecutionPlan accepted the corrected batch.",
+    "Independent in-memory validateTicketCompletion accepted all four simulated worker deliveries without checking controller obligations or modifying ticket statuses.",
+    "Entire collector and six invoked Python runners inspected; ordinary 3, versions 40, dedicated 20, submission 18, replies 17, guide-motd 10 total 108, including no-send case logs.",
+    "Compiler dependency inspection in both choice orders found 68 normalized repository inputs, all covered by 157 individually declared committed paths.",
+    "Ticket 13 remains birth-runtime.producedBy; collector inventory, generated provenance and tool/runtime identity repair must be delivered and assembled before controller capture.",
+    "All 22 criteria covered exactly once; only P1-ac12 deferred to SV-B-025. Each of the three open ledger findings owned once by 10\u201312.",
+    "Completed 01\u201308 and delivered 09 preserved. Parent/history, SV-B-023 and stage C ownership and quota/cycle/recovery limits unchanged."
+  ],
+  "priorReview": {
+    "path": ".scratch/sandcastle-0241e0da/batch-2-plan-review.json",
+    "bindingDigest": "081046e7ab7d4f4158aa9e3e3052c86a461ae717e73f14432d0b2c5c4b4ef86e",
+    "status": "historical; rejected by independent recovery review; not approval of the corrected binding"
+  },
+  "validationScope": "Independent planning review and compiler dependency inspection only. No worker delivery, final build/core/runtime gates, independent semantic final audit, acceptance or persisted checkpoint restoration is claimed. Controller gates remain mandatory and pending at exact final integrated HEAD and contract digest."
+}
