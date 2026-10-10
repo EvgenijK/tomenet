@@ -17,7 +17,7 @@ Labels: bug, ready-for-agent
 
 **Production seam / focused TDD:** Existing public `sv_endpoint_run(SvEndpointOptions)` with native SDL input and a controlled TCP peer, through committed birth draft → production `sv_login_start_play` → socket → `sv_login_receive` and the production startup owner. The actual Guide caller is required by P1-ac6; transcript/binary agreement supports P1-ac8 and P2-4. This is an evidence repair, not a new gameplay behavior. Exercise the existing seam for the regression; do not introduce a test-only caller or serializer. If it becomes unavailable, record a worker blocker rather than inventing a substitute.
 
-The full collector already exists and emits one `.log` per case, including no-send cases, with source/artifact fingerprints and HEAD/digest metadata. No absent collector is assumed. The focused regression belongs to this same coherent repair.
+The full collector already exists and emits one `.log` per case, including no-send cases, with source/artifact fingerprints and HEAD/digest metadata. Its input inventory needs the independent delivery in ticket 13 before controller capture; this does not block the focused transcript repair. No absent collector is assumed. The focused regression belongs to this same coherent repair.
 
 ## Worker delivery criteria
 

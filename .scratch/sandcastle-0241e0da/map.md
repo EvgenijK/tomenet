@@ -19,6 +19,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — open repair D-df28653d4c8d0985; [batch 2](batch-2.json).
 - [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — open repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
 
+- [13: Seal complete controlled-peer producer inputs](issues/13-complete-runtime-input-inventory.md) — open collector delivery prerequisite for corrected batch 2 binding; final capture follows assembly.
+
 ## Decisions so far
 
 - [03](issues/03-dedicated-completion.md#answer): existing production foundation

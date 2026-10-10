@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "manifest": ".scratch/sandcastle-0241e0da/batch-2.json",
+  "bindingDigest": "081046e7ab7d4f4158aa9e3e3052c86a461ae717e73f14432d0b2c5c4b4ef86e",
+  "contractDigest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+  "reviewer": "/root/binding_review",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "review": {
+    "approved": true,
+    "summary": "Independent read-only full-source binding review confirms complete enumerated producer coverage and an explicit worker prerequisite to repair the collector before controller capture. All immutable criteria and worker/controller boundaries are preserved.",
+    "missingRequirements": [],
+    "findings": []
+  },
+  "evidence": [
+    "All 22 immutable criteria mapped exactly once; only P1-ac12 deferred to SV-B-025 with passingEvidence=false.",
+    "157 individual committed paths, no duplicates or missing files; independent clang -MM with runner dependency flags found 68 repository compiler inputs per choice order and none omitted.",
+    "All six runners, delegated ordinary runner, included harness, committed fixtures, common packet/MD5/defines/colours headers, primary/fallback fonts and baseline-oracle sources are covered.",
+    "Ticket 13 and birth-runtime.producedBy require collector source inventory repair, generated-input provenance, external tool/runtime identity and before/after fingerprints before controller capture. Current collector is not claimed repaired.",
+    "Three ledger findings owned once by 10–12. Completed 01–08 and 09 delivered work remain preserved; historical receipts and parent/stage-C ownership unchanged.",
+    "Final mandatory build/core/runtime/independent review/fresh audit remain pending after assembly at exact final HEAD and contract digest; runtime requires unfiltered 108 cases including no-send logs."
+  ],
+  "validationScope": "Plan and source inspection plus compiler dependency preprocessing; no full runtime/build/core execution or implementation acceptance."
+}
