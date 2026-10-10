@@ -16,7 +16,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — claimed repair D-9496281ca15e0741; independent controller/final gates pending; [batch 1](batch-1.json).
 
 - [10: Accurate controlled-peer acknowledgement transcript](issues/10-accurate-ack-transcript.md) — resolved worker repair D-86f98a5241b62943; [batch 2](batch-2.json).
-- [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — open repair D-df28653d4c8d0985; [batch 2](batch-2.json).
+- [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — resolved metadata repair D-df28653d4c8d0985; [batch 2](batch-2.json).
 - [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — open repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
 
 - [13: Seal complete controlled-peer producer inputs](issues/13-complete-runtime-input-inventory.md) — open collector delivery prerequisite for corrected batch 2 binding; final capture follows assembly.
@@ -55,3 +55,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   transcript derives from sent reply bytes; red regression exposed `01` versus
   `7a`, and all 10 native endpoint Guide/MOTD cases pass after repair. Historical
   captures are preserved; full integrated controller gates remain pending.
+
+- [11](issues/11-restore-child-types.md#answer): restored implementation Type
+  metadata in children 01–06; byte comparison confirms original resolved owners
+  and complete histories unchanged, and existing local links resolve. Controller
+  gates and downstream evidence retain their originating owners.

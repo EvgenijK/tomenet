@@ -4,6 +4,7 @@
 
 **Blocked by:** 01: Полный creation/play handshake и ожидание acknowledgement.
 
+Type: implementation
 Status: resolved
 Assignee: codex/sandcastle-0241e0da-wave-3-1
 
