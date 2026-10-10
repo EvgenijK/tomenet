@@ -13,7 +13,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [06: Guide/MOTD handoff](issues/06-guide-motd-handoff.md)
 - [07: Runtime audit](issues/07-runtime-audit.md)
 - [08: Focused production coverage](issues/08-focused-test-coverage.md)
-- [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — open repair D-9496281ca15e0741; [batch 1](batch-1.json).
+- [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — claimed repair D-9496281ca15e0741; independent controller/final gates pending; [batch 1](batch-1.json).
 
 ## Decisions so far
 
@@ -40,3 +40,5 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   coverage rerun successfully: 108 sessions and 347 artifact fingerprints;
   no missing tests or behavior changes needed. Full assembly gates, fresh
   controller acceptance and deferred SV-B-025 evidence retain their owners.
+
+- [09](issues/09-final-head-runtime-evidence.md#answer): fresh reviewed-HEAD capture passed 108 sessions; author integrity verified 347 artifacts and 142 sources. Finding remains open pending independent controller and exact-final-HEAD gates; persistent discovery is documented in evidence/09.
