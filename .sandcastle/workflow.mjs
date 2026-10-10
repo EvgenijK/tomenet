@@ -33,7 +33,7 @@ import { repositoryGateInput } from "./gate-input.mjs";
 import { sandcastleRunAgentPolicy } from "./runtime.mjs";
 import { digest, verifyEvidence, verificationError } from "./verification.mjs";
 import { validateExecutionPlan, acceptExecutionPlan, assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
-import { freezeVerificationTarget, assertVerificationTarget, releaseVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts, toolchainIdentity } from "./verification-gates.mjs";
+import { assertIntegrationBase, freezeVerificationTarget, assertVerificationTarget, releaseVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts, toolchainIdentity } from "./verification-gates.mjs";
 import { isDeliveryReady, dependencyReadyTickets } from "./delivery.mjs";
 import { resumeVerificationMigration } from "./verification-migration.mjs";
 
@@ -589,7 +589,10 @@ async function verificationRuntime(sandbox, state) {
 }
 async function freezeTarget(sandbox, state) {
   assertExecutionPlan(state);
-  await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state) });
+  // Fail before runtime probing/build/artifact attempts; reconciliation is not
+  // an implicit part of verification migration or accepted feature scope.
+  await assertIntegrationBase(root, sandbox.worktreePath, targetBranch);
+  await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state), publication: { root, branch: targetBranch } });
   await save(state);
 }
 async function testGate(sandbox, state) {
@@ -716,6 +719,7 @@ async function report(sandbox, state) {
   await save(state);
 }
 async function integrate(sandbox, state) {
+  if (state.verificationVersion === 1) await assertIntegrationBase(root, sandbox.worktreePath, targetBranch);
   await verifiedTree(sandbox, state);
   if (await git(root, "status", "--porcelain")) throw new Error("Main checkout has uncommitted changes; cannot fast-forward modern_interface safely");
   if (await git(root, "branch", "--show-current") !== targetBranch) throw new Error(`Main checkout must be on ${targetBranch} for integration`);

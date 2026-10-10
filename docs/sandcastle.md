@@ -568,8 +568,56 @@ After the framework change is reviewed and installed in the controller checkout:
 ```sh
 npm run sandbox:verification -- preview 0241e0da
 npm run sandbox:verification -- apply 0241e0da --authorization <unique-id> --binding-review /absolute/path/binding-review.json --delivery-review /absolute/path/delivery-review.json
+```
+
+Installation advances `modern_interface` with maintenance commits that the saved
+feature branch does not contain. Preview/apply prepare the original checkpoint;
+they do not reconcile this divergence. Apply must precede any branch change,
+because its exact historical integration/worker identities are intentional guards.
+The prepared migration is not yet a ready-to-publish feature: first separately
+review maintenance provenance and scope, then reconcile while the run stays stopped:
+
+```sh
+git worktree list --porcelain
+git rev-parse refs/heads/modern_interface
+git log --oneline <original-base>..refs/heads/modern_interface
+git diff <original-base>...refs/heads/modern_interface
+# Only after independent review accepts ALL maintenance revisions in this range:
+git -C <absolute-paused-integration-worktree> merge --no-ff <reviewed-maintenance-head> -m "Merge independently reviewed maintenance before verification freeze"
+git -C <absolute-paused-integration-worktree> merge-base --is-ancestor refs/heads/modern_interface HEAD
+git -C <absolute-paused-integration-worktree> diff --name-only <original-base>...HEAD
+# Separate explicit authorization to run, after reconciliation/scope review:
 SANDCASTLE_VERIFICATION_RESUME=1 npm run sandbox:resume -- 0241e0da
 ```
+
+Use the existing worktree for `codex/sandcastle-dev-0241e0da`, not a worker or main
+checkout. Resolve `<original-base>` from the unchanged saved `state.baseCommit`;
+name the independently reviewed maintenance SHA explicitly, not a moving branch.
+Preserve the review record with baseline, maintenance commit range/diff, resulting
+merge HEAD, reviewer and approved scope. Unrelated feature changes in main make
+this procedure unsupported until a separately reviewed reconciliation is designed.
+No reset/rebase/history rewriting, main merge, automatic conflict resolution or
+contract amendment is part of migration. Conflicts require their own review before
+resume. Existing worker delivery remains exact-revision evidence; its controller
+binding still requires verification against the assembled result.
+
+A maintenance merge preserves ancestry but its files appear in the three-dot diff
+from the original task base. Do not rewrite `state.baseCommit` or relabel framework
+changes as feature work to hide them. Independent reviews must assess feature scope
+and accepted maintenance provenance separately against the unchanged behavior
+baseline and contract. This release does not introduce an automatic provenance
+approval or scope exemption: until that reconciliation is separately reviewed,
+the migration is only prepared. Full feature acceptance still requires fresh gates
+and independent review/audit, which may raise scope findings on the combined diff.
+
+The read-only `INTEGRATION_BASE_DIVERGED` preflight rejects an integration HEAD
+that does not contain current `modern_interface` before freezing the target,
+probing its runtime or consuming build/artifact attempts. It does not merge or
+change counters. The same ancestry check precedes final publication. If main
+advances after freeze, preserve old proof and arrange separately reviewed
+reconciliation plus a fresh exact target and gates; existing proof cannot be
+reused across that merge. A concurrent main change after the last check is still
+caught by the existing `git merge --ff-only` safety gate.
 
 Apply and resume are separate explicit authorizations. The actual run has not
 been migrated or resumed by this framework implementation. No quota/attempt

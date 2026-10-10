@@ -133,3 +133,40 @@ test('controller artifact gate runs a real collector at the frozen revision and 
   const recovered=await executeArtifactCheck(sandbox,restarted,binding,{runDirectory,save:async()=>{}});assert.equal(recovered.receiptDigest,receipt.receiptDigest);assert.equal(calls,1);
   assert.equal(state.verifiedArtifactReferences[0].integrityVerified,true);
 });
+
+
+test('advanced maintenance main blocks freeze until separately reviewed history-preserving reconciliation', async t => {
+  const { freezeVerificationTarget, assertIntegrationBase }=await import('../.sandcastle/verification-gates.mjs');
+  const { execFileSync }=await import('node:child_process');
+  const dir=await mkdtemp(join(tmpdir(),'sandcastle-maintenance-base-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const root=join(dir,'controller'),feature=join(dir,'feature');await mkdir(root);
+  const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8'}).trim();
+  git(root,'init','-q','-b','modern_interface');git(root,'config','user.name','Fixture');git(root,'config','user.email','fixture@example.invalid');
+  await writeFile(join(root,'baseline.txt'),'original behavior baseline');git(root,'add','.');git(root,'commit','-qm','original baseline');
+  const base=git(root,'rev-parse','HEAD');git(root,'worktree','add','-q','-b','codex/paused-feature',feature);
+  await writeFile(join(feature,'feature.txt'),'feature delivery');git(feature,'add','.');git(feature,'commit','-qm','feature delivery');
+  const delivery=git(feature,'rev-parse','HEAD');
+  await writeFile(join(root,'maintenance.txt'),'reviewed framework');git(root,'add','.');git(root,'commit','-qm','maintenance advance');
+  const maintenance=git(root,'rev-parse','HEAD');
+  const state={baseCommit:base,phase:'test-gate',buildAttempts:2,testAttempts:1,acceptance:{contractDigest:'b'.repeat(64)},executionPlan:{digest:'c'.repeat(64)}};
+  const original=structuredClone(state),options={controllerDigest:'d'.repeat(64),runtime:{kind:'fixture'},publication:{root,branch:'modern_interface'}};
+  // Production freeze rejects before setting a target or spending gates. The
+  // helper neither merges maintenance nor rebases the immutable task baseline.
+  await assert.rejects(freezeVerificationTarget(state,feature,options),{code:'INTEGRATION_BASE_DIVERGED',deterministic:true});
+  assert.deepEqual(state,original);assert.equal(git(root,'rev-parse','HEAD'),maintenance);assert.equal(git(feature,'rev-parse','HEAD'),delivery);
+  assert.throws(()=>git(root,'merge','--ff-only','codex/paused-feature'),/Command failed/);
+  // Models an explicit, independently reviewed maintenance merge while stopped;
+  // no production helper carries out this scope-changing operation.
+  git(feature,'merge','--no-ff','modern_interface','-m','Reviewed maintenance reconciliation');
+  const reconciled=git(feature,'rev-parse','HEAD');
+  assert.deepEqual(await assertIntegrationBase(root,feature,'modern_interface'),{branch:'modern_interface',mainHead:maintenance,integrationHead:reconciled});
+  await freezeVerificationTarget(state,feature,options);
+  assert.equal(state.verificationTarget.head,reconciled);assert.equal(state.baseCommit,base);assert.equal(state.acceptance.contractDigest,original.acceptance.contractDigest);
+  assert.equal(git(feature,'diff','--name-only',`${base}...HEAD`).split('\n').includes('maintenance.txt'),true);
+  git(root,'merge','--ff-only','codex/paused-feature');assert.equal(git(root,'rev-parse','HEAD'),reconciled);
+  // Main can advance after freeze: publication must reject, retain old proof,
+  // and require a new reviewed target rather than cross-HEAD evidence reuse.
+  await writeFile(join(root,'later-maintenance.txt'),'later reviewed change');git(root,'add','.');git(root,'commit','-qm','later maintenance');
+  await assert.rejects(assertIntegrationBase(root,feature,'modern_interface'),{code:'INTEGRATION_BASE_DIVERGED'});
+  assert.equal(state.verificationTarget.head,reconciled);assert.equal(state.buildAttempts,2);assert.equal(state.testAttempts,1);
+});

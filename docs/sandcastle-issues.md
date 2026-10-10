@@ -286,3 +286,20 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
 - **Checks:** orphan/failed attempts, target mismatch, tamper, symlink/secret
   rejection and collector restart; actual Docker ephemeral loss versus retained
   sealed bytes. B-024 case counts use per-session logs, including no-send cases.
+
+
+### 20. Installing controller maintenance diverges the stopped feature branch
+
+- **Problem:** framework installation advances main while saved feature ancestry
+  stays at the historical checkpoint; successful migration preparation could still
+  reach an impossible final fast-forward after expensive acceptance gates.
+- **Affected code:** `.sandcastle/verification-gates.mjs`, workflow freeze and
+  publication; stopped-incident migration documentation.
+- **Resolution:** read-only typed `INTEGRATION_BASE_DIVERGED` preflight before
+  runtime/freeze/gate attempts and again before publication; separately reviewed
+  maintenance provenance/scope reconciliation while stopped. Original task base,
+  contract, history and counters are preserved; no automatic merge/scope exemption.
+- **Status:** framework guard implemented; actual incident migration and its
+  maintenance reconciliation remain unapplied and require separate review.
+- **Checks:** real Git divergent main/feature blocks freeze unchanged; explicit
+  reviewed merge allows final FF; main advancement after freeze blocks again.

@@ -8,7 +8,20 @@ import { assertExecutionPlan, requiredArtifactChecks } from './verification-plan
 const exec=promisify(execFile),git=async(cwd,...args)=>(await exec('git',args,{cwd})).stdout.trim();
 const need=(condition,code,message)=>{if(!condition)throw verificationError(code,message);};
 const quote=value=>`'${String(value).replaceAll("'","'\\''")}'`;
-export async function freezeVerificationTarget(state,worktree,{controllerDigest,runtime}) {
+// Publication requires the current maintenance branch to be an ancestor. This
+// guard is read-only: reconciling scope/history is a separate reviewed action.
+export async function assertIntegrationBase(root,worktree,branch='modern_interface') {
+  const mainHead=await git(root,'rev-parse',`refs/heads/${branch}`),integrationHead=await git(worktree,'rev-parse','HEAD');
+  try { await git(worktree,'merge-base','--is-ancestor',mainHead,integrationHead); }
+  catch(error) {
+    if(error.code!==1)throw error;
+    throw verificationError('INTEGRATION_BASE_DIVERGED',`${branch} ${mainHead} is not an ancestor of integration ${integrationHead}; separately review and merge maintenance history while stopped before freeze; preserve original baseCommit and contract`);
+  }
+  need(await git(root,'rev-parse',`refs/heads/${branch}`)===mainHead&&await git(worktree,'rev-parse','HEAD')===integrationHead,'INTEGRATION_BASE_CHANGED','publication revisions changed during preflight; repeat the read-only check');
+  return {branch,mainHead,integrationHead};
+}
+export async function freezeVerificationTarget(state,worktree,{controllerDigest,runtime,publication}) {
+  if(publication)await assertIntegrationBase(publication.root,worktree,publication.branch);
   need(!state.wave,'VERIFICATION_DELIVERY_PENDING','integrate all delivery before freeze');
   need(!(await git(worktree,'status','--porcelain')),'VERIFICATION_DIRTY','clean committed target required');
   const target=assertTarget({head:await git(worktree,'rev-parse','HEAD'),contractDigest:state.acceptance.contractDigest,bindingDigest:state.executionPlan.digest,controllerDigest,runtime});
