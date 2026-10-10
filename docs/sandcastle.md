@@ -513,3 +513,127 @@ combined server-plus-display scenario. Only after their runners, fixtures, and
 failure reports are implemented should `sandbox:dev` invoke them before the
 final `$code-review` stage. Until then, report them as **not run**, never as
 passed by the existing headless checks.
+
+## Stage-owned verification and durable artifacts
+
+New ticket batches require a version-1 `executionPlan` in the committed batch
+manifest, bound to the immutable acceptance contract digest. Every criterion is
+classified as inspection, artifact or deferred. Runtime evidence requires a
+controller-owned artifact producer at `test-gate` on the integrated HEAD. A
+separate read-only verifier checks coverage, the collector's source/expected
+matrix and all ticket Markdown before workers are scheduled. A newly needed
+collector may be delivered by a worker prerequisite; its acceptance runs after
+assembly. Worker tickets declare `delivery: {owner: "worker", phase:
+"parallel-work", prerequisites: []}` and use `## Worker delivery criteria` and
+`## Controller acceptance obligations`. Only local delivery boxes determine
+worker completion. Required controller obligations remain pending and mandatory.
+
+The controller mounts a per-run producer inbox, never the sealed evidence store,
+into its execution container. A collector receives a fresh output directory as
+its final argument and must return a manifest with exact `tested_head`,
+`contract_digest`, `inputs_unchanged`, source/artifact size/hash inventories and
+complete suite results. Literal expected case counts come from the independently
+reviewed binding. A modern collector can record `caseCount`; an existing collector
+can use one explicitly declared `.log` or `.bin` artifact per case. In B-024,
+`.log` is necessary: the 14 no-send submission cases have no request `.bin`.
+
+Artifacts are copied into a private controller snapshot, checked there, fsynced
+and atomically renamed into ignored `.sandcastle/runs/<run>/evidence/` before the
+state references them. Producer staging is never renamed into a trusted bundle.
+Only synthetic controlled-peer artifacts are supported; auth files, private keys
+and recognised credentials are rejected without printing their content. Receipts
+bind the exact HEAD, contract/binding/controller digests, actual image and
+compiler/interpreter identities, command, input hashes and actual result. Failed
+attempts remain failures; hash integrity does not establish independent semantic
+acceptance. A restart can rediscover and revalidate a sealed orphan. Readback is
+required before review, final audit and publication.
+
+The integrated verification target freezes after all delivery/coverage commits.
+Receipts and independent verdicts live outside Git. The existing report-only
+publication whitelist remains strict and now checks every intervening commit,
+including code-change/revert sequences. Publication HEAD may be a permitted
+report descendant of verified code HEAD; no general docs/source-hash reuse exists.
+
+### Prepared migration for stopped SV-B-024
+
+The version-1 migration supports only the saved `0241e0da` wave-6 incident and its
+exact integration/worker/contract identities. It accepts only the documentation
+handoff delta, preserves historical blocked/claimed records and the open finding,
+and requires independent exact-revision delivery and binding coverage reviews.
+It records delivery separately from completed tickets; generic blocked workers
+remain unmergeable. Preview is read-only and apply leaves the run stopped.
+
+After the framework change is reviewed and installed in the controller checkout:
+
+```sh
+npm run sandbox:verification -- preview 0241e0da
+npm run sandbox:verification -- apply 0241e0da --authorization <unique-id> --binding-review /absolute/path/binding-review.json --delivery-review /absolute/path/delivery-review.json
+```
+
+Installation advances `modern_interface` with maintenance commits that the saved
+feature branch does not contain. Preview/apply prepare the original checkpoint;
+they do not reconcile this divergence. Apply must precede any branch change,
+because its exact historical integration/worker identities are intentional guards.
+The prepared migration is not yet a ready-to-publish feature: first separately
+review maintenance provenance and scope, then reconcile while the run stays stopped:
+
+```sh
+git worktree list --porcelain
+git rev-parse refs/heads/modern_interface
+git log --oneline <original-base>..refs/heads/modern_interface
+git diff <original-base>...refs/heads/modern_interface
+# Only after independent review accepts ALL maintenance revisions in this range:
+git -C <absolute-paused-integration-worktree> merge --no-ff <reviewed-maintenance-head> -m "Merge independently reviewed maintenance before verification freeze"
+git -C <absolute-paused-integration-worktree> merge-base --is-ancestor refs/heads/modern_interface HEAD
+git -C <absolute-paused-integration-worktree> diff --name-only <original-base>...HEAD
+# Separate explicit authorization to run, after reconciliation/scope review:
+SANDCASTLE_VERIFICATION_RESUME=1 npm run sandbox:resume -- 0241e0da
+```
+
+Use the existing worktree for `codex/sandcastle-dev-0241e0da`, not a worker or main
+checkout. Resolve `<original-base>` from the unchanged saved `state.baseCommit`;
+name the independently reviewed maintenance SHA explicitly, not a moving branch.
+Preserve the review record with baseline, maintenance commit range/diff, resulting
+merge HEAD, reviewer and approved scope. Unrelated feature changes in main make
+this procedure unsupported until a separately reviewed reconciliation is designed.
+No reset/rebase/history rewriting, main merge, automatic conflict resolution or
+contract amendment is part of migration. Conflicts require their own review before
+resume. Existing worker delivery remains exact-revision evidence; its controller
+binding still requires verification against the assembled result.
+
+A maintenance merge preserves ancestry but its files appear in the three-dot diff
+from the original task base. Do not rewrite `state.baseCommit` or relabel framework
+changes as feature work to hide them. Independent reviews must assess feature scope
+and accepted maintenance provenance separately against the unchanged behavior
+baseline and contract. This release does not introduce an automatic provenance
+approval or scope exemption: until that reconciliation is separately reviewed,
+the migration is only prepared. Full feature acceptance still requires fresh gates
+and independent review/audit, which may raise scope findings on the combined diff.
+
+The read-only `INTEGRATION_BASE_DIVERGED` preflight rejects an integration HEAD
+that does not contain current `modern_interface` before freezing the target,
+probing its runtime or consuming build/artifact attempts. It does not merge or
+change counters. The same ancestry check precedes final publication. If main
+advances after freeze, preserve old proof and arrange separately reviewed
+reconciliation plus a fresh exact target and gates; existing proof cannot be
+reused across that merge. A concurrent main change after the last check is still
+caught by the existing `git merge --ff-only` safety gate.
+
+Apply and resume are separate explicit authorizations. The actual run has not
+been migrated or resumed by this framework implementation. No quota/attempt
+allowance is granted. Both JSON records must come from independent review,
+not copied placeholder approvals. Binding review requires `approved`, `summary`,
+`missingRequirements: []`, exact preview `bindingDigest` and `head`. Delivery
+review requires `approved`, `localPredicatesPassed`, exact preview `head` and
+`ticketDigest`, and all four `pendingCriterionIds`. Optional `--root
+/absolute/repository` selects the saved controller repository. Applying writes an
+exclusive archive of the original checkpoint and atomically publishes the new
+state under the existing run lock; it refuses an existing lock instead of guessing
+whether the controller is alive. A changed incident requires a new migration
+review; this is not a general blocked-result override.
+
+Validation: `node --test tests/sandcastle_*.mjs`. The safe Docker lifecycle test is
+opt-in: `SANDCASTLE_STORAGE_DOCKER=1 node --test
+tests/sandcastle_verification_docker.mjs`; it uses synthetic artifacts, no auth
+mounts and Docker networking disabled. Full SV sessions remain feature acceptance,
+not a claim made by these framework tests.

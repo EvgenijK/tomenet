@@ -119,6 +119,12 @@ export function pauseStatus(state) {
     else delete resume.environment;
     resume.requiresAuthorization = true;
   }
+  if (!remainingGuards.length && !state.quotaError && state.verificationMigration?.version === 1 && state.resumePhase === "assemble" && !failure.fatalPreflight) {
+    resume.environment = { SANDCASTLE_VERIFICATION_RESUME: "1" };
+    resume.requiresAuthorization = true;
+    resume.requiresVerification = true;
+    failure = { ...failure, reason: "Controller-owned verification migration is prepared; the run remains stopped.", requiredAction: "Explicitly authorize the separate verification resume; preserved delivery must pass assembly, required gates and independent acceptance." };
+  }
   return { ...failure, resume, ...(remainingGuards.length ? { remainingGuards } : {}) };
 }
 

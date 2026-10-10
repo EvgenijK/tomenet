@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createSandbox } from '@ai-hero/sandcastle';
+import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
+import { toolchainIdentity } from '../.sandcastle/verification-gates.mjs';
+import { publishEvidence, verifyEvidence } from '../.sandcastle/verification.mjs';
+
+test('real Docker teardown loses ephemeral files but preserves controller-owned synthetic evidence', {skip:process.env.SANDCASTLE_STORAGE_DOCKER!=='1'}, async t => {
+  const dir=await mkdtemp(join(tmpdir(),'sandcastle-store-docker-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const inbox=join(dir,'inbox');await mkdir(inbox);
+  const git=(...args)=>execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim();
+  git('init','-q','-b','main');git('config','user.name','Storage fixture');git('config','user.email','fixture@example.invalid');git('commit','--allow-empty','-qm','fixture');
+  let sandbox=await createSandbox({cwd:dir,branch:'synthetic-producer',baseBranch:'main',sandbox:docker({imageName:'sandcastle:tomenet_modern_client',network:'none',mounts:[{hostPath:inbox,sandboxPath:'/home/agent/.sandcastle-evidence-out',readonly:false}]})});
+  t.after(async()=>{if(sandbox)await sandbox.close();});
+  const out=await sandbox.exec('node -',{stdin:`const fs=require('node:fs');fs.mkdirSync('/home/agent/ephemeral-capture');fs.writeFileSync('/home/agent/ephemeral-capture/trace.txt','synthetic ephemeral');fs.writeFileSync('/home/agent/.sandcastle-evidence-out/trace.txt','synthetic durable');`});
+  assert.equal(out.exitCode,0);
+  const tools=await toolchainIdentity(sandbox);assert.match(tools.python3.sha256,/^[a-f0-9]{64}$/);assert.match(tools.cc.sha256,/^[a-f0-9]{64}$/);
+  const target={head:git('rev-parse','HEAD'),contractDigest:'b'.repeat(64),bindingDigest:'c'.repeat(64),controllerDigest:'d'.repeat(64),runtime:{kind:'sandbox',imageId:execFileSync('docker',['image','inspect','--format={{.Id}}','sandcastle:tomenet_modern_client'],{encoding:'utf8'}).trim()}};
+  const receipt=await publishEvidence({store:join(dir,'sealed'),staging:inbox,target,checkId:'synthetic',attemptId:'first',result:{exitCode:0},artifactPolicy:{syntheticOnly:true}});
+  const closed=sandbox;await sandbox.close();sandbox=undefined;
+  const missing=await closed.exec('node -',{stdin:`require('node:fs').readFileSync('/home/agent/ephemeral-capture/trace.txt');`});
+  assert.notEqual(missing.exitCode,0);
+  await rm(inbox,{recursive:true});
+  assert.equal((await verifyEvidence(receipt,target)).passed,true);
+  assert.equal(await readFile(join(receipt.bundlePath,'trace.txt'),'utf8'),'synthetic durable');
+});

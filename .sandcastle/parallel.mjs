@@ -1,8 +1,9 @@
 import { recordTicketResult, validateTicketBatch } from "./tickets.mjs";
+import { isDeliveryReady, dependencyReadyTickets } from "./delivery.mjs";
 
 export function selectReadyTickets(state, limit) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error("Parallelism must be an integer from 1 to 10");
-  const completed = new Set(state.completedTickets);
+  const completed = dependencyReadyTickets(state);
   return state.tickets.filter((ticket) => !completed.has(ticket.path) && ticket.blockedBy.every((path) => completed.has(path))).slice(0, limit);
 }
 
@@ -11,7 +12,7 @@ export function createWave(state, { baseCommit, limit, after = "tickets", ticket
   if (!tickets.length) throw new Error("No ready tickets; inspect unresolved dependencies");
   if (!Array.isArray(usedBranches) || !usedBranches.every((branch) => typeof branch === "string" && branch)) throw new Error("Used worker branches must be a string array");
   validateTicketBatch({ tickets }, state);
-  if (tickets.some((ticket) => state.completedTickets.includes(ticket.path) || ticket.blockedBy.some((path) => !state.completedTickets.includes(path)))) throw new Error("Wave contains completed or blocked tickets");
+  if (tickets.some((ticket) => state.completedTickets.includes(ticket.path) || ticket.blockedBy.some((path) => !dependencyReadyTickets(state).has(path)))) throw new Error("Wave contains completed or blocked tickets");
   const occupied = new Set(usedBranches);
   let id = (state.waveSequence ?? 0) + 1;
   while (tickets.some((_, index) => occupied.has(`codex/sandcastle-${state.id}-wave-${id}-${index + 1}`))) id++;
@@ -66,7 +67,7 @@ export async function runWave(state, ops) {
   const wave = state.wave;
   if (!wave) throw new Error("Missing saved wave");
   const outcomes = await Promise.allSettled(wave.members.map(async (member) => {
-    if (member.integrated || member.status === "completed") return;
+    if (member.integrated || member.status === "completed" || isDeliveryReady(state, member)) return;
     member.status = "running";
     delete member.error;
     delete member.failure;
@@ -94,7 +95,7 @@ export async function runWave(state, ops) {
 export async function collectWave(state, ops) {
   const wave = state.wave;
   if (!wave) throw new Error("Missing saved wave");
-  const completed = wave.members.filter((member) => member.status === "completed" && !member.integrated);
+  const completed = wave.members.filter((member) => (member.status === "completed" || isDeliveryReady(state, member)) && !member.integrated);
   if (completed.length) {
     const result = await ops.assemble(wave);
     validResult(result);
@@ -105,14 +106,17 @@ export async function collectWave(state, ops) {
     for (const member of completed) await ops.verify(member, wave);
     for (const member of completed) {
       if (!member.integrated) {
-        recordTicketResult(state, member.ticket, member.result);
+        if (isDeliveryReady(state, member)) {
+          const delivered = state.deliveredTickets ??= [];
+          if (!delivered.includes(member.ticket.path)) delivered.push(member.ticket.path);
+        } else recordTicketResult(state, member.ticket, member.result);
         member.integrated = true;
         await ops.save(state);
       }
     }
   }
-  state.ticketIndex = state.tickets.filter((ticket) => state.completedTickets.includes(ticket.path)).length;
-  const failures = wave.members.filter((member) => member.status !== "completed");
+  state.ticketIndex = state.tickets.filter((ticket) => dependencyReadyTickets(state).has(ticket.path)).length;
+  const failures = wave.members.filter((member) => member.status !== "completed" && !isDeliveryReady(state, member));
   if (failures.length) {
     state.phase = "parallel-work";
     const failed = failures.find((member) => member.failure?.deterministic) ?? failures[0];

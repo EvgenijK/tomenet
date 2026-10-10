@@ -80,3 +80,11 @@ test("partial allowance continuation exposes all remaining guards without granti
   assert.equal(pauseStatus({ phase: "awaiting", resumePhase: "review", pauseReason: "review attempt limit reached; SANDCASTLE_EXTRA_REVIEW_ATTEMPTS required" }).resume.environment.SANDCASTLE_EXTRA_REVIEW_ATTEMPTS, "<explicit-positive-attempts>");
   assert.equal(classifyFailure("Task quota limit reached; SANDCASTLE_EXTRA_QUOTA_PERCENT required").category, "quota");
 });
+
+test("prepared delivery migration names its separate resume authorization without granting quota", () => {
+  const state={phase:'awaiting',resumePhase:'assemble',verificationMigration:{version:1},pauseReason:'Historical controller-worker deadlock'};
+  assert.deepEqual(pauseStatus(state).resume.environment,{SANDCASTLE_VERIFICATION_RESUME:'1'});
+  assert.equal(pauseStatus(state).resume.requiresAuthorization,true);
+  state.quotaError='Task reached 25% of the weekly Codex quota';
+  assert.notDeepEqual(pauseStatus(state).resume.environment,{SANDCASTLE_VERIFICATION_RESUME:'1'});
+});

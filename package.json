@@ -9,7 +9,8 @@
     "sandbox:dev": "node .sandcastle/workflow.mjs start",
     "sandbox:resume": "node .sandcastle/workflow.mjs resume",
     "sandbox:status": "node .sandcastle/status.mjs",
-    "sandbox:monitor": "node .sandcastle/monitor.mjs"
+    "sandbox:monitor": "node .sandcastle/monitor.mjs",
+    "sandbox:verification": "node .sandcastle/verification-cli.mjs"
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "0.12.0"
