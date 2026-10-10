@@ -1,6 +1,10 @@
 # SV-B-024 controlled-peer audit packet
 
 Immutable contract: `0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef`.
+Current recovery gates and exact-final-HEAD receipt location: [RECOVERY.md](RECOVERY.md).
+The original packet below retains author/parent-HEAD provenance; it is not
+substituted for the independent recovery verdict.
+
 Originating ticket: `docs/tasks/stage-b/SV-B-024-birth-dna.md` (unchanged).
 Upstream dependency: SV-B-023, production foundation present; its full/native
 acceptance remains pending at that owner. This packet does not close the parent.
@@ -23,7 +27,7 @@ Each suite compiles a native executable linking production SV endpoint modules
 under strict warnings and ASan/UBSan. The C harness supplies native SDL gestures
 and the controlled TCP peer; it does not replace birth rules, serialization or
 reply ownership. These are endpoint-seam executable runs, not invocations of the
-packaged `src/tomenet-sv` CLI. That build is a separate pending gate.
+packaged `src/tomenet-sv` CLI. That build is a separate gate; its actual recovery result is in RECOVERY.md.
 
 Retained fresh results are in [runtime/manifest.json](runtime/manifest.json).
 They describe the tested production parent HEAD, not a later commit containing
@@ -69,8 +73,12 @@ dummy/software is the backend. No OS-window screenshot is claimed.
 
 The actual success bytes are `02 03 7a` (PKT_SUCCESS = 122), including Guide.
 Slice 06's historical README says `02 03 01`; its own binary capture also contains
-`02 03 7a`. Treat that prose as a transcription error, not an alternative success
-status. Earlier slice READMEs describe the then-current `play-acknowledged`
+`02 03 7a`. The current Guide harness (`tests/sv/guide-motd.c`) also prints
+`authoritative acknowledgement = 02 03 01` in its log text. That text is a
+transcription error: its actual peer reply literal uses PKT_SUCCESS = 122 and
+its `.bin.reply` capture is `02 03 7a`. Use the fingerprinted binary capture
+for exact authoritative bytes; neither prose string is an alternative status.
+Raw transcripts and prior captures remain unchanged. Earlier slice READMEs describe the then-current `play-acknowledged`
 endpoint phase; after 06, fresh complete flows reach `live-session-handoff`.
 Their retained history is not rewritten or used as current runtime evidence.
 
@@ -122,7 +130,7 @@ Their retained history is not rewritten or used as current runtime evidence.
 | P2-9 | Status/Assignee separate from Labels; no new triage performed |
 | P2-10 | Read root CONTEXT, domain/tracker/labels docs, architecture and ADR-0001–0006 before work |
 
-## Pending acceptance blockers
+## Initial pending acceptance blockers (historical)
 
 The supplied assignment reserves full gates to the orchestrator. Actual build
 and core results must be attached there, using the immutable commands:
@@ -137,3 +145,9 @@ Neither gate has an author result here. Controller-owned review and fresh audit
 at the exact integrated final HEAD/digest are also absent. The child must remain
 unresolved while these required verdicts are pending. SV-B-023 and SV-B-025 keep
 their own acceptance/deferred evidence; no downstream entry workflow is launched.
+
+Recovery completed the actual build/core gates and independent pre-resolution
+review at worker HEAD. [RECOVERY.md](RECOVERY.md) records those results and the
+required external fresh audit at the exact resolution commit HEAD. The initial
+collector manifest's pending gate entries describe only what that collector
+executed; they are not a replacement for the separate controller verdicts.

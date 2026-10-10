@@ -28,3 +28,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   now transfers to peer MOTD and live-session handoff; actual native Guide
   callers finish birth in both choice orders, with renderer frames and peer
   transcripts available for controller review. Controller/final audit pending.
+
+- [07](issues/07-runtime-audit.md#recovery-result): 108 controlled-peer sessions,
+  actual build/core results and independent controller review recorded; fresh
+  final-HEAD receipts are located as described in the recovery packet. Parent
+  and deferred SV-B-025/SV-B-023 acceptance ownership remain unchanged.

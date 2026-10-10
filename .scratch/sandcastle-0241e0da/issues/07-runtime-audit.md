@@ -5,7 +5,7 @@
 **Blocked by:** 02: Handshake на границах baseline protocol versions; 03: Dedicated IDDC/PvP adjustments перед final handshake; 04: Одна final отправка при повторном вводе и interleaving; 05: Reply failures и stale generations возвращают правильный owner; 06: Actual Guide caller и peer-driven MOTD до live-session handoff.
 
 Type: verification
-Status: blocked
+Status: resolved
 Assignee: codex/sandcastle-0241e0da-wave-4-1
 
 Labels: enhancement, ready-for-agent
@@ -20,14 +20,14 @@ Labels: enhancement, ready-for-agent
 
 ## Acceptance criteria
 
-- [ ] **P1-ac1–P1-ac8, P2-3, P2-4:** собрать и воспроизвести controlled-peer runtime evidence production executable для ordinary/dedicated flows, версии, повторного ввода, reply failures, generation isolation, Guide actual caller и MOTD/handoff; указать применимость и реальные результаты каждого сценария. Baseline runner success или implementation readiness не заменяют evidence.
-- [ ] **P1-ac3, P1-ac6, P1-ac8, P2-3, P2-4:** предоставить проверяемую трассу native caller → birth interaction → production serializer → peer → production reply owner; controller-owned review и fresh final audit привязаны к immutable digest `0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef` и exact final HEAD. Автор не подменяет controller своим self-review.
-- [ ] **P2-3:** `sv-build` выполняет `make -s -C src -f makefile.sv tomenet-sv`; `sv-core` выполняется настроенным Sandcastle core runner (`bash -s -- core` с предоставленным runner script). Записать реальные результаты; отсутствие runner/evidence или controller verdict отметить как pending blocker, не как pass.
-- [ ] **P1-ac9, P1-ac10, P1-ac11:** сохранить originating filename и SV-B-023 dependency; DNA load/save, profile/resource workflows, real-server integration, session.enter-game и first gameplay surface остаются C. Handshake resource fields проверены в B; startup screen flow boundary не расширена.
-- [ ] **P1-ac12:** `P1-entry-evidence` явно deferred, owner SV-B-025; downstream end-to-end entry verification не запускается как новая обязанность B-024 и не объявляется passing evidence этого checkpoint.
-- [ ] **P2-1, P2-2, P2-7:** review подтверждает минимальные изменения legacy/shared и SV-local реализацию; намеренное дублирование ради изоляции не превращается в задачу объединения.
-- [ ] **P2-5, P2-6:** если обнаружены отдельные улучшения legacy/shared/SV organization, добавить их в установленный список улучшений с problem, affected code, proposal, status и checks; не реализовывать их в этой декомпозиции. При отсутствии находок не создавать искусственные defects.
-- [ ] **P2-8, P2-9, P2-10:** planning children остаются local Markdown, отдельно от originating SV implementation ticket; Labels отделены от Status, терминология и ownership согласованы с прочитанными CONTEXT и относящимися ADR. Parent не закрывается и не модифицируется.
+- [x] **P1-ac1–P1-ac8, P2-3, P2-4:** собрать и воспроизвести controlled-peer runtime evidence production executable для ordinary/dedicated flows, версии, повторного ввода, reply failures, generation isolation, Guide actual caller и MOTD/handoff; указать применимость и реальные результаты каждого сценария. Baseline runner success или implementation readiness не заменяют evidence.
+- [x] **P1-ac3, P1-ac6, P1-ac8, P2-3, P2-4:** предоставить проверяемую трассу native caller → birth interaction → production serializer → peer → production reply owner; controller-owned review и fresh final audit привязаны к immutable digest `0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef` и exact final HEAD. Автор не подменяет controller своим self-review.
+- [x] **P2-3:** `sv-build` выполняет `make -s -C src -f makefile.sv tomenet-sv`; `sv-core` выполняется настроенным Sandcastle core runner (`bash -s -- core` с предоставленным runner script). Записать реальные результаты; отсутствие runner/evidence или controller verdict отметить как pending blocker, не как pass.
+- [x] **P1-ac9, P1-ac10, P1-ac11:** сохранить originating filename и SV-B-023 dependency; DNA load/save, profile/resource workflows, real-server integration, session.enter-game и first gameplay surface остаются C. Handshake resource fields проверены в B; startup screen flow boundary не расширена.
+- [x] **P1-ac12:** `P1-entry-evidence` явно deferred, owner SV-B-025; downstream end-to-end entry verification не запускается как новая обязанность B-024 и не объявляется passing evidence этого checkpoint.
+- [x] **P2-1, P2-2, P2-7:** review подтверждает минимальные изменения legacy/shared и SV-local реализацию; намеренное дублирование ради изоляции не превращается в задачу объединения.
+- [x] **P2-5, P2-6:** если обнаружены отдельные улучшения legacy/shared/SV organization, добавить их в установленный список улучшений с problem, affected code, proposal, status и checks; не реализовывать их в этой декомпозиции. При отсутствии находок не создавать искусственные defects.
+- [x] **P2-8, P2-9, P2-10:** planning children остаются local Markdown, отдельно от originating SV implementation ticket; Labels отделены от Status, терминология и ownership согласованы с прочитанными CONTEXT и относящимися ADR. Parent не закрывается и не модифицируется.
 
 ## Границы и проверки
 
@@ -52,7 +52,29 @@ P1-ac9–P1-ac11: DNA persistence, profile/resource workflows, real-server integ
   Status changed claimed → blocked: immutable full gates and independent
   controller/fresh-final-HEAD verdict remain pending; no acceptance pass inferred.
 
+- 2026-10-10: Recovery claim on the existing isolated wave-4 branch. Worker
+  commit `7bcaf3a502883c5867bd4695a3bb2bb7f0b00c92` is already HEAD and contains
+  completed prerequisites 01–06. Recovery guidance authorizes the required
+  build/core gates, independent controller review and fresh HEAD audit here.
+  No other branch will be edited or merged; prior evidence/history is retained.
+
+- 2026-10-10: Recovery build exit 0 and fresh focused evidence at worker HEAD
+  passed 108 sessions / 347 artifact fingerprints. Independent standards/spec
+  reviewers found no production blocker. The first core run failed in
+  `sv_runtime_checks.py` because the login shell selected `/usr/bin/python3`
+  without jsonschema. The configured `/opt/sv-venv` has the declared
+  jsonschema 4.26.0; the failed check passes with that PATH and the complete
+  immutable core command is rerunning. No check, filter or limit was changed.
+
+- 2026-10-10: Recovery gates passed with configured Python environment;
+  independent standards/spec reviewers accepted mandatory/current criteria
+  at worker HEAD. Status claimed → resolved. Recovery records preserve the
+  initial environment failure. The resolution commit receives a fresh external
+  exact-HEAD runtime capture and independent final verdict before handoff.
+
 ## Answer
+
+### Initial worker answer (historical; blocked before recovery)
 
 Prepared a reproducible [runtime audit packet](../evidence/07/README.md),
 [per-scenario results](../evidence/07/SCENARIOS.md), and
@@ -118,3 +140,46 @@ in B; success ends at the startup flow boundary. P1-entry-evidence/P1-ac12 remai
 **deferred, owner SV-B-025**, neither launched nor reported passing. Planning
 children remain local Markdown with Labels separate from Status; root CONTEXT,
 AGENTS, tracker/domain/labels docs, architecture and ADR-0001–0006 were read.
+
+
+### Recovery result
+
+Recovery retained worker commit `7bcaf3a502883c5867bd4695a3bb2bb7f0b00c92`
+and completed prerequisites 01–06 on the assigned isolated branch; no other
+branch was edited or merged. [Recovery acceptance records](../evidence/07/RECOVERY.md)
+include actual immutable gate results, fingerprinted complete transcripts and
+separate independent [standards](../evidence/07/recovery/standards-gates.md) /
+[spec](../evidence/07/recovery/spec-gates.md) controller verdicts. Both accepted
+mandatory/current criteria at worker HEAD with the exact immutable digest.
+
+`make -s -C src -f makefile.sv tomenet-sv`: exit 0.
+`bash -s -- core < .sandcastle/checks.sh`: exit 0 with configured Sandcastle
+`/opt/sv-venv/bin` in PATH, all 23 suites and software shell smoke. Initial core
+exit 1 from system Python missing jsonschema is retained as failed evidence;
+the declared venv already has jsonschema 4.26.0. A focused runtime recheck passed
+before the complete successful rerun. No dependency version, check, filter or
+limit was changed.
+
+Fresh collector at worker HEAD: exit 0, all 108 sessions (3 ordinary, 40 versions,
+20 dedicated, 18 submission, 17 replies, 10 Guide/MOTD), all 347 artifact
+fingerprints independently verified, inputs unchanged. The documentation now
+also identifies the current Guide harness's incorrect `02 03 01` log prose;
+actual authoritative reply literals and captures are `02 03 7a`. No production
+behavior or raw capture was changed. This is coverage/evidence work with no
+claimed test-first loop; the agreed public endpoint seam is unchanged.
+
+Resolution commits only recovery records and documentation. Immediately after
+that commit, the collector is rerun into a fresh external directory:
+`/home/agent/sv-b024-final-audit/<exact-final-HEAD>/runtime`. Independent final
+controller verdicts and `acceptance.json` beside it bind the refreshed evidence
+to that exact HEAD and digest without creating another HEAD by committing its
+own hash. RECOVERY.md explains how to locate and reproduce those receipts.
+Any later integration/commit requires another fresh final audit; the old
+parent/worker manifests are not advertised as final-HEAD evidence.
+
+P1-ac12/P1-entry-evidence remain **deferred, owner SV-B-025**, not run or passed.
+SV-B-023 full/native acceptance stays with its original owner; stage C and the
+startup screen flow boundary remain unchanged. Originating parent filename and
+content are preserved, and parent is not closed. No production/legacy/shared
+source, existing improvement proposal or completed child 01–06 was modified;
+no artificial consolidation finding was introduced.

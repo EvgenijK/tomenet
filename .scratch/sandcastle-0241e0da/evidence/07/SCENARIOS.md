@@ -1,4 +1,7 @@
-# Fresh scenario results
+# Initial worker scenario results (historical)
+
+Recovery/current-final-HEAD evidence: [RECOVERY.md](RECOVERY.md).
+The captures below retain their original HEAD and are not relabelled.
 
 Tested production HEAD: `3e0135bfbd31510afefb93589ae20ee562d49768`.
 
