@@ -81,3 +81,9 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   and 04 with factual summaries linked to their authoritative Answers; existing
   evidence history, pending controller gates and deferred SV-B-025 ownership
   remain unchanged.
+
+- [13](issues/13-complete-runtime-input-inventory.md#answer): repaired the real
+  collector inventory, actual-flag compiler closure, generated/oracle provenance
+  and before/after resource/tool/runtime seal; focused production and mutation
+  checks pass. Delivery is ready for assembly; binding approval and integrated
+  controller acceptance remain pending.
