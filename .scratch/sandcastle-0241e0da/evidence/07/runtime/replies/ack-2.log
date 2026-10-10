@@ -1,0 +1,6 @@
+SV endpoint selected host=127.0.0.1 port=42693
+SV contact ready host=127.0.0.1 port=42693 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=24668772
+SV-B-024 ack-2 captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=24668772
+SV resource unavailable: /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback

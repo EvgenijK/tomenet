@@ -1,0 +1,60 @@
+SV endpoint selected host=127.0.0.1 port=55781
+SV contact ready host=127.0.0.1 port=55781 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 waiting captured 16266 handshake bytes; keepalive=1 phase=play-pending character=Carol generation=21792769 prior=0
+SV endpoint selected host=127.0.0.1 port=47661
+SV contact ready host=127.0.0.1 port=47661 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 partial captured 16266 handshake bytes; keepalive=1 phase=play-pending character=Carol generation=27367240 prior=0
+SV endpoint selected host=127.0.0.1 port=37523
+SV contact ready host=127.0.0.1 port=37523 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22838479
+SV-B-024 ack captured 16266 handshake bytes; keepalive=1 phase=live-session-handoff character=Carol generation=22838479 prior=0
+SV endpoint selected host=127.0.0.1 port=43589
+SV contact ready host=127.0.0.1 port=43589 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV contact ready host=127.0.0.1 port=43589 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=1266511610
+SV-B-024 retry captured 16266 handshake bytes; keepalive=1 phase=live-session-handoff character=Carol generation=1266511610 prior=22810192
+SV endpoint selected host=127.0.0.1 port=53685
+SV contact ready host=127.0.0.1 port=53685 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-sex no final bytes; closed=1 generation=28053552
+SV endpoint selected host=127.0.0.1 port=52797
+SV contact ready host=127.0.0.1 port=52797 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-class no final bytes; closed=1 generation=25225142
+SV endpoint selected host=127.0.0.1 port=42111
+SV contact ready host=127.0.0.1 port=42111 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-race no final bytes; closed=1 generation=27076354
+SV endpoint selected host=127.0.0.1 port=34655
+SV contact ready host=127.0.0.1 port=34655 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-trait no final bytes; closed=1 generation=29610627
+SV endpoint selected host=127.0.0.1 port=43343
+SV contact ready host=127.0.0.1 port=43343 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-body no final bytes; closed=1 generation=22146872
+SV endpoint selected host=127.0.0.1 port=44543
+SV contact ready host=127.0.0.1 port=44543 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-stats no final bytes; closed=1 generation=29881290
+SV endpoint selected host=127.0.0.1 port=59951
+SV contact ready host=127.0.0.1 port=59951 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 quit-mode no final bytes; closed=1 generation=25947118
+SV endpoint selected host=127.0.0.1 port=50399
+SV contact ready host=127.0.0.1 port=50399 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-sex no final bytes; closed=1 generation=22989108
+SV endpoint selected host=127.0.0.1 port=54719
+SV contact ready host=127.0.0.1 port=54719 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-class no final bytes; closed=1 generation=22236287
+SV endpoint selected host=127.0.0.1 port=55391
+SV contact ready host=127.0.0.1 port=55391 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-race no final bytes; closed=1 generation=21411351
+SV endpoint selected host=127.0.0.1 port=40229
+SV contact ready host=127.0.0.1 port=40229 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-trait no final bytes; closed=1 generation=23235969
+SV endpoint selected host=127.0.0.1 port=53925
+SV contact ready host=127.0.0.1 port=53925 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-body no final bytes; closed=1 generation=22405081
+SV endpoint selected host=127.0.0.1 port=38409
+SV contact ready host=127.0.0.1 port=38409 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-stats no final bytes; closed=1 generation=30092464
+SV endpoint selected host=127.0.0.1 port=47751
+SV contact ready host=127.0.0.1 port=47751 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-mode no final bytes; closed=1 generation=25453618
+SV-B-024 focused single-submission checks passed

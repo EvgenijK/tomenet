@@ -1,0 +1,111 @@
+1-waiting: SV endpoint selected host=127.0.0.1 port=60609
+SV contact ready host=127.0.0.1 port=60609 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=21868696
+1-partial: SV endpoint selected host=127.0.0.1 port=43503
+SV contact ready host=127.0.0.1 port=43503 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=22090672
+1-ack: SV endpoint selected host=127.0.0.1 port=53521
+SV contact ready host=127.0.0.1 port=53521 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+native surface=2 guide-visit=5 presented
+SV startup phase=live-session-handoff character=Carol generation=22386306
+native surface=3 guide-visit=5 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22386306
+1-skip: SV endpoint selected host=127.0.0.1 port=55853
+SV contact ready host=127.0.0.1 port=55853 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=21638773
+native surface=3 guide-visit=5 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=21638773
+1-point: SV endpoint selected host=127.0.0.1 port=51437
+SV contact ready host=127.0.0.1 port=51437 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+native surface=1 guide-visit=6 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+native surface=2 guide-visit=6 presented
+SV startup phase=live-session-handoff character=Carol generation=22131476
+native surface=3 guide-visit=6 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22131476
+0-waiting: SV endpoint selected host=127.0.0.1 port=50381
+SV contact ready host=127.0.0.1 port=50381 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=22167698
+0-partial: SV endpoint selected host=127.0.0.1 port=44567
+SV contact ready host=127.0.0.1 port=44567 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=22951526
+0-ack: SV endpoint selected host=127.0.0.1 port=50163
+SV contact ready host=127.0.0.1 port=50163 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+native surface=2 guide-visit=5 presented
+SV startup phase=live-session-handoff character=Carol generation=20575267
+native surface=3 guide-visit=5 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=20575267
+0-skip: SV endpoint selected host=127.0.0.1 port=60839
+SV contact ready host=127.0.0.1 port=60839 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22064738
+native surface=3 guide-visit=5 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22064738
+0-point: SV endpoint selected host=127.0.0.1 port=48255
+SV contact ready host=127.0.0.1 port=48255 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+native surface=1 guide-visit=6 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+native surface=2 guide-visit=6 presented
+SV startup phase=live-session-handoff character=Carol generation=21484614
+native surface=3 guide-visit=6 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=21484614
+SV Guide caller / peer MOTD / startup handoff checks passed

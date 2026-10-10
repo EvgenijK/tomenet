@@ -1,0 +1,63 @@
+SV endpoint selected host=127.0.0.1 port=50189
+SV contact ready host=127.0.0.1 port=50189 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 rejected captured 16266 handshake bytes; phase=failed character=Carol generation=26174918
+SV endpoint selected host=127.0.0.1 port=60061
+SV contact ready host=127.0.0.1 port=60061 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 peer-quit captured 16266 handshake bytes; phase=disconnected character=Carol generation=29076862
+SV endpoint selected host=127.0.0.1 port=44589
+SV contact ready host=127.0.0.1 port=44589 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 disconnect captured 16266 handshake bytes; phase=disconnected character=Carol generation=26408052
+SV endpoint selected host=127.0.0.1 port=36083
+SV contact ready host=127.0.0.1 port=36083 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 wrong-type captured 16266 handshake bytes; phase=failed character=Carol generation=22058034
+SV endpoint selected host=127.0.0.1 port=36773
+SV contact ready host=127.0.0.1 port=36773 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 wrong-packet captured 16266 handshake bytes; phase=failed character=Carol generation=22457587
+SV endpoint selected host=127.0.0.1 port=58443
+SV contact ready host=127.0.0.1 port=58443 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=26967076
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26967076
+SV endpoint selected host=127.0.0.1 port=45397
+SV contact ready host=127.0.0.1 port=45397 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=21115495
+SV-B-024 ack-1 captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=21115495
+SV endpoint selected host=127.0.0.1 port=42693
+SV contact ready host=127.0.0.1 port=42693 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=24668772
+SV-B-024 ack-2 captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=24668772
+SV endpoint selected host=127.0.0.1 port=51295
+SV contact ready host=127.0.0.1 port=51295 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 partial-1 captured 16266 handshake bytes; phase=play-pending character=Carol generation=23495296
+SV endpoint selected host=127.0.0.1 port=60639
+SV contact ready host=127.0.0.1 port=60639 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 partial-2 captured 16266 handshake bytes; phase=play-pending character=Carol generation=22176839
+SV endpoint selected host=127.0.0.1 port=34145
+SV contact ready host=127.0.0.1 port=34145 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 truncated-1 captured 16266 handshake bytes; phase=disconnected character=Carol generation=26669961
+SV endpoint selected host=127.0.0.1 port=58579
+SV contact ready host=127.0.0.1 port=58579 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 truncated-2 captured 16266 handshake bytes; phase=disconnected character=Carol generation=22141209
+SV endpoint selected host=127.0.0.1 port=50645
+SV contact ready host=127.0.0.1 port=50645 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=23133068
+SV-B-024 ack-trailing captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=23133068
+SV endpoint selected host=127.0.0.1 port=39127
+SV contact ready host=127.0.0.1 port=39127 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV contact ready host=127.0.0.1 port=39127 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=722715954
+SV-B-024 ack-retry captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=722715954
+SV endpoint selected host=127.0.0.1 port=50867
+SV contact ready host=127.0.0.1 port=50867 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 rejected-trailing captured 16266 handshake bytes; phase=failed character=Carol generation=21913224
+SV endpoint selected host=127.0.0.1 port=55681
+SV contact ready host=127.0.0.1 port=55681 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 malformed-quit captured 16266 handshake bytes; phase=failed character=Carol generation=22094460
+SV endpoint selected host=127.0.0.1 port=51099
+SV contact ready host=127.0.0.1 port=51099 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 ack-quit captured 16266 handshake bytes; phase=disconnected character=Carol generation=23133537
+SV-B-024 focused authoritative reply checks passed
