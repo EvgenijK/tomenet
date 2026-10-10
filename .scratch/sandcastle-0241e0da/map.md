@@ -13,6 +13,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [06: Guide/MOTD handoff](issues/06-guide-motd-handoff.md)
 - [07: Runtime audit](issues/07-runtime-audit.md)
 - [08: Focused production coverage](issues/08-focused-test-coverage.md)
+- [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — open repair D-9496281ca15e0741; [batch 1](batch-1.json).
 
 ## Decisions so far
 
