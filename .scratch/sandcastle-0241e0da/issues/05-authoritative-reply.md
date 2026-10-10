@@ -149,3 +149,30 @@ P1-entry-evidence remains deferred to SV-B-025, not passed.
 Per the requested division of work, the full `sv-build`, configured `sv-core`,
 controller-review and fresh final audit were not run or claimed passed. The
 orchestrator owns these gates after all tickets.
+
+### Wave 3 integration verification (2026-10-10)
+
+Merged exact worker revisions `796a55b2520c5f4464dd3ad7d832cc295c456072`
+and `d3b7dcb3afd67b224e2a5ee622969027b015fc5c` in that order on
+`codex/sandcastle-dev-0241e0da`, preserving both ancestries. Conflict resolution
+retains both focused checks and map answers, publishes interleaved server flags
+while play is pending, and routes authoritative acknowledgement into peer MOTD
+and live-session handoff. The reply fixture now explicitly skips MOTD and expects
+the combined live-handoff destination; failure, partial, stale-generation and
+trailing-packet assertions remain intact.
+
+Combined focused checks passed:
+
+- `python3 tests/sv_birth_reply_checks.py` (all 17 cases).
+- `python3 tests/sv_guide_motd_checks.py` (10 cases, both compile orders).
+- `python3 tests/sv_birth_complete_checks.py`.
+- `python3 tests/sv_birth_single_submission_checks.py` (all 18 cases).
+- `python3 tests/sv_first_session_checks.py`.
+- `SV_DEDICATED_CASES=iddc,pvp-maia python3 tests/sv_birth_dedicated_checks.py`.
+- `python3 tests/sv_login_checks.py`.
+
+The existing-character runner still prints the previously recorded SDL thread
+teardown diagnostic; assertions pass. This is integration verification only:
+full build/core workflow, controller review and fresh final audit remain with
+the orchestrator. Original implementation/acceptance and stage C boundaries,
+contract digest and deferred SV-B-025 evidence are unchanged.

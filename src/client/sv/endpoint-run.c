@@ -581,11 +581,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 input->contact_status = "Waiting for selected character status...";
             else if (phase == SV_LOGIN_WAIT_PLAY)
                 input->contact_status = "Waiting for authoritative play acknowledgement...";
-            else if (phase == SV_LOGIN_PLAY_ACKNOWLEDGED) {
-                input->contact_status = "Play acknowledged. Waiting for next startup owner; Escape exits.";
-                result = 0;
-            } else if (phase == SV_LOGIN_SELECTED) {
-                if (sv_login_creating_character(login)) {
+            else if (phase == SV_LOGIN_SELECTED || phase == SV_LOGIN_PLAY_ACKNOWLEDGED) {
+                if (phase == SV_LOGIN_SELECTED && sv_login_creating_character(login)) {
                     input->contact_status =
                         "Character name accepted; handing off to character creation.";
                 } else {
@@ -714,13 +711,12 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 break;
             }
             if (state == SV_SOCKET_READY && login) {
-                if (birth_started && (sv_login_state(login) == SV_LOGIN_WAIT_PLAY ||
-                                      sv_login_state(login) == SV_LOGIN_PLAY_ACKNOWLEDGED)) {
+                if (birth_started && sv_login_state(login) == SV_LOGIN_WAIT_PLAY) {
                     if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
                         quit = true;
                     continue;
                 }
-                if (birth_started) {
+                if (birth_started && sv_login_state(login) == SV_LOGIN_SELECTED) {
                     SvBirthInputResult birth_result =
                         sv_native_birth_event(&birth, generation,
                                               birth_input_since_ns,

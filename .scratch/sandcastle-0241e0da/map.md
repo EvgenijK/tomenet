@@ -24,3 +24,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   startup/failure/disconnect owners; stale native input cannot command retries;
   incremental replies and ordered trailing packets verified through endpoint.
   Full gates and MOTD/handoff keep their originating owners.
+- [06](issues/06-guide-motd-handoff.md#answer): authoritative creation/play ack
+  now transfers to peer MOTD and live-session handoff; actual native Guide
+  callers finish birth in both choice orders, with renderer frames and peer
+  transcripts available for controller review. Controller/final audit pending.

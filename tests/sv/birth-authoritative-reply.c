@@ -191,7 +191,7 @@ int main(int argc, char **argv)
         .root = argv[1], .library = argv[2], .server = "127.0.0.1",
         .width = 1024, .height = 768, .windowed = 1,
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
-        .real_name = "PLAYER", .outcome = &outcome});
+        .skip_motd = true, .real_name = "PLAYER", .outcome = &outcome});
     assert(!pthread_join(worker, NULL));
     close(peer.listener);
     assert(outcome.birth_mode_ready && outcome.birth_stats_confirmed);
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
     bool partial = !strncmp(argv[3], "partial", 7);
     bool truncated = !strncmp(argv[3], "truncated", 9);
     bool disconnected = !strcmp(argv[3], "ack-quit") || !strcmp(argv[3], "peer-quit") || !strcmp(argv[3], "disconnect") || truncated;
-    assert(outcome.phase == (successful ? SV_PREGAME_PLAY_ACKNOWLEDGED :
+    assert(outcome.phase == (successful ? SV_PREGAME_LIVE_HANDOFF :
         partial ? SV_PREGAME_PLAY_PENDING : disconnected ? SV_PREGAME_DISCONNECTED : SV_PREGAME_FAILED));
     assert((result == 0) == successful);
     if (!strcmp(argv[3], "ack-retry")) {

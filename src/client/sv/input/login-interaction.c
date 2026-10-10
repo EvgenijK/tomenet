@@ -146,6 +146,11 @@ SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
         input->motd_complete = input->skip_motd;
         return SV_LOGIN_TRANSITION_MOTD;
     }
+    if (state == SV_LOGIN_PLAY_ACKNOWLEDGED && !input->play_seen) {
+        input->play_seen = true;
+        input->motd_complete = input->skip_motd;
+        return SV_LOGIN_TRANSITION_MOTD;
+    }
     return SV_LOGIN_TRANSITION_NONE;
 }
 
@@ -330,7 +335,8 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
         if (command.kind == SV_LOGIN_COMMAND_CHOOSE &&
             sv_login_choose(input->login, command.slot) == SV_OK)
             return SV_LOGIN_INPUT_HANDLED;
-    } else if (state == SV_LOGIN_SELECTED && !input->motd_complete) {
+    } else if ((state == SV_LOGIN_SELECTED || state == SV_LOGIN_PLAY_ACKNOWLEDGED) &&
+               !input->motd_complete) {
         input->motd_complete = true;
         return SV_LOGIN_INPUT_HANDLED;
     }
@@ -339,5 +345,7 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
 
 bool sv_login_interaction_complete(const SvLoginInteraction *input)
 {
-    return input->motd_complete && sv_login_state(input->login) == SV_LOGIN_SELECTED;
+    SvLoginState state = sv_login_state(input->login);
+    return input->motd_complete &&
+        (state == SV_LOGIN_SELECTED || state == SV_LOGIN_PLAY_ACKNOWLEDGED);
 }

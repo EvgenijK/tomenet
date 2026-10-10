@@ -20,7 +20,7 @@ typedef struct {
     SvLogin *login;
     const char *default_character;
     bool skip_motd, first_run, creation_supported;
-    bool overview_seen, selected_seen, motd_complete;
+    bool overview_seen, selected_seen, play_seen, motd_complete;
     bool ordinary_name_active;
     bool dedicated_creation;
     uint32_t dedicated_mode_flags;
