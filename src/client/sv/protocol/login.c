@@ -168,29 +168,51 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               int16_t class_id, int16_t trait,
                               const int16_t stats[6], const char *font)
 {
-    const int current_baseline[6] = {4, 9, 4, 0, 0, 0};
     if (!login || login->state != SV_LOGIN_SELECTED || !login->creating_character ||
-        !stats || !font || strlen(font) > 1023 || race < 0 || class_id < 0 || trait < 0 ||
-        !atleast(login->version, current_baseline)) return SV_INVALID;
-    /* Current baseline Net_start wire order. Older version gates belong to
-     * the following versioned-handshake slice. Audio/graphics are disabled
-     * in the native executable, so report the actual production outcome. */
+        !stats || !font || strlen(font) > 1023 || race < 0 || class_id < 0 || trait < 0)
+        return SV_INVALID;
+    /* Baseline Net_start wire order and strict/inclusive version gates.
+     * Audio/graphics are disabled in the native executable, so report the
+     * actual production outcome only in layouts that carry those fields. */
     unsigned char packet[32 * 1024], *at = packet;
     *at++ = PKT_PLAY;
-    put16(&at, mode); put16(&at, race); put16(&at, class_id); put16(&at, trait);
-    put16(&at, 0); put16(&at, 0); put16(&at, 0);
-    memcpy(at, "NO_GRAPHICS", sizeof("NO_GRAPHICS")); at += sizeof("NO_GRAPHICS");
-    memcpy(at, font, strlen(font) + 1); at += strlen(font) + 1;
+    put16(&at, mode); put16(&at, race); put16(&at, class_id);
+    const int traits_since[6] = {4, 4, 5, 10, 0, 0};
+    const int resources_since[6] = {4, 8, 1, 2, 0, 0};
+    if (newer(login->version, traits_since)) {
+        put16(&at, trait); put16(&at, 0); put16(&at, 0);
+    }
+    if (atleast(login->version, resources_since)) {
+        put16(&at, 0);
+        memcpy(at, "NO_GRAPHICS", sizeof("NO_GRAPHICS")); at += sizeof("NO_GRAPHICS");
+        memcpy(at, font, strlen(font) + 1); at += strlen(font) + 1;
+    }
     for (unsigned i = 0; i < 6; ++i) put16(&at, stats[i]);
-    memcpy(at, play_options, sizeof(play_options)); at += sizeof(play_options);
+    const int all_options_since[6] = {4, 9, 1, 0, 0, 0};
+    const int options_154_since[6] = {4, 5, 8, 1, 0, 1};
+    const int options_128_since[6] = {4, 5, 5, 0, 0, 0};
+    size_t option_count = newer(login->version, all_options_since) ? 199u :
+        newer(login->version, options_154_since) ? 154u :
+        newer(login->version, options_128_since) ? 128u : 96u;
+    memcpy(at, play_options, option_count); at += option_count;
     /* Map viewport, not UI window pixels (baseline SCREEN_WID/SCREEN_HGT). */
     const unsigned char geometry[] = {0, 0, 0, 66, 0, 0, 0, 22};
-    memcpy(at, geometry, sizeof(geometry)); at += sizeof(geometry);
+    const int geometry_since[6] = {4, 4, 9, 1, 0, 1};
+    if (newer(login->version, geometry_since)) {
+        memcpy(at, geometry, sizeof(geometry)); at += sizeof(geometry);
+    }
     /* Complete baseline redefinition tables: unknown, features, kinds,
      * monsters. This text-only resource outcome has no custom font mapping.
-     * Each zero attr/u32 character means retain authoritative server identity,
+     * Each zero attribute/character means retain authoritative server identity,
      * exactly as handle_process_font_file initializes Client_setup. */
-    size_t visual_size = 5u * (127u + 512u + 1280u + 1280u);
+    const int features_since[6] = {4, 9, 1, 2, 0, 2};
+    size_t features = newer(login->version, features_since) ? 512u : 256u;
+    const int expanded_tables_since[6] = {4, 6, 1, 2, 0, 0};
+    const int wide_characters_since[6] = {4, 8, 1, 0, 0, 0};
+    size_t kinds = newer(login->version, expanded_tables_since) ? 1280u : 1024u;
+    size_t monsters = newer(login->version, expanded_tables_since) ? 1280u : 1152u;
+    size_t entry_width = atleast(login->version, wide_characters_since) ? 5u : 2u;
+    size_t visual_size = entry_width * (127u + features + kinds + monsters);
     memset(at, 0, visual_size); at += visual_size;
     SvResult queued = append_output(login, packet, (size_t)(at - packet));
     if (queued == SV_OK) login->state = SV_LOGIN_WAIT_PLAY;
