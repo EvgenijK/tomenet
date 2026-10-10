@@ -1,0 +1,267 @@
+{
+  "tickets": [
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/10-accurate-ack-transcript.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/06-guide-motd-handoff.md",
+        ".scratch/sandcastle-0241e0da/issues/08-focused-test-coverage.md"
+      ],
+      "findingIds": [
+        "D-86f98a5241b62943"
+      ],
+      "delivery": {
+        "owner": "worker",
+        "phase": "parallel-work",
+        "prerequisites": []
+      }
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/11-restore-child-types.md",
+      "blockedBy": [],
+      "findingIds": [
+        "D-df28653d4c8d0985"
+      ],
+      "delivery": {
+        "owner": "worker",
+        "phase": "parallel-work",
+        "prerequisites": []
+      }
+    },
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/12-index-resolved-decisions.md",
+      "blockedBy": [],
+      "findingIds": [
+        "D-e6e9e23d4a29cac2"
+      ],
+      "delivery": {
+        "owner": "worker",
+        "phase": "parallel-work",
+        "prerequisites": []
+      }
+    }
+  ],
+  "executionPlan": {
+    "version": 1,
+    "contractDigest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+    "criteria": [
+      {
+        "id": "P1-ac1",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac2",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac3",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac4",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac5",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac6",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac7",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac8",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P1-ac9",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P1-ac10",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P1-ac11",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P1-ac12",
+        "evidence": "deferred",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-1",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-2",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-3",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P2-4",
+        "evidence": "artifact",
+        "artifactCheckIds": [
+          "birth-runtime"
+        ]
+      },
+      {
+        "id": "P2-5",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-6",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-7",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-8",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-9",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      },
+      {
+        "id": "P2-10",
+        "evidence": "inspection",
+        "artifactCheckIds": []
+      }
+    ],
+    "artifactChecks": [
+      {
+        "id": "birth-runtime",
+        "owner": "controller",
+        "phase": "test-gate",
+        "target": "integrated-head",
+        "command": [
+          "python3",
+          "-B",
+          "tests/sv_birth_runtime_evidence.py"
+        ],
+        "outputArgument": true,
+        "manifestPath": "manifest.json",
+        "syntheticOnly": true,
+        "caseArtifactSuffix": ".log",
+        "inputPaths": [
+          "tests/sv_birth_runtime_evidence.py",
+          "tests/sv_guide_motd_checks.py",
+          "tests/sv/guide-motd.c"
+        ],
+        "expectedSuites": {
+          "ordinary": 3,
+          "versions": 40,
+          "dedicated": 20,
+          "submission": 18,
+          "replies": 17,
+          "guide-motd": 10
+        }
+      }
+    ],
+    "controllerChecks": [
+      {
+        "id": "sv-build",
+        "owner": "controller",
+        "phase": "test-gate",
+        "target": "integrated-head",
+        "command": [
+          "make",
+          "-s",
+          "-C",
+          "src",
+          "-f",
+          "makefile.sv",
+          "tomenet-sv"
+        ],
+        "status": "required"
+      },
+      {
+        "id": "sv-core",
+        "owner": "controller",
+        "phase": "test-gate",
+        "target": "integrated-head",
+        "command": [
+          "bash",
+          "-s",
+          "--",
+          "core"
+        ],
+        "stdinPath": ".sandcastle/checks.sh",
+        "status": "required"
+      },
+      {
+        "id": "controller-review",
+        "owner": "controller",
+        "phase": "test-gate",
+        "target": "integrated-head",
+        "command": [],
+        "status": "required",
+        "obligations": [
+          "Independent review and fresh final audit at contractDigest and integrated HEAD",
+          "Verify production serializer, actual Guide caller, baseline preservation, binary/transcript agreement and startup boundary",
+          "Independently rehash every captured source and artifact; verify tested_head, contract_digest, inputs_unchanged and all 108 case logs",
+          "Preserve all current acceptance boundaries and repository isolation/tracking obligations; retain recoverable external receipts"
+        ]
+      }
+    ],
+    "deferredChecks": [
+      {
+        "id": "P1-entry-evidence",
+        "criterionIds": [
+          "P1-ac12"
+        ],
+        "owner": "SV-B-025",
+        "reason": "The assigned source places end-to-end verification in the downstream SV-B-025 ticket; this checkpoint covers SV-B-024 birth completion.",
+        "status": "deferred",
+        "passingEvidence": false
+      }
+    ]
+  }
+}

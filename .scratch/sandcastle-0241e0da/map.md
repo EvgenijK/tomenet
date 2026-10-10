@@ -15,6 +15,10 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [08: Focused production coverage](issues/08-focused-test-coverage.md)
 - [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — claimed repair D-9496281ca15e0741; independent controller/final gates pending; [batch 1](batch-1.json).
 
+- [10: Accurate controlled-peer acknowledgement transcript](issues/10-accurate-ack-transcript.md) — open repair D-86f98a5241b62943; [batch 2](batch-2.json).
+- [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — open repair D-df28653d4c8d0985; [batch 2](batch-2.json).
+- [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — open repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
+
 ## Decisions so far
 
 - [03](issues/03-dedicated-completion.md#answer): existing production foundation
