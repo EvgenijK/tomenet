@@ -21,6 +21,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 
 - [13: Seal complete controlled-peer producer inputs](issues/13-complete-runtime-input-inventory.md) — open collector delivery prerequisite for corrected batch 2 binding; final capture follows assembly.
 
+- [14: Focused production coverage](issues/14-focused-test-coverage.md) — resolved worker verification; controller assembly gates pending.
+
 ## Decisions so far
 
 - [01](issues/01-complete-handshake.md#answer): ordinary current-baseline birth
@@ -87,3 +89,9 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   and before/after resource/tool/runtime seal; focused production and mutation
   checks pass. Delivery is ready for assembly; binding approval and integrated
   controller acceptance remain pending.
+
+- [14](issues/14-focused-test-coverage.md#answer): reran the existing production
+  endpoint matrix after transcript/input-seal repairs: all 108 cases passed;
+  author readback verified 603 artifacts, 162 sources and unchanged runtime
+  inputs. No missing tests or behavior changes were needed. Full assembly gates,
+  independent final acceptance and deferred SV-B-025 evidence retain their owners.
