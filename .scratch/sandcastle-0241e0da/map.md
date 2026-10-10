@@ -42,3 +42,5 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   controller acceptance and deferred SV-B-025 evidence retain their owners.
 
 - [09](issues/09-final-head-runtime-evidence.md#answer): fresh reviewed-HEAD capture passed 108 sessions; author integrity verified 347 artifacts and 142 sources. Finding remains open pending independent controller and exact-final-HEAD gates; persistent discovery is documented in evidence/09.
+
+- [09 recovery continuation](issues/09-final-head-runtime-evidence.md#recovery-continuation-2026-10-10): original external evidence absent here; reproduce reviewed and post-commit worker captures. Original worker retained; assembly, full gates and independent controller acceptance remain pending.

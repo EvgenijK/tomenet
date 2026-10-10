@@ -70,3 +70,25 @@ P1-entry-evidence stays deferred to SV-B-025; SV-B-023 full acceptance stays wit
 its owner. Canonical SV-B-024, its historical filename and dependency are intact.
 DNA, profile/resource workflows, real-server integration, session.enter-game and
 first gameplay surface remain stage C; the boundary is startup live handoff.
+
+## Recovery continuation availability
+
+The external directory from the original worker was absent in the recovered
+workspace. This continuation recreates the directory with new captures; earlier
+reported manifest hashes do not describe these new attempts. Preserve the
+original worker commit `4bb9c17479807fc95ae44ee317500297eab7b9df` in assembly.
+The recovery documentation commit is another worker capture target, not the
+final integrated HEAD. Discover its receipts using the exact branch HEAD as
+above; each `capture-receipt.json` records the command, actual exit code and
+manifest fingerprint, and `author-readback.json` identifies its author role.
+Failed attempts remain evidence of failure. Missing controller verdict or
+`acceptance.json` means acceptance remains pending, regardless of runner success.
+`historical-readback.json` at the evidence root checks historical artifacts only.
+
+Recovery must run the full build/core commands above in the configured Python
+environment after assembly, followed by a new unfiltered 108-session capture
+and independent controller semantic audit. Keep actual gate logs/receipts at
+that integrated HEAD/digest. No worker capture authorizes relabelling evidence
+for an assembly commit. The independent controller must arrange durable storage
+of the external directory; this worker cannot assert persistence beyond the
+available filesystem or claim controller access has been independently tested.
