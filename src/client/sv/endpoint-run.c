@@ -199,7 +199,8 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
                 wire->remaining = NULL;
                 wire->remaining_size = wire->remaining_at = 0;
             }
-        } else if (sv_login_state(login) == SV_LOGIN_REJECTED) break;
+        } else if (sv_login_state(login) == SV_LOGIN_REJECTED ||
+                 sv_login_state(login) == SV_LOGIN_PEER_QUIT) break;
         else received = sv_contact_socket_read(connection, incoming, sizeof(incoming));
         if (received.result == SV_WAITING) break;
         if (received.result != SV_OK) return SV_SOCKET_CLOSED;
@@ -455,7 +456,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     unsigned rejection = 0;
     int frames = 0, result = 1;
     bool quit = false, reached_ready = false, reported_failure = false;
-    bool birth_started = false;
+    bool birth_started = false, play_started = false;
     uint64_t birth_input_since_ns = 0;
     bool birth_placeholder_open = false, birth_placeholder_drawn = false;
     SvBirthOwner birth_placeholder_owner = SV_BIRTH_NONE;
@@ -498,6 +499,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     draft.class_id, draft.trait, draft.stats,
                     basename ? basename + 1 : resource);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
+                else play_started = true;
             }
         }
         if (state == SV_SOCKET_READY && login)
@@ -544,8 +546,9 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
             }
         }
-        if (login && sv_login_state(login) == SV_LOGIN_REJECTED) {
-            if (recovery && sv_login_creating_character(login) && !recovery->pending) {
+        if (login && (sv_login_state(login) == SV_LOGIN_REJECTED ||
+                      sv_login_state(login) == SV_LOGIN_PEER_QUIT)) {
+            if (!play_started && recovery && sv_login_creating_character(login) && !recovery->pending) {
                 character_name_rejected = true;
                 recovery->pending = true;
                 recovery->rejected = true;
@@ -557,6 +560,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                             sizeof(recovery->reason));
             }
             SDL_snprintf(failure_status, sizeof(failure_status),
+                         play_started ? "%s  Escape exits." :
                          options.retry_login_disabled && character_name_rejected ?
                          "%s  Retry login is disabled; exiting." :
                          "%s  Press R to retry or Escape to exit.",
@@ -611,8 +615,11 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             } else input->contact_status = contact_status(state, rejection,
                                                            failure_status,
                                                            sizeof(failure_status));
-        } else input->contact_status = session_error != SV_OK ?
-            sv_result_text(session_error) : contact_status(state, rejection,
+        } else if (play_started && state == SV_SOCKET_CLOSED)
+            input->contact_status = "Error reading play reply";
+        else input->contact_status = session_error != SV_OK ?
+            (play_started && login && sv_login_reason(login)[0] ?
+             sv_login_reason(login) : sv_result_text(session_error)) : contact_status(state, rejection,
                                                            failure_status,
                                                            sizeof(failure_status));
         if (birth_started && birth.active && state >= SV_SOCKET_DNS_ERROR)
@@ -678,6 +685,15 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 quit = true;
                 break;
             }
+            /* Native gestures queued by a retired session cannot command this
+             * generation, including restored name entry before birth begins. */
+            bool session_input = event.type == SDL_EVENT_KEY_DOWN ||
+                event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_TEXT_INPUT ||
+                event.type == SDL_EVENT_TEXT_EDITING ||
+                event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                event.type == SDL_EVENT_MOUSE_BUTTON_UP || event.type == SDL_EVENT_MOUSE_WHEEL;
+            if (session_input && event.common.timestamp &&
+                event.common.timestamp < generation) continue;
             if (birth_placeholder_open) {
                 if ((event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) ||
                     event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
@@ -689,7 +705,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
                 continue;
             }
-            if (state >= SV_SOCKET_DNS_ERROR &&
+            if (state >= SV_SOCKET_DNS_ERROR && !play_started &&
                 !(options.retry_login_disabled && character_name_rejected) &&
                 event.type == SDL_EVENT_KEY_DOWN &&
                 !event.key.repeat && event.key.key == SDLK_R) {
@@ -820,7 +836,9 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         } else if (state >= SV_SOCKET_DNS_ERROR) {
             if (result != 2) result = 1;
             if (pregame.phase != SV_PREGAME_FAILED) {
-                if (state == SV_SOCKET_REJECTED)
+                if (play_started && session_error != SV_OK)
+                    (void)sv_pregame_fail(&pregame, generation, input->contact_status);
+                else if (state == SV_SOCKET_REJECTED)
                     (void)sv_pregame_fail(&pregame, generation,
                                           contact_rejection_reason(rejection));
                 else

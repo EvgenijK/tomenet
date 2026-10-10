@@ -9,7 +9,7 @@
 #define SV_LOGIN_NAME_CAPACITY 80
 typedef enum { SV_LOGIN_WAIT_FLAGS, SV_LOGIN_WAIT_LIST, SV_LOGIN_OVERVIEW,
                SV_LOGIN_WAIT_STATUS, SV_LOGIN_SELECTED, SV_LOGIN_WAIT_PLAY, SV_LOGIN_PLAY_ACKNOWLEDGED,
-               SV_LOGIN_REJECTED } SvLoginState;
+               SV_LOGIN_REJECTED, SV_LOGIN_PEER_QUIT } SvLoginState;
 typedef struct {
     char name[SV_LOGIN_NAME_CAPACITY];
     char colour[8];
