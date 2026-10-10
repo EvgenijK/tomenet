@@ -1079,3 +1079,26 @@ this ticket implements the canonical `Net_start` condition in SV.
 rerun the controlled-peer below/at/above 4.9.1.2.0.2 examples. Applicable build,
 core and controller review remain required for any future behavior change;
 none is claimed passed by this improvement record.
+
+## Bound legacy play acknowledgement reads
+
+**Status:** proposed separately; no legacy/shared change in reply slice 05.
+
+**Problem:** baseline `Net_start` performs a blocking readability wait and a
+single read, then inspects `rbuf.ptr[0]` and the peer-quit string before proving
+that a complete packet is present. Split replies are not retained by a startup
+owner and may be reported as failures. This is a legacy robustness opportunity,
+not a reason to change the established play result or retry policy.
+
+**Affected code:** `src/client/nclient.c:Net_start`, `Receive_reply`, and the
+legacy socket-buffer read/advance contract.
+
+**Proposal:** separately investigate bounded incremental reply assembly and
+length-checked quit messages for legacy startup, preserving exact packet order,
+server reasons, fatal rejection policy and trailing packet dispatch. SV already
+uses its own incremental production decoder; no consolidation is proposed.
+
+**Required checks:** independently derived success/rejection/quit/wrong-type
+fixtures; splits at every reply boundary; truncated EOF and unterminated quit;
+ack with trailing packets; timeout/exit policy; applicable legacy builds and
+real peer checks. None of these future legacy checks is claimed passed here.

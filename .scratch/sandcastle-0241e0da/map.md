@@ -19,3 +19,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   plus 01 implements dedicated completion; exact-byte native endpoint checks
   verify IDDC variants, skipped trait and PvP Maia return in both compile orders.
   Controller gates and downstream evidence retain their original owners.
+
+- [05](issues/05-authoritative-reply.md#answer): final-play outcomes return to
+  startup/failure/disconnect owners; stale native input cannot command retries;
+  incremental replies and ordered trailing packets verified through endpoint.
+  Full gates and MOTD/handoff keep their originating owners.

@@ -228,8 +228,8 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
 {
     if (!login || (size && !bytes) || size > sizeof(login->input) - login->input_size)
         return SV_INPUT_OVERFLOW;
-    if (login->state == SV_LOGIN_REJECTED)
-        return SV_INVALID;
+    if (login->state == SV_LOGIN_REJECTED) return SV_INVALID;
+    if (login->state == SV_LOGIN_PEER_QUIT) return SV_CLOSED;
     if (size) memcpy(login->input + login->input_size, bytes, size);
     login->input_size += size;
     for (;;) {
@@ -263,17 +263,23 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             if (parsed < 0) return SV_DECODE_ERROR;
             if (!parsed) return SV_OK;
             consume(login, at);
-            login->state = SV_LOGIN_REJECTED;
+            login->state = (login->state == SV_LOGIN_WAIT_PLAY ||
+                            login->state == SV_LOGIN_PLAY_ACKNOWLEDGED) ?
+                           SV_LOGIN_PEER_QUIT : SV_LOGIN_REJECTED;
             return SV_OK;
         }
         if (login->state == SV_LOGIN_WAIT_PLAY && login->input[0] == PKT_REPLY) {
             if (login->input_size < 3) return SV_OK;
-            if (login->input[1] != PKT_PLAY) return SV_DECODE_ERROR;
+            if (login->input[1] != PKT_PLAY) {
+                snprintf(login->reason, sizeof(login->reason),
+                         "Can't receive reply packet after play");
+                return SV_DECODE_ERROR;
+            }
             unsigned status = login->input[2];
             consume(login, 3);
             if (status != PKT_SUCCESS) {
                 snprintf(login->reason, sizeof(login->reason),
-                         "Start play not allowed (%u).", status);
+                         "Start play not allowed (%u)", status);
                 login->state = SV_LOGIN_REJECTED;
                 return SV_OK;
             }
@@ -340,6 +346,11 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             }
             login->state = SV_LOGIN_SELECTED;
             continue;
-        } else return SV_DECODE_ERROR;
+        } else {
+            if (login->state == SV_LOGIN_WAIT_PLAY)
+                snprintf(login->reason, sizeof(login->reason),
+                         "Not a reply packet after play (%u)", login->input[0]);
+            return SV_DECODE_ERROR;
+        }
     }
 }

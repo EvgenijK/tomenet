@@ -112,6 +112,8 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
         pregame->phase == SV_PREGAME_DISCONNECTED)
         return SV_CLOSED;
     SvLoginState state = sv_login_state(login);
+    if (state == SV_LOGIN_PEER_QUIT)
+        return sv_pregame_disconnect(pregame, generation, sv_login_reason(login));
     if (state == SV_LOGIN_REJECTED) {
         bool changed = strcmp(pregame->reason, sv_login_reason(login)) != 0;
         copy_text(pregame->reason, sizeof(pregame->reason), sv_login_reason(login));
@@ -140,8 +142,9 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
     }
     if (state == SV_LOGIN_WAIT_PLAY || state == SV_LOGIN_PLAY_ACKNOWLEDGED) {
         if (!sv_login_creating_character(login)) return SV_INVALID;
+        bool changed = publish_overview(pregame, login, setup);
         transition(pregame, state == SV_LOGIN_WAIT_PLAY ? SV_PREGAME_PLAY_PENDING :
-                   SV_PREGAME_PLAY_ACKNOWLEDGED, false);
+                   SV_PREGAME_PLAY_ACKNOWLEDGED, changed);
         return SV_OK;
     }
     if (state == SV_LOGIN_SELECTED) {
