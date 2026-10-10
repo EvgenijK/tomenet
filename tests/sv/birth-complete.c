@@ -9,6 +9,71 @@
 static unsigned char expected_play[32768], captured_play[32768];
 static size_t expected_size;
 static const char *evidence_path;
+static int peer_version[6] = {4, 9, 4, 0, 0, 0};
+static bool versioned;
+static bool peer_newer(int a, int b, int c, int d, int e, int f)
+{
+    const int boundary[6] = {a, b, c, d, e, f};
+    for (unsigned i = 0; i < 6; ++i)
+        if (peer_version[i] != boundary[i]) return peer_version[i] > boundary[i];
+    return false;
+}
+/* Controlled server's setup format, from baseline Net_setup. No play bytes
+ * are generated here: the independent literal oracle is loaded from disk. */
+static void versioned_setup(int socket)
+{
+    unsigned char setup[1024], *at = setup;
+    bool traits = peer_newer(4, 4, 5, 10, 0, 0);
+    put32(&at, 0); put16(&at, 20);
+    *at++ = 3; *at++ = 3;
+    if (traits) *at++ = 3;
+    unsigned char *size_at = at; at += 4;
+    const char *races[] = {"Human", "Elf", "Dwarf"};
+    const char *classes[] = {"Warrior", "Ranger", "Mage"};
+    const char *names[] = {"N/A", "Dragon", "Phoenix"};
+    for (unsigned i = 0; i < 3; ++i) {
+        memset(at, 50, 6); at += 6;
+        memcpy(at, races[i], strlen(races[i]) + 1); at += strlen(races[i]) + 1;
+        put32(&at, 7);
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        memset(at, 50, 6); at += 6;
+        memcpy(at, classes[i], strlen(classes[i]) + 1); at += strlen(classes[i]) + 1;
+        if (peer_newer(4, 4, 3, 1, 0, 0)) { memset(at, 0, 6); at += 6; }
+    }
+    if (traits) for (unsigned i = 0; i < 3; ++i) {
+        memcpy(at, names[i], strlen(names[i]) + 1); at += strlen(names[i]) + 1;
+        put32(&at, i ? 7 : 0);
+    }
+    put32(&size_at, (uint32_t)(at - setup));
+    assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
+}
+static void versioned_overview(int socket)
+{
+    unsigned char packet[64], *at = packet;
+    *at++ = PKT_SERVERDETAILS;
+    put32(&at, 2u | (1u << 8) | (1u << 16));
+    put32(&at, 0); put32(&at, 0); put32(&at, 0);
+    *at++ = PKT_LOGIN;
+    if (peer_newer(4, 4, 9, 2, 0, 0)) put16(&at, 0);
+    *at++ = 0; *at++ = 0;
+    put16(&at, 0); put16(&at, 0); put16(&at, 0);
+    if (peer_newer(4, 5, 7, 0, 0, 0)) *at++ = 0;
+    assert(send(socket, packet, (size_t)(at - packet), 0) == (ssize_t)(at - packet));
+}
+static void versioned_to_mode(void)
+{
+    push_key(SDLK_RETURN, 0); /* sex */
+    push_key(SDLK_C, 0); push_key(SDLK_RETURN, 0); /* class Mage */
+    push_key(SDLK_C, 0); push_key(SDLK_RETURN, 0); /* race Dwarf */
+    if (peer_newer(4, 4, 5, 10, 0, 0)) {
+        push_key(SDLK_B, 0); push_key(SDLK_RETURN, 0); /* Phoenix */
+    }
+    push_key(SDLK_F, 0); push_key(SDLK_RETURN, 0); /* fruit bat */
+    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
+        push_key(key, 0); push_key(SDLK_RETURN, 0);
+    }
+}
 
 static void no_final_request(int socket)
 {
@@ -30,16 +95,19 @@ static void *complete_peer(void *opaque)
     unsigned char contact[34], *at = contact;
     *at++ = 255; *at++ = 0;
     put32(&at, 0); put32(&at, 2);
-    const uint32_t version[] = {4, 9, 4, 0, 0, 0};
-    for (unsigned i = 0; i < 6; ++i) put32(&at, version[i]);
+    for (unsigned i = 0; i < 6; ++i) put32(&at, (uint32_t)peer_version[i]);
     assert(send(socket, contact, sizeof(contact), 0) == sizeof(contact));
     assert(exact(socket, number, 1) && field(socket, text, sizeof(text)) &&
            field(socket, text, sizeof(text)) && field(socket, text, sizeof(text)));
     const unsigned char verified[] = {2, 1, 122, 6, 0, 0, 0x30, 0x39};
     assert(send(socket, verified, sizeof(verified), 0) == sizeof(verified));
-    send_setup(socket, "complete");
-    assert(exact(socket, number, 8));
-    send_overview(socket, "complete");
+    if (versioned) versioned_setup(socket);
+    else send_setup(socket, "complete");
+    size_t login_size = peer_newer(4, 9, 2, 1, 0, 1) ? 8 : 2;
+    assert(exact(socket, number, login_size));
+    assert(number[0] == PKT_LOGIN && number[1] == 0);
+    if (versioned) versioned_overview(socket);
+    else send_overview(socket, "complete");
     SDL_Delay(200);
     push_key(SDLK_N, SDL_KMOD_SHIFT);
     SDL_Delay(80);
@@ -51,7 +119,8 @@ static void *complete_peer(void *opaque)
     assert(send(socket, &permitted, 1, 0) == 1);
     SDL_Delay(100);
     no_final_request(socket); /* Name acceptance is not final play. */
-    push_to_mode();
+    if (versioned) versioned_to_mode();
+    else push_to_mode();
     SDL_Delay(100);
     no_final_request(socket); /* Committed stats alone do not complete birth. */
     push_key(SDLK_RETURN, 0);
@@ -96,7 +165,11 @@ static void *complete_peer(void *opaque)
 }
 int main(int argc, char **argv)
 {
-    assert(argc == 6);
+    assert(argc == 6 || argc == 7);
+    versioned = argc == 7;
+    if (versioned) assert(sscanf(argv[6], "%d.%d.%d.%d.%d.%d", &peer_version[0],
+        &peer_version[1], &peer_version[2], &peer_version[3], &peer_version[4],
+        &peer_version[5]) == 6);
     FILE *fixture = fopen(argv[4], "r");
     assert(fixture);
     unsigned value;
@@ -132,7 +205,8 @@ int main(int argc, char **argv)
     assert(outcome.selected_character[0] && !strcmp(outcome.selected_character, "Carol"));
     assert(peer.interleaved_pongs == 1);
     assert(outcome.birth_sex == SV_BIRTH_SEX_MALE && outcome.birth_race == 2 &&
-           outcome.birth_class == 2 && outcome.birth_trait == 2 &&
+           outcome.birth_class == 2 && outcome.birth_trait ==
+           (peer_newer(4, 4, 5, 10, 0, 0) ? 2 : SV_BIRTH_TRAIT_NONE) &&
            outcome.birth_body == SV_BIRTH_BODY_FRUIT_BAT);
     static const int16_t expected_stats[] = {0, 1, 2, 3, 4, 5};
     assert(!memcmp(outcome.birth_committed_stats, expected_stats, sizeof(expected_stats)));

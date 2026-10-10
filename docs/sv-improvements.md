@@ -1058,3 +1058,24 @@ production callback or legacy/shared change is needed.
 verify peer completion, bounded timeout, socket cleanup, retry and repeated
 endpoint invocation, and absence of SDL thread diagnostics. Preserve production
 endpoint evidence and do not replace it with protocol-only tests.
+
+## Correct the compatibility-table version comment
+
+**Status:** proposed separately; no legacy/shared change in handshake slice 02.
+
+**Problem:** the compatibility comment in `src/common/defines.h` describes
+`MAX_F_IDX_COMPAT` as applying through 4.9.2.1.0.2, but the canonical baseline
+`Net_start` actually switches to `MAX_F_IDX` strictly after 4.9.1.2.0.2. Using
+that comment as a protocol source would select the wrong table size.
+
+**Affected code:** `src/common/defines.h` compatibility comment near
+`MAX_F_IDX_COMPAT`; `src/client/nclient.c:Net_start` feature-table gate.
+
+**Proposal:** correct the comment in a separate documentation cleanup after
+checking client/server gates. Keep the executable baseline semantics intact;
+this ticket implements the canonical `Net_start` condition in SV.
+
+**Required checks:** compare canonical client/server feature-table gates and
+rerun the controlled-peer below/at/above 4.9.1.2.0.2 examples. Applicable build,
+core and controller review remain required for any future behavior change;
+none is claimed passed by this improvement record.

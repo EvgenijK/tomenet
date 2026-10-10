@@ -2,6 +2,7 @@
 """SV-B-024 current-baseline final handshake through the production endpoint."""
 from pathlib import Path
 import os
+import json
 import subprocess
 import tempfile
 
@@ -48,12 +49,21 @@ with tempfile.TemporaryDirectory(prefix="sv-b024-") as temp:
         "-Wl,--wrap=SDL_GetKeyFromScancode", "-o", str(binary)], cwd=ROOT, check=True)
     evidence = Path(os.environ.get("SV_BIRTH_EVIDENCE", str(root / "evidence")))
     evidence.mkdir(parents=True, exist_ok=True)
-    for mode in ("waiting", "partial", "ack"):
+    cases = [(mode, str(ROOT / "tests/sv/fixtures/birth-current.hex"), None)
+             for mode in ("waiting", "partial", "ack")]
+    if os.environ.get("SV_BIRTH_MATRIX"):
+        cases = [("ack", row["fixture"], row["version"])
+                 for row in json.loads(Path(os.environ["SV_BIRTH_MATRIX"]).read_text())]
+    for mode, fixture, version in cases:
+        label = version or mode
         run = subprocess.run([str(binary), str(profile), str(ROOT / "lib"), mode,
-            str(ROOT / "tests/sv/fixtures/birth-current.hex"), str(evidence / (mode + ".bin"))],
+            fixture, str(evidence / (label + ".bin")), *([version] if version else [])],
             cwd=ROOT, env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
                 DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b024-no-service", ASAN_OPTIONS="detect_leaks=0"),
-            check=True, timeout=15, capture_output=True, text=True)
-        (evidence / (mode + ".log")).write_text(run.stdout + run.stderr)
-        print(run.stdout, end="")
+            timeout=15, capture_output=True, text=True)
+        if run.returncode:
+            print(run.stdout + run.stderr)
+            run.check_returncode()
+        (evidence / (label + ".log")).write_text(run.stdout + run.stderr)
+        print((version + ": " if version else "") + run.stdout, end="")
 print("SV-B-024 focused production handshake checks passed")
