@@ -637,3 +637,27 @@ opt-in: `SANDCASTLE_STORAGE_DOCKER=1 node --test
 tests/sandcastle_verification_docker.mjs`; it uses synthetic artifacts, no auth
 mounts and Docker networking disabled. Full SV sessions remain feature acceptance,
 not a claim made by these framework tests.
+
+
+Independent execution-plan rejection is a planning repair, not an execution
+preflight defect. The controller saves `plan-review-N.json` under the run and
+retains the exact binding digest, reviewed HEAD, contract digest and independent
+remarks. Only this typed rejection at `plan-validate` enters the existing bounded
+recovery/planner path. Recovery cannot retry the unchanged rejected manifest;
+corrections require a fresh independent review. Structural identity, runtime and
+artifact integrity failures remain hard stops.
+
+The planner must inspect all actual compile and runtime inputs, enumerate
+individual committed resource files, and create an explicit collector worker
+prerequisite when its source inventory needs repair. A declaration-only change
+cannot substitute for collector delivery. Replanning retains old sealed evidence
+and archived target identities; a new integrated target needs fresh evidence.
+
+A legacy run paused with the old fatal `PLAN_REVIEW` classification can use the
+existing `SANDCASTLE_PREFLIGHT_RESUME=1` continuation after separately reviewed
+maintenance has been installed and merged into its stopped integration branch.
+This reruns independent validation at the saved checkpoint; it neither approves
+the rejected manifest nor grants attempts/quota. Any repeated rejection now
+carries its exact remarks into bounded recovery. Assembly receives the exact
+controller-validated delivery receipt with every exceptional blocked revision;
+its controller acceptance remains pending.

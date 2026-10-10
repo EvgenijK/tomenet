@@ -34,7 +34,7 @@ import { sandcastleRunAgentPolicy } from "./runtime.mjs";
 import { digest, verifyEvidence, verificationError } from "./verification.mjs";
 import { validateExecutionPlan, acceptExecutionPlan, assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
 import { assertIntegrationBase, freezeVerificationTarget, assertVerificationTarget, releaseVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts, toolchainIdentity } from "./verification-gates.mjs";
-import { isDeliveryReady, dependencyReadyTickets } from "./delivery.mjs";
+import { isDeliveryReady, dependencyReadyTickets, assemblyContributions } from "./delivery.mjs";
 import { resumeVerificationMigration } from "./verification-migration.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -417,6 +417,8 @@ async function plan(sandbox, state, reason = "") {
     `Originating task (${state.specPath}):\n${state.spec}`,
     contractContext(state),
     state.acceptance.assessments.at(-1) ? `Preserve verified behavior:\n${JSON.stringify(state.acceptance.assessments.at(-1).preserved)}` : "",
+    state.planReviewHistory?.at(-1) && (state.planReviewHistory.at(-1).review.approved===false || state.planReviewHistory.at(-1).review.missingRequirements.length>0) ? `Previous rejected binding (correct its concrete requirements; do not retry unchanged):\n${JSON.stringify(state.planReviewHistory.at(-1))}` : '',
+    'For artifact input coverage inspect the entire runner and invoked scripts, compiled source dependencies (including transitively included headers), repository runtime resources and tool/runtime identity. List individual committed input/resource files, not directory entries. If an existing collector needs broader inputs or output fields, create an explicit worker delivery prerequisite via producedBy and fix its source manifest before controller capture; do not only change the plan declaration. Preserve the established suite matrix and no-send cases.',
     reason,
   ].join("\n\n");
   await agent(sandbox, state, "ticket planning", prompt);
@@ -434,6 +436,10 @@ async function acceptPlan(sandbox, state) {
     "Independently verify this execution binding against every original contract obligation and all ticket Markdown. Read the actual files. Inspect ownership, stage reachability, worker delivery versus independent final acceptance, real collector invocation/output format and coverage. Runtime/capture/evidence requirements must use controller-owned artifact producers after assembly. Generated tickets cannot defer, weaken or expand requirements. Inspect available runners or explicit delivery prerequisites. Return approved only for a reachable complete plan; runtime backend/expected case matrix/input coverage must be justified from source. Do not edit files. Return contract-review schema JSON.",
     contractContext(state), JSON.stringify(parsed),
   ].join("\n\n"), ".sandcastle/contract-review-output.schema.json");
+  const reviewRecord={at:new Date().toISOString(),head:await git(sandbox.worktreePath,'rev-parse','HEAD'),manifest,bindingDigest:digest(parsed.executionPlan),contractDigest:state.acceptance.contractDigest,review:structuredClone(bindingReview)};
+  (state.planReviewHistory??=[]).push(reviewRecord);
+  await writeFile(resolve(runsDir,state.id,`plan-review-${state.planReviewHistory.length}.json`),JSON.stringify(reviewRecord,null,2)+'\n');
+  await save(state);
   acceptExecutionPlan(state, parsed.executionPlan, bindingReview, parsed.tickets);
   registerRepairBatch(state, parsed.tickets, manifest);
   for (const ticket of parsed.tickets) {
@@ -527,10 +533,10 @@ async function assemble(sandbox, state) {
   try { await collectWave(state, {
     save,
     assemble: async (wave) => {
-      const members = wave.members.filter((member) => (member.status === "completed" || isDeliveryReady(state, member)) && !member.integrated);
+      const contributions = assemblyContributions(state,wave);
       const prompt = [
         `Assemble wave ${wave.id} on the current integration branch ${state.branch}. Read AGENTS.md, CONTEXT.md and each contributing ticket.`,
-        `Common base: ${wave.baseCommit}. Merge these committed worker revisions using Git, in the listed order:\n${JSON.stringify(members.map(({ ticket, branch, head }) => ({ ticket: ticket.path, branch, head })), null, 2)}`,
+        `Common base: ${wave.baseCommit}. Merge these committed worker revisions using Git, in the listed order:\n${JSON.stringify(contributions, null, 2)}`,
         "First inspect git status and any in-progress merge. If a conflict exists, use $resolving-merge-conflicts: inspect both intents and their tickets, resolve every hunk, run focused checks, and finish the merge. Never abort, reset, discard a worker's intended behavior, or mark conflict-containing files as resolved without fixing them.",
         "Validated delivery receipts may retain their historical claimed Markdown and blocked result; their controller acceptance is pending. Only the exact listed delivery receipt revisions are allowed alongside completed revisions. For each revision use git merge-base --is-ancestor to skip revisions already integrated, otherwise git merge --no-ff the exact revision. Preserve commit ancestry for all successful workers. Do not merge failed or blocked worker branches unless the exact listed revision has a controller-validated delivery receipt; that exception does not establish acceptance.",
         "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Ordinary completed tickets must remain resolved with their Answer; controller-validated delivery keeps historical acceptance pending. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
@@ -1012,7 +1018,7 @@ try {
     } catch (error) {
       if (state.phase === "recovery" || stage === "recovery") throw error;
       const category = recoveryCategory(error);
-      state.currentFailure = classifyFailure(error, { phase: stage });
+      state.currentFailure = classifyFailure(error, { phase: state.phase });
       (state.failureHistory ??= []).push({ stage, at: new Date().toISOString(), ...state.currentFailure });
       const timing = Number.isFinite(error.elapsedMs) && Number.isFinite(error.timeoutMs) ? ` after ${Math.round(error.elapsedMs / 1000)}s (limit ${Math.round(error.timeoutMs / 1000)}s)` : "";
       await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: ${category}${timing}; saved checkpoint retained.` });
