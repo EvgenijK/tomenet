@@ -23,6 +23,7 @@ case "${1:-core}" in
             tests/sv_birth_complete_checks.py
             tests/sv_birth_version_checks.py
             tests/sv_birth_dedicated_checks.py
+            tests/sv_birth_single_submission_checks.py
             tests/sv_message_checks.py
             tests/sv_metaserver_live_checks.py
             tests/sv_request_checks.py

@@ -845,6 +845,15 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     publish_outcome(&pregame, options.outcome, prior_generation,
                     credential_save, &name_evidence, recovery,
                     birth_started ? &birth : NULL, &birth_placeholder);
+    if (birth_started) {
+        /* Preserve the last interaction owner in the outcome, but report the
+         * generation's actual lifetime after endpoint teardown. */
+        sv_birth_close(&birth, generation);
+        if (options.outcome) {
+            options.outcome->birth_active = birth.active;
+            options.outcome->birth_closed = birth.closed;
+        }
+    }
     sv_contact_socket_stop(connection);
     sv_login_destroy(login);
     SDL_free(wire.remaining);
