@@ -1,0 +1,12 @@
+SV endpoint selected host=127.0.0.1 port=46223
+SV contact ready host=127.0.0.1 port=46223 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=35411513
+SV endpoint selected host=127.0.0.1 port=52945
+SV contact ready host=127.0.0.1 port=52945 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=29947141
+SV endpoint selected host=127.0.0.1 port=53105
+SV contact ready host=127.0.0.1 port=53105 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=27114529
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=27114529
+SV-B-024 focused production handshake checks passed
