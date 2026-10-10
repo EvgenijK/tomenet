@@ -17,16 +17,32 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 
 - [10: Accurate controlled-peer acknowledgement transcript](issues/10-accurate-ack-transcript.md) — resolved worker repair D-86f98a5241b62943; [batch 2](batch-2.json).
 - [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — resolved metadata repair D-df28653d4c8d0985; [batch 2](batch-2.json).
-- [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — open repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
+- [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — resolved index repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
 
 - [13: Seal complete controlled-peer producer inputs](issues/13-complete-runtime-input-inventory.md) — open collector delivery prerequisite for corrected batch 2 binding; final capture follows assembly.
 
 ## Decisions so far
 
+- [01](issues/01-complete-handshake.md#answer): ordinary current-baseline birth
+  sends the complete production handshake once after legal completion and waits
+  for the full authoritative play acknowledgement; partial replies stay pending
+  and no gameplay surface opens. Full controller acceptance remains pending.
+- [02](issues/02-versioned-handshake.md#answer): the production endpoint sends
+  the complete versioned baseline handshake, preserving field order, strict/
+  inclusive gates, production defaults and supported resource/redefinition
+  fields; 40 boundary sessions match independent exact-byte oracles. Full
+  controller acceptance and deferred SV-B-025 evidence retain their owners.
+
 - [03](issues/03-dedicated-completion.md#answer): existing production foundation
   plus 01 implements dedicated completion; exact-byte native endpoint checks
   verify IDDC variants, skipped trait and PvP Maia return in both compile orders.
   Controller gates and downstream evidence retain their original owners.
+
+- [04](issues/04-single-submission.md#answer): repeated input and UI/network
+  interleaving produce one final request; unfinished/cancelled birth sends none.
+  Endpoint teardown closes the birth interaction, and retired-generation input
+  cannot submit while a new generation can complete once. Full controller
+  acceptance and deferred SV-B-025 evidence retain their owners.
 
 - [05](issues/05-authoritative-reply.md#answer): final-play outcomes return to
   startup/failure/disconnect owners; stale native input cannot command retries;
@@ -60,3 +76,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   metadata in children 01–06; byte comparison confirms original resolved owners
   and complete histories unchanged, and existing local links resolve. Controller
   gates and downstream evidence retain their originating owners.
+
+- [12](issues/12-index-resolved-decisions.md#answer): indexed resolved 01, 02
+  and 04 with factual summaries linked to their authoritative Answers; existing
+  evidence history, pending controller gates and deferred SV-B-025 ownership
+  remain unchanged.
