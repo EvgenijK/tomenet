@@ -23,10 +23,26 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 
 ## Decisions so far
 
+- [01](issues/01-complete-handshake.md#answer): ordinary current-baseline birth
+  sends the complete production handshake once after legal completion and waits
+  for the full authoritative play acknowledgement; partial replies stay pending
+  and no gameplay surface opens. Full controller acceptance remains pending.
+- [02](issues/02-versioned-handshake.md#answer): the production endpoint sends
+  the complete versioned baseline handshake, preserving field order, strict/
+  inclusive gates, production defaults and supported resource/redefinition
+  fields; 40 boundary sessions match independent exact-byte oracles. Full
+  controller acceptance and deferred SV-B-025 evidence retain their owners.
+
 - [03](issues/03-dedicated-completion.md#answer): existing production foundation
   plus 01 implements dedicated completion; exact-byte native endpoint checks
   verify IDDC variants, skipped trait and PvP Maia return in both compile orders.
   Controller gates and downstream evidence retain their original owners.
+
+- [04](issues/04-single-submission.md#answer): repeated input and UI/network
+  interleaving produce one final request; unfinished/cancelled birth sends none.
+  Endpoint teardown closes the birth interaction, and retired-generation input
+  cannot submit while a new generation can complete once. Full controller
+  acceptance and deferred SV-B-025 evidence retain their owners.
 
 - [05](issues/05-authoritative-reply.md#answer): final-play outcomes return to
   startup/failure/disconnect owners; stale native input cannot command retries;
@@ -50,3 +66,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [09](issues/09-final-head-runtime-evidence.md#answer): fresh reviewed-HEAD capture passed 108 sessions; author integrity verified 347 artifacts and 142 sources. Finding remains open pending independent controller and exact-final-HEAD gates; persistent discovery is documented in evidence/09.
 
 - [09 recovery continuation](issues/09-final-head-runtime-evidence.md#recovery-continuation-2026-10-10): original external evidence absent here; reproduce reviewed and post-commit worker captures. Original worker retained; assembly, full gates and independent controller acceptance remain pending.
+
+- [12](issues/12-index-resolved-decisions.md#answer): indexed resolved 01, 02
+  and 04 with factual summaries linked to their authoritative Answers; existing
+  evidence history, pending controller gates and deferred SV-B-025 ownership
+  remain unchanged.
