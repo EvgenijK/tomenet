@@ -4,6 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
+Type: implementation
 Status: resolved
 Assignee: codex/sandcastle-0241e0da-wave-1-1
 
