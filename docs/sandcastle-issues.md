@@ -251,3 +251,38 @@ SDL3/SDL3_ttf, Python-окружение для проверок и Git.
 
 Подробный контракт будущего локального сервера и визуального gate находится в
 [docs/sandcastle.md](sandcastle.md#planned-local-server-and-visual-acceptance).
+
+## Systemic acceptance repair SV-B-024
+
+### 18. Worker completion depended on its own post-assembly acceptance
+
+- **Problem:** generated verification ticket 09 required independent final-HEAD
+  controller gates before completion, while assembly admitted only completed
+  workers. `blockedBy` did not expose the implicit phase cycle.
+- **Affected code:** `.sandcastle/tickets.mjs`, `parallel.mjs`, `workflow.mjs`,
+  execution binding and delivery validation modules.
+- **Resolution:** typed worker ownership/phase and local delivery predicates;
+  independently verified criterion-to-producer binding; controller artifact gates
+  after assembly; versioned incident migration with a separate reviewed delivery
+  receipt. Historical blocked status and acceptance finding remain unchanged.
+- **Status:** implemented in the separate framework branch; not applied to actual
+  run `0241e0da`. Review and real-run migration/resume remain separate actions.
+- **Checks:** cyclic local predicates rejected before dispatch; ordinary blocked
+  commits remain unmergeable; validated delivery permits assembly without fake
+  completion; fixture migration preserves budgets, counters and open finding.
+
+### 19. Container-local captures disappeared and proof aged with commits
+
+- **Problem:** `/home/agent/sv-b024-final-audit/` was not host-mounted; teardown
+  removed captures. Evidence/receipt commits changed the target HEAD again.
+- **Affected code:** sandbox mounts, new controller-owned publisher/gates,
+  acceptance closure and report descendant validation.
+- **Resolution:** host-backed inbox, private controller snapshot validation,
+  fsync/atomic seal, identity-bound durable receipts and restart readback;
+  frozen target and outside-Git evidence. Strict report-only publication checks
+  inspect every intervening commit, including change/revert sequences.
+- **Status:** implemented and tested with safe synthetic Docker teardown and
+  real collector/Git fixtures; no claim of completed SV feature acceptance.
+- **Checks:** orphan/failed attempts, target mismatch, tamper, symlink/secret
+  rejection and collector restart; actual Docker ephemeral loss versus retained
+  sealed bytes. B-024 case counts use per-session logs, including no-send cases.
