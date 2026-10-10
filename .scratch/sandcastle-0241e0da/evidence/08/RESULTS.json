@@ -1,0 +1,1206 @@
+{
+  "contract_digest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+  "tested_head": "23684316119dfd56deb9251f743faaa0a2b96e6f",
+  "branch": "codex/sandcastle-0241e0da-wave-5-1",
+  "started_utc": "2026-10-10T06:39:13.092230+00:00",
+  "finished_utc": "2026-10-10T06:42:40.272857+00:00",
+  "seam": "sv_endpoint_run(SvEndpointOptions)",
+  "backend": "native SDL dummy/software; not an OS-window capture",
+  "inputs_unchanged": true,
+  "gates": {
+    "sv-build": {
+      "status": "pending",
+      "command": "make -s -C src -f makefile.sv tomenet-sv",
+      "reason": "orchestrator-owned; not run by this focused collector"
+    },
+    "sv-core": {
+      "status": "pending",
+      "command": "bash -s -- core < .sandcastle/checks.sh",
+      "reason": "configured runner exists; full gate is orchestrator-owned"
+    },
+    "controller-review": {
+      "status": "pending",
+      "reason": "requires independent controller verdict and fresh final HEAD audit"
+    },
+    "P1-entry-evidence": {
+      "status": "deferred",
+      "owner": "SV-B-025"
+    }
+  },
+  "total_sessions": 108,
+  "verified_artifacts": 347,
+  "raw_evidence": "/home/agent/sv-b024-focused-wave-5-1/runtime",
+  "manifest_sha256": "5d91fb55eeeb5fc156e36009951963520e56102a965de544f0c83a4663151e10",
+  "suites": [
+    {
+      "name": "ordinary",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_birth_complete_checks.py"
+      ],
+      "environment": {
+        "SV_BIRTH_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/ordinary"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 3,
+      "scenarios": [
+        {
+          "scenario": "ack",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26366128"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "b5e82e63678bc9a6d3d4c98af7fe5a2840ceae22a363c9d141784ca7aa0f42a6"
+          }
+        },
+        {
+          "scenario": "partial",
+          "trace": [
+            "SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=24502613"
+          ],
+          "log_fingerprint": {
+            "size": 500,
+            "sha256": "da61c107fde6eddaff07ba405372aaff66ab72205baf0551f66d868339208d1c"
+          }
+        },
+        {
+          "scenario": "waiting",
+          "trace": [
+            "SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=22846968"
+          ],
+          "log_fingerprint": {
+            "size": 500,
+            "sha256": "8674c374da599851ae6ee857a478a90df1871cb9cf8df5db6486e424fd5755c1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "versions",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_birth_version_checks.py"
+      ],
+      "environment": {
+        "SV_BIRTH_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/versions"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 40,
+      "scenarios": [
+        {
+          "scenario": "4.4.3.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5233 handshake bytes; phase=live-session-handoff character=Carol generation=24626334"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "da5960b9a0498f1b6ce9aba52e249dd6b9261e5f196a14bfe7171e0eccb93ced"
+          }
+        },
+        {
+          "scenario": "4.4.3.1.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5233 handshake bytes; phase=live-session-handoff character=Carol generation=23955291"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "b2bb2cb66c2b0d1f6e18ff2afeb13025fefd5b41f37ce30057b60d5f1f2f5fd2"
+          }
+        },
+        {
+          "scenario": "4.4.3.1.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5233 handshake bytes; phase=live-session-handoff character=Carol generation=23108264"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "07bd7bc1b8936159ea940fb89a35f3bbdc589bc7ddad9cf2f959b0ae44a90639"
+          }
+        },
+        {
+          "scenario": "4.4.5.10.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5233 handshake bytes; phase=live-session-handoff character=Carol generation=23411168"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "136d0705dad20f0866dcbe2e9a3c2c1381b355d72df0b92d9c683b92314cfab5"
+          }
+        },
+        {
+          "scenario": "4.4.5.10.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5239 handshake bytes; phase=live-session-handoff character=Carol generation=25022676"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "00d1d2e6ce3ba1abcc82f931d5f646793f1df3390940a363b82107c8e5df0737"
+          }
+        },
+        {
+          "scenario": "4.4.5.9.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5233 handshake bytes; phase=live-session-handoff character=Carol generation=37910053"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "ee01c9c39383ab24325d3182bd82b04c2d3239de9f30f467a6e13f2eb17eb684"
+          }
+        },
+        {
+          "scenario": "4.4.9.1.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5239 handshake bytes; phase=live-session-handoff character=Carol generation=24922689"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "59b4d81d4a0eb8d28988a39ce98d5d3474353cf29a57c441fbc367498715a6b0"
+          }
+        },
+        {
+          "scenario": "4.4.9.1.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5239 handshake bytes; phase=live-session-handoff character=Carol generation=28653346"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "f7114b8ece56203f79bdae84942477f74f5b0e0abe385a9dd4900128bd5a933b"
+          }
+        },
+        {
+          "scenario": "4.4.9.1.0.2",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=37216874"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "7c423da5b7b78b1075f503958e7615fb463c00eea385034fdb2cfa2158256a6f"
+          }
+        },
+        {
+          "scenario": "4.4.9.1.0.3",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=32887953"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "d6093e095c0625a576cbab4eb9bd4c024265cc88765f9de9172cbd4223835e66"
+          }
+        },
+        {
+          "scenario": "4.4.9.2.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=27585925"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "b83aa96c55ef64b85eafbe366348a2cd09677fbb418bd3ee8541058bd25ffc1f"
+          }
+        },
+        {
+          "scenario": "4.4.9.2.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=22940728"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "cf8379f03974a38f068cfae6eef2f49c8176b72188346c18a6dffb084ae9b5d7"
+          }
+        },
+        {
+          "scenario": "4.5.4.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=25641656"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "bf7714d79aafdb93f49b04c40c97d9c5374aa50eac050698b41ca8143efbd5fe"
+          }
+        },
+        {
+          "scenario": "4.5.5.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5247 handshake bytes; phase=live-session-handoff character=Carol generation=25903855"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "aaa154280b06c2365836485ea83e303981921272e5aaf006c826c1a6bba1c0d2"
+          }
+        },
+        {
+          "scenario": "4.5.5.0.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=29969664"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "e68891b3e3c7da0a5a9fa617f068f9638bd881e25ee5b678e27c322c14b70ecf"
+          }
+        },
+        {
+          "scenario": "4.5.6.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=24187748"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "ba9f22cb586e74b66abb65d573c775a43bf64ad4c168cf1164220e06ea38e36f"
+          }
+        },
+        {
+          "scenario": "4.5.7.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=31546298"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "7a203c546e23c5d2cf33fe7db30ac06d431ee84295190f6272e35ac8f434f54d"
+          }
+        },
+        {
+          "scenario": "4.5.7.0.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=24324812"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "7d2cccfcc5bd749ff9af78c836713cbc7163d5e52c6987efdf0989ca10d18c5a"
+          }
+        },
+        {
+          "scenario": "4.5.8.1.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=29863169"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "ae5f72149810e0e8753377fa77bac642724d4179c2d806f18a2a4d539b5e26ae"
+          }
+        },
+        {
+          "scenario": "4.5.8.1.0.1",
+          "trace": [
+            "SV-B-024 ack captured 5279 handshake bytes; phase=live-session-handoff character=Carol generation=23595973"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "fa66e63a5d1bba66a81b25cf9405556ac750fa690351c5863e565bf50dc0d1e2"
+          }
+        },
+        {
+          "scenario": "4.5.8.1.0.2",
+          "trace": [
+            "SV-B-024 ack captured 5305 handshake bytes; phase=live-session-handoff character=Carol generation=42242611"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "bef4e8ef468f42b4cf09c884ca4bf58502a35d36df7d4175ed04e5df86d39af6"
+          }
+        },
+        {
+          "scenario": "4.6.1.1.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5305 handshake bytes; phase=live-session-handoff character=Carol generation=23274029"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "c2c7969f9dc4bbdc75893a2876ac0cd77841a98ffd23a6830854111544344de7"
+          }
+        },
+        {
+          "scenario": "4.6.1.2.0.0",
+          "trace": [
+            "SV-B-024 ack captured 5305 handshake bytes; phase=live-session-handoff character=Carol generation=31672424"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "1faa815dce4ce638101e02de92ef0bc3605b53ee469515f7a21ef1bbfcce4731"
+          }
+        },
+        {
+          "scenario": "4.6.1.2.0.1",
+          "trace": [
+            "SV-B-024 ack captured 6073 handshake bytes; phase=live-session-handoff character=Carol generation=25271913"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "bf9028053d7d083791f86d10a710a2f7df8a49146881200ed417fcacf7a3a8eb"
+          }
+        },
+        {
+          "scenario": "4.8.0.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 6073 handshake bytes; phase=live-session-handoff character=Carol generation=29720300"
+          ],
+          "log_fingerprint": {
+            "size": 605,
+            "sha256": "7cd2860e58623366816bda6c6c9fb9558087abe60190da6bceeb8e731bdac4eb"
+          }
+        },
+        {
+          "scenario": "4.8.1.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 14902 handshake bytes; phase=live-session-handoff character=Carol generation=61650629"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "0efe0e0dc8e0706559bba0cfc3027da9ff677e59027fb553a8e2c4f9058ab08b"
+          }
+        },
+        {
+          "scenario": "4.8.1.0.0.1",
+          "trace": [
+            "SV-B-024 ack captured 14902 handshake bytes; phase=live-session-handoff character=Carol generation=33649107"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "070a29777ff62eec7f1f37d80beca55dde2c754c2d20683ee33c5ffb538f488e"
+          }
+        },
+        {
+          "scenario": "4.8.1.1.0.0",
+          "trace": [
+            "SV-B-024 ack captured 14902 handshake bytes; phase=live-session-handoff character=Carol generation=30047625"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "a26f21f3deedb67b7aca9f49f14ed2b6b47e23961ac47ac89acb2a797be50854"
+          }
+        },
+        {
+          "scenario": "4.8.1.2.0.0",
+          "trace": [
+            "SV-B-024 ack captured 14941 handshake bytes; phase=live-session-handoff character=Carol generation=29651060"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "b4389347dea1bed2840d2836f702415c5cf53fed21dc04cf816105e2577b3d81"
+          }
+        },
+        {
+          "scenario": "4.8.1.2.0.1",
+          "trace": [
+            "SV-B-024 ack captured 14941 handshake bytes; phase=live-session-handoff character=Carol generation=24455106"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "3d069af4941c5aa4d5dfbdd2a109a4b9fe23e91a685d330f465c08420d592bfd"
+          }
+        },
+        {
+          "scenario": "4.9.0.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 14941 handshake bytes; phase=live-session-handoff character=Carol generation=27557229"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "0f4fc23451a2ce34862e1049c4a4b053fa03f80ceff1e4ee1debfbd61938438f"
+          }
+        },
+        {
+          "scenario": "4.9.1.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 14941 handshake bytes; phase=live-session-handoff character=Carol generation=36550658"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "98ee3a3299392889a49c3fc058b2c9a6748928d8b3197a87392ebd7485badf69"
+          }
+        },
+        {
+          "scenario": "4.9.1.0.0.1",
+          "trace": [
+            "SV-B-024 ack captured 14986 handshake bytes; phase=live-session-handoff character=Carol generation=29898731"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "0b9adc2807d5835c718d4a4617d71a2f73329b0b9d124a7ad6952b44e39e5dbc"
+          }
+        },
+        {
+          "scenario": "4.9.1.2.0.1",
+          "trace": [
+            "SV-B-024 ack captured 14986 handshake bytes; phase=live-session-handoff character=Carol generation=27754306"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "18dc559cc8b072fbc7d4803710c8ea720b148948c2417f1696f118d132d6747c"
+          }
+        },
+        {
+          "scenario": "4.9.1.2.0.2",
+          "trace": [
+            "SV-B-024 ack captured 14986 handshake bytes; phase=live-session-handoff character=Carol generation=27250373"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "1360b42e2df4e5a8948ca48fd7f803138e64638d7adc81fd78aa5999f11bc886"
+          }
+        },
+        {
+          "scenario": "4.9.1.2.0.3",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=29545063"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "f925b7a5dceece1ca75785e7a4e03b9e2ed2dfcd6a9dcfef9239ba15d3f62d3c"
+          }
+        },
+        {
+          "scenario": "4.9.2.1.0.1",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=24916014"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "2e2dec2a27a1a3d447ce3badd3e0058bbaebf5a7f39abbcb23410baabff6b9a1"
+          }
+        },
+        {
+          "scenario": "4.9.2.1.0.2",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=27455528"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "025235e26ab22827740c46510c1c3d05c9e1c8778654349671f022d35c4539c7"
+          }
+        },
+        {
+          "scenario": "4.9.2.1.0.3",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=28012797"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "95807adca8da0989c4bc66364dcc86c6d156f3173ce97f5556df2a277da021eb"
+          }
+        },
+        {
+          "scenario": "4.9.4.0.0.0",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=31305397"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "c5b9face1c8071c589834e0f415012aa33baeeddc4626b885b6b23eee7fe4a34"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dedicated",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_birth_dedicated_checks.py"
+      ],
+      "environment": {
+        "SV_DEDICATED_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/dedicated"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 20,
+      "scenarios": [
+        {
+          "scenario": "0-iddc-ack",
+          "trace": [
+            "SV-B-024 iddc captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22393286"
+          ],
+          "log_fingerprint": {
+            "size": 627,
+            "sha256": "96bbb3fe2f221c34d86f16d1c446c68c44ba9061a4161e975dd29e6723ecbbe5"
+          }
+        },
+        {
+          "scenario": "0-iddc-hellish-ack",
+          "trace": [
+            "SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=23033260"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "cef442fd921d92c2d6e1ffa9fbdb8e875da05a835ebecc39e7c79fe9f05920b5"
+          }
+        },
+        {
+          "scenario": "0-iddc-hellish-waiting",
+          "trace": [
+            "SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=play-pending character=Carol generation=24301113"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "d34f88f698f56bf7e75e23779e92a801cd41855a4a0fe0b339448147495185f6"
+          }
+        },
+        {
+          "scenario": "0-iddc-skipped-ack",
+          "trace": [
+            "SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=23668966"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "05acb2a66b0bc4e7110d5f510bf3fe17bbdacaf30fa9a838dab3dc4d06dd5ec7"
+          }
+        },
+        {
+          "scenario": "0-iddc-skipped-waiting",
+          "trace": [
+            "SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=play-pending character=Carol generation=23455209"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "b6a5e0331bc83a3f07a78561fa50d7113bd91f6644bccf8ef4e577896027d5c9"
+          }
+        },
+        {
+          "scenario": "0-iddc-soloist-ack",
+          "trace": [
+            "SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22988901"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "fd564f9a99568e8e52fbcd57649f7743cccc5d934513bea6f09c8b99bc339b55"
+          }
+        },
+        {
+          "scenario": "0-iddc-soloist-waiting",
+          "trace": [
+            "SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=play-pending character=Carol generation=27572227"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "8eb89143885934027a0a78b2839c333026ca9049296af271cd33b157c8d54dd9"
+          }
+        },
+        {
+          "scenario": "0-iddc-waiting",
+          "trace": [
+            "SV-B-024 iddc captured 16266 handshake bytes; phase=play-pending character=Carol generation=24360935"
+          ],
+          "log_fingerprint": {
+            "size": 516,
+            "sha256": "a29fa97c6ba57a9538636e2d56f6c2b583f4d2d334cb604e7667981683065587"
+          }
+        },
+        {
+          "scenario": "0-pvp-maia-ack",
+          "trace": [
+            "SV-B-024 pvp-maia captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=42094872"
+          ],
+          "log_fingerprint": {
+            "size": 633,
+            "sha256": "7754b6abd5e3f6fabe55b92d5087f4f78a329f4f19ffd8618865b3f34b23ef6a"
+          }
+        },
+        {
+          "scenario": "0-pvp-maia-waiting",
+          "trace": [
+            "SV-B-024 pvp-maia captured 16266 handshake bytes; phase=play-pending character=Carol generation=35644020"
+          ],
+          "log_fingerprint": {
+            "size": 522,
+            "sha256": "ab64b989c58b6fbeda1a4e25424a852636425e5c562115095eb2117fd4b2192d"
+          }
+        },
+        {
+          "scenario": "1-iddc-ack",
+          "trace": [
+            "SV-B-024 iddc captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=23863074"
+          ],
+          "log_fingerprint": {
+            "size": 627,
+            "sha256": "e85c53d9443b4a3d78f580c043c4effd0086c65a9575a259ea5e53bc0d2bcb05"
+          }
+        },
+        {
+          "scenario": "1-iddc-hellish-ack",
+          "trace": [
+            "SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=32336208"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "c542d11fa96b45c6d8a4529ed00d31cafd8c21719a05b130b1773504132210a6"
+          }
+        },
+        {
+          "scenario": "1-iddc-hellish-waiting",
+          "trace": [
+            "SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=play-pending character=Carol generation=25538389"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "9b05890b49be6143d52f14d26263ee9b27b16340d00523d8b2c1ba4652e91a02"
+          }
+        },
+        {
+          "scenario": "1-iddc-skipped-ack",
+          "trace": [
+            "SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26284577"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "748651b769f24452ba5bcd36c53dd61d44b9046db6586a8f265fc4acaaddaf40"
+          }
+        },
+        {
+          "scenario": "1-iddc-skipped-waiting",
+          "trace": [
+            "SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=play-pending character=Carol generation=25165164"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "ca4c64d4590e878ef489ff77ced7506d436544490fb3672705f490ad2a63049d"
+          }
+        },
+        {
+          "scenario": "1-iddc-soloist-ack",
+          "trace": [
+            "SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26898581"
+          ],
+          "log_fingerprint": {
+            "size": 635,
+            "sha256": "86849d4546773a1b3e373f4f8239920e31a388a5d41d81e1e33813df2cbdb682"
+          }
+        },
+        {
+          "scenario": "1-iddc-soloist-waiting",
+          "trace": [
+            "SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=play-pending character=Carol generation=23216788"
+          ],
+          "log_fingerprint": {
+            "size": 524,
+            "sha256": "bbc01b26f86955c031faae79c80a4aa7b436c3d21460cd88be8edac8ec1f49c5"
+          }
+        },
+        {
+          "scenario": "1-iddc-waiting",
+          "trace": [
+            "SV-B-024 iddc captured 16266 handshake bytes; phase=play-pending character=Carol generation=35806628"
+          ],
+          "log_fingerprint": {
+            "size": 516,
+            "sha256": "999b91e23ba64bdfbc74dcd568c4949fcc38766170fc6f35ad461febce878de9"
+          }
+        },
+        {
+          "scenario": "1-pvp-maia-ack",
+          "trace": [
+            "SV-B-024 pvp-maia captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=24635255"
+          ],
+          "log_fingerprint": {
+            "size": 633,
+            "sha256": "1aa3cc925927cc47dc16ca96510bc4675fd75c1ec8322d4a466d111c9c06ae96"
+          }
+        },
+        {
+          "scenario": "1-pvp-maia-waiting",
+          "trace": [
+            "SV-B-024 pvp-maia captured 16266 handshake bytes; phase=play-pending character=Carol generation=23709044"
+          ],
+          "log_fingerprint": {
+            "size": 522,
+            "sha256": "50fc3a1ee1a202706d0494c641252002f323569939d71c5b29490cceadd7fe77"
+          }
+        }
+      ]
+    },
+    {
+      "name": "submission",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_birth_single_submission_checks.py"
+      ],
+      "environment": {
+        "SV_BIRTH_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/submission"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 18,
+      "scenarios": [
+        {
+          "scenario": "ack",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; keepalive=1 phase=live-session-handoff character=Carol generation=22821729 prior=0"
+          ],
+          "log_fingerprint": {
+            "size": 626,
+            "sha256": "4fe4050208d61d36349e6134c8f8a0f00b667708ff3531dc14c3240f17580ab9"
+          }
+        },
+        {
+          "scenario": "cancel-body",
+          "trace": [
+            "SV-B-024 cancel-body no final bytes; closed=1 generation=25495995"
+          ],
+          "log_fingerprint": {
+            "size": 461,
+            "sha256": "d50916d184d31606568d7c10d4bd7423fe6fcdc034fa12440e6a1d4b4fedc0d9"
+          }
+        },
+        {
+          "scenario": "cancel-class",
+          "trace": [
+            "SV-B-024 cancel-class no final bytes; closed=1 generation=26691552"
+          ],
+          "log_fingerprint": {
+            "size": 462,
+            "sha256": "4e0fbd24018ac0d35ab99ff07c896af7011b7155fe6aa66fbbb6e0c84db35d03"
+          }
+        },
+        {
+          "scenario": "cancel-mode",
+          "trace": [
+            "SV-B-024 cancel-mode no final bytes; closed=1 generation=25858153"
+          ],
+          "log_fingerprint": {
+            "size": 461,
+            "sha256": "c2db829ec5334a3248a07addf5d47a47127b8fe112f9d036541d93793640a15e"
+          }
+        },
+        {
+          "scenario": "cancel-race",
+          "trace": [
+            "SV-B-024 cancel-race no final bytes; closed=1 generation=29485656"
+          ],
+          "log_fingerprint": {
+            "size": 461,
+            "sha256": "af8e34fd6ada65d60a92129fc1d08f395a12c611a3e3258c40a617b5fa6be2be"
+          }
+        },
+        {
+          "scenario": "cancel-sex",
+          "trace": [
+            "SV-B-024 cancel-sex no final bytes; closed=1 generation=26247452"
+          ],
+          "log_fingerprint": {
+            "size": 460,
+            "sha256": "2a839921dc01f19506d87cbbf622e35f3ef08da9e6aae9b32ecdafbf3a3d6476"
+          }
+        },
+        {
+          "scenario": "cancel-stats",
+          "trace": [
+            "SV-B-024 cancel-stats no final bytes; closed=1 generation=25384970"
+          ],
+          "log_fingerprint": {
+            "size": 462,
+            "sha256": "92fe29a5f92f3de49f16801aeaf2c7f51adfef223ab7c20ac96ea8df62411619"
+          }
+        },
+        {
+          "scenario": "cancel-trait",
+          "trace": [
+            "SV-B-024 cancel-trait no final bytes; closed=1 generation=32416029"
+          ],
+          "log_fingerprint": {
+            "size": 462,
+            "sha256": "d2b5f566960299649afde75cc95887291d9ae665b5e053a8887aca65d0e1fb9f"
+          }
+        },
+        {
+          "scenario": "partial",
+          "trace": [
+            "SV-B-024 partial captured 16266 handshake bytes; keepalive=1 phase=play-pending character=Carol generation=24844071 prior=0"
+          ],
+          "log_fingerprint": {
+            "size": 519,
+            "sha256": "b40ae3fac8780b1ff3715fb4d2fcd724b58392f2c706ffc4e34413ec7cf30a29"
+          }
+        },
+        {
+          "scenario": "quit-body",
+          "trace": [
+            "SV-B-024 quit-body no final bytes; closed=1 generation=25300799"
+          ],
+          "log_fingerprint": {
+            "size": 431,
+            "sha256": "027b9c7fcf4e511b893affc7d2419bb6fcaa77ea7c11c1276f4edf5bcb0ce910"
+          }
+        },
+        {
+          "scenario": "quit-class",
+          "trace": [
+            "SV-B-024 quit-class no final bytes; closed=1 generation=25560487"
+          ],
+          "log_fingerprint": {
+            "size": 432,
+            "sha256": "b75dfb3d97c12c507193fe08fd9f58255a1f2b44d1e1f5fda9eb944e85649cc3"
+          }
+        },
+        {
+          "scenario": "quit-mode",
+          "trace": [
+            "SV-B-024 quit-mode no final bytes; closed=1 generation=24646520"
+          ],
+          "log_fingerprint": {
+            "size": 431,
+            "sha256": "a313958ccf710f404ecd25fd1871f9f8ccd6a44aaf33cf12ae01eefc75e70235"
+          }
+        },
+        {
+          "scenario": "quit-race",
+          "trace": [
+            "SV-B-024 quit-race no final bytes; closed=1 generation=28944867"
+          ],
+          "log_fingerprint": {
+            "size": 431,
+            "sha256": "02a14c3079394223337c73ed7e682b42284837b2663b61da07417cda3994f9fb"
+          }
+        },
+        {
+          "scenario": "quit-sex",
+          "trace": [
+            "SV-B-024 quit-sex no final bytes; closed=1 generation=31959082"
+          ],
+          "log_fingerprint": {
+            "size": 430,
+            "sha256": "dfb73bc0e38d6d89f86792719a62ac39654e0bf1789c3a52d8792efd13a3f936"
+          }
+        },
+        {
+          "scenario": "quit-stats",
+          "trace": [
+            "SV-B-024 quit-stats no final bytes; closed=1 generation=44167311"
+          ],
+          "log_fingerprint": {
+            "size": 432,
+            "sha256": "faaf76a1d7669c9b60465690b2a27accda34dc1ed3abd5f4ab46f55e5d16b8c6"
+          }
+        },
+        {
+          "scenario": "quit-trait",
+          "trace": [
+            "SV-B-024 quit-trait no final bytes; closed=1 generation=30902579"
+          ],
+          "log_fingerprint": {
+            "size": 432,
+            "sha256": "0481dfcb8405e8e07579a0d18c670583450a81865544907c4788c287f7e0d350"
+          }
+        },
+        {
+          "scenario": "retry",
+          "trace": [
+            "SV-B-024 retry captured 16266 handshake bytes; keepalive=1 phase=live-session-handoff character=Carol generation=1267223799 prior=29272078"
+          ],
+          "log_fingerprint": {
+            "size": 820,
+            "sha256": "97a472b06866c7be125dc0439afce8b16dde09edffb9e76fc8c968730f0c2f23"
+          }
+        },
+        {
+          "scenario": "waiting",
+          "trace": [
+            "SV-B-024 waiting captured 16266 handshake bytes; keepalive=1 phase=play-pending character=Carol generation=24126517 prior=0"
+          ],
+          "log_fingerprint": {
+            "size": 519,
+            "sha256": "ccf6424cb4f9795bb8a85e7fc371660181f14ce8da5fd88f443c1642cc180eba"
+          }
+        }
+      ]
+    },
+    {
+      "name": "replies",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_birth_reply_checks.py"
+      ],
+      "environment": {
+        "SV_BIRTH_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/replies"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 17,
+      "scenarios": [
+        {
+          "scenario": "ack-1",
+          "trace": [
+            "SV-B-024 ack-1 captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=25350580"
+          ],
+          "log_fingerprint": {
+            "size": 608,
+            "sha256": "f3f41a45c0515127a37961f0e9fb918f9f7902978530452d7c21b23073951350"
+          }
+        },
+        {
+          "scenario": "ack-2",
+          "trace": [
+            "SV-B-024 ack-2 captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=28297194"
+          ],
+          "log_fingerprint": {
+            "size": 608,
+            "sha256": "2d82fed2d53ce8078bb5e71600ffc93284f96f0c79e85094e0ae1b7ea604d180"
+          }
+        },
+        {
+          "scenario": "ack-quit",
+          "trace": [
+            "SV-B-024 ack-quit captured 16266 handshake bytes; phase=disconnected character=Carol generation=24840919"
+          ],
+          "log_fingerprint": {
+            "size": 550,
+            "sha256": "fff1bb32e704f40d4aae5a5350e28908c2b9617b8719f7b3333f3d74c532aa06"
+          }
+        },
+        {
+          "scenario": "ack-retry",
+          "trace": [
+            "SV-B-024 ack-retry captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=723260455"
+          ],
+          "log_fingerprint": {
+            "size": 825,
+            "sha256": "c98152d90d53a00940de0c6d0ed633fcb9b45c288d8bfbfbd3d441943b6e9448"
+          }
+        },
+        {
+          "scenario": "ack-trailing",
+          "trace": [
+            "SV-B-024 ack-trailing captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=27227719"
+          ],
+          "log_fingerprint": {
+            "size": 615,
+            "sha256": "18c848f58dc41245411e62552a4baf4c7a04f24ee76b73d1095c04230b128b58"
+          }
+        },
+        {
+          "scenario": "ack",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26407188"
+          ],
+          "log_fingerprint": {
+            "size": 606,
+            "sha256": "dd6d5e4a09abedd767684472a764dd07839b4437a332a31284bc30cb4ca67d36"
+          }
+        },
+        {
+          "scenario": "disconnect",
+          "trace": [
+            "SV-B-024 disconnect captured 16266 handshake bytes; phase=disconnected character=Carol generation=34799987"
+          ],
+          "log_fingerprint": {
+            "size": 558,
+            "sha256": "5a1f039a18a95b6eb350e76722b7019d27600140ca04484749aa9fbbef9830cd"
+          }
+        },
+        {
+          "scenario": "malformed-quit",
+          "trace": [
+            "SV-B-024 malformed-quit captured 16266 handshake bytes; phase=failed character=Carol generation=25271201"
+          ],
+          "log_fingerprint": {
+            "size": 568,
+            "sha256": "c5cec03bd3172f6ab95ec25b2609734d4cdf20d7a124a5a0105ac8cfa6857223"
+          }
+        },
+        {
+          "scenario": "partial-1",
+          "trace": [
+            "SV-B-024 partial-1 captured 16266 handshake bytes; phase=play-pending character=Carol generation=25212435"
+          ],
+          "log_fingerprint": {
+            "size": 502,
+            "sha256": "f160f319e69652a668915d61393a515cdb844153c099cbac0ebe9cfcbab743f7"
+          }
+        },
+        {
+          "scenario": "partial-2",
+          "trace": [
+            "SV-B-024 partial-2 captured 16266 handshake bytes; phase=play-pending character=Carol generation=28145156"
+          ],
+          "log_fingerprint": {
+            "size": 502,
+            "sha256": "98242becb708e600d180edf36960e040373291cf6cefd28535fe30600b23d9f5"
+          }
+        },
+        {
+          "scenario": "peer-quit",
+          "trace": [
+            "SV-B-024 peer-quit captured 16266 handshake bytes; phase=disconnected character=Carol generation=33716440"
+          ],
+          "log_fingerprint": {
+            "size": 551,
+            "sha256": "2a77fad89405a1167f4e630543f8ad66ab892241a0f65166879ff0f06c5c360c"
+          }
+        },
+        {
+          "scenario": "rejected-trailing",
+          "trace": [
+            "SV-B-024 rejected-trailing captured 16266 handshake bytes; phase=failed character=Carol generation=28048525"
+          ],
+          "log_fingerprint": {
+            "size": 576,
+            "sha256": "701c01490a1d3989dd53af2a6adee4f0b575d2f1526371e923d808f3e1326be7"
+          }
+        },
+        {
+          "scenario": "rejected",
+          "trace": [
+            "SV-B-024 rejected captured 16266 handshake bytes; phase=failed character=Carol generation=25567326"
+          ],
+          "log_fingerprint": {
+            "size": 567,
+            "sha256": "6dd4bf853489671b1304e4937c043fab18ccd329907696d329431ef770c2bd92"
+          }
+        },
+        {
+          "scenario": "truncated-1",
+          "trace": [
+            "SV-B-024 truncated-1 captured 16266 handshake bytes; phase=disconnected character=Carol generation=25911088"
+          ],
+          "log_fingerprint": {
+            "size": 559,
+            "sha256": "1466b906205cbbc6dc1241dd18715aec4d7277d8f022ee71a008d317e322d7d7"
+          }
+        },
+        {
+          "scenario": "truncated-2",
+          "trace": [
+            "SV-B-024 truncated-2 captured 16266 handshake bytes; phase=disconnected character=Carol generation=28343210"
+          ],
+          "log_fingerprint": {
+            "size": 559,
+            "sha256": "c90f558686eea7fd3c98de88082d796cbe3fa4860d2e276f257444ea5bac3c5e"
+          }
+        },
+        {
+          "scenario": "wrong-packet",
+          "trace": [
+            "SV-B-024 wrong-packet captured 16266 handshake bytes; phase=failed character=Carol generation=27519982"
+          ],
+          "log_fingerprint": {
+            "size": 565,
+            "sha256": "61af4381d92b8bcd57e51b54979538c8ef225eb1735614b382d4142c0291f174"
+          }
+        },
+        {
+          "scenario": "wrong-type",
+          "trace": [
+            "SV-B-024 wrong-type captured 16266 handshake bytes; phase=failed character=Carol generation=24366623"
+          ],
+          "log_fingerprint": {
+            "size": 565,
+            "sha256": "5bfd67cafef51c637ec5cf1bd2017f5f91443011de7fdbd3bc74bc5ee1e8c60a"
+          }
+        }
+      ]
+    },
+    {
+      "name": "guide-motd",
+      "command": [
+        "/usr/bin/python3",
+        "/home/agent/workspace/tests/sv_guide_motd_checks.py"
+      ],
+      "environment": {
+        "SV_GUIDE_EVIDENCE": "/home/agent/sv-b024-focused-wave-5-1/runtime/guide-motd"
+      },
+      "returncode": 0,
+      "status": "passed",
+      "sessions": 10,
+      "scenarios": [
+        {
+          "scenario": "0-ack",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26716616"
+          ],
+          "log_fingerprint": {
+            "size": 965,
+            "sha256": "0604033fbb24b9dadf0ab39abe4bd0a1f43de3110b65de9e73f323798fffc03f"
+          }
+        },
+        {
+          "scenario": "0-partial",
+          "trace": [
+            "SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=26693744"
+          ],
+          "log_fingerprint": {
+            "size": 719,
+            "sha256": "eb7b0827bf38b2d7bb6fa104bb0ae7d4c1e39af93a36b21b250601f2f72836be"
+          }
+        },
+        {
+          "scenario": "0-point",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=25470404"
+          ],
+          "log_fingerprint": {
+            "size": 1006,
+            "sha256": "2ff1a953d15933bf79a12a7b4aa4cb271dfbce06d492530378058c97a07a9e59"
+          }
+        },
+        {
+          "scenario": "0-skip",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=28086707"
+          ],
+          "log_fingerprint": {
+            "size": 924,
+            "sha256": "093eb3223e888357d4dc2a3be1b9e08f79930c7b9e8dbc8439925be96ca7f837"
+          }
+        },
+        {
+          "scenario": "0-waiting",
+          "trace": [
+            "SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=27741969"
+          ],
+          "log_fingerprint": {
+            "size": 719,
+            "sha256": "ec8b592e4c519d6f250eeb4a0a86f845a22b38bc34433756a93b39820f4434f8"
+          }
+        },
+        {
+          "scenario": "1-ack",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=25933218"
+          ],
+          "log_fingerprint": {
+            "size": 965,
+            "sha256": "cbdd12a8ba88820b840b53662b9e653e38da82358e0ab30cc78943b8ff1c580e"
+          }
+        },
+        {
+          "scenario": "1-partial",
+          "trace": [
+            "SV-B-024 partial captured 16266 handshake bytes; phase=play-pending character=Carol generation=27417182"
+          ],
+          "log_fingerprint": {
+            "size": 719,
+            "sha256": "253679125ca12d79a8dcde633460ae523f405d345e8893258f54aa1f32a59797"
+          }
+        },
+        {
+          "scenario": "1-point",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=27886924"
+          ],
+          "log_fingerprint": {
+            "size": 1006,
+            "sha256": "989865a1afb6331f043ce94c8cea293f9a735e61e5691b7e13a1d17c84870304"
+          }
+        },
+        {
+          "scenario": "1-skip",
+          "trace": [
+            "SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=28429647"
+          ],
+          "log_fingerprint": {
+            "size": 924,
+            "sha256": "04bfeca428d263f67d35a62fa95d2f8d467363199553978d661d50c4ebc62b04"
+          }
+        },
+        {
+          "scenario": "1-waiting",
+          "trace": [
+            "SV-B-024 waiting captured 16266 handshake bytes; phase=play-pending character=Carol generation=24461752"
+          ],
+          "log_fingerprint": {
+            "size": 719,
+            "sha256": "21c7d0dea664b393f6c4d7751622d004dadfb1df836fd38426a229a8f19a5c62"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [05: Authoritative reply](issues/05-authoritative-reply.md)
 - [06: Guide/MOTD handoff](issues/06-guide-motd-handoff.md)
 - [07: Runtime audit](issues/07-runtime-audit.md)
+- [08: Focused production coverage](issues/08-focused-test-coverage.md)
 
 ## Decisions so far
 
@@ -33,3 +34,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   actual build/core results and independent controller review recorded; fresh
   final-HEAD receipts are located as described in the recovery packet. Parent
   and deferred SV-B-025/SV-B-023 acceptance ownership remain unchanged.
+
+- [08](issues/08-focused-test-coverage.md#answer): existing production endpoint
+  coverage rerun successfully: 108 sessions and 347 artifact fingerprints;
+  no missing tests or behavior changes needed. Full assembly gates, fresh
+  controller acceptance and deferred SV-B-025 evidence retain their owners.
