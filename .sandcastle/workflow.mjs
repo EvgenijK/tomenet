@@ -31,6 +31,11 @@ import { controllerExecutionIdentity, preflightExecution, preflightWorker } from
 import { dispatchVerified, resumeExecutionCheckpoint, closeExecution } from "./dispatch.mjs";
 import { repositoryGateInput } from "./gate-input.mjs";
 import { sandcastleRunAgentPolicy } from "./runtime.mjs";
+import { digest, verifyEvidence, verificationError } from "./verification.mjs";
+import { validateExecutionPlan, acceptExecutionPlan, assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
+import { freezeVerificationTarget, assertVerificationTarget, releaseVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts, toolchainIdentity } from "./verification-gates.mjs";
+import { isDeliveryReady, dependencyReadyTickets } from "./delivery.mjs";
+import { resumeVerificationMigration } from "./verification-migration.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -284,7 +289,7 @@ async function contract(sandbox, state) {
   let sourceResolution;
   let executionContext;
   await contractStage(state, {
-    save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
+    save, head: async () => { if (state.verificationVersion === 1) await assertVerificationTarget(state, sandbox.worktreePath); return git(sandbox.worktreePath, "rev-parse", "HEAD"); },
     sources: async () => {
       sourceResolution = await resolveContractSources({
         root,
@@ -395,6 +400,7 @@ async function contract(sandbox, state) {
 }
 async function plan(sandbox, state, reason = "") {
   assertContract(state);
+  releaseVerificationTarget(state);
   const skill = await readFile(resolve(skillPaths["to-tickets"], "SKILL.md"), "utf8");
   const manifest = manifestPath(state);
   const prompt = [
@@ -402,6 +408,8 @@ async function plan(sandbox, state, reason = "") {
     skill,
     `Read AGENTS.md, CONTEXT.md, relevant ADRs, and docs/agents/issue-tracker.md. Write numbered ticket files under ${taskDir(state)}/issues/ and a JSON manifest at ${manifest}.`,
     'Manifest format: {"tickets":[{"path":".scratch/.../issues/01-name.md","blockedBy":[],"findingIds":[]}]}. List tickets in dependency order; blockedBy may contain earlier paths in this batch or completed tickets from prior batches. Never depend on unresolved or deferred tickets. Each ticket must have acceptance criteria referencing contract IDs. When repairing review findings, every ticket must name its ledger findingIds and every open finding must be covered once as one coherent repair (multiple dependent tickets are allowed). Do not recreate a resolved/residual finding or repair the same defect through unrelated tickets.',
+    'Manifest also requires executionPlan: {version:1,contractDigest,criteria:[{id,evidence:"inspection"|"artifact"|"deferred",artifactCheckIds:[]}],artifactChecks:[{id,owner:"controller",phase:"test-gate",target:"integrated-head",command:["python3","-B","tests/collector.py"],outputArgument:true,manifestPath:"manifest.json",syntheticOnly:true,caseArtifactSuffix:".log",inputPaths:["tests/collector.py"],expectedSuites:{ordinary:3},producedBy:"optional runner delivery ticket path"}]}. Cover every immutable criterion exactly once; runtime evidence requires an artifact producer, not inspection-only. Collector receives an appended fresh output-directory argument and must record tested_head, contract_digest, inputs_unchanged, sources, artifacts and suites with returncode/status/caseCount (or one declared caseArtifactSuffix (.log/.bin) per case, including cases with no network send). A newly needed collector is a worker delivery prerequisite, followed by its controller gate after assembly; never claim an absent collector already exists.',
+    'Each ticket requires delivery:{owner:"worker",phase:"parallel-work",prerequisites:[]}. Each prerequisite is worker-local with owner=worker and phase=parallel-work. Markdown MUST use exact headings ## Worker delivery criteria and ## Controller acceptance obligations, distinguishing Worker delivery criteria (implementation/runner delivery and focused checks) from Controller acceptance obligations (required final integrated-HEAD build/core/runtime/independent review). Worker completion must never wait for controller obligations. Preserve all mandatory/current obligations in executionPlan; do not mislabel them deferred.',
     "For each behavior-changing ticket, name the public SV production seam for TDD in the ticket and link it to an accepted contract criterion or check. Use only a seam supported by the originating task and contract; flag an absent seam as a blocker instead of inventing a test-only interface.",
     `Completed tickets available as dependencies:\n${JSON.stringify(state.completedTickets)}`,
     state.scopeNotes || "Respect the originating spec's implementation and full acceptance boundaries. Generated tickets cannot expand the authoritative scope. Record deferred checks without claiming they passed.",
@@ -420,7 +428,13 @@ async function plan(sandbox, state, reason = "") {
 async function acceptPlan(sandbox, state) {
   const manifest = manifestPath(state);
   const parsed = JSON.parse(await readFile(resolve(sandbox.worktreePath, manifest), "utf8"));
-  validateTicketBatch(parsed, state);
+  validateTicketBatch(parsed, { ...state, verificationVersion: 1 });
+  validateExecutionPlan(parsed.executionPlan, state.acceptance.contract, state.acceptance.contractDigest, parsed.tickets);
+  const bindingReview = await inspect(sandbox, state, "independent execution-plan verifier", [
+    "Independently verify this execution binding against every original contract obligation and all ticket Markdown. Read the actual files. Inspect ownership, stage reachability, worker delivery versus independent final acceptance, real collector invocation/output format and coverage. Runtime/capture/evidence requirements must use controller-owned artifact producers after assembly. Generated tickets cannot defer, weaken or expand requirements. Inspect available runners or explicit delivery prerequisites. Return approved only for a reachable complete plan; runtime backend/expected case matrix/input coverage must be justified from source. Do not edit files. Return contract-review schema JSON.",
+    contractContext(state), JSON.stringify(parsed),
+  ].join("\n\n"), ".sandcastle/contract-review-output.schema.json");
+  acceptExecutionPlan(state, parsed.executionPlan, bindingReview, parsed.tickets);
   registerRepairBatch(state, parsed.tickets, manifest);
   for (const ticket of parsed.tickets) {
     await access(resolve(sandbox.worktreePath, ticket.path));
@@ -438,7 +452,7 @@ async function acceptPlan(sandbox, state) {
   await save(state);
 }
 async function startTicketWave(sandbox, state) {
-  if (state.tickets.every((ticket) => state.completedTickets.includes(ticket.path))) {
+  if (state.tickets.every((ticket) => dependencyReadyTickets(state).has(ticket.path))) {
     countIntegratedRepairs(state);
     refreshBuildBudgetsAfterBatch(state);
     delete state.reviewFindings;
@@ -449,11 +463,12 @@ async function startTicketWave(sandbox, state) {
   createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), limit: state.parallelism, usedBranches: await workerBranchNames(state) });
   await save(state);
 }
-function sandboxProvider() {
+function sandboxProvider(evidenceInbox) {
   const proxy = process.env.all_proxy || process.env.ALL_PROXY;
   return docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
     ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
     ...runtimeSchemaMounts(root),
+    ...(evidenceInbox ? [{ hostPath: evidenceInbox, sandboxPath: "/home/agent/.sandcastle-evidence-out", readonly: false }] : []),
   ] });
 }
 async function openWorker(state, member, wave) {
@@ -483,7 +498,7 @@ async function implementWorker(worker, state, member) {
     { expectedBranch: member.branch, baseCommit: state.wave.baseCommit, ticketPath: ticket.path });
   const result = JSON.parse(response);
   await ensureCommit(worker.worktreePath, `Sandcastle: preserve ${ticket.path}`);
-  if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path);
+  if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path, ticket.delivery);
   await appendStageEvent(runsDir, state, { stage: "ticket", status: result.status, summary: `${ticket.path}: ${result.status}; changes await assembly.`, tickets: [ticket.path] });
   return { result, head: await git(worker.worktreePath, "rev-parse", "HEAD") };
 }
@@ -512,13 +527,13 @@ async function assemble(sandbox, state) {
   try { await collectWave(state, {
     save,
     assemble: async (wave) => {
-      const members = wave.members.filter((member) => member.status === "completed" && !member.integrated);
+      const members = wave.members.filter((member) => (member.status === "completed" || isDeliveryReady(state, member)) && !member.integrated);
       const prompt = [
         `Assemble wave ${wave.id} on the current integration branch ${state.branch}. Read AGENTS.md, CONTEXT.md and each contributing ticket.`,
         `Common base: ${wave.baseCommit}. Merge these committed worker revisions using Git, in the listed order:\n${JSON.stringify(members.map(({ ticket, branch, head }) => ({ ticket: ticket.path, branch, head })), null, 2)}`,
         "First inspect git status and any in-progress merge. If a conflict exists, use $resolving-merge-conflicts: inspect both intents and their tickets, resolve every hunk, run focused checks, and finish the merge. Never abort, reset, discard a worker's intended behavior, or mark conflict-containing files as resolved without fixing them.",
-        "For each revision use git merge-base --is-ancestor to skip revisions already integrated, otherwise git merge --no-ff the exact revision. Preserve commit ancestry for all successful workers. Do not merge failed or blocked worker branches.",
-        "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Every contributing ticket must remain resolved with its Answer. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
+        "Validated delivery receipts may retain their historical claimed Markdown and blocked result; their controller acceptance is pending. Only the exact listed delivery receipt revisions are allowed alongside completed revisions. For each revision use git merge-base --is-ancestor to skip revisions already integrated, otherwise git merge --no-ff the exact revision. Preserve commit ancestry for all successful workers. Do not merge failed or blocked worker branches unless the exact listed revision has a controller-validated delivery receipt; that exception does not establish acceptance.",
+        "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Ordinary completed tickets must remain resolved with their Answer; controller-validated delivery keeps historical acceptance pending. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
         state.scopeNotes || "Preserve the original implementation/acceptance boundary.",
         contractContext(state),
         'Return only JSON matching the schema: completed if all listed revisions are integrated and focused checks passed, otherwise blocked with a concrete reason.',
@@ -530,7 +545,10 @@ async function assemble(sandbox, state) {
       await git(sandbox.worktreePath, "merge-base", "--is-ancestor", member.head, "HEAD");
       if (await git(sandbox.worktreePath, "ls-files", "-u")) throw new Error("Assembly left unmerged files");
       if (await git(sandbox.worktreePath, "status", "--porcelain")) throw new Error("Assembly left uncommitted changes");
-      validateTicketCompletion(await readFile(resolve(sandbox.worktreePath, member.ticket.path), "utf8"), member.ticket.path);
+      const content = await readFile(resolve(sandbox.worktreePath, member.ticket.path), "utf8");
+      if (isDeliveryReady(state, member)) {
+        if (digest(content) !== member.deliveryReceipt.ticketDigest) throw verificationError("DELIVERY_INVALID", "assembly changed the validated delivery ticket");
+      } else validateTicketCompletion(content, member.ticket.path, member.ticket.delivery);
     },
   }); } finally {
     countIntegratedRepairs(state);
@@ -562,10 +580,20 @@ async function test(sandbox, state) {
   const path = `${taskDir(state)}/issues/${String(number).padStart(2, "0")}-focused-test-coverage.md`;
   await writeFile(resolve(sandbox.worktreePath, path), focusedTestTicketContents(state, number));
   await ensureCommit(sandbox.worktreePath, "Sandcastle: plan focused test coverage");
-  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [] }], limit: 1, after: "test-gate", usedBranches: await workerBranchNames(state) });
+  createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), tickets: [{ path, blockedBy: [], ...(state.verificationVersion === 1 ? { delivery: { owner: "worker", phase: "parallel-work", prerequisites: [] } } : {}) }], limit: 1, after: "test-gate", usedBranches: await workerBranchNames(state) });
+  await save(state);
+}
+async function verificationRuntime(sandbox, state) {
+  const provenance = await preflightExecution(executionContext(state, "verification runtime", sandbox.worktreePath, { sandbox }));
+  return { ...provenance.runtime, toolchain: await toolchainIdentity(sandbox) };
+}
+async function freezeTarget(sandbox, state) {
+  assertExecutionPlan(state);
+  await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state) });
   await save(state);
 }
 async function testGate(sandbox, state) {
+  if (state.verificationVersion === 1) await freezeTarget(sandbox, state);
   recordBuildAttempt(state, "test-gate");
   await save(state);
   const rebuilt = await gate(sandbox, "make -s -C src -f makefile.sv tomenet-sv");
@@ -588,7 +616,18 @@ async function testGate(sandbox, state) {
     await checkEvidence(sandbox, state, check.id, result);
     if (!result.ok) { result.output = `${check.id}: ${result.output}`; break; }
   }
-  if (result.ok) { state.phase = "review"; await save(state); return; }
+  if (result.ok) {
+    if (state.verificationVersion === 1) {
+      for (const binding of requiredArtifactChecks(state)) {
+        const receipt = await executeArtifactCheck(sandbox, state, binding, { runDirectory: resolve(runsDir, state.id), save,
+          assertRuntime: async target => { if (digest(await verificationRuntime(sandbox, state)) !== digest(target.runtime)) throw verificationError("VERIFICATION_RUNTIME_CHANGED", "check runtime changed"); } });
+        (state.artifactEvidence ??= []).push(receipt); await save(state);
+        if (!receipt.passed) throw verificationError("EVIDENCE_FAILED", `artifact gate ${binding.id} failed`);
+      }
+      await verifyRequiredArtifacts(state, sandbox.worktreePath); await save(state);
+    }
+    state.phase = "review"; await save(state); return;
+  }
   state.pendingFailure = result.output;
   state.phase = "test-repair";
   await save(state);
@@ -609,8 +648,9 @@ async function checkEvidence(sandbox, state, checkId, result) {
   await save(state);
 }
 async function review(sandbox, state, audit = false) {
+  if (state.verificationVersion === 1) { await assertVerificationTarget(state, sandbox.worktreePath); await verifyRequiredArtifacts(state, sandbox.worktreePath); }
   await assessmentStage(state, {
-    save, head: () => git(sandbox.worktreePath, "rev-parse", "HEAD"),
+    save, head: async () => { if (state.verificationVersion === 1) await assertVerificationTarget(state, sandbox.worktreePath); return git(sandbox.worktreePath, "rev-parse", "HEAD"); },
     inspect: ({ head, validationError }) => inspect(sandbox, state, audit ? "fresh final acceptance auditor" : `review ${state.reviewRound}`, [
       audit
         ? `You are a fresh independent final auditor. You did not implement, plan or review this change. Inspect the final committed production result at ${head} and baseline ${state.baseCommit} against the original task and accepted contract. Do not read earlier review/recovery reports, ticket Answers or previous reviewers' conclusions. Check every criterion, controller evidence, preserved baseline behavior and candidate residual risk independently. Do not edit files. Return only schema JSON.`
@@ -622,6 +662,7 @@ async function review(sandbox, state, audit = false) {
       contractContext(state),
       `Original task:\n${state.spec}`,
       `Controller evidence at ${head}:\n${JSON.stringify(state.acceptance.evidence.filter((item) => item.head === head), null, 2)}`,
+      state.verificationVersion === 1 ? `Durable controller artifact receipts (read the sealed manifest and artifacts independently; hashing does not establish semantics):\n${JSON.stringify(state.verifiedArtifactReferences)}` : "",
       // Final audit receives facts and candidate risks, not previous review verdicts.
       audit
         ? `Candidate residuals requiring independent assessment (these proposals are not an acceptance verdict):\n${JSON.stringify(state.acceptance.ledger.filter((item) => item.status === "residual").map(({ id, defectKey, area, criterionIds, file, line, problem, residual }) => ({ id, defectKey, area, criterionIds, file, line, problem, residual })), null, 2)}`
@@ -631,6 +672,7 @@ async function review(sandbox, state, audit = false) {
       validationError ? `Technical correction: the preceding response did not pass controller validation: ${validationError}. Recheck independently and return a complete schema-conforming response; do not infer a desired verdict.` : "",
     ].filter(Boolean).join("\n\n"), ".sandcastle/review-output.schema.json", audit ? readOnlyAgentTimeoutMs : 0),
     publish: async (parsed, { head }) => {
+      if (state.verificationVersion === 1) { await assertVerificationTarget(state, sandbox.worktreePath); await verifyRequiredArtifacts(state, sandbox.worktreePath); }
       const path = resolve(runsDir, state.id, audit ? `final-audit-${state.acceptance.finalAudits.length}.json` : `review-${state.reviewRound}.json`);
       await writeFile(path, JSON.stringify({ head, ...parsed }, null, 2) + "\n");
       if (!audit && !state.reviews.some((item) => item.path === path)) state.reviews.push({ path, head, ...parsed });
@@ -648,6 +690,7 @@ async function report(sandbox, state) {
     `Ticket batches: ${state.batchCount}`, `Build attempts: ${state.totalBuildAttempts}`, `Test attempts: ${state.totalTestAttempts}`, `Code review rounds: ${state.reviewRound}`, "",
     `Parallelism: ${state.parallelism}`, `Assembled waves: ${(state.waveHistory ?? []).length}`, "",
     "## Completed tickets", "", ...state.completedTickets.map((path) => `- ${path}`), "",
+    "## Integrated deliveries with controller-owned acceptance", "", ...(state.deliveredTickets ?? []).map(path => `- ${path}: delivery integrated; historical worker status retained. Run acceptance is established only by the final verdict below.`), "",
     "## Deferred checks (not completed)", "", ...(state.deferredTickets ?? []).map((ticket) => `- ${ticket.path}: ${ticket.reason}`), "",
     "## Automatic recovery decisions", "", ...(state.recoveries ?? []).map((record) => `- ${record.action} at ${record.phase}: ${record.summary} Record: ${record.recordPath}`), "",
     "## Reviews", "", ...state.reviews.flatMap((item, index) => [
@@ -686,18 +729,29 @@ export async function verifiedTree(sandbox, state) {
   assertAuditedChanges(state, []);
   await git(sandbox.worktreePath, "merge-base", "--is-ancestor", verified, "HEAD");
   const changed = (await git(sandbox.worktreePath, "diff", "--name-only", verified, "HEAD")).split("\n").filter(Boolean);
-  return assertAuditedChanges(state, changed);
+  // A temporary unaudited code change followed by a revert is still a code
+  // descendant, not a permitted report-only publication.
+  for (const revision of (await git(sandbox.worktreePath, "rev-list", `${verified}..HEAD`)).split("\n").filter(Boolean)) {
+    changed.push(...(await git(sandbox.worktreePath, "diff-tree", "--no-commit-id", "--name-only", "-r", "-m", revision)).split("\n").filter(Boolean));
+  }
+  const outcome = assertAuditedChanges(state, changed);
+  if (state.verificationVersion === 1) {
+    // Publication descendants have already passed the strict path/ancestry gate.
+    for (const reference of state.verifiedArtifactReferences ?? []) await verifyEvidence(reference, state.verificationTarget);
+    if (state.verifiedArtifactReferences?.length !== requiredArtifactChecks(state).length) throw verificationError("EVIDENCE_MISSING", "publication lost artifact evidence");
+  }
+  return outcome;
 }
 
 export async function main() {
 rejectLegacyContinue();
 const attemptGrant = readAttemptGrant();
-const modeKeys = ["SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+const modeKeys = ["SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
-const booleanModes = ["SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
+const booleanModes = ["SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
 for (const key of booleanModes) if (process.env[key] !== undefined && process.env[key] !== "1") throw new Error(`${key} must equal 1 when explicitly requested; no checkpoint was changed`);
 if (requestedModes.length > 1) throw new Error("Continuation modes cannot be combined; authorize and validate one saved checkpoint operation at a time");
@@ -720,6 +774,8 @@ if (command === "start") {
   checkpointAtRead = JSON.stringify(state);
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
+const verificationResume = process.env.SANDCASTLE_VERIFICATION_RESUME === "1";
+if (verificationResume) resumeVerificationMigration(structuredClone(state));
 const extraQuota = process.env.SANDCASTLE_EXTRA_QUOTA_PERCENT;
 const userResume = process.env.SANDCASTLE_RESUME === "1";
 const preflightResume = process.env.SANDCASTLE_PREFLIGHT_RESUME === "1";
@@ -827,7 +883,9 @@ try {
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if (preflightResume) {
+    if (verificationResume) {
+      resumeVerificationMigration(state);
+    } else if (preflightResume) {
       resumeExecutionCheckpoint(state);
     } else if (attemptGrant) {
       applyAllowanceGrant(state, attemptGrant);
@@ -899,7 +957,9 @@ try {
     try {
       if (state.phase !== "recovery" && !sandbox) {
         if (command === "resume") await recoverWorktree(state);
-        sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider() });
+        const inbox = resolve(runsDir, state.id, "evidence-inbox");
+        await mkdir(inbox, { recursive: true, mode: 0o700 });
+        sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider(inbox) });
         console.log(`Worktree: ${sandbox.worktreePath}`);
         await dispatchVerified(executionContext(state, "orchestrator", sandbox.worktreePath, {
           sandbox, allowDirty: state.phase === "assemble",

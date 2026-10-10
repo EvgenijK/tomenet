@@ -341,6 +341,7 @@ test("real repository feature evidence plus final audit yields truthful ready-wi
   await writeFile(resolve(dir, "contract.json"), "{}\n"); git("add", "."); git("commit", "-m", "Unverified code change");
   await assert.rejects(verifiedTree(sandbox, s), /code changed after final audit/);
   await writeFile(resolve(dir, "contract.json"), JSON.stringify(c)); git("add", "."); git("commit", "-m", "Restore audited code");
+  await assert.rejects(verifiedTree(sandbox, s), /code changed after final audit/);
   await assert.rejects(gate({ ...sandbox, exec: async () => {
     await writeFile(resolve(dir, "contract.json"), "{}\n");
     return { exitCode: 0, stdout: "pretend success", stderr: "" };

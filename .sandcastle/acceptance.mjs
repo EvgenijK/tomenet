@@ -1,3 +1,4 @@
+import { assertExecutionPlan, requiredArtifactChecks } from "./verification-plan.mjs";
 import { createHash } from "node:crypto";
 import { verifierFeedbackDetails } from "./contract-feedback.mjs";
 
@@ -187,6 +188,14 @@ export function closureGate(state, head, { final = true } = {}) {
   const a = state.acceptance;
   const assessment = (final ? a.finalAudits : a.assessments).at(-1);
   const reasons = [];
+  if (state.verificationVersion === 1) {
+    const binding = assertExecutionPlan(state);
+    if (state.verificationTarget?.head !== head || state.verificationTarget.bindingDigest !== binding.digest) reasons.push("Frozen verification target is missing or changed");
+    for (const check of requiredArtifactChecks(state)) {
+      const receipt = state.verifiedArtifactReferences?.find(item => item.checkId === check.id && item.integrityVerified && item.passed && digest(item.target) === digest(state.verificationTarget));
+      if (!receipt) reasons.push(`Required durable artifact ${check.id} is missing or stale`);
+    }
+  }
   if (!assessment || assessment.head !== head || assessment.contractDigest !== a.contractDigest) reasons.push("Fresh assessment of the final HEAD is missing");
   for (const check of requiredChecks(a.contract)) {
     if (check.kind === "review") {
@@ -202,7 +211,7 @@ export function closureGate(state, head, { final = true } = {}) {
   const open = a.ledger.filter((item) => item.status === "open");
   for (const entry of open) reasons.push(`Open defect ${entry.id}`);
   for (const entry of a.ledger.filter((item) => item.status === "residual")) if (!eligibleResidual(entry, a.contract) || (final && entry.residual.head !== head)) reasons.push(`Unaccepted residual ${entry.id}`);
-  if (state.wave || (state.tickets ?? []).some((ticket) => !(state.completedTickets ?? []).includes(ticket.path))) reasons.push("Worker commits/tickets still await integration");
+  if (state.wave || (state.tickets ?? []).some((ticket) => !([...(state.completedTickets ?? []), ...(state.deliveredTickets ?? [])]).includes(ticket.path))) reasons.push("Worker commits/tickets still await integration");
   const ready = reasons.length === 0;
   return { verdict: ready ? a.ledger.some((item) => item.status === "residual") ? "ready_with_notes" : "ready" : "blocked", head, reasons, scope: a.contract.completionScope };
 }
@@ -233,7 +242,7 @@ export function registerRepairBatch(state, tickets, key) {
   const wanted = new Set(open.map((item) => item.id));
   const mapped = new Set();
   for (const ticket of tickets) {
-    need(!state.completedTickets.includes(ticket.path), "a new repair cannot reuse an already completed ticket");
+    need(![...state.completedTickets, ...(state.deliveredTickets ?? [])].includes(ticket.path), "a new repair cannot reuse an already completed or delivered ticket");
     need(Array.isArray(ticket.findingIds) && ticket.findingIds.length > 0 && new Set(ticket.findingIds).size === ticket.findingIds.length && ticket.findingIds.every((id) => wanted.has(id)), "repair ticket must name open ledger IDs");
     for (const id of ticket.findingIds) mapped.add(id);
   }
@@ -246,7 +255,7 @@ export function countIntegratedRepairs(state) {
   for (const batch of state.acceptance.repairBatches) {
     const ids = new Set(batch.tickets.flatMap((ticket) => ticket.findingIds));
     for (const id of ids) {
-      if (batch.counted.includes(id) || !batch.tickets.filter((ticket) => ticket.findingIds.includes(id)).every((ticket) => state.completedTickets.includes(ticket.path))) continue;
+      if (batch.counted.includes(id) || !batch.tickets.filter((ticket) => ticket.findingIds.includes(id)).every((ticket) => [...(state.completedTickets ?? []), ...(state.deliveredTickets ?? [])].includes(ticket.path))) continue;
       const entry = state.acceptance.ledger.find((item) => item.id === id);
       need(entry.repairs < acceptancePolicy.maxDefectRepairs, `defect repair limit reached for ${id}`);
       entry.repairs++;

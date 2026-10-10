@@ -105,3 +105,17 @@ test("focused coverage ticket is non-owning canonical history with a triage stat
   assert.match(content, /^Status: open$/m);
   assert.match(content, /^Labels: enhancement, ready-for-agent$/m);
 });
+
+test("worker delivery cannot wait for post-assembly controller acceptance", () => {
+  const manifest = { tickets: [{ path: path("09-final-head-runtime-evidence"), blockedBy: [path("11")],
+    delivery: { owner: "worker", phase: "parallel-work", prerequisites: [{ owner: "controller", phase: "final-audit" }] } }] };
+  assert.throws(() => validateTicketBatch(manifest, state()), /PLAN_STAGE_CYCLE/);
+});
+
+test("typed worker completion requires completed local delivery predicates but permits pending controller obligations", () => {
+  const path = '.scratch/sandcastle-test/issues/09-runtime-delivery.md';
+  const delivery = {owner:'worker',phase:'parallel-work',prerequisites:[]};
+  const pending = 'Type: verification\nStatus: resolved\n## Worker delivery criteria\n- [ ] Collector committed and focused checks passed.\n## Controller acceptance obligations\n- [ ] Independent final-HEAD runtime audit.\n## Answer\nDelivery record.';
+  assert.throws(()=>validateTicketCompletion(pending,path,delivery),/DELIVERY_PREDICATES/);
+  assert.doesNotThrow(()=>validateTicketCompletion(pending.replace('[ ] Collector','[x] Collector'),path,delivery));
+});

@@ -38,19 +38,29 @@ export function focusedTestTicketContents(state, number) {
     `Tracker role: Wayfinder planning/execution history for canonical [${canonicalId}](../../../${specPath}); this child does not own ${ownership} capability IDs.`,
     "Status: open", "Assignee: unassigned", "Labels: enhancement, ready-for-agent", "",
     "Test the completed SV change through production paths. Inspect the active tickets and add focused missing tests if needed. Run the relevant focused checks. Keep all explicit deferred acceptance checks pending. The orchestrator runs the full headless gate after assembly.", "",
+    "## Worker delivery criteria", "",
     "- [ ] Relevant production paths are exercised and results recorded under Answer.",
     "- [ ] Any new tests are committed, with no test-only behavior or claims of unrun acceptance.", "",
+    "## Controller acceptance obligations", "", "Required gates and independent final acceptance remain controller-owned and pending until verified after assembly.", "",
   ].join("\n");
 }
 
 export function validateTicketBatch(parsed, state) {
   if (!Array.isArray(parsed.tickets) || parsed.tickets.length < 1 || parsed.tickets.length > 30) throw new Error("Ticket manifest must contain 1–30 tickets");
   const seen = new Set();
-  const completed = new Set(state.completedTickets ?? []);
+  const completed = new Set([...(state.completedTickets ?? []), ...(state.deliveredTickets ?? [])]);
   for (const ticket of parsed.tickets) {
     if (typeof ticket.path !== "string" || isAbsolute(ticket.path) || ticket.path.includes("..") || !ticket.path.startsWith(`.scratch/sandcastle-${state.id}/issues/`)) throw new Error(`Invalid ticket path: ${ticket.path}`);
     if (seen.has(ticket.path)) throw new Error(`Duplicate ticket path: ${ticket.path}`);
     if (!Array.isArray(ticket.blockedBy) || ticket.blockedBy.some((path) => path === ticket.path || (!seen.has(path) && !completed.has(path)))) throw new Error(`Invalid blockers for ${ticket.path}`);
+    if (state.verificationVersion === 1 && !ticket.delivery) throw new Error(`PLAN_DELIVERY_MISSING: ${ticket.path}`);
+    if (ticket.delivery) {
+      const delivery = ticket.delivery;
+      if (delivery.owner !== "worker" || delivery.phase !== "parallel-work" || !Array.isArray(delivery.prerequisites)) throw new Error(`PLAN_DELIVERY_INVALID: ${ticket.path}`);
+      for (const prerequisite of delivery.prerequisites) {
+        if (prerequisite.owner !== "worker" || prerequisite.phase !== "parallel-work") throw new Error(`PLAN_STAGE_CYCLE: ${ticket.path} delivery -> assembly -> ${prerequisite.phase} -> delivery`);
+      }
+    }
     seen.add(ticket.path);
   }
   return parsed.tickets;
@@ -68,7 +78,12 @@ export function recordTicketResult(state, ticket, result) {
   state.ticketIndex++;
 }
 
-export function validateTicketCompletion(content, path) {
+export function validateTicketCompletion(content, path, delivery) {
+  if (delivery) {
+    const local = content.match(/^## Worker delivery criteria\s*$([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1];
+    if (!local || !/^- \[x\]/mi.test(local) || /^- \[ \]/m.test(local)) throw new Error(`DELIVERY_PREDICATES: worker-local checks must be completed: ${path}`);
+    if (/final[- ](?:integrated[- ]|reviewed[- ])?head|independent (?:controller|audit|acceptance)|fresh final audit|full (?:build|core|workflow)/i.test(local)) throw new Error(`PLAN_STAGE_CYCLE: controller obligation appears in worker delivery: ${path}`);
+  }
   if (!/^\*{0,2}Status:\*{0,2}\s*resolved\s*$/mi.test(content) || !/^## Answer\s*$/m.test(content)) throw new Error(`Completed result requires resolved ticket and Answer: ${path}`);
   const metadata = content.split(/^## Answer\s*$/m, 1)[0];
   const isFocusedCoverage = /(?:^|\/)\d+-focused-test-coverage\.md$/.test(path);
