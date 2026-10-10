@@ -1,0 +1,4 @@
+SV endpoint selected host=127.0.0.1 port=58835
+SV contact ready host=127.0.0.1 port=58835 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 ack captured 16266 handshake bytes; keepalive=1 phase=play-acknowledged character=Carol generation=32430617 prior=0
+SV resource unavailable: /tmp/sv-b024-zgvwjd14/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-zgvwjd14/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback

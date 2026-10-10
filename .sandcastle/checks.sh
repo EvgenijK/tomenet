@@ -21,6 +21,7 @@ case "${1:-core}" in
             tests/sv_account_failure_checks.py
             tests/sv_name_editor_submit_checks.py
             tests/sv_birth_complete_checks.py
+            tests/sv_birth_single_submission_checks.py
             tests/sv_message_checks.py
             tests/sv_metaserver_live_checks.py
             tests/sv_request_checks.py

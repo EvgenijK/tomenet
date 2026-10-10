@@ -1,0 +1,6 @@
+SV endpoint selected host=127.0.0.1 port=36203
+SV contact ready host=127.0.0.1 port=36203 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV contact ready host=127.0.0.1 port=36203 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 retry captured 16266 handshake bytes; keepalive=1 phase=play-acknowledged character=Carol generation=1266018933 prior=24452061
+SV resource unavailable: /tmp/sv-b024-zgvwjd14/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-zgvwjd14/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
