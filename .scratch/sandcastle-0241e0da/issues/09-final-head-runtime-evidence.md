@@ -5,9 +5,9 @@
 **Blocked by:** 08: Verify focused production coverage (completed; можно начинать). Завершённая production реализация и runtime collector доступны через этот prerequisite; новых unresolved или deferred зависимостей нет.
 
 Type: verification
-Status: open
-Assignee: unassigned
-Labels: bug, ready-for-agent
+Status: claimed
+Assignee: codex/sandcastle-0241e0da-wave-6-1
+Labels: bug, ready-for-human
 
 **Finding IDs:** D-9496281ca15e0741
 
@@ -31,3 +31,103 @@ Labels: bug, ready-for-agent
 ## Starting evidence and closure boundary
 
 Исторические captures и совпадающие inputs поддерживают implementation correctness, но fresh final runtime gate отсутствует. Recovery устанавливает необходимость fresh audit после каждого integration HEAD; указанный там external final-audit directory отсутствует по review finding. Этот тикет устраняет именно этот пробел и сохраняет уже verified behavior. До retained exact-final-HEAD receipt finding остаётся open. Ticket 07/08 completion не является новым controller verdict; completed implementation не переделывается.
+
+## Comments
+
+- 2026-10-10: Claimed on isolated branch `codex/sandcastle-0241e0da-wave-6-1`. Evidence-only repair; production seam is the accepted public `sv_endpoint_run(SvEndpointOptions)` with native SDL input and controlled TCP peer. No behavior changes or red/green claim.
+
+- 2026-10-10: Reviewed-HEAD capture completed with exit 0 at the exact requested
+  `9a98594669cba32bef9d98236cf8f0902a27eba0`, in a detached isolated checkout.
+  All 108 production sessions passed. Author integrity readback passed all
+  347 artifacts and 142 source fingerprints; independent acceptance remains
+  unavailable to this worker. No other branch was edited or merged.
+
+## Answer
+
+**Partial evidence repair; finding D-9496281ca15e0741 remains open.** Status
+remains claimed, with ready-for-human handoff; mandatory acceptance boxes stay
+pending. There is no independent controller verdict for the fresh capture, and
+the user explicitly reserves full build/core/review workflow for the orchestrator.
+Author readback cannot substitute for controller acceptance. This is the concrete
+closure blocker, not an unresolved implementation dependency.
+
+Read AGENTS.md, CONTEXT.md, tracker/labels/domain instructions, SV architecture
+and ADR-0001–0006; no separate GLOSSARY.md exists. Applied the supplied tdd skill
+as verification guidance. No behavior changed or test-first loop claimed. The
+agreed public production seam remains `sv_endpoint_run(SvEndpointOptions)` with
+native SDL gestures and controlled TCP peer, through committed birth draft,
+production `sv_login_start_play`, socket and `sv_login_receive` reply owners.
+Existing runners exercise actual Guide callers; no alternate implementation,
+test-only caller or additional behavior test was introduced.
+
+Executed from detached reviewed-HEAD checkout `/home/agent/sv-b024-review-09`:
+
+```sh
+python3 tests/sv_birth_runtime_evidence.py /home/agent/sv-b024-final-audit/9a98594669cba32bef9d98236cf8f0902a27eba0/runtime
+python3 /home/agent/sv-b024-final-audit/tools/author-readback.py /home/agent/sv-b024-review-09 /home/agent/sv-b024-final-audit/9a98594669cba32bef9d98236cf8f0902a27eba0/runtime
+```
+
+Both exit 0. Fresh matrix: ordinary 3, versions 40, dedicated 20, submission 18,
+replies 17, Guide/MOTD 10 (108 sessions). Collector used a new empty directory,
+no case filters, native SDL dummy/software, strict warnings and ASan/UBSan.
+HEAD/inputs remained unchanged. Manifest SHA-256:
+`3b4b66b1f1fe2e112ba24ab2c5e228321d353cb48359bc154d29f2928a7ff47f`.
+All 347 fresh artifact sizes/hashes and 142 source fingerprints passed author
+readback. Successful ordinary and Guide replies are raw `02 03 7a`; known Guide
+prose `02 03 01` is preserved and not used as an oracle. Independent semantic
+readback and acceptance are still pending.
+
+Historical committed evidence/07 runtime: separately rechecked all 347 retained
+artifact sizes/SHA-256 and its source fingerprints against current inputs;
+passed, still associated with original tested HEAD
+`3e0135bfbd31510afefb93589ae20ee562d49768`. Historical evidence/08 RESULTS for
+`23684316119dfd56deb9251f743faaa0a2b96e6f` and existing build/core receipts are
+unchanged; none are relabelled as fresh evidence.
+
+[Recovery pointer/procedure](../evidence/09/README.md) specifies persistent
+`/home/agent/sv-b024-final-audit/<exact-HEAD>/` discovery. The documentation commit
+is a different worker final HEAD from reviewed HEAD; its own post-commit capture
+and author readback are retained externally with actual exit codes. These records
+must be inspected directly; this Answer does not pre-claim their result or an
+independent verdict. No later commit will relabel them. Every subsequent
+integration HEAD requires a new capture, independent final audit and actual
+build/core/controller receipts at the same digest. Collector gate fields remain
+pending. Full gates were not run, as instructed.
+
+Changes only claim/document this ticket and its evidence handoff/map. Production,
+legacy/shared sources, existing tests, originating parent and ledger history are
+unchanged. No new improvement opportunity was found. SV-B-023 dependency and
+full acceptance stay with its owner; historical originating SV-B-024 filename
+is preserved. P1-entry-evidence/P1-ac12 stays **deferred, owner SV-B-025**,
+not passing evidence and not a blocker of this repair. DNA, profile/resource
+workflows, real-server integration, session.enter-game and first gameplay
+surface remain stage C. Success stays at startup live handoff with inactive
+gameplay; no broader acceptance is claimed.
+
+### Recovery continuation (2026-10-10)
+
+Reclaimed the existing worker branch at `4bb9c17479807fc95ae44ee317500297eab7b9df`;
+that worker commit and all completed 01–08 work are preserved. The external
+`/home/agent/sv-b024-final-audit/` directory reported above was absent in this
+recovery environment. Earlier capture claims remain historical reports, not
+recoverable fresh receipts. Reproduction uses a new empty directory in a
+detached checkout of the exact reviewed HEAD. The fresh worker-final capture
+runs after this recovery documentation commit; inspect external receipts for
+actual outcomes, without inferring success from this text.
+
+Historical evidence/07 was independently rehashed by the author in this
+continuation: all 347 artifacts and 142 sources match, exit 0; its original
+HEAD remains `3e0135bfbd31510afefb93589ae20ee562d49768`. The external
+`historical-readback.json` records this limited integrity check.
+
+**Closure blocker remains independent controller acceptance and final assembled
+HEAD gates.** No independent Sandcastle controller interface is exposed to this
+worker. The assigned scope prohibits editing/merging other branches and reserves
+full build/core/review gates for the orchestrator. This worker therefore leaves
+Status claimed and every mandatory runtime/controller acceptance box pending;
+it does not mark the finding resolved. The orchestrator must assemble the
+existing worker and this continuation, then collect fresh runtime, configured
+build/core and independent semantic/controller receipts at that resulting HEAD.
+Author receipts are not acceptance. No behavior, tests, parent, other branches,
+quota, cycle or recovery limits were changed. P1-entry-evidence remains deferred
+to SV-B-025; SV-B-023 and stage-C boundaries remain unchanged.
