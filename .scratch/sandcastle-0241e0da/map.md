@@ -19,3 +19,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
   plus 01 implements dedicated completion; exact-byte native endpoint checks
   verify IDDC variants, skipped trait and PvP Maia return in both compile orders.
   Controller gates and downstream evidence retain their original owners.
+
+- [06](issues/06-guide-motd-handoff.md#answer): authoritative creation/play ack
+  now transfers to peer MOTD and live-session handoff; actual native Guide
+  callers finish birth in both choice orders, with renderer frames and peer
+  transcripts available for controller review. Controller/final audit pending.

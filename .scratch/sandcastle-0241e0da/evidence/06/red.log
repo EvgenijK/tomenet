@@ -1,0 +1,11 @@
+SV resource unavailable: /tmp/sv-guide-motd-gi9rebr2/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-guide-motd-gi9rebr2/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+guide-motd: tests/sv/guide-motd.c:226: void *complete_peer(void *): Assertion `skip ? (handoff_frames > 0 && motd_frames == 0) : (motd_frames > 0 && handoff_frames == 0)' failed.
+
+Traceback (most recent call last):
+  File "/home/agent/workspace/tests/sv_guide_motd_checks.py", line 93, in <module>
+    run.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/subprocess.py", line 508, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-guide-motd-gi9rebr2/guide-motd', '/tmp/sv-guide-motd-gi9rebr2/profile', '/home/agent/workspace/lib', 'ack', '/home/agent/workspace/tests/sv/fixtures/birth-current.hex', '/tmp/sv-guide-motd-gi9rebr2/evidence/1-ack.bin']' died with <Signals.SIGABRT: 6>.

@@ -1,0 +1,15 @@
+SV endpoint selected host=127.0.0.1 port=45975
+SV contact ready host=127.0.0.1 port=45975 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=120
+native surface=1 guide-visit=1 presented
+native surface=1 guide-visit=2 presented
+native surface=1 guide-visit=3 presented
+native surface=1 guide-visit=4 presented
+native surface=1 guide-visit=5 presented
+native surface=1 guide-visit=6 presented
+controlled peer: authoritative acknowledgement = 02 03 01
+SV character selected; peer MOTD acknowledgement pending
+native surface=2 guide-visit=6 presented
+SV startup phase=live-session-handoff character=Carol generation=22340068
+native surface=3 guide-visit=6 presented
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22340068
+SV resource unavailable: /tmp/sv-guide-motd-h5t4wapi/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-guide-motd-h5t4wapi/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback

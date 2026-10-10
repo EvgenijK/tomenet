@@ -138,20 +138,19 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
         transition(pregame, SV_PREGAME_CHARACTER_PENDING, changed);
         return SV_OK;
     }
-    if (state == SV_LOGIN_WAIT_PLAY || state == SV_LOGIN_PLAY_ACKNOWLEDGED) {
+    if (state == SV_LOGIN_WAIT_PLAY) {
         if (!sv_login_creating_character(login)) return SV_INVALID;
-        transition(pregame, state == SV_LOGIN_WAIT_PLAY ? SV_PREGAME_PLAY_PENDING :
-                   SV_PREGAME_PLAY_ACKNOWLEDGED, false);
+        transition(pregame, SV_PREGAME_PLAY_PENDING, false);
         return SV_OK;
     }
-    if (state == SV_LOGIN_SELECTED) {
+    if (state == SV_LOGIN_SELECTED || state == SV_LOGIN_PLAY_ACKNOWLEDGED) {
         bool changed = publish_overview(pregame, login, setup);
         const SvLoginCharacter *selected = sv_login_selected_character(login);
         if (!selected) return SV_INVALID;
         changed = changed || strcmp(pregame->selected_character, selected->name) != 0;
         copy_text(pregame->selected_character, sizeof(pregame->selected_character),
                   selected->name);
-        if (sv_login_creating_character(login)) {
+        if (state == SV_LOGIN_SELECTED && sv_login_creating_character(login)) {
             transition(pregame, SV_PREGAME_BIRTH, changed);
             return SV_OK;
         }

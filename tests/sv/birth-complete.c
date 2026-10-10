@@ -194,12 +194,12 @@ int main(int argc, char **argv)
         .root = argv[1], .library = argv[2], .server = "127.0.0.1",
         .width = 1024, .height = 768, .windowed = 1,
         .port = ntohs(address.sin_port), .account = "Test", .password = "pw",
-        .real_name = "PLAYER", .outcome = &outcome});
+        .skip_motd = true, .real_name = "PLAYER", .outcome = &outcome});
     assert(!pthread_join(worker, NULL));
     close(peer.listener);
     assert(outcome.birth_mode_ready && outcome.birth_stats_confirmed);
     assert(outcome.phase == (!strcmp(argv[3], "ack") ?
-           SV_PREGAME_PLAY_ACKNOWLEDGED : SV_PREGAME_PLAY_PENDING));
+           SV_PREGAME_LIVE_HANDOFF : SV_PREGAME_PLAY_PENDING));
     if (!strcmp(argv[3], "ack")) assert(result == 0);
     else assert(result != 0);
     assert(outcome.selected_character[0] && !strcmp(outcome.selected_character, "Carol"));
