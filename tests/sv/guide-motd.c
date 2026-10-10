@@ -206,8 +206,10 @@ static void *complete_peer(void *opaque)
     if (!strcmp(peer->mode, "ack")) {
         pthread_mutex_lock(&observations);
         acknowledged = true;
-        puts("controlled peer: authoritative acknowledgement = 02 03 01");
         assert(send(socket, reply + 2, 1, 0) == 1);
+        printf("controlled peer: authoritative acknowledgement =");
+        for (size_t i = 0; i < sizeof(reply); ++i) printf(" %02x", reply[i]);
+        putchar('\n');
         pthread_mutex_unlock(&observations);
     }
     SDL_Delay(150);

@@ -15,7 +15,7 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [08: Focused production coverage](issues/08-focused-test-coverage.md)
 - [09: Fresh exact-HEAD runtime evidence](issues/09-final-head-runtime-evidence.md) — claimed repair D-9496281ca15e0741; independent controller/final gates pending; [batch 1](batch-1.json).
 
-- [10: Accurate controlled-peer acknowledgement transcript](issues/10-accurate-ack-transcript.md) — open repair D-86f98a5241b62943; [batch 2](batch-2.json).
+- [10: Accurate controlled-peer acknowledgement transcript](issues/10-accurate-ack-transcript.md) — resolved worker repair D-86f98a5241b62943; [batch 2](batch-2.json).
 - [11: Restore Wayfinder child Type metadata](issues/11-restore-child-types.md) — open repair D-df28653d4c8d0985; [batch 2](batch-2.json).
 - [12: Index resolved birth completion decisions](issues/12-index-resolved-decisions.md) — open repair D-e6e9e23d4a29cac2; [batch 2](batch-2.json).
 
@@ -50,3 +50,8 @@ Ticket files remain authoritative for scope, status and acceptance ownership.
 - [09](issues/09-final-head-runtime-evidence.md#answer): fresh reviewed-HEAD capture passed 108 sessions; author integrity verified 347 artifacts and 142 sources. Finding remains open pending independent controller and exact-final-HEAD gates; persistent discovery is documented in evidence/09.
 
 - [09 recovery continuation](issues/09-final-head-runtime-evidence.md#recovery-continuation-2026-10-10): original external evidence absent here; reproduce reviewed and post-commit worker captures. Original worker retained; assembly, full gates and independent controller acceptance remain pending.
+
+- [10](issues/10-accurate-ack-transcript.md#answer): controlled-peer acknowledgement
+  transcript derives from sent reply bytes; red regression exposed `01` versus
+  `7a`, and all 10 native endpoint Guide/MOTD cases pass after repair. Historical
+  captures are preserved; full integrated controller gates remain pending.
