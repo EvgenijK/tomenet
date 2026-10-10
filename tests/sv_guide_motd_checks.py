@@ -2,6 +2,7 @@
 """Actual SDL Guide callers and peer MOTD through the public SV endpoint."""
 from pathlib import Path
 import os
+import re
 import subprocess
 import struct
 import zlib
@@ -93,5 +94,19 @@ with tempfile.TemporaryDirectory(prefix="sv-guide-motd-") as temp:
             if run.returncode:
                 print(run.stdout + run.stderr)
                 run.check_returncode()
+            reply = (evidence / (label + ".bin.reply")).read_bytes()
+            acknowledgements = re.findall(
+                r"^controlled peer: authoritative acknowledgement = (.*)$",
+                run.stdout, re.MULTILINE)
+            if mode == "ack":
+                assert reply == bytes.fromhex("02 03 7a"), (label, reply.hex())
+                assert len(acknowledgements) == 1, (label, acknowledgements)
+                assert bytes.fromhex(acknowledgements[0]) == reply, (
+                    label, "acknowledgement transcript disagrees with captured reply",
+                    acknowledgements[0], reply.hex(" "))
+            else:
+                assert reply == (b"" if mode == "waiting" else bytes.fromhex("02 03")), (
+                    label, reply.hex())
+                assert not acknowledgements, (label, "incomplete reply claims acknowledgement")
             print(label + ": " + run.stdout, end="")
 print("SV Guide caller / peer MOTD / startup handoff checks passed")
