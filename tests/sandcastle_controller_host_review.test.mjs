@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {promisify} from 'node:util';
 import {execFile} from 'node:child_process';
 import {gzipSync} from 'node:zlib';
+import {updateBudget} from '../.sandcastle/limits.mjs';
 import {digest} from '../.sandcastle/verification.mjs';
 import {prepareControllerHostReview,runControllerHostReview,validateControllerHostReview,isControllerHostReviewRequest} from '../.sandcastle/controller-host-review.mjs';
 const exec=promisify(execFile);
@@ -73,3 +74,25 @@ test('resource origin at original approved source remains historical through met
 });
 
 test('renewal never grants a declared action that the prior reviewed source approval did not authorize',async t=>{const f=await fixture(t);f.policy.actions.futureUnapproved=structuredClone(f.policy.actions.capture);await writeFile(f.profile.policyPath,JSON.stringify(f.policy),{mode:0o600});f.profile.policySha256=digest(JSON.stringify(f.policy));const r=await f.run(),policy=JSON.parse(await readFile(r.policyPath));assert.deepEqual(policy.approvals.at(-1).actions,['capture']);assert.equal(policy.approvals.at(-1).actions.includes('futureUnapproved'),false);});
+
+test('actual updateBudget quota observations and account-window rollover preserve limits and append-only history during independent review',async t=>{
+ const f=await fixture(t);f.state.budget={tokens:111,consumedPercent:1,lastUsedPercent:10,resetsAt:1000,limitPercent:25,tokenLimit:2000,customAllowance:'unchanged'};
+ updateBudget(f.state,{usedPercent:10,resetsAt:1000});const original=structuredClone(f.state.budget),snapshots=[{usedPercent:11,resetsAt:1000},{usedPercent:1,resetsAt:2000},{usedPercent:2,resetsAt:2000}];let index=0;
+ f.ops.quota=async()=>{const snap=snapshots[Math.min(index++,snapshots.length-1)];updateBudget(f.state,snap);};
+ const review=f.ops.review;f.ops.review=async p=>{f.state.budget.tokens+=19;updateBudget(f.state,{usedPercent:12,resetsAt:1000});return review(p);};
+ const result=await f.run();assert.equal(result.status,'approved');assert.equal(f.state.budget.tokens,130);assert.ok(f.state.budget.consumedPercent>=original.consumedPercent);assert.equal(f.state.budget.windowId,'weekly:2000');assert.deepEqual(f.state.budget.usageHistory.slice(0,original.usageHistory.length),original.usageHistory);assert.ok(f.state.budget.usageHistory.length>original.usageHistory.length);for(const k of ['limitPercent','tokenLimit','customAllowance'])assert.equal(f.state.budget[k],original[k]);
+});
+for(const [label,change]of [
+ ['consumption reset',s=>s.budget.consumedPercent=0],
+ ['token reset',s=>s.budget.tokens=0],
+ ['history truncation',s=>s.budget.usageHistory=[]],
+ ['history rewrite',s=>s.budget.usageHistory[0].snapshot.usedPercent=99],
+])test('real quota telemetry guard rejects '+label+' even though telemetry is excluded from immutable allowance digest',async t=>{
+ const f=await fixture(t);f.state.budget={tokens:111,consumedPercent:2,lastUsedPercent:10,resetsAt:1000,limitPercent:25};updateBudget(f.state,{usedPercent:10,resetsAt:1000});const review=f.ops.review;f.ops.review=async p=>{change(f.state);return review(p);};await assert.rejects(f.run(),/consumption decreased|truncated or rewritten/);assert.equal(f.calls.authorize,0);assert.equal(f.calls.records.length,0);
+});
+test('unknown budget allowance remains protected while known quota telemetry advances',async t=>{const f=await fixture(t);f.state.budget.customAllowance=5;const review=f.ops.review;f.ops.review=async p=>{f.state.budget.customAllowance=6;return review(p);};await assert.rejects(f.run(),/checkpoint\/limits changed/);assert.equal(f.calls.authorize,0);});
+test('durable installation resumes across ordinary quota observations but rejects removal of archived history',async t=>{
+ const f=await fixture(t);f.state.budget={tokens:111,consumedPercent:2,lastUsedPercent:10,resetsAt:1000,limitPercent:25};updateBudget(f.state,{usedPercent:10,resetsAt:1000});f.ops.quota=async()=>updateBudget(f.state,{usedPercent:10,resetsAt:1000});f.ops.record=async()=>{throw new Error('record crash');};await assert.rejects(f.run(),/record crash/);
+ const retained=structuredClone(f.state.budget.usageHistory);f.ops.record=async r=>f.calls.records.push(r);const result=await f.run();assert.equal(result.resumedInstallation,true);assert.equal(f.calls.review,1);assert.deepEqual(f.state.budget.usageHistory.slice(0,retained.length),retained);
+ f.state.budget.usageHistory.splice(0,1);await assert.rejects(f.run(),/truncated or rewritten/);
+});

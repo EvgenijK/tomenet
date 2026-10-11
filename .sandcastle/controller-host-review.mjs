@@ -22,7 +22,14 @@ async function bytes(path,maximum=24*1024*1024){
 }
 const identity=data=>({size:data.length,sha256:digest(data)});
 function protectedState(state){
- return {id:state.id,branch:state.branch,baseCommit:state.baseCommit,acceptance:state.acceptance,executionPlan:state.executionPlan,tickets:state.tickets,completedTickets:state.completedTickets,deliveredTickets:state.deliveredTickets,deferredTickets:state.deferredTickets,wave:state.wave,reviewRound:state.reviewRound,buildAttempts:state.buildAttempts,testAttempts:state.testAttempts,testBuildAttempts:state.testBuildAttempts,recoveryAttempts:state.recoveryAttempts,recoverySequence:state.recoverySequence,buildLimit:state.buildLimit,testLimit:state.testLimit,quotaLimit:state.quotaLimit,allowanceGrants:state.allowanceGrants,budgetLimits:Object.fromEntries(Object.entries(state.budget??{}).filter(([k])=>!['tokens','consumedPercent'].includes(k)))};
+ return {id:state.id,branch:state.branch,baseCommit:state.baseCommit,acceptance:state.acceptance,executionPlan:state.executionPlan,tickets:state.tickets,completedTickets:state.completedTickets,deliveredTickets:state.deliveredTickets,deferredTickets:state.deferredTickets,wave:state.wave,reviewRound:state.reviewRound,buildAttempts:state.buildAttempts,testAttempts:state.testAttempts,testBuildAttempts:state.testBuildAttempts,recoveryAttempts:state.recoveryAttempts,recoverySequence:state.recoverySequence,buildLimit:state.buildLimit,testLimit:state.testLimit,quotaLimit:state.quotaLimit,allowanceGrants:state.allowanceGrants,budgetLimits:Object.fromEntries(Object.entries(state.budget??{}).filter(([k])=>!['tokens','consumedPercent','lastUsedPercent','resetsAt','windowId','windowResetAt','windowHighWaterPercent','usageHistory'].includes(k)))};
+}
+// Known observation fields can advance during review; allowance fields remain
+// in protectedState. Consumption cannot reset and prior observations are immutable.
+function assertQuotaTelemetry(before={},after={}){
+ for(const key of ['tokens','consumedPercent'])if(before[key]!==undefined)need(Number.isFinite(before[key])&&Number.isFinite(after[key])&&after[key]>=before[key],'task consumption decreased during prerequisite review');
+ const old=before.usageHistory??[],current=after.usageHistory??[];
+ need(Array.isArray(old)&&Array.isArray(current)&&current.length>=old.length&&same(current.slice(0,old.length),old),'quota usage history was truncated or rewritten');
 }
 async function gitAccess(root){
  const git=async(...args)=>(await exec('git',['-C',root,...args],{maxBuffer:24*1024*1024})).stdout.trim();
@@ -114,7 +121,9 @@ function renewal(prepared,review,folder){
  */
 export async function runControllerHostReview({root,state,request,profile,ops,writerExecutionIds=[]}){
  need(['quota','review','withLock','assertCurrent','authorize','record','currentControllerDigest','verifyReviewExecution'].every(k=>typeof ops?.[k]==='function'),'verified controller adapters required');
- await ops.quota();const prepared=await prepareControllerHostReview({root,state,request,profile,ops}),p=prepared.proposal;
+ let telemetry=structuredClone(state.budget??{});
+ const quota=async()=>{assertQuotaTelemetry(telemetry,state.budget);await ops.quota();assertQuotaTelemetry(telemetry,state.budget);telemetry=structuredClone(state.budget??{});};
+ await quota();const prepared=await prepareControllerHostReview({root,state,request,profile,ops}),p=prepared.proposal;
  const previous=(state.hostReviewHistory??[]).find(x=>x.proposalFingerprint===p.fingerprint);
  need(!previous||previous.status==='approved','same rejected prerequisite fingerprint was already reviewed; no retry or allowance grant');
  const parent=resolve(root,'.sandcastle/runs',state.id,'controller-host-review'),folder=resolve(parent,p.fingerprint);
@@ -127,15 +136,16 @@ export async function runControllerHostReview({root,state,request,profile,ops,wr
   const expectedFiles=['previous-policy.json','previous-seal.json','checkpoint-before.json','proposal.json','review.json','review-envelope.json','seal.json','policy.json'];
   need(same(Object.keys(index.files).sort(),expectedFiles.sort())&&same((await readdir(folder)).sort(),[...expectedFiles,'installation.json'].sort()),'missing/extra installed review file');
   for(const [name,id]of Object.entries(index.files)){need(safe(name)&&!name.includes('/'),'installed private file path');need(same(identity(await bytes(resolve(folder,name))),id),'installed review bytes changed');}
+  assertQuotaTelemetry(JSON.parse(await bytes(resolve(folder,'checkpoint-before.json'))).budget,state.budget);
   need(same(JSON.parse(await bytes(resolve(folder,'proposal.json'))),p)&&digest(await bytes(resolve(folder,'previous-policy.json')))===profile.policySha256&&digest(await bytes(resolve(folder,'previous-seal.json')))===profile.sealSha256,'installed profile/proposal changed');
   envelope=JSON.parse(await bytes(resolve(folder,'review-envelope.json')));
  }else envelope=await ops.review(structuredClone(p));
  need(await ops.verifyReviewExecution(envelope,p)===true,'independent reviewer durable execution is unverifiable');
- review=validateControllerHostReview(prepared,envelope,{writerExecutionIds});await ops.quota();
+ review=validateControllerHostReview(prepared,envelope,{writerExecutionIds});await quota();
  if(!review.approved){const result={status:'awaiting',proposalFingerprint:p.fingerprint,review,originalPhase:p.originalPhase,reason:'independent host prerequisite review rejected',finalAcceptance:false};await ops.record(result);return result;}
  return await ops.withLock(async()=>{
   await ops.assertCurrent(p);need(digest(canonical(protectedState(state)))===p.protectedStateDigest,'saved checkpoint/limits changed during review');
-  const fresh=await prepareControllerHostReview({root,state,request,profile,ops});need(fresh.proposal.fingerprint===p.fingerprint,'source/profile/resource changed after review');await ops.quota();
+  const fresh=await prepareControllerHostReview({root,state,request,profile,ops});need(fresh.proposal.fingerprint===p.fingerprint,'source/profile/resource changed after review');await quota();
   const version=renewal(prepared,review,folder),{policyPath,sealPath,policyBytes,sealBytes}=version;
   if(installed){
    need((await bytes(policyPath)).equals(policyBytes)&&(await bytes(sealPath)).equals(sealBytes)&&same(JSON.parse(await bytes(resolve(folder,'review.json'))),review),'installed recipe/seal differs from fixed reviewed renewal');
