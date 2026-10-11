@@ -33,7 +33,7 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
  const merged={tested_head:target.head,contract_digest:target.contractDigest,inputs_unchanged:true,
   complete_consumed_input_seal:true,status:'passed',physical_acceptance:false,milestone_acceptance:false,
   input_provenance:'programmatic SDL',sources:null,artifacts:{},suites:[],parts:[]};
- const seen=new Set(),labels=new Set(),nonces=new Set();let logicalKeys;
+ const seen=new Set(),labels=new Set(),nonces=new Set(),logicalReports=new Map();let logicalKeys;
  for(const {spec,receipt} of parts){
   need(/^[a-z][a-z0-9-]{0,63}$/.test(spec.label??'')&&!labels.has(spec.label),'unique safe part label');labels.add(spec.label);
   need(receipt.head===target.head&&receipt.contractDigest===target.contractDigest&&receipt.action===spec.action&&receipt.exitCode===0&&/^[a-f0-9]{32}$/.test(receipt.nonce??'')&&!nonces.has(receipt.nonce),'part receipt identity/failure');nonces.add(receipt.nonce);
@@ -57,7 +57,11 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
    }).sort();need(new Set(keys).size===18,'duplicate logical scenario');
    if(logicalKeys===undefined)logicalKeys=keys;
    need(JSON.stringify(keys)===JSON.stringify(logicalKeys),'renderer logical scenarios differ');
-   (merged.logical_reports??=[]).push(...manifest.logical_reports);
+   for(const row of manifest.logical_reports){
+    const key=JSON.stringify([row.route,row.category]),previous=logicalReports.get(key);
+    if(previous)previous.executions.push(...structuredClone(row.executions));
+    else logicalReports.set(key,structuredClone(row));
+   }
   }
   if(merged.sources===null)merged.sources=manifest.sources;
   need(digest(merged.sources)===digest(manifest.sources),'part source identities differ');
@@ -76,7 +80,11 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
   merged.parts.push({label:spec.label,action:spec.action,driver:spec.driver,renderer:spec.renderer,nonce:receipt.nonce,policyDigest:receipt.policyDigest,manifest:spec.label+'/'+binding.manifestPath});
  }
  need(seen.size===Object.keys(binding.expectedSuites).length&&Object.keys(binding.expectedSuites).every(name=>seen.has(name)),'missing accepted suite');
- if(binding.id==='entry-automated')need(parts.length===2&&new Set(parts.map(p=>p.spec.renderer)).size===2,'both accepted renderers required');
+ if(binding.id==='entry-automated'){
+  need(parts.length===2&&new Set(parts.map(p=>p.spec.renderer)).size===2,'both accepted renderers required');
+  merged.logical_reports=[...logicalReports.values()];
+  need(merged.logical_reports.length===18&&merged.logical_reports.every(row=>row.executions.length===2),'complete paired renderer records required');
+ }
  await writeFile(resolve(inbox,binding.manifestPath),JSON.stringify(merged,null,2)+'\n',{mode:0o600,flag:'wx'});
  return {exitCode:0};
 }

@@ -58,6 +58,6 @@ test('entry matrix requires paired logical scenarios and renderer/session proven
    m.logical_reports=Array.from({length:18},(_,i)=>({route:'route',category:'case-'+i,executions:[{renderer:part.spec.renderer,sessions:[{},{}]}]}));
   });
   if(broken)await editManifest(f.parts[1],m=>{if(broken==='renderer')m.renderer_part.renderer='software';if(broken==='session')m.logical_reports[0].executions[0].sessions.pop();if(broken==='category')m.logical_reports[0].category='different';});
-  if(broken)await assert.rejects(mergeHostCollectorParts(f));else {await mergeHostCollectorParts(f);const m=JSON.parse(await readFile(resolve(f.inbox,'manifest.json')));assert.equal(m.logical_reports.length,36);assert.equal(m.parts[1].renderer,'opengl');}
+  if(broken)await assert.rejects(mergeHostCollectorParts(f));else {await mergeHostCollectorParts(f);const m=JSON.parse(await readFile(resolve(f.inbox,'manifest.json')));assert.equal(m.logical_reports.length,18);assert.ok(m.logical_reports.every(row=>row.executions.length===2));assert.equal(m.parts[1].renderer,'opengl');}
  }
 });
