@@ -25,6 +25,7 @@ const definitions = {
 // Keep these identifiers aligned with execution.mjs. Messages and actions are
 // controller-owned constants, never provider output or checkpoint content.
 const preflightDefinitions = {
+  HOST_PROFILE_UPGRADE_REFUSED: ["startup", "The proposed controller repair profile changes protected host authority or does not match the saved schema checkpoint.", "Supply an independently pinned controller-only repair profile and verify the saved checkpoint; preserve all native sources, resources, evidence and allowances."],
   HOST_REVIEW_REFUSED: ["startup", "The fixed controller host-review profile or independent prerequisite approval is unavailable.", "Inspect the saved review/profile finding and supply an independently pinned compatible profile; preserve source, checkpoint and all allowances."],
   HOST_APPROVAL_REQUIRED: ["startup", "Controller-owned Linux host source/action approval is pending.", "Independently review the committed producer and host policy, verify real delivery artifacts, then resume the saved checkpoint; do not retry worker-only repair."],
   CLI_POLICY_INVALID: ["startup", "The minimum Codex CLI policy is invalid.", "Set a valid minimum CLI version and verify preflight."],

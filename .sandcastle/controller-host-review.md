@@ -61,3 +61,23 @@ re-extracts the closed graph/source/seal identities, rather than trusting error
 prose or exporting oversized failed artifacts. Prior captures and failed
 captures retain their original identities and verdicts. No quota, 300s job
 limit,24MiB transport limit or8jobs/channel limit is increased.
+
+## Controller schema repair profile upgrade
+
+For a saved fatal schema failure at `parallel-work`, after independent review,
+set `SANDCASTLE_PREFLIGHT_RESUME=1` together with
+`SANDCASTLE_HOST_PROFILE_UPGRADE_PATH` and
+`SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256`, then use the normal resume command.
+Do not set the original HOST_REVIEW_PROFILE bootstrap variables again.
+The new private profile is a clone of the saved profile except its current
+`controllerDigest` and new private `policyPath`/`policySha256`. The policy is a
+clone of the active policy except exact committed nonconsumed controller/test
+file versions in the existing inspect-only equivalence action's
+`carryForward.reviewedFiles`: preserve each old array as an exact prefix and
+append at most one current `{mode,sha256}` version per changed path. Controller
+Markdown documentation is permitted; test paths must be `tests/sandcastle*`. Capture actions, approvals,390source seal,
+resources, timeout/job limits, runtime pins and readonly delivery remain exact.
+The controller validates both profile pins and archives the checkpoint under
+its held lock before changing the active profile through its normal save path.
+Old policies, profiles and receipts remain immutable. A new profile cannot
+repair native code or grant execution privileges through this upgrade.

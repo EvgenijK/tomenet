@@ -47,6 +47,7 @@ import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
 import { runControllerHostReview } from './controller-host-review.mjs';
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
+import { prepareHostProfileUpgrade, applyHostProfileUpgrade } from './host-profile-upgrade.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -1021,6 +1022,11 @@ if (extraQuota !== undefined) {
   applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
+let hostProfileUpgrade;
+if(process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH||process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256) {
+  if(!preflightResume||requestedModes.length!==1)throw new Error('Host profile upgrade requires only SANDCASTLE_PREFLIGHT_RESUME=1 at a saved fatal schema checkpoint');
+  hostProfileUpgrade=await prepareHostProfileUpgrade({root,state,newPin:{path:process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH,sha256:process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256},controllerDigest:loadedControllerDigest});
+}
 let hostProfilePin=state.hostReviewPending?.profilePin??state.hostReviewProfile;
 if(process.env.SANDCASTLE_HOST_REVIEW_PROFILE||process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256) {
   if(hostProfilePin)throw new Error('Saved host profile already pinned; do not override it through environment');
@@ -1048,6 +1054,11 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(hostProfileUpgrade) {
+    hostProfile=await applyHostProfileUpgrade({root,state,prepared:hostProfileUpgrade,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;
+    process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'controller-profile-upgrade',status:'completed',summary:'Independently pinned controller schema repair profile installed; native sources/seal/capture recipes and allowances preserved.'});
+  }
   if (state.phase === "awaiting") {
     if(hostReviewBootstrap) {
       const request=await savedControllerHostRequest(state,hostProfile,(...args)=>git(root,...args));

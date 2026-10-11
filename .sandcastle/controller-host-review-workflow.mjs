@@ -6,7 +6,7 @@ import {digest} from './verification.mjs';
 import {normalizeControllerHostRequest,extractTypedHostResourceFailure} from './host-capture-failure.mjs';
 const need=(ok,message)=>{if(!ok)throw Object.assign(new Error('Execution preflight [HOST_REVIEW_REFUSED]: '+message),{code:'HOST_REVIEW_REFUSED',deterministic:true});};
 const safe=p=>p&&!isAbsolute(p)&&p.split('/').every(x=>x&&x!=='.'&&x!=='..');
-async function readPrivateHostJSON(root,state,pin){
+export async function readPrivateHostJSON(root,state,pin){
  need(pin&&typeof pin.path==='string'&&pin.path&&/^[a-f0-9]{64}$/.test(pin.sha256??''),'pinned private profile required');
  const path=resolve(pin.path),run=resolve(root,'.sandcastle/runs',state.id);need(safe(relative(run,path))&&await realpath(path)===path,'profile outside private run or symlink');
  const stat=await lstat(path);need(stat.isFile()&&stat.nlink===1&&stat.size<=4*1024*1024&&(stat.mode&0o077)===0,'regular private bounded profile required');
