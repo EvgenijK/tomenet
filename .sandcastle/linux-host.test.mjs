@@ -21,7 +21,8 @@ async function fixture(options={}){
   if(options.capture){
     const inputs={'input.txt':hash(await readFile(resolve(root,'input.txt'))),'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))};
     policy.actions.capture={controllerOnly:true,checkId:'capture-test',bindingCommand:['node','runner.mjs'],argv:[process.execPath,'$SOURCE/runner.mjs','$OUTPUT','$HEAD','$DIGEST','$NONCE'],timeoutMs:5000,requiredArtifacts:['report.json'],inventory:{roots:['.'],files:[]}};
-    policy.approvals.push({base:head,tree:options.withoutTree?undefined:execFileSync('git',['-C',root,'rev-parse','HEAD^{tree}']).toString().trim(),inputs,actions:['capture']});await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
+    if(options.delivery){policy.actions.delivery={...policy.actions.capture,controllerOnly:false,checkId:undefined,bindingCommand:undefined,sourceWorktree:true};}
+    policy.approvals.push({base:head,tree:options.withoutTree?undefined:execFileSync('git',['-C',root,'rev-parse','HEAD^{tree}']).toString().trim(),inputs,actions:options.delivery?['capture','delivery']:['capture']});await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
   }
   const scope={runId:'run-test',wave:7,ticket:'ticket07',branch:'master',baseCommit:head};
   const channel=await startLinuxHostChannel({root,policyPath,scope,directory:resolve(root,'channel')});
@@ -78,4 +79,10 @@ test('controller capture uses real detached Git source, fresh inbox and independ
   const output=resolve(root,'inbox');await mkdir(output);const receipt=await channel.request(job,{binding,output});assert.equal(receipt.exitCode,0);assert.equal(JSON.parse(await readFile(resolve(output,'report.json'))).tested_head,request.head);
  }finally{await channel.close();}
  const unreviewed=await fixture({capture:true,withoutTree:true,runner});try{await assert.rejects(unreviewed.channel.authorize({...unreviewed.request,action:'capture'},binding),/tree unreviewed/);assert.equal(unreviewed.channel.stats.executed,0);}finally{await unreviewed.channel.close();}
+});
+
+test('reviewed delivery job uses committed real Git source without frozen final binding',async()=>{
+ const runner="import {mkdir,writeFile} from 'node:fs/promises';import {execFileSync} from 'node:child_process';const head=execFileSync('git',['rev-parse','HEAD']).toString().trim();if(head!==process.argv[3])throw Error('wrong source');await mkdir(process.argv[2]);await writeFile(process.argv[2]+'/report.json',JSON.stringify({head,finalAcceptance:false}));";
+ const {channel,request}=await fixture({capture:true,delivery:true,runner});try{const receipt=await channel.request({...request,action:'delivery'});assert.equal(receipt.exitCode,0);assert.equal(JSON.parse(await readFile(resolve(receipt.output,'report.json'))).head,request.head);}finally{await channel.close();}
+ const unapproved=await fixture({capture:true,delivery:true,withoutTree:true,runner});try{await assert.rejects(unapproved.channel.request({...unapproved.request,action:'delivery'}),/tree unreviewed/);assert.equal(unapproved.channel.stats.executed,0);}finally{await unapproved.channel.close();}
 });

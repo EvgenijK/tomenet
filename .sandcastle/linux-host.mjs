@@ -82,7 +82,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   }need(approval,'source inventory has no independent approval');
   // Exhaustive capture inventory: reviewed whole tree, not guessed roots. Any
   // producer change needs a new independent approval before host execution.
-  if(binding)need(approval.tree===await git('rev-parse',`${request.head}^{tree}`),'full capture source tree unreviewed');
+  if(binding||action.sourceWorktree)need(approval.tree===await git('rev-parse',`${request.head}^{tree}`),'full execution source tree unreviewed');
   return {action,approval};
  }
  async function perform(request,{binding,output}={}){
@@ -91,7 +91,8 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   const job=resolve(privateDir,request.nonce);try{await mkdir(job,{mode:0o700});}catch{throw new Error('Linux host: replayed nonce');}
   const resultOut=resolve(job,'output');
   let source=launcher;
-  if(binding){
+  const materialized=Boolean(binding||action.sourceWorktree);
+  if(materialized){
    source=resolve(job,'source');await mkdir(source,{mode:0o700});
    await rm(source,{recursive:true});await exec('git',['-C',root,'worktree','add','--detach',source,request.head]);
   }
@@ -100,8 +101,8 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   const env={PATH:'/usr/local/bin:/usr/bin:/bin',LANG:'C.UTF-8',HOME:resolve(job,'home')};for(const key of ['DISPLAY','WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS'])env[key]=process.env[key];
   await mkdir(env.HOME,{mode:0o700});stats.executed++;
   let result;
-  try{result=await invoke(argv,source,env,action.timeoutMs);if(binding)need(!(await exec('git',['-C',source,'status','--porcelain','--untracked-files=no'])).stdout.trim()&&(await exec('git',['-C',source,'rev-parse','HEAD'])).stdout.trim()===request.head,'capture source changed');}
-  finally{if(binding)await exec('git',['-C',root,'worktree','remove','--force',source]);}
+  try{result=await invoke(argv,source,env,action.timeoutMs);if(materialized)need(!(await exec('git',['-C',source,'status','--porcelain','--untracked-files=no'])).stdout.trim()&&(await exec('git',['-C',source,'rev-parse','HEAD'])).stdout.trim()===request.head,'capture source changed');}
+  finally{if(materialized)await exec('git',['-C',root,'worktree','remove','--force',source]);}
   await runtime();
   const inventory=await artifacts(resultOut);for(const required of action.requiredArtifacts??[])need(inventory[required],'incomplete artifact return');need(Object.keys(inventory).length,'empty artifact return');
   // Private results remain authoritative; shared copies are verified on read.
