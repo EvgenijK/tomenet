@@ -134,6 +134,29 @@ test('controller artifact gate runs a real collector at the frozen revision and 
   assert.equal(state.verifiedArtifactReferences[0].integrityVerified,true);
 });
 
+test('controller host route retains durable validation/publication and restart reuse', async t => {
+  const { execFileSync, execFile }=await import('node:child_process');const { promisify }=await import('node:util');
+  const { digest }=await import('../.sandcastle/verification.mjs');
+  const { acceptExecutionPlan }=await import('../.sandcastle/verification-plan.mjs');
+  const { freezeVerificationTarget, executeArtifactCheck, verifyRequiredArtifacts }=await import('../.sandcastle/verification-gates.mjs');
+  const dir=await mkdtemp(join(tmpdir(),'sandcastle-real-gate-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const worktree=join(dir,'repo'),runDirectory=join(dir,'run');await mkdir(join(worktree,'tests'),{recursive:true});await mkdir(join(runDirectory,'evidence-inbox'),{recursive:true});
+  const git=(...args)=>execFileSync('git',args,{cwd:worktree,encoding:'utf8'}).trim();git('init','-q');git('config','user.name','Gate fixture');git('config','user.email','fixture@example.invalid');
+  const collector=`import { readFileSync, writeFileSync } from 'node:fs';import { execFileSync } from 'node:child_process';import { createHash } from 'node:crypto';const out=process.argv[2];const hash=b=>createHash('sha256').update(b).digest('hex');const source=readFileSync('tests/capture.mjs');const trace=Buffer.from('synthetic controlled trace');writeFileSync(out+'/trace.txt',trace);writeFileSync(out+'/manifest.json',JSON.stringify({tested_head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),contract_digest:'${'b'.repeat(64)}',inputs_unchanged:true,sources:{'tests/capture.mjs':{size:source.length,sha256:hash(source)}},artifacts:{'trace.txt':{size:trace.length,sha256:hash(trace)}},suites:[{name:'ordinary',returncode:0,status:'passed',caseCount:1}]}));`;
+  await writeFile(join(worktree,'tests/capture.mjs'),collector);git('add','.');git('commit','-qm','collector');
+  const contract={criteria:[{id:'RUNTIME',requirement:'Provide controlled-peer runtime evidence',applicability:'current',mandatory:true,checkIds:['controller-review']}],checks:[{id:'controller-review',kind:'review'}]};
+  const binding={id:'runtime',owner:'controller',phase:'test-gate',target:'integrated-head',command:['node','tests/capture.mjs'],outputArgument:true,manifestPath:'manifest.json',syntheticOnly:true,inputPaths:['tests/capture.mjs'],expectedSuites:{ordinary:1}};
+  const state={tickets:[],acceptance:{contract,contractDigest:'b'.repeat(64)}};acceptExecutionPlan(state,{version:1,contractDigest:'b'.repeat(64),criteria:[{id:'RUNTIME',evidence:'artifact',artifactCheckIds:['runtime']}],artifactChecks:[binding]},{approved:true,summary:'fixture scope independently declared',missingRequirements:[]});
+  await freezeVerificationTarget(state,worktree,{controllerDigest:'d'.repeat(64),runtime:{kind:'fixture'}});
+  let calls=0;const shell=promisify(execFile);const sandbox={worktreePath:worktree,exec:async command=>{calls++;const r=await shell('sh',['-c',command.replace('/home/agent/.sandcastle-evidence-out/',join(runDirectory,'evidence-inbox')+'/')],{cwd:worktree});return{exitCode:0,stdout:r.stdout,stderr:r.stderr};}};
+  const hostArtifact=async({binding:requested,target,inbox})=>{assert.equal(requested.id,'runtime');assert.equal(target.head,git('rev-parse','HEAD'));calls++;const r=await shell('node',['tests/capture.mjs',inbox],{cwd:worktree});return {exitCode:0,stdout:r.stdout,stderr:r.stderr};};sandbox.exec=async()=>{throw new Error('host-bound collector must not run in Docker');};
+  const receipt=await executeArtifactCheck(sandbox,state,binding,{runDirectory,save:async()=>{},hostArtifact});assert.equal(receipt.passed,true);assert.equal(calls,1);
+  state.artifactEvidence=[receipt];await verifyRequiredArtifacts(state,worktree);
+  const restarted=structuredClone(state);delete restarted.artifactAttempt;
+  const recovered=await executeArtifactCheck(sandbox,restarted,binding,{runDirectory,save:async()=>{},hostArtifact});assert.equal(recovered.receiptDigest,receipt.receiptDigest);assert.equal(calls,1);
+  assert.equal(state.verifiedArtifactReferences[0].integrityVerified,true);
+});
+
 
 test('advanced maintenance main blocks freeze until separately reviewed history-preserving reconciliation', async t => {
   const { freezeVerificationTarget, assertIntegrationBase }=await import('../.sandcastle/verification-gates.mjs');

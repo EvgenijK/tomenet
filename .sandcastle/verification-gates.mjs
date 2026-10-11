@@ -62,7 +62,7 @@ function validateCapture(manifest,binding,target) {
   }
   need(manifest.sources&&manifest.artifacts&&Object.keys(manifest.artifacts).length>0,'EVIDENCE_INCOMPLETE','source/artifact inventory required');
 }
-export async function executeArtifactCheck(sandbox,state,binding,{runDirectory,save,assertRuntime}) {
+export async function executeArtifactCheck(sandbox,state,binding,{runDirectory,save,assertRuntime,hostArtifact}) {
   assertExecutionPlan(state);const target=await assertVerificationTarget(state,sandbox.worktreePath);
   if(assertRuntime)await assertRuntime(target);
   const store=resolve(runDirectory,'evidence');
@@ -73,7 +73,8 @@ export async function executeArtifactCheck(sandbox,state,binding,{runDirectory,s
   const inputs=await inputIdentity(sandbox.worktreePath,binding);
   state.artifactAttempt={checkId:binding.id,attemptId,target,inputs,status:'running'};await save(state);
   const command=[...binding.command,`/home/agent/.sandcastle-evidence-out/${attemptId}`].map(quote).join(' ');
-  const result=await sandbox.exec(command);
+  const routed=hostArtifact ? await hostArtifact({binding,target,inbox}) : null;
+  const result=routed??await sandbox.exec(command);
   await assertVerificationTarget(state,sandbox.worktreePath);if(assertRuntime)await assertRuntime(target);
   need(digest(await inputIdentity(sandbox.worktreePath,binding))===digest(inputs),'EVIDENCE_STALE','runner inputs changed');
   // Do not retain arbitrary stdout/env/auth logs. Declared synthetic artifacts

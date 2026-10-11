@@ -37,6 +37,7 @@ import { assertIntegrationBase, freezeVerificationTarget, assertVerificationTarg
 import { isDeliveryReady, dependencyReadyTickets, assemblyContributions } from "./delivery.mjs";
 import { resumeRepairPlanCheckpoint } from './repair-plan.mjs';
 import { resumeVerificationMigration } from "./verification-migration.mjs";
+import { startLinuxHostChannel } from './linux-host.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -470,11 +471,12 @@ async function startTicketWave(sandbox, state) {
   createWave(state, { baseCommit: await git(sandbox.worktreePath, "rev-parse", "HEAD"), limit: state.parallelism, usedBranches: await workerBranchNames(state) });
   await save(state);
 }
-function sandboxProvider(evidenceInbox) {
+function sandboxProvider(evidenceInbox, hostMounts = []) {
   const proxy = process.env.all_proxy || process.env.ALL_PROXY;
   return docker({ network: "host", env: proxy ? { all_proxy: proxy } : {}, mounts: [
     ...skillMounts(), { hostPath: authDir, sandboxPath: "/home/agent/.codex", readonly: false },
     ...runtimeSchemaMounts(root),
+    ...hostMounts,
     ...(evidenceInbox ? [{ hostPath: evidenceInbox, sandboxPath: "/home/agent/.sandcastle-evidence-out", readonly: false }] : []),
   ] });
 }
@@ -482,7 +484,20 @@ async function openWorker(state, member, wave) {
   // Git worktree registration is serialized; agent work itself is concurrent.
   const next = provisionQueue.then(async () => {
     await recoverWorktree({ id: state.id, branch: member.branch });
-    return createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider() });
+    let hostChannel;
+    try {
+      const mounts=[];
+      if (process.env.SANDCASTLE_LINUX_HOST_POLICY) {
+        const scope={runId:state.id,wave:wave.id,ticket:member.ticket.path,branch:member.branch,baseCommit:wave.baseCommit};
+        hostChannel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
+        const scopePath=resolve(runsDir,state.id,`host-scope-${randomUUID()}.json`);
+        await writeFile(scopePath,JSON.stringify({...scope,contractDigest:state.acceptance.contractDigest}),{mode:0o600});
+        mounts.push(hostChannel.mount,{hostPath:scopePath,sandboxPath:'/home/agent/.sv-host-scope.json',readonly:true},
+          {hostPath:resolve(root,'.sandcastle/linux-host-client.mjs'),sandboxPath:'/home/agent/.sv-host-client.mjs',readonly:true});
+      }
+      const worker=await createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider(undefined,mounts) });
+      worker.linuxHostChannel=hostChannel;return worker;
+    } catch(error) { if(hostChannel)await hostChannel.close();throw error; }
   });
   provisionQueue = next.then(() => {}, () => {});
   return next;
@@ -498,6 +513,7 @@ async function implementWorker(worker, state, member) {
     tddSkill,
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
+    ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness software|opengl ABSENT_OUTPUT_DIR. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. Request only independently approved sources; a changed production/runner inventory requires a new host policy approval, not arbitrary host execution. Ticket07 still implements driver/capture; ticket08 still implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
@@ -524,7 +540,8 @@ async function runWorkers(state) {
         throw error;
       } finally {
         if (worker) {
-          await closeExecution(worker, { failure, preserve: () => ensureCommit(worker.worktreePath, `Sandcastle: preserve wave ${wave.id} worker`) });
+          try { if(worker.linuxHostChannel)await worker.linuxHostChannel.close(); }
+          finally { await closeExecution(worker, { failure, preserve: () => ensureCommit(worker.worktreePath, `Sandcastle: preserve wave ${wave.id} worker`) }); }
         }
       }
     },
@@ -592,13 +609,27 @@ async function test(sandbox, state) {
 }
 async function verificationRuntime(sandbox, state) {
   const provenance = await preflightExecution(executionContext(state, "verification runtime", sandbox.worktreePath, { sandbox }));
-  return { ...provenance.runtime, toolchain: await toolchainIdentity(sandbox) };
+  const linuxHost=process.env.SANDCASTLE_LINUX_HOST_POLICY ? await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope:{runId:state.id},inspectOnly:true}) : undefined;
+  return { ...provenance.runtime, toolchain: await toolchainIdentity(sandbox),...(linuxHost?{linuxHost:linuxHost.identity}:{}) };
 }
 async function freezeTarget(sandbox, state) {
   assertExecutionPlan(state);
   // Fail before runtime probing/build/artifact attempts; reconciliation is not
   // an implicit part of verification migration or accepted feature scope.
   await assertIntegrationBase(root, sandbox.worktreePath, targetBranch);
+  if(process.env.SANDCASTLE_LINUX_HOST_POLICY) {
+    const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
+    const head=await git(sandbox.worktreePath,'rev-parse','HEAD');
+    for(const checkId of policy.hostCheckIds??[]) {
+      const binding=requiredArtifactChecks(state).find(item=>item.id===checkId);
+      if(!binding)throw new Error('Linux host: declared host check absent from accepted plan');
+      const entry=Object.entries(policy.actions).find(([,action])=>action.checkId===checkId&&action.controllerOnly===true);
+      if(!entry)throw new Error(`Linux host: ${checkId} needs independent collector/source approval before freeze; preserve counters and approve delivered assembled inputs`);
+      const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
+      const inspected=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,inspectOnly:true});
+      await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:entry[0],driver:'wayland',renderer:'software'},binding);
+    }
+  }
   await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state), publication: { root, branch: targetBranch } });
   await save(state);
 }
@@ -630,6 +661,16 @@ async function testGate(sandbox, state) {
     if (state.verificationVersion === 1) {
       for (const binding of requiredArtifactChecks(state)) {
         const receipt = await executeArtifactCheck(sandbox, state, binding, { runDirectory: resolve(runsDir, state.id), save,
+          hostArtifact: process.env.SANDCASTLE_LINUX_HOST_POLICY ? async ({binding,target,inbox}) => {
+            const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
+            if(!policy.hostCheckIds?.includes(binding.id))return null;
+            const entry=Object.entries(policy.actions).find(([,action])=>action.checkId===binding.id&&action.controllerOnly===true);
+            if(!entry)throw new Error('Linux host: final collector needs independent source/binding approval');
+            const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
+            const channel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
+            try {return await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:entry[0],driver:'wayland',renderer:'software'},{binding,output:inbox});}
+            finally {await channel.close();}
+          } : undefined,
           assertRuntime: async target => { if (digest(await verificationRuntime(sandbox, state)) !== digest(target.runtime)) throw verificationError("VERIFICATION_RUNTIME_CHANGED", "check runtime changed"); } });
         (state.artifactEvidence ??= []).push(receipt); await save(state);
         if (!receipt.passed) throw verificationError("EVIDENCE_FAILED", `artifact gate ${binding.id} failed`);
