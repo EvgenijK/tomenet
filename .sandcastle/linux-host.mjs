@@ -6,7 +6,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 const exec=promisify(execFile), hash=b=>createHash('sha256').update(b).digest('hex');
-const need=(ok,message)=>{if(!ok)throw new Error(`Linux host: ${message}`);};
+const need=(ok,message)=>{if(!ok){const approval=['unapproved action','source inventory has no independent approval','full execution source tree unreviewed','independent policy review required'].includes(message);const error=new Error(approval?`Execution preflight [HOST_APPROVAL_REQUIRED]: ${message}`:`Linux host: ${message}`);if(approval)Object.assign(error,{code:'HOST_APPROVAL_REQUIRED',deterministic:true});throw error;}};
 const safe=p=>typeof p==='string'&&p.length>0&&!isAbsolute(p)&&!p.split('/').some(v=>v==='..'||v==='.'||!v);
 async function regular(path,max=24*1024*1024){
  const file=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
@@ -51,6 +51,9 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   need(Object.keys(files).length>0,'launcher code approval absent');
   const tools={};for(const [path,expected]of Object.entries(policy.runtimeFiles??{})){tools[path]=hash(await regular(await realpath(path),256*1024*1024));need(tools[path]===expected,'host toolchain changed');}need(Object.keys(tools).length>0,'host toolchain approval absent');
   const desktop={};for(const key of ['DISPLAY','WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']){need(process.env[key],'host desktop environment missing');desktop[key]=process.env[key];}
+  // X11 authentication stays solely in the host process environment. Neither
+  // cookie bytes nor the authority file enter policy, artifacts or Docker.
+  if(process.env.XAUTHORITY)desktop.XAUTHORITY=process.env.XAUTHORITY;
   return {kind:'bounded-linux-host',policyDigest,launcherHead:policy.launcherHead,files,tools,desktopDigest:hash(JSON.stringify(desktop))};
  }
  const identity=await runtime();if(inspectOnly)return {identity,authorize};
@@ -99,6 +102,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   const placeholders={$OUTPUT:resultOut,$HEAD:request.head,$DIGEST:request.contractDigest,$NONCE:request.nonce,$DRIVER:request.driver,$RENDERER:request.renderer,$SOURCE:source};
   const argv=action.argv.map(value=>placeholders[value]??value.replace(/^\$SOURCE\//,source+'/'));need(action.timeoutMs>0&&action.timeoutMs<=300000,'invalid timeout');
   const env={PATH:'/usr/local/bin:/usr/bin:/bin',LANG:'C.UTF-8',HOME:resolve(job,'home')};for(const key of ['DISPLAY','WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS'])env[key]=process.env[key];
+  if(request.driver==='x11'&&process.env.XAUTHORITY)env.XAUTHORITY=process.env.XAUTHORITY;
   await mkdir(env.HOME,{mode:0o700});stats.executed++;
   let result;
   try{result=await invoke(argv,source,env,action.timeoutMs);if(materialized)need(!(await exec('git',['-C',source,'status','--porcelain','--untracked-files=no'])).stdout.trim()&&(await exec('git',['-C',source,'rev-parse','HEAD'])).stdout.trim()===request.head,'capture source changed');}
@@ -119,7 +123,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
     const receipt=await request(job);const returned={...receipt,output:undefined};
     const files={};for(const [path,entry]of Object.entries(receipt.artifacts)){const bytes=await regular(resolve(receipt.output,path));need(hash(bytes)===entry.sha256,'changed return artifact');files[path]=bytes.toString('base64');}
     await atomic(resolve(directory,'results',name),{...returned,files});
-   }catch(error){stats.rejected++;await atomic(resolve(directory,'results',name),{error:String(error.message)});}
+   }catch(error){stats.rejected++;await atomic(resolve(directory,'results',name),{error:String(error.message),diagnosticCode:error.code});}
    finally{await rm(claimed,{force:true});}if(stats.rejected>=64){closed=true;clearInterval(timer);break;}
   }
  }finally{busy=false;}}

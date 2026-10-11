@@ -88,3 +88,9 @@ test("prepared delivery migration names its separate resume authorization withou
   state.quotaError='Task reached 25% of the weekly Codex quota';
   assert.notDeepEqual(pauseStatus(state).resume.environment,{SANDCASTLE_VERIFICATION_RESUME:'1'});
 });
+
+
+test('controller host approval rejection pauses deterministically without another recovery',()=>{
+ const failure=classifyFailure('Wave7 incomplete: Execution preflight [HOST_APPROVAL_REQUIRED]: source inventory has no independent approval');assert.equal(failure.diagnosticCode,'HOST_APPROVAL_REQUIRED');assert.equal(failure.fatalPreflight,true);assert.equal(failure.automaticRetry,false);
+ const pause=pauseStatus({phase:'awaiting',resumePhase:'parallel-work',currentFailure:failure});assert.match(pause.requiredAction,/Independently review/);assert.equal(pause.resume.environment.SANDCASTLE_PREFLIGHT_RESUME,'1');
+});

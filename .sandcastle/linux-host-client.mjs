@@ -10,7 +10,7 @@ export async function requestLinuxHost({directory,scope,action='preflight',drive
  const path=resolve(directory,'requests',nonce+'.json'),temporary=path+'.tmp';await writeFile(temporary,JSON.stringify(request),{flag:'wx',mode:0o600});await rename(temporary,path);
  const deadline=Date.now()+310000;let receipt;
  while(Date.now()<deadline){try{receipt=JSON.parse(await readFile(resolve(directory,'results',nonce+'.json')));break;}catch(error){if(error.code!=='ENOENT')throw error;}await new Promise(r=>setTimeout(r,100));}
- if(!receipt)throw new Error('host channel timeout');if(receipt.error)throw new Error(receipt.error);
+ if(!receipt)throw new Error('host channel timeout');if(receipt.error){const error=new Error(receipt.error);if(receipt.diagnosticCode)Object.assign(error,{code:receipt.diagnosticCode,deterministic:true});throw error;}
  if(receipt.head!==head||receipt.contractDigest!==scope.contractDigest||receipt.nonce!==nonce||receipt.action!==action||JSON.stringify(receipt.scope)!==JSON.stringify(Object.fromEntries(Object.entries(scope).filter(([k])=>k!=='contractDigest'))))throw new Error('stale host receipt');
  await mkdir(output,{mode:0o700});
  for(const [name,entry]of Object.entries(receipt.artifacts)){

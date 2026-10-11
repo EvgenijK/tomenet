@@ -25,6 +25,7 @@ const definitions = {
 // Keep these identifiers aligned with execution.mjs. Messages and actions are
 // controller-owned constants, never provider output or checkpoint content.
 const preflightDefinitions = {
+  HOST_APPROVAL_REQUIRED: ["startup", "Controller-owned Linux host source/action approval is pending.", "Independently review the committed producer and host policy, verify real delivery artifacts, then resume the saved checkpoint; do not retry worker-only repair."],
   CLI_POLICY_INVALID: ["startup", "The minimum Codex CLI policy is invalid.", "Set a valid minimum CLI version and verify preflight."],
   CLI_VERSION_INVALID: ["startup", "Codex did not return a supported CLI version format.", "Repair the Codex executable and verify its version before resuming."],
   CLI_TOO_OLD: ["startup", "Codex is older than the minimum execution policy permits.", "Upgrade the worker runtime CLI and verify its version before resuming."],
