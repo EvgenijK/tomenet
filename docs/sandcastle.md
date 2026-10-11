@@ -28,11 +28,19 @@ records the old/new tree identities and each permitted change in the private
 receipt's `sourceApproval`; it never rewrites an old receipt to claim a new HEAD.
 
 A downstream worker may read the verified delivery of a completed prerequisite
-through a readonly mount after its current source approval is checked. This
+through a readonly mount while it implements new collectors. This
 avoids repeating a delivery matrix solely for bookkeeping or dependency
 inspection. New collectors still need reviewed inputs. Final capture with a
 controller binding requires the exact independently approved whole tree; delivery
 carry-forward does not waive final capture, binding freeze or acceptance gates.
+
+Reading historical delivery does not require approval to execute the new source
+tree: those are separate operations. A blocked worker can return a structured
+`hostApprovalRequest: {action, driver, renderer}` after committing its delivery.
+The controller verifies the request against the private host policy without
+executing it. A confirmed missing approval is persisted as the typed
+`HOST_APPROVAL_REQUIRED` prerequisite and stops before worker-only AI recovery;
+untrusted summary prose cannot establish or grant approval.
 
 ## Setup
 

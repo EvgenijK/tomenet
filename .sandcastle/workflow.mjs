@@ -39,6 +39,7 @@ import { resumeRepairPlanCheckpoint } from './repair-plan.mjs';
 import { resumeVerificationMigration } from "./verification-migration.mjs";
 import { startLinuxHostChannel } from './linux-host.mjs';
 import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
+import { workerHostDelivery, workerHostFailure } from './worker-host.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -488,20 +489,10 @@ async function openWorker(state, member, wave) {
     let hostChannel;
     try {
       const mounts=[];
-      let delivery=state.hostApprovalResumes?.findLast(record=>record.wave===wave.id&&record.branch===member.branch);
+      const delivery=workerHostDelivery(state,member,wave);
       if (process.env.SANDCASTLE_LINUX_HOST_POLICY) {
         const scope={runId:state.id,wave:wave.id,ticket:member.ticket.path,branch:member.branch,baseCommit:wave.baseCommit};
         hostChannel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
-        // A completed dependency may supply delivery-only evidence. Authorize
-        // current committed inputs before handing it to a downstream worker;
-        // changed producers still fail closed and final capture stays separate.
-        if(!delivery){
-          const upstream=state.hostApprovalResumes?.findLast(record=>member.ticket.blockedBy.includes(record.ticket)&&state.completedTickets.includes(record.ticket));
-          if(upstream){
-            await hostChannel.authorize({version:1,...scope,head:await git(root,'rev-parse',`refs/heads/${member.branch}`),contractDigest:state.acceptance.contractDigest,nonce:randomUUID().replaceAll('-',''),action:'interaction',driver:upstream.driver,renderer:'software'});
-            delivery=upstream;
-          }
-        }
         if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
         const scopePath=resolve(runsDir,state.id,`host-scope-${randomUUID()}.json`);
         await writeFile(scopePath,JSON.stringify({...scope,contractDigest:state.acceptance.contractDigest}),{mode:0o600});
@@ -530,15 +521,17 @@ async function implementWorker(worker, state, member) {
     ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. The controller automatically carries delivery source approval across metadata paths and exact file versions delegated by its private reviewed policy; returned receipts record this proof. Do not rerun the interaction matrix solely to inspect a dependency or after bookkeeping changes when verified delivery is mounted. Implement ticket08 collectors and their focused checks before requesting approval of their new consumed-input closures. A changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
+    ...(worker.linuxHostChannel ? ['When committed collector/source delivery needs controller-owned host approval, return status=blocked with hostApprovalRequest:{action:"entry-runtime-discovery" or the concrete scoped action required,driver:"x11",renderer:"software"}. The controller independently checks that request against its private host policy without running the job, and pauses directly on a verified HOST_APPROVAL_REQUIRED rather than asking another worker to self-approve. Readonly historical dependency evidence remains usable at its original tested HEAD while implementing new collectors; it does not authorize current host execution.'] : []),
   ].join("\n\n");
   const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json", false, readOnlyAgentTimeoutMs,
     { expectedBranch: member.branch, baseCommit: state.wave.baseCommit, ticketPath: ticket.path });
   const result = JSON.parse(response);
   await ensureCommit(worker.worktreePath, `Sandcastle: preserve ${ticket.path}`);
+  const head=await git(worker.worktreePath,'rev-parse','HEAD');
+  const hostFailure=await workerHostFailure(worker.linuxHostChannel,result,{version:1,runId:state.id,wave:state.wave.id,ticket:ticket.path,branch:member.branch,baseCommit:state.wave.baseCommit,head,contractDigest:state.acceptance.contractDigest,nonce:randomUUID().replaceAll('-','')});
   if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path, ticket.delivery);
   await appendStageEvent(runsDir, state, { stage: "ticket", status: result.status, summary: `${ticket.path}: ${result.status}; changes await assembly.`, tickets: [ticket.path] });
-  return { result, head: await git(worker.worktreePath, "rev-parse", "HEAD"),
-    ...(result.status==='blocked'&&worker.linuxHostChannel?.stats.approvalFailure ? {failure:worker.linuxHostChannel.stats.approvalFailure} : {}) };
+  return { result, head,...(hostFailure?{failure:hostFailure}:{}) };
 }
 async function runWorkers(state) {
   await runWave(state, {

@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { startLinuxHostChannel } from './linux-host.mjs';
 import { requestLinuxHost } from './linux-host-client.mjs';
+import { workerHostFailure } from './worker-host.mjs';
 const hash=b=>createHash('sha256').update(b).digest('hex');
 async function fixture(options={}){
   const root=await mkdtemp(resolve(tmpdir(),'sv-host-test-'));
@@ -136,5 +137,16 @@ test('controller files outside producer inputs need exact independently reviewed
   execFileSync('git',['-C',root,'add','.sandcastle/controller.mjs']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','unreviewed controller']);
   const changed=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
   await assert.rejects(channel.authorize({...request,head:changed,action:'delivery'}),error=>error.code==='HOST_APPROVAL_REQUIRED');
+ }finally{await channel.close();}
+});
+
+test('new collector input review request is verified without launching host code or retrying a worker',async()=>{
+ const {root,channel,request}=await fixture({capture:true,delivery:true});
+ try{
+  await mkdir(resolve(root,'src'));await writeFile(resolve(root,'src/collector-input.json'),'new input');
+  execFileSync('git',['-C',root,'add','src']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','collector input']);
+  const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
+  const failure=await workerHostFailure(channel,{status:'blocked',summary:'Needs review of committed collector.',hostApprovalRequest:{action:'delivery',driver:'x11',renderer:'software'}},{...request,head});
+  assert.deepEqual(failure,{code:'HOST_APPROVAL_REQUIRED',deterministic:true});assert.equal(channel.stats.executed,0);
  }finally{await channel.close();}
 });
