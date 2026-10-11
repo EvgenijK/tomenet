@@ -19,7 +19,7 @@ export async function validateHostApprovalResume(root,state,proof,{controllerDig
  need(state.phase==='awaiting'&&state.resumePhase==='parallel-work'&&state.pauseReason==='Automatic recovery made no progress after three decisions at this checkpoint'&&!state.recovery,'requires the stopped exhausted worker checkpoint');
  need(state.wave?.id===7&&state.wave.members.length===1,'requires original single-member wave7');
  const member=state.wave.members[0],key=['parallel-work',7,state.completedTickets.length,state.reviewRound,state.buildAttempts,state.testAttempts].join(':');
- need(state.recoveryAttempts?.[key]===3&&member.status==='blocked'&&!member.integrated&&/controller-owned independent source\/tool approval/.test(member.result?.summary??''),'requires the recorded controller approval blocker, not arbitrary exhausted work');
+ need(state.recoveryAttempts?.[key]===3&&member.status==='blocked'&&!member.integrated&&hash(member.result?.summary??'')==='d621dbcc233e25130a65de1741c94139f1031f79f8b4d66ddef6ab56554dc552','requires the recorded controller approval blocker, not arbitrary exhausted work');
  need(!state.quotaError&&(state.budget?.consumedPercent??0)<taskQuotaLimit(state),'remaining quota required');
  need(proof.controllerDigest===controllerDigest&&proof.contractDigest===state.acceptance?.contractDigest&&proof.bindingDigest===state.executionPlan?.digest,'controller/contract/binding identity differs');
  const branchHead=(await exec('git',['-C',root,'rev-parse',`refs/heads/${member.branch}`])).stdout.trim();
