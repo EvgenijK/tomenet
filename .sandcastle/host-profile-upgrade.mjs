@@ -55,7 +55,7 @@ export async function applyHostProfileUpgrade({root,state,prepared,controllerDig
  const path=resolve(root,'.sandcastle/runs',state.id,`profile-before-upgrade-${prepared.record.fingerprint}.json`),raw=JSON.stringify(state)+'\n';
  try{const fd=await open(path,'wx',0o600);try{await fd.writeFile(raw);await fd.sync();}finally{await fd.close();}}catch(error){if(error.code!=='EEXIST'||await readFile(path,'utf8')!==raw)throw error;}
  const dir=await open(resolve(root,'.sandcastle/runs',state.id),'r');try{await dir.sync();}finally{await dir.close();}
- (state.hostProfileUpgrades??=[]).push({...prepared.record,checkpointPath:path,checkpointSha256:digest(raw),at:new Date().toISOString()});
- state.hostReviewProfile=structuredClone(prepared.record.newPin);state.activeHostPolicy={...state.activeHostPolicy,path:prepared.profile.policyPath,sha256:prepared.profile.policySha256};
- return prepared.profile;
+ (state.hostProfileUpgrades??=[]).push({...fresh.record,checkpointPath:path,checkpointSha256:digest(raw),at:new Date().toISOString()});
+ state.hostReviewProfile=structuredClone(fresh.record.newPin);state.activeHostPolicy={...state.activeHostPolicy,path:fresh.profile.policyPath,sha256:fresh.profile.policySha256};
+ return fresh.profile;
 }
