@@ -71,8 +71,22 @@ async function readChild(receipt,binding,target,spec,part){
  need(manifest.status==='constituent-passed'&&manifest.tested_head===target.head&&manifest.contract_digest===target.contractDigest&&manifest.nonce===receipt.nonce&&manifest.inputs_unchanged===true&&manifest.complete_consumed_input_seal===true&&manifest.physical_acceptance===false&&manifest.milestone_acceptance===false,'unsealed/discovery/stale child');
  need(same(inputs(manifest.sources),inputs(target.inputHashes))&&same(Object.keys(manifest.sources).sort(),[...binding.inputPaths].sort()),'source bytes differ from frozen input identities');
  need(sha(target.reviewedSealIdentity?.sha256)&&Number.isSafeInteger(target.reviewedSealIdentity.size)&&same(manifest.reviewed_seal_identity,target.reviewedSealIdentity),'reviewed consumed seal differs');
- need(manifest.external_before&&Object.keys(manifest.external_before).length>0&&same(manifest.external_before,manifest.external_after),'external consumed inputs changed');
- const p=planOf(binding,part),c=manifest.constituent_capture;
+ const seal=target.reviewedSeal;
+ need(seal?.tested_head===target.head&&seal.contract_digest===target.contractDigest&&seal.complete_consumed_input_seal===true&&seal.independent_review&&Object.keys(seal.independent_review).length>0,'complete independently reviewed seal body required');
+ need(same(manifest.sources,seal.sources)&&same(manifest.independent_review,seal.independent_review),'reviewed source size/identity or independent review differs');
+ need(seal.external_files&&Object.keys(seal.external_files).length>0&&same(manifest.external_before,seal.external_files)&&same(manifest.external_after,seal.external_files),'external consumed inputs changed/omitted from reviewed seal');
+ need(Array.isArray(seal.compiler_dependencies)&&seal.compiler_dependencies.length>0&&same(manifest.compiler_dependencies,seal.compiler_dependencies)&&same([...new Set(seal.compiler_dependencies.map(c=>c.choice_order))].sort(),['0','1']),'reviewed compiler dependencies differ');
+ const p=planOf(binding,part),expectedGraphs=p.kind==='executable'?['build-orders','branch-reports',...(spec.label===p.required_shards[0]?['executable-routes']:[])]:p.kind==='recovery'?['recovery-surfaces']:spec.label==='interaction-core'?['creation-cancel','name-recovery']:['async-routes'];
+ need(Array.isArray(manifest.consumption_graphs)&&same(manifest.consumption_graphs.map(g=>g.label).sort(),expectedGraphs.sort()),'complete original consumption graphs required');
+ for(const graph of manifest.consumption_graphs){
+  need(graph.artifact===graph.label+'.consumption.json.gz'&&docs.has(graph.artifact),'consumption graph artifact differs');
+  const body=JSON.parse(unzip(docs.get(graph.artifact)));
+  need(Array.isArray(body.unresolved_inputs)&&body.unresolved_inputs.length===0&&body.repository&&body.external_files,'closed consumption graph required');
+  for(const[name,id]of Object.entries(body.repository))need(Object.hasOwn(seal.sources,name)&&same(id,seal.sources[name]),'unsealed/changed repository consumption');
+  for(const[name,id]of Object.entries(body.external_files))need(Object.hasOwn(seal.external_files,name)&&same(id,seal.external_files[name]),'unsealed/changed external consumption');
+ }
+
+ const c=manifest.constituent_capture;
  need(c&&c.kind===p.kind&&c.shard_id===spec.label&&same(c.required_shards,p.required_shards)&&same(c.full_task_inventory,p.full_task_inventory)&&c.full_task_digest===p.full_task_digest&&same(c.selected_indices,p.selected_indices_by_shard[spec.label])&&same(c.expectedWholeSuites,SHAPES[p.kind].suites)&&c.whole_matrix_complete===false,'child scope/index proof differs');
  need(c.caseCount===c.selected_indices.length&&Array.isArray(c.caseLogs)&&c.caseLogs.length===c.caseCount&&new Set(c.caseLogs).size===c.caseCount,'complete constituent case logs required');
  const get=name=>{need(safe(name),'original artifact path escape');if(docs.has(name))return docs.get(name);const a=c.artifact_aliases?.[name];need(a,'missing original artifact');if(a.encoding==='gzip'){need(docs.has(a.artifact),'missing gzip alias');const raw=unzip(docs.get(a.artifact));identity(raw,a);return raw;}
@@ -103,7 +117,7 @@ export function assertHostCollectorAggregation({spec,receipt,manifest}){
 }
 export async function mergeHostCollectorConstituents({inbox,binding,target,part,children}){
  const plan=planOf(binding,part);need(children.length===plan.required_shards.length,'all finite children required');
- need(target.inputHashes&&target.reviewedSealIdentity,'controller frozen source and reviewed seal required');
+ need(target.inputHashes&&target.reviewedSealIdentity&&target.reviewedSeal,'controller frozen source and reviewed seal body required');
  const verified=[],nonces=new Set();
  for(const [i,item]of children.entries()){
   const spec=item.spec??plan.children[i];need(same(spec,plan.children[i]),'child spec differs from reviewed plan');
