@@ -364,3 +364,11 @@ test("real conflicting Git branches are resolved by assembler and verified by an
     assert.equal(s.wave, undefined);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("controller-observed host approval rejection survives a paraphrased blocked worker summary", async () => {
+  const s = state([ticket("07")]);createWave(s,{baseCommit:revision,limit:1});
+  await runWave(s,callbacks({run:async()=>({head:revision,result:{status:"blocked",summary:"Required facility unavailable"},failure:{code:"HOST_APPROVAL_REQUIRED",deterministic:true}})}));
+  await assert.rejects(collectWave(s,callbacks()),error=>error.code==="HOST_APPROVAL_REQUIRED"&&error.deterministic===true);
+  assert.deepEqual(s.completedTickets,[]);assert.equal(s.wave.members[0].status,"blocked");
+});

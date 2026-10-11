@@ -114,7 +114,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   const receipt={version:1,scope,head:request.head,contractDigest:request.contractDigest,nonce:request.nonce,action:request.action,policyDigest,exitCode:result.exitCode,artifacts:inventory,output:output??resultOut};
   await atomic(resolve(job,'receipt.json'),receipt);return receipt;
  }
- const request=(job,options)=>{const result=serial.then(()=>perform(job,options));serial=result.catch(()=>{});return result;};
+ const request=(job,options)=>{const result=serial.then(()=>perform(job,options)).catch(error=>{if(error.code==='HOST_APPROVAL_REQUIRED')stats.approvalFailure={code:error.code,deterministic:true};throw error;});serial=result.catch(()=>{});return result;};
  async function pump(){if(closed||busy)return;busy=true;try{
   for(const name of (await readdir(resolve(directory,'requests'))).sort().slice(0,16)){
    if(!/^[a-f0-9]{32}\.json$/.test(name))continue;

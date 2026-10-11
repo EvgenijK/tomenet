@@ -38,6 +38,7 @@ import { isDeliveryReady, dependencyReadyTickets, assemblyContributions } from "
 import { resumeRepairPlanCheckpoint } from './repair-plan.mjs';
 import { resumeVerificationMigration } from "./verification-migration.mjs";
 import { startLinuxHostChannel } from './linux-host.mjs';
+import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -487,6 +488,8 @@ async function openWorker(state, member, wave) {
     let hostChannel;
     try {
       const mounts=[];
+      const delivery=state.hostApprovalResumes?.findLast(record=>record.wave===wave.id&&record.branch===member.branch);
+      if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
       if (process.env.SANDCASTLE_LINUX_HOST_POLICY) {
         const scope={runId:state.id,wave:wave.id,ticket:member.ticket.path,branch:member.branch,baseCommit:wave.baseCommit};
         hostChannel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
@@ -496,7 +499,7 @@ async function openWorker(state, member, wave) {
           {hostPath:resolve(root,'.sandcastle/linux-host-client.mjs'),sandboxPath:'/home/agent/.sv-host-client.mjs',readonly:true});
       }
       const worker=await createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider(undefined,mounts) });
-      worker.linuxHostChannel=hostChannel;return worker;
+      worker.linuxHostChannel=hostChannel;worker.linuxHostDelivery=delivery;return worker;
     } catch(error) { if(hostChannel)await hostChannel.close();throw error; }
   });
   provisionQueue = next.then(() => {}, () => {});
@@ -513,7 +516,8 @@ async function implementWorker(worker, state, member) {
     tddSkill,
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
-    ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness software|opengl ABSENT_OUTPUT_DIR. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. Request only independently approved sources; a changed production/runner inventory requires a new host policy approval, not arbitrary host execution. Ticket07 still implements driver/capture; ticket08 still implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
+    ...(worker.linuxHostDelivery ? [`Controller independently verified the corrected delivery matrix at source HEAD ${worker.linuxHostDelivery.head}. Read /home/agent/.sv-host-delivery/index.json and the readonly software/OpenGL reports and sealed artifacts. Verify your production/driver/producer input hashes against these reports; preserve this exact tested source identity when only committing ticket bookkeeping. Do not repeat the matrix or request unapproved new source solely because history metadata changes. Complete only substantiated worker delivery checkboxes and retain controller/full acceptance obligations pending. Any production/driver/runner change requires a fresh independently approved test.`] : []),
+    ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. Request only independently approved sources; a changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");
@@ -523,7 +527,8 @@ async function implementWorker(worker, state, member) {
   await ensureCommit(worker.worktreePath, `Sandcastle: preserve ${ticket.path}`);
   if (result.status === "completed") validateTicketCompletion(await readFile(resolve(worker.worktreePath, ticket.path), "utf8"), ticket.path, ticket.delivery);
   await appendStageEvent(runsDir, state, { stage: "ticket", status: result.status, summary: `${ticket.path}: ${result.status}; changes await assembly.`, tickets: [ticket.path] });
-  return { result, head: await git(worker.worktreePath, "rev-parse", "HEAD") };
+  return { result, head: await git(worker.worktreePath, "rev-parse", "HEAD"),
+    ...(result.status==='blocked'&&worker.linuxHostChannel?.stats.approvalFailure ? {failure:worker.linuxHostChannel.stats.approvalFailure} : {}) };
 }
 async function runWorkers(state) {
   await runWave(state, {
@@ -624,7 +629,7 @@ async function freezeTarget(sandbox, state) {
       const binding=requiredArtifactChecks(state).find(item=>item.id===checkId);
       if(!binding)throw new Error('Linux host: declared host check absent from accepted plan');
       const entry=Object.entries(policy.actions).find(([,action])=>action.checkId===checkId&&action.controllerOnly===true);
-      if(!entry)throw new Error(`Linux host: ${checkId} needs independent collector/source approval before freeze; preserve counters and approve delivered assembled inputs`);
+      if(!entry)throw Object.assign(new Error(`Execution preflight [HOST_APPROVAL_REQUIRED]: ${checkId} needs independent collector/source approval before freeze; preserve counters and approve delivered assembled inputs`),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});
       const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
       const inspected=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,inspectOnly:true});
       await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:entry[0],driver:'wayland',renderer:'software'},binding);
@@ -798,7 +803,7 @@ export async function verifiedTree(sandbox, state) {
 export async function main() {
 rejectLegacyContinue();
 const attemptGrant = readAttemptGrant();
-const modeKeys = ["SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+const modeKeys = ["SANDCASTLE_HOST_APPROVAL_RESUME_JSON", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
@@ -826,6 +831,9 @@ if (command === "start") {
   checkpointAtRead = JSON.stringify(state);
   if (state.phase === "done") { console.log(`Task ${runId} is already complete`); process.exit(0); }
 }
+const hostApprovalResumePath=process.env.SANDCASTLE_HOST_APPROVAL_RESUME_JSON;
+let hostApprovalProof;
+if(hostApprovalResumePath){hostApprovalProof=JSON.parse(await readFile(resolve(hostApprovalResumePath),'utf8'));await validateHostApprovalResume(root,state,hostApprovalProof,{controllerDigest:loadedControllerDigest,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY});}
 const planRepairResume = process.env.SANDCASTLE_PLAN_REPAIR_RESUME === '1';
 if(planRepairResume)resumeRepairPlanCheckpoint(structuredClone(state));
 const verificationResume = process.env.SANDCASTLE_VERIFICATION_RESUME === "1";
@@ -937,7 +945,10 @@ try {
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if(planRepairResume) {
+    if(hostApprovalResumePath) {
+      const verified=await validateHostApprovalResume(root,state,hostApprovalProof,{controllerDigest:loadedControllerDigest,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY});
+      await applyHostApprovalResume(root,state,verified);
+    } else if(planRepairResume) {
       resumeRepairPlanCheckpoint(state);
     } else if (verificationResume) {
       resumeVerificationMigration(state);

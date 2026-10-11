@@ -79,6 +79,9 @@ export async function runWave(state, ops) {
       member.result = output.result;
       member.head = output.head;
       member.status = output.result.status;
+      // Only controller-observed diagnostics may accompany an agent result.
+      // They survive a worker paraphrasing its private host rejection summary.
+      if(output.result.status==='blocked'&&output.failure?.code==='HOST_APPROVAL_REQUIRED'&&output.failure.deterministic===true)member.failure={...output.failure};
     } catch (error) {
       member.status = "failed";
       member.error = error.message;
