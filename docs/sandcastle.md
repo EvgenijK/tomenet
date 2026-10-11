@@ -42,6 +42,17 @@ executing it. A confirmed missing approval is persisted as the typed
 `HOST_APPROVAL_REQUIRED` prerequisite and stops before worker-only AI recovery;
 untrusted summary prose cannot establish or grant approval.
 
+For a delivered collector whose accepted binding still names missing placeholder
+inputs, use `npm run sandbox:verification -- binding-preview RUN_ID` and then
+`binding-apply RUN_ID --authorization ID --binding-review REVIEW_JSON`. The
+independent review names the exact checkpoint/controller/contract/binding
+identities, retained worker branch and HEAD, proposed plan and SHA-256 of every
+declared source blob. This operation changes only existing checks' `inputPaths`:
+criteria, commands, literal suite counts and delivery ownership remain fixed.
+It rejects frozen targets, stale reviews, symlinks and quota exhaustion, archives
+the original checkpoint and leaves the run stopped. Host execution approval and
+the separate preflight continuation must still be verified.
+
 ## Setup
 
 Install Node.js, npm, Docker and a host Codex CLI. Build the container image:
