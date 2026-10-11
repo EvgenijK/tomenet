@@ -22,10 +22,12 @@ export async function prepareHostProfileUpgrade(args){return prepareProfileChang
 export async function prepareHostRequestReconcile(args){return prepareProfileChange(args,true);}
 export async function prepareHostRecoveryProfileRefresh(args){return prepareProfileChange(args,false,true);}
 export async function prepareHostSourceRevisionBootstrap(args){return prepareProfileChange(args,false,false,true);}
-async function prepareProfileChange({root,state,newPin,controllerDigest},reconcile,recoveryRefresh=false,sourceBootstrap=false){
- if(!reconcile&&!recoveryRefresh&&!sourceBootstrap)need(state.phase==='awaiting'&&state.resumePhase==='parallel-work'&&state.currentFailure?.fatalPreflight===true&&(state.currentFailure.code==='schema'||state.currentFailure.diagnosticCode==='SCHEMA_INVALID')&&!state.hostReviewPending&&!state.verificationTarget,'saved fatal schema checkpoint required');
- if(!reconcile&&!recoveryRefresh&&!sourceBootstrap)resumeExecutionCheckpoint(structuredClone(state));
+export async function prepareHostAssemblyProfileRefresh(args){return prepareProfileChange(args,false,false,false,true);}
+async function prepareProfileChange({root,state,newPin,controllerDigest},reconcile,recoveryRefresh=false,sourceBootstrap=false,assemblyRepair=false){
+ if(!reconcile&&!recoveryRefresh&&!sourceBootstrap&&!assemblyRepair)need(state.phase==='awaiting'&&state.resumePhase==='parallel-work'&&state.currentFailure?.fatalPreflight===true&&(state.currentFailure.code==='schema'||state.currentFailure.diagnosticCode==='SCHEMA_INVALID')&&!state.hostReviewPending&&!state.verificationTarget,'saved fatal schema checkpoint required');
+ if(!reconcile&&!recoveryRefresh&&!sourceBootstrap&&!assemblyRepair)resumeExecutionCheckpoint(structuredClone(state));
  if(recoveryRefresh)validateRecoveryAllowanceCheckpoint(state);
+ if(assemblyRepair)need(state.id==='3fd6b311'&&state.phase==='awaiting'&&state.resumePhase==='assemble'&&!state.hostReviewPending&&!state.verificationTarget&&!state.quotaError&&state.recoveries?.at(-1)?.id===13&&state.recoveries.at(-1).phase==='assemble'&&state.recoveries.at(-1).action==='stop','saved assembly provisioning stop required');
  const pending=state.hostReviewPending,request=pending?.request;
  if(sourceBootstrap){
   need(state.id==='3fd6b311'&&state.phase==='awaiting'&&state.resumePhase==='controller-host-review'&&state.currentFailure?.fatalPreflight===true&&state.currentFailure.diagnosticCode==='HOST_REVIEW_REFUSED'&&pending?.originalPhase==='parallel-work'&&request?.code==='HOST_APPROVAL_REQUIRED'&&request.action==='collector-delivery-inspect'&&request.wave===8&&!state.verificationTarget&&!state.quotaError,'saved changed-test controller review checkpoint required');
@@ -51,7 +53,7 @@ async function prepareProfileChange({root,state,newPin,controllerDigest},reconci
  need(oldFiles&&nextFiles&&Object.keys(oldFiles).every(p=>Object.hasOwn(nextFiles,p)),'reviewed controller versions cannot be removed');
  const policyBody=p=>{const q=structuredClone(p);delete q.actions[name].carryForward.reviewedFiles;if(sourceBootstrap)for(const r of q.readonlyDeliveries??[])delete r.mode;return q;};
  need(same(policyBody(policy),policyBody(updated)),'capture recipes/approvals/runtime pins/delivery/limits changed');
- if(recoveryRefresh)need(Object.keys(seal.external_files).length===1051,'unchanged1051 resource seal required');
+ if(recoveryRefresh||assemblyRepair)need(Object.keys(seal.external_files).length===1051,'unchanged1051 resource seal required');
  if(reconcile)need(Object.keys(seal.external_files).length===1051&&!policy.actions?.[request.action]&&!updated.actions?.[request.action],'unchanged1051 seal and unknown original action required');
  const review=next.requestReconciliationReview;
  if(reconcile)need(review&&Object.keys(review).sort().join(',')==='evidenceFiles,head,oldRequestDigest,reference,reviewer'&&typeof review.reviewer==='string'&&review.reviewer.trim()&&typeof review.reference==='string'&&review.reference.trim()&&review.head===request.head&&review.oldRequestDigest===digest(request)&&same(Object.keys(review.evidenceFiles??{}).sort(),evidencePaths.slice().sort()),'exact independently reviewed evidence record required');
@@ -78,7 +80,7 @@ async function prepareProfileChange({root,state,newPin,controllerDigest},reconci
   if(evidence){need(previous.length===0&&mode==='100644'&&same(review.evidenceFiles[path],version),'exact new evidence blob review required');evidenceChanges[path]=version;}
   else {const full=resolve(root,path);need(await realpath(full)===full&&digest(await readFile(full))===version.sha256,'reviewed version differs from committed loaded code');changes[path]=version;}
  }
- const record={version:1,reason:sourceBootstrap?'independently reviewed one-test source revision delegation and historical inspection':recoveryRefresh?'independently reviewed controller-only repair accompanying explicit checkpoint allowance':reconcile?'independently reviewed correction of historical controller-generated unknown request':'independently reviewed controller strict-schema repair',oldPin:structuredClone(oldPin),newPin:structuredClone(newPin),controllerDigest,oldPolicySha256:old.policySha256,newPolicySha256:next.policySha256,sealSha256:old.sealSha256,bindingDigest:old.bindingDigest,reviewedControllerFiles:changes};
+ const record={version:1,reason:assemblyRepair?'independently reviewed assembly historical delivery provisioning repair':sourceBootstrap?'independently reviewed one-test source revision delegation and historical inspection':recoveryRefresh?'independently reviewed controller-only repair accompanying explicit checkpoint allowance':reconcile?'independently reviewed correction of historical controller-generated unknown request':'independently reviewed controller strict-schema repair',oldPin:structuredClone(oldPin),newPin:structuredClone(newPin),controllerDigest,oldPolicySha256:old.policySha256,newPolicySha256:next.policySha256,sealSha256:old.sealSha256,bindingDigest:old.bindingDigest,reviewedControllerFiles:changes};
  if(reconcile){
   need(same(evidenceChanges,review.evidenceFiles),'both exact evidence additions required');
   const freshRequest=normalizeControllerHostRequest({...request,...next.defaultRequest});
@@ -100,10 +102,11 @@ async function prepareProfileChange({root,state,newPin,controllerDigest},reconci
 export async function applyHostProfileUpgrade(args){return applyProfileChange(args,false);}
 export async function applyHostRequestReconcile(args){return applyProfileChange(args,true);}
 export async function applyHostSourceRevisionBootstrap(args){return applyProfileChange(args,false,true);}
-async function applyProfileChange({root,state,prepared,controllerDigest},reconcile,sourceBootstrap=false){
+export async function applyHostAssemblyProfileRefresh(args){return applyProfileChange(args,false,false,true);}
+async function applyProfileChange({root,state,prepared,controllerDigest},reconcile,sourceBootstrap=false,assemblyRepair=false){
  const lock=resolve(root,'.sandcastle/runs',state.id,'run.lock');need((await readFile(lock,'utf8')).trim()===String(process.pid),'held controller run lock required');
  need(digest(JSON.stringify(state))===prepared.checkpointDigest&&same(JSON.parse(await readFile(resolve(root,'.sandcastle/runs',state.id,'state.json'),'utf8')),state),'checkpoint changed before profile upgrade');
- const fresh=await prepareProfileChange({root,state,newPin:prepared.record.newPin,controllerDigest},reconcile,false,sourceBootstrap);need(same(fresh.record,prepared.record),'profile/policy/controller bytes changed after preview');
+ const fresh=await prepareProfileChange({root,state,newPin:prepared.record.newPin,controllerDigest},reconcile,false,sourceBootstrap,assemblyRepair);need(same(fresh.record,prepared.record),'profile/policy/controller bytes changed after preview');
  need((await readFile(lock,'utf8')).trim()===String(process.pid)&&same(JSON.parse(await readFile(resolve(root,'.sandcastle/runs',state.id,'state.json'),'utf8')),state),'held lock/checkpoint changed during upgrade validation');
  const path=resolve(root,'.sandcastle/runs',state.id,`${sourceBootstrap?'source-revision-before-bootstrap':reconcile?'request-before-reconcile':'profile-before-upgrade'}-${prepared.record.fingerprint}.json`),raw=JSON.stringify(state)+'\n';
  try{const fd=await open(path,'wx',0o600);try{await fd.writeFile(raw);await fd.sync();}finally{await fd.close();}}catch(error){if(error.code!=='EEXIST'||await readFile(path,'utf8')!==raw)throw error;}

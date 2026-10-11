@@ -210,3 +210,54 @@ for current execution approval nor claims current source equivalence. The
 separate readonly approval snapshot reports the current revision's status.
 A historical header-gap report or an old producer identity remains evidence of
 that original attempt, not a current blocker or fresh acceptance report.
+
+### Verified assembly provisioning correction
+
+Run `3fd6b311` can restore only the recorded recovery13 assembly provisioning
+stop with `SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH` and
+`SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_SHA256`, as the sole continuation mode.
+This is a verified controller correction, not an attempt grant: the exhausted
+`assemble:8:8:0:1:0` counter remains three and its limit remains three.
+
+The independently pinned private proof has version1 and exactly:
+`version,authorization,runId,checkpoint,recoveryId,rawStateSha256,stateFingerprint,
+oldProfilePin,newProfilePin,controllerDigest,assemblyHead,bundle,focused,review`.
+Authorization is `user-requested-assembly-provisioning-repair`; checkpoint and
+recoveryId are the exact values above and13. `review` supplies the independent
+reviewer and reference. `newProfilePin` is the independently reviewed private
+controller-only profile clone; existing guards preserve its source390 seal,
+1051 resources, native argv, binding, runtime pins, approvals and readonly
+collector deliveries, and permit only loaded controller identity plus exact
+committed nonconsumed controller version pins to change.
+
+`bundle` contains `indexSha256,head,receipts,artifactCount,totalBytes` from
+`historicalDeliveryMounts({root,state}).proof`; each receipt retains its original
+nonce, renderer, receiptDigest and artifactCount. The complete historical
+bundle is reverified: original37b source317, software/OpenGL receipts, every
+artifact byte, original old binding and scope, paths/noextras/nosymlinks. It
+never asserts current source equivalence or final acceptance. Worker and
+integration provisioning both mount this bundle readonly at
+`/home/agent/.sv-host-delivery` through the same validator.
+
+Before activation, run the corrected `integrationSandboxProvider` on a fresh
+isolated sandbox at `assemblyHead`, with no native execution or auth mount.
+Run these exact focused commands and retain their combined unittest logs as
+private regular files inside the run directory:
+
+- `python3 -B tests/sv_entry_collector_checks.py`: six tests, no skips.
+- `env PYTHONPATH=tests python3 -B tests/sv_entry_consumption_checks.py`:26 tests,
+  exactly the two documented skips.
+
+The proof's `focused` array retains both commands in that order and each
+`logPath,sha256,exitCode:0,tests,skipped`. Preparation checks the actual Ran/OK
+results and all390 current approved source Git mode/size/hash identities at the
+exact tested assembled HEAD. Missing/changed bundles, logs, native sources,
+policies, unrelated failures or an exhausted quota fail closed.
+
+Apply repeats all verification under the held controller lock, checks raw
+checkpoint/pins with CAS, fsyncs an archive of the exact original state bytes,
+then applies controller pins and the assembly phase transition to one clone
+with one workflow save. No quota, recovery history, completed tickets, sealed
+inputs or old receipts change. A fresh integration sandbox is created with the
+validated readonly mount. Revisions already merged remain skipped by ancestry;
+full acceptance still requires the controller's fresh postassembly captures.

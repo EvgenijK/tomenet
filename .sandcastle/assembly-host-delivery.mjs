@@ -1,0 +1,41 @@
+// Historical evidence is validated at its original HEAD, never as current capture.
+import {readFile,lstat,realpath,readdir,open} from 'node:fs/promises';
+import {constants} from 'node:fs';
+import {resolve,relative,isAbsolute} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {digest} from './verification.mjs';
+const exec=promisify(execFile),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const need=(v,m)=>{if(!v)throw Object.assign(new Error('Assembly historical delivery: '+m),{code:'HOST_DELIVERY_INVALID',deterministic:true});};
+const safe=p=>typeof p==='string'&&p&&!isAbsolute(p)&&!/[\r\n\0]/.test(p)&&p.split('/').every(x=>x&&x!=='.'&&x!=='..');
+async function bytes(path){need(await realpath(path)===resolve(path),'symlink path');const st=await lstat(path);need(st.isFile()&&st.nlink===1&&st.size<=24*1024*1024,'regular bounded artifact required');const fd=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);try{const before=await fd.stat(),raw=await fd.readFile(),after=await fd.stat();need(before.ino===st.ino&&before.dev===st.dev&&raw.length===before.size&&before.size===after.size&&before.mtimeMs===after.mtimeMs&&before.ctimeMs===after.ctimeMs,'artifact changed during read');return raw;}finally{await fd.close();}}
+export async function verifyHistoricalHostDelivery({root,state,record}){
+ need(record?.wave===7&&record.head==='37b3fc2b980b51193e680d6c85acb20458d9d0ac'&&record.driver==='x11'&&record.ticket==='.scratch/sandcastle-3fd6b311/issues/07-native-interactions.md'&&record.branch==='codex/sandcastle-3fd6b311-wave-7-1'&&record.allowanceGranted===false&&record.contractDigest===state.acceptance?.contractDigest&&state.completedTickets.includes(record.ticket),'original completed ticket07 record required');
+ const run=resolve(root,'.sandcastle/runs',state.id),directory=resolve(record.deliveryDirectory);need(safe(relative(resolve(run,'host-delivery'),directory))&&await realpath(directory)===directory&&(await lstat(directory)).isDirectory(),'private historical directory required');
+ const rawIndex=await bytes(resolve(directory,'index.json')),index=JSON.parse(rawIndex);
+ for(const k of ['wave','head','previousHead','driver','branch','ticket','policyDigest','reviewDigest','controllerDigest','contractDigest','bindingDigest','stateFingerprint','rawStateSha256','allowanceGranted'])need(same(index[k],record[k]),'original record/index identity differs');
+ need(index.deliveryOnly===true&&index.finalAcceptance===false&&index.receipts?.length===2&&record.receipts?.length===2,'original delivery-only renderer pair required');
+ need(Object.keys(index).sort().join(',')==='allowanceGranted,bindingDigest,branch,contractDigest,controllerDigest,deliveryOnly,driver,finalAcceptance,head,policyDigest,previousHead,rawStateSha256,receipts,reviewDigest,stateFingerprint,ticket,wave','unknown original index fields');
+ const files=new Set(['index.json']),renderers=new Set(),nonces=new Set(),receipts=[];let total=0;
+ const git=async(...args)=>(await exec('git',['-C',root,...args],{maxBuffer:24*1024*1024})).stdout.trim();
+ for(const entry of index.receipts){
+  const saved=record.receipts.find(x=>x.renderer===entry.renderer);need(saved&&same(Object.fromEntries(Object.keys(saved).map(k=>[k,entry[k]])),saved)&&['software','opengl'].includes(entry.renderer)&&!renderers.has(entry.renderer)&&/^[a-f0-9]{32}$/.test(entry.nonce)&&!nonces.has(entry.nonce),'original receipt pair differs');renderers.add(entry.renderer);nonces.add(entry.nonce);
+  need(entry.receipt===entry.renderer+'/channel-receipt.json'&&entry.report===entry.renderer+'/interaction-report.json','receipt/report path differs');
+  const raw=await bytes(resolve(directory,entry.receipt));need(digest(raw)===entry.receiptDigest,'receipt bytes changed');const receipt=JSON.parse(raw);files.add(entry.receipt);
+  need(receipt.exitCode===0&&receipt.head===record.head&&receipt.nonce===entry.nonce&&receipt.action==='interaction'&&receipt.policyDigest===record.policyDigest&&receipt.contractDigest===record.contractDigest&&receipt.scope?.runId===state.id&&receipt.scope.wave===7&&receipt.scope.branch===record.branch&&receipt.scope.ticket===record.ticket,'receipt original provenance differs');
+  need(receipt.artifacts&&Object.keys(receipt.artifacts).length>0&&Object.keys(receipt.artifacts).length<=50000,'complete artifact inventory required');
+  for(const[path,id]of Object.entries(receipt.artifacts)){need(safe(path)&&path!=='channel-receipt.json'&&Number.isSafeInteger(id.size)&&id.size>=0&&/^[a-f0-9]{64}$/.test(id.sha256),'declared artifact identity required');const p=entry.renderer+'/'+path,data=await bytes(resolve(directory,p));need(data.length===id.size&&digest(data)===id.sha256,'artifact missing or changed');files.add(p);total+=data.length;need(total<=192*1024*1024,'bounded full delivery required');}
+  need(receipt.artifacts['interaction-report.json'],'original report missing');const report=JSON.parse(await bytes(resolve(directory,entry.report)));
+  need(report.head===record.head&&report.nonce===entry.nonce&&report.contract_digest===record.contractDigest&&report.kind==='linux-synthetic-interaction-producer'&&report.status==='passed'&&report.physical_acceptance===false&&report.milestone_acceptance===false,'original delivery report differs');
+  need(report.inputs_before&&Object.keys(report.inputs_before).length===317&&same(report.inputs_before,report.inputs_after)&&report.runtime_before&&same(report.runtime_before,report.runtime_after),'historical source/runtime identities differ');
+  const rows=new Set();need(report.reports?.length===18,'full historical matrix required');for(const row of report.reports){need(['existing-character','existing-account-create','new-account-create'].includes(row.route)&&['keyboard-text','composition','mouse','resize','minimize','restore'].includes(row.category)&&row.executions?.length===1,'historical matrix row differs');const e=row.executions[0];need(e.status==='passed'&&e.renderer===entry.renderer&&e.sessions?.length===2&&same(e.sessions.map(s=>s.order).sort(),[0,1])&&e.sessions.every(s=>s.status==='passed'&&s.route===row.route&&s.category===row.category&&s.renderer===entry.renderer&&s.video===record.driver),'historical sessions incomplete');rows.add(row.route+'/'+row.category);}need(rows.size===18,'duplicate historical scenario');
+  for(const[path,hash]of Object.entries(report.inputs_before)){need(safe(path)&&/^[a-f0-9]{64}$/.test(hash)&&/^(100644|100755) blob /.test(await git('ls-tree',record.head,'--',path)),'regular original source identity required');const data=(await exec('git',['-C',root,'show',`${record.head}:${path}`],{encoding:'buffer',maxBuffer:24*1024*1024})).stdout;need(digest(data)===hash,'original captured source differs');}
+  receipts.push({nonce:entry.nonce,renderer:entry.renderer,receiptDigest:entry.receiptDigest,artifactCount:Object.keys(receipt.artifacts).length});
+ }
+ const observed=new Set();async function walk(path,prefix=''){for(const entry of await readdir(path,{withFileTypes:true})){const name=prefix+entry.name;need(!entry.isSymbolicLink(),'bundle symlink');if(entry.isDirectory())await walk(resolve(path,entry.name),name+'/');else{need(entry.isFile()&&files.has(name),'unlisted historical artifact');observed.add(name);}}}await walk(directory);need(observed.size===files.size,'historical artifact missing');
+ return {directory,indexSha256:digest(rawIndex),head:record.head,contractDigest:record.contractDigest,bindingDigest:record.bindingDigest,receipts,artifactCount:files.size-3,totalBytes:total,historicalOnly:true,currentSourceEquivalence:false,finalAcceptance:false};
+}
+export async function historicalDeliveryMounts({root,state,records=state.hostApprovalResumes??[]}){
+ if(!records.length)return {mounts:[],proof:undefined};need(records.length===1,'ambiguous historical delivery');const proof=await verifyHistoricalHostDelivery({root,state,record:records[0]});return {proof,mounts:[{hostPath:proof.directory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true}]};
+}
+export async function integrationSandboxProvider({root,state,inbox,provider}){const {mounts}=await historicalDeliveryMounts({root,state});return provider(inbox,mounts);}

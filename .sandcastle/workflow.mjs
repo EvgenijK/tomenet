@@ -40,6 +40,8 @@ import { resumeVerificationMigration } from "./verification-migration.mjs";
 import { startLinuxHostChannel } from './linux-host.mjs';
 import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
 import { workerHostDelivery, workerHostFailure } from './worker-host.mjs';
+import {historicalDeliveryMounts,integrationSandboxProvider} from './assembly-host-delivery.mjs';
+import {prepareAssemblyHostRepair,applyAssemblyHostRepair} from './assembly-host-repair.mjs';
 import { workerReadonlyHostDelivery } from './host-readonly-delivery.mjs';
 import { hostCollectorParts } from './host-collector-parts.mjs';
 import { hostCollectorConstituents } from './host-collector-constituents.mjs';
@@ -582,7 +584,7 @@ async function openWorker(state, member, wave) {
           mounts.push({hostPath:statusPath,sandboxPath:'/home/agent/.sv-host-approval-status.json',readonly:true});
         }
         if(collectorDelivery)mounts.push({hostPath:collectorDelivery.directory,sandboxPath:'/home/agent/.sv-host-collector-delivery',readonly:true});
-        if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
+        if(delivery)mounts.push(...(await historicalDeliveryMounts({root,state,records:[delivery]})).mounts);
         const scopePath=resolve(runsDir,state.id,`host-scope-${randomUUID()}.json`);
         await writeFile(scopePath,JSON.stringify({...scope,contractDigest:state.acceptance.contractDigest}),{mode:0o600});
         mounts.push(hostChannel.mount,{hostPath:scopePath,sandboxPath:'/home/agent/.sv-host-scope.json',readonly:true},
@@ -658,6 +660,7 @@ async function assemble(sandbox, state) {
         "After merging, inspect the combined change, fix only integration errors and run appropriate focused checks. Ordinary completed tickets must remain resolved with their Answer; controller-validated delivery keeps historical acceptance pending. Commit all corrections and leave a clean worktree without unmerged files. Do not run the full workflow; the orchestrator runs its gates next.",
         state.scopeNotes || "Preserve the original implementation/acceptance boundary.",
         contractContext(state),
+        ...(state.hostApprovalResumes?.length ? ['The complete controller-verified historical ticket07 bundle is mounted readonly at /home/agent/.sv-host-delivery. Keep its original HEAD/nonces/source317/old binding intact; it is historical delivery evidence, not current source equivalence or final acceptance. Use it for focused collector checks without repeating native matrices.'] : []),
         'Return only JSON matching the schema, including hostApprovalRequest:null when no controller host review is requested: completed if all listed revisions are integrated and focused checks passed, otherwise blocked with a concrete reason.',
       ].join("\n\n");
       const response = await agent(sandbox, state, `assembly wave ${wave.id}`, prompt, ".sandcastle/ticket-output.schema.json");
@@ -909,6 +912,7 @@ const modeKeys = ["SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS", "SANDCASTLE_HOST_REQUEST
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
+modeKeys.push('SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH');
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
 const booleanModes = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
@@ -1037,6 +1041,11 @@ if(recoveryGrant){
   if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)recoveryProfileRefresh=await prepareHostRecoveryProfileRefresh({root,state,newPin:{path:process.env.SANDCASTLE_RECOVERY_PROFILE_PATH,sha256:process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
   else if(state.hostReviewProfile){const p=await readPrivateHostProfile(root,state,state.hostReviewProfile);if(p.controllerDigest!==loadedControllerDigest)throw new Error('Recovery allowance requires a reviewed controller-only profile refresh for this changed controller');}
 }else if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)throw new Error('Recovery profile refresh requires the explicit checkpoint allowance mode');
+let assemblyHostRepair;
+if(process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH||process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_SHA256){
+  if(requestedModes.length!==1||!process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH)throw new Error('Assembly provisioning repair requires only its independently pinned proof mode');
+  assemblyHostRepair=await prepareAssemblyHostRepair({root,state,proofPin:{path:process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH,sha256:process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_SHA256},controllerDigest:loadedControllerDigest});
+}
 let sourceRevisionBootstrap;
 if(process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_PATH||process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_SHA256){
   if(!preflightResume||requestedModes.length!==1)throw new Error('Source revision bootstrap requires only SANDCASTLE_PREFLIGHT_RESUME=1 at the saved changed-test host review checkpoint');
@@ -1080,6 +1089,10 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(assemblyHostRepair){
+    hostProfile=await applyAssemblyHostRepair({root,state,prepared:assemblyHostRepair,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'assembly-host-repair',status:'completed',summary:'Verified complete original historical delivery and focused assembly checks; controller provisioning corrected without a recovery allowance or acceptance grant.'});
+  }
   if(recoveryAllowance){
     const refreshed=await applyRecoveryAllowance({root,state,prepared:recoveryAllowance,profileRefresh:recoveryProfileRefresh,controllerDigest:loadedControllerDigest});
     if(refreshed){hostProfile=refreshed;hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;}
@@ -1186,7 +1199,7 @@ try {
         if (command === "resume") await recoverWorktree(state);
         const inbox = resolve(runsDir, state.id, "evidence-inbox");
         await mkdir(inbox, { recursive: true, mode: 0o700 });
-        sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: sandboxProvider(inbox) });
+        sandbox = await createSandbox({ cwd: root, branch: state.branch, baseBranch: targetBranch, sandbox: await integrationSandboxProvider({root,state,inbox,provider:sandboxProvider}) });
         console.log(`Worktree: ${sandbox.worktreePath}`);
         await dispatchVerified(executionContext(state, "orchestrator", sandbox.worktreePath, {
           sandbox, allowDirty: state.phase === "assemble",
