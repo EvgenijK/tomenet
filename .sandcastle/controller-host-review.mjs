@@ -8,6 +8,7 @@ import {promisify} from 'node:util';
 import {gunzipSync} from 'node:zlib';
 import {digest} from './verification.mjs';
 import {deliverySourceApproval} from './host-source-approval.mjs';
+import {deriveHostSourceRevision} from './host-source-revision.mjs';
 const exec=promisify(execFile);
 const need=(ok,message)=>{if(!ok)throw Object.assign(new Error('Controller host review: '+message),{code:'HOST_REVIEW_REFUSED',deterministic:true});};
 const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
@@ -22,7 +23,7 @@ async function bytes(path,maximum=24*1024*1024){
 }
 const identity=data=>({size:data.length,sha256:digest(data)});
 function protectedState(state){
- return {id:state.id,branch:state.branch,baseCommit:state.baseCommit,acceptance:state.acceptance,executionPlan:state.executionPlan,tickets:state.tickets,completedTickets:state.completedTickets,deliveredTickets:state.deliveredTickets,deferredTickets:state.deferredTickets,wave:state.wave,reviewRound:state.reviewRound,buildAttempts:state.buildAttempts,testAttempts:state.testAttempts,testBuildAttempts:state.testBuildAttempts,recoveryAttempts:state.recoveryAttempts,recoveryAttemptLimits:state.recoveryAttemptLimits,recoveryAllowanceHistory:state.recoveryAllowanceHistory,recoverySequence:state.recoverySequence,buildLimit:state.buildLimit,testLimit:state.testLimit,quotaLimit:state.quotaLimit,allowanceGrants:state.allowanceGrants,budgetLimits:Object.fromEntries(Object.entries(state.budget??{}).filter(([k])=>!['tokens','consumedPercent','lastUsedPercent','resetsAt','windowId','windowResetAt','windowHighWaterPercent','usageHistory'].includes(k)))};
+ return {id:state.id,hostReviewProfile:state.hostReviewProfile,hostReviewPending:state.hostReviewPending,branch:state.branch,baseCommit:state.baseCommit,acceptance:state.acceptance,executionPlan:state.executionPlan,tickets:state.tickets,completedTickets:state.completedTickets,deliveredTickets:state.deliveredTickets,deferredTickets:state.deferredTickets,wave:state.wave,reviewRound:state.reviewRound,buildAttempts:state.buildAttempts,testAttempts:state.testAttempts,testBuildAttempts:state.testBuildAttempts,recoveryAttempts:state.recoveryAttempts,recoveryAttemptLimits:state.recoveryAttemptLimits,recoveryAllowanceHistory:state.recoveryAllowanceHistory,recoverySequence:state.recoverySequence,buildLimit:state.buildLimit,testLimit:state.testLimit,quotaLimit:state.quotaLimit,allowanceGrants:state.allowanceGrants,budgetLimits:Object.fromEntries(Object.entries(state.budget??{}).filter(([k])=>!['tokens','consumedPercent','lastUsedPercent','resetsAt','windowId','windowResetAt','windowHighWaterPercent','usageHistory'].includes(k)))};
 }
 // Known observation fields can advance during review; allowance fields remain
 // in protectedState. Consumption cannot reset and prior observations are immutable.
@@ -62,11 +63,17 @@ export async function prepareControllerHostReview({root,state,request,profile,op
  const selected=policy.actions?.[request.action];need(selected,'unknown action requires a new independently reviewed fixed profile');
  const paths=Object.keys(seal.sources).sort();need(selected.sourceWorktree===true&&same(selected.inventory?.files?.slice().sort(),paths)&&selected.inventory.roots?.length===0,'requested action must use exact sealed390 inventory');
  const {git,blob}=await gitAccess(root);need(await git('rev-parse',`refs/heads/${request.branch}`)===request.head,'branch changed');await git('merge-base','--is-ancestor',request.baseCommit,request.head);
- const tree=await git('rev-parse',`${request.head}^{tree}`),inputHashes={};
- for(const path of paths){need(safe(path),'source path escape');const entry=await git('ls-tree',request.head,'--',path);need(/^(100644|100755) blob /.test(entry),'regular committed source required');const actual=await blob(request.head,path);need(same(identity(actual),seal.sources[path]),'changed producer requires an independently reviewed fixed source profile');inputHashes[path]=digest(actual);}
- const prior=policy.approvals?.find(a=>a.actions?.includes(request.action)&&same(a.inputs,inputHashes)&&a.base===seal.tested_head);need(prior&&head(prior.base)&&head(prior.tree),'matching prior source approval required');
+ const tree=await git('rev-parse',`${request.head}^{tree}`),inputHashes={},sourceIdentities={};
+ for(const path of paths){need(safe(path),'source path escape');const entry=await git('ls-tree',request.head,'--',path);need(/^(100644|100755) blob /.test(entry),'regular committed source required');const actual=await blob(request.head,path);sourceIdentities[path]=identity(actual);inputHashes[path]=digest(actual);}
+ const oldHashes=Object.fromEntries(Object.entries(seal.sources).map(([p,id])=>[p,id.sha256])),approvedHead=seal.approved_source_head??seal.tested_head;
+ const prior=policy.approvals?.find(a=>a.actions?.includes(request.action)&&same(a.inputs,oldHashes)&&a.base===approvedHead);need(prior&&head(prior.base)&&head(prior.tree),'matching prior source approval required');
  const equivalence=policy.actions[profile.equivalenceAction??request.action];need(equivalence?.sourceWorktree===true&&same(equivalence.inventory,selected.inventory),'equivalence action must use same reviewed inventory');
- const sourceProof=await deliverySourceApproval({git,readBlob:blob,action:equivalence,approval:prior,head:request.head});need(sourceProof,'unlisted tree/code changes require a new independently reviewed fixed profile');
+ let sourceRevision=null,sourceProof;
+ if(!same(sourceIdentities,seal.sources)){
+  need(profile.sourceRevisionDelegation,'changed producer requires an independently reviewed fixed source profile');
+  sourceRevision=await deriveHostSourceRevision({state,request,profile,seal,identities:sourceIdentities,prior,git,blob});
+  sourceProof={method:'delegated-source-revision-proposal',reviewedHead:prior.base,reviewedTree:prior.tree,executionTree:tree,revision:sourceRevision};
+ }else{sourceProof=await deliverySourceApproval({git,readBlob:blob,action:equivalence,approval:prior,head:request.head});need(sourceProof,'unlisted tree/code changes require a new independently reviewed fixed profile');}
  const additions={};let resourceOrigin=null;
  if(profile.resourceProposal){
   const resource=profile.resourceProposal;need(hash(resource.graphSha256)&&[request.head,seal.tested_head].includes(resource.head)&&resource.contractDigest===request.contractDigest&&/^[a-f0-9]{32}$/.test(resource.nonce??'')&&typeof ops.attestResourceOrigin==='function','actual resource attempt attestation required');
@@ -82,8 +89,8 @@ export async function prepareControllerHostReview({root,state,request,profile,op
   }
   need(Object.keys(additions).length>0&&Object.keys(additions).length<=32&&same(additions,resource.missing),'exact bounded observed header additions required');
  }
- const proposal={version:1,profile:'sv-entry-collector-v3',originalPhase,request:structuredClone(request),head:request.head,tree,contractDigest:request.contractDigest,bindingDigest:profile.bindingDigest,controllerDigest:profile.controllerDigest,profileDigest:digest({policy:profile.policySha256,seal:profile.sealSha256}),inputDigest:digest(canonical(inputHashes)),resourceDigest:digest(canonical(additions)),sourceProof,resourceOrigin,resourceAdditions:additions,protectedStateDigest:digest(canonical(protectedState(state))),finalAcceptance:false};
- proposal.fingerprint=digest(canonical(proposal));return {proposal,policy,seal,policyBytes,sealBytes,inputHashes,profile:structuredClone(profile),priorApproval:structuredClone(prior)};
+ const proposal={version:1,profile:'sv-entry-collector-v3',originalPhase,request:structuredClone(request),head:request.head,tree,contractDigest:request.contractDigest,bindingDigest:profile.bindingDigest,controllerDigest:profile.controllerDigest,profileDigest:digest({policy:profile.policySha256,seal:profile.sealSha256}),inputDigest:digest(canonical(inputHashes)),resourceDigest:digest(canonical(additions)),sourceProof,sourceRevision,resourceOrigin,resourceAdditions:additions,protectedStateDigest:digest(canonical(protectedState(state))),finalAcceptance:false};
+ proposal.fingerprint=digest(canonical(proposal));return {proposal,policy,seal,policyBytes,sealBytes,inputHashes,sourceIdentities,profile:structuredClone(profile),priorApproval:structuredClone(prior)};
 }
 export function validateControllerHostReview(prepared,envelope,{writerExecutionIds=[]}={}){
  const p=prepared.proposal,r=envelope?.response,e=envelope?.execution;
@@ -102,7 +109,10 @@ export function isControllerHostReviewRequest(state,request){
 }
 function renewal(prepared,review,folder){
  const p=prepared.proposal,profile=prepared.profile,renewedSeal=structuredClone(prepared.seal),policy=structuredClone(prepared.policy),sealPath=resolve(folder,'seal.json'),policyPath=resolve(folder,'policy.json');
- renewedSeal.tested_head=p.head;renewedSeal.external_files={...renewedSeal.external_files,...p.resourceAdditions};renewedSeal.independent_review={reviewer:review.role,executionId:review.executionId,proposalFingerprint:p.fingerprint,summary:review.summary};renewedSeal.renewal={previousHead:prepared.seal.tested_head,previousSealSha256:profile.sealSha256,sourceProof:p.sourceProof,resourceOrigin:p.resourceOrigin};
+ renewedSeal.tested_head=p.head;renewedSeal.approved_source_head=p.head;renewedSeal.identityKind='approved-inputs';renewedSeal.finalAcceptance=false;renewedSeal.milestone_acceptance=false;renewedSeal.sources=structuredClone(prepared.sourceIdentities);renewedSeal.external_files={...renewedSeal.external_files,...p.resourceAdditions};renewedSeal.independent_review={reviewer:review.role,executionId:review.executionId,proposalFingerprint:p.fingerprint,summary:review.summary};renewedSeal.renewal={previousHead:prepared.seal.tested_head,previousSealSha256:profile.sealSha256,sourceProof:p.sourceProof,resourceOrigin:p.resourceOrigin,...(p.sourceRevision?{sourceRevision:p.sourceRevision}:{} )};
+ if(p.sourceRevision){renewedSeal.source_revision={...p.sourceRevision,independentReviewExecutionId:review.executionId,previousSealSha256:profile.sealSha256};
+  const rules=policy.actions[profile.equivalenceAction].carryForward;rules.reviewedFiles??={};for(const[path,id]of Object.entries(p.sourceRevision.evidenceFiles))(rules.reviewedFiles[path]??=[]).push({mode:id.mode,sha256:id.sha256});
+ }
  const sealBytes=Buffer.from(JSON.stringify(renewedSeal)+'\n');
  for(const action of Object.values(policy.actions??{}))if(Array.isArray(action.argv))action.argv=action.argv.map(x=>x===profile.sealPath?sealPath:x);
  for(const parts of Object.values(policy.hostParts??{}))for(const part of parts)if(part.constituents?.reviewedSealPath===profile.sealPath)part.constituents.reviewedSealPath=sealPath;

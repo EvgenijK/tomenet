@@ -49,7 +49,7 @@ import { workerHostApprovalSnapshot, hostApprovalGuidance } from './host-approva
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
 import {readRecoveryGrant,prepareRecoveryAllowance,applyRecoveryAllowance,recoveryAttemptLimit} from './recovery-allowance.mjs';
-import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile, prepareHostRecoveryProfileRefresh } from './host-profile-upgrade.mjs';
+import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile, prepareHostRecoveryProfileRefresh, prepareHostSourceRevisionBootstrap, applyHostSourceRevisionBootstrap } from './host-profile-upgrade.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -295,7 +295,7 @@ async function controllerHostReviewPhase(state,profile,profilePin,lockPath) {
     review:async proposal=>{
       try{return await hostAgent(state,{cwd:root,role:'controller-host-source-review',schemaPath,hostReviewProposal:proposal,prompt:[
       'Independently review this exact controller-owned Linux host prerequisite. Read-only: use Git show and the pinned private policy/seal/public resource paths in this proposal. Do not edit files, run captures/builds, read credentials/auth/env/Xauthority contents, or change policy/limits. Return only schema JSON with exact proposal identities.',
-      'Verify unchanged390 consumed sources, declared metadata equivalence, fixed already reviewed argv/action templates and original resource graph provenance. New resources are only the exact observed public /usr/include headers. Approve only with no findings. This grants source/resource prerequisite approval, never acceptance or a full-matrix pass.',
+      'Verify the controller-derived source revision when present: exactly the delegated consumed test diff,389 unchanged source identities, six pinned historical evidence blobs, no weakened integrity oracle or hidden host privileges. Otherwise verify unchanged390 consumed sources. Verify declared metadata equivalence, fixed already reviewed argv/action templates and original resource graph provenance. New resources are only the exact observed public /usr/include headers. Approve only with no findings. This grants source/resource prerequisite approval, never acceptance or a full-matrix pass.',
       JSON.stringify({proposal,profile,policyPath:profile.policyPath,sealPath:profile.sealPath}),
     ].join('\n\n')});}catch(error){
         if(state.quotaError)throw error;
@@ -607,7 +607,7 @@ async function implementWorker(worker, state, member) {
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
     ...(worker.linuxHostDelivery ? [`Historical ticket07 delivery is mounted at /home/agent/.sv-host-delivery/index.json, originally tested at ${worker.linuxHostDelivery.head}. Preserve its original source/driver/producer identity; a current producer may correctly reject this older proof. Such rejection does not invalidate the original delivery or establish a new missing host approval. Read the separate current approval snapshot before classifying prerequisites. The historical Linux video driver is ${worker.linuxHostDelivery.driver}. Do not repeat a full matrix solely for bookkeeping; complete only substantiated delivery checkboxes and retain controller/full acceptance obligations pending.`] : []),
-    ...(worker.linuxHostCollectorDelivery ? [`Independently reviewed collector delivery is mounted readonly at /home/agent/.sv-host-collector-delivery/${worker.linuxHostCollectorDelivery.descriptor}, originally tested at ${worker.linuxHostCollectorDelivery.head}. Inspect the original receipts, manifests and case logs. The private controller verified artifact bytes and current source equivalence before mounting. Use these results for supported delivery bookkeeping without repeating unchanged matrices. Preserve every original HEAD/scope/nonce; this mount does not establish acceptance at the final assembled HEAD. Any producer/source change needs fresh controller review and capture.`] : []),
+    ...(worker.linuxHostCollectorDelivery ? [`Independently reviewed collector delivery is mounted readonly at /home/agent/.sv-host-collector-delivery/${worker.linuxHostCollectorDelivery.descriptor}, originally tested at ${worker.linuxHostCollectorDelivery.head}. Inspect the original receipts, manifests and case logs. The private controller verified artifact bytes and original source identities before mounting. Historical-only delivery does not claim current source equivalence; inspect the separate current approval snapshot. Use these results for supported delivery bookkeeping without repeating unchanged matrices. Preserve every original HEAD/scope/nonce; this mount does not establish acceptance at the final assembled HEAD. Any producer/source change needs fresh controller review and capture.`] : []),
     ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. The controller automatically carries delivery source approval across metadata paths and exact file versions delegated by its private reviewed policy; returned receipts record this proof. Do not rerun the interaction matrix solely to inspect a dependency or after bookkeeping changes when verified delivery is mounted. Implement ticket08 collectors and their focused checks before requesting approval of their new consumed-input closures. A changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema, including hostApprovalRequest:null when no controller host review is requested. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
@@ -1037,6 +1037,11 @@ if(recoveryGrant){
   if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)recoveryProfileRefresh=await prepareHostRecoveryProfileRefresh({root,state,newPin:{path:process.env.SANDCASTLE_RECOVERY_PROFILE_PATH,sha256:process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
   else if(state.hostReviewProfile){const p=await readPrivateHostProfile(root,state,state.hostReviewProfile);if(p.controllerDigest!==loadedControllerDigest)throw new Error('Recovery allowance requires a reviewed controller-only profile refresh for this changed controller');}
 }else if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)throw new Error('Recovery profile refresh requires the explicit checkpoint allowance mode');
+let sourceRevisionBootstrap;
+if(process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_PATH||process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_SHA256){
+  if(!preflightResume||requestedModes.length!==1)throw new Error('Source revision bootstrap requires only SANDCASTLE_PREFLIGHT_RESUME=1 at the saved changed-test host review checkpoint');
+  sourceRevisionBootstrap=await prepareHostSourceRevisionBootstrap({root,state,newPin:{path:process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_PATH,sha256:process.env.SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
+}
 let hostProfileUpgrade;
 if(process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH||process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256) {
   if(!preflightResume||requestedModes.length!==1)throw new Error('Host profile upgrade requires only SANDCASTLE_PREFLIGHT_RESUME=1 at a saved fatal schema checkpoint');
@@ -1080,6 +1085,11 @@ try {
     if(refreshed){hostProfile=refreshed;hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;}
     await save(state);
     await appendStageEvent(runsDir,state,{stage:'recovery-allowance',status:'completed',summary:'Explicit three additional recovery decisions recorded for the saved wave8 checkpoint; consumed decisions, quota and native authority preserved.'});
+  }
+  if(sourceRevisionBootstrap){
+    hostProfile=await applyHostSourceRevisionBootstrap({root,state,prepared:sourceRevisionBootstrap,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;
+    process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'controller-source-revision-bootstrap',status:'completed',summary:'Fixed one-test review delegation and historical-only inspection selected; source revision awaits independent review; native authority and allowances preserved.'});
   }
   if(hostRequestReconcile){
     hostProfile=await applyHostRequestReconcile({root,state,prepared:hostRequestReconcile,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;

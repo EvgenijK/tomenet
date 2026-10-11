@@ -149,3 +149,64 @@ Both fields are protected during independent host review. Other checkpoints
 retain the original three-decision bound. Changing source code or its seal is
 not authorized by this allowance: it must still enter independent host review,
 and may remain paused while a new fixed source profile is unavailable.
+
+### Exact one-test source revision for worker08
+
+The saved changed-producer `HOST_REVIEW_REFUSED` checkpoint in run `3fd6b311`,
+wave8, can bootstrap an independently pinned delegation with
+`SANDCASTLE_PREFLIGHT_RESUME=1`,
+`SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_PATH` and
+`SANDCASTLE_HOST_SOURCE_REVISION_PROFILE_SHA256`. Do not combine another
+continuation mode. The normal controller owns the run lock, archives the raw
+checkpoint, rechecks the committed controller/profile/policy and saves once.
+This bootstrap changes no source approval, recovery count, allowance or quota;
+the saved controller-host-review phase must still obtain a verified durable
+independent reviewer envelope before installing a new source approval.
+
+The private profile adds `sourceRevisionDelegation` with exactly these keys:
+`version,runId,wave,ticket,sourcePath,baseHead,candidateHead,oldSource,newSource,
+evidenceFiles,reviewer,reference`. Version1 is restricted to this run's worker08
+and `tests/sv_entry_collector_checks.py`. Old/new source identities have exactly
+`{size,sha256}`. The independently reviewed `baseHead` must equal the current
+approved source seal; `candidateHead` must equal the saved request and current
+worker branch. The controller verifies all 390 committed source blobs, permits
+only this one exact test change, and derives the full tree diff itself: the test
+and existing ticket08 metadata are modified, and exactly these six regular
+nonexecutable evidence blobs are added:
+
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/README.md`
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/approval-status.json`
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/collector-checks.log`
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/consumption-checks.log`
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/input-identities.json.gz`
+- `.scratch/sandcastle-3fd6b311/evidence/08-approved-inventory/verification.json`
+
+`evidenceFiles` maps exactly those paths to `{mode:"100644",size,sha256}`.
+The profile raw SHA pins the independent review reference and every old/new
+identity. No mutable metadata root, second consumed change, resource addition,
+new executable recipe or policy privilege is admitted by this delegation.
+The bootstrap policy preserves all capture argv, binding, runtime pins, prior
+approvals, 1051 external resources and limits. Only exact reviewed nonconsumed
+controller versions may be appended; the existing pinned readonly worker08
+delivery changes to `mode:"historical-only"` without changing its descriptor.
+
+After independent approval, the controller publishes a new immutable version
+of the policy and source seal. This seal has `identityKind:"approved-inputs"`,
+`approved_source_head` equal to the newly approved worker HEAD, and
+`finalAcceptance:false` plus `milestone_acceptance:false`. Its legacy
+`tested_head` field aliases the expected approved input target **only for this
+explicit kind**, for compatibility with the existing collector seal guard.
+It is not a capture result and does not assert that this HEAD was already
+executed. `source_revision`/`renewal` retain the previous seal SHA, prior approved
+HEAD, exact diff, independent execution ID and original resource/compiler
+origins. All old seals, policies, receipts and their actual tested HEADs remain
+unchanged. Actual capture reports continue to record their job HEAD and fresh
+nonce; full acceptance still requires fresh complete captures after assembly.
+
+Historical readonly delivery verifies its pinned index and every artifact byte,
+then checks the index's original 390 source identities against Git at its
+original tested HEAD and a matching retained prior approval. It neither asks
+for current execution approval nor claims current source equivalence. The
+separate readonly approval snapshot reports the current revision's status.
+A historical header-gap report or an old producer identity remains evidence of
+that original attempt, not a current blocker or fresh acceptance report.

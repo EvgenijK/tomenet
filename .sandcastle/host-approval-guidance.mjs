@@ -19,7 +19,7 @@ export async function workerHostApprovalSnapshot({root,state,scope,head,controll
  need(scope.runId===state.id&&await git('rev-parse',`refs/heads/${scope.branch}`)===head,'worker snapshot scope changed');
  const hashes={};let inputsMatch=true;
  for(const [path,id]of Object.entries(seal.sources)){const entry=await git('ls-tree',head,'--',path);if(!/^(100644|100755) blob /.test(entry)){inputsMatch=false;continue;}const raw=await blob(head,path);hashes[path]=digest(raw);if(raw.length!==id.size||hashes[path]!==id.sha256)inputsMatch=false;}
- const approval=policy.approvals?.find(a=>a.base===seal.tested_head&&a.actions?.includes(request.action)&&Object.keys(a.inputs??{}).length===390&&Object.entries(seal.sources).every(([p,id])=>a.inputs[p]===id.sha256));
+ const approval=policy.approvals?.find(a=>a.base===(seal.approved_source_head??seal.tested_head)&&a.actions?.includes(request.action)&&Object.keys(a.inputs??{}).length===390&&Object.entries(seal.sources).every(([p,id])=>a.inputs[p]===id.sha256));
  need(approval,'default request requires an independently approved sealed inventory');
  const proof=inputsMatch?await deliverySourceApproval({git,readBlob:blob,action:equivalence,approval,head}):undefined;
  const headers=['/usr/include/bits/siginfo-consts-arch.h','/usr/include/bits/timex.h','/usr/include/linux/sched/types.h'];
