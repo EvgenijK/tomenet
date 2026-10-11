@@ -40,6 +40,7 @@ import { resumeVerificationMigration } from "./verification-migration.mjs";
 import { startLinuxHostChannel } from './linux-host.mjs';
 import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
 import { workerHostDelivery, workerHostFailure } from './worker-host.mjs';
+import { hostCollectorParts, mergeHostCollectorParts } from './host-collector-parts.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -631,11 +632,11 @@ async function freezeTarget(sandbox, state) {
     for(const checkId of policy.hostCheckIds??[]) {
       const binding=requiredArtifactChecks(state).find(item=>item.id===checkId);
       if(!binding)throw new Error('Linux host: declared host check absent from accepted plan');
-      const entry=Object.entries(policy.actions).find(([,action])=>action.checkId===checkId&&action.controllerOnly===true);
-      if(!entry)throw Object.assign(new Error(`Execution preflight [HOST_APPROVAL_REQUIRED]: ${checkId} needs independent collector/source approval before freeze; preserve counters and approve delivered assembled inputs`),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});
+      let parts;
+      try{parts=hostCollectorParts(policy,binding);}catch(error){throw Object.assign(new Error(`Execution preflight [HOST_APPROVAL_REQUIRED]: ${checkId} needs independently reviewed complete collector/source parts before freeze`),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});}
       const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
       const inspected=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,inspectOnly:true});
-      await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:entry[0],driver:'wayland',renderer:'software'},binding);
+      for(const part of parts)await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:part.action,driver:part.driver,renderer:part.renderer},binding);
     }
   }
   await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state), publication: { root, branch: targetBranch } });
@@ -672,11 +673,21 @@ async function testGate(sandbox, state) {
           hostArtifact: process.env.SANDCASTLE_LINUX_HOST_POLICY ? async ({binding,target,inbox}) => {
             const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
             if(!policy.hostCheckIds?.includes(binding.id))return null;
-            const entry=Object.entries(policy.actions).find(([,action])=>action.checkId===binding.id&&action.controllerOnly===true);
-            if(!entry)throw new Error('Linux host: final collector needs independent source/binding approval');
+            const parts=hostCollectorParts(policy,binding);
             const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
             const channel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
-            try {return await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:entry[0],driver:'wayland',renderer:'software'},{binding,output:inbox});}
+            try {
+              if(parts.length===1){const part=parts[0];return await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:part.action,driver:part.driver,renderer:part.renderer},{binding,output:inbox});}
+              const captured=[];for(const spec of parts){const receipt=await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:spec.action,driver:spec.driver,renderer:spec.renderer},{binding});captured.push({spec,receipt});}
+              return await mergeHostCollectorParts({inbox,binding,target,parts:captured});
+            }
+            catch(error){
+              if(error.code==='HOST_APPROVAL_REQUIRED')throw error;
+              // Retain an honest failed standard gate without publishing host
+              // diagnostics, source paths, argv or environment as evidence.
+              await writeFile(resolve(inbox,'host-capture-failure.json'),JSON.stringify({status:'failed',checkId:binding.id,code:'HOST_CAPTURE_FAILED'})+'\n',{mode:0o600});
+              return {exitCode:1};
+            }
             finally {await channel.close();}
           } : undefined,
           assertRuntime: async target => { if (digest(await verificationRuntime(sandbox, state)) !== digest(target.runtime)) throw verificationError("VERIFICATION_RUNTIME_CHANGED", "check runtime changed"); } });

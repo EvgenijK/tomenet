@@ -53,6 +53,17 @@ It rejects frozen targets, stale reviews, symlinks and quota exhaustion, archive
 the original checkpoint and leaves the run stopped. Host execution approval and
 the separate preflight continuation must still be verified.
 
+A private host policy can declare bounded `hostParts[checkId]` for a collector.
+Every part names its independently approved action, driver, renderer and literal
+suite subset. Before freezing, the controller requires disjoint subsets covering
+the complete accepted matrix and authorizes every action at the same exact HEAD.
+It executes parts sequentially with fresh nonces and the existing per-job limits.
+The controller verifies the private receipts and artifact bytes, unchanged source
+inventory, complete consumed-input seals and every case log before publishing one
+standard evidence bundle. Child manifests and receipt identities remain in that
+bundle. A missing, stale or failed part produces a failed gate; it cannot shrink
+the accepted matrix or establish physical/milestone acceptance.
+
 ## Setup
 
 Install Node.js, npm, Docker and a host Codex CLI. Build the container image:
