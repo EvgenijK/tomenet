@@ -5,6 +5,7 @@ import { resolve, relative, dirname, isAbsolute } from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
+import { deliverySourceApproval } from './host-source-approval.mjs';
 const exec=promisify(execFile), hash=b=>createHash('sha256').update(b).digest('hex');
 const need=(ok,message)=>{if(!ok){const approval=['unapproved action','source inventory has no independent approval','full execution source tree unreviewed','independent policy review required'].includes(message);const error=new Error(approval?`Execution preflight [HOST_APPROVAL_REQUIRED]: ${message}`:`Linux host: ${message}`);if(approval)Object.assign(error,{code:'HOST_APPROVAL_REQUIRED',deterministic:true});throw error;}};
 const safe=p=>typeof p==='string'&&p.length>0&&!isAbsolute(p)&&!p.split('/').some(v=>v==='..'||v==='.'||!v);
@@ -70,7 +71,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   need(!(action.controllerOnly||action.checkId)||binding,'capture is controller-only');
   if(binding){need(action.checkId===binding.id&&JSON.stringify(action.bindingCommand)===JSON.stringify(binding.command),'unreviewed final collector binding');}
   need(await git('rev-parse',`refs/heads/${scope.branch}`)===request.head,'branch HEAD differs');await git('merge-base','--is-ancestor',scope.baseCommit,request.head);
-  let approval;
+  let approval,sourceApproval,matchedInputs=false;
   for(const candidate of policy.approvals){
    if(!candidate.actions?.includes(request.action))continue;
    try{await git('merge-base','--is-ancestor',candidate.base,request.head);}catch{continue;}
@@ -81,15 +82,19 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
     need(safe(path),'approval input path escape');const mode=await git('ls-tree',request.head,'--',path);if(!/^(100644|100755) blob /.test(mode)){matches=false;break;}
     const bytes=(await exec('git',['-C',root,'show',`${request.head}:${path}`],{encoding:'buffer',maxBuffer:24*1024*1024})).stdout;
     if(hash(bytes)!==expected){matches=false;break;}
-   }if(matches&&Object.keys(candidate.inputs??{}).length){approval=candidate;break;}
-  }need(approval,'source inventory has no independent approval');
-  // Exhaustive capture inventory: reviewed whole tree, not guessed roots. Any
-  // producer change needs a new independent approval before host execution.
-  if(binding||action.sourceWorktree)need(approval.tree===await git('rev-parse',`${request.head}^{tree}`),'full execution source tree unreviewed');
-  return {action,approval};
+   }if(matches&&Object.keys(candidate.inputs??{}).length){
+    matchedInputs=true;
+    if(binding||action.sourceWorktree){
+     sourceApproval=await deliverySourceApproval({git,readBlob:async(head,path)=>(await exec('git',['-C',root,'show',`${head}:${path}`],{encoding:'buffer',maxBuffer:24*1024*1024})).stdout,action,approval:candidate,head:request.head,binding});
+     if(!sourceApproval)continue;
+    }
+    approval=candidate;break;
+   }
+  }need(approval,matchedInputs?'full execution source tree unreviewed':'source inventory has no independent approval');
+  return {action,approval,sourceApproval};
  }
  async function perform(request,{binding,output}={}){
-  const {action}=await authorize(request,binding);
+  const {action,sourceApproval}=await authorize(request,binding);
   need(++count<=policy.maxJobs,'job limit reached');
   const job=resolve(privateDir,request.nonce);try{await mkdir(job,{mode:0o700});}catch{throw new Error('Linux host: replayed nonce');}
   const resultOut=resolve(job,'output');
@@ -111,7 +116,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   const inventory=await artifacts(resultOut);for(const required of action.requiredArtifacts??[])need(inventory[required],'incomplete artifact return');need(Object.keys(inventory).length,'empty artifact return');
   // Private results remain authoritative; shared copies are verified on read.
   if(output){const stat=await lstat(output).catch(()=>null);need(!stat||(stat.isDirectory()&&!stat.isSymbolicLink()&&!(await readdir(output)).length),'fresh empty final output required');if(!stat)await mkdir(output,{mode:0o700});for(const name of Object.keys(inventory)){await mkdir(dirname(resolve(output,name)),{recursive:true});await writeFile(resolve(output,name),await regular(resolve(resultOut,name)),{mode:0o600});}}
-  const receipt={version:1,scope,head:request.head,contractDigest:request.contractDigest,nonce:request.nonce,action:request.action,policyDigest,exitCode:result.exitCode,artifacts:inventory,output:output??resultOut};
+  const receipt={version:1,scope,head:request.head,contractDigest:request.contractDigest,nonce:request.nonce,action:request.action,policyDigest,...(sourceApproval?{sourceApproval}:{}),exitCode:result.exitCode,artifacts:inventory,output:output??resultOut};
   await atomic(resolve(job,'receipt.json'),receipt);return receipt;
  }
  const request=(job,options)=>{const result=serial.then(()=>perform(job,options)).catch(error=>{if(error.code==='HOST_APPROVAL_REQUIRED')stats.approvalFailure={code:error.code,deterministic:true};throw error;});serial=result.catch(()=>{});return result;};

@@ -21,7 +21,7 @@ async function fixture(options={}){
   if(options.capture){
     const inputs={'input.txt':hash(await readFile(resolve(root,'input.txt'))),'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))};
     policy.actions.capture={controllerOnly:true,checkId:'capture-test',bindingCommand:['node','runner.mjs'],argv:[process.execPath,'$SOURCE/runner.mjs','$OUTPUT','$HEAD','$DIGEST','$NONCE'],timeoutMs:5000,requiredArtifacts:['report.json'],inventory:{roots:['.'],files:[]}};
-    if(options.delivery){policy.actions.delivery={...policy.actions.capture,controllerOnly:false,checkId:undefined,bindingCommand:undefined,sourceWorktree:true};}
+    if(options.delivery){policy.actions.delivery={...policy.actions.capture,controllerOnly:false,checkId:undefined,bindingCommand:undefined,sourceWorktree:true,inventory:{roots:['src'],files:['input.txt','runner.mjs']},carryForward:options.carryForward};}
     policy.approvals.push({base:head,tree:options.withoutTree?undefined:execFileSync('git',['-C',root,'rev-parse','HEAD^{tree}']).toString().trim(),inputs,actions:options.delivery?['capture','delivery']:['capture']});await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
   }
   const scope={runId:'run-test',wave:7,ticket:'ticket07',branch:'master',baseCommit:head};
@@ -38,6 +38,22 @@ test('bounded job returns artifacts and rejects replay and unapproved source',as
     await writeFile(resolve(root,'input.txt'),'unreviewed');execFileSync('git',['-C',root,'add','input.txt']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','change']);
     const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();await assert.rejects(channel.request({...request,nonce:'4'.repeat(32),head}),/approval/);
   }finally{await channel.close();}
+});
+
+test('controller carries reviewed delivery approval across declared bookkeeping and executes current HEAD',async()=>{
+ const {root,channel,request}=await fixture({capture:true,delivery:true,carryForward:{version:1,metadataPaths:['docs/progress.md']}});
+ try{
+  await mkdir(resolve(root,'docs'));await writeFile(resolve(root,'docs/progress.md'),'Ticket07 completed; ticket08 claimed.');
+  execFileSync('git',['-C',root,'add','docs/progress.md']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','bookkeeping']);
+  const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
+  const {version,head:oldHead,nonce,action,driver,renderer,...scope}=request;
+  const receipt=await requestLinuxHost({directory:channel.directory,scope,head,nonce,action:'delivery',driver,renderer,output:resolve(root,'carry-return')});
+  assert.equal(receipt.exitCode,0);assert.equal(JSON.parse(await readFile(resolve(root,'carry-return/report.json'))).tested_head,head);
+  assert.equal(receipt.sourceApproval.method,'reviewed-carry-forward');assert.equal(receipt.sourceApproval.reviewedHead,oldHead);
+  assert.deepEqual(receipt.sourceApproval.changes.map(entry=>entry.path),['docs/progress.md']);
+  const binding={id:'capture-test',command:['node','runner.mjs']};
+  await assert.rejects(channel.authorize({...request,head,action:'capture'},binding),/approval|tree unreviewed/);
+ }finally{await channel.close();}
 });
 test('new consumed file and stale branch HEAD fail independent source approval',async()=>{
  const {root,channel,request}=await fixture();try{
@@ -85,4 +101,40 @@ test('reviewed delivery job uses committed real Git source without frozen final 
  const runner="import {mkdir,writeFile} from 'node:fs/promises';import {execFileSync} from 'node:child_process';const head=execFileSync('git',['rev-parse','HEAD']).toString().trim();if(head!==process.argv[3])throw Error('wrong source');await mkdir(process.argv[2]);await writeFile(process.argv[2]+'/report.json',JSON.stringify({head,finalAcceptance:false}));";
  const {channel,request}=await fixture({capture:true,delivery:true,runner});try{const receipt=await channel.request({...request,action:'delivery'});assert.equal(receipt.exitCode,0);assert.equal(JSON.parse(await readFile(resolve(receipt.output,'report.json'))).head,request.head);}finally{await channel.close();}
  const unapproved=await fixture({capture:true,delivery:true,withoutTree:true,runner});try{await assert.rejects(unapproved.channel.request({...unapproved.request,action:'delivery'}),/tree unreviewed/);assert.equal(unapproved.channel.stats.executed,0);}finally{await unapproved.channel.close();}
+});
+
+test('carry-forward refuses unreviewed code, new inputs, symlinks and executable metadata',async()=>{
+ for(const change of ['outside','input','runner','new-input','symlink','executable','missing-delegation']){
+  const {root,channel,request}=await fixture({capture:true,delivery:true,carryForward:change==='missing-delegation'?undefined:{version:1,metadataRoots:['docs']}});
+  try{
+   await mkdir(resolve(root,'docs'));
+   if(change==='input')await writeFile(resolve(root,'input.txt'),'changed');
+   else if(change==='runner')await writeFile(resolve(root,'runner.mjs'),'unreviewed producer');
+   else if(change==='new-input'){await mkdir(resolve(root,'src'));await writeFile(resolve(root,'src/header.h'),'new consumed file');}
+   else if(change==='symlink')await symlink('../runner.mjs',resolve(root,'docs/progress.md'));
+   else if(change==='outside')await writeFile(resolve(root,'new-runner.py'),'unreviewed code outside inventory');
+   else await writeFile(resolve(root,'docs/progress.md'),'bookkeeping',{mode:change==='executable'?0o755:0o644});
+   // Never stage controller-owned policy/channel files into the test tree.
+   execFileSync('git',['-C',root,'add','input.txt','runner.mjs','docs',...(change==='new-input'?['src']:[]),...(change==='outside'?['new-runner.py']:[])]);
+   execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm',change]);
+   const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
+   await assert.rejects(channel.request({...request,head,action:'delivery'}),error=>error.code==='HOST_APPROVAL_REQUIRED',change);
+   assert.equal(channel.stats.executed,0);assert.equal(channel.stats.approvalFailure.code,'HOST_APPROVAL_REQUIRED');
+  }finally{await channel.close();}
+ }
+});
+
+test('controller files outside producer inputs need exact independently reviewed bytes and modes',async()=>{
+ const code='reviewed controller version';
+ const {root,channel,request}=await fixture({capture:true,delivery:true,carryForward:{version:1,reviewedFiles:{'.sandcastle/controller.mjs':[{mode:'100644',sha256:hash(Buffer.from(code))}]}}});
+ try{
+  await mkdir(resolve(root,'.sandcastle'));await writeFile(resolve(root,'.sandcastle/controller.mjs'),code);
+  execFileSync('git',['-C',root,'add','.sandcastle/controller.mjs']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','reviewed controller']);
+  const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
+  const approved=await channel.authorize({...request,head,action:'delivery'});assert.equal(approved.sourceApproval.changes[0].reason,'independently-reviewed-file');
+  await writeFile(resolve(root,'.sandcastle/controller.mjs'),'worker modified controller');
+  execFileSync('git',['-C',root,'add','.sandcastle/controller.mjs']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','unreviewed controller']);
+  const changed=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
+  await assert.rejects(channel.authorize({...request,head:changed,action:'delivery'}),error=>error.code==='HOST_APPROVAL_REQUIRED');
+ }finally{await channel.close();}
 });

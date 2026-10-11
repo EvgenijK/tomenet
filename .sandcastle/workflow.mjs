@@ -488,11 +488,21 @@ async function openWorker(state, member, wave) {
     let hostChannel;
     try {
       const mounts=[];
-      const delivery=state.hostApprovalResumes?.findLast(record=>record.wave===wave.id&&record.branch===member.branch);
-      if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
+      let delivery=state.hostApprovalResumes?.findLast(record=>record.wave===wave.id&&record.branch===member.branch);
       if (process.env.SANDCASTLE_LINUX_HOST_POLICY) {
         const scope={runId:state.id,wave:wave.id,ticket:member.ticket.path,branch:member.branch,baseCommit:wave.baseCommit};
         hostChannel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
+        // A completed dependency may supply delivery-only evidence. Authorize
+        // current committed inputs before handing it to a downstream worker;
+        // changed producers still fail closed and final capture stays separate.
+        if(!delivery){
+          const upstream=state.hostApprovalResumes?.findLast(record=>member.ticket.blockedBy.includes(record.ticket)&&state.completedTickets.includes(record.ticket));
+          if(upstream){
+            await hostChannel.authorize({version:1,...scope,head:await git(root,'rev-parse',`refs/heads/${member.branch}`),contractDigest:state.acceptance.contractDigest,nonce:randomUUID().replaceAll('-',''),action:'interaction',driver:upstream.driver,renderer:'software'});
+            delivery=upstream;
+          }
+        }
+        if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
         const scopePath=resolve(runsDir,state.id,`host-scope-${randomUUID()}.json`);
         await writeFile(scopePath,JSON.stringify({...scope,contractDigest:state.acceptance.contractDigest}),{mode:0o600});
         mounts.push(hostChannel.mount,{hostPath:scopePath,sandboxPath:'/home/agent/.sv-host-scope.json',readonly:true},
@@ -517,7 +527,7 @@ async function implementWorker(worker, state, member) {
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
     ...(worker.linuxHostDelivery ? [`Controller independently verified the corrected delivery matrix at source HEAD ${worker.linuxHostDelivery.head}. Read /home/agent/.sv-host-delivery/index.json and the readonly software/OpenGL reports and sealed artifacts. Verify your production/driver/producer input hashes against these reports; preserve this exact tested source identity when only committing ticket bookkeeping. The verified Linux video driver is ${worker.linuxHostDelivery.driver}; select this driver for any newly approved capture. Do not repeat the matrix or request unapproved new source solely because history metadata changes. Complete only substantiated worker delivery checkboxes and retain controller/full acceptance obligations pending. Any production/driver/runner change requires a fresh independently approved test.`] : []),
-    ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. Request only independently approved sources; a changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
+    ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. The controller automatically carries delivery source approval across metadata paths and exact file versions delegated by its private reviewed policy; returned receipts record this proof. Do not rerun the interaction matrix solely to inspect a dependency or after bookkeeping changes when verified delivery is mounted. Implement ticket08 collectors and their focused checks before requesting approval of their new consumed-input closures. A changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
   ].join("\n\n");

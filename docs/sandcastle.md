@@ -5,6 +5,35 @@ run. The orchestrator in `.sandcastle/workflow.mjs` keeps the state of each task
 in ignored `.sandcastle/runs/<run-id>/state.json` and commits all final task
 artifacts to `modern_interface` after verification.
 
+## Linux host approval after assembly
+
+Delivery host actions with `sourceWorktree: true` may declare a `carryForward`
+rule in their private independently reviewed policy. The controller applies it
+before execution, without an agent retry or a quota/attempt grant. Existing
+policies remain strict when this rule is absent.
+
+The rule has `version: 1`, exact `metadataPaths`, repository-relative
+`metadataRoots`, and optionally `reviewedFiles`. Metadata exceptions accept only
+regular, non-executable `.md` and `.json` blobs. Each reviewed file lists exact
+permitted `{mode, sha256}` versions; this permits already reviewed controller
+changes after assembly without trusting worker edits. Keep metadata roots scoped
+to the run's bookkeeping and evidence, excluding contracts and execution plans.
+
+All consumed input paths and hashes must still match an independent approval.
+The reviewed base must contain that exact approved tree, and every changed tree
+entry must satisfy the delegated rule. Changed producers, new input files,
+unknown files, symlinks and unapproved executable modes remain blocked with
+`HOST_APPROVAL_REQUIRED`. The controller executes the current committed HEAD and
+records the old/new tree identities and each permitted change in the private
+receipt's `sourceApproval`; it never rewrites an old receipt to claim a new HEAD.
+
+A downstream worker may read the verified delivery of a completed prerequisite
+through a readonly mount after its current source approval is checked. This
+avoids repeating a delivery matrix solely for bookkeeping or dependency
+inspection. New collectors still need reviewed inputs. Final capture with a
+controller binding requires the exact independently approved whole tree; delivery
+carry-forward does not waive final capture, binding freeze or acceptance gates.
+
 ## Setup
 
 Install Node.js, npm, Docker and a host Codex CLI. Build the container image:
