@@ -18,6 +18,7 @@ async function fixture(options={}){
   const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim(),digest='d'.repeat(64);
   const policy={version:1,runId:'run-test',contractDigest:digest,launcherCheckout:root,launcherHead:head,launcherFiles:{'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))},approvals:[{base:head,inputs:{'input.txt':hash(Buffer.from('approved source'))},actions:['readiness']}],actions:{readiness:{argv:[process.execPath,resolve(root,'runner.mjs'),'$OUTPUT','$HEAD','$DIGEST','$NONCE'],timeoutMs:options.timeoutMs??5000,requiredArtifacts:['report.json'],inventory:{roots:['src'],files:['input.txt']}}},runtimeFiles:{[process.execPath]:hash(await readFile(process.execPath))},review:{reviewer:'independent-test',reference:'fixture'},maxJobs:8};
   const privateRun=resolve(root,'.sandcastle/runs',policy.runId);await mkdir(privateRun,{recursive:true});await writeFile(resolve(root,'.git/info/exclude'),'/.sandcastle/runs/\n');const policyPath=resolve(privateRun,'policy.json');await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
+  if(options.inspectOnly)policy.actions.readiness.inspectOnly=true;
   const pinned=root+'-launcher';execFileSync('git',['clone','-q',root,pinned]);policy.launcherCheckout=pinned;policy.actions.readiness.argv[1]=resolve(pinned,'runner.mjs');await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
   if(options.capture){
     const inputs={'input.txt':hash(await readFile(resolve(root,'input.txt'))),'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))};
@@ -39,6 +40,14 @@ test('bounded job returns artifacts and rejects replay and unapproved source',as
     await writeFile(resolve(root,'input.txt'),'unreviewed');execFileSync('git',['-C',root,'add','input.txt']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','change']);
     const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();await assert.rejects(channel.request({...request,nonce:'4'.repeat(32),head}),/approval/);
   }finally{await channel.close();}
+});
+
+test('reviewed inspection action proves source but cannot execute or consume a native job',async()=>{
+ const {channel,request}=await fixture({inspectOnly:true});try{
+  assert.ok((await channel.authorize(request)).approval);
+  await assert.rejects(channel.request(request),/inspection-only action cannot execute/);
+  assert.equal(channel.stats.executed,0);
+ }finally{await channel.close();}
 });
 
 test('controller carries reviewed delivery approval across declared bookkeeping and executes current HEAD',async()=>{

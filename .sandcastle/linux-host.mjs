@@ -96,6 +96,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
  }
  async function perform(request,{binding,output}={}){
   const {action,sourceApproval}=await authorize(request,binding);
+  need(action.inspectOnly!==true,'inspection-only action cannot execute');
   need(++count<=policy.maxJobs,'job limit reached');
   const job=resolve(privateDir,request.nonce);try{await mkdir(job,{mode:0o700});}catch{throw new Error('Linux host: replayed nonce');}
   const resultOut=resolve(job,'output');
