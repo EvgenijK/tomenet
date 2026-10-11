@@ -48,7 +48,7 @@ import { runControllerHostReview } from './controller-host-review.mjs';
 import { workerHostApprovalSnapshot, hostApprovalGuidance } from './host-approval-guidance.mjs';
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
-import { prepareHostProfileUpgrade, applyHostProfileUpgrade } from './host-profile-upgrade.mjs';
+import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile } from './host-profile-upgrade.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -903,12 +903,12 @@ export async function verifiedTree(sandbox, state) {
 export async function main() {
 rejectLegacyContinue();
 const attemptGrant = readAttemptGrant();
-const modeKeys = ["SANDCASTLE_HOST_APPROVAL_RESUME_JSON", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+const modeKeys = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_HOST_APPROVAL_RESUME_JSON", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
-const booleanModes = ["SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
+const booleanModes = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
 for (const key of booleanModes) if (process.env[key] !== undefined && process.env[key] !== "1") throw new Error(`${key} must equal 1 when explicitly requested; no checkpoint was changed`);
 if (requestedModes.length > 1) throw new Error("Continuation modes cannot be combined; authorize and validate one saved checkpoint operation at a time");
@@ -1034,8 +1034,14 @@ if(process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH||process.env.SANDCASTLE_HOST
   if(!preflightResume||requestedModes.length!==1)throw new Error('Host profile upgrade requires only SANDCASTLE_PREFLIGHT_RESUME=1 at a saved fatal schema checkpoint');
   hostProfileUpgrade=await prepareHostProfileUpgrade({root,state,newPin:{path:process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH,sha256:process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256},controllerDigest:loadedControllerDigest});
 }
+let hostRequestReconcile;
+const reconcileHostRequest=process.env.SANDCASTLE_HOST_REQUEST_RECONCILE==='1';
+if(reconcileHostRequest){
+  if(requestedModes.length!==1)throw new Error('Host request reconciliation cannot be combined with continuation modes');
+  hostRequestReconcile=await prepareHostRequestReconcile({root,state,newPin:{path:process.env.SANDCASTLE_HOST_REVIEW_PROFILE,sha256:process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
+}
 let hostProfilePin=state.hostReviewPending?.profilePin??state.hostReviewProfile;
-if(process.env.SANDCASTLE_HOST_REVIEW_PROFILE||process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256) {
+if(!reconcileHostRequest&&(process.env.SANDCASTLE_HOST_REVIEW_PROFILE||process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256)) {
   if(hostProfilePin)throw new Error('Saved host profile already pinned; do not override it through environment');
   hostProfilePin={path:process.env.SANDCASTLE_HOST_REVIEW_PROFILE,sha256:process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256};
 }
@@ -1061,6 +1067,11 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(hostRequestReconcile){
+    hostProfile=await applyHostRequestReconcile({root,state,prepared:hostRequestReconcile,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;
+    process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'controller-host-request-reconcile',status:'completed',summary:'Historical controller-generated unknown request archived; fresh independently pinned default observed, exact evidence blobs reviewed, native authority and allowances preserved.'});
+  }
   if(hostProfileUpgrade) {
     hostProfile=await applyHostProfileUpgrade({root,state,prepared:hostProfileUpgrade,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;
     process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);

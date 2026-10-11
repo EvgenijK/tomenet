@@ -81,3 +81,44 @@ The controller validates both profile pins and archives the checkpoint under
 its held lock before changing the active profile through its normal save path.
 Old policies, profiles and receipts remain immutable. A new profile cannot
 repair native code or grant execution privileges through this upgrade.
+
+### Reconcile the historical ticket08 request
+
+Run `3fd6b311`, wave8, can restore the specific controller-generated unknown
+`entry-runtime-discovery` request with `SANDCASTLE_HOST_REQUEST_RECONCILE=1`
+and `SANDCASTLE_HOST_REVIEW_PROFILE` plus
+`SANDCASTLE_HOST_REVIEW_PROFILE_SHA256`. Use this mode alone; do not combine
+it with `SANDCASTLE_PREFLIGHT_RESUME`, quota grants or worker recovery.
+The controller independently reviews the new private profile before invocation.
+
+The new profile preserves its immutable seal (390 source identities,
+1051 resources), binding, default request, capture recipes, runtime pins,
+timeouts, maxJobs and historical readonly deliveries. Its controller digest
+must equal the loaded committed controller. Changed nonconsumed controller
+files can append one independently reviewed committed version to each existing
+`carryForward.reviewedFiles` array. For this incident only, two exact version
+pins may be added under the inspect-only equivalence action:
+
+- `.scratch/sandcastle-3fd6b311/evidence/08-collector-readback/README.md`
+- `.scratch/sandcastle-3fd6b311/evidence/08-collector-readback/verification.json`
+
+These pins contain `{mode:"100644",sha256:...}` from the unchanged pending
+worker HEAD, not mutable metadata-root permissions. The new profile also has
+`requestReconciliationReview:{reviewer,reference,head,oldRequestDigest,evidenceFiles}`.
+`evidenceFiles` maps exactly those two paths to the independently reviewed
+mode/hash identities; `oldRequestDigest` uses the verification module's digest
+of the original normalized saved request. The old profile/policy/seal bytes
+remain immutable. The independently supplied raw profile SHA binds this review
+record; a provider response cannot install it.
+
+Prepare performs the actual controller host-review proposal validation with
+that profile and current branch, without launching native jobs or inference.
+Apply repeats validation under the held run lock, compares the saved checkpoint,
+fsyncs its private archive, preserves all counters/limits and records the old
+request. It observes a fresh request selected explicitly from the reviewed
+`capture-runtime-baseline` default and re-enters controller-host-review. This
+is not an alias for unknown actions. The usual independent reviewer must still
+approve the new proposal before worker dispatch. The worker sees a command-free
+readonly `/home/agent/.sv-host-approval-status.json` with current approval status;
+old header-gap reports and original producer receipts retain their historical
+meaning. Acceptance still requires fresh captures after assembly.
