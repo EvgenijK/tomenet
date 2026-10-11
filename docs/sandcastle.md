@@ -34,6 +34,16 @@ inspection. New collectors still need reviewed inputs. Final capture with a
 controller binding requires the exact independently approved whole tree; delivery
 carry-forward does not waive final capture, binding freeze or acceptance gates.
 
+For new collector delivery, a private policy may declare `readonlyDeliveries`
+with an exact target run/wave/ticket/branch, private bundle directory, separately
+pinned descriptor SHA-256 and independently reviewed source-equivalence action.
+The descriptor retains the original tested HEAD and capture identities. Before
+mounting `.sv-host-collector-delivery`, the controller authorizes current source
+equivalence without executing a job and verifies every regular artifact's bytes.
+The descriptor must also be pinned in `runtimeFiles`; symlinks, changed sources,
+stale scope and tampered artifacts are rejected. This adds no continuation grant
+or acceptance verdict and never substitutes delivery for a fresh final capture.
+
 Reading historical delivery does not require approval to execute the new source
 tree: those are separate operations. A blocked worker can return a structured
 `hostApprovalRequest: {action, driver, renderer}` after committing its delivery.
