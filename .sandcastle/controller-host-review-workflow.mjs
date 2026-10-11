@@ -3,15 +3,35 @@ import {open,lstat,realpath,readFile} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {resolve,relative,isAbsolute} from 'node:path';
 import {digest} from './verification.mjs';
-import {normalizeControllerHostRequest} from './host-capture-failure.mjs';
+import {normalizeControllerHostRequest,extractTypedHostResourceFailure} from './host-capture-failure.mjs';
 const need=(ok,message)=>{if(!ok)throw Object.assign(new Error('Execution preflight [HOST_REVIEW_REFUSED]: '+message),{code:'HOST_REVIEW_REFUSED',deterministic:true});};
 const safe=p=>p&&!isAbsolute(p)&&p.split('/').every(x=>x&&x!=='.'&&x!=='..');
-export async function readPrivateHostProfile(root,state,pin){
+async function readPrivateHostJSON(root,state,pin){
  need(pin&&typeof pin.path==='string'&&pin.path&&/^[a-f0-9]{64}$/.test(pin.sha256??''),'pinned private profile required');
  const path=resolve(pin.path),run=resolve(root,'.sandcastle/runs',state.id);need(safe(relative(run,path))&&await realpath(path)===path,'profile outside private run or symlink');
  const stat=await lstat(path);need(stat.isFile()&&stat.nlink===1&&stat.size<=4*1024*1024&&(stat.mode&0o077)===0,'regular private bounded profile required');
  const fd=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);let bytes;try{const before=await fd.stat();bytes=await fd.readFile();const after=await fd.stat();need(before.dev===stat.dev&&before.ino===stat.ino&&before.size===bytes.length&&before.size===after.size&&before.mtimeMs===after.mtimeMs&&before.ctimeMs===after.ctimeMs,'profile changed during read');}finally{await fd.close();}
- need(digest(bytes)===pin.sha256,'profile bytes differ from independent pin');const profile=JSON.parse(bytes);need(profile.id==='sv-entry-collector-v3','unknown fixed profile');return profile;
+ need(digest(bytes)===pin.sha256,'profile bytes differ from independent pin');return JSON.parse(bytes);
+}
+export async function readPrivateHostProfile(root,state,pin){
+ const profile=await readPrivateHostJSON(root,state,pin);need(profile.id==='sv-entry-collector-v3','unknown fixed profile');return profile;
+}
+const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
+const same=(a,b)=>digest(canonical(a))===digest(canonical(b));
+// Resource provenance can belong to a different immutable policy version than
+// the independently reviewed activation profile. Both raw pins are required;
+// this reads the original failed capture and grants no execution permission.
+export async function attestControllerHostResourceOrigin({root,state,resource,profile,binding}){
+ const original=resource.originRequest,pin={path:resource.originPolicyPath??profile.policyPath,sha256:resource.originPolicySha256??profile.policySha256};
+ need(original&&original.runId===state.id&&original.nonce===resource.nonce&&original.head===resource.head&&original.action===resource.action&&original.contractDigest===state.acceptance.contractDigest&&resource.policyDigest===pin.sha256,'original private resource attempt scope/policy not pinned');
+ const policy=await readPrivateHostJSON(root,state,pin),active=await readPrivateHostJSON(root,state,{path:profile.policyPath,sha256:profile.policySha256});
+ const action=policy.actions?.[original.action],current=active.actions?.[original.action];
+ const recipe=a=>{if(!Array.isArray(a?.argv))return undefined;const argv=a.argv.slice(),index=argv.indexOf('--reviewed-seal');if(index<0||argv.filter(x=>x==='--reviewed-seal').length!==1)return undefined;argv[index+1]='$PINNED_SEAL';return {argv,inventory:a.inventory,checkId:a.checkId,bindingCommand:a.bindingCommand,controllerOnly:a.controllerOnly,sourceWorktree:a.sourceWorktree,timeoutMs:a.timeoutMs};};
+ need(action&&current&&recipe(action)&&same(recipe(action),recipe(current))&&binding?.id===action.checkId&&same(binding.command,action.bindingCommand),'original capture template/inventory/binding differs from fixed activation profile');
+ const failure=await extractTypedHostResourceFailure({root,policy,policyDigest:pin.sha256,action,binding,request:original,job:resolve(root,'.sandcastle/runs',state.id,'host-jobs',resource.nonce),sourceApproval:resource.approvedSourceProof});
+ const actual=failure?.resourceProposal;
+ need(actual&&['head','nonce','graphPath','graphSha256','failedManifestPath','failedManifestSha256','policyDigest'].every(k=>actual[k]===resource[k])&&same(actual.missing,resource.missing),'original failed capture resource evidence changed');
+ return {verified:true,head:resource.head,nonce:resource.nonce,graphSha256:resource.graphSha256,failedManifestSha256:resource.failedManifestSha256,policyDigest:resource.policyDigest,originPolicyPath:pin.path};
 }
 export function hasSavedHostReviewFailure(state){
  return state.currentFailure?.diagnosticCode==='HOST_APPROVAL_REQUIRED'||state.wave?.members.some(m=>m.failure?.code==='HOST_APPROVAL_REQUIRED'&&m.failure.deterministic===true)||state.hostReviewPending?.request?.code==='HOST_APPROVAL_REQUIRED';

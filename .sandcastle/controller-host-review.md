@@ -8,7 +8,10 @@ wave records, recovery ledgers and allowances remain unchanged.
 
 Initial deployment uses `SANDCASTLE_HOST_REVIEW_PROFILE` and
 `SANDCASTLE_HOST_REVIEW_PROFILE_SHA256`. The regular mode600 JSON file must be
-inside this run's private directory. A profile contains:
+inside this run's private directory. Bootstrap a saved typed checkpoint with
+only these two profile variables and `npm run sandbox:resume -- <run-id>`;
+do not also set `SANDCASTLE_PREFLIGHT_RESUME` or an allowance/repair mode. The
+plain resume queues this phase before Docker. A profile contains:
 
 - `id: "sv-entry-collector-v3"`, `policyPath`, `policySha256`, `sealPath`,
   `sealSha256`, `bindingDigest`, `controllerDigest`.
@@ -20,7 +23,12 @@ inside this run's private directory. A profile contains:
   same390 sealed inputs and independently delegated metadata/file versions.
 - Optional `resourceProposal`: the original closed graph path/SHA, missing
   public header identities, failed-manifest path/SHA, original policy digest,
-  source proof, head/digest/nonce/action and full `originRequest`. Origin scope
+  source proof, head/digest/nonce/action and full `originRequest`. Optional
+  `originPolicyPath` + `originPolicySha256` independently pin the original
+  private capture policy when the activation profile has a different policy.
+  Both policies must retain the same capture recipe/inventory/binding (only the
+  reviewed seal-path slot can differ). Without these fields the original
+  policy defaults to the current profile policy. Origin scope
   and nonce retain the original capture; metadata HEAD renewal never relabels it.
 
 Compute the controller digest after installing the final controller commit.

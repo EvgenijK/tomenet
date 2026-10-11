@@ -50,3 +50,20 @@ test('actual host channel preserves typed missing-header request before raw25MiB
  const request={...f.args.request,head,baseCommit:head,nonce:'f'.repeat(32)},scope=Object.fromEntries(['runId','wave','ticket','branch','baseCommit'].map(k=>[k,request[k]]));const channel=await startLinuxHostChannel({root:f.root,policyPath,scope,directory:join(f.root,'.sandcastle/runs/3fd6b311/channel')});
  try{await assert.rejects(channel.request(request,{binding:f.args.binding}),error=>error.code==='HOST_APPROVAL_REQUIRED'&&error.resourceProposal.missing[f.publicPath]?.sha256===f.publicId.sha256&&!error.message.includes('artifact output limit'));assert.equal(channel.stats.executed,1);assert.equal(channel.stats.approvalFailure.resourceProposal.head,head);assert.equal(channel.stats.approvalFailure.request.action,'capture');assert.equal('nonce'in channel.stats.approvalFailure.request,false);}finally{await channel.close();}
 });
+
+test('origin policy can differ from activation policy; exact original graph/source/binding remain independently pinned',async t=>{
+ const f=await fixture(t),{attestControllerHostResourceOrigin}=await import('../.sandcastle/controller-host-review-workflow.mjs');
+ const run=join(f.root,'.sandcastle/runs/3fd6b311'),originPolicyPath=join(run,'original-policy.json'),raw=JSON.stringify(f.args.policy);await writeFile(originPolicyPath,raw,{mode:0o600});f.args.policyDigest=digest(raw);
+ const failed=await f.run(),resource={...failed.resourceProposal,originRequest:f.args.request,originPolicyPath,originPolicySha256:digest(raw)};
+ const activation=structuredClone(f.args.policy);activation.readonlyDeliveries=[{label:'historical-proof'}];activation.actions.equivalence={...activation.actions.capture,carryForward:{version:1,metadataPaths:['ticket08.md']}};
+ const policyPath=join(run,'activation-policy.json'),activeRaw=JSON.stringify(activation);await writeFile(policyPath,activeRaw,{mode:0o600});const profile={policyPath,policySha256:digest(activeRaw)},state={id:'3fd6b311',acceptance:{contractDigest:f.args.request.contractDigest}};
+ assert.notEqual(profile.policySha256,resource.originPolicySha256);const args={root:f.root,state,resource,profile,binding:f.args.binding};
+ const result=await attestControllerHostResourceOrigin(args);assert.equal(result.verified,true);assert.equal(result.policyDigest,resource.originPolicySha256);assert.equal(result.head,f.args.request.head);assert.equal(result.originPolicyPath,originPolicyPath);
+ await writeFile(originPolicyPath,raw+' ');await assert.rejects(attestControllerHostResourceOrigin(args),/bytes differ/);await writeFile(originPolicyPath,raw);
+ resource.originPolicySha256=profile.policySha256;await assert.rejects(attestControllerHostResourceOrigin(args),/scope\/policy not pinned/);resource.originPolicySha256=digest(raw);
+ activation.actions.capture.argv.push('--arbitrary');await writeFile(policyPath,JSON.stringify(activation));profile.policySha256=digest(JSON.stringify(activation));await assert.rejects(attestControllerHostResourceOrigin(args),/template\/inventory\/binding differs/);
+});
+test('origin policy defaults to activation only when their pinned bytes match',async t=>{
+ const f=await fixture(t),{attestControllerHostResourceOrigin}=await import('../.sandcastle/controller-host-review-workflow.mjs'),policyPath=join(f.root,'.sandcastle/runs/3fd6b311/policy-origin.json'),raw=JSON.stringify(f.args.policy);await writeFile(policyPath,raw,{mode:0o600});f.args.policyDigest=digest(raw);const failure=await f.run();const resource={...failure.resourceProposal,originRequest:f.args.request},profile={policyPath,policySha256:digest(raw)};
+ assert.equal((await attestControllerHostResourceOrigin({root:f.root,state:{id:'3fd6b311',acceptance:{contractDigest:f.args.request.contractDigest}},profile,resource,binding:f.args.binding})).verified,true);
+});

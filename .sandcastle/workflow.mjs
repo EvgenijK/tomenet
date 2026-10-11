@@ -45,8 +45,8 @@ import { hostCollectorParts } from './host-collector-parts.mjs';
 import { hostCollectorConstituents } from './host-collector-constituents.mjs';
 import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
 import { runControllerHostReview } from './controller-host-review.mjs';
-import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope } from './controller-host-review-workflow.mjs';
-import { extractTypedHostResourceFailure, normalizeControllerHostRequest } from './host-capture-failure.mjs';
+import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
+import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -302,13 +302,8 @@ async function controllerHostReviewPhase(state,profile,profilePin,lockPath) {
     },
     verifyReviewExecution:(envelope,proposal)=>verifyHostReviewEnvelope({root,state,envelope,proposal,controllerDigest:loadedControllerDigest,schemaPath}),
     attestResourceOrigin:async({resource})=>{
-      const original=resource.originRequest;
-      if(!original||original.nonce!==resource.nonce||original.head!==resource.head||original.action!==resource.action||resource.policyDigest!==profile.policySha256)throw refused('original private resource attempt scope/policy not pinned');
-      const policy=JSON.parse(await readFile(profile.policyPath,'utf8')),action=policy.actions[original.action],binding=requiredArtifactChecks(state).find(x=>x.id===action?.checkId);
-      const failure=await extractTypedHostResourceFailure({root,policy,policyDigest:profile.policySha256,action,binding,request:original,job:resolve(runsDir,state.id,'host-jobs',resource.nonce),sourceApproval:resource.approvedSourceProof});
-      const actual=failure?.resourceProposal;
-      if(!actual||['head','nonce','graphPath','graphSha256','failedManifestPath','failedManifestSha256','policyDigest'].some(k=>actual[k]!==resource[k])||digest(Object.entries(actual.missing).sort().map(([p,id])=>[p,id.size,id.sha256]))!==digest(Object.entries(resource.missing).sort().map(([p,id])=>[p,id.size,id.sha256])))throw refused('original failed capture resource evidence changed');
-      return {verified:true,head:resource.head,nonce:resource.nonce,graphSha256:resource.graphSha256,failedManifestSha256:resource.failedManifestSha256,policyDigest:resource.policyDigest};
+      const policy=JSON.parse(await readFile(profile.policyPath,'utf8'));
+      return attestControllerHostResourceOrigin({root,state,resource,profile,binding:requiredArtifactChecks(state).find(x=>x.id===policy.actions[resource.action]?.checkId)});
     },
     authorize:async({policyPath,request})=>{
       const policy=JSON.parse(await readFile(policyPath,'utf8')),scope=Object.fromEntries(['runId','wave','ticket','branch','baseCommit'].map(k=>[k,request[k]]));
