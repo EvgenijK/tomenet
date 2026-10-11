@@ -46,3 +46,5 @@ test('missing private evidence pauses before worker AI repair',async t=>{
  const f=await fixture(t);await rm(f.path);
  await assert.rejects(workerReadonlyHostDelivery(f),error=>error.code==='HOST_APPROVAL_REQUIRED'&&classifyFailure(error).automaticRetry===false);
 });
+
+test('changed-source mount rejection retains a controller-observed current HEAD request for review',async t=>{const f=await fixture(t);await assert.rejects(workerReadonlyHostDelivery({...f,channel:{authorize:async()=>{throw Object.assign(new Error('changed producer'),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});}}}),error=>error.code==='HOST_APPROVAL_REQUIRED'&&error.request.head===f.head&&error.request.action==='delivery-equivalence'&&error.request.ticket===f.scope.ticket&&!('nonce'in error.request));});

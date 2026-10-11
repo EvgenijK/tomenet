@@ -5,6 +5,7 @@ import {lstat,open,realpath,readdir} from 'node:fs/promises';
 import {resolve,relative,isAbsolute} from 'node:path';
 import {constants} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {normalizeControllerHostRequest} from './host-capture-failure.mjs';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const need=(ok,message)=>{if(!ok)throw Object.assign(new Error('Execution preflight [HOST_APPROVAL_REQUIRED]: Readonly host delivery: '+message),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});};
 const safe=path=>typeof path==='string'&&path&&!isAbsolute(path)&&path.split('/').every(part=>part&&part!=='.'&&part!=='..');
@@ -26,7 +27,8 @@ async function reviewedDelivery({root,policy,scope,head,channel}){
  need(/^[a-f0-9]{64}$/.test(record.descriptorSha256??'')&&policy.runtimeFiles?.[descriptor]===record.descriptorSha256,'descriptor must be pinned independently');
  const data=await bytes(descriptor,4*1024*1024);need(sha(data)===record.descriptorSha256,'descriptor changed');
  const index=JSON.parse(data);need(index.version===1&&index.purpose==='worker-delivery-readback'&&index.finalAcceptance===false&&index.contract_digest===policy.contractDigest&&['runId','wave','ticket','branch'].every(key=>index.targetScope?.[key]===scope[key]),'wrong delivery identity or scope');
- const proof=await channel.authorize({version:1,...scope,head,contractDigest:policy.contractDigest,nonce:'0'.repeat(32),action:record.sourceAction,driver:'x11',renderer:'software'});
+ const observation={version:1,...scope,head,contractDigest:policy.contractDigest,nonce:'0'.repeat(32),action:record.sourceAction,driver:'x11',renderer:'software'};
+ let proof;try{proof=await channel.authorize(observation);}catch(error){if(error.code==='HOST_APPROVAL_REQUIRED')error.request=normalizeControllerHostRequest(observation);throw error;}
  need(proof.sourceApproval?.reviewedHead===index.tested_head&&index.sources&&Object.keys(index.sources).length===Object.keys(proof.approval.inputs).length&&Object.entries(proof.approval.inputs).every(([path,hash])=>index.sources[path]?.sha256===hash),'reviewed capture source differs');
  const files=Object.entries(index.artifacts??{});need(files.length>0&&files.length<=50000,'bounded artifact inventory required');let total=0;
  const declared=new Set([descriptor,...files.map(([path])=>{need(safe(path),'artifact path');return resolve(directory,path);})]),observed=new Set();

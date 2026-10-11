@@ -58,20 +58,34 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   if(process.env.XAUTHORITY)desktop.XAUTHORITY=process.env.XAUTHORITY;
   return {kind:'bounded-linux-host',policyDigest,launcherHead:policy.launcherHead,files,tools,desktopDigest:hash(JSON.stringify(desktop))};
  }
- const identity=await runtime();if(inspectOnly)return {identity,authorize};
+ const stats={executed:0,rejected:0};
+ const identity=await runtime();if(inspectOnly)return {identity,authorize,observeApprovalRequest,stats};
  directory=resolve(directory);need(!await lstat(directory).catch(()=>null),'fresh channel directory required');
  await mkdir(directory,{recursive:true,mode:0o700});await mkdir(resolve(directory,'requests'),{mode:0o700});await mkdir(resolve(directory,'results'),{mode:0o700});
  const privateDir=resolve(root,'.sandcastle/runs',scope.runId,'host-jobs');await mkdir(privateDir,{recursive:true,mode:0o700});need(await realpath(privateDir)===privateDir,'private job directory symlink');
- const stats={executed:0,rejected:0};let closed=false,busy=false,count=0,serial=Promise.resolve();
+ let closed=false,busy=false,count=0,serial=Promise.resolve();
+ // Observation is a controller method, never a worker JSON capability. It
+ // checks the actual source prerequisite but cannot create an execution binding.
  async function authorize(request,binding){
+  const action=await checkedRequest(request);
+  need(!(action.controllerOnly||action.checkId)||binding,'capture is controller-only');
+  if(binding)need(action.checkId===binding.id&&JSON.stringify(action.bindingCommand)===JSON.stringify(binding.command),'unreviewed final collector binding');
+  return checkedSource(request,action,binding);
+ }
+ async function observeApprovalRequest(request){
+  try{const action=await checkedRequest(request);await checkedSource(request,action);return {purpose:'controller-prerequisite-observation',executionAuthorized:false};}
+  catch(error){if(error.code==='HOST_APPROVAL_REQUIRED')stats.approvalFailure={code:error.code,deterministic:true,request:normalizeControllerHostRequest(request)};throw error;}
+ }
+ async function checkedRequest(request){
   await runtime();need(request&&Object.keys(request).sort().join(',')===['version','runId','wave','ticket','branch','baseCommit','head','contractDigest','nonce','action','driver','renderer'].sort().join(','),'unknown request fields');
   need(request.version===1&&['runId','wave','ticket','branch','baseCommit'].every(k=>request[k]===scope[k]),'scope/run/wave/ticket/branch mismatch');
   need(request.contractDigest===policy.contractDigest,'wrong digest');need(/^[a-f0-9]{40}$/.test(request.head)&&/^[a-f0-9]{32}$/.test(request.nonce),'invalid HEAD/nonce');
   need(['wayland','x11'].includes(request.driver)&&['software','opengl'].includes(request.renderer),'unsupported driver/renderer');
   const action=policy.actions?.[request.action];need(action&&Array.isArray(action.argv),'unapproved action');
-  need(!(action.controllerOnly||action.checkId)||binding,'capture is controller-only');
-  if(binding){need(action.checkId===binding.id&&JSON.stringify(action.bindingCommand)===JSON.stringify(binding.command),'unreviewed final collector binding');}
   need(await git('rev-parse',`refs/heads/${scope.branch}`)===request.head,'branch HEAD differs');await git('merge-base','--is-ancestor',scope.baseCommit,request.head);
+  return action;
+ }
+ async function checkedSource(request,action,binding){
   let approval,sourceApproval,matchedInputs=false;
   for(const candidate of policy.approvals){
    if(!candidate.actions?.includes(request.action))continue;
@@ -85,7 +99,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
     if(hash(bytes)!==expected){matches=false;break;}
    }if(matches&&Object.keys(candidate.inputs??{}).length){
     matchedInputs=true;
-    if(binding||action.sourceWorktree){
+    if(binding||action.sourceWorktree||action.controllerOnly||action.checkId){
      sourceApproval=await deliverySourceApproval({git,readBlob:async(head,path)=>(await exec('git',['-C',root,'show',`${head}:${path}`],{encoding:'buffer',maxBuffer:24*1024*1024})).stdout,action,approval:candidate,head:request.head,binding});
      if(!sourceApproval)continue;
     }
@@ -136,5 +150,5 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   }
  }finally{busy=false;}}
  const timer=setInterval(()=>pump().catch(()=>{stats.rejected++;}),100);timer.unref();
- return {directory,stats,request,runtime,authorize,mount:{hostPath:directory,sandboxPath:'/home/agent/.sv-host-jobs',readonly:false},async close(){closed=true;clearInterval(timer);while(busy)await new Promise(r=>setTimeout(r,20));await serial;}};
+ return {directory,stats,request,runtime,authorize,observeApprovalRequest,mount:{hostPath:directory,sandboxPath:'/home/agent/.sv-host-jobs',readonly:false},async close(){closed=true;clearInterval(timer);while(busy)await new Promise(r=>setTimeout(r,20));await serial;}};
 }

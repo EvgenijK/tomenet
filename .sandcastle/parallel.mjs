@@ -85,7 +85,7 @@ export async function runWave(state, ops) {
     } catch (error) {
       member.status = "failed";
       member.error = error.message;
-      if (error.deterministic) member.failure = { code: error.code, deterministic: true };
+      if (error.deterministic) member.failure = { code: error.code, deterministic: true, ...(error.code==='HOST_APPROVAL_REQUIRED'&&error.request?{request:structuredClone(error.request)}:{}) };
     }
     await ops.save(state);
   }));

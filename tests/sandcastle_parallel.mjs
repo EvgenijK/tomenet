@@ -372,3 +372,11 @@ test("controller-observed host approval rejection survives a paraphrased blocked
   await assert.rejects(collectWave(s,callbacks()),error=>error.code==="HOST_APPROVAL_REQUIRED"&&error.deterministic===true);
   assert.deepEqual(s.completedTickets,[]);assert.equal(s.wave.members[0].status,"blocked");
 });
+
+test('provisioning-time host source failure preserves fresh observation despite historical worker output',async()=>{
+ const s=state([ticket('08')]);createWave(s,{baseCommit:revision,limit:1});const member=s.wave.members[0];member.head=revision;member.result=blockedResult;
+ const request={code:'HOST_APPROVAL_REQUIRED',deterministic:true,head:'b'.repeat(40),action:'delivery-equivalence',branch:member.branch,ticket:member.ticket.path};
+ await runWave(s,callbacks({run:async()=>{throw Object.assign(new Error('changed approved source'),{code:'HOST_APPROVAL_REQUIRED',deterministic:true,request});}}));
+ assert.equal(member.status,'failed');assert.deepEqual(member.failure.request,request);
+ await assert.rejects(collectWave(s,callbacks()),e=>e.code==='HOST_APPROVAL_REQUIRED'&&e.request.head===request.head);
+});

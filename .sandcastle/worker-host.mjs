@@ -17,7 +17,7 @@ export async function workerHostFailure(channel,result,base){
  if(Object.keys(request).sort().join(',')!=='action,driver,renderer'||
   !/^[a-z][a-z0-9-]{0,63}$/.test(request.action)||
   !['wayland','x11'].includes(request.driver)||!['software','opengl'].includes(request.renderer))throw new Error('Invalid structured host approval request');
- try{await channel.authorize({...base,action:request.action,driver:request.driver,renderer:request.renderer});}
+ try{await channel.observeApprovalRequest({...base,action:request.action,driver:request.driver,renderer:request.renderer});}
  catch(error){if(error.code==='HOST_APPROVAL_REQUIRED')return {code:error.code,deterministic:true,request:normalizeControllerHostRequest({...base,...request})};throw error;}
  return undefined;
 }

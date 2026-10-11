@@ -161,3 +161,20 @@ test('new collector input review request is verified without launching host code
 });
 
 test('private job storage stays run-scoped across versioned profile paths and typed rejections retain normalized identities',async()=>{const{root,channel,request}=await fixture();try{const r=await channel.request(request);assert.ok(r.output.startsWith(resolve(root,'.sandcastle/runs',request.runId,'host-jobs')+'/'));await assert.rejects(channel.request({...request,nonce:'9'.repeat(32),action:'unapproved'}),e=>e.code==='HOST_APPROVAL_REQUIRED'&&!('nonce'in e.request)&&e.request.action==='unapproved');assert.equal(channel.stats.approvalFailure.request.head,request.head);assert.equal('version'in channel.stats.approvalFailure.request,false);}finally{await channel.close();}});
+
+test('controller-only worker review observation records current committed source without granting execution',async()=>{
+ const {root,channel,request}=await fixture({capture:true});try{
+  await writeFile(resolve(root,'input.txt'),'new producer source');execFileSync('git',['-C',root,'add','input.txt']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','new producer']);
+  const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim(),base={...request,head};
+  const failure=await workerHostFailure(channel,{status:'blocked',summary:'Committed collector needs controller review',hostApprovalRequest:{action:'capture',driver:'x11',renderer:'software'}},base);
+  assert.equal(failure.code,'HOST_APPROVAL_REQUIRED');assert.equal(failure.request.head,head);assert.equal(failure.request.action,'capture');assert.equal(channel.stats.executed,0);assert.deepEqual(channel.stats.approvalFailure,failure);
+  await assert.rejects(channel.request({...base,action:'capture'}),/controller-only/);assert.equal(channel.stats.executed,0);
+ }finally{await channel.close();}
+});
+test('approved controller-only source observation remains readonly and cannot supply a binding',async()=>{
+ const {channel,request}=await fixture({capture:true});try{
+  const base={...request,action:'capture'};
+  assert.equal(await workerHostFailure(channel,{status:'blocked',hostApprovalRequest:{action:'capture',driver:'wayland',renderer:'software'}},base),undefined);
+  assert.equal(channel.stats.executed,0);await assert.rejects(channel.request(base),/controller-only/);
+ }finally{await channel.close();}
+});
