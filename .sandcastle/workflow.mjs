@@ -45,6 +45,7 @@ import { hostCollectorParts } from './host-collector-parts.mjs';
 import { hostCollectorConstituents } from './host-collector-constituents.mjs';
 import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
 import { runControllerHostReview } from './controller-host-review.mjs';
+import { workerHostApprovalSnapshot, hostApprovalGuidance } from './host-approval-guidance.mjs';
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
 import { prepareHostProfileUpgrade, applyHostProfileUpgrade } from './host-profile-upgrade.mjs';
@@ -563,7 +564,7 @@ async function openWorker(state, member, wave) {
   // Git worktree registration is serialized; agent work itself is concurrent.
   const next = provisionQueue.then(async () => {
     await recoverWorktree({ id: state.id, branch: member.branch });
-    let hostChannel,collectorDelivery;
+    let hostChannel,collectorDelivery,approvalSnapshot;
     try {
       const mounts=[];
       const delivery=workerHostDelivery(state,member,wave);
@@ -573,6 +574,12 @@ async function openWorker(state, member, wave) {
         const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
         const head=(await execFileAsync('git',['-C',root,'rev-parse',member.branch])).stdout.trim();
         collectorDelivery=await workerReadonlyHostDelivery({root,policy,scope,head,channel:hostChannel});
+        approvalSnapshot=await workerHostApprovalSnapshot({root,state,scope,head,controllerDigest:loadedControllerDigest});
+        if(approvalSnapshot){
+          const statusPath=resolve(runsDir,state.id,`host-approval-status-${randomUUID()}.json`);
+          await writeFile(statusPath,JSON.stringify(approvalSnapshot),{mode:0o600});
+          mounts.push({hostPath:statusPath,sandboxPath:'/home/agent/.sv-host-approval-status.json',readonly:true});
+        }
         if(collectorDelivery)mounts.push({hostPath:collectorDelivery.directory,sandboxPath:'/home/agent/.sv-host-collector-delivery',readonly:true});
         if(delivery)mounts.push({hostPath:delivery.deliveryDirectory,sandboxPath:'/home/agent/.sv-host-delivery',readonly:true});
         const scopePath=resolve(runsDir,state.id,`host-scope-${randomUUID()}.json`);
@@ -581,7 +588,7 @@ async function openWorker(state, member, wave) {
           {hostPath:resolve(root,'.sandcastle/linux-host-client.mjs'),sandboxPath:'/home/agent/.sv-host-client.mjs',readonly:true});
       }
       const worker=await createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider(undefined,mounts) });
-      worker.linuxHostChannel=hostChannel;worker.linuxHostDelivery=delivery;worker.linuxHostCollectorDelivery=collectorDelivery;return worker;
+      worker.linuxHostChannel=hostChannel;worker.linuxHostDelivery=delivery;worker.linuxHostCollectorDelivery=collectorDelivery;worker.hostApprovalSnapshot=approvalSnapshot;return worker;
     } catch(error) { if(hostChannel)await hostChannel.close();throw error; }
   });
   provisionQueue = next.then(() => {}, () => {});
@@ -598,12 +605,12 @@ async function implementWorker(worker, state, member) {
     tddSkill,
     state.scopeNotes || "Keep deferred acceptance checks at their originating owners; do not invent absent callers or broaden the task.",
     contractContext(state),
-    ...(worker.linuxHostDelivery ? [`Controller independently verified the corrected delivery matrix at source HEAD ${worker.linuxHostDelivery.head}. Read /home/agent/.sv-host-delivery/index.json and the readonly software/OpenGL reports and sealed artifacts. Verify your production/driver/producer input hashes against these reports; preserve this exact tested source identity when only committing ticket bookkeeping. The verified Linux video driver is ${worker.linuxHostDelivery.driver}; select this driver for any newly approved capture. Do not repeat the matrix or request unapproved new source solely because history metadata changes. Complete only substantiated worker delivery checkboxes and retain controller/full acceptance obligations pending. Any production/driver/runner change requires a fresh independently approved test.`] : []),
+    ...(worker.linuxHostDelivery ? [`Historical ticket07 delivery is mounted at /home/agent/.sv-host-delivery/index.json, originally tested at ${worker.linuxHostDelivery.head}. Preserve its original source/driver/producer identity; a current producer may correctly reject this older proof. Such rejection does not invalidate the original delivery or establish a new missing host approval. Read the separate current approval snapshot before classifying prerequisites. The historical Linux video driver is ${worker.linuxHostDelivery.driver}. Do not repeat a full matrix solely for bookkeeping; complete only substantiated delivery checkboxes and retain controller/full acceptance obligations pending.`] : []),
     ...(worker.linuxHostCollectorDelivery ? [`Independently reviewed collector delivery is mounted readonly at /home/agent/.sv-host-collector-delivery/${worker.linuxHostCollectorDelivery.descriptor}, originally tested at ${worker.linuxHostCollectorDelivery.head}. Inspect the original receipts, manifests and case logs. The private controller verified artifact bytes and current source equivalence before mounting. Use these results for supported delivery bookkeeping without repeating unchanged matrices. Preserve every original HEAD/scope/nonce; this mount does not establish acceptance at the final assembled HEAD. Any producer/source change needs fresh controller review and capture.`] : []),
     ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. The controller automatically carries delivery source approval across metadata paths and exact file versions delegated by its private reviewed policy; returned receipts record this proof. Do not rerun the interaction matrix solely to inspect a dependency or after bookkeeping changes when verified delivery is mounted. Implement ticket08 collectors and their focused checks before requesting approval of their new consumed-input closures. A changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema, including hostApprovalRequest:null when no controller host review is requested. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
-    ...(worker.linuxHostChannel ? ['When committed collector/source delivery needs controller-owned host approval, return status=blocked with hostApprovalRequest:{action:"entry-runtime-discovery" or the concrete scoped action required,driver:"x11",renderer:"software"}. The controller independently checks that request without running the job. A pinned reviewed host profile routes HOST_APPROVAL_REQUIRED to controller-host-review before worker repair; unknown producer privileges remain paused. Implement collectors, focused checks and one bounded transport proof; the complete acceptance matrix runs once after assembly through the controller, not as worker bookkeeping. Readonly historical dependency evidence remains usable at its original tested HEAD while implementing new collectors; it does not authorize current host execution.'] : []),
+    ...(worker.linuxHostChannel ? [hostApprovalGuidance(worker.hostApprovalSnapshot)] : []),
   ].join("\n\n");
   const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json", false, readOnlyAgentTimeoutMs,
     { expectedBranch: member.branch, baseCommit: state.wave.baseCommit, ticketPath: ticket.path });

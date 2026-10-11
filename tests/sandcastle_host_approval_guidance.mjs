@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile,writeFile,unlink} from 'node:fs/promises';
+import {workerHostApprovalSnapshot,hostApprovalGuidance} from '../.sandcastle/host-approval-guidance.mjs';
+import {fixture} from './sandcastle_host_request_fixture.mjs';
+import {digest} from '../.sandcastle/verification.mjs';
+test('current pinned snapshot supersedes historical missing headers without claiming fresh capture or exposing executable/private policy',async t=>{
+ const f=await fixture(t);f.state.hostReviewProfile=f.newPin;f.state.activeHostPolicy={path:f.next.policyPath,sha256:f.next.policySha256};const before=structuredClone(f.state);
+ const s=await workerHostApprovalSnapshot({...f,controllerDigest:f.controllerDigest});assert.equal(s.sourceEquivalence,true);assert.equal(s.resourceCount,1051);assert.equal(s.approvedRecoveryHeaders.length,3);assert.equal(s.finalAcceptance,false);assert.equal(s.historicalEvidenceOnly,true);assert.deepEqual(s.defaultRequest,f.profile.defaultRequest);assert.deepEqual(f.state,before);assert.ok(!JSON.stringify(s).includes('argv'));assert.ok(!JSON.stringify(s).includes(f.run));const prompt=hostApprovalGuidance(s);assert.ok(!prompt.includes('entry-runtime-discovery'));assert.ok(prompt.includes('hostApprovalRequest:null'));assert.ok(prompt.includes('capture-runtime-baseline'));assert.ok(prompt.includes('original producer HEAD'));
+});
+test('changed producer retains implementation access but snapshot refuses current source equivalence',async t=>{const f=await fixture(t);await writeFile(f.root+'/src/native-0.c','changed');await f.git('add','src/native-0.c');await f.git('commit','-m','changed producer');f.head=await f.git('rev-parse','HEAD');const s=await workerHostApprovalSnapshot(f);assert.equal(s.sourceEquivalence,false);assert.equal(s.finalAcceptance,false);});
+test('unknown default action is rejected before misleading worker guidance',async t=>{const f=await fixture(t);f.next.defaultRequest.action='entry-runtime-discovery';await f.rewrite();f.state.hostReviewProfile=f.newPin;f.state.activeHostPolicy={path:f.next.policyPath,sha256:f.next.policySha256};await assert.rejects(workerHostApprovalSnapshot(f),/existing action/);});
+test('worker wiring mounts command-free status readonly and uses generated guidance rather than invented action',async()=>{const s=await readFile(new URL('../.sandcastle/workflow.mjs',import.meta.url),'utf8');assert.ok(!s.includes('action:"entry-runtime-discovery"'));assert.match(s,/sandboxPath:'\/home\/agent\/\.sv-host-approval-status.json',readonly:true/);assert.match(s,/hostApprovalGuidance\(worker.hostApprovalSnapshot\)/);});
+
+test('missing tracked producer remains implementation work, not a controller startup failure',async t=>{const f=await fixture(t);await unlink(f.root+'/src/native-0.c');await f.git('add','src/native-0.c');await f.git('commit','-m','missing producer input');f.head=await f.git('rev-parse','HEAD');assert.equal((await workerHostApprovalSnapshot(f)).sourceEquivalence,false);});
