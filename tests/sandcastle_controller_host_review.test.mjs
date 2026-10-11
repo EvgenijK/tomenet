@@ -96,3 +96,11 @@ test('durable installation resumes across ordinary quota observations but reject
  const retained=structuredClone(f.state.budget.usageHistory);f.ops.record=async r=>f.calls.records.push(r);const result=await f.run();assert.equal(result.resumedInstallation,true);assert.equal(f.calls.review,1);assert.deepEqual(f.state.budget.usageHistory.slice(0,retained.length),retained);
  f.state.budget.usageHistory.splice(0,1);await assert.rejects(f.run(),/truncated or rewritten/);
 });
+
+test('checkpoint recovery allowance and its history cannot change during independent host review',async t=>{
+ for(const field of ['recoveryAttemptLimits','recoveryAllowanceHistory']){
+  const f=await fixture(t);f.state.recoveryAttemptLimits={checkpoint:6};f.state.recoveryAllowanceHistory=[{checkpoint:'checkpoint',limit:6,authorizationId:'original-user-grant'}];
+  f.ops.withLock=async fn=>{if(field==='recoveryAttemptLimits')f.state.recoveryAttemptLimits.checkpoint=7;else f.state.recoveryAllowanceHistory.push({authorizationId:'unapproved'});return fn();};
+  await assert.rejects(f.run(),/checkpoint\/limits changed/);assert.equal(f.calls.authorize,0);
+ }
+});

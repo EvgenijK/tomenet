@@ -48,7 +48,8 @@ import { runControllerHostReview } from './controller-host-review.mjs';
 import { workerHostApprovalSnapshot, hostApprovalGuidance } from './host-approval-guidance.mjs';
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
-import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile } from './host-profile-upgrade.mjs';
+import {readRecoveryGrant,prepareRecoveryAllowance,applyRecoveryAllowance,recoveryAttemptLimit} from './recovery-allowance.mjs';
+import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile, prepareHostRecoveryProfileRefresh } from './host-profile-upgrade.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -903,7 +904,8 @@ export async function verifiedTree(sandbox, state) {
 export async function main() {
 rejectLegacyContinue();
 const attemptGrant = readAttemptGrant();
-const modeKeys = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_HOST_APPROVAL_RESUME_JSON", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
+const recoveryGrant=readRecoveryGrant();
+const modeKeys = ["SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS", "SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_HOST_APPROVAL_RESUME_JSON", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_EXTRA_QUOTA_PERCENT", "SANDCASTLE_EXTRA_BUILD_ATTEMPTS", "SANDCASTLE_EXTRA_TEST_ATTEMPTS", "SANDCASTLE_EXTRA_REVIEW_ATTEMPTS",
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
@@ -1029,6 +1031,12 @@ if (extraQuota !== undefined) {
   applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
+let recoveryAllowance,recoveryProfileRefresh;
+if(recoveryGrant){
+  recoveryAllowance=prepareRecoveryAllowance({state,grant:recoveryGrant});
+  if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)recoveryProfileRefresh=await prepareHostRecoveryProfileRefresh({root,state,newPin:{path:process.env.SANDCASTLE_RECOVERY_PROFILE_PATH,sha256:process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
+  else if(state.hostReviewProfile){const p=await readPrivateHostProfile(root,state,state.hostReviewProfile);if(p.controllerDigest!==loadedControllerDigest)throw new Error('Recovery allowance requires a reviewed controller-only profile refresh for this changed controller');}
+}else if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)throw new Error('Recovery profile refresh requires the explicit checkpoint allowance mode');
 let hostProfileUpgrade;
 if(process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_PATH||process.env.SANDCASTLE_HOST_PROFILE_UPGRADE_SHA256) {
   if(!preflightResume||requestedModes.length!==1)throw new Error('Host profile upgrade requires only SANDCASTLE_PREFLIGHT_RESUME=1 at a saved fatal schema checkpoint');
@@ -1067,6 +1075,12 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(recoveryAllowance){
+    const refreshed=await applyRecoveryAllowance({root,state,prepared:recoveryAllowance,profileRefresh:recoveryProfileRefresh,controllerDigest:loadedControllerDigest});
+    if(refreshed){hostProfile=refreshed;hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;}
+    await save(state);
+    await appendStageEvent(runsDir,state,{stage:'recovery-allowance',status:'completed',summary:'Explicit three additional recovery decisions recorded for the saved wave8 checkpoint; consumed decisions, quota and native authority preserved.'});
+  }
   if(hostRequestReconcile){
     hostProfile=await applyHostRequestReconcile({root,state,prepared:hostRequestReconcile,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;
     process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
@@ -1230,7 +1244,7 @@ try {
       }
       beginRecovery(state, error, stage);
       await save(state);
-      await appendStageEvent(runsDir, state, { stage: "recovery", status: "running", summary: `Recovery ${state.recovery.id}: diagnosing ${category} at ${stage}, attempt ${state.recovery.attempt}/3.` });
+      await appendStageEvent(runsDir, state, { stage: "recovery", status: "running", summary: `Recovery ${state.recovery.id}: diagnosing ${category} at ${stage}, attempt ${state.recovery.attempt}/${recoveryAttemptLimit(state,state.recovery.key)}.` });
     }
   }
 } catch (error) {

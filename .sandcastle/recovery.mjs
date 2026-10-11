@@ -1,3 +1,4 @@
+import {recoveryAttemptLimit} from './recovery-allowance.mjs';
 import { isRepairPrerequisite } from './acceptance.mjs';
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -218,7 +219,8 @@ export function beginRecovery(state, error, stage = state.phase) {
   const key = state.phase === "contract" && state.recoveryPolicyVersion === 2
     ? `${checkpoint}:contract-v2:${state.contractPending?.parts?.length ?? 0}:${category}` : checkpoint;
   const attempts = (state.recoveryAttempts ??= {});
-  if ((attempts[key] ?? 0) >= 3) throw new Error("Automatic recovery made no progress after three decisions at this checkpoint");
+  const limit=recoveryAttemptLimit(state,key);
+  if ((attempts[key] ?? 0) >= limit) throw new Error(limit===3?"Automatic recovery made no progress after three decisions at this checkpoint":`Automatic recovery made no progress after ${limit} decisions at this checkpoint`);
   attempts[key] = (attempts[key] ?? 0) + 1;
   const id = state.recoverySequence = (state.recoverySequence ?? 0) + 1;
   state.recovery = { ...(error?.planReview ? { planReview: structuredClone(error.planReview) } : {}), ...(error?.planRepair ? { planRepair: structuredClone(error.planRepair) } : {}), id, key, phase: state.phase, stage, category, error: message.slice(-8000), attempt: attempts[key],

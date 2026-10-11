@@ -122,3 +122,30 @@ approve the new proposal before worker dispatch. The worker sees a command-free
 readonly `/home/agent/.sv-host-approval-status.json` with current approval status;
 old header-gap reports and original producer receipts retain their historical
 meaning. Acceptance still requires fresh captures after assembly.
+
+### Explicit wave8 recovery allowance
+
+The user-authorized three additional recovery decisions for run `3fd6b311`
+apply only to `parallel-work:8:8:0:1:0`. Invoke resume with
+`SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS=3`,
+`SANDCASTLE_RECOVERY_CHECKPOINT=parallel-work:8:8:0:1:0`, a stable
+`SANDCASTLE_RECOVERY_AUTHORIZATION_ID` and
+`SANDCASTLE_RECOVERY_AUTHORIZATION_EXPLANATION`. This is one continuation mode;
+combine it with neither quota grants nor preflight/user-resume modes.
+
+For changed controller code, additionally supply the independently reviewed
+controller-only profile via `SANDCASTLE_RECOVERY_PROFILE_PATH` and
+`SANDCASTLE_RECOVERY_PROFILE_SHA256`. The profile refresh preserves the old
+390-source/1051-resource seal, capture recipes, runtime/tool pins, historical
+deliveries, scopes and job limits. It may only update the loaded controller
+identity and append exact reviewed nonconsumed controller file versions.
+
+The controller validates both operations before mutation, rechecks raw saved
+state and held lock, fsyncs a private checkpoint archive and applies both to one
+clone with one final workflow save. `recoveryAttempts` stays at three;
+`recoveryAttemptLimits` becomes six only for this checkpoint. Durable
+`recoveryAllowanceHistory` records the authorization and original counter.
+Both fields are protected during independent host review. Other checkpoints
+retain the original three-decision bound. Changing source code or its seal is
+not authorized by this allowance: it must still enter independent host review,
+and may remain paused while a new fixed source profile is unavailable.

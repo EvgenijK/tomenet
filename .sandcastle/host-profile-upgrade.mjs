@@ -4,6 +4,7 @@ import {resolve} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {digest} from './verification.mjs';
+import {validateRecoveryAllowanceCheckpoint} from './recovery-allowance.mjs';
 import {prepareControllerHostReview} from './controller-host-review.mjs';
 import {normalizeControllerHostRequest} from './host-capture-failure.mjs';
 import {controllerExecutionIdentity} from './execution.mjs';
@@ -18,9 +19,11 @@ const controllerPath=p=>typeof p==='string'&&(/^[.]sandcastle\/[a-zA-Z0-9_.-]+\.
 const evidencePaths=['.scratch/sandcastle-3fd6b311/evidence/08-collector-readback/README.md','.scratch/sandcastle-3fd6b311/evidence/08-collector-readback/verification.json'];
 export async function prepareHostProfileUpgrade(args){return prepareProfileChange(args,false);}
 export async function prepareHostRequestReconcile(args){return prepareProfileChange(args,true);}
-async function prepareProfileChange({root,state,newPin,controllerDigest},reconcile){
- if(!reconcile)need(state.phase==='awaiting'&&state.resumePhase==='parallel-work'&&state.currentFailure?.fatalPreflight===true&&(state.currentFailure.code==='schema'||state.currentFailure.diagnosticCode==='SCHEMA_INVALID')&&!state.hostReviewPending&&!state.verificationTarget,'saved fatal schema checkpoint required');
- if(!reconcile)resumeExecutionCheckpoint(structuredClone(state));
+export async function prepareHostRecoveryProfileRefresh(args){return prepareProfileChange(args,false,true);}
+async function prepareProfileChange({root,state,newPin,controllerDigest},reconcile,recoveryRefresh=false){
+ if(!reconcile&&!recoveryRefresh)need(state.phase==='awaiting'&&state.resumePhase==='parallel-work'&&state.currentFailure?.fatalPreflight===true&&(state.currentFailure.code==='schema'||state.currentFailure.diagnosticCode==='SCHEMA_INVALID')&&!state.hostReviewPending&&!state.verificationTarget,'saved fatal schema checkpoint required');
+ if(!reconcile&&!recoveryRefresh)resumeExecutionCheckpoint(structuredClone(state));
+ if(recoveryRefresh)validateRecoveryAllowanceCheckpoint(state);
  const pending=state.hostReviewPending,request=pending?.request;
  if(reconcile){
   need(state.id==='3fd6b311'&&state.phase==='awaiting'&&state.resumePhase==='controller-host-review'&&state.currentFailure?.fatalPreflight===true&&state.currentFailure.diagnosticCode==='HOST_REVIEW_REFUSED'&&!state.verificationTarget&&!state.quotaError&&state.budget?.consumedPercent<state.budget?.limitPercent,'saved unfrozen unknown-request checkpoint with available quota required');
@@ -42,6 +45,7 @@ async function prepareProfileChange({root,state,newPin,controllerDigest},reconci
  need(oldFiles&&nextFiles&&Object.keys(oldFiles).every(p=>Object.hasOwn(nextFiles,p)),'reviewed controller versions cannot be removed');
  const policyBody=p=>{const q=structuredClone(p);delete q.actions[name].carryForward.reviewedFiles;return q;};
  need(same(policyBody(policy),policyBody(updated)),'capture recipes/approvals/runtime pins/delivery/limits changed');
+ if(recoveryRefresh)need(Object.keys(seal.external_files).length===1051,'unchanged1051 resource seal required');
  if(reconcile)need(Object.keys(seal.external_files).length===1051&&!policy.actions?.[request.action]&&!updated.actions?.[request.action],'unchanged1051 seal and unknown original action required');
  const review=next.requestReconciliationReview;
  if(reconcile)need(review&&Object.keys(review).sort().join(',')==='evidenceFiles,head,oldRequestDigest,reference,reviewer'&&typeof review.reviewer==='string'&&review.reviewer.trim()&&typeof review.reference==='string'&&review.reference.trim()&&review.head===request.head&&review.oldRequestDigest===digest(request)&&same(Object.keys(review.evidenceFiles??{}).sort(),evidencePaths.slice().sort()),'exact independently reviewed evidence record required');
@@ -61,7 +65,7 @@ async function prepareProfileChange({root,state,newPin,controllerDigest},reconci
   if(evidence){need(previous.length===0&&mode==='100644'&&same(review.evidenceFiles[path],version),'exact new evidence blob review required');evidenceChanges[path]=version;}
   else {const full=resolve(root,path);need(await realpath(full)===full&&digest(await readFile(full))===version.sha256,'reviewed version differs from committed loaded code');changes[path]=version;}
  }
- const record={version:1,reason:reconcile?'independently reviewed correction of historical controller-generated unknown request':'independently reviewed controller strict-schema repair',oldPin:structuredClone(oldPin),newPin:structuredClone(newPin),controllerDigest,oldPolicySha256:old.policySha256,newPolicySha256:next.policySha256,sealSha256:old.sealSha256,bindingDigest:old.bindingDigest,reviewedControllerFiles:changes};
+ const record={version:1,reason:recoveryRefresh?'independently reviewed controller-only repair accompanying explicit checkpoint allowance':reconcile?'independently reviewed correction of historical controller-generated unknown request':'independently reviewed controller strict-schema repair',oldPin:structuredClone(oldPin),newPin:structuredClone(newPin),controllerDigest,oldPolicySha256:old.policySha256,newPolicySha256:next.policySha256,sealSha256:old.sealSha256,bindingDigest:old.bindingDigest,reviewedControllerFiles:changes};
  if(reconcile){
   need(same(evidenceChanges,review.evidenceFiles),'both exact evidence additions required');
   const freshRequest=normalizeControllerHostRequest({...request,...next.defaultRequest});
