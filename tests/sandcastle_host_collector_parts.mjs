@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
 import {hostCollectorParts,mergeHostCollectorParts} from '../.sandcastle/host-collector-parts.mjs';
 import {digest,publishEvidence,verifyEvidence} from '../.sandcastle/verification.mjs';
-const binding={id:'entry-automated',command:['python3','collector.py'],manifestPath:'manifest.json',inputPaths:['collector.py'],expectedSuites:{software:2,opengl:2},caseArtifactSuffix:'.log'};
+const binding={id:'fixture-automated',command:['python3','collector.py'],manifestPath:'manifest.json',inputPaths:['collector.py'],expectedSuites:{software:2,opengl:2},caseArtifactSuffix:'.log'};
 const target={head:'a'.repeat(40),contractDigest:'b'.repeat(64),bindingDigest:'c'.repeat(64),controllerDigest:'d'.repeat(64),runtime:{kind:'fixture'}};
 const specs=['software','opengl'].map(label=>({label,action:'capture-'+label,driver:'x11',renderer:label,suites:[label]}));
 async function fixture(t){
@@ -49,4 +49,15 @@ test('lost no-send case, unsealed source and changed source inventory reject',as
 test('changed bytes and symlink artifacts reject even with successful producer claims',async t=>{
  const f=await fixture(t);await writeFile(resolve(f.parts[0].receipt.output,'send.log'),'forged');await assert.rejects(mergeHostCollectorParts(f),/changed private/);
  const g=await fixture(t),path=resolve(g.parts[0].receipt.output,'send.log');await rm(path);await symlink(resolve(g.parts[1].receipt.output,'send.log'),path);await assert.rejects(mergeHostCollectorParts(g),/regular private/);
+});
+test('entry matrix requires paired logical scenarios and renderer/session provenance',async t=>{
+ for(const broken of [false,'renderer','session','category']){
+  const f=await fixture(t);f.binding={...binding,id:'entry-automated'};
+  for(const part of f.parts)await editManifest(part,m=>{
+   m.renderer_part={renderer:part.spec.renderer,logical_scenarios:18,executions:18,sessions:36,full_execution_records:36,required_parts:['software','opengl'],final_acceptance:false};
+   m.logical_reports=Array.from({length:18},(_,i)=>({route:'route',category:'case-'+i,executions:[{renderer:part.spec.renderer,sessions:[{},{}]}]}));
+  });
+  if(broken)await editManifest(f.parts[1],m=>{if(broken==='renderer')m.renderer_part.renderer='software';if(broken==='session')m.logical_reports[0].executions[0].sessions.pop();if(broken==='category')m.logical_reports[0].category='different';});
+  if(broken)await assert.rejects(mergeHostCollectorParts(f));else {await mergeHostCollectorParts(f);const m=JSON.parse(await readFile(resolve(f.inbox,'manifest.json')));assert.equal(m.logical_reports.length,36);assert.equal(m.parts[1].renderer,'opengl');}
+ }
 });

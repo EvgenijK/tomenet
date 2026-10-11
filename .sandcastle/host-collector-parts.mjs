@@ -33,7 +33,7 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
  const merged={tested_head:target.head,contract_digest:target.contractDigest,inputs_unchanged:true,
   complete_consumed_input_seal:true,status:'passed',physical_acceptance:false,milestone_acceptance:false,
   input_provenance:'programmatic SDL',sources:null,artifacts:{},suites:[],parts:[]};
- const seen=new Set(),labels=new Set(),nonces=new Set();
+ const seen=new Set(),labels=new Set(),nonces=new Set();let logicalKeys;
  for(const {spec,receipt} of parts){
   need(/^[a-z][a-z0-9-]{0,63}$/.test(spec.label??'')&&!labels.has(spec.label),'unique safe part label');labels.add(spec.label);
   need(receipt.head===target.head&&receipt.contractDigest===target.contractDigest&&receipt.action===spec.action&&receipt.exitCode===0&&/^[a-f0-9]{32}$/.test(receipt.nonce??'')&&!nonces.has(receipt.nonce),'part receipt identity/failure');nonces.add(receipt.nonce);
@@ -47,6 +47,18 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
   const manifest=JSON.parse(documents[binding.manifestPath]);
   need(manifest.tested_head===target.head&&manifest.contract_digest===target.contractDigest&&manifest.nonce===receipt.nonce&&manifest.status==='passed'&&manifest.inputs_unchanged===true&&manifest.complete_consumed_input_seal===true&&manifest.physical_acceptance===false,'unsealed/stale/failed part capture');
   need(manifest.sources&&JSON.stringify(Object.keys(manifest.sources).sort())===JSON.stringify([...binding.inputPaths].sort()),'complete source inventory required');
+  if(binding.id==='entry-automated'){
+   const part=manifest.renderer_part;
+   need(part?.renderer===spec.renderer&&part.logical_scenarios===18&&part.executions===18&&part.sessions===36&&part.full_execution_records===36&&part.final_acceptance===false&&JSON.stringify(part.required_parts)===JSON.stringify(['software','opengl']),'complete renderer provenance required');
+   need(Array.isArray(manifest.logical_reports)&&manifest.logical_reports.length===18,'complete logical scenario pairing required');
+   const keys=manifest.logical_reports.map(row=>{
+    need(typeof row.route==='string'&&typeof row.category==='string'&&row.executions?.length===1&&row.executions[0].renderer===spec.renderer&&row.executions[0].sessions?.length===2,'renderer execution/session pairing required');
+    return JSON.stringify([row.route,row.category]);
+   }).sort();need(new Set(keys).size===18,'duplicate logical scenario');
+   if(logicalKeys===undefined)logicalKeys=keys;
+   need(JSON.stringify(keys)===JSON.stringify(logicalKeys),'renderer logical scenarios differ');
+   (merged.logical_reports??=[]).push(...manifest.logical_reports);
+  }
   if(merged.sources===null)merged.sources=manifest.sources;
   need(digest(merged.sources)===digest(manifest.sources),'part source identities differ');
   need(Array.isArray(manifest.suites)&&manifest.suites.length===spec.suites.length,'complete literal part suite matrix required');
@@ -61,9 +73,10 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
    const path=spec.label+'/'+name;await mkdir(dirname(resolve(inbox,path)),{recursive:true,mode:0o700});
    await writeFile(resolve(inbox,path),data,{mode:0o600,flag:'wx'});merged.artifacts[path]={size:data.length,sha256:digest(data)};
   }
-  merged.parts.push({label:spec.label,action:spec.action,nonce:receipt.nonce,policyDigest:receipt.policyDigest,manifest:spec.label+'/'+binding.manifestPath});
+  merged.parts.push({label:spec.label,action:spec.action,driver:spec.driver,renderer:spec.renderer,nonce:receipt.nonce,policyDigest:receipt.policyDigest,manifest:spec.label+'/'+binding.manifestPath});
  }
  need(seen.size===Object.keys(binding.expectedSuites).length&&Object.keys(binding.expectedSuites).every(name=>seen.has(name)),'missing accepted suite');
+ if(binding.id==='entry-automated')need(parts.length===2&&new Set(parts.map(p=>p.spec.renderer)).size===2,'both accepted renderers required');
  await writeFile(resolve(inbox,binding.manifestPath),JSON.stringify(merged,null,2)+'\n',{mode:0o600,flag:'wx'});
  return {exitCode:0};
 }
