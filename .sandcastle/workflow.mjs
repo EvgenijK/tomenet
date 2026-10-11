@@ -44,6 +44,9 @@ import { workerReadonlyHostDelivery } from './host-readonly-delivery.mjs';
 import { hostCollectorParts } from './host-collector-parts.mjs';
 import { hostCollectorConstituents } from './host-collector-constituents.mjs';
 import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
+import { runControllerHostReview } from './controller-host-review.mjs';
+import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope } from './controller-host-review-workflow.mjs';
+import { extractTypedHostResourceFailure, normalizeControllerHostRequest } from './host-capture-failure.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -144,13 +147,15 @@ async function recoveryWorktree(state) {
   await git(root, "worktree", "add", path, state.branch);
   return path;
 }
-async function recordExecution(state, role, manifest) {
+async function recordExecution(state, role, manifest, hostReview) {
   const id = randomUUID();
   const path = resolve(runsDir, state.id, `execution-${id}.json`);
-  const record = { id, role, at: new Date().toISOString(), ...manifest };
-  await writeFile(path, JSON.stringify(record, null, 2) + "\n");
+  const record = { id, role, at: new Date().toISOString(), ...manifest, ...(hostReview ? {hostReview} : {}) };
+  if(hostReview){const fd=await open(path,'wx',0o600);try{await fd.writeFile(JSON.stringify(record,null,2)+'\n');await fd.sync();}finally{await fd.close();}const dir=await open(resolve(runsDir,state.id),'r');try{await dir.sync();}finally{await dir.close();}}
+  else await writeFile(path, JSON.stringify(record, null, 2) + "\n");
   (state.executionHistory ??= []).push({ id, role, at: record.at, digest: manifest.digest, path });
   await save(state);
+  return record;
 }
 function executionContext(state, role, worktree, extra = {}) {
   return { controllerRoot: root, expectedControllerDigest: loadedControllerDigest,
@@ -217,15 +222,15 @@ async function recoveryAgent(state, context) {
   ].join("\n\n");
   return JSON.parse(await hostAgent(state, { cwd: root, role: `recovery orchestrator ${state.recovery.id}`, prompt, schemaPath: resolve(root, ".sandcastle/recovery-output.schema.json"), timeoutMs: recoveryAgentTimeoutMs }));
 }
-async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false, timeoutMs = readOnlyAgentTimeoutMs }) {
+async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = false, timeoutMs = readOnlyAgentTimeoutMs, hostReviewProposal }) {
   console.log(`Agent: ${role} (host read-only)`);
   const captured = { message: "", tokens: 0 };
   const startedAt = Date.now();
-  let result;
+  let result, reviewExecution;
   try { result = await dispatchVerified(executionContext(state, role, cwd, {
-    schemaPath, ...(role.startsWith("recovery orchestrator ") ? { expectedBranch: targetBranch, allowDirty: true } : {}),
+    schemaPath, ...(role.startsWith("recovery orchestrator ") ? { expectedBranch: targetBranch, allowDirty: true } : {}), ...(hostReviewProposal ? {expectedBranch:targetBranch,allowDirty:false} : {}),
   }), {
-    record: manifest => recordExecution(state, role, manifest), quota: () => quotaCheckpoint(state),
+    record: async manifest => { reviewExecution=await recordExecution(state, role, manifest, hostReviewProposal ? {readOnly:true,proposalFingerprint:hostReviewProposal.fingerprint} : undefined); }, quota: () => quotaCheckpoint(state),
     invoke: () => {
       const operation = execFileAsync("codex", readOnlyAgentArgs({ ...sandcastleAgentSettings(role, process.env, state.agentPolicy), schemaPath, multiAgent }),
         { cwd, env: { ...process.env, CODEX_HOME: authDir }, ...(timeoutMs ? { timeout: timeoutMs, killSignal: "SIGKILL" } : {}), maxBuffer: 8 * 1024 * 1024 });
@@ -254,8 +259,80 @@ async function hostAgent(state, { cwd, role, prompt, schemaPath, multiAgent = fa
   try { await quotaCheckpoint(state); }
   catch (error) { state.quotaError = error.message; }
   await save(state);
+  if(hostReviewProposal) {
+    const envelope={response:JSON.parse(captured.message),execution:{id:reviewExecution.id,role,readOnly:true,proposalFingerprint:hostReviewProposal.fingerprint}};
+    const path=resolve(runsDir,state.id,`host-review-result-${reviewExecution.id}.json`),raw=JSON.stringify(envelope)+'\n';
+    const fd=await open(path,'wx',0o600);try{await fd.writeFile(raw);await fd.sync();}finally{await fd.close();}
+    const dir=await open(resolve(runsDir,state.id),'r');try{await dir.sync();}finally{await dir.close();}
+    (state.hostReviewResults??=[]).push({executionId:reviewExecution.id,proposalFingerprint:hostReviewProposal.fingerprint,path,sha256:digest(raw)});await save(state);return envelope;
+  }
   return captured.message;
 }
+// A host prerequisite is controller work, not another ticket repair attempt.
+async function controllerHostReviewPhase(state,profile,profilePin,lockPath) {
+  const refused=message=>Object.assign(new Error('Execution preflight [HOST_REVIEW_REFUSED]: '+message),{code:'HOST_REVIEW_REFUSED',deterministic:true});
+  if(!profile||!profilePin)throw refused('no independently pinned fixed profile');
+  const pending=state.hostReviewPending;if(!pending)throw refused('saved controller request missing');
+  if(state.hostReviewObserved?.resourceProposal) {
+    const observed=state.hostReviewObserved,origin=observed.request;
+    const {code,deterministic,...scope}=origin;
+    profile={...profile,resourceProposal:{...observed.resourceProposal,originRequest:{version:1,...scope,nonce:observed.resourceProposal.nonce}}};
+  }
+  const schemaPath=resolve(root,'.sandcastle/controller-host-review.schema.json');
+  const assertHeld=async()=>{
+    if((await readFile(lockPath,'utf8')).trim()!==String(process.pid))throw refused('controller no longer owns run lock');
+    if(JSON.stringify(JSON.parse(await readFile(resolve(runsDir,state.id,'state.json'),'utf8')))!==JSON.stringify(state))throw refused('saved checkpoint changed while reviewing');
+  };
+  let nextPin=profilePin;
+  await runControllerHostReview({root,state,request:pending.request,profile,writerExecutionIds:(state.executionHistory??[]).filter(x=>x.role!=='controller-host-source-review').map(x=>x.id),ops:{
+    quota:()=>quotaCheckpoint(state), currentControllerDigest:async()=>{
+      const actual=(await controllerExecutionIdentity(root)).digest;if(actual!==loadedControllerDigest)throw refused('controller changed after startup');return actual;
+    },
+    withLock:async fn=>{await assertHeld();return fn();},assertCurrent:assertHeld,
+    review:async proposal=>{
+      try{return await hostAgent(state,{cwd:root,role:'controller-host-source-review',schemaPath,hostReviewProposal:proposal,prompt:[
+      'Independently review this exact controller-owned Linux host prerequisite. Read-only: use Git show and the pinned private policy/seal/public resource paths in this proposal. Do not edit files, run captures/builds, read credentials/auth/env/Xauthority contents, or change policy/limits. Return only schema JSON with exact proposal identities.',
+      'Verify unchanged390 consumed sources, declared metadata equivalence, fixed already reviewed argv/action templates and original resource graph provenance. New resources are only the exact observed public /usr/include headers. Approve only with no findings. This grants source/resource prerequisite approval, never acceptance or a full-matrix pass.',
+      JSON.stringify({proposal,profile,policyPath:profile.policyPath,sealPath:profile.sealPath}),
+    ].join('\n\n')});}catch(error){
+        if(state.quotaError)throw error;
+        (state.hostReviewHistory??=[]).push({status:'failed',proposalFingerprint:proposal.fingerprint,originalPhase:proposal.originalPhase,reason:'independent reviewer execution failed',finalAcceptance:false,at:new Date().toISOString()});await save(state);
+        throw refused('independent reviewer execution failed; unchanged proposal will not be retried');
+      }
+    },
+    verifyReviewExecution:(envelope,proposal)=>verifyHostReviewEnvelope({root,state,envelope,proposal,controllerDigest:loadedControllerDigest,schemaPath}),
+    attestResourceOrigin:async({resource})=>{
+      const original=resource.originRequest;
+      if(!original||original.nonce!==resource.nonce||original.head!==resource.head||original.action!==resource.action||resource.policyDigest!==profile.policySha256)throw refused('original private resource attempt scope/policy not pinned');
+      const policy=JSON.parse(await readFile(profile.policyPath,'utf8')),action=policy.actions[original.action],binding=requiredArtifactChecks(state).find(x=>x.id===action?.checkId);
+      const failure=await extractTypedHostResourceFailure({root,policy,policyDigest:profile.policySha256,action,binding,request:original,job:resolve(runsDir,state.id,'host-jobs',resource.nonce),sourceApproval:resource.approvedSourceProof});
+      const actual=failure?.resourceProposal;
+      if(!actual||['head','nonce','graphPath','graphSha256','failedManifestPath','failedManifestSha256','policyDigest'].some(k=>actual[k]!==resource[k])||digest(Object.entries(actual.missing).sort().map(([p,id])=>[p,id.size,id.sha256]))!==digest(Object.entries(resource.missing).sort().map(([p,id])=>[p,id.size,id.sha256])))throw refused('original failed capture resource evidence changed');
+      return {verified:true,head:resource.head,nonce:resource.nonce,graphSha256:resource.graphSha256,failedManifestSha256:resource.failedManifestSha256,policyDigest:resource.policyDigest};
+    },
+    authorize:async({policyPath,request})=>{
+      const policy=JSON.parse(await readFile(policyPath,'utf8')),scope=Object.fromEntries(['runId','wave','ticket','branch','baseCommit'].map(k=>[k,request[k]]));
+      const channel=await startLinuxHostChannel({root,policyPath,scope,inspectOnly:true});
+      const binding=policy.actions[request.action]?.controllerOnly===true?requiredArtifactChecks(state).find(x=>x.id===policy.actions[request.action]?.checkId):undefined;
+      if(policy.actions[request.action]?.controllerOnly===true&&!binding)throw refused('approved final action lacks accepted binding');
+      try{await channel.authorize(request,binding);}finally{await channel.close?.();}
+    },
+    record:async result=>{
+      if(result.status==='approved') {
+        const updated={...profile,policyPath:result.policyPath,policySha256:result.policySha256,sealPath:result.sealPath,sealSha256:result.sealSha256};delete updated.resourceProposal;
+        const path=resolve(runsDir,state.id,`host-review-profile-${result.proposalFingerprint}.json`),raw=JSON.stringify(updated)+'\n';
+        try{const fd=await open(path,'wx',0o600);try{await fd.writeFile(raw);await fd.sync();}finally{await fd.close();}}catch(error){if(error.code!=='EEXIST'||await readFile(path,'utf8')!==raw)throw error;}
+        const dir=await open(resolve(runsDir,state.id),'r');try{await dir.sync();}finally{await dir.close();}
+        nextPin={path,sha256:digest(raw)};
+      }
+      finishControllerHostReview(state,result,nextPin);await save(state);
+      if(result.status==='approved')process.env.SANDCASTLE_LINUX_HOST_POLICY=result.policyPath;
+      await appendStageEvent(runsDir,state,{stage:'controller-host-review',status:result.status==='approved'?'completed':'paused',summary:result.status==='approved'?'Independent source/resource prerequisite approved; original checkpoint and allowances retained; final acceptance remains pending.':'Independent host prerequisite review rejected; saved source and allowances retained.'});
+    },
+  }});
+  return nextPin;
+}
+
 async function recover(sandbox, state) {
   const result = await runRecovery(state, {
     decide: (context) => recoveryAgent(state, context), save,
@@ -530,7 +607,7 @@ async function implementWorker(worker, state, member) {
     ...(worker.linuxHostChannel ? ['Controller bootstrap is available through node /home/agent/.sv-host-client.mjs /home/agent/.sv-host-scope.json preflight|readiness|interaction software|opengl ABSENT_OUTPUT_DIR [wayland|x11]. The optional driver defaults to wayland; use x11 for the independently verified XWayland delivery. It uses your committed Git HEAD, private scoped requests and real Linux host execution. Docker desktop variables/sockets need not be present. The controller automatically carries delivery source approval across metadata paths and exact file versions delegated by its private reviewed policy; returned receipts record this proof. Do not rerun the interaction matrix solely to inspect a dependency or after bookkeeping changes when verified delivery is mounted. Implement ticket08 collectors and their focused checks before requesting approval of their new consumed-input closures. A changed production/runner inventory requires a new host policy approval, not arbitrary host execution. When a host policy rejects an action/source, return blocked with the typed Execution preflight [HOST_APPROVAL_REQUIRED] diagnostic; this controller-owned prerequisite is not another worker code repair. Ticket07 implements driver/capture; ticket08 implements complete collectors. Readiness is supplemental and never full interaction acceptance.'] : []),
     `Keep accepted behavior intact: ${JSON.stringify(state.acceptance.assessments.at(-1)?.preserved ?? [])}`,
     'Return only JSON matching the output schema. status=completed requires implemented behavior, focused verification, a committed result and the ticket marked Status: resolved with an Answer. If a dependency or required environment is missing, return status=blocked with the concrete reason; never claim completion.',
-    ...(worker.linuxHostChannel ? ['When committed collector/source delivery needs controller-owned host approval, return status=blocked with hostApprovalRequest:{action:"entry-runtime-discovery" or the concrete scoped action required,driver:"x11",renderer:"software"}. The controller independently checks that request against its private host policy without running the job, and pauses directly on a verified HOST_APPROVAL_REQUIRED rather than asking another worker to self-approve. Readonly historical dependency evidence remains usable at its original tested HEAD while implementing new collectors; it does not authorize current host execution.'] : []),
+    ...(worker.linuxHostChannel ? ['When committed collector/source delivery needs controller-owned host approval, return status=blocked with hostApprovalRequest:{action:"entry-runtime-discovery" or the concrete scoped action required,driver:"x11",renderer:"software"}. The controller independently checks that request without running the job. A pinned reviewed host profile routes HOST_APPROVAL_REQUIRED to controller-host-review before worker repair; unknown producer privileges remain paused. Implement collectors, focused checks and one bounded transport proof; the complete acceptance matrix runs once after assembly through the controller, not as worker bookkeeping. Readonly historical dependency evidence remains usable at its original tested HEAD while implementing new collectors; it does not authorize current host execution.'] : []),
   ].join("\n\n");
   const response = await agent(worker, state, `implementation ${ticket.path}`, prompt, ".sandcastle/ticket-output.schema.json", false, readOnlyAgentTimeoutMs,
     { expectedBranch: member.branch, baseCommit: state.wave.baseCommit, ticketPath: ticket.path });
@@ -644,7 +721,10 @@ async function freezeTarget(sandbox, state) {
       try{parts=hostCollectorParts(policy,binding);}catch(error){throw Object.assign(new Error(`Execution preflight [HOST_APPROVAL_REQUIRED]: ${checkId} needs independently reviewed complete collector/source parts before freeze`),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});}
       const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
       const inspected=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,inspectOnly:true});
-      for(const part of parts)for(const child of hostCollectorConstituents(policy,binding,part)??[part])await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:child.action,driver:child.driver,renderer:child.renderer},binding);
+      for(const part of parts)for(const child of hostCollectorConstituents(policy,binding,part)??[part]) {
+        const request={version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:child.action,driver:child.driver,renderer:child.renderer};
+        try{await inspected.authorize(request,binding);}catch(error){if(error.code==='HOST_APPROVAL_REQUIRED')error.request=normalizeControllerHostRequest(request);throw error;}
+      }
     }
   }
   await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state), publication: { root, branch: targetBranch } });
@@ -946,7 +1026,19 @@ if (extraQuota !== undefined) {
   applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
-if (state.phase === "awaiting" && !requestedModes.length) {
+let hostProfilePin=state.hostReviewPending?.profilePin??state.hostReviewProfile;
+if(process.env.SANDCASTLE_HOST_REVIEW_PROFILE||process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256) {
+  if(hostProfilePin)throw new Error('Saved host profile already pinned; do not override it through environment');
+  hostProfilePin={path:process.env.SANDCASTLE_HOST_REVIEW_PROFILE,sha256:process.env.SANDCASTLE_HOST_REVIEW_PROFILE_SHA256};
+}
+let hostProfile;
+if(hostProfilePin)hostProfile=await readPrivateHostProfile(root,state,hostProfilePin);
+if(state.activeHostPolicy&&hostProfile){
+  if(state.activeHostPolicy.path!==hostProfile.policyPath||state.activeHostPolicy.sha256!==hostProfile.policySha256)throw new Error('Execution preflight [HOST_REVIEW_REFUSED]: saved active profile differs from installed policy');
+  process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;
+}
+const hostReviewBootstrap=state.phase==='awaiting'&&!requestedModes.length&&hostProfile&&hasSavedHostReviewFailure(state);
+if (state.phase === "awaiting" && !requestedModes.length && !hostReviewBootstrap) {
   const pause = pauseStatus(state);
   throw new Error(`Run ${runId} needs human confirmation. ${pause.reason} ${pause.requiredAction} Consult sandbox:status for the matching continuation mode; no allowances were changed.`);
 }
@@ -962,7 +1054,10 @@ try {
 let sandbox;
 try {
   if (state.phase === "awaiting") {
-    if(hostApprovalResumePath) {
+    if(hostReviewBootstrap) {
+      const request=await savedControllerHostRequest(state,hostProfile,(...args)=>git(root,...args));
+      enterControllerHostReview(state,request,hostProfilePin);
+    } else if(hostApprovalResumePath) {
       const verified=await validateHostApprovalResume(root,state,hostApprovalProof,{controllerDigest:loadedControllerDigest,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY});
       await applyHostApprovalResume(root,state,verified);
     } else if(planRepairResume) {
@@ -1039,7 +1134,7 @@ try {
     if (prepareAcceptanceMigration(state)) await save(state);
     const stage = state.phase;
     try {
-      if (state.phase !== "recovery" && !sandbox) {
+      if (!["recovery","controller-host-review"].includes(state.phase) && !sandbox) {
         if (command === "resume") await recoverWorktree(state);
         const inbox = resolve(runsDir, state.id, "evidence-inbox");
         await mkdir(inbox, { recursive: true, mode: 0o700 });
@@ -1057,7 +1152,8 @@ try {
           if (JSON.stringify(artifact.contract) !== JSON.stringify(state.acceptance.contract) || artifact.digest !== state.acceptance.contractDigest) throw new Error("Acceptance: committed contract changed; human decision required");
         }
       }
-      if (state.phase === "recovery") sandbox = await recover(sandbox, state);
+      if (state.phase === "controller-host-review") { hostProfilePin=await controllerHostReviewPhase(state,hostProfile,hostProfilePin,lockPath); hostProfile=await readPrivateHostProfile(root,state,hostProfilePin); }
+      else if (state.phase === "recovery") sandbox = await recover(sandbox, state);
       else if (state.phase === "contract") await contract(sandbox, state);
       else if (state.phase === "plan") await plan(sandbox, state, state.reviewFindings ? `Fix these review findings in small tickets:\n${JSON.stringify(state.reviewFindings, null, 2)}` : "");
       else if (state.phase === "plan-validate") await acceptPlan(sandbox, state);
@@ -1088,6 +1184,7 @@ try {
         await save(state);
         await appendStageEvent(runsDir, state, { stage, ...outcome, tickets: state.wave?.members.map((member) => member.ticket.path) });
       }
+      if (state.phase==="awaiting") throw Object.assign(new Error("Execution preflight [HOST_REVIEW_REFUSED]: independent host prerequisite review rejected"),{code:"HOST_REVIEW_REFUSED",deterministic:true});
       if (state.quotaError) throw new Error(state.quotaError);
     } catch (error) {
       if (state.phase === "recovery" || stage === "recovery") throw error;
@@ -1096,6 +1193,12 @@ try {
       (state.failureHistory ??= []).push({ stage, at: new Date().toISOString(), ...state.currentFailure });
       const timing = Number.isFinite(error.elapsedMs) && Number.isFinite(error.timeoutMs) ? ` after ${Math.round(error.elapsedMs / 1000)}s (limit ${Math.round(error.timeoutMs / 1000)}s)` : "";
       await appendStageEvent(runsDir, state, { stage, status: "failed", summary: `${stage}: ${category}${timing}; saved checkpoint retained.` });
+      if(error.code==='HOST_APPROVAL_REQUIRED'&&error.deterministic===true&&error.request) {state.hostReviewObserved={request:structuredClone(error.request),...(error.resourceProposal?{resourceProposal:structuredClone(error.resourceProposal)}:{})};await save(state);}
+      if(error.code==='HOST_APPROVAL_REQUIRED'&&error.deterministic===true&&hostProfile&&!state.verificationTarget) {
+        const request=await savedControllerHostRequest(state,hostProfile,(...args)=>git(root,...args),error.request);
+        enterControllerHostReview(state,request,hostProfilePin);await save(state);continue;
+      }
+      if(stage==='controller-host-review')throw error;
       if (state.currentFailure.fatalPreflight || recoveryRestriction(state, error.message)) throw error;
       if (sandbox) {
         // Keep conflicts for the assembly agent; do not commit conflict markers.
@@ -1111,7 +1214,7 @@ try {
     try { await ensureCommit(sandbox.worktreePath, `Sandcastle: preserve interrupted task ${state.id}`); }
     catch (commitError) { console.error(`Could not preserve worktree changes: ${commitError.message}`); }
   }
-  state.resumePhase = state.phase;
+  state.resumePhase = state.phase==="awaiting" ? state.resumePhase : state.phase;
   state.phase = "awaiting";
   state.pauseReason = error.message;
   state.currentFailure = classifyFailure(error, { phase: state.resumePhase });
