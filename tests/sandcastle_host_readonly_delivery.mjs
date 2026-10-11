@@ -37,3 +37,7 @@ test('private bundle symlinks and unpinned descriptors are rejected',async t=>{
  await assert.rejects(workerReadonlyHostDelivery(f),/symlink path/);
  await assert.rejects(workerReadonlyHostDelivery({...f,policy:{...f.policy,runtimeFiles:{}}}),/pinned independently/);
 });
+test('readonly mount never exposes unreviewed extra files',async t=>{
+ const f=await fixture(t);await writeFile(resolve(f.directory,'unreviewed.json'),'{}');
+ await assert.rejects(workerReadonlyHostDelivery(f),/unlisted artifact/);
+});

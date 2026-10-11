@@ -1,7 +1,7 @@
 // A private controller review may expose delivery bytes to a worker. This is
 // inspection only: original capture identities survive, and final gates stay
 // bound to the separately assembled and frozen source.
-import {lstat,open,realpath} from 'node:fs/promises';
+import {lstat,open,realpath,readdir} from 'node:fs/promises';
 import {resolve,relative,isAbsolute} from 'node:path';
 import {constants} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -26,6 +26,9 @@ export async function workerReadonlyHostDelivery({root,policy,scope,head,channel
  const proof=await channel.authorize({version:1,...scope,head,contractDigest:policy.contractDigest,nonce:'0'.repeat(32),action:record.sourceAction,driver:'x11',renderer:'software'});
  need(proof.sourceApproval?.reviewedHead===index.tested_head&&index.sources&&Object.keys(index.sources).length===Object.keys(proof.approval.inputs).length&&Object.entries(proof.approval.inputs).every(([path,hash])=>index.sources[path]?.sha256===hash),'reviewed capture source differs');
  const files=Object.entries(index.artifacts??{});need(files.length>0&&files.length<=50000,'bounded artifact inventory required');let total=0;
+ const declared=new Set([descriptor,...files.map(([path])=>{need(safe(path),'artifact path');return resolve(directory,path);})]),observed=new Set();
+ async function inspect(path){for(const entry of await readdir(path,{withFileTypes:true})){const full=resolve(path,entry.name);need(!entry.isSymbolicLink(),'symlink path');if(entry.isDirectory())await inspect(full);else{need(entry.isFile()&&declared.has(full),'unlisted artifact');observed.add(full);need(observed.size<=50001,'bounded artifact inventory required');}}}
+ await inspect(directory);need(observed.size===declared.size,'missing artifact');
  for(const [path,identity]of files){need(safe(path)&&resolve(directory,path)!==descriptor&&Number.isSafeInteger(identity.size)&&identity.size>=0,'artifact path or size');total+=identity.size;need(total<=192*1024*1024,'delivery bundle size');const content=await bytes(resolve(directory,path),24*1024*1024);need(content.length===identity.size&&sha(content)===identity.sha256,'changed capture artifact');}
  return {directory,descriptor:relative(directory,descriptor),head:index.tested_head,sourceApproval:proof.sourceApproval,artifactCount:files.length};
 }
