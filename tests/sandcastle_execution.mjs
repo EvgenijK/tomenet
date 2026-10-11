@@ -23,7 +23,7 @@ async function fixture(t) {
   await writeFile(resolve(root, "package-lock.json"), "{}\n");
   await writeFile(resolve(root, ".sandcastle/workflow.mjs"), "// controller\n");
   await writeFile(resolve(root, ".sandcastle/checks.sh"), "#!/bin/sh\nexit 0\n");
-  await writeFile(resolve(root, ".sandcastle/ticket-output.schema.json"), '{"type":"object"}\n');
+  await writeFile(resolve(root, ".sandcastle/ticket-output.schema.json"), '{"type":"object","additionalProperties":false,"properties":{},"required":[]}\n');
   await git("add", "."); await git("commit", "-m", "Initial base");
   const oldBase = await git("rev-parse", "HEAD");
   await mkdir(resolve(root, "tickets"));
@@ -163,4 +163,14 @@ require('node:fs').readFileSync = function(path, ...args) {
   const manifest = await preflightExecution({ ...f.input, sandbox }, { ...f.ops, hostExec, imageProvenance: undefined });
   assert.equal(manifest.runtime.imageId, `sha256:${"b".repeat(64)}`);
   assert.equal(inspected.length, 2);
+});
+
+// Exercise the real dispatch/preflight path: JSON validity alone did not catch
+// the API's deterministic required-all-properties rejection.
+test("strict schema failure is deterministic and prevents quota/inference before sandbox probing",async t=>{
+ const f=await fixture(t),{dispatchVerified}=await import('../.sandcastle/dispatch.mjs');let probes=0,quota=0,inference=0,records=0;
+ const schema={type:'object',additionalProperties:false,required:['status'],properties:{status:{type:'string'},hostApprovalRequest:{type:['object','null'],additionalProperties:false,required:['action'],properties:{action:{type:'string'}}}}};
+ await writeFile(f.input.schemaPath,JSON.stringify(schema));const input={...f.input,sandbox:{exec:async()=>{probes++;throw new Error('must not probe');}}};
+ await assert.rejects(dispatchVerified(input,{preflight:x=>preflightExecution(x,f.ops),record:async()=>records++,quota:async()=>quota++,invoke:async()=>inference++}),code('SCHEMA_INVALID'));
+ assert.deepEqual([probes,records,quota,inference],[0,0,0,0]);
 });

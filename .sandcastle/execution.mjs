@@ -1,3 +1,4 @@
+import { assertStrictOutputSchema } from "./strict-output-schema.mjs";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { readFile, readdir, realpath } from "node:fs/promises";
@@ -147,7 +148,7 @@ export async function preflightExecution({ controllerRoot, worktree, expectedBra
     let schemaDigest;
     if (schemaPath) {
       const content = await checked(() => readFile(schemaPath), "SCHEMA_UNREADABLE", "Dispatch schema is not readable");
-      await checked(() => JSON.parse(content), "SCHEMA_INVALID", "Dispatch schema is not valid JSON");
+      await checked(() => assertStrictOutputSchema(JSON.parse(content)), "SCHEMA_INVALID", "Dispatch schema is not compatible with strict output objects");
       schemaDigest = sha256(content);
     }
     let runtime = { kind: "host", cliVersion: hostVersion };
