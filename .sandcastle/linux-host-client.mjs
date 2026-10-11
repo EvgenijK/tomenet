@@ -20,7 +20,7 @@ export async function requestLinuxHost({directory,scope,action='preflight',drive
  }await writeFile(resolve(output,'channel-receipt.json'),JSON.stringify({...receipt,files:undefined},null,2),{mode:0o600});return receipt;
 }
 if(process.argv[1]===import.meta.filename){
- const [scopeFile,action,renderer,output]=process.argv.slice(2),scope=JSON.parse(await readFile(scopeFile));
+ const [scopeFile,action,renderer,output,driver='wayland']=process.argv.slice(2),scope=JSON.parse(await readFile(scopeFile));
  const head=execFileSync('git',['rev-parse','HEAD']).toString().trim();
- const receipt=await requestLinuxHost({directory:'/home/agent/.sv-host-jobs',scope,head,action,renderer,output});console.log(JSON.stringify({head:receipt.head,exitCode:receipt.exitCode,nonce:receipt.nonce}));process.exitCode=receipt.exitCode;
+ const receipt=await requestLinuxHost({directory:'/home/agent/.sv-host-jobs',scope,head,action,renderer,output,driver});console.log(JSON.stringify({head:receipt.head,exitCode:receipt.exitCode,nonce:receipt.nonce}));process.exitCode=receipt.exitCode;
 }
