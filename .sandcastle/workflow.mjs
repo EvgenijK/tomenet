@@ -41,7 +41,9 @@ import { startLinuxHostChannel } from './linux-host.mjs';
 import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
 import { workerHostDelivery, workerHostFailure } from './worker-host.mjs';
 import { workerReadonlyHostDelivery } from './host-readonly-delivery.mjs';
-import { hostCollectorParts, mergeHostCollectorParts } from './host-collector-parts.mjs';
+import { hostCollectorParts } from './host-collector-parts.mjs';
+import { hostCollectorConstituents } from './host-collector-constituents.mjs';
+import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -642,7 +644,7 @@ async function freezeTarget(sandbox, state) {
       try{parts=hostCollectorParts(policy,binding);}catch(error){throw Object.assign(new Error(`Execution preflight [HOST_APPROVAL_REQUIRED]: ${checkId} needs independently reviewed complete collector/source parts before freeze`),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});}
       const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
       const inspected=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,inspectOnly:true});
-      for(const part of parts)await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:part.action,driver:part.driver,renderer:part.renderer},binding);
+      for(const part of parts)for(const child of hostCollectorConstituents(policy,binding,part)??[part])await inspected.authorize({version:1,...scope,head,contractDigest:state.acceptance.contractDigest,nonce:'0'.repeat(32),action:child.action,driver:child.driver,renderer:child.renderer},binding);
     }
   }
   await freezeVerificationTarget(state, sandbox.worktreePath, { controllerDigest: loadedControllerDigest, runtime: await verificationRuntime(sandbox, state), publication: { root, branch: targetBranch } });
@@ -676,16 +678,12 @@ async function testGate(sandbox, state) {
     if (state.verificationVersion === 1) {
       for (const binding of requiredArtifactChecks(state)) {
         const receipt = await executeArtifactCheck(sandbox, state, binding, { runDirectory: resolve(runsDir, state.id), save,
-          hostArtifact: process.env.SANDCASTLE_LINUX_HOST_POLICY ? async ({binding,target,inbox}) => {
+          hostArtifact: process.env.SANDCASTLE_LINUX_HOST_POLICY ? async ({binding,target,inbox,inputs}) => {
             const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
             if(!policy.hostCheckIds?.includes(binding.id))return null;
-            const parts=hostCollectorParts(policy,binding);
             const scope={runId:state.id,wave:0,ticket:binding.producedBy,branch:state.branch,baseCommit:state.baseCommit};
-            const channel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
             try {
-              if(parts.length===1){const part=parts[0];return await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:part.action,driver:part.driver,renderer:part.renderer},{binding,output:inbox});}
-              const captured=[];for(const spec of parts){const receipt=await channel.request({version:1,...scope,head:target.head,contractDigest:target.contractDigest,nonce:randomUUID().replaceAll('-',''),action:spec.action,driver:spec.driver,renderer:spec.renderer},{binding});captured.push({spec,receipt});}
-              return await mergeHostCollectorParts({inbox,binding,target,parts:captured});
+              return await captureHostCollectorParts({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,policy,binding,target,inbox,scope,runDirectory:resolve(runsDir,state.id),inputHashes:inputs});
             }
             catch(error){
               if(error.code==='HOST_APPROVAL_REQUIRED')throw error;
@@ -694,7 +692,6 @@ async function testGate(sandbox, state) {
               await writeFile(resolve(inbox,'host-capture-failure.json'),JSON.stringify({status:'failed',checkId:binding.id,code:'HOST_CAPTURE_FAILED'})+'\n',{mode:0o600});
               return {exitCode:1};
             }
-            finally {await channel.close();}
           } : undefined,
           assertRuntime: async target => { if (digest(await verificationRuntime(sandbox, state)) !== digest(target.runtime)) throw verificationError("VERIFICATION_RUNTIME_CHANGED", "check runtime changed"); } });
         (state.artifactEvidence ??= []).push(receipt); await save(state);

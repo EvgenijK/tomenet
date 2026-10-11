@@ -4,6 +4,7 @@ import {mkdir,open,readFile,writeFile,lstat} from 'node:fs/promises';
 import {resolve,dirname,isAbsolute} from 'node:path';
 import {constants} from 'node:fs';
 import {digest} from './verification.mjs';
+import {hostCollectorConstituents,assertHostCollectorAggregation} from './host-collector-constituents.mjs';
 const need=(ok,message)=>{if(!ok)throw new Error('Host collector parts: '+message);};
 const safe=path=>typeof path==='string'&&path&&!isAbsolute(path)&&path.split('/').every(p=>p&&p!=='.'&&p!=='..');
 export function hostCollectorParts(policy,binding){
@@ -19,6 +20,7 @@ export function hostCollectorParts(policy,binding){
   need(/^[a-z][a-z0-9-]{0,63}$/.test(part.label??'')&&!labels.has(part.label),'unique safe part label required');labels.add(part.label);
   need(['x11','wayland'].includes(part.driver)&&['software','opengl'].includes(part.renderer),'explicit driver/renderer required');
   const action=policy.actions?.[part.action];need(action?.controllerOnly===true&&action.checkId===binding.id&&digest(action.bindingCommand)===digest(binding.command),'part source/action binding differs');
+  hostCollectorConstituents(policy,binding,part);
   need(Array.isArray(part.suites)&&part.suites.length>0,'literal part suites required');
   for(const name of part.suites){need(Object.hasOwn(binding.expectedSuites,name)&&!suites.has(name),'missing/duplicate/unknown part suite');suites.add(name);}
  }
@@ -47,6 +49,16 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
   const manifest=JSON.parse(documents[binding.manifestPath]);
   need(manifest.tested_head===target.head&&manifest.contract_digest===target.contractDigest&&manifest.nonce===receipt.nonce&&manifest.status==='passed'&&manifest.inputs_unchanged===true&&manifest.complete_consumed_input_seal===true&&manifest.physical_acceptance===false,'unsealed/stale/failed part capture');
   need(manifest.sources&&JSON.stringify(Object.keys(manifest.sources).sort())===JSON.stringify([...binding.inputPaths].sort()),'complete source inventory required');
+  if(spec.constituents){
+   assertHostCollectorAggregation({spec,receipt,manifest});
+   need(receipt.aggregation===true&&manifest.aggregation&&digest(manifest.aggregation.origins)===digest(receipt.children),'original constituent receipts required');
+   need(Array.isArray(receipt.children)&&receipt.children.length===spec.constituents.children.length,'complete constituent receipt set required');
+   for(const [index,child]of receipt.children.entries()){
+    const declared=spec.constituents.children[index];
+    need(child.head===target.head&&child.contractDigest===target.contractDigest&&child.action===declared.action&&child.label===declared.label&&child.exitCode===0&&/^[a-f0-9]{32}$/.test(child.nonce??'')&&!nonces.has(child.nonce),'stale/failed/replayed constituent receipt');nonces.add(child.nonce);
+    need(safe(child.manifest)&&documents[child.manifest],'original constituent manifest absent');
+   }
+  }else need(!receipt.aggregation&&!manifest.aggregation,'undeclared constituent aggregation');
   if(binding.id==='entry-automated'){
    const part=manifest.renderer_part;
    need(part?.renderer===spec.renderer&&part.logical_scenarios===18&&part.executions===18&&part.sessions===36&&part.full_execution_records===36&&part.final_acceptance===false&&JSON.stringify(part.required_parts)===JSON.stringify(['software','opengl']),'complete renderer provenance required');
@@ -77,7 +89,7 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
    const path=spec.label+'/'+name;await mkdir(dirname(resolve(inbox,path)),{recursive:true,mode:0o700});
    await writeFile(resolve(inbox,path),data,{mode:0o600,flag:'wx'});merged.artifacts[path]={size:data.length,sha256:digest(data)};
   }
-  merged.parts.push({label:spec.label,action:spec.action,driver:spec.driver,renderer:spec.renderer,nonce:receipt.nonce,policyDigest:receipt.policyDigest,manifest:spec.label+'/'+binding.manifestPath});
+  merged.parts.push({label:spec.label,action:spec.action,driver:spec.driver,renderer:spec.renderer,nonce:receipt.nonce,policyDigest:receipt.policyDigest,manifest:spec.label+'/'+binding.manifestPath,...(receipt.aggregation?{aggregation:true,children:receipt.children}: {})});
  }
  need(seen.size===Object.keys(binding.expectedSuites).length&&Object.keys(binding.expectedSuites).every(name=>seen.has(name)),'missing accepted suite');
  if(binding.id==='entry-automated'){

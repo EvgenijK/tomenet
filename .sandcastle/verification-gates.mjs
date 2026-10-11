@@ -73,7 +73,7 @@ export async function executeArtifactCheck(sandbox,state,binding,{runDirectory,s
   const inputs=await inputIdentity(sandbox.worktreePath,binding);
   state.artifactAttempt={checkId:binding.id,attemptId,target,inputs,status:'running'};await save(state);
   const command=[...binding.command,`/home/agent/.sandcastle-evidence-out/${attemptId}`].map(quote).join(' ');
-  const routed=hostArtifact ? await hostArtifact({binding,target,inbox}) : null;
+  const routed=hostArtifact ? await hostArtifact({binding,target,inbox,inputs}) : null;
   const result=routed??await sandbox.exec(command);
   await assertVerificationTarget(state,sandbox.worktreePath);if(assertRuntime)await assertRuntime(target);
   need(digest(await inputIdentity(sandbox.worktreePath,binding))===digest(inputs),'EVIDENCE_STALE','runner inputs changed');
