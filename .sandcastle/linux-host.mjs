@@ -6,6 +6,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 import { deliverySourceApproval } from './host-source-approval.mjs';
+import {extractTypedHostResourceFailure,normalizeControllerHostRequest} from './host-capture-failure.mjs';
 const exec=promisify(execFile), hash=b=>createHash('sha256').update(b).digest('hex');
 const need=(ok,message)=>{if(!ok){const approval=['unapproved action','source inventory has no independent approval','full execution source tree unreviewed','independent policy review required'].includes(message);const error=new Error(approval?`Execution preflight [HOST_APPROVAL_REQUIRED]: ${message}`:`Linux host: ${message}`);if(approval)Object.assign(error,{code:'HOST_APPROVAL_REQUIRED',deterministic:true});throw error;}};
 const safe=p=>typeof p==='string'&&p.length>0&&!isAbsolute(p)&&!p.split('/').some(v=>v==='..'||v==='.'||!v);
@@ -60,7 +61,7 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
  const identity=await runtime();if(inspectOnly)return {identity,authorize};
  directory=resolve(directory);need(!await lstat(directory).catch(()=>null),'fresh channel directory required');
  await mkdir(directory,{recursive:true,mode:0o700});await mkdir(resolve(directory,'requests'),{mode:0o700});await mkdir(resolve(directory,'results'),{mode:0o700});
- const privateDir=resolve(dirname(policyPath),'host-jobs');await mkdir(privateDir,{recursive:true,mode:0o700});need(await realpath(privateDir)===privateDir,'private job directory symlink');
+ const privateDir=resolve(root,'.sandcastle/runs',scope.runId,'host-jobs');await mkdir(privateDir,{recursive:true,mode:0o700});need(await realpath(privateDir)===privateDir,'private job directory symlink');
  const stats={executed:0,rejected:0};let closed=false,busy=false,count=0,serial=Promise.resolve();
  async function authorize(request,binding){
   await runtime();need(request&&Object.keys(request).sort().join(',')===['version','runId','wave','ticket','branch','baseCommit','head','contractDigest','nonce','action','driver','renderer'].sort().join(','),'unknown request fields');
@@ -113,13 +114,14 @@ export async function startLinuxHostChannel({root,policyPath,scope,directory,ins
   try{result=await invoke(argv,source,env,action.timeoutMs);if(materialized)need(!(await exec('git',['-C',source,'status','--porcelain','--untracked-files=no'])).stdout.trim()&&(await exec('git',['-C',source,'rev-parse','HEAD'])).stdout.trim()===request.head,'capture source changed');}
   finally{if(materialized)await exec('git',['-C',root,'worktree','remove','--force',source]);}
   await runtime();
+  if(result.exitCode!==0){const failure=await extractTypedHostResourceFailure({root,policy,policyDigest,action,binding,request,job,sourceApproval});if(failure)throw Object.assign(new Error('Execution preflight [HOST_APPROVAL_REQUIRED]: '+failure.reason),failure);}
   const inventory=await artifacts(resultOut);for(const required of action.requiredArtifacts??[])need(inventory[required],'incomplete artifact return');need(Object.keys(inventory).length,'empty artifact return');
   // Private results remain authoritative; shared copies are verified on read.
   if(output){const stat=await lstat(output).catch(()=>null);need(!stat||(stat.isDirectory()&&!stat.isSymbolicLink()&&!(await readdir(output)).length),'fresh empty final output required');if(!stat)await mkdir(output,{mode:0o700});for(const name of Object.keys(inventory)){await mkdir(dirname(resolve(output,name)),{recursive:true});await writeFile(resolve(output,name),await regular(resolve(resultOut,name)),{mode:0o600});}}
   const receipt={version:1,scope,head:request.head,contractDigest:request.contractDigest,nonce:request.nonce,action:request.action,policyDigest,...(sourceApproval?{sourceApproval}:{}),exitCode:result.exitCode,artifacts:inventory,output:output??resultOut};
   await atomic(resolve(job,'receipt.json'),receipt);return receipt;
  }
- const request=(job,options)=>{const result=serial.then(()=>perform(job,options)).catch(error=>{if(error.code==='HOST_APPROVAL_REQUIRED')stats.approvalFailure={code:error.code,deterministic:true};throw error;});serial=result.catch(()=>{});return result;};
+ const request=(job,options)=>{const result=serial.then(()=>perform(job,options)).catch(error=>{if(error.code==='HOST_APPROVAL_REQUIRED'){error.request??=normalizeControllerHostRequest(job);stats.approvalFailure={code:error.code,deterministic:true,request:structuredClone(error.request),...(error.resourceProposal?{resourceProposal:structuredClone(error.resourceProposal)}:{})};}throw error;});serial=result.catch(()=>{});return result;};
  async function pump(){if(closed||busy)return;busy=true;try{
   for(const name of (await readdir(resolve(directory,'requests'))).sort().slice(0,16)){
    if(!/^[a-f0-9]{32}\.json$/.test(name))continue;

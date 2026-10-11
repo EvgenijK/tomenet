@@ -17,7 +17,7 @@ async function fixture(options={}){
   execFileSync('git',['-C',root,'add','.']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture']);
   const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim(),digest='d'.repeat(64);
   const policy={version:1,runId:'run-test',contractDigest:digest,launcherCheckout:root,launcherHead:head,launcherFiles:{'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))},approvals:[{base:head,inputs:{'input.txt':hash(Buffer.from('approved source'))},actions:['readiness']}],actions:{readiness:{argv:[process.execPath,resolve(root,'runner.mjs'),'$OUTPUT','$HEAD','$DIGEST','$NONCE'],timeoutMs:options.timeoutMs??5000,requiredArtifacts:['report.json'],inventory:{roots:['src'],files:['input.txt']}}},runtimeFiles:{[process.execPath]:hash(await readFile(process.execPath))},review:{reviewer:'independent-test',reference:'fixture'},maxJobs:8};
-  const policyPath=resolve(root,'policy.json');await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
+  const privateRun=resolve(root,'.sandcastle/runs',policy.runId);await mkdir(privateRun,{recursive:true});await writeFile(resolve(root,'.git/info/exclude'),'/.sandcastle/runs/\n');const policyPath=resolve(privateRun,'policy.json');await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
   const pinned=root+'-launcher';execFileSync('git',['clone','-q',root,pinned]);policy.launcherCheckout=pinned;policy.actions.readiness.argv[1]=resolve(pinned,'runner.mjs');await writeFile(policyPath,JSON.stringify(policy),{mode:0o600});
   if(options.capture){
     const inputs={'input.txt':hash(await readFile(resolve(root,'input.txt'))),'runner.mjs':hash(await readFile(resolve(root,'runner.mjs')))};
@@ -129,7 +129,7 @@ test('controller files outside producer inputs need exact independently reviewed
  const code='reviewed controller version';
  const {root,channel,request}=await fixture({capture:true,delivery:true,carryForward:{version:1,reviewedFiles:{'.sandcastle/controller.mjs':[{mode:'100644',sha256:hash(Buffer.from(code))}]}}});
  try{
-  await mkdir(resolve(root,'.sandcastle'));await writeFile(resolve(root,'.sandcastle/controller.mjs'),code);
+  await mkdir(resolve(root,'.sandcastle'),{recursive:true});await writeFile(resolve(root,'.sandcastle/controller.mjs'),code);
   execFileSync('git',['-C',root,'add','.sandcastle/controller.mjs']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','reviewed controller']);
   const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
   const approved=await channel.authorize({...request,head,action:'delivery'});assert.equal(approved.sourceApproval.changes[0].reason,'independently-reviewed-file');
@@ -147,6 +147,8 @@ test('new collector input review request is verified without launching host code
   execFileSync('git',['-C',root,'add','src']);execFileSync('git',['-C',root,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','collector input']);
   const head=execFileSync('git',['-C',root,'rev-parse','HEAD']).toString().trim();
   const failure=await workerHostFailure(channel,{status:'blocked',summary:'Needs review of committed collector.',hostApprovalRequest:{action:'delivery',driver:'x11',renderer:'software'}},{...request,head});
-  assert.deepEqual(failure,{code:'HOST_APPROVAL_REQUIRED',deterministic:true});assert.equal(channel.stats.executed,0);
+  assert.deepEqual(failure,{code:'HOST_APPROVAL_REQUIRED',deterministic:true,request:{code:'HOST_APPROVAL_REQUIRED',deterministic:true,runId:request.runId,wave:request.wave,ticket:request.ticket,branch:request.branch,baseCommit:request.baseCommit,head,action:'delivery',driver:'x11',renderer:'software',contractDigest:request.contractDigest}});assert.equal(channel.stats.executed,0);
  }finally{await channel.close();}
 });
+
+test('private job storage stays run-scoped across versioned profile paths and typed rejections retain normalized identities',async()=>{const{root,channel,request}=await fixture();try{const r=await channel.request(request);assert.ok(r.output.startsWith(resolve(root,'.sandcastle/runs',request.runId,'host-jobs')+'/'));await assert.rejects(channel.request({...request,nonce:'9'.repeat(32),action:'unapproved'}),e=>e.code==='HOST_APPROVAL_REQUIRED'&&!('nonce'in e.request)&&e.request.action==='unapproved');assert.equal(channel.stats.approvalFailure.request.head,request.head);assert.equal('version'in channel.stats.approvalFailure.request,false);}finally{await channel.close();}});
