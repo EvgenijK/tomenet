@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {workerReadonlyHostDelivery} from '../.sandcastle/host-readonly-delivery.mjs';
+import {classifyFailure} from '../.sandcastle/failure.mjs';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 async function fixture(t){
  const root=await mkdtemp(resolve(tmpdir(),'host-readonly-'));t.after(()=>rm(root,{recursive:true,force:true}));
@@ -40,4 +41,8 @@ test('private bundle symlinks and unpinned descriptors are rejected',async t=>{
 test('readonly mount never exposes unreviewed extra files',async t=>{
  const f=await fixture(t);await writeFile(resolve(f.directory,'unreviewed.json'),'{}');
  await assert.rejects(workerReadonlyHostDelivery(f),/unlisted artifact/);
+});
+test('missing private evidence pauses before worker AI repair',async t=>{
+ const f=await fixture(t);await rm(f.path);
+ await assert.rejects(workerReadonlyHostDelivery(f),error=>error.code==='HOST_APPROVAL_REQUIRED'&&classifyFailure(error).automaticRetry===false);
 });

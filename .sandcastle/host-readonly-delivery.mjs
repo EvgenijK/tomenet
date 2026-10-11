@@ -6,7 +6,7 @@ import {resolve,relative,isAbsolute} from 'node:path';
 import {constants} from 'node:fs';
 import {createHash} from 'node:crypto';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
-const need=(ok,message)=>{if(!ok)throw new Error('Readonly host delivery: '+message);};
+const need=(ok,message)=>{if(!ok)throw Object.assign(new Error('Execution preflight [HOST_APPROVAL_REQUIRED]: Readonly host delivery: '+message),{code:'HOST_APPROVAL_REQUIRED',deterministic:true});};
 const safe=path=>typeof path==='string'&&path&&!isAbsolute(path)&&path.split('/').every(part=>part&&part!=='.'&&part!=='..');
 async function bytes(path,maximum){
  need(await realpath(path)===path,'symlink path');
@@ -14,7 +14,10 @@ async function bytes(path,maximum){
  const file=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
  try{const before=await file.stat(),data=await file.readFile(),after=await file.stat();need(before.ino===metadata.ino&&before.dev===metadata.dev&&before.size===data.length&&after.size===before.size&&after.mtimeMs===before.mtimeMs&&after.ctimeMs===before.ctimeMs,'artifact changed while reading');return data;}finally{await file.close();}
 }
-export async function workerReadonlyHostDelivery({root,policy,scope,head,channel}){
+export async function workerReadonlyHostDelivery(args){
+ try{return await reviewedDelivery(args);}catch(error){if(error.code==='HOST_APPROVAL_REQUIRED')throw error;need(false,'reviewed private capture bytes unavailable');}
+}
+async function reviewedDelivery({root,policy,scope,head,channel}){
  const records=(policy.readonlyDeliveries??[]).filter(record=>['runId','wave','ticket','branch'].every(key=>record.targetScope?.[key]===scope[key]));
  need(records.length<=1,'ambiguous reviewed target');if(!records.length)return undefined;
  const record=records[0];need(record.version===1&&record.review?.reviewer==='controller-independent-review'&&record.review.reference,'independent review required');
