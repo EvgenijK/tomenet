@@ -23,13 +23,20 @@ export function extendTaskQuota(state, extraPercent, { authorizationId = randomU
   if (!Number.isFinite(extraPercent) || extraPercent <= 0 || extraPercent > 100) throw new Error("SANDCASTLE_EXTRA_QUOTA_PERCENT must be greater than 0 and at most 100");
   if (state.phase !== "awaiting" || !state.resumePhase || !state.budget || !/^Task reached [\d.]+% of the weekly Codex quota$/.test(state.quotaError ?? state.pauseReason ?? "")) throw new Error("Extra quota continuation requires a task quota pause");
   const previousLimit = taskQuotaLimit(state);
+  recordTaskQuotaAllowance(state, Math.max(previousLimit,state.budget.consumedPercent)+extraPercent, {authorizationId,explanation,extraPercent});
+  delete state.quotaError;
+}
+
+// Accounting only: guarded continuation callers establish the authorization.
+// A prospective ceiling is absolute and never depends on consumption growth.
+export function recordTaskQuotaAllowance(state, limitPercent, {authorizationId,explanation,extraPercent}) {
+  const previousLimit=taskQuotaLimit(state);
+  if(!Number.isFinite(limitPercent)||limitPercent<=previousLimit||!Number.isFinite(extraPercent)||extraPercent<=0)throw new Error("Invalid absolute task quota allowance");
   if (typeof authorizationId !== "string" || !authorizationId.trim() || typeof explanation !== "string" || !explanation.trim()) throw new Error("Quota grant requires an authorization ID and explanation");
   if (state.budget.allowanceHistory?.some((entry) => entry.id === authorizationId)) throw new Error("Quota grant authorization already recorded");
   if (!Number.isFinite(state.budget.consumedPercent) || state.budget.consumedPercent < 0) throw new Error("Invalid task quota consumption");
-  const limitPercent = Math.max(previousLimit, state.budget.consumedPercent) + extraPercent;
   (state.budget.allowanceHistory ??= []).push({ id: authorizationId, windowId: state.budget.windowId ?? windowIdentity(state.budget.resetsAt), deltaPercent: limitPercent - previousLimit, extraPercent, previousLimit, consumedPercent: state.budget.consumedPercent, limitPercent, explanation, snapshot: { usedPercent: state.budget.lastUsedPercent ?? null, resetsAt: state.budget.resetsAt ?? null, tokens: state.budget.tokens ?? null }, grantedAt: new Date().toISOString() });
   state.budget.limitPercent = limitPercent;
-  delete state.quotaError;
 }
 
 // Read the same account quota snapshot used by the Codex app. No credential is

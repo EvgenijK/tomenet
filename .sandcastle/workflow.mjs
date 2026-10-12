@@ -50,10 +50,11 @@ import { hostCollectorConstituents } from './host-collector-constituents.mjs';
 import { captureHostCollectorParts } from './host-collector-dispatch.mjs';
 import { runControllerHostReview } from './controller-host-review.mjs';
 import { workerHostApprovalSnapshot, hostApprovalGuidance } from './host-approval-guidance.mjs';
+import {prepareProspectiveQuotaGrant,applyProspectiveQuotaGrant} from './prospective-quota.mjs';
 import { readPrivateHostProfile, hasSavedHostReviewFailure, savedControllerHostRequest, enterControllerHostReview, finishControllerHostReview, verifyHostReviewEnvelope, attestControllerHostResourceOrigin } from './controller-host-review-workflow.mjs';
 import { normalizeControllerHostRequest } from './host-capture-failure.mjs';
 import {readRecoveryGrant,prepareRecoveryAllowance,applyRecoveryAllowance,recoveryAttemptLimit} from './recovery-allowance.mjs';
-import { prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile, prepareHostRecoveryProfileRefresh, prepareHostSourceRevisionBootstrap, applyHostSourceRevisionBootstrap } from './host-profile-upgrade.mjs';
+import { prepareHostTreeProfileUpgrade, applyHostTreeProfileUpgrade, prepareHostProfileUpgrade, applyHostProfileUpgrade, prepareHostRequestReconcile, applyHostRequestReconcile, prepareHostRecoveryProfileRefresh, prepareHostSourceRevisionBootstrap, applyHostSourceRevisionBootstrap } from './host-profile-upgrade.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -916,7 +917,7 @@ const modeKeys = ["SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS", "SANDCASTLE_HOST_REQUEST
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
-modeKeys.push('SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH','SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH');
+modeKeys.push('SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH','SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH','SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH');
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
 const booleanModes = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
@@ -1039,6 +1040,16 @@ if (extraQuota !== undefined) {
   applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
   if (contractAmendResume || contractAmendRetry || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Extra quota continuation cannot be combined with CONTINUE, RECOVER or contract amendment");
 }
+let prospectiveQuotaGrant;
+if(process.env.SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH||process.env.SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_SHA256){
+ if(requestedModes.length!==1||!process.env.SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH)throw new Error('Prospective quota authorization requires only its apply-only pinned authorization mode');
+ prospectiveQuotaGrant=await prepareProspectiveQuotaGrant({root,state,authorizationPin:{path:process.env.SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH,sha256:process.env.SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_SHA256}});
+}
+let hostTreeProfileUpgrade;
+if(process.env.SANDCASTLE_HOST_TREE_PROFILE_PATH||process.env.SANDCASTLE_HOST_TREE_PROFILE_SHA256){
+ if(!preflightResume||requestedModes.length!==1)throw new Error('Final tree profile activation requires only SANDCASTLE_PREFLIGHT_RESUME=1 and its independently pinned profile');
+ hostTreeProfileUpgrade=await prepareHostTreeProfileUpgrade({root,state,newPin:{path:process.env.SANDCASTLE_HOST_TREE_PROFILE_PATH,sha256:process.env.SANDCASTLE_HOST_TREE_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
+}
 let recoveryAllowance,recoveryProfileRefresh;
 if(recoveryGrant){
   recoveryAllowance=prepareRecoveryAllowance({state,grant:recoveryGrant});
@@ -1098,6 +1109,15 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(prospectiveQuotaGrant){
+    await applyProspectiveQuotaGrant({root,state,prepared:prospectiveQuotaGrant});await save(state);
+    await appendStageEvent(runsDir,state,{stage:'prospective-quota-allowance',status:'completed',summary:'Explicit human ceiling55→60 recorded; consumed usage, current host-review pause, source approvals and all attempt counters preserved. Workflow remains paused.'});
+    return;
+  }
+  if(hostTreeProfileUpgrade){
+    hostProfile=await applyHostTreeProfileUpgrade({root,state,prepared:hostTreeProfileUpgrade,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'controller-host-tree-profile',status:'completed',summary:'Exact27 independently pinned nonconsumed versions selected; original request archived and current source observed. Native inventories and allowances preserved; independent controller review remains required.'});
+  }
   if(workerSourceRepair){
     hostProfile=await applyWorkerSourceRepair({root,state,prepared:workerSourceRepair,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
     await appendStageEvent(runsDir,state,{stage:'worker-source-repair',status:'completed',summary:'Verified worker provisioning correction and isolated host-policy witness; original wave/member/base and recovery/quota counters preserved.'});

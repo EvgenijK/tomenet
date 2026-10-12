@@ -316,3 +316,47 @@ and all prior successful ticket histories remain unchanged. The live worker
 ref is created by ordinary provisioning after activation, not by the repair
 transition. Historical317 on37b remain distinct from current source390 and
 fresh final assembled-HEAD acceptance.
+
+### Final-gate exact tree profile correction (run 3fd6b311)
+
+A final `HOST_REVIEW_REFUSED` can result from completed tickets adding previously
+unlisted, nonconsumed evidence versions. This is distinct from changed production
+inputs. The supported `prepareHostTreeProfileUpgrade` / `applyHostTreeProfileUpgrade`
+transition accepts only the saved unfrozen final test-gate baseline request. A
+new independently pinned private profile contains `treeReview` with exactly
+`{version:1, head, reviewer, reference, files}`. `files` lists the fixed 27 paths
+from the completed08/09/11 evidence, tickets, map and `docs/sandcastle.md`; each
+value is `{mode:'100644', size, sha256}` at the original reviewed request HEAD.
+Each must remain identical at the current integration branch HEAD. Current
+controller changes need exact committed versions in the existing inspect-only
+`carryForward.reviewedFiles` arrays. No mutable roots are added.
+
+The original profile/seal and all native capture recipes, approvals,390 source
+identities,1051 resources, historical deliveries and limits remain unchanged.
+Preview derives a fresh request from the current branch HEAD and runs the actual
+read-only `prepareControllerHostReview`. Apply requires the held run lock and raw
+checkpoint CAS; it archives the original raw state and old request, selects new
+private pins, and leaves independent controller review pending. It does not run
+capture jobs or grant acceptance. Root review and deployment use:
+
+```
+SANDCASTLE_PREFLIGHT_RESUME=1 \
+SANDCASTLE_HOST_TREE_PROFILE_PATH=/absolute/private/run/profile.json \
+SANDCASTLE_HOST_TREE_PROFILE_SHA256=<independently-reviewed-raw-sha256> \
+npm run sandbox:resume -- 3fd6b311
+```
+
+An independently pinned human quota authorization can be applied separately,
+without resuming the host review or pretending it is an exhausted quota pause:
+
+```
+SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH=/absolute/private/run/authorization.json \
+SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_SHA256=<independently-reviewed-raw-sha256> \
+npm run sandbox:resume -- 3fd6b311
+```
+
+This apply-only operation records the explicit55→60 ceiling and its authorization
+pin in the existing allowance history, then returns before inference or Docker.
+It preserves the current host-review pause, accumulated consumption, tokens,
+usage history and every attempt counter. It never computes consumption+5, clears
+failure state, or approves source changes. A repeated authorization is refused.
