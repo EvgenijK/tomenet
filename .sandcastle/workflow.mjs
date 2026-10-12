@@ -44,6 +44,7 @@ import {provisionWorkerBeforeHost} from './worker-source.mjs';
 import {prepareWorkerSourceRepair,applyWorkerSourceRepair} from './worker-source-repair.mjs';
 import {historicalDeliveryMounts,integrationSandboxProvider} from './assembly-host-delivery.mjs';
 import {prepareAssemblyHostRepair,applyAssemblyHostRepair} from './assembly-host-repair.mjs';
+import {prepareLinkerProfileActivation,applyLinkerProfileActivation} from './linker-profile-activation.mjs';
 import { workerReadonlyHostDelivery } from './host-readonly-delivery.mjs';
 import { hostCollectorParts } from './host-collector-parts.mjs';
 import { hostCollectorConstituents } from './host-collector-constituents.mjs';
@@ -917,7 +918,7 @@ const modeKeys = ["SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS", "SANDCASTLE_HOST_REQUEST
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
-modeKeys.push('SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH','SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH','SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH');
+modeKeys.push('SANDCASTLE_LINKER_PROFILE_PROOF_PATH','SANDCASTLE_PROSPECTIVE_QUOTA_AUTH_PATH','SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH','SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH');
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
 const booleanModes = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
@@ -1056,6 +1057,11 @@ if(recoveryGrant){
   if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)recoveryProfileRefresh=await prepareHostRecoveryProfileRefresh({root,state,newPin:{path:process.env.SANDCASTLE_RECOVERY_PROFILE_PATH,sha256:process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
   else if(state.hostReviewProfile){const p=await readPrivateHostProfile(root,state,state.hostReviewProfile);if(p.controllerDigest!==loadedControllerDigest)throw new Error('Recovery allowance requires a reviewed controller-only profile refresh for this changed controller');}
 }else if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)throw new Error('Recovery profile refresh requires the explicit checkpoint allowance mode');
+let linkerProfileActivation;
+if(process.env.SANDCASTLE_LINKER_PROFILE_PROOF_PATH||process.env.SANDCASTLE_LINKER_PROFILE_PROOF_SHA256){
+ if(requestedModes.length!==1||!process.env.SANDCASTLE_LINKER_PROFILE_PROOF_PATH)throw new Error('Linker scope profile activation requires only its independently pinned proof mode');
+ linkerProfileActivation=await prepareLinkerProfileActivation({root,state,proofPin:{path:process.env.SANDCASTLE_LINKER_PROFILE_PROOF_PATH,sha256:process.env.SANDCASTLE_LINKER_PROFILE_PROOF_SHA256},controllerDigest:loadedControllerDigest});
+}
 let workerSourceRepair;
 if(process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH||process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_SHA256){
   if(requestedModes.length!==1||!process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH)throw new Error('Worker source repair requires only its independently pinned proof mode');
@@ -1109,6 +1115,10 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(linkerProfileActivation){
+    hostProfile=await applyLinkerProfileActivation({root,state,prepared:linkerProfileActivation,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'linker-profile-activation',status:'completed',summary:'Explicitly reviewed linker-only data scope selected; old frozen target and failed artifact attempt archived, counters and quota preserved. Fresh controller review, freeze and gates remain required.'});
+  }
   if(prospectiveQuotaGrant){
     await applyProspectiveQuotaGrant({root,state,prepared:prospectiveQuotaGrant});await save(state);
     await appendStageEvent(runsDir,state,{stage:'prospective-quota-allowance',status:'completed',summary:'Explicit human ceiling55→60 recorded; consumed usage, current host-review pause, source approvals and all attempt counters preserved. Workflow remains paused.'});

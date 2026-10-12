@@ -360,3 +360,39 @@ pin in the existing allowance history, then returns before inference or Docker.
 It preserves the current host-review pause, accumulated consumption, tokens,
 usage history and every attempt counter. It never computes consumption+5, clears
 failure state, or approves source changes. A repeated authorization is refused.
+
+### Explicit linker-scope v2 activation of a failed frozen target
+
+`SANDCASTLE_LINKER_PROFILE_PROOF_PATH` plus `SANDCASTLE_LINKER_PROFILE_PROOF_SHA256`
+is a separate, one-use continuation mode for run `3fd6b311`, published failed
+`entry-runtime` attempt `d616a0a7-6a39-4e37-af32-9353b90fc5f1` at frozen
+`97506a83bf2fb8be18b70db25f05cf7b1c2ba662`. Do not combine it with quota,
+recovery or preflight continuation modes.
+
+The private proof has `version:1`, `runId`,
+`authorization:'user-requested-linker-scope-v2-activation'`, `rawStateSha256`,
+`stateFingerprint` (SHA256 of `JSON.stringify(state)`), `oldTargetDigest`,
+`failedAttemptId`, `failedReceipt:{path,sha256}` (the existing receiptPath and
+receiptDigest), `oldProfilePin`, `scopeProfilePin`, `newProfilePin`,
+`integrationHead`, `controllerDigest`, and `review:{reviewer,reference}`.
+The scopeProfilePin SHA is exactly the independently reviewed
+`f66621236096736fba32cf9958aa7ce105b14b90a722611a7f9bdcc8979e236a` baseline.
+The successor may update only its controller digest and policy pointer, with
+one appended exact committed controller/test/doc identity per changed path.
+Its source seal, all native recipes, resources, approvals and limits remain
+those of the reviewed scope baseline.
+
+Before applying, merge the reviewed maintenance history into the integration
+branch, preserving commits and all390 approved source identities. Root prepares
+a new immutable successor profile and pins the proof after independent review.
+`prepareLinkerProfileActivation` is a read-only preview, including the actual
+prospective `prepareControllerHostReview` prerequisite. Applying requires the
+held controller lock and raw checkpoint CAS; it archives the exact original
+state, releases the frozen target to history, and archives the failed artifact
+attempt. Existing artifact evidence and original receipts are retained.
+
+The resulting phase is `controller-host-review` with original phase `test-gate`.
+An actual durable independent controller review still runs before fresh freeze,
+rebuild and all required gates/captures. No allowance is granted, no counters
+are reset, and no previous receipt is relabelled for the new target. The normal
+quota guard may stop the continuation when the unchanged60% ceiling is reached.
