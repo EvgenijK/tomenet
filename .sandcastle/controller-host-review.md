@@ -261,3 +261,58 @@ with one workflow save. No quota, recovery history, completed tickets, sealed
 inputs or old receipts change. A fresh integration sandbox is created with the
 validated readonly mount. Revisions already merged remain skipped by ancestry;
 full acceptance still requires the controller's fresh postassembly captures.
+
+### Saved wave9 worker-source provisioning correction
+
+`openWorker` provisions the saved source before host-policy callbacks resolve
+its HEAD. `ensureWorkerSource` verifies a committed saved base and regular
+committed ticket, creates an absent managed branch/worktree from that exact
+base, and preserves an existing clean worker's committed HEAD. It rejects
+unresolved/dirty worktrees, unmanaged or symlink paths, bad ancestry, absent
+tickets and a differing known origin ref. `provisionWorkerBeforeHost` verifies
+again after host preparation and after SDK sandbox creation, before an agent
+can be dispatched. It never resets refs, auto-commits dirty work or substitutes
+the integration HEAD for the saved worker HEAD.
+
+The SDK may fetch a new origin ref during clean worktree reuse. Its public API
+does not expose a way to disable that refresh. A post-SDK source check fails
+closed before agent dispatch if it moved HEAD; the original commits remain
+preserved, and the controller does not reset a ref or rewrite remote config.
+The guarantee is rejection of a changed source, not unconditional HEAD
+immutability in an external fetch race.
+
+The exact recovery15 stop in run `3fd6b311` can resume with the sole named mode
+`SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH` and
+`SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_SHA256`. The private independently pinned
+version1 proof contains exactly `authorization,runId,checkpoint,recoveryId,
+rawStateSha256,stateFingerprint,oldProfilePin,newProfilePin,controllerDigest,
+waveBase,ticketDigest,witnessPin,review` plus `version`. Authorization is
+`user-requested-worker-provisioning-repair`; checkpoint is
+`parallel-work:9:9:0:1:0`, recoveryId15, waveBase remains
+`f1693429cd43268e96c34bbebad76de714448c11`. The independently reviewed profile
+clone updates only controller identity and exact committed nonconsumed
+controller version pins. Source390, resources1051, native recipes, scopes,
+binding, runtime pins, approvals and historical readonly deliveries stay fixed.
+
+Before activation, obtain a real production provisioning witness on an
+isolated branch copied from the saved member, using the same saved base and
+production host-policy callbacks. The private version1 witness contains
+`controllerDigest,policySha256,branch,baseCommit,head,ticket,ticketDigest,
+hostConsumersReached:true,sandboxReached:true,executionAuthorized:false` plus
+`version`. Its branch must differ from the live wave9 branch; head/base must
+equal the saved base. Root independent review pins the exact witness bytes.
+No native job, agent invocation, acceptance result or new source approval is
+needed for this provisioning witness.
+
+`prepareWorkerSourceRepair` verifies the exact stop/member/2-of-3 counter,
+remaining quota, raw saved checkpoint, profile and witness pins, absent live
+worker ref, ticket identity and all390 Git source mode/size/hash identities at
+the saved base. `applyWorkerSourceRepair` repeats verification under the held
+run lock, fsyncs an archive of the exact original state bytes, and updates
+controller pins/repair history on one clone with one workflow save. It moves
+only awaiting to parallel-work: member failure/error and saved wave/base remain
+until ordinary runWave dispatch, recovery decisions remain2/3, and quota55
+and all prior successful ticket histories remain unchanged. The live worker
+ref is created by ordinary provisioning after activation, not by the repair
+transition. Historical317 on37b remain distinct from current source390 and
+fresh final assembled-HEAD acceptance.

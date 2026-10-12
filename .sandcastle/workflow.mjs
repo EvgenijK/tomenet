@@ -40,6 +40,8 @@ import { resumeVerificationMigration } from "./verification-migration.mjs";
 import { startLinuxHostChannel } from './linux-host.mjs';
 import { validateHostApprovalResume, applyHostApprovalResume } from './host-approval-resume.mjs';
 import { workerHostDelivery, workerHostFailure } from './worker-host.mjs';
+import {provisionWorkerBeforeHost} from './worker-source.mjs';
+import {prepareWorkerSourceRepair,applyWorkerSourceRepair} from './worker-source-repair.mjs';
 import {historicalDeliveryMounts,integrationSandboxProvider} from './assembly-host-delivery.mjs';
 import {prepareAssemblyHostRepair,applyAssemblyHostRepair} from './assembly-host-repair.mjs';
 import { workerReadonlyHostDelivery } from './host-readonly-delivery.mjs';
@@ -566,16 +568,17 @@ function sandboxProvider(evidenceInbox, hostMounts = []) {
 async function openWorker(state, member, wave) {
   // Git worktree registration is serialized; agent work itself is concurrent.
   const next = provisionQueue.then(async () => {
-    await recoverWorktree({ id: state.id, branch: member.branch });
     let hostChannel,collectorDelivery,approvalSnapshot;
     try {
+      let delivery;
+      return await provisionWorkerBeforeHost({root,member,wave,prepareHost:async source=>{
       const mounts=[];
-      const delivery=workerHostDelivery(state,member,wave);
+      delivery=workerHostDelivery(state,member,wave);
       if (process.env.SANDCASTLE_LINUX_HOST_POLICY) {
         const scope={runId:state.id,wave:wave.id,ticket:member.ticket.path,branch:member.branch,baseCommit:wave.baseCommit};
         hostChannel=await startLinuxHostChannel({root,policyPath:process.env.SANDCASTLE_LINUX_HOST_POLICY,scope,directory:resolve(runsDir,state.id,'host-channels',randomUUID())});
         const policy=JSON.parse(await readFile(process.env.SANDCASTLE_LINUX_HOST_POLICY,'utf8'));
-        const head=(await execFileAsync('git',['-C',root,'rev-parse',member.branch])).stdout.trim();
+        const head=source.head;
         collectorDelivery=await workerReadonlyHostDelivery({root,policy,scope,head,channel:hostChannel});
         approvalSnapshot=await workerHostApprovalSnapshot({root,state,scope,head,controllerDigest:loadedControllerDigest});
         if(approvalSnapshot){
@@ -590,8 +593,9 @@ async function openWorker(state, member, wave) {
         mounts.push(hostChannel.mount,{hostPath:scopePath,sandboxPath:'/home/agent/.sv-host-scope.json',readonly:true},
           {hostPath:resolve(root,'.sandcastle/linux-host-client.mjs'),sandboxPath:'/home/agent/.sv-host-client.mjs',readonly:true});
       }
+      return mounts;},create:async({host:mounts})=>{
       const worker=await createSandbox({ cwd: root, branch: member.branch, baseBranch: wave.baseCommit, sandbox: sandboxProvider(undefined,mounts) });
-      worker.linuxHostChannel=hostChannel;worker.linuxHostDelivery=delivery;worker.linuxHostCollectorDelivery=collectorDelivery;worker.hostApprovalSnapshot=approvalSnapshot;return worker;
+      worker.linuxHostChannel=hostChannel;worker.linuxHostDelivery=delivery;worker.linuxHostCollectorDelivery=collectorDelivery;worker.hostApprovalSnapshot=approvalSnapshot;return worker;}});
     } catch(error) { if(hostChannel)await hostChannel.close();throw error; }
   });
   provisionQueue = next.then(() => {}, () => {});
@@ -912,7 +916,7 @@ const modeKeys = ["SANDCASTLE_EXTRA_RECOVERY_ATTEMPTS", "SANDCASTLE_HOST_REQUEST
   "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME", "SANDCASTLE_CONTRACT_AMEND_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RETRY_ID", "SANDCASTLE_SEMANTIC_AMENDMENT_JSON", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME",
   "SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS", "SANDCASTLE_GROUP_RETRY_ATTEMPTS", "SANDCASTLE_ASSEMBLY_RETRY_ATTEMPTS", "SANDCASTLE_EXTRA_ASSEMBLY_ATTEMPTS"];
-modeKeys.push('SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH');
+modeKeys.push('SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH','SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH');
 const requestedModes = modeKeys.filter(key => process.env[key] !== undefined);
 const booleanModes = ["SANDCASTLE_HOST_REQUEST_RECONCILE", "SANDCASTLE_PLAN_REPAIR_RESUME", "SANDCASTLE_VERIFICATION_RESUME", "SANDCASTLE_PREFLIGHT_RESUME", "SANDCASTLE_RESUME", "SANDCASTLE_RECOVER", "SANDCASTLE_REPAIR_RESUME", "SANDCASTLE_TIMEOUT_UPGRADE_RESUME",
   "SANDCASTLE_CONTRACT_AMEND_RESUME", "SANDCASTLE_REPROVISION_WAVE", "SANDCASTLE_WORKER_CLI_UPGRADE_RESUME"];
@@ -1041,6 +1045,11 @@ if(recoveryGrant){
   if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)recoveryProfileRefresh=await prepareHostRecoveryProfileRefresh({root,state,newPin:{path:process.env.SANDCASTLE_RECOVERY_PROFILE_PATH,sha256:process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256},controllerDigest:loadedControllerDigest});
   else if(state.hostReviewProfile){const p=await readPrivateHostProfile(root,state,state.hostReviewProfile);if(p.controllerDigest!==loadedControllerDigest)throw new Error('Recovery allowance requires a reviewed controller-only profile refresh for this changed controller');}
 }else if(process.env.SANDCASTLE_RECOVERY_PROFILE_PATH||process.env.SANDCASTLE_RECOVERY_PROFILE_SHA256)throw new Error('Recovery profile refresh requires the explicit checkpoint allowance mode');
+let workerSourceRepair;
+if(process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH||process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_SHA256){
+  if(requestedModes.length!==1||!process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH)throw new Error('Worker source repair requires only its independently pinned proof mode');
+  workerSourceRepair=await prepareWorkerSourceRepair({root,state,proofPin:{path:process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_PATH,sha256:process.env.SANDCASTLE_WORKER_SOURCE_REPAIR_PROOF_SHA256},controllerDigest:loadedControllerDigest});
+}
 let assemblyHostRepair;
 if(process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH||process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_SHA256){
   if(requestedModes.length!==1||!process.env.SANDCASTLE_ASSEMBLY_HOST_REPAIR_PROOF_PATH)throw new Error('Assembly provisioning repair requires only its independently pinned proof mode');
@@ -1089,6 +1098,10 @@ try {
 } catch (error) { await unlink(lockPath); throw error; }
 let sandbox;
 try {
+  if(workerSourceRepair){
+    hostProfile=await applyWorkerSourceRepair({root,state,prepared:workerSourceRepair,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
+    await appendStageEvent(runsDir,state,{stage:'worker-source-repair',status:'completed',summary:'Verified worker provisioning correction and isolated host-policy witness; original wave/member/base and recovery/quota counters preserved.'});
+  }
   if(assemblyHostRepair){
     hostProfile=await applyAssemblyHostRepair({root,state,prepared:assemblyHostRepair,controllerDigest:loadedControllerDigest});hostProfilePin=state.hostReviewProfile;process.env.SANDCASTLE_LINUX_HOST_POLICY=hostProfile.policyPath;await save(state);
     await appendStageEvent(runsDir,state,{stage:'assembly-host-repair',status:'completed',summary:'Verified complete original historical delivery and focused assembly checks; controller provisioning corrected without a recovery allowance or acceptance grant.'});
