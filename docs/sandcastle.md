@@ -19,7 +19,14 @@ permitted `{mode, sha256}` versions; this permits already reviewed controller
 changes after assembly without trusting worker edits. Keep metadata roots scoped
 to the run's bookkeeping and evidence, excluding contracts and execution plans.
 
-All consumed input paths and hashes must still match an independent approval.
+Source inputs and checked external input paths/hashes must still match an
+independent approval. Linux collector scopev2 excludes read-only external data-file opens
+and maps attributed to a successful system linker image (`ld`, `ld.bfd`,
+`ld.gold`, `ld.lld` at the declared `/usr/bin` paths). It keeps linker executable
+identities, executable mappings, repository/generated inputs and every file also
+read by a non-linker process. Unknown/failed execs and similarly named programs
+outside those system paths cannot acquire this exclusion. Linker-only reads are
+retained as metadata in `linker_data_reads`, not hashed resource obligations.
 The reviewed base must contain that exact approved tree, and every changed tree
 entry must satisfy the delegated rule. Changed producers, new input files,
 unknown files, symlinks and unapproved executable modes remain blocked with
@@ -69,7 +76,7 @@ suite subset. Before freezing, the controller requires disjoint subsets covering
 the complete accepted matrix and authorizes every action at the same exact HEAD.
 It executes parts sequentially with fresh nonces and the existing per-job limits.
 The controller verifies the private receipts and artifact bytes, unchanged source
-inventory, complete consumed-input seals and every case log before publishing one
+inventory, complete seals for the explicitly reviewed consumed-input scope and every case log before publishing one
 standard evidence bundle. Child manifests and receipt identities remain in that
 bundle. A missing, stale or failed part produces a failed gate; it cannot shrink
 the accepted matrix or establish physical/milestone acceptance.
@@ -751,3 +758,42 @@ ledger IDs` with its saved approved exact binding can use
 reviewed maintenance installation/reconciliation. This resumes `plan-validate`
 and repeats independent verification before registration or dispatch. It grants
 no attempts/quota and preserves prior review, evidence and checkpoint history.
+
+### Versioned Linux linker input scope
+
+Fresh captures require a new independently reviewed seal declaring
+`consumed_input_scope` v2. The flag `complete_consumed_input_seal` means completeness
+within that explicit scope; it does not claim hashing excluded linker data reads.
+Child manifests and graphs must match the seal scope exactly, and controller
+folds/parts preserve it. Legacy absent scopes retain their original meaning only
+for historical evidence; they cannot be relabelled v2.
+
+The previous mixed external-resource seal remains immutable. Reclassify retained
+sanitized trace bytes offline, without repeating native scenarios, using:
+
+```sh
+PYTHONPATH=tests /usr/bin/python3 -B -m sv_entry_consumption \
+  --propose-linker-scope /absolute/original-reviewed-seal.json \
+  --trace-groups /absolute/independently-reviewed-trace-groups.json \
+  --protected-resources /absolute/reviewed-runtime-paths.json
+```
+
+Each trace group has `head`, `nonce`, `root`, `output`, optional `generated_roots`,
+and `traces:[{path,sha256}]`. Include the original complete origin groups used to
+review the old resource union, plus later closed consumption graphs. Trace paths
+must be regular files under their original output directory; all raw hashes are
+checked. `protected-resources` is a JSON array of separately pinned collector and
+toolchain runtime paths. Compiler dependencies are always protected as well.
+The proposal removes an old resource only when linker-only attribution across
+all supplied groups proves it, while shared paths/aliases and executable mappings
+remain required. Review origin completeness independently; the CLI does not
+assert complete provenance from an arbitrary subset.
+
+This produces a proposal (`complete_consumed_input_seal:false`, no independent
+review/acceptance), with original seal identity and unchanged trace lineage.
+Independently review the removed entries, remaining resources and committed new
+source identities before creating a new immutable seal/profile. Do not add an
+excluded library merely to satisfy the old guard, modify a frozen runtime pin,
+or rewrite old receipt HEADs/hashes. Applying the producer revision to an already
+frozen run needs a separately supported archived/refreeze transition; this
+checking change does not resume a run or grant quota/attempts.

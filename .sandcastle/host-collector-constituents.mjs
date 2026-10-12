@@ -60,6 +60,10 @@ async function bytes(root,name){
 const unzip=data=>gunzipSync(data,{maxOutputLength:64*1024*1024});
 function identity(data,id){need(id&&data.length===id.size&&digest(data)===id.sha256,'artifact byte identity differs');}
 function inputs(value){need(value&&Object.keys(value).length===390,'complete exact390 source inventory required');return Object.fromEntries(Object.entries(value).map(([path,id])=>{need(safe(path)&&sha(typeof id==='string'?id:id?.sha256),'source SHA required');return[path,typeof id==='string'?id:id.sha256];}));}
+const inputScope={version:2,linker_external_data_reads:'excluded',repository_and_generated_inputs:'checked',executable_mappings:'checked',non_linker_external_reads:'checked'};
+// Missing scope denotes original historical receipts only. A versioned seal and
+// its fresh child/graph must agree; a fold cannot relabel old evidence as v2.
+export function assertHostInputScope(scope){need(scope===undefined||same(scope,inputScope),'unknown consumed input scope');return scope===undefined?null:structuredClone(inputScope);}
 async function readChild(receipt,binding,target,spec,part){
  need(receipt.head===target.head&&receipt.contractDigest===target.contractDigest&&receipt.action===spec.action&&receipt.exitCode===0&&/^[a-f0-9]{32}$/.test(receipt.nonce??'')&&sha(receipt.policyDigest),'child receipt identity/failure');
  const root=resolve(receipt.output);need((await lstat(root)).isDirectory()&&!(await lstat(root)).isSymbolicLink(),'private child root required');
@@ -73,6 +77,7 @@ async function readChild(receipt,binding,target,spec,part){
  need(sha(target.reviewedSealIdentity?.sha256)&&Number.isSafeInteger(target.reviewedSealIdentity.size)&&same(manifest.reviewed_seal_identity,target.reviewedSealIdentity),'reviewed consumed seal differs');
  const seal=target.reviewedSeal;
  need(seal?.tested_head===target.head&&seal.contract_digest===target.contractDigest&&seal.complete_consumed_input_seal===true&&seal.independent_review&&Object.keys(seal.independent_review).length>0,'complete independently reviewed seal body required');
+ assertHostInputScope(seal.consumed_input_scope);need(same(manifest.consumed_input_scope??null,seal.consumed_input_scope??null),'child/reviewed input scope differs');
  need(same(manifest.sources,seal.sources)&&same(manifest.independent_review,seal.independent_review),'reviewed source size/identity or independent review differs');
  need(seal.external_files&&Object.keys(seal.external_files).length>0&&same(manifest.external_before,seal.external_files)&&same(manifest.external_after,seal.external_files),'external consumed inputs changed/omitted from reviewed seal');
  need(Array.isArray(seal.compiler_dependencies)&&seal.compiler_dependencies.length>0&&same(manifest.compiler_dependencies,seal.compiler_dependencies)&&same([...new Set(seal.compiler_dependencies.map(c=>c.choice_order))].sort(),['0','1']),'reviewed compiler dependencies differ');
@@ -82,6 +87,7 @@ async function readChild(receipt,binding,target,spec,part){
   need(graph.artifact===graph.label+'.consumption.json.gz'&&docs.has(graph.artifact),'consumption graph artifact differs');
   const body=JSON.parse(unzip(docs.get(graph.artifact)));
   need(Array.isArray(body.unresolved_inputs)&&body.unresolved_inputs.length===0&&body.repository&&body.external_files,'closed consumption graph required');
+  need(same(body.consumed_input_scope??null,seal.consumed_input_scope??null),'graph/reviewed input scope differs');
   for(const[name,id]of Object.entries(body.repository))need(Object.hasOwn(seal.sources,name)&&same(id,seal.sources[name]),'unsealed/changed repository consumption');
   for(const[name,id]of Object.entries(body.external_files))need(Object.hasOwn(seal.external_files,name)&&same(id,seal.external_files[name]),'unsealed/changed external consumption');
  }
@@ -157,6 +163,7 @@ export async function mergeHostCollectorConstituents({inbox,binding,target,part,
   }
   need(same(Object.fromEntries(suites.map(s=>[s.name,s.caseCount])),SHAPES[plan.kind].suites),'whole suite count differs');
   const manifest={tested_head:target.head,contract_digest:target.contractDigest,nonce:foldId,status:'passed',inputs_unchanged:true,complete_consumed_input_seal:true,physical_acceptance:false,milestone_acceptance:false,input_provenance:'programmatic SDL',sources:verified[0].manifest.sources,suites,artifacts:{...artifacts},reviewed_seal_identity:target.reviewedSealIdentity,aggregation:{kind:'controller-constituent-union',origins,full_task_digest:plan.full_task_digest,whole_matrix_complete:true,taskCount:plan.full_task_inventory.length}};
+  if(target.reviewedSeal.consumed_input_scope!==undefined)manifest.consumed_input_scope=structuredClone(target.reviewedSeal.consumed_input_scope);
   await put(binding.manifestPath,Buffer.from(JSON.stringify(manifest)+'\n'));await rename(temp,out);
   return {aggregation:true,exitCode:0,output:out,artifacts,head:target.head,contractDigest:target.contractDigest,action:part.action,nonce:foldId,children:origins,manifest};
  }catch(error){await rm(temp,{recursive:true,force:true});throw error;}

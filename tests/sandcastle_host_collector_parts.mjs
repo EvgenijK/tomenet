@@ -61,3 +61,18 @@ test('entry matrix requires paired logical scenarios and renderer/session proven
   if(broken)await assert.rejects(mergeHostCollectorParts(f));else {await mergeHostCollectorParts(f);const m=JSON.parse(await readFile(resolve(f.inbox,'manifest.json')));assert.equal(m.logical_reports.length,18);assert.ok(m.logical_reports.every(row=>row.executions.length===2));assert.equal(m.parts[1].renderer,'opengl');}
  }
 });
+const scopedInputs={version:2,linker_external_data_reads:'excluded',repository_and_generated_inputs:'checked',executable_mappings:'checked',non_linker_external_reads:'checked'};
+test('parts preserve explicit linker-scoped completeness and reject mixed or broadened scope',async t=>{
+ const f=await fixture(t);for(const p of f.parts)await editManifest(p,m=>m.consumed_input_scope=Object.fromEntries(Object.entries(scopedInputs).reverse()));await editManifest(f.parts[0],m=>m.consumed_input_scope=structuredClone(scopedInputs));await mergeHostCollectorParts(f);const m=JSON.parse(await readFile(resolve(f.inbox,'manifest.json')));assert.deepEqual(m.consumed_input_scope,scopedInputs);
+ for(const change of [m=>delete m.consumed_input_scope,m=>m.consumed_input_scope={...scopedInputs,non_linker_external_reads:'excluded'}]){const g=await fixture(t);for(const p of g.parts)await editManifest(p,m=>m.consumed_input_scope=structuredClone(scopedInputs));await editManifest(g.parts[1],change);await assert.rejects(mergeHostCollectorParts(g),/scope/);}
+});
+test('aggregate scope cannot relabel original historical child manifests',async t=>{
+ for(const matching of [false,true]){
+  const f=await fixture(t);for(const p of f.parts)await editManifest(p,m=>m.consumed_input_scope=structuredClone(scopedInputs));const p=f.parts[0];
+  const child={label:'only',action:'child-action',head:target.head,contractDigest:target.contractDigest,nonce:'3'.repeat(32),exitCode:0,manifest:'only/manifest.json'};
+  p.spec.constituents={full_task_digest:'a'.repeat(64),required_shards:['only'],children:[{label:child.label,action:child.action}]};p.receipt.aggregation=true;p.receipt.children=[child];
+  const data=JSON.stringify(matching?{consumed_input_scope:scopedInputs}:{});await mkdir(resolve(p.receipt.output,'only'));await writeFile(resolve(p.receipt.output,child.manifest),data);p.receipt.artifacts[child.manifest]={size:Buffer.byteLength(data),sha256:digest(data)};
+  await editManifest(p,m=>m.aggregation={kind:'controller-constituent-union',origins:[child],full_task_digest:p.spec.constituents.full_task_digest,whole_matrix_complete:true});
+  if(matching)await mergeHostCollectorParts(f);else await assert.rejects(mergeHostCollectorParts(f),/aggregate\/original child input scope differs/);
+ }
+});

@@ -4,7 +4,7 @@ import {mkdir,open,readFile,writeFile,lstat} from 'node:fs/promises';
 import {resolve,dirname,isAbsolute} from 'node:path';
 import {constants} from 'node:fs';
 import {digest} from './verification.mjs';
-import {hostCollectorConstituents,assertHostCollectorAggregation} from './host-collector-constituents.mjs';
+import {hostCollectorConstituents,assertHostCollectorAggregation,assertHostInputScope} from './host-collector-constituents.mjs';
 const need=(ok,message)=>{if(!ok)throw new Error('Host collector parts: '+message);};
 const safe=path=>typeof path==='string'&&path&&!isAbsolute(path)&&path.split('/').every(p=>p&&p!=='.'&&p!=='..');
 export function hostCollectorParts(policy,binding){
@@ -48,6 +48,9 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
   }
   const manifest=JSON.parse(documents[binding.manifestPath]);
   need(manifest.tested_head===target.head&&manifest.contract_digest===target.contractDigest&&manifest.nonce===receipt.nonce&&manifest.status==='passed'&&manifest.inputs_unchanged===true&&manifest.complete_consumed_input_seal===true&&manifest.physical_acceptance===false,'unsealed/stale/failed part capture');
+  assertHostInputScope(manifest.consumed_input_scope);
+  if(labels.size===1){if(manifest.consumed_input_scope!==undefined)merged.consumed_input_scope=structuredClone(manifest.consumed_input_scope);}
+  else need(digest(assertHostInputScope(manifest.consumed_input_scope))===digest(assertHostInputScope(merged.consumed_input_scope)),'part consumed input scopes differ');
   need(manifest.sources&&JSON.stringify(Object.keys(manifest.sources).sort())===JSON.stringify([...binding.inputPaths].sort()),'complete source inventory required');
   if(spec.constituents){
    assertHostCollectorAggregation({spec,receipt,manifest});
@@ -57,6 +60,7 @@ export async function mergeHostCollectorParts({inbox,binding,target,parts}){
     const declared=spec.constituents.children[index];
     need(child.head===target.head&&child.contractDigest===target.contractDigest&&child.action===declared.action&&child.label===declared.label&&child.exitCode===0&&/^[a-f0-9]{32}$/.test(child.nonce??'')&&!nonces.has(child.nonce),'stale/failed/replayed constituent receipt');nonces.add(child.nonce);
     need(safe(child.manifest)&&documents[child.manifest],'original constituent manifest absent');
+    const original=JSON.parse(documents[child.manifest]);need(digest(assertHostInputScope(original.consumed_input_scope))===digest(assertHostInputScope(manifest.consumed_input_scope)),'aggregate/original child input scope differs');
    }
   }else need(!receipt.aggregation&&!manifest.aggregation,'undeclared constituent aggregation');
   if(binding.id==='entry-automated'){
