@@ -1,13 +1,14 @@
 import { partitionContractSources, sourceSpans } from "./contract-draft.mjs";
 
-export function contractSourceCatalog(sources) {
+export function contractSourceCatalog(sources, catalog) {
+  if (catalog) return catalog.fragments;
   return sourceSpans(partitionContractSources(sources)).flat();
 }
 
 // A verifier finding is local only when every cited span has one group owner.
 // Missing, unknown, or cross-group provenance stays with full-source assembly.
-export function verifierFeedbackDetails(review, sources) {
-  const known = new Set(contractSourceCatalog(sources).map((span) => span.id));
+export function verifierFeedbackDetails(review, sources, catalog) {
+  const known = new Set(contractSourceCatalog(sources, catalog).map((span) => span.id));
   const findings = Array.isArray(review?.findings) ? review.findings : [];
   return (review?.missingRequirements ?? []).map((message) => {
     const matches = findings.filter((finding) => finding?.message === message);

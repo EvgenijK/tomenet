@@ -67,7 +67,7 @@ export function resumeExternalContractAmendment(state) {
 // contract and all evidence are archived, the frozen originating spec is
 // replaced by the committed amended text, and a fresh independently verified
 // contract is required before planning can continue.
-export function resumeSemanticContractAmendment(state, amendedSpec, authorization) {
+export function resumeSemanticContractAmendment(state, amendedSpec, authorization, catalog) {
   need(state?.phase === "awaiting" && state.resumePhase === "plan", "semantic amendment requires a paused plan checkpoint");
   need(/^User-approved requirement amendment is not represented in the immutable acceptance contract:/.test(state.pauseReason ?? ""), "semantic amendment requires the saved user-approved requirement pause");
   assertContract(state);
@@ -81,8 +81,16 @@ export function resumeSemanticContractAmendment(state, amendedSpec, authorizatio
   need(typeof authorization.decision === "string" && authorization.decision.trim().length > 0, "semantic amendment requires the explicit user decision");
   need(Array.isArray(authorization.requiredQuotes) && authorization.requiredQuotes.length > 0 && new Set(authorization.requiredQuotes).size === authorization.requiredQuotes.length && authorization.requiredQuotes.every((quote) => typeof quote === "string" && quote.trim().length > 0), "semantic amendment requires unique non-empty source quotes");
 
-  for (const criterion of state.acceptance.contract.criteria.filter((item) => item.source.path === state.specPath)) {
-    need(amendedSpec.includes(criterion.source.quote), `amended spec removed represented source for ${criterion.id}`);
+  const fragments = new Map((catalog?.fragments ?? []).map((fragment) => [fragment.id, fragment]));
+  for (const criterion of state.acceptance.contract.criteria) {
+    const represented = state.acceptance.contract.version === 2
+      ? (criterion.sourceSpanIds ?? []).map((id) => {
+        need(fragments.has(id), `persisted fragment catalog is missing ${id}`);
+        return fragments.get(id);
+      }) : [{ sourcePath: criterion.source.path, quote: criterion.source.quote }];
+    for (const fragment of represented.filter((item) => item.sourcePath === state.specPath)) {
+      need(amendedSpec.includes(fragment.quote), `amended spec removed represented source for ${criterion.id}`);
+    }
   }
   for (const quote of authorization.requiredQuotes) {
     need(amendedSpec.includes(quote), `amended spec is missing required quote: ${quote}`);
@@ -126,8 +134,8 @@ export function resumeSemanticContractAmendment(state, amendedSpec, authorizatio
   return state;
 }
 
-export function validateContractAmendment(previous, next, amendment) {
-  need(previous?.version === 1 && next?.version === 1, "requires versioned contracts");
+export function validateContractAmendment(previous, next, amendment, catalog) {
+  need([1, 2].includes(previous?.version) && next?.version === previous.version, "requires versioned contracts");
   need(previous.completionScope === next.completionScope, "cannot change completion scope");
   const before = new Map(previous.criteria.map((criterion) => [criterion.id, criterion]));
   const after = new Map(next.criteria.map((criterion) => [criterion.id, criterion]));
@@ -139,7 +147,7 @@ export function validateContractAmendment(previous, next, amendment) {
   for (const [id, oldCriterion] of before) {
     const newCriterion = after.get(id);
     need(semanticFields.every((field) => JSON.stringify(newCriterion[field]) === JSON.stringify(oldCriterion[field])) &&
-      JSON.stringify(newCriterion.source) === JSON.stringify(oldCriterion.source), `cannot alter or downgrade criterion ${id}`);
+      JSON.stringify(previous.version === 2 ? newCriterion.sourceSpanIds : newCriterion.source) === JSON.stringify(previous.version === 2 ? oldCriterion.sourceSpanIds : oldCriterion.source), `cannot alter or downgrade criterion ${id}`);
     const oldRunnable = oldCriterion.checkIds.filter((checkId) => priorChecks.get(checkId)?.kind !== "external");
     need(semantic ? JSON.stringify(newCriterion.checkIds) === JSON.stringify(oldCriterion.checkIds) : oldRunnable.every((checkId) => newCriterion.checkIds.includes(checkId)), semantic ? `cannot alter evidence mappings for prior criterion ${id}` : `cannot remove runnable evidence from criterion ${id}`);
   }
@@ -147,9 +155,13 @@ export function validateContractAmendment(previous, next, amendment) {
     for (const [id, check] of priorChecks) need(JSON.stringify(nextChecks.get(id)) === JSON.stringify(check), `cannot alter or remove prior check ${id}`);
     const added = next.criteria.filter((criterion) => !before.has(criterion.id));
     need(added.length > 0, "semantic amendment requires at least one new criterion");
-    need(added.every((criterion) => criterion.mandatory && criterion.applicability === "current" && criterion.source.path === amendment.specPath), "new semantic criteria must be mandatory/current and sourced from the amended spec");
+    const fragments = new Map((catalog?.fragments ?? []).map((fragment) => [fragment.id, fragment]));
+    const sourcesFor = (criterion) => next.version === 2 ? (criterion.sourceSpanIds ?? []).map((id) => fragments.get(id))
+      : [{ sourcePath: criterion.source?.path, quote: criterion.source?.quote }];
+    need(added.every((criterion) => criterion.mandatory && criterion.applicability === "current" &&
+      sourcesFor(criterion).length > 0 && sourcesFor(criterion).every((fragment) => fragment?.sourcePath === amendment.specPath)), "new semantic criteria must be mandatory/current and sourced from the amended spec");
     for (const quote of amendment.requiredQuotes ?? []) {
-      need(added.some((criterion) => criterion.source.quote.includes(quote)), `new semantic criteria do not cite required quote: ${quote}`);
+      need(added.some((criterion) => sourcesFor(criterion).some((fragment) => fragment?.quote?.includes(quote))), `new semantic criteria do not cite required quote: ${quote}`);
     }
     return next;
   }

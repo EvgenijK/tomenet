@@ -18,6 +18,7 @@ import { planContractGroups, buildGroupedContractDraft, withContractGroupRecover
 import { assemblyCommandRules, reconcileContractDraft } from "./contract-reconcile.mjs";
 import { groupContractPromptGuidance, reconciliationContractPromptGuidance, verifierContractPromptGuidance } from "./contract-prompts.mjs";
 import { resolveContractSources } from "./contract-sources.mjs";
+import { ensureFragmentCatalog, loadFragmentCatalog, readContractArtifact, writeContractArtifact } from "./contract-storage.mjs";
 import { runtimeSchemaPath, runtimeSchemaMounts, readOnlyAgentArgs, sandboxAgentArgs, sandcastleAgentSettings, delegatedAgentPolicy, readOnlyAgentTimeoutMs, recoveryAgentTimeoutMs } from "./runtime.mjs";
 import { recordBuildAttempt, refreshBuildBudgetsAfterBatch } from "./build-budget.mjs";
 import { guidanceFor, guidanceForAgent } from "./recovery-guidance.mjs";
@@ -349,9 +350,13 @@ async function recover(sandbox, state) {
   if (!result) throw new Error(`Recovery agent requested a stop: ${state.recoveries.at(-1).summary}`);
   return sandbox;
 }
+function fragmentReaderContext(state) {
+  return `Source fragment texts are immutable files in ${taskDir(state)}/source-fragments. Retrieve them only with node .sandcastle/contract-fragments.mjs ${taskDir(state)}/source-fragments <ID> [ID...]. Use the returned text; do not open fragment files directly, reconstruct quotations from source documents, or add source text to criteria. Criterion sourceSpanIds are fragment filenames.`;
+}
 function contractContext(state) {
   assertContract(state);
-  return `Immutable acceptance contract (${state.acceptance.contractDigest}):\n${JSON.stringify(state.acceptance.contract, null, 2)}`;
+  return [`Immutable acceptance contract (${state.acceptance.contractDigest}):\n${JSON.stringify(state.acceptance.contract, null, 2)}`,
+    state.acceptance.contract.version === 2 ? fragmentReaderContext(state) : ""].filter(Boolean).join("\n\n");
 }
 async function inspect(sandbox, state, role, prompt, schema, timeoutMs = readOnlyAgentTimeoutMs) {
   const head = await git(sandbox.worktreePath, "rev-parse", "HEAD");
@@ -377,7 +382,13 @@ async function contract(sandbox, state) {
   const amendment = state.contractAmendment ? structuredClone(state.contractAmendment) : undefined;
   let sourceResolution;
   let executionContext;
+  let fragmentCatalog;
+  const outputSchema = (name) => `.sandcastle/${name}${fragmentCatalog ? "" : "-v1"}.schema.json`;
+  const sourceContext = (sources) => fragmentCatalog
+    ? { sourceSpans: contractSourceCatalog(sources, fragmentCatalog).map(({ id, sourcePath }) => ({ id, sourcePath })), fragmentReader: fragmentReaderContext(state) }
+    : { sources };
   await contractStage(state, {
+    catalog: () => fragmentCatalog,
     save, head: async () => { if (state.verificationVersion === 1) await assertVerificationTarget(state, sandbox.worktreePath); return git(sandbox.worktreePath, "rev-parse", "HEAD"); },
     sources: async () => {
       sourceResolution = await resolveContractSources({
@@ -394,6 +405,31 @@ async function contract(sandbox, state) {
         pending.sourceManifest = sourceResolution.manifest;
         await save(state);
       }
+      // Pin the format once. Interrupted v1 drafts and accepted v1 amendments
+      // keep their historical IDs/digests; new runs persist a catalogue first.
+      const legacyCheckpoint = pending.parts || pending.partSourceDigest || pending.groupPlan || pending.proposal ||
+        state.contractAmendment && state.contractAmendments?.at(-1)?.contract?.version === 1;
+      pending.contractFormat ??= legacyCheckpoint ? "legacy-v1" : "fragments-v2";
+      if (pending.contractFormat === "fragments-v2") {
+        const catalogDirectory = resolve(sandbox.worktreePath, taskDir(state), "source-fragments");
+        const savedCatalogDigest = pending.fragmentCatalogDigest ??
+          (state.contractAmendment ? state.contractAmendments?.at(-1)?.acceptance?.fragmentCatalogDigest : undefined);
+        const allowAppend = state.contractAmendment?.type === "semantic-user-requirement";
+        fragmentCatalog = await ensureFragmentCatalog({
+          directory: catalogDirectory,
+          sources: sourceResolution.sources,
+          allowAppend,
+          expectedDigest: savedCatalogDigest,
+        });
+        if (pending.fragmentCatalogDigest && pending.fragmentCatalogDigest !== fragmentCatalog.digest && !allowAppend) {
+          throw new Error("Acceptance source fragment catalog changed during drafting; human decision required");
+        }
+        pending.fragmentCatalogDigest = fragmentCatalog.digest;
+        await save(state);
+        // Inspectors require clean committed input, including the exact files
+        // their fragment-reader command will use after a restart.
+        await ensureCommit(sandbox.worktreePath, "Sandcastle: persist acceptance source fragments");
+      }
       executionContext ??= await contractExecutionContext(sandbox.worktreePath);
       return sourceResolution.sources;
     },
@@ -404,32 +440,33 @@ async function contract(sandbox, state) {
           return inspect(sandbox, state, "acceptance contract semantic amendment", [
             "Amend the previously accepted implementation contract only for the explicit user-authorized semantic decision. Return the complete amended contract as schema JSON. Preserve every prior criterion ID, source, requirement, mandatory flag, applicability, owner, deferral reason, and check mapping exactly; preserve every prior check exactly. Do not remove, weaken, defer, or reinterpret any prior obligation and do not claim pending evidence passed.",
             "Add the smallest mandatory/current criterion set that fully represents the new decision and cites the required new quotes from the amended originating spec. Map new implementation behavior only to existing runnable evidence from runnerInventory, or to controller-review for inspection-only obligations. Do not invent commands or alter completion scope.",
-            ...groupContractPromptGuidance({ usesSourceSpans: false }),
-            JSON.stringify({ sources, previousContract: archived.contract, amendment: state.contractAmendment, controllerReviewCheck, runnerInventory: executionContext }, null, 2),
+            ...groupContractPromptGuidance({ usesSourceSpans: Boolean(fragmentCatalog), version: fragmentCatalog ? 2 : 1 }),
+            JSON.stringify({ ...sourceContext(sources), previousContract: archived.contract, amendment: state.contractAmendment, controllerReviewCheck, runnerInventory: executionContext }, null, 2),
             feedback.length ? `Saved verifier feedback is cumulative. Repair every still-applicable item without changing prior criteria:\n${JSON.stringify(feedback)}` : "",
-          ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+          ].join("\n\n"), outputSchema("contract-output"));
         }
         return inspect(sandbox, state, "acceptance contract amendment", [
           "Amend the previously accepted implementation contract only to repair its unrunnable external-check mappings. Return the complete amended contract as schema JSON. Preserve every criterion ID, source, requirement, mandatory flag, applicability, owner, deferral reason, and every existing runnable mapping. Do not add or remove criteria, change completion scope, waive a requirement, claim pending evidence passed, or move a current obligation to deferred.",
           `The audited duplicate gate ${state.contractAmendment.checkId} must be removed without replacement from its criterion; retain that criterion's other runnable mappings exactly. P1-AC1 therefore remains mapped only to sv-build and sv-core. The expanded sv-core inventory below is controller fact and includes tests/sv_login_checks.py plus tests/sv_login_live_checks.py, which exercise the SV-B-006 production overview dependency. Do not add another P1-AC1 check.`,
           "Remove every other external check used by a mandatory/current criterion. For implementation behavior, select only an existing focused command from runnerInventory, or sv-core when its expanded inventory actually covers the obligation. For repository policy, scope inspection, workflow compliance, prerequisite-reading, and other review-only obligations, use the exact controllerReviewCheck. Never invent a test path and never use sv-core as a label for policy review. External checks may remain only for genuinely deferred criteria with the unchanged exact owner and reason.",
-          ...groupContractPromptGuidance({ usesSourceSpans: false }),
-          JSON.stringify({ sources, previousContract: archived.contract, amendment: state.contractAmendment, controllerReviewCheck, runnerInventory: executionContext }, null, 2),
+          ...groupContractPromptGuidance({ usesSourceSpans: Boolean(fragmentCatalog), version: fragmentCatalog ? 2 : 1 }),
+          JSON.stringify({ ...sourceContext(sources), previousContract: archived.contract, amendment: state.contractAmendment, controllerReviewCheck, runnerInventory: executionContext }, null, 2),
           feedback.length ? `Saved verifier feedback is historical input. Repair every still-applicable item using the authoritative runner inventory and controller gates above:\n${JSON.stringify(feedback)}` : "",
-        ].join("\n\n"), ".sandcastle/contract-output.schema.json");
+        ].join("\n\n"), outputSchema("contract-output"));
       }
       const proposePart = (part, index, count) => inspect(sandbox, state, `acceptance contract group ${index + 1}/${count}`, withContractGroupRecoveryAdvice([
         `Draft numbered acceptance criteria for ONLY assigned major subtask ${index + 1}/${count}. This is a persisted checkpoint, not the full contract. Informational documents may clarify ownership or terminology but cannot introduce obligations outside the fixed authoritative source set. Do not edit files. Return schema JSON.`,
-        ...groupContractPromptGuidance({ usesSourceSpans: Boolean(part.sourceSpans) }),
+        ...groupContractPromptGuidance({ usesSourceSpans: Boolean(part.sourceSpans), version: fragmentCatalog ? 2 : 1 }),
+        fragmentCatalog ? fragmentReaderContext(state) : "",
         "Assigned independent verifier feedback is cumulative and binding. Address every supplied item without dropping earlier corrections.",
         "Feature-specific checks may use only an existing command in runnerInventory, the exact controller-review gate for policy/scope inspection, or deferred external checks with command=''. Never invent a future test path and do not use shell operators. The controller prefixes IDs and merges all saved parts before independent verification.",
-        JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: part, baselineChecks,
+        JSON.stringify({ originatingTask: { path: state.specPath }, assignedSubtask: fragmentCatalog ? { ...part, sourceSections: part.sourceSections?.map(({ sourcePath }) => ({ sourcePath })) } : part, baselineChecks,
           feedback: part.sourceSpans ? feedbackForGroup(pending, part) : feedback,
           sourceManifest: sourceResolution.manifest,
           controllerReviewCheck,
           runnerInventory: executionContext,
           informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
-      ].join("\n\n"), state, index), part.sourceSpans ? ".sandcastle/contract-group-output.schema.json" : ".sandcastle/contract-output.schema.json");
+      ].join("\n\n"), state, index), part.sourceSpans ? outputSchema("contract-group-output") : outputSchema("contract-output"));
       let draft;
       if (pending.parts || pending.partSourceDigest) {
         // Preserve checkpoints from runs started with the former sequential draft.
@@ -437,25 +474,25 @@ async function contract(sandbox, state) {
       } else {
         const { parts, plan } = await contractSubstage(state, pending, "split", () => planContractGroups(pending, sources, (sections) => inspect(sandbox, state, "acceptance contract split", [
           "Split the original task and AGENTS.md into major, coherent subtasks for independent contract agents. You are read-only. Group the numbered source sections by requirement area; every section index must appear exactly once. Use at least two groups when there are at least two sections, and at most ten groups. Keep related requirements together without omitting any source. Return only schema JSON.",
-          JSON.stringify({ originatingTask: state.specPath, sections: sections.map((section, index) => ({ index, ...section })), feedback }, null, 2),
+          JSON.stringify({ originatingTask: state.specPath, sections: sections.map((section, index) => fragmentCatalog ? ({ index, sourcePath: section.sourcePath, sourceSpanIds: fragmentCatalog.fragments.filter((span) => span.sourcePath === section.sourcePath && section.sourceText.split("\n").some((line) => line.trim() === span.quote)).map((span) => span.id) }) : ({ index, ...section })), ...(fragmentCatalog ? { fragmentReader: fragmentReaderContext(state) } : {}), feedback }, null, 2),
           guidanceFor(state, { phase: "contract", substage: "split" }),
         ].filter(Boolean).join("\n\n"), ".sandcastle/contract-groups-output.schema.json"), () => save(state)));
-        draft = await contractSubstage(state, pending, "parallel", () => buildGroupedContractDraft(pending, parts, plan, proposePart, () => save(state)));
+        draft = await contractSubstage(state, pending, "parallel", () => buildGroupedContractDraft(pending, parts, plan, proposePart, () => save(state), { catalog: fragmentCatalog }));
       }
       return contractSubstage(state, pending, "assemble", () => reconcileContractDraft(pending, draft, sources, (proposal, lastError) => inspect(sandbox, state, "acceptance contract reconciliation", [
         "Assemble the parallel subtask contracts into ONE internally consistent contract before independent verification. This is a draft correction, not acceptance. Use only the fixed authoritative source set for obligations; informational documents may clarify ownership but cannot expand scope. Do not edit files. Return only a focused patch using the output schema: set completionScope to null when unchanged or to the corrected scope, replace existing criteria/checks or add missing ones, never remove criteria or downgrade mandatory requirements.",
         assemblyCommandRules,
-        ...reconciliationContractPromptGuidance(),
-        JSON.stringify({ sources, proposal, verifierFeedback: feedback, sourceManifest: sourceResolution.manifest, controllerReviewCheck, runnerInventory: executionContext,
+        ...reconciliationContractPromptGuidance({ version: fragmentCatalog ? 2 : 1 }),
+        JSON.stringify({ ...sourceContext(sources), proposal, verifierFeedback: feedback, sourceManifest: sourceResolution.manifest, controllerReviewCheck, runnerInventory: executionContext,
           informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
         lastError ? `Previous reconciliation patch was rejected. Repair this exact validation error without dropping obligations: ${lastError}` : "",
         guidanceFor(state, { phase: "contract", substage: "assemble" }),
-      ].filter(Boolean).join("\n\n"), ".sandcastle/contract-reconcile-output.schema.json"), () => save(state)));
+      ].filter(Boolean).join("\n\n"), outputSchema("contract-reconcile-output")), () => save(state), fragmentCatalog));
     },
     validateProposal: (proposal) => {
       validateContractRunnerInventory(proposal, executionContext.focusedRunnerPaths);
       return state.contractAmendment
-        ? validateContractAmendment(state.contractAmendments.at(-1).contract, proposal, state.contractAmendment)
+        ? validateContractAmendment(state.contractAmendments.at(-1).contract, proposal, state.contractAmendment, fragmentCatalog)
         : proposal;
     },
     verify: (proposal, sources) => contractSubstage(state, state.contractPending, "verify", () => inspect(sandbox, state, "independent contract verification", [
@@ -463,15 +500,14 @@ async function contract(sandbox, state) {
       state.contractAmendment?.type === "semantic-user-requirement"
         ? `This is a user-authorized semantic amendment of digest ${state.contractAmendment.previousDigest}. Verify that every prior criterion and check remains exactly preserved, the explicit decision and every required quote are represented by new mandatory/current criteria, no unrelated requirement is added, and no pending evidence is claimed passed.`
         : state.contractAmendment ? `This is a bounded amendment of digest ${state.contractAmendment.previousDigest}. Verify that every previous criterion remains semantically unchanged and mandatory, ${state.contractAmendment.checkId} is removed as the audited duplicate, all other mandatory/current external mappings are replaced by runnable evidence, and no pending evidence is claimed passed. Treat runnerInventory and controller checks as authoritative execution facts: sv-core expands to the listed exact repository tests; controller-review is the deterministic review plus fresh-final-audit gate at the exact digest and HEAD.` : "",
-      ...verifierContractPromptGuidance(),
-      JSON.stringify({ sources, sourceSpans: contractSourceCatalog(sources), proposal,
+      ...verifierContractPromptGuidance({ version: fragmentCatalog ? 2 : 1 }),
+      JSON.stringify({ ...sourceContext(sources), ...(fragmentCatalog ? {} : { sourceSpans: contractSourceCatalog(sources) }), proposal,
         ...(state.contractAmendment ? contractAmendmentVerificationContext(state) : {}),
         sourceManifest: sourceResolution.manifest, runnerInventory: executionContext,
         informationalPaths: Object.keys(sourceResolution.informationalSources) }, null, 2),
     ].join("\n\n"), ".sandcastle/contract-review-output.schema.json")),
     publish: async (accepted) => {
-      await mkdir(resolve(sandbox.worktreePath, taskDir(state)), { recursive: true });
-      await writeFile(resolve(sandbox.worktreePath, taskDir(state), "acceptance-contract.json"), JSON.stringify({ contract: accepted.contract, digest: accepted.contractDigest, verification: accepted.contractReview, migration: accepted.migration }, null, 2) + "\n");
+      await writeContractArtifact(resolve(sandbox.worktreePath, taskDir(state)), { contract: accepted.contract, digest: accepted.contractDigest, verification: accepted.contractReview, migration: accepted.migration }, { allowAmendment: Boolean(state.contractAmendment) });
       await ensureCommit(sandbox.worktreePath, "Sandcastle: accept independently verified contract");
     },
   });
@@ -979,10 +1015,19 @@ if (workerRuntimeResume) {
 }
 let semanticAmendment;
 let semanticAmendedSpec;
+let semanticAmendmentCatalog;
 if (semanticAmendResume) {
   try { semanticAmendment = JSON.parse(semanticAmendmentJson); }
   catch { throw new Error("SANDCASTLE_SEMANTIC_AMENDMENT_JSON must be valid JSON"); }
   semanticAmendedSpec = await git(root, "show", `${state.branch}:${state.specPath}`);
+  if (state.acceptance?.contract.version === 2) {
+    const listing = await git(root, "worktree", "list", "--porcelain");
+    const entry = listing.split("\n\n").find((block) => block.split("\n").includes(`branch refs/heads/${state.branch}`));
+    const worktree = entry?.match(/^worktree (.+)$/m)?.[1];
+    if (!worktree) throw new Error("Semantic amendment requires the existing source fragment catalog worktree");
+    semanticAmendmentCatalog = await loadFragmentCatalog(resolve(worktree, taskDir(state), "source-fragments"));
+    if (semanticAmendmentCatalog.digest !== state.acceptance.fragmentCatalogDigest) throw new Error("Semantic amendment source fragment catalog differs from the accepted digest");
+  }
 }
 const extraContractAttempts = process.env.SANDCASTLE_EXTRA_CONTRACT_ATTEMPTS;
 const extraGroupAttempts = process.env.SANDCASTLE_GROUP_RETRY_ATTEMPTS;
@@ -1035,7 +1080,7 @@ if (contractAmendRetry) {
   if (userResume || improvedContractResume || timeoutUpgradeResume || contractAmendResume || extraQuota !== undefined || extraContractAttempts !== undefined || extraGroupAttempts !== undefined || extraAssemblyAttempts !== undefined || assemblyExtension !== undefined || process.env.SANDCASTLE_CONTINUE === "1" || process.env.SANDCASTLE_RECOVER === "1") throw new Error("Contract amend retry cannot be combined with other continuation modes");
   resumeContractAmendmentRetry(structuredClone(state), contractAmendRetryId);
 }
-if (semanticAmendResume) resumeSemanticContractAmendment(structuredClone(state), semanticAmendedSpec, semanticAmendment);
+if (semanticAmendResume) resumeSemanticContractAmendment(structuredClone(state), semanticAmendedSpec, semanticAmendment, semanticAmendmentCatalog);
 if (extraQuota !== undefined) {
   // Validate before acquiring the lock or changing the persisted checkpoint.
   applyAllowanceGrant(structuredClone(state), { kind: "quota", extra: Number(extraQuota) });
@@ -1195,7 +1240,7 @@ try {
     } else if (contractAmendRetry) {
       resumeContractAmendmentRetry(state, contractAmendRetryId);
     } else if (semanticAmendResume) {
-      resumeSemanticContractAmendment(state, semanticAmendedSpec, semanticAmendment);
+      resumeSemanticContractAmendment(state, semanticAmendedSpec, semanticAmendment, semanticAmendmentCatalog);
     } else if (extraQuota !== undefined) {
       applyAllowanceGrant(state, { kind: "quota", extra: Number(extraQuota) });
     } else {
@@ -1252,7 +1297,11 @@ try {
       if (state.acceptance) {
         assertContract(state);
         if (sandbox) {
-          const artifact = JSON.parse(await readFile(resolve(sandbox.worktreePath, taskDir(state), "acceptance-contract.json"), "utf8"));
+          const artifact = await readContractArtifact(resolve(sandbox.worktreePath, taskDir(state)));
+          if (state.acceptance.contract.version === 2) {
+            const catalog = await loadFragmentCatalog(resolve(sandbox.worktreePath, taskDir(state), "source-fragments"));
+            if (catalog.digest !== state.acceptance.fragmentCatalogDigest) throw new Error("Acceptance: committed source fragment catalog changed; human decision required");
+          }
           if (JSON.stringify(artifact.contract) !== JSON.stringify(state.acceptance.contract) || artifact.digest !== state.acceptance.contractDigest) throw new Error("Acceptance: committed contract changed; human decision required");
         }
       }

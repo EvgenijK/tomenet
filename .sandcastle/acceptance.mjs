@@ -14,14 +14,17 @@ export const controllerReviewCheck = Object.freeze({ id: "controller-review", ki
 export const digest = (value) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex");
 const text = (value) => typeof value === "string" && value.trim().length > 0;
 const identifier = (value) => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(value);
+const criterionFieldsV2 = new Set(["id", "requirement", "sourceSpanIds", "mandatory", "applicability", "owner", "deferralReason", "checkIds"]);
 const path = (value) => typeof value === "string" && /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith("/") && !value.split("/").includes("..");
 const normalize = (value) => value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 const need = (condition, message) => { if (!condition) throw new Error(`Acceptance: ${message}`); };
 
-export function validateContract(contract, sources) {
-  need(contract?.version === 1 && ["implementation", "full_acceptance"].includes(contract.completionScope), "invalid contract scope/version");
+export function validateContract(contract, sources, catalog) {
+  need([1, 2].includes(contract?.version) && ["implementation", "full_acceptance"].includes(contract.completionScope), "invalid contract scope/version");
   need(Array.isArray(contract.criteria) && contract.criteria.length > 0 && contract.criteria.length <= 100, "numbered criteria required");
   need(Array.isArray(contract.checks) && contract.checks.length > 0 && contract.checks.length <= 100, "fixed checks required");
+  const fragments = new Map((catalog?.fragments ?? []).map((fragment) => [fragment.id, fragment]));
+  if (contract.version === 2) need(catalog?.version === 1 && fragments.size > 0 && fragments.size === catalog.fragments.length, "persisted fragment catalog required for version 2");
   const checks = new Map();
   for (const check of contract.checks) {
     need(identifier(check.id) && !checks.has(check.id) && text(check.description), "invalid/duplicate check");
@@ -47,7 +50,13 @@ export function validateContract(contract, sources) {
     need(identifier(criterion.id) && !ids.has(criterion.id) && text(criterion.requirement), "invalid/duplicate criterion");
     ids.add(criterion.id);
     need(typeof criterion.mandatory === "boolean" && ["current", "deferred"].includes(criterion.applicability), "criterion needs explicit applicability");
-    need(text(criterion.source?.quote) && typeof sources[criterion.source.path] === "string" && sources[criterion.source.path].includes(criterion.source.quote), `unverifiable source for ${criterion.id}`);
+    if (contract.version === 2) {
+      need(Object.keys(criterion).every((field) => criterionFieldsV2.has(field)),
+        `criterion ${criterion.id} must contain fragment IDs only, without source text`);
+      need(Array.isArray(criterion.sourceSpanIds) && criterion.sourceSpanIds.length > 0 &&
+        new Set(criterion.sourceSpanIds).size === criterion.sourceSpanIds.length &&
+        criterion.sourceSpanIds.every((id) => identifier(id) && fragments.has(id)), `unknown or invalid sourceSpanIds for ${criterion.id}`);
+    } else need(text(criterion.source?.quote) && typeof sources[criterion.source.path] === "string" && sources[criterion.source.path].includes(criterion.source.quote), `unverifiable source for ${criterion.id}`);
     if (!Array.isArray(criterion.checkIds) || criterion.checkIds.length === 0 || new Set(criterion.checkIds).size !== criterion.checkIds.length || !criterion.checkIds.every((id) => checks.has(id))) invalidCheckMappings.push(criterion.id);
     need(typeof criterion.owner === "string" && typeof criterion.deferralReason === "string", "owner/reason fields required");
     if (criterion.applicability === "deferred") {
@@ -72,11 +81,13 @@ export function requiredChecks(contract) {
   return contract.checks.filter((check) => ids.has(check.id));
 }
 
-export function acceptContract(state, contract, sources, review, head) {
-  validateContract(contract, sources);
+export function acceptContract(state, contract, sources, review, head, catalog) {
+  validateContract(contract, sources, catalog);
+  if (contract.version === 2) need(text(catalog.digest), "persisted fragment catalog digest required for acceptance");
   need(review?.approved === true && text(review.summary) && Array.isArray(review.missingRequirements) && review.missingRequirements.length === 0, "independent contract verification did not pass");
   state.acceptance = {
     contract, contractDigest: digest(contract), sourceDigests: Object.fromEntries(Object.entries(sources).map(([key, value]) => [key, digest(value)])),
+    ...(contract.version === 2 ? { fragmentCatalogDigest: catalog.digest } : {}),
     acceptedHead: head, contractReview: review, policy: { ...acceptancePolicy }, ledger: [], repairBatches: [], evidence: [], assessments: [], finalAudits: [],
     ...(state.contractMigration ? { migration: state.contractMigration } : {}),
   };
@@ -298,7 +309,7 @@ export function acceptanceReport(state) {
     `Coverage: ${a.finalAudits.at(-1)?.criteria.filter((item) => item.status === "passed").length ?? 0} passed, ${a.finalAudits.at(-1)?.criteria.filter((item) => item.status === "failed").length ?? 0} failed, ${a.finalAudits.at(-1)?.criteria.filter((item) => item.status === "pending").length ?? 0} pending.`, "",
     "## Criteria and coverage", "", ...a.contract.criteria.map((criterion) => {
       const result = a.finalAudits.at(-1)?.criteria.find((item) => item.id === criterion.id);
-      return `- ${criterion.id}: ${result?.status ?? "pending"} — ${criterion.requirement}. Source: ${criterion.source.path}. Evidence: ${result?.evidence ?? "not checked"}${criterion.applicability === "deferred" ? `; pending at ${criterion.owner}: ${criterion.deferralReason}` : ""}`;
+      return `- ${criterion.id}: ${result?.status ?? "pending"} — ${criterion.requirement}. Source: ${criterion.sourceSpanIds?.join(", ") ?? criterion.source.path}. Evidence: ${result?.evidence ?? "not checked"}${criterion.applicability === "deferred" ? `; pending at ${criterion.owner}: ${criterion.deferralReason}` : ""}`;
     }), "", "## Controller checks", "", ...a.contract.checks.map((check) => {
       if (check.kind === "review") {
         const audit = a.finalAudits.at(-1);
@@ -423,6 +434,7 @@ export async function contractStage(state, ops) {
   initializeContractFeedback(pending);
   assertContractFeedbackProgress(pending);
   const sources = await ops.sources();
+  const catalog = typeof ops.catalog === "function" ? await ops.catalog() : ops.catalog;
   if (!pending.proposal) {
     // Legacy interrupted proposals reserved a round before calling the model.
     // An incomplete response is resumed in that round, never counted as a
@@ -439,8 +451,8 @@ export async function contractStage(state, ops) {
     await ops.save(state);
   }
   try {
-    validateContract(pending.proposal, sources);
-    ops.validateProposal?.(pending.proposal, sources);
+    validateContract(pending.proposal, sources, catalog);
+    ops.validateProposal?.(pending.proposal, sources, catalog);
   }
   catch (error) {
     recordContractRejection(pending, [{ message: error.message, sourceSpanIds: [] }]);
@@ -458,7 +470,7 @@ export async function contractStage(state, ops) {
   }
   if (pending.review.approved !== true || pending.review.missingRequirements?.length) {
     const messages = pending.review.missingRequirements?.length ? pending.review.missingRequirements : [pending.review.summary];
-    const structured = verifierFeedbackDetails(pending.review, sources);
+    const structured = verifierFeedbackDetails(pending.review, sources, catalog);
     recordContractRejection(pending, messages.map((message) => structured.find((item) => item.message === message) ?? { message, sourceSpanIds: [] }));
     delete pending.proposal; delete pending.review; delete pending.parts; delete pending.partSourceDigest;
     delete pending.groupPlan; delete pending.groupSourceDigest; delete pending.groupPlanDigest; delete pending.groupResponses; delete pending.groupCitationFormat; delete pending.legacyGroupIndexes; delete pending.step;
@@ -473,7 +485,7 @@ export async function contractStage(state, ops) {
     item.addressedRound = pending.round;
   }
   const candidate = structuredClone(state);
-  acceptContract(candidate, pending.proposal, sources, pending.review, await ops.head());
+  acceptContract(candidate, pending.proposal, sources, pending.review, await ops.head(), catalog);
   candidate.acceptance.contractFeedbackLedger = structuredClone(pending.feedbackLedger);
   await ops.publish(candidate.acceptance);
   state.acceptance = candidate.acceptance;

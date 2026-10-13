@@ -13,9 +13,11 @@ const commonScopeGuidance = Object.freeze([
   "Later caller, downstream integration, native-platform, or genuinely unavailable environment evidence may be a deferred external check only when its exact owner and deferral reason are recorded. Deferred external evidence is not passing evidence.",
 ]);
 
-export function groupContractPromptGuidance({ usesSourceSpans = true } = {}) {
+export function groupContractPromptGuidance({ usesSourceSpans = true, version = 2 } = {}) {
   return [
-    usesSourceSpans
+    version === 2
+      ? "For every criterion, select sourceSpanIds only from this group's assigned sourceSpans. Store IDs only: never include source.path, source.quote, or fragment text. Use the controller-supplied fragment reader script to retrieve text; do not read or assemble fragment files yourself. Requirements spanning groups belong in full-source reconciliation."
+      : usesSourceSpans
       ? "For every criterion, select sourceSpanId only from this group's assigned sourceSpans. Do not provide source.path or source.quote; the controller inserts the exact source text. Requirements spanning groups belong in full-source reconciliation."
       : "For every criterion, quote only the supplied source sections verbatim in source.path and source.quote.",
     ...commonScopeGuidance,
@@ -23,8 +25,9 @@ export function groupContractPromptGuidance({ usesSourceSpans = true } = {}) {
   ];
 }
 
-export function reconciliationContractPromptGuidance() {
+export function reconciliationContractPromptGuidance({ version = 2 } = {}) {
   return [
+    ...(version === 2 ? ["All criterion additions and replacements must contain sourceSpanIds only. Retrieve referenced text with the controller-supplied fragment reader script; never inline source paths or quotes or assemble files yourself."] : []),
     "Reconcile the grouped drafts only against the fixed authoritative source set. Resolve cross-group inconsistencies and every saved verifier finding without broadening the originating task.",
     "Each retry is applied to the unchanged original grouped draft, never to a previous rejected patch. Return one complete patch that repairs all known validation failures together; partial fixes from rejected attempts are not accumulated.",
     "Repair all criterion IDs named in validation feedback in the same patch. Every criterion, including deferred criteria, must map to at least one valid check ID; add a focused or external check only when the authoritative requirement needs it.",
@@ -34,8 +37,9 @@ export function reconciliationContractPromptGuidance() {
   ];
 }
 
-export function verifierContractPromptGuidance() {
+export function verifierContractPromptGuidance({ version = 2 } = {}) {
   return [
+    ...(version === 2 ? ["Resolve criterion sourceSpanIds with the controller-supplied fragment reader script. Do not fetch or combine fragment files yourself; keep the proposal free of inline source paths and quotes."] : []),
     "Verify the proposal only against the fixed authoritative source set supplied by the controller. Other documents may provide context but cannot introduce new contract obligations unless the controller includes them in that set.",
     "Every missing or unsupported requirement must cite its authoritative source span. Use an empty span list only for a genuinely global consistency issue, never to import a requirement from outside the supplied sources.",
     "Check that mandatory behavior is testable and that deferred evidence has an exact owner. Do not treat the absence of a native or external runner as passing evidence.",

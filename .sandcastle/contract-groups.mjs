@@ -7,10 +7,10 @@ export function withContractGroupRecoveryAdvice(prompt, state, index) {
   const pending = state.contractPending;
   const grant = pending?.citationRetryGrant;
   const citation = grant && grant.groupIndex === index
-    ? `Citation retry for this group: use only a sourceSpanId from this group's assigned sourceSpans. The controller supplies source.path and source.quote. Do not cite the task overview or referenced documents. ${pending.citationRetryError ?? "The previous answer cited text outside its assigned sections."}`
+    ? `Citation retry for this group: use only IDs from this group's assigned sourceSpans. For v2 return sourceSpanIds; retrieve fragment text with the controller-supplied script. Do not cite the task overview or referenced documents. ${pending.citationRetryError ?? "The previous answer cited text outside its assigned sections."}`
     : "";
   const groupRetry = pending?.groupRetryGrant && pending.groupRetryGrant.groupIndex === index
-    ? `This group is the only rejected checkpoint. Correct its previous validation failure without changing the assigned source scope. Each criterion needs an assigned sourceSpanId, and every criterion.checkIds value must name a check in this group's response. ${pending.groupRetryGrant.lastError ?? "The previous response did not pass group validation."}`
+    ? `This group is the only rejected checkpoint. Correct its previous validation failure without changing the assigned source scope. Each criterion needs assigned sourceSpanIds in v2 (sourceSpanId in legacy v1), and every criterion.checkIds value must name a check in this group's response. ${pending.groupRetryGrant.lastError ?? "The previous response did not pass group validation."}`
     : "";
   return [prompt, guidance, citation, groupRetry].filter(Boolean).join("\n\n");
 }
@@ -46,9 +46,12 @@ export async function planContractGroups(pending, sources, split, save) {
   return { parts, plan };
 }
 
-export async function buildGroupedContractDraft(pending, parts, plan, propose, save) {
+export async function buildGroupedContractDraft(pending, parts, plan, propose, save, { catalog } = {}) {
   validateContractGroups(plan, parts);
-  const spans = sourceSpans(parts);
+  // Persisted IDs are reused across rounds; only the storage layer creates fragments.
+  const spans = catalog ? parts.map((part) => catalog.fragments.filter((fragment) =>
+    fragment.sourcePath === part.sourcePath && part.sourceText.split("\n").some((line) => line.trim() === fragment.quote))
+    .map(({ id, sourcePath }) => ({ id, sourcePath }))) : sourceSpans(parts);
   const grouped = plan.groups.map((group) => ({ title: group.title,
     sourceSections: group.partIndexes.map((index) => parts[index]),
     sourceSpans: group.partIndexes.flatMap((index) => spans[index]) }));
@@ -70,19 +73,18 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
     !Number.isInteger(groupGrant.used) || groupGrant.used < 0 || groupGrant.remaining + groupGrant.used !== groupGrant.granted)) {
     throw new Error("Acceptance: contract group retry grant no longer matches its checkpoint; human decision required");
   }
-  // Freeze the migration allowlist before launching any new agents. Existing
-  // accepted answers retain their exact quote/path, while every future answer
-  // must use a controller-expanded span ID. The plan digest remains unchanged.
+  // Freeze legacy migration eligibility before launching agents. New v2 answers
+  // retain fragment IDs; historical v1 answers retain their original citations.
   if (pending.groupCitationFormat === undefined) {
-    pending.groupCitationFormat = "span-v1";
+    pending.groupCitationFormat = catalog ? "ids-v2" : "span-v1";
     pending.legacyGroupIndexes = (pending.groupResponses ?? []).flatMap((response, index) => response ? [index] : []);
   }
-  if (pending.groupCitationFormat !== "span-v1" || !Array.isArray(pending.legacyGroupIndexes) ||
+  if (pending.groupCitationFormat !== (catalog ? "ids-v2" : "span-v1") || !Array.isArray(pending.legacyGroupIndexes) ||
     pending.legacyGroupIndexes.some((index) => !Number.isInteger(index) || index < 0 || index >= grouped.length || !pending.groupResponses?.[index] ||
       !pending.groupResponses[index].criteria?.every((criterion) => criterion?.source && criterion.sourceSpanId === undefined))) {
     throw new Error("Acceptance: contract citation checkpoint format changed; human decision required");
   }
-  const options = { requireSpanIds: true, legacyIndexes: pending.legacyGroupIndexes, allowMixedScopes: true };
+  const options = { catalog, requireSpanIds: true, legacyIndexes: pending.legacyGroupIndexes, allowMixedScopes: true };
   pending.groupPlanDigest = planDigest;
   pending.groupResponses ??= [];
   await save();
@@ -99,7 +101,7 @@ export async function buildGroupedContractDraft(pending, parts, plan, propose, s
         await save();
       }
       const response = await propose(group, index, grouped.length);
-      try { combineContractParts([group], [response], { requireSpanIds: true, allowMixedScopes: true }); }
+      try { combineContractParts([group], [response], { catalog, requireSpanIds: true, allowMixedScopes: true }); }
       catch (error) {
         if (!retry || (retry === grant && !/sourceSpanId|source quote|assigned section/.test(error.message))) throw error;
         if (retry === grant) pending.citationRetryError = error.message;

@@ -11,7 +11,7 @@
     "version": {
       "type": "integer",
       "enum": [
-        1
+        2
       ]
     },
     "completionScope": {
@@ -29,12 +29,12 @@
         "required": [
           "id",
           "requirement",
-          "source",
           "mandatory",
           "applicability",
           "deferralReason",
           "owner",
-          "checkIds"
+          "checkIds",
+          "sourceSpanIds"
         ],
         "properties": {
           "id": {
@@ -42,22 +42,6 @@
           },
           "requirement": {
             "type": "string"
-          },
-          "source": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "path",
-              "quote"
-            ],
-            "properties": {
-              "path": {
-                "type": "string"
-              },
-              "quote": {
-                "type": "string"
-              }
-            }
           },
           "mandatory": {
             "type": "boolean"
@@ -77,6 +61,13 @@
           },
           "checkIds": {
             "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceSpanIds": {
+            "type": "array",
+            "minItems": 1,
             "items": {
               "type": "string"
             }

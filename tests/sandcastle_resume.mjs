@@ -279,3 +279,34 @@ test("actual workflow CLI records partial quota grant and stays paused without p
     assert.equal(saved.executionHistory, undefined); assert.equal(existsSync(resolve(dir, "run.lock")), false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("v2 semantic amendment preserves stored fragment references and cites appended requirements", () => {
+  const state = externalPause({ phase: "awaiting", resumePhase: "plan", pauseReason: "User-approved requirement amendment is not represented in the immutable acceptance contract: unsupported mode.", specPath: "spec.md",
+    spec: "Use the server overview.\nPreserve production behavior.\n" });
+  state.acceptance.contract.version = 2;
+  const catalog = { version: 1, fragments: [
+    { id: "S-old-overview", sourcePath: "spec.md", quote: "Use the server overview." },
+    { id: "S-old-behavior", sourcePath: "spec.md", quote: "Preserve production behavior." },
+    { id: "S-new-requirement", sourcePath: "spec.md", quote: "Reject unsupported mode." },
+  ] };
+  state.acceptance.contract.checks = structuredClone(baselineChecks);
+  state.acceptance.contract.criteria.forEach((criterion, index) => { delete criterion.source;
+    criterion.sourceSpanIds = [catalog.fragments[index].id]; criterion.checkIds = ["sv-core"]; });
+  state.acceptance.contractDigest = digest(state.acceptance.contract);
+  const previous = structuredClone(state.acceptance.contract);
+  const authorization = { authorizationId: "v2-new-requirement", decision: "Reject unsupported mode", requiredQuotes: ["Reject unsupported mode."] };
+  const amendedSpec = `${state.spec}Reject unsupported mode.\n`;
+  assert.throws(() => resumeSemanticContractAmendment(structuredClone(state), amendedSpec, authorization), /persisted fragment catalog is missing/);
+  assert.throws(() => resumeSemanticContractAmendment(structuredClone(state), "Reject unsupported mode.\n", authorization, catalog), /removed represented source/);
+  resumeSemanticContractAmendment(state, amendedSpec, authorization, catalog);
+  const next = structuredClone(previous);
+  next.criteria.push({ id: "AC-added", requirement: "Reject unsupported mode before creation", mandatory: true, applicability: "current",
+    owner: "", deferralReason: "", checkIds: ["sv-core"], sourceSpanIds: ["S-new-requirement"] });
+  validateContract(next, {}, catalog);
+  validateContractAmendment(previous, next, state.contractAmendment, catalog);
+  const changed = structuredClone(next); changed.criteria[0].sourceSpanIds = ["S-old-behavior"];
+  assert.throws(() => validateContractAmendment(previous, changed, state.contractAmendment, catalog), /cannot alter or downgrade/);
+  const oldCitation = structuredClone(next); oldCitation.criteria.at(-1).sourceSpanIds = ["S-old-overview"];
+  assert.throws(() => validateContractAmendment(previous, oldCitation, state.contractAmendment, catalog), /do not cite required quote/);
+});

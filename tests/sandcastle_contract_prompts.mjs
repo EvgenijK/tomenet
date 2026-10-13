@@ -26,7 +26,7 @@ test("contract prompt guidance is neutral to originating tasks", () => {
 test("group guidance selects the controller citation format", () => {
   assert.match(groupContractPromptGuidance({ usesSourceSpans: true }).join("\n"), /select sourceSpanId/);
   assert.doesNotMatch(groupContractPromptGuidance({ usesSourceSpans: true }).join("\n"), /quote only the supplied/);
-  assert.match(groupContractPromptGuidance({ usesSourceSpans: false }).join("\n"), /quote only the supplied source sections/);
+  assert.match(groupContractPromptGuidance({ usesSourceSpans: false, version: 1 }).join("\n"), /quote only the supplied source sections/);
 });
 
 test("reconciliation guidance requires one complete patch against the original draft", () => {
@@ -58,4 +58,13 @@ test("implementation guidance never turns a mandatory current check into unrunna
   assert.match(guidance, /exact contract digest and HEAD/);
   assert.match(guidance, /never disguise policy evidence as sv-core/);
   assert.match(guidance, /Never invent a future test path/);
+});
+
+
+test("v2 agents retrieve fragment text through the supplied reader and keep IDs only", () => {
+  for (const guidance of [groupContractPromptGuidance(), reconciliationContractPromptGuidance(), verifierContractPromptGuidance()]) {
+    assert.match(guidance.join("\n"), /sourceSpanIds/);
+    assert.match(guidance.join("\n"), /fragment reader script/);
+  }
+  assert.match(groupContractPromptGuidance({ version: 1 }).join("\n"), /controller inserts the exact source text/);
 });

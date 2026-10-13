@@ -5,7 +5,7 @@ export const assemblyCommandRules = "The sv-build and sv-core baseline checks ar
 // A reconciler can replace or add requirements, but cannot silently remove
 // requirements or downgrade a mandatory one. Full validation and independent
 // source verification still follow this draft-only normalization.
-export function applyContractReconciliation(draft, patch, sources) {
+export function applyContractReconciliation(draft, patch, sources, catalog) {
   if (!patch || typeof patch.summary !== "string" || !patch.summary.trim() ||
     (patch.completionScope != null && !["implementation", "full_acceptance"].includes(patch.completionScope)) ||
     !["criterionEdits", "checkEdits", "criteriaToAdd", "checksToAdd"].every((key) => Array.isArray(patch[key]))) throw new Error("Malformed contract reconciliation");
@@ -33,12 +33,12 @@ export function applyContractReconciliation(draft, patch, sources) {
     if (!check?.id || checks.has(check.id)) throw new Error("Duplicate contract check addition");
     checks.set(check.id, check); result.checks.push(check);
   }
-  try { validateContract(result, sources); }
+  try { validateContract(result, sources, catalog); }
   catch (error) { throw new Error(`Invalid draft reconciliation: ${error.message.replace(/^Acceptance:\s*/, "")}`); }
   return result;
 }
 
-export async function reconcileContractDraft(pending, draft, sources, inspect, save) {
+export async function reconcileContractDraft(pending, draft, sources, inspect, save, catalog) {
   const sourceDigest = digest(sources);
   const draftDigest = digest(draft);
   if (pending.reconciliation && (pending.reconciliationDraftDigest !== draftDigest || pending.reconciliationSourceDigest !== sourceDigest)) throw new Error("Contract reconciliation checkpoint changed; human decision required");
@@ -72,7 +72,7 @@ export async function reconcileContractDraft(pending, draft, sources, inspect, s
       attempts.used++;
       await save();
       const patch = await inspect(draft, attempts.lastError);
-      try { applyContractReconciliation(draft, patch, sources); }
+      try { applyContractReconciliation(draft, patch, sources, catalog); }
       catch (error) {
         attempts.lastError = error.message.slice(0, 1000);
         await save();
@@ -85,5 +85,5 @@ export async function reconcileContractDraft(pending, draft, sources, inspect, s
       await save();
     }
   }
-  return applyContractReconciliation(draft, pending.reconciliation, sources);
+  return applyContractReconciliation(draft, pending.reconciliation, sources, catalog);
 }

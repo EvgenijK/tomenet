@@ -127,8 +127,10 @@ for each worker:
    worktree, since nested Bubblewrap namespaces are unavailable in the Docker
    environment; they retain a read-only sandbox and cannot modify repository
    files. Workers, assembly and build/test execution remain in containers.
-   The controller commits the fixed contract and check set under
-   `.scratch/sandcastle-<run-id>/acceptance-contract.json`.
+   Before dispatching contract agents, the controller persists and commits the
+   immutable source-fragment catalog. The accepted contract index is
+   `.scratch/sandcastle-<run-id>/acceptance-contract.json`; each criterion and
+   check is committed as a separate file named by its ID.
 2. The `to-tickets` skill splits the request into small vertical tickets in
    `.scratch/sandcastle-<run-id>/issues/`. The user's standing instruction to
    proceed autonomously replaces its interactive approval quiz.
@@ -175,9 +177,59 @@ for each worker:
 
 ## Acceptance contract and closure gate
 
-The contract records each criterion's stable ID, verifiable requirement,
-literal source quote, mandatory flag, current/deferred applicability, checks
-and owning task for deferred obligations. The independent verifier must reject
+New contracts use version 2. Each criterion records its stable ID, verifiable
+requirement, `sourceSpanIds` (one or more source-fragment IDs), mandatory flag,
+current/deferred applicability, checks and owning task for deferred obligations.
+Criteria do not contain source paths or quotations. The committed layout is:
+
+```text
+.scratch/sandcastle-<run-id>/
+  source-fragments/
+    index.json
+    S-<fragment-id>
+  acceptance-contract.json
+  criteria/
+    P1-AC1
+    P1-AC2
+  checks/
+    sv-build
+    sv-core
+```
+
+Each fragment file stores its ID, original source path and immutable text. Its
+filename is exactly its ID, without an extension. `index.json` records the
+catalog membership, source digests and catalog digest. The controller creates
+this catalog once before the first contract inspection. Subsequent rounds and
+resumes load the saved files and verify their integrity rather than re-extracting
+fragments. Changing, deleting or replacing a saved fragment blocks the run.
+Only a user-authorized addition of requirements can append fragments; all
+previous fragment files and IDs remain intact.
+An append journal and `append-receipt.json` preserve the previous index so an
+interrupted authorized append can resume even when state saving lags behind
+the catalog update. Normal continuation cannot apply an unfinished append or
+recreate a missing saved catalog.
+
+The contract index contains criterion/check ID arrays and approval metadata;
+`criteria/<ID>` and `checks/<ID>` contain the corresponding JSON objects.
+The reader validates file names, embedded IDs, membership and the reconstructed
+contract digest. Fragment and criterion/check files are controller-owned input
+for read-only agents.
+
+Agents retrieve fragment texts through the dedicated command:
+
+```bash
+node .sandcastle/contract-fragments.mjs \
+  .scratch/sandcastle-<run-id>/source-fragments S-<fragment-id> [S-<other-id>...]
+```
+
+The command returns JSON with the requested saved fragments and checks catalog
+integrity. Contract drafting, reconciliation, verification, planning and final
+review prompts direct agents to this command instead of manually reading or
+reconstructing quotations. Version 1 monolithic artifacts, pending drafts and
+amendments remain readable and retain their historical format and digest;
+existing runs are not automatically migrated.
+
+The independent verifier must reject
 omitted requirements, unsupported deferrals and behavior mislabeled optional.
 All originating requirements remain mandatory. Implementation readiness may
 leave later full acceptance pending only where the original task permits it;

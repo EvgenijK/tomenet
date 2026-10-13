@@ -3,7 +3,7 @@ import test from "node:test";
 import { planContractGroups, buildGroupedContractDraft, validateContractGroups, withContractGroupRecoveryAdvice } from "../.sandcastle/contract-groups.mjs";
 import { contractSourceCatalog, verifierFeedbackDetails, feedbackForGroup } from "../.sandcastle/contract-feedback.mjs";
 import { partitionContractSources, sourceSpans } from "../.sandcastle/contract-draft.mjs";
-import { baselineChecks } from "../.sandcastle/acceptance.mjs";
+import { baselineChecks, validateContract, contractStage } from "../.sandcastle/acceptance.mjs";
 
 const sources = {
   "docs/tasks/feature.md": "First production obligation.",
@@ -280,4 +280,66 @@ test("group retry grant spends at most eight calls and saves the last validation
   assert.match(pending.groupRetryGrant.lastError, /unknown or stale sourceSpanId/);
   await assert.rejects(buildGroupedContractDraft(pending, parts, plan, fail, async () => {}), /authorized contract group attempts exhausted/);
   assert.equal(calls, 8);
+});
+
+
+test("v2 draft, reconciliation and acceptance reuse persisted IDs without embedding source text", async () => {
+  const { applyContractReconciliation } = await import("../.sandcastle/contract-reconcile.mjs");
+  const catalog = { version: 1, digest: "persisted-catalog", fragments: [
+    { id: "S-persisted-feature", sourcePath: "docs/tasks/feature.md", quote: sources["docs/tasks/feature.md"] },
+    { id: "S-persisted-other", sourcePath: "docs/tasks/other.md", quote: sources["docs/tasks/other.md"] },
+    { id: "S-persisted-policy", sourcePath: "AGENTS.md", quote: sources["AGENTS.md"] },
+  ] };
+  const parts = partitionContractSources(sources);
+  const pending = { round: 1 };
+  let calls = 0;
+  const propose = async (group) => {
+    calls++;
+    assert.ok(group.sourceSpans.every((span) => span.quote === undefined));
+    return { version: 2, completionScope: "implementation", checks: structuredClone(baselineChecks),
+      criteria: group.sourceSpans.map((span, index) => ({ id: `AC-${index}`, requirement: "Preserve the assigned production obligation",
+        sourceSpanIds: [span.id], mandatory: true, applicability: "current", owner: "", deferralReason: "", checkIds: ["sv-core"] })) };
+  };
+  const draft = await buildGroupedContractDraft(pending, parts, split, propose, async () => {}, { catalog });
+  assert.equal(draft.version, 2);
+  assert.equal(pending.groupCitationFormat, "ids-v2");
+  assert.deepEqual(new Set(draft.criteria.flatMap((criterion) => criterion.sourceSpanIds)), new Set(catalog.fragments.map((fragment) => fragment.id)));
+  await buildGroupedContractDraft(pending, parts, split, async () => { throw new Error("Saved groups must be reused"); }, async () => {}, { catalog });
+  assert.equal(calls, 2);
+  validateContract(draft, {}, catalog); // v2 resolves only persisted records, never regenerated sources.
+  assert.throws(() => validateContract(draft, sources), /persisted fragment catalog required/);
+  const bad = structuredClone(draft); bad.criteria[0].sourceSpanIds = ["S-invented"];
+  assert.throws(() => validateContract(bad, sources, catalog), /unknown or invalid sourceSpanIds/);
+  for (const field of ["source", "sourceSpanId", "quote", "sourcePath"]) {
+    const inline = structuredClone(draft); inline.criteria[0][field] = "embedded";
+    assert.throws(() => validateContract(inline, sources, catalog), /fragment IDs only/);
+  }
+  const patch = { summary: "Keep sourced obligations", completionScope: null, criterionEdits: [], checkEdits: [], criteriaToAdd: [], checksToAdd: [] };
+  const reconciled = applyContractReconciliation(draft, patch, sources, catalog);
+  const state = { id: "v2", phase: "contract" };
+  await contractStage(state, { sources: async () => sources, catalog: async () => catalog,
+    propose: async () => reconciled, verify: async () => ({ approved: true, summary: "Source obligations covered", missingRequirements: [] }),
+    head: async () => "head", save: async () => {}, publish: async (acceptance) => {
+      assert.equal(acceptance.fragmentCatalogDigest, catalog.digest);
+      assert.ok(acceptance.contract.criteria.every((criterion) => criterion.source === undefined));
+    } });
+  assert.equal(state.phase, "plan");
+  assert.ok(!JSON.stringify(state.acceptance).includes('"quote"'));
+  const message = "Missing persisted policy";
+  assert.deepEqual(verifierFeedbackDetails({ missingRequirements: [message], findings: [{ message, sourceSpanIds: [catalog.fragments[2].id] }] }, {}, catalog),
+    [{ message, sourceSpanIds: [catalog.fragments[2].id] }]);
+});
+
+test("v2 grouped draft rejects foreign fragments and old quote responses before checkpointing", async () => {
+  const catalog = { version: 1, fragments: Object.entries(sources).map(([sourcePath, quote], index) => ({ id: `S-persisted-${index}`, sourcePath, quote })) };
+  const parts = partitionContractSources(sources);
+  for (const inline of [false, true]) {
+    const pending = { round: 1 };
+    await assert.rejects(buildGroupedContractDraft(pending, parts, split, async (group, index) => ({
+      version: 2, completionScope: "implementation", checks: structuredClone(baselineChecks), criteria: [{
+        id: "AC", requirement: "Preserve obligation", sourceSpanIds: [index === 0 ? "S-persisted-1" : "S-persisted-0"],
+        ...(inline ? { source: { path: "AGENTS.md", quote: sources["AGENTS.md"] } } : {}),
+        mandatory: true, applicability: "current", owner: "", deferralReason: "", checkIds: ["sv-core"] }] }), async () => {}, { catalog }), /unknown or invalid sourceSpanIds/);
+    assert.equal(pending.groupResponses.filter(Boolean).length, 0);
+  }
 });

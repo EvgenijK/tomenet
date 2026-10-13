@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+const criterionFieldsV2 = new Set(["id", "requirement", "sourceSpanIds", "mandatory", "applicability", "owner", "deferralReason", "checkIds"]);
+
 const sourceDigest = (sources) => createHash("sha256").update(JSON.stringify(sources)).digest("hex");
 
 // IDs include the source revision, path, absolute character offset and text. They
@@ -44,16 +46,17 @@ export function partitionContractSources(sources, targetChars = 6500) {
   return parts;
 }
 
-export function combineContractParts(parts, responses, { allowMixedScopes = false, requireSpanIds = false, legacyIndexes = [] } = {}) {
+export function combineContractParts(parts, responses, { allowMixedScopes = false, requireSpanIds = false, legacyIndexes = [], catalog } = {}) {
   if (!Array.isArray(responses) || responses.length !== parts.length || !parts.length) throw new Error("Incomplete contract parts");
   const scopes = new Set(responses.map((response) => response?.completionScope));
   if ([...scopes].some((scope) => !["implementation", "full_acceptance"].includes(scope)) || scopes.size !== 1 && !allowMixedScopes) throw new Error("Inconsistent contract completion scope");
-  const contract = { version: 1, completionScope: scopes.has("implementation") ? "implementation" : "full_acceptance", criteria: [], checks: [] };
+  const version = catalog ? 2 : 1;
+  const contract = { version, completionScope: scopes.has("implementation") ? "implementation" : "full_acceptance", criteria: [], checks: [] };
   const baseline = new Map();
   const commandIds = new Map();
   for (let index = 0; index < parts.length; index++) {
     const response = responses[index];
-    if (response?.version !== 1 || !Array.isArray(response.criteria) || !Array.isArray(response.checks)) throw new Error("Malformed contract part");
+    if (response?.version !== version || !Array.isArray(response.criteria) || !Array.isArray(response.checks)) throw new Error("Malformed contract part");
     const mapped = new Map();
     for (const check of response.checks) {
       if (typeof check?.id !== "string") throw new Error("Malformed contract check");
@@ -73,7 +76,16 @@ export function combineContractParts(parts, responses, { allowMixedScopes = fals
     for (const criterion of response.criteria) {
       const sections = parts[index].sourceSections ?? [parts[index]];
       let source;
-      if (requireSpanIds && !legacyIndexes.includes(index)) {
+      let sourceSpanIds;
+      if (version === 2) {
+        const assigned = new Set((parts[index].sourceSpans ?? []).map((span) => span.id));
+        sourceSpanIds = criterion?.sourceSpanIds;
+        if (!criterion || !Object.keys(criterion).every((field) => criterionFieldsV2.has(field)) ||
+          !Array.isArray(sourceSpanIds) || !sourceSpanIds.length || new Set(sourceSpanIds).size !== sourceSpanIds.length ||
+          !sourceSpanIds.every((id) => assigned.has(id) && catalog.fragments.some((fragment) => fragment.id === id))) {
+          throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has unknown or invalid sourceSpanIds in group ${index + 1}; use assigned fragment IDs only`);
+        }
+      } else if (requireSpanIds && !legacyIndexes.includes(index)) {
         const span = parts[index].sourceSpans?.find((item) => item.id === criterion?.sourceSpanId);
         if (!span || criterion.source !== undefined) throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has an unknown or stale sourceSpanId in group ${index + 1}; use an assigned source span ID (${(parts[index].sourceSpans ?? []).slice(0, 8).map((item) => item.id).join(", ")}${(parts[index].sourceSpans?.length ?? 0) > 8 ? ", ..." : ""})`);
         source = { path: span.sourcePath, quote: span.quote };
@@ -85,7 +97,7 @@ export function combineContractParts(parts, responses, { allowMixedScopes = fals
       }
       if (!Array.isArray(criterion.checkIds) || criterion.checkIds.some((id) => !mapped.has(id))) throw new Error(`Contract criterion ${criterion?.id ?? "<missing>"} has an unmapped check in group ${index + 1}`);
       const { sourceSpanId: _sourceSpanId, ...fields } = criterion;
-      contract.criteria.push({ ...fields, source, id: `P${index + 1}-${criterion.id}`, checkIds: criterion.checkIds.map((id) => mapped.get(id)) });
+      contract.criteria.push({ ...fields, ...(version === 2 ? { sourceSpanIds } : { source }), id: `P${index + 1}-${criterion.id}`, checkIds: criterion.checkIds.map((id) => mapped.get(id)) });
     }
   }
   return contract;

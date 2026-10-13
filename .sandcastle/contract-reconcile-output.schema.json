@@ -30,16 +30,11 @@
     "criterion": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "requirement", "source", "mandatory", "applicability", "deferralReason", "owner", "checkIds"],
+      "required": ["id", "requirement", "sourceSpanIds", "mandatory", "applicability", "deferralReason", "owner", "checkIds"],
       "properties": {
         "id": { "type": "string" },
         "requirement": { "type": "string" },
-        "source": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["path", "quote"],
-          "properties": { "path": { "type": "string" }, "quote": { "type": "string" } }
-        },
+        "sourceSpanIds": { "type": "array", "minItems": 1, "items": { "type": "string" } },
         "mandatory": { "type": "boolean" },
         "applicability": { "type": "string", "enum": ["current", "deferred"] },
         "deferralReason": { "type": "string" },

@@ -11,7 +11,7 @@
     "version": {
       "type": "integer",
       "enum": [
-        1
+        2
       ]
     },
     "completionScope": {
@@ -29,12 +29,12 @@
         "required": [
           "id",
           "requirement",
-          "sourceSpanId",
           "mandatory",
           "applicability",
           "deferralReason",
           "owner",
-          "checkIds"
+          "checkIds",
+          "sourceSpanIds"
         ],
         "properties": {
           "id": {
@@ -65,8 +65,12 @@
               "type": "string"
             }
           },
-          "sourceSpanId": {
-            "type": "string"
+          "sourceSpanIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
