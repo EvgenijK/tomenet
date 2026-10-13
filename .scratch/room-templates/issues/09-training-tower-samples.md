@@ -1,6 +1,6 @@
 # 09: Тестовые шаблоны Training Tower
 
-Status: ready-for-agent
+Status: ready-for-human
 
 ## Требования
 
@@ -19,6 +19,16 @@ Status: ready-for-agent
 
 ## Проверка
 
-- [ ] Сервер загружает все три шаблона и allowlist Training Tower.
-- [ ] Обычная генерация Training Tower размещает шаблоны и их содержимое.
-- [ ] Сборка сервера и Standards/Spec review проходят.
+- [x] Сервер загружает все три шаблона и allowlist Training Tower.
+- [x] Обычная генерация Training Tower размещает шаблоны и их содержимое.
+- [x] Сборка сервера и Standards/Spec review проходят.
+
+## Comments
+
+2026-10-13 — Standards: 0 findings; Spec: 0 findings. Обычная генерация
+Training Tower с seed 1 дала по 28 размещений на этажах 1 и 2; на первом
+проверены bats nest и treasure room, на втором все три шаблона. Проверены
+основные сущности, паутина, соединение входов и очистка временных масок.
+Оптимизированный сервер собран в активном worktree
+`/home/svechnik/.codex/worktrees/room-template-integration/tomenet_server`.
+Подробности воспроизведения: [training-tower-smoke](../verification/training-tower-smoke-README.md).
