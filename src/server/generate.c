@@ -9939,6 +9939,19 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				continue;
 			}
 
+			/* Explicit dungeon test mode: give templates every room attempt once
+			 * an ordinary room exists for their mandatory entrance connection.
+			 * Eligibility/NO_ROOM_TEMPLATES and the destroyed-level exclusion
+			 * above still apply. Other dungeons retain their ordinary RNG path. */
+			if (d_info[d_ptr->type].room_templates_always &&
+			    room_template_weight && dun->cent_n > 0) {
+				room_template_type *room_template = room_template_pick(
+					d_ptr->type, dtype, dun_lev, room_template_weight);
+
+				if (room_template) build_room_template(wpos, y, x, room_template);
+				continue;
+			}
+
 			/* Attempt an "unusual" room */
 			if (rand_int(DUN_UNUSUAL) < dun_lev) {
 				bool very_unusual;

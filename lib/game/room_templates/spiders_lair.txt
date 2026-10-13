@@ -1,0 +1,32 @@
+# Small Training Tower test room: cave spiders require actual depth 2.
+# In DT, '_' is transparent: the original level cell remains unchanged.
+# In DM/DI, '_' places no monster/item.
+V:1
+N:spiders_lair:Spiders Lair
+S:7:5
+P:depth:2:2
+P:weight:1000
+E:3:0
+T:#:56
+T:.:1
+T:w:16
+M:s:r_idx:60
+M:s:ego:none
+DT:
+###.###
+#w...w#
+#.....#
+#w...w#
+#######
+DM:
+_______
+__s____
+___s___
+____s__
+_______
+DI:
+_______
+_______
+_______
+_______
+_______

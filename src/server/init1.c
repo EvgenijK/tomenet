@@ -6090,6 +6090,10 @@ static errr grab_one_dungeon_flag(dungeon_info_type *d_ptr, cptr what) {
 		d_ptr->no_room_templates = TRUE;
 		return(0);
 	}
+	if (streq(what, "ROOM_TEMPLATES_ALWAYS")) {
+		d_ptr->room_templates_always = TRUE;
+		return(0);
+	}
 
 	/* Scan flags1 */
 	for (i = 0; i < 32; i++)

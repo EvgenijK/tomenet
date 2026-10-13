@@ -1,0 +1,38 @@
+# Small Training Tower supply cache: useful loot legal at depths 1-2.
+# In DT, '_' is transparent: the original level cell remains unchanged.
+# In DM/DI, '_' places no monster/item.
+V:1
+N:treasure_room:Treasure Room
+S:7:5
+P:depth:1:2
+P:weight:1000
+E:3:0
+T:#:56
+T:.:1
+I:p:tval:71
+I:p:sval:34
+I:d:tval:23
+I:d:sval:4
+I:d:quality:good
+I:s:tval:70
+I:s:sval:8
+I:r:tval:80
+I:r:sval:205
+DT:
+###.###
+#.....#
+#.....#
+#.....#
+#######
+DM:
+_______
+_______
+_______
+_______
+_______
+DI:
+_______
+_p___p_
+__d_s__
+___r___
+_______

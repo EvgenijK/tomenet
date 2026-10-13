@@ -4918,6 +4918,7 @@ struct dungeon_info_type {
 	u32b flags3;			/* Flags 3 */
 	u32b flagsw;			/* Wilderness terrain type flags */
 	bool no_room_templates;		/* F:NO_ROOM_TEMPLATES */
+	bool room_templates_always;	/* F:ROOM_TEMPLATES_ALWAYS: test-room priority */
 
 	byte rule_percents[100];	/* Flat rule percents */
 	rule_type rules[10];		/* Monster generation rules */

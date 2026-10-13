@@ -652,6 +652,11 @@ L:1:800:174:200:1:0:1:400:174:100
 A:56:1000:56:0:56:0:56:334:56:334:57:58
 O:20:20:20:20
 F:TOWER | EMPTY | NO_DEATH
+# Test-room priority: after a seed room, every attempt selects one of these.
+F:ROOM_TEMPLATES_ALWAYS
+I:+:spiders_lair
+I:+:bats_nest
+I:+:treasure_room
 F:FILL_METHOD_3
 R:25:1
 M:ANIMAL
