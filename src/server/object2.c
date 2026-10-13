@@ -4931,6 +4931,49 @@ static bool make_artifact(struct worldpos *wpos, object_type *o_ptr, u64b resf) 
  * as same as randarts.
  * (Be careful not to allow randarts ego!)
  */
+static bool ego_item_fits_kind(object_type *o_ptr, ego_item_type *e_ptr) {
+	int j;
+
+	for (j = 0; j < MAX_EGO_BASETYPES; j++)
+		if (e_ptr->tval[j] == o_ptr->tval &&
+		    e_ptr->min_sval[j] <= o_ptr->sval &&
+		    e_ptr->max_sval[j] >= o_ptr->sval) return(TRUE);
+	return(FALSE);
+}
+
+
+/* Dynamic restrictions shared by ordinary and room-template ego creation.
+   Static pair compatibility is validated separately while loading templates. */
+bool room_template_item_ego_available(struct worldpos *wpos,
+		object_type *o_ptr, int e_idx, u64b resf) {
+	ego_item_type *e_ptr;
+
+	if (!o_ptr || !o_ptr->k_idx || e_idx <= 0 || e_idx >= max_e_idx ||
+	    !e_info[e_idx].name) return(FALSE);
+#ifdef NO_BROKEN_EGO_RANDART
+	switch (o_ptr->tval) {
+	case TV_SWORD:
+		if (o_ptr->sval == SV_BROKEN_DAGGER ||
+		    o_ptr->sval == SV_BROKEN_SWORD) return(FALSE);
+		break;
+	case TV_HARD_ARMOR:
+		if (o_ptr->sval == SV_RUSTY_CHAIN_MAIL) return(FALSE);
+		break;
+	case TV_SOFT_ARMOR:
+		if (o_ptr->sval == SV_FILTHY_RAG) return(FALSE);
+		break;
+	}
+#endif
+	e_ptr = &e_info[e_idx];
+	if (!ego_item_fits_kind(o_ptr, e_ptr)) return(FALSE);
+	if (e_idx == EGO_ETHEREAL && (resf & RESF_NOETHEREAL)) return(FALSE);
+#ifdef NO_MORGUL_IN_IDDC
+	if (e_idx == EGO_MORGUL && wpos && in_irondeepdive(wpos)) return(FALSE);
+#endif
+	return(TRUE);
+}
+
+
 /*
  * Attempt to change an object into an ego
  *
@@ -4944,39 +4987,18 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 	if (artifact_p(o_ptr) || o_ptr->name2) return(FALSE);
 
-#ifdef NO_BROKEN_EGO_RANDART
-	switch (o_ptr->tval) {
-	case TV_SWORD:
-		if (o_ptr->sval == SV_BROKEN_DAGGER || o_ptr->sval == SV_BROKEN_SWORD) return(FALSE);
-		break;
-	case TV_HARD_ARMOR:
-		if (o_ptr->sval == SV_RUSTY_CHAIN_MAIL) return(FALSE);
-		break;
-	case TV_SOFT_ARMOR:
-		if (o_ptr->sval == SV_FILTHY_RAG) return(FALSE);
-		break;
-	}
-#endif
-
 	C_MAKE(ok_ego, e_tval_size[tval], int);
 
 	/* Grab the ok ego */
 	for (i = 0, n = e_tval_size[tval]; i < n; i++) {
 		ego_item_type *e_ptr = &e_info[e_tval[tval][i]];
-		bool ok = FALSE;
 
-		/* Must have the correct fields */
-		for (j = 0; j < MAX_EGO_BASETYPES; j++) {
-			if ((e_ptr->tval[j] == o_ptr->tval) && (e_ptr->min_sval[j] <= o_ptr->sval) && (e_ptr->max_sval[j] >= o_ptr->sval)) ok = TRUE;
-			if (ok) break;
-		}
-		if (!ok) {
-			/* Doesnt count as a try*/
-			continue;
-		}
+		if (!ego_item_fits_kind(o_ptr, e_ptr)) continue;
 
 		/* Exception: Instant-ego items don't heed 'power', as they usually only have 1 specific available ego-power to become complete! */
 		if (k_info[o_ptr->k_idx].flags6 & TR6_INSTA_EGO) {
+			if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr,
+			    e_tval[tval][i], resf)) continue;
 			ok_ego[ok_num++] = e_tval[tval][i];
 			continue;
 		}
@@ -5031,11 +5053,8 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 		i = ok_ego[rand_int(ok_num)];
 		e_ptr = &e_info[i];
-
-		if (i == EGO_ETHEREAL && (resf & RESF_NOETHEREAL)) continue;
-#ifdef NO_MORGUL_IN_IDDC
-		if (i == EGO_MORGUL && in_irondeepdive(&o_ptr->wpos)) continue;
-#endif
+		if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr, i,
+		    resf)) continue;
 
 		/* XXX XXX Enforce minimum "depth" (loosely) */
 		if (e_ptr->level > level) {
@@ -5087,11 +5106,9 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 			i = ok_ego[rand_int(ok_num)];
 			e_ptr = &e_info[i];
+			if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr, i,
+			    resf)) continue;
 
-			if (i == EGO_ETHEREAL && (resf & RESF_NOETHEREAL)) continue;
-#ifdef NO_MORGUL_IN_IDDC
-			if (i == EGO_MORGUL && in_irondeepdive(&o_ptr->wpos)) continue;
-#endif
 			if ((e_ptr->fego1[0] & ETR1_NO_DOUBLE_EGO)) continue;
 
 			/* Cannot be a double ego of the same ego type */
@@ -6370,7 +6387,9 @@ static void a_m_aux_4(object_type *o_ptr, int level, int power, u64b resf) {
  * "verygreat" makes sure that ego items aren't just resist fire etc.
  * Has no influence on artifacts. - C. Blue
  */
-void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf) {
+static void apply_magic_aux(struct worldpos *wpos, object_type *o_ptr, int lev,
+		bool okay, bool good, bool great, bool verygreat, u64b resf,
+		bool required_ego) {
 	/* usually lev = dungeonlevel (sometimes more, if in vault) */
 	object_type forge_bak, forge_highest, forge_lowest, forge_forcerandart_bak;
 	object_type *o_ptr_bak = NULL, *o_ptr_highest = &forge_highest;
@@ -6615,6 +6634,12 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 	/* Hack - for NO_MORGUL_IN_IDDC check in a_m_aux_1().  - C. Blue
 	   (Usually, o_ptr->wpos is only set in drop_near(), which happens _afterwards_.) */
 	wpcopy(&o_ptr->wpos, wpos);
+	/* Required room-template egos get one ordinary bounded selection attempt
+	   after artifact rolls, regardless of the quality-derived power. */
+	if (required_ego && !make_ego_item(lev, o_ptr, power >= 0, resf)) {
+		invwipe(o_ptr);
+		return;
+	}
 
 	/* In case we get an ego item, check "verygreat" flag and retry a few times if needed */
 	if (verygreat) s_printf("verygreat apply_magic:\n");
@@ -6920,6 +6945,20 @@ void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, 
 			object_copy(o_ptr, o_ptr_highest);
 		}
 	}
+}
+
+
+void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev,
+		bool okay, bool good, bool great, bool verygreat, u64b resf) {
+	apply_magic_aux(wpos, o_ptr, lev, okay, good, great, verygreat, resf,
+		FALSE);
+}
+
+
+bool apply_magic_required_ego(struct worldpos *wpos, object_type *o_ptr,
+		int lev, bool good, bool great, u64b resf) {
+	apply_magic_aux(wpos, o_ptr, lev, TRUE, good, great, FALSE, resf, TRUE);
+	return(o_ptr->k_idx && (o_ptr->name1 || o_ptr->name2 || o_ptr->name2b));
 }
 
 /*

@@ -2633,6 +2633,11 @@ static bool room_template_place_item(worldpos *wpos, int y, int x,
 	if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_EXACT) {
 		if (!room_template_item_egos_match(forge.k_idx,
 		    profile->ego_idx[0], profile->ego_idx[1]) ||
+		    !room_template_item_ego_available(wpos, &forge,
+		     profile->ego_idx[0], RESF_MASK_NOART) ||
+		    (profile->ego_idx[1] &&
+		     !room_template_item_ego_available(wpos, &forge,
+		      profile->ego_idx[1], RESF_MASK_NOART)) ||
 		    e_info[profile->ego_idx[0]].level > depth ||
 		    (profile->ego_idx[1] &&
 		     e_info[profile->ego_idx[1]].level > depth)) return(FALSE);
@@ -2651,11 +2656,12 @@ static bool room_template_place_item(worldpos *wpos, int y, int x,
 			if (true_artifact_p(&forge)) handle_art_dnum(forge.name1);
 			return(FALSE);
 		}
+	} else if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_REQUIRED) {
+		if (!apply_magic_required_ego(wpos, &forge, depth, good, great,
+		    RESF_NONE)) return(FALSE);
 	} else apply_magic(wpos, &forge, depth, TRUE, good, great, FALSE,
 		RESF_NONE);
 	if (!forge.k_idx) return(FALSE);
-	if (profile->ego_mode == ROOM_TEMPLATE_ITEM_EGO_REQUIRED &&
-	    !forge.name1 && !forge.name2 && !forge.name2b) return(FALSE);
 	if (!forge.name1) {
 		switch (forge.tval) {
 		case TV_SPIKE:

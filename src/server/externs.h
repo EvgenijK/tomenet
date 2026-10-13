@@ -1132,6 +1132,8 @@ extern bool room_template_monster_profile_matches(
 extern bool room_template_item_profile_matches(
 	room_template_item_profile *profile, int k_idx);
 extern bool room_template_item_egos_match(int k_idx, int first, int second);
+extern bool room_template_item_ego_available(struct worldpos *wpos,
+	object_type *o_ptr, int e_idx, u64b resf);
 extern int room_template_item_quality_weight(int k_idx, u64b resf,
 	room_template_item_quality quality);
 extern bool room_template_make_artifact_special(struct worldpos *wpos,
@@ -1544,6 +1546,8 @@ extern void wipe_o_list_safely(struct worldpos *wpos);
 extern void wipe_o_list_special(struct worldpos *wpos);
 extern void wipe_o_list_nonarts(struct worldpos *wpos);
 extern void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
+extern bool apply_magic_required_ego(struct worldpos *wpos,
+	object_type *o_ptr, int lev, bool good, bool great, u64b resf);
 extern void apply_magic_depth(int Depth, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
 extern void determine_level_req(int level, object_type *o_ptr);
 extern void verify_level_req(object_type *o_ptr);
