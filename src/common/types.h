@@ -4951,6 +4951,7 @@ typedef struct room_template_dungeon_rule room_template_dungeon_rule;
 struct room_template_dungeon_rule {
 	room_template_list_mode mode;
 	bool *members;
+	u32b *multipliers;	/* Per-template chance multiplier in thousandths */
 };
 
 /*

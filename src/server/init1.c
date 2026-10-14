@@ -6238,6 +6238,31 @@ static errr grab_one_spell_monster_flag(dungeon_info_type *d_ptr, cptr what, byt
 	return(1);
 }
 
+/* Strict decimal multiplier: 0..1000, with at most three decimal places. */
+static bool room_template_parse_multiplier(cptr text, u32b *result) {
+	u32b whole = 0, fraction = 0, scale = 100;
+	cptr p = text;
+
+	if (*p < '0' || *p > '9') return(FALSE);
+	while (*p >= '0' && *p <= '9') {
+		whole = whole * 10 + (*p++ - '0');
+		if (whole > 1000) return(FALSE);
+	}
+	if (*p == '.') {
+		p++;
+		if (*p < '0' || *p > '9') return(FALSE);
+		while (*p >= '0' && *p <= '9') {
+			if (!scale) return(FALSE);
+			fraction += (*p++ - '0') * scale;
+			scale /= 10;
+		}
+	}
+	if (*p || (whole == 1000 && fraction)) return(FALSE);
+	*result = whole * 1000 + fraction;
+	return(TRUE);
+}
+
+
 /*
  * Initialize the "d_info" array, by parsing an ascii "template" file
  */
@@ -6266,6 +6291,8 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 	for (i = 0; i < MAX_D_IDX; i++) {
 		if (room_template_dungeon_rules[i].members)
 			free(room_template_dungeon_rules[i].members);
+		free(room_template_dungeon_rules[i].multipliers);
+		room_template_dungeon_rules[i].multipliers = NULL;
 		room_template_dungeon_rules[i].members = NULL;
 		room_template_dungeon_rules[i].mode = ROOM_TEMPLATE_LIST_ALL;
 	}
@@ -6393,36 +6420,51 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 		/* There better be a current d_ptr */
 		if (!d_ptr) return(3);
 
-		/* Process 'I' for room-template allow/deny lists. */
+		/* I:+:code[:multiplier] or I:-:code. */
 		if (buf[0] == 'I') {
 			room_template_dungeon_rule *rule =
 				&room_template_dungeon_rules[error_idx];
 			room_template_list_mode mode;
 			size_t template_index;
+			u32b multiplier = 1000;
+			char *suffix;
 
 			if ((buf[2] != '+' && buf[2] != '-') || buf[3] != ':' ||
-			    !buf[4] || strchr(buf + 4, ':')) return(1);
+			    !buf[4]) return(1);
 			mode = buf[2] == '+' ? ROOM_TEMPLATE_LIST_ALLOW :
 				ROOM_TEMPLATE_LIST_DENY;
+			suffix = strchr(buf + 4, ':');
+			if (suffix) {
+				if (mode != ROOM_TEMPLATE_LIST_ALLOW ||
+				    !room_template_parse_multiplier(suffix + 1, &multiplier)) {
+					s_printf("Invalid room-template multiplier in dungeon %d.\n", error_idx);
+					return(1);
+				}
+				*suffix = '\0';
+			}
 			if (rule->mode != ROOM_TEMPLATE_LIST_ALL && rule->mode != mode) {
-				s_printf("Mixed room-template allow/deny lists in dungeon %d.\n",
-					error_idx);
+				s_printf("Mixed room-template allow/deny lists in dungeon %d.\n", error_idx);
 				return(1);
 			}
 			for (template_index = 0; template_index < room_template_count;
 			    template_index++)
 				if (streq(room_templates[template_index].code, buf + 4)) break;
 			if (template_index == room_template_count) {
-				s_printf("Unknown room-template code '%s' in dungeon %d.\n",
-					buf + 4, error_idx);
+				s_printf("Unknown room-template code '%s' in dungeon %d.\n", buf + 4, error_idx);
 				return(1);
 			}
 			if (!rule->members) {
 				rule->members = calloc(room_template_count, sizeof(*rule->members));
-				if (!rule->members) return(7);
+				rule->multipliers = calloc(room_template_count, sizeof(*rule->multipliers));
+				if (!rule->members || !rule->multipliers) return(7);
+			}
+			if (rule->members[template_index]) {
+				s_printf("Duplicate room-template code '%s' in dungeon %d.\n", buf + 4, error_idx);
+				return(1);
 			}
 			rule->mode = mode;
 			rule->members[template_index] = TRUE;
+			rule->multipliers[template_index] = multiplier;
 			continue;
 		}
 

@@ -25,6 +25,20 @@
 # O:<%treasure>:<%combat>:<%magic>:<%tools>
 # E:<dices>d<sides>:<frequency>:<attack type>
 # F:<flags>
+# I:+:<room template code>[:<chance multiplier>] (allow list)
+# I:-:<room template code> (deny list; no multiplier allowed)
+# Multipliers: decimal 0..1000, up to 3 fractional digits, default 1.
+# Examples: I:+:orc_raider_camp:2 (twice its baseline attempt chance)
+#           I:+:orc_raider_camp:0.5 (half its baseline attempt chance)
+#           I:+:orc_raider_camp:0 (disabled even in ALWAYS mode)
+# Allow and deny lists cannot be mixed; duplicate codes are errors.
+# The effective floor theme supplies the list/multipliers (including IDDC).
+# Each eligible template keeps its baseline P:weight share. Multipliers scale
+# its attempt chance, not merely its relative selection weight. Total category
+# probability is capped at 100% after the two existing unusual-room rolls;
+# at saturation, template selection follows weight * multiplier proportions.
+# NO_ROOM_TEMPLATES overrides everything; ROOM_TEMPLATES_ALWAYS bypasses the
+# category probability only. Depth, size and placement restrictions still apply.
 # R:<percent>:<flags mode> (up to 10 rules)
 # M:<monster flags> (up to 10 R_CHAR_x defs)
 # S:<monster spells>
@@ -47,6 +61,7 @@ V:4.0.0
 # (actually, not used but often refered)
 
 N:0:The Wilderness
+I:-:orc_raider_camp
 D:Wil:a way to the Wilderness
 W:0:0:0:0:0:14:500
 L:89:800:199:200:1:0:0:0:0:0
@@ -58,6 +73,7 @@ R:100:0
 ### The principal dungeons, they were created by spliting the vanilla dungeon ###
 
 N:1:Mirkwood
+I:+:orc_raider_camp
 D:Mkw:a way to the Mirkwood Forest.
 B:81
 W:11:34:5:0:14:160
@@ -78,6 +94,7 @@ M:SPIDER
 R:10:0
 
 N:2:Mordor
+I:-:orc_raider_camp
 D:Mdr:a door to the Land of Mordor.
 W:34:66:15:0:14:160
 B:81
@@ -95,6 +112,7 @@ F:FILL_METHOD_2
 R:100:0
 
 N:3:Angband
+I:-:orc_raider_camp
 D:Ang:an entrance to the Pits of Angband.
 W:67:127:30:0:14:160
 #L:1:1000:1:0:1:0:0:0:0:0
@@ -110,6 +128,7 @@ F:FILL_METHOD_0 | STREAMERS | WALL_STREAMERS
 R:100:0
 
 N:4:Barrow-Downs
+I:-:orc_raider_camp
 D:BDw:a way to the Barrow-Downs.
 B:81
 # tmp. Made deeper (consider building Mirkwood near Bree)
@@ -139,6 +158,7 @@ R:75:0
 # Levels 85-99
 # finally meet Sauron here, now exclusively
 N:5:Mount Doom
+I:-:orc_raider_camp
 D:MDm:a way to the top of the Mount Doom.
 B:81
 W:85:99:38:0:14:160
@@ -165,6 +185,7 @@ M:IM_FIRE
 # guarded by Zu-Aon, w/ Ring of Phasing, which opens the last gate to Valinor
 # HARDCODING-WARNINGS: netherrealm_bottom/netherrealm_level/special stores depend on NR going from dlev 166 to 166 + 30
 N:6:The Nether Realm
+I:-:orc_raider_camp
 D:Nth:a magical portal to the Nether Realm.
 B:80
 #W:666:696:40:0:14:160
@@ -187,6 +208,7 @@ M:RES_NETH | R_CHAR_G | R_CHAR_W | R_CHAR_U | R_CHAR_x | R_CHAR_N
 # levels 35-50
 # guarded by Ar-Pharazon the Golden, who has the stone "Toris Mejistos".
 N:7:Submerged Ruins
+I:-:orc_raider_camp
 D:Num:a submerged way to the lost land of Numenor.
 #W:35:51:15:0:14:160
 #W:35:42:15:0:14:160 for Ar-Pharazon level consistency again:
@@ -211,6 +233,7 @@ M:AQUATIC | CAN_SWIM | CAN_FLY
 
 # Used for astral mode
 N:8:The Halls of Mandos
+I:-:orc_raider_camp
 D:HMa:*A BUG*
 #W:1:98:1:0:14:160
 W:1:100:1:0:14:160
@@ -237,6 +260,7 @@ R:100:0
 # guarded by Shelob, who guards Sting. (As an artifact which gains levels, it's
 # a worthwhile reward...)
 N:9:Cirith Ungol
+I:-:orc_raider_camp
 D:CUg:an entrance to Cirith Ungol.
 B:81
 W:25:51:10:0:14:160
@@ -264,6 +288,7 @@ S:BR_POIS | BR_DARK
 # levels 25-36
 # guarded by Golgarach, the Living Rock, with the Anchor of Space-Time
 N:10:The Heart of the Earth
+I:-:orc_raider_camp
 D:HoE:a passage leading into the very heart of the world.
 B:81
 W:25:37:10:0:14:160
@@ -294,6 +319,7 @@ R:30:0
 # levels 40-70
 # Feagwath is there, guarding Doomcaller
 N:16:The Paths of the Dead
+I:-:orc_raider_camp
 D:PoD:the entrance to the Paths of the Dead.
 W:40:70:20:0:24:100
 #L:88:850:84:150:1:0:0:0:0:0
@@ -316,6 +342,7 @@ M:UNDEAD | NONLIVING
 # levels 35-52
 # Guarded by The Glass Golem guarding The Helm of Knowledge -> now The King in Yellow
 N:17:The Illusory Castle
+I:-:orc_raider_camp
 D:Ill:an entrance to the Illusory Castle.
 W:35:52:10:0:24:100
 #L:1:980:188:20:1:0:0:0:0:0
@@ -340,6 +367,7 @@ S:BR_CONF | BR_CHAO | BA_CHAO | CONF | FORGET | TRAPS
 # Levels 25-37
 # Guarded by The Minotaur of the Labyrinth with the Steel Helm of Hammerhand
 N:18:The Maze
+I:-:orc_raider_camp
 D:Maz:a small tunnel leading to a maze of twisty little passages, all alike.
 W:25:38:15:0:20:160
 #L:1:1000:1:0:1:0:0:0:0:0
@@ -361,6 +389,7 @@ M:R_CHAR_p
 # levels 10-22
 # There is Azog with the Wand of Thrain at the bottom
 N:19:The Orc Cave
+I:+:orc_raider_camp:1000
 D:Orc:a dark tunnel leading to an Orc Cave.
 B:81
 W:10:23:3:0:35:200
@@ -386,6 +415,7 @@ M:ORC | R_CHAR_k | R_CHAR_o | R_CHAR_O
 # levels 60-72
 # Glaurung (715) guards Nauglamir -> Smaug (697) guards Arkenstone
 N:20:Erebor
+I:-:orc_raider_camp
 D:Ere:a tunnel leading into depths of the Lonely Mountain.
 B:104
 W:50:61:35:0:20:140
@@ -413,6 +443,7 @@ R:10:0
 # levels 13-25
 # Old Man Willow protects it, with the Boomerang of Beor.
 N:21:The Old Forest
+I:-:orc_raider_camp
 D:OFr:a path into the Old Forest.
 B:81
 W:13:26:5:0:15:100
@@ -439,6 +470,7 @@ M:UNDEAD | R_CHAR_h
 # levels 30-50
 # There is the Balrog of Moria with The Quarterstaff of Olorin
 N:22:The Mines of Moria
+I:-:orc_raider_camp
 D:MoM:a stone door leading to the Mines of Moria.
 B:81
 W:30:50:15:0:40:40
@@ -467,6 +499,7 @@ R:10:0
 # Levels 57-70
 # The Necromancer (weak sauron) at the bottom, with the Ring of Durin
 N:23:Dol Guldur
+I:-:orc_raider_camp
 D:TDG:a gate leading to the tower of Dol Guldur.
 W:57:71:28:0:24:160
 #L:1:800:174:200:1:0:0:0:0:0
@@ -494,6 +527,7 @@ R:10:0
 # levels 32-34
 # The Watcher in the Water at the bottom guarding the Trident of Wrath
 N:24:The Small Water Cave
+I:-:orc_raider_camp
 D:SWC:the entrance to a small water cave.
 B:81
 W:32:35:15:0:14:160
@@ -522,6 +556,7 @@ M:IM_COLD
 # dragonrider armour.
 # Levels 45-70
 N:25:The Sacred Land of Mountains
+I:-:orc_raider_camp
 D:LoM:the way to The Sacred Land of Mountains.
 B:104
 W:40:45:20:0:14:160
@@ -550,6 +585,7 @@ M:R_CHAR_A
 # Guarded by Ulfang the Black, Morgoth's first Easterling follower.
 # He has Careth Asdriag (an heirloom of Rhun according to its description.)
 N:26:The Land of Rhun
+I:-:orc_raider_camp
 D:LoR:a way to the the Land of Rhun.
 W:26:41:13:0:14:160
 #L:89:1000:1:0:1:0:0:0:0:0
@@ -572,6 +608,7 @@ R:40:0
 # level 22-30
 # guarded by the Sandworm Queen (and her children), who will drop her armour
 N:27:The Sandworm lair
+I:-:orc_raider_camp
 D:SwL:a sandhole.
 B:81
 W:22:30:12:0:5:200
@@ -599,6 +636,7 @@ M:MULTIPLY
 #       'nigh unsurpassable mountain chains that arose in the midst of forests'
 #       and the initial server dungeon generation will ensure this.
 N:28:The Death Fate
+I:-:orc_raider_camp
 D:Dth:a fated death.
 W:1:1:1:0:30:255
 # Use basic 'floor'?
@@ -618,6 +656,7 @@ R:100:0
 # levels 20-40
 # Guarded by the White Balrog guarding The Pike 'Til-i-arc'
 N:29:The Helcaraxe
+I:-:orc_raider_camp
 D:Ice:the entrance to the Grinding Ice of the Helcaraxe.
 W:20:41:10:0:14:160
 B:254
@@ -667,6 +706,7 @@ R:75:0
 #
 # levels 1-2
 N:31:The Shores of Valinor
+I:-:orc_raider_camp
 D:SOV:Valinor, for retirement.
 B:104
 W:200:200:1:0:14:160
@@ -682,6 +722,7 @@ F:NO_ENTRY_STAIR | NO_ENTRY_WOR | NO_ENTRY_PROB | NO_ENTRY_FLOAT
 #
 # levels 130-149
 N:32:The Cloud Planes
+I:-:orc_raider_camp
 D:TCP:the planes in the skies.
 B:108
 W:130:149:40:0:14:160
@@ -708,6 +749,7 @@ M:R_CHAR_Z
 # Alternative to Angband for pre-king deep leveling up to 50:
 # levels 59-95
 N:33:The Ash Mountains
+I:-:orc_raider_camp
 D:Ash:a foreboding mountain chain with high, scarred peaks.
 B:104
 #B:276

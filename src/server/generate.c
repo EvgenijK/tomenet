@@ -2889,36 +2889,92 @@ static bool room_template_is_eligible(size_t index, int real_dungeon,
 }
 
 
-static u32b room_template_total_weight(int real_dungeon,
-		int effective_dungeon, int depth) {
-	u32b total = 0;
+/* Keep zero-multiplier candidates in the baseline sum: disabling one
+ * template must not increase another template's ordinary chance. */
+static u32b room_template_multiplier(size_t index, int effective_dungeon) {
+	room_template_dungeon_rule *rule = &room_template_dungeon_rules[effective_dungeon];
+
+	if (rule->mode == ROOM_TEMPLATE_LIST_ALLOW && rule->members[index])
+		return(rule->multipliers[index]);
+	return(1000);
+}
+
+
+static u64b room_template_total_weight(int real_dungeon,
+		int effective_dungeon, int depth, u64b *baseline) {
+	u64b total = 0;
 	size_t i;
 
+	*baseline = 0;
 	for (i = 0; i < room_template_count; i++) {
+		u64b scaled;
+
 		if (!room_template_is_eligible(i, real_dungeon, effective_dungeon,
 		    depth)) continue;
-		if (total > 0x7fffffffU - room_templates[i].weight) {
+		scaled = (u64b)room_templates[i].weight *
+			room_template_multiplier(i, effective_dungeon);
+		/* The baseline cap also bounds scaled sums below 2^51. */
+		if (*baseline > 0x7fffffffU - room_templates[i].weight) {
 			s_printf("Room-template weight total exceeds generator limit.\n");
+			*baseline = 0;
 			return(0);
 		}
-		total += room_templates[i].weight;
+		*baseline += room_templates[i].weight;
+		total += scaled;
 	}
 	return(total);
 }
 
 
+/* Rand_div only supports small signed bounds. Assemble 60 unbiased bits
+ * from safe bounds and reject the incomplete final partition. */
+static u64b room_template_random(u64b bound) {
+	u64b range = (u64b)1 << 60;
+	u64b limit, choice;
+	int i;
+
+	/* Every caller is bounded below 2^51 by the baseline weight cap. */
+	if (!bound || bound > ((u64b)0x7fffffffU * 1000000)) {
+		s_printf("Room-template random bound exceeds generator limit.\n");
+		return(0);
+	}
+	if (bound <= 0x10000000) return(rand_int((s32b)bound));
+	limit = range - range % bound;
+	do {
+		choice = 0;
+		for (i = 0; i < 4; i++) choice = (choice << 15) | rand_int(32768);
+	} while (choice >= limit);
+	return(choice % bound);
+}
+
+
+static bool room_template_category_roll(u64b scaled, u64b baseline) {
+	u64b denominator = baseline * 11000;
+
+	if (!scaled || !baseline) return(FALSE);
+	if (scaled >= denominator) return(TRUE);
+	/* Retain the old single category draw for the default frequency. */
+	if (scaled == baseline * 1000) return(rand_int(110) < 10);
+	return(room_template_random(denominator) < scaled);
+}
+
+
 static room_template_type *room_template_pick(int real_dungeon,
-		int effective_dungeon, int depth, u32b total_weight) {
-	u32b choice;
+		int effective_dungeon, int depth, u64b total_weight) {
+	u64b choice;
 	size_t i;
 
 	if (!total_weight) return(NULL);
-	choice = rand_int(total_weight);
+	choice = room_template_random(total_weight);
 	for (i = 0; i < room_template_count; i++) {
+		u64b scaled;
+
 		if (!room_template_is_eligible(i, real_dungeon, effective_dungeon,
 		    depth)) continue;
-		if (choice < room_templates[i].weight) return(&room_templates[i]);
-		choice -= room_templates[i].weight;
+		scaled = (u64b)room_templates[i].weight *
+			room_template_multiplier(i, effective_dungeon);
+		if (choice < scaled) return(&room_templates[i]);
+		choice -= scaled;
 	}
 	return(NULL);
 }
@@ -9208,7 +9264,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 #endif
 
 	bool streamers = FALSE, wall_streamers = FALSE;
-	u32b room_template_weight = 0;
+	u64b room_template_weight = 0, room_template_baseline = 0;
 
 	u32b df1_small = DF1_SMALL, df1_smallest = DF1_SMALLEST;
 	int dtype = 0;
@@ -9850,7 +9906,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 	dun->col_rooms = dun->l_ptr->wid / BLOCK_WID;
 	if (!destroyed)
 		room_template_weight = room_template_total_weight(d_ptr->type,
-			dtype, dun_lev);
+			dtype, dun_lev, &room_template_baseline);
 
 	/* Initialize the room table */
 	for (y = 0; y < dun->row_rooms; y++)
@@ -9962,7 +10018,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				/* Attempt a very unusual room */
 				very_unusual = rand_int(DUN_UNUSUAL) < dun_lev;
 				if (very_unusual && room_template_weight &&
-				    rand_int(110) < 10) {
+				    room_template_category_roll(room_template_weight, room_template_baseline)) {
 					room_template_type *room_template = room_template_pick(
 						d_ptr->type, dtype, dun_lev, room_template_weight);
 
