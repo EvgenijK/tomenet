@@ -8961,8 +8961,10 @@ int cave_set_feat(worldpos *wpos, int y, int x, int feat) {
 	if (!(zcave = getcave(wpos))) return(1);
 	if (!in_bounds_array(y, x)) return(2);
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (level_generation_time && (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) &&
 	    !is_stair(feat)) return(3);
+#endif /* ENABLE_ROOM_TEMPLATES */
 	feat = cave_set_feat_resolve(wpos, y, x, feat);
 	if (feat < 0) return(2);
 

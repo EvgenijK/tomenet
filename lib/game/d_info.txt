@@ -61,7 +61,6 @@ V:4.0.0
 # (actually, not used but often refered)
 
 N:0:The Wilderness
-I:-:orc_raider_camp
 D:Wil:a way to the Wilderness
 W:0:0:0:0:0:14:500
 L:89:800:199:200:1:0:0:0:0:0
@@ -73,7 +72,6 @@ R:100:0
 ### The principal dungeons, they were created by spliting the vanilla dungeon ###
 
 N:1:Mirkwood
-I:+:orc_raider_camp
 D:Mkw:a way to the Mirkwood Forest.
 B:81
 W:11:34:5:0:14:160
@@ -94,7 +92,6 @@ M:SPIDER
 R:10:0
 
 N:2:Mordor
-I:-:orc_raider_camp
 D:Mdr:a door to the Land of Mordor.
 W:34:66:15:0:14:160
 B:81
@@ -112,7 +109,6 @@ F:FILL_METHOD_2
 R:100:0
 
 N:3:Angband
-I:-:orc_raider_camp
 D:Ang:an entrance to the Pits of Angband.
 W:67:127:30:0:14:160
 #L:1:1000:1:0:1:0:0:0:0:0
@@ -128,7 +124,6 @@ F:FILL_METHOD_0 | STREAMERS | WALL_STREAMERS
 R:100:0
 
 N:4:Barrow-Downs
-I:-:orc_raider_camp
 D:BDw:a way to the Barrow-Downs.
 B:81
 # tmp. Made deeper (consider building Mirkwood near Bree)
@@ -389,7 +384,7 @@ M:R_CHAR_p
 # levels 10-22
 # There is Azog with the Wand of Thrain at the bottom
 N:19:The Orc Cave
-I:+:orc_raider_camp:1000
+I:+:orc_camp:1
 D:Orc:a dark tunnel leading to an Orc Cave.
 B:81
 W:10:23:3:0:35:200

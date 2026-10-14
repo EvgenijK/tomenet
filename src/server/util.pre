@@ -88,6 +88,7 @@ struct server_opts
 
 	s16b anti_scum;
 	s16b dun_unusual;
+	s16b dun_room_template;
 	s16b town_x;
 	s16b town_y;
 	s16b town_base;

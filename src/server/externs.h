@@ -281,7 +281,9 @@ extern header *re_head;
 extern monster_ego *re_info;
 extern header *d_head;
 extern dungeon_info_type *d_info;
+#ifdef ENABLE_ROOM_TEMPLATES
 extern room_template_dungeon_rule room_template_dungeon_rules[MAX_D_IDX];
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern char *d_name;
 extern char *d_text;
 extern char *re_name;
@@ -406,8 +408,10 @@ extern header *v_head;
 extern vault_type *v_info;
 extern char *v_name;
 extern char *v_text;
+#ifdef ENABLE_ROOM_TEMPLATES
 extern room_template_type *room_templates;
 extern size_t room_template_count;
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern header *f_head;
 extern feature_type *f_info;
 extern char *f_name;
@@ -1022,8 +1026,10 @@ extern void arcade_wipe(worldpos *wpos);
 #endif
 
 extern bool room_alloc(worldpos *wpos, int x, int y, bool crowded, int by0, int bx0, int *xx, int *yy);
+#ifdef ENABLE_ROOM_TEMPLATES
 extern bool build_room_template(worldpos *wpos, int by0, int bx0,
 	room_template_type *room);
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern bool dungeon_aux(int r_idx);
 extern bool xorder_aux(int r_idx);
 extern bool xorder_aux_extra;
@@ -1117,8 +1123,10 @@ extern errr init_a_info_txt(FILE *fp, char *buf);
 extern errr init_e_info_txt(FILE *fp, char *buf);
 extern errr init_d_info_txt(FILE *fp, char *buf);
 extern errr init_r_info_txt(FILE *fp, char *buf);
+#ifdef ENABLE_ROOM_TEMPLATES
 extern int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask);
 extern int lookup_room_template_item_flag(cptr name, int *set, u32b *mask);
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern errr init_re_info_txt(FILE *fp, char *buf);
 extern errr init_t_info_txt(FILE *fp, char *buf);
 extern errr init_ow_info_txt(FILE *fp, char *buf);
@@ -1126,6 +1134,7 @@ extern errr init_ba_info_txt(FILE *fp, char *buf);
 extern errr init_st_info_txt(FILE *fp, char *buf);
 extern errr init_s_info_txt(FILE *fp, char *buf);
 extern errr init_q_info_txt(FILE *fp, char *buf);
+#ifdef ENABLE_ROOM_TEMPLATES
 extern errr init_room_templates(void);
 extern bool room_template_monster_profile_matches(
 	room_template_monster_profile *profile, int r_idx, bool fallback);
@@ -1139,6 +1148,7 @@ extern int room_template_item_quality_weight(int k_idx, u64b resf,
 extern bool room_template_make_artifact_special(struct worldpos *wpos,
 	object_type *o_ptr, room_template_item_profile *profile, u64b resf);
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);
 extern errr process_dungeon_file(cptr name, worldpos *wpos, int *yval, int *xval, int ymax, int xmax, bool init);

@@ -10,7 +10,9 @@
 
 #include "angband.h"
 
+#ifdef ENABLE_ROOM_TEMPLATES
 #include <dirent.h>
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 
 /*
@@ -1588,6 +1590,7 @@ static errr init_v_info(void) {
 }
 
 
+#ifdef ENABLE_ROOM_TEMPLATES
 /* Report a room-template error with the location required by the format. */
 static errr room_template_error(cptr path, int line, cptr reason) {
 	s_printf("Room template error in '%s' at line %d: %s.\n", path, line, reason);
@@ -2584,6 +2587,7 @@ errr init_room_templates(void) {
 }
 
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * Initialize the "st_info" array
  *
@@ -4319,6 +4323,19 @@ static void set_server_option(char * option, char * value) {
 		cfg.anti_scum = atoi(value);
 	else if (!strcmp(option, "DUN_UNUSUAL"))
 		cfg.dun_unusual = atoi(value);
+	else if (!strcmp(option, "DUN_ROOM_TEMPLATE")) {
+#ifdef ENABLE_ROOM_TEMPLATES
+		char *end;
+		long chance;
+
+		errno = 0;
+		chance = strtol(value, &end, 10);
+		if (errno || end == value || *end || chance < 1 || chance > 32767)
+			s_printf("Error : invalid tomenet.cfg DUN_ROOM_TEMPLATE value '%s' (expected 1..32767); keeping %d\n",
+				value, cfg.dun_room_template);
+		else cfg.dun_room_template = (s16b)chance;
+#endif /* ENABLE_ROOM_TEMPLATES */
+	}
 	else if (!strcmp(option, "TOWN_X"))
 		cfg.town_x = atoi(value);
 	else if (!strcmp(option, "TOWN_Y"))
@@ -4591,8 +4608,10 @@ void init_some_arrays(void) {
 #endif	// RANDUNIS
 
 	/* Room templates validate terrain, monsters and monster egos. */
+#ifdef ENABLE_ROOM_TEMPLATES
 	s_printf("[Initializing arrays... (room templates)]\n");
 	if (init_room_templates()) quit("Cannot initialize room templates");
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Initialize dungeon type info */
 	s_printf("[Initializing arrays... (dungeon types)]\n");

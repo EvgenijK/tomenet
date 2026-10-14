@@ -5403,7 +5403,9 @@
 #define CAVE2_DECAL	0x00000020U	/* Impossible to interact with anything on this grid or the grid itself except for looking at it (only implemented for monsters atm, who get 'friendly' flag set from this) */
 #define CAVE2_SCRT	0x00000040U	/* Secret grid, cannot be uncovered by magic mapping or similar means, but only manually by looking at it directly via line of sight. */
 #define CAVE2_REFUGE	0x00000080U	/* IDDC refuge grid */
+#ifdef ENABLE_ROOM_TEMPLATES
 #define CAVE2_ROOM_TEMPLATE 0x00000100U /* temporary generation mask */
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 //super hypothetical: maybe add CAVE_LITE_MON in the future, for monster-lit grids.
 

@@ -529,6 +529,7 @@ struct vault_type {
 #endif	/* 0 */
 };
 
+#ifdef ENABLE_ROOM_TEMPLATES
 /* A data-driven room template loaded from lib/game/room_templates. */
 typedef struct room_template_entrance room_template_entrance;
 struct room_template_entrance {
@@ -641,6 +642,7 @@ struct room_template_type {
 	room_template_entrance *entrances;
 };
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 typedef struct swear_info {
 	char word[NAME_LEN];
 	int level;
@@ -4917,6 +4919,7 @@ struct dungeon_info_type {
 	u32b flags2;			/* Flags 2 */
 	u32b flags3;			/* Flags 3 */
 	u32b flagsw;			/* Wilderness terrain type flags */
+	/* Keep the raw dungeon-info layout identical in both build modes. */
 	bool no_room_templates;		/* F:NO_ROOM_TEMPLATES */
 	bool room_templates_always;	/* F:ROOM_TEMPLATES_ALWAYS: test-room priority */
 
@@ -4941,6 +4944,7 @@ struct dungeon_info_type {
 	s16b t_num;			/* Number of towns */
 };
 
+#ifdef ENABLE_ROOM_TEMPLATES
 typedef enum {
 	ROOM_TEMPLATE_LIST_ALL,
 	ROOM_TEMPLATE_LIST_ALLOW,
@@ -4954,6 +4958,7 @@ struct room_template_dungeon_rule {
 	u32b *multipliers;	/* Per-template chance multiplier in thousandths */
 };
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * Hack -- basic town data
  * (In great need of death!)
@@ -5012,6 +5017,8 @@ struct server_opts {
 
 	s16b anti_scum;
 	s16b dun_unusual;
+	/* Retained for the config/Lua binding layout even when templates are disabled. */
+	s16b dun_room_template;
 	s16b town_x;
 	s16b town_y;
 	s16b town_base;

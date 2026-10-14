@@ -14,5 +14,7 @@
 6. [Эго и артефакты предметов](issues/06-item-egos-artifacts.md)
 7. [Редактор рельефа и входов](issues/07-editor-terrain.md)
 8. [Полный редактор и проверка в игре](issues/08-complete-editor.md)
+9. [Тестовые шаблоны Training Tower](issues/09-training-tower-samples.md)
+10. [Независимая проверка частоты шаблонов](issues/10-independent-template-frequency.md)
 
 Задачи 01 и 07 не имеют блокировок и могут выполняться независимо.

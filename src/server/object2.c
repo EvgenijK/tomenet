@@ -4648,7 +4648,11 @@ s_printf("TRUEART_R-OOD: %d failed, a %d vs d %d (%d%%)\n", aidx, alev, dlev, d)
  * Note -- see "make_artifact()" and "apply_magic()"
  */
 static bool make_artifact_special_profile(struct worldpos *wpos,
-		object_type *o_ptr, u64b resf, room_template_item_profile *profile) {
+		object_type *o_ptr, u64b resf
+#ifdef ENABLE_ROOM_TEMPLATES
+		, room_template_item_profile *profile
+#endif
+		) {
 	int i, dlev = getlevel(wpos);
 	int k_idx = 0;
 	bool winner_arts_only = ((resf & RESF_NOTRUEART) && (resf & RESF_WINNER));
@@ -4719,10 +4723,12 @@ static bool make_artifact_special_profile(struct worldpos *wpos,
 			s_printf("INSTA_ART_NONEXISTANT: %d failed\n", i);
 			continue; //base item does not exist/is commented out
 		}
+#ifdef ENABLE_ROOM_TEMPLATES
 		/* Room templates apply all base-kind filters before accepting or
 		   marking an early artifact. */
 		if (profile && (a_ptr->level > dlev || k_info[k_idx].level > dlev ||
 		    !room_template_item_profile_matches(profile, k_idx))) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 		/* enforce minimum/maximum ood */
 		if (true_artifact_ood(i, dlev)) continue;
@@ -4761,16 +4767,22 @@ static bool make_artifact_special_profile(struct worldpos *wpos,
 
 static bool make_artifact_special(struct worldpos *wpos, object_type *o_ptr,
 		u64b resf) {
-	return(make_artifact_special_profile(wpos, o_ptr, resf, NULL));
+	return(make_artifact_special_profile(wpos, o_ptr, resf
+#ifdef ENABLE_ROOM_TEMPLATES
+		, NULL
+#endif
+		));
 }
 
 
+#ifdef ENABLE_ROOM_TEMPLATES
 bool room_template_make_artifact_special(struct worldpos *wpos,
 		object_type *o_ptr, room_template_item_profile *profile, u64b resf) {
 	return(make_artifact_special_profile(wpos, o_ptr, resf, profile));
 }
 
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * Attempt to change an object into an artifact (true arts except for INSTA_ART)
  * Note that we first attempt to change into a true art, and if that fails we try to change it into a randart!
@@ -4944,7 +4956,7 @@ static bool ego_item_fits_kind(object_type *o_ptr, ego_item_type *e_ptr) {
 
 /* Dynamic restrictions shared by ordinary and room-template ego creation.
    Static pair compatibility is validated separately while loading templates. */
-bool room_template_item_ego_available(struct worldpos *wpos,
+static bool item_ego_available(struct worldpos *wpos,
 		object_type *o_ptr, int e_idx, u64b resf) {
 	ego_item_type *e_ptr;
 
@@ -4973,6 +4985,13 @@ bool room_template_item_ego_available(struct worldpos *wpos,
 	return(TRUE);
 }
 
+#ifdef ENABLE_ROOM_TEMPLATES
+bool room_template_item_ego_available(struct worldpos *wpos,
+		object_type *o_ptr, int e_idx, u64b resf) {
+	return(item_ego_available(wpos, o_ptr, e_idx, resf));
+}
+#endif /* ENABLE_ROOM_TEMPLATES */
+
 
 /*
  * Attempt to change an object into an ego
@@ -4997,7 +5016,7 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 		/* Exception: Instant-ego items don't heed 'power', as they usually only have 1 specific available ego-power to become complete! */
 		if (k_info[o_ptr->k_idx].flags6 & TR6_INSTA_EGO) {
-			if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr,
+			if (!item_ego_available(&o_ptr->wpos, o_ptr,
 			    e_tval[tval][i], resf)) continue;
 			ok_ego[ok_num++] = e_tval[tval][i];
 			continue;
@@ -5053,7 +5072,7 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 		i = ok_ego[rand_int(ok_num)];
 		e_ptr = &e_info[i];
-		if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr, i,
+		if (!item_ego_available(&o_ptr->wpos, o_ptr, i,
 		    resf)) continue;
 
 		/* XXX XXX Enforce minimum "depth" (loosely) */
@@ -5106,7 +5125,7 @@ static bool make_ego_item(int level, object_type *o_ptr, bool good, u64b resf) {
 
 			i = ok_ego[rand_int(ok_num)];
 			e_ptr = &e_info[i];
-			if (!room_template_item_ego_available(&o_ptr->wpos, o_ptr, i,
+			if (!item_ego_available(&o_ptr->wpos, o_ptr, i,
 			    resf)) continue;
 
 			if ((e_ptr->fego1[0] & ETR1_NO_DOUBLE_EGO)) continue;
@@ -8339,6 +8358,7 @@ static int kind_is_good_reward(int k_idx, u64b resf) {
 }
 
 
+#ifdef ENABLE_ROOM_TEMPLATES
 /* Use the ordinary themed base-kind weights for room-template quality. */
 int room_template_item_quality_weight(int k_idx, u64b resf,
 		room_template_item_quality quality) {
@@ -8353,6 +8373,7 @@ int room_template_item_quality_weight(int k_idx, u64b resf,
 }
 
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /* Hack -- inscribe items that a unique drops */
 s32b unique_quark = 0;
 

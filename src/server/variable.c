@@ -180,7 +180,7 @@ server_opts cfg = {
 	/* s16b */
 	60,FALSE,TRUE,3,5,	// fps, players_never_expire, admins_never_expire, newbies_cannot_drop, running_speed,
 
-	25, 150,	// anti_scum, dun_unusual,
+	25, 150, 60,	// anti_scum, dun_unusual, dun_room_template,
 	32,32,		// town_x, town_y
 	0,		// town_base,
 
@@ -518,7 +518,9 @@ char *re_name;
  */
 header *d_head;
 dungeon_info_type *d_info;
+#ifdef ENABLE_ROOM_TEMPLATES
 room_template_dungeon_rule room_template_dungeon_rules[MAX_D_IDX];
+#endif /* ENABLE_ROOM_TEMPLATES */
 char *d_name;
 char *d_text;
 
@@ -749,8 +751,10 @@ u16b max_k_idx = 0;
  */
 u16b max_v_idx = 0;
 
+#ifdef ENABLE_ROOM_TEMPLATES
 room_template_type *room_templates = NULL;
 size_t room_template_count = 0;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 /*
  * Maximum number of terrain features in f_info.txt

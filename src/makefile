@@ -432,6 +432,8 @@ tomenet.test: LIBS += -L${X11BASE}/lib -lX11 `sdl2-config --libs` -lSDL2_mixer
 accedit: CFLAGS += -g -O2
 # Server is compiled with optimizations:
 tomenet.server: CFLAGS += -g -O2
+# Enable data-driven dungeon room templates for the server:
+tomenet.server: CFLAGS += -DENABLE_ROOM_TEMPLATES
 tomenet.server: LDFLAGS += -Wl,-rpath,\$$ORIGIN
 # Server is compiled without optimizations, for debugging with gdb specifically:
 #tomenet.server: CFLAGS += -ggdb -O0
@@ -605,4 +607,3 @@ depend:
 # DO NOT ADD ANYTHING BELOW THIS LINE.
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-

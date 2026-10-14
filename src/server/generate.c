@@ -130,6 +130,9 @@ struct stairs_list {
  */
 #define DUN_ROOMS	50	/* Number of rooms to attempt */
 #define DUN_UNUSUAL	(cfg.dun_unusual) /* Level/chance of unusual room */
+#ifdef ENABLE_ROOM_TEMPLATES
+#define DUN_ROOM_TEMPLATE (cfg.dun_room_template) /* Independent level/chance of room templates */
+#endif /* ENABLE_ROOM_TEMPLATES */
 #define DUN_DEST	15	/* 1/chance of having a destroyed level */
 
 /*
@@ -577,7 +580,9 @@ static void place_rubble(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Create rubble */
 	c_ptr->feat = FEAT_RUBBLE;
@@ -597,7 +602,9 @@ static void place_rubble(struct worldpos *wpos, int y, int x) {
 		if (ddi_cyc[dir] == along_hallway(zcave, x, y) &&
 		    /* double check that it's *clean* floor */
 		    cave_naked_bold(zcave, y, x) &&
+#ifdef ENABLE_ROOM_TEMPLATES
 		    !(zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
+#endif /* ENABLE_ROOM_TEMPLATES */
 		    !(f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) && !(c_ptr->info & CAVE_NO_TFORM)) {
 				/* place a second rubble pile */
 				zcave[y][x].feat = FEAT_RUBBLE;
@@ -618,7 +625,9 @@ void place_fountain(struct worldpos *wpos, int y, int x) {
 	if (!(zcave = getcave(wpos))) return;
 	dun_lev = getlevel(wpos);
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 
 	/* No fountains over traps/house doors etc */
@@ -760,7 +769,9 @@ void place_fountain_of_blood(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* No fountains over traps/house doors etc */
 	if (c_ptr->special) return;
@@ -798,8 +809,10 @@ bool place_between_targetted(struct worldpos *wpos, int y, int x, int ty, int tx
 	/* Require "naked" floor grid */
 	if (!cave_clean_bold(zcave, y, x)) return(FALSE);
 	if (!cave_naked_bold(zcave, ty, tx)) return(FALSE);
+#ifdef ENABLE_ROOM_TEMPLATES
 	if ((zcave[y][x].info2 | zcave[ty][tx].info2) & CAVE2_ROOM_TEMPLATE)
 		return(FALSE);
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* No between-gate over traps/house doors etc */
 	c_ptr = &zcave[y][x];
@@ -899,7 +912,9 @@ extern void place_up_stairs(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Create up stairs */
 	if (can_go_up(wpos, 0x1)) {
@@ -917,7 +932,9 @@ static void place_down_stairs(worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Create down stairs */
 	if (can_go_down(wpos, 0x1)) {
@@ -959,7 +976,9 @@ static void place_locked_door(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 #ifdef ENABLE_DOOR_CHECK
 	if (door_makes_no_sense(zcave, x, y)) return;
@@ -986,7 +1005,9 @@ static void place_secret_door(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 #ifdef ENABLE_DOOR_CHECK
 	if (door_makes_no_sense(zcave, x, y)) return;
@@ -1035,7 +1056,9 @@ static void place_random_door(struct worldpos *wpos, int y, int x) {
 
 	if (!(zcave = getcave(wpos))) return;
 	c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 #ifdef ENABLE_DOOR_CHECK
 	if (door_makes_no_sense(zcave, x, y)) return;
@@ -1337,8 +1360,10 @@ static void alloc_object(struct worldpos *wpos, int set, int typ, int num, playe
 			if ((set == ALLOC_SET_ROOM) && !room) continue;
 
 			/* Generation may add only ordinary items to template terrain. */
+#ifdef ENABLE_ROOM_TEMPLATES
 			if ((zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
 			    typ != ALLOC_TYP_GOLD && typ != ALLOC_TYP_OBJECT) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 			/* Accept it */
 			break;
@@ -1357,14 +1382,20 @@ static void alloc_object(struct worldpos *wpos, int set, int typ, int num, playe
 		case ALLOC_TYP_GOLD:
 			place_gold(0, wpos, y, x, 10, 0);
 			/* hack -- trap can be hidden under gold */
-			if (!(zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
+			if (
+#ifdef ENABLE_ROOM_TEMPLATES
+			    !(zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
+#endif /* ENABLE_ROOM_TEMPLATES */
 			    rand_int(100) < 3) place_trap(wpos, y, x, 0);
 			break;
 
 		case ALLOC_TYP_OBJECT:
 			place_object(0, wpos, y, x, FALSE, FALSE, FALSE, make_resf(p_ptr), default_obj_theme, 0, ITEM_REMOVAL_NEVER, FALSE);
 			/* hack -- trap can be hidden under an item */
-			if (!(zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
+			if (
+#ifdef ENABLE_ROOM_TEMPLATES
+			    !(zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) &&
+#endif /* ENABLE_ROOM_TEMPLATES */
 			    rand_int(100) < 2) place_trap(wpos, y, x, 0);
 			break;
 
@@ -1483,7 +1514,9 @@ static void build_streamer(struct worldpos *wpos, int feat, int chance, bool pie
 
 			/* Access the grid */
 			c_ptr = &zcave[ty][tx];
+#ifdef ENABLE_ROOM_TEMPLATES
 			if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 			/* Convert any feat except for permanent ones */
 			if (pierce) {
@@ -1611,7 +1644,9 @@ static void build_streamer2(worldpos *wpos, int feat, int killwall) {
 
 				/* Access grid */
 				c_ptr = &zcave[ty][tx];
+#ifdef ENABLE_ROOM_TEMPLATES
 				if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 				/* Never convert vaults */
 				if (c_ptr->info & (CAVE_ICKY)) continue;
@@ -1667,7 +1702,9 @@ static void build_streamer2(worldpos *wpos, int feat, int killwall) {
 				} else if ((i + j) > ((mid * 3) - 1)) continue;
 
 				c_ptr = &zcave[ty][tx];
+#ifdef ENABLE_ROOM_TEMPLATES
 				if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 				/* Only convert non-permanent features */
 				if (f_info[c_ptr->feat].flags1 & FF1_PERMANENT) continue;
@@ -2202,6 +2239,7 @@ bool room_alloc(worldpos *wpos, int x, int y, bool crowded, int by0, int bx0, in
 }
 
 
+#ifdef ENABLE_ROOM_TEMPLATES
 typedef enum {
 	ROOM_TEMPLATE_ORIENTATION_0,
 	ROOM_TEMPLATE_ORIENTATION_90,
@@ -2980,6 +3018,7 @@ static room_template_type *room_template_pick(int real_dungeon,
 }
 
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * The following functions create a rectangle (e.g. outer wall of rooms)
  */
@@ -3073,7 +3112,9 @@ static void recursive_river(worldpos *wpos, int x1,int y1, int x2, int y2,
 			for (ty = y - width - 1; ty <= y + width + 1; ty++) {
 				for (tx = x - width - 1; tx <= x + width + 1; tx++) {
 					if (!in_bounds(ty, tx)) continue;
+#ifdef ENABLE_ROOM_TEMPLATES
 					if (zcave[ty][tx].info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 					if (zcave[ty][tx].feat == feat1) continue;
 					if (zcave[ty][tx].feat == feat2) continue;
@@ -7914,7 +7955,9 @@ static void duplicate_door(worldpos *wpos, int y, int x, int y2, int x2) {
 	cave_type **zcave;
 
 	if (!(zcave = getcave(wpos))) return;
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (zcave[y2][x2].info2 & CAVE2_ROOM_TEMPLATE) return;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Place the same type of door */
 	zcave[y2][x2].feat = zcave[y][x].feat;
@@ -8034,11 +8077,13 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 
 		/* Access the location */
 		c_ptr = &zcave[tmp_row][tmp_col];
+#ifdef ENABLE_ROOM_TEMPLATES
 		if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) {
 			row1 = tmp_row;
 			col1 = tmp_col;
 			continue;
 		}
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 		/* Avoid the edge of the dungeon */
 		if ((f_info[c_ptr->feat].flags2 & FF2_BOUNDARY)) continue;
@@ -8105,7 +8150,9 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 
 					/* Convert adjacent "outer" walls as "solid" walls */
 					if (zcave[y][x].feat == feat_wall_outer) {
+#ifdef ENABLE_ROOM_TEMPLATES
 						if (zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 						/* Change the wall to a "solid" wall */
 						zcave[y][x].feat = FEAT_WALL_SOLID;
 					}
@@ -8117,7 +8164,9 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 				for (x = col1 - 1; x <= col1 + 1; x++) {
 					/* Convert adjacent "outer" walls as "solid" walls */
 					if (zcave[y][x].feat == feat_wall_outer) {
+#ifdef ENABLE_ROOM_TEMPLATES
 						if (zcave[y][x].info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 						/* Change the wall to a "solid" wall */
 						zcave[y][x].feat = FEAT_WALL_SOLID;
 					}
@@ -9264,7 +9313,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 #endif
 
 	bool streamers = FALSE, wall_streamers = FALSE;
+#ifdef ENABLE_ROOM_TEMPLATES
 	u64b room_template_weight = 0, room_template_baseline = 0;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	u32b df1_small = DF1_SMALL, df1_smallest = DF1_SMALLEST;
 	int dtype = 0;
@@ -9904,9 +9955,11 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 	dun->row_rooms = dun->l_ptr->hgt / BLOCK_HGT;
 	dun->col_rooms = dun->l_ptr->wid / BLOCK_WID;
+#ifdef ENABLE_ROOM_TEMPLATES
 	if (!destroyed)
 		room_template_weight = room_template_total_weight(d_ptr->type,
 			dtype, dun_lev, &room_template_baseline);
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Initialize the room table */
 	for (y = 0; y < dun->row_rooms; y++)
@@ -9995,6 +10048,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				continue;
 			}
 
+#ifdef ENABLE_ROOM_TEMPLATES
 			/* Explicit dungeon test mode: give templates every room attempt once
 			 * an ordinary room exists for their mandatory entrance connection.
 			 * Eligibility/NO_ROOM_TEMPLATES and the destroyed-level exclusion
@@ -10008,6 +10062,20 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				continue;
 			}
 
+			/* Templates have their own two depth checks, independent of unusual rooms.
+			 * An unsuccessful placement still consumes this room attempt. */
+			if (room_template_weight &&
+			    rand_int(DUN_ROOM_TEMPLATE) < dun_lev &&
+			    rand_int(DUN_ROOM_TEMPLATE) < dun_lev &&
+			    room_template_category_roll(room_template_weight, room_template_baseline)) {
+				room_template_type *room_template = room_template_pick(
+					d_ptr->type, dtype, dun_lev, room_template_weight);
+
+				if (room_template) build_room_template(wpos, y, x, room_template);
+				continue;
+			}
+
+#endif /* ENABLE_ROOM_TEMPLATES */
 			/* Attempt an "unusual" room */
 			if (rand_int(DUN_UNUSUAL) < dun_lev) {
 				bool very_unusual;
@@ -10017,16 +10085,6 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 
 				/* Attempt a very unusual room */
 				very_unusual = rand_int(DUN_UNUSUAL) < dun_lev;
-				if (very_unusual && room_template_weight &&
-				    room_template_category_roll(room_template_weight, room_template_baseline)) {
-					room_template_type *room_template = room_template_pick(
-						d_ptr->type, dtype, dun_lev, room_template_weight);
-
-					if (room_template)
-						build_room_template(wpos, y, x, room_template);
-					continue;
-				}
-
 				if (very_unusual
 #if 1 /* tiny levels don't get any DUN_UNUSUAL room types at all */
 				    && !tiny_level) {
@@ -10437,7 +10495,9 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			y = 1 + rand_int(dun->l_ptr->hgt - 2);
 			x = 1 + rand_int(dun->l_ptr->wid - 2);
 			c_ptr = &zcave[y][x];
+#ifdef ENABLE_ROOM_TEMPLATES
 			if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 			if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) continue;
 
@@ -10472,8 +10532,10 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 				case FEAT_SHAL_LAVA:
 				case FEAT_DEEP_LAVA:
 					for (i = 0; i < 4; i++) {
+#ifdef ENABLE_ROOM_TEMPLATES
 						if (zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].info2 &
 						    CAVE2_ROOM_TEMPLATE) continue;
+#endif /* ENABLE_ROOM_TEMPLATES */
 						k = zcave[y + ddy_ddd[i]][x + ddx_ddd[i]].feat;
 						switch (k) {
 						case FEAT_WEB:
@@ -10754,6 +10816,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 #endif
 #endif
 
+#ifdef ENABLE_ROOM_TEMPLATES
 	/* Room-template protection is needed only while the floor is built. */
 	for (y = 1; y < dun->l_ptr->hgt - 1; y++) {
 		for (x = 1; x < dun->l_ptr->wid - 1; x++) {
@@ -10763,6 +10826,7 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 		}
 	}
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 	level_generation_time = FALSE;
 
 
