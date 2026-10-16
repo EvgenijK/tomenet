@@ -535,6 +535,7 @@ typedef struct room_template_entrance room_template_entrance;
 struct room_template_entrance {
 	byte x;
 	byte y;
+	s16b feat;		/* Terrain applied only when this entrance is used. */
 	int source_line;
 };
 
@@ -565,6 +566,7 @@ struct room_template_monster_profile {
 	bool defined;
 	bool empty_declared;
 	bool ego_defined;
+	bool no_companions;
 	int line;
 	s16b r_idx;
 	s16b min_level;

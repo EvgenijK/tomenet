@@ -10225,6 +10225,10 @@ bool allow_terraforming(struct worldpos *wpos, u16b feat) {
 		break;
 
 	case FEAT_WALL_EXTRA: /* tested by earthquake(), destroy_area(), project_f() for GF_STONE_WALL (stone prison, wall creation) */
+	case FEAT_GRANITE_BRICKS:
+	case FEAT_GRAVE:
+	case FEAT_GRAVE_WITH_CROSS:
+	case FEAT_COFFIN:
 	case FEAT_SHAL_LAVA:
 	case FEAT_DEEP_LAVA:
 	case FEAT_ANIM_SHAL_LAVA_EAST:

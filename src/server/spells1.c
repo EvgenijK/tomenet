@@ -5424,6 +5424,10 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 			cave_set_feat_live(wpos, y, x, FEAT_ASH);
 			break;
 		case FEAT_DEAD_TREE: //dead trees only^^
+		case FEAT_WOODEN_WALL:
+		case FEAT_WOODEN_STOCKADE:
+		case FEAT_CAMP_TENT_1:
+		case FEAT_CAMP_TENT_2:
 			/* Destroy the tree */
 			cave_set_feat_live(wpos, y, x, FEAT_ASH);
 			break;
@@ -5453,6 +5457,13 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 
 		switch (c_ptr->feat) {
+		case FEAT_WOODEN_WALL:
+		case FEAT_WOODEN_STOCKADE:
+		case FEAT_CAMP_TENT_1:
+		case FEAT_CAMP_TENT_2:
+			cave_set_feat_live(wpos, y, x, FEAT_ASH);
+			break;
+
 		/* Destroy trees */
 		case FEAT_TREE:
 		case FEAT_BUSH:
@@ -5714,11 +5725,12 @@ static bool project_f(int Ind, int who, int r, struct worldpos *wpos, int y, int
 		if ((f_info[c_ptr->feat].flags2 & FF2_NO_TFORM) || (c_ptr->info & CAVE_NO_TFORM)) break;
 		if (!allow_terraforming(wpos, FEAT_TREE)) break;
 		/* Non-walls (etc) */
-		if (cave_los(zcave, y, x)) break;
+		if (cave_los(zcave, y, x) && !feat_is_grave(c_ptr->feat)) break;
 		/* Permanent walls */
 		if ((c_ptr->feat >= FEAT_PERM_EXTRA || c_ptr->feat == FEAT_PERM_CLEAR)
-		    /* Sandwall indices come after perma-wall indices. The other destructible wall indices come before those. */
-		    && !(c_ptr->feat >= FEAT_SANDWALL && c_ptr->feat <= FEAT_SANDWALL_K)) break;
+		    /* Destructible walls with indices after perma-walls need explicit exceptions. */
+		    && !(c_ptr->feat >= FEAT_SANDWALL && c_ptr->feat <= FEAT_SANDWALL_K)
+		    && c_ptr->feat != FEAT_GRANITE_BRICKS && !feat_is_grave(c_ptr->feat)) break;
 
 		/* the_sandman: sandwalls are stm-able too? */
 		/* fixed it and also added the treasures in sandwalls - mikaelh */

@@ -337,11 +337,24 @@ struct room_data {
  * Structure to hold all "dungeon generation" data
  */
 
+#ifdef ENABLE_ROOM_TEMPLATES
+typedef struct {
+	room_template_type *room;
+	int orientation, top, left;
+	coord center;
+	int used_entrance;
+} room_template_placement;
+#endif
+
 typedef struct dun_data dun_data;
 struct dun_data {
 	/* Array of centers of rooms */
 	int cent_n;
 	coord cent[CENT_MAX];
+#ifdef ENABLE_ROOM_TEMPLATES
+	int template_n;
+	room_template_placement templates[CENT_MAX];
+#endif
 
 	/* Array of possible door locations */
 	int door_n;
@@ -2239,6 +2252,44 @@ bool room_alloc(worldpos *wpos, int x, int y, bool crowded, int by0, int bx0, in
 }
 
 
+/* Keep the dungeon's configured fill rules shared by ordinary tunnels and
+ * template endpoint validation, including permanent mountain fill. */
+static bool tunnel_is_dungeon_fill(worldpos *wpos, int feat) {
+	dungeon_type *d_ptr = getdungeon(wpos);
+	int dun_type = d_ptr->theme ? d_ptr->theme : d_ptr->type;
+#ifdef IRONDEEPDIVE_MIXED_TYPES
+	if (in_irondeepdive(wpos)) dun_type = iddc[ABS(wpos->wz)].type;
+#endif
+	return(feat == d_info[dun_type].fill_type[0] ||
+		feat == d_info[dun_type].fill_type[1] ||
+		feat == d_info[dun_type].fill_type[2] ||
+#ifdef IRONDEEPDIVE_MIXED_TYPES
+		feat == d_info[(in_irondeepdive(wpos) && iddc[ABS(wpos->wz)].step > 0) ?
+			iddc[ABS(wpos->wz)].next : dun_type].fill_type[3] ||
+		feat == d_info[(in_irondeepdive(wpos) && iddc[ABS(wpos->wz)].step > 1) ?
+			iddc[ABS(wpos->wz)].next : dun_type].fill_type[4]);
+#else
+		feat == d_info[dun_type].fill_type[3] || feat == d_info[dun_type].fill_type[4]);
+#endif
+}
+
+
+static bool tunnel_cell_is_connectable(worldpos *wpos, cave_type *cell) {
+	if (
+#ifdef ENABLE_ROOM_TEMPLATES
+	    (cell->info2 & CAVE2_ROOM_TEMPLATE) ||
+#endif
+	    cell->feat == FEAT_PERM_OUTER || cell->feat == FEAT_WALL_SOLID ||
+	    (f_info[cell->feat].flags2 & FF2_BOUNDARY)) return(FALSE);
+	/* Existing floors and doors need no terrain change, including inside vaults. */
+	if (f_info[cell->feat].flags1 & (FF1_FLOOR | FF1_DOOR)) return(TRUE);
+	if (cell->special || (cell->info & (CAVE_ICKY | CAVE_NO_TFORM)) ||
+	    (f_info[cell->feat].flags2 & FF2_NO_TFORM)) return(FALSE);
+	return((cell->feat == feat_wall_outer && (cell->info & CAVE_ROOM)) ||
+		tunnel_is_dungeon_fill(wpos, cell->feat));
+}
+
+
 #ifdef ENABLE_ROOM_TEMPLATES
 typedef enum {
 	ROOM_TEMPLATE_ORIENTATION_0,
@@ -2294,131 +2345,52 @@ static void room_template_transform(room_template_type *room,
 }
 
 
-static bool room_template_cell_is_connectable(cave_type *cell) {
-	if (cell->special || (cell->info2 & CAVE2_ROOM_TEMPLATE) ||
-	    (cell->info & (CAVE_ICKY | CAVE_NO_TFORM)) ||
-	    cell->feat == FEAT_WALL_SOLID ||
-	    (f_info[cell->feat].flags1 & FF1_PERMANENT) ||
-	    (f_info[cell->feat].flags2 & (FF2_BOUNDARY | FF2_NO_TFORM))) return(FALSE);
-	return(TRUE);
-}
+/* Find an exterior tunnel endpoint reachable through this candidate entrance.
+ * This runs only during room connection, never as a placement prerequisite. */
+static bool room_template_connection_point(worldpos *wpos, cave_type **zcave,
+		room_template_placement *placement, int entrance, coord target, coord *point) {
+	room_template_type *room = placement->room;
+	bool passable[80][80] = {{ FALSE }}, reached[80][80] = {{ FALSE }};
+	coord pending[80 * 80];
+	int width, height, head = 0, tail = 0, sx, sy, dx, dy, i;
+	int best = MAX_HGT + MAX_WID;
+	static const int directions[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
-
-static bool room_template_connection_route(cave_type **zcave,
-		room_template_type *room, room_template_orientation orientation,
-		int top, int left, coord *connection, int *connection_n) {
-	bool passable[80][80], reached[80][80], *visited = NULL;
-	coord internal[80 * 80], *pending = NULL, *previous = NULL;
-	int width, height, head = 0, tail = 0, route_head = 0, route_tail = 0;
-	int i, j, sx, sy, dx, dy;
-	static const int directions[4][2] = {
-		{ -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }
-	};
-
-	*connection_n = 0;
-	if (!dun->cent_n) return(FALSE);
-	visited = calloc(MAX_HGT * MAX_WID, sizeof(*visited));
-	pending = malloc(MAX_HGT * MAX_WID * sizeof(*pending));
-	previous = malloc(MAX_HGT * MAX_WID * sizeof(*previous));
-	if (!visited || !pending || !previous) goto cleanup;
-	room_template_dimensions(room, orientation, &width, &height);
-	memset(passable, 0, sizeof(passable));
-	memset(reached, 0, sizeof(reached));
-	for (sy = 0; sy < room->hgt; sy++) {
-		for (sx = 0; sx < room->wid; sx++) {
-			unsigned char symbol = room->terrain_map[sy * room->wid + sx];
-
-			if (symbol == '_' ||
-			    !(f_info[room->terrain_feature[symbol]].flags1 & FF1_FLOOR)) continue;
-			room_template_transform(room, orientation, sx, sy, &dx, &dy);
-			passable[dy][dx] = TRUE;
-		}
+	room_template_dimensions(room, placement->orientation, &width, &height);
+	for (sy = 0; sy < room->hgt; sy++) for (sx = 0; sx < room->wid; sx++) {
+		unsigned char symbol = room->terrain_map[sy * room->wid + sx];
+		room_template_transform(room, placement->orientation, sx, sy, &dx, &dy);
+		passable[dy][dx] = (f_info[zcave[placement->top + dy][placement->left + dx].feat].flags1 & FF1_FLOOR) != 0;
+		if (symbol != '_') passable[dy][dx] =
+			(f_info[room->terrain_feature[symbol]].flags1 & FF1_FLOOR) != 0;
 	}
-	for (i = 0; i < room->entrance_count; i++) {
-		room_template_transform(room, orientation,
-			room->entrances[i].x, room->entrances[i].y, &dx, &dy);
-		if (reached[dy][dx]) continue;
-		reached[dy][dx] = TRUE;
-		internal[tail].x = dx;
-		internal[tail].y = dy;
-		tail++;
-	}
+	room_template_transform(room, placement->orientation,
+		room->entrances[entrance].x, room->entrances[entrance].y, &dx, &dy);
+	passable[dy][dx] = reached[dy][dx] = TRUE;
+	pending[tail].x = dx; pending[tail++].y = dy;
 	while (head < tail) {
-		coord current = internal[head++];
-
+		coord current = pending[head++];
 		for (i = 0; i < 4; i++) {
-			int next_x = current.x + directions[i][0];
-			int next_y = current.y + directions[i][1];
-			int global_x, global_y, index;
-
-			if (next_x >= 0 && next_x < width && next_y >= 0 && next_y < height) {
-				if (!passable[next_y][next_x] || reached[next_y][next_x]) continue;
-				reached[next_y][next_x] = TRUE;
-				internal[tail].x = next_x;
-				internal[tail].y = next_y;
-				tail++;
-				continue;
+			int x = current.x + directions[i][0], y = current.y + directions[i][1];
+			if (x >= 0 && x < width && y >= 0 && y < height) {
+				if (!passable[y][x] || reached[y][x]) continue;
+				reached[y][x] = TRUE;
+				pending[tail].x = x; pending[tail++].y = y;
+			} else {
+				cave_type *cell;
+				int distance;
+				x += placement->left; y += placement->top;
+				if (!in_bounds_floor(dun->l_ptr, y, x)) continue;
+				cell = &zcave[y][x];
+				if (!tunnel_cell_is_connectable(wpos, cell)) continue;
+				/* Dungeon fill (including permanent mountains) is handled by build_tunnel. */
+				distance = ABS(x - target.x) + ABS(y - target.y);
+				if (distance >= best) continue;
+				best = distance; point->x = x; point->y = y;
 			}
-			global_y = top + next_y;
-			global_x = left + next_x;
-			if (!in_bounds_floor(dun->l_ptr, global_y, global_x) ||
-			    !room_template_cell_is_connectable(&zcave[global_y][global_x])) continue;
-			index = global_y * MAX_WID + global_x;
-			if (visited[index]) continue;
-			visited[index] = TRUE;
-			previous[index].y = global_y;
-			previous[index].x = global_x;
-			pending[route_tail].y = global_y;
-			pending[route_tail].x = global_x;
-			route_tail++;
 		}
 	}
-	while (route_head < route_tail) {
-		coord current = pending[route_head++];
-
-		for (i = 0; i < dun->cent_n; i++) {
-			coord cursor;
-
-			if (dun->cent[i].y != current.y || dun->cent[i].x != current.x) continue;
-			cursor = current;
-			while (TRUE) {
-				coord prior;
-
-				connection[*connection_n] = cursor;
-				(*connection_n)++;
-				prior = previous[cursor.y * MAX_WID + cursor.x];
-				if (prior.y == cursor.y && prior.x == cursor.x) break;
-				cursor = prior;
-			}
-			free(previous);
-			free(pending);
-			free(visited);
-			return(TRUE);
-		}
-		for (j = 0; j < 4; j++) {
-			int next_x = current.x + directions[j][0];
-			int next_y = current.y + directions[j][1];
-			int next_index;
-
-			if (!in_bounds_floor(dun->l_ptr, next_y, next_x) ||
-			    (next_y >= top && next_y < top + height &&
-			    next_x >= left && next_x < left + width) ||
-			    !room_template_cell_is_connectable(&zcave[next_y][next_x])) continue;
-			next_index = next_y * MAX_WID + next_x;
-			if (visited[next_index]) continue;
-			visited[next_index] = TRUE;
-			previous[next_index] = current;
-			pending[route_tail].y = next_y;
-			pending[route_tail].x = next_x;
-			route_tail++;
-		}
-	}
-
-cleanup:
-	if (previous) free(previous);
-	if (pending) free(pending);
-	if (visited) free(visited);
-	return(FALSE);
+	return(best < MAX_HGT + MAX_WID);
 }
 
 
@@ -2727,10 +2699,8 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 		room_template_type *room) {
 	cave_type **zcave;
 	room_template_orientation order[ROOM_TEMPLATE_ORIENTATION_COUNT], orientation;
-	coord connection[MAX_HGT * MAX_WID];
 	int i, j, center_y, center_x;
 	int width, height, left, top, sx, sy, dx, dy, feat;
-	int connection_n = 0;
 	bool valid;
 	u32b *transparent_info;
 	s16b *primary_monsters;
@@ -2767,10 +2737,6 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			}
 		}
 		if (!valid) continue;
-		if (room->entrance_count &&
-		    (dun->cent_n >= CENT_MAX ||
-		    !room_template_connection_route(zcave, room, orientation,
-			    top, left, connection, &connection_n))) continue;
 
 		transparent_info = malloc((size_t)room->wid * room->hgt *
 			sizeof(*transparent_info));
@@ -2805,8 +2771,9 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 				if (symbol == '_') continue;
 				room_template_transform(room, orientation, sx, sy, &dx, &dy);
 				cell = &zcave[top + dy][left + dx];
-				cave_set_feat(wpos, top + dy, left + dx,
-					room->terrain_feature[symbol]);
+				feat = room->terrain_feature[symbol];
+
+				cave_set_feat(wpos, top + dy, left + dx, feat);
 				cell->info |= CAVE_ROOM;
 				cell->info2 |= CAVE2_ROOM_TEMPLATE;
 			}
@@ -2820,24 +2787,16 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 			}
 		}
 		free(transparent_info);
-		if (dun->cent_n < CENT_MAX) {
-			if (room->entrance_count) {
-				for (j = 0; j < connection_n; j++) {
-					int by = connection[j].y / BLOCK_HGT;
-					int bx = connection[j].x / BLOCK_WID;
-
-					/* Keep later rooms from overwriting the verified route. */
-					if (by >= 0 && by < dun->row_rooms &&
-					    bx >= 0 && bx < dun->col_rooms) dun->room_map[by][bx] = TRUE;
-					if (cave_floor_bold(zcave, connection[j].y, connection[j].x)) continue;
-					place_floor(wpos, connection[j].y, connection[j].x);
-				}
-				dun->cent[dun->cent_n] = connection[connection_n - 1];
-			} else {
-				dun->cent[dun->cent_n].y = center_y;
-				dun->cent[dun->cent_n].x = center_x;
-			}
-			dun->cent_n++;
+		/* Entrance candidates remain unchanged until the common connection phase.
+		 * Templates without entrances do not request a tunnel connection. */
+		if (room->entrance_count && dun->cent_n < CENT_MAX && dun->template_n < CENT_MAX) {
+			room_template_placement *placement = &dun->templates[dun->template_n++];
+			placement->room = room;
+			placement->orientation = orientation;
+			placement->top = top; placement->left = left;
+			placement->center.y = center_y; placement->center.x = center_x;
+			placement->used_entrance = -1;
+			dun->cent[dun->cent_n++] = placement->center;
 		}
 
 		/* Items are independent primaries and never move away from their marker. */
@@ -2876,6 +2835,8 @@ bool build_room_template(worldpos *wpos, int by0, int bx0,
 				int r_idx = primary_monsters[sy * room->wid + sx];
 
 				if (r_idx <= 0) continue;
+				if (room->monster_profiles[(unsigned char)
+				    room->monster_map[sy * room->wid + sx]].no_companions) continue;
 				room_template_transform(room, orientation, sx, sy, &dx, &dy);
 				place_monster_companions(wpos, top + dy, left + dx,
 					r_idx, FALSE, 0, 0);
@@ -8006,14 +7967,14 @@ static void duplicate_door(worldpos *wpos, int y, int x, int y2, int x2) {
  *   FEAT_PERM_OUTER -- outer room walls (perma)
  *   FEAT_PERM_SOLID -- dungeon border (perma)
  */
-static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, int col2) {
+static bool build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, int col2, bool require_target) {
 	int		i, y, x, tmp;
 	int		tmp_row, tmp_col;
 	int		row_dir, col_dir;
 	int		start_row, start_col;
 	int		main_loop_count = 0;
 
-	bool		door_flag = FALSE;
+	bool		door_flag = FALSE, complete = TRUE;
 	cave_type	*c_ptr;
 	cave_type	**zcave;
 
@@ -8028,7 +7989,7 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 #endif
 
 
-	if (!(zcave = getcave(wpos))) return;
+	if (!(zcave = getcave(wpos))) return(FALSE);
 
 	/* Reset the arrays */
 	dun->tunn_n = 0;
@@ -8045,6 +8006,11 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 	while ((row1 != row2) || (col1 != col2)) {
 		/* Mega-Hack -- Paranoia -- prevent infinite loops */
 		if (main_loop_count++ > 2000) break;
+		/* Leave room for both cells of a wide tunnel/wall piercing. */
+		if (require_target && (dun->tunn_n >= TUNN_MAX - 2 || dun->wall_n >= WALL_MAX - 2)) {
+			complete = FALSE;
+			break;
+		}
 
 		/* Allow bends in the tunnel */
 		if (rand_int(100) < DUN_TUN_CHG) {
@@ -8079,12 +8045,11 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 		/* Access the location */
 		c_ptr = &zcave[tmp_row][tmp_col];
 #ifdef ENABLE_ROOM_TEMPLATES
-		if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) {
-			row1 = tmp_row;
-			col1 = tmp_col;
-			continue;
-		}
+		if (c_ptr->info2 & CAVE2_ROOM_TEMPLATE) continue;
 #endif /* ENABLE_ROOM_TEMPLATES */
+
+		/* A template entrance is used only for a real carved/traversable path. */
+		if (require_target && !tunnel_cell_is_connectable(wpos, c_ptr)) continue;
 
 		/* Avoid the edge of the dungeon */
 		if ((f_info[c_ptr->feat].flags2 & FF2_BOUNDARY)) continue;
@@ -8128,7 +8093,11 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 #ifdef WIDE_CORRIDORS
 			/* Save the wall location */
 			if (dun->wall_n < WALL_MAX) {
-				if (!(f_info[zcave[row1 + col_dir][col1 + row_dir].feat].flags2 & FF2_BOUNDARY) &&
+				if (
+#ifdef ENABLE_ROOM_TEMPLATES
+				    !(zcave[row1 + col_dir][col1 + row_dir].info2 & CAVE2_ROOM_TEMPLATE) &&
+#endif
+				    !(f_info[zcave[row1 + col_dir][col1 + row_dir].feat].flags2 & FF2_BOUNDARY) &&
 				    !(f_info[zcave[row1 + col_dir][col1 + row_dir].feat].flags2 & FF2_BOUNDARY))
 				{
 					dun->wall[dun->wall_n].y = row1 + col_dir;
@@ -8177,24 +8146,15 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 		}
 
 		/* Travel quickly through rooms */
-		else if (c_ptr->info & CAVE_ROOM) {
+		else if ((c_ptr->info & CAVE_ROOM) &&
+		    (!require_target || (f_info[c_ptr->feat].flags1 & (FF1_FLOOR | FF1_DOOR)))) {
 			/* Accept the location */
 			row1 = tmp_row;
 			col1 = tmp_col;
 		}
 
 		/* Tunnel through all other walls */
-		else if ((c_ptr->feat == d_info[dun_type].fill_type[0]) ||
-			 (c_ptr->feat == d_info[dun_type].fill_type[1]) ||
-			 (c_ptr->feat == d_info[dun_type].fill_type[2]) ||
-#ifdef IRONDEEPDIVE_MIXED_TYPES
-			 (c_ptr->feat == d_info[((in_irondeepdive(wpos) && iddc[ABS(wpos->wz)].step > 0) ? iddc[ABS(wpos->wz)].next : dun_type)].fill_type[3]) ||
-			 (c_ptr->feat == d_info[((in_irondeepdive(wpos) && iddc[ABS(wpos->wz)].step > 1) ? iddc[ABS(wpos->wz)].next : dun_type)].fill_type[4])
-#else
-			 (c_ptr->feat == d_info[dun_type].fill_type[3]) ||
-			 (c_ptr->feat == d_info[dun_type].fill_type[4])
-#endif
-			 ) {
+		else if (tunnel_is_dungeon_fill(wpos, c_ptr->feat)) {
 			/* Accept this location */
 			row1 = tmp_row;
 			col1 = tmp_col;
@@ -8215,7 +8175,11 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 				c_ptr = &zcave[row1 + col_dir][col1 + row_dir];
 
 				/* Make sure it's a wall we want to tunnel */
-				if ((c_ptr->feat == d_info[dun_type].fill_type[0]) ||
+				if (
+#ifdef ENABLE_ROOM_TEMPLATES
+				    !(c_ptr->info2 & CAVE2_ROOM_TEMPLATE) &&
+#endif
+				    ((c_ptr->feat == d_info[dun_type].fill_type[0]) ||
 				    (c_ptr->feat == d_info[dun_type].fill_type[1]) ||
 				    (c_ptr->feat == d_info[dun_type].fill_type[2]) ||
 #ifdef IRONDEEPDIVE_MIXED_TYPES
@@ -8225,7 +8189,7 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 				    (c_ptr->feat == d_info[dun_type].fill_type[3]) ||
 				    (c_ptr->feat == d_info[dun_type].fill_type[4]) ||
 #endif
-				    c_ptr->feat == FEAT_WALL_EXTRA) {
+				    c_ptr->feat == FEAT_WALL_EXTRA)) {
 					/* Save the tunnel location */
 					if (dun->tunn_n < TUNN_MAX) {
 						dun->tunn[dun->tunn_n].y = row1 + col_dir;
@@ -8280,7 +8244,7 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 			}
 
 			/* Hack -- allow pre-emptive tunnel termination */
-			if (rand_int(100) >= DUN_TUN_CON) {
+			if (!require_target && rand_int(100) >= DUN_TUN_CON) {
 				/* Distance between row1 and start_row */
 				tmp_row = row1 - start_row;
 				if (tmp_row < 0) tmp_row = (-tmp_row);
@@ -8368,9 +8332,82 @@ static void build_tunnel(struct worldpos *wpos, int row1, int col1, int row2, in
 #endif
 		}
 	}
+	return(complete && row1 == row2 && col1 == col2);
 }
 
 
+
+
+#ifdef ENABLE_ROOM_TEMPLATES
+static room_template_placement *room_template_at_center(coord center) {
+	int i;
+	for (i = 0; i < dun->template_n; i++) {
+		room_template_placement *placement = &dun->templates[i];
+		if (placement->center.x == center.x && placement->center.y == center.y) return(placement);
+	}
+	return(NULL);
+}
+
+
+static bool room_template_tunnel_endpoint(worldpos *wpos, cave_type **zcave,
+		room_template_placement *placement, int entrance, coord target, coord *endpoint) {
+	int x, y;
+	room_template_entrance *entry = &placement->room->entrances[entrance];
+	room_template_transform(placement->room, placement->orientation, entry->x, entry->y, &x, &y);
+	if (cave_set_feat_resolve(wpos, placement->top + y, placement->left + x, entry->feat) != entry->feat)
+		return(FALSE);
+	return(room_template_connection_point(wpos, zcave, placement, entrance, target, endpoint));
+}
+
+
+static void room_template_use_entrance(worldpos *wpos, cave_type **zcave,
+		room_template_placement *placement, int entrance) {
+	int x, y;
+	cave_type *cell;
+	room_template_entrance *entry;
+	if (!placement || placement->used_entrance >= 0) return;
+	entry = &placement->room->entrances[entrance];
+	room_template_transform(placement->room, placement->orientation, entry->x, entry->y, &x, &y);
+	cell = &zcave[placement->top + y][placement->left + x];
+	/* The common setter protects templates during generation; change only this entry. */
+	cell->info2 &= ~CAVE2_ROOM_TEMPLATE;
+	cave_set_feat(wpos, placement->top + y, placement->left + x, entry->feat);
+	cell->info2 |= CAVE2_ROOM_TEMPLATE;
+	placement->used_entrance = entrance;
+}
+
+
+/* Connect registered rooms with the ordinary tunnel builder. Only a completed
+ * tunnel activates its template endpoints; failed attempts leave entries closed. */
+static void room_template_connect_rooms(worldpos *wpos, coord from, coord to) {
+	cave_type **zcave = getcave(wpos);
+	room_template_placement *source = room_template_at_center(from), *target = room_template_at_center(to);
+	int i, j, source_n = source ? source->room->entrance_count : 1;
+	int target_n = target ? target->room->entrance_count : 1;
+	if (!zcave || (source && source == target)) return;
+	if (!source && !target) {
+		build_tunnel(wpos, from.y, from.x, to.y, to.x, FALSE);
+		return;
+	}
+	for (i = 0; i < source_n; i++) {
+		coord start = from;
+		if (source && source->used_entrance >= 0 && i != source->used_entrance) continue;
+		if (source && !room_template_tunnel_endpoint(wpos, zcave, source, i, to, &start)) continue;
+		for (j = 0; j < target_n; j++) {
+			coord end = to;
+			if (target && target->used_entrance >= 0 && j != target->used_entrance) continue;
+			if (target && !room_template_tunnel_endpoint(wpos, zcave, target, j, start, &end)) continue;
+			if (!build_tunnel(wpos, start.y, start.x, end.y, end.x, TRUE)) continue;
+			/* The source cell may itself be dungeon fill, so include it in the corridor. */
+			if (source && !cave_floor_bold(zcave, start.y, start.x)) place_floor(wpos, start.y, start.x);
+			if (target && !cave_floor_bold(zcave, end.y, end.x)) place_floor(wpos, end.y, end.x);
+			room_template_use_entrance(wpos, zcave, source, i);
+			room_template_use_entrance(wpos, zcave, target, j);
+			return;
+		}
+	}
+}
+#endif
 
 
 /*
@@ -10050,12 +10087,11 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			}
 
 #ifdef ENABLE_ROOM_TEMPLATES
-			/* Explicit dungeon test mode: give templates every room attempt once
-			 * an ordinary room exists for their mandatory entrance connection.
+			/* Explicit dungeon test mode: give templates every room attempt.
 			 * Eligibility/NO_ROOM_TEMPLATES and the destroyed-level exclusion
 			 * above still apply. Other dungeons retain their ordinary RNG path. */
 			if (d_info[d_ptr->type].room_templates_always &&
-			    room_template_weight && dun->cent_n > 0) {
+			    room_template_weight) {
 				room_template_type *room_template = room_template_pick(
 					d_ptr->type, dtype, dun_lev, room_template_weight);
 
@@ -10189,13 +10225,21 @@ static void cave_gen(struct worldpos *wpos, player_type *p_ptr) {
 			dun->door_n = 0;
 
 			/* Hack -- connect the first room to the last room */
-			y = dun->cent[dun->cent_n - 1].y;
-			x = dun->cent[dun->cent_n - 1].x;
+			y = dun->cent_n ? dun->cent[dun->cent_n - 1].y : 0;
+			x = dun->cent_n ? dun->cent[dun->cent_n - 1].x : 0;
 
 			/* Connect all the rooms together */
 			for (i = 0; i < dun->cent_n; i++) {
 				/* Connect the room to the previous room */
-				build_tunnel(wpos, dun->cent[i].y, dun->cent[i].x, y, x);
+#ifdef ENABLE_ROOM_TEMPLATES
+				{
+					coord previous;
+					previous.y = y; previous.x = x;
+					room_template_connect_rooms(wpos, dun->cent[i], previous);
+				}
+#else
+				build_tunnel(wpos, dun->cent[i].y, dun->cent[i].x, y, x, FALSE);
+#endif
 
 				/* Remember the "previous" room */
 				y = dun->cent[i].y;

@@ -1790,6 +1790,12 @@ static errr room_template_parse_monster_profile(cptr path, int line,
 		profile->only_r_idx[profile->only_count++] = parsed;
 		return(0);
 	}
+	if (streq(field, "companions")) {
+		if (profile->no_companions || !streq(value, "none"))
+			return(room_template_error(path, line, "invalid or duplicate monster companions mode"));
+		profile->no_companions = TRUE;
+		return(0);
+	}
 	if (streq(field, "ego")) {
 		if (profile->ego_defined)
 			return(room_template_error(path, line, "duplicate monster ego mode"));
@@ -2190,6 +2196,7 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	char buf[1024], reason[256], file_code[64];
 	bool got_version = FALSE, got_name = FALSE, got_size = FALSE;
 	bool got_depth = FALSE, got_weight = FALSE, got_terrain = FALSE, defined[128];
+	bool legacy_entrances[40 * 80] = { FALSE };
 	room_template_parse_state state = ROOM_TEMPLATE_PARSE_HEADER;
 	int row = 0, line = 0, i;
 	long value, value2;
@@ -2423,31 +2430,51 @@ static errr room_template_parse_file(cptr path, cptr filename,
 
 		if (!strncmp(buf, "E:", 2)) {
 			bool duplicate = FALSE;
+			long replacement = -1;
 
 			first = strchr(buf + 2, ':');
+			second = first ? strchr(first + 1, ':') : NULL;
 			if (!got_name || !got_size || got_terrain || !first ||
-			    strchr(first + 1, ':')) {
+			    (second && strchr(second + 1, ':'))) {
 				my_fclose(fp);
 				return(room_template_error(path, line, "invalid E directive"));
 			}
 			*first++ = '\0';
+			if (second) *second++ = '\0';
 			if (!room_template_number(buf + 2, 0, room->wid - 1, &value) ||
 			    !room_template_number(first, 0, room->hgt - 1, &value2)) {
 				my_fclose(fp);
 				return(room_template_error(path, line,
 					"entrance coordinate is outside the map"));
 			}
+			if (second && (!room_template_number(second, 0, MAX_F_IDX - 1, &replacement) ||
+			    replacement >= max_f_idx || !f_info[replacement].name ||
+			    !room_template_terrain_allowed(replacement))) {
+				my_fclose(fp);
+				return(room_template_error(path, line,
+					"entrance replacement must reference known, allowed terrain"));
+			}
 			for (i = 0; i < room->entrance_count; i++) {
 				if (room->entrances[i].x != value || room->entrances[i].y != value2)
 					continue;
+				if (replacement >= 0 && room->entrances[i].feat >= 0 &&
+				    replacement != room->entrances[i].feat) {
+					my_fclose(fp);
+					return(room_template_error(path, line,
+						"conflicting entrance replacements at the same coordinate"));
+				}
+				if (!second) legacy_entrances[i] = TRUE;
+				else room->entrances[i].feat = replacement;
 				duplicate = TRUE;
 				break;
 			}
 			if (!duplicate) {
-				room->entrances[room->entrance_count].x = value;
-				room->entrances[room->entrance_count].y = value2;
-				room->entrances[room->entrance_count].source_line = line;
-				room->entrance_count++;
+				i = room->entrance_count++;
+				room->entrances[i].x = value;
+				room->entrances[i].y = value2;
+				room->entrances[i].feat = replacement;
+				room->entrances[i].source_line = line;
+				legacy_entrances[i] = !second;
 			}
 			continue;
 		}
@@ -2527,12 +2554,19 @@ static errr room_template_parse_file(cptr path, cptr filename,
 	    state != ROOM_TEMPLATE_PARSE_DONE)
 		return(room_template_error(path, line + 1, "incomplete template or missing map rows"));
 	for (i = 0; i < room->entrance_count; i++) {
-		unsigned char symbol = room->terrain_map[
-			room->entrances[i].y * room->wid + room->entrances[i].x];
+		room_template_entrance *entrance = &room->entrances[i];
+		unsigned char symbol = room->terrain_map[entrance->y * room->wid + entrance->x];
 
-		if (symbol == '_' || !room_template_terrain_passable(room->terrain_feature[symbol]))
-			return(room_template_error(path, room->entrances[i].source_line,
-				"entrance must be on active passable terrain"));
+		if (symbol == '_')
+			return(room_template_error(path, entrance->source_line,
+				"entrance must be on active terrain"));
+		if (entrance->feat < 0) entrance->feat = room->terrain_feature[symbol];
+		if (legacy_entrances[i] && entrance->feat != room->terrain_feature[symbol])
+			return(room_template_error(path, entrance->source_line,
+				"conflicting legacy entrance replacement at the same coordinate"));
+		if (legacy_entrances[i] && !room_template_terrain_passable(entrance->feat))
+			return(room_template_error(path, entrance->source_line,
+				"legacy entrance requires passable terrain or an explicit replacement"));
 	}
 	if (room_template_validate_monster_profiles(path, room)) return(1);
 	return(room_template_validate_item_profiles(path, room));

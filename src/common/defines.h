@@ -3204,6 +3204,18 @@
 #define FEAT_HIGH_CLOUDS		276
 #define FEAT_ASH_MOUNTAIN		277
 #define FEAT_RIFT			278
+#define FEAT_WOODEN_WALL		279
+#define FEAT_GRANITE_BRICKS		280
+#define FEAT_WOODEN_STOCKADE		281
+#define FEAT_CAMP_TENT_1		282
+#define FEAT_CAMP_TENT_2		283
+#define FEAT_GRAVE		284
+#define FEAT_GRAVE_WITH_CROSS	285
+#define FEAT_COFFIN		286
+
+#define feat_is_grave(F) ((F) == FEAT_GRAVE || (F) == FEAT_GRAVE_WITH_CROSS || (F) == FEAT_COFFIN)
+
+#define feat_is_camp_tent(F) ((F) == FEAT_CAMP_TENT_1 || (F) == FEAT_CAMP_TENT_2)
 
 #define feat_is_shal_water(F) \
 	((F) == FEAT_ANIM_SHAL_WATER_EAST || (F) == FEAT_ANIM_SHAL_WATER_WEST || (F) == FEAT_ANIM_SHAL_WATER_NORTH || (F) == FEAT_ANIM_SHAL_WATER_SOUTH || \

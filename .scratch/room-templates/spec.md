@@ -16,6 +16,9 @@
 8. [Полный редактор и проверка в игре](issues/08-complete-editor.md)
 9. [Тестовые шаблоны Training Tower](issues/09-training-tower-samples.md)
 10. [Независимая проверка частоты шаблонов](issues/10-independent-template-frequency.md)
+11. [Потенциальные входы с заменой terrain](issues/11-conditional-entrances.md)
+12. [Соединение входов при генерации тоннелей](issues/12-tunnel-stage-entrances.md)
 13. [Только явно разрешённые шаблоны комнат](issues/13-explicit-dungeon-allowlist.md)
+14. [Отключение сопровождения монстров шаблона комнаты](issues/14-suppress-monster-friends.md)
 
 Задачи 01 и 07 не имеют блокировок и могут выполняться независимо.

@@ -1853,6 +1853,63 @@ F:CAN_FEATHER | CAN_LEVITATE | LOS | PERMANENT | FLOOR
 F:NO_WALK | SUPPORT_LIGHT | DONT_NOTICE_RUNNING
 D:0:A deep rift.
 
+# Diggable wooden wall
+N:279:wooden wall
+G:#:u
+F:WALL | NO_WALK | NO_VISION | SUPPORT_LIGHT | COVER
+F:DONT_NOTICE_RUNNING | TUNNELABLE
+D:1:You chop away at the wooden wall.
+D:2:a wooden wall blocking your way
+
+# Brickwork same as a basic granite wall (feature 56).
+N:280:granite bricks
+G:#:s
+F:WALL | NO_WALK | CAN_PASS | NO_VISION | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | TUNNELABLE | LAMP_LITE | COVER
+D:1:You tunnel into the granite bricks.
+
+# Stockade (same as a wooden)
+N:281:wooden stockade
+G:#:u
+F:WALL | NO_WALK | NO_VISION | SUPPORT_LIGHT | COVER
+F:DONT_NOTICE_RUNNING | TUNNELABLE
+D:1:You chop away at the wooden stockade.
+D:2:a wooden stockade blocking your way
+
+# Camp tent
+N:282:camp tent 1
+G:#:u
+F:WALL | NO_WALK | NO_VISION
+F:DONT_NOTICE_RUNNING | TUNNELABLE
+D:1:You break the camp tent.
+D:2:a camp tent blocking your way
+
+# Alternate camp tent
+N:283:camp tent 2
+G:#:u
+F:WALL | NO_WALK | NO_VISION
+F:DONT_NOTICE_RUNNING | TUNNELABLE
+D:1:You break the camp tent.
+D:2:a camp tent blocking your way
+
+# Transparent granite-like obstacles with full treasure-vein loot when dug up.
+N:284:grave
+G:+:s
+F:WALL | NO_WALK | CAN_PASS | LOS | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | TUNNELABLE | LAMP_LITE | COVER
+D:1:You dig into the grave.
+
+N:285:grave with cross
+G:+:s
+F:WALL | NO_WALK | CAN_PASS | LOS | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | TUNNELABLE | LAMP_LITE | COVER
+D:1:You dig into the grave under cross.
+
+N:286:coffin
+G:+:s
+F:WALL | NO_WALK | CAN_PASS | LOS | SUPPORT_LIGHT
+F:DONT_NOTICE_RUNNING | TUNNELABLE | LAMP_LITE | COVER
+D:1:You break the coffin.
 
 
 # generic scheme (all lines are unique except
