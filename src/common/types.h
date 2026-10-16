@@ -529,6 +529,122 @@ struct vault_type {
 #endif	/* 0 */
 };
 
+#ifdef ENABLE_ROOM_TEMPLATES
+/* A data-driven room template loaded from lib/game/room_templates. */
+typedef struct room_template_entrance room_template_entrance;
+struct room_template_entrance {
+	byte x;
+	byte y;
+	s16b feat;		/* Terrain applied only when this entrance is used. */
+	int source_line;
+};
+
+typedef enum {
+	ROOM_TEMPLATE_MONSTER_FLAGS1,
+	ROOM_TEMPLATE_MONSTER_FLAGS2,
+	ROOM_TEMPLATE_MONSTER_FLAGS3,
+	ROOM_TEMPLATE_MONSTER_FLAGS4,
+	ROOM_TEMPLATE_MONSTER_FLAGS5,
+	ROOM_TEMPLATE_MONSTER_FLAGS6,
+	ROOM_TEMPLATE_MONSTER_FLAGS7,
+	ROOM_TEMPLATE_MONSTER_FLAGS8,
+	ROOM_TEMPLATE_MONSTER_FLAGS9,
+	ROOM_TEMPLATE_MONSTER_FLAGS0,
+	ROOM_TEMPLATE_MONSTER_FLAGSA,
+	ROOM_TEMPLATE_MONSTER_FLAG_SETS
+} room_template_monster_flag_set;
+
+typedef enum {
+	ROOM_TEMPLATE_EGO_AUTO,
+	ROOM_TEMPLATE_EGO_NONE,
+	ROOM_TEMPLATE_EGO_REQUIRED,
+	ROOM_TEMPLATE_EGO_EXACT
+} room_template_monster_ego_mode;
+
+typedef struct room_template_monster_profile room_template_monster_profile;
+struct room_template_monster_profile {
+	bool defined;
+	bool empty_declared;
+	bool ego_defined;
+	bool no_companions;
+	int line;
+	s16b r_idx;
+	s16b min_level;
+	s16b max_level;
+	char glyph;
+	u32b flags[ROOM_TEMPLATE_MONSTER_FLAG_SETS];
+	s16b *only_r_idx;
+	u16b only_count;
+	room_template_monster_ego_mode ego_mode;
+	s16b ego_idx;
+};
+
+typedef enum {
+	ROOM_TEMPLATE_ITEM_FLAGS1,
+	ROOM_TEMPLATE_ITEM_FLAGS2,
+	ROOM_TEMPLATE_ITEM_FLAGS3,
+	ROOM_TEMPLATE_ITEM_FLAGS4,
+	ROOM_TEMPLATE_ITEM_FLAGS5,
+	ROOM_TEMPLATE_ITEM_FLAGS6,
+	ROOM_TEMPLATE_ITEM_FLAGS_ESP,
+	ROOM_TEMPLATE_ITEM_FLAG_SETS
+} room_template_item_flag_set;
+
+typedef enum {
+	ROOM_TEMPLATE_ITEM_NORMAL,
+	ROOM_TEMPLATE_ITEM_GOOD,
+	ROOM_TEMPLATE_ITEM_GREAT
+} room_template_item_quality;
+
+typedef enum {
+	ROOM_TEMPLATE_ITEM_EGO_DEFAULT,
+	ROOM_TEMPLATE_ITEM_EGO_REQUIRED,
+	ROOM_TEMPLATE_ITEM_EGO_EXACT
+} room_template_item_ego_mode;
+
+typedef struct room_template_item_profile room_template_item_profile;
+struct room_template_item_profile {
+	bool defined;
+	bool empty_declared;
+	bool tval_defined;
+	bool sval_defined;
+	bool level_defined;
+	bool glyph_defined;
+	bool quality_defined;
+	bool ego_defined;
+	int line;
+	s16b tval;
+	s16b sval;
+	s16b min_level;
+	s16b max_level;
+	char glyph;
+	u32b flags[ROOM_TEMPLATE_ITEM_FLAG_SETS];
+	room_template_item_quality quality;
+	room_template_item_ego_mode ego_mode;
+	s16b ego_idx[2];
+	byte ego_count;
+};
+
+typedef struct room_template_type room_template_type;
+struct room_template_type {
+	char code[64];
+	char *name;
+	byte wid;
+	byte hgt;
+	byte min_depth;
+	byte max_depth;
+	u16b weight;
+	s16b terrain_feature[128];
+	room_template_monster_profile monster_profiles[128];
+	room_template_item_profile item_profiles[128];
+	char *terrain_map;
+	char *monster_map;
+	char *item_map;
+	u16b entrance_count;
+	room_template_entrance *entrances;
+};
+
+#endif /* ENABLE_ROOM_TEMPLATES */
 typedef struct swear_info {
 	char word[NAME_LEN];
 	int level;
@@ -4805,6 +4921,9 @@ struct dungeon_info_type {
 	u32b flags2;			/* Flags 2 */
 	u32b flags3;			/* Flags 3 */
 	u32b flagsw;			/* Wilderness terrain type flags */
+	/* Keep the raw dungeon-info layout identical in both build modes. */
+	bool no_room_templates;		/* F:NO_ROOM_TEMPLATES */
+	bool room_templates_always;	/* F:ROOM_TEMPLATES_ALWAYS: test-room priority */
 
 	byte rule_percents[100];	/* Flat rule percents */
 	rule_type rules[10];		/* Monster generation rules */
@@ -4827,6 +4946,21 @@ struct dungeon_info_type {
 	s16b t_num;			/* Number of towns */
 };
 
+#ifdef ENABLE_ROOM_TEMPLATES
+typedef enum {
+	ROOM_TEMPLATE_LIST_ALL,
+	ROOM_TEMPLATE_LIST_ALLOW,
+	ROOM_TEMPLATE_LIST_DENY
+} room_template_list_mode;
+
+typedef struct room_template_dungeon_rule room_template_dungeon_rule;
+struct room_template_dungeon_rule {
+	room_template_list_mode mode;
+	bool *members;
+	u32b *multipliers;	/* Per-template chance multiplier in thousandths */
+};
+
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * Hack -- basic town data
  * (In great need of death!)
@@ -4885,6 +5019,8 @@ struct server_opts {
 
 	s16b anti_scum;
 	s16b dun_unusual;
+	/* Retained for the config/Lua binding layout even when templates are disabled. */
+	s16b dun_room_template;
 	s16b town_x;
 	s16b town_y;
 	s16b town_base;

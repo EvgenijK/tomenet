@@ -3895,6 +3895,29 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 			}
 		}
 	}
+	else if (cfeat == FEAT_WOODEN_WALL || cfeat == FEAT_WOODEN_STOCKADE || feat_is_camp_tent(cfeat)) {
+		*no_quake = TRUE;
+
+		/* Tents use bush hardness and tools; wooden walls use living-tree hardness. */
+		int material_power = feat_is_camp_tent(cfeat) ? dual_power : wood_power;
+		int hardness = feat_is_camp_tent(cfeat) ? 300 : 400;
+		if (o_ptr) {
+			if (feat_is_camp_tent(cfeat) && (o_ptr->sval == SV_SHOVEL || o_ptr->sval == SV_MATTOCK)) power >>= 1;
+			else power >>= 2;
+		}
+		if (((power > material_power ? power : material_power) > rand_int(hardness)) && twall(Ind, wpos, y, x, FEAT_FLOOR)) {
+			if (Ind && !quiet_full && !quiet_borer)
+				msg_format(Ind, feat_is_camp_tent(cfeat) ? "You cut through the %s." : "You chop through the %s.", f_name + f_info[cfeat].name);
+			note_spot_depth(wpos, y, x);
+			everyone_lite_spot(wpos, y, x);
+		} else if (Ind && !quiet_full) {
+			msg_print(Ind, f_text + f_info[cfeat].tunnel);
+			*more = TRUE;
+		}
+#ifdef USE_SOUND_2010
+		if (Ind && !quiet_full && !quiet_borer) sound(Ind, "tunnel_tree", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
+	}
 	else if (cfeat == FEAT_TREE) {
 		*no_quake = TRUE;
 
@@ -4141,11 +4164,13 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 			}
 		}
 	}
-	/* Quartz / Magma / Sandwall, with or without (hidden or obvious) treasure */
+	/* Treasure veins and graves (the latter use granite hardness and full loot). */
 	else if (((cfeat >= FEAT_MAGMA) && (cfeat <= FEAT_QUARTZ_K)) ||
-	    ((cfeat >= FEAT_SANDWALL) && (cfeat <= FEAT_SANDWALL_K))) {
+	    ((cfeat >= FEAT_SANDWALL) && (cfeat <= FEAT_SANDWALL_K)) || feat_is_grave(cfeat)) {
+		bool grave = feat_is_grave(cfeat);
 		bool okay = FALSE, gold = FALSE, hard = FALSE, soft = FALSE;
-		bool nonobvious = (cinfo & CAVE_ENCASED) != 0; //treasure veins that aren't generated out in the open, but enclosed in streamers
+		bool nonobvious = grave || (cinfo & CAVE_ENCASED) != 0; //graves always receive the enclosed-vein reward
+		gold = grave;
 
 		/* Found gold? Non-obvious vein even for increased value? */
 		switch (cfeat) {
@@ -4177,7 +4202,17 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 
 #ifdef INDICATE_IMPOSSIBLE
 		/* Let us observe (and halt tunneling) if it's impossible for us to make a dent into this material */
-		if (hard) {
+		if (grave) {
+			if (power <= 40) {
+				if (Ind && !quiet_full) {
+#ifdef USE_SOUND_2010
+					if (!quiet_borer) sound(Ind, "tunnel_rock", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
+#endif
+					msg_format(Ind, "%s %s.", INDICATE_IMPOSSIBLE, f_name + f_ptr->name);
+				}
+				return;
+			}
+		} else if (hard) {
 			/* quartz */
 			if (power <= 20) {
  #ifdef USE_SOUND_2010
@@ -4204,8 +4239,10 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 		}
 #endif
 
+		/* Graves have the same hardness as granite. */
+		if (grave) okay = (power > 40 + rand_int(1600));
 		/* Quartz */
-		if (hard) okay = (power > 20 + rand_int(800)); /* 800 */
+		else if (hard) okay = (power > 20 + rand_int(800)); /* 800 */
 		/* Sandwall */
 		else if (soft) okay = (power > rand_int(300));
 		/* Magma */
@@ -4247,7 +4284,7 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 #ifdef USE_SOUND_2010
 				sound(Ind, "tunnel_rock", NULL, SFX_TYPE_NO_OVERLAP, TRUE);
 #endif
-				msg_format(Ind, "You have finished the tunnel in the %s.", soft ? "sandwall" : (hard ? "quartz vein" : "magma intrusion"));
+				msg_format(Ind, "You have finished the tunnel in the %s.", grave ? f_name + f_ptr->name : (soft ? "sandwall" : (hard ? "quartz vein" : "magma intrusion")));
 			}
 
 			/* Found treasure */
@@ -4483,6 +4520,8 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 			diff = 200;
 			break;
 		case FEAT_BUSH:
+		case FEAT_CAMP_TENT_1:
+		case FEAT_CAMP_TENT_2:
 			if (power < dual_power) power = dual_power;
 			diff = 300;
 			break;
@@ -4491,6 +4530,8 @@ void do_cmd_tunnel_aux(int Ind, struct worldpos *wpos, int x, int y, int power, 
 			diff = 300;
 			break;
 		case FEAT_TREE:
+		case FEAT_WOODEN_WALL:
+		case FEAT_WOODEN_STOCKADE:
 			if (power < wood_power) power = wood_power;
 			diff = 400;
 			break;

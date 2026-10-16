@@ -650,6 +650,39 @@ static cptr r_info_flagsA[] = {
 	"X80000000",
 };
 
+
+/* Resolve a real, unambiguous r_info flag for room-template profiles. */
+#ifdef ENABLE_ROOM_TEMPLATES
+int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
+	static cptr *tables[ROOM_TEMPLATE_MONSTER_FLAG_SETS] = {
+		[ROOM_TEMPLATE_MONSTER_FLAGS1] = r_info_flags1,
+		[ROOM_TEMPLATE_MONSTER_FLAGS2] = r_info_flags2,
+		[ROOM_TEMPLATE_MONSTER_FLAGS3] = r_info_flags3,
+		[ROOM_TEMPLATE_MONSTER_FLAGS4] = r_info_flags4,
+		[ROOM_TEMPLATE_MONSTER_FLAGS5] = r_info_flags5,
+		[ROOM_TEMPLATE_MONSTER_FLAGS6] = r_info_flags6,
+		[ROOM_TEMPLATE_MONSTER_FLAGS7] = r_info_flags7,
+		[ROOM_TEMPLATE_MONSTER_FLAGS8] = r_info_flags8,
+		[ROOM_TEMPLATE_MONSTER_FLAGS9] = r_info_flags9,
+		[ROOM_TEMPLATE_MONSTER_FLAGS0] = r_info_flags0,
+		[ROOM_TEMPLATE_MONSTER_FLAGSA] = r_info_flagsA
+	};
+	int family, bit, matches = 0;
+
+	if (!name || !name[0] || name[0] == 'X') return(0);
+	for (family = 0; family < ROOM_TEMPLATE_MONSTER_FLAG_SETS; family++) {
+		for (bit = 0; bit < 32; bit++) {
+			if (!tables[family][bit] || !streq(name, tables[family][bit])) continue;
+			matches++;
+			*set = family;
+			*mask = (1U << bit);
+		}
+	}
+	return(matches);
+}
+#endif /* ENABLE_ROOM_TEMPLATES */
+
+
 /*
  * Trap flags (PernAngband)
  */
@@ -999,6 +1032,34 @@ cptr esp_flags[] = {
 	"R_ESP_ANY",
 	"ESP_ALL",
 };
+
+
+/* Resolve a real, unambiguous k_info flag, excluding trap aliases. */
+#ifdef ENABLE_ROOM_TEMPLATES
+int lookup_room_template_item_flag(cptr name, int *set, u32b *mask) {
+	static cptr *tables[ROOM_TEMPLATE_ITEM_FLAG_SETS] = {
+		[ROOM_TEMPLATE_ITEM_FLAGS1] = k_info_flags1,
+		[ROOM_TEMPLATE_ITEM_FLAGS2] = k_info_flags2,
+		[ROOM_TEMPLATE_ITEM_FLAGS3] = k_info_flags3,
+		[ROOM_TEMPLATE_ITEM_FLAGS4] = k_info_flags4,
+		[ROOM_TEMPLATE_ITEM_FLAGS5] = k_info_flags5,
+		[ROOM_TEMPLATE_ITEM_FLAGS6] = k_info_flags6,
+		[ROOM_TEMPLATE_ITEM_FLAGS_ESP] = esp_flags
+	};
+	int family, bit, matches = 0;
+
+	if (!name || !name[0] || !strncmp(name, "XXX", 3)) return(0);
+	for (family = 0; family < ROOM_TEMPLATE_ITEM_FLAG_SETS; family++) {
+		for (bit = 0; bit < 32; bit++) {
+			if (!tables[family][bit] || !streq(name, tables[family][bit])) continue;
+			matches++;
+			*set = family;
+			*mask = (1U << bit);
+		}
+	}
+	return(matches);
+}
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 /* Specially handled properties for ego-items */
 
@@ -6029,6 +6090,19 @@ errr init_t_info_txt(FILE *fp, char *buf) {
 static errr grab_one_dungeon_flag(dungeon_info_type *d_ptr, cptr what) {
 	int i;
 
+	if (streq(what, "NO_ROOM_TEMPLATES")) {
+#ifdef ENABLE_ROOM_TEMPLATES
+		d_ptr->no_room_templates = TRUE;
+#endif /* ENABLE_ROOM_TEMPLATES */
+		return(0);
+	}
+	if (streq(what, "ROOM_TEMPLATES_ALWAYS")) {
+#ifdef ENABLE_ROOM_TEMPLATES
+		d_ptr->room_templates_always = TRUE;
+#endif /* ENABLE_ROOM_TEMPLATES */
+		return(0);
+	}
+
 	/* Scan flags1 */
 	for (i = 0; i < 32; i++)
 		if (streq(what, d_info_flags1[i])) {
@@ -6172,6 +6246,33 @@ static errr grab_one_spell_monster_flag(dungeon_info_type *d_ptr, cptr what, byt
 	return(1);
 }
 
+#ifdef ENABLE_ROOM_TEMPLATES
+/* Strict decimal multiplier: 0..1000, with at most three decimal places. */
+static bool room_template_parse_multiplier(cptr text, u32b *result) {
+	u32b whole = 0, fraction = 0, scale = 100;
+	cptr p = text;
+
+	if (*p < '0' || *p > '9') return(FALSE);
+	while (*p >= '0' && *p <= '9') {
+		whole = whole * 10 + (*p++ - '0');
+		if (whole > 1000) return(FALSE);
+	}
+	if (*p == '.') {
+		p++;
+		if (*p < '0' || *p > '9') return(FALSE);
+		while (*p >= '0' && *p <= '9') {
+			if (!scale) return(FALSE);
+			fraction += (*p++ - '0') * scale;
+			scale /= 10;
+		}
+	}
+	if (*p || (whole == 1000 && fraction)) return(FALSE);
+	*result = whole * 1000 + fraction;
+	return(TRUE);
+}
+
+
+#endif /* ENABLE_ROOM_TEMPLATES */
 /*
  * Initialize the "d_info" array, by parsing an ascii "template" file
  */
@@ -6197,6 +6298,16 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 	/* Start the "fake" stuff */
 	d_head->name_size = 0;
 	d_head->text_size = 0;
+#ifdef ENABLE_ROOM_TEMPLATES
+	for (i = 0; i < MAX_D_IDX; i++) {
+		if (room_template_dungeon_rules[i].members)
+			free(room_template_dungeon_rules[i].members);
+		free(room_template_dungeon_rules[i].multipliers);
+		room_template_dungeon_rules[i].multipliers = NULL;
+		room_template_dungeon_rules[i].members = NULL;
+		room_template_dungeon_rules[i].mode = ROOM_TEMPLATE_LIST_ALL;
+	}
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 	/* Parse */
 	while (0 == my_fgets(fp, buf, 1024, FALSE)) {
@@ -6320,6 +6431,61 @@ errr init_d_info_txt(FILE *fp, char *buf) {
 
 		/* There better be a current d_ptr */
 		if (!d_ptr) return(3);
+
+#ifdef ENABLE_ROOM_TEMPLATES
+		/* I:+:code[:multiplier] or I:-:code. */
+		if (buf[0] == 'I') {
+			room_template_dungeon_rule *rule =
+				&room_template_dungeon_rules[error_idx];
+			room_template_list_mode mode;
+			size_t template_index;
+			u32b multiplier = 1000;
+			char *suffix;
+
+			if ((buf[2] != '+' && buf[2] != '-') || buf[3] != ':' ||
+			    !buf[4]) return(1);
+			mode = buf[2] == '+' ? ROOM_TEMPLATE_LIST_ALLOW :
+				ROOM_TEMPLATE_LIST_DENY;
+			suffix = strchr(buf + 4, ':');
+			if (suffix) {
+				if (mode != ROOM_TEMPLATE_LIST_ALLOW ||
+				    !room_template_parse_multiplier(suffix + 1, &multiplier)) {
+					s_printf("Invalid room-template multiplier in dungeon %d.\n", error_idx);
+					return(1);
+				}
+				*suffix = '\0';
+			}
+			if (rule->mode != ROOM_TEMPLATE_LIST_ALL && rule->mode != mode) {
+				s_printf("Mixed room-template allow/deny lists in dungeon %d.\n", error_idx);
+				return(1);
+			}
+			for (template_index = 0; template_index < room_template_count;
+			    template_index++)
+				if (streq(room_templates[template_index].code, buf + 4)) break;
+			if (template_index == room_template_count) {
+				s_printf("Unknown room-template code '%s' in dungeon %d.\n", buf + 4, error_idx);
+				return(1);
+			}
+			if (!rule->members) {
+				rule->members = calloc(room_template_count, sizeof(*rule->members));
+				rule->multipliers = calloc(room_template_count, sizeof(*rule->multipliers));
+				if (!rule->members || !rule->multipliers) return(7);
+			}
+			if (rule->members[template_index]) {
+				s_printf("Duplicate room-template code '%s' in dungeon %d.\n", buf + 4, error_idx);
+				return(1);
+			}
+			rule->mode = mode;
+			rule->members[template_index] = TRUE;
+			rule->multipliers[template_index] = multiplier;
+			continue;
+		}
+
+#endif /* ENABLE_ROOM_TEMPLATES */
+#ifndef ENABLE_ROOM_TEMPLATES
+		/* Keep shared d_info.txt usable without loading template data. */
+		if (buf[0] == 'I') continue;
+#endif
 
 		/* Process 'D' for "Description */
 		if (buf[0] == 'D') {
@@ -9291,6 +9457,24 @@ errr init_q_info_txt(FILE *fp, char *buf) {
 #ifdef MACINTOSH
 static int i = 0;
 #endif
+
+#ifdef ENABLE_ROOM_TEMPLATES
+int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask) {
+	(void)name;
+	(void)set;
+	(void)mask;
+	return(0);
+}
+#endif /* ENABLE_ROOM_TEMPLATES */
+
+#ifdef ENABLE_ROOM_TEMPLATES
+int lookup_room_template_item_flag(cptr name, int *set, u32b *mask) {
+	(void)name;
+	(void)set;
+	(void)mask;
+	return(0);
+}
+#endif /* ENABLE_ROOM_TEMPLATES */
 
 #endif	/* ALLOW_TEMPLATES */
 

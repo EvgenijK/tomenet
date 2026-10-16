@@ -25,6 +25,22 @@
 # O:<%treasure>:<%combat>:<%magic>:<%tools>
 # E:<dices>d<sides>:<frequency>:<attack type>
 # F:<flags>
+# I:+:<room template code>[:<chance multiplier>] (allow list)
+# I:-:<room template code> (legacy deny list; no multiplier allowed)
+# Only explicitly allowed I:+ codes can appear in the effective dungeon theme.
+# Without an allow list, templates are disabled, even in ALWAYS mode.
+# Multipliers: decimal 0..1000, up to 3 fractional digits, default 1.
+# Examples: I:+:orc_raider_camp:2 (twice its baseline attempt chance)
+#           I:+:orc_raider_camp:0.5 (half its baseline attempt chance)
+#           I:+:orc_raider_camp:0 (disabled even in ALWAYS mode)
+# Allow and deny lists cannot be mixed; duplicate codes are errors.
+# The effective floor theme supplies the list/multipliers (including IDDC).
+# Each eligible template keeps its baseline P:weight share. Multipliers scale
+# its attempt chance, not merely its relative selection weight. Total category
+# probability is capped at 100% after the two existing unusual-room rolls;
+# at saturation, template selection follows weight * multiplier proportions.
+# NO_ROOM_TEMPLATES overrides everything; ROOM_TEMPLATES_ALWAYS bypasses the
+# category probability only. Depth, size and placement restrictions still apply.
 # R:<percent>:<flags mode> (up to 10 rules)
 # M:<monster flags> (up to 10 R_CHAR_x defs)
 # S:<monster spells>
@@ -102,6 +118,7 @@ W:67:127:30:0:14:160
 L:1:1000:1:0:1:0:1:333:1:333
 #A:56:1000:56:0:56:0:0:0:0:0:57:58
 #IDDC
+I:+:party_camp:0.01
 A:56:1000:56:0:56:0:56:333:56:333:57:58
 O:20:20:20:20
 F:CAVERN
@@ -361,6 +378,9 @@ M:R_CHAR_p
 # levels 10-22
 # There is Azog with the Wand of Thrain at the bottom
 N:19:The Orc Cave
+I:+:orc_camp:50
+I:+:orc_camp_medium:5
+I:+:orc_camp_big:1
 D:Orc:a dark tunnel leading to an Orc Cave.
 B:81
 W:10:23:3:0:35:200
@@ -652,6 +672,7 @@ L:1:800:174:200:1:0:1:400:174:100
 A:56:1000:56:0:56:0:56:334:56:334:57:58
 O:20:20:20:20
 F:TOWER | EMPTY | NO_DEATH
+# Test-room priority: after a seed room, every attempt selects one of these.
 F:FILL_METHOD_3
 R:25:1
 M:ANIMAL

@@ -281,6 +281,9 @@ extern header *re_head;
 extern monster_ego *re_info;
 extern header *d_head;
 extern dungeon_info_type *d_info;
+#ifdef ENABLE_ROOM_TEMPLATES
+extern room_template_dungeon_rule room_template_dungeon_rules[MAX_D_IDX];
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern char *d_name;
 extern char *d_text;
 extern char *re_name;
@@ -405,6 +408,10 @@ extern header *v_head;
 extern vault_type *v_info;
 extern char *v_name;
 extern char *v_text;
+#ifdef ENABLE_ROOM_TEMPLATES
+extern room_template_type *room_templates;
+extern size_t room_template_count;
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern header *f_head;
 extern feature_type *f_info;
 extern char *f_name;
@@ -558,6 +565,7 @@ extern c_special *ReplaceCS(cave_type *c_ptr, byte type);
 extern void FreeCS(cave_type *c_ptr);
 extern dun_level *getfloor(struct worldpos *wpos);
 extern int cave_set_feat(worldpos *wpos, int y, int x, int feat);
+extern int cave_set_feat_resolve(worldpos *wpos, int y, int x, int feat);
 extern bool cave_set_feat_live(worldpos *wpos, int y, int x, int feat);
 extern bool cave_set_feat_live_ok(worldpos *wpos, int y, int x, int feat);
 #ifdef DM_MODULES
@@ -1018,6 +1026,10 @@ extern void arcade_wipe(worldpos *wpos);
 #endif
 
 extern bool room_alloc(worldpos *wpos, int x, int y, bool crowded, int by0, int bx0, int *xx, int *yy);
+#ifdef ENABLE_ROOM_TEMPLATES
+extern bool build_room_template(worldpos *wpos, int by0, int bx0,
+	room_template_type *room);
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern bool dungeon_aux(int r_idx);
 extern bool xorder_aux(int r_idx);
 extern bool xorder_aux_extra;
@@ -1111,6 +1123,10 @@ extern errr init_a_info_txt(FILE *fp, char *buf);
 extern errr init_e_info_txt(FILE *fp, char *buf);
 extern errr init_d_info_txt(FILE *fp, char *buf);
 extern errr init_r_info_txt(FILE *fp, char *buf);
+#ifdef ENABLE_ROOM_TEMPLATES
+extern int lookup_room_template_monster_flag(cptr name, int *set, u32b *mask);
+extern int lookup_room_template_item_flag(cptr name, int *set, u32b *mask);
+#endif /* ENABLE_ROOM_TEMPLATES */
 extern errr init_re_info_txt(FILE *fp, char *buf);
 extern errr init_t_info_txt(FILE *fp, char *buf);
 extern errr init_ow_info_txt(FILE *fp, char *buf);
@@ -1118,7 +1134,21 @@ extern errr init_ba_info_txt(FILE *fp, char *buf);
 extern errr init_st_info_txt(FILE *fp, char *buf);
 extern errr init_s_info_txt(FILE *fp, char *buf);
 extern errr init_q_info_txt(FILE *fp, char *buf);
+#ifdef ENABLE_ROOM_TEMPLATES
+extern errr init_room_templates(void);
+extern bool room_template_monster_profile_matches(
+	room_template_monster_profile *profile, int r_idx, bool fallback);
+extern bool room_template_item_profile_matches(
+	room_template_item_profile *profile, int k_idx);
+extern bool room_template_item_egos_match(int k_idx, int first, int second);
+extern bool room_template_item_ego_available(struct worldpos *wpos,
+	object_type *o_ptr, int e_idx, u64b resf);
+extern int room_template_item_quality_weight(int k_idx, u64b resf,
+	room_template_item_quality quality);
+extern bool room_template_make_artifact_special(struct worldpos *wpos,
+	object_type *o_ptr, room_template_item_profile *profile, u64b resf);
 
+#endif /* ENABLE_ROOM_TEMPLATES */
 /* init.c (init1.c , init2.c)*/
 extern void loadmap(cptr name, int wx, int wy, int wz, int x, int y);
 extern errr process_dungeon_file(cptr name, worldpos *wpos, int *yval, int *xval, int ymax, int xmax, bool init);
@@ -1221,6 +1251,7 @@ extern void update_player(int Ind);
 extern void update_player_flicker(int Ind);
 extern void update_players(void);
 extern int place_monster_aux(struct worldpos *wpos, int y, int x, int r_idx, bool forbid_ego, bool slp, bool grp, int clo, int clone_summoning);
+extern void place_monster_companions(struct worldpos *wpos, int y, int x, int r_idx, bool slp, int clo, int clone_summoning);
 extern int place_monster_one(struct worldpos *wpos, int y, int x, int r_idx, int ego, int randuni, bool slp, int clo, int clone_summoning);
 extern bool place_monster(struct worldpos *wpos, int y, int x, bool slp, bool grp);
 #ifdef DM_MODULES
@@ -1254,6 +1285,8 @@ extern void monster_carry(monster_type *m_ptr, int m_idx, object_type *q_ptr);
 extern void player_desc(int Ind, char *desc, int Ind2, int mode);
 extern int monster_check_experience(int m_idx, bool silent);
 extern bool mego_ok(int r_idx, int ego);
+extern int pick_ego_monster(int r_idx, int Level);
+extern int pick_ego_monster_required(int r_idx, int Level);
 extern monster_race* race_inf(monster_type *m_ptr);
 extern monster_race* race_info_idx(int r_idx, int ego, int randuni);
 extern void py2mon_init(void);
@@ -1523,6 +1556,8 @@ extern void wipe_o_list_safely(struct worldpos *wpos);
 extern void wipe_o_list_special(struct worldpos *wpos);
 extern void wipe_o_list_nonarts(struct worldpos *wpos);
 extern void apply_magic(struct worldpos *wpos, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
+extern bool apply_magic_required_ego(struct worldpos *wpos,
+	object_type *o_ptr, int lev, bool good, bool great, u64b resf);
 extern void apply_magic_depth(int Depth, object_type *o_ptr, int lev, bool okay, bool good, bool great, bool verygreat, u64b resf);
 extern void determine_level_req(int level, object_type *o_ptr);
 extern void verify_level_req(object_type *o_ptr);

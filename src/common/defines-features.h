@@ -17,6 +17,9 @@
 /* Distinguished light colour for flaming lites, magic lights, vampire light */
 #define CAVE_LITE_COLOURS
 
+/* Data-driven dungeon room templates are disabled unless the build supplies
+   -DENABLE_ROOM_TEMPLATES (see the server target in src/makefile). */
+
 /* Add extra character slot(s) dedicated to Ironman Deep Dive Challenge (MAX_DED_IDDC_CHARS) */
 #define ALLOW_DED_IDDC_MODE
 /* Add extra character slot(s) dedicated to PvP mode (MAX_DED_PVP_CHARS) */

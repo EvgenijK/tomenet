@@ -3132,6 +3132,9 @@ void do_cmd_check_server_settings(int Ind) {
 		//if (cfg.admins_never_expire) fprintf(fff, "Admin characters (dungeon wizards/masters) never expire.\n"); //done above
 
 		fprintf(fff, "dun_unusual: %d (default = 200)\n", cfg.dun_unusual);
+#ifdef ENABLE_ROOM_TEMPLATES
+		fprintf(fff, "dun_room_template: %d (default = 60)\n", cfg.dun_room_template);
+#endif /* ENABLE_ROOM_TEMPLATES */
 		fprintf(fff, "Stores change their inventory every ~%d seconds.\n", (cfg.store_turns * 10) / cfg.fps);
 		fprintf(fff, "Dungeon Stores change their inventory every ~%d seconds.\n", (cfg.dun_store_turns * 10) / cfg.fps);
 		fprintf(fff, "Book Stores change their inventory at %d%% turns.\n", cfg.book_store_turns_perc);
