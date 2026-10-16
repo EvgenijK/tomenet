@@ -26,7 +26,9 @@
 # E:<dices>d<sides>:<frequency>:<attack type>
 # F:<flags>
 # I:+:<room template code>[:<chance multiplier>] (allow list)
-# I:-:<room template code> (deny list; no multiplier allowed)
+# I:-:<room template code> (legacy deny list; no multiplier allowed)
+# Only explicitly allowed I:+ codes can appear in the effective dungeon theme.
+# Without an allow list, templates are disabled, even in ALWAYS mode.
 # Multipliers: decimal 0..1000, up to 3 fractional digits, default 1.
 # Examples: I:+:orc_raider_camp:2 (twice its baseline attempt chance)
 #           I:+:orc_raider_camp:0.5 (half its baseline attempt chance)

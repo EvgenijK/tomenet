@@ -2917,8 +2917,9 @@ static bool room_template_is_eligible(size_t index, int real_dungeon,
 
 	rule = &room_template_dungeon_rules[effective_dungeon];
 	listed = rule->members && rule->members[index];
-	if (rule->mode == ROOM_TEMPLATE_LIST_ALLOW && !listed) return(FALSE);
-	if (rule->mode == ROOM_TEMPLATE_LIST_DENY && listed) return(FALSE);
+	/* Templates require explicit opt-in from the effective dungeon theme.
+	 * An absent list or a legacy deny list must not enable other templates. */
+	if (rule->mode != ROOM_TEMPLATE_LIST_ALLOW || !listed) return(FALSE);
 
 	room = &room_templates[index];
 	if (depth < room->min_depth || depth > room->max_depth) return(FALSE);
