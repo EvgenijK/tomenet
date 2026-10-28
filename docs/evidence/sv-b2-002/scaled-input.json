@@ -1,0 +1,23 @@
+[
+  {
+    "state": "error",
+    "displayScale": 1.25,
+    "logicalSize": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-scaled-we_pxojz",
+      "--fixture-window",
+      "1024x768",
+      "--server",
+      "127.0.0.1:1"
+    ],
+    "cancelExit": null
+  }
+]

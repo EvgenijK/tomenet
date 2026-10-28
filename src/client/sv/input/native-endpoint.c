@@ -1,5 +1,6 @@
 #include "input/native-endpoint.h"
 #include "input/physical.h"
+#include "ui/login-layout.h"
 #include <string.h>
 
 static bool modifier(SDL_Scancode code)
@@ -11,7 +12,7 @@ static bool modifier(SDL_Scancode code)
 
 void sv_endpoint_input_begin(SvEndpointInput *input)
 {
-    *input = (SvEndpointInput){.since_ns = SDL_GetTicksNS()};
+    *input = (SvEndpointInput){.since_ns = SDL_GetTicksNS(), .hover = SIZE_MAX};
 }
 
 SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8)
@@ -44,16 +45,67 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         input->latch = 0;
         return false;
     }
-    if (event->type != SDL_EVENT_KEY_DOWN && event->type != SDL_EVENT_TEXT_INPUT) return false;
     if (event->common.timestamp && event->common.timestamp < input->since_ns) return true;
+    if (event->type == SDL_EVENT_MOUSE_MOTION && endpoint->phase == SV_ENDPOINT_LIST) {
+        SDL_Window *window=SDL_GetWindowFromID(event->motion.windowID);int w,h;
+        float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+        if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
+            SvLoginLayout l=sv_login_layout(w/scale,h/scale,endpoint->server_count,endpoint->selected);
+            float x=event->motion.x*density/scale,y=event->motion.y*density/scale;
+            input->hover=SIZE_MAX;input->hover_manual=sv_login_contains(l.manual,x,y);
+            for(size_t i=l.first;i<endpoint->server_count && i<l.first+l.rows;++i)
+                if(sv_login_contains(sv_login_row(l,i),x,y))input->hover=i;
+        }
+        return true;
+    }
+    if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button==SDL_BUTTON_LEFT && endpoint->phase==SV_ENDPOINT_MANUAL) {
+        SDL_Window *window=SDL_GetWindowFromID(event->button.windowID);int w,h;
+        float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+        if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
+            SvLoginLayout l=sv_login_layout(w/scale,h/scale,endpoint->server_count,endpoint->selected);
+            SvLoginFormLayout f=sv_login_form_layout(l,h/scale);
+            float x=event->button.x*density/scale,y=event->button.y*density/scale;
+            if(sv_login_contains(f.cancel,x,y))sv_endpoint_key(endpoint,SV_EDIT_CANCEL);
+            else if(sv_login_contains(f.connect,x,y))sv_endpoint_key(endpoint,SV_EDIT_ACCEPT);
+            else if(sv_login_contains(f.address,x,y)) {
+                float cell=input->text_cell>0?input->text_cell:11;
+                size_t visible=(size_t)((f.address.w-22)/cell);
+                size_t start=endpoint->editor.cursor>=visible?endpoint->editor.cursor-visible+1:0;
+                size_t cursor=start+(x>f.address.x+10?(size_t)((x-f.address.x-10)/cell+.5f):0);
+                if(cursor>endpoint->editor.length)cursor=endpoint->editor.length;
+                size_t anchor=(SDL_GetModState()&SDL_KMOD_SHIFT)?endpoint->editor.anchor:cursor;
+                endpoint->editor.anchor=anchor;endpoint->editor.cursor=cursor;input->manual_focus=0;
+            }
+        }
+        return true;
+    }
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.button == SDL_BUTTON_LEFT && endpoint->phase == SV_ENDPOINT_LIST) {
+        SDL_Window *window = SDL_GetWindowFromID(event->button.windowID);
+        int width, height;
+        if (!window || !SDL_GetWindowSizeInPixels(window, &width, &height)) return false;
+        float scale = SDL_GetWindowDisplayScale(window);
+        float density = SDL_GetWindowPixelDensity(window);
+        if (scale <= 0 || density <= 0) return false;
+        SvLoginLayout layout = sv_login_layout(width/scale,height/scale,
+                                               endpoint->server_count,endpoint->selected);
+        float x=event->button.x*density/scale, y=event->button.y*density/scale;
+        if (sv_login_contains(layout.manual,x,y)) {input->manual_focus=0;sv_endpoint_manual(endpoint); }
+        else for (size_t i=layout.first;i<endpoint->server_count && i<layout.first+layout.rows;++i)
+            if (sv_login_contains(sv_login_row(layout,i),x,y)) {
+                (void)sv_endpoint_choose(endpoint,i); break;
+            }
+        return true;
+    }
+    if (event->type != SDL_EVENT_KEY_DOWN && event->type != SDL_EVENT_TEXT_INPUT) return false;
     if (endpoint->phase == SV_ENDPOINT_SELECTED || endpoint->phase == SV_ENDPOINT_CANCELLED) return true;
     if (event->type == SDL_EVENT_TEXT_INPUT) {
         if (endpoint->phase == SV_ENDPOINT_LIST) {
-            if (!strcmp(event->text.text, "q") || !strcmp(event->text.text, "Q")) sv_endpoint_manual(endpoint);
+            if (!strcmp(event->text.text, "q") || !strcmp(event->text.text, "Q")) {input->manual_focus=0;sv_endpoint_manual(endpoint); }
             else if (strlen(event->text.text) == 1 && event->text.text[0] >= 'a' &&
                      (size_t)(event->text.text[0] - 'a') < endpoint->server_count)
                 (void)sv_endpoint_choose(endpoint, (size_t)(event->text.text[0] - 'a'));
-        } else {
+        } else if (!input->manual_focus) {
             input->text_error = sv_text_insert_utf8(&endpoint->editor, event->text.text);
             input->clipboard_unavailable = false;
         }
@@ -78,14 +130,23 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
     input->latch = 0;
     SDL_Keycode key = physical.key;
     if (endpoint->phase == SV_ENDPOINT_LIST) {
+        if(key==SDLK_TAB) { input->list_focus_manual=!input->list_focus_manual;return true; }
         if (key == SDLK_ESCAPE) sv_endpoint_key(endpoint, SV_EDIT_CANCEL);
         else if (symbol == 0xff52 || symbol == 0xff97) move_row(endpoint, -1);
         else if (symbol == 0xff54 || symbol == 0xff99) move_row(endpoint, 1);
         else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-            if (endpoint->selected < endpoint->server_count)
+            if(input->list_focus_manual) {input->manual_focus=0;sv_endpoint_manual(endpoint); }
+            else if (endpoint->selected < endpoint->server_count)
                 (void)sv_endpoint_choose(endpoint, endpoint->selected);
         }
         return true;
+    }
+    if(key==SDLK_TAB) {
+        input->manual_focus=(input->manual_focus+((mods&SDL_KMOD_SHIFT)?2:1))%3;
+        return true;
+    }
+    if((key==SDLK_RETURN || key==SDLK_KP_ENTER || key==SDLK_SPACE) && input->manual_focus) {
+        sv_endpoint_key(endpoint,input->manual_focus==1?SV_EDIT_CANCEL:SV_EDIT_ACCEPT);return true;
     }
     SvEditKey action;
     bool handled = true;
@@ -124,6 +185,14 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         default: handled = false;
         }
     } else handled = false;
-    if (handled) sv_endpoint_key(endpoint, action);
+    if (handled) {
+        bool selecting=(mods&SDL_KMOD_SHIFT) &&
+            (action==SV_EDIT_LEFT || action==SV_EDIT_RIGHT || action==SV_EDIT_HOME ||
+             action==SV_EDIT_END || action==SV_EDIT_WORD_LEFT || action==SV_EDIT_WORD_RIGHT);
+        size_t anchor=endpoint->editor.anchor;
+        if(selecting)endpoint->editor.anchor=endpoint->editor.cursor;
+        sv_endpoint_key(endpoint, action);
+        if(selecting)endpoint->editor.anchor=anchor;
+    }
     return true;
 }

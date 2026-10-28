@@ -9,7 +9,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 FLAGS = subprocess.check_output(
-    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1"],
+    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng"],
     text=True,
 ).split()
 SOURCES = [
@@ -30,6 +30,7 @@ SOURCES = [
     "src/client/sv/session/login-view.c",
     "src/client/sv/session/birth.c",
     "src/client/sv/ui/endpoint-scene.c",
+    "src/client/sv/ui/login-shell.c",
     "src/client/sv/ui/font.c",
     "src/client/sv/input/endpoint.c",
     "src/client/sv/input/text-field.c",

@@ -1,4 +1,5 @@
 #include "input/native-endpoint.h"
+#include "ui/login-layout.h"
 #include <assert.h>
 #include <string.h>
 
@@ -92,5 +93,57 @@ int main(void)
     event.type = SDL_EVENT_WINDOW_FOCUS_LOST;
     assert(!sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
     assert(!input.latch);
+    /* The same production rectangles drive the native mouse adapter. */
+    assert(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy"));
+    assert(SDL_Init(SDL_INIT_VIDEO));
+    SDL_Window *window=SDL_CreateWindow("endpoint geometry",1024,768,0);
+    assert(window);
+    SvServer server={.host="mouse.example",.port=18348,.ping_ms=-1};
+    sv_endpoint_begin(&endpoint,18348);
+    assert(sv_endpoint_servers(&endpoint,&server,1));
+    sv_endpoint_input_begin(&input);
+    input.since_ns=100;
+    SvLoginLayout layout=sv_login_layout(1024,768,1,0);
+    SvLoginRect row=sv_login_row(layout,0);
+    event=(SDL_Event){.type=SDL_EVENT_MOUSE_BUTTON_DOWN};
+    event.button.button=SDL_BUTTON_LEFT;
+    event.button.windowID=SDL_GetWindowID(window);
+    event.button.x=row.x+4;event.button.y=row.y+4;
+    event.button.timestamp=99;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_LIST);
+    event.button.timestamp=101;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_SELECTED && !strcmp(endpoint.host,"mouse.example"));
+    sv_endpoint_begin(&endpoint,18348);
+    assert(sv_endpoint_servers(&endpoint,&server,1));
+    event.button.x=layout.manual.x+4;event.button.y=layout.manual.y+4;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_MANUAL);
+    assert(input.manual_focus==0);
+    SvLoginFormLayout form=sv_login_form_layout(layout,768);
+    input.text_cell=10;
+    endpoint.editor.cursor=endpoint.editor.anchor=8;
+    SDL_SetModState(SDL_KMOD_SHIFT);
+    event.button.x=form.address.x+10+2*input.text_cell;
+    event.button.y=form.address.y+10;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.editor.cursor==2 && endpoint.editor.anchor==8);
+    SDL_SetModState(SDL_KMOD_NONE);
+    event.button.x=form.connect.x+4;event.button.y=form.connect.y+4;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_SELECTED && !strcmp(endpoint.host,"europe.tomenet.eu"));
+    sv_endpoint_begin(&endpoint,18348);
+    input.manual_focus=2;
+    event=text_event("q");
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_MANUAL && input.manual_focus==0);
+    event=(SDL_Event){.type=SDL_EVENT_MOUSE_BUTTON_DOWN};
+    event.button.button=SDL_BUTTON_LEFT;
+    event.button.windowID=SDL_GetWindowID(window);
+    event.button.x=form.cancel.x+4;event.button.y=form.cancel.y+4;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_CANCELLED && !endpoint.host[0]);
+    SDL_DestroyWindow(window);SDL_Quit();
     return 0;
 }

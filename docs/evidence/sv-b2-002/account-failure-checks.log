@@ -1,0 +1,25 @@
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Account already exists.  Press R to retry or Escape to exit. (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=36217
+SV contact ready host=127.0.0.1 port=36217 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Session closed: packet decode failed (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=39559
+SV contact ready host=127.0.0.1 port=39559 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=32819
+SV contact ready host=127.0.0.1 port=32819 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Account already exists.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=43033
+SV contact ready host=127.0.0.1 port=43033 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=43033 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=1
+SV resource unavailable: /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-failure-nuhedaoz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=1
+SV-B-021 account-creation failure checks passed

@@ -1,0 +1,90 @@
+[
+  {
+    "backend": "software",
+    "state": "server",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-103t77v2",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "server",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-_bmni0x_",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "server",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-fod1y3t5",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "server",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-rcxrc667",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  }
+]

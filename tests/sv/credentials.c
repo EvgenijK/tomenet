@@ -103,6 +103,57 @@ int main(int argc, char **argv)
     assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_ACCEPTED);
     sv_credentials_end(&input);
 
+
+    /* Both visible fields share the production editor; focus retains selection. */
+    strcpy(account, "Player");
+    strcpy(password, "secret");
+    sv_credentials_begin(&input, &endpoint, account, password);
+    sv_credentials_select(&input, 1, 1, false);
+    sv_credentials_select(&input, 1, 4, true);
+    event = text("X");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(!strcmp(password, "sXet"));
+    event = key(SDLK_LEFT, SDL_KMOD_SHIFT);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(input.cursor[1] == 1 && input.anchor[1] == 2);
+    event = key(SDLK_TAB, SDL_KMOD_SHIFT);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(input.focus == 0);
+    event = key(SDLK_TAB, 0);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(input.focus == 1 && input.cursor[1] == 1 && input.anchor[1] == 2);
+    SvCredentialPresentation view;
+    sv_credentials_toggle_reveal(&input);
+    sv_credentials_view(&input, &view);
+    assert(!strcmp(view.password_mask, "****") && !strcmp(view.account, "Player"));
+    assert(!strcmp(sv_credentials_private_password(&input), "sXet"));
+    assert(sv_credentials_submit(&input) == SV_CREDENTIAL_ACCEPTED);
+    assert(!sv_credentials_private_password(&input));
+    sv_credentials_focus(&input, 0);
+    event = key(SDLK_A, SDL_KMOD_CTRL);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    event = text("other");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(!strcmp(account, "Other") && !strcmp(password, "sXet") && !input.restored_password);
+    sv_credentials_focus(&input, 1);
+    event = key(SDLK_A, SDL_KMOD_CTRL);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    event = key(SDLK_BACKSPACE, 0);
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    sv_credentials_select(&input, 0, strlen(account), false);
+    event = text("2");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    sv_credentials_focus(&input, 1);
+    assert(input.lookup);
+    uint64_t generation = input.generation;
+    sv_credentials_select(&input, 0, strlen(account), false);
+    event = text("2");
+    assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_EDITING);
+    assert(!input.lookup && input.generation != generation && !input.account_checked);
+    sv_credentials_poll(&input);
+    assert(!password[0]);
+    sv_credentials_end(&input);
+
     if (argc == 2 && !strcmp(argv[1], "provider")) {
         char identity[SV_VAULT_KEY_CAPACITY];
         assert(sv_vault_key(identity, endpoint.host, strlen(endpoint.host),

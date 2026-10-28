@@ -11,6 +11,15 @@
 минимум для usable client, поздний принимает optional или интеграционное поведение.
 Это acceptance slices, а не требование создавать отдельный архитектурный модуль.
 
+## Дополнительный presentation этап B2
+
+По запросу пользователя от 2026-10-28 между принятым B и C001 запланирован
+[B2 — native startup UI по веб-макету](sv-stage-b2-spec.md),
+[implementation tickets](tasks/stage-b2/README.md). Это перенос visual/layout
+существующих B screens с нулём новых capability IDs; отдельной строкой
+canonical stage catalog он не становится. Таблица C001–C064, порядок и counts
+ниже сохраняются. B accepted и снятые проверки B не переоткрываются.
+
 ## Последовательность
 
 | Этап | Блок | Outcomes | Scope |

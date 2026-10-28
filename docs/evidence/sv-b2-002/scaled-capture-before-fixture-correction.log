@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/capture-scaled.py", line 118, in <module>
+    if state!='cancel':capture(w,f'opengl-scaled-{state}.png')
+                       ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/capture-scaled.py", line 83, in capture
+    if p.poll() is not None:raise RuntimeError('Client stopped before capture')
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Client stopped before capture

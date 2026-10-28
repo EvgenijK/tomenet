@@ -1102,3 +1102,45 @@ uses its own incremental production decoder; no consolidation is proposed.
 fixtures; splits at every reply boundary; truncated EOF and unterminated quit;
 ack with trailing packets; timeout/exit policy; applicable legacy builds and
 real peer checks. None of these future legacy checks is claimed passed here.
+
+
+## Reduce repeated source lists in SV production-path check builds
+
+**Status:** proposed, outside B2-001 scope; no build-framework refactor performed.
+
+**Problem:** twelve existing endpoint consumer scripts repeat production source
+lists and pkg-config modules. Adding one SV-owned shell translation unit requires
+mechanical link wiring in all twelve, with a risk of missing an existing consumer.
+
+**Affected code:** `tests/sv_endpoint_checks.py` and endpoint-scene consumers in
+`tests/sv_*checks.py`; `src/makefile.sv`.
+
+**Proposal:** separately evaluate a small shared declaration of production link
+inputs, preserving independent scenario selection and production-path execution.
+This concerns test build wiring, not merging SV and legacy implementations.
+
+**Required checks:** all affected existing Linux consumers still build the same
+production sources, sanitizer flags and compile-order branches; no added suite
+expansion without user agreement.
+
+## Report the actual endpoint failure instead of a stale SDL error
+
+**Status:** proposed, outside B2-002 scope; diagnostic behavior unchanged.
+
+**Problem:** a controlled OpenGL run with `--frames` intentionally exits after
+a refused connection, but the final generic startup diagnostic can print an
+unrelated earlier SDL error (`Parameter 'texture' is invalid`). This obscures
+the actual contact failure and can be mistaken for a rendering failure.
+
+**Affected code:** `src/client/sv/endpoint-run.c:run_contact` frame-limited
+failure exit and `sv_endpoint_run` final `SDL_GetError()` diagnostic;
+`src/client/sv/ui/login-shell.c` optional texture cleanup.
+
+**Proposal:** separately preserve the owning operation's error when returning
+failure and avoid presenting ambient SDL error state as its cause. Preserve
+the existing frame-limit and network retry/exit semantics.
+
+**Required checks:** production refused-contact runs with and without
+`--frames`, an actual rendering failure, and successful startup; verify the
+reported cause and exit policy independently. B2-002's same-input run without
+`--frames` retains the error surface; a diagnostics fix is not claimed here.

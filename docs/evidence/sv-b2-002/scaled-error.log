@@ -1,0 +1,4 @@
+SV resource unavailable: /tmp/sv-b2-002-scaled-aw38zepg/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b2-002-scaled-aw38zepg/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Cannot open server socket. R retries; Escape exits. (status=0)
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=1

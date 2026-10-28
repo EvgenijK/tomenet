@@ -2,6 +2,9 @@
 #include "session/login-view.h"
 #include "input/birth-interaction.h"
 #include "input/native-birth.h"
+#include "ui/login-layout.h"
+#include "ui/login-shell.h"
+#include "input/credentials.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -18,9 +21,143 @@ static bool line(SDL_Renderer *renderer, SvFont *font, const char *text,
     return sv_font_draw(font, renderer, printable, (int)(x * scale), (int)(y * scale), scale, color);
 }
 
+static const SDL_Color b2_gold={201,170,77,255}, b2_normal={238,234,221,255},
+    b2_muted={133,141,131,255}, b2_error={238,134,118,255};
+static bool b2_box(SDL_Renderer *r,SvLoginRect rect,float scale,SDL_Color color,bool outline)
+{
+    SDL_FRect box={rect.x*scale,rect.y*scale,rect.w*scale,rect.h*scale};
+    return SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a) &&
+        (outline?SDL_RenderRect(r,&box):SDL_RenderFillRect(r,&box));
+}
+static bool b2_text(SDL_Renderer *r,const char *text,float x,float y,float size,float scale,SDL_Color color)
+{ return sv_login_shell_text(r,text,x,y,size,scale,color); }
+static bool b2_button(SDL_Renderer *r,SvLoginRect box,const char *text,float scale,bool focused,bool enabled)
+{
+    return b2_box(r,box,scale,(SDL_Color){31,30,13,220},false) &&
+        b2_box(r,box,scale,focused?b2_gold:(SDL_Color){105,95,65,140},true) &&
+        b2_text(r,text,box.x+(box.w-strlen(text)*7.2f)/2,box.y+(box.h-12)/2,12,scale,enabled?b2_gold:b2_muted);
+}
+static bool b2_primary_button(SDL_Renderer *r,SvLoginRect box,const char *text,float scale,bool focused)
+{
+    return b2_box(r,box,scale,b2_gold,false) &&
+        b2_box(r,box,scale,focused?b2_normal:(SDL_Color){130,111,62,255},true) &&
+        b2_text(r,text,box.x+(box.w-strlen(text)*7.2f)/2,box.y+(box.h-12)/2,
+                12,scale,(SDL_Color){7,9,7,255});
+}
+/* Draft rendering deliberately bypasses the shell's retained text cache. The
+ * password is borrowed only for this draw; transformed bytes are wiped. */
+static bool b2_field(SDL_Renderer *r,SvFont *font,SvLoginRect box,const char *bytes,
+                     size_t cursor,size_t anchor,float scale,bool active,bool secret)
+{
+    if(!b2_box(r,box,scale,(SDL_Color){2,5,3,245},false) ||
+       !b2_box(r,box,scale,active?b2_gold:(SDL_Color){105,95,65,180},true))return false;
+    float cell=sv_font_cell_width(font,scale)/scale;
+    size_t visible=(size_t)((box.w-22)/cell),length=strlen(bytes);
+    size_t start=cursor>=visible?cursor-visible+1:0;
+    if(start>length)start=length;
+    size_t count=length-start;if(count>visible)count=visible;
+    char draft[SV_TEXT_CAPACITY+1];
+    for(size_t i=0;i<count;++i) {
+        unsigned char c=(unsigned char)bytes[start+i];
+        draft[i]=c>=32 && c<=126?(char)c:'?';
+    }
+    draft[count]=0;
+    size_t lo=cursor<anchor?cursor:anchor,hi=cursor>anchor?cursor:anchor;
+    if(lo<start)lo=start;
+    if(hi>start+count)hi=start+count;
+    bool ok=true;
+    if(active && lo<hi)ok=b2_box(r,(SvLoginRect){box.x+10+(lo-start)*cell,box.y+6,(hi-lo)*cell,26},scale,(SDL_Color){79,66,26,255},false);
+    if(ok && count)ok=sv_font_draw(font,r,draft,(int)((box.x+10)*scale),(int)((box.y+8)*scale),scale,b2_normal);
+    if(active && ok)ok=b2_box(r,(SvLoginRect){box.x+10+(cursor-start)*cell,box.y+7,1,24},scale,b2_gold,false);
+    (void)secret;
+    volatile char *wipe=draft;for(size_t i=0;i<sizeof(draft);++i)wipe[i]=0;
+    return ok;
+}
+static bool b2_status(SDL_Renderer *r,const char *message,SvLoginRect box,float scale,bool error)
+{
+    if(!message)return true;
+    /* Fixed font size, wrapped within the status region instead of shrinking. */
+    size_t columns=(size_t)(box.w/7.3f);if(columns<1)columns=1;
+    size_t at=0,length=strlen(message);float y=box.y;
+    while(at<length && y+15<=box.y+box.h) {
+        size_t count=length-at;if(count>columns)count=columns;
+        if(at+count<length) {size_t split=count;while(split && message[at+split]!=' ')--split;if(split)count=split;}
+        char row[180];if(count>=sizeof(row))count=sizeof(row)-1;
+        memcpy(row,message+at,count);row[count]=0;
+        if(!b2_text(r,row,box.x,y,12,scale,error?b2_error:b2_muted))return false;
+        at+=count;while(message[at]==' ')++at;y+=18;
+    }
+    return true;
+}
+static bool b2_forms(SDL_Renderer *r,SvFont *font,const SvEndpoint *endpoint,const SvEndpointInput *input)
+{
+    if(!sv_login_shell_render(r,endpoint,input))return false;
+    int width,height;if(!SDL_GetCurrentRenderOutputSize(r,&width,&height))return false;
+    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
+    SvLoginLayout l=sv_login_layout(width/scale,height/scale,endpoint->server_count,endpoint->selected);
+    SvLoginFormLayout f=sv_login_form_layout(l,height/scale);
+    if(endpoint->phase==SV_ENDPOINT_MANUAL) {
+        if(!b2_box(r,l.panel,scale,(SDL_Color){0,0,0,180},false) ||
+           !b2_box(r,f.modal,scale,(SDL_Color){5,9,6,255},false) || !b2_box(r,f.modal,scale,b2_gold,true) ||
+           !sv_login_shell_heading(r,"Direct connection",f.modal.x+19,f.modal.y+18,16,scale,b2_normal) ||
+           !b2_text(r,"Enter a server hostname or IP address.",f.modal.x+19,f.modal.y+48,11,scale,b2_muted) ||
+           !b2_text(r,"Server address",f.address.x,f.address.y-22,12,scale,b2_gold) ||
+           !b2_field(r,font,f.address,endpoint->editor.bytes,endpoint->editor.cursor,endpoint->editor.anchor,scale,input->manual_focus==0,false) ||
+           !b2_button(r,f.cancel,"Cancel",scale,input->manual_focus==1,true) ||
+           !b2_primary_button(r,f.connect,"Connect",scale,input->manual_focus==2))return false;
+        const char *message=endpoint->invalid_address?"Invalid host or port. Edit and try again.":
+            input->text_error==SV_TEXT_ENCODING_ERROR?"Cannot encode that server field byte.":
+            input->clipboard_unavailable?"Clipboard unavailable; address unchanged.":
+            endpoint->editor.searching?(endpoint->editor.preview[0]?endpoint->editor.preview:"No history match"):
+            "Hostname or IP, optional :port";
+        return b2_status(r,message,(SvLoginRect){f.address.x,f.address.y+48,f.address.w,48},scale,endpoint->invalid_address);
+    }
+    char server[180];SDL_snprintf(server,sizeof(server),"Logging in %.79s",endpoint->host);
+    if(!sv_login_shell_heading(r,server,l.panel.x+20,l.panel.y+9,19,scale,b2_gold) ||
+       !b2_text(r,"Use an existing TomeNET account on the selected server.",l.panel.x+20,l.panel.y+33,9,scale,b2_muted) ||
+       !b2_box(r,(SvLoginRect){l.panel.x,l.panel.y+51,l.panel.w,1},scale,(SDL_Color){105,95,65,140},false) ||
+       !b2_box(r,(SvLoginRect){l.panel.x,l.panel.y+l.panel.h-46,l.panel.w,1},scale,(SDL_Color){105,95,65,140},false))return false;
+    if(input->credentials) {
+        SvCredentialPresentation view;sv_credentials_view(input->credentials,&view);
+        if(!b2_text(r,"Welcome! In order to play, you need to create an account.",l.panel.x+(l.panel.w-54*7.2f)/2,l.panel.y+72,12,scale,b2_muted) ||
+           !b2_text(r,"If you don't have an account yet, just enter one of your choice. Remember",l.panel.x+(l.panel.w-73*7.2f)/2,l.panel.y+91,12,scale,b2_muted) ||
+           !b2_text(r,"your name and password. Players may only own one account each at a time.",l.panel.x+(l.panel.w-71*7.2f)/2,l.panel.y+110,12,scale,b2_muted) ||
+           !b2_text(r,"Name",f.account.x,f.account.y-22,12,scale,b2_gold) ||
+           !b2_field(r,font,f.account,view.account,view.cursor[0],view.anchor[0],scale,view.focus==0,false) ||
+           !b2_text(r,"Password",f.password.x,f.password.y-22,12,scale,b2_gold))return false;
+        SvLoginRect password=f.password;password.w-=66;
+        const char *private_password=sv_credentials_private_password(input->credentials);
+        if(!b2_field(r,font,password,private_password?private_password:view.password_mask,view.cursor[1],view.anchor[1],scale,view.focus==1,true) ||
+           !b2_button(r,f.reveal,view.reveal?"Hide":"Show",scale,view.focus==2,true) ||
+           !b2_button(r,f.submit,"LOG IN",scale,view.focus==3,true) ||
+           !b2_button(r,f.back,"BACK",scale,view.focus==4,true) ||
+           !b2_text(r,"Name and password are case-sensitive! Start name upper-case.",f.account.x,f.submit.y+50,10,scale,b2_muted) ||
+           !b2_text(r,"Allowed symbols: .,-'&_$%~#",f.account.x,f.submit.y+65,10,scale,b2_muted) ||
+           !b2_text(r,"Guide: unavailable",f.account.x,f.submit.y+96,10,scale,b2_muted))return false;
+        if(!l.compact && !sv_login_shell_torches(r,l.panel.x+24,l.panel.x+l.panel.w-48,f.account.y-16,scale))return false;
+        const char *message=view.incompatible_password?"Password contains '*' (unsupported by server).":
+            view.text_error==SV_TEXT_ENCODING_ERROR?"Cannot encode that credential field byte.":
+            view.text_error==SV_TEXT_TRUNCATED?"Field is limited to 15 server bytes.":
+            view.clipboard_unavailable?"Clipboard unavailable; credential draft unchanged.":
+            view.lookup_pending?"Looking up saved password...":view.vault_status?view.vault_status:"Password is saved only after server confirmation.";
+        return b2_status(r,message,f.status,scale,view.incompatible_password || view.text_error==SV_TEXT_ENCODING_ERROR);
+    }
+    if(!b2_text(r,input->contact_failed?"Connection stopped":"Connecting...",f.account.x,f.account.y,20,scale,input->contact_failed?b2_error:b2_gold) ||
+       !b2_status(r,input->contact_status,(SvLoginRect){f.account.x,f.account.y+48,f.account.w,130},scale,input->contact_failed) ||
+       !b2_button(r,f.back,"Cancel",scale,false,true))return false;
+    if(input->contact_failed && !b2_button(r,f.submit,"Retry",scale,false,input->retry_available))return false;
+    return true;
+}
+
 bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
                         const SvEndpoint *endpoint, const SvEndpointInput *input)
 {
+    if (endpoint->phase == SV_ENDPOINT_LIST && !input->temporary_surface_text)
+        return sv_login_shell_render(renderer, endpoint,input);
+    if (!input->temporary_surface_text && (endpoint->phase == SV_ENDPOINT_MANUAL ||
+        (endpoint->phase == SV_ENDPOINT_SELECTED && (input->credentials || input->contact_failed ||
+         !input->login_view || (!input->login_view->overview && !input->login_view->birth && !input->login_view->motd)))))
+        return b2_forms(renderer,font,endpoint,input);
     int width, height;
     if (!SDL_GetCurrentRenderOutputSize(renderer, &width, &height)) return false;
     float scale = SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));
@@ -301,5 +438,23 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
 bool sv_endpoint_draw(SDL_Renderer *renderer, SvFont *font,
                       const SvEndpoint *endpoint, const SvEndpointInput *input)
 {
-    return sv_endpoint_render(renderer,font,endpoint,input) && SDL_RenderPresent(renderer);
+    if(!sv_endpoint_render(renderer,font,endpoint,input))return false;
+    const char *capture=SDL_getenv("SV_B2_CAPTURE");
+    /* Capture complete production frames only while private fields are masked.
+     * Reuse the shell capture hook after overlays, rather than its base layer. */
+    if(capture && (!input->credentials || !input->credentials->reveal)) {
+        SDL_PropertiesID properties=SDL_GetRendererProperties(renderer);
+        const char *counter="sv.login.capture.frame";
+        Sint64 frame=SDL_GetNumberProperty(properties,counter,0)+1;
+        if(!SDL_SetNumberProperty(properties,counter,frame))return false;
+        const char *delay=SDL_getenv("SV_B2_CAPTURE_FRAME");
+        int target=delay?SDL_atoi(delay):1;if(target<1)target=1;
+        if(frame==target) {
+            SDL_Surface *surface=SDL_RenderReadPixels(renderer,NULL);
+            if(!surface)return false;
+            bool saved=SDL_SaveBMP(surface,capture);SDL_DestroySurface(surface);
+            if(!saved)return false;
+        }
+    }
+    return SDL_RenderPresent(renderer);
 }

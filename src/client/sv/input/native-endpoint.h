@@ -3,6 +3,7 @@
 #include "input/endpoint.h"
 #include <SDL3/SDL.h>
 struct SvLoginView;
+struct SvCredentialInput;
 struct SvBirthView;
 struct SvBirthViewport;
 typedef struct {
@@ -13,6 +14,12 @@ typedef struct {
     const char *contact_status;
     const char *temporary_surface_text;
     const struct SvLoginView *login_view;
+    const struct SvCredentialInput *credentials; /* Borrowed only during drawing. */
+    bool contact_failed, retry_available;
+    size_t hover;
+    bool hover_manual, list_focus_manual;
+    int manual_focus;
+    float text_cell;
     const struct SvBirthView *birth_view;
     const struct SvBirthViewport *birth_viewport;
 } SvEndpointInput;

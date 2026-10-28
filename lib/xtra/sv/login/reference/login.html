@@ -1,0 +1,3652 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TomeNET — Login Prototype</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect x=%226%22 y=%226%22 width=%2220%22 height=%2220%22 transform=%22rotate(45 16 16)%22 fill=%22%23030504%22 stroke=%22%23e6c04f%22/><text x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22%23e6c04f%22 font-size=%2216%22>T</text></svg>">
+  <link rel="stylesheet" href="css/foundation.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    /*
+      Throwaway prototype D of the login flow, using local fixture data and an
+      offline news snapshot.
+      No network requests or persistent storage are used by this page.
+    */
+    :root {
+      --login-bg: #030504;
+      --login-surface: rgba(8, 12, 10, .94);
+      --login-surface-raised: #0c110e;
+      --login-border: #443a20;
+      --login-border-bright: #977a36;
+      --login-gold: #e6c04f;
+      --login-green: #4add5a;
+      --login-red: #ef5549;
+      --login-text: #e4e2d8;
+      --login-muted: #858b82;
+      --login-dim: #565b55;
+      --login-shadow: 0 24px 80px rgba(0, 0, 0, .66);
+    }
+
+    html,
+    body {
+      min-width: 0;
+      min-height: 100%;
+      height: auto;
+      overflow: auto;
+      color: var(--login-text);
+      background: var(--login-bg);
+    }
+
+    body.login-page {
+      margin: 0;
+      font-family: Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+      background:
+        radial-gradient(circle at 50% -15%, rgba(183, 146, 56, .14), transparent 37rem),
+        linear-gradient(rgba(255,255,255,.011) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.011) 1px, transparent 1px),
+        #030504;
+      background-size: auto, 40px 40px, 40px 40px, auto;
+    }
+
+    .login-page button,
+    .login-page input { font: inherit; }
+
+    .login-shell {
+      width: min(1180px, calc(100% - 40px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 30px 0 28px;
+      display: grid;
+      grid-template-rows: auto minmax(500px, 1fr) auto;
+      gap: 18px;
+    }
+
+    .login-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .login-brand { display: flex; align-items: center; gap: 14px; }
+    .login-brand-mark {
+      width: 45px;
+      height: 45px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--login-border-bright);
+      color: var(--login-gold);
+      background: #080b08;
+      box-shadow: inset 0 0 0 3px #020302, 0 0 22px rgba(205, 160, 52, .12);
+      transform: rotate(45deg);
+    }
+    .login-brand-mark span { transform: rotate(-45deg); font: 700 24px Georgia, serif; }
+    .login-brand h1 {
+      margin: 0;
+      color: #f0c953;
+      font: 500 25px/1 Georgia, "Times New Roman", serif;
+      letter-spacing: .04em;
+    }
+    .login-brand p,
+    .prototype-label { margin: 5px 0 0; color: var(--login-muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .prototype-label {
+      margin: 0;
+      padding: 7px 10px;
+      border: 1px solid #51451f;
+      color: #c7aa56;
+      background: rgba(45, 36, 15, .28);
+    }
+
+    .login-panel {
+      min-height: 0;
+      border: 1px solid var(--login-border);
+      background: var(--login-surface);
+      box-shadow: inset 0 0 0 3px rgba(0,0,0,.48), var(--login-shadow);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+    .panel-header,
+    .panel-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px 24px;
+      border-bottom: 1px solid #302a1b;
+    }
+    .panel-footer {
+      border-top: 1px solid #302a1b;
+      border-bottom: 0;
+      min-height: 69px;
+    }
+    .panel-header h2 { margin: 0 0 5px; color: #efd069; font: 500 21px Georgia, serif; text-transform: none; letter-spacing: .02em; }
+    .panel-header p { margin: 0; color: var(--login-muted); font-size: 12px; line-height: 1.5; }
+    .panel-body { min-height: 0; padding: 22px 24px; overflow: auto; }
+    .step-view[hidden] { display: none !important; }
+
+    .server-layout { max-width: 920px; margin: 0 auto; }
+    .section-caption {
+      margin: 0 0 10px;
+      color: #a99f7c;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+    }
+    .server-groups { display: grid; gap: 24px; }
+    .server-group { display: grid; gap: 9px; }
+    .server-group-title {
+      margin: 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #312b1b;
+      color: #c8a94b;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .server-group-title.is-unofficial { color: #878b83; }
+    .server-list { display: grid; gap: 9px; }
+    .server-card {
+      position: relative;
+      min-width: 0;
+    }
+    .server-option,
+    .character-option {
+      width: 100%;
+      padding: 14px 15px;
+      color: inherit;
+      text-align: left;
+      border: 1px solid #31352d;
+      background: #080b09;
+      cursor: pointer;
+      transition: border-color .14s, background-color .14s, transform .14s;
+    }
+    .server-option { padding-right: 58px; }
+    .server-option:hover,
+    .character-option:hover { border-color: #72633a; background: #0c100d; }
+    .server-option:focus-visible,
+    .character-option:focus-visible,
+    .login-button:focus-visible,
+    .field-input:focus-visible,
+    .text-button:focus-visible {
+      outline: 2px solid #e0ba4b;
+      outline-offset: 2px;
+    }
+    .server-option[aria-selected="true"],
+    .character-option[aria-selected="true"] {
+      border-color: var(--login-gold);
+      background: #111208;
+      box-shadow: inset 3px 0 #ddbd4e;
+    }
+    .server-enter {
+      position: absolute;
+      z-index: 2;
+      right: 13px;
+      top: 50%;
+      margin-top: -17px;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #5c512e;
+      border-radius: 5px;
+      color: #c8aa4f;
+      background: rgba(11, 14, 10, .92);
+      cursor: pointer;
+      transform: none;
+      transition: color .14s, border-color .14s, background-color .14s, transform .14s;
+    }
+    .server-enter svg { width: 27px; height: 27px; overflow: visible; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+    .server-doorway { fill: #010201; stroke: #756126; stroke-width: 1; }
+    .server-stone-arch { fill: rgba(196, 164, 78, .2); stroke: currentColor; stroke-width: 1.35; }
+    .server-stone-seams { opacity: .72; stroke: currentColor; stroke-width: 1; }
+    .server-door {
+      transform-box: fill-box;
+      transform-origin: left center;
+      transition: filter .24s, transform .24s cubic-bezier(.25, .8, .25, 1);
+    }
+    .server-door-panel { fill: #79501f; stroke: #e0b958; stroke-width: 1.15; }
+    .server-door-planks { opacity: .82; stroke: #33210d; stroke-width: .9; }
+    .server-door-knob { fill: #f0cb65; stroke: #3b290f; stroke-width: .75; }
+    .server-enter:hover .server-door,
+    .server-enter:focus-visible .server-door {
+      filter: drop-shadow(1.5px 0 1px rgba(240, 203, 101, .3));
+      transform: scaleX(.46);
+    }
+    .server-enter:hover { color: #ffe17a; border-color: #d3ae3f; background: #29220d; }
+    .server-enter:active { transform: scale(.94); }
+    .server-enter:focus-visible { outline: 2px solid #e0ba4b; outline-offset: 2px; }
+    .server-card:has(.server-option[aria-selected="true"]) .server-enter { color: #f0c955; border-color: #a98a32; }
+    .server-letter { color: #d9bd61; font-weight: 700; }
+    .server-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    .server-region {
+      min-width: 36px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #3a4238;
+      color: #abb3a9;
+      font-size: 10px;
+    }
+    .server-name { color: #e5e2d5; font-size: 14px; }
+    .server-note { color: #858a82; font-size: 12px; font-weight: 400; }
+    .server-address { display: block; margin-top: 4px; color: #6f756e; font-size: 11px; }
+    .server-health { text-align: right; }
+    .server-health strong { display: block; color: var(--login-green); font-size: 12px; font-weight: 500; }
+    .server-health span { color: #777c75; font-size: 10px; }
+    .server-players {
+      margin: 9px 0 0 48px;
+      padding-right: 42px;
+      display: block;
+      overflow: hidden;
+      color: #68aeba;
+      font-size: 10px;
+      line-height: 1.45;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .server-players::before { content: "Players: "; color: #656c67; }
+    .manual-card {
+      width: min(390px, calc(100% - 30px));
+      border: 1px solid #31352d;
+      background: #070907;
+      padding: 18px;
+      box-shadow: var(--login-shadow);
+      transform: translateY(-72px);
+    }
+    .manual-card h3 { margin: 0 0 7px; color: #d9d5c7; font: 500 16px Georgia, serif; }
+    .manual-card > p { margin: 0 0 18px; color: #767b74; font-size: 11px; line-height: 1.55; }
+    .attribute-warning-card {
+      width: min(430px, calc(100% - 30px));
+      border-color: #8a7135;
+      background:
+        radial-gradient(circle at 50% 0, rgba(215, 173, 57, .13), transparent 48%),
+        #070907;
+      box-shadow: inset 0 0 0 2px #111108, 0 18px 54px rgba(0, 0, 0, .72);
+      text-align: center;
+      transform: translateY(-36px);
+    }
+    .attribute-warning-rune {
+      width: 38px;
+      height: 38px;
+      margin: 0 auto 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #b79235;
+      color: #edc955;
+      background: rgba(46, 35, 8, .48);
+      font: 700 20px/1 var(--terminal);
+      transform: rotate(45deg);
+    }
+    .attribute-warning-rune span { transform: rotate(-45deg); }
+    .attribute-warning-card h3 { color: #edcf67; }
+    .attribute-warning-card > p { color: #aaa99e; }
+    .attribute-warning-card > p strong { color: #efd268; font-weight: 500; }
+    .attribute-warning-card .button-row { justify-content: center; }
+    .creation-guide-card { width: min(720px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 48px)); overflow: auto; scrollbar-width: none; }
+    .creation-guide-card::-webkit-scrollbar { display: none; }
+    .creation-guide-card h3 { color: #edcf67; }
+    .creation-guide-copy { color: #c7a778; font-size: 16.5px; line-height: 1.55; }
+    .creation-guide-copy p { margin: 0 0 12px; }
+    .creation-guide-controls { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid rgba(141, 118, 53, .36); color: #aaa99e; font-size: 13px; line-height: 1.6; }
+    .quit-view { min-height: 360px; display: grid; place-items: center; text-align: center; }
+    .quit-card { display: grid; justify-items: center; gap: 22px; padding: 48px; border: 1px solid rgba(151, 125, 48, .42); background: rgba(6, 10, 7, .78); box-shadow: 0 18px 70px rgba(0, 0, 0, .42); }
+    .quit-card h3 { margin: 0; color: #efd064; font: 500 32px Georgia, serif; }
+    .quit-card p { margin: 0; color: #aaa99e; font-size: 14px; }
+    .field { display: grid; gap: 7px; margin-bottom: 14px; }
+    .field label { color: #a8a99f; font-size: 11px; }
+    .field-input {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 11px;
+      border: 1px solid #464a41;
+      border-radius: 0;
+      color: #e5e5db;
+      background: #020403;
+      caret-color: var(--login-gold);
+    }
+    .field-input::placeholder { color: #50534f; }
+    .field-help { color: #656963; font-size: 10px; line-height: 1.4; }
+    .field-error { min-height: 14px; color: #ef7168; font-size: 10px; }
+    .manual-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 10px; }
+
+    .login-button {
+      min-height: 40px;
+      padding: 9px 18px;
+      border: 1px solid #987a31;
+      border-radius: 0;
+      color: #161306;
+      background: #d8b54a;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .03em;
+    }
+    .login-button:hover { background: #edcd66; }
+    .login-button:disabled { border-color: #3b3c34; color: #686a63; background: #1b1d19; cursor: not-allowed; }
+    .login-button.secondary { border-color: #555548; color: #c9c8bd; background: #10130f; font-weight: 400; }
+    .login-button.secondary:hover { border-color: #8a7741; background: #171910; }
+    .login-button.full { width: 100%; }
+    .text-button { padding: 4px 0; border: 0; color: #bda650; background: none; cursor: pointer; font-size: 11px; }
+    .text-button:hover { color: #efd36d; }
+    .button-row { display: flex; align-items: center; gap: 10px; }
+    .status-line { min-width: 0; color: #777d75; font-size: 11px; line-height: 1.4; }
+    .status-line.is-error { color: #ed6b62; }
+    .status-line.is-success { color: var(--login-green); }
+    .key-hint { color: #5e625c; font-size: 10px; }
+
+    .account-scene { position: relative; width: min(920px, 100%); margin: 0 auto; }
+    .account-logo {
+      display: block;
+      width: min(720px, 100%);
+      height: auto;
+      margin: 0 auto 15px;
+      overflow: hidden;
+      shape-rendering: crispEdges;
+    }
+    .account-logo .logo-flame-character {
+      font: 700 22px/1 "DejaVu Sans Mono", "Liberation Mono", monospace;
+      text-anchor: middle;
+    }
+    .account-welcome { margin: 0 auto 22px; color: #82877f; font-size: 11px; line-height: 1.55; text-align: center; }
+    .account-welcome p { margin: 0; }
+    .account-layout { position: relative; z-index: 1; width: min(730px, 100%); margin: 0 auto; display: grid; grid-template-columns: 245px minmax(0, 1fr); gap: 28px; }
+    .account-torches { display: none; }
+    .ascii-torch {
+      position: absolute;
+      top: 82px;
+      z-index: 0;
+      width: 34px;
+      margin: 0;
+      display: grid;
+      justify-items: center;
+      color: #765a18;
+      font: 700 20px/.86 Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
+    }
+    .ascii-torch.is-left { left: clamp(10px, 5vw, 54px); }
+    .ascii-torch.is-right { right: clamp(10px, 5vw, 54px); }
+    .ascii-torch span { display: block; min-width: 1ch; }
+    .torch-tip,
+    .torch-flame {
+      color: #b70000;
+    }
+    .torch-ember { color: #b70000; }
+    .torch-handle { color: #8c650f; text-shadow: 1px 0 #35260a; }
+    .torch-base { color: #555950; }
+    .selected-server {
+      padding: 20px;
+      border: 1px solid #4b4023;
+      background: #090c09;
+      align-self: start;
+    }
+    .selected-server .server-region { margin-bottom: 16px; }
+    .selected-server h3 { margin: 0 0 5px; color: #ecd069; font: 500 18px Georgia, serif; }
+    .selected-server address { color: #7a8078; font-size: 11px; font-style: normal; overflow-wrap: anywhere; }
+    .server-facts { margin: 20px 0 0; display: grid; gap: 10px; }
+    .server-facts div { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; }
+    .server-facts dt { color: #6c716b; }
+    .server-facts dd { margin: 0; color: #c4c3b9; text-align: right; }
+    .account-form { padding: 7px 0; }
+    .account-rules { margin: 15px 0 0; color: #777d75; font-size: 10px; line-height: 1.55; }
+    .account-guide { color: #b59e51; }
+    .password-wrap { position: relative; }
+    .password-wrap .field-input { padding-right: 58px; }
+    .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: 0; color: #9a8c58; background: transparent; cursor: pointer; font-size: 10px; }
+    .character-layout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 22px; height: 100%; }
+    .character-list { min-height: 0; display: grid; gap: 9px; align-content: start; }
+    .character-option { padding: 16px; }
+    .character-main { min-width: 0; display: grid; grid-template-columns: 16px 24px minmax(0, 1fr) 98px minmax(105px, 122px); align-items: center; gap: 8px; }
+    .character-letter {
+      color: #dfbd50;
+      font-size: 11px;
+      text-align: center;
+    }
+    .character-letter::after { content: ")"; color: #7f744b; }
+    .character-level {
+      width: 21.6px;
+      height: 21.6px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #b18a37;
+      background: linear-gradient(135deg, #201c11, #090b09);
+      box-shadow: inset 0 0 0 2px #080907, 0 0 7px #000;
+      transform: rotate(45deg);
+    }
+    .character-level span { color: #f3c84c; font: 700 10px Georgia, serif; text-shadow: 0 1px 2px #000; transform: rotate(-45deg); }
+    .character-identity { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: baseline; gap: 10px; white-space: nowrap; }
+    .character-name,
+    .character-build,
+    .character-location { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .character-name { color: #eeeadd; font: 500 17px Georgia, serif; }
+    .character-build { color: #a3a69e; font-size: 11px; }
+    .character-meta { display: contents; }
+    .character-location { color: #777d75; font-size: 10px; text-align: right; }
+    .mode-badge { width: 100%; padding: 6px 8px; border: 1px solid #45493f; color: #bbb7a8; text-align: center; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; }
+    .character-choice-caption {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px 10px;
+    }
+    .character-choice-caption span { color: #777d75; text-transform: none; letter-spacing: 0; }
+    .character-native-hints {
+      display: flex;
+      align-items: center;
+      margin-top: 22px;
+      padding-top: 17px;
+      border-top: 1px solid #302a1b;
+      color: #9b9e95;
+      font-size: 11px;
+      line-height: 1.45;
+      white-space: nowrap;
+    }
+    .character-native-hints p { margin: 0; }
+    .character-native-hints kbd {
+      display: inline-grid;
+      min-width: 23px;
+      margin-right: 8px;
+      padding: 2px 5px;
+      place-items: center;
+      border: 1px solid #62572f;
+      border-radius: 3px;
+      color: #e1c058;
+      background: #0c0f0b;
+      font: inherit;
+    }
+    .character-slot-placeholder {
+      width: 100%;
+      min-height: 40px;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border: 1px dashed #30352e;
+      border-radius: 8px;
+      color: #666c65;
+      background: rgba(5, 8, 6, .38);
+      font-size: 11px;
+      letter-spacing: .035em;
+    }
+    .character-slot-placeholder.is-iddc { color: #706e64; border-color: #383a32; }
+    .character-slot-marker {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid #383b34;
+      color: #555b54;
+      transform: rotate(45deg);
+    }
+    .character-slot-marker span { transform: rotate(-45deg); }
+    .character-detail {
+      border: 1px solid #37372d;
+      background: #070907;
+      padding: 20px;
+      align-self: start;
+    }
+    .character-detail h3 { margin: 0 0 5px; color: #eadfae; font: 500 19px Georgia, serif; }
+    .character-detail > p { margin: 0; color: #777d75; font-size: 11px; }
+    .detail-list { margin: 22px 0 0; display: grid; gap: 11px; }
+    .detail-list div { padding-bottom: 9px; border-bottom: 1px solid #22261f; }
+    .detail-list dt { color: #646a63; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .detail-list dd { margin: 4px 0 0; color: #c8c7bb; font-size: 11px; }
+    .creation-workspace {
+      --creation-side-width: 340px;
+      min-height: 100%;
+      display: grid;
+      grid-template-columns: var(--creation-side-width) minmax(0, 1fr);
+      gap: 18px;
+    }
+    .creation-summary {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid #8a7135;
+      background:
+        radial-gradient(circle at 18% 4%, rgba(218, 178, 69, .16), transparent 38%),
+        linear-gradient(145deg, rgba(26, 25, 14, .92), rgba(3, 8, 5, .92) 52%, rgba(10, 15, 10, .96));
+      box-shadow:
+        inset 0 0 0 2px rgba(2, 5, 3, .8),
+        inset 0 1px rgba(255, 230, 137, .12),
+        0 14px 34px rgba(0, 0, 0, .34);
+    }
+    .creation-summary::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(146, 121, 56, .2);
+      pointer-events: none;
+    }
+    .creation-summary::after {
+      content: "✦";
+      position: absolute;
+      right: 15px;
+      top: 11px;
+      color: rgba(211, 174, 65, .28);
+      font-size: 17px;
+    }
+    .creation-stage { min-width: 0; padding: 4px 2px 14px; }
+    .creation-stage-heading { margin-bottom: 16px; }
+    .creation-stage h3 { margin: 0; color: #eee7d4; font: 500 22px Georgia, serif; }
+    .creation-stage-intro { margin: 7px 0 0; color: #858b82; font-size: 10px; line-height: 1.5; }
+    .creation-stage-intro:empty { display: none; }
+    .creation-content { min-width: 0; }
+    .creation-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .creation-choice-grid.is-wide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .creation-choice {
+      min-width: 0;
+      min-height: 58px;
+      padding: 10px 12px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      border: 1px solid #373b33;
+      border-radius: 4px;
+      color: #d0cec2;
+      background: rgba(8, 12, 9, .76);
+      text-align: left;
+      cursor: pointer;
+    }
+    .creation-choice:hover { border-color: #736238; background: rgba(18, 22, 14, .9); }
+    .creation-choice:disabled,
+    .creation-choice[aria-disabled="true"] {
+      border-color: #292d27;
+      color: #555b54;
+      background: rgba(5, 8, 6, .54);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .creation-choice:disabled strong { color: #555b54; }
+    .creation-choice[aria-checked="true"] {
+      border-color: #c6a43f;
+      color: #f0d268;
+      background: rgba(74, 58, 16, .34);
+      box-shadow: inset 3px 0 #d8b443;
+    }
+    .creation-choice:focus-visible { outline: 1px solid #e0bd50; outline-offset: 2px; }
+    .creation-choice strong { overflow: hidden; font: 500 14px/1.2 var(--terminal); text-overflow: ellipsis; white-space: nowrap; }
+    .creation-choice small { color: #787e76; font-size: 9px; line-height: 1.35; }
+    .creation-choice[aria-checked="true"] small { color: #aaa789; }
+    .creation-selection-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) var(--creation-side-width);
+      align-items: start;
+      gap: 18px;
+    }
+    .creation-selection-list { min-width: 0; width: 100%; max-width: 680px; justify-self: center; }
+    .creation-choice-grid.is-compact .creation-choice { min-height: 42px; padding: 7px 11px; }
+    .creation-choice-grid.is-compact .creation-choice strong { font-family: var(--terminal); font-size: 11px; }
+    .creation-class-guidance {
+      margin: 0 0 14px;
+      padding: 11px 13px;
+      display: grid;
+      gap: 5px;
+      border: 1px solid rgba(91, 84, 52, .46);
+      background: rgba(4, 8, 5, .62);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .creation-class-guidance p { margin: 0; color: #aeb0a8; }
+    .creation-class-guidance .is-recommended { color: #55bd72; }
+    .creation-class-guidance .is-caution { color: #dc9f3e; }
+    .creation-class-guidance .is-danger { color: #d9584e; }
+    .creation-class-guidance-detail { color: #b9bbb2; }
+    .creation-choice-grid.creation-class-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .creation-class-grid .creation-choice { min-height: 34px; padding: 5px 8px; }
+    .creation-class-grid .creation-choice strong { overflow: visible; text-overflow: clip; }
+    .creation-detail {
+      position: sticky;
+      top: 0;
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid #66572f;
+      background:
+        linear-gradient(145deg, rgba(31, 27, 14, .9), rgba(5, 10, 7, .94) 58%),
+        rgba(5, 9, 6, .9);
+      box-shadow: inset 0 0 0 2px rgba(2, 5, 3, .76);
+    }
+    .creation-detail h4 { margin: 0; color: #efd064; font: 500 22px Georgia, serif; }
+    .creation-detail-copy { margin: 12px 0 0; color: #b7b8ad; font-size: 10px; line-height: 1.55; }
+    .creation-detail-client-copy { margin: 12px 0 0; color: #c7a778; font-size: 9px; line-height: 1.42; }
+    .creation-detail-meta { margin: 15px 0 0; display: grid; gap: 6px; }
+    .creation-detail-meta div { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(91, 84, 52, .38); }
+    .creation-detail-meta dt { color: #777d74; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+    .creation-detail-meta dd { margin: 0; color: #d8d2bd; font-size: 10px; text-align: right; }
+    .creation-detail-mods { margin-top: 15px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+    .creation-detail-mods.is-three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .creation-detail-mods span { padding: 5px 6px; border: 1px solid rgba(77, 73, 49, .48); color: #878c82; font-size: 8px; }
+    .creation-detail-mods strong { float: right; color: #dfc45d; font-weight: 500; }
+    .creation-detail-mods strong.is-negative { color: #d97964; }
+    .creation-stage.has-side-detail {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) var(--creation-side-width);
+      grid-template-rows: auto minmax(0, 1fr);
+      column-gap: 18px;
+      align-items: stretch;
+    }
+    .creation-stage.has-side-detail .creation-stage-heading { grid-column: 1; grid-row: 1; }
+    .creation-stage.has-side-detail .creation-content,
+    .creation-stage.has-side-detail .creation-selection-layout { display: contents; }
+    .creation-stage.has-side-detail .creation-selection-list { grid-column: 1; grid-row: 2; align-self: start; }
+    .creation-stage.has-side-detail .creation-detail {
+      position: relative;
+      grid-column: 2;
+      grid-row: 1 / 3;
+      height: 100%;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .creation-stage.has-side-detail .creation-detail::-webkit-scrollbar { display: none; }
+
+    body[data-step="character-create"] .creation-stage-intro { font-size: 15px; }
+    body[data-step="character-create"] .creation-choice-grid.is-compact .creation-choice strong { font-size: 16.5px; }
+    body[data-step="character-create"] .creation-choice small { font-size: 13.5px; }
+    body[data-step="character-create"] .creation-class-guidance { font-size: 15px; }
+    body[data-step="character-create"] .creation-summary-list dt { font-size: 15px; }
+    body[data-step="character-create"] .creation-summary-list dd { font-size: 18px; }
+    body[data-step="character-create"] .creation-summary-stats-label { font-size: 13.5px; }
+    body[data-step="character-create"] .creation-summary-stat small { font-size: 13.5px; }
+    body[data-step="character-create"] .creation-summary-stat strong { font-size: 25.5px; }
+    body[data-step="character-create"] .creation-summary-description { font-size: 15px; }
+    body[data-step="character-create"] .creation-detail-copy { font-size: 15px; }
+    body[data-step="character-create"] .creation-detail-client-copy { font-size: 16.5px; }
+    body[data-step="character-create"] .creation-detail-meta dt { font-size: 12px; }
+    body[data-step="character-create"] .creation-detail-meta dd { font-size: 15px; }
+    body[data-step="character-create"] .creation-detail-mods span { font-size: 12px; }
+    body[data-step="character-create"] .creation-recommend-guidance { font-size: 13.5px; }
+    body[data-step="character-create"] .creation-stat-name strong { font-size: 18px; }
+    body[data-step="character-create"] .creation-stat-value,
+    body[data-step="character-create"] .creation-stat-base { font-size: 21px; }
+    body[data-step="character-create"] .creation-stat-head { font-size: 12px; }
+    body[data-step="character-create"] .creation-field-note { font-size: 13.5px; }
+    body[data-step="character-create"] .key-hint,
+    body[data-step="character-create"] .status-line { font-size: 12px; }
+    body[data-step="character-create"] #characterCreateStep,
+    body[data-step="character-create"] .creation-workspace,
+    body[data-step="character-create"] .creation-stage { height: 100%; min-height: 0; }
+    body[data-step="character-create"] .creation-summary {
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    body[data-step="character-create"] .creation-summary::-webkit-scrollbar,
+    body[data-step="character-create"] .creation-selection-list::-webkit-scrollbar { display: none; }
+    body[data-step="character-create"] .creation-selection-list { max-height: 100%; overflow-y: auto; scrollbar-width: none; }
+    .creation-name-layout { width: min(560px, 100%); display: grid; gap: 18px; }
+    .creation-name-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .creation-name-row .field-input { min-width: 0; }
+    .creation-field-note { margin: 0; color: #747a72; font-size: 9px; line-height: 1.5; }
+    .creation-sex-grid { width: min(560px, 100%); }
+    .creation-trait-empty { padding: 20px; border: 1px dashed #343830; color: #858b82; font-size: 10px; line-height: 1.55; }
+    .creation-stats { display: grid; gap: 0; overflow-x: auto; }
+    .creation-recommend-guidance {
+      margin: 0 0 10px;
+      color: #858b82;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .creation-stat-head,
+    .creation-stat {
+      display: grid;
+      grid-template-columns: minmax(125px, 1fr) 58px 72px 72px 18px 68px 60px minmax(120px, .9fr);
+      align-items: center;
+      gap: 4px;
+    }
+    .creation-stat-head {
+      padding: 0 10px 7px;
+      border-bottom: 1px solid #4b4731;
+      color: #8f948a;
+      font-size: 9px;
+      letter-spacing: .05em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .creation-stat-head span:first-child { text-align: left; }
+    .creation-stat-divider {
+      width: 1px;
+      height: 100%;
+      justify-self: center;
+      border-left: 1px solid rgba(112, 101, 59, .46);
+    }
+    .creation-stat {
+      padding: 7px 10px;
+      border-bottom: 1px solid #242820;
+    }
+    .creation-stat.is-selected { background: rgba(91, 70, 19, .28); box-shadow: inset 3px 0 #d1ad3f; }
+    .creation-stat:focus-visible { outline: 1px solid #d7b548; outline-offset: -1px; }
+    .creation-stat-name strong { display: block; color: #d7d3c4; font: 500 12px var(--terminal); }
+    .creation-stat-modifier { color: #d2caa8; text-align: center; font: 500 15px var(--terminal); }
+    .creation-stat-modifier.is-negative { color: #d97964; }
+    .creation-stat-controls { display: flex; justify-content: center; gap: 4px; }
+    .creation-stat-recommend {
+      min-height: 1em;
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 5px;
+      color: #55bd72;
+      text-align: center;
+      font: 500 13px var(--terminal);
+      white-space: nowrap;
+    }
+    .creation-stat-recommend-value.is-reached { color: #82e994; }
+    .creation-stat-recommend-main { color: #55bd72; }
+    .creation-stat button {
+      width: 25px;
+      height: 25px;
+      border: 1px solid #4d4935;
+      color: #d4b758;
+      background: #080b08;
+      cursor: pointer;
+    }
+    .creation-stat button:disabled { color: #4f534c; border-color: #2e312b; cursor: default; }
+    .creation-stat-value,
+    .creation-stat-base { text-align: center; font: 500 17px var(--terminal); }
+    .creation-stat-value { color: #c79d55; }
+    .creation-stat-value.is-min { color: #b70000; }
+    .creation-stat-value.is-max { color: #af00ff; }
+    .creation-stat.is-selected .creation-stat-value { color: #ff8d00; }
+    .creation-stat.is-selected .creation-stat-value.is-min { color: #ff3030; }
+    .creation-stat.is-selected .creation-stat-value.is-max { color: #00ffff; }
+    .creation-stat-base { color: #b8b6aa; }
+    .creation-summary { min-height: 100%; padding: 22px; align-self: stretch; }
+    .creation-summary-hero { position: relative; z-index: 1; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid rgba(141, 118, 53, .42); }
+    .creation-summary-heading { min-width: 0; }
+    .creation-summary h3 { margin: 0; overflow: hidden; color: #f1d46c; font: 500 30px Georgia, serif; text-overflow: ellipsis; text-shadow: 0 0 12px rgba(225, 185, 62, .14); white-space: nowrap; }
+    .creation-summary-list { position: relative; z-index: 1; margin: 0; display: grid; gap: 8px; }
+    .creation-summary-list div { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(88, 82, 54, .34); }
+    .creation-summary-list dt { color: #858a80; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+    .creation-summary-list dd { min-width: 0; margin: 0; overflow: hidden; color: #ded9c8; font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    .creation-summary-stats-label { position: relative; z-index: 1; margin: 18px 0 8px; color: #a69150; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .creation-summary-stats { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr; gap: 4px; }
+    .creation-summary-stat {
+      min-height: 30px;
+      padding: 5px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(91, 84, 52, .46);
+      background: rgba(4, 8, 5, .62);
+    }
+    .creation-summary-stat small { color: #7f847b; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+    .creation-summary-stat strong { color: #e8c753; font: 500 17px Georgia, serif; }
+    .creation-summary-description { position: relative; z-index: 1; margin: 17px 0 0; color: #a5a89e; font-size: 10px; line-height: 1.55; }
+    .creation-random { white-space: nowrap; }
+
+    .loading-mask {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      color: #dad3b7;
+      background: rgba(2, 4, 3, .87);
+      backdrop-filter: blur(2px);
+    }
+    .loading-content { display: grid; justify-items: center; gap: 14px; }
+    .loading-rune { width: 28px; height: 28px; border: 1px solid #c6a644; border-left-color: transparent; animation: rune-spin .8s linear infinite; transform: rotate(45deg); }
+    .loading-content strong { font: 500 16px Georgia, serif; }
+    .loading-content span { color: #747971; font-size: 10px; }
+    @keyframes rune-spin { to { transform: rotate(405deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .loading-rune { animation: none; border-left-color: #c6a644; }
+    }
+
+    .login-footer { display: flex; justify-content: space-between; gap: 20px; color: #505650; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+
+    .direct-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      background: rgba(1, 3, 2, .84);
+      backdrop-filter: blur(3px);
+    }
+    .direct-backdrop[hidden] { display: none; }
+
+    @media (max-width: 820px) {
+      .login-shell { width: min(100% - 24px, 680px); padding-top: 18px; grid-template-rows: auto auto auto auto; }
+      .manual-card { transform: translateY(-28px); }
+      .character-layout,
+      .account-layout { grid-template-columns: 1fr; }
+      .account-layout { margin: 0; }
+      .selected-server { display: grid; grid-template-columns: auto 1fr; gap: 0 14px; }
+      .selected-server .server-region { grid-row: 1 / 3; }
+      .server-facts { grid-column: 1 / -1; }
+      .character-detail { display: none; }
+      .panel-body { overflow: visible; }
+    }
+    @media (max-width: 540px) {
+      .login-shell { width: 100%; padding: 0; gap: 0; }
+      .login-topbar { padding: 15px; }
+      .login-brand p,
+      .prototype-label,
+      .key-hint { display: none; }
+      .login-panel { border-left: 0; border-right: 0; box-shadow: none; }
+      .panel-header,
+      .panel-body,
+      .panel-footer { padding-left: 15px; padding-right: 15px; }
+      .panel-header { align-items: flex-start; }
+      .server-players { margin-left: 0; white-space: normal; }
+      .server-main { grid-template-columns: auto minmax(0, 1fr); }
+      .server-health { grid-column: 2; text-align: left; }
+      .character-main { grid-template-columns: 16px 24px minmax(0, 1fr) 88px; gap: 7px; }
+      .character-location { grid-column: 3 / -1; grid-row: 2; }
+      .login-footer { padding: 14px; }
+    }
+
+    /* Modern game-login variants. Shared controls keep one state model. */
+    body.login-page {
+      color: #ece9dd;
+      background: #050806;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body.login-page::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 22% 12%, rgba(197, 152, 55, .1), transparent 32rem),
+        linear-gradient(rgba(255,255,255,.014) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
+      background-size: auto, 48px 48px, 48px 48px;
+    }
+    .login-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1540px, calc(100% - 36px));
+      min-height: 720px;
+      height: 100svh;
+      padding: 18px 0 14px;
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
+      grid-template-rows: 58px minmax(0, 1fr) 30px;
+      grid-template-areas:
+        "top top"
+        "hero panel"
+        "foot foot";
+      gap: 14px 16px;
+    }
+    .login-topbar {
+      grid-area: top;
+      position: relative;
+      z-index: 5;
+      padding: 0 4px;
+    }
+    .login-brand { gap: 12px; }
+    .login-brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 4px;
+      background: rgba(7, 11, 8, .9);
+      box-shadow: inset 0 0 0 3px #020302, 0 0 24px rgba(205, 160, 52, .14);
+    }
+    .login-brand-mark span { font-size: 20px; }
+    .login-brand h1 { font-size: 22px; }
+    .login-brand p,
+    .prototype-label { font-size: 9px; }
+    .prototype-label { border-radius: 999px; backdrop-filter: blur(8px); }
+
+    .login-hero {
+      grid-area: hero;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(164, 132, 61, .42);
+      border-radius: 14px;
+      background: #0a0d09;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .55);
+      isolation: isolate;
+    }
+    .login-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background: url("world-reference.png") center 46% / cover no-repeat;
+      transform: scale(1.025);
+    }
+    .login-hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(3, 6, 4, .24), rgba(3, 6, 4, .02) 48%, rgba(3, 6, 4, .45)),
+        linear-gradient(0deg, rgba(3, 6, 4, .94), transparent 56%, rgba(3, 6, 4, .5));
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      width: min(760px, calc(100% - 72px));
+      margin: 0 auto;
+      padding-top: clamp(38px, 7vh, 88px);
+      text-align: center;
+      text-shadow: 0 2px 18px #000;
+    }
+    .hero-kicker {
+      margin: 0 0 16px;
+      color: #d9ba61;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+    .hero-copy h2 {
+      margin: 16px 0 8px;
+      color: #f3eddd;
+      font: 500 clamp(25px, 3vw, 43px)/1.08 Georgia, "Times New Roman", serif;
+      letter-spacing: .015em;
+    }
+    .hero-copy p {
+      max-width: 600px;
+      margin: 0 auto;
+      color: rgba(231, 231, 218, .75);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .account-logo {
+      width: min(720px, 100%);
+      margin-bottom: 0;
+      filter: drop-shadow(0 5px 20px rgba(0, 0, 0, .9));
+    }
+    .account-welcome {
+      display: none;
+      margin: 20px auto 0;
+      color: rgba(224, 223, 209, .75);
+      font: 11px/1.6 Consolas, "Liberation Mono", monospace;
+    }
+    body[data-step="account"] .account-welcome { display: block; }
+
+    .login-panel {
+      grid-area: panel;
+      position: relative;
+      min-width: 0;
+      border-color: rgba(139, 114, 54, .52);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(7, 11, 8, .94);
+      box-shadow: inset 0 1px rgba(255,255,255,.025), 0 28px 80px rgba(0,0,0,.62);
+      backdrop-filter: blur(18px);
+    }
+    .panel-header,
+    .panel-footer { padding: 18px 20px; }
+    .panel-header { background: linear-gradient(180deg, rgba(30, 31, 20, .72), rgba(12, 15, 11, .28)); }
+    .panel-header h2 { font-size: 23px; }
+    .panel-header p { font-size: 11px; }
+    .panel-body { padding: 18px 20px; }
+    .panel-footer {
+      min-height: 66px;
+      display: grid;
+      grid-template-columns: auto minmax(90px, 1fr) auto;
+      background: rgba(4, 7, 5, .72);
+    }
+    .status-line { text-align: center; }
+    .login-button {
+      border-radius: 6px;
+      transition: border-color .15s, background-color .15s, color .15s, transform .15s;
+    }
+    .login-button:not(:disabled):active { transform: translateY(1px); }
+    .login-button.game-action-button {
+      min-height: 32px;
+      padding: 6px 14px;
+      border: 1px solid #6d582e;
+      border-radius: 0;
+      color: #d4b758;
+      background:
+        linear-gradient(180deg, rgba(141, 112, 55, .1), transparent 72%),
+        #080b08;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .65);
+      font: 500 10px/1 var(--terminal);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .login-button.game-action-button.is-primary {
+      border-color: #8d7138;
+      color: #e4c453;
+    }
+    .login-button.game-action-button.is-secondary {
+      border-color: #4e4228;
+      color: #aaa99f;
+      background: #070907;
+    }
+    .login-button.game-action-button:hover:not(:disabled) {
+      border-color: #b18b3d;
+      color: #f1cf5d;
+      background:
+        linear-gradient(180deg, rgba(183, 143, 58, .16), transparent 72%),
+        #10140e;
+    }
+    .login-button.game-action-button:focus-visible {
+      outline: 1px solid #d3ab50;
+      outline-offset: 2px;
+    }
+    .login-button.game-action-button:disabled {
+      border-color: #34372f;
+      color: #686b64;
+      background: #090b09;
+      box-shadow: none;
+    }
+    .login-button.game-action-button kbd {
+      margin-right: 7px;
+      color: #d4b758;
+      font: inherit;
+    }
+    .field-input { border-radius: 6px; background: rgba(1, 4, 2, .82); }
+    .server-option,
+    .character-option {
+      border-radius: 8px;
+      background: rgba(7, 11, 8, .76);
+    }
+    .server-option[aria-selected="true"],
+    .character-option[aria-selected="true"] {
+      background: linear-gradient(90deg, rgba(87, 70, 24, .32), rgba(17, 18, 8, .72));
+    }
+    .server-groups { gap: 18px; }
+    .server-option { padding: 12px 13px; }
+    .server-name { font-weight: 600; }
+    .server-address,
+    .server-players,
+    .key-hint,
+    .status-line,
+    .field-help,
+    .field-error { font-family: Consolas, "Liberation Mono", monospace; }
+    .account-scene,
+    .server-layout { max-width: none; width: 100%; }
+    .account-layout { width: 100%; grid-template-columns: 1fr; gap: 16px; }
+    .selected-server { padding: 14px; border-radius: 8px; background: rgba(8, 12, 9, .8); }
+    .selected-server .server-facts { margin-top: 14px; grid-template-columns: 1fr 1fr; }
+    .account-form { padding: 0; }
+    .character-layout { grid-template-columns: 1fr; }
+    .character-detail { display: none; }
+
+    .login-intel {
+      grid-area: hero;
+      z-index: 4;
+      align-self: end;
+      width: min(480px, calc(100% - 48px));
+      margin: 24px;
+      padding: 16px 18px;
+      border: 1px solid rgba(164, 132, 61, .46);
+      border-radius: 10px;
+      background: rgba(4, 8, 5, .78);
+      box-shadow: 0 16px 42px rgba(0,0,0,.5);
+      backdrop-filter: blur(14px);
+    }
+    .intel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+    .intel-heading p { margin: 0; color: #8d938a; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .intel-heading strong { color: #eee8d8; font: 500 16px Georgia, serif; }
+    .intel-signal { color: #69da72; font: 10px Consolas, monospace; }
+    .intel-signal::before { content: "●"; margin-right: 6px; font-size: 8px; }
+    .intel-facts { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 16px; color: #9da098; font: 10px Consolas, monospace; }
+    .intel-facts span + span::before { content: "·"; margin-right: 16px; color: #665a35; }
+    .intel-players { margin: 10px 0 0; color: #77bac5; font: 10px/1.45 Consolas, monospace; }
+
+    .login-footer {
+      grid-area: foot;
+      position: relative;
+      z-index: 5;
+      align-items: center;
+      padding: 0 4px;
+    }
+    .login-background,
+    .world-chronicle { display: none; }
+
+    /* D: an image-backed chronicle around a centered server selector. */
+    body[data-variant="D"] {
+      overflow: hidden;
+      color: #eeeadd;
+      background: #020403;
+      font-family: Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+    }
+    body[data-variant="D"]::before {
+      z-index: 1;
+      background:
+        radial-gradient(ellipse at 50% 38%, rgba(146, 112, 52, .08), transparent 52%),
+        linear-gradient(180deg, rgba(0,0,0,.44), rgba(0,0,0,.56));
+      background-size: auto;
+    }
+    body[data-variant="D"] .login-background {
+      position: fixed;
+      z-index: 0;
+      inset: 0;
+      display: block;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+    .login-background-layer {
+      position: absolute;
+      inset: -3%;
+      opacity: 0;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      filter: contrast(.78) blur(2px);
+      transform: scale(1.04);
+      transition: opacity 2s ease-in-out;
+      animation: background-flight 9s ease-in-out infinite alternate;
+      will-change: opacity, transform;
+    }
+    .login-background-layer.is-visible { opacity: 1; }
+    @keyframes background-flight {
+      from { transform: scale(1.04) translate3d(0, 0, 0); }
+      to { transform: scale(1.055) translate3d(-.2%, -.35%, 0); }
+    }
+    body[data-variant="D"] .login-shell {
+      z-index: 2;
+      width: min(1720px, calc(100% - 30px));
+      min-height: 800px;
+      height: 100svh;
+      padding: 12px 0 14px;
+      grid-template-columns: minmax(180px, 340px) auto minmax(180px, 340px);
+      grid-template-rows: 250px minmax(0, 1fr);
+      grid-template-areas:
+        "hero hero hero"
+        "chronicle panel links";
+      justify-content: center;
+      gap: 10px 12px;
+    }
+    body[data-variant="D"] .login-panel {
+      width: clamp(400px, calc(100vw - 414px), 860px);
+    }
+    body[data-variant="D"] .login-topbar { display: none; }
+    body[data-variant="D"] .login-hero {
+      border: 0;
+      border-radius: 0;
+      overflow: visible;
+      background: transparent;
+      box-shadow: none;
+    }
+    body[data-variant="D"] .login-hero::before,
+    body[data-variant="D"] .login-hero::after { display: none; }
+    body[data-variant="D"] .hero-content {
+      width: min(1180px, calc(100% - 24px));
+      height: 100%;
+      padding-top: 0;
+      display: grid;
+      place-items: center;
+    }
+    body[data-variant="D"] .hero-kicker { display: none; }
+    body[data-variant="D"] .account-logo {
+      width: min(1160px, 100%);
+      filter: drop-shadow(0 0 12px rgba(255, 79, 24, .2)) drop-shadow(0 12px 26px #000);
+    }
+    body[data-variant="D"] .hero-copy,
+    body[data-variant="D"] .account-welcome { display: none; }
+    body[data-variant="D"][data-step="account"] .account-welcome {
+      display: block;
+      max-width: 820px;
+      margin: 0 auto 24px;
+      color: #858b82;
+      font-size: 12px;
+      line-height: 1.55;
+      text-align: center;
+    }
+    body[data-variant="D"] .login-panel,
+    body[data-variant="D"] .login-intel,
+    body[data-variant="D"] .world-chronicle {
+      border: 1px solid rgba(130, 111, 62, .52);
+      border-radius: 3px;
+      background: rgba(4, 8, 5, .91);
+      box-shadow: 0 20px 60px rgba(0,0,0,.62), inset 0 1px rgba(255,255,255,.025);
+      backdrop-filter: blur(10px);
+    }
+    body[data-variant="D"] .login-panel { align-self: stretch; }
+    body[data-variant="D"] .login-intel {
+      grid-area: intel;
+      align-self: stretch;
+      width: auto;
+      margin: 0;
+      padding: 18px;
+    }
+    body[data-variant="D"] .login-intel { display: none; }
+    body[data-variant="D"][data-step="server"] .panel-header,
+    body[data-variant="D"][data-step="server"] #primaryButton,
+    body[data-variant="D"][data-step="server"] #keyHint,
+    body[data-variant="D"][data-step="server"] .panel-footer { display: none; }
+    body[data-variant="D"][data-step="server"] .login-panel { grid-template-rows: minmax(0, 1fr); }
+    body[data-variant="D"][data-step="server"] .panel-body { padding-top: 24px; }
+    body[data-variant="D"][data-step="server"] .server-option {
+      height: 88px;
+      min-height: 88px;
+      padding: 10px 64px 10px 13px;
+    }
+    body[data-variant="D"][data-step="account"] #primaryButton { display: none; }
+    body[data-variant="D"][data-step="account"] .login-panel { grid-template-rows: auto minmax(0, 1fr) auto; }
+    body[data-variant="D"][data-step="account"] .account-form { width: min(520px, 100%); margin: 0 auto; }
+    body[data-variant="D"][data-step="account"] .account-torches { display: block; }
+    body[data-variant="D"][data-step="account"] .panel-header,
+    body[data-variant="D"][data-step="character"] .panel-header,
+    body[data-variant="D"][data-step="character-create"] .panel-header {
+      padding: 6.5px 20px;
+    }
+    body[data-variant="D"][data-step="account"] .panel-header h2,
+    body[data-variant="D"][data-step="character"] .panel-header h2,
+    body[data-variant="D"][data-step="character-create"] .panel-header h2 {
+      margin-bottom: 2px;
+      font-size: 19px;
+    }
+    body[data-variant="D"][data-step="account"] .panel-header p,
+    body[data-variant="D"][data-step="character"] .panel-header p,
+    body[data-variant="D"][data-step="character-create"] .panel-header p {
+      font-size: 9px;
+      line-height: 1.4;
+    }
+    body[data-variant="D"][data-step="account"] .panel-footer,
+    body[data-variant="D"][data-step="character"] .panel-footer,
+    body[data-variant="D"][data-step="character-create"] .panel-footer {
+      min-height: 46px;
+      padding: 6.5px 20px;
+    }
+    body[data-variant="D"][data-step="character-create"] .world-chronicle,
+    body[data-variant="D"][data-step="character-create"] .realm-links { display: none; }
+    body[data-variant="D"][data-step="quit"] .world-chronicle,
+    body[data-variant="D"][data-step="quit"] .realm-links,
+    body[data-variant="D"][data-step="quit"] .panel-header,
+    body[data-variant="D"][data-step="quit"] .panel-footer { display: none; }
+    body[data-variant="D"][data-step="quit"] .login-panel { grid-column: 2; grid-template-rows: minmax(0, 1fr); }
+    body[data-variant="D"][data-step="character-create"] .login-panel {
+      grid-column: 1 / -1;
+      width: min(1480px, calc(100vw - 30px));
+      justify-self: center;
+    }
+    body[data-variant="D"][data-step="character-create"] .panel-body { overflow: auto; }
+    body[data-variant="D"][data-step="character-create"] #characterCreateStep { min-height: 100%; }
+    body[data-variant="D"][data-step="character"] .panel-body { overflow: hidden; }
+    body[data-variant="D"][data-step="character"] #characterStep,
+    body[data-variant="D"][data-step="character"] .character-layout,
+    body[data-variant="D"][data-step="character"] .character-overview { min-height: 0; height: 100%; }
+    body[data-variant="D"][data-step="character"] .character-overview {
+      display: flex;
+      flex-direction: column;
+    }
+    body[data-variant="D"][data-step="character"] .character-list {
+      flex: 1 1 auto;
+      gap: 7px;
+      padding-right: 4px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #5c512e transparent;
+    }
+    body[data-variant="D"][data-step="character"] .character-list::-webkit-scrollbar { width: 5px; }
+    body[data-variant="D"][data-step="character"] .character-list::-webkit-scrollbar-thumb { background: #5c512e; }
+    body[data-variant="D"][data-step="character"] .character-option { padding: 1px 12px; }
+    body[data-variant="D"][data-step="character"] .character-native-hints {
+      flex: 0 0 auto;
+      margin: 0 0 8px;
+      padding: 0 0 8px;
+      border-top: 0;
+      border-bottom: 1px solid #302a1b;
+    }
+    .server-shortcuts {
+      margin: 0 0 20px;
+      color: #878b83;
+      font-size: 10px;
+      line-height: 1.6;
+      text-align: center;
+    }
+    .server-shortcuts kbd {
+      padding: 1px 5px;
+      border: 1px solid #4d4937;
+      border-radius: 3px;
+      color: #d9bd61;
+      background: rgba(8, 11, 8, .76);
+      font: inherit;
+    }
+    body[data-variant="D"] .world-chronicle {
+      grid-area: chronicle;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      overflow: hidden;
+      border: 0;
+      background: rgba(4, 8, 5, .2);
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+    .realm-links { display: none; }
+    body[data-variant="D"] .realm-links {
+      grid-area: links;
+      align-self: start;
+      justify-self: start;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      margin: 28px 0 0 34px;
+    }
+    .realm-link {
+      position: relative;
+      width: max-content;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      border: 0;
+      color: #c9aa4d;
+      background: transparent;
+      text-decoration: none;
+      transition: color .16s, transform .16s;
+    }
+    .realm-link-icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(123, 104, 54, .56);
+      border-radius: 50% 50% 44% 44%;
+      background: rgba(4, 8, 5, .72);
+      box-shadow: inset 0 0 0 3px rgba(2, 4, 2, .78), 0 8px 22px rgba(0, 0, 0, .3);
+      transition: border-color .16s, background-color .16s;
+    }
+    .realm-link-label {
+      color: #aaa997;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: .025em;
+      white-space: nowrap;
+      transition: color .16s;
+    }
+    .realm-link:hover,
+    .realm-link:focus-visible {
+      color: #ffe276;
+      transform: translateX(2px);
+    }
+    .realm-link:hover .realm-link-icon,
+    .realm-link:focus-visible .realm-link-icon {
+      border-color: #d7b444;
+      background: rgba(38, 31, 11, .9);
+    }
+    .realm-link:hover .realm-link-label,
+    .realm-link:focus-visible .realm-link-label { color: #e6dcbf; }
+    .realm-link:focus-visible { outline: 1px solid #e0ba4b; outline-offset: 4px; }
+    .realm-link svg {
+      width: 26px;
+      height: 26px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.45;
+    }
+    .realm-link .tomenet-monogram {
+      width: 28px;
+      height: 28px;
+      overflow: visible;
+      fill: currentColor;
+      stroke: none;
+      filter: drop-shadow(0 0 4px rgba(225, 187, 75, .22));
+    }
+    .realm-link .discord-mark {
+      width: 27px;
+      height: 27px;
+      fill: currentColor;
+      stroke: none;
+    }
+    .realm-link .github-mark {
+      width: 27px;
+      height: 27px;
+      fill: currentColor;
+      stroke: none;
+    }
+    .realm-link-text {
+      padding-left: .08em;
+      font: 700 10px/1 Consolas, "Liberation Mono", monospace;
+      letter-spacing: .08em;
+      text-shadow: 0 0 5px rgba(225, 187, 75, .24);
+    }
+    .chronicle-list {
+      min-height: 0;
+      margin: 0;
+      padding: 8px 12px 12px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: transparent;
+      list-style: none;
+      scrollbar-width: none;
+    }
+    .chronicle-list::-webkit-scrollbar { display: none; }
+    .chronicle-event {
+      padding: 11px 2px;
+      border-top: 1px solid rgba(78, 83, 69, .32);
+    }
+    .chronicle-event:first-child { border-top: 0; }
+    .chronicle-event-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .chronicle-server {
+      min-width: 31px;
+      padding: 2px 4px;
+      border: 1px solid #405244;
+      color: #a9d5b1;
+      font-size: 10px;
+      text-align: center;
+    }
+    .chronicle-date { color: #aeb4ac; font-size: 10px; }
+    .chronicle-event p {
+      margin: 0;
+      color: color-mix(in srgb, var(--event-color, #c6c5b9) 78%, white 22%);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .chronicle-empty { padding: 24px 4px; color: #858d83; font-size: 12px; line-height: 1.55; }
+    body[data-variant="D"] .panel-header { background: rgba(21, 24, 17, .68); }
+    body[data-variant="D"] .server-option[aria-selected="true"] { background: rgba(78, 61, 18, .4); }
+    body[data-variant="D"][data-step="account"] .login-intel,
+    body[data-variant="D"][data-step="character"] .login-intel { display: none; }
+
+    @media (max-width: 1600px) and (min-width: 1241px) {
+      .creation-choice-grid.creation-class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 1240px) and (min-width: 821px) {
+      body[data-variant="D"][data-step="account"] .account-torches { display: none; }
+      body[data-variant="D"] .realm-links { gap: 10px; margin-left: 0; }
+      .realm-link { height: 40px; gap: 7px; }
+      .realm-link-icon { width: 40px; height: 40px; }
+      .realm-link-label { font-size: 9px; }
+      body[data-variant="D"] .login-intel { display: none; }
+      .creation-workspace {
+        --creation-side-width: 290px;
+        grid-template-columns: var(--creation-side-width) minmax(0, 1fr);
+        gap: 14px;
+      }
+      .creation-workspace.has-side-detail { grid-template-columns: var(--creation-side-width) minmax(0, 1fr); }
+      .creation-choice-grid.is-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .creation-selection-layout { grid-template-columns: minmax(0, 1fr) var(--creation-side-width); gap: 12px; }
+      .creation-stage.has-side-detail { grid-template-columns: minmax(0, 1fr) var(--creation-side-width); column-gap: 12px; }
+      .creation-stage.has-side-detail .creation-choice-grid { grid-template-columns: 1fr; }
+      .creation-stage.has-side-detail .creation-class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .creation-stage.has-side-detail .creation-stat-head,
+      .creation-stage.has-side-detail .creation-stat { grid-template-columns: minmax(105px, 1fr) 44px 58px 58px 14px 52px 54px minmax(96px, .8fr); gap: 2px; }
+      body[data-step="character-create"] .creation-stage.has-side-detail .creation-stat-head { font-size: 10px; }
+      .creation-detail { padding: 14px; }
+    }
+
+    @media (min-width: 821px) and (max-height: 800px) {
+      body[data-variant="D"] .login-shell {
+        height: 100svh;
+        min-height: 0;
+        padding: 8px 0;
+        grid-template-rows: 190px minmax(0, 1fr);
+        gap: 8px 12px;
+      }
+      body[data-variant="D"][data-step="server"] .panel-body { padding: 14px 20px; }
+      body[data-variant="D"][data-step="server"] .server-option {
+        height: 72px;
+        min-height: 72px;
+        padding: 8px 58px 8px 12px;
+      }
+      body[data-variant="D"][data-step="account"] .account-welcome { margin-bottom: 12px; }
+      .server-shortcuts { margin-bottom: 12px; line-height: 1.4; }
+      .server-groups { gap: 12px; }
+      .server-group { gap: 6px; }
+      .server-group-title { padding-bottom: 5px; }
+      .creation-stage { padding: 0 2px; }
+      .creation-stage-heading { margin-bottom: 9px; }
+      .creation-stage h3 { font-size: 20px; }
+      .creation-stage-intro { margin-top: 4px; line-height: 1.35; }
+      .creation-summary { padding: 12px 18px; }
+      .creation-summary-hero { margin-bottom: 8px; padding-bottom: 8px; }
+      .creation-summary-list { gap: 0; }
+      .creation-summary-list div { padding: 2px 0; }
+      .creation-summary-stats-label { margin: 6px 0 3px; }
+      .creation-summary-stats { gap: 2px; }
+      .creation-summary-stat { min-height: 20px; padding: 1px 7px; }
+      .creation-summary-description { margin-top: 5px; line-height: 1.3; }
+      .creation-stat { padding: 3px 10px; }
+      .creation-stat button { width: 23px; height: 23px; }
+      .creation-detail-copy { margin-top: 8px; line-height: 1.4; }
+      .creation-detail-client-copy { margin-top: 8px; line-height: 1.3; }
+      .creation-detail-meta,
+      .creation-detail-mods { margin-top: 10px; }
+      .creation-detail-mods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 820px) {
+      .login-shell,
+      body[data-variant="D"] .login-shell,
+      body[data-variant="D"][data-step="account"] .login-shell,
+      body[data-variant="D"][data-step="character"] .login-shell {
+        width: 100%;
+        height: auto;
+        min-height: 100svh;
+        padding: 0 0 76px;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 230px auto auto auto;
+        grid-template-areas: "top" "hero" "panel" "intel" "foot";
+        gap: 0;
+      }
+      body[data-variant="D"] .login-panel { width: 100%; }
+      .login-topbar { padding: 12px 15px; background: rgba(4,7,5,.96); }
+      .prototype-label { display: none; }
+      .login-hero {
+        grid-area: hero;
+        position: relative;
+        inset: auto;
+        border-width: 1px 0;
+        border-radius: 0;
+      }
+      .hero-content {
+        width: min(560px, calc(100% - 30px));
+        padding-top: 24px;
+        text-align: center;
+      }
+      .hero-kicker { margin-bottom: 8px; }
+      .hero-copy h2 { margin: 8px 0 5px; font-size: 23px; }
+      .hero-copy p { font-size: 10px; }
+      .account-logo { width: min(540px, 100%); }
+      .account-welcome { margin-top: 8px; font-size: 8px; }
+      .login-panel {
+        grid-area: panel;
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        max-height: none;
+        margin: 0;
+        border-width: 0 0 1px;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .panel-body { overflow: visible; }
+      .panel-footer { grid-template-columns: 1fr auto; }
+      .status-line { grid-column: 1 / -1; grid-row: 1; text-align: left; }
+      .login-intel {
+        grid-area: intel;
+        position: relative;
+        inset: auto;
+        align-self: auto;
+        width: 100%;
+        margin: 0;
+        border-width: 0 0 1px;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      body[data-variant="D"] { overflow: auto; }
+      body[data-variant="D"] .login-shell,
+      body[data-variant="D"][data-step="account"] .login-shell,
+      body[data-variant="D"][data-step="character"] .login-shell {
+        grid-template-rows: 190px auto auto auto;
+        grid-template-areas: "hero" "panel" "chronicle" "links";
+      }
+      body[data-variant="D"] .realm-links {
+        justify-self: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 18px 15px 30px;
+      }
+      .realm-link { height: 40px; gap: 7px; }
+      .realm-link-icon { width: 40px; height: 40px; }
+      .realm-link-label { font-size: 9px; }
+      body[data-variant="D"] .login-intel { display: none; }
+      body[data-variant="D"][data-step="account"] .login-intel,
+      body[data-variant="D"][data-step="character"] .login-intel { display: none; }
+      body[data-variant="D"] .login-hero { border-bottom: 1px solid rgba(130, 111, 62, .42); }
+      body[data-variant="D"] .hero-content { padding-top: 8px; }
+      body[data-variant="D"] .world-chronicle {
+        max-height: 500px;
+        border: 0;
+        border-radius: 0;
+      }
+      body[data-variant="D"] .account-torches { display: none; }
+      body[data-variant="D"] .character-native-hints { white-space: normal; }
+      body[data-variant="D"][data-step="character-create"] .login-panel { width: 100%; }
+      .creation-workspace { grid-template-columns: 1fr; gap: 14px; }
+      .creation-workspace.has-side-detail { grid-template-columns: 1fr; }
+      .creation-selection-layout { grid-template-columns: 1fr; }
+      .creation-selection-list { max-width: none; }
+      .creation-detail { position: static; }
+      .creation-stage.has-side-detail { display: block; }
+      .creation-stage.has-side-detail .creation-content,
+      .creation-stage.has-side-detail .creation-selection-layout { display: grid; }
+      .creation-stage.has-side-detail .creation-selection-layout { grid-template-columns: 1fr; }
+      .creation-stage.has-side-detail .creation-detail { position: static; height: auto; margin-top: 14px; overflow: visible; }
+      body[data-step="character-create"] #characterCreateStep,
+      body[data-step="character-create"] .creation-workspace,
+      body[data-step="character-create"] .creation-stage,
+      body[data-step="character-create"] .creation-summary { height: auto; overflow: visible; }
+      .login-footer { padding: 14px 15px; flex-wrap: wrap; }
+    }
+
+    @media (max-width: 540px) {
+      .login-brand p { display: none; }
+      .panel-header,
+      .panel-body,
+      .panel-footer { padding-left: 15px; padding-right: 15px; }
+      .panel-footer { gap: 12px; }
+      .panel-footer > .button-row:last-child { justify-self: end; }
+      .key-hint { display: none; }
+      .creation-choice-grid,
+      .creation-choice-grid.is-wide { grid-template-columns: 1fr; }
+      .creation-stat-head,
+      .creation-stat { min-width: 586px; grid-template-columns: minmax(120px, 1fr) 44px 60px 60px 14px 52px 54px 102px; gap: 2px; }
+      .intel-facts span + span::before { margin-right: 8px; }
+      .intel-facts { gap: 6px 8px; }
+    }
+
+    @media (max-width: 1240px) {
+      body[data-variant="D"][data-step] .login-shell {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: clamp(60px, calc(11.25vw + 21px), 160px) minmax(0, 1fr) auto;
+        grid-template-areas: "hero" "panel" "links";
+      }
+      body[data-variant="D"][data-step="character-create"] .login-shell {
+        grid-template-rows: clamp(60px, calc(11.25vw + 21px), 160px) minmax(0, 1fr);
+        grid-template-areas: "hero" "panel";
+      }
+      body[data-variant="D"] .login-panel { justify-self: center; }
+      body[data-variant="D"] .world-chronicle { display: none; }
+      body[data-variant="D"] .realm-links {
+        align-self: center;
+        justify-self: center;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 10px;
+        margin: 0;
+      }
+      body[data-variant="D"] .realm-link { width: auto; }
+      body[data-variant="D"] .realm-link-label { display: none; }
+      body[data-variant="D"] .account-torches { display: none; }
+      body[data-variant="D"] .hero-content { padding-top: 0; }
+    }
+
+    body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr);
+      row-gap: 14px;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-stage-heading {
+      grid-column: 1;
+      grid-row: 1;
+      margin-bottom: 0;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-selection-list {
+      grid-column: 1;
+      grid-row: 2;
+      width: 100%;
+      max-width: none;
+      height: 100%;
+      align-self: stretch;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-detail {
+      grid-column: 1;
+      grid-row: 3;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-detail.has-description {
+      border-top: 1px solid rgba(128, 109, 56, .72);
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-detail-heading {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 18px;
+      white-space: nowrap;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-detail-heading .creation-detail-mods {
+      display: inline-grid;
+      grid-template-columns: repeat(6, max-content);
+      width: max-content;
+      margin: 0;
+    }
+    body[data-variant="D"][data-step="character-create"] .creation-detail-heading .creation-detail-mods span {
+      min-width: 58px;
+    }
+
+    @media (max-width: 820px) {
+      body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail { display: block; }
+      body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-content,
+      body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-selection-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-selection-list {
+        width: 100%;
+        max-width: none;
+        height: auto;
+        overflow: visible;
+      }
+      body[data-variant="D"][data-step="character-create"] .creation-stage.has-side-detail .creation-detail {
+        position: static;
+        width: 100%;
+        height: auto;
+        margin-top: 14px;
+        overflow: visible;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .login-background-layer { transition: none; animation: none; }
+      .server-door { transition: none; }
+    }
+  </style>
+</head>
+<body class="login-page" data-variant="D" data-step="server">
+  <div class="login-background" id="loginBackground" aria-hidden="true">
+    <div class="login-background-layer" data-background-layer="0"></div>
+    <div class="login-background-layer" data-background-layer="1"></div>
+  </div>
+  <main class="login-shell">
+    <header class="login-topbar">
+      <div class="login-brand" aria-label="TomeNET">
+        <div class="login-brand-mark" aria-hidden="true"><span>T</span></div>
+        <div>
+          <h1>TomeNET</h1>
+          <p>Modern client access</p>
+        </div>
+      </div>
+      <p class="prototype-label">Prototype data</p>
+    </header>
+
+    <section class="login-hero" aria-labelledby="heroTitle">
+      <div class="hero-content">
+        <p class="hero-kicker">Persistent multiplayer roguelike</p>
+        <svg class="account-logo" id="accountLogo" viewBox="0 0 1280 144" role="img" aria-labelledby="accountLogoTitle" preserveAspectRatio="xMidYMid meet">
+          <title id="accountLogoTitle">TomeNET</title>
+        </svg>
+        <div class="hero-copy">
+          <h2 id="heroTitle">The world is waiting</h2>
+          <p id="heroDescription">Choose a realm and return to the persistent lands of Middle-earth.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="world-chronicle" aria-label="World Chronicle">
+      <ol class="chronicle-list" id="chronicleList" aria-live="polite"></ol>
+    </aside>
+
+    <section class="login-panel" aria-labelledby="panelTitle" style="position:relative">
+      <header class="panel-header">
+        <div>
+          <h2 id="panelTitle">Choose a server</h2>
+          <p id="panelIntro">Select a known world or connect to a specific address.</p>
+        </div>
+      </header>
+
+      <div class="panel-body">
+        <section class="step-view" id="serverStep" data-step="server">
+          <div class="server-layout">
+            <p class="server-shortcuts"><kbd>↑</kbd> <kbd>↓</kbd> select · <kbd>a</kbd>–<kbd>e</kbd> select directly · <kbd>Enter</kbd> connect · press <kbd>Q</kbd> for direct connection</p>
+            <div class="server-groups" id="serverGroups" role="listbox" aria-label="Available TomeNET servers"></div>
+          </div>
+        </section>
+
+        <section class="step-view" id="accountStep" data-step="account" hidden>
+          <div class="account-scene">
+            <div class="account-welcome">
+              <p>Welcome! In order to play, you need to create an account.</p>
+              <p>If you don't have an account yet, just enter one of your choice. Remember</p>
+              <p>your name and password. Players may only own one account each at a time.</p>
+            </div>
+            <div class="account-torches" aria-hidden="true">
+              <pre class="ascii-torch is-left"><span class="torch-tip">^</span><span class="torch-flame">*</span><span class="torch-ember">#</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-base">~</span></pre>
+              <pre class="ascii-torch is-right"><span class="torch-tip">^</span><span class="torch-flame">*</span><span class="torch-ember">#</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-handle">|</span><span class="torch-base">~</span></pre>
+            </div>
+            <div class="account-layout">
+              <form class="account-form" id="accountForm" novalidate>
+                <div class="field">
+                  <label for="accountInput">Name</label>
+                  <input class="field-input" id="accountInput" name="account" type="text" minlength="3" maxlength="15" autocomplete="username" spellcheck="false">
+                  <span class="field-error" id="accountError"></span>
+                </div>
+                <div class="field">
+                  <label for="passwordInput">Password</label>
+                  <div class="password-wrap">
+                    <input class="field-input" id="passwordInput" name="password" type="password" minlength="6" maxlength="15" autocomplete="current-password">
+                    <button class="password-toggle" id="passwordToggle" type="button" aria-pressed="false">Show</button>
+                  </div>
+                  <span class="field-error" id="passwordError"></span>
+                </div>
+                <button class="login-button game-action-button is-primary full" type="submit">Log in</button>
+                <p class="account-rules">Name and password are case-sensitive! Name must start on upper-case letter.<br>The name may also contain numbers, spaces and these symbols: .,-'&amp;_$%~#</p>
+                <p class="account-rules">If you are new to TomeNET, this guide may prove useful:<br><a class="account-guide" href="https://www.tomenet.eu/guide.php">https://www.tomenet.eu/guide.php</a></p>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="step-view" id="characterStep" data-step="character" hidden>
+          <div class="character-layout">
+            <div class="character-overview">
+              <p class="section-caption character-choice-caption">Choose an existing character: <span>(S/I/A to reorder)</span></p>
+              <div class="character-native-hints" aria-label="Original client character shortcuts">
+                <p><kbd>E</kbd>Create a new slot-exclusive character (IDDC or PvP only) · <kbd>Q</kbd>Quit the game</p>
+              </div>
+              <div class="character-list" id="characterList" role="listbox" aria-label="Existing characters"></div>
+            </div>
+            <aside class="character-detail" id="characterDetail" aria-live="polite"></aside>
+          </div>
+        </section>
+
+        <section class="step-view" id="characterCreateStep" data-step="character-create" hidden>
+          <div class="creation-workspace">
+            <aside class="creation-summary" id="creationSummary" aria-label="Current character" aria-live="polite"></aside>
+            <section class="creation-stage" aria-labelledby="creationStageTitle">
+              <header class="creation-stage-heading">
+                <h3 id="creationStageTitle">Choose a name</h3>
+                <p class="creation-stage-intro" id="creationStageIntro"></p>
+              </header>
+              <div class="creation-content" id="creationContent"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="step-view" id="quitStep" data-step="quit" hidden>
+          <div class="quit-view">
+            <div class="quit-card">
+              <h3>You have left TomeNET</h3>
+              <p>The prototype has ended the character creation session.</p>
+              <button class="login-button game-action-button is-primary" id="returnToServersButton" type="button">Return to server list</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="direct-backdrop" id="directBackdrop" hidden>
+        <form class="manual-card" id="manualForm" role="dialog" aria-modal="true" aria-labelledby="directTitle" novalidate>
+          <h3 id="directTitle">Direct connection</h3>
+          <p>Enter a server's hostname or IP address you want to connect to.</p>
+          <div class="field">
+            <label for="hostInput">Server address</label>
+            <input class="field-input" id="hostInput" name="host" type="text" value="europe.tomenet.eu" autocomplete="off" spellcheck="false">
+            <span class="field-help">Hostname, IPv4 or [IPv6]</span>
+            <span class="field-error" id="manualError" aria-live="polite"></span>
+          </div>
+          <div class="button-row">
+            <button class="login-button secondary" id="cancelDirectButton" type="button">Cancel</button>
+            <button class="login-button" type="submit">Connect</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="direct-backdrop" id="attributeWarningBackdrop" hidden>
+        <section class="manual-card attribute-warning-card" role="alertdialog" aria-modal="true" aria-labelledby="attributeWarningTitle" aria-describedby="attributeWarningMessage">
+          <div class="attribute-warning-rune" aria-hidden="true"><span>!</span></div>
+          <h3 id="attributeWarningTitle">Unspent attribute points</h3>
+          <p id="attributeWarningMessage">You still have <strong id="attributeWarningCount">0</strong> stat points left to distribute! Really continue? <span aria-hidden="true">[y/N]</span></p>
+          <div class="button-row">
+            <button class="login-button game-action-button is-secondary" id="closeAttributeWarningButton" type="button" aria-keyshortcuts="N"><kbd aria-hidden="true">N</kbd>No, return</button>
+            <button class="login-button game-action-button is-primary" id="continueWithUnspentButton" type="button" aria-keyshortcuts="Y"><kbd aria-hidden="true">Y</kbd>Yes, continue</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="direct-backdrop" id="creationGuideBackdrop" hidden>
+        <section class="manual-card creation-guide-card" role="dialog" aria-modal="true" aria-labelledby="creationGuideTitle">
+          <h3 id="creationGuideTitle">Guide</h3>
+          <div class="creation-guide-copy" id="creationGuideCopy"></div>
+          <p class="creation-guide-controls" id="creationGuideControls"></p>
+          <div class="button-row">
+            <button class="login-button game-action-button is-primary" id="closeCreationGuideButton" type="button">Close guide</button>
+          </div>
+        </section>
+      </div>
+
+      <footer class="panel-footer">
+        <div class="button-row">
+          <button class="login-button game-action-button is-secondary" id="backButton" type="button" hidden>Back</button>
+          <button class="login-button game-action-button is-secondary" id="createCharacterButton" type="button" title="Create character · N" hidden><kbd aria-hidden="true">N</kbd>Create character</button>
+          <button class="login-button game-action-button is-secondary" id="createExclusiveButton" type="button" title="Create slot-exclusive character · E" hidden><kbd aria-hidden="true">E</kbd>Exclusive character</button>
+        </div>
+        <div class="status-line" id="statusLine" role="status" aria-live="polite">5 prototype servers available</div>
+        <div class="button-row">
+          <span class="key-hint" id="keyHint">↑↓ Select · Enter Continue · Q Direct connection</span>
+          <button class="login-button game-action-button is-primary" id="primaryButton" type="button">Continue</button>
+        </div>
+      </footer>
+
+      <div class="loading-mask" id="loadingMask" hidden aria-live="assertive">
+        <div class="loading-content">
+          <span class="loading-rune" aria-hidden="true"></span>
+          <strong id="loadingTitle">Connecting…</strong>
+          <span id="loadingMessage">Prototype simulation</span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="realm-links" aria-label="TomeNET community links">
+      <a class="realm-link" href="https://www.tomenet.eu/" target="_blank" rel="noopener noreferrer" aria-label="TomeNET website" data-label="TomeNET website" title="TomeNET website">
+        <span class="realm-link-icon" aria-hidden="true"><svg class="tomenet-monogram" viewBox="0 0 32 32"><path d="M3.5 5h25l-2.2 7.2h-1.4c-.5-2.5-2.5-3.7-6-3.9v14.9c0 2.1 1.2 3.3 3.8 4.1V29H9.3v-1.7c2.6-.8 3.8-2 3.8-4.1V8.3c-3.5.2-5.5 1.4-6 3.9H5.7Z"/></svg></span>
+        <span class="realm-link-label">TomeNET website</span>
+      </a>
+      <a class="realm-link" href="https://discord.gg/rASkhCg" target="_blank" rel="noopener noreferrer" aria-label="Discord chat" data-label="Discord chat" title="Discord chat">
+        <span class="realm-link-icon" aria-hidden="true"><svg class="discord-mark" viewBox="5 7 22 19"><path d="M13.422 9c-1.286.226-2.516.622-3.664 1.16l-.024.022C7.401 13.74 6.76 17.21 7.074 20.637l.024.041c1.54 1.154 3.03 1.856 4.494 2.32l.064-.021.887-.997a10.2 10.2 0 0 1-1.402-.683c-.036-.021-.04-.073-.008-.098l.281-.222.057-.008c2.946 1.372 6.136 1.372 9.047 0l.059.006.279.224c.032.025.03.077-.006.098-.448.267-.914.495-1.404.683l.889.995.062.023c1.471-.464 2.962-1.166 4.502-2.32l.023-.041c.376-3.962-.629-7.404-2.662-10.455l-.023-.022A16.7 16.7 0 0 0 18.573 9l-.059.027c-.158.287-.334.52-.457.814a13.6 13.6 0 0 0-4.115 0c-.123-.301-.304-.527-.463-.814L13.422 9Zm-.424 6A2.01 2.01 0 0 1 15 17a2.006 2.006 0 0 1-2.002 2A2.002 2.002 0 0 1 11 17c0-1.102.884-2 1.998-2ZM19 15a2.01 2.01 0 0 1 2 2 2 2 0 1 1-4 0c0-1.102.886-2 2-2Z"/></svg></span>
+        <span class="realm-link-label">Discord chat</span>
+      </a>
+      <a class="realm-link" href="https://web.libera.chat/?channels=%23tomenet" target="_blank" rel="noopener noreferrer" aria-label="IRC channel" data-label="IRC channel" title="IRC channel">
+        <span class="realm-link-icon" aria-hidden="true"><span class="realm-link-text">IRC</span></span>
+        <span class="realm-link-label">IRC channel</span>
+      </a>
+      <a class="realm-link" href="https://www.tomenet.eu/guide.php?" target="_blank" rel="noopener noreferrer" aria-label="Official Guide" data-label="Official Guide" title="Official Guide">
+        <span class="realm-link-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M4 6h7c2.8 0 5 2.2 5 5v16c-1.4-2-3.3-3-5.8-3H4Zm24 0h-7c-2.8 0-5 2.2-5 5v16c1.4-2 3.3-3 5.8-3H28Z"/><path d="M16 11v16M8 11h3c2.2 0 4 .8 5 2 1-1.2 2.8-2 5-2h3M8 16h3c2.2 0 4 .7 5 1.9 1-1.2 2.8-1.9 5-1.9h3"/></svg></span>
+        <span class="realm-link-label">Official Guide</span>
+      </a>
+      <a class="realm-link" href="https://igroglaz.com/tomenet" target="_blank" rel="noopener noreferrer" aria-label="Tangar's Ru Guide" data-label="Tangar's Ru Guide" title="Tangar's Ru Guide">
+        <span class="realm-link-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 16s5-7 13-7 13 7 13 7-5 7-13 7S3 16 3 16z"/><circle cx="16" cy="16" r="4"/><path d="M16 4v3m0 18v3M5 7l3 3m16-3-3 3"/></svg></span>
+        <span class="realm-link-label">Tangar's Ru Guide</span>
+      </a>
+      <a class="realm-link" href="http://github.com/TomenetGame/" target="_blank" rel="noopener noreferrer" aria-label="Github" data-label="Github" title="Github">
+        <span class="realm-link-icon" aria-hidden="true"><svg class="github-mark" viewBox="5 7 22 23"><path d="M23.41 8.702c-.426-.02-1.625.373-3.502 1.679-1.085-.327-2.313-.397-3.5-.381-1.012.013-2.369.059-3.478.381-1.877-1.305-2.836-1.697-3.262-1.677-.142.007-.211.028-.211.028-.714 1.851-.262 3.52-.127 3.86-.838.94-1.33 2.141-1.33 3.609 0 5.154 3.34 6.508 6.25 6.847-.374.336-1.109.83-1.229 1.698-.746.344-2.249.737-3.417-1.318 0 0-.693-1.292-2.008-1.387 0 0-1.278-.015-.088.818 0 0 .859.413 1.455 1.967 0 0 .384 2.816 4.029 2.004.002.395.004 1.575.006 2.842A14 14 0 0 0 16 30c1.392 0 2.732-.209 4-.584.003-1.783.006-3.343.006-4.088 0-1.254-.519-1.875-.988-2.29C21.936 22.705 25 21.366 25 16.199c0-1.468-.408-2.668-1.248-3.607.134-.34.586-2.009-.129-3.86 0 0-.069-.023-.213-.03Z"/></svg></span>
+        <span class="realm-link-label">Github</span>
+      </a>
+    </nav>
+
+  </main>
+
+  <script src="js/data/login-news-snapshot.js"></script>
+  <script src="js/data/creation-descriptions.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const servers = [
+        {
+          id: "eu-official", region: "EU", name: "Europe", host: "europe.tomenet.eu", port: 18348,
+          official: true, game: "TomeNET", version: "4.9.3", players: ["Specops"], ping: 34, note: "Europe",
+          slots: { standard: 12, iddc: 2, pvp: 1 },
+          characters: [
+            { id: "aelwyn", name: "Aelwyn", level: 57, race: "High-Elf", className: "Ranger", mode: "Normal", lives: 3, location: "at (32,48), 0ft" },
+            { id: "brann", name: "Brann Ironhand", level: 36, race: "Dwarf", className: "Warrior", mode: "No Ghost", lives: 1, location: "at (32,33), 1200ft" },
+            { id: "nyx", name: "Nyx", level: 24, race: "Vampire", className: "Corrupted Priest", mode: "Solo", lives: null, location: "at (35,32), 0ft" },
+            { id: "elessar", name: "Elessar", level: 58, race: "Dunadan", className: "Warrior", mode: "Normal", lives: 3, location: "at (35,32), 0ft" },
+            { id: "faradays", name: "FaradayS", level: 48, race: "Goblin", className: "Rogue", mode: "Normal", lives: 3, location: "at (32,33), 0ft" },
+            { id: "raven", name: "Raven", level: 62, race: "High-Elf", className: "Archer", mode: "Everlasting", lives: null, location: "at (32,32), 0ft" },
+            { id: "faradmim", name: "FaradMim", level: 56, race: "Maia", className: "Mimic", mode: "Normal", lives: 3, location: "at (32,32), 0ft" },
+            { id: "deepdelver", name: "Deepdelver", level: 32, race: "Dwarf", className: "Paladin", mode: "IDDC", lives: 1, location: "at (40,40), 650ft" },
+            { id: "bloodfang", name: "Bloodfang", level: 44, race: "Half-Orc", className: "Rogue", mode: "PvP", lives: null, location: "at (34,33), 0ft" }
+          ]
+        },
+        {
+          id: "na-official", region: "NA", name: "North America", host: "na.tomenet.eu", port: 18348,
+          official: true, game: "TomeNET", version: "4.9.3", players: [], ping: 112, note: "North America",
+          characters: [
+            { id: "mara", name: "Mara", level: 42, race: "Dunadan", className: "Runemaster", mode: "Everlasting", lives: null, location: "at (31,32), 0ft" },
+            { id: "varg", name: "Varg", level: 31, race: "Half-Orc", className: "Rogue", mode: "PvP", lives: null, location: "at (34,33), 0ft" }
+          ]
+        },
+        {
+          id: "apac-official", region: "AP", name: "Asia-Pacific", host: "apac.tomenet.eu", port: 18348,
+          official: true, game: "TomeNET", version: "4.9.3", players: [], ping: 186, note: "Asia-Pacific",
+          characters: [
+            { id: "khazad", name: "Khazad", level: 28, race: "Dwarf", className: "Paladin", mode: "IDDC", lives: 1, location: "at (40,40), 650ft" },
+            { id: "ireth", name: "Ireth", level: 17, race: "Wood-Elf", className: "Druid", mode: "Normal", lives: 3, location: "at (32,32), 0ft" }
+          ]
+        },
+        {
+          id: "arcade-official", region: "AR", name: "Moltor’s arcade stuff!", host: "europe.tomenet.eu", port: 18348,
+          official: true, game: "TomeNET Arcade", version: "4.9.3", players: [], ping: 41, note: "Moltor’s arcade stuff!",
+          characters: [
+            { id: "arcadian", name: "Arcadian", level: 27, race: "Human", className: "Adventurer", mode: "Normal", lives: 3, location: "at (32,32), 0ft" }
+          ]
+        },
+        {
+          id: "kurzel-unofficial", region: "DEV", name: "TomeNET 4.9.3 Module Test", host: "kurzel.dev", port: 18348,
+          official: false, game: "TomeNET", version: "4.9.3", players: [], ping: 73, note: "TomeNET 4.9.3 Module Test",
+          characters: [
+            { id: "module-tester", name: "ModuleTester", level: 20, race: "Human", className: "Adventurer", mode: "Normal", lives: 3, location: "at (32,32), 0ft" }
+          ]
+        }
+      ];
+
+      const manualCharacters = [
+        { id: "manual-character", name: "Existing Hero", level: 23, race: "Human", className: "Adventurer", mode: "Normal", lives: 3, location: "at (32,32), 0ft" }
+      ];
+
+      // Prototype-only mirror of the choices the real client receives during Net_setup().
+      const creationData = {
+        sexes: [
+          { id: "male", name: "Male", hotkey: "m", description: "Male character." },
+          { id: "female", name: "Female", hotkey: "f", description: "Female character." }
+        ],
+        classes: [
+          { id: "warrior", name: "Warrior", hotkey: "a", mods: [4, -2, -2, 2, 2, -1], recommended: [{ minimum: 22, main: true }, null, null, { minimum: 10, main: true }, null, null], description: "A durable weapon master with excellent melee combat." },
+          { id: "mage", name: "Istar", hotkey: "b", mods: [-4, 4, 0, 1, -2, 1], recommended: [null, { main: true }, null, null, null, null], description: "A fragile master of arcane magic and magical devices." },
+          { id: "priest", name: "Priest", hotkey: "c", mods: [-1, -2, 4, -1, 1, 2], recommended: [null, null, { main: true }, null, null, null], description: "A divine spellcaster combining healing and spiritual power." },
+          { id: "rogue", name: "Rogue", hotkey: "d", mods: [1, 1, -2, 4, 0, 1], recommended: [{ minimum: 15 }, null, null, { minimum: 19, main: true }, null, null], description: "A stealthy opportunist skilled with traps and light weapons." },
+          { id: "mimic", name: "Mimic", hotkey: "e", mods: [2, 0, 0, 2, 1, -1], recommended: [{ minimum: 19, main: true }, null, null, { minimum: 10, main: true }, null, null], description: "A fighter able to assume the forms of monsters." },
+          { id: "archer", name: "Archer", hotkey: "f", mods: [2, 0, 0, 4, 1, 0], recommended: [null, null, null, { minimum: 18, main: true }, null, null], description: "A ranged specialist whose best weapon is the bow." },
+          { id: "paladin", name: "Paladin", hotkey: "g", mods: [3, -2, 1, 0, 2, 2], recommended: [{ minimum: 20, main: true }, null, { main: true }, { minimum: 10 }, null, null], description: "A holy warrior balancing martial strength and prayer." },
+          { id: "ranger", name: "Ranger", hotkey: "h", mods: [2, 1, 0, 2, 1, 0], recommended: [{ minimum: 19, main: true }, { main: true }, null, { minimum: 10, main: true }, null, null], description: "A versatile wilderness fighter with archery and magic." },
+          { id: "adventurer", name: "Adventurer", hotkey: "i", mods: [0, 0, 0, 0, 0, 0], recommended: [{ minimum: 19 }, null, null, { minimum: 10 }, null, null], description: "A flexible class without a fixed specialisation." },
+          { id: "druid", name: "Druid", hotkey: "j", mods: [-2, 1, 3, 0, 0, 1], recommended: [null, null, { main: true }, null, null, null], description: "A nature spellcaster and shapeshifter." },
+          { id: "shaman", name: "Shaman", hotkey: "k", mods: [0, 0, 3, 0, 1, 0], recommended: [null, null, null, null, null, null], description: "A spiritual caster with broad magical access." },
+          { id: "runemaster", name: "Runemaster", hotkey: "l", mods: [-3, 4, 0, 1, -2, 0], recommended: [{ minimum: 15 }, { main: true }, null, { minimum: 19, main: true }, null, null], description: "A demanding caster who combines runes into spells." },
+          { id: "mindcrafter", name: "Mindcrafter", hotkey: "m", mods: [-1, 2, 3, 0, 0, 0], recommended: [{ minimum: 19, main: true }, { main: true }, null, { minimum: 10, main: true }, null, null], description: "A mentalist whose powers grow from intelligence and wisdom." }
+        ],
+        // Legal class choices mirror player_race.choice from the current TomeNET
+        // setup table (CF_* masks). The stock client evaluates the same mask with
+        // `race_info[race].choice & BITS(class)` in c-birth.c.
+        races: [
+          { id: "human", name: "Human", mods: [0, 0, 0, 0, 0, 0], classes: "all", description: "Adaptable and balanced, with no attribute penalties." },
+          { id: "half-elf", name: "Half-Elf", mods: [-1, 1, 0, 1, -1, 1], classes: "all", description: "Versatile descendants of Humans and Elves." },
+          { id: "elf", name: "Elf", mods: [-1, 2, 1, 1, -2, 2], classes: "all", description: "Gifted with magic, perception and grace." },
+          { id: "hobbit", name: "Hobbit", mods: [-2, 1, 1, 3, 1, 1], classes: "all", description: "Small, nimble and exceptionally stealthy." },
+          { id: "gnome", name: "Gnome", mods: [-2, 2, 0, 2, 1, 0], classes: "all", description: "Clever and magically inclined underground folk." },
+          { id: "dwarf", name: "Dwarf", mods: [2, -2, 2, -2, 2, -1], classes: "all", description: "Hardy miners with strong resistance and resolve." },
+          { id: "half-orc", name: "Half-Orc", mods: [2, -1, 0, 0, 1, -2], classes: "all", description: "Powerful fighters suited to direct and brutal approaches." },
+          { id: "half-troll", name: "Half-Troll", mods: [4, -4, -2, -2, 3, -3], classes: "all", description: "Extremely strong and tough, but poor at subtle arts." },
+          { id: "dunadan", name: "Dunadan", mods: [1, 2, 2, 2, 3, 2], classes: "all", description: "Long-lived descendants of the noble Men of the West." },
+          { id: "high-elf", name: "High-Elf", mods: [1, 3, 2, 3, 1, 3], classes: "all", description: "Ancient, perceptive and naturally magical." },
+          { id: "yeek", name: "Yeek", mods: [-2, 1, 1, 1, -2, -3], classes: "all", description: "Physically weak, fast-learning and unusually adaptable." },
+          { id: "goblin", name: "Goblin", mods: [0, 0, -1, 2, 0, -3], classes: "all", description: "Cunning cave-dwellers with natural stealth." },
+          { id: "ent", name: "Ent", mods: [4, -3, 2, -4, 5, 0], classes: ["warrior", "mage", "priest", "mimic", "paladin", "ranger", "adventurer", "druid", "shaman", "runemaster", "mindcrafter"], description: "Ancient tree shepherds of immense strength and endurance." },
+          { id: "draconian", name: "Draconian", mods: [2, 1, 1, 1, 2, 0], classes: "all", description: "Dragon-blooded warriors who choose an elemental lineage." },
+          { id: "kobold", name: "Kobold", mods: [-1, -1, 0, 2, 2, -2], classes: "all", description: "Small, stealthy cave-dwellers with sharp senses and poison resistance." },
+          { id: "dark-elf", name: "Dark-Elf", mods: [0, 2, 1, 3, 1, -6], classes: ["warrior", "mage", "priest", "rogue", "mimic", "archer", "ranger", "adventurer", "druid", "shaman", "runemaster", "mindcrafter"], description: "Underground elves skilled in stealth, darkness and treachery." },
+          { id: "vampire", name: "Vampire", mods: [2, 2, -1, 1, 0, 1], classes: ["warrior", "mage", "rogue", "archer", "paladin", "adventurer", "runemaster", "mindcrafter"], description: "Undead immortals with unusual needs and powers." },
+          { id: "maia", name: "Maia", mods: [2, 3, 3, 1, 2, 3], classes: ["mage", "priest", "rogue", "mimic", "paladin", "ranger", "adventurer", "druid", "shaman", "runemaster", "mindcrafter"], description: "A divine spirit beginning a long path through Middle-earth." }
+        ],
+        traits: [
+          { id: "none", name: "None", races: "all", description: "This race does not require a lineage trait." },
+          { id: "blue", name: "Blue lineage", races: ["draconian"], description: "An affinity with lightning and the air." },
+          { id: "white", name: "White lineage", races: ["draconian"], description: "An affinity with cold and frost." },
+          { id: "red", name: "Red lineage", races: ["draconian"], description: "An affinity with heat and fire." },
+          { id: "black", name: "Black lineage", races: ["draconian"], description: "An affinity with acid and corrosion." },
+          { id: "green", name: "Green lineage", races: ["draconian"], description: "An affinity with poison and venom." },
+          { id: "multi", name: "Multi-hued lineage", races: ["draconian"], description: "A shifting affinity with the basic elements and poison." },
+          { id: "bronze", name: "Bronze lineage", races: ["draconian"], description: "Metallic scales, reflection and confusion breath." },
+          { id: "silver", name: "Silver lineage", races: ["draconian"], description: "Metallic scales with cold, acid and poison resistance." },
+          { id: "golden", name: "Golden lineage", races: ["draconian"], description: "Metallic scales with fire, acid and sound resistance." },
+          { id: "law", name: "Law lineage", races: ["draconian"], description: "An affinity with shards, sound and order." },
+          { id: "chaos", name: "Chaos lineage", races: ["draconian"], description: "An affinity with confusion, chaos and disenchantment." },
+          { id: "balance", name: "Balance lineage", races: ["draconian"], description: "An affinity with disenchantment and sound." },
+          { id: "enlightened", name: "Enlightened", races: ["maia"], description: "The path of light available to Maiar." },
+          { id: "corrupted", name: "Corrupted", races: ["maia"], description: "The shadowed path available to Maiar." }
+        ],
+        bodies: [
+          { id: "normal", name: "Normal body", hotkey: "n", description: "Use the normal body and equipment slots of the selected race." },
+          { id: "fruit-bat", name: "Fruit bat", hotkey: "f", description: "Faster and vampiric, but unable to wear some equipment. Not recommended for shapeshifters or Archers." }
+        ],
+        modes: [
+          { id: "normal", name: "Normal", hotkey: "n", entry: "standard", description: "Three lives and the standard TomeNET progression." },
+          { id: "no-ghost", name: "No Ghost", hotkey: "g", entry: "standard", description: "One life only — the traditional roguelike way." },
+          { id: "solo", name: "Soloist", hotkey: "s", entry: "standard", description: "One life and no trading, parties or guilds." },
+          { id: "everlasting", name: "Everlasting", hotkey: "e", entry: "standard", description: "Unlimited resurrection, but no high-score entry." },
+          { id: "hellish", name: "Hellish", hotkey: "H", entry: "standard", description: "One life with additional difficulty." },
+          { id: "iddc", name: "IDDC", hotkey: "i", entry: "exclusive-iddc", description: "Ironman Deep Dive Challenge — one life in an isolated dungeon." },
+          { id: "iddc-solo", name: "IDDC Soloist", hotkey: "s", entry: "exclusive-iddc", description: "IDDC without trading with other players." },
+          { id: "iddc-hellish", name: "Hellish IDDC", hotkey: "H", entry: "exclusive-iddc", description: "An extra-hard Ironman Deep Dive Challenge." },
+          { id: "pvp", name: "PvP", hotkey: "p", entry: "both-pvp", description: "Special player-versus-player rules replace normal victory." }
+        ],
+        statNames: ["Strength", "Intelligence", "Wisdom", "Dexterity", "Constitution", "Charisma"],
+        attributeDescriptions: [
+          "Affects attack speed, carrying capacity, melee damage, bashing, throwing, digging and, slightly, swimming.",
+          "Improves class-dependent magic, use of magical devices, disarming and awareness of stealing attempts.",
+          "Improves prayers and class-dependent magic, saving throws against harmful effects, and resistance to insanity.",
+          "Improves attack speed and accuracy, makes opponents miss slightly more often, and helps stealing, disarming, balance and swimming.",
+          "Determines hit points, shortens poison and stun, improves stamina regeneration and helps prevent drowning.",
+          "Improves shop and house prices, resistance to seduction, and contributes to a Mindcrafter’s mana pool."
+        ]
+      };
+      creationData.races.forEach((race, index) => { race.hotkey = String.fromCharCode(97 + index); });
+
+      const creationSteps = [
+        { id: "name", label: "Name", title: "Choose a name", intro: "Name your new adventurer. Leave the field blank and choose Random for inspiration." },
+        { id: "sex", label: "Sex", title: "Choose sex", intro: "This choice identifies the character and does not restrict classes or races." },
+        { id: "class", label: "Class", title: "Choose a class", intro: "" },
+        { id: "race", label: "Race", title: "Choose a race", intro: "" },
+        { id: "trait", label: "Trait", title: "Choose a trait", intro: "Some races have a lineage or spiritual path; others continue without one." },
+        { id: "body", label: "Body", title: "Choose a body", intro: "A body modification changes important equipment and movement rules." },
+        { id: "attributes", label: "Attributes", title: "Distribute attributes", intro: "" },
+        { id: "mode", label: "Mode", title: "Choose a game mode", intro: "Game mode determines lives, social restrictions and victory rules." }
+      ];
+      const freshCreationState = entry => ({
+        entry,
+        stepIndex: 0,
+        name: "",
+        sex: "male",
+        classId: "warrior",
+        raceId: "human",
+        traitId: "none",
+        bodyId: "normal",
+        stats: [10, 10, 10, 10, 10, 10],
+        detailStatIndex: 0,
+        modeId: entry === "exclusive" ? "iddc" : "normal",
+        error: ""
+      });
+
+      const state = {
+        step: "server",
+        servers,
+        selectedServerId: servers[0].id,
+        manualServer: null,
+        account: "",
+        selectedCharacterId: null,
+        directOpen: false,
+        attributeWarningOpen: false,
+        creationGuideOpen: false,
+        busy: false,
+        creation: freshCreationState("standard")
+      };
+      const maxChronicleEvents = 100;
+
+      const $ = selector => document.querySelector(selector);
+      const $$ = selector => [...document.querySelectorAll(selector)];
+      const stepOrder = ["server", "account", "character", "character-create", "quit"];
+      const titles = {
+        server: ["", ""],
+        account: ["Sign in", "Use an existing TomeNET account on the selected server."],
+        character: ["Character Overview", "(You can create up to 12+3 different characters to play with)"],
+        "character-create": ["Create a Character", "Shape a new adventurer for the selected world."],
+        quit: ["", ""]
+      };
+      const heroMessages = {
+        server: ["The world is waiting", "Choose a realm and return to the persistent lands of Middle-earth."],
+        account: ["Return to Middle-earth", "Sign in to your TomeNET account on the selected world."],
+        character: ["Continue your legend", "Choose an existing hero and step back into the world."],
+        "character-create": ["Begin a new legend", "Shape a new adventurer for the persistent world."],
+        quit: ["Farewell", "Your journey can continue whenever you return."]
+      };
+
+      // Exact 80-column ATMOSPHERIC_INTRO title used by the SDL3 client.
+      const logoLines = [
+        " ^^^^^^^^^^  ^^^^^^^^  ^^^^    ^^^^  ^^^^^^^^   ^^^  ^^^^  ^^^^^^^^  ^^^^^^^^^^",
+        " |########|  |######|  |###\\  /###|  |######|   |##\\ |##|  |######|  |########|",
+        " |########|  |##| ##|  |####\\/####|  |##|       |###\\|##|  |##|      |########|",
+        "    |##|     |##| ##|  |##########|  |######|   |#######|  |######|     |##|   ",
+        "    |##|     |##| ##|  |##|\\##/|##|  |##|       |##|\\###|  |##|         |##|   ",
+        "    |##|     |######|  |##| \\/ |##|  |######|   |##| \\##|  |######|     |##|   "
+      ].map(line => line.padEnd(80, " ").slice(0, 80));
+      const logoPalette = {
+        dark: "#000000",
+        orange: "#ff8d00",
+        red: "#b70000",
+        yellow: "#ffff00",
+        lightRed: "#ff3030"
+      };
+      const logoStaticColors = [logoPalette.red, logoPalette.yellow, logoPalette.red, logoPalette.red, logoPalette.lightRed, logoPalette.red];
+      const loginBackgroundPaths = [
+        "assets/log_in_backgrounds/cirith_ungol_ascii_seed06.png",
+        "assets/log_in_backgrounds/cloud_planes_ascii_seed14.png",
+        "assets/log_in_backgrounds/erebor_ascii_seed19.png",
+        "assets/log_in_backgrounds/halls_of_mandos_ascii_seed9.png",
+        "assets/log_in_backgrounds/heart_of_earth_ascii_seed17.png",
+        "assets/log_in_backgrounds/helcaraxe_ascii_seed31.png",
+        "assets/log_in_backgrounds/illusory_castle_ascii_seed16.png",
+        "assets/log_in_backgrounds/land_of_rhun_ascii_seed36.png",
+        "assets/log_in_backgrounds/mirkwood_ascii_seed01.png",
+        "assets/log_in_backgrounds/moria_ascii_seed22.png",
+        "assets/log_in_backgrounds/mount_doom_ascii_seed24.png",
+        "assets/log_in_backgrounds/nether_realm_depth195_ascii_seed34.png",
+        "assets/log_in_backgrounds/old_forest_ascii_seed04.png",
+        "assets/log_in_backgrounds/orc_caves_ascii_3168x1584.png",
+        "assets/log_in_backgrounds/sacred_land_of_mountains_ascii_seed70.png",
+        "assets/log_in_backgrounds/sandworm_lair_ascii_seed31.png",
+        "assets/log_in_backgrounds/small_water_cave_ascii_seed44.png",
+        "assets/log_in_backgrounds/submerged_ruins_ascii_seed01.png",
+        "assets/log_in_backgrounds/training_tower_ascii_seed404.png"
+      ];
+      const backgroundRotationMs = 30000;
+      const backgroundTransitionMs = 2000;
+      const logoMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const logoCells = [];
+      let logoFlickerTimer = null;
+      let torchFlickerTimer = null;
+      let serverRefreshTick = 0;
+      let backgroundQueue = [];
+      let backgroundTimer = null;
+      let backgroundCleanupTimer = null;
+      let activeBackgroundLayer = -1;
+      let currentBackgroundPath = null;
+      let backgroundChanging = false;
+
+      function createSvgElement(name) {
+        return document.createElementNS("http://www.w3.org/2000/svg", name);
+      }
+
+      function logoPolygonPoints(character, line, column, left, top) {
+        const right = left + 16;
+        const bottom = top + 24;
+        const connectsFromLeft = line[column - 1] === "#" || line[column + 1] === " ";
+        if (character === "\\") {
+          return connectsFromLeft
+            ? `${left},${top} ${left},${bottom} ${right},${bottom}`
+            : `${left},${top} ${right},${top} ${right},${bottom}`;
+        }
+        return connectsFromLeft
+          ? `${left},${top} ${right},${top} ${left},${bottom}`
+          : `${right},${top} ${right},${bottom} ${left},${bottom}`;
+      }
+
+      function buildAccountLogo() {
+        const logo = $("#accountLogo");
+        logoLines.forEach((line, row) => {
+          [...line].forEach((character, column) => {
+            if (character === " " || character === "|") return;
+            const left = column * 16;
+            const top = row * 24;
+            let element;
+            if (character === "#") {
+              element = createSvgElement("rect");
+              element.setAttribute("x", left);
+              element.setAttribute("y", top);
+              element.setAttribute("width", 16);
+              element.setAttribute("height", 24);
+            } else if (character === "/" || character === "\\") {
+              element = createSvgElement("polygon");
+              element.setAttribute("points", logoPolygonPoints(character, line, column, left, top));
+            } else if (character === "^") {
+              element = createSvgElement("text");
+              element.classList.add("logo-flame-character");
+              element.setAttribute("x", left + 8);
+              element.setAttribute("y", top + 20);
+              element.textContent = "^";
+            } else {
+              return;
+            }
+            element.dataset.logoRow = String(row);
+            element.dataset.logoSource = character;
+            logo.append(element);
+            logoCells.push({ element, row, character });
+          });
+        });
+        renderLogoFrame(false);
+      }
+
+      function flickerLogoColor(row) {
+        if (row === 0) {
+          if (Math.floor(Math.random() * 2)) return logoPalette.dark;
+          if (Math.floor(Math.random() * 2)) return logoPalette.yellow;
+          return Math.floor(Math.random() * 2) ? logoPalette.lightRed : logoPalette.red;
+        }
+        if (row === 1) return Math.floor(Math.random() * 5) + 1 > 3 ? logoPalette.orange : logoPalette.yellow;
+        if (row === 2 || row === 3) {
+          if (Math.floor(Math.random() * 7) + 1 > 6) return logoPalette.yellow;
+          return Math.floor(Math.random() * 3) > 1 ? logoPalette.red : logoPalette.lightRed;
+        }
+        if (row === 4) return Math.floor(Math.random() * 5) + 1 === 1 ? logoPalette.red : logoPalette.lightRed;
+        if (Math.floor(Math.random() * 6)) return logoPalette.red;
+        return Math.floor(Math.random() * 2) ? logoPalette.orange : logoPalette.lightRed;
+      }
+
+      function renderLogoFrame(animated) {
+        const flameCharacters = ["'", ")", "(", "."];
+        logoCells.forEach(cell => {
+          cell.element.setAttribute("fill", animated ? flickerLogoColor(cell.row) : logoStaticColors[cell.row]);
+          if (cell.character === "^") {
+            cell.element.textContent = animated ? flameCharacters[Math.floor(Math.random() * flameCharacters.length)] : "^";
+          }
+        });
+      }
+
+      function syncAccountLogoAnimation() {
+        const shouldAnimate = !logoMotionQuery.matches;
+        if (shouldAnimate && logoFlickerTimer === null) {
+          renderLogoFrame(true);
+          logoFlickerTimer = window.setInterval(() => renderLogoFrame(true), 100);
+          return;
+        }
+        if (!shouldAnimate && logoFlickerTimer !== null) {
+          window.clearInterval(logoFlickerTimer);
+          logoFlickerTimer = null;
+        }
+        if (!shouldAnimate) renderLogoFrame(false);
+      }
+
+      function renderTorchFrame(animated) {
+        const tipCharacters = ["'", ")", "(", "."];
+        const flameCharacters = ["0", "o", "*"];
+        $$(".ascii-torch").forEach(torch => {
+          const tip = torch.querySelector(".torch-tip");
+          const flame = torch.querySelector(".torch-flame");
+          const ember = torch.querySelector(".torch-ember");
+          tip.textContent = animated ? tipCharacters[Math.floor(Math.random() * tipCharacters.length)] : "^";
+          flame.textContent = animated ? flameCharacters[Math.floor(Math.random() * flameCharacters.length)] : "*";
+          tip.style.color = animated ? flickerLogoColor(2) : logoPalette.red;
+          flame.style.color = animated ? flickerLogoColor(2) : logoPalette.red;
+          ember.style.color = animated ? flickerLogoColor(5) : logoPalette.red;
+        });
+      }
+
+      function syncTorchAnimation() {
+        const shouldAnimate = state.step === "account" && !logoMotionQuery.matches;
+        if (shouldAnimate && torchFlickerTimer === null) {
+          renderTorchFrame(true);
+          torchFlickerTimer = window.setInterval(() => renderTorchFrame(true), 100);
+          return;
+        }
+        if (!shouldAnimate && torchFlickerTimer !== null) {
+          window.clearInterval(torchFlickerTimer);
+          torchFlickerTimer = null;
+        }
+        if (!shouldAnimate) renderTorchFrame(false);
+      }
+
+      const escapeHtml = value => String(value).replace(/[&<>'"]/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+      })[character]);
+
+      function refillBackgroundQueue() {
+        backgroundQueue = [...loginBackgroundPaths];
+        for (let index = backgroundQueue.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [backgroundQueue[index], backgroundQueue[swapIndex]] = [backgroundQueue[swapIndex], backgroundQueue[index]];
+        }
+        if (backgroundQueue.length > 1 && backgroundQueue[0] === currentBackgroundPath) {
+          [backgroundQueue[0], backgroundQueue[1]] = [backgroundQueue[1], backgroundQueue[0]];
+        }
+      }
+
+      function nextBackgroundPath() {
+        if (!backgroundQueue.length) refillBackgroundQueue();
+        return backgroundQueue.shift();
+      }
+
+      function decodeBackground(path) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = async () => {
+            try {
+              if (typeof image.decode === "function") await image.decode();
+              resolve(path);
+            } catch (error) {
+              reject(error);
+            }
+          };
+          image.onerror = () => reject(new Error(`Unable to load login background: ${path}`));
+          image.src = path;
+        });
+      }
+
+      function scheduleBackgroundRotation() {
+        if (backgroundTimer !== null) window.clearTimeout(backgroundTimer);
+        backgroundTimer = null;
+        if (document.hidden) return;
+        backgroundTimer = window.setTimeout(() => void showNextBackground(), backgroundRotationMs);
+      }
+
+      async function showNextBackground(initial = false) {
+        if (backgroundChanging) return;
+        backgroundChanging = true;
+        let nextPath = null;
+        for (let attempt = 0; attempt < loginBackgroundPaths.length; attempt += 1) {
+          const candidate = nextBackgroundPath();
+          try {
+            nextPath = await decodeBackground(candidate);
+            break;
+          } catch (error) {
+            console.warn(error.message);
+          }
+        }
+
+        if (!nextPath) {
+          backgroundChanging = false;
+          scheduleBackgroundRotation();
+          return;
+        }
+
+        const layers = $$("[data-background-layer]");
+        const nextLayerIndex = activeBackgroundLayer === 0 ? 1 : 0;
+        const nextLayer = layers[nextLayerIndex];
+        const previousLayer = activeBackgroundLayer >= 0 ? layers[activeBackgroundLayer] : null;
+        nextLayer.style.backgroundImage = `url("${nextPath}")`;
+
+        if (initial || !previousLayer) {
+          nextLayer.style.transition = "none";
+          nextLayer.classList.add("is-visible");
+          nextLayer.getBoundingClientRect();
+          nextLayer.style.removeProperty("transition");
+        } else {
+          nextLayer.classList.add("is-visible");
+          previousLayer.classList.remove("is-visible");
+        }
+
+        activeBackgroundLayer = nextLayerIndex;
+        currentBackgroundPath = nextPath;
+        if (backgroundCleanupTimer !== null) window.clearTimeout(backgroundCleanupTimer);
+        if (previousLayer) {
+          const cleanupDelay = logoMotionQuery.matches ? 0 : backgroundTransitionMs;
+          backgroundCleanupTimer = window.setTimeout(() => {
+            previousLayer.style.backgroundImage = "";
+            backgroundCleanupTimer = null;
+          }, cleanupDelay);
+        }
+        backgroundChanging = false;
+        scheduleBackgroundRotation();
+      }
+
+      function renderChronicle() {
+        const snapshot = window.TomeNetLoginNewsSnapshot;
+        const list = $("#chronicleList");
+
+        if (!snapshot?.events?.length) {
+          list.innerHTML = '<li class="chronicle-empty">Offline snapshot is unavailable. Run the snapshot updater while online.</li>';
+          return;
+        }
+
+        const events = snapshot.events.slice(0, maxChronicleEvents);
+        list.innerHTML = events.length ? events.map(event => `
+          <li class="chronicle-event" style="--event-color:${/^#[0-9a-f]{6}$/i.test(event.color || "") ? event.color : "#c6c5b9"}">
+            <div class="chronicle-event-meta">
+              <span class="chronicle-server">${escapeHtml(event.serverLabel)}</span>
+              <time class="chronicle-date" datetime="${escapeHtml(event.date)}">${escapeHtml(event.dateLabel)}</time>
+            </div>
+            <p>${escapeHtml(event.text)}</p>
+          </li>`).join("") : '<li class="chronicle-empty">No events in this snapshot for the selected server.</li>';
+      }
+
+      function selectedServer() {
+        if (state.selectedServerId === "manual") return state.manualServer;
+        return state.servers.find(server => server.id === state.selectedServerId) || null;
+      }
+
+      function selectedCharacter() {
+        const server = selectedServer();
+        return server?.characters.find(character => character.id === state.selectedCharacterId) || null;
+      }
+
+      function setStatus(message, type = "") {
+        const line = $("#statusLine");
+        line.textContent = message;
+        line.className = `status-line${type ? ` is-${type}` : ""}`;
+      }
+
+      function renderServers() {
+        const renderGroup = (title, official) => {
+          const options = state.servers.filter(server => server.official === official).map(server => {
+            const letter = String.fromCharCode(97 + state.servers.indexOf(server));
+            return `<div class="server-card">
+          <button class="server-option" type="button" role="option" data-server-id="${server.id}"
+            aria-selected="${server.id === state.selectedServerId}" tabindex="${server.id === state.selectedServerId || (!state.servers.some(item => item.id === state.selectedServerId) && server.id === state.servers[0].id) ? 0 : -1}">
+            <span class="server-main">
+              <span class="server-region" aria-label="Server ${letter}"><span class="server-letter">${letter}</span></span>
+              <span>
+                <span class="server-name">${escapeHtml(server.host)}:${server.port} <span class="server-note">(${escapeHtml(server.note)})</span></span>
+                <span class="server-address">${escapeHtml(server.game)} ${escapeHtml(server.version)}</span>
+              </span>
+              <span class="server-health"><strong>${server.ping} ms</strong><span>${server.players.length} ${server.players.length === 1 ? "player" : "players"}</span></span>
+            </span>
+            ${server.players.length ? `<span class="server-players">${server.players.map(escapeHtml).join(", ")}</span>` : ""}
+          </button>
+          <button class="server-enter" type="button" data-enter-server-id="${server.id}" aria-label="Connect to ${escapeHtml(server.name)}">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path class="server-doorway" d="M9 29V14a7 7 0 0 1 14 0v15Z"/>
+              <g class="server-door">
+                <path class="server-door-panel" d="M10 29V14a6 6 0 0 1 12 0v15Z"/>
+                <path class="server-door-planks" d="M14 9.7V29m4-19.3V29m-7.5-10.5h11"/>
+                <circle class="server-door-knob" cx="19" cy="21.5" r="1"/>
+              </g>
+              <path class="server-stone-arch" fill-rule="evenodd" d="M4 29V14C4 7.4 9.4 2 16 2s12 5.4 12 12v15h-5V14a7 7 0 0 0-14 0v15Zm5 0h14"/>
+              <path class="server-stone-seams" d="M5.6 9.2h5M21.4 9.2h5M9 4.9l3.1 3M23 4.9l-3.1 3M4 20h5m14 0h5"/>
+            </svg>
+          </button>
+          </div>`;
+          }).join("");
+          return `<section class="server-group" role="group" aria-label="${title}"><h3 class="server-group-title${official ? "" : " is-unofficial"}">${title}</h3><div class="server-list">${options}</div></section>`;
+        };
+        $("#serverGroups").innerHTML = renderGroup("Official servers", true) + renderGroup("Unofficial servers", false);
+        bindOptions("server");
+        $$('[data-enter-server-id]').forEach(button => {
+          button.addEventListener("click", () => {
+            selectOption("server", button.dataset.enterServerId);
+            goToStep("account");
+          });
+        });
+      }
+
+      function renderCharacters() {
+        const server = selectedServer();
+        if (!server) return;
+        if (!state.selectedCharacterId || !server.characters.some(character => character.id === state.selectedCharacterId)) {
+          state.selectedCharacterId = server.characters[0]?.id || null;
+        }
+        const occupied = {
+          iddc: server.characters.filter(character => character.mode === "IDDC").length,
+          pvp: server.characters.filter(character => character.mode === "PvP").length
+        };
+        occupied.standard = server.characters.length - occupied.iddc - occupied.pvp;
+        const slots = server.slots || {
+          standard: occupied.standard,
+          iddc: occupied.iddc,
+          pvp: occupied.pvp
+        };
+        const placeholders = [
+          ...Array(Math.max(0, slots.standard - occupied.standard)).fill({ type: "standard", label: "free slot" }),
+          ...Array(Math.max(0, slots.iddc - occupied.iddc)).fill({ type: "iddc", label: "free IDDC-exclusive slot" }),
+          ...Array(Math.max(0, slots.pvp - occupied.pvp)).fill({ type: "pvp", label: "free PvP-exclusive slot" })
+        ];
+        const charactersMarkup = server.characters.map((character, index) => `
+          <button class="character-option" type="button" role="option" data-character-id="${character.id}"
+            aria-selected="${character.id === state.selectedCharacterId}" tabindex="${character.id === state.selectedCharacterId ? 0 : -1}">
+            <span class="character-main">
+              <span class="character-letter" aria-hidden="true">${String.fromCharCode(97 + index)}</span>
+              <span class="character-level" aria-label="Level ${character.level}"><span>${character.level}</span></span>
+              <span class="character-identity" title="${escapeHtml(`${character.name} ${character.race} ${character.className}`)}">
+                <span class="character-name" title="${escapeHtml(character.name)}">${escapeHtml(character.name)}</span>
+                <span class="character-build" title="${escapeHtml(`${character.race} ${character.className}`)}">${escapeHtml(character.race)} ${escapeHtml(character.className)}</span>
+              </span>
+              <span class="character-meta">
+                <span class="mode-badge">${escapeHtml(character.mode)}</span>
+                <span class="character-location" title="${escapeHtml(character.location)}">${escapeHtml(character.location)}</span>
+              </span>
+            </span>
+          </button>
+        `).join("");
+        const placeholdersMarkup = placeholders.map(placeholder => `
+          <div class="character-slot-placeholder is-${placeholder.type}" role="option" aria-disabled="true">
+            <span class="character-slot-marker" aria-hidden="true"><span>◇</span></span>
+            <span>&lt;${placeholder.label}&gt;</span>
+          </div>
+        `).join("");
+        $("#characterList").innerHTML = charactersMarkup + placeholdersMarkup;
+        bindOptions("character");
+        renderCharacterDetail();
+      }
+
+      function renderCharacterDetail() {
+        const character = selectedCharacter();
+        if (!character) {
+          $("#characterDetail").innerHTML = "<p>No existing characters.</p>";
+          return;
+        }
+        $("#characterDetail").innerHTML = `
+          <p class="section-caption">Selected character</p>
+          <h3>${escapeHtml(character.name)}</h3>
+          <p>Level ${character.level} ${escapeHtml(character.race)} ${escapeHtml(character.className)}</p>
+          <dl class="detail-list">
+            <div><dt>Mode</dt><dd>${escapeHtml(character.mode)}${character.lives ? ` · ${character.lives} ${character.lives === 1 ? "life" : "lives"}` : ""}</dd></div>
+            <div><dt>Location</dt><dd>${escapeHtml(character.location)}</dd></div>
+          </dl>`;
+      }
+
+      function creationItem(collection, id) {
+        return collection.find(item => item.id === id) || collection[0];
+      }
+
+      function exclusiveSlotAvailability() {
+        const server = selectedServer();
+        const slots = server?.slots || { iddc: 0, pvp: 0 };
+        const iddcUsed = server?.characters.filter(character => character.mode === "IDDC").length || 0;
+        const pvpUsed = server?.characters.filter(character => character.mode === "PvP").length || 0;
+        return { iddc: iddcUsed < (slots.iddc || 0), pvp: pvpUsed < (slots.pvp || 0) };
+      }
+
+      function availableCreationRaces() {
+        const classId = state.creation.classId;
+        return creationData.races.filter(race => race.classes === "all" || race.classes.includes(classId));
+      }
+
+      function creationRacesWithAvailability() {
+        const classId = state.creation.classId;
+        return creationData.races.map(race => ({
+          ...race,
+          disabled: race.classes !== "all" && !race.classes.includes(classId)
+        }));
+      }
+
+      function creationClassesWithAvailability() {
+        const race = creationItem(creationData.races, state.creation.raceId);
+        return creationData.classes.map(characterClass => ({
+          ...characterClass,
+          disabled: race.classes !== "all" && !race.classes.includes(characterClass.id)
+        }));
+      }
+
+      function availableCreationTraits() {
+        const raceId = state.creation.raceId;
+        const specific = creationData.traits.filter(trait => trait.id !== "none" && trait.races.includes(raceId));
+        const traits = specific.length ? specific : creationData.traits.filter(trait => trait.id === "none");
+        return traits.map((trait, index) => ({ ...trait, hotkey: String.fromCharCode(97 + index) }));
+      }
+
+      function creationStepIsAvailable(step) {
+        return step.id !== "trait" || availableCreationTraits().some(trait => trait.id !== "none");
+      }
+
+      function adjacentCreationStepIndex(startIndex, direction) {
+        let index = startIndex + direction;
+        while (index >= 0 && index < creationSteps.length && !creationStepIsAvailable(creationSteps[index])) index += direction;
+        return index;
+      }
+
+      function availableCreationModes() {
+        const availability = exclusiveSlotAvailability();
+        const arcade = selectedServer()?.game === "TomeNET Arcade";
+        return creationData.modes.filter(mode => {
+          if (state.creation.entry === "exclusive") {
+            if (mode.entry === "exclusive-iddc") return availability.iddc;
+            if (mode.id === "pvp") return availability.pvp && !arcade;
+            return false;
+          }
+          if (mode.entry !== "standard" && mode.id !== "pvp") return false;
+          if (arcade && ["normal", "everlasting", "pvp"].includes(mode.id)) return false;
+          return true;
+        });
+      }
+
+      function statPointCost(value) {
+        return ({ 8: -2, 9: -1, 10: 0, 11: 1, 12: 2, 13: 4, 14: 6, 15: 9, 16: 12, 17: 16 })[value];
+      }
+
+      function creationPointsRemaining() {
+        return 30 - state.creation.stats.reduce((total, value) => total + statPointCost(value), 0);
+      }
+
+      function effectiveStat(index) {
+        const selectedClass = creationItem(creationData.classes, state.creation.classId);
+        const race = creationItem(creationData.races, state.creation.raceId);
+        return state.creation.stats[index] + selectedClass.mods[index] + race.mods[index];
+      }
+
+      function formatCreationStat(value) {
+        if (value <= 18) return String(value);
+        return `18/${String((value - 18) * 10).padStart(2, "0")}`;
+      }
+
+      function formatRecommendedMinimum(minimum) {
+        return formatCreationStat(minimum);
+      }
+
+      function creationRecommendationMarkup(recommendation, index) {
+        if (!recommendation) return `<span class="creation-stat-recommend"></span>`;
+        const hasMinimum = Number.isFinite(recommendation.minimum) && recommendation.minimum > 0;
+        const reached = hasMinimum && effectiveStat(index) >= recommendation.minimum;
+        const minimumMarkup = hasMinimum
+          ? `<span class="creation-stat-recommend-value${reached ? " is-reached" : ""}">${formatRecommendedMinimum(recommendation.minimum)}</span>`
+          : "";
+        const mainMarkup = recommendation.main ? `<span class="creation-stat-recommend-main">(main)</span>` : "";
+        return `<span class="creation-stat-recommend">${minimumMarkup}${mainMarkup}</span>`;
+      }
+
+      function creationSummaryStat(index) {
+        const classStepIndex = creationSteps.findIndex(step => step.id === "class");
+        return state.creation.stepIndex < classStepIndex ? 10 : effectiveStat(index);
+      }
+
+      function randomCharacterName() {
+        const first = ["Ael", "Bar", "Cele", "Dain", "Elen", "Fara", "Gala", "Hild", "Ith", "Kili", "Loth", "Mira"];
+        const last = ["wyn", "dor", "mir", "grim", "las", "wen", "brand", "ric", "ion", "iel", "orn", "eth"];
+        let candidate = "";
+        const names = selectedServer()?.characters.map(character => character.name.toLowerCase()) || [];
+        do candidate = first[Math.floor(Math.random() * first.length)] + last[Math.floor(Math.random() * last.length)];
+        while (names.includes(candidate.toLowerCase()));
+        return candidate.slice(0, 15);
+      }
+
+      function renderCreationSummary() {
+        const currentStep = state.creation.stepIndex;
+        const selectedClass = creationItem(creationData.classes, state.creation.classId);
+        const race = creationItem(creationData.races, state.creation.raceId);
+        const trait = creationItem(creationData.traits, state.creation.traitId);
+        const body = creationItem(creationData.bodies, state.creation.bodyId);
+        const mode = creationItem(creationData.modes, state.creation.modeId);
+        const rows = [
+          { step: 1, label: "Sex", value: creationItem(creationData.sexes, state.creation.sex).name },
+          { step: 2, label: "Class", value: selectedClass.name },
+          { step: 3, label: "Race", value: race.name },
+          { step: 4, label: "Trait", value: trait.name },
+          { step: 5, label: "Body", value: body.name },
+          { step: 7, label: "Mode", value: mode.name }
+        ];
+        $("#creationSummary").innerHTML = `
+          <div class="creation-summary-hero">
+            <div class="creation-summary-heading">
+              <h3>${escapeHtml(state.creation.name)}</h3>
+            </div>
+          </div>
+          <dl class="creation-summary-list">
+            ${rows.map(row => `<div${row.step > currentStep ? ` class="is-pending"` : ""}><dt>${escapeHtml(row.label)}</dt><dd>${row.step <= currentStep ? escapeHtml(row.value) : ""}</dd></div>`).join("")}
+          </dl>
+          <p class="creation-summary-stats-label">Attributes</p>
+          <div class="creation-summary-stats">
+            ${creationData.statNames.map((name, index) => `<span class="creation-summary-stat"><small>${escapeHtml(name)}</small><strong>${creationSummaryStat(index)}</strong></span>`).join("")}
+          </div>`;
+      }
+
+      function creationChoiceMarkup(items, selectedId, field, showDescriptions = true, extraClass = "") {
+        return `<div class="creation-choice-grid${items.length > 6 ? " is-wide" : ""}${showDescriptions ? "" : " is-compact"}${extraClass ? ` ${extraClass}` : ""}" role="radiogroup">${items.map((item, index) => {
+          const hotkey = item.hotkey || String.fromCharCode(97 + index);
+          return `
+          <button class="creation-choice" type="button" role="radio" aria-checked="${item.id === selectedId}" aria-disabled="${Boolean(item.disabled)}"
+            data-creation-field="${field}" data-creation-value="${item.id}" data-creation-hotkey="${escapeHtml(hotkey)}" tabindex="${item.id === selectedId && !item.disabled ? 0 : -1}" ${item.disabled ? "disabled" : ""}>
+            <strong>${escapeHtml(hotkey)}) ${escapeHtml(item.name)}</strong>
+            ${showDescriptions ? `<small>${escapeHtml(item.description)}</small>` : ""}
+          </button>`;
+        }).join("")}</div>`;
+      }
+
+      function modifierMarkup(mods, extraClass = "") {
+        return `<div class="creation-detail-mods${extraClass ? ` ${extraClass}` : ""}">${creationData.statNames.map((name, index) => {
+          const value = mods[index] || 0;
+          const sign = value > 0 ? "+" : "";
+          return `<span>${escapeHtml(name.slice(0, 3))}<strong class="${value < 0 ? "is-negative" : ""}">${sign}${value}</strong></span>`;
+        }).join("")}</div>`;
+      }
+
+      function clientDescriptionLines(kind, name) {
+        const aliases = { Mage: "Istar", None: "N/A" };
+        const groups = { class: "classes", race: "races", trait: "traits" };
+        const sourceName = aliases[name] || name;
+        return window.TomeNetCreationDescriptions?.[groups[kind]]?.[sourceName] || [];
+      }
+
+      function clientDescriptionMarkup(lines, fallback = "") {
+        const content = lines.length ? lines : (fallback ? [fallback] : []);
+        if (!content.length) return "";
+        const paragraph = content.reduce((text, line) => `${text}${text && !text.endsWith("-") ? " " : ""}${line}`, "");
+        return `<p class="creation-detail-client-copy">${escapeHtml(paragraph)}</p>`;
+      }
+
+      function hasClientDescription(lines, fallback = "") {
+        return Boolean(lines.length || String(fallback).trim());
+      }
+
+      function creationChoiceDetailContentMarkup(item, kind) {
+        let meta = "";
+        if (kind === "class" || kind === "race") {
+          meta = modifierMarkup(item.mods, "is-three-columns");
+        }
+        return `<div class="creation-detail-heading">
+            <h4>${escapeHtml(item.name)}</h4>
+            ${meta}
+          </div>
+          ${clientDescriptionMarkup(clientDescriptionLines(kind, item.name), item.description)}`;
+      }
+
+      function creationChoiceDetailMarkup(item, kind) {
+        const descriptionLines = clientDescriptionLines(kind, item.name);
+        const descriptionClass = hasClientDescription(descriptionLines, item.description) ? " has-description" : "";
+        return `<aside class="creation-detail${descriptionClass}" aria-live="polite">${creationChoiceDetailContentMarkup(item, kind)}</aside>`;
+      }
+
+      function detailedChoiceMarkup(items, selectedId, field, kind) {
+        const selected = creationItem(items, selectedId);
+        return `<div class="creation-selection-layout">
+          <div class="creation-selection-list${kind === "class" ? " is-class-selection" : ""}">
+            ${kind === "class" ? classGuidanceMarkup() : ""}
+            ${creationChoiceMarkup(items, selectedId, field, false, kind === "class" ? "creation-class-grid" : "")}
+          </div>
+          ${creationChoiceDetailMarkup(selected, kind)}
+        </div>`;
+      }
+
+      function creationKeyHint(step) {
+        if (step === "name") return "Enter confirm · blank = random · Esc cancel";
+        if (step === "sex") return "M/F choose · * random · Backspace back · Q quit";
+        if (step === "class") return "a–m choose · 2/4/6/8 navigate · Enter confirm · * random · Backspace back · ? guide · Q quit";
+        if (step === "race") return "a–r choose · 2/4/6/8 navigate · Enter confirm · * random · Backspace back · ? guide · Q quit";
+        if (step === "trait") return "letter choose · 2/4/6/8 navigate · Enter confirm · * random · Backspace back · ? guide · Q quit";
+        if (step === "body") return "N/F choose · Enter confirm · * random · Backspace back · ? guide · Q quit";
+        if (step === "attributes") return "2/8 or J/K select · 4/6 or H/L modify · Enter/Esc continue · Backspace back · * randomise · ? guide · Q quit";
+        return "N/G/S/E/H/P choose · Enter create · * random · Backspace back · ? guide · Q quit";
+      }
+
+      function classGuidanceMarkup() {
+        const guidance = window.TomeNetCreationDescriptions?.classGuidance || [];
+        if (!guidance.length) return "";
+        return `<aside class="creation-class-guidance" aria-label="Class recommendations">
+          ${guidance.map(item => `<p${item.tone ? ` class="is-${escapeHtml(item.tone)}"` : ""}>${item.lead ? `<span>${escapeHtml(item.lead)}</span> ` : ""}${item.text ? escapeHtml(item.text) : `<span class="creation-class-guidance-detail">${escapeHtml(item.detail)}</span>`}</p>`).join("")}
+        </aside>`;
+      }
+
+      function creationAttributeDetailMarkup(index) {
+        const name = creationData.statNames[index];
+        return `<h4>${escapeHtml(name)}</h4>
+          ${clientDescriptionMarkup(window.TomeNetCreationDescriptions?.attributes?.[name] || [], creationData.attributeDescriptions[index])}`;
+      }
+
+      function selectCreationAttributeDetail(index) {
+        state.creation.detailStatIndex = index;
+        $$(".creation-stat").forEach((row, rowIndex) => row.classList.toggle("is-selected", rowIndex === index));
+        const detail = $("#creationAttributeDetail");
+        if (detail) {
+          const name = creationData.statNames[index];
+          detail.classList.toggle("has-description", hasClientDescription(window.TomeNetCreationDescriptions?.attributes?.[name] || [], creationData.attributeDescriptions[index]));
+          detail.innerHTML = creationAttributeDetailMarkup(index);
+        }
+      }
+
+      function adjustCreationStat(index, delta) {
+        const value = state.creation.stats[index];
+        if (delta < 0 && value <= 8) return false;
+        if (delta > 0) {
+          const maxedElsewhere = state.creation.stats.some((stat, statIndex) => statIndex !== index && stat === 17);
+          const pointCost = statPointCost(value + 1) - statPointCost(value);
+          if (value >= 17 || (value === 16 && maxedElsewhere) || creationPointsRemaining() < pointCost) return false;
+        }
+        state.creation.detailStatIndex = index;
+        state.creation.stats[index] += delta;
+        renderCreation();
+        return true;
+      }
+
+      function moveCreationChoice(button, key) {
+        const grid = button.closest(".creation-choice-grid");
+        if (!grid) return;
+        const choices = [...grid.querySelectorAll(".creation-choice")];
+        const current = Math.max(0, choices.indexOf(button));
+        const tracks = getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean);
+        const columns = Math.max(1, Math.min(tracks.length, choices.length));
+        const rows = Math.ceil(choices.length / columns);
+        const enabled = choice => !choice.disabled;
+        let next = current;
+
+        const directionKey = ({ "4": "ArrowLeft", "-": "ArrowLeft", "6": "ArrowRight", "+": "ArrowRight", "8": "ArrowUp", "<": "ArrowUp", "2": "ArrowDown", ">": "ArrowDown" })[key] || key;
+        if (directionKey === "Home") next = choices.findIndex(enabled);
+        else if (directionKey === "End") next = choices.map(enabled).lastIndexOf(true);
+        else {
+          const step = index => {
+            if (directionKey === "ArrowLeft" || directionKey === "ArrowRight") {
+              const rowStart = Math.floor(index / columns) * columns;
+              const rowEnd = Math.min(rowStart + columns, choices.length) - 1;
+              if (directionKey === "ArrowLeft") return index > rowStart ? index - 1 : rowEnd;
+              return index < rowEnd ? index + 1 : rowStart;
+            }
+            const column = index % columns;
+            const direction = directionKey === "ArrowUp" ? -1 : 1;
+            let row = Math.floor(index / columns);
+            for (let attempt = 0; attempt < rows; attempt += 1) {
+              row = (row + direction + rows) % rows;
+              const candidate = row * columns + column;
+              if (candidate < choices.length) return candidate;
+            }
+            return index;
+          };
+          for (let attempt = 0; attempt < choices.length; attempt += 1) {
+            next = step(next);
+            if (enabled(choices[next])) break;
+          }
+        }
+        if (next >= 0 && enabled(choices[next])) choices[next].click();
+      }
+
+      function renderCreationContent() {
+        const step = creationSteps[state.creation.stepIndex].id;
+        const content = $("#creationContent");
+        if (step === "name") {
+          content.innerHTML = `<div class="creation-name-layout">
+            <div class="field">
+              <label for="characterNameInput">Character name</label>
+              <div class="creation-name-row">
+                <input class="field-input" id="characterNameInput" maxlength="15" value="${escapeHtml(state.creation.name)}" autocomplete="off" spellcheck="false" aria-describedby="characterNameNote characterNameError">
+                <button class="login-button game-action-button is-secondary creation-random" id="randomNameButton" type="button"><kbd aria-hidden="true">*</kbd>Random</button>
+              </div>
+              <span class="field-error" id="characterNameError" aria-live="polite">${escapeHtml(state.creation.error)}</span>
+            </div>
+            <p class="creation-field-note" id="characterNameNote">1–15 characters. Letters, numbers, spaces and . , - ' &amp; _ $ % ~ # are allowed. The first letter is capitalised.</p>
+          </div>`;
+          const input = $("#characterNameInput");
+          input.addEventListener("input", () => {
+            state.creation.name = input.value;
+            state.creation.error = "";
+            $("#characterNameError").textContent = "";
+            renderCreationSummary();
+          });
+          $("#randomNameButton").addEventListener("click", () => {
+            state.creation.name = randomCharacterName();
+            state.creation.error = "";
+            renderCreation();
+            $("#characterNameInput").focus();
+            $("#characterNameInput").select();
+          });
+          return;
+        }
+        if (step === "sex") content.innerHTML = creationChoiceMarkup(creationData.sexes, state.creation.sex, "sex");
+        if (step === "class") content.innerHTML = detailedChoiceMarkup(creationClassesWithAvailability(), state.creation.classId, "classId", "class");
+        if (step === "race") content.innerHTML = detailedChoiceMarkup(creationRacesWithAvailability(), state.creation.raceId, "raceId", "race");
+        if (step === "trait") {
+          const traits = availableCreationTraits();
+          content.innerHTML = detailedChoiceMarkup(traits, state.creation.traitId, "traitId", "trait");
+        }
+        if (step === "body") content.innerHTML = creationChoiceMarkup(creationData.bodies, state.creation.bodyId, "bodyId");
+        if (step === "mode") content.innerHTML = creationChoiceMarkup(availableCreationModes(), state.creation.modeId, "modeId");
+        if (step === "attributes") {
+          const remaining = creationPointsRemaining();
+          const selectedClass = creationItem(creationData.classes, state.creation.classId);
+          const selectedRace = creationItem(creationData.races, state.creation.raceId);
+          const detailIndex = Math.min(Math.max(state.creation.detailStatIndex || 0, 0), creationData.statNames.length - 1);
+          const detailName = creationData.statNames[detailIndex];
+          const detailHasDescription = hasClientDescription(window.TomeNetCreationDescriptions?.attributes?.[detailName] || [], creationData.attributeDescriptions[detailIndex]);
+          content.innerHTML = `<div class="creation-selection-layout">
+            <div class="creation-selection-list creation-stats">
+              <p class="creation-recommend-guidance">If any values are shown under 'recommended minimum', try to reach those.</p>
+              <div class="creation-stat-head" aria-hidden="true"><span>Attribute</span><span>Base</span><span>${escapeHtml(selectedClass.name)}</span><span>${escapeHtml(selectedRace.name)}</span><span class="creation-stat-divider"></span><span>Current</span><span></span><span>Recommended min</span></div>
+              ${creationData.statNames.map((name, index) => {
+                const value = state.creation.stats[index];
+                const classModifier = selectedClass.mods[index];
+                const raceModifier = selectedRace.mods[index];
+                const recommended = selectedClass.recommended[index];
+                const valueState = value === 8 ? " is-min" : value === 17 ? " is-max" : "";
+                const maxedElsewhere = state.creation.stats.some((stat, statIndex) => statIndex !== index && stat === 17);
+                return `<div class="creation-stat${index === detailIndex ? " is-selected" : ""}" data-attribute-index="${index}" tabindex="${index === detailIndex ? 0 : -1}">
+                  <span class="creation-stat-name"><strong>${escapeHtml(name)}</strong></span>
+                  <span class="creation-stat-base">${value}</span>
+                  <span class="creation-stat-modifier${classModifier < 0 ? " is-negative" : ""}">${classModifier > 0 ? "+" : ""}${classModifier}</span>
+                  <span class="creation-stat-modifier${raceModifier < 0 ? " is-negative" : ""}">${raceModifier > 0 ? "+" : ""}${raceModifier}</span>
+                  <span class="creation-stat-divider" aria-hidden="true"></span>
+                  <span class="creation-stat-value${valueState}">${formatCreationStat(effectiveStat(index))}</span>
+                  <span class="creation-stat-controls">
+                    <button type="button" data-stat-index="${index}" data-stat-delta="-1" aria-label="Decrease ${name}" ${value <= 8 ? "disabled" : ""}>−</button>
+                    <button type="button" data-stat-index="${index}" data-stat-delta="1" aria-label="Increase ${name}" ${value >= 17 || (value === 16 && maxedElsewhere) || remaining < statPointCost(value + 1) - statPointCost(value) ? "disabled" : ""}>+</button>
+                  </span>
+                  ${creationRecommendationMarkup(recommended, index)}
+                </div>`;
+              }).join("")}
+            </div>
+            <aside class="creation-detail${detailHasDescription ? " has-description" : ""}" id="creationAttributeDetail" aria-live="polite">${creationAttributeDetailMarkup(detailIndex)}</aside>
+          </div>`;
+          $$("[data-attribute-index]").forEach(row => {
+            const index = Number(row.dataset.attributeIndex);
+            row.addEventListener("mouseenter", () => selectCreationAttributeDetail(index));
+            row.addEventListener("focusin", () => selectCreationAttributeDetail(index));
+            row.addEventListener("click", () => selectCreationAttributeDetail(index));
+          });
+          $$('[data-stat-index]').forEach(button => button.addEventListener("click", () => {
+            const index = Number(button.dataset.statIndex);
+            if (adjustCreationStat(index, Number(button.dataset.statDelta))) {
+              document.querySelector(`[data-stat-index="${index}"][data-stat-delta="${button.dataset.statDelta}"]`)?.focus();
+            }
+          }));
+          return;
+        }
+        $$('[data-creation-field]').forEach(button => button.addEventListener("click", event => {
+          const confirmChoice = event.detail > 1;
+          selectCreationChoice(button.dataset.creationField, button.dataset.creationValue);
+          if (confirmChoice) advanceCreation();
+        }));
+      }
+
+      function renderCreation() {
+        const step = creationSteps[state.creation.stepIndex];
+        const hasSideDetail = ["class", "race", "trait", "attributes"].includes(step.id);
+        $(".creation-stage").classList.toggle("has-side-detail", hasSideDetail);
+        $(".creation-workspace").classList.toggle("has-side-detail", hasSideDetail);
+        $("#creationStageTitle").textContent = step.id === "attributes"
+          ? `Distribute your attribute points — use them all ${creationPointsRemaining()} left`
+          : step.title;
+        $("#creationStageIntro").textContent = step.intro;
+        renderCreationContent();
+        renderCreationSummary();
+        $("#primaryButton").textContent = step.id === "mode" ? "Create & enter" : "Continue";
+        $("#keyHint").textContent = creationKeyHint(step.id);
+        setStatus("");
+      }
+
+      function selectCreationChoice(field, value) {
+        state.creation[field] = value;
+        if (field === "classId" && !availableCreationRaces().some(race => race.id === state.creation.raceId)) {
+          state.creation.raceId = availableCreationRaces()[0].id;
+          state.creation.traitId = "none";
+        }
+        if (field === "raceId") state.creation.traitId = availableCreationTraits()[0].id;
+        renderCreation();
+        document.querySelector(`[data-creation-field="${field}"][data-creation-value="${CSS.escape(value)}"]`)?.focus({ preventScroll: true });
+      }
+
+      function validateCreationStep(allowUnspentAttributes = false) {
+        const step = creationSteps[state.creation.stepIndex].id;
+        if (step === "name") {
+          let name = state.creation.name.trim();
+          if (!name) name = randomCharacterName();
+          const valid = /^[A-Za-z0-9 .,'&_$%~#-]{1,15}$/.test(name);
+          const duplicate = selectedServer()?.characters.some(character => character.name.toLowerCase() === name.toLowerCase());
+          if (!valid || duplicate) {
+            state.creation.error = duplicate ? "A character with this name already exists." : "Use 1–15 allowed characters.";
+            renderCreation();
+            $("#characterNameInput")?.focus();
+            return false;
+          }
+          state.creation.name = name.charAt(0).toUpperCase() + name.slice(1);
+          state.creation.error = "";
+        }
+        if (step === "attributes" && creationPointsRemaining() !== 0 && !allowUnspentAttributes) {
+          openAttributeWarning();
+          return false;
+        }
+        return true;
+      }
+
+      function focusCreationControl() {
+        requestAnimationFrame(() => {
+          const target = $("#characterNameInput") || $(".creation-choice[aria-checked='true']") || $("[data-stat-index]") || $("#primaryButton");
+          target?.focus({ preventScroll: true });
+        });
+      }
+
+      function advanceCreation(allowUnspentAttributes = false) {
+        if (!validateCreationStep(allowUnspentAttributes)) return;
+        const nextStepIndex = adjacentCreationStepIndex(state.creation.stepIndex, 1);
+        if (nextStepIndex < creationSteps.length) {
+          state.creation.stepIndex = nextStepIndex;
+          renderCreation();
+          $(".panel-body").scrollTop = 0;
+          focusCreationControl();
+          return;
+        }
+        setBusy(true, "Entering game", `${state.creation.name} · ${creationItem(creationData.modes, state.creation.modeId).name} · prototype transition`);
+        window.setTimeout(() => { window.location.assign("./index.html"); }, 850);
+      }
+
+      function backCreation() {
+        const previousStepIndex = adjacentCreationStepIndex(state.creation.stepIndex, -1);
+        if (previousStepIndex >= 0) {
+          state.creation.stepIndex = previousStepIndex;
+          renderCreation();
+          $(".panel-body").scrollTop = 0;
+          focusCreationControl();
+        } else goToStep("character");
+      }
+
+      function randomizeCreationStep() {
+        const step = creationSteps[state.creation.stepIndex].id;
+        if (step === "name") state.creation.name = randomCharacterName();
+        else if (step === "attributes") {
+          state.creation.stats = [10, 10, 10, 10, 10, 10];
+          while (creationPointsRemaining() > 0) {
+            const candidates = state.creation.stats.map((value, index) => ({ value, index })).filter(item => item.value < 16 && creationPointsRemaining() >= statPointCost(item.value + 1) - statPointCost(item.value));
+            if (!candidates.length) break;
+            const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+            state.creation.stats[candidate.index] += 1;
+          }
+        } else {
+          const mapping = {
+            sex: [creationData.sexes, "sex"], class: [creationClassesWithAvailability().filter(item => !item.disabled), "classId"], race: [availableCreationRaces(), "raceId"],
+            trait: [availableCreationTraits(), "traitId"], body: [state.creation.classId === "archer" ? creationData.bodies.filter(item => item.id === "normal") : creationData.bodies, "bodyId"], mode: [availableCreationModes(), "modeId"]
+          }[step];
+          if (!mapping) return;
+          selectCreationChoice(mapping[1], mapping[0][Math.floor(Math.random() * mapping[0].length)].id);
+          advanceCreation();
+          return;
+        }
+        renderCreation();
+        focusCreationControl();
+      }
+
+      function beginCreation(entry) {
+        if (entry === "exclusive") {
+          const availability = exclusiveSlotAvailability();
+          if (!availability.iddc && !availability.pvp) return;
+        }
+        state.creation = freshCreationState(entry);
+        const modes = availableCreationModes();
+        state.creation.modeId = modes[0]?.id || "normal";
+        goToStep("character-create");
+      }
+
+      function bindOptions(kind) {
+        const selector = kind === "server" ? "[data-server-id]" : "[data-character-id]";
+        $$(selector).forEach(option => {
+          option.addEventListener("click", () => selectOption(kind, option.dataset[kind === "server" ? "serverId" : "characterId"]));
+          option.addEventListener("dblclick", () => {
+            selectOption(kind, option.dataset[kind === "server" ? "serverId" : "characterId"]);
+            kind === "server" ? goToStep("account") : playCharacter();
+          });
+          option.addEventListener("keydown", event => handleOptionKeydown(event, kind));
+        });
+      }
+
+      function revealCharacterOption(option) {
+        const list = $("#characterList");
+        if (!option || !list) return;
+        const optionRect = option.getBoundingClientRect();
+        const listRect = list.getBoundingClientRect();
+        if (optionRect.top < listRect.top) list.scrollTop -= listRect.top - optionRect.top;
+        else if (optionRect.bottom > listRect.bottom) list.scrollTop += optionRect.bottom - listRect.bottom;
+      }
+
+      function selectOption(kind, id, focus = false) {
+        if (kind === "server") {
+          state.selectedServerId = id;
+          state.manualServer = null;
+          renderServers();
+          if (focus) document.querySelector(`[data-server-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+        } else {
+          state.selectedCharacterId = id;
+          renderCharacters();
+          if (focus) {
+            const option = document.querySelector(`[data-character-id="${CSS.escape(id)}"]`);
+            option?.focus({ preventScroll: true });
+            revealCharacterOption(option);
+          }
+        }
+      }
+
+      function handleOptionKeydown(event, kind) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.stopPropagation();
+          kind === "server" ? goToStep("account") : playCharacter();
+          return;
+        }
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const options = kind === "server" ? state.servers.map(item => item.id) : selectedServer().characters.map(item => item.id);
+        const currentId = kind === "server" ? state.selectedServerId : state.selectedCharacterId;
+        const current = Math.max(0, options.indexOf(currentId));
+        const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+        selectOption(kind, options[next], true);
+      }
+
+      function updateStepUI() {
+        const index = stepOrder.indexOf(state.step);
+        document.body.dataset.step = state.step;
+        $$(".step-view").forEach(view => { view.hidden = view.dataset.step !== state.step; });
+        $("#panelTitle").textContent = titles[state.step][0];
+        $("#panelIntro").textContent = titles[state.step][1];
+        $("#heroTitle").textContent = heroMessages[state.step][0];
+        $("#heroDescription").textContent = heroMessages[state.step][1];
+        $("#backButton").hidden = index === 0;
+        $("#createCharacterButton").hidden = state.step !== "character";
+        const availability = exclusiveSlotAvailability();
+        $("#createExclusiveButton").hidden = state.step !== "character";
+        $("#createExclusiveButton").disabled = !availability.iddc && !availability.pvp;
+        $("#primaryButton").textContent = state.step === "character" ? "Play" : "Continue";
+        const characterCount = selectedServer()?.characters.length || 0;
+        const characterLetterHint = characterCount ? ` · a–${String.fromCharCode(96 + characterCount)}` : "";
+        $("#keyHint").textContent = state.step === "character"
+          ? `↑↓ · Enter${characterLetterHint}`
+          : state.step === "server"
+            ? "↑↓ Select · Enter Continue · Q Direct connection"
+            : "";
+        if (state.step === "server") setStatus("");
+        if (state.step === "account") {
+          const server = selectedServer();
+          $("#panelTitle").textContent = `Logging in ${server.host}`;
+          setStatus("");
+        }
+        if (state.step === "character") {
+          renderCharacters();
+          setStatus(`${selectedServer().characters.length} existing ${selectedServer().characters.length === 1 ? "character" : "characters"}`);
+        }
+        if (state.step === "character-create") renderCreation();
+        syncAccountLogoAnimation();
+        syncTorchAnimation();
+      }
+
+      function goToStep(step) {
+        if (state.busy || !stepOrder.includes(step)) return;
+        state.step = step;
+        updateStepUI();
+        window.scrollTo(0, 0);
+        const panelBody = $(".panel-body");
+        panelBody.scrollTop = 0;
+        panelBody.scrollLeft = 0;
+        const characterList = $("#characterList");
+        characterList.scrollTop = 0;
+        characterList.scrollLeft = 0;
+        requestAnimationFrame(() => {
+          const focusTarget = step === "server"
+            ? $("[data-server-id][tabindex='0']")
+            : step === "account"
+              ? $("#accountInput")
+              : step === "character"
+                ? $("[data-character-id][aria-selected='true']")
+                : step === "character-create"
+                  ? $("#characterNameInput") || $(".creation-choice[aria-checked='true']")
+                  : $("#backButton");
+          focusTarget?.focus({ preventScroll: true });
+          if (step === "character") revealCharacterOption(focusTarget);
+        });
+      }
+
+      function goBack() {
+        if (state.step === "character-create") {
+          backCreation();
+          return;
+        }
+        const index = stepOrder.indexOf(state.step);
+        if (index > 0 && !state.busy) goToStep(stepOrder[index - 1]);
+      }
+
+      function openDirectConnection() {
+        if (state.step !== "server" || state.busy || state.directOpen) return;
+        state.directOpen = true;
+        $("#directBackdrop").hidden = false;
+        $(".panel-body").inert = true;
+        $(".panel-footer").inert = true;
+        $("#manualError").textContent = "";
+        requestAnimationFrame(() => {
+          const input = $("#hostInput");
+          input.focus();
+          input.select();
+        });
+      }
+
+      function closeDirectConnection() {
+        if (!state.directOpen) return;
+        state.directOpen = false;
+        $("#directBackdrop").hidden = true;
+        $(".panel-body").inert = false;
+        $(".panel-footer").inert = false;
+        $("[data-server-id][aria-selected='true']")?.focus();
+      }
+
+      function openAttributeWarning() {
+        if (state.attributeWarningOpen) return;
+        state.attributeWarningOpen = true;
+        $("#attributeWarningCount").textContent = String(creationPointsRemaining());
+        $("#attributeWarningBackdrop").hidden = false;
+        $(".panel-body").inert = true;
+        $(".panel-footer").inert = true;
+        requestAnimationFrame(() => $("#closeAttributeWarningButton").focus());
+      }
+
+      function closeAttributeWarning(restoreFocus = true) {
+        if (!state.attributeWarningOpen) return;
+        state.attributeWarningOpen = false;
+        $("#attributeWarningBackdrop").hidden = true;
+        $(".panel-body").inert = false;
+        $(".panel-footer").inert = false;
+        if (restoreFocus) {
+          requestAnimationFrame(() => {
+            document.querySelector(`[data-attribute-index="${state.creation.detailStatIndex}"]`)?.focus({ preventScroll: true });
+          });
+        }
+      }
+
+      function continueWithUnspentAttributes() {
+        closeAttributeWarning(false);
+        advanceCreation(true);
+      }
+
+      function creationGuideContent() {
+        const step = creationSteps[state.creation.stepIndex].id;
+        const selected = {
+          class: creationItem(creationData.classes, state.creation.classId),
+          race: creationItem(creationData.races, state.creation.raceId),
+          trait: creationItem(availableCreationTraits(), state.creation.traitId),
+          body: creationItem(creationData.bodies, state.creation.bodyId),
+          mode: creationItem(availableCreationModes(), state.creation.modeId)
+        }[step];
+        if (step === "attributes") {
+          const name = creationData.statNames[state.creation.detailStatIndex];
+          return {
+            title: "Guide — Attributes",
+            lines: window.TomeNetCreationDescriptions?.attributes?.[name] || [creationData.attributeDescriptions[state.creation.detailStatIndex]]
+          };
+        }
+        const label = step.charAt(0).toUpperCase() + step.slice(1);
+        return {
+          title: `Guide — ${label}`,
+          lines: selected ? (clientDescriptionLines(step, selected.name).length ? clientDescriptionLines(step, selected.name) : [selected.description]) : []
+        };
+      }
+
+      function openCreationGuide() {
+        const step = creationSteps[state.creation.stepIndex].id;
+        if (!["class", "race", "trait", "body", "attributes", "mode"].includes(step) || state.creationGuideOpen) return;
+        const guide = creationGuideContent();
+        state.creationGuideOpen = true;
+        $("#creationGuideTitle").textContent = guide.title;
+        $("#creationGuideCopy").innerHTML = guide.lines.map(line => `<p>${escapeHtml(line)}</p>`).join("");
+        $("#creationGuideControls").textContent = creationKeyHint(step);
+        $("#creationGuideBackdrop").hidden = false;
+        $(".panel-body").inert = true;
+        $(".panel-footer").inert = true;
+        requestAnimationFrame(() => $("#closeCreationGuideButton").focus());
+      }
+
+      function closeCreationGuide() {
+        if (!state.creationGuideOpen) return;
+        state.creationGuideOpen = false;
+        $("#creationGuideBackdrop").hidden = true;
+        $(".panel-body").inert = false;
+        $(".panel-footer").inert = false;
+        focusCreationControl();
+      }
+
+      function leaveCharacterCreation() {
+        if (state.step !== "character-create") return;
+        state.creationGuideOpen = false;
+        state.attributeWarningOpen = false;
+        $("#creationGuideBackdrop").hidden = true;
+        $("#attributeWarningBackdrop").hidden = true;
+        $(".panel-body").inert = false;
+        $(".panel-footer").inert = false;
+        goToStep("quit");
+      }
+
+      function returnToServerList() {
+        state.creation = freshCreationState("standard");
+        state.selectedCharacterId = null;
+        goToStep("server");
+      }
+
+      function setBusy(busy, title = "", message = "") {
+        state.busy = busy;
+        $("#loadingMask").hidden = !busy;
+        $("#primaryButton").disabled = busy;
+        if (busy) {
+          $("#loadingTitle").textContent = title;
+          $("#loadingMessage").textContent = message;
+        }
+      }
+
+      function validateAccount() {
+        const account = $("#accountInput").value.trim();
+        const password = $("#passwordInput").value;
+        const accountValid = account.length >= 3 && account.length <= 15;
+        const passwordValid = password.length >= 6 && password.length <= 15;
+        $("#accountError").textContent = accountValid ? "" : "Enter 3–15 characters.";
+        $("#passwordError").textContent = passwordValid ? "" : "Enter 6–15 characters.";
+        $("#accountInput").setAttribute("aria-invalid", String(!accountValid));
+        $("#passwordInput").setAttribute("aria-invalid", String(!passwordValid));
+        if (!accountValid) $("#accountInput").focus();
+        else if (!passwordValid) $("#passwordInput").focus();
+        if (accountValid && passwordValid) {
+          state.account = account.charAt(0).toUpperCase() + account.slice(1);
+          $("#accountInput").value = state.account;
+        }
+        return accountValid && passwordValid;
+      }
+
+      function authorize() {
+        if (!validateAccount() || state.busy) return;
+        setBusy(true, "Verifying account", `Connecting to ${selectedServer().name} · prototype simulation`);
+        window.setTimeout(() => {
+          setBusy(false);
+          goToStep("character");
+        }, 600);
+      }
+
+      function playCharacter() {
+        const character = selectedCharacter();
+        if (!character || state.busy) return;
+        setBusy(true, "Preparing character", `${character.name} · ${selectedServer().name}`);
+        window.setTimeout(() => {
+          $("#loadingTitle").textContent = "Entering world";
+          $("#loadingMessage").textContent = `${character.location} · prototype transition`;
+        }, 420);
+        window.setTimeout(() => { window.location.assign("./index.html"); }, 850);
+      }
+
+      function handlePrimary() {
+        if (state.step === "server") goToStep("account");
+        else if (state.step === "account") authorize();
+        else if (state.step === "character-create") advanceCreation();
+        else playCharacter();
+      }
+
+      $("#manualForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const host = $("#hostInput").value.trim();
+        const port = 18348;
+        const bracketedIpv6 = /^\[[0-9a-f:]+\]$/i.test(host);
+        const hostnameOrIpv4 = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|(?:\d{1,3}\.){3}\d{1,3})$/i.test(host);
+        if (!(bracketedIpv6 || hostnameOrIpv4)) {
+          $("#manualError").textContent = "Enter a valid server address.";
+          return;
+        }
+        $("#manualError").textContent = "";
+        state.manualServer = {
+          id: "manual", region: "IP", name: host, host, port, official: false,
+          game: "TomeNET", version: "Unknown", players: [], ping: null, note: "Direct connection", characters: manualCharacters
+        };
+        state.selectedServerId = "manual";
+        state.directOpen = false;
+        $("#directBackdrop").hidden = true;
+        setStatus(`${host}:${port} selected`, "success");
+        goToStep("account");
+      });
+
+      $("#accountForm").addEventListener("submit", event => { event.preventDefault(); authorize(); });
+      $("#primaryButton").addEventListener("click", handlePrimary);
+      $("#backButton").addEventListener("click", goBack);
+      $("#createCharacterButton").addEventListener("click", () => beginCreation("standard"));
+      $("#createExclusiveButton").addEventListener("click", () => beginCreation("exclusive"));
+      $("#cancelDirectButton").addEventListener("click", closeDirectConnection);
+      $("#closeAttributeWarningButton").addEventListener("click", () => closeAttributeWarning());
+      $("#continueWithUnspentButton").addEventListener("click", continueWithUnspentAttributes);
+      $("#closeCreationGuideButton").addEventListener("click", closeCreationGuide);
+      $("#returnToServersButton").addEventListener("click", returnToServerList);
+      $("#directBackdrop").addEventListener("mousedown", event => {
+        if (event.target === $("#directBackdrop")) closeDirectConnection();
+      });
+      $("#attributeWarningBackdrop").addEventListener("mousedown", event => {
+        if (event.target === $("#attributeWarningBackdrop")) closeAttributeWarning();
+      });
+      $("#creationGuideBackdrop").addEventListener("mousedown", event => {
+        if (event.target === $("#creationGuideBackdrop")) closeCreationGuide();
+      });
+      const serverRefreshTimer = window.setInterval(() => {
+        if (state.busy || state.step !== "server") return;
+        serverRefreshTick += 1;
+        const basePings = [31, 108, 181, 39, 71];
+        state.servers.forEach((server, index) => {
+          server.ping = basePings[index] + ((serverRefreshTick + index) % 3) - 1;
+          const ping = document.querySelector(`[data-server-id="${CSS.escape(server.id)}"] .server-health strong`);
+          if (ping) ping.textContent = `${server.ping} ms`;
+        });
+      }, 5000);
+      $("#passwordToggle").addEventListener("click", () => {
+        const input = $("#passwordInput");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        $("#passwordToggle").textContent = showing ? "Show" : "Hide";
+        $("#passwordToggle").setAttribute("aria-pressed", String(!showing));
+        input.focus();
+      });
+      document.addEventListener("keydown", event => {
+        const typing = event.target.matches("input, textarea, [contenteditable='true']");
+        if (state.busy) return;
+        if (state.attributeWarningOpen) {
+          const answer = event.key.toLowerCase();
+          if (answer === "y") {
+            event.preventDefault();
+            continueWithUnspentAttributes();
+          } else if (answer === "n" || event.key === "Escape") {
+            event.preventDefault();
+            closeAttributeWarning();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            const buttons = [$("#closeAttributeWarningButton"), $("#continueWithUnspentButton")];
+            const current = Math.max(0, buttons.indexOf(document.activeElement));
+            buttons[(current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+          }
+          return;
+        }
+        if (state.creationGuideOpen) {
+          if (event.key === "Escape" || event.key === "Backspace" || event.key === "?") {
+            event.preventDefault();
+            closeCreationGuide();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            $("#closeCreationGuideButton").focus();
+          }
+          return;
+        }
+        if (state.step === "quit") {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            returnToServerList();
+          }
+          return;
+        }
+        if (event.key === "Escape" && state.directOpen) {
+          event.preventDefault();
+          closeDirectConnection();
+          return;
+        }
+        if (event.key.toLowerCase() === "q" && state.step === "server" && !typing) {
+          event.preventDefault();
+          openDirectConnection();
+          return;
+        }
+        if (state.step === "server" && !state.directOpen && !typing) {
+          const letterIndex = event.key.length === 1 ? event.key.toLowerCase().charCodeAt(0) - 97 : -1;
+          if (letterIndex >= 0 && letterIndex < state.servers.length) {
+            event.preventDefault();
+            selectOption("server", state.servers[letterIndex].id);
+            goToStep("account");
+            return;
+          }
+          if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+            event.preventDefault();
+            const current = Math.max(0, state.servers.findIndex(server => server.id === state.selectedServerId));
+            const next = event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? state.servers.length - 1
+                : (current + (event.key === "ArrowDown" ? 1 : -1) + state.servers.length) % state.servers.length;
+            selectOption("server", state.servers[next].id, true);
+            return;
+          }
+          if (event.key === "Enter" && !event.target.closest("[data-enter-server-id]")) {
+            event.preventDefault();
+            goToStep("account");
+            return;
+          }
+        }
+        if (state.step === "character" && !typing && !event.altKey && !event.ctrlKey && !event.metaKey) {
+          if (event.key === "N") {
+            event.preventDefault();
+            beginCreation("standard");
+            return;
+          }
+          if (event.key === "E") {
+            const availability = exclusiveSlotAvailability();
+            if (!availability.iddc && !availability.pvp) return;
+            event.preventDefault();
+            beginCreation("exclusive");
+            return;
+          }
+          const characterIndex = event.key.length === 1 && event.key >= "a" && event.key <= "z"
+            ? event.key.charCodeAt(0) - 97
+            : -1;
+          const characters = selectedServer()?.characters || [];
+          if (characterIndex >= 0 && characterIndex < characters.length) {
+            event.preventDefault();
+            selectOption("character", characters[characterIndex].id);
+            playCharacter();
+            return;
+          }
+        }
+        if (state.step === "character-create" && !typing && !event.altKey && !event.metaKey && (event.key === "Q" || (event.ctrlKey && event.key.toLowerCase() === "q"))) {
+          event.preventDefault();
+          leaveCharacterCreation();
+          return;
+        }
+        if (state.step === "character-create" && !event.altKey && !event.ctrlKey && !event.metaKey) {
+          const creationStep = creationSteps[state.creation.stepIndex].id;
+          if (event.key === "Escape" && creationStep === "name") {
+            event.preventDefault();
+            backCreation();
+            return;
+          }
+          if (event.key === "Escape" && creationStep === "attributes") {
+            event.preventDefault();
+            advanceCreation();
+            return;
+          }
+          if (!typing && event.key === "Backspace") {
+            event.preventDefault();
+            backCreation();
+            return;
+          }
+          if (!typing && event.key === "?" && ["class", "race", "trait", "body", "attributes", "mode"].includes(creationStep)) {
+            event.preventDefault();
+            openCreationGuide();
+            return;
+          }
+          if (!typing && event.key === "*") {
+            event.preventDefault();
+            randomizeCreationStep();
+            return;
+          }
+          if (event.key === "Enter" && event.target.id === "characterNameInput") {
+            event.preventDefault();
+            advanceCreation();
+            return;
+          }
+          const attributeRow = event.target.closest?.("[data-attribute-index]");
+          if (!typing && attributeRow) {
+            const attributeIndex = Number(attributeRow.dataset.attributeIndex);
+            const verticalDirection = ["ArrowDown", "2", "j"].includes(event.key) ? 1 : ["ArrowUp", "8", "k"].includes(event.key) ? -1 : 0;
+            const statDelta = ["ArrowRight", "6", "+", "l"].includes(event.key) ? 1 : ["ArrowLeft", "4", "-", "h"].includes(event.key) ? -1 : 0;
+            if (verticalDirection) {
+              event.preventDefault();
+              const nextIndex = (attributeIndex + verticalDirection + creationData.statNames.length) % creationData.statNames.length;
+              state.creation.detailStatIndex = nextIndex;
+              renderCreation();
+              document.querySelector(`[data-attribute-index="${nextIndex}"]`)?.focus({ preventScroll: true });
+              return;
+            }
+            if (statDelta) {
+              event.preventDefault();
+              if (adjustCreationStat(attributeIndex, statDelta)) {
+                document.querySelector(`[data-attribute-index="${attributeIndex}"]`)?.focus({ preventScroll: true });
+              }
+              return;
+            }
+            if (event.key === "Enter") {
+              event.preventDefault();
+              advanceCreation();
+              return;
+            }
+          }
+          if (!typing && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "2", "4", "6", "8", "-", "+", "<", ">"].includes(event.key) && event.target.matches(".creation-choice")) {
+            event.preventDefault();
+            moveCreationChoice(event.target, event.key);
+            return;
+          }
+          if (!typing && event.key === "Enter" && (event.target.matches(".creation-choice") || event.target === document.body)) {
+            event.preventDefault();
+            advanceCreation();
+            return;
+          }
+          if (!typing && event.key.length === 1) {
+            const choice = $$(".creation-choice").find(button => button.dataset.creationHotkey === event.key);
+            if (choice && !choice.disabled) {
+              event.preventDefault();
+              choice.click();
+              advanceCreation();
+              return;
+            }
+          }
+          return;
+        }
+        if (event.key === "Escape" && state.step !== "server") {
+          event.preventDefault();
+          goBack();
+        }
+      });
+
+      logoMotionQuery.addEventListener("change", () => {
+        syncAccountLogoAnimation();
+        syncTorchAnimation();
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          if (backgroundTimer !== null) window.clearTimeout(backgroundTimer);
+          backgroundTimer = null;
+          return;
+        }
+        scheduleBackgroundRotation();
+      });
+      window.addEventListener("beforeunload", () => {
+        if (logoFlickerTimer !== null) window.clearInterval(logoFlickerTimer);
+        if (torchFlickerTimer !== null) window.clearInterval(torchFlickerTimer);
+        if (backgroundTimer !== null) window.clearTimeout(backgroundTimer);
+        if (backgroundCleanupTimer !== null) window.clearTimeout(backgroundCleanupTimer);
+        window.clearInterval(serverRefreshTimer);
+      });
+
+      void showNextBackground(true);
+      buildAccountLogo();
+      renderServers();
+      renderChronicle();
+      updateStepUI();
+    })();
+  </script>
+</body>
+</html>
