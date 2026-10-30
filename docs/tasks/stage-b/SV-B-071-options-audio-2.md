@@ -1,5 +1,7 @@
 # SV-B-071 — Опции audio incoming effects и suppression — часть 2
 
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
 Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
 
 > Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в

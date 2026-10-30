@@ -1,6 +1,12 @@
 # SV-B2-005 — MOTD и общие wait/error/child states
 
-Статус: planned, 2026-10-28. Реализация не начата.
+Статус: accepted, 2026-10-30, в составе принятого пользователем B2;
+[итоговое решение](../../sv-stage-b2-acceptance.md).
+
+## Реализация и требования до приёмки
+
+Реализация: implemented, 2026-10-29; Linux build/checks, software/OpenGL visual replay
+и два независимых review завершены, открытых замечаний нет. [Evidence](../../sv-b2-005-evidence.md).
 Зависимости: SV-B2-001.
 Существующие semantic consumers: B-006, B-020, B-024, B-025.
 Новых capability IDs: 0; B ownership и protocol semantics сохраняются.

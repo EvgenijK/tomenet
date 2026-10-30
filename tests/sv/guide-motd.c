@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include "session/birth.h"
+#include "ui/motd.h"
+#include "ui/motd-colors.h"
 
 /* Observe real SDL/TTF output; no replacement Guide, scene or interaction. */
 static pthread_mutex_t observations = PTHREAD_MUTEX_INITIALIZER;
@@ -95,9 +97,9 @@ static bool peer_newer(int a, int b, int c, int d, int e, int f)
  * are generated here: the independent literal oracle is loaded from disk. */
 static void versioned_setup(int socket)
 {
-    unsigned char setup[1024], *at = setup;
+    unsigned char setup[4096], *at = setup;
     bool traits = peer_newer(4, 4, 5, 10, 0, 0);
-    put32(&at, 120); put16(&at, 20);
+    put32(&at, 23 * 120); put16(&at, 20);
     *at++ = 3; *at++ = 3;
     if (traits) *at++ = 3;
     unsigned char *size_at = at; at += 4;
@@ -118,8 +120,18 @@ static void versioned_setup(int socket)
         memcpy(at, names[i], strlen(names[i]) + 1); at += strlen(names[i]) + 1;
         put32(&at, i ? 7 : 0);
     }
-    put32(&size_at, (uint32_t)(at - setup) + 120);
-    memset(at, 0, 120); memcpy(at, "Peer MOTD: welcome Carol", sizeof("Peer MOTD: welcome Carol")); at += 120;
+    put32(&size_at, (uint32_t)(at - setup) + 23 * 120);
+    memset(at, 0, 23 * 120);
+    memcpy(at, "Peer MOTD: welcome Carol", sizeof("Peer MOTD: welcome Carol"));
+    /* Full server composition, including blank rows, formatting, unknown text
+     * and a wide final row. These bytes take the real setup/session/UI path. */
+    const unsigned char colored[]="   \377rRED\377gGREEN\377-BACK\377.SWAP\377%NEUTRAL \377\377 \377?unknown";
+    memcpy(at+2*120,colored,sizeof(colored));
+    if(!getenv("SV_MOTD_SHORT")) {
+        memset(at+22*120,'=',119);
+        memcpy(at+22*120+101,"unknown server art",18);
+    }
+    at += 23 * 120;
     assert(send(socket, setup, (size_t)(at - setup), 0) == (ssize_t)(at - setup));
 }
 static void versioned_overview(int socket)
@@ -245,6 +257,28 @@ static void *complete_peer(void *opaque)
 int main(int argc, char **argv)
 {
     assert(argc == 6 || argc == 7);
+    /* Small regression of the production presentation decoder; no second
+     * behavioral implementation or additional test executable. */
+    unsigned char raw[23*120]={0};
+    const unsigned char formatted[]="  \377rA\377gB\377-C\377.D\377%N\377\377\377?";
+    memcpy(raw,formatted,sizeof(formatted));
+    raw[22*120+118]='!'; /* NUL terminates this row before the sentinel. */
+    SvMotd visual=sv_motd_prepare(raw,sizeof(raw));
+    assert(visual.columns==9 && visual.length[22]==0);
+    assert(!memcmp(visual.glyphs[0],"  ABCDN{?",9));
+    assert(visual.colors[0][2]==4 && visual.colors[0][3]==5 &&
+           visual.colors[0][4]==1 && visual.colors[0][5]==5);
+    memset(raw+22*120,' ',118);raw[22*120+118]='!';
+    visual=sv_motd_prepare(raw,sizeof(raw));
+    assert(visual.columns==119 && visual.length[22]==119);
+    assert(sv_motd_prepare(NULL,0).columns==0);
+    const unsigned char extended[]="\377pP\377fF\3779S\377?";
+    visual=sv_motd_prepare(extended,sizeof(extended));
+    assert(visual.columns==4 && !memcmp(visual.glyphs[0],"PFS?",4));
+    assert(visual.colors[0][0]==16 && visual.colors[0][1]==17 && visual.colors[0][2]==61);
+    assert(sv_motd_color(17,0,1,1)==4); /* reduced motion: baseline static fire */
+    assert(sv_motd_color(56,0,1,0)==7 && sv_motd_color(56,4,1,0)==11);
+    for(unsigned role=16;role<62;++role)assert(sv_motd_color(role,5,7,0)<16);
     versioned = true;
     point_buy = getenv("SV_GUIDE_POINT") != NULL;
     skip = getenv("SV_MOTD_SKIP") != NULL;

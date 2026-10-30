@@ -11,7 +11,10 @@ Normative checks: [Acceptance contract](acceptance-contract.md). This is a plan,
 
 ## Approved framework
 
-A and B remain the fixed cumulative checkpoints described below. After B, the
+A and B remain the fixed cumulative checkpoints described below. B2 is an
+additional presentation follow-up planned on 2026-10-28 before C001; it has no
+new capability allocation and leaves accepted B unchanged. See
+[the B2 spec](../../docs/sv-stage-b2-spec.md). After B, the
 former C–G allocation is replaced by the ordered one-block stages defined by
 [decision 38](issues/38-reallocate-post-b-by-functional-block.md#answer) and the
 [stage reallocation plan](../../docs/tasks/stage-reallocation/README.md).
@@ -47,6 +50,7 @@ environments; Wine is not Windows acceptance.
 |---|---|---|
 | A — runnable foundation | Separate executable/object paths, one SDL window, production model/command interfaces and renderer exercised by a synthetic decode→state→surface→input scenario. Prove complete/incomplete packet handling for this slice, ordered events, cancellation, resize/focus and software rendering. Create/validate full source-backed atomic manifest, native ledger and allocation to A–G; HTML snapshot/ledger may honestly report missing. | No claim of real login or gameplay; synthetic scope only. Later capabilities have named owners/stages and pending evidence. |
 | B — native pregame screens | Fully working native flow for endpoint/connect, account creation/authentication, character overview/management, character creation and peer-driven MOTD. Exercise production UI/model/input/transport/protocol paths through a managed protocol peer, including success/rejection, back/cancel/retry, fragmented input, disconnect and stale-session cleanup. Include field byte rules and protected credentials required by these screens. | No live-server compatibility or gameplay claim. Post-MOTD startup, profile/FILE/Lua/game resources, first map/HUD and every gameplay/session-end flow remain pending. |
+| B2 — native startup UI по веб-макету | Presentation существующих B screens: shell D, server/account/character/birth controls, отдельный MOTD C, Linux visual/input comparison. [Spec](../../docs/sv-stage-b2-spec.md), [tasks](../../docs/tasks/stage-b2/README.md). Ноль новых IDs; вне canonical functional-stage allocation. | B remains accepted, без повторного введения waived B checks. Real server/gameplay остаются после B2. |
 | After B — functional-block sequence | The 863 outcomes formerly assigned to C–G are reallocated into ordered stages with exactly one functional block each. The prerequisite audit, registry/catalog migration and task materialization are specified in the [stage reallocation plan](../../docs/tasks/stage-reallocation/README.md). | Until the catalog and ledger migration pass validation, old C615/D162/E64/F1/G21 values are historical only and do not define a current implementation stage. |
 
 Canonical A8/B54 allocation remains unchanged. The post-B denominator is 863;

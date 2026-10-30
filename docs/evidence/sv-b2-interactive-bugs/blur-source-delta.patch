@@ -1,0 +1,132 @@
+--- /tmp/login-shell-blur-before.c	2026-10-29 19:39:29.640795884 +0300
++++ src/client/sv/ui/login-shell.c	2026-10-29 19:41:28.442541091 +0300
+@@ -25,6 +25,7 @@
+     TextCache text[TEXT_CACHE_SIZE];
+     unsigned next_text;
+     SDL_Texture *background[2], *icons[6], *doors[2], *motd_texture;
++    int background_lower[2],background_count[2];
+     SvMotd motd;
+     int motd_width,motd_height,motd_raster_width,motd_raster_height;
+     float motd_dpi;
+@@ -69,7 +70,65 @@
+     if (s->heading) TTF_CloseFont(s->heading);
+     SDL_free(s);
+ }
+-static SDL_Texture *load_image(SDL_Renderer *r,Shell *s,const char *name)
++/* Three box convolutions approximate CSS Gaussian blur at the decoded
++ * resolution. O(pixels) preparation needs one temporary surface, only when
++ * loading artwork or changing the blur kernel, never on an ordinary frame. */
++static void background_box(SDL_Surface *source,SDL_Surface *target,int radius,bool vertical)
++{
++    int lines=vertical?source->w:source->h,length=vertical?source->h:source->w;
++    int step=vertical?source->pitch:4,line_step=vertical?4:source->pitch;
++    int target_step=vertical?target->pitch:4,target_line=vertical?4:target->pitch;
++    int count=radius*2+1;
++    for(int line=0;line<lines;++line) {
++        Uint8 *in=(Uint8 *)source->pixels+line*line_step;
++        Uint8 *out=(Uint8 *)target->pixels+line*target_line;
++        int sums[4]={0};
++        for(int k=-radius;k<=radius;++k) {
++            Uint8 *pixel=in+SDL_clamp(k,0,length-1)*step;
++            for(int c=0;c<4;++c)sums[c]+=pixel[c];
++        }
++        for(int pos=0;pos<length;++pos) {
++            for(int c=0;c<4;++c)out[pos*target_step+c]=(Uint8)((sums[c]+count/2)/count);
++            Uint8 *remove=in+SDL_clamp(pos-radius,0,length-1)*step;
++            Uint8 *add=in+SDL_clamp(pos+radius+1,0,length-1)*step;
++            for(int c=0;c<4;++c)sums[c]+=add[c]-remove[c];
++        }
++    }
++}
++static void background_kernel(SDL_Renderer *r,int width,int height,int *lower,int *low_count)
++{
++    int w=width,h=height;
++    SDL_GetCurrentRenderOutputSize(r,&w,&h);
++    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));
++    if(scale<=0)scale=1;
++    float fit=SDL_max((float)w/width,(float)h/height)*1.1024f;
++    /* CSS 2 logical px, scaled by the 1.04 layer transform, expressed in
++     * source pixels before cover sampling. Flight adds at most 1.4%. */
++    float sigma=2.08f*scale/fit;
++    *lower=(int)SDL_floorf(SDL_sqrtf(4*sigma*sigma+1));
++    if(!(*lower&1))--*lower;
++    *lower=SDL_max(1,*lower);
++    *low_count=(int)SDL_roundf((12*sigma*sigma-3*(*lower)*(*lower)-12*(*lower)-9)/(-4*(*lower)-4));
++}
++static bool filter_background(SDL_Surface *surface,int lower,int low_count)
++{
++    SDL_Surface *scratch=SDL_CreateSurface(surface->w,surface->h,SDL_PIXELFORMAT_RGBA32);
++    if(!scratch)return false;
++    /* CSS contrast(.78) precedes blur(2px), centered on the midpoint. */
++    for(int y=0;y<surface->h;++y) {
++        Uint8 *row=(Uint8 *)surface->pixels+y*surface->pitch;
++        for(int x=0;x<surface->w;++x)
++            for(int c=0;c<3;++c)row[x*4+c]=(Uint8)SDL_roundf(row[x*4+c]*.78f+255*.11f);
++    }
++    for(int pass=0;pass<3;++pass) {
++        int radius=((pass<low_count?lower:lower+2)-1)/2;
++        background_box(surface,scratch,radius,false);
++        background_box(scratch,surface,radius,true);
++    }
++    SDL_DestroySurface(scratch);
++    return true;
++}
++static SDL_Texture *load_filtered_image(SDL_Renderer *r,Shell *s,const char *name,int *lower,int *count)
+ {
+     char path[8192];
+     SDL_snprintf(path,sizeof(path),"%s/%s",s->directory,name);
+@@ -84,13 +143,19 @@
+         SDL_SetError("B2 background decode failed: %s",path); return NULL;
+     }
+     png_image_free(&png);
++    if(lower) {
++        background_kernel(r,surface->w,surface->h,lower,count);
++        if(!filter_background(surface,*lower,*count)) {SDL_DestroySurface(surface);return NULL;}
++    }
+     SDL_Texture *texture=SDL_CreateTextureFromSurface(r,surface);
+     SDL_DestroySurface(surface);
+     if (texture) SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_LINEAR);
+     return texture;
+ }
+-static SDL_Texture *image(SDL_Renderer *r,Shell *s,unsigned index)
+-{ return load_image(r,s,backgrounds[index]); }
++static SDL_Texture *load_image(SDL_Renderer *r,Shell *s,const char *name)
++{ return load_filtered_image(r,s,name,NULL,NULL); }
++static SDL_Texture *image(SDL_Renderer *r,Shell *s,unsigned index,int slot)
++{ return load_filtered_image(r,s,backgrounds[index],&s->background_lower[slot],&s->background_count[slot]); }
+ bool sv_login_shell_reset(SDL_Renderer *r)
+ {
+     Shell *s=SDL_GetPointerProperty(SDL_GetRendererProperties(r),SHELL_PROPERTY,NULL);
+@@ -103,7 +168,7 @@
+     for(int i=0;i<2;++i) {SDL_DestroyTexture(s->doors[i]);s->doors[i]=NULL;}
+     s->next_text=0;
+     SDL_DestroyTexture(s->motd_texture);s->motd_texture=NULL;s->motd_valid=false;
+-    s->background[0]=image(r,s,s->current);
++    s->background[0]=image(r,s,s->current,0);
+     s->rotation=s->elapsed;
+     for(int i=0;i<6;++i) {
+         char name[32];SDL_snprintf(name,sizeof(name),"realm-%d.png",i);
+@@ -392,10 +457,22 @@
+     if (SDL_GetWindowFlags(window)&(SDL_WINDOW_HIDDEN|SDL_WINDOW_MINIMIZED))return true;
+     if (!s->reduced) s->elapsed+=delta;
+     s->frame=s->elapsed/100;
++    for(int layer=0;layer<2;++layer)if(s->background[layer]) {
++        float tw,th;
++        if(!SDL_GetTextureSize(s->background[layer],&tw,&th))return false;
++        int lower,count;background_kernel(r,(int)tw,(int)th,&lower,&count);
++        if(lower!=s->background_lower[layer] || count!=s->background_count[layer]) {
++            SDL_Texture *next=image(r,s,layer?s->previous:s->current,layer);
++            if(!next)return false;
++            SDL_DestroyTexture(s->background[layer]);s->background[layer]=next;
++        }
++    }
+     if (!s->reduced && s->elapsed-s->rotation>=30000) {
+-        SDL_Texture *next=image(r,s,(s->current+1)%19);
++        int lower=s->background_lower[0],count=s->background_count[0];
++        SDL_Texture *next=image(r,s,(s->current+1)%19,0);
+         if (!next) return false;
+         SDL_DestroyTexture(s->background[1]);s->background[1]=s->background[0];
++        s->background_lower[1]=lower;s->background_count[1]=count;
+         s->background[0]=next;s->previous=s->current;s->current=(s->current+1)%19;s->rotation=s->elapsed;
+     }
+     int w,h;if (!SDL_GetCurrentRenderOutputSize(r,&w,&h))return false;

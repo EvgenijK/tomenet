@@ -162,6 +162,8 @@ static int peer_run(void *opaque)
     send_overview(first);
     SDL_Delay(180);
     push_key(peer->exclusive ? SDLK_E : SDLK_N, SDL_KMOD_SHIFT);
+    /* Type after the new editor owns input, rather than in its opening queue. */
+    SDL_Delay(100);
     push_text(peer->draft);
     push_key(SDLK_RETURN, 0);
     unsigned char request_type;
@@ -222,7 +224,7 @@ static int peer_run(void *opaque)
     const unsigned char accepted = 0;
     assert(send(second, &accepted, 1, 0) == 1);
     SDL_Delay(100);
-    push_key(SDLK_Q, 0);
+    push_key(SDLK_Q, SDL_KMOD_SHIFT);
     peer->closed = recv(second, &extra, 1, 0) == 0;
     close(second);
     return 0;

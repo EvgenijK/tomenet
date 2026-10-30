@@ -1,0 +1,7 @@
+SV resource unavailable: /tmp/sv-b2-006-lb8eomy2/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b2-006-lb8eomy2/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=33739
+SV contact ready host=127.0.0.1 port=33739 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=2760
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero0 generation=3977524476

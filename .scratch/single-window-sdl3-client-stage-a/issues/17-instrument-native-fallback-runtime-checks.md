@@ -1,5 +1,7 @@
 # 17: Instrument complete native fallback runtime checks
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** Production-owned runtime evidence, подтверждающее завершение конкретного native-сценария и фактическое отсутствие входов в terminal fallback во всём его ходе.
 
 **Blocked by:** none; контракт checker из 13 уже реализован.

@@ -14,6 +14,17 @@ The HTML prototype supplies approved visual/layout decisions. Its implementation
 
 XHTML screenshots are explicitly excluded from SV. Record this disposition in manifest/consumer mappings rather than treating XHTML as an unimplemented required capability. This exclusion does not remove independent text copying, character/message exports, notes, bookmarks or user macro recording.
 
+## B2 presentation follow-up — 2026-10-28
+
+User requested planning [B2](../../docs/sv-stage-b2-spec.md) to implement the
+native startup interface from the current login HTML reference. This makes the
+existing approved-visuals requirement explicit for each B2 screen owner; it does
+not create a new behavior allocation or reopen accepted B/waived checks.
+Current required platform is [Linux](../../docs/agents/platform-validation.md).
+B2 compares actual native screens/controls to its versioned reference; no
+pixel-perfect gate, new test framework, inherited provider/IME backlog or
+exhaustive cross-product matrix is introduced. Windows validation is deferred.
+
 ## Evidence architecture
 
 Use complementary layers, linked to atomic capability outcomes and their applicable source/version/build gates:

@@ -1,5 +1,7 @@
 # 06: Verify native geometry and submission timing
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A reviewer can use the complete Stage A scenario at the required display scales and inspect measured responsiveness tied to the actual submitted frames.
 
 **Blocked by:** 05: Preserve input and session ownership through lifecycle changes.

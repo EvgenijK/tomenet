@@ -1,6 +1,15 @@
 # Этап B: native startup screen flow
 
-Статус: specified, обновлён 2026-10-05. Этап B реализует полностью рабочий
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Текущие build, runtime, visual/input проверки и приёмка Stage B выполняются
+на Linux. Windows/MinGW/Wine временно deferred по решению пользователя от
+2026-10-28; отсутствие этого evidence не блокирует текущие задачи и gates.
+
+Статус: accepted — этап B, все восемь owners, M1/M2 и B-075 приняты
+пользователем 2026-10-28 без ожидания оставшихся проверок.
+Результаты и решение о снятии оставшихся проверок — в [B-075](SV-B-075-acceptance.md).
+Этап B реализует полностью рабочий
 native flow экранов подключения, аутентификации, выбора и создания персонажа
 через production UI/model/input/protocol path. Проверки используют управляемый
 protocol peer: fixture управляет входными bytes и отказами, но не подменяет
@@ -16,6 +25,9 @@ production decoder, serializer, input router, presentation model или UI.
 одним implementation owner и сохраняет canonical prerequisites, obligations,
 sources и allocation hash. Нулевые milestone/gate тикеты проверяют сквозной
 результат, но не присваивают себе чужое ownership.
+
+Текущий presentation follow-up: [этап B2 — интерфейс по веб-макету](../../sv-stage-b2-spec.md).
+B остаётся принятым; B2 планирует перенос дизайна без переоткрытия снятых проверок.
 
 ## Активный implementation DAG
 
@@ -93,7 +105,9 @@ snapshot hashes, reviewed count и digest; одного совпавшего к�
   protocol согласно ADR. Main thread последовательно владеет состоянием, а
   session-scoped work проверяет generation.
 - Secret bytes не попадают в diagnostics, history, screenshots или evidence.
-- Acceptance требует Linux и Windows paths, physical keyboard/input method,
+- Исходные требования acceptance (оставшиеся проверки сняты решением
+  пользователя от 2026-10-28): Linux paths, physical keyboard/input method,
   mouse where applicable, focus/resize, success/cancel/retry/rejection и clean
-  teardown. Missing/failed/stale evidence остаётся pending.
+  teardown. Missing/failed/stale evidence текущих Linux проверок остаётся pending;
+  Windows/MinGW/Wine deferred и не блокируют приёмку.
 - Никакой B screen не может завершаться terminal fallback или test-only scene.

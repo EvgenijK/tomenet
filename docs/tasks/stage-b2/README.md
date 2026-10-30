@@ -1,7 +1,10 @@
 # Этап B2 — native startup UI по веб-макету
 
-Статус: in progress, 2026-10-28; B2-001 implemented ([evidence](../../sv-b2-001-evidence.md)),
-B2-002 implemented ([evidence](../../sv-b2-002-evidence.md)); B2-003…006 planned.
+Статус: accepted, 2026-10-30. Пользователь явно принял этап B2 после запуска
+клиента и исправления буквенных хоткеев выбора режима. Приёмка включает
+SV-B2-001…006 и представленные корректировки. Текущая платформа — Linux;
+Windows/MinGW/Wine остаются отложены по правилу платформ.
+[Решение и evidence](../../sv-stage-b2-acceptance.md).
 [Спецификация](../../sv-stage-b2-spec.md) · [Reference](reference.md) ·
 [Результаты планирования агентов](../../../.scratch/sv-stage-b2-planning/map.md).
 
@@ -55,5 +58,6 @@ reorder C039, DNA persistence C040 или OS integration C060. Mock-only control
 
 Три агента исследовали reference, production seams и acceptance. Детальные
 решения и hashes сохранены в planning map. Spec/tickets задают work plan;
-B2-001 и B2-002 имеют production implementation и Linux evidence; остальные tickets
-и полная acceptance B2 этим не заявлены.
+B2-001…006 имеют production implementation и Linux evidence; итоговый
+[visual/input review](../../sv-stage-b2-acceptance.md) подготовлен для пользователя.
+Пользовательская приёмка B2 зафиксирована 2026-10-30.

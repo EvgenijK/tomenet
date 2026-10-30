@@ -1,0 +1,1 @@
+Before SDL_SyncWindow startup geometry correction. Production SHA256 56ddef2d477ba7a806638aaf227b312e9bedfc5384dbc0789d4200dfb1d60a19. Software1.25 Retry/hover failed; root validation diagnosis confirmed async window resize left software renderer stale backing size. Retained as pre-correction evidence, not final PASS.

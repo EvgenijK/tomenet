@@ -1,5 +1,7 @@
 # 02: Display decoded HP through the Session presentation model
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A reviewer sees HP/status changes in the native shell when synthetic server bytes enter production decoding. The Session presentation model publishes coherent state using the approved core/model/UI boundary.
 
 **Blocked by:** 01: Launch an isolated single-window SV client.

@@ -50,3 +50,29 @@ SHA-256 `06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481`.
 i686 build пока заблокирован отсутствием SDL3/SDL3_ttf/FreeType development
 dependencies в установленном cross toolchain. Actual Windows 10/11 и
 accelerated renderer, а также late caller integration checks остаются pending.
+
+
+## Linux handoff — 2026-10-28
+
+По текущему [правилу платформ](agents/platform-validation.md) Windows проверки
+отложены. Исторические observations выше сохранены; новые Linux результаты
+сведены в [native evidence](sv-stage-b-linux-native-evidence.md).
+`tests/sv_endpoint_checks.py` повторён успешно на текущем production source
+(editor, normal/sticky SDL adapter, physical bytes, credentials, scene, UBSan).
+Исправлен SV-local mapping mouse/resize в UI units при non-1 display scale.
+Native scale1.5 creation mouse path прошёл через фактический executable и
+exact 16266-byte fixture; существующий персонаж выбирается мышью на software
+и OpenGL. B-020/B-025 возвращают этот результат B-001.
+
+Это не полная B-001 acceptance: human native review применимого native text
+input и byte/edit/focus contracts остаётся pending. Дополнительная final OpenGL
+driver/layout попытка не принята. Actual OS IME не проверялся; это ограничение
+наблюдения. Отсутствие ibus/fcitx не является самостоятельным blocker, а общее
+требование input method не вводит обязательный отдельный composition-сценарий.
+Injected SDL text не является OS IME evidence; просмотр PNG агентом и successful
+core checks не подменяют human review. Подробные scopes, hashes и failures —
+в новом отчёте.
+
+Финальный combined executable `03d0241fe37d9491b5562db4fac2b52930208058d64757679eaeb4d20ccc5222`
+повторно прошёл native software M1: mouse existing selection → peer MOTD →
+handoff, resize/minimize/restore и отсутствие gameplay bytes.

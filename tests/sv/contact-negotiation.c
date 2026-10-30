@@ -167,24 +167,28 @@ static void setup_is_available_only_after_complete_input(void)
     assert(sv_contact_take_output(contact, output, sizeof(output)).result == SV_OK);
     const unsigned char setup[] = {
         2, 1, 122, 6, 0, 0, 0x30, 0x39,
-        0, 0, 0, 5, 0, 30, 1, 1, 1, 0, 0, 0, 13,
+        0, 0, 0, 5, 0, 30, 1, 1, 3, 0, 0, 0, 13,
         50, 51, 49, 52, 48, 50, 'H', 'u', 'm', 'a', 'n', 0, 1, 2, 3, 4,
         50, 50, 50, 50, 50, 50, '1', ' ', 'H', 'i', 'd', 'd', 'e', 'n', 0,
         1, 2, 3, 4, 5, 6,
+        /* Real servers send reserved empty trait slots; preserve their IDs. */
+        0, 0, 0, 0, 0,
         'T', 'r', 'a', 'i', 't', 0, 9, 8, 7, 6,
+        0, 0, 0, 0, 0,
         'H', 'e', 'l', 'l', 'o'};
     for (size_t i = 0; i < sizeof(setup); ++i) {
         assert(sv_contact_receive(contact, &setup[i], 1) == SV_OK);
         if (i + 1 < sizeof(setup)) assert(!sv_contact_setup(contact));
     }
     const SvContactSetup *data = sv_contact_setup(contact);
-    assert(data && data->race_count == 1 && data->class_count == 1 && data->trait_count == 1);
+    assert(data && data->race_count == 1 && data->class_count == 1 && data->trait_count == 3);
     assert(data->frames_per_second == 30 && data->motd_size == 5);
     assert(!strcmp(data->races[0].title, "Human") && data->races[0].adjustment[2] == -1);
     assert(data->races[0].choice == 0x01020304);
     assert(data->classes[0].hidden == 1 && data->classes[0].base_class == 1);
     assert(!strcmp(data->classes[0].title, "Hidden") && data->classes[0].recommendation[5] == 6);
-    assert(!strcmp(data->traits[0].title, "Trait") && data->traits[0].choice == 0x09080706);
+    assert(!strcmp(data->traits[1].title, "Trait") && data->traits[1].choice == 0x09080706);
+    assert(!data->traits[0].title[0] && !data->traits[2].title[0]);
     assert(!memcmp(data->motd, "Hello", 5));
     sv_contact_destroy(contact);
 }

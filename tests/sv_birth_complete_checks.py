@@ -9,12 +9,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 FLAGS = subprocess.check_output(
-    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng"],
+    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng", "libcurl"],
     text=True,
 ).split()
 SOURCES = [
     "tests/sv/birth-complete.c",
-    "src/client/sv/endpoint-run.c",
+    "src/client/sv/endpoint-run.c", "src/client/sv/input/chronicle.c",
     "src/client/sv/result.c",
     "src/client/sv/credential/vault.c",
     "src/client/sv/input/credentials.c",

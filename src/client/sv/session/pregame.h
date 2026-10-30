@@ -42,6 +42,7 @@ typedef struct {
     unsigned char motd[SV_CONTACT_MOTD_CAPACITY + 1];
     size_t motd_size;
     char reason[256];
+    SvLoginPingTelemetry ping;
 } SvPregame;
 
 void sv_pregame_begin(SvPregame *pregame, uint64_t generation, bool first_run);

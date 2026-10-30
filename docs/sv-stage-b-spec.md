@@ -1,14 +1,22 @@
 # Этап B — рабочие native pregame screens TomeNET SV
 
-Статус: specified, граница подтверждена пользователем 2026-10-05. Части
-endpoint/input, contact protocol, credentials и existing-character login уже
-имеют production-реализацию прежнего широкого B, но требуют проверки и
-доработки по этой суженной границе. Account creation, character creation и birth
-flow ещё не реализованы; полная acceptance B остаётся pending. Canonical scope:
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
+Статус: accepted — этап B принят пользователем 2026-10-28 без ожидания
+оставшихся проверок; [решение и границы evidence](sv-stage-b-acceptance.md#решение-пользователя--2026-10-28). Endpoint/contact, credentials, existing-character route,
+account/character creation и birth имеют production paths и controlled-peer
+проверки. Нативные input/provider требования и cumulative gate учитываются
+в [SV-B-075](tasks/stage-b/SV-B-075-acceptance.md); реализация не означает
+приёмку всех обязательств. Граница подтверждена пользователем 2026-10-05. Canonical scope:
 **54 active B outcomes**; прежний denominator этапа B устарел.
 
 Спецификация фиксирует high-level scope и evidence boundary. Она не изменяет
 canonical JSON, не объявляет native claims и не заменяет implementation tickets.
+
+Текущий presentation follow-up: [этап B2 — интерфейс по веб-макету](sv-stage-b2-spec.md).
+B остаётся принятым; B2 планирует перенос дизайна без переоткрытия снятых проверок.
 
 ## Цель
 
@@ -155,6 +163,10 @@ UI Unicode и wire bytes остаются разными представлен�
 
 ## Acceptance
 
+Решение пользователя от 2026-10-28 снимает оставшиеся проверки ниже с текущей
+приёмки B. Исходный контракт сохранён для истории; невыполненные проверки
+не получают PASS.
+
 B принимается только при выполнении всего применимого набора:
 
 1. Existing-account → existing-character и account/character-creation branches
@@ -168,7 +180,8 @@ B принимается только при выполнении всего п�
    partial state, partial send или повторный side effect.
 5. Field limits и encoding проверены на границах; secret не попадает в logs,
    history, diagnostics, screenshots или plaintext files.
-6. Credential provider проверен на применимых Linux и Windows paths, включая
+6. Credential provider проверен на применимых Linux paths; Windows provider
+   verification отложена по текущему правилу платформ. Linux проверки включают
    provider unavailable и session-only fallback.
 7. Managed-peer identity, scenario/version matrix, executable/configuration и
    platform fingerprints записаны в evidence; synthetic foundation A имеет
@@ -178,8 +191,9 @@ B принимается только при выполнении всего п�
 
 Применимые submission budgets **20/50/200 ms** и короткие lifecycle/concurrency
 checks сохраняются. Stress/soak, XHTML и global memory ceiling не добавляются.
-Реальные Windows checks остаются обязательными там, где этого требует общий
-platform acceptance contract; Wine не выдаётся за Windows acceptance.
+Windows/MinGW/Wine checks временно отложены для всех B tasks и acceptance gates
+по [решению пользователя](agents/platform-validation.md); они не блокируют текущую
+Linux приёмку и не получают PASS без выполнения.
 
 ## Выход и граница C
 

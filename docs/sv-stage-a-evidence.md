@@ -1,5 +1,9 @@
 # Scoped Stage A evidence — ticket 18
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 `tools/validate_capabilities.py --checkpoint stage-a` checks a limited automated
 checkpoint. It requires all eight A outcomes: HP, message occurrences, key answer,
 key cancellation, Linux build, Windows build, software renderer and one window.

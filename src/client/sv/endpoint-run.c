@@ -3,8 +3,10 @@
 #include "endpoint-run.h"
 #include "app.h"
 #include "input/native-endpoint.h"
+#include "input/pregame-events.h"
 #include "input/credentials.h"
 #include "input/metaserver.h"
+#include "input/chronicle.h"
 #include "input/login-interaction.h"
 #include "input/native-login.h"
 #include "input/native-name.h"
@@ -36,12 +38,23 @@ static bool profile_first_run(const char *root)
     return !SDL_GetPathInfo(path, &info) || info.type != SDL_PATHTYPE_FILE;
 }
 
+enum { SV_CREDENTIAL_SCENE_ERROR=-1, SV_CREDENTIAL_SCENE_QUIT=0,
+       SV_CREDENTIAL_SCENE_ACCEPTED=1, SV_CREDENTIAL_SCENE_BACK=2 };
+enum { SV_CONTACT_SCENE_BACK=3, SV_CONTACT_SCENE_EDIT_NAME=4 };
+
 /* The endpoint scene only drives the private input interaction and drawing. */
 static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
-                             SvEndpointInput *input, int frame_limit,
+                             SvEndpointInput *input, SvChronicle *chronicle,
+                             SvChronicleSnapshot *chronicle_view, int frame_limit,
                              char account[80], char password[80])
 {
-    if (!SDL_StartTextInput(SDL_GetRenderWindow(renderer))) return -1;
+    SDL_Window *window=SDL_GetRenderWindow(renderer);
+    /* Retire input queued by server selection before giving this editor an
+     * owner. Native keyboard clocks may lag SDL_GetTicksNS (e.g. Wayland), so
+     * their timestamps cannot identify whether a freshly polled key is stale. */
+    if (!SDL_StopTextInput(window)) return -1;
+    sv_pregame_input_boundary();
+    if (!SDL_StartTextInput(window)) return -1;
     float field_scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));
     if(field_scale<=0)field_scale=1;
     input->text_cell=sv_font_cell_width(font,field_scale)/field_scale;
@@ -50,6 +63,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
     const uint64_t input_since_ns=SDL_GetTicksNS();
     int outcome = 0, frames = 0;
     for (;;) {
+        (void)sv_chronicle_poll(chronicle, chronicle_view);
         char status[180];
         sv_credentials_poll(&credentials);
         sv_credentials_status(&credentials, status);
@@ -65,13 +79,19 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            bool gesture=event.type==SDL_EVENT_KEY_DOWN || event.type==SDL_EVENT_KEY_UP ||
-                event.type==SDL_EVENT_TEXT_INPUT || event.type==SDL_EVENT_TEXT_EDITING ||
-                event.type==SDL_EVENT_MOUSE_BUTTON_DOWN || event.type==SDL_EVENT_MOUSE_BUTTON_UP;
-            if(gesture && event.common.timestamp && event.common.timestamp<input_since_ns)continue;
+            if (event.type == SDL_EVENT_MOUSE_WHEEL &&
+                (!event.common.timestamp || event.common.timestamp >= input_since_ns) &&
+                sv_endpoint_chronicle_event(input, &event)) continue;
+            bool pointer_gesture=event.type==SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                event.type==SDL_EVENT_MOUSE_BUTTON_UP;
+            if(pointer_gesture && event.common.timestamp && event.common.timestamp<input_since_ns)continue;
+            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                outcome=SV_CREDENTIAL_SCENE_QUIT;goto done;
+            }
             if (event.type == SDL_EVENT_RENDER_DEVICE_RESET && !sv_login_shell_reset(renderer)) {
                 outcome=-1;goto done;
             }
+            if(sv_endpoint_links_event(input,&event))continue;
             if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) credentials.reveal=false;
             SvCredentialAction action = SV_CREDENTIAL_EDITING;
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
@@ -83,7 +103,10 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
                 SvLoginFormLayout form=sv_login_form_layout(layout,h/scale);
                 float x=event.button.x*density/scale,y=event.button.y*density/scale;
                 int field=sv_login_contains(form.account,x,y)?0:sv_login_contains(form.password,x,y)?1:-1;
-                if(sv_login_contains(form.reveal,x,y)) {
+                if(sv_login_contains(form.guide,x,y)) {
+                    if(!SDL_OpenURL("https://www.tomenet.eu/guide.php"))
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,"Cannot open account guide: %s",SDL_GetError());
+                } else if(sv_login_contains(form.reveal,x,y)) {
                     sv_credentials_focus(&credentials,2);
                     sv_credentials_toggle_reveal(&credentials);
                 } else if(field>=0) {
@@ -94,13 +117,12 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
                 } else if(sv_login_contains(form.submit,x,y)) {
                     sv_credentials_focus(&credentials,3);
                     action=sv_credentials_submit(&credentials);
-                } else if(sv_login_contains(form.back,x,y)) {
-                    event.type=SDL_EVENT_KEY_DOWN;event.key.key=SDLK_ESCAPE;event.key.repeat=false;
-                    action=sv_credentials_event(&credentials,&event);
+                } else if(sv_login_contains(form.account_back,x,y)) {
+                    action=sv_credentials_cancel(&credentials);
                 }
             } else action = sv_credentials_event(&credentials, &event);
             if (action != SV_CREDENTIAL_EDITING) {
-                outcome = action == SV_CREDENTIAL_ACCEPTED ? 1 : 0;
+                outcome = action == SV_CREDENTIAL_ACCEPTED ? SV_CREDENTIAL_SCENE_ACCEPTED : SV_CREDENTIAL_SCENE_BACK;
                 goto done;
             }
         }
@@ -109,6 +131,10 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
     }
 done:
     sv_credentials_end(&credentials);
+    input->contact_status = NULL;
+    input->credentials = NULL;
+    input->text_error = SV_TEXT_OK;
+    input->clipboard_unavailable = false;
     SDL_StopTextInput(SDL_GetRenderWindow(renderer));
     return outcome;
 }
@@ -136,6 +162,7 @@ static const char *contact_rejection_reason(unsigned rejection)
 }
 
 static const char *contact_status(SvSocketState state, unsigned rejection,
+                                  const SvEndpoint *endpoint, SvResult failure,
                                   char *status, size_t status_size)
 {
     switch (state) {
@@ -149,11 +176,19 @@ static const char *contact_status(SvSocketState state, unsigned rejection,
     case SV_SOCKET_CLOSED: return "Server closed the connection. R retries; Escape exits.";
     case SV_SOCKET_PROTOCOL_ERROR: return "Invalid contact or network packet. R retries; Escape exits.";
     case SV_SOCKET_REJECTED:
-        SDL_snprintf(status, status_size, "%s Escape exits.",
-                     contact_rejection_reason(rejection));
+        SDL_snprintf(status,status_size,"%s Escape exits.",contact_rejection_reason(rejection));
         return status;
     case SV_SOCKET_VERIFY_ERROR: return "Verification failed. R retries; Escape exits.";
-    case SV_SOCKET_SETUP_ERROR: return "Server setup failed. R retries; Escape exits.";
+    case SV_SOCKET_SETUP_ERROR: {
+        const char *reason=failure==SV_CLOSED?
+            "The server closed the connection before its configuration was received.":
+            failure==SV_INPUT_OVERFLOW?
+            "The server configuration exceeds this client's supported size.":
+            "The server sent configuration this client cannot read.";
+        SDL_snprintf(status,status_size,"%s:%u: %s Retry (R) or cancel (Esc).",
+                     endpoint->host,(unsigned)endpoint->port,reason);
+        return status;
+    }
     }
     return "Contact stopped.";
 }
@@ -231,6 +266,7 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
     }
     unsigned char incoming[4096];
     for (int i = 0; i < 4; ++i) {
+        if (sv_login_play_stream_complete(login)) break;
         SvOutput received;
         if (wire->remaining_at < wire->remaining_size) {
             size_t count = wire->remaining_size - wire->remaining_at;
@@ -462,12 +498,14 @@ static void publish_outcome(const SvPregame *pregame, SvEndpointOutcome *outcome
 }
 
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
-                       SvEndpoint *endpoint, SvEndpointInput *input, SvEndpointOptions options,
+                       SvEndpoint *endpoint, SvEndpointInput *input, SvChronicle *chronicle,
+                       SvChronicleSnapshot *chronicle_view, SvEndpointOptions options,
                        const char *profile_root, bool first_run, uint64_t generation,
                        uint64_t prior_generation, SvNameRecovery *recovery)
 {
     /* Command surfaces must not generate text for the key that opens an editor. */
     if (!SDL_StopTextInput(window)) return 1;
+    sv_pregame_input_boundary();
     unsigned char iaddr[6];
     if (!sv_login_identity(profile_root, iaddr)) {
         SDL_SetError("Cannot derive versioned login identity");
@@ -486,9 +524,11 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         return 1;
     }
     SvSocketState state = SV_SOCKET_RESOLVING;
+    SvResult connection_failure = SV_OK;
     SvLogin *login = NULL;
     SvLoginInteraction login_input = {0};
     SvLoginView login_view = {0};
+    SvCharacterViewport character_viewport={0};
     SvBirth birth = {0};
     SvBirthView birth_view = {0};
     SvBirthViewport birth_viewport = {0};
@@ -515,8 +555,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     const char *save_message = NULL;
     char failure_status[384] = {0};
     while (!quit) {
+        (void)sv_chronicle_poll(chronicle, chronicle_view);
         if (connection) {
             state = sv_contact_socket_poll(connection);
+            connection_failure = sv_contact_socket_failure_result(connection);
             rejection = sv_contact_socket_rejection(connection);
         }
         if (state == SV_SOCKET_READY && !login) {
@@ -552,7 +594,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             state = pump_login(connection, login, &wire, &session_error);
         if (state == SV_SOCKET_READY && login) {
             SvLoginTransition transition = sv_login_interaction_sync(&login_input);
-            sv_native_login_clear_previous_keys(transition);
+            if (transition != SV_LOGIN_TRANSITION_NONE)
+                sv_pregame_input_boundary();
             if (transition == SV_LOGIN_TRANSITION_OVERVIEW && recovery &&
                 recovery->pending &&
                 sv_login_interaction_restore_name(&login_input, recovery->draft,
@@ -591,6 +634,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     options.birth_dna_mode);
                 if (session_error != SV_OK) state = SV_SOCKET_PROTOCOL_ERROR;
                 else {
+                    sv_pregame_input_boundary();
                     birth_started = true;
                     birth_input_since_ns = SDL_GetTicksNS();
                 }
@@ -659,18 +703,25 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                         }
                     }
                 }
-            } else input->contact_status = contact_status(state, rejection,
+            } else input->contact_status = contact_status(state, rejection, endpoint, connection_failure,
                                                            failure_status,
                                                            sizeof(failure_status));
         } else if (play_started && state == SV_SOCKET_CLOSED)
             input->contact_status = "Error reading play reply";
         else input->contact_status = session_error != SV_OK ?
             (play_started && login && sv_login_reason(login)[0] ?
-             sv_login_reason(login) : sv_result_text(session_error)) : contact_status(state, rejection,
+             sv_login_reason(login) : sv_result_text(session_error)) : contact_status(state, rejection, endpoint, connection_failure,
                                                            failure_status,
                                                            sizeof(failure_status));
-        if (birth_started && birth.active && state >= SV_SOCKET_DNS_ERROR)
+        if (birth_started && birth.active && state >= SV_SOCKET_DNS_ERROR) {
+            /* A disconnected caller cannot retain its temporary Guide surface. */
+            if (birth_placeholder_open) {
+                birth_placeholder_open = false;
+                input->temporary_surface_text = NULL;
+                if (birth_placeholder_drawn) birth_placeholder.close_count++;
+            }
             sv_birth_close(&birth, generation);
+        }
         if (state == SV_SOCKET_READY && pregame.authenticated && !save_started) {
             char key[SV_VAULT_KEY_CAPACITY];
             save_started = true;
@@ -702,19 +753,43 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         input->birth_viewport = NULL;
         if (login && connection) {
             sv_login_view_prepare(&login_view, &pregame);
-            login_view.ordinary_name_entry = login_input.ordinary_name_active;
+            /* Keep creation geometry while the server accepts the name. */
+            login_view.ordinary_name_entry = login_input.ordinary_name_active ||
+                (name_evidence.submitted && !birth_started &&
+                 sv_login_state(login) == SV_LOGIN_WAIT_STATUS);
             login_view.ordinary_creation_available =
                 sv_login_interaction_ordinary_available(&login_input);
+            login_view.exclusive_creation_available=sv_login_interaction_exclusive_modes(&login_input)!=0;
+            login_view.creation_supported=login_input.creation_supported;
+            login_view.first_run=login_input.first_run;
+            login_view.pending=sv_login_state(login)!=SV_LOGIN_OVERVIEW;
+            sv_login_interaction_free_slots(&login_input,login_view.free_slots);
+            int cw,ch;
+            if(!SDL_GetCurrentRenderOutputSize(renderer,&cw,&ch))break;
+            float cs=SDL_GetWindowDisplayScale(window);if(cs<=0)cs=1;
+            SvCharacterLayout cl=sv_character_layout(sv_character_shell_layout(cw/cs,ch/cs,login_input.ordinary_name_active),character_viewport.first);
+            sv_character_viewport_sync(&character_viewport,cl,login_view.count,login_view.count+login_view.free_slots[0]+login_view.free_slots[1]+login_view.free_slots[2]);
+            login_view.selected=character_viewport.selected;
+            login_view.first=character_viewport.first;
+            login_view.focus=character_viewport.focus;
+            login_view.name_field=&login_input.character_name;
             login_view.character_name_draft = login_input.ordinary_name_active ?
-                login_input.character_name.bytes : NULL;
+                login_input.character_name.bytes :
+                (sv_login_selected_character(login)?sv_login_selected_character(login)->name:login_input.character_name.bytes);
             input->login_view = &login_view;
-            if (birth_started && sv_login_state(login) == SV_LOGIN_SELECTED) {
+            if (birth_started && birth.active &&
+                (sv_login_state(login) == SV_LOGIN_SELECTED ||
+                 sv_login_state(login) == SV_LOGIN_WAIT_PLAY)) {
                 sv_birth_view_prepare(&birth_view, &birth);
                 input->birth_view = &birth_view;
-                int logical_width, logical_height;
-                SDL_GetWindowSize(window, &logical_width, &logical_height);
-                (void)logical_width;
-                sv_birth_viewport_sync(&birth_viewport, &birth, logical_height);
+                int output_width, output_height;
+                if (!SDL_GetCurrentRenderOutputSize(renderer, &output_width,
+                                                   &output_height)) break;
+                birth_viewport.logical_width=(int)(output_width / cs);
+                float scale = SDL_GetWindowDisplayScale(window);
+                if (scale <= 0) scale = 1.0f;
+                sv_birth_viewport_sync(&birth_viewport, &birth,
+                                      (int)(output_height / scale));
                 input->birth_viewport = &birth_viewport;
             }
         }
@@ -731,18 +806,32 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_MOUSE_WHEEL &&
+                (!event.common.timestamp || event.common.timestamp >= generation) &&
+                !input->birth_view && !login_input.ordinary_name_active &&
+                sv_endpoint_chronicle_event(input, &event)) continue;
+            if((!event.common.timestamp || event.common.timestamp>=generation) &&
+               !input->birth_view && !login_input.ordinary_name_active &&
+               (!input->login_view || !input->login_view->motd || input->contact_failed ||
+                input->temporary_surface_text) &&
+               sv_endpoint_links_event(input,&event))continue;
             /* Scene geometry is expressed in UI units, while SDL mouse
              * coordinates are window units. Match the renderer's display
              * scale without changing the native adapters' layout contract. */
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                 event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
-                event.type == SDL_EVENT_WINDOW_RESIZED) {
+                event.type == SDL_EVENT_WINDOW_RESIZED || event.type == SDL_EVENT_MOUSE_MOTION ||
+                event.type == SDL_EVENT_MOUSE_WHEEL) {
                 float scale = SDL_GetWindowDisplayScale(window) /
                               SDL_GetWindowPixelDensity(window);
                 if (scale > 0) {
                     if (event.type == SDL_EVENT_WINDOW_RESIZED) {
                         event.window.data1 = (int)(event.window.data1 / scale);
                         event.window.data2 = (int)(event.window.data2 / scale);
+                    } else if(event.type==SDL_EVENT_MOUSE_MOTION) {
+                        event.motion.x/=scale;event.motion.y/=scale;
+                    } else if(event.type==SDL_EVENT_MOUSE_WHEEL) {
+                        event.wheel.mouse_x/=scale;event.wheel.mouse_y/=scale;
                     } else {
                         event.button.x /= scale;
                         event.button.y /= scale;
@@ -750,17 +839,18 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
             }
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                result = 0;
                 quit = true;
                 break;
             }
-            /* Native gestures queued by a retired session cannot command this
-             * generation, including restored name entry before birth begins. */
+            /* Queue barriers retire keyboard/text at owner changes. Pointer
+             * gestures retain their SDL scene-time guard. */
             bool session_input = event.type == SDL_EVENT_KEY_DOWN ||
                 event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_TEXT_INPUT ||
                 event.type == SDL_EVENT_TEXT_EDITING ||
                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                 event.type == SDL_EVENT_MOUSE_BUTTON_UP || event.type == SDL_EVENT_MOUSE_WHEEL;
-            if (session_input && event.common.timestamp &&
+            if (session_input && !sv_pregame_keyboard_event(&event) && event.common.timestamp &&
                 event.common.timestamp < generation) continue;
             if (birth_placeholder_open) {
                 if ((event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) ||
@@ -768,6 +858,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     birth_placeholder.draft_preserved &=
                         !memcmp(&birth, &birth_before_placeholder, sizeof(birth));
                     birth_placeholder_open = false;
+                    sv_pregame_input_boundary();
                     input->temporary_surface_text = NULL;
                     birth_placeholder.close_count++;
                 }
@@ -797,6 +888,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 if (birth_started && sv_login_state(login) == SV_LOGIN_WAIT_PLAY) {
                     if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
                         quit = true;
+                    if(event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+                        SvBirthLayout bl=sv_birth_layout(birth_viewport.logical_width,birth_viewport.logical_height,SV_BIRTH_READY);
+                        if(sv_login_contains(bl.quit,event.button.x,event.button.y))quit=true;
+                    }
                     continue;
                 }
                 if (birth_started && sv_login_state(login) == SV_LOGIN_SELECTED) {
@@ -804,12 +899,25 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                         sv_native_birth_event(&birth, generation,
                                               birth_input_since_ns,
                                               &birth_viewport, &event);
+                    if (birth_result == SV_BIRTH_INPUT_BACK_TO_NAME && recovery) {
+                        /* The accepted name has moved the peer into PLAY.
+                         * Reauthenticate a new generation before editing it;
+                         * another LOGIN packet on this socket is not valid. */
+                        recovery->pending=true;
+                        recovery->dedicated=login_input.dedicated_creation;
+                        SDL_strlcpy(recovery->draft,login_input.character_name.bytes,
+                                    sizeof(recovery->draft));
+                        (void)sv_pregame_disconnect(&pregame,generation,"Returning to character name.");
+                        result=SV_CONTACT_SCENE_EDIT_NAME;quit=true;break;
+                    }
                     if (birth_result == SV_BIRTH_INPUT_QUIT) {
                         result = 0;
                         quit = true;
                         break;
                     }
                     if (birth_result == SV_BIRTH_INPUT_PLACEHOLDER) {
+                        sv_native_birth_release(&birth_viewport);
+                        sv_pregame_input_boundary();
                         birth_placeholder_open = true;
                         birth_placeholder_drawn = false;
                         birth_placeholder_owner = birth.owner;
@@ -820,11 +928,25 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     }
                     continue;
                 }
-                SvLoginInputResult handled = sv_native_name_event(&login_input, &event,
-                                                                   &input->text_error,
-                                                                   &input->clipboard_unavailable);
+                int cw,ch;
+                if(!SDL_GetCurrentRenderOutputSize(renderer,&cw,&ch))break;
+                float cs=SDL_GetWindowDisplayScale(window);if(cs<=0)cs=1;
+                SvCharacterLayout cl=sv_character_layout(sv_character_shell_layout(cw/cs,ch/cs,login_input.ordinary_name_active),character_viewport.first);
+                SvLoginInputResult handled=SV_LOGIN_INPUT_IGNORED;
+                if(!login_input.ordinary_name_active && sv_login_state(login)==SV_LOGIN_OVERVIEW) {
+                    SvLoginCommand command;
+                    size_t slots[3];sv_login_interaction_free_slots(&login_input,slots);
+                    if(sv_native_character_command(&event,cl,&character_viewport,sv_login_count(login),
+                        sv_login_count(login)+slots[0]+slots[1]+slots[2],&command))
+                        handled=sv_login_interaction_command(&login_input,command);
+                } else handled=sv_native_name_event_at(&login_input,&event,cl,
+                    sv_font_cell_width(font,cs)/cs,&input->text_error,&input->clipboard_unavailable);
+                if (handled == SV_LOGIN_INPUT_BACK) {
+                    result = SV_CONTACT_SCENE_BACK; quit = true; break;
+                }
                 if (handled == SV_LOGIN_INPUT_QUIT) { result = 0; quit = true; break; }
                 if (handled == SV_LOGIN_INPUT_NAME_STARTED) {
+                    sv_pregame_input_boundary();
                     if (!SDL_StartTextInput(window)) {
                         session_error = SV_INVALID;
                         state = SV_SOCKET_PROTOCOL_ERROR;
@@ -837,6 +959,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
                 if (handled == SV_LOGIN_INPUT_NAME_CANCELLED) {
                     SDL_StopTextInput(window);
+                    sv_pregame_input_boundary();
                     name_evidence.cancelled = true;
                     name_evidence.cancel_generation = pregame.generation;
                     name_evidence.cancel_revision = pregame.revision;
@@ -857,6 +980,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
                 if (handled == SV_LOGIN_INPUT_NAME_SUBMITTED) {
                     SDL_StopTextInput(window);
+                    sv_pregame_input_boundary();
                     SvResult applied = sv_pregame_creation_submitted(&pregame, generation,
                         login_input.dedicated_creation,
                         login_input.dedicated_mode_flags);
@@ -907,6 +1031,9 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 break;
             }
         }
+        if(birth_started && !birth_placeholder_open && state==SV_SOCKET_READY && login &&
+           sv_login_state(login)==SV_LOGIN_SELECTED)
+            (void)sv_native_birth_tick(&birth,generation,&birth_viewport,SDL_GetTicks());
         if (state == SV_SOCKET_READY) {
             if (!reached_ready) {
                 const int *version = sv_contact_socket_version(connection);
@@ -946,6 +1073,8 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         if (credential_save == SV_CREDENTIAL_SAVE_PENDING)
             credential_save = SV_CREDENTIAL_SAVE_SESSION_ONLY;
     }
+    if (result == SV_CONTACT_SCENE_BACK)
+        (void)sv_pregame_disconnect(&pregame, generation, "Returned to server selection.");
     publish_outcome(&pregame, options.outcome, prior_generation,
                     credential_save, &name_evidence, recovery,
                     birth_started ? &birth : NULL, &birth_placeholder);
@@ -966,6 +1095,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     input->birth_view = NULL;
     input->birth_viewport = NULL;
     input->temporary_surface_text = NULL;
+    input->contact_status = NULL;
     input->contact_failed = input->retry_available = false;
     (void)window;
     return result;
@@ -1015,6 +1145,8 @@ int sv_endpoint_run(SvEndpointOptions options)
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
     SvMetaserver *provider = NULL;
+    SvChronicle *chronicle = NULL;
+    SvChronicleSnapshot chronicle_view = {.failed_sources = 9, .completed_sources = 9};
     int result = 1;
     bool first_run = true;
     if (!root) {
@@ -1054,6 +1186,9 @@ int sv_endpoint_run(SvEndpointOptions options)
     if (options.windowed && !SDL_SetWindowSize(window,
             (int)SDL_roundf(options.width * window_scale),
             (int)SDL_roundf(options.height * window_scale))) goto done;
+    /* Finalize asynchronous startup sizing before software rendering binds the
+     * window surface; otherwise its output can retain the unscaled size. */
+    if (!SDL_SyncWindow(window)) goto done;
     renderer = SDL_CreateRenderer(window,NULL);
     if (!renderer || !sv_login_shell_open(renderer, library)) goto done;
     int window_count = 0;
@@ -1062,6 +1197,9 @@ int sv_endpoint_run(SvEndpointOptions options)
     if (window_count != 1) { SDL_SetError("SV requires exactly one system window"); goto done; }
     SvEndpointInput input;
     sv_endpoint_input_begin(&input);
+    chronicle = sv_chronicle_start();
+    (void)sv_chronicle_poll(chronicle, &chronicle_view);
+    input.chronicle = &chronicle_view;
     if (!sv_endpoint_draw(renderer,font,&endpoint,&input) ||
         !sv_endpoint_render(renderer,font,&endpoint,&input)) goto done;
     SDL_Rect sample = {0,0,1,1};
@@ -1070,15 +1208,22 @@ int sv_endpoint_run(SvEndpointOptions options)
     SDL_DestroySurface(ready);
     if (!SDL_RenderPresent(renderer) || !SDL_StartTextInput(window)) goto done;
     sv_endpoint_input_begin(&input);
+    input.chronicle = &chronicle_view;
     int frames = 0;
+select_endpoint:
+    sv_pregame_input_boundary();
+    if (!SDL_StartTextInput(window)) goto done;
     bool quit = endpoint.phase == SV_ENDPOINT_SELECTED;
     while (!quit) {
         Uint64 frame_start = SDL_GetTicks();
+        (void)sv_chronicle_poll(chronicle, &chronicle_view);
         bool failed = false;
         bool changed = options.source_poll ? options.source_poll(options.source_context, &endpoint, &failed) :
                        provider && sv_metaserver_poll(provider, &endpoint, &failed);
-        if (changed && failed &&
-            endpoint.phase == SV_ENDPOINT_LIST) sv_endpoint_manual(&endpoint);
+        if (changed && failed && endpoint.phase == SV_ENDPOINT_LIST) {
+            sv_endpoint_manual(&endpoint);
+            sv_pregame_input_boundary();
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
@@ -1104,23 +1249,25 @@ int sv_endpoint_run(SvEndpointOptions options)
                endpoint.host,(unsigned)endpoint.port);
         if (!options.selected_endpoint) {
             char account[80] = {0}, password[80] = {0};
-            int entered = 1;
+            int entered = SV_CREDENTIAL_SCENE_ACCEPTED;
+            SvEndpointOptions contact_options=options;
             bool interactive_credentials = !options.account || !options.password;
             if (interactive_credentials) {
-                entered = enter_credentials(renderer, font, &endpoint, &input,
+                entered = enter_credentials(renderer, font, &endpoint, &input, chronicle, &chronicle_view,
                                             options.frames, account, password);
-                options.account = account;
-                options.password = password;
+                contact_options.account = account;
+                contact_options.password = password;
             }
             uint64_t generation = SDL_GetTicksNS();
             if (!generation) generation = 1;
             uint64_t prior_generation = 0;
             SvNameRecovery name_recovery = {0};
-            while (entered > 0) {
-                result = run_contact(window, renderer, font, &endpoint, &input,
-                                     options, root, first_run, generation, prior_generation,
+            while (entered == SV_CREDENTIAL_SCENE_ACCEPTED) {
+                result = run_contact(window, renderer, font, &endpoint, &input, chronicle, &chronicle_view,
+                                     contact_options, root, first_run, generation, prior_generation,
                                      &name_recovery);
-                if (result != 2) break;
+                if (result != 2 && result != SV_CONTACT_SCENE_EDIT_NAME) break;
+                bool editing_name=result==SV_CONTACT_SCENE_EDIT_NAME;
                 prior_generation = generation;
                 generation = SDL_GetTicksNS();
                 if (!generation || generation == prior_generation)
@@ -1128,14 +1275,26 @@ int sv_endpoint_run(SvEndpointOptions options)
                 if (!generation) generation = 1;
                 input.login_view = NULL;
                 input.contact_status = "Retrying account authentication.";
-                if (interactive_credentials) {
+                if (interactive_credentials && !editing_name) {
                     wipe_password(password, sizeof(password));
-                    entered = enter_credentials(renderer, font, &endpoint, &input,
+                    entered = enter_credentials(renderer, font, &endpoint, &input, chronicle, &chronicle_view,
                                                 options.frames, account, password);
                 }
             }
-            if (entered <= 0) result = entered < 0 ? 1 : 0;
+            if (entered != SV_CREDENTIAL_SCENE_ACCEPTED)
+                result = entered == SV_CREDENTIAL_SCENE_ERROR ? 1 : 0;
             wipe_password(password, sizeof(password));
+            if (entered == SV_CREDENTIAL_SCENE_BACK || result == SV_CONTACT_SCENE_BACK) {
+                endpoint.phase=SV_ENDPOINT_LIST;
+                endpoint.host[0]=0;
+                endpoint.port=0;
+                endpoint.invalid_address=false;
+                float chronicle_scroll=input.chronicle_scroll;
+                sv_endpoint_input_begin(&input);
+                input.chronicle=&chronicle_view;
+                input.chronicle_scroll=chronicle_scroll;
+                goto select_endpoint;
+            }
             goto done;
         }
     }
@@ -1149,6 +1308,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     }
     result = 0;
 done:
+    sv_chronicle_stop(chronicle);
     sv_metaserver_stop(provider);
     if (result) fprintf(stderr,"SV endpoint startup failed: %s\n",SDL_GetError());
     SDL_DestroyRenderer(renderer);

@@ -1,5 +1,7 @@
 # 15: Run and report the complete Stage A acceptance gate
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A reviewer can run the complete Stage A gate and see current evidence for both the production native scenario and the full registry, together with reproducible commands and explicit remaining limitations.
 
 **Blocked by:** первоначальные prerequisites 06/12/14; оставшуюся приёмку закрывают [16](16-restore-mingw-and-run-wine-acceptance.md), [17](17-instrument-native-fallback-runtime-checks.md), [18](18-complete-scoped-stage-a-evidence.md), [19](19-review-and-close-stage-a-acceptance.md).

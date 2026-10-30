@@ -1,5 +1,7 @@
 # 08: Register session, movement and targeting outcomes
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** The registry and native ledger expose the complete atomic outcomes for connection/account/character lifecycle, world navigation and targeting, with explicit stage and evidence obligations for later implementation.
 
 **Blocked by:** 07: Validate a source-backed capability registry and native ledger.

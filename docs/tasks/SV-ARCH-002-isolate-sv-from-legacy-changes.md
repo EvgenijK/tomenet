@@ -1,6 +1,8 @@
 # SV-ARCH-002 — Убрать изменения legacy и common, внесённые ради SV
 
-**Статус:** implemented; Linux acceptance passed, Windows verification blocked by dependencies.
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
+**Статус:** implemented; Linux acceptance passed, Windows verification deferred by user (2026-10-28); historical dependency limitation recorded below.
 **Дата:** 2026-09-22.
 **Тип:** корректировка реализации Stage A, тикеты 02–04.
 **Зависимости:** тикеты 02–04 реализованы; незавершённых блокеров нет.
@@ -61,8 +63,8 @@ native scenario и существующий legacy regression harness. Тест�
 Существующие assertions не ослаблять ради переноса файлов. Добавлять проверки
 при обнаружении непокрытого риска поведения, а не для фиксации структуры кода.
 
-- Собрать Linux SV и legacy SDL3. Проверить MinGW при наличии зависимостей;
-  отсутствие зависимостей записать как ограничение, не как успешную проверку.
+- Собрать Linux SV и legacy SDL3. MinGW/Wine verification отложена
+  пользователем; не записывать deferred как успешную проверку.
 - Запустить headless architecture/message/request checks с санитайзерами
   и legacy HP regression.
 - Запустить native HP/message/request/architecture и shell/resource checks

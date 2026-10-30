@@ -7,15 +7,15 @@ static void selection_survives_ping_and_refresh(void)
 {
     SvEndpoint endpoint;
     sv_endpoint_begin(&endpoint, 18348);
-    const SvServer first[] = {{"eu.tomenet.eu", 18348, "Europe", 0, 2},
-                              {"us.tomenet.eu", 18349, "America", 0, 1}};
+    const SvServer first[] = {{.host="eu.tomenet.eu", .port=18348, .label="Europe", .ping_ms=0, .protocol=2},
+                              {.host="us.tomenet.eu", .port=18349, .label="America", .ping_ms=0, .protocol=1}};
     assert(sv_endpoint_servers(&endpoint, first, 2));
     assert(sv_endpoint_choose(&endpoint, 1));
     assert(!strcmp(endpoint.host, "us.tomenet.eu") && endpoint.port == 18349 && endpoint.protocol == 1);
     assert(sv_endpoint_ping(&endpoint, "us.tomenet.eu", 18349, 42));
     assert(endpoint.selected == 1 && endpoint.servers[1].ping_ms == 42);
-    const SvServer updated[] = {{"us.tomenet.eu", 18349, "America", 12, 1},
-                                {"eu.tomenet.eu", 18348, "Europe", 20, 2}};
+    const SvServer updated[] = {{.host="us.tomenet.eu", .port=18349, .label="America", .ping_ms=12, .protocol=1},
+                                {.host="eu.tomenet.eu", .port=18348, .label="Europe", .ping_ms=20, .protocol=2}};
     assert(sv_endpoint_servers(&endpoint, updated, 2));
     assert(endpoint.selected == 0 && endpoint.port == 18349);
     assert(!strcmp(endpoint.host, "us.tomenet.eu"));
@@ -30,10 +30,16 @@ static void manual_cancel_never_chooses_default(void)
 {
     SvEndpoint endpoint;
     sv_endpoint_begin(&endpoint, 18348);
+    SvServer server = {.host="saved.example", .port=18349};
+    assert(sv_endpoint_servers(&endpoint, &server, 1));
+    assert(sv_endpoint_choose(&endpoint, 0));
     sv_endpoint_manual(&endpoint);
     assert(endpoint.phase == SV_ENDPOINT_MANUAL);
     sv_endpoint_key(&endpoint, SV_EDIT_CANCEL);
-    assert(endpoint.phase == SV_ENDPOINT_CANCELLED && !endpoint.host[0]);
+    assert(endpoint.phase == SV_ENDPOINT_LIST && !endpoint.host[0] && !endpoint.port);
+    assert(endpoint.selected == 0 && endpoint.server_count == 1);
+    sv_endpoint_key(&endpoint, SV_EDIT_CANCEL);
+    assert(endpoint.phase == SV_ENDPOINT_CANCELLED);
 }
 
 static void effective_port_keeps_startup_override(void)

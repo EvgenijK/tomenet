@@ -3,6 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#ifdef WIN32
+#include <windows.h>
+#else
+#include <sys/time.h>
+#endif
 
 #define SV_LOGIN_INPUT_CAPACITY (64 * 1024)
 #define SV_LOGIN_OUTPUT_CAPACITY (32 * 1024)
@@ -20,7 +26,9 @@ struct SvLogin {
     size_t count;
     size_t selected_slot;
     bool has_selected_slot, creating_character, reincarnation_requested;
+    bool play_stream_complete;
     char reason[256];
+    SvLoginPingTelemetry ping;
 };
 
 static uint32_t get32(const unsigned char *p)
@@ -28,6 +36,47 @@ static uint32_t get32(const unsigned char *p)
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
            ((uint32_t)p[2] << 8) | p[3];
 }
+static void receive_pong(SvLogin *login, const unsigned char *packet)
+{
+    /* Startup has not sent a lagometer ping: baseline ping_id is still zero.
+     * Future/older correlation IDs must never index the bounded sample array. */
+    uint32_t index = 0u - get32(packet + 2);
+    if (index >= 60) return;
+    int32_t seconds, microseconds;
+#ifdef WIN32
+    DWORD ticks = GetTickCount();
+    seconds = (int32_t)(ticks / 1000);
+    microseconds = (int32_t)((ticks % 1000) * 1000);
+#else
+    struct timeval now;
+    if (gettimeofday(&now, NULL)) return;
+    seconds = (int32_t)now.tv_sec;
+    microseconds = (int32_t)now.tv_usec;
+#endif
+    int64_t elapsed = ((int64_t)seconds - (int32_t)get32(packet + 6)) * 1000 +
+        ((int64_t)microseconds - (int32_t)get32(packet + 10)) / 1000;
+    if (!elapsed) elapsed = 1;
+    if (elapsed > INT_MAX) elapsed = INT_MAX;
+    if (elapsed < INT_MIN) elapsed = INT_MIN;
+    int rtt = (int)elapsed;
+    SvLoginPingTelemetry *ping = &login->ping;
+    ping->samples[index] = ping->latest_ms = rtt;
+    if ((int64_t)rtt < (int64_t)ping->average_ms * 7 / 10) {
+        ping->average_ms = rtt;
+        ping->average_count = 1;
+    }
+    if ((int64_t)rtt <= (int64_t)ping->average_ms * 13 / 10 ||
+        ping->average_count < 10) {
+        if (ping->average_count == 600)
+            ping->average_ms = (int)(((int64_t)ping->average_ms * 599 + rtt) / 600);
+        else {
+            ping->average_ms = (int)(((int64_t)ping->average_ms * ping->average_count + rtt) /
+                (ping->average_count + 1));
+            ++ping->average_count;
+        }
+    }
+}
+SvLoginPingTelemetry sv_login_ping(const SvLogin *login) { return login->ping; }
 static int16_t get16(const unsigned char *p)
 {
     return (int16_t)(((unsigned)p[0] << 8) | p[1]);
@@ -76,6 +125,7 @@ SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6])
     if (!login) return NULL;
     memcpy(login->version, version, sizeof(login->version));
     login->state = SV_LOGIN_WAIT_FLAGS;
+    for (size_t i = 0; i < 60; ++i) login->ping.samples[i] = -1;
     unsigned char start[8] = {PKT_LOGIN, 0};
     size_t start_size = 2;
     const int iaddr_since[6] = {4, 9, 2, 1, 0, 2};
@@ -104,6 +154,21 @@ SvOutput sv_login_take_output(SvLogin *login, void *bytes, size_t capacity)
     return (SvOutput){SV_OK, size};
 }
 SvLoginState sv_login_state(const SvLogin *login) { return login->state; }
+bool sv_login_play_stream_complete(const SvLogin *login)
+{
+    return login && login->play_stream_complete;
+}
+SvOutput sv_login_take_remaining(SvLogin *login, void *bytes, size_t capacity)
+{
+    if (!login || !login->play_stream_complete) return (SvOutput){SV_INVALID, 0};
+    if (capacity < login->input_size)
+        return (SvOutput){SV_OUTPUT_TOO_SMALL, login->input_size};
+    if (login->input_size && !bytes) return (SvOutput){SV_INVALID, login->input_size};
+    size_t size = login->input_size;
+    if (size) memcpy(bytes, login->input, size);
+    login->input_size = 0;
+    return (SvOutput){SV_OK, size};
+}
 size_t sv_login_count(const SvLogin *login) { return login->count; }
 const SvLoginCharacter *sv_login_character(const SvLogin *login, size_t slot)
 {
@@ -233,7 +298,18 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
     if (size) memcpy(login->input + login->input_size, bytes, size);
     login->input_size += size;
     for (;;) {
+        /* END belongs to startup; the following bytes belong to the live
+         * session, even when TCP coalesces both into the same read. Retain
+         * them for its owner instead of parsing them as login packets. */
+        if (login->play_stream_complete) return SV_OK;
         if (!login->input_size) return SV_OK;
+        /* The server terminates the successful play reply stream with END. */
+        if (login->state == SV_LOGIN_PLAY_ACKNOWLEDGED &&
+            login->input[0] == PKT_END) {
+            consume(login, 1);
+            login->play_stream_complete = true;
+            return SV_OK;
+        }
         if (login->input[0] == PKT_KEEPALIVE) {
             consume(login, 1);
             continue;
@@ -252,7 +328,7 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
                 reply[1] = 1;
                 SvResult queued = append_output(login, reply, packet_size);
                 if (queued != SV_OK) return queued;
-            }
+            } else receive_pong(login, login->input);
             consume(login, packet_size);
             continue;
         }
@@ -338,11 +414,22 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
         } else if (login->state == SV_LOGIN_WAIT_STATUS) {
             unsigned char status = login->input[0];
             consume(login, 1);
-            if (status != 0) {
+            /* Receive_login sends E_NEED_INFO for an accepted new name;
+             * SUCCESS is the existing-character branch, not the only success. */
+            if (status != 0 && status != E_NEED_INFO) {
                 snprintf(login->reason, sizeof(login->reason),
                          "Server rejected character selection (status %u).", status);
                 login->state = SV_LOGIN_REJECTED;
                 return SV_OK;
+            }
+            if (status == E_NEED_INFO && !login->creating_character) {
+                /* A listed character can disappear before selection. Follow
+                 * the server's birth request while retaining its chosen name. */
+                const SvLoginCharacter *selected = sv_login_selected_character(login);
+                if (!selected) return SV_DECODE_ERROR;
+                login->creation = *selected;
+                login->creating_character = true;
+                login->has_selected_slot = false;
             }
             login->state = SV_LOGIN_SELECTED;
             continue;

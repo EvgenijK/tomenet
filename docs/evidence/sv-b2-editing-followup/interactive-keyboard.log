@@ -1,0 +1,14 @@
+SV resource unavailable: .scratch/birth-navigation/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open .scratch/birth-navigation/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=44753
+SV contact ready host=127.0.0.1 port=44753 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV contact ready host=127.0.0.1 port=44753 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+contacts=2 draft_preserved=1 corrected=1 prior_generation=1694015006 generation=2237804743 secret_kept=1

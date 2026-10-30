@@ -1,5 +1,7 @@
 # SV-ARCH-003 — Сгруппировать исходники SV по модулям
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **Статус:** implemented; Linux checks passed, MinGW/Wine unverified (missing dependencies).
 **Дата:** 2026-09-22.
 **Тип:** организация существующей реализации SV.
@@ -83,9 +85,8 @@ Session, input router и runnable native scenario. Assertions не ослабл�
   [отчёта тикета 06](../sv-geometry-timing.md#repeatable-commands): на момент
   постановки 23 runner-вызова, включая headless sanitizers, legacy HP regression,
   native software/OpenGL, geometry TTF/PCF и timing с отрицательными контролями.
-- Предпринять MinGW-сборку. При доступных зависимостях выполнить Wine smoke,
-  включая software renderer. Отсутствующие зависимости/окружения записать как
-  непроверенные, не выдавать за успешное выполнение.
+- MinGW-сборка и Wine smoke, включая software renderer, временно отложены
+  пользователем; deferred не означает успешное выполнение.
 - Проверить отсутствие старых путей в активных build/test/include callers,
   отсутствие случайных изменений legacy/common и сохранность посторонней работы.
 - Выполнить Standards/Spec code-review относительно зафиксированного исходного

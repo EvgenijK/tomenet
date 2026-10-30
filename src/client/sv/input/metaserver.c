@@ -84,6 +84,85 @@ static bool attr(const char *begin, const char *end, const char *name,
     return false;
 }
 
+/* Decode bounded XML text, never exposing markup or control characters to UI. */
+static bool text_value(const char *begin, const char *end, char *value, size_t capacity)
+{
+    size_t used = 0;
+    while (begin < end) {
+        char bytes[4];
+        size_t length = 1;
+        bytes[0] = *begin++;
+        if (bytes[0] == '<') return false;
+        if (bytes[0] == '&') {
+            const char *semi = memchr(begin, ';', (size_t)(end - begin));
+            if (!semi || semi - begin > 12) return false;
+            char entity[14];
+            memcpy(entity, begin, (size_t)(semi - begin));
+            entity[semi - begin] = 0;
+            Uint32 cp = 0;
+            if (!strcmp(entity, "amp")) cp = '&';
+            else if (!strcmp(entity, "lt")) cp = '<';
+            else if (!strcmp(entity, "gt")) cp = '>';
+            else if (!strcmp(entity, "quot")) cp = '"';
+            else if (!strcmp(entity, "apos")) cp = 39;
+            else if (entity[0] == '#') {
+                char *tail;
+                bool hex = entity[1] == 'x' || entity[1] == 'X';
+                const char *digits = entity + (hex ? 2 : 1);
+                unsigned long parsed = strtoul(digits, &tail, hex ? 16 : 10);
+                if (*digits && !*tail && parsed <= 0x10ffff) cp = (Uint32)parsed;
+            }
+            if (!cp || (cp >= 0xd800 && cp <= 0xdfff)) return false;
+            length = (size_t)(SDL_UCS4ToUTF8(cp, bytes) - bytes);
+            begin = semi + 1;
+        }
+        if (length == 1 && ((unsigned char)bytes[0] < 32 || bytes[0] == 127)) bytes[0] = ' ';
+        if (used + length >= capacity) return false;
+        memcpy(value + used, bytes, length);
+        used += length;
+    }
+    value[used] = 0;
+    return true;
+}
+
+static bool metadata(const char *begin, const char *end, SvServer *row)
+{
+    while (begin < end) {
+        if (isspace((unsigned char)*begin)) { ++begin; continue; }
+        if (*begin++ != '<') return false;
+        const char *name = begin;
+        while (begin < end && isalnum((unsigned char)*begin)) ++begin;
+        size_t length = (size_t)(begin - name);
+        if (!length || length > 24 || begin == end || *begin++ != '>') return false;
+        char closing[28];
+        SDL_snprintf(closing, sizeof(closing), "</%.*s>", (int)length, name);
+        const char *close = begin;
+        while ((size_t)(end - close) >= length + 3 && memcmp(close, closing, length + 3)) ++close;
+        if ((size_t)(end - close) < length + 3) return false;
+        char player[96], flag[8];
+        char *value = NULL; size_t capacity = 0;
+#define FIELD(tag, member) if (length == sizeof(tag) - 1 && !memcmp(name, tag, length)) { value = row->member; capacity = sizeof(row->member); }
+        FIELD("game", game)
+        else FIELD("version", version)
+        else FIELD("notes", notes)
+        else if (length == 6 && !memcmp(name, "player", 6)) { value = player; capacity = sizeof(player); }
+        else if (length == 6 && !memcmp(name, "static", 6)) { value = flag; capacity = sizeof(flag); }
+#undef FIELD
+        if (value && !text_value(begin, close, value, capacity)) return false;
+        if (value == player && *player) {
+            ++row->player_count;
+            size_t used = strlen(row->players), n = strlen(player);
+            if (used + n + (used ? 2 : 0) < sizeof(row->players)) {
+                if (used) strcat(row->players, ", ");
+                strcat(row->players, player);
+            }
+        } else if (value == flag) row->official = !strcmp(flag, "1");
+        begin = close + length + 3;
+    }
+    row->metadata_available = true;
+    return true;
+}
+
 bool sv_metaserver_parse(const char *xml, size_t size, SvServer *servers, size_t *count)
 {
     if (!xml || !servers || !count || size > 80192) return false;
@@ -120,8 +199,14 @@ bool sv_metaserver_parse(const char *xml, size_t size, SvServer *servers, size_t
             row.protocol = (int)version;
         }
         memcpy(row.label, row.host, strlen(row.host) + 1);
+        if (at > tag && at[-1] == '/') ++at;
+        else {
+            const char *body = ++at, *close = body;
+            while (end - close >= 9 && memcmp(close, "</server>", 9)) ++close;
+            if (end - close < 9 || !metadata(body, close, &row)) return false;
+            at = close + 9;
+        }
         servers[(*count)++] = row;
-        ++at;
     }
     return true;
 }
@@ -237,9 +322,8 @@ static int ping_host(SvMetaserver *provider, const char *host)
     return ping;
 }
 
-static int worker(void *data)
+static void refresh(SvMetaserver *provider)
 {
-    SvMetaserver *provider = data;
     char *feed = SDL_malloc(80192);
     size_t length = 0, count = 0;
     SvServer rows[SV_SERVER_COUNT] = {{0}};
@@ -251,12 +335,20 @@ static int worker(void *data)
             sv_metaserver_parse(feed, length, rows, &count)) { ok = true; break; }
     }
     SDL_free(feed);
-    if (SDL_GetAtomicInt(&provider->cancelled)) { release(provider); return 0; }
+    if (SDL_GetAtomicInt(&provider->cancelled)) return;
     SDL_LockMutex(provider->mutex);
     if (ok) {
+        for (size_t i = 0; i < count; ++i)
+            for (size_t j = 0; j < provider->count; ++j)
+                if (rows[i].port == provider->servers[j].port &&
+                    !strcmp(rows[i].host, provider->servers[j].host)) {
+                    rows[i].ping_ms = provider->servers[j].ping_ms;
+                    break;
+                }
         memcpy(provider->servers, rows, count * sizeof(*rows));
         provider->count = count;
-    } else provider->failed = true;
+    }
+    provider->failed = !ok;
     ++provider->revision;
     SDL_UnlockMutex(provider->mutex);
     for (size_t i = 0; ok && i < count && !SDL_GetAtomicInt(&provider->cancelled); ++i) {
@@ -266,6 +358,19 @@ static int worker(void *data)
         provider->servers[i].ping_ms = ping;
         ++provider->revision;
         SDL_UnlockMutex(provider->mutex);
+    }
+}
+
+static int worker(void *data)
+{
+    SvMetaserver *provider = data;
+    while (!SDL_GetAtomicInt(&provider->cancelled)) {
+        Uint64 started = SDL_GetTicks();
+        refresh(provider);
+        /* The same worker serializes feed and ping refresh. Last good data
+         * remains available if a later transport or parser attempt fails. */
+        while (!SDL_GetAtomicInt(&provider->cancelled) &&
+               SDL_GetTicks() - started < 5000) SDL_Delay(50);
     }
     release(provider);
     return 0;

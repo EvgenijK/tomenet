@@ -1,6 +1,12 @@
 # SV-B-001 — Endpoint surface и native input primitives
 
-Статус: частично реализован; полная acceptance по суженной границе B pending.
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: частично реализован; полная acceptance по суженной границе B pending.
 [Существующее evidence](../../sv-b001-evidence.md) сохраняется только там, где
 оно подтверждает перечисленные ниже IDs и остаётся актуальным.
 
@@ -38,7 +44,7 @@ input primitives только через первый production caller. Gamepla
 
 1. Metaserver refresh не меняет выбранный endpoint; manual host/port и startup
    arguments дают одинаковую identity, Escape не создаёт connect attempt.
-2. Production SDL adapter и input router проверяются на Linux и Windows:
+2. Production SDL adapter и input router проверяются на Linux (Windows отложен):
    printable/function/keypad/navigation/modifier/lock keys, input method,
    cursor/selection/history, boundary−1/boundary/boundary+1, accept/cancel.
 3. Focus/resize и interleaved peer event не теряют draft, caret, selection или
@@ -53,3 +59,21 @@ input primitives только через первый production caller. Gamepla
 SDL→router→model→surface path; нет terminal fallback или test-only editor.
 Секретные ограничения дополнительно принимает SV-B-005. Реальный TomeNET
 server не требуется; сетевую границу начинает SV-B-002.
+
+
+## Linux evidence — 2026-10-28
+
+[Нативный отчёт](../../sv-stage-b-linux-native-evidence.md) возвращает B-001
+результаты M1/M2: existing selection, creation input, native mouse mapping на
+controlled X11 scale1.5, software/OpenGL startup, exact bytes и lifecycle.
+Существующий `tests/sv_endpoint_checks.py` пройден повторно.
+
+В `endpoint-run.c` исправлен перевод mouse и resize coordinates из window
+units в UI units; birth viewport использует render output/display scale.
+Legacy/shared files не затронуты. Текущая полная Linux acceptance остаётся
+pending: human native review применимого native text input и byte/edit/focus
+contracts отсутствует; дополнительный final OpenGL driver/layout маршрут не
+подтвердил submit и не засчитан. Actual OS IME не проверялся — это ограничение
+наблюдения, а не самостоятельный blocker из-за отсутствия ibus/fcitx.
+Общее требование input method не предписывает отдельный composition-сценарий.
+Windows отложен по текущему правилу и не является blocker.

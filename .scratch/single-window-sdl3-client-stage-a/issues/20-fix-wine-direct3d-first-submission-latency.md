@@ -1,5 +1,7 @@
 # 20: Fix Wine Direct3D first urgent submission latency
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** Устранить причину превышения urgent submission budget на первом кадре key-request в SV под Wine Direct3D и подтвердить исправление свежим полным Stage A gate.
 
 **Status:** completed; scoped Stage A accepted, 62/62 automated checks and current human review approved (2026-09-23)

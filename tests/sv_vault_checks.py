@@ -38,11 +38,12 @@ daemon = subprocess.run(["gnome-keyring-daemon", "--unlock", "--components=secre
 for line in daemon.stdout.decode().splitlines():
     if line.startswith("GNOME_KEYRING_CONTROL="):
         os.environ["GNOME_KEYRING_CONTROL"] = line.split("=", 1)[1]
-subprocess.run([sys.argv[1], "provider"], check=True)
 subprocess.run([sys.argv[2], "provider"], check=True)
+subprocess.run([sys.argv[1], "provider"], check=True)
 '''
     isolated = dict(checked, HOME=str(private_home), XDG_DATA_HOME=str(private_home),
-                    XDG_RUNTIME_DIR=str(runtime), SDL_VIDEODRIVER="dummy")
+                    XDG_RUNTIME_DIR=str(runtime), SDL_VIDEODRIVER="dummy",
+                    DISPLAY="", WAYLAND_DISPLAY="", SV_VAULT_ISOLATED_PROVIDER="1")
     result = subprocess.run(["dbus-run-session", "--", "python3", "-c", session,
                              str(binary), str(credentials)],
                             cwd=ROOT, env=isolated, capture_output=True)

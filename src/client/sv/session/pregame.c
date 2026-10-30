@@ -28,6 +28,7 @@ void sv_pregame_begin(SvPregame *pregame, uint64_t generation, bool first_run)
     if (!pregame) return;
     *pregame = (SvPregame){.generation = generation, .revision = 1,
                            .phase = SV_PREGAME_CONTACT, .first_run = first_run};
+    for (size_t i = 0; i < 60; ++i) pregame->ping.samples[i] = -1;
 }
 
 SvResult sv_pregame_contact_ready(SvPregame *pregame, uint64_t generation)
@@ -94,6 +95,9 @@ static bool publish_overview(SvPregame *pregame, const SvLogin *login,
         memcmp(pregame->server_flags, flags, sizeof(pregame->server_flags)) ||
         pregame->creation_flags != setup->creation_flags || !pregame->authenticated;
     pregame->character_count = count;
+    /* Keep birth restrictions consistent with the authenticated overview,
+     * rather than treating a fresh installation as a new account. */
+    if (count) pregame->first_run = false;
     memcpy(pregame->characters, characters, sizeof(characters));
     memcpy(pregame->server_flags, flags, sizeof(pregame->server_flags));
     pregame->creation_flags = setup->creation_flags;
@@ -111,6 +115,11 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
     if (pregame->phase == SV_PREGAME_FAILED ||
         pregame->phase == SV_PREGAME_DISCONNECTED)
         return SV_CLOSED;
+    SvLoginPingTelemetry ping = sv_login_ping(login);
+    if (memcmp(&pregame->ping, &ping, sizeof(ping))) {
+        pregame->ping = ping;
+        ++pregame->revision;
+    }
     SvLoginState state = sv_login_state(login);
     if (state == SV_LOGIN_PEER_QUIT)
         return sv_pregame_disconnect(pregame, generation, sv_login_reason(login));

@@ -78,7 +78,11 @@ def serve(listener, observed):
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
             overview(peer, observed, (4, 9, 4, 0, 0, 0))
-            time.sleep(3.5)
+            # Keep a successful peer alive until the client completes its
+            # bounded frame run; rendering cost is not a disconnect trigger.
+            peer.settimeout(12)
+            while peer.recv(1024):
+                pass
     except Exception as error:
         observed['error'] = error
 
@@ -104,7 +108,11 @@ def serve_old_setup(listener, observed):
                 peer.sendall(bytes([byte]))
                 time.sleep(0.001)
             overview(peer, observed, (4, 4, 3, 1, 0, 0))
-            time.sleep(3.5)
+            # Keep a successful peer alive until the client completes its
+            # bounded frame run; rendering cost is not a disconnect trigger.
+            peer.settimeout(12)
+            while peer.recv(1024):
+                pass
     except Exception as error:
         observed['error'] = error
 
@@ -197,7 +205,9 @@ def serve_version_branch(listener, observed, version, extended, status):
                 peer.sendall(setup[offset:offset + 3])
                 time.sleep(0.001)
             overview(peer, observed, effective)
-            time.sleep(1.5)
+            peer.settimeout(12)
+            while peer.recv(1024):
+                pass
     except Exception as error:
         observed['error'] = error
 
@@ -328,9 +338,9 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
                 0, 2, 0x80000000, 9, 4, 0, 0, 0), 'Invalid contact or network packet'),
             ('verify', b'\x02\x01', 'Verification failed'),
             ('verify', b'\x02\x01\x00', 'Verification failed'),
-            ('setup', b'\0\0\0', 'Server setup failed'),
+            ('setup', b'\0\0\0', 'closed the connection before its configuration was received'),
             ('setup', struct.pack('>IhBBBI', 999999, 20, 0, 0, 0, 13),
-             'Server setup failed')]:
+             'sent configuration this client cannot read')]:
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))
             listener.listen(1)
@@ -378,7 +388,7 @@ with tempfile.TemporaryDirectory(prefix='sv-contact-live-') as temp:
             assert 'error' not in observed and observed.get('closed'), observed
             assert run.returncode == 1, (run.stdout, run.stderr)
             assert reason in run.stderr, (status_code, run.stderr)
-    for phase, status in [('verify', 'Verification failed'), ('setup', 'Server setup failed')]:
+    for phase, status in [('verify', 'Verification failed'), ('setup', 'sent configuration this client cannot read')]:
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))
             listener.listen(1)

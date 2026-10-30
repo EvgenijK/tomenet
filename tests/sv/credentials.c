@@ -60,6 +60,15 @@ int main(int argc, char **argv)
     assert(sv_credentials_event(&input, &event) == SV_CREDENTIAL_ACCEPTED);
     sv_credentials_end(&input);
 
+    sv_credentials_begin(&input, &endpoint, account, password);
+    sv_credentials_focus(&input,1);
+    sv_credentials_toggle_reveal(&input);
+    sv_credentials_focus(&input,4);
+    event=key(SDLK_RETURN,0);
+    assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_CANCELLED);
+    assert(!input.reveal && !input.lookup && !password[0]);
+    sv_credentials_end(&input);
+
     account[0] = password[0] = 0;
     sv_credentials_begin(&input, &endpoint, account, password);
     event = text("a12345678901234567890");
@@ -153,6 +162,46 @@ int main(int argc, char **argv)
     sv_credentials_poll(&input);
     assert(!password[0]);
     sv_credentials_end(&input);
+
+    /* SDL may expose Tab through its physical scancode or LEFT_TAB symbol. */
+    sv_credentials_begin(&input,&endpoint,account,password);
+    event=key(SDLK_UNKNOWN,0);event.key.scancode=SDL_SCANCODE_TAB;
+    assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+    assert(input.focus==1 && input.stage==1);
+    event=key(SDLK_LEFT_TAB,0);event.key.scancode=SDL_SCANCODE_TAB;
+    assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+    assert(input.focus==0 && input.stage==0);
+    sv_credentials_end(&input);
+
+    /* Fixed editing keys must work before SDL has a logical key mapping. */
+    for (int field = 0; field < 2; ++field) {
+        strcpy(account,"Alpha");strcpy(password,"Gamma");
+        sv_credentials_begin(&input,&endpoint,account,password);
+        sv_credentials_focus(&input,field);
+        char *draft=field?password:account;
+        event=key(SDLK_UNKNOWN,0);event.key.scancode=SDL_SCANCODE_BACKSPACE;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(!strcmp(draft,field?"Gamm":"Alph"));
+        event.key.scancode=SDL_SCANCODE_HOME;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(input.cursor[field]==0);
+        event.key.scancode=SDL_SCANCODE_DELETE;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(!strcmp(draft,field?"amm":"lph"));
+        event.key.scancode=SDL_SCANCODE_END;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(input.cursor[field]==3);
+        event.key.scancode=SDL_SCANCODE_LEFT;event.key.mod=SDL_KMOD_SHIFT;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(input.cursor[field]==2 && input.anchor[field]==3);
+        event.key.scancode=SDL_SCANCODE_A;event.key.mod=SDL_KMOD_CTRL;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(input.cursor[field]==3 && input.anchor[field]==0);
+        event.key.scancode=SDL_SCANCODE_BACKSPACE;event.key.mod=0;
+        assert(sv_credentials_event(&input,&event)==SV_CREDENTIAL_EDITING);
+        assert(!draft[0]);
+        sv_credentials_end(&input);
+    }
 
     if (argc == 2 && !strcmp(argv[1], "provider")) {
         char identity[SV_VAULT_KEY_CAPACITY];

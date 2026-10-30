@@ -1,5 +1,7 @@
 # 09: Register item, combat, spell and store outcomes
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** The registry and native ledger describe complete item, combat, spell and ordinary store outcomes so their future native implementations can be accepted individually.
 
 **Blocked by:** 07: Validate a source-backed capability registry and native ledger.

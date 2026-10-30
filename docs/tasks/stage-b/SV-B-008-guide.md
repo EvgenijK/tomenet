@@ -1,5 +1,7 @@
 # SV-B-008 — Guide placeholder
 
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
 Статус: superseded-to-G 2026-10-05; активной ответственности Stage B нет.
 
 > Guide capabilities перенесены в G. Точная временная placeholder, если её

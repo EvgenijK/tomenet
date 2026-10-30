@@ -1,14 +1,16 @@
 # 16: Restore reproducible MinGW i686 builds and Wine evidence
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** Воспроизводимое cross-окружение и свежие MinGW/Wine результаты для текущего production SV, достаточные для платформенной части Stage A.
 
 **Blocked by:** none; финальные результаты должны соответствовать сборке после изменений 17–18.
 
-**Status:** ready-for-agent
+**Status:** deferred by user (2026-10-28); Windows/MinGW/Wine verification is outside current Linux acceptance
 
-**Closes blocker:** MinGW build не проходит dependency check; Wine текущей сборки не проверен. Разблокирует [15](15-run-and-report-stage-a-acceptance.md).
+**Historical blocker:** MinGW build не проходил dependency check; Wine текущей сборки не был проверен. С 2026-10-28 эта Windows-only работа отложена пользователем и не блокирует [15](15-run-and-report-stage-a-acceptance.md).
 
-## Scope
+## Отложенный scope
 
 - [ ] Восстановить изолированный SDK с закреплёнными версиями SDL3, SDL3_ttf и FreeType для i686 MinGW. Использовать существующий рецепт `docs/sv-shell.md` как отправную точку; записать происхождение/версии зависимостей, команды и необходимые runtime DLLs. Не зависеть от исчезнувших файлов прежнего `/tmp`.
 - [ ] Собрать текущий `tomenet-sv.exe`, подтвердить PE32/i386, конфигурацию и SHA-256. Проверить отдельные Linux/MinGW object/configuration outputs и отсутствие перезаписи legacy binary.
@@ -17,11 +19,11 @@
 - [ ] Подключить воспроизводимый запуск к `tools/run_stage_a.py`: новый запуск должен подготовить/использовать явно выбранное окружение без ручной подмены свежего executable устаревшей staged-копией. Не отключать проваленные проверки.
 - [ ] Сохранить текущие логи/отпечатки и обновить платформенную часть отчёта 15. После изменений native-кода из 17 повторить затронутые проверки на окончательной сборке.
 
-## Acceptance
+## Отложенная Windows/MinGW/Wine acceptance
 
 Linux amd64 и MinGW i686 outputs проверены отдельно; обязательные Wine software checks проходят на текущей сборке, с точными reply bytes и без потери required events/состояния. Ошибка SDK, DLL, запуска или сценария оставляет gate непрошедшим.
 
-Wine — промежуточное evidence, не Windows acceptance. Actual Windows 10/11 checkpoints остаются B/E/F. Shipping archives, Fedora41 ABI certification и установка Windows VM вне этой задачи. Legacy/common не менять без необходимости текущего SV пути.
+Wine — промежуточное evidence, не Windows acceptance. Actual Windows 10/11 checkpoints B/E/F также отложены пользователем. Shipping archives, Fedora41 ABI certification и установка Windows VM вне этой задачи. Legacy/common не менять без необходимости текущего SV пути.
 
 ## Sources and checks
 

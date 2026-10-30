@@ -1,5 +1,9 @@
 # Stage A acceptance — ticket 15
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 The scoped Stage A gate is **accepted** as of ticket 20 (2026-09-23):
 **62/62 commands passed**, fresh production checkpoint passed, and current human
 review approved. See [final results, hashes and retained evidence](sv-direct3d-startup.md).

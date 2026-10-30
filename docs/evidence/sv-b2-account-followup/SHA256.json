@@ -1,0 +1,18 @@
+{
+  "actions-back.png": "49fb0852209d09a4ac4d8b2107ab3126b78ec531dc1b0873c83a3be0848c4bfc",
+  "actions.log": "dd35619669a58e39ee9eca8de934ab3b25855ea7a8d5447ca89a840661e5494f",
+  "before.png": "4edd34c1e18320d70de89fc41d3f7fd6a5b6285fe3630655b181a55dc6576e89",
+  "binary.sha256": "b4d14eec3c677c25d86821a4ff0c1ece834ac0f0552df1f62a5e564a6716354d",
+  "build-final.log": "ff041de36b89cd9051b4bff289741c72f8d6d3ad8c8e8497834f900fc1ed5ff4",
+  "endpoint.log": "1e646294c55796c6e2de4ddad35f7af35b5db36038d178678e551e8d3c6a8efd",
+  "final-opengl-small.png": "25af97888c8c448fc66fbe85adb684f96302f4dbe88baeab8f49faa847f89356",
+  "final-software.png": "7b83b5a1f69db6189a79211e2975d8805ef0ea68a7e9dac9d8bdd2c3d1fae339",
+  "graph-update.log": "960f3792f55f5c4ee6a7e256368f47ee5329c98753c659714064e11cb1df7e7c",
+  "source-review.md": "998eae9751d2a6adaa2ea9583a47c6da89d59c780cc0f53ba27a7c7619560ea4",
+  "torch-green.log": "28243f9d0878499c4dc375cb61e9440615957e8158ca8f80d6054206260de7b5",
+  "torch-red.log": "7489de65340bf401ac0e3f2387dffae3408fd1f886fa388a8649e933b3cb7e5f",
+  "torch-reduced.log": "7489de65340bf401ac0e3f2387dffae3408fd1f886fa388a8649e933b3cb7e5f",
+  "user-client-before.png": "31d8eeb47fd954a78ebfb56994cf8b58f3731ebf88410e9f0ae22b4a3158a379",
+  "user-reference.png": "a3524f6f544907f5ec633de5fd560ca582f2242a985e3f68c9b7a1032bb24456",
+  "visual-analysis.md": "8b7c8b7d5c570db1538cf3ed6ff8884256d20cd89a5924bc7a625f0a5f88a87d"
+}

@@ -1,6 +1,13 @@
 # SV-B2-004 — Creation workspace, summary и choices
 
-Статус: planned, 2026-10-28. Реализация не начата.
+Статус: accepted, 2026-10-30, в составе принятого пользователем B2;
+[итоговое решение](../../sv-stage-b2-acceptance.md).
+
+## Реализация и требования до приёмки
+
+Реализация: implemented, 2026-10-29. Linux software/OpenGL, targeted production-path
+проверки и независимые Standards/Spec review завершены;
+[evidence](../../sv-b2-004-evidence.md).
 Зависимости: SV-B2-003.
 Существующие semantic consumers: B-023, B-024.
 Новых capability IDs: 0; B ownership и protocol semantics сохраняются.
@@ -47,3 +54,37 @@ back/cancel и selected visibility при resize/scroll. Relevant subset existin
 Общие правила: минимальные SV-local changes; никакой отдельной реализации
 поведения только для тестов. Дополнительные improvements фиксируются отдельно
 в `docs/sv-improvements.md`, а не включаются автоматически в эту задачу.
+
+## Результат
+
+Production birth использует композицию D: summary слева, choices сверху и detail
+снизу, отдельные scroll areas и общую геометрию draw/input. Выборы, stats table,
+availability, descriptions, настоящие hotkeys, random/DNA, Back/Quit, Guide и
+unused-points confirmation используют публичную interaction boundary.
+Добавлена semantic cancel-команда предупреждения без изменения stat draft;
+protocol path, оба birth orders и authoritative ACK gate сохранены.
+
+Замечания review исправлены: descriptions/hotkeys карточек, Keep editing,
+модальный Enter, grids и compact workspace geometry. Existing production checks
+подтвердили длинные списки, mouse/keyboard, stats, Guide, single submission и
+partial/complete ACK. Native/reference кадры, resize, команды и честные visual
+adaptations перечислены в evidence. Полная B2 acceptance остаётся в B2-006.
+
+## Follow-up 2026-10-30 — тело, пол, переход имени
+
+[Пользовательские дефекты и исправления](SV-B2-body-sex-followup.md): n/f теперь
+подтверждают тело, sex/body styling приведён к reference, name surface сохраняется
+до серверного ответа. Linux core/replay/build PASS; ручная приёмка открыта.
+
+## Follow-up 2026-10-30 — атрибуты и удержание
+
+[Исправления и evidence](SV-B2-stats-followup.md): убран лишний маркер тела,
+таблица point-buy приведена к reference, добавлен keyboard/mouse hold repeat с
+отменой при release/focus/owner change. Linux build и минимальные core regression
+PASS; пользовательская приёмка открыта.
+
+## Follow-up 2026-10-30 — режим и окончание startup
+
+[Исправления и evidence](SV-B2-mode-final-followup.md): цвета BASE8/17 и keyboard
+focus frame атрибутов, mode cards и2D arrows, ошибка decode при live bytes после
+END. Linux build/core/controlled endpoint PASS; ручной localhost повтор открыт.

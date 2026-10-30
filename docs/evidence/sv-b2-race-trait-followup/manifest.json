@@ -1,0 +1,29 @@
+{
+  "provenance": "Production renderer/layout with synthetic SvBirthView.18races,12legaltraits use exact reference titles/modifiers; legalrace subset disables Ent/Maia like supplied Archer image. Not a live protocol capture. SDLsoftwaredummy with scratchdisplay-scale override.",
+  "source": {
+    "src/client/sv/ui/endpoint-scene.c": "9f22a403c15d9b6bc97f267889b06db64231aeb9006c2901b71cb4b701edbaf4",
+    "src/client/sv/ui/login-layout.h": "baa42f9310a399e276889dfdc87013ee42c82e491c3fd9988ea9dbe49fce1aa0"
+  },
+  "images": {
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-race-detail-bottom.png": "0173fdf0f69dad393a592495f10e966ad833bd6120d39b92a4459f835f1d7e33",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-race-fractional.png": "f7f67c3a43fc6315eda89552375ef0a3eb2e85c0200463d98a8f32f60daccc7c",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-race-last-min.png": "3c5f8402ab6bed738ff789368429ffa20eac8560a2223b1ad113799bd5b66197",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-race-min.png": "62d011352f276dbc3213e871163790733eb1a6021f7ed28eadae95412d525596",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-race-wide.png": "15da9fb16e7322d3218600635a48848ca0c7002628389ee607998fc2169e3677",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-trait-detail-bottom.png": "78c3952d473493974c5140016c241d24e0acee1996451a7bead5251ac625f8c6",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-trait-fractional.png": "a0f08e83c216f3bf4b618b71509d99be3eed28a81cd1b80dc5598a3455049bb5",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-trait-last-min.png": "5024888be9bec54f31cf68ceec9ed3cb5fdbe16c0e503b5c0124205dd013a3cd",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-trait-min.png": "9549bf2c8cee7e46d9e212ef6f6cfddf4386cff7859a523c65f861fbf6366acb",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/after-trait-wide.png": "5d22b0531a32b121604ee721e3867c91d5941af1bfbf0385775985e0fce24a22",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-race-detail-bottom.png": "490a1e7fc15eb531439e8f324b446719263053d9558873f570a8cc47255499d8",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-race-fractional.png": "0154e8dc508cd6095daf3d12686f1117898dd13f90b8169528419146ca127ae6",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-race-last-min.png": "508f04bc1e3fd536344268e6583a54729e5cb6a2a99886814e4b96aab742eb7b",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-race-min.png": "2273648cc7e05a1484c56423387cc03d88789fabfaaa5ba39c8adcae380a4661",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-race-wide.png": "ac5fc11d118a06b34887ec9ba4fd62c71e870d79b44d624ee98ab93bfed3ae38",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-trait-detail-bottom.png": "567a59b50d3aa85394891bf6efcddba76e7f77fe47ab680a4787a308b5e0f8ad",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-trait-fractional.png": "676e4e143251ee27d1d62abaaea2b5700acab517a489fb14b1e325596b90f47f",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-trait-last-min.png": "df2fe057d267e41c035ec7529d455ed2a8342381e1f77211ebbae56cac010dc3",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-trait-min.png": "89b0719849b045d1d609e3ad6e916f0e218a97ad9fa7a3f8a3187107881be9d1",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-race-trait-style/before-trait-wide.png": "3e315c2a9b30040afb2e0b9f0805bbe8f59b457e09bb088ce7bf7c9a9d26120d"
+  }
+}

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round"><style>.server-doorway{fill:#010201;stroke:#756126;stroke-width:1}.server-stone-arch{fill:#c4a44e;fill-opacity:.2;stroke:#c8aa4f;stroke-width:1.35}.server-stone-seams{opacity:.72;stroke:#c8aa4f;stroke-width:1}.server-door-panel{fill:#79501f;stroke:#e0b958;stroke-width:1.15}.server-door-planks{opacity:.82;stroke:#33210d;stroke-width:.9}.server-door-knob{fill:#f0cb65;stroke:#3b290f;stroke-width:.75}</style>
+              <path class="server-doorway" d="M9 29V14a7 7 0 0 1 14 0v15Z"/>
+              <g class="server-door" transform="translate(5.4 0) scale(.46 1)">
+                <path class="server-door-panel" d="M10 29V14a6 6 0 0 1 12 0v15Z"/>
+                <path class="server-door-planks" d="M14 9.7V29m4-19.3V29m-7.5-10.5h11"/>
+                <circle class="server-door-knob" cx="19" cy="21.5" r="1"/>
+              </g>
+              <path class="server-stone-arch" fill-rule="evenodd" d="M4 29V14C4 7.4 9.4 2 16 2s12 5.4 12 12v15h-5V14a7 7 0 0 0-14 0v15Zm5 0h14"/>
+              <path class="server-stone-seams" d="M5.6 9.2h5M21.4 9.2h5M9 4.9l3.1 3M23 4.9l-3.1 3M4 20h5m14 0h5"/>
+            </svg>

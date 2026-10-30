@@ -1,0 +1,31 @@
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Forbidden character name. Please choose a different name.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=43377
+SV contact ready host=127.0.0.1 port=43377 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=43377 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Character name already logged in or currently logging in.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=45309
+SV contact ready host=127.0.0.1 port=45309 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=45309 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Name already in use by another player.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=36105
+SV contact ready host=127.0.0.1 port=36105 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=36105 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Forbidden character name. Please choose a different name.  Retry login is disabled; exiting. (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=42325
+SV contact ready host=127.0.0.1 port=42325 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+SV endpoint selected host=127.0.0.1 port=33409
+SV contact ready host=127.0.0.1 port=33409 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-760as6nv/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Forbidden character name. Please choose a different name.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=34525
+SV contact ready host=127.0.0.1 port=34525 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=34525 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV-B-022 name rejection recovery production checks passed

@@ -1,5 +1,7 @@
 # 01: Launch an isolated single-window SV client
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A developer can build and launch the separate SV client in an explicitly identified synthetic mode, using an isolated profile and exactly one native SDL window. This is the runnable shell for the approved Stage A foundation, without requiring an account or live server.
 
 **Blocked by:** None (can start immediately).

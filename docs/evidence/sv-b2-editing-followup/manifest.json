@@ -1,0 +1,36 @@
+{
+  "capture": "Production renderer and native layout. Synthetic SvLoginView/SvBirthView13classes with actualreferenceWarriormods(4,-2,-2,2,2,-1). SDLsoftwaredummy, scratch displayscaleoverride only; not protocol executor.",
+  "sources": {
+    "src/client/sv/ui/endpoint-scene.c": "b3b31d6c47a1380a8ec657b136087680feeff3ef88e8d71f7a2680231d66a568",
+    "src/client/sv/ui/login-layout.h": "ea105fb5f98df2ef657f1604f15d20f875ad1db534989757125b7ed4940ecf55"
+  },
+  "images": {
+    ".scratch/sv-b2-class-style/after-class-detail-bottom.png": "77b6cd747e815726a1f691ad11147cda88d776049a2ca6efdeb3c3b53d5ff42c",
+    ".scratch/sv-b2-class-style/after-class-fractional.png": "56228336dd2ecb127aca89f82374f88ee4b032db571eb04d5cba3ba7bc44c6b1",
+    ".scratch/sv-b2-class-style/after-class-istar.png": "791a51276b1f7fd1e71ae817782d90353f8598cbe04e6b48313d5b92530f6463",
+    ".scratch/sv-b2-class-style/after-class-long.png": "98c265f2454fe5e82de4f0860fb5f33dd6866b36fc06b839900709c4f76dc4e7",
+    ".scratch/sv-b2-class-style/after-class-min.png": "2702c20155e1eda3a1be7802a57dcb9d339ed23f57c43a5499f1a9fd4abe4f94",
+    ".scratch/sv-b2-class-style/after-class-wide.png": "26f6027be4f0e06870126791af4a44e4a0bd8281133bd4f55432691c0e45af0b",
+    ".scratch/sv-b2-class-style/after-race-fractional.png": "7c27ba196368e8229cea53d520dc9513d8d24e4f767521fd6a332a889bec8559",
+    ".scratch/sv-b2-class-style/after-race-min.png": "6f8bafcbcd4f2e4a8aeb8e66c8d56fc2a0c11fdb20960a3d7a3f618b4c8684a5",
+    ".scratch/sv-b2-class-style/after-race-wide.png": "3cf95f57750ed5eff4df510229c35012dd6c7dbbc586f9386bc3ab5cde3289c6",
+    ".scratch/sv-b2-class-style/after-sex-fractional.png": "7eae0be8f2f46bdb43d2d8cf0c6f4fa988d8dda23a239be6cb2e782a792df9d6",
+    ".scratch/sv-b2-class-style/after-sex-min.png": "65ef6729547927dd1d9104be1a298db6d2ebedc5241a9d461f58499a59c2ea96",
+    ".scratch/sv-b2-class-style/after-sex-wide.png": "160ed2e4be0d6da0d77bb65f049694540fd241ff13bacc8ee62490a1ef87955e",
+    ".scratch/sv-b2-class-style/after-stats-fractional.png": "5f19188fb775959d968c8e417908d5548665bacf93253b71e3921c3f58feafb5",
+    ".scratch/sv-b2-class-style/after-stats-min.png": "53b565ab33fa41b890d31d3c17dc5895410ca48c93f764ed6e9e661074bbd61c",
+    ".scratch/sv-b2-class-style/after-stats-wide.png": "d7b65ff8f0a3d5e766051fc6a22d6a4f9996559e91f338f92eca8a03b9bf6f7e",
+    ".scratch/sv-b2-class-style/before-class-fractional.png": "a74db78a97c374642f0b4b63da8eba184f0d5690b5a9084a1b9afe30ca0987d0",
+    ".scratch/sv-b2-class-style/before-class-min.png": "0d806474ed53c5fe9dd0a4d1c54021d7abda3b256f318599c810e3ea660b7bb6",
+    ".scratch/sv-b2-class-style/before-class-wide.png": "8892dcfa212d41405a4f849e8b409c8b696e7000693e13c5f52d0ceafd02cc6f",
+    ".scratch/sv-b2-class-style/before-race-fractional.png": "95b712df0dab17f4900ff016c4e99fe0ccc8fd1e7e7a90f0043badd9d53f953a",
+    ".scratch/sv-b2-class-style/before-race-min.png": "21c96334e141215d7e0068999634657a533de2c32220de6eaba73a83cfbe5019",
+    ".scratch/sv-b2-class-style/before-race-wide.png": "398e6ec888b125006feef7025160f96aeae35619c476c55e566817c6ae181425",
+    ".scratch/sv-b2-class-style/before-sex-fractional.png": "12661dca5549d02b4a210e8f0c0d825d11c84fdfc7d49f4832b05dbd506bfd11",
+    ".scratch/sv-b2-class-style/before-sex-min.png": "a6afe74560c98697de0ca636635fa8e491a9653a5e887cb48dfd6a2557395f5c",
+    ".scratch/sv-b2-class-style/before-sex-wide.png": "144a45ad02e7a522e817fba7ab31a3a149604c1ec85d0395119a4f2693770e65",
+    ".scratch/sv-b2-class-style/before-stats-fractional.png": "8d4dbbee2506f4445a2d77361ac130647cc2bd5840826da6bbda0d6bbd0ae139",
+    ".scratch/sv-b2-class-style/before-stats-min.png": "8eb5595322d8112066ccdd57bf22e4a8aef716d84b0bfa2323c459a4b17c9b59",
+    ".scratch/sv-b2-class-style/before-stats-wide.png": "51acaabaf9e3978aa3e3f447c35f54bc1bfab6c3ab7ffff92fbbecba7f96e104"
+  }
+}

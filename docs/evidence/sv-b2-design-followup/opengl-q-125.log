@@ -1,0 +1,13 @@
+SV resource unavailable: /tmp/sv-design-q125/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-design-q125/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+scratch SDL input mode=Q stage=1 output=1280x960 scale=1.250000 logical=1024.000000x768.000000 point=808.750000,214.000000
+scratch SDL input mode=Q stage=2 output=1280x960 scale=1.250000 logical=1024.000000x768.000000 point=808.750000,214.000000
+SV endpoint selection incomplete; no contact attempted

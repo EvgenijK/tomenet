@@ -1,5 +1,7 @@
 # 19: Obtain human native review and close the Stage A checkpoint
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** Зафиксированная человеческая оценка окончательной native-сборки и обновлённая приёмка 15, основанная на свежих автоматических и ручных результатах.
 
 **Blocked by:** [16](16-restore-mingw-and-run-wine-acceptance.md), [17](17-instrument-native-fallback-runtime-checks.md), [18](18-complete-scoped-stage-a-evidence.md). Текущий оставшийся blocker вынесен в [20](20-fix-wine-direct3d-first-submission-latency.md). Предварительную UX-проверку можно выполнить раньше; финальное подтверждение привязать к окончательной сборке.

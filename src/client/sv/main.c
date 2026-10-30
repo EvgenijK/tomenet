@@ -181,6 +181,8 @@ int main(int argc, char **argv)
             (int)SDL_ceilf(1024 * window_scale), (int)SDL_ceilf(768 * window_scale))) goto done;
     if (windowed && !SDL_SetWindowSize(window, (int)SDL_roundf(width * window_scale),
                                       (int)SDL_roundf(height * window_scale))) goto done;
+    /* Bind the renderer only after the requested startup size is applied. */
+    if (!SDL_SyncWindow(window)) goto done;
     renderer = SDL_CreateRenderer(window, NULL);
     if (!renderer) goto done;
     int count = 0;

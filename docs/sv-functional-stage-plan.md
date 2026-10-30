@@ -1,5 +1,9 @@
 # План функциональных этапов SV после B
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 2026-10-06. Этапы A (8 outcomes) и B (54 outcomes) заморожены. Новое
 разбиение C001–C064 применяется к 863 outcomes прежних C–G; полный denominator
 остаётся равен 925. Machine-readable authority —
@@ -19,6 +23,7 @@
 существующих B screens с нулём новых capability IDs; отдельной строкой
 canonical stage catalog он не становится. Таблица C001–C064, порядок и counts
 ниже сохраняются. B accepted и снятые проверки B не переоткрываются.
+B2 принят пользователем 2026-10-30: [решение](sv-stage-b2-acceptance.md).
 
 ## Последовательность
 
@@ -91,6 +96,14 @@ canonical stage catalog он не становится. Таблица C001–C0
 | C063 | `files` | 2 | Guide bookmark persistence |
 | C064 | `guide` | 3 | Guide bookmark actions |
 | **C001–C064** | **46 namespaces** | **863** | Все outcomes прежних C–G |
+
+## Текущая приёмка платформ
+
+Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой
+строке A/B/C001–C064 и ко всем последующим implementation tickets этих slices.
+Windows-specific outcomes сохраняют IDs и allocation, но их Windows-сборка и
+проверка отложены; они не являются текущим prerequisite/gate для Linux slices.
+Windows-only проверочная работа остаётся отложенной, а не принимается без evidence.
 
 ## Правила slices
 

@@ -1,0 +1,15 @@
+SV resource unavailable: /tmp/sv-body-sex-red/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-body-sex-red/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+fresh_polled_fixed_key_stamped_before_generation
+queued_opening_name_gesture_injected
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+fresh_polled_fixed_key_stamped_before_generation
+pending name frame=1 retained=0
+endpoint: .scratch/b2-body-sex/endpoint.c:256: _Bool __wrap_sv_endpoint_draw(SDL_Renderer *, SvFont *, const SvEndpoint *, const SvEndpointInput *): Assertion `i->login_view->ordinary_name_entry' failed.

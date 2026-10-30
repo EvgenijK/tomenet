@@ -8,7 +8,8 @@ typedef enum { SV_LOGIN_INPUT_IGNORED, SV_LOGIN_INPUT_HANDLED,
                SV_LOGIN_INPUT_NAME_CANCELLED,
                SV_LOGIN_INPUT_NAME_SUBMITTED,
                SV_LOGIN_INPUT_NAME_SUGGESTED,
-               SV_LOGIN_INPUT_CREATION_UNSUPPORTED } SvLoginInputResult;
+               SV_LOGIN_INPUT_CREATION_UNSUPPORTED,
+               SV_LOGIN_INPUT_BACK } SvLoginInputResult;
 typedef enum { SV_LOGIN_COMMAND_QUIT, SV_LOGIN_COMMAND_CHOOSE,
                SV_LOGIN_COMMAND_ACK_MOTD, SV_LOGIN_COMMAND_CREATE_ORDINARY,
                SV_LOGIN_COMMAND_CREATE_EXCLUSIVE,
@@ -44,6 +45,7 @@ SvLoginInputResult sv_login_interaction_restore_name(SvLoginInteraction *input,
                                                       const char *draft,
                                                       bool dedicated_creation);
 bool sv_login_interaction_complete(const SvLoginInteraction *input);
+void sv_login_interaction_free_slots(const SvLoginInteraction *input, size_t free_slots[3]);
 bool sv_login_interaction_ordinary_available(const SvLoginInteraction *input);
 uint32_t sv_login_interaction_exclusive_modes(const SvLoginInteraction *input);
 #endif

@@ -1,5 +1,7 @@
 # Перераспределение этапов после B по функциональным блокам
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 Статус: in progress; каталог этапов, registry v3 и exact-once reallocation
 выполнены, semantic sweep и детальные implementation tickets остаются
 отдельной последующей работой. Нормативное решение —
@@ -18,6 +20,10 @@ post-B namespaces.
 Новый этап может использовать infrastructure и regressions ранее завершённых
 блоков, но не владеть их outcomes. Cross-block milestones и итоговые проверки
 живут в `docs/tasks/verification/` и не являются acceptance stages.
+
+Presentation follow-up перед C001: [B2 spec](../../sv-stage-b2-spec.md),
+[B2 tasks](../stage-b2/README.md). B2 имеет 0 новых IDs и не меняет этот
+canonical reallocation plan или принятый B.
 
 ## Работы
 

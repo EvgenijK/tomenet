@@ -88,6 +88,21 @@ static bool creation_availability(const SvLoginInteraction *input,
     return true;
 }
 
+void sv_login_interaction_free_slots(const SvLoginInteraction *input,size_t free_slots[3])
+{
+    memset(free_slots,0,3*sizeof(*free_slots));
+    SvCreationAvailability a;
+    if(!creation_availability(input,&a))return;
+    size_t room=a.total_limit>sv_login_count(input->login)?a.total_limit-sv_login_count(input->login):0;
+    size_t limits[]={a.baseline_ordinary_limit,a.iddc_supported?a.iddc_limit:0,a.pvp_supported?a.pvp_limit:0};
+    size_t counts[]={a.ordinary_count,a.iddc_count,a.pvp_count};
+    for(size_t i=0;i<3;++i) {
+        size_t free_count=limits[i]>counts[i]?limits[i]-counts[i]:0;
+        if(free_count>room)free_count=room;
+        free_slots[i]=free_count;room-=free_count;
+    }
+}
+
 bool sv_login_interaction_ordinary_available(const SvLoginInteraction *input)
 {
     SvCreationAvailability available;
@@ -125,6 +140,9 @@ SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
     SvLoginState state = sv_login_state(input->login);
     if (state == SV_LOGIN_OVERVIEW && !input->overview_seen) {
         input->overview_seen = true;
+        /* Server-confirmed characters identify an established account even
+         * when this installation has no local profile settings yet. */
+        if (sv_login_count(input->login)) input->first_run = false;
         if (input->default_character) {
             char desired[SV_LOGIN_NAME_CAPACITY];
             size_t length = strlen(input->default_character);
@@ -311,6 +329,7 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
         return SV_LOGIN_INPUT_NAME_CANCELLED;
     }
     if (state == SV_LOGIN_OVERVIEW) {
+        if (command.kind == SV_LOGIN_COMMAND_CANCEL) return SV_LOGIN_INPUT_BACK;
         if (command.kind == SV_LOGIN_COMMAND_QUIT) return SV_LOGIN_INPUT_QUIT;
         if ((command.kind == SV_LOGIN_COMMAND_CREATE_ORDINARY ||
              command.kind == SV_LOGIN_COMMAND_CREATE_EXCLUSIVE) &&
@@ -335,7 +354,9 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
         if (command.kind == SV_LOGIN_COMMAND_CHOOSE &&
             sv_login_choose(input->login, command.slot) == SV_OK)
             return SV_LOGIN_INPUT_HANDLED;
-    } else if ((state == SV_LOGIN_SELECTED || state == SV_LOGIN_PLAY_ACKNOWLEDGED) &&
+    } else if (((state == SV_LOGIN_SELECTED &&
+                 !sv_login_creating_character(input->login)) ||
+                state == SV_LOGIN_PLAY_ACKNOWLEDGED) &&
                !input->motd_complete) {
         input->motd_complete = true;
         return SV_LOGIN_INPUT_HANDLED;
@@ -347,5 +368,7 @@ bool sv_login_interaction_complete(const SvLoginInteraction *input)
 {
     SvLoginState state = sv_login_state(input->login);
     return input->motd_complete &&
-        (state == SV_LOGIN_SELECTED || state == SV_LOGIN_PLAY_ACKNOWLEDGED);
+        ((state == SV_LOGIN_SELECTED &&
+          !sv_login_creating_character(input->login)) ||
+         state == SV_LOGIN_PLAY_ACKNOWLEDGED);
 }

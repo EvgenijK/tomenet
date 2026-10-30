@@ -1,0 +1,34 @@
+<meta>Official Metaserver</meta>
+<server url="europe.tomenet.eu" port="18348" protocol="2">
+	<game>TomeNET</game>
+	<version>4.9.4</version>
+	<static>1</static>
+	<notes>Europe</notes>
+	<player>Specops</player>
+	<player>Virmiflagellant</player>
+</server>
+<server url="europe.tomenet.eu" port="20348" protocol="2">
+	<game>TomeNET Arcade</game>
+	<version>4.9.3</version>
+	<static>1</static>
+	<notes>Moltor's arcade stuff!</notes>
+</server>
+<server url="na.tomenet.eu" port="18348" protocol="2">
+	<game>TomeNET</game>
+	<version>4.9.4</version>
+	<static>1</static>
+	<notes>North America</notes>
+	<player>Antiriad</player>
+</server>
+<server url="apac.tomenet.eu" port="18348" protocol="2">
+	<game>TomeNET</game>
+	<version>4.9.4</version>
+	<static>1</static>
+	<notes>Asia-Pacific</notes>
+</server>
+<server url="kurzel.dev" port="18348" protocol="2">
+	<game>TomeNET</game>
+	<version>4.9.3</version>
+	<static>0</static>
+	<notes>TomeNET 4.9.3 Module Test</notes>
+</server>

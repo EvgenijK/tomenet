@@ -14,6 +14,8 @@ SvOutput sv_contact_socket_read(SvContactSocket *connection, void *bytes, size_t
 SvOutput sv_contact_socket_write(SvContactSocket *connection, const void *bytes, size_t size);
 SvOutput sv_contact_socket_take_remaining(SvContactSocket *connection, void *bytes, size_t capacity);
 uint64_t sv_contact_socket_last_sent(const SvContactSocket *connection);
+/* Decoder result or SV_CLOSED for transport EOF/error; SV_OK until failure. */
+SvResult sv_contact_socket_failure_result(const SvContactSocket *connection);
 unsigned sv_contact_socket_rejection(const SvContactSocket *connection);
 const int *sv_contact_socket_version(const SvContactSocket *connection);
 const SvContactSetup *sv_contact_socket_setup(const SvContactSocket *connection);

@@ -1,7 +1,14 @@
 # SV-B-020 — M1: existing-character startup screen flow
 
-Статус: production M1 path реализован и проверен на Linux с managed peer;
-Windows/runtime evidence и cumulative acceptance исходных owners остаются pending.
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: production M1 path реализован и проверен на Linux с managed peer;
+Linux runtime evidence и cumulative acceptance исходных owners остаются pending;
+Windows build/runtime validation отложена пользователем и не блокирует приёмку.
 
 ## Пользовательский результат
 
@@ -54,3 +61,18 @@ Evidence возвращается исходным owners SV-B-001, 002, 005 и 
 Milestone не меняет capability ownership и не является Windows или real-server
 evidence. Platform-specific Secret Service/Credential Manager acceptance и полный
 evidence matrix остаются у SV-B-001/002/005/006.
+
+
+2026-10-28: интеграционные проверки M2 и исправления input lifecycle возвращены
+owner в [отчёте B-025](SV-B-025-entry-complete.md#реализация-и-проверки--2026-10-28).
+Это дополнительное Linux evidence; pending Linux native acceptance
+и capability ownership не изменены. Windows build/runtime validation отложена
+пользователем и не блокирует текущую приёмку.
+
+
+## Cumulative Linux review — 2026-10-28
+
+[Сводный B-075 отчёт](../../sv-stage-b-acceptance.md) учитывает свежие
+production-path проверки owners, actual Secret Service и cumulative A
+регрессии. Milestone остаётся pending до закрытия актуальных Linux
+input/provider и per-obligation evidence требований; Windows deferred.

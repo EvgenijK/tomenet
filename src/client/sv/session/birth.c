@@ -839,6 +839,8 @@ static SvBirthInputResult stats_command(SvBirth *birth, SvBirthCommand command)
           command.stat == birth->highlighted_stat))
         birth->stats_confirmation_pending = false;
     switch (command.kind) {
+    case SV_BIRTH_CANCEL_STATS_CONFIRMATION:
+        return SV_BIRTH_INPUT_HANDLED;
     case SV_BIRTH_MOVE_PREVIOUS:
         if (position < 0 || !birth->legal_stat_count)
             return SV_BIRTH_INPUT_IGNORED;
@@ -1211,6 +1213,8 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_QUIT:
         birth->quit = true;
         return SV_BIRTH_INPUT_QUIT;
+    case SV_BIRTH_BACK:
+        return SV_BIRTH_INPUT_BACK_TO_NAME;
     case SV_BIRTH_SELECT_CLASS:
     case SV_BIRTH_SELECT_RACE:
     case SV_BIRTH_SELECT_TRAIT:
@@ -1219,8 +1223,8 @@ SvBirthInputResult sv_birth_command(SvBirth *birth, uint64_t generation,
     case SV_BIRTH_SELECT_MODE:
     case SV_BIRTH_DECREASE_STAT:
     case SV_BIRTH_INCREASE_STAT:
+    case SV_BIRTH_CANCEL_STATS_CONFIRMATION:
     case SV_BIRTH_AUTOMATIC_DNA:
-    case SV_BIRTH_BACK:
         return SV_BIRTH_INPUT_IGNORED;
     }
     return SV_BIRTH_INPUT_IGNORED;
@@ -1239,6 +1243,19 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
 {
     if (!view) return;
     *view = birth ? (SvBirthView){.owner = birth->owner,
+        .chosen_sex=birth->chosen_sex, .chosen_class=birth->chosen_class,
+        .chosen_race=birth->chosen_race, .chosen_trait=birth->chosen_trait,
+        .chosen_body=birth->chosen_body, .chosen_mode=birth->chosen_mode,
+        .class_confirmed=birth->class_confirmed, .race_confirmed=birth->race_confirmed,
+        .trait_confirmed=birth->trait_confirmed, .body_confirmed=birth->body_confirmed,
+        .stats_prepared=birth->stats_prepared, .stats_confirmed=birth->stats_confirmed,
+        .mode_confirmed=birth->mode_confirmed,
+                .dna_class_available=birth->dna_class_available && dna_visible_class(birth,birth->dna_class)!=SV_BIRTH_CLASS_NONE,
+        .dna_race_available=birth->dna_race_available && legal_race(birth,birth->dna_race),
+        .dna_trait_available=birth->dna_trait_available && legal_trait(birth,birth->dna_trait),
+        .dna_body_available=birth->dna_body_available && legal_body(birth,birth->dna_body),
+        .dna_stats_available=birth->dna_stats_available,
+        .dna_mode_available=birth->dna_mode_available && mode_position(birth,birth->dna_mode)>=0,
         .highlighted_sex = birth->highlighted_sex,
         .highlighted_class = birth->highlighted_class,
         .visible_class_count = birth->visible_class_count,
@@ -1270,7 +1287,16 @@ void sv_birth_view_prepare(SvBirthView *view, const SvBirth *birth)
             view->legal_traits[i] = birth->legal_traits[i];
         for (unsigned i = 0; i < birth->legal_body_count; ++i)
             view->legal_bodies[i] = birth->legal_bodies[i];
-        for (unsigned i = 0; i < 6; ++i) view->stats[i] = birth->stats[i];
+        for (unsigned i = 0; i < 6; ++i) {
+            view->stats[i] = birth->stats[i];
+            if(birth->stats_prepared && birth->stats_point_buy) {
+                int16_t candidate[6];memcpy(candidate,birth->stats,sizeof(candidate));
+                candidate[i]++;
+                view->stat_can_increase[i]=legal_point_buy(birth,candidate);
+                int value=birth->stats[i];
+                view->stat_can_decrease[i]=value>8 && !(value<=10 && value+stat_bonus(birth,(int)i)<=3);
+            }
+        }
         for (unsigned i = 0; i < birth->legal_stat_count; ++i)
             view->legal_stats[i] = birth->legal_stats[i];
         for (unsigned i = 0; i < birth->legal_mode_count; ++i)

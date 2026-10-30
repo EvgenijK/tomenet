@@ -221,6 +221,13 @@ static void insert(SvCredentialInput *input, const char *source)
     input->incompatible_password = false;
 }
 
+SvCredentialAction sv_credentials_cancel(SvCredentialInput *input)
+{
+    sv_credentials_end(input);
+    wipe(input->password,80);
+    return SV_CREDENTIAL_CANCELLED;
+}
+
 static SvCredentialAction back(SvCredentialInput *input)
 {
     input->reveal = false;
@@ -239,6 +246,34 @@ static SvCredentialAction back(SvCredentialInput *input)
     return SV_CREDENTIAL_CANCELLED;
 }
 
+/* Fixed editor keys do not require a text-layout mapping. SDL can deliver
+ * their scancode before a logical key is available on a newly opened form. */
+static SDL_Keycode editor_key(const SDL_KeyboardEvent *event)
+{
+    if (event->key != SDLK_UNKNOWN) return event->key;
+    switch (event->scancode) {
+    case SDL_SCANCODE_BACKSPACE: return SDLK_BACKSPACE;
+    case SDL_SCANCODE_DELETE: return SDLK_DELETE;
+    case SDL_SCANCODE_LEFT: return SDLK_LEFT;
+    case SDL_SCANCODE_RIGHT: return SDLK_RIGHT;
+    case SDL_SCANCODE_HOME: return SDLK_HOME;
+    case SDL_SCANCODE_END: return SDLK_END;
+    case SDL_SCANCODE_TAB: return SDLK_TAB;
+    case SDL_SCANCODE_RETURN: return SDLK_RETURN;
+    case SDL_SCANCODE_KP_ENTER: return SDLK_KP_ENTER;
+    case SDL_SCANCODE_ESCAPE: return SDLK_ESCAPE;
+    case SDL_SCANCODE_SPACE: return SDLK_SPACE;
+    default: break;
+    }
+    if (event->mod & SDL_KMOD_CTRL) switch (event->scancode) {
+    case SDL_SCANCODE_A: return SDLK_A;
+    case SDL_SCANCODE_V: return SDLK_V;
+    case SDL_SCANCODE_L: return SDLK_L;
+    default: break;
+    }
+    return SDLK_UNKNOWN;
+}
+
 SvCredentialAction sv_credentials_event(SvCredentialInput *input, const SDL_Event *event)
 {
     if (event->type == SDL_EVENT_QUIT || event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
@@ -251,12 +286,13 @@ SvCredentialAction sv_credentials_event(SvCredentialInput *input, const SDL_Even
     }
     if (event->type != SDL_EVENT_KEY_DOWN || event->key.repeat)
         return SV_CREDENTIAL_EDITING;
-    SDL_Keycode key = event->key.key;
+    SDL_Keycode key = editor_key(&event->key);
     bool ctrl = (event->key.mod & SDL_KMOD_CTRL) != 0;
     bool shift = (event->key.mod & SDL_KMOD_SHIFT) != 0;
     if (key == SDLK_ESCAPE) return back(input);
-    if (key == SDLK_TAB) {
-        sv_credentials_focus(input, (input->focus + (shift ? 4 : 1)) % 5);
+    if (key == SDLK_TAB || key == SDLK_LEFT_TAB || event->key.scancode == SDL_SCANCODE_TAB) {
+        bool reverse=shift || key==SDLK_LEFT_TAB;
+        sv_credentials_focus(input, (input->focus + (reverse ? 4 : 1)) % 5);
         return SV_CREDENTIAL_EDITING;
     }
     bool accept = key == SDLK_RETURN || key == SDLK_KP_ENTER;
@@ -264,7 +300,7 @@ SvCredentialAction sv_credentials_event(SvCredentialInput *input, const SDL_Even
         if (accept || key == SDLK_SPACE) {
             if (input->focus == 2) sv_credentials_toggle_reveal(input);
             else if (input->focus == 3) return sv_credentials_submit(input);
-            else return back(input);
+            else return sv_credentials_cancel(input);
         }
         return SV_CREDENTIAL_EDITING;
     }

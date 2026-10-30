@@ -10,6 +10,9 @@ typedef struct {
     char label[96];
     int ping_ms; /* -1 pending, -2 unavailable */
     int protocol;
+    char game[48], version[32], notes[128], players[512];
+    unsigned player_count;
+    bool metadata_available, official;
 } SvServer;
 typedef enum { SV_ENDPOINT_LIST, SV_ENDPOINT_MANUAL,
                SV_ENDPOINT_SELECTED, SV_ENDPOINT_CANCELLED } SvEndpointPhase;

@@ -1,5 +1,7 @@
 # SV-B-007 — Загрузка профиля клавиш и исполнение макросов
 
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
 Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
 
 > Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
@@ -35,7 +37,7 @@ boundary. Исторические наблюдения не заявляют п
 command dispatch и вызов character layers из live login с поздними
 form/character reload points. Native loader работает только в synthetic shell
 до появления endpoint→gameplay handoff.
-Нужны также платформа Windows и matrix из Definition of Done. Поэтому ни один
+Нужна также Linux matrix из Definition of Done; Windows отложен пользователем. Поэтому ни один
 полный capability ID этого тикета не объявлен принятым.
 
 ## Пользовательский результат
@@ -114,8 +116,8 @@ form/character reload points. Native loader работает только в syn
 
 ## Версии, build gates и источники
 
-- `capability.preferences.load`, `capability.preferences.bootstrap`, `capability.preferences.include-failure`, `capability.preferences.macro-precedence`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence..
-- `capability.macros.load`, `capability.macros.close`, `capability.macros.load-class`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.; ENABLE_MACROSETS for stage/set operations; ordinary macro actions retain their own compile and prompt gates..
+- `capability.preferences.load`, `capability.preferences.bootstrap`, `capability.preferences.include-failure`, `capability.preferences.macro-precedence`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 SV (Windows i686 build/runtime validation deferred by user). Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence..
+- `capability.macros.load`, `capability.macros.close`, `capability.macros.load-class`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 SV (Windows i686 build/runtime validation deferred by user). Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.; ENABLE_MACROSETS for stage/set operations; ordinary macro actions retain their own compile and prompt gates..
 - `capability.input.keymap`, `capability.input.macro-match`, `capability.input.macro-wait`, `capability.input.macro-xwait`: versions — All baseline versions supported by the cited owner; retain its version branches; builds — Supported SV gameplay builds; preserve all baseline compile guards.
 
 Версионные границы читаются в перечисленных primary sources соответствующей manifest revision; номер строки — навигация в текущем checkout, literal anchor и full-file SHA берутся из [manifest](../../capabilities/manifest.json). Не считать одну текущую server version проверкой всех ветвей. [Session byte policy](../../capabilities/session-policy.md), [persistence/resource policy](../../capabilities/settings-policy.md), [layout/stage policy](../../capabilities/item-policy.md) имеют приоритет над историческими дефектами и Terminal topology.
@@ -125,7 +127,7 @@ form/character reload points. Native loader работает только в syn
 - Production code расположен преимущественно в SV по [правилу изоляции](../../../AGENTS.md) и [архитектуре](../../sv-architecture.md). Нет test-only decoder/behavior, нового virtual Term или незапрошенного legacy refactor. Обнаруженные отдельные улучшения записаны отдельно.
 - Готовность implementation позволяет продолжать зависимые задачи; закрытие полного acceptance требует также перечисленных поздних integration checks. Каждый принадлежащий тикету ID сохраняет весь исходный outcome и ВСЕ его existing obligations; таблицы не сужают `.result`, `.lifecycle`, `.wire` или прочие условия canonical ledger. Реализация caller не принимается по успеху общего primitive.
 - Автоматизированные тесты вызывают production seam и фиксируют exact expected/actual values, safe command/reply bytes и generation/fallback observations; native visual/input review использует тот же executable. Evidence содержит revision/config/server/build/platform/renderer, проверенные source/fixture/resource/SDK fingerprints и complete dependency scope. Секреты и пользовательский private content в отчёты не попадают.
-- Linux software и accelerated, отдельный MinGW i686 build/Wine intermediate smoke; actual Windows10/11 software/accelerated обязательны для B, platform-specific behavior проверяется при появлении. Частичные наблюдения сохраняются pending; missing/failed/stale evidence не проходит gate.
+- Текущие build/runtime/visual/input и acceptance проверки выполняются на Linux software и accelerated. Windows/MinGW/Wine отложены пользователем и не являются gate. Частичные Linux-наблюдения сохраняются pending; missing/failed/stale обязательное Linux evidence не проходит gate.
 - Выполнены относящиеся к изменению cumulative A regressions и consumer scenarios; все нарушения20/50/200ms submission deadlines записаны. Нет принятого B flow с fallback entry. Полный matrix, human review и актуальность evidence сводятся в [SV-B-075](SV-B-075-acceptance.md).
 
 ## Ограничения после тикета

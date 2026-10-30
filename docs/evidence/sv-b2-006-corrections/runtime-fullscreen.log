@@ -1,0 +1,27 @@
+[
+  {
+    "label": "software-2560x1600-scale1-fullscreen",
+    "command": [
+      "/tmp/sv-b2-006-corrections-final",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-006-corrections/servers-five.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-corrections-wabrpys2"
+    ],
+    "backend": "software",
+    "logical": [
+      1932,
+      1208
+    ],
+    "virtualDisplayScale": 1,
+    "actualOutput": [
+      1932,
+      1208
+    ],
+    "actualFullscreen": true,
+    "input": "XTest second card select, same card door connect; screenshots inspected independently"
+  }
+]

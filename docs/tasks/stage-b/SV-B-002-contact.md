@@ -1,6 +1,12 @@
 # SV-B-002 — Contact/control protocol path с управляемым peer
 
-Статус: частично реализован; полная acceptance по суженной границе B pending.
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: частично реализован; полная acceptance по суженной границе B pending.
 [Существующее evidence](../../sv-b002-evidence.md) сохраняется только для
 актуальных IDs и должно пройти freshness review.
 
@@ -50,5 +56,17 @@ gameplay/control outcomes также перенесены в C. Этот тик�
 
 Checks проходят через production transport/decoder/model/serializer; fixture
 управляет только peer bytes, clock и faults. Evidence фиксирует protocol version,
-build/platform и expected/actual bytes. Linux и Windows paths обязательны;
+build/platform и expected/actual bytes. Текущие обязательные paths — Linux; Windows отложен;
 real-server smoke остаётся C и не является условием B.
+
+
+## Linux protocol/core freshness — 2026-10-28
+
+Current production-path проверки и карта применимости всех 54 B IDs описаны в
+[Linux protocol/core evidence](../../sv-stage-b-linux-protocol-evidence.md).
+Они дополняют историческое evidence; full native/provider и cumulative acceptance
+не выводятся из dummy/software или shared-primitive PASS. Canonical denominator
+составляет 54 IDs / 162 obligations; Windows-only provider остаётся deferred.
+Для B-002 исправлен endpoint pong telemetry в production login/pregame.
+Новая regression-проверка не добавлялась по прямому отказу пользователя; existing
+checks проверяют отсутствие обнаруженных регрессий, а не отдельно новую ветвь.

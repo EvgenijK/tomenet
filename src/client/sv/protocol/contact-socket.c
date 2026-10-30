@@ -32,6 +32,7 @@ struct SvContactSocket {
     SvContact *contact;
     SvSocket socket;
     SvSocketState state;
+    SvResult failure_result;
     int worker_done;
     char host[256], service[8];
     unsigned char sending[SV_CONTACT_OUTPUT_CAPACITY];
@@ -199,7 +200,9 @@ SvSocketState sv_contact_socket_poll(SvContactSocket *connection)
             connection->last_progress = SDL_GetTicks();
             SvResult parsed = sv_contact_receive(connection->contact, incoming, (size_t)received);
             if (parsed != SV_OK) {
-                SvContactState phase = sv_contact_failure_phase(connection->contact);
+                connection->failure_result = parsed;
+                SvContactState phase = sv_contact_state(connection->contact) == SV_CONTACT_FAILED ?
+                    sv_contact_failure_phase(connection->contact) : sv_contact_state(connection->contact);
                 if (phase == SV_CONTACT_WAIT_CONTACT && sv_contact_rejection(connection->contact))
                     return connection->state = SV_SOCKET_REJECTED;
                 return connection->state = phase == SV_CONTACT_WAIT_VERIFY ? SV_SOCKET_VERIFY_ERROR :
@@ -208,12 +211,16 @@ SvSocketState sv_contact_socket_poll(SvContactSocket *connection)
             if (sv_contact_state(connection->contact) == SV_CONTACT_READY)
                 return connection->state = SV_SOCKET_READY;
         } else if (received == 0) {
+            connection->failure_result = SV_CLOSED;
             SvContactState phase = sv_contact_state(connection->contact);
             if (phase == SV_CONTACT_WAIT_VERIFY) return connection->state = SV_SOCKET_VERIFY_ERROR;
             if (phase == SV_CONTACT_WAIT_SETUP) return connection->state = SV_SOCKET_SETUP_ERROR;
             return connection->state = SV_SOCKET_CLOSED;
         } else if (sv_would_block(sv_last_error)) break;
-        else return connection->state = SV_SOCKET_CLOSED;
+        else {
+            connection->failure_result = SV_CLOSED;
+            return connection->state = SV_SOCKET_CLOSED;
+        }
     }
     return connection->state;
 }
@@ -228,6 +235,7 @@ SvOutput sv_contact_socket_read(SvContactSocket *connection, void *bytes, size_t
         return (SvOutput){SV_OK, (size_t)received};
     }
     if (received < 0 && sv_would_block(sv_last_error)) return (SvOutput){SV_WAITING, 0};
+    connection->failure_result = SV_CLOSED;
     connection->state = SV_SOCKET_CLOSED;
     return (SvOutput){SV_CLOSED, 0};
 }
@@ -249,6 +257,7 @@ SvOutput sv_contact_socket_write(SvContactSocket *connection, const void *bytes,
         return (SvOutput){SV_OK, (size_t)sent};
     }
     if (sent < 0 && sv_would_block(sv_last_error)) return (SvOutput){SV_WAITING, 0};
+    connection->failure_result = SV_CLOSED;
     connection->state = SV_SOCKET_CLOSED;
     return (SvOutput){SV_CLOSED, 0};
 }
@@ -261,6 +270,11 @@ SvOutput sv_contact_socket_take_remaining(SvContactSocket *connection, void *byt
 uint64_t sv_contact_socket_last_sent(const SvContactSocket *connection)
 {
     return connection->last_sent;
+}
+
+SvResult sv_contact_socket_failure_result(const SvContactSocket *connection)
+{
+    return connection ? connection->failure_result : SV_OK;
 }
 
 unsigned sv_contact_socket_rejection(const SvContactSocket *connection)

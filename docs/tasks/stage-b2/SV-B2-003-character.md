@@ -1,6 +1,13 @@
 # SV-B2-003 — Character overview, slots и имя
 
-Статус: planned, 2026-10-28. Реализация не начата.
+Статус: accepted, 2026-10-30, в составе принятого пользователем B2;
+[итоговое решение](../../sv-stage-b2-acceptance.md).
+
+## Реализация и требования до приёмки
+
+Реализация: implemented, 2026-10-29. Linux software/OpenGL, targeted production-path
+проверки и независимые Standards/Spec review завершены;
+[evidence](../../sv-b2-003-evidence.md).
 Зависимости: SV-B2-002.
 Существующие semantic consumers: B-006, B-022.
 Новых capability IDs: 0; B ownership и protocol semantics сохраняются.
@@ -45,3 +52,18 @@ Reference/native overview и name/edit/error кадры; selected row видна
 Общие правила: минимальные SV-local changes; никакой отдельной реализации
 поведения только для тестов. Дополнительные improvements фиксируются отдельно
 в `docs/sv-improvements.md`, а не включаются автоматически в эту задачу.
+
+## Результат
+
+Production overview и name editor используют B2-композицию, inline fields,
+server-derived placeholders и availability, общий draw/hit layout и existing
+semantic actions. Сохранены slot identity, draft/caret/selection, encoding error,
+rejection recovery и возврат focus при отмене. Проверены настоящий overflow
+с 12 wire rows и resize с сохранением видимого selected slot.
+
+Замечания независимого ревью исправлены: невидимые row hits, составные mode bits,
+scroll при переменной высоте placeholders, factual status, возврат focus и clip
+длинного summary name. Reorder не добавлен; его web affordances явно исключены,
+а отсутствующие server данные не заменяются mock значениями. Отличия от reference,
+финальные кадры и команды проверок перечислены в evidence. Вся B2 acceptance
+остаётся отдельной задачей B2-006.

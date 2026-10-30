@@ -1,7 +1,7 @@
 # B2 — visual reference и карта экранов
 
 Статус: reference frozen, 2026-10-28. Shell B2-001 реализован и визуально
-сопоставлен на Linux ([evidence](../../sv-b2-001-evidence.md)); полная B2 visual acceptance ещё не выполнена. Полное исследование и provenance:
+сопоставлен на Linux ([evidence](../../sv-b2-001-evidence.md)); B2 принят пользователем 2026-10-30 ([решение](../../sv-stage-b2-acceptance.md)). Полное исследование и provenance:
 [decision 01](../../../.scratch/sv-stage-b2-planning/issues/01-web-reference-and-screen-scope.md).
 Общий контракт: [B2 spec](../../sv-stage-b2-spec.md).
 
@@ -108,8 +108,8 @@ Owner 005 определяет общие overlay/wait/error стили; ост�
 | Reference content/control | Решение B2 |
 |---|---|
 | Demo servers, population/ping, account replies, roster, birth numeric previews | Только настоящие native/session данные; нет фиксированных demo ответов или принятия JS правил как protocol model. Неизвестные данные получают честный unavailable/empty state. |
-| Chronicle snapshot | Область/оформление переносится; default без разрешённого source — honest empty/unavailable. Live news, scraping/backend и автоматическая загрузка snapshot не требуются. |
-| Six realm links/IRC | Сохранить расположение/icons/labels. Если production launcher уже доступен, использовать его политику; иначе явный unavailable control/adaptation, без реализации OS integration C060 или Guide C062. Browser prototype navigation не переносится. |
+| World Chronicle | По уточнению пользователя от 2026-10-29 получение данных из сетевых источников реализуется сразу в текущей корректировке B2. Offline snapshot не является итоговой реализацией; оформление событий следует reference. |
+| Six realm links/IRC | Сохранить расположение/icons/labels; по уточнению пользователя от 2026-10-29 форма иконок строго круглая, без приплюснутой нижней части frozen CSS. Если production launcher уже доступен, использовать его политику; иначе явный unavailable control/adaptation, без реализации OS integration C060 или Guide C062. Browser prototype navigation не переносится. |
 | Reorder S/I/A | Не реализуется: owner C039. Любой элемент макета, подразумевающий reorder, явно unavailable/disabled либо документированно исключён без искажения layout; не возвращает исторический широкий B. |
 | DNA/random/automatic-DNA | Существующие B interaction commands и их доступность сохраняются; новая DNA persistence C040 не добавляется. Guide остаётся exact placeholder. |
 | Secure storage | Сохраняются существующие B store/lookup/opt-in/status и session-only policy. External replace/delete в vault tests не означает новые пользовательские delete/replace actions. |

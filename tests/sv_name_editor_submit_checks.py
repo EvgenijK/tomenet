@@ -8,12 +8,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 FLAGS = subprocess.check_output(
-    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng"],
+    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng", "libcurl"],
     text=True,
 ).split()
 SOURCES = [
     "tests/sv/name-editor-submit.c",
-    "src/client/sv/endpoint-run.c",
+    "src/client/sv/endpoint-run.c", "src/client/sv/input/chronicle.c",
     "src/client/sv/result.c",
     "src/client/sv/credential/vault.c",
     "src/client/sv/input/credentials.c",
@@ -74,17 +74,21 @@ with tempfile.TemporaryDirectory(prefix="sv-b022-name-") as temp:
     profile = root / "profile"
     profile.mkdir()
     subprocess.run(
-        [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-Wall", "-Wextra", "-Werror",
+        [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-DSV_CHECK_NAME_TEXT_LIFETIME",
+         "-Wall", "-Wextra", "-Werror",
          "-fsanitize=address,undefined", "-Isrc/client/sv", *SOURCES, *FLAGS,
-         "-Wl,--wrap=SDL_GetKeyFromScancode", "-o", str(binary)],
+         "-Wl,--wrap=SDL_GetKeyFromScancode", "-Wl,--wrap=SDL_PollEvent",
+         "-o", str(binary)],
         cwd=ROOT,
         check=True,
     )
     subprocess.run(
         [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-DSV_CLASS_BEFORE_RACE=0",
+         "-DSV_CHECK_NAME_TEXT_LIFETIME",
          "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined",
          "-Isrc/client/sv", *SOURCES, *FLAGS,
-         "-Wl,--wrap=SDL_GetKeyFromScancode", "-o", str(alternate_binary)],
+         "-Wl,--wrap=SDL_GetKeyFromScancode", "-Wl,--wrap=SDL_PollEvent",
+         "-o", str(alternate_binary)],
         cwd=ROOT,
         check=True,
     )

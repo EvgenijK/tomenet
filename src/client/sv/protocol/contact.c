@@ -152,7 +152,7 @@ static int version_newer(const int version[6], const int threshold[6])
     return 0;
 }
 static int read_string(const unsigned char *bytes, size_t length, size_t *cursor,
-                       char out[SV_CONTACT_NAME_CAPACITY])
+                       char out[SV_CONTACT_NAME_CAPACITY], bool allow_empty)
 {
     if (*cursor >= length) return 0;
     size_t available = length - *cursor;
@@ -160,7 +160,7 @@ static int read_string(const unsigned char *bytes, size_t length, size_t *cursor
     const unsigned char *end = memchr(bytes + *cursor, 0, available);
     if (!end) return available == SV_CONTACT_NAME_CAPACITY ? -1 : 0;
     size_t count = (size_t)(end - (bytes + *cursor));
-    if (!count) return -1;
+    if (!count && !allow_empty) return -1;
     memcpy(out, bytes + *cursor, count);
     out[count] = 0;
     *cursor = (size_t)(end - bytes) + 1;
@@ -197,7 +197,7 @@ static int parse_setup(SvContact *contact, size_t *used)
         for (int j = 0; j < 6; ++j)
             setup->races[i].adjustment[j] = (int16_t)in[at + j] - 50;
         at += 6;
-        int next = read_string(in, size, &at, setup->races[i].title);
+        int next = read_string(in, size, &at, setup->races[i].title, false);
         if (next <= 0) return next;
         if (size - at < 4) return 0;
         setup->races[i].choice = get32(in + at);
@@ -208,7 +208,7 @@ static int parse_setup(SvContact *contact, size_t *used)
         for (int j = 0; j < 6; ++j)
             setup->classes[i].adjustment[j] = (int16_t)in[at + j] - 50;
         at += 6;
-        int next = read_string(in, size, &at, setup->classes[i].title);
+        int next = read_string(in, size, &at, setup->classes[i].title, false);
         if (next <= 0) return next;
         if (isdigit((unsigned char)setup->classes[i].title[0]) &&
             setup->classes[i].title[1]) {
@@ -233,8 +233,10 @@ static int parse_setup(SvContact *contact, size_t *used)
             at += 6;
         }
     }
+    /* Empty trait titles are reserved wire slots (including gaps before the
+     * Maia traits). Keep their IDs and choices, as the legacy decoder does. */
     for (unsigned i = 0; i < trait_count; ++i) {
-        int next = read_string(in, size, &at, setup->traits[i].title);
+        int next = read_string(in, size, &at, setup->traits[i].title, true);
         if (next <= 0) return next;
         if (size - at < 4) return 0;
         setup->traits[i].choice = get32(in + at);

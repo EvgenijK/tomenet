@@ -37,6 +37,10 @@ node_modules/
 __pycache__/
 *.py[cod]
 
+# Project-local Graphify environment and generated graphs
+/.graphify-venv/
+/graphify-out/
+
 # Local browser captures and reference bundle
 .playwright-cli/
 tomenet_modern_client_agent_pack/

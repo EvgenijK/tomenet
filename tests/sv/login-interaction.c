@@ -22,6 +22,44 @@ static SvLogin *overview(void)
     return login;
 }
 
+/* An existing account must not inherit new-installation creation restrictions. */
+static void existing_account_on_new_profile_can_create_exclusive(void)
+{
+    const int version[6] = {4,9,4,0,0,0};
+    const unsigned char iaddr[6] = {0xf4,0x43,1,2,3,4};
+    const unsigned char reply[] = {
+        PKT_SERVERDETAILS, 0,1,2,8, 0,0,0,0, 0,0,0,0, 0,0,0,0xc0,
+        PKT_LOGIN, 0,0x44, 0xff,'W',0, 'H','e','r','o',0, 0,42, 0,0, 0,0, 'H','o','m','e',0,
+        PKT_LOGIN, 0,0, 0, 0, 0,0, 0,0, 0,0, 0
+    };
+    /* Check both populated and genuinely empty accounts on a fresh profile. */
+    for (int populated = 0; populated < 2; ++populated) {
+        SvLogin *login = sv_login_create(version, iaddr);
+        unsigned char output[32];
+        assert(login && sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+        assert(sv_login_receive(login, reply, 17) == SV_OK);
+        size_t offset = populated ? 17 : sizeof(reply) - 12;
+        assert(sv_login_receive(login, reply + offset, sizeof(reply) - offset) == SV_OK);
+        SvLoginInteraction input;
+        sv_login_interaction_begin(&input, login, NULL, false, true, 0);
+        assert(sv_login_interaction_sync(&input) == SV_LOGIN_TRANSITION_OVERVIEW);
+        assert(input.first_run == !populated);
+        assert(sv_login_interaction_exclusive_modes(&input) == (populated ? 0xc0u : 0u));
+        SvPregame pregame;
+        SvContactSetup setup = {0};
+        sv_pregame_begin(&pregame, 41, true);
+        assert(sv_pregame_contact_ready(&pregame, 41) == SV_OK);
+        assert(sv_pregame_sync_login(&pregame, 41, login, &setup, false) == SV_OK);
+        assert(pregame.first_run == !populated);
+        if (populated) {
+            assert(sv_login_interaction_command(&input,
+                (SvLoginCommand){SV_LOGIN_COMMAND_CREATE_EXCLUSIVE, 0}) == SV_LOGIN_INPUT_NAME_STARTED);
+            assert(input.dedicated_creation && input.ordinary_name_active);
+        }
+        sv_login_destroy(login);
+    }
+}
+
 static void new_account_overview_is_published_atomically(void)
 {
     static const int version[6] = {4,9,4,0,0,0};
@@ -130,8 +168,44 @@ static void terminal_transitions_share_the_public_state_rule(void)
     assert(!strcmp(pregame.reason, "first terminal reason"));
 }
 
+static void creation_waits_for_play_ack_before_motd(void)
+{
+    for (unsigned skip = 0; skip < 2; ++skip) {
+        SvLogin *login = overview();
+        SvLoginInteraction input;
+        sv_login_interaction_begin(&input, login, NULL, skip, false, 0);
+        assert(sv_login_create_character(login, "Carol", false) == SV_OK);
+        unsigned char output[32768], status = 0;
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+        assert(sv_login_receive(login, &status, 1) == SV_OK);
+        assert(sv_login_interaction_sync(&input) == SV_LOGIN_TRANSITION_BIRTH);
+        assert(sv_login_interaction_command(&input,
+            (SvLoginCommand){SV_LOGIN_COMMAND_ACK_MOTD, 0}) == SV_LOGIN_INPUT_IGNORED);
+        assert(!sv_login_interaction_complete(&input));
+        const int16_t stats[6] = {0, 1, 2, 3, 4, 5};
+        assert(sv_login_start_play(login, 0, 0, 0, 0, stats, "font.ttf") == SV_OK);
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+        const unsigned char reply[] = {PKT_REPLY, PKT_PLAY, PKT_SUCCESS};
+        assert(sv_login_receive(login, reply, 2) == SV_OK);
+        sv_login_interaction_sync(&input);
+        assert(!sv_login_interaction_complete(&input));
+        assert(sv_login_interaction_command(&input,
+            (SvLoginCommand){SV_LOGIN_COMMAND_ACK_MOTD, 0}) == SV_LOGIN_INPUT_IGNORED);
+        assert(sv_login_receive(login, reply + 2, 1) == SV_OK);
+        assert(sv_login_interaction_sync(&input) == SV_LOGIN_TRANSITION_MOTD);
+        assert(sv_login_interaction_complete(&input) == (bool)skip);
+        assert(sv_login_interaction_command(&input,
+            (SvLoginCommand){SV_LOGIN_COMMAND_ACK_MOTD, 0}) ==
+            (skip ? SV_LOGIN_INPUT_IGNORED : SV_LOGIN_INPUT_HANDLED));
+        assert(sv_login_interaction_complete(&input));
+        sv_login_destroy(login);
+    }
+}
+
 int main(void)
 {
+    existing_account_on_new_profile_can_create_exclusive();
+    creation_waits_for_play_ack_before_motd();
     new_account_overview_is_published_atomically();
     disconnected_generation_rejects_late_login_results();
     terminal_transitions_share_the_public_state_rule();
@@ -158,6 +232,8 @@ int main(void)
     assert(view.overview && view.count == 1);
     assert(!strcmp(view.rows[0].name, "Hero"));
     assert(!strcmp(view.rows[0].race, "Human"));
+    assert(sv_login_interaction_command(&input,
+        (SvLoginCommand){SV_LOGIN_COMMAND_CANCEL, 0}) == SV_LOGIN_INPUT_BACK);
     assert(sv_login_interaction_command(&input,
         (SvLoginCommand){SV_LOGIN_COMMAND_QUIT, 0}) == SV_LOGIN_INPUT_QUIT);
     assert(sv_login_interaction_command(&input,

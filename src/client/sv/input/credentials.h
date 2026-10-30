@@ -38,6 +38,7 @@ void sv_credentials_focus(SvCredentialInput *input, int focus);
 void sv_credentials_select(SvCredentialInput *input, int field, size_t cursor, bool extend);
 void sv_credentials_toggle_reveal(SvCredentialInput *input);
 SvCredentialAction sv_credentials_submit(SvCredentialInput *input);
+SvCredentialAction sv_credentials_cancel(SvCredentialInput *input);
 void sv_credentials_begin(SvCredentialInput *input, SvEndpoint *endpoint,
                           char account[80], char password[80]);
 void sv_credentials_poll(SvCredentialInput *input);

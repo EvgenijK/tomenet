@@ -1,5 +1,7 @@
 # SV-B-012 — Звук, музыка и предупреждения в живой сессии
 
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
 Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
 
 > Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
@@ -75,7 +77,7 @@
 
 ## Версии, build gates и источники
 
-- `capability.audio.play-event`, `capability.audio.music`, `capability.audio.weather`, `capability.audio.device-failure`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.; USE_SOUND_2010, SOUND_SDL3, runtime use_sound/quiet_mode; SDL3_ARCHIVE for extraction; event availability and packet version branches retained..
+- `capability.audio.play-event`, `capability.audio.music`, `capability.audio.weather`, `capability.audio.device-failure`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 SV (Windows i686 build/runtime validation deferred by user). Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.; USE_SOUND_2010, SOUND_SDL3, runtime use_sound/quiet_mode; SDL3_ARCHIVE for extraction; event availability and packet version branches retained..
 - `capability.audio.ambient`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — USE_SOUND_2010; ambient playback additionally gated by use_sound. All supported packet versions..
 - `capability.alerts.hp-warning`: versions — > 4.7.0.2.0.1; older; builds — Supported SV gameplay builds; preserve all baseline compile guards.
 - `capability.alerts.mana-warning`, `capability.alerts.page`, `capability.alerts.warning-beep`: versions — always; builds — Supported SV gameplay builds; preserve all baseline compile guards.
@@ -88,7 +90,7 @@
 - Production code расположен преимущественно в SV по [правилу изоляции](../../../AGENTS.md) и [архитектуре](../../sv-architecture.md). Нет test-only decoder/behavior, нового virtual Term или незапрошенного legacy refactor. Обнаруженные отдельные улучшения записаны отдельно.
 - Готовность implementation позволяет продолжать зависимые задачи; закрытие полного acceptance требует также перечисленных поздних integration checks. Каждый принадлежащий тикету ID сохраняет весь исходный outcome и ВСЕ его existing obligations; таблицы не сужают `.result`, `.lifecycle`, `.wire` или прочие условия canonical ledger. Реализация caller не принимается по успеху общего primitive.
 - Автоматизированные тесты вызывают production seam и фиксируют exact expected/actual values, safe command/reply bytes и generation/fallback observations; native visual/input review использует тот же executable. Evidence содержит revision/config/server/build/platform/renderer, проверенные source/fixture/resource/SDK fingerprints и complete dependency scope. Секреты и пользовательский private content в отчёты не попадают.
-- Linux software и accelerated, отдельный MinGW i686 build/Wine intermediate smoke; actual Windows10/11 software/accelerated обязательны для B, platform-specific behavior проверяется при появлении. Частичные наблюдения сохраняются pending; missing/failed/stale evidence не проходит gate.
+- Текущие build/runtime/visual/input и acceptance проверки выполняются на Linux software и accelerated. Windows/MinGW/Wine отложены пользователем и не являются gate. Частичные Linux-наблюдения сохраняются pending; missing/failed/stale обязательное Linux evidence не проходит gate.
 - Выполнены относящиеся к изменению cumulative A regressions и consumer scenarios; все нарушения20/50/200ms submission deadlines записаны. Нет принятого B flow с fallback entry. Полный matrix, human review и актуальность evidence сводятся в [SV-B-075](SV-B-075-acceptance.md).
 
 ## Ограничения после тикета

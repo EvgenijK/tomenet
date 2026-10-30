@@ -1,6 +1,15 @@
 # SV-B-075 — Cumulative acceptance Stage B
 
-Статус: specified; нулевой gate, runtime evidence pending.
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: Linux cumulative verification выполнена частично (2026-10-28);
+gate pending — остаются применимые Linux provider/input/evidence требования.
+[Текущий сводный отчёт](../../sv-stage-b-acceptance.md) фиксирует выполненное
+и незакрытые обязательства; historical evidence не повышено до acceptance.
 
 ## Пользовательский результат
 
@@ -29,8 +38,9 @@ messages, chat, audio, settings и другие игровые surfaces пров
    missing/failed/stale записи не повышают acceptance.
 2. M1 и M2 проходят одним production executable без fallback: success, cancel,
    back, retry, rejection, provider failure, disconnect и stale generation.
-3. Linux software/accelerated, independent MinGW i686 build+Wine intermediate и
-   actual Windows 10/11 software/accelerated; Wine не заменяет Windows evidence.
+3. Текущая приёмка: Linux software/accelerated. MinGW i686 build, Wine
+   intermediate и actual Windows 10/11 software/accelerated отложены по решению
+   пользователя и не блокируют gate; они не считаются выполненными.
 4. Exact protocol bytes и fingerprints для source/fixture/build/peer; controlled
    peer покрывает version branches, fragmentation/chaining и deterministic faults.
 5. Human native review подтверждает focus, keyboard/input method, mouse,
@@ -42,4 +52,5 @@ messages, chat, audio, settings и другие игровые surfaces пров
 
 [coverage.json](coverage.json) и `check-plan.py` valid, все implementation owners
 и оба milestones приняты, evidence актуально и не содержит secrets. Любой
-непроверенный platform/version branch оставляет gate pending.
+непроверенный текущий Linux build/runtime или version branch оставляет gate
+pending. Windows/MinGW/Wine остаются deferred и не блокируют текущий gate.

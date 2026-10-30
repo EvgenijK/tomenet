@@ -1,5 +1,9 @@
 # SV scenario runtime checks
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 Ticket 17 adds an application-owned, owner-thread collector. `sv_app_check_run`
 executes one synchronous scenario callback; only its checked successful return
 completes the scope. The scenario must process its required events, cancellations,

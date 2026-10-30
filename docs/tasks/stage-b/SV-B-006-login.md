@@ -1,6 +1,12 @@
 # SV-B-006 — Login и выбор существующего персонажа
 
-Статус: частично реализован для existing-account/existing-character path;
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: частично реализован для existing-account/existing-character path;
 полная runtime acceptance pending.
 [Существующее evidence](../../sv-b006-evidence.md) сохраняется только для
 актуальных IDs и должно пройти freshness review по суженной границе B.
@@ -53,5 +59,17 @@
 
 The controlled peer drives the production decoder/model/UI/serializer path with
 split/chained input and exact expected/actual bytes. Actual SDL physical input,
-focus/resize and Linux/Windows evidence are present. Full existing-character
+focus/resize and Linux evidence are present; Windows validation is deferred. Full existing-character
 flow is checked by [SV-B-020](SV-B-020-first-session.md).
+
+
+## Linux protocol/core freshness — 2026-10-28
+
+Current production-path проверки и карта применимости всех 54 B IDs описаны в
+[Linux protocol/core evidence](../../sv-stage-b-linux-protocol-evidence.md).
+Они дополняют историческое evidence; full native/provider и cumulative acceptance
+не выводятся из dummy/software или shared-primitive PASS. Canonical denominator
+составляет 54 IDs / 162 obligations; Windows-only provider остаётся deferred.
+Для B-002 исправлен endpoint pong telemetry в production login/pregame.
+Новая regression-проверка не добавлялась по прямому отказу пользователя; existing
+checks проверяют отсутствие обнаруженных регрессий, а не отдельно новую ветвь.

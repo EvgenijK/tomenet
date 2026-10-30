@@ -1,5 +1,7 @@
 # 07: Validate a source-backed capability registry and native ledger
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** An implementer can validate canonical capability data and explicit native coverage/stage allocation through a standalone data-tool interface. A source-backed initial Stage A scenario slice demonstrates the complete workflow without claiming the full registry is finished.
 
 **Blocked by:** None (can start immediately).

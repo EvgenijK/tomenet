@@ -1,5 +1,7 @@
 # 18: Complete dependency provenance and the scoped Stage A evidence gate
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** Проверяемые свежие evidence-записи и результат именно Stage A, без заведомо неполных dependency inventories и без подмены будущей полной Windows/gameplay приёмки.
 
 **Blocked by:** [17](17-instrument-native-fallback-runtime-checks.md) для полного runtime-check; [16](16-restore-mingw-and-run-wine-acceptance.md) для итоговых платформенных наблюдений. Инвентаризацию зависимостей можно готовить параллельно.

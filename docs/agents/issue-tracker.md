@@ -22,3 +22,10 @@ GitHub remotes host code; agent skills use local Markdown issues in this repo.
 - Map: `.scratch/<effort>/map.md`; child tickets: `.scratch/<effort>/issues/NN-<slug>.md`.
 - A child records `Type:`, `Status:`, `Assignee:` and optional `Blocked by:` near the top. Open, unblocked, unclaimed children form the frontier; choose the first by number.
 - Claim by setting `Status: claimed` before work. Resolve by appending `## Answer`, setting `Status: resolved`, and adding a short link under the map's `## Decisions so far`.
+
+## Platform scope for SV tasks
+
+When choosing checks or reviewing acceptance for any SV stage, apply
+[the current platform rule](platform-validation.md). Windows/MinGW/Wine work is
+temporarily deferred by the user (2026-10-28) and does not block current Linux
+acceptance. Preserve historical evidence and all other outstanding requirements.

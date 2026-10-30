@@ -1,5 +1,7 @@
 # SV-B-004 — Preview, Save, Cancel и конфликт настроек
 
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
 Статус: moved-to-C 2026-10-05; активной ответственности Stage B нет.
 
 > Этот файл сохранён как история прежней декомпозиции. Outcome перенесены в
@@ -33,8 +35,8 @@ owner и его acceptance boundary.
 а не в игровой сессии; option editing и character/class/named actions ещё
 не представлены в native UI, а B-003 ещё не имеет всех effective
 resource/audio/map consumers. Проверки нормального выхода с
-history/DNA и actual Windows 10/11; Guide bookmarks are deferred to G также ожидают соответствующие
-пути и среду. API принимает безопасные имена в S; explicit absolute/custom
+history/DNA также ожидают соответствующие пути; actual Windows 10/11 отложен
+пользователем, Guide bookmarks — до G. API принимает безопасные имена в S; explicit absolute/custom
 destination и полный baseline named-file UX остаются открыты.
 
 ## Пользовательский результат
@@ -104,7 +106,7 @@ destination и полный baseline named-file UX остаются открыт
 
 ## Версии, build gates и источники
 
-- `capability.settings.preview`, `capability.settings.save`, `capability.settings.cancel`, `capability.settings.dirty-close`, `capability.settings.exit-unsaved`, `capability.settings.save-failure`, `capability.settings.save-conflict`, `capability.settings.save-global-options`, `capability.settings.save-class-options`, `capability.settings.save-named-options`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence..
+- `capability.settings.preview`, `capability.settings.save`, `capability.settings.cancel`, `capability.settings.dirty-close`, `capability.settings.exit-unsaved`, `capability.settings.save-failure`, `capability.settings.save-conflict`, `capability.settings.save-global-options`, `capability.settings.save-class-options`, `capability.settings.save-named-options`: versions — Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities.; builds — Linux amd64 SV (Windows i686 build/runtime validation deferred by user). Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence..
 
 Версионные границы читаются в перечисленных primary sources соответствующей manifest revision; номер строки — навигация в текущем checkout, literal anchor и full-file SHA берутся из [manifest](../../capabilities/manifest.json). Не считать одну текущую server version проверкой всех ветвей. [Session byte policy](../../capabilities/session-policy.md), [persistence/resource policy](../../capabilities/settings-policy.md), [layout/stage policy](../../capabilities/item-policy.md) имеют приоритет над историческими дефектами и Terminal topology.
 
@@ -113,7 +115,7 @@ destination и полный baseline named-file UX остаются открыт
 - Production code расположен преимущественно в SV по [правилу изоляции](../../../AGENTS.md) и [архитектуре](../../sv-architecture.md). Нет test-only decoder/behavior, нового virtual Term или незапрошенного legacy refactor. Обнаруженные отдельные улучшения записаны отдельно.
 - Готовность implementation позволяет продолжать зависимые задачи; закрытие полного acceptance требует также перечисленных поздних integration checks. Каждый принадлежащий тикету ID сохраняет весь исходный outcome и ВСЕ его existing obligations; таблицы не сужают `.result`, `.lifecycle`, `.wire` или прочие условия canonical ledger. Реализация caller не принимается по успеху общего primitive.
 - Автоматизированные тесты вызывают production seam и фиксируют exact expected/actual values, safe command/reply bytes и generation/fallback observations; native visual/input review использует тот же executable. Evidence содержит revision/config/server/build/platform/renderer, проверенные source/fixture/resource/SDK fingerprints и complete dependency scope. Секреты и пользовательский private content в отчёты не попадают.
-- Linux software и accelerated, отдельный MinGW i686 build/Wine intermediate smoke; actual Windows10/11 software/accelerated обязательны для B, platform-specific behavior проверяется при появлении. Частичные наблюдения сохраняются pending; missing/failed/stale evidence не проходит gate.
+- Текущие build/runtime/visual/input и acceptance проверки выполняются на Linux software и accelerated. Windows/MinGW/Wine отложены пользователем и не являются gate. Частичные Linux-наблюдения сохраняются pending; missing/failed/stale обязательное Linux evidence не проходит gate.
 - Выполнены относящиеся к изменению cumulative A regressions и consumer scenarios; все нарушения20/50/200ms submission deadlines записаны. Нет принятого B flow с fallback entry. Полный matrix, human review и актуальность evidence сводятся в [SV-B-075](SV-B-075-acceptance.md).
 
 ## Ограничения после тикета

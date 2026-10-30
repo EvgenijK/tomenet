@@ -1,0 +1,18 @@
+# Независимое сравнение Character Overview — 2026-10-30
+
+Просмотрены reference `/tmp/codex-clipboard-662ab604-5afc-4716-a4ac-89893b70fc4e.png` и actual `/tmp/codex-clipboard-4ae78b6b-9948-4111-a916-578cb205130d.png`, оба 2560×1600. Graphify query выполнен перед чтением source. Сверены frozen HTML/CSS, текущие endpoint scene/layout, mode defines и legacy overview. Production reviewer не менял.
+
+Основные исправления:
+
+- Заголовок «Your characters» отличается от «Character Overview»: нет подсказки о capacity, орнамента после title и отдельной светлой тёплой header-полосы. Capacity необходимо получать из actual count/free-slot model, не копировать mock12+3.
+- Caption/hints: source использует смешанный regular/muted текст, отдельные boxed E/Q и разделитель под строкой. Actual рисует упрощённый uppercase caption и plain compressed hint. **S/I/A reorder нельзя просто копировать:** текущий native adapter трактует A..Z как выбор персонажа, reorder отсутствует. Это отдельная отсутствующая capability, не paint-fix.
+- Race/class column начинается примерно на115 физических пикселей раньше source при одинаковом масштабе. Источник делит identity на name/build пропорцией1.15:1 после letter/level, а actual использует фиксированное row.w*.31; name clip слишком узок. Mode/location расположение близко, но mode должен быть centered/uppercase и location right-aligned, с аккуратным clipping/ellipsis.
+- Карточки actual прямоугольные с сильной сплошной selection-заливкой; source rounded8 с более мягким горизонтальным градиентом и тонкой рамкой. Уровневый ромб source имеет тёмную подложку, inset/свечение и более плотный bold10 serif номер; actual практически один outline. Изменять размер ромба нужно по CSS21.6px rotated square, не оценке ширины bounding box по диагонали.
+- Free slots: source dashed rounded8 с полноценным повернутым24px marker и маленьким контрповёрнутым символом. Actual показывает solid rectangular row и `<>` вместо marker. Порядок/число ordinary/IDDC/PvP placeholders должны оставаться authoritative.
+- Footer source46px с secondary Back, N/E controls, количеством существующих персонажей, честными key hints и primary Play. Actual выше, общий button paint другой, Quit/Enter вместо Back/Play и постоянный текст first-login status. Статус first_run/creation unsupported нельзя удалить семантически или ложно включить disabled actions: разместить настоящую причину условно, не подменять ею обычную статистику.
+
+Mode — семантический дефект, не только typography: actual `Mode 0x0044` — сочетание `MODE_DED_IDDC=0x40` и `MODE_NO_GHOST=0x04`. Текущий exact-value switch распознаёт только одиночные flags. Legacy overview проверяет dedicated modes через bitmasks (`nclient.c`1026–1034). Следует получить primary badge IDDC/PvP и при необходимости сохранить дополнительные flags/неизвестные bits в доступном представлении. Нельзя превращать произвольный nonzero в IDDC или терять unknown flags. Game/protocol state менять не нужно.
+
+Различия actual13 персонажей против mock9, реальные имена/уровни/раса/класс/location, новости/даты, случайный фон и кадр logo — actual data/state. Они не требуют подгонки под mock. Source prototype hints не являются доказательством реализованной игровой возможности. Цвет/размер основного shell нужно менять только для overview, не откатывая account/server fixes.
+
+Рекомендованный минимальный scope: source-native overview paint/layout, bitmask mode presentation, актуальная capacity/footer stats, disabled-state preservation; отдельную reorder capability только по явному решению root/user. После freeze необходимы production native click/keyboard geometry и long-name/small-layout checks в пределах согласованных existing core checks.

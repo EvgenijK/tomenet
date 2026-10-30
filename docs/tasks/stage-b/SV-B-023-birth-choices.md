@@ -1,6 +1,12 @@
 # SV-B-023 — Birth choices, backtracking и cancel
 
-Статус: production implementation complete, ready for review; native runtime
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: production implementation complete, ready for review; native runtime
 evidence и full acceptance остаются pending для exact accepted contract digest
 и HEAD.
 
@@ -75,3 +81,22 @@ dedicated/exclusive creation в обоих compile orders и подтвержд�
 Все ветви идут через production interaction state и input router; fixed-response
 wizard не принимается. Финальный send отдельно владеет
 [SV-B-024](SV-B-024-birth-dna.md).
+
+
+2026-10-28: интеграционные проверки M2 и исправления input lifecycle возвращены
+owner в [отчёте B-025](SV-B-025-entry-complete.md#реализация-и-проверки--2026-10-28).
+Это дополнительное Linux evidence; pending Linux native acceptance
+и capability ownership не изменены. Windows build/runtime validation отложена
+пользователем и не блокирует текущую приёмку.
+
+
+## Linux protocol/core freshness — 2026-10-28
+
+Current production-path проверки и карта применимости всех 54 B IDs описаны в
+[Linux protocol/core evidence](../../sv-stage-b-linux-protocol-evidence.md).
+Они дополняют историческое evidence; full native/provider и cumulative acceptance
+не выводятся из dummy/software или shared-primitive PASS. Canonical denominator
+составляет 54 IDs / 162 obligations; Windows-only provider остаётся deferred.
+Для B-002 исправлен endpoint pong telemetry в production login/pregame.
+Новая regression-проверка не добавлялась по прямому отказу пользователя; existing
+checks проверяют отсутствие обнаруженных регрессий, а не отдельно новую ветвь.

@@ -1,6 +1,7 @@
 #ifndef SV_SESSION_LOGIN_VIEW_H
 #define SV_SESSION_LOGIN_VIEW_H
 #include "session/pregame.h"
+#include "input/text-field.h"
 
 typedef struct {
     char name[SV_LOGIN_NAME_CAPACITY];
@@ -12,6 +13,10 @@ typedef struct SvLoginView {
     bool overview;
     bool ordinary_name_entry;
     bool ordinary_creation_available;
+    bool exclusive_creation_available, creation_supported, first_run, pending;
+    size_t free_slots[3], selected, first;
+    int focus;
+    const SvTextField *name_field; /* One frame, interaction-owned. */
     bool birth;
     bool live_handoff;
     size_t count;

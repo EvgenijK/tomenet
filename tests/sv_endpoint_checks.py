@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 SDL_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs", "sdl3"], text=True).split()
 SCENE_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs",
-                                      "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng"], text=True).split()
+                                      "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng", "libcurl"], text=True).split()
 COMMON = ["src/client/sv/input/endpoint.c", "src/client/sv/input/text-field.c"]
 
 
@@ -34,10 +34,22 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                                       "src/client/sv/credential/vault.c"], SCENE_FLAGS,
           dict(os.environ, SDL_VIDEODRIVER="dummy",
                DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-vault-no-service"))
+    check(directory / "birth-body-hotkeys", ["tests/sv/birth-body-hotkeys.c",
+          "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
+          "src/client/sv/input/physical.c"], SDL_FLAGS)
+    check(directory / "birth-stats-repeat", ["tests/sv/birth-stats-repeat.c",
+          "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
+          "src/client/sv/input/physical.c"], SDL_FLAGS)
+    check(directory / "birth-mode-arrows", ["tests/sv/birth-mode-arrows.c",
+          "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
+          "src/client/sv/input/physical.c"], SDL_FLAGS)
     check(directory / "physical", ["tests/sv/physical.c",
                                    "src/client/sv/input/physical.c"], SDL_FLAGS)
     check(directory / "metaserver", ["tests/sv/metaserver.c", *COMMON,
                                      "src/client/sv/input/metaserver.c"], SDL_FLAGS)
+
+    check(directory / "chronicle", ["tests/sv/chronicle.c",
+                                     "src/client/sv/input/chronicle.c"], SCENE_FLAGS)
 
     subprocess.run(["make", "-f", "makefile.sv", "tomenet-sv", "-j4"],
                    cwd=ROOT / "src", check=True, capture_output=True)
@@ -61,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
     bad = subprocess.run([*command, "--server", "host.example:0"],
                          cwd=ROOT, env=env, text=True, capture_output=True)
     assert bad.returncode == 2 and "Invalid server address" in bad.stderr
-    scene_sources = ["tests/sv/scene.c", "src/client/sv/endpoint-run.c",
+    scene_sources = ["tests/sv/scene.c", "src/client/sv/endpoint-run.c", "src/client/sv/input/chronicle.c",
                      "src/client/sv/credential/vault.c",
                      "src/client/sv/input/credentials.c",
                      "src/client/sv/input/login-interaction.c",

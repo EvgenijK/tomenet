@@ -1,0 +1,11 @@
+SV resource unavailable: /tmp/sv-b2-animation-5xx_hxyu/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b2-animation-5xx_hxyu/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV endpoint selection incomplete; no contact attempted

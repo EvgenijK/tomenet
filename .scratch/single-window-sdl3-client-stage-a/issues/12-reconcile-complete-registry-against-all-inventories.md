@@ -1,5 +1,7 @@
 # 12: Reconcile the complete registry against every inventory
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A reviewer can verify that the entire in-scope behavior baseline is represented by a coherent atomic registry, native ledger and A–F allocation, with no unexplained inventory gaps.
 
 **Blocked by:** 08: Register session, movement and targeting outcomes; 09: Register item, combat, spell and store outcomes; 10: Register information, social and server-driven outcomes; 11: Register settings, resources, files and platform outcomes.

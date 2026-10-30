@@ -1,0 +1,47 @@
+SV requires explicit --synthetic; live client is not implemented
+SV startup/render failed: Refusing existing unmarked profile root; choose a new directory; no terminal fallback
+SV startup build=linux-bd7f9b5e26c5789bb7e9 synthetic=true windows=1 video=dummy renderer=software fullscreen=true ui_scale=100 output=1024x768 display_scale=1.000
+SV runtime architecture=amd64 pointer_bits=64 sdl=3004016 sdl_ttf=3002002 freetype=2.14.3
+SV profile identity=TomenetGame/tomenet override=/tmp/tomenet-sv-smoke-jx7dfwin/scenario settings=/tmp/tomenet-sv-smoke-jx7dfwin/scenario/sv/tomenet.cfg writes=none
+SV text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf profile=sv-shell-ascii-v1
+SV HP peer queued server_version=4.7.0.2.0.2 maximum=100 current=50 boosted=1 bar=1 drain=1
+SV exit submitted_frames=3 session_active=1
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV startup build=linux-bd7f9b5e26c5789bb7e9 synthetic=true windows=1 video=dummy renderer=software fullscreen=false ui_scale=100 output=1024x768 display_scale=1.000
+SV runtime architecture=amd64 pointer_bits=64 sdl=3004016 sdl_ttf=3002002 freetype=2.14.3
+SV profile identity=TomenetGame/tomenet override=/tmp/tomenet-sv-smoke-jx7dfwin/scenario settings=/tmp/tomenet-sv-smoke-jx7dfwin/scenario/sv/tomenet.cfg writes=none
+SV text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf profile=sv-shell-ascii-v1
+SV HP peer queued server_version=4.7.0.2.0.2 maximum=100 current=50 boosted=1 bar=1 drain=1
+SV exit submitted_frames=3 session_active=1
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV startup build=linux-bd7f9b5e26c5789bb7e9 synthetic=true windows=1 video=dummy renderer=software fullscreen=false ui_scale=100 output=1024x768 display_scale=1.000
+SV runtime architecture=amd64 pointer_bits=64 sdl=3004016 sdl_ttf=3002002 freetype=2.14.3
+SV profile identity=TomenetGame/tomenet override=/tmp/tomenet-sv-smoke-jx7dfwin/scenario settings=/tmp/tomenet-sv-smoke-jx7dfwin/scenario/sv/tomenet.cfg writes=none
+SV text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf profile=sv-shell-ascii-v1
+SV HP peer queued server_version=4.7.0.2.0.2 maximum=100 current=50 boosted=1 bar=1 drain=1
+SV review build=linux-bd7f9b5e26c5789bb7e9 video=dummy renderer=software output=1024x768 logical=1024.000x768.000 display_scale=1.000
+SV exit submitted_frames=3 session_active=1
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV startup/render failed: sv-nonexistent-renderer not available; no terminal fallback
+SV startup build=linux-bd7f9b5e26c5789bb7e9 synthetic=true windows=1 video=dummy renderer=software fullscreen=true ui_scale=100 output=1024x768 display_scale=1.000
+SV runtime architecture=amd64 pointer_bits=64 sdl=3004016 sdl_ttf=3002002 freetype=2.14.3
+SV profile identity=TomenetGame/tomenet override=/tmp/tomenet-sv-smoke-jx7dfwin/scenario settings=/tmp/tomenet-sv-smoke-jx7dfwin/scenario/sv/tomenet.cfg writes=none
+SV text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf profile=sv-shell-ascii-v1
+SV HP peer queued server_version=4.7.0.2.0.2 maximum=100 current=50 boosted=1 bar=1 drain=1
+SV exit submitted_frames=3 session_active=1
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't load font file); trying declared fallback
+SV startup build=linux-bd7f9b5e26c5789bb7e9 synthetic=true windows=1 video=dummy renderer=software fullscreen=false ui_scale=100 output=1024x768 display_scale=1.000
+SV runtime architecture=amd64 pointer_bits=64 sdl=3004016 sdl_ttf=3002002 freetype=2.14.3
+SV profile identity=TomenetGame/tomenet override=/tmp/tomenet-sv-smoke-jx7dfwin/scenario settings=/tmp/tomenet-sv-smoke-jx7dfwin/scenario/sv/tomenet.cfg writes=none
+SV text requested=CascadiaMono-Regular.ttf effective=/tmp/tomenet-sv-smoke-jx7dfwin/fallback-lib/xtra/font/16x24x.pcf profile=sv-shell-ascii-v1
+SV HP peer queued server_version=4.7.0.2.0.2 maximum=100 current=50 boosted=1 bar=1 drain=1
+SV exit submitted_frames=3 session_active=1
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't load font file); trying declared fallback
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/fallback-lib/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/fallback-lib/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV effective font fallback: /tmp/tomenet-sv-smoke-jx7dfwin/fallback-lib/xtra/font/16x24x.pcf (requested CascadiaMono-Regular.ttf retained)
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/scenario/xtra/font/CascadiaMono-Regular.ttf (Couldn't load font file); trying declared fallback
+SV resource unavailable: /tmp/tomenet-sv-smoke-jx7dfwin/missing-lib/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/missing-lib/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV fatal resource failure: bundled Cascadia Mono and /tmp/tomenet-sv-smoke-jx7dfwin/missing-lib/xtra/font/16x24x.pcf unavailable or invalid
+SV startup/render failed: Couldn't open /tmp/tomenet-sv-smoke-jx7dfwin/missing-lib/xtra/font/CascadiaMono-Regular.ttf: No such file or directory; no terminal fallback
+PASS: isolated shell, window/defaults, software, resources and failures; environment=Linux

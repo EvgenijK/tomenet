@@ -1,9 +1,10 @@
 # Этап B2 — native интерфейс входа по веб-макету
 
-Статус: in progress, 2026-10-28. Основание: прямой запрос пользователя
-спланировать B2 после обнаруженного расхождения принятого B с HTML UX prototype.
-B2-001 реализован ([evidence](sv-b2-001-evidence.md)), B2-002 реализован
-([evidence](sv-b2-002-evidence.md)); B2-003…006 остаются planned.
+Статус: accepted, 2026-10-30. Пользователь явно принял этап B2 после запуска
+клиента и исправления буквенных хоткеев выбора режима. Приёмка включает
+SV-B2-001…006 и представленные корректировки. Текущая платформа — Linux;
+Windows/MinGW/Wine остаются отложены по правилу платформ.
+[Решение и evidence](sv-stage-b2-acceptance.md).
 
 ## Результат и место в плане
 
@@ -57,7 +58,12 @@ available/disabled/unavailable и обратная связь. Несущест�
 Real-server integration, post-MOTD startup, gameplay/HUD/map, settings UI,
 character reorder, DNA persistence и полноценный Guide остаются в своих C
 этапах. Guide entry B2 сохраняет `The guide is in development` и возврат
-к действительному caller. Chronicle не создаёт обязательный live-news backend.
+к действительному caller. Уточнение пользователя от 2026-10-29: World Chronicle
+должна сразу получать данные из сетевых источников в текущей корректировке B2;
+offline snapshot не является итоговой реализацией. Иконки ссылок должны быть
+строго круглыми, без приплюснутой нижней части frozen CSS. Дополнительное
+требование пользователя: сетевое обновление World Chronicle каждые 5 секунд;
+ссылки и их иконки кликабельны, с hover как в макете, без `Links unavailable`.
 
 Работа по возможности ограничивается `src/client/sv/` и необходимыми SV resources.
 Без общей UI-библиотеки, legacy/common рефакторинга, нового protocol path или

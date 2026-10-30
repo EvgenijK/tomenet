@@ -1,4 +1,5 @@
 #include "endpoint-run.h"
+#include "ui/login-layout.h"
 #include "../../src/common/pack.h"
 #include <SDL3/SDL.h>
 #include <arpa/inet.h>
@@ -13,6 +14,28 @@
 
 static bool synthetic_altgr_dna_layout;
 static bool synthetic_level5_random_layout;
+
+#ifdef SV_CHECK_NAME_TEXT_LIFETIME
+/* Inspect the production caller at native event dispatch, before it handles
+ * the command key. SDL must not generate opening-command text in overview. */
+extern bool SDLCALL __real_SDL_PollEvent(SDL_Event *event);
+bool SDLCALL __wrap_SDL_PollEvent(SDL_Event *event)
+{
+    bool available = __real_SDL_PollEvent(event);
+    if (available && event && (event->type == SDL_EVENT_TEXT_INPUT ||
+        (event->type == SDL_EVENT_KEY_DOWN &&
+         (event->key.key == SDLK_N || event->key.key == SDLK_E) &&
+         (event->key.mod & SDL_KMOD_SHIFT)))) {
+        int count;
+        SDL_Window **windows = SDL_GetWindows(&count);
+        assert(windows && count == 1);
+        assert(SDL_TextInputActive(windows[0]) ==
+               (event->type == SDL_EVENT_TEXT_INPUT));
+        SDL_free(windows);
+    }
+    return available;
+}
+#endif
 
 extern SDL_Keycode SDLCALL __real_SDL_GetKeyFromScancode(
     SDL_Scancode scancode, SDL_Keymod modstate, bool key_event);
@@ -221,8 +244,9 @@ static void push_mouse_select_all(void)
     event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
     event.button.button = SDL_BUTTON_LEFT;
     event.button.clicks = 2;
-    event.button.x = 220.0f;
-    event.button.y = 690.0f;
+    SvCharacterLayout layout=sv_character_layout(sv_character_shell_layout(1024,768,1),0);
+    event.button.x = layout.name.x+20;
+    event.button.y = layout.name.y+10;
     assert(SDL_PushEvent(&event));
 }
 
@@ -231,93 +255,99 @@ static void push_mouse_ordinary_create(void)
     SDL_Event event = {0};
     event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
     event.button.button = SDL_BUTTON_LEFT;
-    event.button.x = 120.0f;
-    event.button.y = 235.0f;
+    SvCharacterLayout layout=sv_character_layout(sv_character_shell_layout(1024,768,0),0);
+    event.button.x = layout.ordinary.x+20;
+    event.button.y = layout.ordinary.y+10;
+    assert(SDL_PushEvent(&event));
+}
+
+/* Existing gesture fixtures specify the old row position; resolve their
+ * choice index through the same production rectangles used by draw/input. */
+static void push_mouse_birth(SvBirthOwner owner, unsigned position, unsigned clicks)
+{
+    int count, width, height;
+    SDL_Window **windows = SDL_GetWindows(&count);
+    assert(windows && count == 1);
+    assert(SDL_GetWindowSize(windows[0], &width, &height));
+    SDL_free(windows);
+    SvBirthLayout layout = sv_birth_layout(width, height, owner);
+    SvLoginRect row = sv_birth_choice_rect(layout, position, 0);
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = row.x + 12;
+    event.button.y = row.y + row.h / 2;
+    event.button.clicks = clicks;
     assert(SDL_PushEvent(&event));
 }
 
 static void push_mouse_sex(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    event.button.clicks = clicks;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_SEX, y >= 350.0f ? 1u : 0u, clicks);
 }
 
 static void push_mouse_class(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    event.button.clicks = clicks;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_CLASS, (unsigned)((y - 320.0f) / 40.0f), clicks);
 }
 
 static void push_mouse_race(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    event.button.clicks = clicks;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_RACE, (unsigned)((y - 320.0f) / 40.0f), clicks);
 }
 
 static void push_mouse_trait(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    event.button.clicks = clicks;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_TRAIT, (unsigned)((y - 320.0f) / 40.0f), clicks);
 }
 
 static void push_mouse_body(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.clicks = clicks;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_BODY, (unsigned)((y - 320.0f) / 40.0f), clicks);
 }
 
 static void push_mouse_stats(float y, unsigned clicks)
 {
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    event.button.button = SDL_BUTTON_LEFT;
-    event.button.clicks = clicks;
-    event.button.x = 90.0f;
-    event.button.y = y;
-    assert(SDL_PushEvent(&event));
+    push_mouse_birth(SV_BIRTH_STATS, (unsigned)((y - 320.0f) / 40.0f), clicks);
 }
 
 static void push_mouse_mode(float y, unsigned clicks)
 {
+    push_mouse_birth(SV_BIRTH_MODE, (unsigned)((y - 320.0f) / 40.0f), clicks);
+}
+
+static void push_mouse_stats_warning(bool confirm)
+{
+    int count, width, height;
+    SDL_Window **windows = SDL_GetWindows(&count);
+    assert(windows && count == 1);
+    assert(SDL_GetWindowSize(windows[0], &width, &height));
+    SDL_free(windows);
+    SvBirthLayout layout = sv_birth_layout(width, height, SV_BIRTH_STATS);
+    SvLoginRect button = confirm ? layout.warning_confirm : layout.warning_cancel;
     SDL_Event event = {0};
     event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
     event.button.button = SDL_BUTTON_LEFT;
-    event.button.clicks = clicks;
-    event.button.x = 90.0f;
-    event.button.y = y;
+    event.button.clicks = 1;
+    event.button.x = button.x + 12;
+    event.button.y = button.y + button.h / 2;
     assert(SDL_PushEvent(&event));
 }
 
 static void push_mouse_wheel(float y)
 {
+    int count, width, height;
+    SDL_Window **windows = SDL_GetWindows(&count);
+    assert(windows && count == 1);
+    assert(SDL_GetWindowSize(windows[0], &width, &height));
+    SDL_free(windows);
+    /* Class choice region is contained by the other birth choice viewports. */
+    SvBirthLayout layout = sv_birth_layout(width, height, SV_BIRTH_CLASS);
     SDL_Event event = {0};
     event.type = SDL_EVENT_MOUSE_WHEEL;
     event.wheel.y = y;
+    event.wheel.mouse_x = layout.choices.x + 12;
+    event.wheel.mouse_y = layout.choices.y + 12;
     assert(SDL_PushEvent(&event));
 }
 
@@ -2194,6 +2224,10 @@ static int peer_run(void *opaque)
         push_to_stats();
         push_key(!strcmp(peer->mode, "stats-point-escape-warning") ?
             SDLK_ESCAPE : SDLK_RETURN, 0);
+        if (!strcmp(peer->mode, "stats-point-confirm-warning")) {
+            push_mouse_stats_warning(false);
+            push_key(SDLK_RETURN, 0);
+        }
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "stats-point-confirm") ||
                !strcmp(peer->mode, "stats-point-escape-confirm") ||
@@ -2201,7 +2235,7 @@ static int peer_run(void *opaque)
         push_to_stats();
         if (!strcmp(peer->mode, "stats-point-mouse")) {
             push_mouse_stats(340.0f, 2);
-            push_mouse_stats(340.0f, 2);
+            push_mouse_stats_warning(true);
         } else {
             SDL_Keycode confirm =
                 !strcmp(peer->mode, "stats-point-escape-confirm") ?
@@ -2482,8 +2516,8 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
 #endif
         push_key(SDLK_PAGEDOWN, 0);
-        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
-        push_mouse_class(740.0f, 2);
+        for (unsigned i = 0; i < 7; ++i) push_mouse_wheel(-1.0f);
+        push_mouse_class(380.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (case_sensitive_race_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
@@ -2500,11 +2534,11 @@ static int peer_run(void *opaque)
         push_key(SDLK_RETURN, 0);
 #endif
         push_key(SDLK_PAGEDOWN, 0);
-        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
+        for (unsigned i = 0; i < 11; ++i) push_mouse_wheel(-1.0f);
         push_presentation_events();
         SDL_Delay(80);
-        push_mouse_race(620.0f, 2);
-        push_mouse_race(740.0f, 2);
+        push_mouse_race(380.0f, 2);
+        push_mouse_race(500.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (case_sensitive_trait_case(peer->mode)) {
         push_key(SDLK_RETURN, 0);
@@ -2523,10 +2557,10 @@ static int peer_run(void *opaque)
 #endif
         push_key(SDLK_RETURN, 0);
         push_key(SDLK_PAGEDOWN, 0);
-        for (unsigned i = 0; i < 5; ++i) push_mouse_wheel(-1.0f);
+        for (unsigned i = 0; i < 11; ++i) push_mouse_wheel(-1.0f);
         push_presentation_events();
         SDL_Delay(80);
-        push_mouse_trait(740.0f, 2);
+        push_mouse_trait(500.0f, 2);
         push_key(SDLK_Q, SDL_KMOD_SHIFT);
     } else if (!strcmp(peer->mode, "first-run-body-direct")) {
         push_key(SDLK_RETURN, 0);

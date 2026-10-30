@@ -1,5 +1,7 @@
 # 14: Synchronize truthful HTML snapshots and coverage
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A local HTML consumer can receive a validated canonical manifest snapshot and maintain an honest coverage ledger, without losing a coherent previous state or confusing prototype completeness with native acceptance.
 
 **Blocked by:** 13: Reject unsupported or stale native evidence.

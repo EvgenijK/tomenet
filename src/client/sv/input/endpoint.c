@@ -15,7 +15,11 @@ bool sv_endpoint_servers(SvEndpoint *endpoint, const SvServer *servers, size_t c
     if (!servers || count > SV_SERVER_COUNT) return false;
     for (size_t i = 0; i < count; ++i)
         if (!servers[i].host[0] || !memchr(servers[i].host, 0, sizeof(servers[i].host)) ||
-            !servers[i].port || !memchr(servers[i].label, 0, sizeof(servers[i].label))) return false;
+            !servers[i].port || !memchr(servers[i].label, 0, sizeof(servers[i].label)) ||
+            !memchr(servers[i].game, 0, sizeof(servers[i].game)) ||
+            !memchr(servers[i].version, 0, sizeof(servers[i].version)) ||
+            !memchr(servers[i].notes, 0, sizeof(servers[i].notes)) ||
+            !memchr(servers[i].players, 0, sizeof(servers[i].players))) return false;
     size_t selected = SIZE_MAX;
     if (endpoint->selected < endpoint->server_count) {
         const SvServer *old = &endpoint->servers[endpoint->selected];
@@ -99,7 +103,9 @@ void sv_endpoint_key(SvEndpoint *endpoint, SvEditKey key)
     sv_text_key(&endpoint->editor, key);
     if (endpoint->editor.cancelled) {
         endpoint->host[0] = 0;
-        endpoint->phase = SV_ENDPOINT_CANCELLED;
+        endpoint->port = 0;
+        endpoint->invalid_address = false;
+        endpoint->phase = SV_ENDPOINT_LIST;
     } else if (endpoint->editor.accepted) {
         endpoint->invalid_address = !address(endpoint, endpoint->editor.bytes);
         if (endpoint->invalid_address) endpoint->editor.accepted = false;

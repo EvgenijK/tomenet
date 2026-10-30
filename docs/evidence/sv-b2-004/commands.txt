@@ -1,0 +1,13 @@
+# Linux; execute from repository root. Existing checks only, no Windows matrix.
+node docs/evidence/sv-b2-004/capture-reference.cjs docs/evidence/sv-b2-004
+# Native commands and final checks appended after source freeze.
+make -C src -f makefile.sv tomenet-sv -j4
+cp src/tomenet-sv /tmp/sv-b2-004-capture
+SV_CAPTURE_BINARY=/tmp/sv-b2-004-capture python3 docs/evidence/sv-b2-004/capture-native.py
+SV_BIRTH_CASE=navigate,mouse,alternate-mouse,long-class-viewport,long-race-viewport,long-trait-viewport,stats-order-mouse,stats-point-mouse,stats-point-confirm-warning,stats-point-escape-warning,mode-back,random,quit python3 tests/sv_name_editor_submit_checks.py
+SV_GUIDE_CASES=point SV_GUIDE_ORDERS=1 SV_GUIDE_EVIDENCE=/tmp/b2-004-guide-final python3 tests/sv_guide_motd_checks.py
+SV_SUBMISSION_CASE=waiting,partial,ack,retry SV_BIRTH_EVIDENCE=/tmp/b2-004-submission-final python3 tests/sv_birth_single_submission_checks.py
+SV_BIRTH_CASE=stats-point-confirm-warning,stats-point-mouse python3 tests/sv_name_editor_submit_checks.py
+SV_BIRTH_CASE=mode-back,mouse python3 tests/sv_name_editor_submit_checks.py
+SV_BIRTH_CASE=long-class-viewport,long-race-viewport,long-trait-viewport python3 tests/sv_name_editor_submit_checks.py
+SV_CAPTURE_BINARY=/tmp/sv-b2-004-capture SV_CAPTURE_OUTPUT=docs/evidence/sv-b2-004/scroll SV_CAPTURE_ONE=1 SV_CAPTURE_POINT_ONLY=1 SV_CAPTURE_SCROLL=1 python3 docs/evidence/sv-b2-004/capture-native.py

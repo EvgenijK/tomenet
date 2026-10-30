@@ -1,6 +1,7 @@
 #include "protocol/login.h"
 #include "../../src/common/pack.h"
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 static void feed_one_at_a_time(SvLogin *login, const unsigned char *bytes, size_t size)
@@ -8,8 +9,98 @@ static void feed_one_at_a_time(SvLogin *login, const unsigned char *bytes, size_
     for (size_t i = 0; i < size; ++i)
         assert(sv_login_receive(login, bytes + i, 1) == SV_OK);
 }
+static void birth_completion(void)
+{
+    const int version[6] = {4, 9, 4, 0, 0, 0};
+    const unsigned char iaddr[6] = {0};
+    const int16_t stats[6] = {0, 1, 2, 3, 4, 5};
+    /* Independent baseline fixture, also used by the controlled endpoint peer. */
+    unsigned char expected[32768], output[32768];
+    size_t expected_size = 0;
+    unsigned value;
+    FILE *fixture = fopen("tests/sv/fixtures/birth-current.hex", "r");
+    assert(fixture);
+    while (fscanf(fixture, "%2x", &value) == 1) {
+        assert(expected_size < sizeof(expected));
+        expected[expected_size++] = (unsigned char)value;
+    }
+    assert(!fclose(fixture));
+    static const unsigned char overview[] = {
+        PKT_SERVERDETAILS, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+        PKT_LOGIN, 0,0, 0, 0, 0,0, 0,0, 0,0, 0
+    };
+    const unsigned char replies[][3] = {
+        {PKT_REPLY, PKT_PLAY, PKT_SUCCESS},
+        {PKT_REPLY, PKT_PLAY, 0},
+        {PKT_REPLY, PKT_LOGIN, PKT_SUCCESS}
+    };
+    for (unsigned test = 0; test < 4; ++test) {
+        SvLogin *login = sv_login_create(version, iaddr);
+        assert(login);
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+        assert(sv_login_start_play(login, 0x0300, 2, 2, 2, stats,
+                                  "CascadiaMono-Regular.ttf") == SV_INVALID);
+        feed_one_at_a_time(login, overview, sizeof(overview));
+        assert(sv_login_create_character(login, "Carol", false) == SV_OK);
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+        assert(sv_login_start_play(login, 0x0300, 2, 2, 2, stats,
+                                  "CascadiaMono-Regular.ttf") == SV_INVALID);
+        /* New names receive E_NEED_INFO, not existing-character SUCCESS. */
+        const unsigned char accepted = E_NEED_INFO;
+        assert(sv_login_receive(login, &accepted, 1) == SV_OK);
+        assert(sv_login_start_play(login, 0x0300, 2, 2, 2, stats,
+                                  "CascadiaMono-Regular.ttf") == SV_OK);
+        assert(sv_login_state(login) == SV_LOGIN_WAIT_PLAY);
+        assert(sv_login_start_play(login, 0x0300, 2, 2, 2, stats,
+                                  "CascadiaMono-Regular.ttf") == SV_INVALID);
+        output[0] = 0xa5;
+        SvOutput packet = sv_login_take_output(login, output, expected_size - 1);
+        assert(packet.result == SV_OUTPUT_TOO_SMALL && packet.size == expected_size);
+        assert(output[0] == 0xa5);
+        packet = sv_login_take_output(login, output, sizeof(output));
+        assert(packet.result == SV_OK && packet.size == expected_size);
+        assert(!memcmp(output, expected, expected_size));
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_WAITING);
+        if (test == 3) {
+            const unsigned char end = PKT_END;
+            assert(sv_login_receive(login, &end, 1) == SV_DECODE_ERROR);
+            assert(sv_login_state(login) == SV_LOGIN_WAIT_PLAY);
+            sv_login_destroy(login);
+            continue;
+        }
+        feed_one_at_a_time(login, replies[test], 2);
+        assert(sv_login_state(login) == SV_LOGIN_WAIT_PLAY);
+        /* nserver.c sends VERSION and gameplay data immediately after END.
+         * TCP may coalesce those bytes with the authoritative play reply. */
+        const unsigned char completed[] = {PKT_SUCCESS, PKT_END, PKT_VERSION, 42};
+        SvResult result = test == 0 ?
+            sv_login_receive(login, completed, sizeof(completed)) :
+            sv_login_receive(login, replies[test] + 2, 1);
+        assert(result == (test == 2 ? SV_DECODE_ERROR : SV_OK));
+        assert(sv_login_state(login) == (test == 0 ? SV_LOGIN_PLAY_ACKNOWLEDGED :
+            test == 1 ? SV_LOGIN_REJECTED : SV_LOGIN_WAIT_PLAY));
+        if (test == 0) {
+            assert(sv_login_play_stream_complete(login));
+            /* The live decoder owns both the coalesced and later bytes. */
+            const unsigned char later[] = {43, 44};
+            assert(sv_login_receive(login, later, sizeof(later)) == SV_OK);
+            const unsigned char live[] = {PKT_VERSION, 42, 43, 44};
+            assert(sv_login_take_remaining(login, output, sizeof(live) - 1).result ==
+                   SV_OUTPUT_TOO_SMALL);
+            SvOutput remaining = sv_login_take_remaining(login, output, sizeof(output));
+            assert(remaining.result == SV_OK && remaining.size == sizeof(live));
+            assert(!memcmp(output, live, sizeof(live)));
+            assert(sv_login_state(login) == SV_LOGIN_PLAY_ACKNOWLEDGED);
+        }
+        assert(sv_login_start_play(login, 0x0300, 2, 2, 2, stats,
+                                  "CascadiaMono-Regular.ttf") == SV_INVALID);
+        assert(sv_login_take_output(login, output, sizeof(output)).result == SV_WAITING);
+        sv_login_destroy(login);
+    }
+}
 int main(void)
 {
+    birth_completion();
     const int modern[6] = {4, 9, 2, 1, 0, 2};
     const unsigned char iaddr[6] = {0xf4, 0x43, 1, 2, 3, 4};
     SvLogin *login = sv_login_create(modern, iaddr);
@@ -85,10 +176,21 @@ int main(void)
     assert(sv_login_receive(login, overview, sizeof(overview)) == SV_OK);
     assert(sv_login_choose(login, 0) == SV_OK);
     assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
-    const unsigned char invalid_status = 3;
+    const unsigned char invalid_status = E_PASSWORD;
     assert(sv_login_receive(login, &invalid_status, 1) == SV_OK);
     assert(sv_login_state(login) == SV_LOGIN_REJECTED);
-    assert(strstr(sv_login_reason(login), "status 3"));
+    assert(strstr(sv_login_reason(login), "status 5"));
+    sv_login_destroy(login);
+
+    /* Server authority also covers a listed character removed since overview. */
+    login = sv_login_create(modern, iaddr);
+    assert(sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
+    assert(sv_login_receive(login, overview, sizeof(overview)) == SV_OK);
+    assert(sv_login_choose(login, 0) == SV_OK);
+    const unsigned char need_info = E_NEED_INFO;
+    assert(sv_login_receive(login, &need_info, 1) == SV_OK);
+    assert(sv_login_state(login) == SV_LOGIN_SELECTED && sv_login_creating_character(login));
+    assert(!strcmp(sv_login_selected_character(login)->name, "Hero"));
     sv_login_destroy(login);
 
     login = sv_login_create(modern, iaddr);

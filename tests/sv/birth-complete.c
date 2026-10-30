@@ -135,7 +135,7 @@ static void *complete_peer(void *opaque)
     push_presentation_events();
     interleave_ping(peer, socket, 7); /* Loop still services the peer while waiting. */
     no_final_request(socket);
-    const unsigned char reply[] = {PKT_REPLY, PKT_PLAY, PKT_SUCCESS};
+    const unsigned char reply[] = {PKT_REPLY, PKT_PLAY, PKT_SUCCESS, PKT_END};
     if (strcmp(peer->mode, "waiting")) {
         assert(send(socket, reply, 2, 0) == 2);
         SDL_Delay(100);
@@ -145,7 +145,7 @@ static void *complete_peer(void *opaque)
     /* Partial replies keep the startup flow waiting; never insert another
      * packet between fragments of this authoritative three-byte reply. */
     if (!strcmp(peer->mode, "ack")) {
-        assert(send(socket, reply + 2, 1, 0) == 1);
+        assert(send(socket, reply + 2, 2, 0) == 2);
     }
     SDL_Delay(150);
     no_final_request(socket);
@@ -153,7 +153,7 @@ static void *complete_peer(void *opaque)
     assert(snprintf(ack_path, sizeof(ack_path), "%s.reply", evidence_path) < (int)sizeof(ack_path));
     FILE *ack = fopen(ack_path, "wb");
     size_t reply_size = !strcmp(peer->mode, "waiting") ? 0 :
-                        !strcmp(peer->mode, "partial") ? 2 : 3;
+                        !strcmp(peer->mode, "partial") ? 2 : sizeof(reply);
     assert(ack && fwrite(reply, 1, reply_size, ack) == reply_size);
     assert(!fclose(ack));
     SDL_Event quit = {.type = SDL_EVENT_QUIT};

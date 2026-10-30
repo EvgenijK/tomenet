@@ -128,8 +128,8 @@ def main():
         "gates": {
             "sv-build": {"status": "pending", "command": "make -s -C src -f makefile.sv tomenet-sv",
                          "reason": "orchestrator-owned; not run by this focused collector"},
-            "sv-core": {"status": "pending", "command": "bash -s -- core < .sandcastle/checks.sh",
-                        "reason": "configured runner exists; full gate is orchestrator-owned"},
+            "sv-core": {"status": "deferred",
+                        "reason": "Sandcastle workflow removed on 2026-10-27; select minimal core checks for the task"},
             "controller-review": {"status": "pending", "reason": "requires independent controller verdict and fresh final HEAD audit"},
             "P1-entry-evidence": {"status": "deferred", "owner": "SV-B-025",
                 "reason": "The assigned source places end-to-end verification in the downstream SV-B-025 ticket; this checkpoint covers SV-B-024 birth completion."},

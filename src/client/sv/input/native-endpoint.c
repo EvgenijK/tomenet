@@ -1,5 +1,6 @@
 #include "input/native-endpoint.h"
 #include "input/physical.h"
+#include "input/pregame-events.h"
 #include "ui/login-layout.h"
 #include <string.h>
 
@@ -12,7 +13,8 @@ static bool modifier(SDL_Scancode code)
 
 void sv_endpoint_input_begin(SvEndpointInput *input)
 {
-    *input = (SvEndpointInput){.since_ns = SDL_GetTicksNS(), .hover = SIZE_MAX};
+    sv_pregame_input_boundary();
+    *input = (SvEndpointInput){.since_ns = SDL_GetTicksNS(), .hover = SIZE_MAX, .hover_link = SIZE_MAX};
 }
 
 SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8)
@@ -38,23 +40,71 @@ static void move_row(SvEndpoint *endpoint, int direction)
     else if (direction > 0 && endpoint->selected + 1 < endpoint->server_count) ++endpoint->selected;
 }
 
-bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
+bool sv_endpoint_links_event(SvEndpointInput *input,const SDL_Event *event)
+{
+    if(event->type==SDL_EVENT_WINDOW_FOCUS_LOST || event->type==SDL_EVENT_WINDOW_MOUSE_LEAVE) {
+        input->hover_link=SIZE_MAX;
+        return false;
+    }
+    bool motion=event->type==SDL_EVENT_MOUSE_MOTION;
+    if(!motion && (event->type!=SDL_EVENT_MOUSE_BUTTON_DOWN || event->button.button!=SDL_BUTTON_LEFT))return false;
+    SDL_WindowID id=motion?event->motion.windowID:event->button.windowID;
+    SDL_Window *window=SDL_GetWindowFromID(id);int w,h;
+    float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+    if(scale<=0 || density<=0 || !SDL_GetWindowSizeInPixels(window,&w,&h))return false;
+    SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
+    float x=(motion?event->motion.x:event->button.x)*density/scale;
+    float y=(motion?event->motion.y:event->button.y)*density/scale;
+    static const char *urls[]={"https://www.tomenet.eu/","https://discord.gg/rASkhCg",
+        "https://web.libera.chat/?channels=%23tomenet","https://www.tomenet.eu/guide.php?",
+        "https://igroglaz.com/tomenet","http://github.com/TomenetGame/"};
+    input->hover_link=SIZE_MAX;
+    for(size_t i=0;i<6;++i)if(sv_login_contains(sv_login_link_hit(l,i),x,y)) {
+        input->hover_link=i;
+        input->hover=SIZE_MAX;input->hover_enter=false;input->hover_manual=false;
+        if(!motion && !SDL_OpenURL(urls[i]))SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,"Cannot open community link: %s",SDL_GetError());
+        return true;
+    }
+    return false;
+}
+
+bool sv_endpoint_chronicle_event(SvEndpointInput *input,const SDL_Event *event)
+{
+    if(event->type!=SDL_EVENT_MOUSE_WHEEL)return false;
+    SDL_Window *window=SDL_GetWindowFromID(event->wheel.windowID);int w,h;
+    float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+    if(scale<=0 || density<=0 || !SDL_GetWindowSizeInPixels(window,&w,&h))return false;
+    SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
+    float x=event->wheel.mouse_x*density/scale,y=event->wheel.mouse_y*density/scale;
+    if(l.compact || !sv_login_contains(l.chronicle,x,y))return false;
+    float direction=event->wheel.direction==SDL_MOUSEWHEEL_FLIPPED?-1:1;
+    input->chronicle_scroll=SDL_clamp(input->chronicle_scroll-event->wheel.y*direction*.015f,0,1);
+    return true;
+}
+
+static bool endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
                        const SDL_Event *event, SvClipboardRead clipboard, void *context)
 {
     if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST) {
         input->latch = 0;
+        input->hover_link=SIZE_MAX;
         return false;
     }
-    if (event->common.timestamp && event->common.timestamp < input->since_ns) return true;
+    if (!sv_pregame_keyboard_event(event) && event->common.timestamp && event->common.timestamp < input->since_ns) return true;
+    if(endpoint->phase==SV_ENDPOINT_LIST && sv_endpoint_links_event(input,event))return true;
+    if(sv_endpoint_chronicle_event(input,event))return true;
     if (event->type == SDL_EVENT_MOUSE_MOTION && endpoint->phase == SV_ENDPOINT_LIST) {
         SDL_Window *window=SDL_GetWindowFromID(event->motion.windowID);int w,h;
         float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
         if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
-            SvLoginLayout l=sv_login_layout(w/scale,h/scale,endpoint->server_count,endpoint->selected);
+            SvLoginLayout l=sv_login_server_layout(w/scale,h/scale,endpoint);
             float x=event->motion.x*density/scale,y=event->motion.y*density/scale;
-            input->hover=SIZE_MAX;input->hover_manual=sv_login_contains(l.manual,x,y);
+            input->hover=SIZE_MAX;input->hover_enter=false;input->hover_manual=sv_login_contains(l.manual,x,y);
             for(size_t i=l.first;i<endpoint->server_count && i<l.first+l.rows;++i)
-                if(sv_login_contains(sv_login_row(l,i),x,y))input->hover=i;
+                if(sv_login_contains(sv_login_row(l,i),x,y)) {
+                    input->hover=i;
+                    input->hover_enter=sv_login_contains(sv_login_server_door(sv_login_row(l,i)),x,y);
+                }
         }
         return true;
     }
@@ -62,7 +112,7 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         SDL_Window *window=SDL_GetWindowFromID(event->button.windowID);int w,h;
         float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
         if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
-            SvLoginLayout l=sv_login_layout(w/scale,h/scale,endpoint->server_count,endpoint->selected);
+            SvLoginLayout l=sv_login_server_layout(w/scale,h/scale,endpoint);
             SvLoginFormLayout f=sv_login_form_layout(l,h/scale);
             float x=event->button.x*density/scale,y=event->button.y*density/scale;
             if(sv_login_contains(f.cancel,x,y))sv_endpoint_key(endpoint,SV_EDIT_CANCEL);
@@ -87,13 +137,16 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         float scale = SDL_GetWindowDisplayScale(window);
         float density = SDL_GetWindowPixelDensity(window);
         if (scale <= 0 || density <= 0) return false;
-        SvLoginLayout layout = sv_login_layout(width/scale,height/scale,
-                                               endpoint->server_count,endpoint->selected);
+        SvLoginLayout layout = sv_login_server_layout(width/scale,height/scale,endpoint);
         float x=event->button.x*density/scale, y=event->button.y*density/scale;
         if (sv_login_contains(layout.manual,x,y)) {input->manual_focus=0;sv_endpoint_manual(endpoint); }
         else for (size_t i=layout.first;i<endpoint->server_count && i<layout.first+layout.rows;++i)
             if (sv_login_contains(sv_login_row(layout,i),x,y)) {
-                (void)sv_endpoint_choose(endpoint,i); break;
+                endpoint->selected=i;
+                if(event->button.clicks>=2 ||
+                   sv_login_contains(sv_login_server_door(sv_login_row(layout,i)),x,y))
+                    (void)sv_endpoint_choose(endpoint,i);
+                break;
             }
         return true;
     }
@@ -111,7 +164,7 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         }
         return true;
     }
-    if (event->key.repeat) return true;
+    if (event->key.repeat && endpoint->phase != SV_ENDPOINT_LIST) return true;
     SDL_Scancode scancode = event->key.scancode;
 #ifdef SDL3_STICKY_KEYS
     if (modifier(scancode)) {
@@ -124,13 +177,29 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
     if (modifier(scancode)) return true;
 #endif
     SvPhysicalKey physical;
-    if (!sv_physical_key(&event->key,input->latch,&physical)) return true;
+    /* Native list navigation follows OS key repeat. Keep repeat suppression in
+     * the baseline macro encoder and in activation/editing commands. */
+    SDL_KeyboardEvent keyboard=event->key;keyboard.repeat=false;
+    /* Navigation keys still have a physical identity when SDL has no mapped
+     * keycode. Resolve only the native list arrows; macro bytes stay unchanged. */
+    if(endpoint->phase==SV_ENDPOINT_LIST && keyboard.key==SDLK_UNKNOWN) {
+        if(scancode==SDL_SCANCODE_UP)keyboard.key=SDLK_UP;
+        else if(scancode==SDL_SCANCODE_DOWN)keyboard.key=SDLK_DOWN;
+    }
+    if (!sv_physical_key(&keyboard,input->latch,&physical)) return true;
     int symbol = sv_physical_symbol(physical.bytes, physical.size);
     SDL_Keymod mods = physical.modifiers;
     input->latch = 0;
     SDL_Keycode key = physical.key;
+    bool tab=key==SDLK_TAB || key==SDLK_LEFT_TAB || scancode==SDL_SCANCODE_TAB;
+    bool reverse_tab=key==SDLK_LEFT_TAB || (mods&SDL_KMOD_SHIFT);
     if (endpoint->phase == SV_ENDPOINT_LIST) {
-        if(key==SDLK_TAB) { input->list_focus_manual=!input->list_focus_manual;return true; }
+        if(event->key.repeat) {
+            if(symbol==0xff52 || symbol==0xff97)move_row(endpoint,-1);
+            else if(symbol==0xff54 || symbol==0xff99)move_row(endpoint,1);
+            return true;
+        }
+        if(tab) { input->list_focus_manual=!input->list_focus_manual;return true; }
         if (key == SDLK_ESCAPE) sv_endpoint_key(endpoint, SV_EDIT_CANCEL);
         else if (symbol == 0xff52 || symbol == 0xff97) move_row(endpoint, -1);
         else if (symbol == 0xff54 || symbol == 0xff99) move_row(endpoint, 1);
@@ -141,8 +210,8 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         }
         return true;
     }
-    if(key==SDLK_TAB) {
-        input->manual_focus=(input->manual_focus+((mods&SDL_KMOD_SHIFT)?2:1))%3;
+    if(tab) {
+        input->manual_focus=(input->manual_focus+(reverse_tab?2:1))%3;
         return true;
     }
     if((key==SDLK_RETURN || key==SDLK_KP_ENTER || key==SDLK_SPACE) && input->manual_focus) {
@@ -195,4 +264,15 @@ bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         if(selecting)endpoint->editor.anchor=anchor;
     }
     return true;
+}
+
+/* Switching between command list and editor retires the opening key's text
+ * and repeat already queued for the previous owner. */
+bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
+                       const SDL_Event *event, SvClipboardRead clipboard, void *context)
+{
+    SvEndpointPhase before=endpoint->phase;
+    bool handled=endpoint_event(input,endpoint,event,clipboard,context);
+    if(endpoint->phase!=before)sv_pregame_input_boundary();
+    return handled;
 }

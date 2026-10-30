@@ -1,6 +1,11 @@
 # SV-B2-001 — Shell D, графика и шрифтовые роли
 
-Статус: implemented, 2026-10-28. Linux build/checks и два независимых code review завершены; открытых замечаний нет.
+Статус: accepted, 2026-10-30, в составе принятого пользователем B2;
+[итоговое решение](../../sv-stage-b2-acceptance.md).
+
+## Реализация и требования до приёмки
+
+Реализация: implemented, 2026-10-28. Linux build/checks и два независимых code review завершены; открытых замечаний нет.
 Evidence: [B2-001](../../sv-b2-001-evidence.md). Полная приёмка B2 остаётся за B2-006.
 Зависимости: —.
 Существующие semantic consumers: B-001; все B startup consumers.

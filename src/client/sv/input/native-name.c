@@ -1,6 +1,7 @@
 #include "input/native-name.h"
 #include "input/native-login.h"
 #include "input/physical.h"
+#include "ui/login-layout.h"
 
 SvLoginInputResult sv_native_name_event(SvLoginInteraction *input,
                                         const SDL_Event *event,
@@ -12,20 +13,6 @@ SvLoginInputResult sv_native_name_event(SvLoginInteraction *input,
         SvLoginCommand command;
         return sv_native_login_command(event, &command) ?
             sv_login_interaction_command(input, command) : SV_LOGIN_INPUT_IGNORED;
-    }
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-        event->button.button == SDL_BUTTON_LEFT && event->button.x >= 40.0f &&
-        event->button.y >= 670.0f && event->button.y <= 740.0f) {
-        if (event->button.clicks >= 2)
-            (void)sv_text_select(&input->character_name, 0,
-                                 input->character_name.length);
-        else {
-            size_t position = event->button.x < 220.0f ? 0 :
-                input->character_name.length;
-            (void)sv_text_select(&input->character_name, position, position);
-        }
-        input->name_mouse_selected = true;
-        return SV_LOGIN_INPUT_HANDLED;
     }
     if (event->type == SDL_EVENT_TEXT_INPUT) {
         for (const unsigned char *byte = (const unsigned char *)event->text.text;
@@ -73,4 +60,29 @@ SvLoginInputResult sv_native_name_event(SvLoginInteraction *input,
     if (edit != SV_EDIT_ACCEPT && edit != SV_EDIT_CANCEL)
         input->name_keyboard_edited = true;
     return sv_login_interaction_name_key(input, edit);
+}
+
+SvLoginInputResult sv_native_name_event_at(SvLoginInteraction *input,const SDL_Event *event,
+    SvCharacterLayout layout,float cell,SvTextResult *text_result,bool *clipboard_unavailable)
+{
+    if(input->ordinary_name_active && event->type==SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button==SDL_BUTTON_LEFT) {
+        float x=event->button.x,y=event->button.y;
+        if(sv_login_contains(layout.back,x,y))return sv_login_interaction_name_key(input,SV_EDIT_CANCEL);
+        if(sv_login_contains(layout.enter,x,y))return sv_login_interaction_name_key(input,SV_EDIT_ACCEPT);
+        if(sv_login_contains(layout.random,x,y)) {
+            sv_text_select(&input->character_name,0,input->character_name.length);
+            sv_text_key(&input->character_name,SV_EDIT_DELETE);
+            return sv_login_interaction_name_key(input,SV_EDIT_ACCEPT);
+        }
+        if(sv_login_contains(layout.name,x,y)) {
+            size_t position=x<=layout.name.x+10?0:(size_t)((x-layout.name.x-10)/(cell>0?cell:8));
+            if(position>input->character_name.length)position=input->character_name.length;
+            sv_text_select(&input->character_name,event->button.clicks>=2?0:position,
+                event->button.clicks>=2?input->character_name.length:position);
+            input->name_mouse_selected=true;
+            return SV_LOGIN_INPUT_HANDLED;
+        }
+        return SV_LOGIN_INPUT_HANDLED;
+    }
+    return sv_native_name_event(input,event,text_result,clipboard_unavailable);
 }

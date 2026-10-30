@@ -1,0 +1,2 @@
+setup EOF state=11 result=4
+setup malformed state=11 result=10

@@ -1,0 +1,74 @@
+SV resource unavailable: /tmp/sv-details-live-profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-details-live-profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+scratch SDL input mode=Q stage=1 output=2560x1600 scale=1.333333 logical=1920.000000x1200.000000 point=746.666687,489.333344
+scratch SDL input mode=Q stage=2 output=2560x1600 scale=1.333333 logical=1920.000000x1200.000000 point=746.666687,489.333344
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV endpoint selection incomplete; no contact attempted

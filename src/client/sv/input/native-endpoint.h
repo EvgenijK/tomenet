@@ -6,6 +6,7 @@ struct SvLoginView;
 struct SvCredentialInput;
 struct SvBirthView;
 struct SvBirthViewport;
+struct SvChronicleSnapshot;
 typedef struct {
     uint64_t since_ns;
     SDL_Keymod latch;
@@ -16,12 +17,15 @@ typedef struct {
     const struct SvLoginView *login_view;
     const struct SvCredentialInput *credentials; /* Borrowed only during drawing. */
     bool contact_failed, retry_available;
-    size_t hover;
+    size_t hover, hover_link;
+    bool hover_enter;
+    float chronicle_scroll; /* Normalized 0..1 of current scrollable news height. */
+    const struct SvChronicleSnapshot *chronicle;
     bool hover_manual, list_focus_manual;
     int manual_focus;
     float text_cell;
     const struct SvBirthView *birth_view;
-    const struct SvBirthViewport *birth_viewport;
+    struct SvBirthViewport *birth_viewport;
 } SvEndpointInput;
 /* The provider boundary is the OS clipboard. NULL selects SDL's real clipboard. */
 typedef char *(*SvClipboardRead)(void *context);
@@ -30,6 +34,8 @@ void sv_endpoint_input_begin(SvEndpointInput *input);
  * private draft intact until the source bytes are unambiguous ASCII. */
 SvTextResult sv_contact_field_insert(SvTextField *field, const char *utf8);
 size_t sv_contact_draft_limit(bool password);
+bool sv_endpoint_links_event(SvEndpointInput *input,const SDL_Event *event);
+bool sv_endpoint_chronicle_event(SvEndpointInput *input,const SDL_Event *event);
 bool sv_endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
                        const SDL_Event *event, SvClipboardRead clipboard, void *context);
 #endif

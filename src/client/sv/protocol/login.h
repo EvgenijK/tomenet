@@ -17,6 +17,9 @@ typedef struct {
     int16_t mode, level, race, class_id;
 } SvLoginCharacter;
 typedef struct SvLogin SvLogin;
+typedef struct {
+    int samples[60], latest_ms, average_ms, average_count;
+} SvLoginPingTelemetry;
 
 SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6]);
 void sv_login_destroy(SvLogin *login);
@@ -31,6 +34,10 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               const int16_t stats[6], const char *font);
 SvResult sv_login_keepalive(SvLogin *login);
 SvLoginState sv_login_state(const SvLogin *login);
+/* END closes startup decoding. Coalesced live bytes remain available for
+ * transfer; callers must stop reading the login transport at this boundary. */
+bool sv_login_play_stream_complete(const SvLogin *login);
+SvOutput sv_login_take_remaining(SvLogin *login, void *bytes, size_t capacity);
 size_t sv_login_count(const SvLogin *login);
 const SvLoginCharacter *sv_login_character(const SvLogin *login, size_t slot);
 const SvLoginCharacter *sv_login_selected_character(const SvLogin *login);
@@ -39,4 +46,5 @@ bool sv_login_reincarnation_requested(const SvLogin *login);
 const uint32_t *sv_login_flags(const SvLogin *login);
 const int *sv_login_version(const SvLogin *login);
 const char *sv_login_reason(const SvLogin *login);
+SvLoginPingTelemetry sv_login_ping(const SvLogin *login);
 #endif

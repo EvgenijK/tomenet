@@ -1,0 +1,10 @@
+SV resource unavailable: /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=39469
+SV contact ready host=127.0.0.1 port=39469 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=42327
+SV contact ready host=127.0.0.1 port=42327 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-lyjucuds/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=37989
+SV contact ready host=127.0.0.1 port=37989 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-022 name handoff and SV-B-023 birth choice production checks passed

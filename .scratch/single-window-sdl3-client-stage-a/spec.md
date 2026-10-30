@@ -1,5 +1,7 @@
 # Stage A — runnable single-window foundation and complete capability registry
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 Label: ready-for-agent
 Status: specified
 
@@ -138,21 +140,21 @@ Existing socket-buffer parsing, packet dispatch, request response serialization 
 
 | Check | Passing evidence |
 |---|---|
-| Build isolation | Linux amd64 and MinGW i686 SV builds use their own outputs; relevant existing client build paths remain intact after shared changes. Record toolchain and feature switches. |
+| Build isolation | Linux amd64 SV build uses its own outputs; MinGW i686 verification is deferred by user; relevant existing client build paths remain intact after shared changes. Record toolchain and feature switches. |
 | Synthetic end-to-end path | Real decode/apply, model views/events, SDL rendering, router and response serializer execute the stated scenario without a real server or terminal fallback. |
 | Packet boundaries | Every selected wire variant handles complete input and split boundaries without premature mutation; retry applies once; a following sentinel packet remains consumable; defined decode failures preserve their contract. |
 | State versus events | Latest status is coherent, repeated identical messages remain separate, and view reconstruction neither loses mandatory delivery nor repeats consumed effects. |
 | Request and input | Correct request identity, valid-key reply, Escape cancellation, server abort, macro policy/order and restoration; no double reply or command from redraw/focus gain. |
 | Short lifecycle | Updates during a prompt, resize, focus loss/gain, minimize/restore, view reconstruction and session reset retain or discard the right state; replaced storage is released and hard overflow is explicit. |
 | Native geometry | Exercise the implemented surfaces at 1024×768 logical minimum, 1920×1080 at 100%, 3840×2160 at 200%, and fractional 125%/150%. Input and visible bounds agree; pending interaction survives. Virtual geometry evidence is labelled as such. |
-| Rendering platforms | Linux accelerated and explicitly forced software runs; MinGW executable smoke under Wine including software rendering. Record actual backend, not only requested flags. Wine is labelled intermediate evidence. |
+| Rendering platforms | Linux accelerated and explicitly forced software runs; MinGW executable smoke under Wine is deferred by user. Record actual backend, not only requested flags. Wine is labelled intermediate evidence. |
 | Submission timing | Instrument the frame containing the relevant model revision/outcome, from complete decode or local input. Apply urgent ≤20 ms, interactive ≤50 ms, background ≤200 ms when exercised. Keep the first outstanding deadline when updates coalesce and record violations individually. |
 | Registry completeness | Every active in-scope outcome has provenance, a native row and an A–F allocation; each completed inventory row has a mapping/disposition; unresolved required rows prevent A completion. |
 | Validator rejection | Negative fixtures cover duplicate/unknown IDs, bad endpoint types, missing provenance/rows/stage assignments, replacement cycles, unsupported claims and stale/missing evidence. Valid pending coverage succeeds without implying accepted implementation. |
 | Local consumer integrity | Validate an all-missing consumer, addition/retirement of IDs, digest mismatch, source changes at unchanged HEAD, unavailable canonical source and interrupted synchronization; do not invent approval or lose the prior coherent snapshot. |
 | Human review | Review readability, keyboard/cancel/focus behavior and perceived response on the implemented native shell, tied to the tested build. A screenshot alone does not pass a behavior flow. |
 
-Mandatory actual Windows 10/11 VM checkpoints start at B and recur at E/F, with earlier checks when platform-specific changes require them. A does not claim actual Windows acceptance from a successful MinGW link or Wine run. Missing required tools/environments leave their checks unverified rather than converting them into a source-audit pass.
+Windows 10/11 VM checkpoints, MinGW builds and Wine runs are temporarily deferred by user for all stages (2026-10-28). They do not block current Linux acceptance and are not reported as passed; historical platform evidence retains its original scope.
 
 Visible-response values remain manually reviewed targets, not newly measured hard gates. No intensive-load benchmark, long soak, global memory ceiling, pixel-perfect legacy comparison or session recording is introduced. Exercise only A's implemented rendering/resource/input variants at runtime; register remaining variants and their later evidence obligations in full.
 

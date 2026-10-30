@@ -1,0 +1,18 @@
+SV resource unavailable: /tmp/sv-details-live-gl-profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-details-live-gl-profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+scratch SDL input mode=Q stage=1 output=1280x960 scale=1.250000 logical=1024.000000x768.000000 point=296.250000,300.250000
+scratch SDL input mode=Q stage=2 output=1280x960 scale=1.250000 logical=1024.000000x768.000000 point=296.250000,300.250000
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+ERROR: ld.so: object '/tmp/sv-details-inject.so' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV endpoint selection incomplete; no contact attempted

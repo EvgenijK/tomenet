@@ -27,7 +27,7 @@ SV_CORE_PLATFORM := -DMINGW -DWIN32 -DDUMB_WIN
 else
 $(error PLATFORM must be linux or mingw)
 endif
-SV_MODULES := sdl3 sdl3-ttf freetype2 libpng
+SV_MODULES := sdl3 sdl3-ttf freetype2 libpng libcurl
 ifeq ($(PLATFORM),linux)
 SV_MODULES += libsecret-1
 endif
@@ -41,7 +41,7 @@ endif
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o endpoint-run.o credential/vault.o diagnostics/timing.o ui/font.o ui/ui.o ui/endpoint-scene.o ui/login-shell.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/physical.o input/native-endpoint.o input/credentials.o input/login-interaction.o input/native-login.o input/native-name.o input/native-birth.o input/metaserver.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o session/pregame.o session/login-view.o session/birth.o session/alerts.o result.o ui/status.o protocol/version.o
+SV_CLIENT_OBJECTS := main.o endpoint-run.o credential/vault.o diagnostics/timing.o ui/font.o ui/ui.o ui/endpoint-scene.o ui/login-shell.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/physical.o input/native-endpoint.o input/credentials.o input/login-interaction.o input/native-login.o input/native-name.o input/native-birth.o input/metaserver.o input/chronicle.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o session/pregame.o session/login-view.o session/birth.o session/alerts.o result.o ui/status.o protocol/version.o
 SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o
@@ -56,7 +56,7 @@ shell: $(SV_OUT)/$(SV_NAME)
 	cp $< $(SV_NAME)
 	@echo "SV shell: $(SV_OUT)/build.txt"
 check-deps:
-	@$(SV_PKG) --exists 'sdl3 >= 3.2.0' 'sdl3-ttf >= 3.2.0' freetype2 libpng $(filter libsecret-1,$(SV_MODULES)) || { echo 'Missing SV platform development dependencies' >&2; exit 1; }
+	@$(SV_PKG) --exists 'sdl3 >= 3.2.0' 'sdl3-ttf >= 3.2.0' freetype2 libpng 'libcurl >= 7.85.0' $(filter libsecret-1,$(SV_MODULES)) || { echo 'Missing SV platform development dependencies' >&2; exit 1; }
 ifeq ($(PLATFORM),linux)
 	@$(SV_CC) -dumpmachine | grep -Eq '^x86_64.*linux' || { echo 'SV Linux target must be amd64' >&2; exit 1; }
 else

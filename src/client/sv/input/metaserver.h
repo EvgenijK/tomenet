@@ -6,7 +6,8 @@
 typedef struct SvMetaserver SvMetaserver;
 /* Feed retrieval and ICMP probes run outside the render/input thread. A poll
  * copies one coherent snapshot; the endpoint model retains selection by host
- * and port while later snapshots update ping values. */
+ * and port while later snapshots update metadata and ping values. Refresh starts
+ * every five seconds without overlap; failed refresh retains the last good data. */
 SvMetaserver *sv_metaserver_start(const char *host, uint16_t port);
 bool sv_metaserver_poll(SvMetaserver *provider, SvEndpoint *endpoint, bool *failed);
 void sv_metaserver_stop(SvMetaserver *provider);

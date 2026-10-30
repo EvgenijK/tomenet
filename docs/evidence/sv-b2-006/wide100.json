@@ -1,0 +1,29 @@
+[
+  {
+    "label": "software-1920x1080-scale1",
+    "backend": "software",
+    "logical": [
+      1920,
+      1080
+    ],
+    "virtualDisplayScale": 1,
+    "output": [
+      1920,
+      1080
+    ],
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-001/servers.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-scale-rpcv4ds2",
+      "--fixture-window",
+      "1920x1080"
+    ],
+    "input": "geometry-only; pointer route uses fractional runs below",
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  }
+]

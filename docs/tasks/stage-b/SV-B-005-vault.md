@@ -1,6 +1,13 @@
 # SV-B-005 — Приватный ввод и системное хранилище credentials
 
-Статус: частично реализован; полная runtime acceptance pending.
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: частично реализован; actual isolated Linux Secret Service core повторно
+прошёл 2026-10-28; полная Linux runtime acceptance pending.
 [Существующее evidence](../../sv-b005-evidence.md) сохраняется только для
 актуальных IDs и должно пройти freshness review по суженной границе B.
 
@@ -35,8 +42,9 @@
 
 1. Tuple encoding различает ambiguous lengths, raw host spelling, port и account;
    provider bounds не приводят к truncation/collision.
-2. Actual Secret Service и Windows Credential Manager: found/missing/locked/
+2. Actual Linux Secret Service: found/missing/locked/
    refused/unavailable/error, binary byte round-trip и current-user scope.
+   Windows Credential Manager build/runtime acceptance отложена пользователем.
 3. Provider prompt не блокирует UI/network; stale completion после cancel/relog
    освобождается и не меняет новый session state.
 4. Secret отсутствует в history, clipboard, logs, diagnostics, screenshots,
@@ -49,3 +57,25 @@ Provider adapters и private field — production code. Fakes подают provi
 results для branch coverage, но actual platform evidence обязательно. Полный
 login caller проверяет [SV-B-006](SV-B-006-login.md), account creation —
 [SV-B-021](SV-B-021-account-manage.md).
+
+## Linux freshness review — 2026-10-28
+
+`python3 -B tests/sv_vault_checks.py` прошёл с actual libsecret/gnome-keyring
+в отдельном временном D-Bus session и HOME. Подтверждены binary round-trip,
+found/missing, unavailable, stale generation и restore high bytes через
+production private-field owner. После разрешённого пользователем минимального
+расширения existing core test также прошли external replacement/deletion и
+actual locked collection: lookup вернул MISSING без secret, store вернул
+UNAVAILABLE, не SAVED; interactive unlock/refusal не проверены.
+Это actual provider evidence, а не provider
+double; SDL input остаётся synthetic/dummy. Подробности и fingerprints —
+[в актуальном дополнении evidence](../../sv-b005-evidence.md#linux-freshness-review--2026-10-28).
+
+Не закрыты Linux provider-owned unlock prompt/cancel/refusal и responsiveness
+во время prompt; оставшаяся actual refused/error/invalid-record failure
+matrix, persistence после server-confirmed authentication в полном caller,
+native private-input review и полный diagnostic/export secret exclusion.
+Существующие B-021 caller checks проверяют save policy через provider doubles
+и не заменяют эти проверки. Password-change write и retry/relogin, перенесённые
+за текущую границу B, не являются blockers B-005. Windows validation отложена
+по текущему правилу платформ.

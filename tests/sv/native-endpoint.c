@@ -3,6 +3,16 @@
 #include <assert.h>
 #include <string.h>
 
+static unsigned opened_links;
+static char opened_url[128];
+/* Keep the OS browser outside this production input-path regression. */
+bool SDLCALL SDL_OpenURL(const char *url)
+{
+    ++opened_links;
+    SDL_strlcpy(opened_url,url,sizeof(opened_url));
+    return true;
+}
+
 static char *read_clipboard(void *context)
 {
     return SDL_strdup((const char *)context);
@@ -76,7 +86,7 @@ int main(void)
     assert(!strcmp(endpoint.editor.bytes,"europe.tomenet.eu"));
     event = key_event(SDLK_ESCAPE,0);
     assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
-    assert(endpoint.phase == SV_ENDPOINT_CANCELLED && !endpoint.host[0]);
+    assert(endpoint.phase == SV_ENDPOINT_LIST && !endpoint.host[0] && !endpoint.port);
     sv_endpoint_begin(&endpoint,18348);
     sv_endpoint_manual(&endpoint);
     sv_endpoint_input_begin(&input);
@@ -103,7 +113,7 @@ int main(void)
     assert(sv_endpoint_servers(&endpoint,&server,1));
     sv_endpoint_input_begin(&input);
     input.since_ns=100;
-    SvLoginLayout layout=sv_login_layout(1024,768,1,0);
+    SvLoginLayout layout=sv_login_server_layout(1024,768,&endpoint);
     SvLoginRect row=sv_login_row(layout,0);
     event=(SDL_Event){.type=SDL_EVENT_MOUSE_BUTTON_DOWN};
     event.button.button=SDL_BUTTON_LEFT;
@@ -114,12 +124,54 @@ int main(void)
     assert(endpoint.phase==SV_ENDPOINT_LIST);
     event.button.timestamp=101;
     assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_LIST && endpoint.selected==0);
+    event.button.clicks=2;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
     assert(endpoint.phase==SV_ENDPOINT_SELECTED && !strcmp(endpoint.host,"mouse.example"));
     sv_endpoint_begin(&endpoint,18348);
     assert(sv_endpoint_servers(&endpoint,&server,1));
+    event.button.clicks=1;
+    SvLoginRect door=sv_login_server_door(row);
+    event.button.x=door.x+4;event.button.y=door.y+4;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_SELECTED && !strcmp(endpoint.host,"mouse.example"));
+    sv_endpoint_begin(&endpoint,18348);
+    assert(sv_endpoint_servers(&endpoint,&server,1));
+    event.button.x=layout.links.x+20;event.button.y=layout.links.y+20;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(opened_links==1 && !strcmp(opened_url,"https://www.tomenet.eu/"));
+    assert(endpoint.phase==SV_ENDPOINT_LIST);
+    assert(SDL_SetWindowSize(window,1600,1000));
+    SvLoginLayout wide=sv_login_server_layout(1600,1000,&endpoint);
+    static const char *urls[]={"https://www.tomenet.eu/","https://discord.gg/rASkhCg",
+        "https://web.libera.chat/?channels=%23tomenet","https://www.tomenet.eu/guide.php?",
+        "https://igroglaz.com/tomenet","http://github.com/TomenetGame/"};
+    for(size_t i=0;i<6;++i) {
+        SvLoginRect hit=sv_login_link_hit(wide,i);
+        for(int label=0;label<2;++label) {
+            event.button.x=hit.x+(label?70:20);event.button.y=hit.y+20;
+            unsigned before=opened_links;
+            assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+            assert(opened_links==before+1 && !strcmp(opened_url,urls[i]));
+            assert(endpoint.phase==SV_ENDPOINT_LIST);
+        }
+        SDL_Event motion={.type=SDL_EVENT_MOUSE_MOTION};
+        motion.motion.windowID=SDL_GetWindowID(window);
+        motion.motion.x=hit.x+20;motion.motion.y=hit.y+20;
+        assert(sv_endpoint_event(&input,&endpoint,&motion,NULL,NULL));
+        assert(input.hover_link==i);
+        motion.motion.x=0;motion.motion.y=0;
+        assert(sv_endpoint_event(&input,&endpoint,&motion,NULL,NULL));
+        assert(input.hover_link==SIZE_MAX);
+    }
+    assert(SDL_SetWindowSize(window,1024,768));
     event.button.x=layout.manual.x+4;event.button.y=layout.manual.y+4;
     assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
     assert(endpoint.phase==SV_ENDPOINT_MANUAL);
+    unsigned before=opened_links;
+    event.button.x=layout.links.x+20;event.button.y=layout.links.y+20;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(opened_links==before && endpoint.phase==SV_ENDPOINT_MANUAL);
     assert(input.manual_focus==0);
     SvLoginFormLayout form=sv_login_form_layout(layout,768);
     input.text_cell=10;
@@ -143,7 +195,50 @@ int main(void)
     event.button.windowID=SDL_GetWindowID(window);
     event.button.x=form.cancel.x+4;event.button.y=form.cancel.y+4;
     assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
-    assert(endpoint.phase==SV_ENDPOINT_CANCELLED && !endpoint.host[0]);
+    assert(endpoint.phase==SV_ENDPOINT_LIST && !endpoint.host[0] && !endpoint.port);
+    /* Holding navigation repeats selection, but never repeats activation. */
+    SvServer navigation_rows[]={
+        {.host="one.example",.port=18348},
+        {.host="two.example",.port=18348},
+        {.host="three.example",.port=18348}};
+    sv_endpoint_begin(&endpoint,18348);
+    assert(sv_endpoint_servers(&endpoint,navigation_rows,3));endpoint.selected=0;
+    sv_endpoint_input_begin(&input);
+    event=key_event(SDLK_UNKNOWN,0);event.key.scancode=SDL_SCANCODE_DOWN;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.selected==1);
+    event.key.scancode=SDL_SCANCODE_UP;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.selected==0);
+    event=key_event(SDLK_DOWN,0);event.key.scancode=SDL_SCANCODE_DOWN;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.selected==1);
+    event.key.repeat=true;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.selected==2);
+    event=key_event(SDLK_UP,0);event.key.scancode=SDL_SCANCODE_UP;event.key.repeat=true;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.selected==1);
+    event=key_event(SDLK_RETURN,0);event.key.repeat=true;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));assert(endpoint.phase==SV_ENDPOINT_LIST);
+    /* Freshly queued keys can carry an older native clock than SDL ticks.
+     * Queue ownership, rather than that clock, separates list and editor. */
+    input.since_ns=SDL_GetTicksNS()+1000000;
+    event=key_event(SDLK_DOWN,0);event.key.scancode=SDL_SCANCODE_DOWN;
+    event.common.timestamp=1;
+    assert(SDL_PushEvent(&event));
+    assert(SDL_PeepEvents(&event,1,SDL_GETEVENT,SDL_EVENT_KEY_DOWN,SDL_EVENT_KEY_DOWN)==1);
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.selected==2);
+    SDL_Event queued=key_event(SDLK_RETURN,0);
+    assert(SDL_PushEvent(&queued));
+    queued=text_event("opening text");assert(SDL_PushEvent(&queued));
+    queued=(SDL_Event){.type=SDL_EVENT_USER};assert(SDL_PushEvent(&queued));
+    event=text_event("q");event.common.timestamp=1;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(endpoint.phase==SV_ENDPOINT_MANUAL);
+    assert(!SDL_HasEvent(SDL_EVENT_KEY_DOWN) && !SDL_HasEvent(SDL_EVENT_TEXT_INPUT));
+    assert(SDL_HasEvent(SDL_EVENT_USER));
+    event=text_event("Test");event.common.timestamp=1;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    event=key_event(SDLK_BACKSPACE,0);event.common.timestamp=1;
+    assert(sv_endpoint_event(&input,&endpoint,&event,NULL,NULL));
+    assert(!strcmp(endpoint.editor.bytes,"Tes"));
     SDL_DestroyWindow(window);SDL_Quit();
     return 0;
 }

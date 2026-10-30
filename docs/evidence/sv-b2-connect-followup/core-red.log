@@ -1,0 +1,1 @@
+core: tests/sv/contact-negotiation.c:180: void setup_is_available_only_after_complete_input(void): Assertion `sv_contact_receive(contact, &setup[i], 1) == SV_OK' failed.

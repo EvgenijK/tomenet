@@ -1,5 +1,9 @@
 # Этап C — real-server session и первый игровой экран TomeNET SV
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 > Исторический snapshot, superseded 2026-10-06. Broad stage C заменён этапами
 > C001–C064 из [функционального плана](sv-functional-stage-plan.md); A/B не
 > изменены. Этот документ больше не задаёт canonical allocation.

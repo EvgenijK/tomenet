@@ -1,8 +1,14 @@
 # SV-B-021 — Создание аккаунта
 
-Статус: implementation-ready for review; build/core и current P1-10
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: implementation-ready for review; build/core и current P1-10
 controlled-peer production-path acceptance прошли 2026-10-06. Deferred остаются
-только Linux/Windows native и SV-B-025 downstream acceptance.
+Linux native и SV-B-025 downstream acceptance; Windows отложен пользователем.
 
 ## Пользовательский результат
 
@@ -35,7 +41,8 @@ protocol path; только server response подтверждает созда�
 ## Definition of Done
 
 Controlled peer покрывает success/rejection/cancel/error и fragmentation;
-Linux/Windows native input и provider paths проверены. Результат включается в
+Linux native input и provider paths проверены; Windows build/runtime validation
+отложена пользователем. Результат включается в
 [SV-B-025](SV-B-025-entry-complete.md).
 
 ## Implementation evidence 2026-10-06
@@ -163,3 +170,37 @@ External review checks `P1-implementation-review`,
 | `P1-entry-integration` | **deferred; not run** | This is downstream integration evidence owned by the later SV-B-025 entry-completion task. | `SV-B-025` |
 
 [SV-B-025](SV-B-025-entry-complete.md) этим handoff не изменён и не закрыт.
+
+
+2026-10-28: интеграционные проверки M2 и исправления input lifecycle возвращены
+owner в [отчёте B-025](SV-B-025-entry-complete.md#реализация-и-проверки--2026-10-28).
+Это дополнительное Linux evidence; pending Linux native acceptance
+и capability ownership не изменены. Windows build/runtime validation отложена
+пользователем и не блокирует текущую приёмку.
+
+## Linux credential freshness — 2026-10-28
+
+Existing `python3 -B tests/sv_account_create_checks.py` и
+`python3 -B tests/sv_account_failure_checks.py` повторно прошли, exit 0.
+Существующий `python3 -B tests/sv_vault_checks.py` также прошёл с actual
+isolated gnome-keyring/libsecret binary round-trip и production private-field
+restore. Логи, fingerprints и точные границы evidence приведены в
+[B-005 freshness review](../../sv-b005-evidence.md#linux-freshness-review--2026-10-28).
+Account creation suite использует OS-provider double; actual vault suite
+использует SDL dummy. Успех этих checks не объединён в утверждение о successful
+native server-confirmed save через actual provider. Native input, provider
+prompt/cancel/failure matrix и combined caller/provider acceptance остаются
+открытыми Linux требованиями; прежние external human reviews здесь не
+обозначаются как выполненные.
+
+
+## Linux protocol/core freshness — 2026-10-28
+
+Current production-path проверки и карта применимости всех 54 B IDs описаны в
+[Linux protocol/core evidence](../../sv-stage-b-linux-protocol-evidence.md).
+Они дополняют историческое evidence; full native/provider и cumulative acceptance
+не выводятся из dummy/software или shared-primitive PASS. Canonical denominator
+составляет 54 IDs / 162 obligations; Windows-only provider остаётся deferred.
+Для B-002 исправлен endpoint pong telemetry в production login/pregame.
+Новая regression-проверка не добавлялась по прямому отказу пользователя; existing
+checks проверяют отсутствие обнаруженных регрессий, а не отдельно новую ветвь.

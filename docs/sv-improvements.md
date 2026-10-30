@@ -1103,6 +1103,52 @@ fixtures; splits at every reply boundary; truncated EOF and unterminated quit;
 ack with trailing packets; timeout/exit policy; applicable legacy builds and
 real peer checks. None of these future legacy checks is claimed passed here.
 
+## Preserve live protocol bytes at the startup handoff
+
+**Status:** proposed for stage C; outside SV-B-024 startup scope.
+
+**Problem:** after the successful play reply and `PKT_END`, the server sends
+version and gameplay updates. TCP can combine these with the reply in one read;
+the current startup login decoder rejects unsupported live packets. Accepting
+the baseline reply terminator in B-024 does not implement live packet handoff.
+
+**Affected code:** `src/server/nserver.c` play acknowledgement and subsequent
+`Send_version`; `src/client/sv/protocol/login.c:sv_login_receive`;
+`src/client/sv/endpoint-run.c:pump_login` and the future live-session owner.
+
+**Proposal:** transfer the unconsumed opaque input tail and the transport to
+the live-session owner exactly once, preserving packet order and session
+generation. Keep gameplay decoding outside the startup interaction.
+
+**Required checks:** coalesced and split ack/END/live packets, partial live
+packets, exactly-once delivery, disconnect and stale-generation teardown through
+the production startup-to-live path. These checks were not run for B-024.
+
+
+## Verify startup mouse coordinates across display scale and pixel density
+
+**Status:** SV coordinate mapping fixed and verified with controlled X11 scale
+1.5 on 2026-10-28; actual display migration/pixel-density != 1 remain pending.
+See [current native evidence](sv-stage-b-linux-native-evidence.md).
+
+**Problem:** startup rendering uses display scale while native event coordinates
+are window coordinates. The B-025 native run established correspondence only
+at scale 1; a display-scale/pixel-density ratio other than 1 remains unverified.
+
+**Affected code:** `src/client/sv/endpoint-run.c` window sizing and native event
+routing; `src/client/sv/input/native-login.c`, `native-name.c`, `native-birth.c`;
+`src/client/sv/ui/endpoint-scene.c`.
+
+**Proposal:** verify the existing coordinate contract on actual scaled displays
+and, if necessary, convert at the SV native event boundary consistently for
+startup surfaces. Keep wire and interaction semantics unchanged.
+
+**Required checks:** native mouse selection/editing on each startup surface at
+ratio 1 and non-1; resize, display migration and minimum geometry; Linux and
+Windows when returned to validation scope. The B-025 scale-1 run remains
+historical; the current controlled X11 non-1 run verifies mouse creation and
+exact wire output, without claiming physical HiDPI/display migration.
+
 
 ## Reduce repeated source lists in SV production-path check builds
 
@@ -1144,3 +1190,178 @@ the existing frame-limit and network retry/exit semantics.
 `--frames`, an actual rendering failure, and successful startup; verify the
 reported cause and exit policy independently. B2-002's same-input run without
 `--frames` retains the error surface; a diagnostics fix is not claimed here.
+
+## Investigate incomplete startup renderer captures
+
+**Status:** proposed, outside B2-003 implementation; verify completeness of
+retained captures individually.
+
+**Problem:** B2-003 replay produced incomplete name/edit/error images through
+the existing SDL capture hook and some actual X11 snapshots, while subsequent
+window captures showed the complete form. The cause has not been established;
+capture timing and persistent rendering faults must be distinguished before
+drawing conclusions from these images.
+
+**Affected code:** `src/client/sv/ui/endpoint-scene.c:sv_endpoint_draw`,
+`SV_B2_CAPTURE` / `SV_B2_CAPTURE_FRAME`, and evidence capture scripts.
+
+**Proposal:** separately reproduce and identify the renderer-readback or file
+capture discrepancy before relying on this hook for these states. Keep the
+production interaction and wire behavior unchanged.
+
+**Required checks:** compare stable SDL readback and actual window captures of
+the same completed overview/name/edit/error frames on Linux software/OpenGL;
+record binary identity and distinguish capture failures from rendering failures.
+Any expanded verification requires the user's agreement.
+
+## Correct the web prototype Chronicle updater source URLs
+
+**Status:** proposed, outside the B2-006 native corrections.
+
+**Problem:** the web prototype updater requests `legends-na.php` and
+`legends-apac.php`, which returned HTTP 403 during the 2026-10-29 native
+Chronicle implementation. Its all-or-nothing update therefore fails. The
+official `legends.php?server=...` endpoint returned HTTP 200 with the regional
+heading; the native implementation uses that endpoint.
+
+**Affected code:** the separate, read-only web repository's
+`tools/update-login-news-snapshot.mjs`; its generated
+`js/data/login-news-snapshot.js` provenance.
+
+**Proposal:** separately update that web updater to use the canonical endpoint
+and verify the regional headings and generated provenance. The external web
+repository was not modified for B2-006.
+
+**Required checks:** fetch the nine official source/category combinations,
+verify their regional headings and parsed events, then inspect the existing
+prototype Chronicle rendering. No native scope expansion is implied.
+
+## Keep birth footer command mappings consistent
+
+**Status:** proposed, outside B2-004 implementation; non-blocking review note.
+
+**Problem:** mouse and keyboard footer handling repeat the control-to-command
+mapping and Guide position. Future changes could update one input path only.
+
+**Affected code:** `src/client/sv/input/native-birth.c:sv_native_birth_event`.
+
+**Proposal:** if these controls change again, consider one local named mapping
+for both input paths. This does not call for sharing SV and legacy code.
+
+**Required checks:** the affected existing production-path mouse and keyboard
+scenarios, including Guide return and unused-points modal focus; preserve native
+command availability and session-generation checks. No extra suite is implied.
+
+## Preserve the semantic startup failure in stderr
+
+**Status:** proposed, separate from the B2 contact/setup fix.
+
+**Problem:** after a handled connection failure the final generic startup logger
+prints `SDL_GetError()`, which can contain an unrelated earlier nonfatal SDL
+message (observed `Parameter 'texture' is invalid`) or be empty. The preceding
+semantic contact log and the UI correctly report the actual cause.
+
+**Affected code:** `src/client/sv/endpoint-run.c`, run_contact cleanup and the
+final `SV endpoint startup failed` logger.
+
+**Proposal:** carry a bounded semantic failure summary to the startup owner,
+keeping renderer/resource failures distinct from handled protocol/transport
+errors; avoid using the ambient SDL error as a universal status channel.
+
+**Required checks:** existing controlled-peer malformed/EOF startup failures
+with a deliberately stale nonfatal SDL error, plus a real renderer startup
+failure. No additional suite or legacy/common change is implied.
+
+## Character overview reorder bindings
+
+**Status:** proposed; outside the current overview paint/layout correction.
+
+**Problem:** the prototype advertises S/I/A reordering, while the SV overview
+currently interprets letters as character selection. Copying that hint would
+advertise an unavailable action and could select a character instead.
+
+**Affected code:** `src/client/sv/input/native-login.c`,
+`src/client/sv/input/login-interaction.c`, prototype character caption;
+behavior baseline in `src/client/nclient.c:reorder_characters`.
+
+**Proposal:** specify and port reorder behavior into SV before exposing its
+bindings, preserving character identity and the actual server selection order.
+Do not add the hint as part of a visual-only correction.
+
+**Required checks:** minimal production-path checks for each supported order,
+selection identity, cancellation and reconnect behavior, with scope agreed
+before expanding the existing checks. Legacy/common changes are not implied.
+
+
+### Авторитетный SUCCESS при ручном вводе существующего имени
+
+- Проблема: `sv_login_create_character` заранее ставит `creating_character`;
+  если пользователь ввёл имя своего уже существующего персонажа и сервер
+  вернул SUCCESS=0, SV сохраняет birth-ветку. Baseline по SUCCESS продолжает
+  существующим персонажем; E_NEED_INFO=3 означает создание нового.
+- Код: `src/client/sv/protocol/login.c` WAIT_STATUS, `sv_login_selected_character`;
+  исторические peer fixtures в `tests/sv/birth-complete.c` и смежных birth tests
+  также возвращают 0 для нового имени, скрывая различие.
+- Предложение: отдельно согласовать authoritative 0/3 переходы и механически
+  исправить исторические controlled peers на E_NEED_INFO для новых имён.
+- Статус: предложено, вне текущего исправления нового имени со статусом 3.
+  Подтверждено production API probe: `.scratch/creation-next/existing-name-red.c`,
+  результат `.scratch/creation-next/existing-name-red.log`.
+- Проверки: минимальный core для вручную введённого существующего имени,
+  новые/существующие/stale overview selection, согласованный прогон существующих
+  birth/name suites после обновления fake server статусов; реальные аккаунты
+  для этих проверок не требуются.
+
+
+### Явный контракт случайной генерации имён SV
+
+- Проблема: словари и сборка трёх слогов совпадают с legacy, но алгоритм PRNG
+  отличается; требование «тот же генератор» может пониматься как совпадение
+  словаря либо как точное воспроизведение выбора при заданном seed.
+- Код: `src/client/c-birth.c:create_random_name`, `src/common/z-rand.c:Rand_div`,
+  `src/client/sv/input/login-interaction.c:random_name`.
+- Предложение: отдельно определить необходимый уровень совместимости RNG;
+  при необходимости перенести локально SV требуемый baseline PRNG, сохранив
+  изоляцию и не подключая общие зависимости только ради переиспользования.
+- Статус: предложено, текущая задача генератор не изменяет. Таблицы 65/34/70
+  сравнены по содержимому, порядку и дубликатам; совпадение полное.
+- Проверки: только при утверждении изменения — минимальный core production-путь
+  с фиксированным seed и сравнением выбранного baseline; ограничения имени
+  и подтверждение Random/Enter должны сохраняться.
+
+
+### Проверить keyboard clock guard вне pregame
+
+- Проблема: в pregame подтверждено, что сравнение native keyboard timestamp
+  со временем создания owner отбрасывает свежие клавиши. Аналогичный guard
+  присутствует в игровом/synthetic input adapter, но его физический эффект в
+  gameplay в этой задаче не проверялся.
+- Код: `src/client/sv/input/native-input.c`; pregame исправлен отдельно в
+  `input/pregame-events.h`, endpoint/run и native birth/endpoint.
+- Предложение: отдельный audit gameplay input ownership и queue boundaries;
+  не переносить flush/отмену без проверки pending game interaction/macros.
+- Статус: предложено, вне текущего pregame follow-up.
+- Проверки: минимальный production gameplay input с fresh old-clock events,
+  queued retired-owner commands, macros, held/repeat keys, close/callback events.
+
+### Упорядочить ввод в исторических full-birth fixtures
+
+- Проблема: часть existing fixtures заранее помещает клавиши всех owners в одну
+  SDL очередь, обходя intended input boundaries. Исправленный pregame barrier
+  обязан удалять такую будущую очередь при передаче owner.
+- Код: `tests/sv/name-editor-submit.c` и смежные birth event producers.
+- Предложение: отдельно нормализовать readiness/paced event delivery, не
+  дублируя interaction behavior в test model.
+- Статус: предложено; в текущем follow-up исправлены только две необходимые
+  паузы existing scene/name-rejection fixtures, core и paced golden проверены.
+- Проверки: согласованный relevant subset existing suites; новая matrix не нужна.
+
+Дополнение 2026-10-30 к историческим full-birth fixtures: кроме заранее queued
+owners, отдельные `push_to_mode` в `tests/sv/name-editor-submit.c` всё ещё подают
+Enter после букв sex/class/race/body, хотя native letters уже подтверждают owner.
+Из-за этого isolated endpoint replay на старом producer не достигает intended
+play boundary. Предложение и статус выше сохраняются: отдельно адаптировать
+readiness/paced producers к production input, не расширяя текущую matrix.
+Необходимые проверки — согласованный subset и literal wire bytes. В текущем
+mode-final fix переиспользован уже рабочий paced replay; массовая адаптация
+fixtures не выполнена и не включена в scope.

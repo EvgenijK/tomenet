@@ -1,5 +1,7 @@
 # 04: Answer and cancel a native key request
 
+> Политика проверок от 2026-10-28: [текущая платформа — Linux](../../../docs/agents/platform-validation.md). Windows/MinGW/Wine build, runtime, visual/input и acceptance временно отложены пользователем для всех этапов; они не являются обязательным gate или блокером. Windows-only проверки остаются deferred, без заявления pass; исторические результаты сохранены.
+
 **What to build:** A server-defined key request appears as a native child surface. User input passes through the production input router and command interface to the real response serializer, while status updates continue.
 
 **Blocked by:** 02: Display decoded HP through the Session presentation model.

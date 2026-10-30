@@ -1,5 +1,9 @@
 # Stage A human native review — ticket 19
 
+> Проверки платформ с 2026-10-28: [обязателен Linux](agents/platform-validation.md).
+> Windows/MinGW/Wine сборки и проверки временно отложены для всех задач и этапов
+> и не блокируют текущую приёмку; прежние matrix и результаты ниже сохраняются.
+
 Stage A remains **pending human review** until a person explicitly approves the
 final build and the complete automated runner passes. Screenshots, injected
 focus events, elapsed time and successful tests are not human approval.

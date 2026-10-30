@@ -81,6 +81,7 @@ typedef enum {
     SV_BIRTH_RANDOM,
     SV_BIRTH_DNA,
     SV_BIRTH_AUTOMATIC_DNA,
+    SV_BIRTH_CANCEL_STATS_CONFIRMATION,
     SV_BIRTH_CONFIRM,
     SV_BIRTH_BACK,
     SV_BIRTH_QUIT
@@ -102,7 +103,8 @@ typedef enum {
     SV_BIRTH_INPUT_HANDLED,
     SV_BIRTH_INPUT_CONFIRMED,
     SV_BIRTH_INPUT_PLACEHOLDER,
-    SV_BIRTH_INPUT_QUIT
+    SV_BIRTH_INPUT_QUIT,
+    SV_BIRTH_INPUT_BACK_TO_NAME
 } SvBirthInputResult;
 
 typedef struct {
@@ -163,6 +165,15 @@ typedef struct {
 } SvBirth;
 
 typedef struct SvBirthView {
+    SvBirthSex chosen_sex;
+    int chosen_class, chosen_race, chosen_trait;
+    SvBirthBody chosen_body;
+    SvBirthMode chosen_mode;
+    bool class_confirmed, race_confirmed, trait_confirmed, body_confirmed;
+    bool stats_prepared, stats_confirmed, mode_confirmed;
+    bool stat_can_increase[6], stat_can_decrease[6];
+    bool dna_class_available, dna_race_available, dna_trait_available;
+    bool dna_body_available, dna_stats_available, dna_mode_available;
     SvBirthOwner owner;
     SvBirthSex highlighted_sex;
     int highlighted_class;
