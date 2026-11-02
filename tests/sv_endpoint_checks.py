@@ -26,25 +26,25 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
     for name, flags in (("native", ()), ("sticky", ("-DSDL3_STICKY_KEYS",))):
         check(directory / name, ["tests/sv/native-endpoint.c", *COMMON,
                                  "src/client/sv/input/native-endpoint.c",
-                                 "src/client/sv/input/physical.c"], (*flags, *SDL_FLAGS))
+                                 "src/client/sv/input/key-encoding.c"], (*flags, *SDL_FLAGS))
     check(directory / "credentials", ["tests/sv/credentials.c", *COMMON,
                                       "src/client/sv/input/credentials.c",
                                       "src/client/sv/input/native-endpoint.c",
-                                      "src/client/sv/input/physical.c",
+                                      "src/client/sv/input/key-encoding.c",
                                       "src/client/sv/credential/vault.c"], SCENE_FLAGS,
           dict(os.environ, SDL_VIDEODRIVER="dummy",
                DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-vault-no-service"))
     check(directory / "birth-body-hotkeys", ["tests/sv/birth-body-hotkeys.c",
           "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
-          "src/client/sv/input/physical.c"], SDL_FLAGS)
+          "src/client/sv/input/key-encoding.c"], SDL_FLAGS)
     check(directory / "birth-stats-repeat", ["tests/sv/birth-stats-repeat.c",
           "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
-          "src/client/sv/input/physical.c"], SDL_FLAGS)
+          "src/client/sv/input/key-encoding.c"], SDL_FLAGS)
     check(directory / "birth-mode-arrows", ["tests/sv/birth-mode-arrows.c",
           "src/client/sv/input/native-birth.c", "src/client/sv/session/birth.c",
-          "src/client/sv/input/physical.c"], SDL_FLAGS)
+          "src/client/sv/input/key-encoding.c"], SDL_FLAGS)
     check(directory / "physical", ["tests/sv/physical.c",
-                                   "src/client/sv/input/physical.c"], SDL_FLAGS)
+                                   "src/client/sv/input/key-encoding.c"], SDL_FLAGS)
     check(directory / "metaserver", ["tests/sv/metaserver.c", *COMMON,
                                      "src/client/sv/input/metaserver.c"], SDL_FLAGS)
 
@@ -89,12 +89,12 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/ui/endpoint-scene.c",
                      "src/client/sv/ui/login-shell.c",
                      "src/client/sv/ui/font.c",
-                     "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
+                     "src/client/sv/input/native-endpoint.c", "src/client/sv/input/key-encoding.c",
                      "src/client/sv/input/metaserver.c", *COMMON]
     scene_sources += ["src/client/sv/" + name + ".c" for name in
                       ("app", "input/input", "session/alerts", "session/session",
                        "protocol/protocol", "protocol/version", "result")]
-    scene_sources += ["src/temporary/sv/peer.c"]
+    scene_sources += ["tests/sv/diagnostics/peer.c"]
     scene_sources += ["src/common/" + name + ".c" for name in
                       ("sockbuf", "z-util", "z-form", "z-virt")]
     scene_binary = directory / "scene"

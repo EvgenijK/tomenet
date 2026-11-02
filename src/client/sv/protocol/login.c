@@ -12,7 +12,7 @@
 
 #define SV_LOGIN_INPUT_CAPACITY (64 * 1024)
 #define SV_LOGIN_OUTPUT_CAPACITY (32 * 1024)
-#include "protocol/play-defaults.h"
+#include "../../../temporary/sv/stubs/play-profile.h"
 struct SvLogin {
     int version[6];
     SvLoginState state;
@@ -245,11 +245,13 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     const int traits_since[6] = {4, 4, 5, 10, 0, 0};
     const int resources_since[6] = {4, 8, 1, 2, 0, 0};
     if (newer(login->version, traits_since)) {
-        put16(&at, trait); put16(&at, 0); put16(&at, 0);
+        put16(&at, trait);
+        put16(&at, SV_STUB_PLAY_AUDIO_SFX); put16(&at, SV_STUB_PLAY_AUDIO_MUSIC);
     }
     if (atleast(login->version, resources_since)) {
-        put16(&at, 0);
-        memcpy(at, "NO_GRAPHICS", sizeof("NO_GRAPHICS")); at += sizeof("NO_GRAPHICS");
+        put16(&at, SV_STUB_PLAY_USE_GRAPHICS);
+        memcpy(at, sv_stub_play_graphics, sizeof(sv_stub_play_graphics));
+        at += sizeof(sv_stub_play_graphics);
         memcpy(at, font, strlen(font) + 1); at += strlen(font) + 1;
     }
     for (unsigned i = 0; i < 6; ++i) put16(&at, stats[i]);
@@ -259,12 +261,12 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     size_t option_count = newer(login->version, all_options_since) ? 199u :
         newer(login->version, options_154_since) ? 154u :
         newer(login->version, options_128_since) ? 128u : 96u;
-    memcpy(at, play_options, option_count); at += option_count;
+    memcpy(at, sv_stub_play_options, option_count); at += option_count;
     /* Map viewport, not UI window pixels (baseline SCREEN_WID/SCREEN_HGT). */
-    const unsigned char geometry[] = {0, 0, 0, 66, 0, 0, 0, 22};
     const int geometry_since[6] = {4, 4, 9, 1, 0, 1};
     if (newer(login->version, geometry_since)) {
-        memcpy(at, geometry, sizeof(geometry)); at += sizeof(geometry);
+        memcpy(at, sv_stub_play_geometry, sizeof(sv_stub_play_geometry));
+        at += sizeof(sv_stub_play_geometry);
     }
     /* Complete baseline redefinition tables: unknown, features, kinds,
      * monsters. This text-only resource outcome has no custom font mapping.
@@ -278,7 +280,7 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     size_t monsters = newer(login->version, expanded_tables_since) ? 1280u : 1152u;
     size_t entry_width = atleast(login->version, wide_characters_since) ? 5u : 2u;
     size_t visual_size = entry_width * (127u + features + kinds + monsters);
-    memset(at, 0, visual_size); at += visual_size;
+    sv_stub_play_visuals(at, visual_size); at += visual_size;
     SvResult queued = append_output(login, packet, (size_t)(at - packet));
     if (queued == SV_OK) login->state = SV_LOGIN_WAIT_PLAY;
     return queued;

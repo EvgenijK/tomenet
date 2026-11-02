@@ -1,6 +1,6 @@
 /* Temporary bootstrap for the synthetic-only Stage A executable.
  * Replace this bootstrap with real session startup when live transport arrives. */
-#include "synthetic.h"
+#include "diagnostics/synthetic.h"
 #include <stdio.h>
 #include <string.h>
 

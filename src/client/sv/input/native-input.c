@@ -1,5 +1,5 @@
 #include "input/native-input.h"
-#include "input/physical.h"
+#include "input/key-encoding.h"
 static bool modifier(SDL_Scancode code)
 {
     return code == SDL_SCANCODE_LCTRL || code == SDL_SCANCODE_RCTRL ||

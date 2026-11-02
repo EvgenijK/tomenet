@@ -1,6 +1,7 @@
 #ifndef SV_ENDPOINT_RUN_H
 #define SV_ENDPOINT_RUN_H
 #include "input/endpoint.h"
+#include "ui/login-shell.h"
 #include "session/pregame.h"
 #include "input/birth-interaction.h"
 typedef struct {
@@ -103,6 +104,7 @@ typedef struct {
     bool birth_dna_mode_available;
     SvBirthMode birth_dna_mode;
     SvEndpointOutcome *outcome;
+    SvLoginShellOptions shell;
 } SvEndpointOptions;
 int sv_endpoint_run(SvEndpointOptions options);
 #endif

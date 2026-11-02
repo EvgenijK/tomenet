@@ -34,7 +34,7 @@ SOURCES = [
     "src/client/sv/input/endpoint.c",
     "src/client/sv/input/text-field.c",
     "src/client/sv/input/native-endpoint.c",
-    "src/client/sv/input/physical.c",
+    "src/client/sv/input/key-encoding.c",
     "src/client/sv/input/metaserver.c",
     "src/common/md5.c",
 ]

@@ -3,9 +3,14 @@ const fs=require('fs');
 const path=require('path');
 const os=require('os');
 const {pathToFileURL}=require('url');
-const resources=path.resolve(process.cwd(),'lib/xtra/sv/login');
+const resources=path.resolve(__dirname,'../../../lib/xtra/sv/login');
+// Use the external prototype checkout; TOMENET_INTERFACE_ROOT can select a pinned revision.
+const reference=path.resolve(process.env.TOMENET_INTERFACE_ROOT || path.resolve(__dirname,'../../../../github_site/tomenet_interface'));
+for(const name of ['login.html','css','js']) {
+ if(!fs.existsSync(path.join(reference,name))) throw new Error(`Missing prototype ${name} in ${reference}; set TOMENET_INTERFACE_ROOT to the tomenet_interface checkout.`);
+}
 const snapshot=fs.mkdtempSync(path.join(os.tmpdir(),'sv-b2-reference-'));
-for(const name of ['login.html','css','js']) fs.symlinkSync(path.join(resources,'reference',name),path.join(snapshot,name));
+for(const name of ['login.html','css','js']) fs.symlinkSync(path.join(reference,name),path.join(snapshot,name));
 fs.mkdirSync(path.join(snapshot,'assets'));
 fs.symlinkSync(resources,path.join(snapshot,'assets/log_in_backgrounds'));
 const output=process.argv[2] || path.join(snapshot,'captures');

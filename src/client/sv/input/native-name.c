@@ -1,6 +1,6 @@
 #include "input/native-name.h"
 #include "input/native-login.h"
-#include "input/physical.h"
+#include "input/key-encoding.h"
 #include "ui/login-layout.h"
 
 SvLoginInputResult sv_native_name_event(SvLoginInteraction *input,

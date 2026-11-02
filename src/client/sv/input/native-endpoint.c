@@ -1,5 +1,5 @@
 #include "input/native-endpoint.h"
-#include "input/physical.h"
+#include "input/key-encoding.h"
 #include "input/pregame-events.h"
 #include "ui/login-layout.h"
 #include <string.h>

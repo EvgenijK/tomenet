@@ -4,7 +4,8 @@
 
 ## Production и reference
 
-Frozen reference: bundled `lib/xtra/sv/login/reference/`, variant D,
+Reference source: external UX prototype `/home/svechnik/Projects/github_site/tomenet_interface`,
+commit `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`, variant D,
 background 0, reduced motion, DPR 1, Liberation Mono. Reference overview/name/edit/error
 сняты в 1440×900 и 1024×768. В browser остаётся prototype roster; native executable
 получает 10 Hero0…Hero9 (для overview/name) и 12 Hero0…Hero11 (для overflow/resize) через controlled localhost peer настоящими contact/setup/login

@@ -6,6 +6,7 @@
 #include "ui/login-shell.h"
 #include "ui/birth-descriptions.h"
 #include "input/credentials.h"
+#include "../../../temporary/sv/stubs/pregame-ui.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1084,8 +1085,8 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
         SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
         SvLoginRect card={l.panel.x+24,l.panel.y+24,l.panel.w-48,l.panel.h-48};
-        return b2_state_frame(renderer,l.panel,card,"Startup screens complete",scale,false) &&
-            b2_wrap(renderer,"Waiting for live-session handoff (Stage C).",(SvLoginRect){card.x+22,card.y+74,card.w-44,0},15,scale,b2_normal);
+        return b2_state_frame(renderer,l.panel,card,SV_STUB_LIVE_HANDOFF_TITLE,scale,false) &&
+            b2_wrap(renderer,SV_STUB_LIVE_HANDOFF_TEXT,(SvLoginRect){card.x+22,card.y+74,card.w-44,0},15,scale,b2_normal);
     }
     if (endpoint->phase == SV_ENDPOINT_LIST && !input->temporary_surface_text)
         return sv_login_shell_render(renderer, endpoint,input);
@@ -1104,26 +1105,19 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
             (SvLoginRect){card.x+22,card.y+74,card.w-44,card.h-96},scale,false);
 }
 
+static SvEndpointFrameObserver frame_observer;
+
+void sv_endpoint_observe_frames(SvEndpointFrameObserver observer)
+{
+    frame_observer = observer;
+}
+
 bool sv_endpoint_draw(SDL_Renderer *renderer, SvFont *font,
                       const SvEndpoint *endpoint, const SvEndpointInput *input)
 {
     if(!sv_endpoint_render(renderer,font,endpoint,input))return false;
-    const char *capture=SDL_getenv("SV_B2_CAPTURE");
-    /* Capture complete production frames only while private fields are masked.
-     * Reuse the shell capture hook after overlays, rather than its base layer. */
-    if(capture && (!input->credentials || !input->credentials->reveal)) {
-        SDL_PropertiesID properties=SDL_GetRendererProperties(renderer);
-        const char *counter="sv.login.capture.frame";
-        Sint64 frame=SDL_GetNumberProperty(properties,counter,0)+1;
-        if(!SDL_SetNumberProperty(properties,counter,frame))return false;
-        const char *delay=SDL_getenv("SV_B2_CAPTURE_FRAME");
-        int target=delay?SDL_atoi(delay):1;if(target<1)target=1;
-        if(frame==target) {
-            SDL_Surface *surface=SDL_RenderReadPixels(renderer,NULL);
-            if(!surface)return false;
-            bool saved=SDL_SaveBMP(surface,capture);SDL_DestroySurface(surface);
-            if(!saved)return false;
-        }
-    }
+    if(frame_observer.before_present &&
+       (!input->credentials || !input->credentials->reveal) &&
+       !frame_observer.before_present(frame_observer.context,renderer))return false;
     return SDL_RenderPresent(renderer);
 }

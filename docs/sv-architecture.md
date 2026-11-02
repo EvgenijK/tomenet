@@ -50,7 +50,6 @@ Application связывает устойчивые интерфейсы, без
 | `protocol/` | Декодирование, сериализация, сравнение версий и локальные helpers |
 | `input/` | Router, контексты/макросы и отдельный адаптер SDL-ввода |
 | `ui/` | Layout/rendering, шрифты, подготовка статуса и текста сообщений |
-| `diagnostics/` | Измерение времени до отправки кадра и контракты runtime-проверок сценариев |
 
 Includes используют явный путь от единственного корня SV, например
 `session/session.h` и `ui/font.h`. Вложенные objects и `.d` dependencies сохраняют
@@ -60,8 +59,18 @@ Session использует локальный `protocol/hp-update.h` для ba
 
 Размещение файлов не меняет interfaces и владельцев состояния. SDL-адаптер ввода
 остаётся отдельным от headless router; `ui/status` готовит представление, а
-семантическое состояние HP принадлежит session model. Временный bootstrap/peer
-живёт в `src/temporary/sv`, сценарии — в `tests/sv/scenarios`.
+семантическое состояние HP принадлежит session model. Диагностический launcher,
+синтетическая UI-оболочка, bootstrap/peer, измерители и захват кадров находятся
+в `tests/sv/diagnostics`, сценарии — в `tests/sv/scenarios`. `main.c` пока
+делегирует общему launcher для сохранения существующего CLI; сборка явно
+выделяет diagnostic objects. В production API остаются только общие границы
+синхронного вызова и наблюдения; сценарные IDs и JSONL-отчёты ему не принадлежат.
+
+Временные подстановки для ещё не подключённых возможностей вынесены в
+[`src/temporary/sv/stubs`](../src/temporary/sv/stubs/README.md). Они используются
+production-путём с явными именами `sv_stub_*` / `SV_STUB_*`: фиксированный
+play profile и тексты незавершённых Guide/live-session surfaces. Диагностика
+и тестовые fixtures в этот каталог не входят.
 
 Незавершённое birth interaction доступно production-коду только через публичную
 границу `input/birth-interaction.h`; native SDL adapter переводит gestures в её

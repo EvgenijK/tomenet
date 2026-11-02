@@ -17,6 +17,7 @@
 #include "protocol/login-identity.h"
 #include "session/login-view.h"
 #include "session/pregame.h"
+#include "../../temporary/sv/stubs/pregame-ui.h"
 #include "../../common/pack.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
@@ -686,10 +687,10 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                     }
                     input->contact_status = save_failed ?
                         (login_input.motd_complete ?
-                         "MOTD complete. Password is session only. Waiting for live-session handoff." :
+                         SV_STUB_LIVE_HANDOFF_SESSION_PASSWORD_STATUS :
                          "Character confirmed. Password is session only. Read MOTD; press a key.") :
                         (login_input.motd_complete ?
-                         "MOTD complete. Waiting for live-session handoff; Escape exits." :
+                         SV_STUB_LIVE_HANDOFF_STATUS :
                          "Character confirmed. Read MOTD; press a key to continue.");
                     if (sv_login_interaction_complete(&login_input) &&
                         pregame.phase == SV_PREGAME_LIVE_HANDOFF) {
@@ -923,7 +924,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                         birth_placeholder_owner = birth.owner;
                         memcpy(&birth_before_placeholder, &birth, sizeof(birth));
                         input->temporary_surface_text =
-                            SV_BIRTH_GUIDE_PLACEHOLDER_TEXT;
+                            SV_STUB_BIRTH_GUIDE_TEXT;
                         break;
                     }
                     continue;
@@ -1190,7 +1191,7 @@ int sv_endpoint_run(SvEndpointOptions options)
      * window surface; otherwise its output can retain the unscaled size. */
     if (!SDL_SyncWindow(window)) goto done;
     renderer = SDL_CreateRenderer(window,NULL);
-    if (!renderer || !sv_login_shell_open(renderer, library)) goto done;
+    if (!renderer || !sv_login_shell_open_options(renderer, library, options.shell)) goto done;
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);

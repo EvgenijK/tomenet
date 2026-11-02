@@ -32,7 +32,7 @@ ifeq ($(PLATFORM),linux)
 SV_MODULES += libsecret-1
 endif
 SV_DEPS := $(shell $(SV_PKG) --modversion $(SV_MODULES) 2>/dev/null)
-SV_CFLAGS := -Iclient/sv -Itemporary/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong -DSV_CLASS_BEFORE_RACE=$(SV_CLASS_BEFORE_RACE) $(CPPFLAGS) $(CFLAGS) $(shell $(SV_PKG) --cflags $(SV_MODULES) 2>/dev/null)
+SV_CFLAGS := -Iclient/sv -I../tests/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong -DSV_CLASS_BEFORE_RACE=$(SV_CLASS_BEFORE_RACE) $(CPPFLAGS) $(CFLAGS) $(shell $(SV_PKG) --cflags $(SV_MODULES) 2>/dev/null)
 SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
 ifeq ($(PLATFORM),mingw)
 SV_LIBS += -lws2_32 -ladvapi32
@@ -40,12 +40,12 @@ endif
 # Toolchain, dependency versions and all switches participate in the cache key.
 SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' '$(SV_CFLAGS)' '$(SV_CORE_PLATFORM)' '$(LDFLAGS)' '$(SV_LIBS)' '$(SV_DEPS)' | sha256sum | cut -c1-20)
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
-# Keep production, temporary bootstrap and check-only sources explicit.
-SV_CLIENT_OBJECTS := main.o endpoint-run.o credential/vault.o diagnostics/timing.o ui/font.o ui/ui.o ui/endpoint-scene.o ui/login-shell.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/physical.o input/native-endpoint.o input/credentials.o input/login-interaction.o input/native-login.o input/native-name.o input/native-birth.o input/metaserver.o input/chronicle.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o session/pregame.o session/login-view.o session/birth.o session/alerts.o result.o ui/status.o protocol/version.o
-SV_TEMPORARY_OBJECTS := temporary/peer.o temporary/synthetic.o
+# Keep production and check-only sources explicit.
+SV_CLIENT_OBJECTS := main.o endpoint-run.o credential/vault.o ui/font.o ui/endpoint-scene.o ui/login-shell.o ui/message-text.o input/input.o input/native-input.o input/endpoint.o input/text-field.o input/confirm.o input/key-encoding.o input/native-endpoint.o input/credentials.o input/login-interaction.o input/native-login.o input/native-name.o input/native-birth.o input/metaserver.o input/chronicle.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o session/pregame.o session/login-view.o session/birth.o session/alerts.o result.o ui/status.o protocol/version.o
+SV_DIAGNOSTIC_OBJECTS := diagnostics/timing.o diagnostics/runtime.o diagnostics/launcher.o diagnostics/ui.o diagnostics/capture.o diagnostics/peer.o diagnostics/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o
-SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_TEMPORARY_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
+SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_DIAGNOSTIC_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
 
 .PHONY: tomenet-sv tomenet-sv.exe shell check-deps
 tomenet-sv:
@@ -65,9 +65,9 @@ endif
 $(SV_OUT)/%.o: client/sv/%.c client/sv/ui/font.h makefile.sv | check-deps
 	@mkdir -p $(dir $@)
 	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -DSV_BUILD_ID='"$(PLATFORM)-$(SV_KEY)"' -MMD -MP -c $< -o $@
-$(SV_OUT)/temporary/%.o: temporary/sv/%.c makefile.sv | check-deps
+$(SV_OUT)/diagnostics/%.o: ../tests/sv/diagnostics/%.c makefile.sv | check-deps
 	@mkdir -p $(dir $@)
-	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -MMD -MP -c $< -o $@
+	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -DSV_BUILD_ID='"$(PLATFORM)-$(SV_KEY)"' -MMD -MP -c $< -o $@
 $(SV_OUT)/scenarios/%.o: ../tests/sv/scenarios/%.c makefile.sv | check-deps
 	@mkdir -p $(dir $@)
 	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -MMD -MP -c $< -o $@

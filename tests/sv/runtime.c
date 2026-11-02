@@ -1,4 +1,5 @@
 #include "app.h"
+#include "diagnostics/runtime.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

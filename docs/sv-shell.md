@@ -13,7 +13,7 @@ a terminal, legacy object outputs, Lua generators, historical modern artifacts
 or a live network transport.
 
 Temporary synthetic startup and transport adapters are kept in
-`src/temporary/sv`, separately from production modules in `src/client/sv`.
+`tests/sv/diagnostics`, separately from production modules in `src/client/sv`.
 Native check scenarios live in `tests/sv/scenarios`; build rules identify each
 source group explicitly. The current synthetic executable links these groups
 together, while their source ownership and future replacement remain separate.
@@ -206,7 +206,7 @@ python3 tests/sv_arch_native.py --backend opengl
 
 See [the HP guide](sv-hp.md) for ownership contracts
 and checks. Temporary transport and logging alert adapters remain in
-`src/temporary/sv`; native fixtures and readbacks remain in `tests/sv/scenarios`.
+`tests/sv/diagnostics`; native fixtures and readbacks remain in `tests/sv/scenarios`.
 
 The 2026-09-21 correction passed Linux SV/legacy builds, headless sanitizer checks,
 legacy HP regression and software/OpenGL HP, architecture and shell smoke checks.

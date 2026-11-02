@@ -1,5 +1,5 @@
-#ifndef SV_PHYSICAL_H
-#define SV_PHYSICAL_H
+#ifndef SV_KEY_ENCODING_H
+#define SV_KEY_ENCODING_H
 #include <SDL3/SDL.h>
 typedef struct {
     unsigned char bytes[32];

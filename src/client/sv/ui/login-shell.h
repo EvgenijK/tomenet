@@ -3,6 +3,13 @@
 #include <SDL3/SDL.h>
 #include "ui/motd.h"
 #include "input/native-endpoint.h"
+typedef struct {
+    bool reduced_motion;
+    bool background_selected;
+    unsigned background;
+} SvLoginShellOptions;
+bool sv_login_shell_open_options(SDL_Renderer *renderer, const char *library,
+                                SvLoginShellOptions options);
 bool sv_login_shell_open(SDL_Renderer *renderer, const char *library);
 bool sv_login_shell_reset(SDL_Renderer *renderer);
 bool sv_login_shell_torches(SDL_Renderer *renderer, float left, float right, float top, float scale);

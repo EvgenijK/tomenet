@@ -2,6 +2,12 @@
 #include "protocol/protocol.h"
 #include <stdlib.h>
 #include <string.h>
+typedef struct SvAppOperation {
+    struct SvAppOperation *parent;
+    void (*fallback)(void *);
+    void *fallback_context;
+    int failed;
+} SvAppOperation;
 struct SvApp {
     SvSession *session;
     SvProtocol *protocol;
@@ -11,9 +17,8 @@ struct SvApp {
     SvFlushPolicy flush;
     SvAttention attention;
     int busy;
-    SvRuntimeCheck *checks[8];
-    unsigned check_depth;
-    int check_failed[8];
+    SvAppOperation *operation;
+    unsigned operation_depth;
     SvInputRouter input;
     SvInputBindings bindings;
     SvPresentationObserver observer;
@@ -75,7 +80,7 @@ SvApp *sv_app_create(SvAlertSink sink)
 SvResult sv_app_destroy(SvApp *app)
 {
     if (!app) return SV_OK;
-    if (app->busy || app->check_depth) return SV_BUSY;
+    if (app->busy || app->operation_depth) return SV_BUSY;
     release_session(app); free(app);
     return SV_OK;
 }
@@ -418,43 +423,30 @@ SvResult sv_app_end_confirmation(SvApp *app, uint64_t generation, uint64_t owner
     return sv_input_end_confirmation(&app->input, owner);
 }
 
-SvRuntimeCheck sv_app_check_run(SvApp *app, SvRuntimeScenario scenario,
-                              int (*run)(SvApp *, void *), void *context)
+int sv_app_run(SvApp *app, int (*run)(SvApp *, void *), void *context,
+               void (*fallback)(void *), void *fallback_context)
 {
-    SvRuntimeCheck check = {scenario, 0, 0};
-    if (app->busy || !run || scenario < 0 || scenario >= SV_SCENARIO_COUNT ||
-        app->check_depth == 8) {
-        if (app->check_depth) app->check_failed[app->check_depth - 1] = 1;
-        return check;
+    if (app->busy || !run || app->operation_depth == 8) {
+        if (app->operation) app->operation->failed = 1;
+        return 0;
     }
-    unsigned depth = app->check_depth++;
-    app->checks[depth] = &check;
-    app->check_failed[depth] = 0;
-    int success = run(app, context);
-    check.completed = success && !app->check_failed[depth];
-    --app->check_depth;
-    app->checks[depth] = NULL;
-    if (!check.completed && depth) app->check_failed[depth - 1] = 1;
-    return check;
+    SvAppOperation operation = {app->operation, fallback, fallback_context, 0};
+    app->operation = &operation;
+    ++app->operation_depth;
+    int success = run(app, context) && !operation.failed;
+    --app->operation_depth;
+    app->operation = operation.parent;
+    if (!success && app->operation) app->operation->failed = 1;
+    return success;
 }
 SvResult sv_app_terminal_fallback(SvApp *app)
 {
-    for (unsigned i = 0; i < app->check_depth; ++i) {
-        if (app->checks[i]->fallback_entries == UINT32_MAX) app->check_failed[i] = 1;
-        else ++app->checks[i]->fallback_entries;
+    int busy = app->busy;
+    app->busy = 1;
+    for (SvAppOperation *operation = app->operation; operation;
+         operation = operation->parent) {
+        if (operation->fallback) operation->fallback(operation->fallback_context);
     }
+    app->busy = busy;
     return SV_INVALID; /* No terminal adapter is linked or permitted. */
-}
-int sv_runtime_write(FILE *stream, SvRuntimeCheck check)
-{
-    static const char *names[] = {"hp", "message", "request", "lifecycle", "geometry",
-        "timing", "timing-delayed", "arch"};
-    if (!stream || check.scenario < 0 || check.scenario >= SV_SCENARIO_COUNT) return 0;
-    if (fprintf(stream, "{\"scenario\":\"scenario.stage-a.%s\",\"completed\":%s,"
-        "\"fallbackEntries\":%u,\"routes\":[", names[check.scenario],
-        check.completed ? "true" : "false", (unsigned)check.fallback_entries) < 0) return 0;
-    if (check.fallback_entries && fprintf(stream,
-        "{\"routeId\":\"route.terminal-handoff\",\"reason\":\"future-flow\",\"count\":%u}",
-        (unsigned)check.fallback_entries) < 0) return 0;
-    return fputs("]}\n", stream) >= 0 && fflush(stream) == 0;
 }

@@ -332,7 +332,7 @@ def main():
     paths += list((ROOT / 'src/.sv-build').glob('*/*/build.txt'))
     paths += [ROOT / 'lib/xtra/font' / name for name in ('CascadiaMono-Regular.ttf', '16x24x.pcf')]
     paths += list((ROOT / 'src/client/sv').rglob('*.c')) + list((ROOT / 'src/client/sv').rglob('*.h'))
-    paths += list((ROOT / 'src/temporary/sv').glob('*.[ch]')) + list((ROOT / 'tests/sv').rglob('*.[ch]'))
+    paths += list((ROOT / 'tests/sv').rglob('*.[ch]'))
     paths += list((ROOT / 'tests').glob('sv_*.py')) + list((ROOT / 'tools').glob('*.py'))
     paths += [ROOT / 'src/makefile.sv']
     report['fingerprints'] = {str(path.relative_to(ROOT)): digest(path) for path in sorted(set(paths))}

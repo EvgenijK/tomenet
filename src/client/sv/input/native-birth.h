@@ -3,7 +3,6 @@
 #include "input/birth-interaction.h"
 #include <SDL3/SDL.h>
 
-#define SV_BIRTH_GUIDE_PLACEHOLDER_TEXT "The guide is in development"
 #define SV_BIRTH_CHOICE_ROW_TOP 320
 #define SV_BIRTH_CHOICE_ROW_HEIGHT 40
 #define SV_BIRTH_CHOICE_TEXT_INSET 20

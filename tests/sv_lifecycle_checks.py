@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix='sv-lifecycle-') as temp:
     sources += ['src/client/sv/' + name + '.c' for name in
                 ('ui/message-text', 'input/input', 'session/alerts', 'app', 'protocol/protocol', 'result', 'session/session', 'ui/status', 'protocol/version')]
     sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
-    sources += ['src/temporary/sv/peer.c']
+    sources += ['tests/sv/diagnostics/peer.c']
     subprocess.run([os.environ.get('CC', 'clang'), '-std=c99', '-D_DEFAULT_SOURCE', '-DCLIENT=',
                     '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-non-prototype',
                     '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections',

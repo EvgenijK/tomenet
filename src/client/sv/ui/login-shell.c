@@ -1,4 +1,5 @@
-/* D shell, derived from the frozen login.html under lib/xtra/sv/login/reference. */
+/* D shell, derived from tomenet_interface/login.html in the external UX prototype.
+ * Source commit: 1bb2d5d45b9001bf2a6f2084f78184c29a73fca7. See docs/evidence/sv-login/PROVENANCE.md. */
 #include "ui/login-shell.h"
 #include "ui/login-layout.h"
 #include "ui/motd-colors.h"
@@ -183,7 +184,8 @@ bool sv_login_shell_reset(SDL_Renderer *r)
     }
     return s->background[0]!=NULL;
 }
-bool sv_login_shell_open(SDL_Renderer *r,const char *library)
+bool sv_login_shell_open_options(SDL_Renderer *r,const char *library,
+                                SvLoginShellOptions options)
 {
     Shell *s=SDL_calloc(1,sizeof(*s));
     if (!s) return false;
@@ -195,15 +197,18 @@ bool sv_login_shell_open(SDL_Renderer *r,const char *library)
     s->font=TTF_OpenFont(path,14);
     SDL_snprintf(path,sizeof(path),"%s/LiberationSerif-Regular.ttf",s->directory);
     s->heading=TTF_OpenFont(path,19);
-    s->reduced=SDL_getenv("SV_B2_REDUCED_MOTION") && strcmp(SDL_getenv("SV_B2_REDUCED_MOTION"),"0");
-    const char *chosen=SDL_getenv("SV_B2_BACKGROUND");
-    s->current=chosen?(unsigned)SDL_atoi(chosen)%19:(unsigned)(SDL_GetTicksNS()%19);
+    s->reduced=options.reduced_motion;
+    s->current=options.background_selected?options.background%19:(unsigned)(SDL_GetTicksNS()%19);
     s->last=SDL_GetTicks();
     if (!s->font || !s->heading) {close_shell(NULL,s);return false;}
     if (!SDL_SetPointerPropertyWithCleanup(SDL_GetRendererProperties(r),SHELL_PROPERTY,s,close_shell,NULL)) {
         close_shell(NULL,s);return false;
     }
     return sv_login_shell_reset(r);
+}
+bool sv_login_shell_open(SDL_Renderer *r,const char *library)
+{
+    return sv_login_shell_open_options(r,library,(SvLoginShellOptions){0});
 }
 static bool box(SDL_Renderer *r,SvLoginRect b,float scale,SDL_Color c,bool outline)
 {

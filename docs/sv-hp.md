@@ -12,7 +12,7 @@ in their subsequent slice guides.
 Production client modules, including local HP decode/apply in `protocol/hp-update.h`,
 live in `src/client/sv`. Legacy retains its baseline handlers.
 Temporary transport stubs and the synthetic bootstrap live in
-`src/temporary/sv`. The bootstrap owns the isolated-profile setup and prepared
+`tests/sv/diagnostics`. The bootstrap owns the isolated-profile setup and prepared
 startup packet; these are not live connection or persistence implementations.
 
 Native HP fixtures, assertions and pixel-readback checks live in

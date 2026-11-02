@@ -4,7 +4,8 @@
 
 ## Reference и production seam
 
-Frozen source: `lib/xtra/sv/login/reference/`, final variant D. One-off replay
+Reference source: external UX prototype `/home/svechnik/Projects/github_site/tomenet_interface`,
+commit `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`, final variant D. One-off replay
 [capture-reference.cjs](evidence/sv-b2-004/capture-reference.cjs) проходит browser
 controls последовательно, без подстановки birth state. Background 0,
 reduced motion, DPR 1, Liberation Mono; supported sizes 1440×900 и 1024×768.

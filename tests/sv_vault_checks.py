@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory(prefix="sv-vault-") as temp:
     subprocess.run([os.environ.get("CC", "clang"), "-std=c99", "-Wall", "-Wextra",
                     "-Werror", "-fsanitize=address,undefined", "-Isrc/client/sv",
                     "tests/sv/credentials.c", "src/client/sv/input/credentials.c",
-                    "src/client/sv/input/native-endpoint.c", "src/client/sv/input/physical.c",
+                    "src/client/sv/input/native-endpoint.c", "src/client/sv/input/key-encoding.c",
                     "src/client/sv/input/text-field.c", "src/client/sv/input/endpoint.c",
                     "src/client/sv/credential/vault.c", *FLAGS,
                     "-o", str(credentials)], cwd=ROOT, check=True)

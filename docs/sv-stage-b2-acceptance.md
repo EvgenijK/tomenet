@@ -47,9 +47,10 @@ warning об отсутствующем profile CascadiaMono ведёт к decla
 Credential provider для replay отключён недоступным D-Bus address, статус session-only
 честный. Password captures masked; secret fields в report/transcript отсутствуют.
 
-Frozen D reference — bundled `lib/xtra/sv/login/reference/`, upstream HEAD
-`1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`. Exact HTML/CSS/data/assets hashes —
-[resource manifest](../lib/xtra/sv/login/SHA256.json), provenance и финальный cascade —
+D reference — внешний UX prototype `/home/svechnik/Projects/github_site/tomenet_interface`, upstream HEAD
+`1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`; для повторного capture нужен этот checkout.
+Контрольные суммы использованных HTML/CSS/data/assets —
+[resource manifest](evidence/sv-login/SHA256.json), provenance и финальный cascade —
 [reference](tasks/stage-b2/reference.md). MOTD C — approved prototype commit
 `e271c582cbf89d404deda6189881e531d3775770`; [capture description](sv-b2-005-evidence.md).
 Browser reference использует Liberation Mono, DPR1 и тот же logical viewport;

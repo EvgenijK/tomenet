@@ -9,8 +9,9 @@ Production `src/tomenet-sv --endpoint` отрисовывает D shell на ser
 `ui/login-shell.[ch]` владеет ресурсами, bounded text cache и elapsed animation;
 `ui/login-layout.h` вычисляет rectangles для draw и production mouse adapter.
 SV-local ресурсы находятся в `lib/xtra/sv/login/`: 19 PNG, Liberation Mono с
-лицензией, logo/torch data, six source-derived realm icons, frozen HTML/CSS/data,
-provenance и actual SHA-256. Внешний web checkout не менялся и при запуске не нужен.
+лицензией, logo/torch data, six source-derived realm icons. Provenance и actual
+SHA-256 хранятся в `docs/evidence/sv-login/`. HTML/CSS/data остаются во внешнем
+UX prototype; внешний web checkout не менялся и при запуске клиента не нужен.
 A font API, legacy/common, protocol и gameplay не менялись этой задачей.
 
 Широкая композиция содержит logo, central panel, Chronicle и realm links;
@@ -28,8 +29,9 @@ Torch primitive подготовлен для account consumer B2-002; на serv
 
 ## Reference и визуальный результат
 
-Source HEAD `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`; exact bytes зафиксированы
-в `lib/xtra/sv/login/SHA256.json`. Итоговый cascade D, actual browser font Liberation
+Source: `/home/svechnik/Projects/github_site/tomenet_interface`, HEAD `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`;
+контрольные суммы использованных файлов зафиксированы
+в `docs/evidence/sv-login/SHA256.json`. Итоговый cascade D, actual browser font Liberation
 Mono, background `cirith_ungol_ascii_seed06.png`, reduced motion, DPR/display scale 1.
 Runtime build `linux-bd7f9b5e26c5789bb7e9`, clang 22.1.8; версии/flags —
 [build.txt](evidence/sv-b2-001/build.txt). Binary SHA-256 указан в evidence manifest.
@@ -52,11 +54,13 @@ Detailed server-card styling принадлежит B2-002. Фон исполь�
 resampling 640×320 и shading вместо точного CSS blur/filter/backdrop; shadows и
 raster edges отличаются. Эти отклонения просмотрены, pixel-perfect gate не вводился.
 
-Frozen reference воспроизводится без sibling checkout:
+Для воспроизведения reference требуется внешний UX prototype
+`/home/svechnik/Projects/github_site/tomenet_interface` версии `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`:
 `node docs/evidence/sv-b2-001/capture-reference.cjs /tmp/sv-b2-reference`.
-Скрипт создаёт временные symlink paths к сохранённым ресурсам; использует уже
-установленные Chromium/Playwright, пути версий записаны в нём. Повторный capture
-из frozen HTML/CSS/data/assets побитово совпал по pixels с исходным browser capture
+Скрипт использует HTML/CSS/data внешнего checkout и фоновые PNG из ресурсов
+клиента. Другое размещение макета задаётся через `TOMENET_INTERFACE_ROOT`.
+Используются уже установленные Chromium/Playwright, пути версий записаны в нём. Повторный capture
+из зафиксированных тогда HTML/CSS/data/assets побитово совпал по pixels с исходным browser capture
 в обоих размерах. Computed final styles и reproduction log лежат рядом с PNG.
 
 ## Standards

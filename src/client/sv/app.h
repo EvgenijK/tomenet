@@ -3,7 +3,6 @@
 #include "session/alerts.h"
 #include "result.h"
 #include "input/input.h"
-#include "diagnostics/runtime.h"
 #include "protocol/protocol.h"
 #include "ui/flush-policy.h"
 typedef struct SvApp SvApp;
@@ -94,12 +93,12 @@ SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *b
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
 typedef struct { size_t dispatched, stale, pending; SvResult result; } SvInputStep;
 SvInputStep sv_app_dispatch_input(SvApp *app, size_t budget);
-/* Synchronous scenario scope: only its checked return can complete it. Nested
- * failures poison the parent. Session teardown never clears the collector.
- * Callbacks verify required events/replies before returning success; they must
- * not destroy the app. There is deliberately no async completion API. */
-SvRuntimeCheck sv_app_check_run(SvApp *app, SvRuntimeScenario scenario,
-                              int (*run)(SvApp *, void *), void *context);
+/* Synchronous owner-thread operation. Active calls protect app lifetime; failed
+ * nested calls fail their parent. At most eight operations may be active.
+ * Optional fallback callbacks observe each denied handoff during their scope;
+ * they must not re-enter the app. */
+int sv_app_run(SvApp *app, int (*run)(SvApp *, void *), void *context,
+               void (*fallback)(void *), void *fallback_context);
 /* Sole terminal handoff boundary. Records BEFORE any future adapter dispatch.
  * Native-only SV denies every attempt, including stale-generation attempts. */
 SvResult sv_app_terminal_fallback(SvApp *app);

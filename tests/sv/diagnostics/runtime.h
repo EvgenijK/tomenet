@@ -1,5 +1,6 @@
 #ifndef SV_RUNTIME_H
 #define SV_RUNTIME_H
+#include "app.h"
 #include <stdint.h>
 #include <stdio.h>
 typedef enum {
@@ -13,5 +14,9 @@ typedef struct {
     int completed;
     uint32_t fallback_entries;
 } SvRuntimeCheck;
+/* Required events/replies must be verified by the scenario callback. Nested
+ * failures poison their parent; session teardown does not reset observation. */
+SvRuntimeCheck sv_app_check_run(SvApp *app, SvRuntimeScenario scenario,
+                              int (*run)(SvApp *, void *), void *context);
 int sv_runtime_write(FILE *stream, SvRuntimeCheck check);
 #endif

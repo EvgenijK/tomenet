@@ -1,4 +1,5 @@
-/* Presentation descriptions from frozen login/reference/js/data/creation-descriptions.js.
+/* Presentation descriptions from external tomenet_interface/js/data/creation-descriptions.js.
+ * Source commit: 1bb2d5d45b9001bf2a6f2084f78184c29a73fca7. See docs/evidence/sv-login/PROVENANCE.md.
  * No prototype choices, IDs or game state are imported. */
 typedef struct { SvBirthOwner owner; const char *title, *copy; } SvBirthDescription;
 static const SvBirthDescription birth_descriptions[]={

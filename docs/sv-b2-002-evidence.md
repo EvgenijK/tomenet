@@ -19,7 +19,8 @@ endpoint/credentials core checks. No new test suite or provider acceptance matri
 
 ## Frozen reference and native frames
 
-Reference uses the frozen `lib/xtra/sv/login/reference/` HTML/CSS/data and local assets,
+Reference source is the external UX prototype `/home/svechnik/Projects/github_site/tomenet_interface`,
+commit `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7` (HTML/CSS/data/assets),
 variant D, Liberation Mono, background 0 (`cirith_ungol_ascii_seed06.png`), reduced
 motion, DPR 1. The browser contains prototype data; native frames use the explicit
 servers.txt input or the controlled local address 127.0.0.1:1. Password captures

@@ -1,4 +1,4 @@
-#include "ui/ui.h"
+#include "diagnostics/ui.h"
 #include "ui/message-text.h"
 void sv_ui_rebuild(SvUi *ui)
 {

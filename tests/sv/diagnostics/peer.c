@@ -6,7 +6,7 @@
 #undef GF_INERTIA
 #endif
 #define CLIENT
-#include "../../common/angband.h"
+#include "../../../src/common/angband.h"
 #include <errno.h>
 bool is_client_side = TRUE;
 bool rl_connection_destroyed = FALSE;

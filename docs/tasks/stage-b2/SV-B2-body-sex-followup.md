@@ -18,7 +18,8 @@ Labels: bug, ready-for-human
 - Sex/body: reference intro15, карточки с radius4, title14/copy13.5, выбранный
   левый маркер, цвета, вертикальное центрирование, высота по переносу copy.
   У body удалена дополнительная detail surface, отсутствующая в reference.
-  Источник: `lib/xtra/sv/login/reference/login.html`, variant D.
+  Источник: внешний UX prototype `/home/svechnik/Projects/github_site/tomenet_interface/login.html`,
+  commit `1bb2d5d45b9001bf2a6f2084f78184c29a73fca7`, variant D.
 
 Legacy и общие модули не изменялись.
 
