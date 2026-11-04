@@ -1,6 +1,6 @@
-#include "input/login-interaction.h"
-#include "session/login-view.h"
-#include "session/pregame.h"
+#include "login/characters/login-interaction.h"
+#include "login/login-view.h"
+#include "login/pregame.h"
 #include "../../src/common/pack.h"
 #include <assert.h>
 #include <string.h>

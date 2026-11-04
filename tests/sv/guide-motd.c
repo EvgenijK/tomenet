@@ -7,9 +7,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include "session/birth.h"
-#include "ui/motd.h"
-#include "ui/motd-colors.h"
+#include "login/creation/birth.h"
+#include "login/motd/motd.h"
+#include "login/motd/motd-colors.h"
 
 /* Observe real SDL/TTF output; no replacement Guide, scene or interaction. */
 static pthread_mutex_t observations = PTHREAD_MUTEX_INITIALIZER;

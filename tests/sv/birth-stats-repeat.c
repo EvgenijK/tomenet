@@ -1,6 +1,7 @@
+#include "login/creation/birth.h"
 /* Point-buy repeats exercise the production adapter, timer and cancellation. */
-#include "input/native-birth.h"
-#include "ui/login-layout.h"
+#include "login/creation/native-birth.h"
+#include "login/ui/login-layout.h"
 #include <assert.h>
 #include <stdio.h>
 

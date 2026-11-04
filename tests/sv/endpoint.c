@@ -1,4 +1,4 @@
-#include "input/endpoint.h"
+#include "login/servers/endpoint.h"
 #include "input/confirm.h"
 #include <assert.h>
 #include <string.h>

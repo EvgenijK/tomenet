@@ -1,5 +1,6 @@
+#include "login/creation/birth.h"
 /* Mode arrows follow the displayed two-column grid without confirming it. */
-#include "input/native-birth.h"
+#include "login/creation/native-birth.h"
 #include <assert.h>
 #include <stdio.h>
 static void key(SvBirth *b,SvBirthViewport *v,SDL_Keycode code)

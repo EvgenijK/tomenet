@@ -36,16 +36,16 @@ with tempfile.TemporaryDirectory(prefix="sv-login-") as temp:
                     "-fsanitize=undefined", "-Isrc/client/sv",
                     "tests/sv/login-interaction.c",
                     "src/client/sv/protocol/login.c",
-                    "src/client/sv/input/login-interaction.c",
+                    "src/client/sv/login/characters/login-interaction.c",
                     "src/client/sv/input/text-field.c",
-                    "src/client/sv/session/pregame.c",
-                    "src/client/sv/session/login-view.c",
+                    "src/client/sv/login/pregame.c",
+                    "src/client/sv/login/login-view.c",
                     "-o", str(interaction)], cwd=root, check=True)
     subprocess.run([str(interaction)], cwd=root, check=True)
     native = Path(temp) / "native-login"
     subprocess.run([cc, "-std=c99", "-Wall", "-Wextra", "-Werror",
                     "-Isrc/client/sv", "tests/sv/native-login.c",
-                    "src/client/sv/input/native-login.c", *SDL_FLAGS,
+                    "src/client/sv/login/characters/native-login.c", *SDL_FLAGS,
                     "-o", str(native)], cwd=root, check=True)
     subprocess.run([str(native)], cwd=root, check=True)
 print("SV-B-006 login parser and contact handoff passed")

@@ -1,5 +1,6 @@
+#include "login/creation/birth.h"
 /* Letter selection commits exactly the body step through the native adapter. */
-#include "input/native-birth.h"
+#include "login/creation/native-birth.h"
 #include <assert.h>
 #include <stdio.h>
 

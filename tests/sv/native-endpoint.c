@@ -1,5 +1,5 @@
-#include "input/native-endpoint.h"
-#include "ui/login-layout.h"
+#include "login/ui/native-endpoint.h"
+#include "login/ui/login-layout.h"
 #include <assert.h>
 #include <string.h>
 

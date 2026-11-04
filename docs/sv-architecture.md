@@ -40,16 +40,27 @@ Application связывает устойчивые интерфейсы, без
 
 ## Размещение исходников
 
-Текущее дерево `src/client/sv` сгруппировано по ответственности
-([SV-ARCH-003](tasks/SV-ARCH-003-group-sv-sources-by-module.md)):
+Текущее дерево `src/client/sv` сочетает группировку общих механизмов по
+ответственности ([SV-ARCH-003](tasks/SV-ARCH-003-group-sv-sources-by-module.md))
+и локальность сценария входа ([архитектура входа](tasks/login-architecture/README.md)).
+Перенос входа от 2026-11-04 реализован только внутри SV; адресные Linux
+проверки и ограничения записаны в [интеграционном отчёте](tasks/login-architecture/SV-LOGIN-ARCH-005-integration.md). Группировка файлов не отменяет принятые ADR:
 
 | Путь внутри SV | Содержимое |
 |---|---|
 | `main.c`, `app.[ch]`, `result.[ch]` | Запуск, сборка модулей/lifecycle и общий контракт результата |
-| `session/` | Модель сессии и правила предупреждений (`session`, `alerts`) |
+| `session/` | Модель сессии, предупреждения (`session`, `alerts`) и совместный SV-контракт `character-setup.h` |
 | `protocol/` | Декодирование, сериализация, сравнение версий и локальные helpers |
 | `input/` | Router, контексты/макросы и отдельный адаптер SDL-ввода |
-| `ui/` | Layout/rendering, шрифты, подготовка статуса и текста сообщений |
+| `ui/` | Общие layout/rendering utilities, шрифты, подготовка статуса и текста сообщений |
+| `credential/` | Самостоятельный credential vault |
+| `login/` | Сценарий входа: `flow`, `native-run`, `options`, `pregame`, `login-view`, `chronicle` |
+| `login/servers/` | Выбор endpoint, metaserver |
+| `login/account/` | Credentials interaction и presentation |
+| `login/characters/` | Выбор персонажа и native name/login adapters |
+| `login/creation/` | Birth interaction, private state, native adapter и описания выбора |
+| `login/motd/` | MOTD presentation helpers |
+| `login/ui/` | Shell/scene/layout входа, native endpoint adapter и frame view |
 
 Includes используют явный путь от единственного корня SV, например
 `session/session.h` и `ui/font.h`. Вложенные objects и `.d` dependencies сохраняют
@@ -57,7 +68,8 @@ Includes используют явный путь от единственног�
 Session использует локальный `protocol/hp-update.h` для baseline HP apply;
 это существующая зависимость, сохранённая при переносе.
 
-Размещение файлов не меняет interfaces и владельцев состояния. SDL-адаптер ввода
+Сам физический перенос сохраняет interfaces и владельцев состояния; изменения
+контракта входа описаны ниже. SDL-адаптер ввода
 остаётся отдельным от headless router; `ui/status` готовит представление, а
 семантическое состояние HP принадлежит session model. Диагностический launcher,
 синтетическая UI-оболочка, bootstrap/peer, измерители и захват кадров находятся
@@ -72,11 +84,38 @@ production-путём с явными именами `sv_stub_*` / `SV_STUB_*`: 
 play profile и тексты незавершённых Guide/live-session surfaces. Диагностика
 и тестовые fixtures в этот каталог не входят.
 
-Незавершённое birth interaction доступно production-коду только через публичную
-границу `input/birth-interaction.h`; native SDL adapter переводит gestures в её
-semantic commands. Текущая SV-local реализация состояния остаётся в
-`session/birth.[ch]`, но endpoint и UI не используют этот backing header напрямую:
-владельцем input context остаётся input router / interactions.
+Сценарий входа управляется `login/flow.[ch]`: flow владеет endpoint,
+credentials buffers и recovery draft; отдельная попытка внутри flow владеет
+socket, generation, protocol login, pregame, birth и vault request. Детали
+представления flow находятся в `login/flow-internal.h`; это private interface
+для синхронных native adapters, не интерфейс renderer или внешних callers.
+`login/native-run.[ch]` собирает SDL loop, доставку native ввода, время и rendering.
+Вход снаружи вызывается через прежнюю функцию runner по новому пути;
+`endpoint-run.[ch]` по прежнему пути не сохраняется.
+
+Renderer принимает `SvEndpointView` из `login/ui/view.h`, отдельно от mutable
+`SvEndpointInput`. Frame view передаётся синхронно: borrowed pointers действуют
+до mutation/teardown; renderer их не удерживает. Взаимодействия владеют смысловыми
+drafts, native слой — hover, focus, scroll и viewport. Draw и hit testing
+используют общую logical geometry; возвращаемые render metrics не являются
+мутацией interaction state.
+
+Birth доступен внешнему production-коду через самостоятельный
+`login/creation/birth-interaction.h`: opaque `SvBirth`, semantic commands,
+read-only `SvBirthView`, проверенный `SvBirthPlayDraft` и diagnostic
+`SvBirthSnapshot`. Snapshot — самостоятельное значение для наблюдения, его нельзя
+применить обратно к interaction. Полное mutable состояние определено только в
+private `login/creation/birth.h`; его используют core и native adapter внутри
+creation. `view->setup` заимствован у попытки, поэтому view нельзя удерживать
+через её mutation/teardown. Production core остаётся единственным.
+
+Transport/wire protocol, generic text editing, font/render utilities и vault
+сохраняют самостоятельность; их не переносят в login ради физической близости.
+Текущий startup milestone по-прежнему заканчивается cleanup соединения и
+заглушкой live surface. Реальный однократный handoff socket, generation,
+version/setup, выбранного персонажа, decoded startup state, unread bytes и
+pending sends требует отдельного runtime consumer. Эта реорганизация его не
+реализует и не меняет CLI/packaging C001.
 
 ## Потоки данных
 

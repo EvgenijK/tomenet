@@ -1,5 +1,5 @@
-#include "endpoint-run.h"
-#include "ui/login-layout.h"
+#include "login/native-run.h"
+#include "login/ui/login-layout.h"
 #include <SDL3/SDL.h>
 #include <assert.h>
 #include <string.h>

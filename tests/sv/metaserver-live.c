@@ -1,5 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
-#include "input/metaserver.h"
+#include "login/servers/metaserver.h"
 #include <SDL3/SDL.h>
 #include <arpa/inet.h>
 #include <assert.h>

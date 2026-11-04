@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix="sv-meta-live-") as temp:
     binary = directory / "metaserver-live"
     subprocess.run([CC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-fsanitize=undefined",
                     "-Isrc/client/sv", "tests/sv/metaserver-live.c",
-                    "src/client/sv/input/metaserver.c", "src/client/sv/input/endpoint.c",
+                    "src/client/sv/login/servers/metaserver.c", "src/client/sv/login/servers/endpoint.c",
                     "src/client/sv/input/text-field.c", *SDL, "-o", str(binary)],
                    cwd=ROOT, check=True)
     environment = dict(os.environ, PATH=str(directory) + os.pathsep + os.environ["PATH"])

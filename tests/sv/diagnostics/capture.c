@@ -1,5 +1,5 @@
 #include "diagnostics/capture.h"
-#include "ui/endpoint-scene.h"
+#include "login/ui/endpoint-scene.h"
 #include <string.h>
 
 static bool capture_frame(void *context, SDL_Renderer *renderer)

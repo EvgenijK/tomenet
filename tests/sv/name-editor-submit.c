@@ -1,5 +1,5 @@
-#include "endpoint-run.h"
-#include "ui/login-layout.h"
+#include "login/native-run.h"
+#include "login/ui/login-layout.h"
 #include "../../src/common/pack.h"
 #include <SDL3/SDL.h>
 #include <arpa/inet.h>

@@ -1,4 +1,4 @@
-#include "input/native-login.h"
+#include "login/characters/native-login.h"
 #include <assert.h>
 
 int main(void)

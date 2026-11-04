@@ -20,7 +20,7 @@
 #include "arch-scenario.h"
 #include "native-frame.h"
 #include "diagnostics/synthetic.h"
-#include "endpoint-run.h"
+#include "login/native-run.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

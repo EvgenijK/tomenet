@@ -1,0 +1,3 @@
+body hotkeys PASS
+body n: owner=6 confirmed=1
+body f: owner=6 confirmed=1
