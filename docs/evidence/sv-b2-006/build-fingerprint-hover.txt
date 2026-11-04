@@ -1,0 +1,10 @@
+56ddef2d477ba7a806638aaf227b312e9bedfc5384dbc0789d4200dfb1d60a19  src/tomenet-sv
+build=linux-bd7f9b5e26c5789bb7e9
+compiler=clang
+clang version 22.1.8
+cflags=-Iclient/sv -Itemporary/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong -DSV_CLASS_BEFORE_RACE=1  -O2 -g -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/libsecret-1 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -I/usr/include/tss2
+ldflags=
+libs=-lSDL3_ttf -lSDL3 -lfreetype -lpng16 -lsecret-1 -lgio-2.0 -lgobject-2.0 -lglib-2.0
+dependencies=3.4.16 3.2.2 26.6.20 1.6.58 0.21.7
+core_platform=
+features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=off;terminal=absent

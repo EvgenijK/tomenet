@@ -1,0 +1,15 @@
+# Independent review — Show focus and setup negotiation, 2026-10-29
+
+Exact delta reviewed against `/tmp/sv-b2-connect-followup-baseline.tar`, after Graphify query. Repository CONTEXT and relevant ownership/lifecycle ADRs were already read. No production edits or new test framework by reviewer.
+
+The setup correction is narrow and matches legacy `nclient.c` trait decoding: empty titles are allowed only for trait slots, with cursor advancement through the empty NUL and the subsequent unchanged 32-bit choice mask. Race/class names retain their nonempty requirement; bounded string lookup, partial-input behavior, count capacity and MOTD bounds remain unchanged. All trait slots remain at their original wire IDs, including reserved gaps around Maia traits. Reviewed the existing core fixture extension and real response replay evidence across chunk sizes 1–4096. Reply artifacts contain server setup data; no raw credential logging was introduced.
+
+The new socket diagnostic getter records decoder result versus transport close without changing connection state decisions for normal decode/EOF. Endpoint status includes validated host:port and bounded readable cause; it adds no account/password/payload text. Show/Hide removes the explicit focus rectangle and indicates focus through text color; toggle input, keyboard focus, noncached/wiped secret rendering and capture suppression remain unchanged.
+
+Diagnostic edge corrected and re-reviewed: `sv_contact_receive` can return `SV_INPUT_OVERFLOW` before setting failed_phase/state FAILED; socket polling always reads the failed_phase, so overflow during WAIT_SETUP is classified PROTOCOL_ERROR and the new setup-overflow message is unreachable. The socket now uses saved failure phase only after the contact transitions to FAILED, and otherwise uses current phase, closing the finding. Readable status changes are limited to SETUP_ERROR; unrelated error strings remain unchanged. No open actionable source findings remain.
+
+`git diff --check` on touched production files and existing core test is clean. Root owns final existing contact/endpoint suites and renderer evidence.
+
+Final delta re-reviewed after overflow-phase fallback and SETUP_ERROR-only message scope; `git diff --check` clean. Existing live checks update expected setup EOF/malformed text without changing behavioral paths. Root executes final existing suites.
+
+Follow-up runtime finding fixed and independently re-reviewed: `run_contact` owns a value snapshot of socket failure result, captured immediately after every poll while the provider exists. The formatter uses that value after socket cleanup, preserving EOF versus decode text on later frames; retries start a fresh call/value. No borrowed connection pointer enters formatter anymore. Error card height244 now contains unchanged submit/retry geometry with20 logical bottom padding; action hitboxes are unchanged. No open review findings. Root observed actual TCP/render EOF message persist10frames later and executes final targeted checks.

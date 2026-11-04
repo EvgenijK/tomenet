@@ -1,0 +1,1 @@
+metaparser: tests/sv/metaserver.c:32: int main(void): Assertion `count == 3 && servers[0].metadata_available && servers[0].official' failed.

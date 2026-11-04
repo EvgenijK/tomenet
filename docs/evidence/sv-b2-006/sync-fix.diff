@@ -1,0 +1,24 @@
+--- /tmp/sv-b2-006-endpoint-run-before-sync.c	2026-10-29 18:44:00.503564959 +0300
++++ src/client/sv/endpoint-run.c	2026-10-29 18:44:00.562326966 +0300
+@@ -1102,6 +1102,9 @@
+     if (options.windowed && !SDL_SetWindowSize(window,
+             (int)SDL_roundf(options.width * window_scale),
+             (int)SDL_roundf(options.height * window_scale))) goto done;
++    /* Finalize asynchronous startup sizing before software rendering binds the
++     * window surface; otherwise its output can retain the unscaled size. */
++    if (!SDL_SyncWindow(window)) goto done;
+     renderer = SDL_CreateRenderer(window,NULL);
+     if (!renderer || !sv_login_shell_open(renderer, library)) goto done;
+     int window_count = 0;
+
+--- /tmp/sv-b2-006-main-before-sync.c	2026-10-29 18:44:00.504470599 +0300
++++ src/client/sv/main.c	2026-10-29 18:44:00.592326967 +0300
+@@ -181,6 +181,8 @@
+             (int)SDL_ceilf(1024 * window_scale), (int)SDL_ceilf(768 * window_scale))) goto done;
+     if (windowed && !SDL_SetWindowSize(window, (int)SDL_roundf(width * window_scale),
+                                       (int)SDL_roundf(height * window_scale))) goto done;
++    /* Bind the renderer only after the requested startup size is applied. */
++    if (!SDL_SyncWindow(window)) goto done;
+     renderer = SDL_CreateRenderer(window, NULL);
+     if (!renderer) goto done;
+     int count = 0;

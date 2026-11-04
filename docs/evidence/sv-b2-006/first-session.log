@@ -1,0 +1,25 @@
+SV resource unavailable: /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=41005
+SV contact ready host=127.0.0.1 port=41005 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=109621077
+SV-B-020 managed-peer production flow passed
+SV resource unavailable: /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=46713
+SV contact ready host=127.0.0.1 port=46713 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV resource unavailable: /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=34429
+SV contact ready host=127.0.0.1 port=34429 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV resource unavailable: /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b020-vsd6e_zz/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Wrong password  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=41847
+SV contact ready host=127.0.0.1 port=41847 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV contact ready host=127.0.0.1 port=41847 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=354479804
+SV-B-020 managed-peer production flow passed
+SV-B-020 first-session managed-peer checks passed

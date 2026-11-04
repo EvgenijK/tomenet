@@ -1,0 +1,79 @@
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV contact failed: Forbidden character name. Please choose a different name.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=41507
+SV contact ready host=127.0.0.1 port=41507 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=41507 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV contact failed: Character name already logged in or currently logging in.  Press R to retry or Escape to exit. (status=0)
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV endpoint selected host=127.0.0.1 port=35527
+SV contact ready host=127.0.0.1 port=35527 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=35527 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV contact failed: Name already in use by another player.  Press R to retry or Escape to exit. (status=0)
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV endpoint selected host=127.0.0.1 port=32981
+SV contact ready host=127.0.0.1 port=32981 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=32981 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV contact failed: Forbidden character name. Please choose a different name.  Retry login is disabled; exiting. (status=0)
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=33297
+SV contact ready host=127.0.0.1 port=33297 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=35639
+SV contact ready host=127.0.0.1 port=35639 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-rejection-9v6sl9nt/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV contact failed: Forbidden character name. Please choose a different name.  Press R to retry or Escape to exit. (status=0)
+SV endpoint selected host=127.0.0.1 port=46535
+SV contact ready host=127.0.0.1 port=46535 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=46535 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV-B-022 name rejection recovery production checks passed

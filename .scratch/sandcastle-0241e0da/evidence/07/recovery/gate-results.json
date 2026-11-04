@@ -1,0 +1,50 @@
+{
+  "contract_digest": "0ba2cedc9474a7f17f847c0bdb89d04023b0a9edefa8611f7528564eeb4f83ef",
+  "checked_head": "7bcaf3a502883c5867bd4695a3bb2bb7f0b00c92",
+  "sv-build": {
+    "command": "make -s -C src -f makefile.sv tomenet-sv",
+    "returncode": 0,
+    "log": "sv-build.log.gz",
+    "log_size": 2303,
+    "log_sha256": "e51d90a37af224144ac14f217cee22b9552ff80475d57ca8ff3fee9a80f48c46",
+    "encoding": "gzip; SHA256/size describe uncompressed transcript",
+    "compressed_sha256": "d6627efbd0c3f0d197511588e83a6a60590c3cb70569ea8d2007a2b7cf12fa52"
+  },
+  "sv-core-system-python": {
+    "command": "bash -s -- core < .sandcastle/checks.sh",
+    "returncode": 1,
+    "log": "sv-core-system-python.log.gz",
+    "reason": "/usr/bin/python3 missing jsonschema; configured venv not in login-shell PATH",
+    "log_size": 239416,
+    "log_sha256": "d045ce3b6476c2a4fc5df2a206b67598ee0111b089c004c7c0754b5d0805d280",
+    "encoding": "gzip; SHA256/size describe uncompressed transcript",
+    "compressed_sha256": "8565778a1ab958fb15961a3728d205139a831a71ae9f63b6070d0046f9db0ffb"
+  },
+  "runtime-environment-check": {
+    "command": "PATH=/opt/sv-venv/bin:$PATH python3 -B tests/sv_runtime_checks.py",
+    "returncode": 0,
+    "log": "runtime-environment-check.log.gz",
+    "log_size": 371,
+    "log_sha256": "99b0ccca11b2098466bee6092cbae250829067fefc5b6630759ab83cdabb56ed",
+    "encoding": "gzip; SHA256/size describe uncompressed transcript",
+    "compressed_sha256": "65f778969ed3a675694c393ed27621f46cde0eaa69328cbeb2886eea339806e8"
+  },
+  "sv-core": {
+    "command": "bash -s -- core < .sandcastle/checks.sh",
+    "environment": {
+      "PATH_prefix": "/opt/sv-venv/bin"
+    },
+    "status": "passed",
+    "returncode": 0,
+    "log": "sv-core.log.gz",
+    "log_size": 245283,
+    "log_sha256": "6673ca1e11db0c687243ec7eb4624023bf07fee5244004677dccd9da4b515a5e",
+    "encoding": "gzip; SHA256/size describe uncompressed transcript",
+    "compressed_sha256": "9935f6039ee595ecebd0ca404760ca8b3c14321c263378f485188143946fa1a1"
+  },
+  "focused": {
+    "command": "python3 tests/sv_birth_runtime_evidence.py /tmp/sv-b024-recovery/pre-final-runtime",
+    "returncode": 0,
+    "manifest": "/tmp/sv-b024-recovery/pre-final-runtime/manifest.json"
+  }
+}

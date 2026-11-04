@@ -1,0 +1,19 @@
+SV resource unavailable: /tmp/sv-b024-p0jlaqnp/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-p0jlaqnp/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64402
+birth-complete: tests/sv/birth-single-submission.c:154: void *complete_peer(void *): Assertion `poll(&final_ready, 1, 800) == 1' failed.
+Traceback (most recent call last):
+  File "/tmp/sv-login-architecture-baseline/tests/sv_birth_single_submission_checks.py", line 63, in <module>
+    run.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/subprocess.py", line 509, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-b024-p0jlaqnp/birth-complete', '/tmp/sv-b024-p0jlaqnp/profile', '/tmp/sv-login-architecture-baseline/lib', 'ack', '/tmp/sv-login-architecture-baseline/tests/sv/fixtures/birth-current.hex', '/tmp/sv-b024-p0jlaqnp/evidence/ack.bin']' died with <Signals.SIGABRT: 6>.

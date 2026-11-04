@@ -1,0 +1,62 @@
+[
+  {
+    "backend": "software",
+    "size": [
+      1440,
+      900
+    ],
+    "point": true,
+    "command": [
+      "/tmp/sv-b2-004-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "37607",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-004-native-wemrqy2l",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "phase": "initial-login",
+      "name_request_hex": "0d0c4361726f6c00",
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "size": [
+      1440,
+      900
+    ],
+    "point": true,
+    "command": [
+      "/tmp/sv-b2-004-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "42645",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-004-native-w4m8ebhv",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "phase": "initial-login",
+      "name_request_hex": "0d0c4361726f6c00",
+      "outgoing_hex": "0d0d"
+    }
+  }
+]

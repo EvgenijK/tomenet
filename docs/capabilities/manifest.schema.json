@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/binding"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "inputContexts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "capability-exposed-on-surface",
+              "capability-uses-action",
+              "capability-observes-state",
+              "surface-presents-state",
+              "binding-invokes-action"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+          }
+        },
+        "required": [
+          "kind",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "sources",
+    "capabilities",
+    "surfaces",
+    "actions",
+    "states",
+    "bindings",
+    "inputContexts",
+    "relations"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "entity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entityFields"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "binding": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entityFields"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gesture": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "actionId": {
+              "type": "string",
+              "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+            },
+            "contextId": {
+              "type": "string",
+              "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+            },
+            "keyset": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "normal",
+                  "roguelike"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "platform": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "gesture",
+            "actionId",
+            "contextId"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+        },
+        "role": {
+          "enum": [
+            "behavior",
+            "protocol",
+            "ux",
+            "acceptance"
+          ]
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "anchor": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "repository",
+        "revision",
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "entityFields": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "lifecycle": {
+          "enum": [
+            "proposed",
+            "active",
+            "deprecated",
+            "retired"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replacedBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "lifecycle",
+        "sources"
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64086
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+revision=1 count=0 loading=1 completed=0 failed=0 elapsed=0
+revision=2 count=40 loading=1 completed=1 failed=0 elapsed=546
+revision=4 count=100 loading=1 completed=3 failed=0 elapsed=556
+revision=5 count=100 loading=1 completed=4 failed=0 elapsed=637
+revision=6 count=100 loading=1 completed=5 failed=0 elapsed=647
+revision=10 count=100 loading=0 completed=9 failed=0 elapsed=657
+0 2026-10-29 777777 Novice Jark Maggart (1) was *killed* by a Metallic red centipede.
+0 2026-10-27 777777 Cutpurse Uriel XIV (7) was *killed* by a Rat-thing.
+0 2026-10-26 777777 Flower Boy Onigor (14) committed suicide.
+0 2026-10-26 777777 Flower Boy Onigor (14) was killed by The Borshin.
+0 2026-10-25 777777 Cutpurse Uriel XIII (7) was *killed* by a fatal wound.
+0 2026-10-24 777777 Burglar Uriel XI (15) was *killed* by an Air hound.
+0 2026-10-24 777777 Slinger Uriel X (7) was *killed* by a Novice warrior.
+0 2026-10-24 777777 Rune Tracer Uriel IX (7) was *killed* by a Novice mindcrafter.
+cancel_elapsed_ms=0

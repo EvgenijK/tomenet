@@ -1,0 +1,9 @@
+SV resource unavailable: /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV resource unavailable: /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV resource unavailable: /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV resource unavailable: /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-endpoint-l2_pp_xs/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=second.example port=18350
+SV endpoint selection cancelled; no contact attempted
+SV endpoint selection incomplete; no contact attempted
+SV endpoint selected host=127.0.0.1 port=1
+SV-B-001 endpoint, native input, physical keys, and SDL scene passed

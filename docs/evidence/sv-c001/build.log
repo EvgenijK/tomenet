@@ -1,0 +1,7 @@
+make: Entering directory '/workspace/src'
+make -f makefile.sv PLATFORM=linux shell
+make[1]: Entering directory '/workspace/src'
+cp .sv-build/linux/e8f97e06ea0cd4309818/tomenet-sv tomenet-sv
+SV shell: .sv-build/linux/e8f97e06ea0cd4309818/build.txt
+make[1]: Leaving directory '/workspace/src'
+make: Leaving directory '/workspace/src'

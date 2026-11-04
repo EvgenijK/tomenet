@@ -1,0 +1,4 @@
+SV resource unavailable: /tmp/sv-b2-003-native-zfr5elq0/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b2-003-native-zfr5elq0/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=50709
+SV contact ready host=127.0.0.1 port=50709 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0

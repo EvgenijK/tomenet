@@ -1,0 +1,4 @@
+SV endpoint selected host=127.0.0.1 port=43173
+SV contact ready host=127.0.0.1 port=43173 server=4.9.4.0.0.0 races=18 classes=1 traits=16 motd=0
+SV-B-024 pvp-maia captured 16266 handshake bytes; phase=play-acknowledged character=Carol generation=25918706
+SV resource unavailable: /tmp/sv-b024-dedicated-2z36ksm5/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-dedicated-2z36ksm5/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback

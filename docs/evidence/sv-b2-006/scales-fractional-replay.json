@@ -1,0 +1,56 @@
+[
+  {
+    "label": "software-1024x768-scale1.25",
+    "backend": "software",
+    "logical": [
+      1024,
+      768
+    ],
+    "virtualDisplayScale": 1.25,
+    "output": [
+      1280,
+      960
+    ],
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-001/servers.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-scale-fal0ddr1",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "input": "actual XTest Direct click then modal Cancel exits endpoint with result0; baseline cancel semantics",
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  },
+  {
+    "label": "opengl-1024x768-scale1.5",
+    "backend": "opengl",
+    "logical": [
+      1024,
+      768
+    ],
+    "virtualDisplayScale": 1.5,
+    "output": [
+      1536,
+      1152
+    ],
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-001/servers.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-scale-p2noikgi",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "input": "actual XTest Direct click then modal Cancel exits endpoint with result0; baseline cancel semantics",
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  }
+]

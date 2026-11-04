@@ -1,0 +1,6 @@
+SV endpoint selected host=127.0.0.1 port=58579
+SV contact ready host=127.0.0.1 port=58579 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 truncated-2 captured 16266 handshake bytes; phase=disconnected character=Carol generation=22141209
+SV resource unavailable: /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Error reading play reply (status=0)
+SV endpoint startup failed: 

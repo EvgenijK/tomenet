@@ -1,0 +1,81 @@
+SV endpoint selected host=127.0.0.1 port=40773
+SV contact ready host=127.0.0.1 port=40773 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc captured 16266 handshake bytes; phase=play-pending character=Carol generation=21643971
+SV endpoint selected host=127.0.0.1 port=45335
+SV contact ready host=127.0.0.1 port=45335 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22814638
+SV-B-024 iddc captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22814638
+SV endpoint selected host=127.0.0.1 port=33965
+SV contact ready host=127.0.0.1 port=33965 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=play-pending character=Carol generation=28472377
+SV endpoint selected host=127.0.0.1 port=51745
+SV contact ready host=127.0.0.1 port=51745 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=26334118
+SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=26334118
+SV endpoint selected host=127.0.0.1 port=44315
+SV contact ready host=127.0.0.1 port=44315 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=play-pending character=Carol generation=26691224
+SV endpoint selected host=127.0.0.1 port=44071
+SV contact ready host=127.0.0.1 port=44071 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22892549
+SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22892549
+SV endpoint selected host=127.0.0.1 port=34139
+SV contact ready host=127.0.0.1 port=34139 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=play-pending character=Carol generation=25536796
+SV endpoint selected host=127.0.0.1 port=53655
+SV contact ready host=127.0.0.1 port=53655 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22939975
+SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22939975
+SV endpoint selected host=127.0.0.1 port=55141
+SV contact ready host=127.0.0.1 port=55141 server=4.9.4.0.0.0 races=18 classes=1 traits=16 motd=0
+SV-B-024 pvp-maia captured 16266 handshake bytes; phase=play-pending character=Carol generation=25256403
+SV endpoint selected host=127.0.0.1 port=59283
+SV contact ready host=127.0.0.1 port=59283 server=4.9.4.0.0.0 races=18 classes=1 traits=16 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=29981830
+SV-B-024 pvp-maia captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=29981830
+SV endpoint selected host=127.0.0.1 port=43265
+SV contact ready host=127.0.0.1 port=43265 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc captured 16266 handshake bytes; phase=play-pending character=Carol generation=21476789
+SV endpoint selected host=127.0.0.1 port=44093
+SV contact ready host=127.0.0.1 port=44093 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22127187
+SV-B-024 iddc captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22127187
+SV endpoint selected host=127.0.0.1 port=34063
+SV contact ready host=127.0.0.1 port=34063 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=play-pending character=Carol generation=23302484
+SV endpoint selected host=127.0.0.1 port=45365
+SV contact ready host=127.0.0.1 port=45365 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22776722
+SV-B-024 iddc-soloist captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22776722
+SV endpoint selected host=127.0.0.1 port=32905
+SV contact ready host=127.0.0.1 port=32905 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=play-pending character=Carol generation=28604557
+SV endpoint selected host=127.0.0.1 port=34643
+SV contact ready host=127.0.0.1 port=34643 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=22218828
+SV-B-024 iddc-hellish captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=22218828
+SV endpoint selected host=127.0.0.1 port=52839
+SV contact ready host=127.0.0.1 port=52839 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=play-pending character=Carol generation=24332778
+SV endpoint selected host=127.0.0.1 port=48383
+SV contact ready host=127.0.0.1 port=48383 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=25661664
+SV-B-024 iddc-skipped captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=25661664
+SV endpoint selected host=127.0.0.1 port=33655
+SV contact ready host=127.0.0.1 port=33655 server=4.9.4.0.0.0 races=18 classes=1 traits=16 motd=0
+SV-B-024 pvp-maia captured 16266 handshake bytes; phase=play-pending character=Carol generation=28841351
+SV endpoint selected host=127.0.0.1 port=58277
+SV contact ready host=127.0.0.1 port=58277 server=4.9.4.0.0.0 races=18 classes=1 traits=16 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=33913575
+SV-B-024 pvp-maia captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=33913575
+SV-B-024 dedicated production handshake checks passed (both compile orders)

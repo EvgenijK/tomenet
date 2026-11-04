@@ -1,0 +1,5 @@
+SV endpoint selected host=127.0.0.1 port=38495
+SV contact ready host=127.0.0.1 port=38495 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-024 cancel-body no final bytes; closed=1 generation=24290196
+SV resource unavailable: /tmp/sv-b024-xny0q7nb/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-xny0q7nb/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint startup failed:

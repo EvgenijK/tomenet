@@ -1,0 +1,4 @@
+SV resource unavailable: /tmp/sv-error-capture-p0uhvjqv/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-error-capture-p0uhvjqv/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: 127.0.0.1:34547: The server closed the connection before its configuration was received. Retry (R) or cancel (Esc). (status=0)
+SV endpoint startup failed: 
+SV endpoint selected host=127.0.0.1 port=34547

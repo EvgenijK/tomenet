@@ -1,0 +1,34 @@
+{
+  "fixture": "unknown",
+  "variant": "C",
+  "reports": [
+    {
+      "variant": "C",
+      "columns": 80,
+      "rows": 23,
+      "glyphs": 115,
+      "logicalWindow": [
+        1440,
+        900
+      ],
+      "backingPixels": [
+        1440,
+        900
+      ],
+      "textCell": [
+        10,
+        20
+      ],
+      "scale": 1.74,
+      "origin": [
+        24,
+        49.80000000000001
+      ],
+      "extent": [
+        1392,
+        800.4
+      ],
+      "withinWindow": true
+    }
+  ]
+}

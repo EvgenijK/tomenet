@@ -1,0 +1,7 @@
+animated glyph ' = 1
+animated glyph ) = 1
+animated glyph ( = 1
+animated glyph . = 1
+animated glyph 0 = 1
+animated glyph o = 1
+expected six dynamic torch glyphs, found=6

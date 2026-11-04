@@ -1,0 +1,11 @@
+From repository root:
+make -C src -f makefile.sv tomenet-sv -j4
+node docs/evidence/sv-b2-003/capture-reference.cjs docs/evidence/sv-b2-003
+cp src/tomenet-sv docs/evidence/sv-b2-003/tomenet-sv-capture
+python3 docs/evidence/sv-b2-003/capture-native.py
+SV_CAPTURE_STATES=edit,error,resize python3 docs/evidence/sv-b2-003/capture-native.py
+SV_CAPTURE_ROWS=12 SV_CAPTURE_STATES=scroll,resize python3 docs/evidence/sv-b2-003/capture-native.py
+Capture requires local X11 DISPLAY/XAUTHORITY, KDE layout DBus API, ImageMagick import,
+libX11/libXtst and Python Pillow. Script restores prior compositor/XKB layout.
+Accepted retained PNG names omit the script's -window suffix. SDL hook BMP-derived
+PNGs are diagnostic only and not the accepted screenshots. Do not commit copied executable.

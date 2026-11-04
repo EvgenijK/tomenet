@@ -1,0 +1,1154 @@
+{
+  "url": "file:///tmp/sv-b2-reference-MOKfaK/login.html?variant=D",
+  "viewport": {
+    "width": 1024,
+    "height": 768,
+    "devicePixelRatio": 1
+  },
+  "reducedMotion": true,
+  "bodyVariant": "D",
+  "styles": [
+    {
+      "selector": "#creationSummary",
+      "rect": {
+        "x": 36,
+        "y": 221.78125,
+        "width": 290,
+        "height": 473.21875
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "radial-gradient(circle at 18% 4%, rgba(218, 178, 69, 0.16), rgba(0, 0, 0, 0) 38%) repeat scroll 0% 0% / auto padding-box border-box, rgba(0, 0, 0, 0) linear-gradient(145deg, rgba(26, 25, 14, 0.92), rgba(3, 8, 5, 0.92) 52%, rgba(10, 15, 10, 0.96)) repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(138, 113, 53)",
+        "padding": "12px 18px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "290px",
+        "height": "473.219px"
+      }
+    },
+    {
+      "selector": "#creationContent",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "contents",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".creation-selection-list",
+      "rect": {
+        "x": 342,
+        "y": 258.796875,
+        "width": 644,
+        "height": 253.328125
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "0px",
+        "gridTemplateColumns": "644px",
+        "gridTemplateRows": "32.6562px 22.0938px 33.0938px 33.0938px 33.0938px 33.0938px 33.0938px 33.1094px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "644px",
+        "height": "253.328px"
+      }
+    },
+    {
+      "selector": ".creation-detail",
+      "rect": {
+        "x": 342,
+        "y": 526.125,
+        "width": 644,
+        "height": 168.875
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "",
+        "padding": "14px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "644px",
+        "height": "168.875px"
+      }
+    },
+    {
+      "selector": ".creation-workspace",
+      "rect": {
+        "x": 36,
+        "y": 221.78125,
+        "width": 952,
+        "height": 473.21875
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "14px",
+        "gridTemplateColumns": "290px 648px",
+        "gridTemplateRows": "473.219px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "952px",
+        "height": "473.219px"
+      }
+    },
+    {
+      "selector": ".creation-stat",
+      "rect": {
+        "x": 342,
+        "y": 313.546875,
+        "width": 644,
+        "height": 33.09375
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(91, 70, 19, 0.28) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "",
+        "padding": "3px 10px",
+        "gap": "2px",
+        "gridTemplateColumns": "183.328px 44px 58px 58px 14px 52px 54px 146.672px",
+        "gridTemplateRows": "26.0938px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "644px",
+        "height": "33.0938px"
+      }
+    },
+    {
+      "selector": "#attributeWarningBackdrop",
+      "rect": {
+        "x": 16,
+        "y": 153.1875,
+        "width": 992,
+        "height": 605.8125
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(1, 3, 2, 0.84) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "992px",
+        "gridTemplateRows": "605.812px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "992px",
+        "height": "605.812px"
+      }
+    },
+    {
+      "selector": "#creationGuideBackdrop",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(1, 3, 2, 0.84) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "body",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 768
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgb(2, 4, 3) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "1024px",
+        "height": "768px"
+      }
+    },
+    {
+      "selector": ".login-shell",
+      "rect": {
+        "x": 15,
+        "y": 0,
+        "width": 994,
+        "height": 768
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "8px 0px",
+        "gap": "8px 12px",
+        "gridTemplateColumns": "994px",
+        "gridTemplateRows": "136.188px 607.812px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "994px",
+        "height": "768px"
+      }
+    },
+    {
+      "selector": ".login-hero",
+      "rect": {
+        "x": 15,
+        "y": 8,
+        "width": 994,
+        "height": 136.1875
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "994px",
+        "height": "136.188px"
+      }
+    },
+    {
+      "selector": ".hero-content",
+      "rect": {
+        "x": 27,
+        "y": 8,
+        "width": 970,
+        "height": 136.1875
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "970px",
+        "gridTemplateRows": "136.188px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "970px",
+        "height": "136.188px"
+      }
+    },
+    {
+      "selector": "#accountLogo",
+      "rect": {
+        "x": 27,
+        "y": 21.53125,
+        "width": 970,
+        "height": 109.125
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "drop-shadow(rgba(255, 79, 24, 0.2) 0px 0px 12px) drop-shadow(rgb(0, 0, 0) 0px 12px 26px)",
+        "opacity": "1",
+        "width": "970px",
+        "height": "109.125px"
+      }
+    },
+    {
+      "selector": ".login-panel",
+      "rect": {
+        "x": 15,
+        "y": 152.1875,
+        "width": 994,
+        "height": 607.8125
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(4, 8, 5, 0.91) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgba(130, 111, 62, 0.52)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "992px",
+        "gridTemplateRows": "50.5938px 509.219px 46px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "994px",
+        "height": "607.812px"
+      }
+    },
+    {
+      "selector": ".world-chronicle",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(4, 8, 5, 0.2) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "minmax(0px, 1fr)",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".realm-links",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "10px",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".realm-link",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "flex",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(201, 170, 77)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(201, 170, 77)",
+        "padding": "0px",
+        "gap": "7px",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "40px"
+      }
+    },
+    {
+      "selector": ".realm-link-label",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "9px",
+        "fontWeight": "400",
+        "lineHeight": "9px",
+        "color": "rgb(170, 169, 151)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(170, 169, 151)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".account-torches",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".server-option",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "inline-block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(78, 61, 18, 0.4) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(230, 192, 79)",
+        "padding": "12px 13px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "100%",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".server-enter",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(240, 201, 85)",
+        "background": "rgba(11, 14, 10, 0.92) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(169, 138, 50)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "34px",
+        "height": "34px"
+      }
+    },
+    {
+      "selector": ".step-title",
+      "missing": true
+    },
+    {
+      "selector": ".server-name",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "inline",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "lineHeight": "normal",
+        "color": "rgb(229, 226, 213)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(229, 226, 213)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".server-meta",
+      "missing": true
+    },
+    {
+      "selector": ".server-title",
+      "missing": true
+    },
+    {
+      "selector": ".chronicle-copy",
+      "missing": true
+    },
+    {
+      "selector": ".chronicle-empty",
+      "missing": true
+    },
+    {
+      "selector": ".server-controls",
+      "missing": true
+    },
+    {
+      "selector": ".account-welcome",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", monospace",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "17.6px",
+        "color": "rgba(224, 223, 209, 0.75)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgba(224, 223, 209, 0.75)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".panel-header h2",
+      "rect": {
+        "x": 36,
+        "y": 159.6875,
+        "width": 248.453125,
+        "height": 22
+      },
+      "styles": {
+        "display": "flex",
+        "fontFamily": "Georgia, serif",
+        "fontSize": "19px",
+        "fontWeight": "500",
+        "lineHeight": "normal",
+        "color": "rgb(239, 208, 105)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(239, 208, 105)",
+        "padding": "0px",
+        "gap": "8px",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "248.453px",
+        "height": "22px"
+      }
+    },
+    {
+      "selector": "#directBackdrop",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(1, 3, 2, 0.84) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".manual-card",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgb(7, 9, 7) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(49, 53, 45)",
+        "padding": "18px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "min(390px, 100% - 30px)",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#accountStep",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".account-form",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#accountInput",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(229, 229, 219)",
+        "background": "rgba(1, 4, 2, 0.82) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(70, 74, 65)",
+        "padding": "9px 11px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "100%",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#passwordInput",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "inline-block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(229, 229, 219)",
+        "background": "rgba(1, 4, 2, 0.82) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(70, 74, 65)",
+        "padding": "9px 58px 9px 11px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "100%",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#characterStep",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "none",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#characterList",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "9px",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".character-option",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(87, 70, 24, 0.32), rgba(17, 18, 8, 0.72)) repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(230, 192, 79)",
+        "padding": "16px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "100%",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".character-level",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) linear-gradient(135deg, rgb(32, 28, 17), rgb(9, 11, 9)) repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px solid rgb(177, 138, 55)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "21.6px",
+        "height": "21.6px"
+      }
+    },
+    {
+      "selector": ".character-identity",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "10px",
+        "gridTemplateColumns": "minmax(0px, 1.15fr) minmax(0px, 1fr)",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".character-meta",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "contents",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "auto",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": ".character-slot-placeholder",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "styles": {
+        "display": "flex",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(102, 108, 101)",
+        "background": "rgba(5, 8, 6, 0.38) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "1px dashed rgb(48, 53, 46)",
+        "padding": "7px 14px",
+        "gap": "13px",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "100%",
+        "height": "auto"
+      }
+    },
+    {
+      "selector": "#characterCreateStep",
+      "rect": {
+        "x": 36,
+        "y": 221.78125,
+        "width": 952,
+        "height": 473.21875
+      },
+      "styles": {
+        "display": "block",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(238, 234, 221)",
+        "padding": "0px",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "gridTemplateRows": "none",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "952px",
+        "height": "473.219px"
+      }
+    },
+    {
+      "selector": ".creation-name-layout",
+      "missing": true
+    },
+    {
+      "selector": "#characterNameInput",
+      "missing": true
+    },
+    {
+      "selector": ".panel-footer",
+      "rect": {
+        "x": 16,
+        "y": 713,
+        "width": 992,
+        "height": 46
+      },
+      "styles": {
+        "display": "grid",
+        "fontFamily": "Consolas, \"Liberation Mono\", \"DejaVu Sans Mono\", monospace",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "color": "rgb(238, 234, 221)",
+        "background": "rgba(4, 7, 5, 0.72) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "",
+        "padding": "6.5px 20px",
+        "gap": "20px",
+        "gridTemplateColumns": "58.0156px 90px 763.984px",
+        "gridTemplateRows": "32px",
+        "transform": "none",
+        "filter": "none",
+        "opacity": "1",
+        "width": "992px",
+        "height": "46px"
+      }
+    },
+    {
+      "selector": "#characterNameError",
+      "missing": true
+    }
+  ],
+  "backgrounds": [
+    {
+      "class": "login-background-layer is-visible",
+      "background": "url(\"file:///tmp/sv-b2-reference-MOKfaK/assets/log_in_backgrounds/cirith_ungol_ascii_seed06.png\")"
+    },
+    {
+      "class": "login-background-layer",
+      "background": "none"
+    }
+  ],
+  "logo": "<svg class=\"account-logo\" id=\"accountLogo\" viewBox=\"0 0 1280 144\" role=\"img\" aria-labelledby=\"accountLogoTitle\" preserveAspectRatio=\"xMidYMid meet\">\n          <title id=\"accountLogoTitle\">TomeNET</title>\n        <text class=\"logo-flame-character\" x=\"24\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"40\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"56\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"72\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"88\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"104\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"120\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"136\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"152\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"168\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"216\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"232\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"248\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"264\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"280\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"296\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"312\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"328\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"376\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"392\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"408\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"424\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"504\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"520\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"536\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"552\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"600\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"616\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"632\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"648\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"664\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"680\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"696\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"712\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"776\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"792\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"808\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"856\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"872\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"888\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"904\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"952\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"968\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"984\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1000\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1016\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1032\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1048\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1064\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1112\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1128\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1144\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1160\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1176\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1192\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1208\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1224\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1240\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><text class=\"logo-flame-character\" x=\"1256\" y=\"20\" data-logo-row=\"0\" data-logo-source=\"^\" fill=\"#b70000\">^</text><rect x=\"32\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"48\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"64\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"80\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"96\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"112\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"128\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"144\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"224\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"240\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"256\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"272\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"288\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"304\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"384\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"400\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"416\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><polygon points=\"432,24 432,48 448,48\" data-logo-row=\"1\" data-logo-source=\"\\\" fill=\"#ffff00\"></polygon><polygon points=\"496,24 496,48 480,48\" data-logo-row=\"1\" data-logo-source=\"/\" fill=\"#ffff00\"></polygon><rect x=\"496\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"512\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"528\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"608\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"624\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"640\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"656\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"672\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"688\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"784\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"800\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><polygon points=\"816,24 816,48 832,48\" data-logo-row=\"1\" data-logo-source=\"\\\" fill=\"#ffff00\"></polygon><rect x=\"864\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"880\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"960\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"976\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"992\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1008\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1024\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1040\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1120\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1136\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1152\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1168\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1184\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1200\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1216\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"1232\" y=\"24\" width=\"16\" height=\"24\" data-logo-row=\"1\" data-logo-source=\"#\" fill=\"#ffff00\"></rect><rect x=\"32\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"48\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"64\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"80\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"96\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"112\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"128\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"144\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"224\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"240\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"288\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"304\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"384\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"400\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"416\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"432\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><polygon points=\"448,48 448,72 464,72\" data-logo-row=\"2\" data-logo-source=\"\\\" fill=\"#b70000\"></polygon><polygon points=\"480,48 480,72 464,72\" data-logo-row=\"2\" data-logo-source=\"/\" fill=\"#b70000\"></polygon><rect x=\"480\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"496\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"512\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"528\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"608\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"624\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"784\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"800\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"816\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><polygon points=\"832,48 832,72 848,72\" data-logo-row=\"2\" data-logo-source=\"\\\" fill=\"#b70000\"></polygon><rect x=\"864\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"880\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"960\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"976\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1120\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1136\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1152\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1168\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1184\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1200\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1216\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1232\" y=\"48\" width=\"16\" height=\"24\" data-logo-row=\"2\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"80\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"96\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"224\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"240\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"288\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"304\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"384\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"400\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"416\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"432\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"448\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"464\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"480\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"496\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"512\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"528\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"608\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"624\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"640\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"656\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"672\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"688\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"784\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"800\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"816\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"832\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"848\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"864\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"880\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"960\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"976\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"992\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1008\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1024\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1040\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1168\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1184\" y=\"72\" width=\"16\" height=\"24\" data-logo-row=\"3\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"80\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"96\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"224\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"240\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"288\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"304\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"384\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"400\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><polygon points=\"432,96 448,96 448,120\" data-logo-row=\"4\" data-logo-source=\"\\\" fill=\"#ff3030\"></polygon><rect x=\"448\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"464\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><polygon points=\"480,96 496,96 480,120\" data-logo-row=\"4\" data-logo-source=\"/\" fill=\"#ff3030\"></polygon><rect x=\"512\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"528\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"608\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"624\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"784\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"800\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><polygon points=\"832,96 848,96 848,120\" data-logo-row=\"4\" data-logo-source=\"\\\" fill=\"#ff3030\"></polygon><rect x=\"848\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"864\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"880\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"960\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"976\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"1168\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"1184\" y=\"96\" width=\"16\" height=\"24\" data-logo-row=\"4\" data-logo-source=\"#\" fill=\"#ff3030\"></rect><rect x=\"80\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"96\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"224\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"240\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"256\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"272\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"288\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"304\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"384\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"400\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><polygon points=\"448,120 464,120 464,144\" data-logo-row=\"5\" data-logo-source=\"\\\" fill=\"#b70000\"></polygon><polygon points=\"464,120 480,120 464,144\" data-logo-row=\"5\" data-logo-source=\"/\" fill=\"#b70000\"></polygon><rect x=\"512\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"528\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"608\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"624\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"640\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"656\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"672\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"688\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"784\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"800\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><polygon points=\"848,120 864,120 864,144\" data-logo-row=\"5\" data-logo-source=\"\\\" fill=\"#b70000\"></polygon><rect x=\"864\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"880\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"960\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"976\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"992\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1008\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1024\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1040\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1168\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect><rect x=\"1184\" y=\"120\" width=\"16\" height=\"24\" data-logo-row=\"5\" data-logo-source=\"#\" fill=\"#b70000\"></rect></svg>",
+  "renderedFonts": {
+    "fonts": []
+  }
+}

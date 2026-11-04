@@ -1,0 +1,8 @@
+SV endpoint selected host=127.0.0.1 port=39127
+SV contact ready host=127.0.0.1 port=39127 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV contact ready host=127.0.0.1 port=39127 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=722715954
+SV-B-024 ack-retry captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=722715954
+SV resource unavailable: /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-_qee7mc4/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server rejected character selection (status 1).  Press R to retry or Escape to exit. (status=0)

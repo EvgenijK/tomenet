@@ -1,0 +1,124 @@
+[
+  {
+    "label": "software-existing",
+    "backend": "software",
+    "new_account": false,
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "51511",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-p2zqj8ct",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "account": "Test",
+      "contact_prefix": "00003039504c41594552000000ff",
+      "initial_login_hex": "0c00f4434a4666f8",
+      "phase": "motd",
+      "choice_hex": "0d0c4865726f3000",
+      "post_selection_outgoing_hex": "0d",
+      "client_alive_after_handoff_inputs": true
+    },
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  },
+  {
+    "label": "software-new",
+    "backend": "software",
+    "new_account": true,
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "49497",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-3glxfnhy",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "account": "Unusedaccount",
+      "contact_prefix": "00003039504c41594552000000ff",
+      "initial_login_hex": "0c00f443cc5b55c0",
+      "phase": "motd",
+      "choice_hex": "0d0d0c4361726f6c00",
+      "request_size": 16266,
+      "request_sha256": "9edfcb05f99bd0b90aa834ebfa5584eea104f4c4af529b7b8c4b766c9074fc19",
+      "ack_hex": "02 03 7a",
+      "post_selection_outgoing_hex": "000000000000000d0d",
+      "client_alive_after_handoff_inputs": true
+    },
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  },
+  {
+    "label": "opengl-existing",
+    "backend": "opengl",
+    "new_account": false,
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "33739",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-lb8eomy2",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "account": "Test",
+      "contact_prefix": "00003039504c41594552000000ff",
+      "initial_login_hex": "0c00f443966dbeb9",
+      "phase": "motd",
+      "choice_hex": "0d0c4865726f3000",
+      "post_selection_outgoing_hex": "0d0d",
+      "client_alive_after_handoff_inputs": true
+    },
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  },
+  {
+    "label": "opengl-new",
+    "backend": "opengl",
+    "new_account": true,
+    "command": [
+      "/tmp/sv-b2-006-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "58251",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-006-wg9vnwk_",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "account": "Unusedaccount",
+      "contact_prefix": "00003039504c41594552000000ff",
+      "initial_login_hex": "0c00f443cf625f3b",
+      "phase": "motd",
+      "choice_hex": "0d0d0c4361726f6c00",
+      "request_size": 16266,
+      "request_sha256": "9edfcb05f99bd0b90aa834ebfa5584eea104f4c4af529b7b8c4b766c9074fc19",
+      "ack_hex": "02 03 7a",
+      "post_selection_outgoing_hex": "000000000000000d0d",
+      "client_alive_after_handoff_inputs": true
+    },
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a"
+  }
+]

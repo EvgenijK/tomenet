@@ -1,0 +1,43 @@
+{
+  "result": "PASS",
+  "platform": "Linux",
+  "renderer": "SDL3 software",
+  "video_driver": "dummy",
+  "resolution": [
+    1024,
+    768
+  ],
+  "peer": "loopback synthetic contact/login/setup/play peer",
+  "real_game_account": false,
+  "production_source_changes": false,
+  "stages": [
+    "server selection",
+    "account credentials",
+    "character overview",
+    "character creation mode",
+    "startup completed; live runtime remains stub"
+  ],
+  "play_bytes": 16266,
+  "screenshots": [
+    {
+      "path": ".scratch/login-smoke-2026-11-04/01-server-selection.png",
+      "sha256": "fc572f5cc0959aa977ab43b0a0e749193168998cbba17e5d75235f54305340bb"
+    },
+    {
+      "path": ".scratch/login-smoke-2026-11-04/02-account-login.png",
+      "sha256": "8901d286957a1bbbcec84ff04d3bf1ba982b316f392406c911ec5eea8ad33cd6"
+    },
+    {
+      "path": ".scratch/login-smoke-2026-11-04/03-characters.png",
+      "sha256": "1a8fb821db5ccaa36ad6af37b621037a39241176bc4b1539fdfb140e2258f5ca"
+    },
+    {
+      "path": ".scratch/login-smoke-2026-11-04/04-creation-mode.png",
+      "sha256": "1a6d26005c73fe2ba33e971fe8a5bab34dfd5f91976aa6b18a4a07c9ab086cc6"
+    },
+    {
+      "path": ".scratch/login-smoke-2026-11-04/05-login-complete.png",
+      "sha256": "901e94e5cc29f24fbf3bd676b304f7055e31c501bdf9a5b47d8649cc0a3f4328"
+    }
+  ]
+}

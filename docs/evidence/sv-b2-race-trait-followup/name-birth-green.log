@@ -1,0 +1,58 @@
+SV resource unavailable: .scratch/creation-next/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open .scratch/creation-next/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=40657
+SV contact ready host=127.0.0.1 port=40657 server=4.9.4.0.0.0 races=3 classes=3 traits=3 motd=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+fresh_polled_fixed_key_stamped_before_generation
+queued_opening_name_gesture_injected
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+fresh_polled_fixed_key_stamped_before_generation
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64101
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=1 after=2 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=2 after=3 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=3 after=4 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=4 after=5 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=5 after=5 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=5 after=6 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=6 result=1
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=6 after=7 result=2
+fresh_polled_fixed_key_stamped_before_generation
+synthetic birth before=7 after=8 result=2
+fresh_polled_fixed_key_stamped_before_generation
+fresh_polled_fixed_key_stamped_before_generation
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Carol generation=1612890598
+SV-B-024 ack captured 16266 handshake bytes; phase=live-session-handoff character=Carol generation=1612890598

@@ -1,0 +1,19 @@
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=42129
+SV contact ready host=127.0.0.1 port=42129 server=4.9.4.0.0.0 races=1 classes=20 traits=1 motd=0
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=46087
+SV contact ready host=127.0.0.1 port=46087 server=4.9.4.0.0.0 races=20 classes=1 traits=1 motd=0
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=37697
+SV contact ready host=127.0.0.1 port=37697 server=4.9.4.0.0.0 races=1 classes=1 traits=21 motd=0
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=46003
+SV contact ready host=127.0.0.1 port=46003 server=4.9.4.0.0.0 races=1 classes=20 traits=1 motd=0
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=45395
+SV contact ready host=127.0.0.1 port=45395 server=4.9.4.0.0.0 races=20 classes=1 traits=1 motd=0
+SV resource unavailable: /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-wdcmt8sg/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=39299
+SV contact ready host=127.0.0.1 port=39299 server=4.9.4.0.0.0 races=1 classes=1 traits=21 motd=0
+SV-B-022 name handoff and SV-B-023 birth choice production checks passed

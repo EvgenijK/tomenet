@@ -1,0 +1,54 @@
+1 begin t=35681 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1
+2 poll t=2057688774 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+3 handler_before t=2057703472 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+4 handler_after t=2057705958 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+5 poll t=2113441537 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+6 handler_before t=2113479562 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+7 handler_after t=2113484667 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+8 poll t=2226518063 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+9 handler_before t=2226551553 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+10 handler_after t=2226560888 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+11 poll t=2283748924 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+12 handler_before t=2283782089 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+13 handler_after t=2283787513 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+14 poll t=3609396055 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+15 handler_before t=3609431197 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+16 handler_after t=3609500340 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+17 poll t=3739694202 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+18 handler_before t=3739726028 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+19 handler_after t=3739730960 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=29255962260 before_begin=0
+20 window_lost t=4829934638 focus=1 stage=1 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1
+21 window_gained t=4880633142 focus=1 stage=1 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1
+22 window_lost t=4880647140 focus=1 stage=1 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1
+23 window_gained t=170895585083 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1
+24 poll t=171863145134 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+25 handler_before t=171863194596 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+26 handler_after t=171863205591 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+27 poll t=171955950687 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+28 handler_before t=171955978111 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+29 handler_after t=171955982607 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=200345962260 before_begin=0
+30 end t=173712779650 focus=1 stage=1 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1
+31 begin t=30965 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1
+32 poll t=2285734667 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+33 poll t=2398194150 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+34 poll t=2548740014 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+35 poll t=2641536688 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+36 poll t=2715863242 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+37 poll t=2791084901 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+38 poll t=2846800349 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+39 poll t=2920426172 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+40 poll t=2994580932 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+41 poll t=3070582246 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+42 poll t=3145804099 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+43 poll t=3201336934 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+44 poll t=3276730647 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+45 poll t=3388542786 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=BACKSPACE logical=BACKSPACE scan=BACKSPACE repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+46 poll t=4643132517 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+47 poll t=4734221151 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+48 poll t=4827190476 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+49 poll t=4901306325 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+50 poll t=4976021687 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=down fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+51 poll t=5070253954 focus=0 stage=0 os_focus=1 text_active=1 cursor_valid=1 anchor_valid=1 event=up fixed=TAB logical=TAB scan=TAB repeat=0 mods=4096 timestamp=203354921581 before_begin=1
+52 window_lost t=5219285708 focus=0 stage=0 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1
+53 window_gained t=5276327278 focus=0 stage=0 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1
+54 window_lost t=5276376612 focus=0 stage=0 os_focus=0 text_active=0 cursor_valid=1 anchor_valid=1

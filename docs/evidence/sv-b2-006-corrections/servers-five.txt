@@ -1,0 +1,5 @@
+europe.tomenet.eu 18348 Europe
+na.tomenet.eu 18348 North America
+apac.tomenet.eu 18348 Asia-Pacific
+europe.tomenet.eu 18348 Moltor arcade stuff
+kurzel.dev 18348 TomeNET Module Test

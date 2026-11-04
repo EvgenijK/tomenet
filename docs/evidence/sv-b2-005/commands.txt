@@ -1,0 +1,8 @@
+# Linux only, run from repository root. Existing suites and one-off visual replay.
+make -C src -f makefile.sv tomenet-sv -j4
+python3 tests/sv_first_session_checks.py
+SV_GUIDE_EVIDENCE=/tmp/sv-b2-005-guide python3 tests/sv_guide_motd_checks.py
+node docs/evidence/sv-b2-005/capture-reference.cjs
+cp src/tomenet-sv /tmp/sv-b2-005-capture
+SV_CAPTURE_BINARY=/tmp/sv-b2-005-capture python3 docs/evidence/sv-b2-005/capture-native.py
+.graphify-venv/bin/graphify update .

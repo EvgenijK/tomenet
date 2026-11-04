@@ -1,0 +1,102 @@
+# SV-B-023 — Birth choices, backtracking и cancel
+
+Проверки платформ: [текущее правило](../../agents/platform-validation.md); Windows/MinGW/Wine отложены и не блокируют текущую приёмку.
+
+Статус: accepted — принято пользователем 2026-10-28 вместе с этапом B.
+Оставшиеся проверки сняты с текущего gate прямым решением пользователя;
+они не объявлены выполненными. [Решение о приёмке](../../sv-stage-b-acceptance.md#решение-пользователя--2026-10-28).
+
+Исторический статус до решения пользователя: production implementation complete, ready for review; native runtime
+evidence и full acceptance остаются pending для exact accepted contract digest
+и HEAD.
+
+## Пользовательский результат
+
+Игрок проходит legal server-provided sex/race/trait/class/body/stats/mode choices,
+возвращается назад по правильному owner и может завершить creation без отправки
+частичного результата.
+
+## Зависимости и граница
+
+Зависит от [SV-B-022](SV-B-022-character-manage.md). DNA persistence перенесена
+в C. Random/DNA choice semantics, встречающиеся в полном baseline outcome,
+проверяются без принятия `birth.restore-dna` или `birth.save-dna`.
+
+Guide capability принадлежит G. Если canonical birth obligation вызывает Guide
+entry, в B показывается точная временная native placeholder и возвращается тот же
+caller без изменения selection/draft; это проверка birth owner, не Guide coverage.
+
+### Unsupported character-creation setup
+
+После удаления служебного contact-бита `0x02` поддерживаются только
+`creation_flags == 0` (traditional stat order) и `creation_flags == 1`
+(player-defined stats). Любое нормализованное значение `creation_flags > 1`
+является неподдерживаемым режимом создания персонажа. Попытка ordinary или
+dedicated/exclusive creation немедленно показывает точный текст
+`Unsupported character creation mode` и оставляет игрока на character selection.
+Она не открывает name/birth interaction, не мутирует birth draft и не отправляет
+name, birth, partial или completed-character packet.
+
+Это явно принятое отличие SV от behavior baseline для неизвестных и будущих
+режимов: SV fail-fast, а не предполагает семантику неизвестного server setup.
+
+Проверка выполняется на production endpoint seam для ordinary и
+dedicated/exclusive creation в обоих compile orders и подтверждает точный текст,
+неизменный character-selection state и отсутствие draft mutation и packet send.
+
+## Единственная первичная ответственность
+
+<!-- owned-capabilities:start -->
+| ID | Полный результат baseline / policy | Canonical sources |
+|---|---|---|
+| `capability.birth.sex` | Complete the sex choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-birth`, `source.policy.session` |
+| `capability.birth.race` | Complete the race choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-race`, `source.policy.session` |
+| `capability.birth.trait` | Complete the trait choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-trait`, `source.policy.session` |
+| `capability.birth.class` | Complete the class choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-class`, `source.policy.session` |
+| `capability.birth.body` | Complete the body choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-body`, `source.policy.session` |
+| `capability.birth.stats` | Complete the stats choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-stats`, `source.policy.session` |
+| `capability.birth.mode` | Complete the mode choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-mode`, `source.policy.session` |
+| `capability.birth.quit` | Q or Ctrl-Q terminates creation through baseline quit/retry handling without sending a completed character. | `source.baseline.session-birth`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-race` | Backspace from race returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-race`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-trait` | Backspace from trait returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-trait`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-class` | Backspace from class returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-class`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-body` | Backspace from body returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-body`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-stats` | Backspace from stats returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-stats`, `source.baseline.session-dna`, `source.policy.session` |
+| `capability.birth.backtrack-mode` | Backspace from mode returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-mode`, `source.baseline.session-dna`, `source.policy.session` |
+<!-- owned-capabilities:end -->
+
+## Production SV проверки
+
+1. Каждый legal/illegal/random choice и server-provided list, highlighted stable
+   identity, keyboard/mouse navigation, confirm и quit.
+2. Оба compile orders, skipped unavailable trait/body, dedicated IDDC/PvP и
+   post-mode PvP Maia return; Backspace не отправляет completed packet.
+3. Interleaved network/focus/resize не меняет owner или selection; disconnect и
+   stale generation запрещают дальнейший send.
+4. Каждый достижимый Guide entry показывает ровно `The guide is in development`
+   и возвращает тот же birth caller без Guide state/network operation.
+
+## Definition of Done
+
+Все ветви идут через production interaction state и input router; fixed-response
+wizard не принимается. Финальный send отдельно владеет
+[SV-B-024](SV-B-024-birth-dna.md).
+
+
+2026-10-28: интеграционные проверки M2 и исправления input lifecycle возвращены
+owner в [отчёте B-025](SV-B-025-entry-complete.md#реализация-и-проверки--2026-10-28).
+Это дополнительное Linux evidence; pending Linux native acceptance
+и capability ownership не изменены. Windows build/runtime validation отложена
+пользователем и не блокирует текущую приёмку.
+
+
+## Linux protocol/core freshness — 2026-10-28
+
+Current production-path проверки и карта применимости всех 54 B IDs описаны в
+[Linux protocol/core evidence](../../sv-stage-b-linux-protocol-evidence.md).
+Они дополняют историческое evidence; full native/provider и cumulative acceptance
+не выводятся из dummy/software или shared-primitive PASS. Canonical denominator
+составляет 54 IDs / 162 obligations; Windows-only provider остаётся deferred.
+Для B-002 исправлен endpoint pong telemetry в production login/pregame.
+Новая regression-проверка не добавлялась по прямому отказу пользователя; existing
+checks проверяют отсутствие обнаруженных регрессий, а не отдельно новую ветвь.

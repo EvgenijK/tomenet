@@ -1,0 +1,5 @@
+receive bytes=34 result=0 phase=1 failurephase=0
+receive bytes=8 result=0 phase=2 failurephase=0
+receive bytes=3759 result=0 phase=3 failurephase=0
+host=europe.tomenet.eu state=3 version=4.9.4.0.0.0 rejection=0 elapsed=1504
+READY races=18 classes=16 traits=32 motd=2760
