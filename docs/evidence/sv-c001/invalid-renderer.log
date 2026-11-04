@@ -1,0 +1,2 @@
+SV resource unavailable: /tmp/sv-c001-observation/invalid-renderer/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-c001-observation/invalid-renderer/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint startup failed: sv-c001-nonexistent not available

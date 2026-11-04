@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "stage": "C001",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-10-31",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 1,
+  "ownedCapabilityIds": [
+    "capability.platform.package-launch"
+  ],
+  "sourceState": {
+    "implementation": "pending",
+    "evidenceStatus": "pending",
+    "evidenceIds": [],
+    "prerequisites": []
+  },
+  "evidenceObligationIds": [
+    "obligation.platform.package-launch.result",
+    "obligation.platform.package-launch.failure-lifecycle"
+  ],
+  "tickets": [
+    {
+      "id": "SV-C001-001",
+      "path": "SV-C001-001-package-launch.md",
+      "kind": "implementation",
+      "dependsOn": [],
+      "owns": [
+        "capability.platform.package-launch"
+      ]
+    },
+    {
+      "id": "SV-C001-002",
+      "path": "SV-C001-002-acceptance.md",
+      "kind": "acceptance",
+      "dependsOn": [
+        "SV-C001-001"
+      ],
+      "owns": []
+    }
+  ]
+}

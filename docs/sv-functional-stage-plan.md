@@ -97,6 +97,13 @@ B2 принят пользователем 2026-10-30: [решение](sv-stage
 | C064 | `guide` | 3 | Guide bookmark actions |
 | **C001–C064** | **46 namespaces** | **863** | Все outcomes прежних C–G |
 
+C001: [спецификация запуска установленного клиента](sv-stage-c001-spec.md),
+[задачи и ownership](tasks/c001/README.md). План подготовлен 2026-10-31;
+реализация и [техническое Linux evidence](sv-c001-evidence.md) выполнены
+2026-11-04; [C001 принят пользователем](sv-stage-c001-acceptance.md) в тот же день.
+Canonical registry status
+сохраняется pending до отдельной регистрации evidence.
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой

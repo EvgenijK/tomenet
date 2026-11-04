@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the actual Stage A shell; requires a native display (or Wine display)."""
+"""Exercise default SV startup and the Stage A shell on a native display."""
 import argparse
 import hashlib
 import os
@@ -31,7 +31,9 @@ with tempfile.TemporaryDirectory(prefix="tomenet-sv-smoke-") as temporary:
     decoy.mkdir()
     (decoy / "tomenet.cfg").write_text("personal legacy settings: must remain untouched\n")
     original = snapshot(decoy)
-    env = dict(os.environ, TOMENET_SDL3_USER_PATH=native(decoy), SDL_RENDER_DRIVER=args.backend)
+    env = dict(os.environ, TOMENET_SDL3_USER_PATH=native(decoy), SDL_RENDER_DRIVER=args.backend,
+               HOME=str(work / "home"), XDG_CONFIG_HOME=str(work / "config"),
+               XDG_DATA_HOME=str(work / "data"), XDG_CACHE_HOME=str(work / "cache"))
     prefix = ["wine", str(args.binary.resolve())] if args.wine else [str(args.binary.resolve())]
 
     def run(options, success=True, contains=(), extra_env=None):
@@ -48,7 +50,15 @@ with tempfile.TemporaryDirectory(prefix="tomenet-sv-smoke-") as temporary:
     font = REPO / "lib/xtra/font/CascadiaMono-Regular.ttf"
     assert hashlib.sha256(font.read_bytes()).hexdigest() == "06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481"
     assert "SIL OPEN FONT LICENSE" in (font.parent / "CascadiaMono-LICENSE.txt").read_text()
-    run([], success=False, contains=["requires explicit --synthetic"])
+    endpoint_root = work / "endpoint"
+    endpoint_root.mkdir()
+    run(["--frames", "3", "--fixture-window", "1024x768"],
+        contains=["SV endpoint selection incomplete; no contact attempted"],
+        extra_env={"TOMENET_SDL3_USER_PATH": native(endpoint_root),
+                   "TOMENET_PATH": native(REPO / "lib")})
+    assert snapshot(endpoint_root) == {}, "Default startup wrote profile data"
+    run(["--endpoint", "--synthetic"], success=False)
+    run(["--hp-check"], success=False)
     run(["--synthetic"], success=False, contains=["Refusing existing unmarked profile"])
     root = work / "scenario"
     base = ["--synthetic", "--profile-root", native(root), "--library", native(REPO / "lib"), "--frames", "3"]

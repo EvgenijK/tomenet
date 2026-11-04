@@ -1,0 +1,4 @@
+FROM registry.fedoraproject.org/fedora:41
+RUN dnf -y install clang make pkgconf-pkg-config SDL3-devel SDL3_ttf-devel freetype-devel libpng-devel libcurl-devel libsecret-devel patchelf bzip2 tar findutils diffutils file python3 && dnf clean all
+WORKDIR /workspace
+RUN dnf -y --setopt=install_weak_deps=False install git-core strace && dnf clean all

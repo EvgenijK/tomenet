@@ -60,15 +60,17 @@ static int checked_scenario(SvApp *app, SvUi *ui, SvRuntimeScenario scenario)
 
 static void usage(void)
 {
-    puts("TomeNET SV native shell\n"
-         "  --endpoint [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
+    puts("TomeNET SV native client (server selection by default)\n"
+         "  [--endpoint] [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
+         "  [--profile-root PATH] [--fixture-window WIDTHxHEIGHT] [--frames N]\n"
          "  [--account NAME --password-stdin] [--character EXISTING_NAME] [-m] (contact through standard input)\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
          "Product defaults: desktop fullscreen, UI scale 100%, Cascadia Mono.\n"
          "TOMENET_PATH selects library resources, otherwise adjacent lib/.\n"
-         "TOMENET_SDL3_USER_PATH may select an already marked synthetic root.\n"
+         "TOMENET_SDL3_USER_PATH selects the user root; otherwise the SDL3 user directory is used.\n"
+         "Synthetic mode requires an isolated root marked for synthetic use.\n"
          "SDL_RENDER_DRIVER=software explicitly forces the software renderer.");
 }
 
@@ -133,7 +135,7 @@ int sv_diagnostics_main(int argc, char **argv)
             frames = (int)n;
         } else { usage(); return 2; }
     }
-    if (endpoint_mode) {
+    if (endpoint_mode || !synthetic) {
         if (synthetic || review || hp_check || arch_check || message_check || request_check ||
             lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
         if (!!account != password_stdin) return 2;
@@ -157,7 +159,6 @@ int sv_diagnostics_main(int argc, char **argv)
     }
     if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name || character || skip_motd) return 2;
     if (timing_delay && !timing_check) return 2;
-    if (!synthetic) { fprintf(stderr, "SV requires explicit --synthetic; live client is not implemented\n"); return 2; }
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");
     if (!root || !*root) { fprintf(stderr, "SV requires an isolated --profile-root; personal SDL3 profile is never opened by this scenario\n"); return 2; }
     if (!sv_synthetic_profile(root)) goto done;

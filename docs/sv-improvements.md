@@ -1366,6 +1366,40 @@ readiness/paced producers к production input, не расширяя текущ�
 mode-final fix переиспользован уже рабочий paced replay; массовая адаптация
 fixtures не выполнена и не включена в scope.
 
+### Fail-fast при unresolved dependency в legacy Linux packaging
+
+- Проблема: recursive `ldd` parser извлекает только resolved `=> /...` paths;
+  `not found` не становится ошибкой, поэтому копирование зависимостей может
+  закончиться без полного runtime closure.
+- Код: `.github/docker/fedora41/release-common.sh:copy_linux_deps_recursive`
+  (первый и recursive `ldd`); аналогичная копия в `fedora43`.
+- Предложение: отдельной legacy packaging задачей явно отклонять unresolved
+  dependencies и сохранять диагностику. C001 решает эту проверку локально в SV
+  packaging, без обязательного изменения общих release helpers.
+- Статус: предложено, выявлено при планировании C001 2026-10-31; вне реализации
+  текущего этапа. Изоляция SV сама по себе не требует объединения helpers.
+- Проверки: при согласовании изменения — минимальный missing-library negative
+  case и существующая Linux package сборка; без новой platform matrix.
+
+### Уточнить чуждые package-launch mappings в reconciliation
+
+- Проблема: пять inventory rows связывают admin actions, audio/Windows overrides
+  и item/spell name lookup с `capability.platform.package-launch`. Эти связи
+  могут ошибочно расширить границы раннего C001 до поздних этапов.
+- Код: `docs/capabilities/reconciliation.json`, rows 281, 681, 976, 1252, 1805;
+  source-backed разбор —
+  [C001 sweep](../.scratch/sv-c001-planning/issues/01-scope-and-ownership.md).
+- Предложение: в общей semantic reconciliation работе уточнить настоящих owners
+  и source classification; не делать автоматическую замену IDs. Для C001
+  обязательна только мотивированная applicability disposition этих связей либо
+  необходимая точечная metadata correction до acceptance, как указано в spec.
+- Статус: обнаружено 2026-10-31; общий cleanup предложен отдельно от C001.
+  Canonical JSON при планировании не изменялся.
+- Проверки: source-backed ownership review затронутых rows и существующая
+  registry/reconciliation validation при изменении metadata. Общий sweep и
+  остальные этапы не считаются завершёнными локальным C001 планом.
+
+
 ### Уточнить исторический манифест B2-004
 
 - Проблема: сумма `capture-reference.cjs` в историческом манифесте B2-004

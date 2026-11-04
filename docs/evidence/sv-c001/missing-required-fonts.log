@@ -1,0 +1,4 @@
+SV resource unavailable: /tmp/sv-c001-observation/missing-required-fonts/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-c001-observation/missing-required-fonts/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV resource unavailable: /tmp/sv-c001-observation/broken-fonts//lib/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-c001-observation/broken-fonts//lib/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV fatal resource failure: bundled Cascadia Mono and /tmp/sv-c001-observation/broken-fonts//lib/xtra/font/16x24x.pcf unavailable or invalid
+SV endpoint startup failed: Couldn't open /tmp/sv-c001-observation/broken-fonts//lib/xtra/font/CascadiaMono-Regular.ttf: No such file or directory

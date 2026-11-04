@@ -25,6 +25,12 @@ Presentation follow-up перед C001: [B2 spec](../../sv-stage-b2-spec.md),
 [B2 tasks](../stage-b2/README.md). B2 имеет 0 новых IDs и не меняет этот
 canonical reallocation plan или принятый B.
 
+Локальный результат планирования 2026-10-31: [C001 spec](../../sv-stage-c001-spec.md),
+[tickets и snapshot](../c001/README.md),
+[узкий semantic sweep](../../../.scratch/sv-c001-planning/issues/01-scope-and-ownership.md).
+У C001 выявлены пять reconciliation mappings для applicability disposition;
+это частичный результат 005/006, не завершение общего sweep или 007.
+
 ## Работы
 
 | Ticket | Результат | Зависит от | Статус |
