@@ -202,6 +202,24 @@ smoke прошли: [evidence и ограничения](sv-c007-evidence.md). [
 границах Linux core; live карта остаётся C013. Непроверенные hardware/submission
 условия и поздние flows сохраняются; canonical registry не изменён.
 
+C008: [спецификация network controls](sv-stage-c008-spec.md),
+[задачи и порядок](tasks/c008/README.md),
+[source contract](tasks/c008/source-contract.md),
+[точный planning snapshot](tasks/c008/coverage.json). План подготовлен анализом
+трёх агентов 2026-11-09: 6 outcomes и 18 obligations. Core реализован агентами и
+проверен на Linux: [evidence](sv-c008-evidence.md). Atomic recovery/diagnostic,
+actual draw/SDL present, pause freshness, bounded flush pacing и ordered
+confirmation проверены через production core. [C008 и задачи 001–004 приняты
+пользователем](sv-stage-c008-acceptance.md) в текущих границах core 2026-11-09.
+Оставшаяся обязательная работа закреплена в
+[C011-002](tasks/c011/SV-C011-002-network-control-preparation.md),
+[C013-001](tasks/c013/SV-C013-001-network-control-live-map.md),
+[C014-003](tasks/c014/SV-C014-003-network-control-lifecycle.md) и
+[C053-001](tasks/c053/SV-C053-001-preference-runtime.md): actual live preparation,
+map ingress/submission, lifecycle/deferred callers и macro waits. Она не блокирует
+и не переоткрывает C008 автоматически; непроверенные flows не получают PASS.
+Canonical allocation и pending runtime statuses сохранены.
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой

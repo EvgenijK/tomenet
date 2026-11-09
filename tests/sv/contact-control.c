@@ -32,6 +32,76 @@ static void control_packets_are_atomic_and_ordered(void)
     assert(sv_app_destroy(app) == SV_OK);
 }
 
+static void confirmation_belongs_to_one_wait_and_generation(void)
+{
+    SvApp *app = sv_app_create((SvAlertSink){0});
+    assert(app && sv_app_open(app, version) == SV_OK);
+    uint64_t generation = sv_app_view(app).generation, owner, next;
+    const unsigned char unsolicited[] = {146, 99};
+    assert(sv_app_receive(app, generation, unsolicited, sizeof(unsolicited)) == SV_OK);
+    assert(sv_app_step(app, 1).processed == 1);
+    assert(sv_app_begin_confirmation(app, generation, &owner) == SV_OK);
+    assert(sv_app_begin_confirmation(app, generation, &next) == SV_BUSY);
+    unsigned char command = 77;
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_WAITING);
+    assert(command == 77); /* A pre-wait confirmation is never replayed. */
+    const unsigned char type = 146;
+    assert(sv_app_receive(app, generation, &type, 1) == SV_OK);
+    assert(sv_app_step(app, 1).processed == 0);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_WAITING);
+    const unsigned char tail[] = {255, 146, 0, 11};
+    assert(sv_app_receive(app, generation, tail, sizeof(tail)) == SV_OK);
+    assert(sv_app_step(app, 3).processed == 3);
+    assert(sv_app_take_confirmation(app, generation, owner + 1, &command) == SV_STALE);
+    assert(sv_app_end_confirmation(app, generation, owner + 1) == SV_STALE);
+    assert(sv_app_take_confirmation(app, generation, owner, NULL) == SV_INVALID);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_OK && command == 255);
+    assert(sv_app_step(app, 3).processed == 0);
+    assert(sv_app_frame(app, generation, 100) == SV_OK);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_OK && command == 0);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_WAITING);
+    assert(sv_app_receive(app, generation, unsolicited, sizeof(unsolicited)) == SV_OK);
+    assert(sv_app_step(app, 1).processed == 1);
+    assert(sv_app_end_confirmation(app, generation, owner) == SV_OK);
+    assert(sv_app_begin_confirmation(app, generation, &next) == SV_OK && next != owner);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_STALE);
+    assert(sv_app_take_confirmation(app, generation, next, &command) == SV_WAITING);
+    unsigned char output[16];
+    assert(sv_app_take_output(app, generation, output, sizeof(output)).result == SV_WAITING);
+    assert(sv_app_close(app) == SV_OK);
+    assert(sv_app_open(app, version) == SV_OK);
+    assert(sv_app_take_confirmation(app, generation, next, &command) == SV_STALE);
+    generation = sv_app_view(app).generation;
+    assert(sv_app_begin_confirmation(app, generation, &owner) == SV_OK);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_WAITING);
+    assert(sv_app_destroy(app) == SV_OK);
+}
+
+static void confirmation_overflow_ends_session_without_silent_loss(void)
+{
+    SvApp *app = sv_app_create((SvAlertSink){0});
+    assert(app && sv_app_open(app, version) == SV_OK);
+    uint64_t generation = sv_app_view(app).generation, owner;
+    assert(sv_app_begin_confirmation(app, generation, &owner) == SV_OK);
+    unsigned char packets[66];
+    for (unsigned i = 0; i < 33; ++i) {
+        packets[2 * i] = 146;
+        packets[2 * i + 1] = (unsigned char)i;
+    }
+    assert(sv_app_receive(app, generation, packets, sizeof(packets)) == SV_OK);
+    assert(sv_app_step(app, 32).processed == 32);
+    assert(sv_app_view(app).active);
+    assert(sv_app_step(app, 1).result == SV_EVENT_OVERFLOW);
+    assert(!sv_app_view(app).active && sv_app_view(app).reason == SV_EVENT_OVERFLOW);
+    unsigned char command;
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_CLOSED);
+    assert(sv_app_open(app, version) == SV_OK);
+    generation = sv_app_view(app).generation;
+    assert(sv_app_begin_confirmation(app, generation, &owner) == SV_OK);
+    assert(sv_app_take_confirmation(app, generation, owner, &command) == SV_WAITING);
+    assert(sv_app_destroy(app) == SV_OK);
+}
+
 static void ping_echo_waits_for_whole_packet(void)
 {
     SvApp *app = sv_app_create((SvAlertSink){0});
@@ -300,6 +370,8 @@ static void resource_reporting_layouts_and_lifecycle(void)
 int main(void) {
     resource_reporting_layouts_and_lifecycle();
     control_packets_are_atomic_and_ordered();
+    confirmation_belongs_to_one_wait_and_generation();
+    confirmation_overflow_ends_session_without_silent_loss();
     ping_echo_waits_for_whole_packet();
     pause_needs_fresh_ack_and_keeps_network_live();
     full_send_queue_waits_without_partial_ping_reply();

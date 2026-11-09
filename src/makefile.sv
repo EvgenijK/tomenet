@@ -47,6 +47,7 @@ SV_CLIENT_OBJECTS += settings/config.o settings/options.o settings/preferences.o
 SV_CLIENT_OBJECTS += input/keymap.o input/quantity.o
 SV_CLIENT_OBJECTS += ui/font-selection.o ui/resource-preparation.o ui/font-editor.o settings/config-save.o settings/map-font.o
 SV_CLIENT_OBJECTS += settings/graphics.o session/map.o ui/map-renderer.o session/map-effects.o protocol/rendering.o
+SV_CLIENT_OBJECTS += ui/native-controls.o
 SV_DIAGNOSTIC_OBJECTS := diagnostics/timing.o diagnostics/runtime.o diagnostics/launcher.o diagnostics/ui.o diagnostics/capture.o diagnostics/peer.o diagnostics/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o

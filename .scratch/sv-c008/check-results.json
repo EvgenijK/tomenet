@@ -1,0 +1,17 @@
+{
+  "canonical_rows": 6,
+  "obligations": 18,
+  "canonical_unchanged": true,
+  "unique_ticket_ownership": true,
+  "one_report_disposition_per_obligation": true,
+  "local_links": "PASS",
+  "build": "PASS",
+  "network_packets": "PASS",
+  "contact_controls": "PASS",
+  "native_controls": "PASS",
+  "architecture": "PASS",
+  "bounded_native_smoke": "PASS",
+  "graphify_update": "PASS",
+  "full_live_runtime": "pending",
+  "user_acceptance": "not requested"
+}

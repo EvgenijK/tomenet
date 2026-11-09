@@ -104,3 +104,30 @@ context/cancel и конечное состояние caller; отсутству
 теоретическая очередь, counters или source audit не закрывают результат.
 Только Linux; расширение проверок согласовать, Windows/MinGW/Wine deferred.
 Этот документ не объявляет runtime реализованным или C053 принятым.
+
+## Интеграция принятого C008 — решение 2026-11-09
+
+[C008 и задачи 001–004 приняты](../../sv-stage-c008-acceptance.md) в текущих
+границах core. Эта задача C053 обязательно завершает настоящую интеграцию
+confirmation owner, а не новый FIFO или тестовую модель macro wait.
+
+Production seam: `sv_app_begin_confirmation` перед WAIT/XWAIT, ordered
+`sv_app_take_confirmation` для исходного unsigned command byte и
+`sv_app_end_confirmation` при завершении/отмене. Сверить конкретные baseline
+wait gates в `src/client/c-util.c`; при входе старое подтверждение не
+переиспользуется. Использовать тот же generation и native control owner C008.
+
+На настоящем macro dispatcher/wait path проверить split/ordered CONFIRM и
+наблюдаемое продолжение ожидания/команды, unsolicited/wrong-owner/stale
+confirmation, completion/cancel/close/relog без replay. Пока wait активен,
+применимые pause/flush и network updates обслуживаются; свежий pause ack не
+попадает в action stream, repaint не повторяет command. API/queue-only check
+не заменяет caller evidence. Согласовать один минимальный сценарий с уже
+запланированными WAIT/XWAIT checks этой задачи, без отдельной широкой suite.
+
+Trace: `obligation.network.confirm.result`, `.lifecycle`, `.allocation-checks`
+и применимые pause/flush lifecycle obligations из C008; canonical allocation
+остаётся у C008. Работа и исправления обязательны C053, не блокируют и не
+переоткрывают принятый C008 автоматически. Evidence backlink служит трассировке,
+а не gate C008. Linux обязателен, Windows/MinGW/Wine deferred; расширение проверок
+согласуется по AGENTS. C053 этим решением не принят и остаётся planned.

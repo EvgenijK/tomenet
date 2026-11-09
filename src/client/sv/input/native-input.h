@@ -3,7 +3,7 @@
 #include <SDL3/SDL.h>
 #include "app.h"
 typedef struct {
-    uint64_t generation, since_ns;
+    uint64_t generation, since_ns, pause_sequence;
     SDL_Keymod latch;
     SvResult last_result;
 } SvNativeInput;
@@ -13,5 +13,7 @@ void sv_native_input_begin(SvNativeInput *input, SvApp *app);
 /* The return value classifies the event, not semantic success. The owner reads
  * last_result and retains/retries an event on BACKPRESSURE/BUSY; no hidden retry
  * or second queue is created here. */
+/* Called only after the PAUSE frame was successfully presented. */
+void sv_native_input_pause(SvNativeInput *input, SvAppView view, uint64_t now_ns);
 bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event);
 #endif

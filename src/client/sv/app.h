@@ -25,6 +25,17 @@ typedef struct {
     int quantity_active, quantity_completed;
     SvResult reason;
 } SvAppView;
+/* Required control effects are delivered in packet order, before decoding the
+ * next packet. submit must draw and present the supplied coherent view without
+ * re-entering app. resume notifies the caller to schedule its deferred incoming
+ * work after returning; it must not re-enter app either. Each acknowledged
+ * occurrence notifies resume; another queued PAUSE may still own input. */
+typedef struct {
+    void *context;
+    bool (*submit)(void *context, SvAppView view, bool pause);
+    void (*resume)(void *context, uint64_t generation, uint64_t pause_sequence);
+} SvControlSink;
+SvResult sv_app_set_control_sink(SvApp *app, SvControlSink sink);
 typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
                SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE, SV_PRESENT_PING,
                SV_PRESENT_CONTROL } SvPresentationOrigin;

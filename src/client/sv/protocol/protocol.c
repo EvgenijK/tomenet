@@ -245,6 +245,14 @@ SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
             0, 0, 0, type,
             0, 0, 0, (unsigned char)p->previous_type,
             PKT_REDRAW, 0};
+        /* Baseline recovery also reports the dropped type to the player.
+         * Publish it with the successful recovery, never on a capacity retry. */
+        change->kind = SV_CHANGE_MESSAGE;
+        change->message = (SvMessage){0};
+        change->message.length = (size_t)snprintf((char *)change->message.bytes,
+            sizeof(change->message.bytes),
+            "\377RReceived unknown packet type (%d, %d), dropping",
+            type, p->previous_type);
         queue_bytes(p, reply, sizeof(reply));
         Sockbuf_clear(in); /* Baseline recovery discards this input batch. */
         return SV_RECOVERED;

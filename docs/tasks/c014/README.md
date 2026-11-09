@@ -41,3 +41,19 @@ checks и необходимые исправления обязательны �
 автоматически. Подробные source seams, минимальные Linux checks и условия
 завершения находятся непосредственно в задаче. Возврат evidence в C004 optional
 для трассировки; canonical allocation/conditions/obligations не меняются.
+
+## Lifecycle controls C008
+
+| Задача | Результат |
+|---|---|
+| [SV-C014-003](SV-C014-003-network-control-lifecycle.md) | Actual handoff/relog/teardown и deferred incoming caller queues |
+
+Actual live owner использует [production controls C008](../c008/README.md).
+Close/relog отменяет pause, deadlines и confirmation ownership; старые SDL events,
+ack и callbacks не меняют новое generation. Если caller откладывает входящие
+packets, pause resume запускает их обработку по baseline `Flush_queue`, а не
+очищает outgoing bytes. Этот настоящий caller flow остаётся integration evidence;
+core callback сам по себе его не подтверждает. Canonical obligations C008 остаются
+у C008. Core C008 принят; самостоятельная обязательная работа закреплена в
+[SV-C014-003](SV-C014-003-network-control-lifecycle.md). Она не блокирует и не
+переоткрывает C008 автоматически; backlink evidence служит трассировке.

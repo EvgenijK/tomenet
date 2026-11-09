@@ -37,3 +37,16 @@ Production источник — `src/client/sv/settings/preferences.[ch]`; те�
 [ADR-0006](../../adr/0006-errors-and-overload.md).
 Только [Linux](../../agents/platform-validation.md); минимальные production core
 checks из задачи, расширение набора проверок согласовать.
+
+## Подтверждение команды из C008
+
+WAIT/XWAIT consumer подключает существующий
+[C008 confirmation owner](../c008/SV-C008-003-command-confirmation.md): регистрация
+перед wait, ordered take исходного command byte, end при завершении и отмена при
+смене generation. До начала wait пришедшее подтверждение не переиспользуется;
+перерисовка не исполняет его повторно. Настоящее продолжение macro wait и его
+caller result проверяются здесь, с backlink к `obligation.network.confirm.*`.
+Core FIFO evidence C008 не подтверждает этот flow; canonical ownership C008
+не переносится. [C008 принят](../../sv-stage-c008-acceptance.md) в границах core;
+интеграция и её проверки обязательны [SV-C053-001](SV-C053-001-preference-runtime.md),
+не блокируют и не переоткрывают C008 автоматически.

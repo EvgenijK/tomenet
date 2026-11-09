@@ -27,6 +27,8 @@ struct SvApp {
     bool command_pending, master_commands;
     SvPresentationObserver observer;
     SvMessageSink message_sink;
+    SvControlSink control_sink;
+    unsigned pending_pauses;
     uint64_t input_started_ns, input_sequence;
 };
 static SvResult accepts(const SvApp *app, uint64_t generation);
@@ -60,6 +62,13 @@ SvResult sv_app_set_message_sink(SvApp *app, SvMessageSink sink)
     app->message_sink = sink;
     return SV_OK;
 }
+SvResult sv_app_set_control_sink(SvApp *app, SvControlSink sink)
+{
+    if (app->busy) return SV_BUSY;
+    if (!sink.submit && sink.resume) return SV_INVALID;
+    app->control_sink = sink;
+    return SV_OK;
+}
 static void release_session(SvApp *app)
 {
     if (app->message_sink.reset) app->message_sink.reset(app->message_sink.context);
@@ -78,6 +87,7 @@ static void release_session(SvApp *app)
     app->view.ping = (SvPingTelemetry){0};
     memset(app->view.server_flags, 0, sizeof(app->view.server_flags));
     app->view.paused = 0;
+    app->pending_pauses = 0;
     app->view.flush_due_ms = 0;
     app->flush.count = 0;
     app->flush.frame_ms = 0;
@@ -363,8 +373,23 @@ SvResult sv_app_ack_pause(SvApp *app, uint64_t generation, uint64_t sequence)
     if (result != SV_OK) return result;
     result = sv_input_ack_pause(&app->input, sequence);
     if (result != SV_OK) return result;
+    if (app->pending_pauses) {
+        --app->pending_pauses;
+        app->view.pause_sequence = sv_input_pause(&app->input);
+    }
     app->view.paused = app->input.paused;
     publish(app, SV_PRESENT_INPUT, now(app), 0, 1);
+    if (app->view.paused && app->control_sink.submit) {
+        app->busy = 1;
+        bool submitted = app->control_sink.submit(app->control_sink.context, sv_app_view(app), true);
+        app->busy = 0;
+        if (!submitted) { fail_session(app, SV_INVALID); return SV_INVALID; }
+    }
+    if (app->control_sink.resume) {
+        app->busy = 1;
+        app->control_sink.resume(app->control_sink.context, generation, sequence);
+        app->busy = 0;
+    }
     return SV_OK;
 }
 SvResult sv_app_bind_macro(SvApp *app, unsigned char trigger, unsigned char action, SvMacroKind kind)
@@ -502,7 +527,7 @@ SvStep sv_app_step(SvApp *app, size_t budget)
             fail_session(app, step.result); break;
         }
         ++step.processed;
-        if (step.result == SV_RECOVERED) break;
+        bool recovered = step.result == SV_RECOVERED;
         uint64_t started = now(app); /* Complete decode, before apply/effects/UI. */
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
@@ -521,8 +546,18 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         }
         if (decoded.kind == SV_CHANGE_NOOP) continue;
         if (decoded.kind == SV_CHANGE_PAUSE) {
-            app->view.pause_sequence = sv_input_pause(&app->input);
+            if (app->view.paused) {
+                if (app->pending_pauses == 31) {
+                    fail_session(app, SV_EVENT_OVERFLOW); step.result = SV_EVENT_OVERFLOW; break;
+                }
+                ++app->pending_pauses;
+            } else app->view.pause_sequence = sv_input_pause(&app->input);
             app->view.paused = app->input.paused;
+            /* Pending command/prefix bytes are old keystrokes; keep the active
+             * server request and quantity interaction, including its draft. */
+            app->command_pending = false;
+            app->command = (SvCommand){0};
+            app->keymap.prefix = 0;
         } else if (decoded.kind == SV_CHANGE_FLUSH) {
             ++app->view.flush_sequence;
             app->view.flush_due_ms = sv_flush_request(&app->flush);
@@ -543,6 +578,12 @@ SvStep sv_app_step(SvApp *app, size_t budget)
                 SV_PRESENT_REQUEST : SV_PRESENT_CONTROL;
         publish(app, origin, started,
             change.message_occurrence, change.message_chat);
+        if ((decoded.kind == SV_CHANGE_PAUSE || decoded.kind == SV_CHANGE_FLUSH) &&
+            app->control_sink.submit && !app->control_sink.submit(
+                app->control_sink.context, sv_app_view(app), decoded.kind == SV_CHANGE_PAUSE)) {
+            fail_session(app, SV_INVALID); step.result = SV_INVALID; break;
+        }
+        if (recovered) { step.result = SV_RECOVERED; break; }
     }
     step.pending_bytes = app->protocol ? sv_protocol_pending(app->protocol) : 0;
     app->busy = 0;

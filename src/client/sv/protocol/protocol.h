@@ -14,7 +14,9 @@ SvProtocol *sv_protocol_create(const int version[6]);
 void sv_protocol_destroy(SvProtocol *protocol);
 /* All-or-nothing append. BACKPRESSURE consumes nothing; caller retains the bytes. */
 SvResult sv_protocol_receive(SvProtocol *protocol, const void *bytes, size_t size);
-/* One complete input, or WAITING without any model-visible change. */
+/* One complete input, or WAITING without any model-visible change.
+ * RECOVERED consumes the current receive batch, atomically queues unknown +
+ * redraw, and publishes the baseline diagnostic as a MESSAGE change. */
 SvResult sv_protocol_next(SvProtocol *protocol, SvChange *change);
 size_t sv_protocol_pending(const SvProtocol *protocol);
 size_t sv_protocol_capacity(const SvProtocol *protocol);

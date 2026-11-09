@@ -15,6 +15,7 @@
 #include "request-scenario.h"
 #include "lifecycle-scenario.h"
 #include "input/native-input.h"
+#include "ui/native-controls.h"
 #include "geometry-scenario.h"
 #include "timing-scenario.h"
 #include "arch-scenario.h"
@@ -56,6 +57,11 @@ static int checked_scenario(SvApp *app, SvUi *ui, SvRuntimeScenario scenario)
     printf("SV measured scenario=%d completed=%d fallback_routes=%u\n",
         (int)scenario, check.completed, (unsigned)check.fallback_entries);
     return check.completed && !check.fallback_entries;
+}
+
+static bool control_draw(void *context, SvAppView view)
+{
+    return sv_ui_draw(context, view);
 }
 
 static void usage(void)
@@ -239,6 +245,9 @@ int sv_diagnostics_main(int argc, char **argv)
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
     sv_native_input_begin(&input, app);
+    SvNativeControls controls = {.renderer = renderer, .input = &input,
+                                .context = &ui, .draw = control_draw};
+    if (sv_native_controls_bind(&controls, app) != SV_OK) goto done;
     fflush(stdout);
     while (!quit) {
         SDL_Event event;
@@ -261,9 +270,9 @@ int sv_diagnostics_main(int argc, char **argv)
         }
         if (quit) break;
         /* A whole-input budget yields to UI even with buffered network backlog. */
-        SvStep step = sv_app_step(app, 16);
+        SvStep step = sv_native_controls_step(&controls, app, 16);
         (void)sv_app_dispatch_input(app, 16);
-        if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_CLOSED)
+        if (step.result != SV_OK && step.result != SV_WAITING && step.result != SV_RECOVERED && step.result != SV_CLOSED)
             fprintf(stderr, "SV session: %s\n", sv_result_text(step.result));
         /* Explicit Stage A consumer: model/feed publication is the only
          * implemented message effect. Acknowledgement is never a draw action. */
@@ -298,6 +307,7 @@ int sv_diagnostics_main(int argc, char **argv)
     result = 0;
 done:
     if (result) fprintf(stderr, "SV startup/render failed: %s; no terminal fallback\n", SDL_GetError());
+    if (app) (void)sv_app_set_control_sink(app, (SvControlSink){0});
     sv_app_destroy(app);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

@@ -11,6 +11,15 @@ void sv_native_input_begin(SvNativeInput *input, SvApp *app)
     *input = (SvNativeInput){.generation = sv_app_view(app).generation,
                              .since_ns = SDL_GetTicksNS(), .last_result = SV_WAITING};
 }
+void sv_native_input_pause(SvNativeInput *input, SvAppView view, uint64_t now_ns)
+{
+    input->generation = view.generation;
+    input->pause_sequence = view.pause_sequence;
+    input->since_ns = now_ns;
+    input->latch = 0;
+    SDL_FlushEvents(SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP);
+    SDL_FlushEvent(SDL_EVENT_TEXT_INPUT);
+}
 bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
 {
     SvAppView view = sv_app_view(app);
@@ -21,6 +30,29 @@ bool sv_native_input(SvNativeInput *input, SvApp *app, const SDL_Event *event)
     if (input->generation != view.generation ||
         (event->common.timestamp && event->common.timestamp < input->since_ns)) {
         input->last_result = SV_STALE;
+        return true;
+    }
+    if (view.paused) {
+        /* The native frame owner establishes this boundary after successful
+         * presentation. Unknown timestamps cannot prove fresh pause input. */
+        if (input->pause_sequence != view.pause_sequence ||
+            !event->common.timestamp || event->common.timestamp <= input->since_ns) {
+            input->last_result = SV_STALE;
+            return true;
+        }
+        if (event->type == SDL_EVENT_TEXT_INPUT && (!event->text.text || !*event->text.text))
+            return true;
+        if (event->type == SDL_EVENT_KEY_DOWN && event->key.repeat) return true;
+        if (event->type == SDL_EVENT_KEY_DOWN && modifier(event->key.scancode)) return true;
+        /* Printable KEY_DOWN is paired with TEXT_INPUT; acknowledge only once,
+         * then reject its queued tail using a new timestamp boundary. */
+        if (event->type == SDL_EVENT_KEY_DOWN && event->key.key >= 32 &&
+            event->key.key <= 255 && !(event->key.mod & (SDL_KMOD_CTRL | SDL_KMOD_ALT)))
+            return true;
+        input->last_result = sv_app_ack_pause(app, view.generation, view.pause_sequence);
+        if (input->last_result == SV_OK) {
+            sv_native_input_pause(input, sv_app_view(app), SDL_GetTicksNS());
+        }
         return true;
     }
     if (event->type == SDL_EVENT_TEXT_INPUT) {

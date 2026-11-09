@@ -213,6 +213,10 @@ static void mandatory_output_exhaustion_waits_for_drain(void)
     for (unsigned i = 0; i < 93; ++i) {
         assert(sv_app_receive(app, gen, &unknown, 1) == SV_OK);
         assert(sv_app_step(app, 1).result == SV_RECOVERED);
+        /* Recovery now delivers a real diagnostic; drain its mandatory event
+         * so this case still exercises wire-output capacity, not message cap. */
+        SvMessage message;
+        assert(sv_app_take_message(app, gen, &message) == SV_OK);
     }
     assert(sv_app_receive(app, gen, &unknown, 1) == SV_OK);
     assert(sv_app_step(app, 1).result == SV_BACKPRESSURE);

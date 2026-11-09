@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "stage": "C008",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-09",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 6,
+  "ownedCapabilityIds": [
+    "capability.network.unknown-packet",
+    "capability.network.keypress-stub",
+    "capability.network.pause",
+    "capability.network.flush",
+    "capability.network.confirm",
+    "capability.network.end-marker"
+  ],
+  "ticketOwnership": {
+    "capability.network.unknown-packet": "SV-C008-001",
+    "capability.network.keypress-stub": "SV-C008-001",
+    "capability.network.pause": "SV-C008-002",
+    "capability.network.flush": "SV-C008-002",
+    "capability.network.confirm": "SV-C008-003",
+    "capability.network.end-marker": "SV-C008-001"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.network.unknown-packet",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.unknown-packet"
+        ],
+        "serverVersions": [
+          "All baseline versions supported by the cited owner; retain its version branches"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Unknown/NULL entries send PKT_UNKNOWNPACKET, request redraw and clear receive buffer according to baseline; never guess packet length. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.unknown-packet.result",
+          "description": "Unknown/NULL entries send PKT_UNKNOWNPACKET, request redraw and clear receive buffer according to baseline; never guess packet length. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.unknown-packet"
+          ]
+        },
+        {
+          "id": "obligation.network.unknown-packet.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.unknown-packet"
+          ]
+        },
+        {
+          "id": "obligation.network.unknown-packet.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Unknown/NULL entries send PKT_UNKNOWNPACKET, request redraw and clear receive buffer according to baseline; never guess packet length.",
+          "sources": [
+            "source.reconciliation.network.unknown-packet"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.network.keypress-stub",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.keypress-stub"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Consume PKT_KEYPRESS as the current payload-free stub; do not invent injected-key behavior. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.keypress-stub.result",
+          "description": "Consume PKT_KEYPRESS as the current payload-free stub; do not invent injected-key behavior. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.keypress-stub"
+          ]
+        },
+        {
+          "id": "obligation.network.keypress-stub.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.keypress-stub"
+          ]
+        },
+        {
+          "id": "obligation.network.keypress-stub.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Consume PKT_KEYPRESS as the current payload-free stub; do not invent injected-key behavior.",
+          "sources": [
+            "source.reconciliation.network.keypress-stub"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.network.pause",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.pause"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Present latest state, discard pending keystrokes, await fresh acknowledgement while processing network, then flush the caller queue. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.pause.result",
+          "description": "Present latest state, discard pending keystrokes, await fresh acknowledgement while processing network, then flush the caller queue. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.pause"
+          ]
+        },
+        {
+          "id": "obligation.network.pause.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.pause"
+          ]
+        },
+        {
+          "id": "obligation.network.pause.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Present latest state, discard pending keystrokes, await fresh acknowledgement while processing network, then flush the caller queue.",
+          "sources": [
+            "source.reconciliation.network.pause"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.network.flush",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.flush"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Submit pending visual changes and preserve disable_flush/thin_down_flush behavior without blocking network or introducing legacy Terms. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.flush.result",
+          "description": "Submit pending visual changes and preserve disable_flush/thin_down_flush behavior without blocking network or introducing legacy Terms. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.flush"
+          ]
+        },
+        {
+          "id": "obligation.network.flush.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.flush"
+          ]
+        },
+        {
+          "id": "obligation.network.flush.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Submit pending visual changes and preserve disable_flush/thin_down_flush behavior without blocking network or introducing legacy Terms.",
+          "sources": [
+            "source.reconciliation.network.flush"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.network.confirm",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.confirm"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Apply command confirmation byte to the waiting macro owner in order; duplicate redraw never replays it. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.confirm.result",
+          "description": "Apply command confirmation byte to the waiting macro owner in order; duplicate redraw never replays it. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.confirm"
+          ]
+        },
+        {
+          "id": "obligation.network.confirm.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.confirm"
+          ]
+        },
+        {
+          "id": "obligation.network.confirm.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Apply command confirmation byte to the waiting macro owner in order; duplicate redraw never replays it.",
+          "sources": [
+            "source.reconciliation.network.confirm"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.network.end-marker",
+      "acceptanceStage": "C008",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.network.end-marker"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Consume the payload-free end marker without inventing frame counters or dropping adjacent packets. Full outcome allocation: stage C008. B: Net_packet/Input_loop обслуживает поток реальной сессии и вложенных запросов; transport/control outcome нужен независимо от поздних caller commands."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.network.end-marker.result",
+          "description": "Consume the payload-free end marker without inventing frame counters or dropping adjacent packets. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.network.end-marker"
+          ]
+        },
+        {
+          "id": "obligation.network.end-marker.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.network.end-marker"
+          ]
+        },
+        {
+          "id": "obligation.network.end-marker.allocation-checks",
+          "description": "Split packet + sentinel; no partial effects, exactly-once ordered replies/no invented ack; error/unknown/reset; network продолжает работать во вложенном UI. Точный проверяемый результат: Consume the payload-free end marker without inventing frame counters or dropping adjacent packets.",
+          "sources": [
+            "source.reconciliation.network.end-marker"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "reviewedObligationCount": 18,
+  "platformPolicy": "Linux required; Windows/MinGW/Wine deferred per docs/agents/platform-validation.md. Canonical rows preserved verbatim."
+}
