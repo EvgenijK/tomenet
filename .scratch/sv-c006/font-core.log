@@ -1,0 +1,8 @@
+9x15.pcf range=0..255 glyphs=223 default=0 cell=9x15 checked=223
+9x15tg.pcf range=0..255 glyphs=256 default=31 cell=9x15 checked=256
+12x24.pcf range=1..255 glyphs=221 default=32 cell=12x24 checked=221
+8x16.pcf range=1..255 glyphs=221 default=32 cell=8x16 checked=221
+16x22.pcf range=0..127 glyphs=128 default=0 cell=16x22 checked=128
+16x24tg.pcf range=0..255 glyphs=256 default=31 cell=16x24 checked=256
+16x24x.pcf range=0..255 glyphs=256 default=31 cell=16x24 checked=256
+bundled corpus valid=51 invalid=0 FON-deferred=50

@@ -8,6 +8,7 @@
 #include "settings/preferences.h"
 #include "settings/audio.h"
 #include "settings/startup.h"
+#include "settings/map-font.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];
@@ -92,6 +93,9 @@ typedef struct {
     /* Application data is borrowed for the runner lifetime. Attempts clone it
      * without replaying its one-shot effects. */
     const SvPreferences *preferences;
+    const SvMapFont *map_font;
+    int graphics_mode;
+    const char *graphics_tiles; /* Borrowed effective name from prepared owner. */
     const SvSettingsAudioSnapshot *audio;
     const SvSettingsInvocation *invocation; /* secret cleared after credential handoff */
     bool auto_reincarnation;

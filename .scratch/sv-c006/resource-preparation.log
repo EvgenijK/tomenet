@@ -1,0 +1,2 @@
+SV bundled graphics: files=6 validated=6 failed=0 bmp=6 png=0 subsets=2 tiles=6 raw=6 missing-prf=0 partial-prf=0 last=
+SV resource preparation: masks, filters/fallback, bounds, retained generation, BMP/PNG PASS

@@ -19,6 +19,9 @@
 #include "protocol/login-identity.h"
 #include "settings/startup.h"
 #include "settings/audio.h"
+#include "ui/font-editor.h"
+#include "settings/graphics.h"
+#include "session/map-effects.h"
 #include "login/login-view.h"
 #include "login/pregame.h"
 #include "../../../temporary/sv/stubs/pregame-ui.h"
@@ -441,6 +444,152 @@ static bool load_list(SvEndpoint *endpoint, const char *path)
     return true;
 }
 
+typedef struct {
+    SvPreferences **preferences;
+    SvMapFont *map;
+    SvLoginFlow *flow;
+    SvFontSelection *fonts;
+    SvGraphics **graphics;
+    const SvSettingsConfig *config;
+    SvSettingsConfig preview_config;
+    const SvSettingsInvocation *invocation;
+    SvGraphics *original_graphics;
+    SvMapEffects *effects;
+    SvMapEffectOptions effect_options;
+    SvFont *original_font;
+    SvPreferences *original_preferences;
+    SvMapFont original_map;
+} SvNativeFontOwner;
+static void publish_font_options(SvNativeFontOwner *owner)
+{
+    if(!owner->flow)return;
+    owner->flow->options.preferences=*owner->preferences;
+    owner->flow->options.settings=sv_preferences_options(*owner->preferences);
+    owner->flow->options.graphics_mode=sv_graphics_mode(*owner->graphics);
+    owner->flow->options.graphics_tiles=sv_graphics_name(*owner->graphics);
+    if(owner->effects) {
+        owner->effect_options.graphics_mode=sv_graphics_mode(*owner->graphics);
+        sv_map_effects_options(owner->effects,&owner->effect_options);
+    }
+}
+static bool preference_flag(const SvPreferences *preferences,const char *name)
+{
+    int slot=sv_settings_option_slot(name);
+    const SvSettingsOptions *options=sv_preferences_options(preferences);
+    return options && slot>=0 && options->values[slot];
+}
+static bool apply_map_font(void *opaque,SvFontRole role,SvFont *font)
+{
+    if(role==SV_FONT_TEXT)return true;
+    SvNativeFontOwner *owner=opaque;
+    if(font==owner->original_font && owner->original_preferences) {
+        /* Cancel restores the prepared opening stack even when its source has
+         * since disappeared. Restoring a view never reexecutes its PRF. */
+        if(owner->flow && owner->flow->attempt.login &&
+            sv_login_state(owner->flow->attempt.login)==SV_LOGIN_PLAY_ACKNOWLEDGED &&
+            sv_login_update_rendering(owner->flow->attempt.login,
+                &owner->original_map.definitions,sv_graphics_mode(owner->original_graphics),
+                sv_graphics_name(owner->original_graphics),owner->original_map.effective)!=SV_OK)
+            return false;
+        sv_preferences_destroy(*owner->preferences);
+        sv_graphics_destroy(*owner->graphics);
+        *owner->graphics=owner->original_graphics;owner->original_graphics=NULL;
+        *owner->preferences=owner->original_preferences;
+        *owner->map=owner->original_map;
+        owner->original_preferences=NULL;owner->original_font=NULL;
+        publish_font_options(owner);
+        return true;
+    }
+    SvMapFont candidate=*owner->map;
+    SvPreferenceContext context=sv_preferences_default_context();
+    context.generation=owner->flow?owner->flow->generation:0;
+    SvPreferences *preferences=sv_map_font_reload(&candidate,*owner->preferences,
+        sv_font_resource(font),&context);
+    if(!preferences)return false;
+    SvFontMetrics metrics;
+    if(!sv_font_metrics(font,&metrics)) { sv_preferences_destroy(preferences);return false; }
+    char graphics_error[256];
+    SvGraphics *graphics=sv_graphics_prepare(candidate.user,candidate.library,owner->config,
+        preferences,&context,metrics.width,metrics.height,graphics_error,sizeof(graphics_error));
+    if(!graphics) {
+        SDL_SetError("%s",graphics_error);sv_preferences_destroy(preferences);return false;
+    }
+    sv_graphics_cache_policy(graphics,owner->invocation->disable_tile_cache,
+        owner->invocation->disable_tileset_cache);
+    if(*graphics_error)fprintf(stderr,"SV graphics: %s\n",graphics_error);
+    sv_map_font_definitions(&candidate.definitions,preferences);
+    /* No pending session operation is reissued by the renderer. A playing
+     * owner can publish setup+font in one atomic protocol append. */
+    if(owner->flow && owner->flow->attempt.login &&
+        sv_login_state(owner->flow->attempt.login)==SV_LOGIN_PLAY_ACKNOWLEDGED &&
+        sv_login_update_rendering(owner->flow->attempt.login,&candidate.definitions,
+            sv_graphics_mode(graphics),sv_graphics_name(graphics),candidate.effective)!=SV_OK) {
+        sv_graphics_destroy(graphics);sv_preferences_destroy(preferences);return false;
+    }
+    SvPreferences *old=*owner->preferences;
+    if(!owner->original_preferences) {
+        owner->original_preferences=old;
+        owner->original_font=sv_font_selection_font(owner->fonts,SV_FONT_MAP);
+        owner->original_map=*owner->map;
+        if(!owner->original_graphics)owner->original_graphics=*owner->graphics;
+    }
+    SvGraphics *old_graphics=*owner->graphics;
+    *owner->graphics=graphics;
+    *owner->preferences=preferences;*owner->map=candidate;
+    publish_font_options(owner);
+    if(old!=owner->original_preferences)sv_preferences_destroy(old);
+    if(old_graphics!=owner->original_graphics)sv_graphics_destroy(old_graphics);
+    return true;
+}
+static void resource_fields(SvSettingsConfig *out,const SvSettingsConfig *in)
+{
+    SDL_strlcpy(out->graphics_filter,in->graphics_filter,sizeof(out->graphics_filter));
+    SDL_strlcpy(out->pcf_filter,in->pcf_filter,sizeof(out->pcf_filter));
+    out->graphics_force_outline=in->graphics_force_outline;
+}
+static bool prepare_editor_resources(void *opaque,const SvSettingsConfig *config,
+    SvFontRole role,SvFontEditorResourceAction action)
+{
+    SvNativeFontOwner *owner=opaque;
+    SvFontMetrics metrics;
+    if(!sv_font_metrics(sv_font_selection_font(owner->fonts,SV_FONT_MAP),&metrics))return false;
+    SvGraphics *source=*owner->graphics;
+    if(action==SV_EDITOR_RESOURCE_CANCEL && owner->original_graphics)source=owner->original_graphics;
+    if(action==SV_EDITOR_RESOURCE_SAVED && role!=SV_FONT_MAP && owner->original_preferences &&
+       owner->original_graphics)source=owner->original_graphics;
+    char error[256];
+    SvGraphics *candidate=sv_graphics_reprepare(source,
+        sv_resource_filter(config->graphics_filter,SV_RESOURCE_LINEAR),config->graphics_force_outline,
+        metrics.width,metrics.height,error,sizeof(error));
+    if(!candidate) {
+        /* The font Save has already succeeded. Do not later restore graphics
+         * from the previously saved font when retaining its policy failed. */
+        if(action==SV_EDITOR_RESOURCE_SAVED && (role==SV_FONT_MAP || !owner->original_preferences)) {
+            sv_graphics_destroy(owner->original_graphics);owner->original_graphics=NULL;
+        }
+        return SDL_SetError("%s",error);
+    }
+    if(action==SV_EDITOR_RESOURCE_SAVED) {
+        /* A saved map font establishes a new source baseline even if writing
+         * its filter draft failed. Cancel restores that font with saved policy.
+         * A Text save keeps any still-unsaved Map source baseline. */
+        sv_graphics_destroy(owner->original_graphics);
+        owner->original_graphics=candidate;
+        return true;
+    }
+    if(action==SV_EDITOR_RESOURCE_CANCEL) {
+        sv_graphics_destroy(*owner->graphics);
+        sv_graphics_destroy(owner->original_graphics);owner->original_graphics=NULL;
+    } else {
+        if(!owner->original_graphics)owner->original_graphics=*owner->graphics;
+        else if(*owner->graphics!=owner->original_graphics)sv_graphics_destroy(*owner->graphics);
+    }
+    *owner->graphics=candidate;
+    resource_fields(&owner->preview_config,config);
+    publish_font_options(owner);
+    return true;
+}
+
 int sv_endpoint_run(SvEndpointOptions options)
 {
     SvLoginFlow *flow = NULL;
@@ -450,6 +599,11 @@ int sv_endpoint_run(SvEndpointOptions options)
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
+    SvFontSelection *fonts=NULL;
+    SvFontEditor *font_editor=NULL;
+    SvMapFont map_font={0};
+    SvGraphics *graphics=NULL;
+    SvMapEffects *map_effects=NULL;
     SvSettingsAudio *audio = NULL;
     SvMetaserver *provider = NULL;
     SvChronicle *chronicle = NULL;
@@ -457,6 +611,8 @@ int sv_endpoint_run(SvEndpointOptions options)
     SvSettingsConfig config;
     SvSettingsInvocation invocation = {0};
     SvPreferences *preferences = NULL;
+    SvNativeFontOwner font_owner={.preferences=&preferences,.map=&map_font,
+        .graphics=&graphics,.config=&config,.invocation=&invocation};
     sv_settings_config_defaults(&config);
     int result = 1;
     bool first_run = true;
@@ -525,13 +681,33 @@ int sv_endpoint_run(SvEndpointOptions options)
     }
     if (options.width < 1024) options.width = 1024;
     if (options.height < 768) options.height = 768;
+    if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
+    fonts=sv_font_selection_create(root,library,&config);
+    if(!fonts)goto done;
+    font_owner.fonts=fonts;
+    font_owner.preview_config=config;font_owner.config=&font_owner.preview_config;
+    font=sv_font_selection_font(fonts,SV_FONT_TEXT);
+    if(!sv_map_font_init(&map_font,root,library,
+        sv_font_resource(sv_font_selection_font(fonts,SV_FONT_MAP))))goto done;
+    fprintf(stderr,"SV fonts: text requested=%s effective=%s; map requested=%s effective=%s; %s\n",
+        config.text_font,sv_font_resource(font),config.map_font,
+        sv_font_resource(sv_font_selection_font(fonts,SV_FONT_MAP)),sv_font_selection_error(fonts));
     preferences = sv_preferences_create(root, library, NULL);
     if (!preferences) { SDL_SetError("Cannot allocate application preferences"); goto done; }
     SvPreferenceContext preference_context = sv_preferences_default_context();
-    /* Text font selection is independent of map preferences. C006/C007 supply
-     * the effective map resource hook at its existing bootstrap position. */
+    SvFontMetrics map_metrics;
+    if(!sv_font_metrics(sv_font_selection_font(fonts,SV_FONT_MAP),&map_metrics))goto done;
+    SvGraphicsBootstrap graphics_bootstrap={.map=&map_font,.config=&config,.active=&graphics,
+        .width=map_metrics.width,.height=map_metrics.height};
     SvPreferenceResult preference_result = sv_preferences_bootstrap(preferences,
-        &preference_context, NULL, NULL);
+        &preference_context, sv_graphics_bootstrap, &graphics_bootstrap);
+    if(!graphics)goto done;
+    sv_graphics_cache_policy(graphics,invocation.disable_tile_cache,invocation.disable_tileset_cache);
+    if(*graphics_bootstrap.error)fprintf(stderr,"SV graphics: %s\n",graphics_bootstrap.error);
+    fprintf(stderr,"SV graphics requested=%d/%s effective=%d/%s generation=%llu\n",
+        config.graphics,config.graphic_tiles,sv_graphics_mode(graphics),sv_graphics_name(graphics),
+        (unsigned long long)sv_graphics_generation(graphics));
+    sv_map_font_definitions(&map_font.definitions,preferences);
     for (size_t i = 0; i < sv_preferences_diagnostic_count(preferences); ++i) {
         const SvPreferenceDiagnostic *diagnostic = sv_preferences_diagnostic(preferences, i);
         fprintf(stderr, "SV preferences %s:%u: %s\n", diagnostic->source.path,
@@ -539,6 +715,9 @@ int sv_endpoint_run(SvEndpointOptions options)
     }
     if (preference_result.status == SV_PREF_FATAL) {
         SDL_SetError("Cannot retain application preference data"); goto done;
+    }
+    if(map_font.status==SV_PREF_UNAVAILABLE) {
+        SDL_SetError("Map preference source is unreadable or invalid");goto done;
     }
     size_t preference_messages = 0, preference_actions = 0;
     for (size_t i = 0; i < sv_preferences_effect_count(preferences); ++i) {
@@ -550,10 +729,15 @@ int sv_endpoint_run(SvEndpointOptions options)
         fprintf(stderr, "SV startup preferences: retained %zu messages and %zu actions; message presentation and macro runtime pending\n",
             preference_messages, preference_actions);
     options.preferences = preferences;
+    options.map_font=&map_font;
+    options.graphics_mode=sv_graphics_mode(graphics);
+    options.graphics_tiles=sv_graphics_name(graphics);
     options.settings = sv_preferences_options(preferences);
     options.settings_wide = !strcmp(config.layout, "wide");
     options.fps = config.fps;
     flow = sv_login_flow_create(options);
+    font_owner.flow=flow;
+    sv_font_selection_prepare(fonts,apply_map_font,&font_owner);
     sv_settings_invocation_clear_password(&invocation);
     if (!flow) goto done;
     endpoint = &flow->endpoint;
@@ -561,7 +745,6 @@ int sv_endpoint_run(SvEndpointOptions options)
         SDL_SetError("Invalid server address"); result = 2; goto done;
     }
     if (options.server_list && !load_list(endpoint, options.server_list)) { result = 2; goto done; }
-    if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
     if (options.windowed && !fixture_window && !config.window_width && !config.window_height) {
         SDL_Rect area;
         if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &area)) {
@@ -600,8 +783,6 @@ int sv_endpoint_run(SvEndpointOptions options)
            audio_state->sfx, audio_state->music, audio_state->sound_name,
            audio_state->sound_version, audio_state->music_name, audio_state->music_version,
            audio_state->sound_config, audio_state->music_config);
-    font = sv_font_open_selected(root, library, config.text_font);
-    if (!font) goto done;
     printf("SV startup text requested=%s effective=%s\n", config.text_font, sv_font_resource(font));
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (!options.windowed) flags |= SDL_WINDOW_FULLSCREEN;
@@ -620,12 +801,37 @@ int sv_endpoint_run(SvEndpointOptions options)
     options.shell.text_font_path = sv_font_resource(font);
     renderer = SDL_CreateRenderer(window,NULL);
     if (!renderer || !sv_login_shell_open_options(renderer, library, options.shell)) goto done;
+    font_editor=sv_font_editor_create(fonts,root,library,&config,&map_font);
+    if(!font_editor)goto done;
+    map_effects=sv_map_effects_create(1,66,!strcmp(config.layout,"wide")?44:22,1);
+    if(!map_effects)goto done;
+    SvMapEffectOptions effect_options={.palette_animation=true,
+        .use_colour=preference_flag(preferences,"use_color"),
+        .no_flicker=preference_flag(preferences,"no_flicker"),
+        .subterm_flicker=preference_flag(preferences,"subterm_flicker"),
+        .misc_no_flicker=preference_flag(preferences,"misc_no_flicker"),
+        .ascii_weather=preference_flag(preferences,"ascii_weather"),
+        .no2mask_weather=preference_flag(preferences,"no2mask_weather"),
+        .disable_lightning=preference_flag(preferences,"disable_lightning"),
+        .lighter_dark_blue=config.lighter_dark_blue,.no_weather=invocation.no_weather,
+        .graphics_mode=sv_graphics_mode(graphics)};
+    effect_options.no_weather|=preference_flag(preferences,"no_weather");
+    sv_map_effects_options(map_effects,&effect_options);
+    for(unsigned i=0;i<16;++i) {
+        uint32_t rgb=config.palette[i];
+        if(sv_map_effects_palette(map_effects,1,(unsigned char)i,
+            (unsigned char)(rgb>>16),(unsigned char)(rgb>>8),(unsigned char)rgb)!=SV_OK)goto done;
+    }
+    effect_options.palette_animation=preference_flag(preferences,"palette_animation");
+    sv_map_effects_options(map_effects,&effect_options);
+    sv_font_editor_rendering(font_editor,&graphics,map_effects);
+    sv_font_editor_resource_prepare(font_editor,prepare_editor_resources,&font_owner);
+    font_owner.effects=map_effects;font_owner.effect_options=effect_options;
     printf("SV startup window fullscreen=%d ui_scale=%d ignore_dpi=%d renderer=%s\n",
            (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0,
            config.ui_scale_percent, invocation.ignore_scaling, SDL_GetRendererName(renderer));
-    if (invocation.no_weather || invocation.no_lua_updates || invocation.chat_log_mode ||
-        invocation.quit_no_prompt || invocation.disable_tileset_cache || invocation.disable_tile_cache)
-        fprintf(stderr, "SV invocation retains deferred weather/transfer/export/quit/cache requests; their late consumers are not active\n");
+    if (invocation.no_lua_updates || invocation.chat_log_mode || invocation.quit_no_prompt)
+        fprintf(stderr, "SV invocation retains deferred transfer/export/quit requests; their late consumers are not active\n");
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);
@@ -646,6 +852,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     sv_endpoint_input_begin(&input);
     scene.chronicle = &chronicle_view;
     int frames = 0;
+    unsigned text_generation=sv_font_selection_generation(fonts,SV_FONT_TEXT);
 select_endpoint:
     sv_pregame_input_boundary();
     if (!SDL_StartTextInput(window)) goto done;
@@ -667,6 +874,31 @@ select_endpoint:
             }
             if (event.type == SDL_EVENT_RENDER_DEVICE_RESET &&
                 !sv_login_shell_reset(renderer)) goto done;
+            if(event.type==SDL_EVENT_RENDER_DEVICE_RESET) {
+                sv_graphics_reset_renderer(graphics);
+                sv_graphics_reset_renderer(font_owner.original_graphics);
+            }
+            bool editing=sv_font_editor_open(font_editor);
+            if(sv_font_editor_event(font_editor,&event)) {
+                if(event.type==SDL_EVENT_KEY_DOWN && event.key.key==SDLK_S &&
+                    sv_font_editor_role(font_editor)==SV_FONT_MAP &&
+                    (event.key.mod&SDL_KMOD_CTRL) && !sv_font_selection_dirty(fonts,SV_FONT_MAP) &&
+                    !*sv_font_selection_error(fonts) && font_owner.original_preferences) {
+                    sv_preferences_destroy(font_owner.original_preferences);
+                    font_owner.original_preferences=NULL;font_owner.original_font=NULL;
+                }
+                font=sv_font_selection_font(fonts,SV_FONT_TEXT);
+                unsigned generation=sv_font_selection_generation(fonts,SV_FONT_TEXT);
+                if(generation!=text_generation) {
+                    options.shell.text_font_path=sv_font_resource(font);
+                    if(!sv_login_shell_open_options(renderer,library,options.shell))goto done;
+                    text_generation=generation;
+                }
+                if(editing && !sv_font_editor_open(font_editor)) {
+                    sv_pregame_input_boundary();SDL_StartTextInput(window);
+                }
+                continue;
+            }
             (void)sv_endpoint_event(&input,endpoint,&event,NULL,NULL);
             if (endpoint->phase == SV_ENDPOINT_CANCELLED ||
                 endpoint->phase == SV_ENDPOINT_SELECTED) { quit = true; break; }
@@ -675,7 +907,10 @@ select_endpoint:
         float field_scale=sv_login_ui_scale(window);
         if(field_scale<=0)field_scale=1;
         input.text_cell=sv_font_cell_width(font,field_scale)/field_scale;
-        if (!draw_scene(renderer,font,endpoint,&input,&scene,NULL)) goto done;
+        if(sv_font_editor_open(font_editor)) {
+            if(sv_map_effects_tick(map_effects,1,SDL_GetTicks())!=SV_OK)goto done;
+            if(!sv_font_editor_draw(font_editor,renderer))goto done;
+        } else if (!draw_scene(renderer,font,endpoint,&input,&scene,NULL)) goto done;
         if (options.frames && ++frames >= options.frames) break;
         limit_frame(frame_start, config.fps);
     }
@@ -733,9 +968,14 @@ done:
         fprintf(stderr, "SV startup preferences: cancelling %zu retained effects at application close\n",
             sv_preferences_effect_count(preferences));
     sv_preferences_destroy(preferences);
+    sv_preferences_destroy(font_owner.original_preferences);
+    sv_font_editor_destroy(font_editor);
+    sv_graphics_destroy(graphics);
+    sv_graphics_destroy(font_owner.original_graphics);
+    sv_map_effects_destroy(map_effects);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    sv_font_close(font);
+    sv_font_selection_destroy(fonts);
     TTF_Quit();
     SDL_Quit();
     SDL_free(owned_root);

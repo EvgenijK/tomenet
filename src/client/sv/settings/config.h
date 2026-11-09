@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "files/files.h"
 
 /* Requested choices only. Resource owners keep their effective fallbacks separate. */
 #define SV_SETTINGS_TEXT_MAX 1024
@@ -65,5 +66,17 @@ SvSettingsConfigResult sv_settings_config_overlay_parse(SvSettingsConfig *config
     const void *bytes, size_t size);
 SvSettingsConfigResult sv_settings_config_overlay_load(SvSettingsConfig *config,
     const char *resolved_path);
+
+/* Narrow resource Save: reread/merge changed records, external values win a
+ * same-key conflict. Failure never alters the caller's active preview/draft. */
+enum {
+    SV_CONFIG_TEXT_FONT=1u<<0, SV_CONFIG_MAP_FONT=1u<<1,
+    SV_CONFIG_TEXT_PROFILE=1u<<2, SV_CONFIG_MAP_PROFILE=1u<<3,
+    SV_CONFIG_GRAPHICS_FILTER=1u<<4, SV_CONFIG_PCF_FILTER=1u<<5,
+    SV_CONFIG_OUTLINE=1u<<6, SV_CONFIG_GRAPHICS=1u<<7, SV_CONFIG_TILESET=1u<<8
+};
+SvFileResult sv_settings_config_save_resources(const SvFilePath *target,
+    const SvSettingsConfig *opening, const SvSettingsConfig *edited, unsigned mask,
+    unsigned *saved, unsigned *conflicts);
 
 #endif

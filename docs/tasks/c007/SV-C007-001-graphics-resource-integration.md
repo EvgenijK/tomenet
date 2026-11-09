@@ -1,10 +1,10 @@
 # SV-C007-001 — active graphics, overlay и reporting C003
 
-Статус: planned, 2026-11-09.
-Flow evidence: pending; реализация и native evidence отсутствуют.
+Статус: accepted пользователем 2026-11-09 в представленных границах Linux core.
+Flow evidence: Linux core выполнен; непроверенные поздние branches сохранены в evidence.
 Labels: enhancement
 Связка: FI-02.
-Stage consumers: C007 rendering, в частности `capability.rendering.tiles`,
+Owned IDs полного плана: `capability.rendering.tiles`,
 `capability.rendering.subsets`, `capability.rendering.cache-generation`;
 это integration task внутри их нормативных контрактов, без новых IDs.
 C003 obligations: `capability.files.resource-overlay`,
@@ -96,3 +96,35 @@ MinGW/Wine deferred. Здесь нет заявления о выполненн�
 блокируют и не переоткрывают C003 автоматически. Evidence можно добавить в
 сводку C003 для трассировки, но это не prerequisite уже состоявшейся приёмки.
 Canonical runtime registration C003 остаётся отдельным workflow.
+
+
+## Уточнение полного плана после C006 — 2026-11-09
+
+Единственный ID owner tiles/subsets/cache-generation — эта задача; graphics
+PRF integration 002 не дублирует allocation. Текущий map/font bootstrap уже
+production (`sv_map_font_bootstrap`); disabled stub выше описывает прежнее
+состояние. Использовать C006 selection/preparation/glyph APIs и C003 files/
+reporting, расширяя единый coupled candidate. Semantic composition 003 и
+geometry 005 — реальные consumers; preview C006 не принимает full C007.
+Cache key учитывает source/profile/masks/subsets/filter/outline/final-size
+поколения; publication атомарна. Resize может кратко показывать прежний scaled
+набор при продолжающихся updates/hit testing, затем выводит новый 1:1.
+Итоговый scope/границы позднего map evidence — в [спецификации](../../sv-stage-c007-spec.md).
+
+
+## Результат реализации — 2026-11-09
+
+Production Linux core реализован агентами и подключён к native resource consumer.
+[Фактические callers, команды, результаты и ограничения](../../sv-c007-evidence.md)
+содержат отдельную disposition каждого obligation. Этот результат не принимает
+полный C007, C013 live-map flow, hardware backend или непроверенные branches;
+canonical registration остаётся отдельным workflow.
+
+
+## Приёмка пользователем — 2026-11-09
+
+Пользователь явно подтвердил: «этот этап принял».
+[C007 и задачи 001–007 приняты](../../sv-stage-c007-acceptance.md) в представленных границах Linux core,
+с сохранением описанных ограничений. Исторические формулировки pending выше
+относятся к моменту подготовки плана/evidence. Live карта остаётся C013;
+непроведённые проверки не получают PASS, canonical registry не изменён.

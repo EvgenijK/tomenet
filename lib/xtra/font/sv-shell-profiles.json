@@ -9,7 +9,7 @@
     "sha256": "06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481",
     "license": "CascadiaMono-LICENSE.txt",
     "lookup": ["SDL3 user root/xtra/font", "selected library/xtra/font"],
-    "mapping": "Unicode ASCII scalar identity; verified fixed-width and glyph presence on open"
+    "mapping": "Unicode ASCII scalar identity; glyph presence verified on open; proportional faces use explicit one-cell placement in the numeric glyph API"
   },
   "fallback": {
     "file": "16x24x.pcf",

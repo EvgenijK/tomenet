@@ -34,6 +34,10 @@ struct SvPreferences {
     char stack[SV_PREFERENCE_INCLUDE_DEPTH][SV_FILE_PATH];
     unsigned depth;
 };
+void sv_preferences_swap(SvPreferences *a,SvPreferences *b)
+{
+    if (a && b) { SvPreferences temporary=*a; *a=*b; *b=temporary; }
+}
 static void *resize(SvPreferences *p, void *old, size_t old_size, size_t size)
 {
     if (size > SV_PREFERENCE_BYTE_LIMIT || p->allocated-old_size > SV_PREFERENCE_BYTE_LIMIT-size) {
@@ -711,6 +715,31 @@ SvPreferenceResult sv_preferences_load(SvPreferences *p,SvOptionOwner role,
     SvPreferenceStatus status=load_file(p,role,name,purpose,&ctx,purpose==SV_PREF_EXPLICIT,false);
     return result_since(p,status,files,diagnostics);
 }
+static void reset_mappings(SvPreferences *p,bool graphics_only)
+{
+    if (!p) return;
+    size_t kept=0;
+    for (size_t i=0;i<p->mapping_count;++i) {
+        char family=p->mappings[i].family;
+        if (family!='I' && family!='m' &&
+            (graphics_only || (family!='R' && family!='K' && family!='F' && family!='U'))) p->mappings[kept++]=p->mappings[i];
+    }
+    /* Retain capacity/accounting until the next store or destruction. Shrink
+     * explicitly so mapping_count remains the allocation size invariant. */
+    if (kept!=p->mapping_count) {
+        if (!kept) { release(p,p->mappings,p->mapping_count*sizeof(*p->mappings)); p->mappings=NULL; }
+        else {
+            SvPreferenceMapping *smaller=resize(p,p->mappings,
+                p->mapping_count*sizeof(*p->mappings),kept*sizeof(*p->mappings));
+            if (smaller) p->mappings=smaller;
+            else return;
+        }
+        p->mapping_count=kept;
+    }
+    if (!graphics_only) memset(p->glyph_subtilesets,-1,sizeof(p->glyph_subtilesets));
+}
+void sv_preferences_reset_visuals(SvPreferences *p){reset_mappings(p,false);}
+void sv_preferences_reset_graphics(SvPreferences *p){reset_mappings(p,true);}
 SvPreferenceResult sv_preferences_bootstrap(SvPreferences *p,
     const SvPreferenceContext *context,SvPreferenceResourceHook resources,void *opaque)
 {

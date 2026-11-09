@@ -3,6 +3,7 @@
 #include "result.h"
 #include "settings/options.h"
 #include "settings/audio.h"
+#include "protocol/visuals.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -35,6 +36,16 @@ SvResult sv_login_set_audio(SvLogin *login, const SvSettingsAudioSnapshot *audio
 SvResult sv_login_send_audio(SvLogin *login);
 /* Current effective map/graphics report; missing until actual consumer exists. */
 SvResult sv_login_send_font(SvLogin *login);
+/* Effective font definitions are copied, never borrowed from a rendering cache.
+ * Live update appends setup+font atomically; backpressure publishes neither. */
+SvResult sv_login_set_visuals(SvLogin *,const SvVisualDefinitions *,const char *font);
+SvResult sv_login_update_visuals(SvLogin *,const SvVisualDefinitions *,const char *font);
+/* Prepared graphics/font stack. Requested references stay with the resource
+ * owner; existing report serializers retain their byte limits and gates. */
+SvResult sv_login_set_rendering(SvLogin *, const SvVisualDefinitions *, int graphics,
+    const char *tiles, const char *font);
+SvResult sv_login_update_rendering(SvLogin *, const SvVisualDefinitions *, int graphics,
+    const char *tiles, const char *font);
 SvOutput sv_login_take_output(SvLogin *login, void *bytes, size_t capacity);
 SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size);
 SvResult sv_login_choose(SvLogin *login, size_t slot);

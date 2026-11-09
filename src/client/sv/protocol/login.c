@@ -24,6 +24,7 @@ struct SvLogin {
     int version[6];
     unsigned char options[SV_SETTINGS_OPTION_COUNT];
     SvResourceReport report;
+    SvVisualDefinitions visuals;
     SvLoginState state;
     unsigned char input[SV_LOGIN_INPUT_CAPACITY];
     size_t input_size;
@@ -286,6 +287,48 @@ SvResult sv_login_send_font(SvLogin *login)
     size_t size = sv_report_font(&login->report, login->version, packet);
     return size ? append_output(login, packet, size) : SV_OK;
 }
+SvResult sv_login_set_visuals(SvLogin *login,const SvVisualDefinitions *visuals,const char *font)
+{
+    return login ? sv_login_set_rendering(login,visuals,login->report.graphics,
+        login->report.tiles,font) : SV_INVALID;
+}
+SvResult sv_login_update_visuals(SvLogin *login,const SvVisualDefinitions *visuals,const char *font)
+{
+    return login ? sv_login_update_rendering(login,visuals,login->report.graphics,
+        login->report.tiles,font) : SV_INVALID;
+}
+SvResult sv_login_set_rendering(SvLogin *login,const SvVisualDefinitions *visuals,
+    int graphics,const char *tiles,const char *font)
+{
+    if (!login || !visuals || !font || !tiles || strlen(font)>1023 ||
+        strlen(tiles)>1023 || graphics<0 || graphics>2) return SV_INVALID;
+    /* Use a candidate because a compatibility wrapper may pass report.tiles. */
+    SvResourceReport candidate=login->report;
+    candidate.graphics=(int16_t)graphics;
+    sv_report_copy(candidate.tiles,tiles);sv_report_copy(candidate.font,font);
+    login->visuals=*visuals;login->report=candidate;return SV_OK;
+}
+SvResult sv_login_update_rendering(SvLogin *login,const SvVisualDefinitions *visuals,
+    int graphics,const char *tiles,const char *font)
+{
+    if (!login || !visuals || !font || !tiles || strlen(font)>1023 ||
+        strlen(tiles)>1023 || graphics<0 || graphics>2 ||
+        login->state!=SV_LOGIN_PLAY_ACKNOWLEDGED) return SV_INVALID;
+    unsigned char packet[20*1024],*at=packet;
+    const int setup_since[6]={4,6,1,2,0,1};
+    if (sv_visual_atleast(login->version,setup_since)) {
+        *at++=PKT_CLIENT_SETUP;
+        at+=sv_visual_encode(visuals,login->version,false,at);
+    }
+    SvResourceReport candidate=login->report;
+    candidate.graphics=(int16_t)graphics;
+    sv_report_copy(candidate.tiles,tiles);
+    sv_report_copy(candidate.font,font);
+    at+=sv_report_font(&candidate,login->version,at);
+    SvResult result=append_output(login,packet,(size_t)(at-packet));
+    if (result==SV_OK) { login->report=candidate;login->visuals=*visuals; }
+    return result;
+}
 SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               int16_t class_id, int16_t trait,
                               const int16_t stats[6], const char *font)
@@ -322,19 +365,9 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
         memcpy(at, geometry, sizeof(geometry));
         at += sizeof(geometry);
     }
-    /* Complete baseline redefinition tables: unknown, features, kinds,
-     * monsters. This text-only resource outcome has no custom font mapping.
-     * Each zero attribute/character means retain authoritative server identity,
-     * exactly as handle_process_font_file initializes Client_setup. */
-    const int features_since[6] = {4, 9, 1, 2, 0, 2};
-    size_t features = newer(login->version, features_since) ? 512u : 256u;
-    const int expanded_tables_since[6] = {4, 6, 1, 2, 0, 0};
-    const int wide_characters_since[6] = {4, 8, 1, 0, 0, 0};
-    size_t kinds = newer(login->version, expanded_tables_since) ? 1280u : 1024u;
-    size_t monsters = newer(login->version, expanded_tables_since) ? 1280u : 1152u;
-    size_t entry_width = atleast(login->version, wide_characters_since) ? 5u : 2u;
-    size_t visual_size = entry_width * (127u + features + kinds + monsters);
-    sv_stub_play_visuals(at, visual_size); at += visual_size;
+    /* Zero entries retain server identity. Actual PRF definitions override
+     * them through the same semantic table used by the font map consumer. */
+    at+=sv_visual_encode(&login->visuals,login->version,true,at);
     SvResult queued = append_output(login, packet, (size_t)(at - packet));
     if (queued == SV_OK) {
         sv_report_copy(login->report.font, font);

@@ -1,11 +1,12 @@
 # SV-C006-001 — active map font, overlay и reporting C003
 
-Статус: planned, 2026-11-09.
-Flow evidence: pending; реализация и native evidence отсутствуют.
+Статус: accepted, 2026-11-09; принят пользователем в согласованных границах.
+Flow evidence: Linux core/peer и native software consumer — см. итог ниже.
 Labels: enhancement
 Связка: FI-01.
-Stage outcomes: `capability.fonts.map-select`, `capability.fonts.fallback`,
-`capability.fonts.live-failure` в рамках их полного C006 контракта.
+Owned outcome: `capability.fonts.map-select` (единственный owner).
+Supporting flows: `capability.fonts.fallback`, `capability.fonts.live-failure`;
+их единственный owner — [SV-C006-004](SV-C006-004-font-selection-lifecycle.md).
 C003 obligations: `capability.files.resource-overlay`,
 `capability.files.report-resource-identity`; владельцы —
 [SV-C003-001](../c003/SV-C003-001-file-owners.md) и
@@ -30,8 +31,10 @@ C003 принят пользователем 2026-11-09 без ожидания 
 
 Production consumer — владелец реально используемого map font/profile, а не UI
 text font и не значение `svMapFont` само по себе. Исходный seam для сверки:
-`src/client/sv/login/flow.c` → `protocol/login.c:sv_login_start_play`; C003 обязан
-устранить прежнюю передачу UI text font как map font. При реализации сверить
+`src/client/sv/login/flow.c` → `protocol/login.c:sv_login_start_play`. C003 уже
+устранил передачу UI text font: текущий caller передаёт пустую map identity,
+а PLAY definitions пока заполняет `sv_stub_play_visuals`. C006 заменяет эти
+missing/stub outcomes фактическим map owner и его definitions. При реализации сверить
 актуальные C003 public interfaces вместо предположения об уже готовых API.
 
 ## Работа
@@ -58,7 +61,20 @@ text font и не значение `svMapFont` само по себе. Исхо�
 5. Активные tiles и их lifecycle передать C007 через actual resource state;
    отсутствие graphics consumer не выдавать за enabled evidence. App-owned
    resources могут переживать session; отправка всегда относится к текущему
-   generation. Не добавлять настройки C056 или audio flows C055.
+   generation. Не добавлять общий settings registry/UI C056 или audio flows C055.
+   Собственные fonts keys/profile/filter/outline этого этапа должны работать;
+   узкие preview/cancel/private Save через C002 обеспечивает 004. Map-specific
+   reload/reporting остаётся здесь, common selection/lifecycle — в 004.
+
+## Уточнение полного плана 2026-11-09
+
+Loaders/preparation предоставляет 003, общий selection/failure lifecycle —
+[004](SV-C006-004-font-selection-lifecycle.md). Настоящие tile/raw-picture
+preparation/display, filters, outline и font-only fallback входят в 005.
+Это не переносит в C006 полную игровую композицию, FI-02 или coupled graphics
+PRF reload C007. Font path и seam C006 принимаются без ожидания C007;
+C007 затем подключает graphics overrides между font PRF и server notifications.
+Существующие решения о принятых C003/C004 и возврате evidence сохраняются.
 
 ## Завершение и минимальные проверки
 
@@ -94,3 +110,10 @@ Windows/MinGW/Wine deferred. Этот план не содержит новых 
 блокируют и не переоткрывают C003 автоматически. Evidence можно добавить в
 сводку C003 для трассировки, но это не prerequisite уже состоявшейся приёмки.
 Canonical runtime registration C003 остаётся отдельным workflow.
+
+## Результат реализации — 2026-11-09
+
+Production SV реализация и минимальные Linux core проверки выполнены.
+[Фактическое evidence и ограничения](../../sv-c006-evidence.md) отделяют
+software resource consumer от поздних gameplay flows и непроверенных backends.
+Canonical runtime registration и пользовательская приёмка не выполнялись.

@@ -32,3 +32,28 @@ helper-only evidence не закрывает поздний flow.
 canonical PASS. [Техническая сверка](../../sv-stage-c003-acceptance.md) готова;
 late integration/evidence остаётся работой поздних этапов. Пользователь принял
 C003 и задачи 001–006 без отлагательного условия. Native startup и app core различаются явно.
+
+## FI-01 C006 — 2026-11-09
+
+[Linux core integration evidence](../../sv-c006-evidence.md) добавлено в
+[сводку C003](../../sv-c003-evidence.md): actual map font/definitions, U/B source
+и startup/live wire. Software resource preview не принимает full game/graphics
+flows; FI-02 остаётся C007. Прежняя приёмка C003 сохранена, registry не изменён.
+
+
+## C007 — возврат core integration evidence, 2026-11-09
+
+Production graphics consumer реализован: coupled font/graphics PRF candidate,
+actual base/subset/mask/raw preparation, effective reporting и atomic publication.
+[Evidence C007](../../sv-c007-evidence.md) содержит callers/commands, real sources/generations,
+PLAY/live FONT boundary observations и отдельную disposition 45 rendering
+obligations. Для C003 это FI-02 resource-overlay/report-resource-identity trace;
+для C004 — graphics preference/reset/reload trace. Полный late packet-derived
+map flow, backend/budget и непроверенные failure branches остаются pending.
+Это дополнение не переоткрывает принятую приёмку C003/C004 и не меняет их
+canonical allocation/runtime statuses; сама приёмка C007 не выполнялась.
+
+
+Последующее решение 2026-11-09: [C007 принят пользователем](../../sv-stage-c007-acceptance.md) в представленных
+границах Linux core. Поздние flows и непроверенные branches остаются таковыми;
+это не новая регистрация native-runtime PASS C003/C004.

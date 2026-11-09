@@ -186,3 +186,38 @@ evidence; столбец Remaining evidence теперь означает раб
 Alert delivery C050 и live audio consumers C055 получили самостоятельные
 planning addenda для завершения option-effect связок после C045/C049; это
 передача future work, не новые runtime результаты данного отчёта.
+
+## C006 integration — Linux core, 2026-11-09
+
+C006 подключил production map-font owner и resource bootstrap hook.
+[Фактические caller/команды/источники и ограничения](sv-c006-evidence.md).
+`settings/map-font.c` использует C003 file owners и C004 parser/reset seam;
+`login/native-run.c` активирует font roles, `login/flow.c` применяет character
+visuals перед PLAY, `protocol/login.c` сериализует actual definitions/identity.
+Минимальный map-font check подтверждает U/user custom F:3=(attr9,glyph81),
+B/user custom F:3=(attr8,glyph80), затем B system F:5=(attr6,glyph82); invalid
+custom directory не публикуется, missing system явно даёт zero overrides.
+PLAY bytes содержат эти таблицы, live output — CLIENT_SETUP затем FONT.
+Source full refs сохраняются локально; C003 reporting copy policy не менялась.
+App PRF effects имеют generation/payload/context, repaint не генерирует их снова;
+actual messages/actions delivery остаётся C016/C053. FI-01 core evidence
+дополнено; FI-02 active graphics/coupled reload остаётся C007. Это не меняет
+прежнюю пользовательскую приёмку C003/C004 и не регистрирует canonical PASS.
+
+
+## C007 — возврат core integration evidence, 2026-11-09
+
+Production graphics consumer реализован: coupled font/graphics PRF candidate,
+actual base/subset/mask/raw preparation, effective reporting и atomic publication.
+[Evidence C007](sv-c007-evidence.md) содержит callers/commands, real sources/generations,
+PLAY/live FONT boundary observations и отдельную disposition 45 rendering
+obligations. Для C003 это FI-02 resource-overlay/report-resource-identity trace;
+для C004 — graphics preference/reset/reload trace. Полный late packet-derived
+map flow, backend/budget и непроверенные failure branches остаются pending.
+Это дополнение не переоткрывает принятую приёмку C003/C004 и не меняет их
+canonical allocation/runtime statuses; сама приёмка C007 не выполнялась.
+
+
+Последующее решение 2026-11-09: [C007 принят пользователем](sv-stage-c007-acceptance.md) в представленных
+границах Linux core. Поздние flows и непроверенные branches остаются таковыми;
+это не новая регистрация native-runtime PASS C003/C004.

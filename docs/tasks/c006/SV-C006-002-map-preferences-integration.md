@@ -1,7 +1,8 @@
 # SV-C006-002 — effective map font preferences и reload C004
 
-Статус: planned, 2026-11-09; реализация и flow evidence pending.
+Статус: accepted, 2026-11-09; принят пользователем в согласованных границах.
 Labels: enhancement
+Owned outcomes: 0 IDs; supporting integration для map-select задачи 001.
 Зависимости: production preference core C004, file/reporting core C003,
 [SV-C006-001](SV-C006-001-map-resource-integration.md).
 Последующий consumer: graphics overlay C007 по
@@ -18,7 +19,8 @@ Canonical allocation, IDs, conditions, obligations и runtime statuses не ме
 Исходные требования и результаты сохраняются в [source contract C004](../c004/source-contract.md),
 [evidence](../../sv-c004-evidence.md) и [приёмке C004](../../sv-stage-c004-acceptance.md).
 
-Задача дополняет C003/FI-01 задачу 001: та отвечает за active map resource и
+Задача дополняет C003/FI-01 задачу 001: та — единственный owner map-select,
+отвечает за active map resource и
 truthful reporting, эта — за реальное применение preference stack. Font loader,
 reporting и parser не дублировать. Нормативны [CONTEXT](../../../CONTEXT.md),
 [settings policy](../../capabilities/settings-policy.md),
@@ -85,6 +87,16 @@ Baseline seams: `src/client/c-init.c:initialize_main_pref_files`,
 `protocol/login.c`, `login/native-run.c`, `login/flow.c`. Координаты пересверить
 при реализации. Legacy служит behavior baseline, а не pixel oracle.
 
+## Уточнение полного плана 2026-11-09
+
+Общий requested/effective, preview/cancel/private Save и failure lifecycle
+предоставляет [004](SV-C006-004-font-selection-lifecycle.md). Эта задача отвечает
+за production reset/apply, source ordering и PRF effects; она не дублирует
+selection owner или parser. C006/005 даёт настоящий production tile/raw-picture
+preparation/display и font-only fallback outcome. Coupled graphics PRFs,
+полную игровую композицию и FI-02 actual graphics reporting завершает C007;
+эти последующие flows не являются backward gate приёмки C006.
+
 ## Минимальная Linux проверка и завершение
 
 Через тот же production map-font consumer и preference API проверить различимые
@@ -116,3 +128,10 @@ production effect generation/ownership без fake execution.
 Проверки — минимальный production core по [Linux rule](../../agents/platform-validation.md);
 расширение согласуется по AGENTS.md. Windows/MinGW/Wine deferred. План не заявляет
 новый runtime PASS и не заменяет полный контракт C006.
+
+## Результат реализации — 2026-11-09
+
+Production SV реализация и минимальные Linux core проверки выполнены.
+[Фактическое evidence и ограничения](../../sv-c006-evidence.md) отделяют
+software resource consumer от поздних gameplay flows и непроверенных backends.
+Canonical runtime registration и пользовательская приёмка не выполнялись.

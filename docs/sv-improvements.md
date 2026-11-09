@@ -1692,3 +1692,43 @@ implementation of the future live command executor.
 retry, stale generation, close/reconnect, and no dropped or duplicate bytes on
 Linux. C005 checks its own production app retry result and prefix rollback;
 these combined live-owner checks remain with the future caller.
+
+## Уточнить неверные N records в shipped options.prf
+
+**Проблема:** native bootstrap C006 показывает ошибки на строках
+`N:ascii_weather` и `N:no2mask_weather`: baseline PRF parser не принимает N как
+option assignment. Реализация C006 сохраняет source bytes и существующую
+диагностику; намерение этих строк не подменяется догадкой X/Y.
+
+**Код:** `lib/user/options.prf:36`, `lib/user/options.prf:37`,
+`src/client/c-files.c:process_pref_file_aux_aux`,
+`src/client/sv/settings/preferences.c:apply_record`.
+
+**Предложение:** отдельно установить задуманные значения относительно baseline
+defaults и заменить неверные записи корректными X/Y после решения об изменении
+shipped defaults. Это не часть реализации C006.
+
+**Статус:** proposed; source и поведение не изменены.
+
+**Проверки:** минимальный bootstrap через production legacy/SV PRF paths,
+expected значения обоих options, отсутствие новых parsing diagnostics и
+сохранение иных records/порядка загрузки. Дополнительный набор согласуется по AGENTS.
+
+
+## Legacy weather: частичная публикация cloud packet до полного чтения
+
+**Проблема:** при анализе C007 обнаружено, что `Receive_weather` меняет cloud/
+weather globals во время чтения, хотя неполный packet затем откатывает позицию
+буфера. Возврат указателя сам по себе не откатывает уже изменённое состояние.
+
+**Затронутый код:** `src/client/nclient.c`, `Receive_weather` (около строки 6482).
+
+**Предложение:** отдельно рассмотреть decode во временный candidate и commit
+после полного packet для legacy consumers. C007 сохраняет atomicity в собственной
+SV-local реализации; исправление legacy в его scope не входит.
+
+**Статус:** recorded, 2026-11-09; legacy изменение не реализовано.
+
+**Необходимые проверки:** при отдельном исправлении — split packet внутри cloud
+loop не меняет state до completion, complete/chained packets сохраняют порядок,
+weather start/stop не повторяет одноразовые эффекты.

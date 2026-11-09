@@ -99,6 +99,8 @@ SvPreferences *sv_preferences_create(const char *user_root, const char *library_
  * are cleared when copy_effects=false (fresh character attempt). */
 SvPreferences *sv_preferences_clone(const SvPreferences *, bool copy_effects);
 void sv_preferences_destroy(SvPreferences *);
+/* Atomically exchange complete owned candidates; no callbacks or effects run. */
+void sv_preferences_swap(SvPreferences *, SvPreferences *);
 const SvSettingsOptions *sv_preferences_options(const SvPreferences *);
 SvSettingsOptions *sv_preferences_options_mutable(SvPreferences *);
 SvPreferenceResult sv_preferences_load(SvPreferences *, SvOptionOwner role,
@@ -115,6 +117,11 @@ size_t sv_preferences_record_count(const SvPreferences *);
 const SvPreferenceRecord *sv_preferences_record(const SvPreferences *, size_t);
 size_t sv_preferences_mapping_count(const SvPreferences *);
 const SvPreferenceMapping *sv_preferences_mapping(const SvPreferences *, size_t);
+/* Resource owner rebuilds visuals before font/graphics PRFs. Options, macros,
+ * current A, source records and pending effects retain their ownership. */
+void sv_preferences_reset_visuals(SvPreferences *);
+/* Graphics phase keeps font R/K/F/U mappings and shared glyph identities. */
+void sv_preferences_reset_graphics(SvPreferences *);
 const SvPreferenceKeymapRecord *sv_preferences_keymap_record(const SvPreferences *, size_t);
 /* Baseline c_subtileset is glyph-indexed and shared by mapping families. */
 int sv_preferences_glyph_subtileset(const SvPreferences *, unsigned glyph);

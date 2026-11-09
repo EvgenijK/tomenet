@@ -1,6 +1,6 @@
 # SV-C007-002 — graphics preference stack и renderer integration C004
 
-Статус: planned, 2026-11-09; реализация и flow evidence pending.
+Статус: accepted пользователем 2026-11-09 в представленных границах Linux core.
 Labels: enhancement
 Зависимости: production preference core C004, C003 file/reporting owners,
 [SV-C007-001](SV-C007-001-graphics-resource-integration.md) и
@@ -119,3 +119,33 @@ integration ticket не принимаются.
 Проверки — по [Linux rule](../../agents/platform-validation.md), расширение
 согласуется по AGENTS.md; Windows/MinGW/Wine deferred. Нового runtime evidence
 этот план не создаёт.
+
+
+## Уточнение production seam после C006 — 2026-11-09
+
+Упоминание NULL hook выше фиксирует состояние до реализации C006. Сейчас
+`sv_map_font_bootstrap` подключён к native startup, font reset/PRF и definitions
+имеют production owner. Graphics hook встраивается именно в этот path; проверить
+актуальные interfaces по [source contract](source-contract.md). Новый startup
+parser/owner и повторная загрузка после character pre-send не нужны.
+Задача не получает отдельные capability IDs; единственный owner tiles/subsets/
+cache-generation — 001, raw-picture — 006. Совместная подготовка 001/002
+публикует один согласованный candidate и не создаёт циклических prerequisites.
+
+
+## Результат реализации — 2026-11-09
+
+Production Linux core реализован агентами и подключён к native resource consumer.
+[Фактические callers, команды, результаты и ограничения](../../sv-c007-evidence.md)
+содержат отдельную disposition каждого obligation. Этот результат не принимает
+полный C007, C013 live-map flow, hardware backend или непроверенные branches;
+canonical registration остаётся отдельным workflow.
+
+
+## Приёмка пользователем — 2026-11-09
+
+Пользователь явно подтвердил: «этот этап принял».
+[C007 и задачи 001–007 приняты](../../sv-stage-c007-acceptance.md) в представленных границах Linux core,
+с сохранением описанных ограничений. Исторические формулировки pending выше
+относятся к моменту подготовки плана/evidence. Live карта остаётся C013;
+непроведённые проверки не получают PASS, canonical registry не изменён.

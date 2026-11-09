@@ -379,6 +379,11 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             else {
                 if (flow->options.audio)
                     sv_login_set_audio(flow->attempt.login, flow->options.audio);
+                if (flow->options.map_font)
+                    sv_login_set_rendering(flow->attempt.login,
+                        &flow->options.map_font->definitions,flow->options.graphics_mode,
+                        flow->options.graphics_tiles?flow->options.graphics_tiles:"NO_GRAPHICS",
+                        flow->options.map_font->effective);
                 if (sv_pregame_contact_ready(&flow->attempt.pregame, flow->generation) != SV_OK) {
                     flow->attempt.session_error = SV_INVALID;
                     flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
@@ -404,7 +409,7 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             if (sv_birth_committed_play(flow->attempt.birth, flow->generation, &draft)) {
                 flow->attempt.session_error = sv_login_start_play(flow->attempt.login, draft.mode, draft.race,
                     draft.class_id, draft.trait, draft.stats,
-                    "");
+                    flow->options.map_font?flow->options.map_font->effective:"");
                 if (flow->attempt.session_error != SV_OK) flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
                 else {
                     flow->attempt.play_started = true;
@@ -464,6 +469,12 @@ void sv_login_flow_poll(SvLoginFlow *flow)
                 sv_settings_option_set(&current, "big_map", flow->options.settings_wide);
                 if (flow->attempt.preferences)
                     *sv_preferences_options_mutable(flow->attempt.preferences) = current;
+                if(flow->options.map_font && flow->attempt.preferences) {
+                    SvVisualDefinitions definitions;
+                    sv_map_font_definitions(&definitions,flow->attempt.preferences);
+                    sv_login_set_visuals(flow->attempt.login,&definitions,
+                        flow->options.map_font->effective);
+                }
                 /* Packet generation follows the character overlay, before birth
                  * or play setup. Retry gets a fresh copy of the global snapshot. */
                 flow->attempt.session_error = sv_login_set_options(flow->attempt.login, &current);

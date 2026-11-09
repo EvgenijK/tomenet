@@ -33,7 +33,7 @@ SV_MODULES += libsecret-1
 endif
 SV_DEPS := $(shell $(SV_PKG) --modversion $(SV_MODULES) 2>/dev/null)
 SV_CFLAGS := -Iclient/sv -I../tests/sv -I../tests/sv/scenarios -std=c99 -Wall -Wextra -Werror -fstack-protector-strong -DSV_CLASS_BEFORE_RACE=$(SV_CLASS_BEFORE_RACE) $(CPPFLAGS) $(CFLAGS) $(shell $(SV_PKG) --cflags $(SV_MODULES) 2>/dev/null)
-SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null)
+SV_LIBS := $(shell $(SV_PKG) --libs $(SV_MODULES) 2>/dev/null) -lm
 ifeq ($(PLATFORM),mingw)
 SV_LIBS += -lws2_32 -ladvapi32
 endif
@@ -45,6 +45,8 @@ SV_CLIENT_OBJECTS := main.o login/native-run.o login/flow.o credential/vault.o u
 SV_CLIENT_OBJECTS += files/files.o files/history.o files/dna.o files/message-sinks.o
 SV_CLIENT_OBJECTS += settings/config.o settings/options.o settings/preferences.o settings/startup.o settings/audio.o
 SV_CLIENT_OBJECTS += input/keymap.o input/quantity.o
+SV_CLIENT_OBJECTS += ui/font-selection.o ui/resource-preparation.o ui/font-editor.o settings/config-save.o settings/map-font.o
+SV_CLIENT_OBJECTS += settings/graphics.o session/map.o ui/map-renderer.o session/map-effects.o protocol/rendering.o
 SV_DIAGNOSTIC_OBJECTS := diagnostics/timing.o diagnostics/runtime.o diagnostics/launcher.o diagnostics/ui.o diagnostics/capture.o diagnostics/peer.o diagnostics/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o

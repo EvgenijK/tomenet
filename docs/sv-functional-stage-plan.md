@@ -134,8 +134,9 @@ obligations и registry статусы сохранены.
 | C032 | [План C032](tasks/c032/README.md) | FI-07: final-review/tomb callers |
 | C061 | [План C061](tasks/c061/README.md) | FI-08: screenshot producer и safe publication |
 
-Это целевые дополнения планирования C003 integration/evidence, не исчерпывающие
-полные планы соответствующих этапов. При разработке своего этапа читать его
+Таблица перечисляет целевые C003 integration/evidence obligations. C006 теперь
+имеет полный план ниже; остальные ссылки остаются целевыми дополнениями, пока
+их собственный документ не заявит полный scope. При разработке своего этапа читать его
 документ и относящиеся tickets; прежний verification список сохраняет только
 историческую навигацию. Canonical порядок и prerequisite PASS не изменены.
 
@@ -167,6 +168,39 @@ Core C005 и задачи 001–004 реализованы и проверены
 [evidence](sv-c005-evidence.md). [C005 и задачи 001–004 приняты пользователем](sv-stage-c005-acceptance.md)
 2026-11-09. Canonical runtime registration остаётся отдельным workflow;
 canonical JSON не изменён.
+
+C006: [спецификация шрифтов и подготовки ресурсов](sv-stage-c006-spec.md),
+[задачи и порядок реализации](tasks/c006/README.md),
+[source contract](tasks/c006/source-contract.md),
+[точный planning snapshot](tasks/c006/coverage.json). Полный план подготовлен
+анализом трёх агентов 2026-11-09: 11 outcomes, 34 obligations, задачи 001–007.
+Existing map resource/preference obligations 001/002 сохранены; добавлены PCF/TTF
+loaders, independent selection/preview/Save, startup/live policy, resource
+filters/outline/tile-fallback и asset validation. C006 доказывает собственный
+production rendering/resource результат, C007 завершает полную игровую композицию
+и coupled graphics lifecycle. Linux core реализован агентами и интегрирован 2026-11-09:
+[evidence](sv-c006-evidence.md), production font/resource editor на F6. Build,
+пять focused ASan/UBSan core checks, existing login parser и native software
+startup прошли; 51 fonts и 6 sheets проверены. [C006 и задачи 001–007 приняты
+пользователем](sv-stage-c006-acceptance.md) 2026-11-09 с известными ограничениями
+TTF ASCII profile и временного F6 UI. Продуктовая замена — C044. Canonical registry
+не изменён; backend/profile limits и поздние flows отмечены в evidence.
+
+C007: [спецификация игрового rendering](sv-stage-c007-spec.md),
+[задачи и порядок](tasks/c007/README.md),
+[source contract](tasks/c007/source-contract.md),
+[точный planning snapshot](tasks/c007/coverage.json). Полный план подготовлен
+анализом трёх агентов 2026-11-09: 15 outcomes, 45 obligations, задачи 001–007.
+Сохранены C003/FI-02 и C004 graphics preference integrations 001/002; добавлены
+semantic composition, palette/lighting/animation, geometry/indicators и
+weather/effects/raw-picture owners. Текущий C006 bootstrap переиспользуется.
+Полный map ingress и позднее packet-derived evidence остаются C013; weather
+production decoder входит в C007. Linux core реализован агентами и подключён к
+native resource consumer; build, focused ASan/UBSan, editor/login и bounded native
+smoke прошли: [evidence и ограничения](sv-c007-evidence.md). [C007 и задачи
+001–007 приняты пользователем](sv-stage-c007-acceptance.md) 2026-11-09 в представленных
+границах Linux core; live карта остаётся C013. Непроверенные hardware/submission
+условия и поздние flows сохраняются; canonical registry не изменён.
 
 ## Текущая приёмка платформ
 
