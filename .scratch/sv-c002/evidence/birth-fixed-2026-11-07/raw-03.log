@@ -1,0 +1,12 @@
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b024-d98e8aur/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+birth-complete: tests/sv/birth-complete.c:323: int main(int, char **): Assertion `result != 0' failed.
+
+Traceback (most recent call last):
+  File "/home/svechnik/Projects/tomenet_modern_client/tests/sv_birth_complete_checks.py", line 67, in <module>
+    run.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/subprocess.py", line 509, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-b024-d98e8aur/birth-complete', '/tmp/sv-b024-d98e8aur/profile', '/home/svechnik/Projects/tomenet_modern_client/lib', 'waiting', '/home/svechnik/Projects/tomenet_modern_client/tests/sv/fixtures/birth-current.hex', '/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/evidence/birth-fixed-2026-11-07/waiting.bin']' died with <Signals.SIGABRT: 6>.

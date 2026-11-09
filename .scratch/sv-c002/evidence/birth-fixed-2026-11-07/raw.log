@@ -1,0 +1,17 @@
+tests/sv/birth-complete.c:147:13: error: call to undeclared library function 'abort' with type 'void (void) __attribute__((noreturn))'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  147 |             abort();
+      |             ^
+tests/sv/birth-complete.c:147:13: note: include the header <stdlib.h> or explicitly provide a declaration for 'abort'
+1 error generated.
+Traceback (most recent call last):
+  File "/home/svechnik/Projects/tomenet_modern_client/tests/sv_birth_complete_checks.py", line 48, in <module>
+    subprocess.run([CC, "-std=c99", "-D_DEFAULT_SOURCE", "-Wall", "-Wextra", "-Werror",
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "-fsanitize=address,undefined", "-Isrc/client/sv", *SOURCES, *FLAGS,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "-Wl,--wrap=SDL_GetKeyFromScancode", "-Wl,--wrap=sv_endpoint_draw", "-o", str(binary)], cwd=ROOT, check=True)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['clang', '-std=c99', '-D_DEFAULT_SOURCE', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-Isrc/client/sv', 'tests/sv/birth-complete.c', 'src/client/sv/login/native-run.c', 'src/client/sv/settings/config.c', 'src/client/sv/settings/startup.c', 'src/client/sv/settings/audio.c', 'src/client/sv/login/flow.c', 'src/client/sv/login/chronicle.c', 'src/client/sv/result.c', 'src/client/sv/credential/vault.c', 'src/client/sv/login/account/credentials.c', 'src/client/sv/login/characters/login-interaction.c', 'src/client/sv/login/characters/native-login.c', 'src/client/sv/login/characters/native-name.c', 'src/client/sv/login/creation/native-birth.c', 'src/client/sv/protocol/contact.c', 'src/client/sv/protocol/contact-socket.c', 'src/client/sv/protocol/login.c', 'src/client/sv/settings/options.c', 'src/client/sv/protocol/login-identity.c', 'src/client/sv/login/pregame.c', 'src/client/sv/login/login-view.c', 'src/client/sv/login/creation/birth.c', 'src/client/sv/login/ui/endpoint-scene.c', 'src/client/sv/login/ui/login-shell.c', 'src/client/sv/ui/font.c', 'src/client/sv/login/servers/endpoint.c', 'src/client/sv/input/text-field.c', 'src/client/sv/login/ui/native-endpoint.c', 'src/client/sv/input/key-encoding.c', 'src/client/sv/login/servers/metaserver.c', 'src/common/md5.c', '-I/usr/include/harfbuzz', '-I/usr/include/freetype2', '-I/usr/include/libsecret-1', '-I/usr/include/gio-unix-2.0', '-I/usr/include/glib-2.0', '-I/usr/lib/glib-2.0/include', '-I/usr/include/libmount', '-I/usr/include/blkid', '-I/usr/include/sysprof-6', '-pthread', '-I/usr/include/tss2', '-I/usr/include/libpng16', '-lSDL3_ttf', '-lSDL3_mixer', '-lSDL3', '-lfreetype', '-lsecret-1', '-lgio-2.0', '-lgobject-2.0', '-lglib-2.0', '-lpng16', '-lcurl', '-Wl,--wrap=SDL_GetKeyFromScancode', '-Wl,--wrap=sv_endpoint_draw', '-o', '/tmp/sv-b024-4r9fywjy/birth-complete']' returned non-zero exit status 1.

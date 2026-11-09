@@ -1,0 +1,19 @@
+{
+  "src/client/sv/app.c": "ed88311a19b84527ee14adfc6ee4cb6b7f8a8a2b61ea9e2da2b2a090f319db23",
+  "src/client/sv/app.h": "c511ed8764ca9300d2d3598e5bcb24675a45dec7aafccffa7e56d5f49f6c6856",
+  "src/client/sv/input/input.c": "b7b54c666341b156a5925187822a379b2fb527c618819154a06a4df3aa6d4f9e",
+  "src/client/sv/input/input.h": "3c3da09ce531f6a0d5fbe7146c6000eb47a038c8c63c8cf9cfd59343bb766893",
+  "src/client/sv/input/native-input.c": "532a44c6a0ba7132a9ec6c8c96db102a3d2cfded52267dd46d6e583868bd39f2",
+  "src/client/sv/input/native-input.h": "d1044b0ae9737ad5fa8831d115fe0b91351f0e8316939c4115ce5e603f772d04",
+  "src/client/sv/input/keymap.c": "33ffda7ac9ef08a373b5308f84fd4e058ecee3d6353e0f109d1289cd0ed3e19c",
+  "src/client/sv/input/keymap.h": "a0399eeb2cce1e098d8bf55ec72100b0227ed5c851e87800d43761a57940ad7e",
+  "src/client/sv/input/quantity.c": "3860f647dbf57be1637c78084c4df71d0e3082bdb4efd7c467e3f7b7818e249e",
+  "src/client/sv/input/quantity.h": "114fcdc81f923e2258ea77ad3c77d61b2ea2f10f94555494c71476598ddc069b",
+  "src/client/sv/settings/preferences.c": "25ce5c3fda92ad136a768ccfc568b32b9b15223213f34c9d522a54ee8a7bb632",
+  "src/client/sv/settings/preferences.h": "09fc95960f5fa09541dcaa2c78b2d7f4d32ee3c7fe7e2922390d8bc557d24a21",
+  "src/makefile.sv": "a34cac928ca655c79e8ed7c003511398b1c0ec9fb232151a49f761dbebc05a95",
+  "tests/sv/requests.c": "aeedd4e590698d2f4d379d10d25a9dec69ddaac7dd905103108717362e9f2040",
+  "tests/sv/keymap.c": "291e564f65c6c4b745751c29f209a69ffb8e1054366e040ac8ad6d0cc05e8ac3",
+  "tests/sv/quantity.c": "834afe5f4d2de4ef2105da08ced0c3958c5657d851135e78e36fee8249c9aa89",
+  "src/tomenet-sv": "bfdcd88a37d13605ebeb607afad42b235582b069e28f4ce55548db20008fdec6"
+}

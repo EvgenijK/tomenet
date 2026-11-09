@@ -92,8 +92,8 @@ SvResult sv_input_bind_physical(SvInputBindings *bindings, const unsigned char *
     binding->kind = kind;
     return SV_OK;
 }
-SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char *bytes,
-                           size_t size, bool prompt, unsigned char *key)
+static SvResult physical(const SvInputBindings *bindings, const unsigned char *bytes,
+                          size_t size, bool prompt, bool field, unsigned char *key)
 {
     if (!bindings || !bytes || !size || size > SV_PHYSICAL_BYTES || !key) return SV_INVALID;
     /* A physical trigger is matched as one event. Its interior bytes cannot
@@ -101,13 +101,24 @@ SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char 
     for (size_t i = bindings->physical_count; i; --i) {
         const SvPhysicalBinding *binding = &bindings->physical[i - 1];
         if (binding->size != size || memcmp(binding->bytes, bytes, size)) continue;
-        if (prompt && binding->kind == SV_MACRO_COMMAND) break;
+        if ((prompt && binding->kind == SV_MACRO_COMMAND) ||
+            (field && binding->kind != SV_MACRO_NORMAL)) break;
         *key = binding->action;
         return SV_OK;
     }
     if (size != 1) return SV_WAITING;
     *key = bytes[0];
     return supported(*key) ? SV_OK : SV_INVALID;
+}
+SvResult sv_input_physical(const SvInputBindings *bindings, const unsigned char *bytes,
+                           size_t size, bool prompt, unsigned char *key)
+{
+    return physical(bindings, bytes, size, prompt, false, key);
+}
+SvResult sv_input_physical_field(const SvInputBindings *bindings, const unsigned char *bytes,
+                                 size_t size, unsigned char *key)
+{
+    return physical(bindings, bytes, size, true, true, key);
 }
 SvResult sv_input_accept(SvInputRouter *router, const SvInputBindings *bindings,
                          SvKeyRequest request, uint64_t sequence, unsigned char key)

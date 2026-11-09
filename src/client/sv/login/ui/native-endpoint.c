@@ -1,3 +1,4 @@
+#include "login/ui/scale.h"
 #include "login/ui/native-endpoint.h"
 #include "input/key-encoding.h"
 #include "login/ui/pregame-events.h"
@@ -50,7 +51,7 @@ bool sv_endpoint_links_event(SvEndpointInput *input,const SDL_Event *event)
     if(!motion && (event->type!=SDL_EVENT_MOUSE_BUTTON_DOWN || event->button.button!=SDL_BUTTON_LEFT))return false;
     SDL_WindowID id=motion?event->motion.windowID:event->button.windowID;
     SDL_Window *window=SDL_GetWindowFromID(id);int w,h;
-    float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+    float scale=window?sv_login_ui_scale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
     if(scale<=0 || density<=0 || !SDL_GetWindowSizeInPixels(window,&w,&h))return false;
     SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
     float x=(motion?event->motion.x:event->button.x)*density/scale;
@@ -72,7 +73,7 @@ bool sv_endpoint_chronicle_event(SvEndpointInput *input,const SDL_Event *event)
 {
     if(event->type!=SDL_EVENT_MOUSE_WHEEL)return false;
     SDL_Window *window=SDL_GetWindowFromID(event->wheel.windowID);int w,h;
-    float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+    float scale=window?sv_login_ui_scale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
     if(scale<=0 || density<=0 || !SDL_GetWindowSizeInPixels(window,&w,&h))return false;
     SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
     float x=event->wheel.mouse_x*density/scale,y=event->wheel.mouse_y*density/scale;
@@ -95,7 +96,7 @@ static bool endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
     if(sv_endpoint_chronicle_event(input,event))return true;
     if (event->type == SDL_EVENT_MOUSE_MOTION && endpoint->phase == SV_ENDPOINT_LIST) {
         SDL_Window *window=SDL_GetWindowFromID(event->motion.windowID);int w,h;
-        float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+        float scale=window?sv_login_ui_scale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
         if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
             SvLoginLayout l=sv_login_server_layout(w/scale,h/scale,endpoint);
             float x=event->motion.x*density/scale,y=event->motion.y*density/scale;
@@ -110,7 +111,7 @@ static bool endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
     }
     if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button==SDL_BUTTON_LEFT && endpoint->phase==SV_ENDPOINT_MANUAL) {
         SDL_Window *window=SDL_GetWindowFromID(event->button.windowID);int w,h;
-        float scale=window?SDL_GetWindowDisplayScale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
+        float scale=window?sv_login_ui_scale(window):0,density=window?SDL_GetWindowPixelDensity(window):0;
         if(scale>0 && density>0 && SDL_GetWindowSizeInPixels(window,&w,&h)) {
             SvLoginLayout l=sv_login_server_layout(w/scale,h/scale,endpoint);
             SvLoginFormLayout f=sv_login_form_layout(l,h/scale);
@@ -134,7 +135,7 @@ static bool endpoint_event(SvEndpointInput *input, SvEndpoint *endpoint,
         SDL_Window *window = SDL_GetWindowFromID(event->button.windowID);
         int width, height;
         if (!window || !SDL_GetWindowSizeInPixels(window, &width, &height)) return false;
-        float scale = SDL_GetWindowDisplayScale(window);
+        float scale = sv_login_ui_scale(window);
         float density = SDL_GetWindowPixelDensity(window);
         if (scale <= 0 || density <= 0) return false;
         SvLoginLayout layout = sv_login_server_layout(width/scale,height/scale,endpoint);

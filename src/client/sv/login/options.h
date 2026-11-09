@@ -4,6 +4,10 @@
 #include "login/ui/options.h"
 #include "login/pregame.h"
 #include "login/creation/birth-interaction.h"
+#include "settings/options.h"
+#include "settings/preferences.h"
+#include "settings/audio.h"
+#include "settings/startup.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];
@@ -81,7 +85,19 @@ typedef struct {
 } SvEndpointOutcome;
 typedef struct {
     const char *root, *library, *server, *server_list;
-    int width, height, frames, windowed;
+    /* Ordinary invocation data is reduced by the production settings owner. */
+    int startup_argc;
+    char *const *startup_argv;
+    const SvSettingsOptions *settings;
+    /* Application data is borrowed for the runner lifetime. Attempts clone it
+     * without replaying its one-shot effects. */
+    const SvPreferences *preferences;
+    const SvSettingsAudioSnapshot *audio;
+    const SvSettingsInvocation *invocation; /* secret cleared after credential handoff */
+    bool auto_reincarnation;
+    int protocol_override;
+    int width, height, frames, windowed, fps;
+    bool settings_wide;
     unsigned port;
     const char *metaserver;
     SvEndpointChoice *selected_endpoint;

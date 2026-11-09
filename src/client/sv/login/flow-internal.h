@@ -4,6 +4,8 @@
 #include "login/characters/login-interaction.h"
 #include "protocol/contact-socket.h"
 #include "credential/vault.h"
+#include "files/history.h"
+#include "files/dna.h"
 typedef struct {
     unsigned char sending[32 * 1024];
     size_t size, sent;
@@ -39,6 +41,10 @@ typedef struct {
 
 typedef struct {
     SvContactSocket *connection;
+    SvInputHistory *history;
+    /* Character records/effects belong to this attempt's generation. */
+    SvPreferences *preferences;
+    bool dna_saved;
     SvSocketState state;
     SvResult connection_failure, session_error;
     unsigned char iaddr[6];
@@ -52,7 +58,7 @@ typedef struct {
     SvSessionWire wire;
     unsigned rejection;
     int result;
-    bool reached_ready, reported_failure, birth_started, play_started;
+    bool reached_ready, reported_failure, birth_started, play_started, settings_applied, audio_reported, font_reported;
     uint64_t birth_input_since_ns;
     bool birth_placeholder_open, birth_placeholder_drawn;
     SvBirthOwner birth_placeholder_owner;
@@ -67,7 +73,8 @@ typedef struct {
 struct SvLoginFlow {
     SvEndpointOptions options;
     SvEndpoint endpoint;
-    char account[80], password[80];
+    char account[80], password[80], initial_account[80];
+    char previous_character[SV_LOGIN_NAME_CAPACITY];
     const char *profile_root, *font_resource;
     bool first_run, interactive_credentials;
     uint64_t generation, prior_generation, input_epoch;

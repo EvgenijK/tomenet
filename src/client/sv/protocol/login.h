@@ -1,6 +1,8 @@
 #ifndef SV_PROTOCOL_LOGIN_H
 #define SV_PROTOCOL_LOGIN_H
 #include "result.h"
+#include "settings/options.h"
+#include "settings/audio.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -23,12 +25,24 @@ typedef struct {
 
 SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6]);
 void sv_login_destroy(SvLogin *login);
+/* Copies option values before the first Net_start packet. */
+SvResult sv_login_set_options(SvLogin *login, const SvSettingsOptions *options);
+/* Early baseline Send_options, after character selection and before birth/play. */
+SvResult sv_login_send_options(SvLogin *login);
+/* Initial prepared audio snapshot; full local resource names stay with owner. */
+SvResult sv_login_set_audio(SvLogin *login, const SvSettingsAudioSnapshot *audio);
+/* Baseline Send_audio for the playing protocol; old unsupported versions no-op. */
+SvResult sv_login_send_audio(SvLogin *login);
+/* Current effective map/graphics report; missing until actual consumer exists. */
+SvResult sv_login_send_font(SvLogin *login);
 SvOutput sv_login_take_output(SvLogin *login, void *bytes, size_t capacity);
 SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size);
 SvResult sv_login_choose(SvLogin *login, size_t slot);
 SvResult sv_login_create_character(SvLogin *login, const char *name,
                                    bool reincarnation_requested);
-/* Final creation request, accepted only once after a committed birth draft. */
+/* Final creation request, accepted only once after a committed birth draft.
+ * font is the effective map-font name, never the UI text font; current native
+ * caller supplies empty while no actual map consumer exists. */
 SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               int16_t class_id, int16_t trait,
                               const int16_t stats[6], const char *font);

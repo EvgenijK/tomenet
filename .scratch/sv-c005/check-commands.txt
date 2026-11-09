@@ -1,0 +1,12 @@
+# Linux production build (cwd src)
+make -f makefile.sv tomenet-sv -j4
+# Focused production keymap/preferences
+clang -std=c99 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/client/sv tests/sv/keymap.c src/client/sv/input/keymap.c src/client/sv/settings/options.c src/client/sv/settings/preferences.c src/client/sv/files/files.c -o .scratch/sv-c005/keymap
+ASAN_OPTIONS=detect_leaks=0 .scratch/sv-c005/keymap
+clang -std=c99 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/client/sv tests/sv/settings-options.c src/client/sv/settings/options.c src/client/sv/settings/preferences.c src/client/sv/files/files.c src/client/sv/protocol/login.c -o .scratch/sv-c005/preferences
+ASAN_OPTIONS=detect_leaks=0 .scratch/sv-c005/preferences
+# Focused production quantity
+clang -std=c99 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/client/sv tests/sv/quantity.c src/client/sv/input/quantity.c src/client/sv/input/text-field.c -o .scratch/sv-c005/quantity
+ASAN_OPTIONS=detect_leaks=0 .scratch/sv-c005/quantity
+# Existing application/native request suite with C005 cases
+ASAN_OPTIONS=detect_leaks=0 python3 tests/sv_request_checks.py

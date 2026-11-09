@@ -1,0 +1,74 @@
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-fodxg0c1/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64427
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-fodxg0c1/profile private=/tmp/sv-b020-fodxg0c1/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=43429
+SV contact ready host=127.0.0.1 port=43429 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=1916340719
+SV-B-020 managed-peer production flow passed
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-fodxg0c1/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV endpoint startup failed: 
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-fodxg0c1/profile private=/tmp/sv-b020-fodxg0c1/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=35605
+SV contact ready host=127.0.0.1 port=35605 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-fodxg0c1/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-fodxg0c1/profile private=/tmp/sv-b020-fodxg0c1/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=37003
+SV contact ready host=127.0.0.1 port=37003 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-fodxg0c1/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV contact failed: Wrong password  Press R to retry or Escape to exit. (status=0)
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64427
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-fodxg0c1/profile private=/tmp/sv-b020-fodxg0c1/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=41359
+SV contact ready host=127.0.0.1 port=41359 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV contact ready host=127.0.0.1 port=41359 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=2097673791
+SV-B-020 managed-peer production flow passed
+SV-B-020 first-session managed-peer checks passed

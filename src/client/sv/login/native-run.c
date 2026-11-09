@@ -1,4 +1,5 @@
 #include "login/ui/login-shell.h"
+#include "login/ui/scale.h"
 #include "login/ui/login-layout.h"
 #include "login/native-run.h"
 #include "login/flow-internal.h"
@@ -16,6 +17,8 @@
 #include "protocol/contact-socket.h"
 #include "protocol/login.h"
 #include "protocol/login-identity.h"
+#include "settings/startup.h"
+#include "settings/audio.h"
 #include "login/login-view.h"
 #include "login/pregame.h"
 #include "../../../temporary/sv/stubs/pregame-ui.h"
@@ -23,6 +26,16 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
+
+/* FPS0 retains the baseline uncapped mode. This is pacing, not a network
+ * budget: measured work is subtracted before yielding the remainder. */
+static void limit_frame(Uint64 start, int fps)
+{
+    if (fps <= 0) return;
+    Uint64 interval = 1000u / (unsigned)fps;
+    Uint64 spent = SDL_GetTicks() - start;
+    if (spent < interval) SDL_Delay((Uint32)(interval - spent));
+}
 
 static bool draw_scene(SDL_Renderer *renderer, SvFont *font, const SvEndpoint *endpoint,
                        const SvEndpointInput *input, SvEndpointView *view,
@@ -64,7 +77,7 @@ enum { SV_CREDENTIAL_SCENE_ERROR=-1, SV_CREDENTIAL_SCENE_QUIT=0,
 static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *endpoint,
                              SvEndpointInput *input, SvChronicle *chronicle,
                              SvChronicleSnapshot *chronicle_view, int frame_limit,
-                             char account[80], char password[80])
+                             char account[80], char password[80], int fps)
 {
     SDL_Window *window=SDL_GetRenderWindow(renderer);
     /* Retire input queued by server selection before giving this editor an
@@ -73,7 +86,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
     if (!SDL_StopTextInput(window)) return -1;
     sv_pregame_input_boundary();
     if (!SDL_StartTextInput(window)) return -1;
-    float field_scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));
+    float field_scale=sv_login_ui_scale(SDL_GetRenderWindow(renderer));
     if(field_scale<=0)field_scale=1;
     input->text_cell=sv_font_cell_width(font,field_scale)/field_scale;
     SvEndpointView scene = {.chronicle = chronicle_view};
@@ -83,6 +96,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
     const uint64_t input_since_ns=SDL_GetTicksNS();
     int outcome = 0, frames = 0;
     for (;;) {
+        Uint64 frame_start = SDL_GetTicks();
         (void)sv_chronicle_poll(chronicle, chronicle_view);
         char status[180];
         sv_credentials_poll(&credentials);
@@ -120,7 +134,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
                 SDL_Window *window=SDL_GetRenderWindow(renderer);
                 int w,h;
-                float scale=SDL_GetWindowDisplayScale(window),density=SDL_GetWindowPixelDensity(window);
+                float scale=sv_login_ui_scale(window),density=SDL_GetWindowPixelDensity(window);
                 if(scale<=0 || density<=0 || !SDL_GetCurrentRenderOutputSize(renderer,&w,&h))continue;
                 SvLoginLayout layout=sv_login_layout(w/scale,h/scale,endpoint->server_count,endpoint->selected);
                 SvLoginFormLayout form=sv_login_form_layout(layout,h/scale);
@@ -150,7 +164,7 @@ static int enter_credentials(SDL_Renderer *renderer, SvFont *font, SvEndpoint *e
             }
         }
         if (frame_limit && ++frames >= frame_limit) break;
-        SDL_Delay(16);
+        limit_frame(frame_start, fps);
     }
 done:
     sv_credentials_end(&credentials);
@@ -181,6 +195,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
     bool quit = false;
     uint64_t input_epoch = flow->input_epoch;
     while (!quit) {
+        Uint64 frame_start = SDL_GetTicks();
         (void)sv_chronicle_poll(chronicle, chronicle_view);
         sv_login_flow_poll(flow);
         SvBirthSnapshot birth_snapshot;
@@ -203,7 +218,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             login_view = flow_view.characters;
             int cw,ch;
             if(!SDL_GetCurrentRenderOutputSize(renderer,&cw,&ch))break;
-            float cs=SDL_GetWindowDisplayScale(window);if(cs<=0)cs=1;
+            float cs=sv_login_ui_scale(window);if(cs<=0)cs=1;
             SvCharacterLayout cl=sv_character_layout(sv_character_shell_layout(cw/cs,ch/cs,flow->attempt.login_input.ordinary_name_active),character_viewport.first);
             sv_character_viewport_sync(&character_viewport,cl,login_view.count,login_view.count+login_view.free_slots[0]+login_view.free_slots[1]+login_view.free_slots[2]);
             login_view.selected=character_viewport.selected;
@@ -217,7 +232,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 if (!SDL_GetCurrentRenderOutputSize(renderer, &output_width,
                                                    &output_height)) break;
                 birth_viewport.logical_width=(int)(output_width / cs);
-                float scale = SDL_GetWindowDisplayScale(window);
+                float scale = sv_login_ui_scale(window);
                 if (scale <= 0) scale = 1.0f;
                 sv_birth_viewport_sync(&birth_viewport, flow->attempt.birth,
                                       (int)(output_height / scale));
@@ -253,7 +268,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
                 event.type == SDL_EVENT_WINDOW_RESIZED || event.type == SDL_EVENT_MOUSE_MOTION ||
                 event.type == SDL_EVENT_MOUSE_WHEEL) {
-                float scale = SDL_GetWindowDisplayScale(window) /
+                float scale = sv_login_ui_scale(window) /
                               SDL_GetWindowPixelDensity(window);
                 if (scale > 0) {
                     if (event.type == SDL_EVENT_WINDOW_RESIZED) {
@@ -299,7 +314,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT &&
                 (scene.contact_failed || !scene.login_view ||
                  (!scene.login_view->overview && !scene.login_view->birth && !scene.login_view->motd))) {
-                int w,h;float scale=SDL_GetWindowDisplayScale(window),density=SDL_GetWindowPixelDensity(window);
+                int w,h;float scale=sv_login_ui_scale(window),density=SDL_GetWindowPixelDensity(window);
                 if(scale>0 && density>0 && SDL_GetCurrentRenderOutputSize(renderer,&w,&h)) {
                     SvLoginLayout layout=sv_login_layout(w/scale,h/scale,flow->endpoint.server_count,flow->endpoint.selected);
                     SvLoginFormLayout form=sv_login_form_layout(layout,h/scale);
@@ -347,7 +362,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 }
                 int cw,ch;
                 if(!SDL_GetCurrentRenderOutputSize(renderer,&cw,&ch))break;
-                float cs=SDL_GetWindowDisplayScale(window);if(cs<=0)cs=1;
+                float cs=sv_login_ui_scale(window);if(cs<=0)cs=1;
                 SvCharacterLayout cl=sv_character_layout(sv_character_shell_layout(cw/cs,ch/cs,flow->attempt.login_input.ordinary_name_active),character_viewport.first);
                 SvLoginInputResult handled=SV_LOGIN_INPUT_IGNORED;
                 if(!flow->attempt.login_input.ordinary_name_active && sv_login_state(flow->attempt.login)==SV_LOGIN_OVERVIEW) {
@@ -386,7 +401,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         sv_login_flow_finish_tick(flow);
         if (flow->attempt.finished) break;
         if (flow->options.frames && ++frames >= flow->options.frames) break;
-        SDL_Delay(16);
+        limit_frame(frame_start, flow->options.fps);
     }
     sv_login_flow_end_attempt(flow);
     SDL_StopTextInput(window);
@@ -428,27 +443,24 @@ static bool load_list(SvEndpoint *endpoint, const char *path)
 
 int sv_endpoint_run(SvEndpointOptions options)
 {
-    SvLoginFlow *flow = sv_login_flow_create(options);
-    if (!flow) return 1;
-    SvEndpoint *endpoint = &flow->endpoint;
-    if (options.server && !sv_endpoint_argument(endpoint, options.server)) {
-        fprintf(stderr, "Invalid server address\n");
-        sv_login_flow_destroy(flow); return 2;
-    }
-    if (options.server_list && !load_list(endpoint, options.server_list)) {
-        fprintf(stderr, "%s\n", SDL_GetError());
-        sv_login_flow_destroy(flow); return 2;
-    }
+    SvLoginFlow *flow = NULL;
+    SvEndpoint *endpoint = NULL;
     const char *root = options.root;
     char *owned_root = NULL;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
+    SvSettingsAudio *audio = NULL;
     SvMetaserver *provider = NULL;
     SvChronicle *chronicle = NULL;
     SvChronicleSnapshot chronicle_view = {.failed_sources = 9, .completed_sources = 9};
+    SvSettingsConfig config;
+    SvSettingsInvocation invocation = {0};
+    SvPreferences *preferences = NULL;
+    sv_settings_config_defaults(&config);
     int result = 1;
     bool first_run = true;
+    bool fixture_window = options.windowed != 0;
     if (!root) {
         root = SDL_getenv("TOMENET_SDL3_USER_PATH");
         if (!root || !*root) {
@@ -456,8 +468,108 @@ int sv_endpoint_run(SvEndpointOptions options)
             root = owned_root;
         }
     }
-    if (!root || !SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
-    first_run = profile_first_run(root);
+    if (!root || !*root || !sv_settings_startup_load(&config, root)) goto done;
+    if (options.startup_argc && !sv_settings_startup_arguments(&config, &invocation,
+            options.startup_argc, options.startup_argv)) {
+        SDL_SetError("Invalid startup setting argument"); result = 2; goto done;
+    }
+    if (invocation.redirect_log && !freopen("tomenet.log", "w", stderr)) {
+        SDL_SetError("Cannot redirect diagnostics to tomenet.log"); goto done;
+    }
+    if (invocation.force_cui) {
+        SDL_SetError("CUI/terminal frontend is excluded from the SV client"); result = 2; goto done;
+    }
+    if (invocation.help) { puts("TomeNET SV: use --help for invocation options"); result = 0; goto done; }
+    const char *library = options.library ? options.library : SDL_getenv("TOMENET_PATH");
+    char adjacent[4096];
+    if (*invocation.library_override) library = invocation.library_override;
+    if (!library || !*library) {
+        const char *base = SDL_GetBasePath();
+        if (!base || SDL_snprintf(adjacent,sizeof(adjacent),"%s/lib",base) >= (int)sizeof(adjacent)) goto done;
+        library = adjacent;
+    }
+    /* Programmatic callers provide explicit overrides too. For CLI invocations
+     * reduction preserves order, including -f following an earlier --port. */
+    if (!options.startup_argc) {
+        if (options.server) SDL_strlcpy(config.server, options.server, sizeof(config.server));
+        if (options.port) config.port = (int)options.port;
+        if (options.metaserver) SDL_strlcpy(config.meta, options.metaserver, sizeof(config.meta));
+        if (options.real_name) SDL_strlcpy(config.realname, options.real_name, sizeof(config.realname));
+        if (options.character) SDL_strlcpy(config.name, options.character, sizeof(config.name));
+        if (options.account) SDL_strlcpy(config.nick, options.account, sizeof(config.nick));
+    }
+    options.root = root;
+    options.library = library;
+    options.server = *config.server ? config.server : NULL;
+    options.port = (unsigned)config.port;
+    options.metaserver = *config.meta ? config.meta : NULL;
+    options.real_name = config.realname;
+    options.character = *config.name ? config.name : NULL;
+    options.account = *config.nick ? config.nick : NULL;
+    if (strlen(config.nick) >= 80 || strlen(config.name) >= SV_LOGIN_NAME_CAPACITY) {
+        SDL_SetError("Configured account/character exceeds the supported byte limit"); result = 2; goto done;
+    }
+    if (options.startup_argc && !invocation.password_stdin) options.password = NULL;
+    if (invocation.password_present) options.password = invocation.password;
+    options.invocation = &invocation;
+    options.auto_reincarnation = invocation.auto_reincarnation;
+    if (options.auto_reincarnation && strlen(config.name) > 15) {
+        SDL_SetError("Reincarnation character name exceeds the supported byte limit"); result = 2; goto done;
+    }
+    options.protocol_override = invocation.protocol_override;
+    options.skip_motd = options.skip_motd || invocation.skip_motd;
+    if (!options.windowed) {
+        options.windowed = !strcmp(config.window_mode, "window");
+        options.width = config.window_width;
+        options.height = config.window_height;
+    }
+    if (options.width < 1024) options.width = 1024;
+    if (options.height < 768) options.height = 768;
+    preferences = sv_preferences_create(root, library, NULL);
+    if (!preferences) { SDL_SetError("Cannot allocate application preferences"); goto done; }
+    SvPreferenceContext preference_context = sv_preferences_default_context();
+    /* Text font selection is independent of map preferences. C006/C007 supply
+     * the effective map resource hook at its existing bootstrap position. */
+    SvPreferenceResult preference_result = sv_preferences_bootstrap(preferences,
+        &preference_context, NULL, NULL);
+    for (size_t i = 0; i < sv_preferences_diagnostic_count(preferences); ++i) {
+        const SvPreferenceDiagnostic *diagnostic = sv_preferences_diagnostic(preferences, i);
+        fprintf(stderr, "SV preferences %s:%u: %s\n", diagnostic->source.path,
+            diagnostic->line, diagnostic->message);
+    }
+    if (preference_result.status == SV_PREF_FATAL) {
+        SDL_SetError("Cannot retain application preference data"); goto done;
+    }
+    size_t preference_messages = 0, preference_actions = 0;
+    for (size_t i = 0; i < sv_preferences_effect_count(preferences); ++i) {
+        const SvPreferenceEffect *effect = sv_preferences_effect(preferences, i);
+        preference_messages += effect->kind == SV_PREF_MESSAGE;
+        preference_actions += effect->kind == SV_PREF_ACTION;
+    }
+    if (preference_messages || preference_actions)
+        fprintf(stderr, "SV startup preferences: retained %zu messages and %zu actions; message presentation and macro runtime pending\n",
+            preference_messages, preference_actions);
+    options.preferences = preferences;
+    options.settings = sv_preferences_options(preferences);
+    options.settings_wide = !strcmp(config.layout, "wide");
+    options.fps = config.fps;
+    flow = sv_login_flow_create(options);
+    sv_settings_invocation_clear_password(&invocation);
+    if (!flow) goto done;
+    endpoint = &flow->endpoint;
+    if (options.server && !sv_endpoint_argument(endpoint, options.server)) {
+        SDL_SetError("Invalid server address"); result = 2; goto done;
+    }
+    if (options.server_list && !load_list(endpoint, options.server_list)) { result = 2; goto done; }
+    if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) goto done;
+    if (options.windowed && !fixture_window && !config.window_width && !config.window_height) {
+        SDL_Rect area;
+        if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &area)) {
+            options.width = SDL_max(1024, area.w);
+            options.height = SDL_max(768, area.h);
+        }
+    }
+    first_run = invocation.reset || profile_first_run(root);
     if (!options.server && !options.server_list && !options.source_poll) {
         SvEndpoint meta;
         sv_endpoint_begin(&meta, 8801);
@@ -467,20 +579,36 @@ int sv_endpoint_run(SvEndpointOptions options)
         provider = sv_metaserver_start(meta.host, meta.port);
         if (!provider) goto done;
     }
-    const char *library = options.library ? options.library : SDL_getenv("TOMENET_PATH");
-    char adjacent[4096];
-    if (!library || !*library) {
-        const char *base = SDL_GetBasePath();
-        if (!base || SDL_snprintf(adjacent,sizeof(adjacent),"%s/lib",base) >= (int)sizeof(adjacent)) goto done;
-        library = adjacent;
-    }
-    font = sv_font_open(root, library);
+    printf("SV settings schema=%d diagnostics=%u unsupported=%u writable=%d ui_scale=%d layout=%s fps=%d\n",
+           config.schema_version, config.diagnostics, config.unsupported_records,
+           config.overwrite_allowed, config.ui_scale_percent, config.layout, config.fps);
+    printf("SV settings roots user=%s private=%s/sv library=%s\n", root, root, library);
+    SvSettingsConfig audio_config = config;
+    if (invocation.quiet) audio_config.sound = 0;
+    audio = sv_settings_audio_start(&audio_config, root, library);
+    if (!audio) goto done;
+    const SvSettingsAudioSnapshot *audio_state = sv_settings_audio_snapshot(audio);
+    flow->options.audio = audio_state;
+    fprintf(stderr, "SV initial audio: %s (rate=%d speakers=%d tracks=%d buffer=%d)\n",
+            audio_state->diagnostic, audio_state->effective_rate, audio_state->effective_speakers,
+            audio_state->effective_tracks, audio_state->effective_buffer);
+    printf("SV audio requested sound=%s subset=%d music=%s subset=%d rate=%d tracks=%d buffer=%d cache=%d\n",
+           config.soundpack_folder, config.soundpack_subset, config.musicpack_folder,
+           config.musicpack_subset, config.audio_sample_rate, config.audio_channels,
+           config.audio_buffer, config.cache_audio);
+    printf("SV audio effective counts=%d/%d sound=%s version=%s music=%s version=%s sound_config=%s music_config=%s\n",
+           audio_state->sfx, audio_state->music, audio_state->sound_name,
+           audio_state->sound_version, audio_state->music_name, audio_state->music_version,
+           audio_state->sound_config, audio_state->music_config);
+    font = sv_font_open_selected(root, library, config.text_font);
     if (!font) goto done;
+    printf("SV startup text requested=%s effective=%s\n", config.text_font, sv_font_resource(font));
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (!options.windowed) flags |= SDL_WINDOW_FULLSCREEN;
     window = SDL_CreateWindow("TomeNET SV - Server",options.width,options.height,flags);
-    if (!window) goto done;
-    float window_scale = SDL_GetWindowDisplayScale(window) / SDL_GetWindowPixelDensity(window);
+    if (!window || !sv_login_ui_set_scale(window, config.ui_scale_percent) ||
+        !sv_login_ui_ignore_dpi(window, invocation.ignore_scaling)) goto done;
+    float window_scale = sv_login_display_scale(window) / SDL_GetWindowPixelDensity(window);
     if (window_scale <= 0 || !SDL_SetWindowMinimumSize(window,
             (int)SDL_ceilf(1024 * window_scale), (int)SDL_ceilf(768 * window_scale))) goto done;
     if (options.windowed && !SDL_SetWindowSize(window,
@@ -489,8 +617,15 @@ int sv_endpoint_run(SvEndpointOptions options)
     /* Finalize asynchronous startup sizing before software rendering binds the
      * window surface; otherwise its output can retain the unscaled size. */
     if (!SDL_SyncWindow(window)) goto done;
+    options.shell.text_font_path = sv_font_resource(font);
     renderer = SDL_CreateRenderer(window,NULL);
     if (!renderer || !sv_login_shell_open_options(renderer, library, options.shell)) goto done;
+    printf("SV startup window fullscreen=%d ui_scale=%d ignore_dpi=%d renderer=%s\n",
+           (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0,
+           config.ui_scale_percent, invocation.ignore_scaling, SDL_GetRendererName(renderer));
+    if (invocation.no_weather || invocation.no_lua_updates || invocation.chat_log_mode ||
+        invocation.quit_no_prompt || invocation.disable_tileset_cache || invocation.disable_tile_cache)
+        fprintf(stderr, "SV invocation retains deferred weather/transfer/export/quit/cache requests; their late consumers are not active\n");
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);
@@ -537,13 +672,12 @@ select_endpoint:
                 endpoint->phase == SV_ENDPOINT_SELECTED) { quit = true; break; }
         }
         if (quit) break;
-        float field_scale=SDL_GetWindowDisplayScale(window);
+        float field_scale=sv_login_ui_scale(window);
         if(field_scale<=0)field_scale=1;
         input.text_cell=sv_font_cell_width(font,field_scale)/field_scale;
         if (!draw_scene(renderer,font,endpoint,&input,&scene,NULL)) goto done;
         if (options.frames && ++frames >= options.frames) break;
-        Uint64 spent = SDL_GetTicks() - frame_start;
-        if (spent < 16) SDL_Delay((Uint32)(16 - spent));
+        limit_frame(frame_start, config.fps);
     }
     if (endpoint->phase == SV_ENDPOINT_SELECTED) {
         printf("SV endpoint selected host=%s port=%u\n",
@@ -553,7 +687,7 @@ select_endpoint:
             while (step != SV_LOGIN_FLOW_FINISHED) {
                 if (step == SV_LOGIN_FLOW_CREDENTIALS) {
                     int entered = enter_credentials(renderer, font, endpoint, &input, chronicle,
-                        &chronicle_view, options.frames, flow->account, flow->password);
+                        &chronicle_view, options.frames, flow->account, flow->password, config.fps);
                     SvLoginCredentialResult credential_result = entered == SV_CREDENTIAL_SCENE_ACCEPTED ?
                         SV_LOGIN_CREDENTIAL_ACCEPTED : entered == SV_CREDENTIAL_SCENE_BACK ?
                         SV_LOGIN_CREDENTIAL_BACK : entered == SV_CREDENTIAL_SCENE_ERROR ?
@@ -586,10 +720,19 @@ select_endpoint:
     }
     result = 0;
 done:
+    sv_settings_invocation_clear_password(&invocation);
+    sv_settings_audio_destroy(audio);
+    sv_settings_config_dispose(&config);
     sv_chronicle_stop(chronicle);
     sv_metaserver_stop(provider);
     if (result) fprintf(stderr,"SV endpoint startup failed: %s\n",SDL_GetError());
     sv_login_flow_destroy(flow);
+    /* Pending startup intents never enter credential input. Their application
+     * owner ends here; attempts own and cancel their separate character intents. */
+    if (preferences && sv_preferences_effect_count(preferences))
+        fprintf(stderr, "SV startup preferences: cancelling %zu retained effects at application close\n",
+            sv_preferences_effect_count(preferences));
+    sv_preferences_destroy(preferences);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     sv_font_close(font);

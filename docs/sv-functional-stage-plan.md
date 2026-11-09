@@ -104,6 +104,70 @@ C001: [спецификация запуска установленного кл
 Canonical registry status
 сохраняется pending до отдельной регистрации evidence.
 
+C002: [спецификация bootstrap настроек](sv-stage-c002-spec.md),
+[задачи и ownership](tasks/c002/README.md). План подготовлен 2026-11-05;
+реализация и [Linux evidence](sv-c002-evidence.md) выполнены в тот же день.
+Initial audio и CLI boundary разрешены; исправленный birth fixture прошёл
+`waiting/partial/ack` 2026-11-07. [C002 принят пользователем](sv-stage-c002-acceptance.md)
+2026-11-07, включая задачи 001–004. Canonical registry status сохраняется pending
+до отдельной native-runtime registration.
+
+C003: [спецификация файловой основы](sv-stage-c003-spec.md),
+[задачи и ownership](tasks/c003/README.md). План 2026-11-07; решением пользователя
+2026-11-09 утверждены core и текущие production consumers, без расширения границ
+поздних этапов. Обязательства интеграции перенесены непосредственно в документы
+владельцев ниже: они самостоятельны и не требуют общего verification списка.
+Current core реализован и проверен на Linux: [evidence](sv-c003-evidence.md),
+[C003 принят пользователем](sv-stage-c003-acceptance.md) 2026-11-09, включая
+задачи 001–006, без ожидания late flows. Поздние integrations/исправления
+выполняются в соответствующих этапах и не переоткрывают C003 автоматически; allocation,
+obligations и registry статусы сохранены.
+
+| Этап | Документ планирования интеграции с C003 | Обязательство |
+|---|---|---|
+| C006 | [План C006](tasks/c006/README.md) | FI-01: effective map font и reporting |
+| C007 | [План C007](tasks/c007/README.md) | FI-02: effective graphics и reporting |
+| C014 | [План C014](tasks/c014/README.md) | FI-06: quit/relog parent и independent input-history save |
+| C016 | [План C016](tasks/c016/README.md) | FI-03: full recall и occurrence-safe notes/clone |
+| C028 | [План C028](tasks/c028/README.md) | FI-04: accepted chat input и account history |
+| C029 | [План C029](tasks/c029/README.md) | FI-05/06: реальные exports и exit-log child |
+| C032 | [План C032](tasks/c032/README.md) | FI-07: final-review/tomb callers |
+| C061 | [План C061](tasks/c061/README.md) | FI-08: screenshot producer и safe publication |
+
+Это целевые дополнения планирования C003 integration/evidence, не исчерпывающие
+полные планы соответствующих этапов. При разработке своего этапа читать его
+документ и относящиеся tickets; прежний verification список сохраняет только
+историческую навигацию. Canonical порядок и prerequisite PASS не изменены.
+
+C004: [спецификация preference loading](sv-stage-c004-spec.md),
+[задачи и порядок реализации](tasks/c004/README.md),
+[сверка baseline и текущих SV callers](tasks/c004/source-contract.md).
+План подготовлен 2026-11-09 по анализу трёх агентов: ровно три outcomes и девять
+obligations сохранены в planning snapshot. Предлагается единый SV-local PRF owner
+поверх C002/C003; normal load effects/includes и startup order сохраняются.
+Current core реализован и проверен на Linux 2026-11-09: [evidence](sv-c004-evidence.md),
+[решение и техническая сверка](sv-stage-c004-acceptance.md). Следующим решением
+2026-11-09 пользователь завершил и принял C004/001–004 сейчас, поручив перенести
+оставшиеся доработки и проверки в [планы следующих этапов](tasks/c004/README.md#самостоятельные-обязательства-следующих-этапов):
+C005/C006/C007/C011/C014/C016/C044–C055. Работа обязательна своим owners,
+не блокирует и не переоткрывает C004 автоматически; возврат evidence в C004
+служит трассировке и не является gate его завершения. Поздние этапы не приняты,
+реальные flows не получают PASS по parser/queue evidence. Canonical allocation,
+prerequisites и registry statuses не меняются.
+Пользователь затем явно подтвердил приёмку C004: «этот этап считаем принятым».
+
+C005: [спецификация базового игрового ввода](sv-stage-c005-spec.md),
+[задачи и порядок реализации](tasks/c005/README.md),
+[точный planning snapshot](tasks/c005/coverage.json). План подготовлен анализом
+трёх агентов 2026-11-09: keymap, quantity и raw-key, ровно три outcomes и девять
+obligations. Задачи 001–003 реализуют production primitives, 004 собирает минимальное
+Linux evidence. Прежнее C004 keymap addendum включено в полный план; C004 остаётся
+accepted, поздние session/macro/action callers сохраняют своих владельцев.
+Core C005 и задачи 001–004 реализованы и проверены на Linux в тот же день:
+[evidence](sv-c005-evidence.md). [C005 и задачи 001–004 приняты пользователем](sv-stage-c005-acceptance.md)
+2026-11-09. Canonical runtime registration остаётся отдельным workflow;
+canonical JSON не изменён.
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой

@@ -1,0 +1,17 @@
+COMMAND: clang -std=c99 -Wall -Wextra -Werror -Isrc/client/sv tests/sv/settings-config.c src/client/sv/settings/config.c -o /tmp/sv-c002-config
+SV settings CFG core: PASS
+SV settings: invalid audioChannels at CFG line 2; using default
+SV settings: invalid audioBuffer at CFG line 3; using default
+SV settings: invalid audioSampleRate at CFG line 4; using default
+SV settings: invalid svUiScalePercent at CFG line 5; using default
+SV settings: invalid svLayout at CFG line 6; using default
+SV settings: invalid soundpackSubset at CFG line 7; using default
+SV settings: invalid graphics at CFG line 8; using default
+SV settings: invalid port at CFG line 9; using default
+SV settings: invalid audioVolumeMaster at CFG line 10; using default
+SV settings: invalid graphic_tiles0 at CFG line 11; using default
+SV settings: invalid colormap_6 at CFG line 12; using default
+SV settings: invalid server at CFG line 2; using default
+SV settings: invalid audioBuffer at CFG line 1; using default
+SV settings: incompatible future CFG schema; using defaults, overwrite prohibited
+SV settings: cannot read CFG /tmp/sv-c002-cfg-HcQJKt (read error or size limit); retaining current settings/defaults

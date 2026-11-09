@@ -98,9 +98,52 @@ static void birth_completion(void)
         sv_login_destroy(login);
     }
 }
+static void resource_report_startup(void)
+{
+    const int version[6] = {4,9,4,0,0,0};
+    const unsigned char iaddr[6] = {0};
+    unsigned char bytes[32768], overview[29] = {PKT_SERVERDETAILS};
+    SvLogin *login = sv_login_create(version,iaddr); assert(login);
+    assert(sv_login_take_output(login,bytes,sizeof(bytes)).result == SV_OK);
+    overview[17] = PKT_LOGIN;
+    assert(sv_login_receive(login,overview,sizeof(overview)) == SV_OK);
+    assert(sv_login_create_character(login,"Reporting",false) == SV_OK);
+    assert(sv_login_take_output(login,bytes,sizeof(bytes)).result == SV_OK);
+    unsigned char accepted = E_NEED_INFO;
+    assert(sv_login_receive(login,&accepted,1) == SV_OK);
+    SvSettingsAudioSnapshot audio = {.status=SV_AUDIO_READY,.sfx=1,.music=2};
+    memset(audio.sound_name,'s',80); audio.sound_name[80] = 0;
+    assert(sv_login_set_audio(login,&audio) == SV_OK);
+    const int16_t stats[6] = {0};
+    assert(sv_login_start_play(login,0,0,0,0,stats,"") == SV_OK);
+    SvOutput out = sv_login_take_output(login,bytes,sizeof(bytes));
+    const unsigned char resource[] = {0,0,'N','O','_','G','R','A','P','H','I','C','S',0,0};
+    assert(out.result == SV_OK && !memcmp(bytes+13,resource,sizeof(resource)));
+    assert(sv_login_send_font(login) == SV_INVALID);
+    const unsigned char ack[] = {PKT_REPLY,PKT_PLAY,PKT_SUCCESS};
+    assert(sv_login_receive(login,ack,sizeof(ack)) == SV_OK);
+    assert(sv_login_send_font(login) == SV_OK);
+    out = sv_login_take_output(login,bytes,sizeof(bytes));
+    assert(out.size == sizeof(resource)+1 && bytes[0] == PKT_FONT &&
+        !memcmp(bytes+1,resource,sizeof(resource)));
+    /* A request while startup still owns the stream uses the same serializer. */
+    const unsigned char request = PKT_VERSION;
+    assert(sv_login_receive(login,&request,1) == SV_OK);
+    out = sv_login_take_output(login,bytes,sizeof(bytes));
+    assert(out.result == SV_OK && bytes[0] == PKT_VERSION);
+    size_t at = 1 + strlen((const char *)bytes+1)+1;
+    at += strlen((const char *)bytes+at)+1; /* version, OS */
+    assert(!memcmp(bytes+at,"\xff\xff\xff\xff\xff\xff\xff\xff",8));
+    at += 8; at += strlen((const char *)bytes+at)+1; at += 4; /* tag, language */
+    assert(strlen((const char *)bytes+at) == 79 && strlen(audio.sound_name) == 80);
+    assert(!memcmp(bytes+at,audio.sound_name,79));
+    sv_login_destroy(login);
+}
+
 int main(void)
 {
     birth_completion();
+    resource_report_startup();
     const int modern[6] = {4, 9, 2, 1, 0, 2};
     const unsigned char iaddr[6] = {0xf4, 0x43, 1, 2, 3, 4};
     SvLogin *login = sv_login_create(modern, iaddr);

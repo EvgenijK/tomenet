@@ -1,5 +1,12 @@
 #include "protocol/login.h"
 #include "../../common/pack.h"
+#define CLIENT_SIDE
+#define USE_SDL3
+#ifndef MINGW
+#define LINUX
+#endif
+#include "../../../common/defines.h"
+#include "protocol/resource-report.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +22,8 @@
 #include "../../../temporary/sv/stubs/play-profile.h"
 struct SvLogin {
     int version[6];
+    unsigned char options[SV_SETTINGS_OPTION_COUNT];
+    SvResourceReport report;
     SvLoginState state;
     unsigned char input[SV_LOGIN_INPUT_CAPACITY];
     size_t input_size;
@@ -124,6 +133,10 @@ SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6])
     SvLogin *login = calloc(1, sizeof(*login));
     if (!login) return NULL;
     memcpy(login->version, version, sizeof(login->version));
+    sv_report_init(&login->report);
+    SvSettingsOptions defaults;
+    sv_settings_options_defaults(&defaults);
+    memcpy(login->options, defaults.values, sizeof(login->options));
     login->state = SV_LOGIN_WAIT_FLAGS;
     for (size_t i = 0; i < 60; ++i) login->ping.samples[i] = -1;
     unsigned char start[8] = {PKT_LOGIN, 0};
@@ -135,6 +148,32 @@ SvLogin *sv_login_create(const int version[6], const unsigned char iaddr[6])
     }
     (void)append_output(login, start, start_size);
     return login;
+}
+static size_t option_count(const SvLogin *login)
+{
+    const int all_options_since[6] = {4, 9, 1, 0, 0, 0};
+    const int options_154_since[6] = {4, 5, 8, 1, 0, 1};
+    const int options_128_since[6] = {4, 5, 5, 0, 0, 0};
+    return newer(login->version, all_options_since) ? 199u :
+        newer(login->version, options_154_since) ? 154u :
+        newer(login->version, options_128_since) ? 128u : 96u;
+}
+SvResult sv_login_set_options(SvLogin *login, const SvSettingsOptions *options)
+{
+    if (!login || !options || login->state == SV_LOGIN_WAIT_PLAY ||
+        login->state == SV_LOGIN_PLAY_ACKNOWLEDGED) return SV_INVALID;
+    memcpy(login->options, options->values, sizeof(login->options));
+    const int geometry_since[6] = {4, 4, 9, 1, 0, 1};
+    if (!newer(login->version, geometry_since)) login->options[7] = 0;
+    return SV_OK;
+}
+SvResult sv_login_send_options(SvLogin *login)
+{
+    if (!login || login->state != SV_LOGIN_SELECTED) return SV_INVALID;
+    unsigned char packet[1 + SV_SETTINGS_OPTION_COUNT] = {PKT_OPTIONS};
+    size_t count = option_count(login);
+    memcpy(packet + 1, login->options, count);
+    return append_output(login, packet, count + 1);
 }
 void sv_login_destroy(SvLogin *login)
 {
@@ -229,6 +268,24 @@ static void put16(unsigned char **at, int16_t value)
     *(*at)++ = (unsigned char)((uint16_t)value >> 8);
     *(*at)++ = (unsigned char)value;
 }
+SvResult sv_login_set_audio(SvLogin *login, const SvSettingsAudioSnapshot *audio)
+{
+    return login && sv_report_audio(&login->report, audio) ? SV_OK : SV_INVALID;
+}
+SvResult sv_login_send_audio(SvLogin *login)
+{
+    if (!login || login->state != SV_LOGIN_PLAY_ACKNOWLEDGED) return SV_INVALID;
+    unsigned char packet[1024];
+    size_t size = sv_report_audio_packet(&login->report, login->version, packet);
+    return size ? append_output(login, packet, size) : SV_OK;
+}
+SvResult sv_login_send_font(SvLogin *login)
+{
+    if (!login || login->state != SV_LOGIN_PLAY_ACKNOWLEDGED) return SV_INVALID;
+    unsigned char packet[1024];
+    size_t size = sv_report_font(&login->report, login->version, packet);
+    return size ? append_output(login, packet, size) : SV_OK;
+}
 SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               int16_t class_id, int16_t trait,
                               const int16_t stats[6], const char *font)
@@ -236,9 +293,7 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     if (!login || login->state != SV_LOGIN_SELECTED || !login->creating_character ||
         !stats || !font || strlen(font) > 1023 || race < 0 || class_id < 0 || trait < 0)
         return SV_INVALID;
-    /* Baseline Net_start wire order and strict/inclusive version gates.
-     * Audio/graphics are disabled in the native executable, so report the
-     * actual production outcome only in layouts that carry those fields. */
+    /* Baseline Net_start wire order and strict/inclusive version gates. */
     unsigned char packet[32 * 1024], *at = packet;
     *at++ = PKT_PLAY;
     put16(&at, mode); put16(&at, race); put16(&at, class_id);
@@ -246,27 +301,26 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     const int resources_since[6] = {4, 8, 1, 2, 0, 0};
     if (newer(login->version, traits_since)) {
         put16(&at, trait);
-        put16(&at, SV_STUB_PLAY_AUDIO_SFX); put16(&at, SV_STUB_PLAY_AUDIO_MUSIC);
+        put16(&at, login->report.sfx); put16(&at, login->report.music);
     }
     if (atleast(login->version, resources_since)) {
-        put16(&at, SV_STUB_PLAY_USE_GRAPHICS);
-        memcpy(at, sv_stub_play_graphics, sizeof(sv_stub_play_graphics));
-        at += sizeof(sv_stub_play_graphics);
-        memcpy(at, font, strlen(font) + 1); at += strlen(font) + 1;
+        put16(&at, login->report.graphics);
+        sv_report_string(&at, login->report.tiles);
+        char reported_font[80]; sv_report_copy(reported_font, font);
+        sv_report_string(&at, reported_font);
     }
     for (unsigned i = 0; i < 6; ++i) put16(&at, stats[i]);
-    const int all_options_since[6] = {4, 9, 1, 0, 0, 0};
-    const int options_154_since[6] = {4, 5, 8, 1, 0, 1};
-    const int options_128_since[6] = {4, 5, 5, 0, 0, 0};
-    size_t option_count = newer(login->version, all_options_since) ? 199u :
-        newer(login->version, options_154_since) ? 154u :
-        newer(login->version, options_128_since) ? 128u : 96u;
-    memcpy(at, sv_stub_play_options, option_count); at += option_count;
+    size_t count = option_count(login);
+    memcpy(at, login->options, count); at += count;
     /* Map viewport, not UI window pixels (baseline SCREEN_WID/SCREEN_HGT). */
     const int geometry_since[6] = {4, 4, 9, 1, 0, 1};
     if (newer(login->version, geometry_since)) {
-        memcpy(at, sv_stub_play_geometry, sizeof(sv_stub_play_geometry));
-        at += sizeof(sv_stub_play_geometry);
+        /* Saved SV layout controls normal/big viewport independently of OPT
+         * file aliases (SCREEN_WID66, SCREEN_HGT22, MAX_SCREEN_HGT44). */
+        const unsigned char geometry[] = {0, 0, 0, 66, 0, 0, 0,
+            login->options[7] ? 44 : 22};
+        memcpy(at, geometry, sizeof(geometry));
+        at += sizeof(geometry);
     }
     /* Complete baseline redefinition tables: unknown, features, kinds,
      * monsters. This text-only resource outcome has no custom font mapping.
@@ -282,7 +336,10 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     size_t visual_size = entry_width * (127u + features + kinds + monsters);
     sv_stub_play_visuals(at, visual_size); at += visual_size;
     SvResult queued = append_output(login, packet, (size_t)(at - packet));
-    if (queued == SV_OK) login->state = SV_LOGIN_WAIT_PLAY;
+    if (queued == SV_OK) {
+        sv_report_copy(login->report.font, font);
+        login->state = SV_LOGIN_WAIT_PLAY;
+    }
     return queued;
 }
 SvResult sv_login_keepalive(SvLogin *login)
@@ -311,6 +368,14 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             consume(login, 1);
             login->play_stream_complete = true;
             return SV_OK;
+        }
+        if (login->state == SV_LOGIN_PLAY_ACKNOWLEDGED && login->input[0] == PKT_VERSION) {
+            unsigned char packet[1024];
+            size_t count = sv_report_version(&login->report, login->version, login->ping.samples, packet);
+            SvResult queued = count ? append_output(login, packet, count) : SV_OK;
+            if (queued != SV_OK) return queued;
+            consume(login, 1);
+            continue;
         }
         if (login->input[0] == PKT_KEEPALIVE) {
             consume(login, 1);

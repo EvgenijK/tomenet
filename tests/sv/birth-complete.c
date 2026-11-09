@@ -5,18 +5,28 @@
 #undef main
 #include <poll.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include "files/dna.h"
 
 static unsigned char expected_play[32768], captured_play[32768];
 static size_t expected_size;
 static const char *evidence_path;
 static int peer_version[6] = {4, 9, 4, 0, 0, 0};
 static bool versioned;
+static size_t option_offset, option_count;
 static bool peer_newer(int a, int b, int c, int d, int e, int f)
 {
     const int boundary[6] = {a, b, c, d, e, f};
     for (unsigned i = 0; i < 6; ++i)
         if (peer_version[i] != boundary[i]) return peer_version[i] > boundary[i];
     return false;
+}
+static bool peer_atleast(int a, int b, int c, int d, int e, int f)
+{
+    const int boundary[6] = {a, b, c, d, e, f};
+    for (unsigned i = 0; i < 6; ++i)
+        if (peer_version[i] != boundary[i]) return peer_version[i] > boundary[i];
+    return true;
 }
 /* Controlled server's setup format, from baseline Net_setup. No play bytes
  * are generated here: the independent literal oracle is loaded from disk. */
@@ -61,17 +71,86 @@ static void versioned_overview(int socket)
     if (peer_newer(4, 5, 7, 0, 0, 0)) *at++ = 0;
     assert(send(socket, packet, (size_t)(at - packet), 0) == (ssize_t)(at - packet));
 }
-static void versioned_to_mode(void)
+/* Observe the real rendered semantic view on its owner thread. Never retain
+ * borrowed view pointers or mutate the interaction from the controlled peer. */
+#include "login/ui/endpoint-scene.h"
+static pthread_mutex_t driver_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct {
+    bool enabled, mode_ready, permit_final, final_sent;
+    unsigned submitted_owners, stat_step;
+    bool stat_selected;
+    SvBirthOwner actual_owner;
+    unsigned actual_stats;
+} driver;
+
+bool __real_sv_endpoint_draw(SDL_Renderer *, SvFont *, const SvEndpoint *,
+                            const SvEndpointView *, SvEndpointRenderMetrics *);
+bool __wrap_sv_endpoint_draw(SDL_Renderer *renderer, SvFont *font,
+                            const SvEndpoint *endpoint, const SvEndpointView *view,
+                            SvEndpointRenderMetrics *metrics)
 {
-    push_key(SDLK_RETURN, 0); /* sex */
-    push_key(SDLK_C, 0); push_key(SDLK_RETURN, 0); /* class Mage */
-    push_key(SDLK_C, 0); push_key(SDLK_RETURN, 0); /* race Dwarf */
-    if (peer_newer(4, 4, 5, 10, 0, 0)) {
-        push_key(SDLK_B, 0); push_key(SDLK_RETURN, 0); /* Phoenix */
+    if (!__real_sv_endpoint_draw(renderer, font, endpoint, view, metrics)) return false;
+    pthread_mutex_lock(&driver_lock);
+    const SvBirthView *birth = view->birth_view;
+    if (!driver.enabled || !birth) goto done;
+    driver.actual_owner = birth->owner;
+    driver.actual_stats = birth->stats_order_count;
+    SDL_Keycode key = SDLK_UNKNOWN;
+    if (birth->owner == SV_BIRTH_MODE) {
+        assert(birth->stats_confirmed && birth->stats_order_count == 6);
+        driver.mode_ready = true;
+        if (driver.permit_final && !driver.final_sent) {
+            key = SDLK_RETURN;
+            driver.final_sent = true;
+        }
+    } else if (birth->owner == SV_BIRTH_STATS) {
+        assert(!birth->stats_point_buy);
+        if (birth->stats_order_count > driver.stat_step) {
+            assert(birth->stats_order_count == driver.stat_step + 1);
+            ++driver.stat_step;
+            driver.stat_selected = false;
+        }
+        if (!driver.stat_selected) {
+            key = SDLK_A + driver.stat_step;
+            driver.stat_selected = true;
+        } else if (birth->highlighted_stat == (int)driver.stat_step) {
+            /* Wait for the next count before submitting another confirmation. */
+            if (!(driver.submitted_owners & (1u << (16 + driver.stat_step)))) {
+                driver.submitted_owners |= 1u << (16 + driver.stat_step);
+                key = SDLK_RETURN;
+            }
+        }
+    } else if (!(driver.submitted_owners & (1u << birth->owner))) {
+        switch (birth->owner) {
+        case SV_BIRTH_SEX: key = SDLK_RETURN; break;
+        case SV_BIRTH_CLASS: key = versioned ? SDLK_C : SDLK_B; break;
+        case SV_BIRTH_RACE: key = SDLK_C; break;
+        case SV_BIRTH_TRAIT: key = SDLK_B; break;
+        case SV_BIRTH_BODY: key = SDLK_F; break;
+        default: break;
+        }
+        driver.submitted_owners |= 1u << birth->owner;
     }
-    push_key(SDLK_F, 0); push_key(SDLK_RETURN, 0); /* fruit bat */
-    for (SDL_Keycode key = SDLK_A; key <= SDLK_F; ++key) {
-        push_key(key, 0); push_key(SDLK_RETURN, 0);
+    if (key != SDLK_UNKNOWN) push_key(key, 0);
+done:
+    pthread_mutex_unlock(&driver_lock);
+    return true;
+}
+
+static void wait_for_mode(void)
+{
+    Uint64 deadline = SDL_GetTicks() + 3000;
+    for (;;) {
+        pthread_mutex_lock(&driver_lock);
+        bool ready = driver.mode_ready;
+        if (!ready && SDL_GetTicks() >= deadline) {
+            fprintf(stderr, "birth driver: expected MODE after 6 stats; actual owner=%d stats=%u step=%u selected=%d\n",
+                    driver.actual_owner, driver.actual_stats, driver.stat_step, driver.stat_selected);
+            abort();
+        }
+        pthread_mutex_unlock(&driver_lock);
+        if (ready) return;
+        SDL_Delay(1);
     }
 }
 
@@ -117,13 +196,26 @@ static void *complete_peer(void *opaque)
     no_final_request(socket);
     const unsigned char permitted = 0;
     assert(send(socket, &permitted, 1, 0) == 1);
+    unsigned char early_options[200];
+    assert(exact(socket, early_options, option_count + 1));
+    assert(early_options[0] == PKT_OPTIONS);
+    assert(!memcmp(early_options + 1, expected_play + option_offset, option_count));
     SDL_Delay(100);
-    no_final_request(socket); /* Name acceptance is not final play. */
-    if (versioned) versioned_to_mode();
-    else push_to_mode();
-    SDL_Delay(100);
+    no_final_request(socket); /* Options sent; name acceptance is not final play. */
+    pthread_mutex_lock(&driver_lock);
+    driver.enabled = true;
+    pthread_mutex_unlock(&driver_lock);
+    wait_for_mode();
+    if (!strcmp(peer->mode,"cancel")) {
+        /* Production native quit while a draft exists must not publish DNA. */
+        push_key(SDLK_Q,SDL_KMOD_CTRL);
+        unsigned char closed; assert(recv(socket,&closed,1,0)==0);
+        close(socket); return NULL;
+    }
     no_final_request(socket); /* Committed stats alone do not complete birth. */
-    push_key(SDLK_RETURN, 0);
+    pthread_mutex_lock(&driver_lock);
+    driver.permit_final = true;
+    pthread_mutex_unlock(&driver_lock);
     struct pollfd final_ready = {.fd = socket, .events = POLLIN};
     assert(poll(&final_ready, 1, 800) == 1);
     assert(exact(socket, captured_play, expected_size));
@@ -148,6 +240,20 @@ static void *complete_peer(void *opaque)
         assert(send(socket, reply + 2, 2, 0) == 2);
     }
     SDL_Delay(150);
+    if (!strcmp(peer->mode, "ack") && peer_atleast(4, 7, 3, 0, 0, 0)) {
+        /* The actual disabled audio outcome still sends the baseline report. */
+        unsigned char audio[9] = {0};
+        size_t audio_size = peer_atleast(4, 9, 2, 1, 0, 1) ? 9 : 5;
+        assert(exact(socket, audio, audio_size));
+        assert(audio[0] == PKT_AUDIO);
+        for (size_t i = 1; i < audio_size; ++i) assert(audio[i] == 0);
+    }
+    if (!strcmp(peer->mode,"ack") && peer_atleast(4,8,1,2,0,0)) {
+        unsigned char font[16]={0};
+        assert(exact(socket,font,16));
+        assert(font[0]==PKT_FONT && !font[1] && !font[2] &&
+            !memcmp(font+3,"NO_GRAPHICS\0\0",13));
+    }
     no_final_request(socket);
     char ack_path[4096];
     assert(snprintf(ack_path, sizeof(ack_path), "%s.reply", evidence_path) < (int)sizeof(ack_path));
@@ -178,6 +284,42 @@ int main(int argc, char **argv)
         expected_play[expected_size++] = (unsigned char)value;
     }
     fclose(fixture);
+    /* C003 corrects the fixture's former UI-font-as-map identity. Keep the
+     * independent literal remainder; absent map consumer reports empty font. */
+    if (peer_atleast(4,8,1,2,0,0)) {
+        size_t map_font=1+6+(peer_newer(4,4,5,10,0,0)?6:0)+2;
+        map_font+=strlen((char *)expected_play+map_font)+1;
+        size_t old_font_size=strlen((char *)expected_play+map_font);
+        memmove(expected_play+map_font,expected_play+map_font+old_font_size,
+            expected_size-map_font-old_font_size);
+        expected_size-=old_font_size;
+    }
+    option_count = peer_newer(4,9,1,0,0,0) ? 199 :
+        peer_newer(4,5,8,1,0,1) ? 154 : peer_newer(4,5,5,0,0,0) ? 128 : 96;
+    option_offset = 1 + 6 + (peer_newer(4,4,5,10,0,0) ? 6 : 0);
+    if (peer_atleast(4,8,1,2,0,0)) {
+        option_offset += 2;
+        option_offset += strlen((char *)expected_play + option_offset) + 1;
+        option_offset += strlen((char *)expected_play + option_offset) + 1;
+    }
+    option_offset += 12;
+    assert(option_offset + option_count < expected_size);
+    /* Literal baseline oracle plus intentional C002 settings from real files:
+     * wide map projects big_map and 66x44, character values override globals. */
+    expected_play[option_offset] = 1;
+    expected_play[option_offset + 2] = 0;
+    expected_play[option_offset + 7] = peer_newer(4,4,9,1,0,1);
+    if (peer_newer(4,4,9,1,0,1)) expected_play[option_offset + option_count + 7] = 44;
+    char config_path[4096];
+    assert(snprintf(config_path, sizeof(config_path), "%s/sv/tomenet.cfg", argv[1]) < (int)sizeof(config_path));
+    FILE *config = fopen(config_path, "w"); assert(config);
+    assert(fputs("svSchemaVersion 1\nsound 0\nsvLayout wide\n", config) >= 0 && !fclose(config));
+    assert(snprintf(config_path, sizeof(config_path), "%s/sv/global.opt", argv[1]) < (int)sizeof(config_path));
+    config = fopen(config_path, "w"); assert(config);
+    assert(fputs("X:rogue_like_commands\nY:censor_swearing\n", config) >= 0 && !fclose(config));
+    assert(snprintf(config_path, sizeof(config_path), "%s/sv/Carol.opt", argv[1]) < (int)sizeof(config_path));
+    config = fopen(config_path, "w"); assert(config);
+    assert(fputs("Y:rogue_like_commands\nX:censor_swearing\n", config) >= 0 && !fclose(config));
     evidence_path = argv[5];
     Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = argv[3]};
     assert(peer.listener >= 0);
@@ -197,11 +339,21 @@ int main(int argc, char **argv)
         .skip_motd = true, .real_name = "PLAYER", .outcome = &outcome});
     assert(!pthread_join(worker, NULL));
     close(peer.listener);
+    if (!strcmp(argv[3],"cancel")) {
+        SvDna absent;
+        assert(result==0 && outcome.birth_quit && !outcome.birth_mode_ready && !driver.final_sent);
+        assert(sv_dna_load(&absent,argv[1],argv[2],"Carol",NULL)==SV_FILE_MISSING);
+        puts("SV C003 production birth cancel: no DNA published");
+        return 0;
+    }
     assert(outcome.birth_mode_ready && outcome.birth_stats_confirmed);
     assert(outcome.phase == (!strcmp(argv[3], "ack") ?
            SV_PREGAME_LIVE_HANDOFF : SV_PREGAME_PLAY_PENDING));
-    if (!strcmp(argv[3], "ack")) assert(result == 0);
-    else assert(result != 0);
+    /* The peer ends every case with SDL_EVENT_QUIT: normal process exit is
+     * successful even while play remains pending. The phase above, not the
+     * exit code, proves whether the authoritative reply completed handoff. */
+    assert(result == 0);
+    assert(driver.mode_ready && driver.final_sent);
     assert(outcome.selected_character[0] && !strcmp(outcome.selected_character, "Carol"));
     assert(peer.interleaved_pongs == 1);
     assert(outcome.birth_sex == SV_BIRTH_SEX_MALE && outcome.birth_race == 2 &&
@@ -211,6 +363,10 @@ int main(int argc, char **argv)
     static const int16_t expected_stats[] = {0, 1, 2, 3, 4, 5};
     assert(!memcmp(outcome.birth_committed_stats, expected_stats, sizeof(expected_stats)));
 
+    SvDna actual_dna;
+    assert(sv_dna_load(&actual_dna,argv[1],argv[2],"Carol",NULL)==SV_FILE_OK);
+    assert(actual_dna.class_id==2 && actual_dna.race==2 && actual_dna.mode==0x300);
+    assert(!memcmp(actual_dna.stats,expected_stats,sizeof(expected_stats)));
     printf("SV-B-024 %s captured %zu handshake bytes; phase=%s character=%s generation=%llu\n",
            argv[3], expected_size, sv_pregame_phase_name(outcome.phase),
            outcome.selected_character, (unsigned long long)outcome.generation);

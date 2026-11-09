@@ -1,0 +1,9 @@
+C002 existing settings-startup production core test; revision dc14c4ad5 plus working tree
+
+Command: clang -std=c99 -Wall -Wextra -Werror -Isrc/client/sv tests/sv/settings-startup.c src/client/sv/settings/config.c src/client/sv/settings/startup.c -o /tmp/sv-c002-startup
+Exit status: 0
+
+Command: /tmp/sv-c002-startup
+SV settings: incompatible future CFG schema; using defaults, overwrite prohibited
+SV settings startup core: PASS
+Exit status: 0

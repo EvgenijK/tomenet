@@ -1,4 +1,8 @@
 #include "app.h"
+#include "files/message-sinks.h"
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "ui/message-text.h"
 #include <assert.h>
 #include <stdio.h>
@@ -114,6 +118,124 @@ static void messages_do_not_repeat_hp_effects(void)
     assert(alerts == 2 && sv_app_view(app).messages.count == 2);
     assert(sv_app_destroy(app) == SV_OK);
 }
+
+static size_t read_file(const char *name, char *out, size_t capacity)
+{
+    FILE *file = fopen(name, "r"); assert(file);
+    size_t size = fread(out, 1, capacity - 1, file);
+    assert(!ferror(file) && !fclose(file));
+    out[size] = 0;
+    return size;
+}
+static void receive_text(SvApp *app, const char *text)
+{
+    unsigned char packet[SV_MESSAGE_BYTES + 1] = {46};
+    size_t size = strlen(text) + 1;
+    assert(size <= SV_MESSAGE_BYTES);
+    memcpy(packet + 1, text, size);
+    assert(sv_app_receive(app, sv_app_view(app).generation, packet, size + 1) == SV_OK);
+    assert(sv_app_step(app, 1).result == SV_OK);
+}
+static void file_notice(void *context, SvMessageFileFailure kind)
+{
+    unsigned *notices = context;
+    ++notices[kind];
+}
+static void production_message_file_effects(void)
+{
+    char root[] = "/tmp/sv-message-files-XXXXXX", notes[1024], clone[1024], data[4096];
+    assert(mkdtemp(root));
+    snprintf(notes, sizeof(notes), "%s/user/notes-Alice.txt", root);
+    snprintf(clone, sizeof(clone), "%s/user/stdout.txt", root);
+    FILE *console = tmpfile(); assert(console);
+    unsigned notices[3] = {0};
+    SvMessageFiles files;
+    assert(sv_message_files_begin(&files, root, "Alice", console, file_notice, notices));
+    assert(!sv_message_files_begin(&files, root, "../escape", console, file_notice, notices));
+    SvApp *app = sv_app_create((SvAlertSink){0});
+    assert(sv_app_set_message_sink(app, sv_message_files_sink(&files)) == SV_OK);
+    assert(sv_app_open(app, version) == SV_OK);
+    uint64_t gen = sv_app_view(app).generation;
+    /* First note: six routing/colour bytes, then Note from. Input deliberately
+     * contains all special markers, coloured payload and a broken final marker. */
+    const char note[] = "\375\376\377w\377wNote from Alice: \374hi\375\376\377r!\377";
+    unsigned char packet[SV_MESSAGE_BYTES + 1] = {46};
+    size_t n = strlen(note);
+    memcpy(packet + 1, note, n + 1);
+    assert(sv_app_receive(app, gen, packet, 8) == SV_OK);
+    assert(sv_app_step(app, 2).processed == 0);
+    assert(access(notes, F_OK) && access(clone, F_OK));
+    assert(sv_app_receive(app, gen, packet + 8, n + 2 - 8) == SV_OK);
+    assert(sv_app_step(app, 1).result == SV_OK);
+    size_t before = read_file(notes, data, sizeof(data));
+    assert(strstr(data, "] Alice: hi!\n"));
+    assert(access(clone, F_OK) && ftell(console) == 0); /* Both defaults off. */
+    receive_text(app, "\377w  same\377r!\377");
+    receive_text(app, "\377w  same\377r!\377");
+    read_file(notes, data, sizeof(data));
+    char *first = strstr(data, "]   same!\n"); assert(first);
+    assert(strstr(first + 1, "]   same!\n")); /* Identical real events preserved. */
+    receive_text(app, "ordinary");
+    before = read_file(notes, data, sizeof(data));
+    receive_text(app, "\377w  no longer a note");
+    assert(read_file(notes, data, sizeof(data)) == before);
+    receive_text(app, note);
+    receive_text(app, note); /* Header during chain uses baseline offset 2. */
+    before = read_file(notes, data, sizeof(data));
+    assert(strstr(data, "] Note from Alice: hi!\n"));
+    /* Neither read views, observer work nor acknowledging events repeats effects. */
+    for (int i = 0; i < 3; ++i) {
+        SvMessageCache redraw = {0};
+        assert(sv_messages_prepare(&redraw, gen, sv_app_view(app).messages));
+        assert(sv_app_step(app, 1).processed == 0);
+    }
+    SvMessage message;
+    while (sv_app_take_message(app, gen, &message) == SV_OK) {}
+    assert(read_file(notes, data, sizeof(data)) == before);
+    sv_message_files_options(&files, true, true);
+    receive_text(app, "\375\376\377rABC\377");
+    assert(read_file(clone, data, sizeof(data)) == 4 && !strcmp(data, "ABC\n"));
+    rewind(console);
+    assert(fread(data, 1, sizeof(data), console) == 4 && !memcmp(data, "ABC\n", 4));
+    receive_text(app, "\377"); /* Clear-topline has no clone output. */
+    assert(read_file(clone, data, sizeof(data)) == 4);
+    /* Session reset discards the note chain but does not truncate shared files. */
+    receive_text(app, note);
+    before = read_file(notes, data, sizeof(data));
+    assert(sv_app_open(app, version) == SV_OK);
+    assert(sv_app_receive(app, gen, packet, n + 2) == SV_STALE);
+    receive_text(app, "\377w  after relog");
+    assert(read_file(notes, data, sizeof(data)) == before);
+    assert(sv_message_files_begin(&files, root, "Bob", console, file_notice, notices));
+    receive_text(app, "\377w  after account switch");
+    char bob[1024]; snprintf(bob, sizeof(bob), "%s/user/notes-Bob.txt", root);
+    assert(access(bob, F_OK));
+    receive_text(app, note);
+    read_file(bob, data, sizeof(data)); assert(strstr(data, "] Alice: hi!\n"));
+    /* Real append-open and flush failures remain optional and independently
+     * reported. /dev/full supplies a Linux flush failure, not a fake writer. */
+    FILE *full = fopen("/dev/full", "w"); assert(full);
+    files.console = full;
+    sv_message_files_options(&files, true, true);
+    assert(!unlink(clone) && !mkdir(clone, 0700));
+    assert(!unlink(bob) && !mkdir(bob, 0700));
+    receive_text(app, note);
+    assert(notices[SV_MESSAGE_FILE_NOTES] == 1);
+    assert(notices[SV_MESSAGE_FILE_CONSOLE] == 1);
+    assert(notices[SV_MESSAGE_FILE_CLONE] == 1);
+    assert(sv_app_view(app).active && sv_app_view(app).executor_failed);
+    assert(!rmdir(bob) && !symlink("/dev/full", bob));
+    sv_message_files_options(&files, false, false);
+    receive_text(app, note); /* Notes append succeeds, fclose flush fails. */
+    assert(notices[SV_MESSAGE_FILE_NOTES] == 2);
+    assert(!unlink(bob));
+    assert(sv_app_destroy(app) == SV_OK);
+    fclose(full); fclose(console);
+    assert(!rmdir(clone) && !unlink(notes));
+    char user[1024]; snprintf(user, sizeof(user), "%s/user", root);
+    assert(!rmdir(user) && !rmdir(root));
+}
+
 int main(void)
 {
     const unsigned char bytes[] = {46,'H','i',0,46,'H','i',0,24,0,100,0,75,0};
@@ -156,5 +278,6 @@ int main(void)
     assert(!strcmp(text.text, "ABCD{?"));
     assert(text.colors[0] == 4 && text.colors[1] == 5 && text.colors[2] == 4 && text.colors[3] == 4);
     assert(formatted.bytes[14] == 0x80 && formatted.bytes[15] == 255);
-    puts("PASS: ordered message occurrences");
+    production_message_file_effects();
+    puts("PASS: ordered message occurrences and production file sinks");
 }

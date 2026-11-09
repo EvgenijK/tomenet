@@ -12,9 +12,9 @@ root = Path(__file__).resolve().parents[1]
 cc = os.environ.get("CC", "clang")
 with tempfile.TemporaryDirectory(prefix="sv-login-") as temp:
     for name, sources in (
-        ("login", ["tests/sv/login.c", "src/client/sv/protocol/login.c"]),
+        ("login", ["tests/sv/login.c", "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c", "src/client/sv/files/files.c"]),
         ("handoff", ["tests/sv/contact-login-handoff.c",
-                     "src/client/sv/protocol/contact.c", "src/client/sv/protocol/login.c"]),
+                     "src/client/sv/protocol/contact.c", "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c", "src/client/sv/files/files.c"]),
     ):
         binary = Path(temp) / name
         subprocess.run([cc, "-std=c99", "-Wall", "-Wextra", "-Werror",
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix="sv-login-") as temp:
     subprocess.run([cc, "-std=c99", "-Wall", "-Wextra", "-Werror",
                     "-fsanitize=undefined", "-Isrc/client/sv",
                     "tests/sv/login-interaction.c",
-                    "src/client/sv/protocol/login.c",
+                    "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c", "src/client/sv/files/files.c",
                     "src/client/sv/login/characters/login-interaction.c",
                     "src/client/sv/input/text-field.c",
                     "src/client/sv/login/pregame.c",

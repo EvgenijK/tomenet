@@ -1,6 +1,7 @@
 #ifndef SV_PROTOCOL_H
 #define SV_PROTOCOL_H
 #include "result.h"
+#include "settings/audio.h"
 #include "session/session.h"
 typedef struct SvProtocol SvProtocol;
 typedef struct {
@@ -24,4 +25,9 @@ SvResult sv_protocol_raw_key(SvProtocol *protocol, unsigned char key);
 SvResult sv_protocol_keepalive(SvProtocol *protocol);
 SvResult sv_protocol_set_ping_clock(SvProtocol *protocol, SvPingClock clock);
 SvResult sv_protocol_send_ping(SvProtocol *protocol);
+/* Prepared effective audio snapshot; reporting copy only, not local names. */
+SvResult sv_protocol_set_reporting_audio(SvProtocol *protocol, const SvSettingsAudioSnapshot *audio);
+/* Resource owner calls only after confirmed effective map change. Currently
+ * reports the honest disabled/missing map state; active consumers come later. */
+SvResult sv_protocol_send_font(SvProtocol *protocol);
 #endif

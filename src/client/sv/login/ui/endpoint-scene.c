@@ -1,3 +1,4 @@
+#include "login/ui/scale.h"
 #include "login/ui/endpoint-scene.h"
 #include "login/login-view.h"
 #include "login/creation/birth-interaction.h"
@@ -171,7 +172,7 @@ static bool b2_forms(SDL_Renderer *r,SvFont *font,const SvEndpoint *endpoint,con
 {
     if(!sv_login_shell_render(r,endpoint,input))return false;
     int width,height;if(!SDL_GetCurrentRenderOutputSize(r,&width,&height))return false;
-    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
+    float scale=sv_login_ui_scale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
     SvLoginLayout l=sv_login_layout(width/scale,height/scale,endpoint->server_count,endpoint->selected);
     SvLoginFormLayout f=sv_login_form_layout(l,height/scale);
     if(endpoint->phase==SV_ENDPOINT_MANUAL) {
@@ -516,7 +517,7 @@ static bool b2_characters(SDL_Renderer *r,SvFont *font,const SvEndpoint *endpoin
 {
     if(!sv_login_shell_render(r,endpoint,input))return false;
     int w,h;if(!SDL_GetCurrentRenderOutputSize(r,&w,&h))return false;
-    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
+    float scale=sv_login_ui_scale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
     const SvLoginView *v=input->login_view;
     SvLoginLayout l=sv_character_shell_layout(w/scale,h/scale,v->ordinary_name_entry);
     SvCharacterLayout c=sv_character_content_layout(sv_character_layout(l,v->first),v->count);
@@ -896,7 +897,7 @@ static bool b2_birth(SDL_Renderer *r,const SvEndpoint *endpoint,const SvEndpoint
 {
     if(!sv_login_shell_render(r,endpoint,input))return false;
     int w,h;if(!SDL_GetCurrentRenderOutputSize(r,&w,&h))return false;
-    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
+    float scale=sv_login_ui_scale(SDL_GetRenderWindow(r));if(scale<=0)scale=1;
     const SvBirthView *v=input->birth_view;SvBirthViewport local_viewport = *input->birth_viewport;
     SvBirthViewport *viewport=&local_viewport;
     if(!v || !viewport)return false;
@@ -1074,7 +1075,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
     if(input->temporary_surface_text && input->birth_view && input->birth_viewport) {
         if(!b2_birth(renderer,endpoint,input,metrics))return false;
         int w,h;if(!SDL_GetCurrentRenderOutputSize(renderer,&w,&h))return false;
-        float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
+        float scale=sv_login_ui_scale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
         SvBirthLayout l=sv_birth_layout(w/scale,h/scale,input->birth_view->owner);
         return b2_state_frame(renderer,l.panel,l.warning,"Guide",scale,false) &&
             b2_wrap(renderer,input->temporary_surface_text,(SvLoginRect){l.warning.x+22,l.warning.y+67,l.warning.w-44,0},13,scale,b2_normal) &&
@@ -1087,7 +1088,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
     if(!input->temporary_surface_text && input->login_view && input->login_view->live_handoff) {
         if(!sv_login_shell_render(renderer,endpoint,input))return false;
         int w,h;if(!SDL_GetCurrentRenderOutputSize(renderer,&w,&h))return false;
-        float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
+        float scale=sv_login_ui_scale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
         SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
         SvLoginRect card={l.panel.x+24,l.panel.y+24,l.panel.w-48,l.panel.h-48};
         return b2_state_frame(renderer,l.panel,card,SV_STUB_LIVE_HANDOFF_TITLE,scale,false) &&
@@ -1102,7 +1103,7 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
     if(!sv_login_shell_render(renderer,endpoint,input))return false;
     int width,height;
     if(!SDL_GetCurrentRenderOutputSize(renderer,&width,&height))return false;
-    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
+    float scale=sv_login_ui_scale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
     SvLoginLayout l=sv_login_layout(width/scale,height/scale,0,0);
     SvLoginRect card={l.panel.x+24,l.panel.y+24,l.panel.w-48,l.panel.h-48};
     return b2_state_frame(renderer,l.panel,card,input->temporary_surface_text?"Guide":"Please wait",scale,false) &&

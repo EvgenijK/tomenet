@@ -1,0 +1,29 @@
+Primary raw stdout/stderr capture
+Revision: dc14c4ad5d5a9aa202051de929cbc9b601ddadb7
+Source: git archive HEAD src/client/sv src/common src/temporary tests/sv tests/sv_birth_complete_checks.py; lib symlink to unchanged workspace lib
+Working directory: /tmp/sv-c002-birth-baseline-kkb4luu_
+Command: python3 tests/sv_birth_complete_checks.py
+No production or test assertion modifications in baseline tree.
+
+SV resource unavailable: /tmp/sv-b024-e78wpl8y/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b024-e78wpl8y/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64427
+birth-complete: tests/sv/birth-complete.c:128: void *complete_peer(void *): Assertion `poll(&final_ready, 1, 800) == 1' failed.
+
+Traceback (most recent call last):
+  File "/tmp/sv-c002-birth-baseline-kkb4luu_/tests/sv_birth_complete_checks.py", line 67, in <module>
+    run.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/subprocess.py", line 509, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-b024-e78wpl8y/birth-complete', '/tmp/sv-b024-e78wpl8y/profile', '/tmp/sv-c002-birth-baseline-kkb4luu_/lib', 'waiting', '/tmp/sv-c002-birth-baseline-kkb4luu_/tests/sv/fixtures/birth-current.hex', '/tmp/sv-b024-e78wpl8y/evidence/waiting.bin']' died with <Signals.SIGABRT: 6>.
+
+Exit status: 1

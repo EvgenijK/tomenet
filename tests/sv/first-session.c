@@ -11,13 +11,23 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 typedef enum { PEER_SUCCESS, PEER_DISCONNECT, PEER_QUIT, PEER_RETRY } PeerMode;
 typedef struct {
     int listener;
     PeerMode mode;
-    bool contact_exact, verify_exact, login_exact, ping_exact, choice_exact, closed;
+    bool contact_exact, verify_exact, login_exact, ping_exact, choice_exact, options_exact, closed;
+    const char *root;
 } Peer;
+
+static void write_setting(const char *root, const char *name, const char *text)
+{
+    char path[4096];
+    assert(snprintf(path, sizeof(path), "%s/sv/%s", root, name) < (int)sizeof(path));
+    FILE *file = fopen(path, "w"); assert(file);
+    assert(fputs(text, file) >= 0 && !fclose(file));
+}
 
 static bool exact(int socket, void *out, size_t size)
 {
@@ -75,7 +85,26 @@ static int credential_run(void *unused)
     (void)unused;
     for (int i = 0; i < 200 && !(SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO); ++i)
         SDL_Delay(5);
+    /* Wait for the native editor's actual readiness; bootstrap resources now
+     * run between VIDEO init and the first input boundary. */
+    SDL_Window *window = NULL;
+    for (int i = 0; i < 2000; ++i) {
+        int count = 0;
+        SDL_Window **windows = SDL_GetWindows(&count);
+        window = count == 1 ? windows[0] : NULL;
+        SDL_free(windows);
+        if (window && SDL_TextInputActive(window)) break;
+        SDL_Delay(5);
+    }
+    assert(window && SDL_TextInputActive(window));
     SDL_Delay(100);
+    /* Settings bootstrap now prefills the configured account. Replace it
+     * through the production editor, just as a user entering this fixture ID. */
+    SDL_Event select_all = {.type = SDL_EVENT_KEY_DOWN};
+    select_all.key.key = SDLK_A;
+    select_all.key.scancode = SDL_SCANCODE_A;
+    select_all.key.mod = SDL_KMOD_CTRL;
+    assert(SDL_PushEvent(&select_all));
     push_text("Test");
     push_event(SDL_EVENT_KEY_DOWN, SDLK_RETURN);
     push_text("pw");
@@ -133,15 +162,7 @@ retry:
     assert(exact(socket, login_start, sizeof(login_start)));
     peer->login_exact = login_start[0] == PKT_LOGIN && login_start[1] == 0 &&
                         login_start[2] == 0xf4 && login_start[3] == 0x43;
-    if (peer->mode == PEER_RETRY && !attempt) {
-        static const unsigned char rejected[] = {PKT_QUIT, 'W','r','o','n','g',' ','p','a','s','s','w','o','r','d',0};
-        assert(send(socket, rejected, sizeof(rejected), 0) == (ssize_t)sizeof(rejected));
-        close(socket);
-        SDL_Delay(200);
-        push_event(SDL_EVENT_KEY_DOWN, SDLK_R);
-        ++attempt;
-        goto retry;
-    }
+
 
     unsigned char conversation[256]; out = conversation;
     *out++ = PKT_SERVERDETAILS;
@@ -191,6 +212,24 @@ retry:
 
     const unsigned char accepted = 0;
     assert(send(socket, &accepted, 1, 0) == 1);
+    unsigned char options[200];
+    assert(exact(socket, options, sizeof(options)));
+    /* Real S/Hero.opt overrides S/global.opt before the very first packet.
+     * Slots are baseline rogue_like_commands=0 and censor_swearing=2. */
+    peer->options_exact = options[0] == PKT_OPTIONS && options[1] == 0 &&
+        options[3] == (unsigned char)(attempt ? 1 : 0);
+    assert(peer->options_exact);
+    if (peer->mode == PEER_RETRY && !attempt)
+        write_setting(peer->root, "Hero.opt", "X:rogue_like_commands\nY:censor_swearing\n");
+    if (peer->mode == PEER_RETRY && !attempt) {
+        static const unsigned char rejected[] = {PKT_QUIT, 'W','r','o','n','g',' ','p','a','s','s','w','o','r','d',0};
+        assert(send(socket, rejected, sizeof(rejected), 0) == (ssize_t)sizeof(rejected));
+        close(socket);
+        SDL_Delay(200);
+        push_event(SDL_EVENT_KEY_DOWN, SDLK_R);
+        ++attempt;
+        goto retry;
+    }
     SDL_Delay(150);
     push_event(SDL_EVENT_WINDOW_RESIZED, 0);
     push_event(SDL_EVENT_WINDOW_FOCUS_LOST, 0);
@@ -207,7 +246,15 @@ retry:
 int main(int argc, char **argv)
 {
     assert(argc == 4);
-    Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = PEER_SUCCESS};
+    char settings_root[4096];
+    assert(snprintf(settings_root, sizeof(settings_root), "%s/sv", argv[1]) < (int)sizeof(settings_root));
+    assert(!mkdir(settings_root, 0700) || errno == EEXIST);
+    /* Existing credential gestures are scheduled after VIDEO init; suppress
+     * unrelated optional pack/device work in this focused transport fixture. */
+    write_setting(argv[1], "tomenet.cfg", "svSchemaVersion 1\nsound 0\n");
+    write_setting(argv[1], "global.opt", "Y:rogue_like_commands\nY:censor_swearing\n");
+    write_setting(argv[1], "Hero.opt", "X:rogue_like_commands\nX:censor_swearing\n");
+    Peer peer = {.listener = socket(AF_INET, SOCK_STREAM, 0), .mode = PEER_SUCCESS, .root = argv[1]};
     assert(peer.listener >= 0);
     if (!strcmp(argv[3], "disconnect")) peer.mode = PEER_DISCONNECT;
     else if (!strcmp(argv[3], "quit")) peer.mode = PEER_QUIT;
@@ -243,7 +290,7 @@ int main(int argc, char **argv)
     close(peer.listener);
     assert(peer.contact_exact && peer.verify_exact && peer.login_exact && peer.ping_exact);
     if (peer.mode == PEER_SUCCESS || peer.mode == PEER_RETRY) {
-        assert(result == 0 && peer.choice_exact && peer.closed);
+        assert(result == 0 && peer.choice_exact && peer.options_exact && peer.closed);
         assert(outcome.phase == SV_PREGAME_LIVE_HANDOFF);
         assert(!strcmp(outcome.selected_character, "Hero"));
     } else if (peer.mode == PEER_DISCONNECT) {

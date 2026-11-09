@@ -64,6 +64,8 @@ static void usage(void)
          "  [--endpoint] [--server HOST[:PORT]] [--port PORT] [--metaserver HOST[:PORT]] [--server-list PATH] [--library PATH]\n"
          "  [--profile-root PATH] [--fixture-window WIDTHxHEIGHT] [--frames N]\n"
          "  [--account NAME --password-stdin] [--character EXISTING_NAME] [-m] (contact through standard input)\n"
+         "  [-fCFG] [-i] [-pPORT] [-FFPS] [-PLIBRARY] [-q] [-nREALNAME] [-NCHARACTER|-RCHARACTER] [-C] [-s] [-e]\n"
+         "  [-lACCOUNT PASSWORD SERVER] [-a|-g|-G] [-w] [-u] [-v|-V|-x] [-X] [-t] [-T]\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
          "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
@@ -80,7 +82,7 @@ int sv_diagnostics_main(int argc, char **argv)
     const char *root = NULL, *library = NULL;
     const char *server = NULL, *server_list = NULL, *metaserver = NULL;
     const char *account = NULL, *real_name = NULL, *character = NULL;
-    bool password_stdin = false, skip_motd = false;
+    bool password_stdin = false, skip_motd = false, legacy_settings = false;
     char contact_password[80] = {0};
     char adjacent[4096];
     bool hp_check = false, arch_check = false, message_check = false, request_check = false;
@@ -89,12 +91,12 @@ int sv_diagnostics_main(int argc, char **argv)
     bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
     bool review = false;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
-    unsigned port = 18348;
+    unsigned port = 0;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     SvFont *font = NULL;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "--help")) { usage(); return 0; }
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(); return 0; }
         if (!strcmp(argv[i], "--synthetic")) { synthetic = true; continue; }
         if (!strcmp(argv[i], "--endpoint")) { endpoint_mode = true; continue; }
         if (!strcmp(argv[i], "--password-stdin")) { password_stdin = true; continue; }
@@ -108,6 +110,11 @@ int sv_diagnostics_main(int argc, char **argv)
         if (!strcmp(argv[i], "--timing-delay")) { timing_delay = true; continue; }
         if (!strcmp(argv[i], "--geometry-check")) { geometry_check = true; continue; }
         if (!strcmp(argv[i], "--hp-check")) { hp_check = true; continue; }
+        /* Baseline settings switches are reduced in order by production SV,
+         * after the owned CFG has been loaded. Never copy credentials here. */
+        if ((argv[i][0] != '-') ||
+            (argv[i][0] == '-' && argv[i][1] && argv[i][1] != '-' &&
+             strchr("ifpFPqnNRlcCwuXvVxetTsagG", argv[i][1]))) { legacy_settings = true; continue; }
         if (i + 1 >= argc) { usage(); return 2; }
         if (!strcmp(argv[i], "--profile-root")) root = argv[++i];
         else if (!strcmp(argv[i], "--library")) library = argv[++i];
@@ -138,8 +145,8 @@ int sv_diagnostics_main(int argc, char **argv)
     if (endpoint_mode || !synthetic) {
         if (synthetic || review || hp_check || arch_check || message_check || request_check ||
             lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
-        if (!!account != password_stdin) return 2;
-        if (character && (!account || !*character || strlen(character) >= 80)) return 2;
+        if (account && !password_stdin) return 2;
+        if (character && (!*character || strlen(character) >= 80)) return 2;
         if (password_stdin) {
             if (!fgets(contact_password, sizeof(contact_password), stdin)) return 2;
             size_t count = strlen(contact_password);
@@ -152,12 +159,13 @@ int sv_diagnostics_main(int argc, char **argv)
             .frames = frames, .windowed = windowed, .port = port, .metaserver = metaserver,
             .account = account, .password = password_stdin ? contact_password : NULL,
             .character = character, .skip_motd = skip_motd,
+            .startup_argc = argc, .startup_argv = argv,
             .real_name = real_name, .shell = sv_diagnostic_shell_options()});
         volatile char *secret = contact_password;
         for (size_t i = 0; i < sizeof(contact_password); ++i) secret[i] = 0;
         return contact_result;
     }
-    if (server || server_list || metaserver || port != 18348 || account || password_stdin || real_name || character || skip_motd) return 2;
+    if (server || server_list || metaserver || port || account || password_stdin || real_name || character || skip_motd || legacy_settings) return 2;
     if (timing_delay && !timing_check) return 2;
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");
     if (!root || !*root) { fprintf(stderr, "SV requires an isolated --profile-root; personal SDL3 profile is never opened by this scenario\n"); return 2; }

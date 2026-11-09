@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory(prefix='sv-requests-') as temp:
     binary = Path(temp) / 'checks'
     sources = ['tests/sv/requests.c']
     sources += ['src/client/sv/' + name + '.c' for name in
-                ('ui/message-text', 'input/input', 'input/native-input', 'input/physical', 'session/alerts', 'app', 'protocol/protocol', 'result', 'session/session', 'ui/status', 'protocol/version')]
+                ('ui/message-text', 'input/input', 'input/keymap', 'input/quantity', 'input/text-field', 'settings/preferences', 'settings/options', 'files/files', 'input/native-input', 'input/key-encoding', 'session/alerts', 'app', 'protocol/protocol', 'result', 'session/session', 'ui/status', 'protocol/version')]
     sources += ['tests/sv/diagnostics/peer.c']
     sources += ['src/common/' + name + '.c' for name in ('sockbuf', 'z-util', 'z-form', 'z-virt')]
     subprocess.run([os.environ.get('CC', 'clang'), '-std=c99', '-D_DEFAULT_SOURCE', '-DCLIENT=',

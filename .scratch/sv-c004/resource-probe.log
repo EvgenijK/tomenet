@@ -1,0 +1,5 @@
+COMMAND: ['clang', '-std=c99', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-Isrc/client/sv', '/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c004/resource-probe.c', 'src/client/sv/settings/options.c', 'src/client/sv/settings/preferences.c', 'src/client/sv/files/files.c', '-o', '/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c004/resource-probe']
+COMMAND: ASAN_OPTIONS=detect_leaks=0 ['/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c004/resource-probe', '/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c004/native-root', '/home/svechnik/Projects/tomenet_modern_client/lib', '/home/svechnik/Projects/tomenet_modern_client/lib/xtra/posix_extra_fonts/tangar/font-custom-9x15tg.prf']
+supplied font PRF + fresh clone PASS: files=1 records=1326 mappings=1272 diagnostics=0
+source SHA-256 unchanged=c6925e089d79ca9b7452a98262286873852b81d5deec4ffd5529cba885d5b5be
+exit=0

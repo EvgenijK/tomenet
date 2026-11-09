@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 SDL_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs", "sdl3"], text=True).split()
 SCENE_FLAGS = subprocess.check_output(["pkg-config", "--cflags", "--libs",
-                                      "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng", "libcurl"], text=True).split()
+                                      "sdl3", "sdl3-ttf", "sdl3-mixer", "freetype2", "libsecret-1", "libpng", "libcurl"], text=True).split()
 COMMON = ["src/client/sv/login/servers/endpoint.c", "src/client/sv/input/text-field.c"]
 
 
@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
     bad = subprocess.run([*command, "--server", "host.example:0"],
                          cwd=ROOT, env=env, text=True, capture_output=True)
     assert bad.returncode == 2 and "Invalid server address" in bad.stderr
-    scene_sources = ["tests/sv/scene.c", "src/client/sv/login/native-run.c", "src/client/sv/login/flow.c", "src/client/sv/login/chronicle.c",
+    scene_sources = ["src/client/sv/files/files.c", "src/client/sv/files/history.c", "src/client/sv/files/dna.c", "tests/sv/scene.c", "src/client/sv/login/native-run.c", "src/client/sv/settings/config.c", "src/client/sv/settings/startup.c", "src/client/sv/settings/audio.c", "src/client/sv/login/flow.c", "src/client/sv/login/chronicle.c",
                      "src/client/sv/credential/vault.c",
                      "src/client/sv/login/account/credentials.c",
                      "src/client/sv/login/characters/login-interaction.c",
@@ -81,7 +81,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/login/characters/native-name.c",
                      "src/client/sv/login/creation/native-birth.c",
                      "src/client/sv/protocol/contact.c", "src/client/sv/protocol/contact-socket.c",
-                     "src/client/sv/protocol/login.c",
+                     "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c",
                      "src/client/sv/protocol/login-identity.c", "src/common/md5.c",
                      "src/client/sv/login/pregame.c",
                      "src/client/sv/login/login-view.c",
@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix="sv-endpoint-") as temp:
                      "src/client/sv/login/ui/native-endpoint.c", "src/client/sv/input/key-encoding.c",
                      "src/client/sv/login/servers/metaserver.c", *COMMON]
     scene_sources += ["src/client/sv/" + name + ".c" for name in
-                      ("app", "input/input", "session/alerts", "session/session",
+                      ("app", "input/input", "input/keymap", "input/quantity", "session/alerts", "session/session",
                        "protocol/protocol", "protocol/version", "result")]
     scene_sources += ["tests/sv/diagnostics/peer.c"]
     scene_sources += ["src/common/" + name + ".c" for name in

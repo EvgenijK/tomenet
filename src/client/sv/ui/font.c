@@ -1,3 +1,4 @@
+#include "files/files.h"
 #include "ui/font.h"
 #include <SDL3_ttf/SDL_ttf.h>
 #include <ft2build.h>
@@ -37,36 +38,70 @@ static bool open_pcf(SvFont *font)
     return valid;
 }
 
-SvFont *sv_font_open(const char *root, const char *library)
+static bool open_file(SvFont *font, const char *path)
 {
-    SvFont *font = SDL_calloc(1, sizeof(*font));
-    const char *roots[] = {root, library};
-    if (!font) return NULL;
-    for (unsigned i = 0; i < 2; ++i) {
-        if (SDL_snprintf(font->resource, sizeof(font->resource),
-                         "%s/xtra/font/CascadiaMono-Regular.ttf", roots[i]) >=
-            (int)sizeof(font->resource)) continue;
-        font->ttf = TTF_OpenFont(font->resource, 18);
-        if (font->ttf && ascii_ttf(font->ttf)) {
-            font->size = 18;
-            return font;
-        }
-        if (font->ttf) TTF_CloseFont(font->ttf);
-        font->ttf = NULL;
-        fprintf(stderr, "SV resource unavailable: %s (%s); trying declared fallback\n",
-                font->resource, SDL_GetError());
-    }
-    /* PCF is loaded directly by FreeType; numeric encoding is not reinterpreted. */
-    if (SDL_snprintf(font->resource, sizeof(font->resource),
-                     "%s/xtra/font/16x24x.pcf", library) < (int)sizeof(font->resource) &&
-        open_pcf(font)) {
-        fprintf(stderr, "SV effective font fallback: %s (requested CascadiaMono-Regular.ttf retained)\n",
-                font->resource);
-        return font;
-    }
-    fprintf(stderr, "SV fatal resource failure: bundled Cascadia Mono and %s unavailable or invalid\n", font->resource);
+    if (!path || SDL_strlcpy(font->resource,path,sizeof(font->resource))>=sizeof(font->resource)) return false;
+    const char *suffix=SDL_strrchr(path,'.');
+    if (suffix && !SDL_strcasecmp(suffix,".pcf")) return open_pcf(font);
+    font->ttf=TTF_OpenFont(path,18);
+    if (font->ttf && ascii_ttf(font->ttf)) { font->size=18; return true; }
+    if (font->ttf) TTF_CloseFont(font->ttf);
+    font->ttf=NULL;
+    return false;
+}
+
+SvFont *sv_font_open_file(const char *path)
+{
+    SvFont *font=SDL_calloc(1,sizeof(*font));
+    if (font && open_file(font,path)) return font;
     sv_font_close(font);
     return NULL;
+}
+
+SvFont *sv_font_open_selected(const char *root, const char *library, const char *requested)
+{
+    SvFont *font=SDL_calloc(1,sizeof(*font));
+    char path[4096],visited[4][4096];
+    unsigned visited_count=0;
+    if (!font) return NULL;
+    if (!requested || !*requested) requested="CascadiaMono-Regular.ttf";
+    /* Requested overlay then bundle, followed only by declared bundled fallbacks.
+     * The requested name remains in the settings owner, never in this effective object. */
+    const char *roots[]={root,library,library,library};
+    const char *names[]={requested,requested,"CascadiaMono-Regular.ttf","16x24x.pcf"};
+    for (unsigned i=0;i<4;++i) {
+        int length;
+        if (i<2 && requested[0]=='/') {
+            if (i==1) continue;
+            length=SDL_snprintf(path,sizeof(path),"%s",requested);
+        } else {
+            char relative[4096];
+            SvFilePath resolved;
+            length=SDL_snprintf(relative,sizeof(relative),"xtra/font/%s",names[i]);
+            if (length<0 || length>=(int)sizeof(relative) ||
+                !sv_file_path(&resolved,roots[i],relative,i?SV_FILE_BUNDLED:SV_FILE_SHARED)) continue;
+            length=SDL_strlcpy(path,resolved.path,sizeof(path));
+        }
+        if (length<0 || length>=(int)sizeof(path)) continue;
+        bool duplicate=false;
+        for (unsigned prior=0;prior<visited_count;++prior)
+            if (!strcmp(path,visited[prior])) duplicate=true;
+        if (duplicate) continue;
+        SDL_strlcpy(visited[visited_count++],path,sizeof(visited[0]));
+        if (open_file(font,path)) {
+            if (i>=2) fprintf(stderr,"SV effective text font fallback: %s; requested selection retained\n",path);
+            return font;
+        }
+        fprintf(stderr,"SV text font unavailable: %s; trying declared fallback\n",path);
+    }
+    fprintf(stderr,"SV fatal text resource failure: requested and bundled fallback fonts unavailable\n");
+    sv_font_close(font);
+    return NULL;
+}
+
+SvFont *sv_font_open(const char *root, const char *library)
+{
+    return sv_font_open_selected(root,library,"CascadiaMono-Regular.ttf");
 }
 
 void sv_font_close(SvFont *font)
@@ -94,36 +129,48 @@ static bool draw_surface(SDL_Renderer *renderer, SDL_Surface *surface, int x, in
     return ok;
 }
 
-bool sv_font_draw(SvFont *font, SDL_Renderer *renderer, const char *text,
-                  int x, int y, float scale, SDL_Color color)
+SDL_Surface *sv_font_render_surface(SvFont *font, const char *text, float points,
+                                    float scale, SDL_Color color, bool bold)
 {
-    /* Shell strings are deliberately confined to the declared UI profile. */
-    for (const unsigned char *p = (const unsigned char *)text; *p; ++p)
-        if (*p < 32 || *p > 126) return SDL_SetError("Unsupported shell UI profile character");
     if (font->ttf) {
-        float size = 18 * scale;
-        if (size != font->size && !TTF_SetFontSize(font->ttf, size)) return false;
+        float size = points * scale;
+        if (size != font->size && !TTF_SetFontSize(font->ttf, size)) return NULL;
         font->size = size;
-        return draw_surface(renderer, TTF_RenderText_Blended(font->ttf, text, 0, color), x, y);
+        TTF_SetFontStyle(font->ttf,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
+        SDL_Surface *surface=TTF_RenderText_Blended(font->ttf,text,0,color);
+        TTF_SetFontStyle(font->ttf,TTF_STYLE_NORMAL);
+        return surface;
     }
+    /* PCF shell text has the existing ASCII profile. Public UTF-8 text outside
+     * it gets one visible replacement per character, never a guessed charset. */
+    char ascii[257];
+    size_t ascii_length=0;
+    for (const unsigned char *p=(const unsigned char *)text;*p;++p) {
+        if ((*p&0xc0)==0x80) continue;
+        if (ascii_length==sizeof(ascii)-1) { SDL_SetError("Shell text too long"); return NULL; }
+        ascii[ascii_length++]=(*p>=32 && *p<127)?(char)*p:'?';
+    }
+    ascii[ascii_length]=0;
+    text=ascii;
+    scale *= points / 18.f;
     int source_w = font->pcf->available_sizes[0].width;
     int source_h = font->pcf->available_sizes[0].height;
     int cell_w = (int)SDL_roundf(source_w * scale);
     int cell_h = (int)SDL_roundf(source_h * scale);
     int ascent = (int)(font->pcf->size->metrics.ascender >> 6);
     size_t len = strlen(text);
-    if (!len || len > 256 || cell_w < 1 || cell_h < 1) return SDL_SetError("Invalid shell text geometry");
+    if (!len || len > 256 || cell_w < 1 || cell_h < 1) { SDL_SetError("Invalid shell text geometry"); return NULL; }
     SDL_Surface *surface = SDL_CreateSurface((int)len * cell_w, cell_h, SDL_PIXELFORMAT_RGBA32);
-    if (!surface) return false;
+    if (!surface) return NULL;
     SDL_ClearSurface(surface, 0, 0, 0, 0);
     for (size_t i = 0; i < len; ++i) {
         if (FT_Load_Char(font->pcf, (unsigned char)text[i], FT_LOAD_RENDER | FT_LOAD_MONOCHROME)) {
-            SDL_DestroySurface(surface); return SDL_SetError("PCF glyph load failed");
+            SDL_DestroySurface(surface); SDL_SetError("PCF glyph load failed"); return NULL;
         }
         FT_GlyphSlot glyph = font->pcf->glyph;
         FT_Bitmap *bitmap = &glyph->bitmap;
         if (bitmap->pixel_mode != FT_PIXEL_MODE_MONO) {
-            SDL_DestroySurface(surface); return SDL_SetError("PCF glyph is not monochrome");
+            SDL_DestroySurface(surface); SDL_SetError("PCF glyph is not monochrome"); return NULL;
         }
         for (int dy = 0; dy < cell_h; ++dy) {
             int sy = dy * source_h / cell_h - (ascent - glyph->bitmap_top);
@@ -137,7 +184,35 @@ bool sv_font_draw(SvFont *font, SDL_Renderer *renderer, const char *text,
             }
         }
     }
-    return draw_surface(renderer, surface, x, y);
+    return surface;
+}
+
+bool sv_font_draw(SvFont *font, SDL_Renderer *renderer, const char *text,
+                  int x, int y, float scale, SDL_Color color)
+{
+    /* Editable field bytes keep the original explicit ASCII profile. */
+    for (const unsigned char *p=(const unsigned char *)text;*p;++p)
+        if (*p<32 || *p>126) return SDL_SetError("Unsupported shell UI profile character");
+    return draw_surface(renderer,sv_font_render_surface(font,text,18,scale,color,false),x,y);
+}
+
+bool sv_font_measure(SvFont *font,const char *text,float points,float scale,int *width,int *height,bool bold)
+{
+    if (font->ttf) {
+        float size=points*scale;
+        if (size!=font->size && !TTF_SetFontSize(font->ttf,size)) return false;
+        font->size=size;
+        TTF_SetFontStyle(font->ttf,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
+        bool ok=TTF_GetStringSize(font->ttf,text,0,width,height);
+        TTF_SetFontStyle(font->ttf,TTF_STYLE_NORMAL);
+        return ok;
+    }
+    size_t characters=0;
+    for (const unsigned char *p=(const unsigned char *)text;*p;++p)
+        if ((*p&0xc0)!=0x80) characters++;
+    *width=(int)characters*(int)SDL_roundf(font->pcf->available_sizes[0].width*scale*points/18.f);
+    *height=(int)SDL_roundf(font->pcf->available_sizes[0].height*scale*points/18.f);
+    return *width>=0 && *height>0;
 }
 
 int sv_font_cell_width(SvFont *font, float scale)

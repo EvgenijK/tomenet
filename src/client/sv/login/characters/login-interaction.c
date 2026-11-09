@@ -12,6 +12,7 @@
 #define SV_SFLAG0_RPG_ADMIN 0x20u
 #define SV_SFLAG0_DED_IDDC 0x40u
 #define SV_SFLAG0_DED_PVP 0x80u
+static bool name_byte(unsigned char byte);
 
 typedef struct {
     size_t ordinary_limit, baseline_ordinary_limit;
@@ -135,6 +136,20 @@ void sv_login_interaction_begin(SvLoginInteraction *input, SvLogin *login,
                                    .creation_supported = creation_flags <= 1};
 }
 
+bool sv_login_interaction_request_reincarnation(SvLoginInteraction *input,
+                                                 const char *name)
+{
+    if (!input || !input->login || input->overview_seen || !name || !*name ||
+        strlen(name)>15) return false; /* baseline CNAME_LEN includes NUL */
+    if (!((name[0]>='A' && name[0]<='Z') || (name[0]>='a' && name[0]<='z'))) return false;
+    for (size_t i=1;name[i];++i)
+        if (!name_byte((unsigned char)name[i])) return false;
+    strcpy(input->reincarnation_name,name);
+    input->reincarnation_name[0]=(char)toupper((unsigned char)input->reincarnation_name[0]);
+    input->pending_reincarnation=true;
+    return true;
+}
+
 SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
 {
     SvLoginState state = sv_login_state(input->login);
@@ -143,15 +158,17 @@ SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input)
         /* Server-confirmed characters identify an established account even
          * when this installation has no local profile settings yet. */
         if (sv_login_count(input->login)) input->first_run = false;
-        if (input->default_character) {
+        const char *requested=input->pending_reincarnation ? input->reincarnation_name : input->default_character;
+        if (requested) {
             char desired[SV_LOGIN_NAME_CAPACITY];
-            size_t length = strlen(input->default_character);
+            size_t length = strlen(requested);
             if (length >= sizeof(desired)) return SV_LOGIN_TRANSITION_OVERVIEW;
-            memcpy(desired, input->default_character, length + 1);
+            memcpy(desired, requested, length + 1);
             desired[0] = (char)toupper((unsigned char)desired[0]);
             for (size_t slot = 0; slot < sv_login_count(input->login); ++slot)
                 if (!strcmp(desired, sv_login_character(input->login, slot)->name)) {
                     (void)sv_login_choose(input->login, slot);
+                    input->pending_reincarnation=false;
                     break;
                 }
         }
@@ -262,6 +279,7 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
     if (key == SV_EDIT_CANCEL) {
         sv_text_key(&input->character_name, key);
         input->ordinary_name_active = false;
+        input->reincarnation_draft = false;
         input->dedicated_creation = false;
         input->dedicated_mode_flags = 0;
         return SV_LOGIN_INPUT_NAME_CANCELLED;
@@ -272,8 +290,9 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
     }
     char submitted[SV_LOGIN_NAME_CAPACITY];
     const char *source = input->character_name.bytes;
-    bool reincarnation = source[0] == '+';
-    if (reincarnation) ++source;
+    bool prefixed = source[0] == '+';
+    bool reincarnation = prefixed || input->reincarnation_draft;
+    if (prefixed) ++source;
     while (*source == ' ') ++source;
     size_t length = strlen(source);
     while (length && source[length - 1] == ' ') --length;
@@ -281,7 +300,7 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
         char suggestion[SV_LOGIN_NAME_CAPACITY];
         random_name(suggestion);
         char draft[SV_LOGIN_NAME_CAPACITY];
-        if (reincarnation)
+        if (prefixed)
             snprintf(draft, sizeof(draft), "+%s", suggestion);
         else
             snprintf(draft, sizeof(draft), "%s", suggestion);
@@ -298,6 +317,7 @@ SvLoginInputResult sv_login_interaction_name_key(SvLoginInteraction *input,
     if (sv_login_create_character(input->login, submitted, reincarnation) != SV_OK)
         return SV_LOGIN_INPUT_IGNORED;
     input->ordinary_name_active = false;
+    input->reincarnation_draft = false;
     return SV_LOGIN_INPUT_NAME_SUBMITTED;
 }
 
@@ -341,10 +361,20 @@ SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
             input->ordinary_name_active = true;
             input->dedicated_creation = false;
             input->dedicated_mode_flags = 0;
+            input->reincarnation_draft = input->pending_reincarnation;
+            /* Without DNA availability (owned by C040), baseline -R must not
+             * auto-submit a missing name. Keep the ordinary New/Enter path and
+             * carry its explicit reincarnation intent into that existing editor. */
+            if (input->pending_reincarnation) {
+                input->pending_reincarnation=false;
+                (void)sv_login_interaction_name_insert(input,input->reincarnation_name);
+            }
             return SV_LOGIN_INPUT_NAME_STARTED;
         }
         uint32_t dedicated_modes = sv_login_interaction_exclusive_modes(input);
         if (command.kind == SV_LOGIN_COMMAND_CREATE_EXCLUSIVE && dedicated_modes) {
+            input->pending_reincarnation=false;
+            input->reincarnation_draft=false;
             sv_text_begin(&input->character_name, "", 15, false);
             input->ordinary_name_active = true;
             input->dedicated_creation = true;

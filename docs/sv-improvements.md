@@ -1535,3 +1535,160 @@ bytes, порядок и однократная передача владени�
 сборки и тесты не запускались. Последующая реализация, проверки и сравнение
 известного неисправного historical fixture с исходным HEAD записаны в 005;
 full suites не объявляются пройденными.
+
+## SDL3 legacy: audioBuffer не достигает device open (C002 audit, 2026-11-05)
+
+**Проблема:** main CFG `audioBuffer` описывает размер буфера/latency, но
+`open_mixer` в `src/client/snd-sdl3.c` делает `(void)chunksize`; clamp и передача
+из `open_audio` не меняют sample frames устройства. Успешный open нельзя считать
+подтверждением применения выбранного буфера.
+
+**Затронутый код:** `src/client/snd-sdl3.c`: `open_mixer`, `open_audio`; main CFG
+reader/writer `audioBuffer` в `src/client/client.c`.
+
+**Предложение:** отдельной legacy задачей использовать поддержанный SDL3 hint
+`SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES` до open, сохранять внешний hint priority,
+и читать actual frames через mixer device ID + `SDL_GetAudioDeviceFormat`.
+Различать requested/effective при отказе provider выполнить request. В C002
+эта адаптация локально реализована для SV; объединение реализаций не требуется.
+
+**Статус:** proposed для legacy, вне реализации C002.
+
+**Необходимые проверки:** минимальный Linux production open с boundary/default
+requested frames и queried effective frames; negotiated mismatch; приоритет и
+восстановление внешнего hint; no-device не разрывает session. CFG не переписывать
+на effective value. Расширение проверок заранее согласовать по AGENTS.md.
+
+## SV: birth-complete scripted burst теряется на input boundary (C002 comparison, 2026-11-05)
+
+**Проблема:** существующий `tests/sv_birth_complete_checks.py` не достигает
+финального `PKT_PLAY` в первом `waiting` case. Изолированное дерево исходного
+HEAD `dc14c4ad5d5a9aa202051de929cbc9b601ddadb7` с неизменёнными production и test
+assertions воспроизводит тот же `poll(&final_ready, 1, 800) == 1` failure,
+что и рабочее дерево C002. Raw comparison —
+[baseline log](../.scratch/sv-c002/evidence/birth-baseline.log);
+[current run report](../.scratch/sv-c002/evidence/birth-complete.log).
+Это существующий дефект сценария, а не доказательство регрессии C002;
+полный production birth handshake этим сценарием пока не подтверждён.
+
+**Затронутый код:** `tests/sv/birth-complete.c`: `complete_peer`;
+`tests/sv/name-editor-submit.c`: `push_to_mode`/`push_to_stats`;
+`src/client/sv/login/creation/native-birth.c`: `apply` вызывает
+`sv_pregame_input_boundary()` при смене owner. Этот production boundary
+намеренно очищает ожидающие input events, поэтому заранее поставленная в очередь
+последовательность жестов для нескольких owners может быть сброшена после
+первого перехода.
+
+**Предложение:** отдельно адаптировать существующие scripted gestures к
+фактической готовности и переходам birth owner: подавать жесты последовательно,
+сохраняя проверки отсутствия преждевременного `PKT_PLAY`, literal wire oracle и
+ожидания authoritative reply. Не менять production boundary ради старого burst
+и не создавать отдельную реализацию поведения для теста.
+
+**Статус:** resolved 2026-11-07 отдельным test-only follow-up. В
+`tests/sv/birth-complete.c` локальный wrapper настоящего `sv_endpoint_draw`
+наблюдает borrowed view в main thread и подаёт один gesture по owner;
+stats ждут highlight/count, финальный MODE Enter разрешает peer под mutex.
+Production input boundary и shared `name-editor-submit.c` не изменены.
+Shortcut letters сами подтверждают выбор, поэтому лишние Enter удалены.
+Также source-backed исправлена устаревшая exit assertion: normal
+`SDL_EVENT_QUIT` возвращает `0`, успех handshake по-прежнему различает phase.
+Существующий Linux ASan+UBSan recipe прошёл waiting/partial/ack с literal
+16266-byte handshake и всеми packet/outcome assertions; см.
+[raw follow-up log](../.scratch/sv-c002/evidence/birth-fixed-2026-11-07/raw-04.log).
+Исторические failures сохранены. Version matrix и соседние suites не расширялись.
+
+**Проверки:** пользователь разрешил минимальное изменение существующей
+Linux `sv_birth_complete_checks.py`; выполнены те же `waiting`/`partial`/`ack` cases
+через production flow, первые character option bytes, однократный `PKT_PLAY`,
+порядок authoritative replies и сохранение input boundaries. Не расширять matrix
+или набор suite без согласования по AGENTS.md.
+
+## Безопасная граница encoded PRF records в legacy
+
+**Статус:** proposed separately, 2026-11-09; не входит в реализацию legacy в C004.
+
+**Проблема:** `process_pref_file_aux_aux` без диагностики ставит NUL в byte1023
+перед dispatch. У `A/P/H/C/!/?` это может обрезать escape-последовательность;
+legacy `text_to_ascii` читает следующие bytes без проверки полноты escape.
+Смысловой префикс файла и фактически исполненная строка отличаются незаметно.
+
+**Затронутый код:** `src/client/c-files.c:1199`, `text_to_ascii` в том же файле.
+
+**Предложение:** отдельно спроектировать безопасный decode и явную диагностику
+границы, сохранив совместимость исполняемого префикса. Не увеличивать молча
+допустимую последовательность команд. C004 выполняет SV-local bounded decode и
+диагностику, но не меняет существующие клиенты.
+
+**Необходимые проверки:** encoded boundary до/на/после byte1023, complete/incomplete
+hex/octal/control escapes, точные фактически поставленные в очередь bytes,
+includes до ограничения, отсутствие source rewrite.
+
+## Компактное хранение provenance preferences SV
+
+**Статус:** proposed separately, 2026-11-09; оптимизация не входит в C004.
+
+**Проблема:** preference records, mappings, macros и effects содержат копию
+`SvFilePath` с 4096-byte path. Поставляемый font PRF может содержать 1272 active
+mapping records; хранение source path в record и effective mapping многократно
+повторяет одно имя, увеличивая стоимость fresh character clone. Текущий core
+ограничен 64MiB и не должен молча терять записи.
+
+**Затронутый код:** `src/client/sv/settings/preferences.[ch]`, retained records и clone.
+
+**Предложение:** при работе с реальными resource consumers C006/C007 оценить
+стоимость и при необходимости хранить общую immutable source identity внутри
+preference owner. Не объединять SV/legacy ради этой оптимизации и не менять
+публичную provenance semantics.
+
+**Необходимые проверки:** supplied font/graphics corpus, peak memory и clone cost,
+source identity после U/B fallback, корректность borrowed views/lifetime и явное
+поведение при memory bound. Намеренное SV-local дублирование legacy не является
+причиной этой записи.
+
+## Define safe legacy quantity arithmetic at numeric limits
+
+**Status:** proposed separately, discovered during C005 planning, 2026-11-09;
+legacy changes are outside C005 implementation scope.
+
+**Problem:** `c_get_quantity` parses with `atoi` and computes `i1 * mul + i2`
+in signed 32-bit arithmetic before clamping. Large ten-character inputs with
+k/M/G can overflow; undefined C behavior is not a stable compatibility result.
+
+**Affected code:** `src/client/c-util.c:c_get_quantity`; quantity callers in
+`c-cmd.c`, `c-store.c`, `nclient.c` and SDL audio browsers.
+
+**Proposal:** define bounded parsing and overflow disposition explicitly, then
+consider a narrow legacy fix. Preserve defined baseline defaults, all shortcuts,
+factor/fraction semantics and each caller's zero handling. C005 should use safe
+SV-local arithmetic without claiming overflow artifacts as baseline semantics;
+it does not authorize this legacy change or a wider numeric-parser refactor.
+
+**Required checks:** representable values around s32 boundaries, k/M/G products,
+fractional tails, max clamp, negative predef, Escape/empty/all and actual caller
+zero interpretation. Current required platform is Linux; Windows deferred.
+
+## Retain native input events when live dispatch is backpressured
+
+**Status:** proposed separately, discovered during C005 integration, 2026-11-09.
+Actual live input orchestration belongs to C014/C053; no generic queue is added
+by C005.
+
+**Problem:** the native adapter historically returns only whether an SDL event
+was handled, and diagnostic event loops ignore app dispatch backpressure. C005
+now exposes `SvNativeInput.last_result` and app atomic retry semantics, but a
+future live event owner must retain denied input rather than consume it silently.
+
+**Affected code:** `src/client/sv/input/native-input.[ch]`, `app.c:gameplay_key`,
+`tests/sv/scenarios/*-scenario.c` input loops and future C014 native live owner.
+
+**Proposal:** make the live owner inspect `last_result`, retain/retry the denied
+event with its resolved bytes and generation, and drain semantic commands before
+accepting later input. Preserve bounded queues, order and exactly-once delivery;
+keep physical resolution stable across retry. Diagnostic loops are not an
+implementation of the future live command executor.
+
+**Required checks:** output/command backpressure, focus or binding change during
+retry, stale generation, close/reconnect, and no dropped or duplicate bytes on
+Linux. C005 checks its own production app retry result and prefix rollback;
+these combined live-owner checks remain with the future caller.

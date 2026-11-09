@@ -5,5 +5,6 @@ typedef struct {
     bool reduced_motion;
     bool background_selected;
     unsigned background;
+    const char *text_font_path; /* resolved effective selection; NULL keeps B2 font */
 } SvLoginShellOptions;
 #endif

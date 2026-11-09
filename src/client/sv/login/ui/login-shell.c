@@ -1,3 +1,5 @@
+#include "login/ui/scale.h"
+#include "ui/font.h"
 /* D shell, derived from tomenet_interface/login.html in the external UX prototype.
  * Source commit: 1bb2d5d45b9001bf2a6f2084f78184c29a73fca7. See docs/evidence/sv-login/PROVENANCE.md. */
 #include "login/ui/login-shell.h"
@@ -23,6 +25,7 @@ typedef struct {
 } TextCache;
 typedef struct {
     TTF_Font *font, *heading;
+    SvFont *selected_text;
     TextCache text[TEXT_CACHE_SIZE];
     unsigned next_text;
     SDL_Texture *background[2], *icons[6][2], *doors[2], *motd_texture, *glow;
@@ -68,6 +71,7 @@ static void SDLCALL close_shell(void *unused, void *value)
     for(unsigned i=0;i<TEXT_CACHE_SIZE;++i) SDL_DestroyTexture(s->text[i].texture);
     SDL_DestroyTexture(s->motd_texture);
     SDL_DestroyTexture(s->glow);
+    sv_font_close(s->selected_text);
     if (s->font) TTF_CloseFont(s->font);
     if (s->heading) TTF_CloseFont(s->heading);
     SDL_free(s);
@@ -101,7 +105,7 @@ static void background_kernel(SDL_Renderer *r,int width,int height,int *lower,in
 {
     int w=width,h=height;
     SDL_GetCurrentRenderOutputSize(r,&w,&h);
-    float scale=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));
+    float scale=sv_login_ui_scale(SDL_GetRenderWindow(r));
     if(scale<=0)scale=1;
     float fit=SDL_max((float)w/width,(float)h/height)*1.1024f;
     /* CSS 2 logical px, scaled by the 1.04 layer transform, expressed in
@@ -195,6 +199,10 @@ bool sv_login_shell_open_options(SDL_Renderer *r,const char *library,
     }
     SDL_snprintf(path,sizeof(path),"%s/LiberationMono-Regular.ttf",s->directory);
     s->font=TTF_OpenFont(path,14);
+    if (options.text_font_path) {
+        s->selected_text=sv_font_open_file(options.text_font_path);
+        if (!s->selected_text) { close_shell(NULL,s); return false; }
+    }
     SDL_snprintf(path,sizeof(path),"%s/LiberationSerif-Regular.ttf",s->directory);
     s->heading=TTF_OpenFont(path,19);
     s->reduced=options.reduced_motion;
@@ -297,10 +305,14 @@ static bool text_style(SDL_Renderer *r,Shell *s,const char *value,float x,float 
            entry->color.b==color.b && entry->color.a==color.a) {cached=entry;break;}
     }
     if(!cached) {
-        TTF_SetFontStyle(s->font,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
-        if (!TTF_SetFontSize(s->font,size)) return false;
-        SDL_Surface *surface=TTF_RenderText_Blended(s->font,clean,0,color);
-        TTF_SetFontStyle(s->font,TTF_STYLE_NORMAL);
+        SDL_Surface *surface;
+        if (s->selected_text) surface=sv_font_render_surface(s->selected_text,clean,points,scale,color,bold);
+        else {
+            TTF_SetFontStyle(s->font,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
+            if (!TTF_SetFontSize(s->font,size)) return false;
+            surface=TTF_RenderText_Blended(s->font,clean,0,color);
+            TTF_SetFontStyle(s->font,TTF_STYLE_NORMAL);
+        }
         if (!surface) return false;
         SDL_Texture *texture=SDL_CreateTextureFromSurface(r,surface);
         if(!texture) {SDL_DestroySurface(surface);return false;}
@@ -322,9 +334,13 @@ static bool text(SDL_Renderer *r,Shell *s,const char *value,float x,float y,
 static bool text_width(Shell *s,const char *value,float points,float scale,bool bold,float *width)
 {
     int w,h;
-    TTF_SetFontStyle(s->font,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
-    bool ok=TTF_SetFontSize(s->font,points*scale) && TTF_GetStringSize(s->font,value,0,&w,&h);
-    TTF_SetFontStyle(s->font,TTF_STYLE_NORMAL);
+    bool ok;
+    if (s->selected_text) ok=sv_font_measure(s->selected_text,value,points,scale,&w,&h,bold);
+    else {
+        TTF_SetFontStyle(s->font,bold?TTF_STYLE_BOLD:TTF_STYLE_NORMAL);
+        ok=TTF_SetFontSize(s->font,points*scale) && TTF_GetStringSize(s->font,value,0,&w,&h);
+        TTF_SetFontStyle(s->font,TTF_STYLE_NORMAL);
+    }
     if(ok)*width=w/scale;
     return ok;
 }
@@ -566,7 +582,7 @@ bool sv_login_shell_render(SDL_Renderer *r,const SvEndpoint *endpoint,const SvEn
         s->background[0]=next;s->previous=s->current;s->current=(s->current+1)%19;s->rotation=s->elapsed;
     }
     int w,h;if (!SDL_GetCurrentRenderOutputSize(r,&w,&h))return false;
-    float scale=SDL_GetWindowDisplayScale(window);if(scale<=0)scale=1;
+    float scale=sv_login_ui_scale(window);if(scale<=0)scale=1;
     SvLoginLayout l=sv_login_server_layout(w/scale,h/scale,endpoint);
     if(!SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_BLEND) ||
        !SDL_SetRenderDrawColor(r,2,4,3,255) || !SDL_RenderClear(r))return false;
@@ -730,7 +746,7 @@ bool sv_login_shell_motd(SDL_Renderer *r,const SvMotd *motd)
         {255,48,48,255},{0,255,0,255},{0,255,255,255},{199,157,85,255}};
     int w,h;
     if(!SDL_GetCurrentRenderOutputSize(r,&w,&h))return false;
-    float dpi=SDL_GetWindowDisplayScale(SDL_GetRenderWindow(r));if(dpi<=0)dpi=1;
+    float dpi=sv_login_ui_scale(SDL_GetRenderWindow(r));if(dpi<=0)dpi=1;
     bool animated=false;
     for(size_t row=0;row<SV_MOTD_ROWS;++row)for(size_t col=0;col<motd->length[row];++col) {
         unsigned role=motd->colors[row][col];

@@ -1,0 +1,19 @@
+COMMAND: /home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv --profile-root /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured --library /home/svechnik/Projects/tomenet_modern_client/lib --server-list /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/servers.txt --frames 2 -F90 --port 19002
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=125 layout=small fps=90
+SV settings roots user=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured private=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=16x24x.pcf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/16x24x.pcf
+SV startup window fullscreen=0 ui_scale=125 ignore_dpi=0 renderer=software
+SV endpoint selection incomplete; no contact attempted
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured/xtra/font/16x24x.pcf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0

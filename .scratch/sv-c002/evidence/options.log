@@ -1,0 +1,2 @@
+COMMAND: clang -std=c99 -Wall -Wextra -Werror -Isrc/client/sv tests/sv/settings-options.c src/client/sv/settings/options.c src/client/sv/protocol/login.c -o /tmp/sv-c002-options
+settings options: layers, aliases, retry reset, includes and versioned wire PASS

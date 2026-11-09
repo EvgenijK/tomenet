@@ -21,7 +21,12 @@ struct SvApp {
     unsigned operation_depth;
     SvInputRouter input;
     SvInputBindings bindings;
+    SvKeymap keymap;
+    SvQuantity quantity;
+    SvCommand command;
+    bool command_pending, master_commands;
     SvPresentationObserver observer;
+    SvMessageSink message_sink;
     uint64_t input_started_ns, input_sequence;
 };
 static SvResult accepts(const SvApp *app, uint64_t generation);
@@ -48,11 +53,23 @@ SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer)
     app->observer = observer;
     return SV_OK;
 }
+SvResult sv_app_set_message_sink(SvApp *app, SvMessageSink sink)
+{
+    if (app->busy) return SV_BUSY;
+    if (app->message_sink.reset) app->message_sink.reset(app->message_sink.context);
+    app->message_sink = sink;
+    return SV_OK;
+}
 static void release_session(SvApp *app)
 {
+    if (app->message_sink.reset) app->message_sink.reset(app->message_sink.context);
     sv_protocol_destroy(app->protocol); app->protocol = NULL;
     sv_session_destroy(app->session); app->session = NULL;
     app->input = (SvInputRouter){0};
+    app->keymap.prefix = app->keymap.last_direction = 0;
+    sv_quantity_reset(&app->quantity);
+    app->command_pending = app->master_commands = false;
+    app->command = (SvCommand){0};
     app->input_started_ns = app->input_sequence = 0;
     app->view.request = (SvKeyRequest){0};
     app->view.context = SV_CONTEXT_GAME;
@@ -74,7 +91,11 @@ static void fail_session(SvApp *app, SvResult reason)
 SvApp *sv_app_create(SvAlertSink sink)
 {
     SvApp *app = calloc(1, sizeof(*app));
-    if (app) { app->sink = sink; app->view.reason = SV_CLOSED; }
+    if (app) {
+        app->sink = sink;
+        app->view.reason = SV_CLOSED;
+        sv_keymap_init(&app->keymap, false);
+    }
     return app;
 }
 SvResult sv_app_destroy(SvApp *app)
@@ -129,7 +150,13 @@ SvResult sv_app_frame(SvApp *app, uint64_t generation, uint64_t now_ms)
     sv_flush_frame(&app->flush, now_ms);
     return SV_OK;
 }
-SvAppView sv_app_view(const SvApp *app) { return app->view; }
+SvAppView sv_app_view(const SvApp *app)
+{
+    SvAppView view = app->view;
+    view.quantity_active = app->quantity.active;
+    view.quantity_completed = app->quantity.completed;
+    return view;
+}
 SvResult sv_app_set_character_setup(SvApp *app, uint64_t generation,
                                     const SvContactSetup *setup)
 {
@@ -150,6 +177,87 @@ static SvResult accepts(const SvApp *app, uint64_t generation)
     if (generation != app->view.generation) return SV_STALE;
     if (!app->view.active) return SV_CLOSED;
     return SV_OK;
+}
+SvResult sv_app_keymap_preferences(SvApp *app, const SvPreferences *preferences,
+                                   size_t *cursor, bool rebuild)
+{
+    if (app->busy) return SV_BUSY;
+    if (!preferences || !cursor) return SV_INVALID;
+    sv_keymap_preferences(&app->keymap, preferences, cursor);
+    if (rebuild) sv_keymap_rebuild(&app->keymap);
+    return SV_OK;
+}
+SvResult sv_app_set_master_commands(SvApp *app, uint64_t generation, bool enabled)
+{
+    SvResult result = accepts(app, generation);
+    if (result == SV_OK) app->master_commands = enabled;
+    return result;
+}
+SvResult sv_app_take_command(SvApp *app, uint64_t generation, SvCommand *command)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!command) return SV_INVALID;
+    if (!app->command_pending) return SV_WAITING;
+    *command = app->command;
+    app->command_pending = false;
+    return SV_OK;
+}
+SvResult sv_app_begin_quantity(SvApp *app, uint64_t generation,
+                               int32_t predef, int32_t maximum, bool all_shortcut)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (app->quantity.active || app->quantity.completed || app->command_pending || app->view.paused ||
+        app->view.request.pending || app->view.context != SV_CONTEXT_GAME) return SV_BUSY;
+    sv_quantity_begin(&app->quantity, predef, maximum, all_shortcut);
+    app->keymap.prefix = 0;
+    app->input.context = app->view.context = SV_CONTEXT_QUANTITY;
+    return SV_OK;
+}
+SvQuantity sv_app_quantity_view(const SvApp *app, uint64_t generation)
+{
+    return app->view.active && app->view.generation == generation ?
+        app->quantity : (SvQuantity){0};
+}
+SvResult sv_app_quantity_text(SvApp *app, uint64_t generation, const char *text)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!text) return SV_INVALID;
+    if (!app->quantity.active || app->view.paused || app->view.request.pending) return SV_BUSY;
+    SvTextResult inserted = sv_quantity_text(&app->quantity, text);
+    return inserted == SV_TEXT_OK ? SV_OK :
+        inserted == SV_TEXT_TRUNCATED ? SV_INPUT_OVERFLOW : SV_INVALID;
+}
+SvResult sv_app_quantity_edit(SvApp *app, uint64_t generation, SvEditKey key)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!app->quantity.active || app->view.paused || app->view.request.pending) return SV_BUSY;
+    sv_quantity_edit(&app->quantity, key);
+    return SV_OK;
+}
+SvResult sv_app_take_quantity(SvApp *app, uint64_t generation, int32_t *value)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!value) return SV_INVALID;
+    if (app->view.request.pending) return SV_BUSY;
+    if (!sv_quantity_take(&app->quantity, value)) return SV_WAITING;
+    app->input.context = app->view.context = SV_CONTEXT_GAME;
+    return SV_OK;
+}
+SvResult sv_app_set_reporting_audio(SvApp *app, uint64_t generation,
+                                    const SvSettingsAudioSnapshot *audio)
+{
+    SvResult result = accepts(app, generation);
+    return result == SV_OK ? sv_protocol_set_reporting_audio(app->protocol, audio) : result;
+}
+SvResult sv_app_send_font(SvApp *app, uint64_t generation)
+{
+    SvResult result = accepts(app, generation);
+    return result == SV_OK ? sv_protocol_send_font(app->protocol) : result;
 }
 SvResult sv_app_receive(SvApp *app, uint64_t generation, const void *bytes, size_t size)
 {
@@ -216,8 +324,9 @@ SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key)
 {
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
-    if (app->view.paused || app->view.context != SV_CONTEXT_GAME || app->view.request.pending) return SV_BUSY;
-    if (!key || key == 27 || key == '-' || key == ' ' || key == 13 || key == 10) return SV_INVALID;
+    if (app->view.paused || app->view.context != SV_CONTEXT_GAME || app->view.request.pending ||
+        app->quantity.active || app->quantity.completed) return SV_BUSY;
+    if (!key || key == 27 || key == '-' || key == ' ' || key == 13) return SV_INVALID;
     result = sv_protocol_raw_key(app->protocol, key);
     if (result == SV_OUTPUT_OVERFLOW) fail_session(app, result);
     return result;
@@ -269,6 +378,43 @@ SvResult sv_app_bind_physical(SvApp *app, const unsigned char *bytes, size_t siz
     if (app->busy) return SV_BUSY;
     return sv_input_bind_physical(&app->bindings, bytes, size, action, kind);
 }
+/* Baseline c-cmd.c:process_command ownership, not its implementations. Both
+ * sound/no-sound builds own Ctrl-C/N/U locally; RETRY_LOGIN changes the quit
+ * implementation, not its classification. Later executors take these results. */
+static bool local_command(const SvApp *app, unsigned char command)
+{
+    if (command == ']') return app->master_commands;
+    if (command && strchr(" )+;.,gMLsSR<>ocBDied$wtxkK{}HjqrauzFEAfvbGmU*(lIC~|'@#?:P_pWVQ=\"%&h/!", command))
+        return true;
+    switch (command) {
+    case 7: case 15: case 16: case 17: case 18: case 19: case 20:
+    case 9: case 21: case 3: case 14:
+        return true;
+    default: return false;
+    }
+}
+static SvResult gameplay_key(SvApp *app, uint64_t generation, unsigned char key)
+{
+    if (app->quantity.active) {
+        sv_quantity_key(&app->quantity, key);
+        return SV_OK;
+    }
+    if (app->quantity.completed || app->command_pending) return SV_BACKPRESSURE;
+    SvKeymap before = app->keymap;
+    SvCommand command;
+    SvResult result = sv_keymap_key(&app->keymap, key, &command);
+    if (result != SV_OK) return result;
+    if (command.command == 27 || command.command == '-' || command.command == 13)
+        return SV_OK;
+    if (local_command(app, command.command)) {
+        app->command = command;
+        app->command_pending = true;
+        return SV_OK;
+    }
+    result = sv_app_raw_key(app, generation, command.command);
+    if (result == SV_BACKPRESSURE) app->keymap = before;
+    return result;
+}
 SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *bytes, size_t size)
 {
     SvResult result = accepts(app, generation);
@@ -281,14 +427,19 @@ SvResult sv_app_physical(SvApp *app, uint64_t generation, const unsigned char *b
     }
     unsigned char key;
     bool prompt = app->view.request.pending;
-    result = sv_input_physical(&app->bindings, bytes, size, prompt, &key);
+    result = !prompt && (app->quantity.active || app->quantity.completed) ?
+        sv_input_physical_field(&app->bindings, bytes, size, &key) :
+        sv_input_physical(&app->bindings, bytes, size, prompt, &key);
     if (result != SV_OK) return result;
+    /* inkey normalizes literals after expansion. C053 owns macro WAIT96;
+     * the single-byte binding API rejects it as an action. */
+    if (key == '`') key = 27;
     if (prompt) {
         /* The request owner receives exactly one resolved byte; a macro's
          * action is not matched again as a fresh trigger. */
         return sv_app_key(app, generation, app->view.request.sequence, key);
     }
-    return sv_app_raw_key(app, generation, key);
+    return gameplay_key(app, generation, key);
 }
 SvResult sv_app_accept_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key)
 {
@@ -356,6 +507,13 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         SvSessionChange change = sv_session_apply(app->session, &decoded);
         step.result = change.result;
         if (step.result != SV_OK) { fail_session(app, step.result); break; }
+        if (decoded.kind == SV_CHANGE_MESSAGE && app->message_sink.deliver) {
+            SvMessage message = decoded.message;
+            message.sequence = change.message_occurrence;
+            if (!app->message_sink.deliver(app->message_sink.context,
+                                           app->view.generation, &message))
+                app->view.executor_failed = 1; /* Optional file effect, keep playing. */
+        }
         if (decoded.kind == SV_CHANGE_CONFIRM) {
             step.result = sv_input_confirm(&app->input, decoded.confirmed_command);
             if (step.result == SV_EVENT_OVERFLOW) { fail_session(app, step.result); break; }

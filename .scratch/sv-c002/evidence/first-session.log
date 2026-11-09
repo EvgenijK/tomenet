@@ -1,0 +1,10 @@
+Agent report; this is not a primary stdout/stderr capture.
+Date: 2026-11-05
+Revision: dc14c4ad5 plus current C002 working-tree changes.
+Command: python3 tests/sv_first_session_checks.py
+Execution: escalated localhost managed-peer TCP access; Linux SDL dummy/software; ASan+UBSan.
+Result: PASS; exit 0; all existing success, disconnect, quit and retry cases.
+Terminal output: SV-B-020 first-session managed-peer checks passed
+C002 assertions: first PKT_OPTIONS has the expected S/Hero.opt values in slots 0 and 2; retry after the first selected packet rereads externally changed Hero.opt into a fresh attempt. Existing contact/verify/login/ping/choice/closure/outcome assertions retained.
+Fixture adaptation: explicit sound=0 suppresses unrelated audio preparation; credential gestures wait for the actual native text-input readiness rather than fixed time since VIDEO init.
+This successful suite was not repeated merely to obtain logs.

@@ -1,0 +1,11 @@
+Agent report; this is not a primary stdout/stderr capture.
+Date: 2026-11-05
+Revision: dc14c4ad5 plus current C002 working-tree changes.
+Command: python3 tests/sv_birth_complete_checks.py
+Execution: escalated localhost managed-peer TCP access; Linux SDL dummy/software; ASan+UBSan.
+Result: FAIL in existing first 'waiting' case: poll(&final_ready, 1, 800) == 1 did not receive final PKT_PLAY after scripted birth gestures.
+Before that failure, the new first PKT_OPTIONS was received and matched the independent fixture amended for real S/Carol.opt slots and intentional wide-map projection.
+Temporary outcome diagnostics after forced quit showed BIRTH, chosen class 0, race/trait/body -1, stats_confirmed false, mode_ready false. fps=60 in the fixture produced the same failure; that workaround and temporary diagnostic instrumentation were removed.
+The post-play literal packet and authoritative reply assertions have not been reached. C002 birth production-handshake evidence remains pending. No assertion was removed. Existing PKT_OPTIONS and PKT_AUDIO peer adaptations remain in tests/sv/birth-complete.c.
+
+Baseline causality comparison: EXACT unmodified HEAD script and HEAD source tree at dc14c4ad5d5a9aa202051de929cbc9b601ddadb7 also failed in the first waiting case on poll(&final_ready, 1, 800) == 1 (HEAD birth-complete.c:128). See primary raw birth-baseline.log. Therefore this final scripted-birth failure predates C002; the current early-options checks do not provide full final-handshake acceptance evidence. Proposed gesture-readiness repair recorded separately in docs/sv-improvements.md.

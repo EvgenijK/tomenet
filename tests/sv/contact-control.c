@@ -144,6 +144,22 @@ static void pong_updates_bounded_lag_without_echo(void)
     assert(sv_app_receive(app, generation, packet, sent.size) == SV_OK);
     assert(sv_app_step(app, 1).processed == 1);
     assert(sv_app_view(app).ping.samples[0] == 100);
+    assert(sv_app_send_ping(app,generation) == SV_OK);
+    sent = sv_app_take_output(app,generation,packet,sizeof(packet));
+    assert(sent.size == 15); packet[1] = 1;
+    clock.microseconds = 550000;
+    assert(sv_app_receive(app,generation,packet,sent.size) == SV_OK);
+    assert(sv_app_step(app,1).processed == 1);
+    unsigned char report[1024];
+    const unsigned char request = 207;
+    assert(sv_app_receive(app,generation,&request,1) == SV_OK);
+    assert(sv_app_step(app,1).processed == 1);
+    sent = sv_app_take_output(app,generation,report,sizeof(report));
+    assert(sent.result == SV_OK && report[0] == request);
+    size_t at = 1 + strlen((const char *)report+1)+1;
+    at += strlen((const char *)report+at)+1;
+    const unsigned char mean[] = {0,0,0,150};
+    assert(!memcmp(report+at,mean,sizeof(mean))); /* mean of positive 100/200 */
     assert(sv_app_destroy(app) == SV_OK);
 }
 
@@ -189,7 +205,100 @@ static void character_setup_is_owned_by_session_generation(void)
     assert(sv_app_destroy(app) == SV_OK);
 }
 
+/* C003 reports through the actual app/protocol dispatcher. Layout flags below
+ * are independent expected branches, not calls to the production serializer. */
+static int report_int(const unsigned char *bytes, size_t *at)
+{
+    uint32_t n = ((uint32_t)bytes[*at] << 24) | ((uint32_t)bytes[*at+1] << 16) |
+        ((uint32_t)bytes[*at+2] << 8) | bytes[*at+3];
+    *at += 4; return (int32_t)n;
+}
+static const char *report_string(const unsigned char *bytes, size_t *at, size_t size)
+{
+    assert(*at < size);
+    const char *value = (const char *)bytes + *at;
+    const char *end = memchr(value, 0, size - *at);
+    assert(end && end - value < 80);
+    *at += (size_t)(end - value) + 1; return value;
+}
+static void resource_reporting_layouts_and_lifecycle(void)
+{
+    const struct { int version[6]; unsigned layout; } cases[] = {
+        {{4,8,0,0,0,0},0}, {{4,8,0,0,0,1},1},
+        {{4,8,1,1,9,9},1}, {{4,8,1,2,0,0},1}, {{4,8,1,2,0,1},1},
+        {{4,9,1,0,0,0},1},
+        {{4,9,1,0,0,1},2}, {{4,9,2,0,0,0},2}, {{4,9,2,0,0,1},3},
+        {{4,9,2,1,0,0},3}, {{4,9,2,1,0,1},4}, {{4,9,2,1,0,2},5}};
+    SvApp *app = sv_app_create((SvAlertSink){0}); assert(app);
+    for (unsigned c = 0; c < sizeof(cases)/sizeof(cases[0]); ++c)
+    for (unsigned length = 78; length <= 80; ++length)
+    for (unsigned enabled = 0; enabled <= 1; ++enabled) {
+        assert(sv_app_open(app, cases[c].version) == SV_OK);
+        uint64_t generation = sv_app_view(app).generation;
+        SvSettingsAudioSnapshot audio = {0};
+        audio.status = enabled ? SV_AUDIO_READY : SV_AUDIO_NO_DEVICE;
+        audio.sfx = 1; audio.music = 2;
+        char *names[] = {audio.sound_name,audio.sound_version,audio.music_name,audio.music_version};
+        for (unsigned i = 0; i < 4; ++i) { memset(names[i], 'a'+i, length); names[i][length] = 0; }
+        assert(sv_app_set_reporting_audio(app,generation,&audio) == SV_OK);
+        SvSettingsAudioSnapshot invalid = audio;
+        memset(invalid.sound_name,'x',sizeof(invalid.sound_name));
+        assert(sv_app_set_reporting_audio(app,generation,&invalid) == SV_INVALID);
+        const unsigned char request = 207;
+        assert(sv_app_receive(app,generation,&request,1) == SV_OK);
+        assert(sv_app_step(app,1).processed == 1);
+        unsigned char bytes[1024];
+        SvOutput output = sv_app_take_output(app,generation,bytes,sizeof(bytes));
+        if (!cases[c].layout) { assert(output.result == SV_WAITING); continue; }
+        assert(output.result == SV_OK && bytes[0] == request);
+        size_t at = 1;
+        assert(strstr(report_string(bytes,&at,output.size),"TomeNET"));
+        assert(!strcmp(report_string(bytes,&at,output.size),"Linux"));
+        if (cases[c].layout >= 2) assert(report_int(bytes,&at) == -1);
+        if (cases[c].layout >= 3) {
+            assert(report_int(bytes,&at) == -1); /* Guide absent, no I/O */
+            if (cases[c].layout < 5) {
+                assert(report_int(bytes,&at) == 0); assert(report_int(bytes,&at) == 0);
+            }
+            (void)report_string(bytes,&at,output.size); /* compiled client tag */
+            assert(report_int(bytes,&at) == -1);
+            if (cases[c].layout >= 4) for (unsigned i = 0; i < 4; ++i) {
+                const char *reported = report_string(bytes,&at,output.size);
+                size_t expected = enabled ? (length > 79 ? 79 : length) : 0;
+                assert(strlen(reported) == expected && !memcmp(reported,names[i],expected));
+                assert(strlen(names[i]) == length); /* full local bytes survive */
+            }
+        }
+        assert(at == output.size);
+        assert(sv_app_open(app,cases[c].version) == SV_OK);
+        assert(sv_app_set_reporting_audio(app,generation,&audio) == SV_STALE);
+        assert(sv_app_send_font(app,generation) == SV_STALE);
+        generation = sv_app_view(app).generation;
+        assert(sv_app_send_font(app,generation) == SV_OK);
+        output = sv_app_take_output(app,generation,bytes,sizeof(bytes));
+        const unsigned char missing[] = {208,0,0,'N','O','_','G','R','A','P','H','I','C','S',0,0};
+        if (cases[c].version[1] == 8 && (cases[c].version[2] == 0 || cases[c].version[3] < 2))
+            assert(output.result == SV_WAITING);
+        else assert(output.size == sizeof(missing) && !memcmp(bytes,missing,sizeof(missing)));
+    }
+    /* Retry version request after output backpressure, exactly once. */
+    assert(sv_app_open(app,version) == SV_OK);
+    uint64_t generation = sv_app_view(app).generation;
+    for (unsigned i = 0; i < 512; ++i) assert(sv_app_raw_key(app,generation,'x') == SV_OK);
+    const unsigned char request = 207;
+    assert(sv_app_receive(app,generation,&request,1) == SV_OK);
+    assert(sv_app_step(app,1).result == SV_BACKPRESSURE);
+    unsigned char bytes[1024];
+    assert(sv_app_take_output(app,generation,bytes,sizeof(bytes)).size == 1024);
+    assert(sv_app_step(app,1).processed == 1);
+    assert(sv_app_take_output(app,generation,bytes,sizeof(bytes)).size > 1 && bytes[0] == request);
+    assert(sv_app_step(app,1).result == SV_WAITING);
+    assert(sv_app_take_output(app,generation,bytes,sizeof(bytes)).result == SV_WAITING);
+    assert(sv_app_destroy(app) == SV_OK);
+}
+
 int main(void) {
+    resource_reporting_layouts_and_lifecycle();
     control_packets_are_atomic_and_ordered();
     ping_echo_waits_for_whole_packet();
     pause_needs_fresh_ack_and_keeps_network_live();

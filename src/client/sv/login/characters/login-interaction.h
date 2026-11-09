@@ -23,6 +23,8 @@ typedef struct {
     bool skip_motd, first_run, creation_supported;
     bool overview_seen, selected_seen, play_seen, motd_complete;
     bool ordinary_name_active;
+    bool pending_reincarnation, reincarnation_draft;
+    char reincarnation_name[SV_LOGIN_NAME_CAPACITY];
     bool dedicated_creation;
     uint32_t dedicated_mode_flags;
     bool name_input_truncated, name_input_method_used, name_keyboard_edited;
@@ -34,6 +36,10 @@ typedef struct {
 void sv_login_interaction_begin(SvLoginInteraction *input, SvLogin *login,
                                 const char *default_character, bool skip_motd,
                                 bool first_run, uint32_t creation_flags);
+/* One-shot invocation request; consumed only after the authoritative overview.
+ * begin clears it on each new login generation. */
+bool sv_login_interaction_request_reincarnation(SvLoginInteraction *input,
+                                                 const char *name);
 SvLoginTransition sv_login_interaction_sync(SvLoginInteraction *input);
 SvLoginInputResult sv_login_interaction_command(SvLoginInteraction *input,
                                                  SvLoginCommand command);

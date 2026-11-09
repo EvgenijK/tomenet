@@ -1,0 +1,17 @@
+COMMAND: python3 tests/sv_first_session_checks.py
+first-session: tests/sv/first-session.c:258: int main(int, char **): Assertion `peer.listener >= 0' failed.
+Traceback (most recent call last):
+  File "/home/svechnik/Projects/tomenet_modern_client/tests/sv_first_session_checks.py", line 63, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        [str(binary), str(profile), str(ROOT / "lib"), mode],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        timeout=15,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-b020-1fzwdsw1/first-session', '/tmp/sv-b020-1fzwdsw1/profile', '/home/svechnik/Projects/tomenet_modern_client/lib', 'success']' died with <Signals.SIGABRT: 6>.

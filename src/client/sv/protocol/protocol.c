@@ -6,6 +6,7 @@
 #undef GF_INERTIA
 #endif
 #define CLIENT
+#define CLIENT_SIDE
 #include "../../../common/angband.h"
 #include "../../../common/sockbuf.h"
 #include "../../../common/pack.h"
@@ -13,6 +14,7 @@
 #include "protocol/message-update.h"
 #include "protocol/key-request.h"
 #include "protocol/protocol.h"
+#include "protocol/resource-report.h"
 static void queue_bytes(SvProtocol *protocol, const unsigned char *bytes, size_t size);
 struct SvProtocol {
     version_type version;
@@ -20,6 +22,8 @@ struct SvProtocol {
     int previous_type;
     uint32_t ping_id;
     SvPingClock clock;
+    SvResourceReport report;
+    int report_version[6], ping_samples[60];
 };
 static void ping_now(SvProtocol *protocol, int32_t *seconds, int32_t *microseconds)
 {
@@ -60,6 +64,8 @@ SvResult sv_protocol_send_ping(SvProtocol *protocol)
     }
     queue_bytes(protocol, bytes, sizeof(bytes));
     protocol->ping_id = id;
+    memmove(protocol->ping_samples + 1, protocol->ping_samples, 59 * sizeof(int));
+    protocol->ping_samples[0] = -1;
     return SV_OK;
 }
 SvProtocol *sv_protocol_create(const int version[6])
@@ -68,6 +74,9 @@ SvProtocol *sv_protocol_create(const int version[6])
     if (!version || version[0] <= 0) return NULL;
     p = calloc(1, sizeof(*p));
     if (!p) return NULL;
+    sv_report_init(&p->report);
+    memcpy(p->report_version, version, sizeof(p->report_version));
+    for (unsigned i = 0; i < 60; ++i) p->ping_samples[i] = -1;
     p->version.major = version[0]; p->version.minor = version[1];
     p->version.patch = version[2]; p->version.extra = version[3];
     p->version.branch = version[4]; p->version.build = version[5];
@@ -105,6 +114,16 @@ SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
     if (!in->len) return SV_WAITING;
     unsigned char type = (unsigned char)*in->ptr;
     switch (type) {
+    case PKT_VERSION: {
+        unsigned char packet[1024];
+        size_t size = sv_report_version(&p->report, p->report_version, p->ping_samples, packet);
+        if (sv_protocol_output_capacity(p) < size) return SV_BACKPRESSURE;
+        if (size) queue_bytes(p, packet, size);
+        change->kind = SV_CHANGE_NOOP;
+        p->previous_type = type;
+        Sockbuf_advance(in, 1);
+        return SV_OK;
+    }
     case PKT_HP: {
         SvDecodedHp hp;
         int decoded = sv_decode_hp(in, &p->version, &hp);
@@ -210,6 +229,7 @@ SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
             if (!elapsed) elapsed = 1;
             if (elapsed > INT_MAX) elapsed = INT_MAX;
             if (elapsed < INT_MIN) elapsed = INT_MIN;
+            if (id && id <= p->ping_id && index < 60) p->ping_samples[index] = (int)elapsed;
             change->kind = SV_CHANGE_PING;
             change->ping = (SvPingUpdate){(int32_t)elapsed,
                 id && id <= p->ping_id && index < 60 ? (unsigned char)index : 255};
@@ -263,5 +283,19 @@ SvResult sv_protocol_keepalive(SvProtocol *p)
     if (sv_protocol_output_capacity(p) < 1) return SV_BACKPRESSURE;
     const unsigned char packet = PKT_KEEPALIVE;
     queue_bytes(p, &packet, 1);
+    return SV_OK;
+}
+
+SvResult sv_protocol_set_reporting_audio(SvProtocol *p, const SvSettingsAudioSnapshot *audio)
+{
+    return p && sv_report_audio(&p->report, audio) ? SV_OK : SV_INVALID;
+}
+SvResult sv_protocol_send_font(SvProtocol *p)
+{
+    if (!p) return SV_INVALID;
+    unsigned char packet[1024];
+    size_t size = sv_report_font(&p->report, p->report_version, packet);
+    if (sv_protocol_output_capacity(p) < size) return SV_BACKPRESSURE;
+    if (size) queue_bytes(p, packet, size);
     return SV_OK;
 }

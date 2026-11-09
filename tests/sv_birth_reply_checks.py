@@ -8,12 +8,13 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CC = os.environ.get("CC", "clang")
 FLAGS = subprocess.check_output(
-    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "freetype2", "libsecret-1", "libpng", "libcurl"],
+    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "sdl3-mixer", "freetype2", "libsecret-1", "libpng", "libcurl"],
     text=True,
 ).split()
 SOURCES = [
+    "src/client/sv/files/files.c", "src/client/sv/files/history.c", "src/client/sv/files/dna.c",
     "tests/sv/birth-authoritative-reply.c",
-    "src/client/sv/login/native-run.c", "src/client/sv/login/flow.c", "src/client/sv/login/chronicle.c",
+    "src/client/sv/login/native-run.c", "src/client/sv/settings/config.c", "src/client/sv/settings/startup.c", "src/client/sv/settings/audio.c", "src/client/sv/login/flow.c", "src/client/sv/login/chronicle.c",
     "src/client/sv/result.c",
     "src/client/sv/credential/vault.c",
     "src/client/sv/login/account/credentials.c",
@@ -23,7 +24,7 @@ SOURCES = [
     "src/client/sv/login/creation/native-birth.c",
     "src/client/sv/protocol/contact.c",
     "src/client/sv/protocol/contact-socket.c",
-    "src/client/sv/protocol/login.c",
+    "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c",
     "src/client/sv/protocol/login-identity.c",
     "src/client/sv/login/pregame.c",
     "src/client/sv/login/login-view.c",

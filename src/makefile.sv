@@ -27,7 +27,7 @@ SV_CORE_PLATFORM := -DMINGW -DWIN32 -DDUMB_WIN
 else
 $(error PLATFORM must be linux or mingw)
 endif
-SV_MODULES := sdl3 sdl3-ttf freetype2 libpng libcurl
+SV_MODULES := sdl3 sdl3-ttf sdl3-mixer freetype2 libpng libcurl
 ifeq ($(PLATFORM),linux)
 SV_MODULES += libsecret-1
 endif
@@ -42,6 +42,9 @@ SV_KEY := $(shell printf '%s\n' '$(SV_CC)' '$(shell $(SV_CC) --version | head -1
 SV_OUT := .sv-build/$(PLATFORM)/$(SV_KEY)
 # Keep production and check-only sources explicit.
 SV_CLIENT_OBJECTS := main.o login/native-run.o login/flow.o credential/vault.o ui/font.o login/ui/endpoint-scene.o login/ui/login-shell.o ui/message-text.o input/input.o input/native-input.o login/servers/endpoint.o input/text-field.o input/confirm.o input/key-encoding.o login/ui/native-endpoint.o login/account/credentials.o login/characters/login-interaction.o login/characters/native-login.o login/characters/native-name.o login/creation/native-birth.o login/servers/metaserver.o login/chronicle.o app.o protocol/protocol.o protocol/contact.o protocol/contact-socket.o protocol/login.o protocol/login-identity.o session/session.o login/pregame.o login/login-view.o login/creation/birth.o session/alerts.o result.o ui/status.o protocol/version.o
+SV_CLIENT_OBJECTS += files/files.o files/history.o files/dna.o files/message-sinks.o
+SV_CLIENT_OBJECTS += settings/config.o settings/options.o settings/preferences.o settings/startup.o settings/audio.o
+SV_CLIENT_OBJECTS += input/keymap.o input/quantity.o
 SV_DIAGNOSTIC_OBJECTS := diagnostics/timing.o diagnostics/runtime.o diagnostics/launcher.o diagnostics/ui.o diagnostics/capture.o diagnostics/peer.o diagnostics/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o
@@ -56,7 +59,7 @@ shell: $(SV_OUT)/$(SV_NAME)
 	cp $< $(SV_NAME)
 	@echo "SV shell: $(SV_OUT)/build.txt"
 check-deps:
-	@$(SV_PKG) --exists 'sdl3 >= 3.2.0' 'sdl3-ttf >= 3.2.0' freetype2 libpng 'libcurl >= 7.85.0' $(filter libsecret-1,$(SV_MODULES)) || { echo 'Missing SV platform development dependencies' >&2; exit 1; }
+	@$(SV_PKG) --exists 'sdl3 >= 3.2.0' 'sdl3-ttf >= 3.2.0' sdl3-mixer freetype2 libpng 'libcurl >= 7.85.0' $(filter libsecret-1,$(SV_MODULES)) || { echo 'Missing SV platform development dependencies' >&2; exit 1; }
 ifeq ($(PLATFORM),linux)
 	@$(SV_CC) -dumpmachine | grep -Eq '^x86_64.*linux' || { echo 'SV Linux target must be amd64' >&2; exit 1; }
 else
@@ -76,5 +79,5 @@ $(SV_OUT)/common/%.o: common/%.c makefile.sv | check-deps
 	$(SV_CC) $(filter-out -Werror,$(SV_CFLAGS)) $(SV_CORE_PLATFORM) -DCLIENT -D_DEFAULT_SOURCE -ffunction-sections -fdata-sections -MMD -MP -c $< -o $@
 $(SV_OUT)/$(SV_NAME): $(SV_OBJECTS)
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
-	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=off;terminal=absent' > $(SV_OUT)/build.txt
+	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=startup-only;terminal=absent' > $(SV_OUT)/build.txt
 -include $(SV_OBJECTS:.o=.d)

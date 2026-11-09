@@ -1,8 +1,11 @@
 #ifndef SV_APP_H
 #define SV_APP_H
 #include "session/alerts.h"
+#include "settings/audio.h"
 #include "result.h"
 #include "input/input.h"
+#include "input/keymap.h"
+#include "input/quantity.h"
 #include "protocol/protocol.h"
 #include "ui/flush-policy.h"
 typedef struct SvApp SvApp;
@@ -19,6 +22,7 @@ typedef struct {
     uint64_t flush_due_ms;
     int paused;
     int active, executor_failed;
+    int quantity_active, quantity_completed;
     SvResult reason;
 } SvAppView;
 typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
@@ -37,6 +41,18 @@ typedef struct {
     void (*changed)(void *context, SvPresentationEvent event);
 } SvPresentationObserver;
 SvResult sv_app_observe(SvApp *app, SvPresentationObserver observer);
+/* Explicit once-per-applied-message effect delivery, independent of recall/UI.
+ * Callbacks run on the owner thread and must not re-enter the app. The sink is
+ * borrowed until replaced/destroyed; reset cancels its session-local chain. */
+typedef struct {
+    void *context;
+    int (*deliver)(void *context, uint64_t generation, const SvMessage *message);
+    void (*reset)(void *context);
+} SvMessageSink;
+SvResult sv_app_set_message_sink(SvApp *app, SvMessageSink sink);
+SvResult sv_app_set_reporting_audio(SvApp *app, uint64_t generation,
+                                    const SvSettingsAudioSnapshot *audio);
+SvResult sv_app_send_font(SvApp *app, uint64_t generation);
 typedef struct { size_t processed, pending_bytes; SvResult result; } SvStep;
 /* All entry points run on the owner thread. Views are copies. */
 SvApp *sv_app_create(SvAlertSink sink);
@@ -75,8 +91,24 @@ SvResult sv_app_take_confirmation(SvApp *app, uint64_t generation,
                                   uint64_t owner, unsigned char *command);
 SvResult sv_app_end_confirmation(SvApp *app, uint64_t generation, uint64_t owner);
 SvResult sv_app_key(SvApp *app, uint64_t generation, uint64_t sequence, unsigned char key);
-/* Caller invokes this only for an unmapped gameplay command. Reserved local
- * no-op keys are rejected and cannot become server packets. */
+/* Profile owner supplies its ordered preference cursor explicitly. Initial
+ * loading follows init; manual reload applies occurrences then rebuilds. */
+SvResult sv_app_keymap_preferences(SvApp *app, const SvPreferences *preferences,
+                                   size_t *cursor, bool rebuild);
+SvResult sv_app_set_master_commands(SvApp *app, uint64_t generation, bool enabled);
+/* A resolved local command remains owned by this generation until its semantic
+ * executor takes it. Raw fallback never substitutes for a missing executor. */
+SvResult sv_app_take_command(SvApp *app, uint64_t generation, SvCommand *command);
+SvResult sv_app_begin_quantity(SvApp *app, uint64_t generation,
+                               int32_t predef, int32_t maximum, bool all_shortcut);
+SvResult sv_app_quantity_text(SvApp *app, uint64_t generation, const char *text);
+SvResult sv_app_quantity_edit(SvApp *app, uint64_t generation, SvEditKey key);
+SvResult sv_app_take_quantity(SvApp *app, uint64_t generation, int32_t *value);
+/* Copy for the current interaction's presentation; empty for stale callers. */
+SvQuantity sv_app_quantity_view(const SvApp *app, uint64_t generation);
+/* Caller invokes this only for an unhandled resolved gameplay command. Reserved
+ * no-op keys and the local space action cannot become server packets. LF is
+ * allowed here for baseline raw bypass; normal keymap LF resolves to CR. */
 SvResult sv_app_raw_key(SvApp *app, uint64_t generation, unsigned char key);
 /* Caller supplies monotonic milliseconds and last successful socket send. */
 SvResult sv_app_keepalive(SvApp *app, uint64_t generation,

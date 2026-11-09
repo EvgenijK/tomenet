@@ -54,6 +54,7 @@ Application связывает устойчивые интерфейсы, без
 | `input/` | Router, контексты/макросы и отдельный адаптер SDL-ввода |
 | `ui/` | Общие layout/rendering utilities, шрифты, подготовка статуса и текста сообщений |
 | `credential/` | Самостоятельный credential vault |
+| `settings/` | Собственные CFG/OPT data, startup overrides и initial audio adapter; явная передача settings/ресурсных результатов в login |
 | `login/` | Сценарий входа: `flow`, `native-run`, `options`, `pregame`, `login-view`, `chronicle` |
 | `login/servers/` | Выбор endpoint, metaserver |
 | `login/account/` | Credentials interaction и presentation |

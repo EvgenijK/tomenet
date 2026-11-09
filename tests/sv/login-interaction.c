@@ -5,21 +5,79 @@
 #include <assert.h>
 #include <string.h>
 
-static SvLogin *overview(void)
+static SvLogin *overview_with_limit(unsigned char limit)
 {
     static const int version[6] = {4,9,4,0,0,0};
     static const unsigned char iaddr[6] = {0xf4,0x43,1,2,3,4};
     SvLogin *login = sv_login_create(version, iaddr);
     unsigned char output[32];
     assert(login && sv_login_take_output(login, output, sizeof(output)).result == SV_OK);
-    static const unsigned char reply[] = {
-        PKT_SERVERDETAILS, 0,0,0,8, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    const unsigned char reply[] = {
+        PKT_SERVERDETAILS, 0,0,0,limit, 0,0,0,0, 0,0,0,0, 0,0,0,0,
         PKT_LOGIN, 0,0, 0xff,'W',0, 'H','e','r','o',0, 0,42, 0,0, 0,0, 'H','o','m','e',0,
         PKT_LOGIN, 0,0, 0, 0, 0,0, 0,0, 0,0, 0
     };
     assert(sv_login_receive(login, reply, sizeof(reply)) == SV_OK);
     assert(sv_login_state(login) == SV_LOGIN_OVERVIEW);
     return login;
+}
+
+static SvLogin *overview(void) { return overview_with_limit(8); }
+
+static void invocation_reincarnation_preserves_existing_and_creation_gates(void)
+{
+    SvLogin *login=overview();
+    SvLoginInteraction input;
+    unsigned char output[32];
+    sv_login_interaction_begin(&input,login,NULL,false,false,0);
+    assert(sv_login_interaction_request_reincarnation(&input,"hero"));
+    assert(sv_login_interaction_sync(&input)==SV_LOGIN_TRANSITION_OVERVIEW);
+    assert(sv_login_state(login)==SV_LOGIN_WAIT_STATUS && !sv_login_creating_character(login));
+    assert(!input.pending_reincarnation && !sv_login_reincarnation_requested(login));
+    assert(sv_login_take_output(login,output,sizeof(output)).result==SV_OK);
+    assert(!strcmp((char *)output+1,"Hero"));
+    sv_login_destroy(login);
+
+    login=overview();
+    sv_login_interaction_begin(&input,login,NULL,false,false,0);
+    assert(sv_login_interaction_request_reincarnation(&input,"carol"));
+    assert(sv_login_interaction_sync(&input)==SV_LOGIN_TRANSITION_OVERVIEW);
+    assert(sv_login_state(login)==SV_LOGIN_OVERVIEW && !input.ordinary_name_active);
+    assert(sv_login_take_output(login,output,sizeof(output)).result==SV_WAITING);
+    assert(sv_login_interaction_command(&input,(SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY,0})==SV_LOGIN_INPUT_NAME_STARTED);
+    assert(!input.pending_reincarnation && input.reincarnation_draft && !strcmp(input.character_name.bytes,"Carol"));
+    assert(sv_login_interaction_name_key(&input,SV_EDIT_ACCEPT)==SV_LOGIN_INPUT_NAME_SUBMITTED);
+    assert(sv_login_reincarnation_requested(login));
+    assert(sv_login_take_output(login,output,sizeof(output)).result==SV_OK);
+    assert(!strcmp((char *)output+1,"Carol"));
+    sv_login_destroy(login);
+
+    login=overview();
+    sv_login_interaction_begin(&input,login,NULL,false,false,0);
+    assert(sv_login_interaction_request_reincarnation(&input,"Abcdefghijklmno"));
+    sv_login_interaction_sync(&input);
+    assert(sv_login_interaction_command(&input,(SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY,0})==SV_LOGIN_INPUT_NAME_STARTED);
+    assert(!input.name_input_truncated && !strcmp(input.character_name.bytes,"Abcdefghijklmno"));
+    assert(sv_login_interaction_name_key(&input,SV_EDIT_ACCEPT)==SV_LOGIN_INPUT_NAME_SUBMITTED);
+    assert(sv_login_reincarnation_requested(login));
+    assert(sv_login_take_output(login,output,sizeof(output)).result==SV_OK);
+    assert(!strcmp((char *)output+1,"Abcdefghijklmno"));
+    sv_login_destroy(login);
+
+    for (unsigned unsupported=0;unsupported<2;++unsupported) {
+        login=overview_with_limit(unsupported?8:1);
+        sv_login_interaction_begin(&input,login,NULL,false,false,unsupported?0x10u:0);
+        assert(sv_login_interaction_request_reincarnation(&input,"Carol"));
+        sv_login_interaction_sync(&input);
+        assert(sv_login_interaction_command(&input,(SvLoginCommand){SV_LOGIN_COMMAND_CREATE_ORDINARY,0})==
+            (unsupported?SV_LOGIN_INPUT_CREATION_UNSUPPORTED:SV_LOGIN_INPUT_IGNORED));
+        assert(!input.ordinary_name_active && sv_login_state(login)==SV_LOGIN_OVERVIEW);
+        assert(sv_login_take_output(login,output,sizeof(output)).result==SV_WAITING);
+        sv_login_interaction_begin(&input,login,NULL,false,false,0);
+        assert(!input.pending_reincarnation && !input.reincarnation_name[0]);
+        assert(!sv_login_interaction_request_reincarnation(&input,""));
+        sv_login_destroy(login);
+    }
 }
 
 /* An existing account must not inherit new-installation creation restrictions. */
@@ -204,6 +262,7 @@ static void creation_waits_for_play_ack_before_motd(void)
 
 int main(void)
 {
+    invocation_reincarnation_preserves_existing_and_creation_gates();
     existing_account_on_new_profile_can_create_exclusive();
     creation_waits_for_play_ack_before_motd();
     new_account_overview_is_published_atomically();

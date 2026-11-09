@@ -333,7 +333,7 @@ bool sv_login_flow_begin(SvLoginFlow *flow, const char *profile_root,
                           bool first_run, const char *font_resource)
 {
     /* Every connection gets fresh attempt state, including after Back. */
-    if (flow->attempt.connection || flow->attempt.birth) return false;
+    if (flow->attempt.connection || flow->attempt.birth || flow->attempt.preferences) return false;
     memset(&flow->attempt, 0, sizeof(flow->attempt));
     flow->profile_root = profile_root;
     flow->first_run = first_run;
@@ -377,6 +377,8 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             flow->attempt.login = sv_login_create(sv_contact_socket_version(flow->attempt.connection), flow->attempt.iaddr);
             if (!flow->attempt.login) { flow->attempt.session_error = SV_NO_MEMORY; flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR; }
             else {
+                if (flow->options.audio)
+                    sv_login_set_audio(flow->attempt.login, flow->options.audio);
                 if (sv_pregame_contact_ready(&flow->attempt.pregame, flow->generation) != SV_OK) {
                     flow->attempt.session_error = SV_INVALID;
                     flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
@@ -385,6 +387,13 @@ void sv_login_flow_poll(SvLoginFlow *flow)
                 sv_login_interaction_begin(&flow->attempt.login_input, flow->attempt.login, flow->options.character,
                     flow->options.skip_motd, flow->attempt.pregame.first_run,
                     sv_contact_socket_setup(flow->attempt.connection)->creation_flags);
+                if (flow->options.auto_reincarnation && flow->options.character &&
+                    !sv_login_interaction_request_reincarnation(
+                        &flow->attempt.login_input, flow->options.character)) {
+                    flow->attempt.session_error = SV_INVALID;
+                    flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+                    return;
+                }
                 if ((flow->attempt.session_error = handoff_contact_bytes(flow->attempt.connection, &flow->attempt.wire)) != SV_OK)
                     flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
             }
@@ -393,18 +402,88 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             sv_login_state(flow->attempt.login) == SV_LOGIN_SELECTED) {
             SvBirthPlayDraft draft;
             if (sv_birth_committed_play(flow->attempt.birth, flow->generation, &draft)) {
-                const char *resource = flow->font_resource;
-                const char *basename = strrchr(resource, '/');
                 flow->attempt.session_error = sv_login_start_play(flow->attempt.login, draft.mode, draft.race,
                     draft.class_id, draft.trait, draft.stats,
-                    basename ? basename + 1 : resource);
+                    "");
                 if (flow->attempt.session_error != SV_OK) flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
-                else flow->attempt.play_started = true;
+                else {
+                    flow->attempt.play_started = true;
+                    if (!flow->attempt.dna_saved) {
+                        const SvLoginCharacter *character=sv_login_selected_character(flow->attempt.login);
+                        SvDna dna={.mode=draft.mode,.class_id=draft.class_id,.race=draft.race,.trait=draft.trait};
+                        memcpy(dna.stats,draft.stats,sizeof(dna.stats));
+                        if (character && sv_dna_save(&dna,flow->options.root,character->name)!=SV_FILE_OK)
+                            fprintf(stderr,"SV DNA: saving birth data failed\n");
+                        flow->attempt.dna_saved=true;
+                    }
+                }
             }
         }
         if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login)
             flow->attempt.state = pump_login(flow->attempt.connection, flow->attempt.login, &flow->attempt.wire, &flow->attempt.session_error);
+        if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login &&
+            sv_login_state(flow->attempt.login) == SV_LOGIN_SELECTED &&
+            !flow->attempt.settings_applied && (flow->options.settings || flow->options.preferences)) {
+            const SvLoginCharacter *character = sv_login_selected_character(flow->attempt.login);
+            SvSettingsOptions current;
+            if (!character) {
+                flow->attempt.session_error = SV_INVALID;
+                flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+            } else {
+                if (flow->options.preferences) {
+                    SvPreferenceContext context = sv_preferences_default_context();
+                    SvPreferenceResult result;
+                    context.generation = flow->generation;
+                    flow->attempt.preferences = sv_preferences_character(
+                        flow->options.preferences, character->name, &context, &result);
+                    if (!flow->attempt.preferences || result.status == SV_PREF_FATAL) {
+                        flow->attempt.session_error = flow->attempt.preferences ? SV_INPUT_OVERFLOW : SV_NO_MEMORY;
+                        flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+                        return;
+                    }
+                    for (size_t i = 0; i < sv_preferences_diagnostic_count(flow->attempt.preferences); ++i) {
+                        const SvPreferenceDiagnostic *diagnostic = sv_preferences_diagnostic(flow->attempt.preferences, i);
+                        fprintf(stderr, "SV character preferences %s:%u: %s\n", diagnostic->source.path,
+                            diagnostic->line, diagnostic->message);
+                    }
+                    size_t messages = 0, actions = 0;
+                    for (size_t i = 0; i < sv_preferences_effect_count(flow->attempt.preferences); ++i) {
+                        const SvPreferenceEffect *effect = sv_preferences_effect(flow->attempt.preferences, i);
+                        messages += effect->kind == SV_PREF_MESSAGE;
+                        actions += effect->kind == SV_PREF_ACTION;
+                    }
+                    if (messages || actions)
+                        fprintf(stderr, "SV character preferences generation=%llu: retained %zu messages and %zu actions; message presentation and macro runtime pending\n",
+                            (unsigned long long)flow->generation, messages, actions);
+                    current = *sv_preferences_options(flow->attempt.preferences);
+                } else if (!sv_settings_options_character(&current, flow->options.settings,
+                               flow->profile_root, flow->options.library, character->name))
+                    fprintf(stderr, "SV character options: invalid/unavailable records; retaining usable values\n");
+                /* big_map is a projection of the approved SV layout, not a
+                 * competing setting inherited from a legacy OPT layer. */
+                sv_settings_option_set(&current, "big_map", flow->options.settings_wide);
+                if (flow->attempt.preferences)
+                    *sv_preferences_options_mutable(flow->attempt.preferences) = current;
+                /* Packet generation follows the character overlay, before birth
+                 * or play setup. Retry gets a fresh copy of the global snapshot. */
+                flow->attempt.session_error = sv_login_set_options(flow->attempt.login, &current);
+                if (flow->attempt.session_error == SV_OK)
+                    flow->attempt.session_error = sv_login_send_options(flow->attempt.login);
+                if (flow->attempt.session_error != SV_OK)
+                    flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+                else flow->attempt.settings_applied = true;
+            }
+        }
         if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login) {
+            if (sv_login_state(flow->attempt.login) == SV_LOGIN_PLAY_ACKNOWLEDGED &&
+                flow->options.audio && !flow->attempt.audio_reported) {
+                flow->attempt.session_error = sv_login_send_audio(flow->attempt.login);
+                if (flow->attempt.session_error != SV_OK) {
+                    flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+                    return;
+                }
+                flow->attempt.audio_reported = true;
+            }
             SvLoginTransition transition = sv_login_interaction_sync(&flow->attempt.login_input);
             if (transition != SV_LOGIN_TRANSITION_NONE)
                 flow->input_epoch++;
@@ -424,22 +503,46 @@ void sv_login_flow_poll(SvLoginFlow *flow)
                 flow->attempt.name_evidence.entry_revision = flow->attempt.pregame.revision;
             }
         }
+        if (flow->attempt.state==SV_SOCKET_READY && flow->attempt.login &&
+            sv_login_state(flow->attempt.login)==SV_LOGIN_PLAY_ACKNOWLEDGED && !flow->attempt.font_reported) {
+            SvResult sent=sv_login_send_font(flow->attempt.login);
+            if (sent==SV_OK) flow->attempt.font_reported=true;
+            else { flow->attempt.session_error=sent; flow->attempt.state=SV_SOCKET_PROTOCOL_ERROR; }
+        }
         if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login) {
             SvResult applied = sv_pregame_sync_login(&flow->attempt.pregame, flow->generation, flow->attempt.login,
                 sv_contact_socket_setup(flow->attempt.connection), flow->attempt.login_input.motd_complete);
             if (applied != SV_OK) { flow->attempt.session_error = applied; flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR; }
             else if (flow->attempt.pregame.phase == SV_PREGAME_BIRTH && !flow->attempt.birth_started) {
+                SvEndpointOptions birth_options=flow->options;
+                SvDna dna;
+                const SvLoginCharacter *created=sv_login_selected_character(flow->attempt.login);
+                const char *previous=sv_login_reincarnation_requested(flow->attempt.login)?flow->previous_character:NULL;
+                SvFileResult loaded=created?sv_dna_load(&dna,flow->options.root,flow->options.library,
+                    created->name,previous):SV_FILE_MISSING;
+                if (loaded==SV_FILE_OK) {
+                    birth_options.birth_dna_available=true;
+                    birth_options.birth_dna_sex=(dna.mode&0x100)?SV_BIRTH_SEX_MALE:SV_BIRTH_SEX_FEMALE;
+                    birth_options.birth_dna_body=(dna.mode&0x200)?SV_BIRTH_BODY_FRUIT_BAT:SV_BIRTH_BODY_NORMAL;
+                    birth_options.birth_dna_mode=(SvBirthMode)(dna.mode&~0x300);
+                    birth_options.birth_dna_class=dna.class_id; birth_options.birth_dna_race=dna.race;
+                    birth_options.birth_dna_trait=dna.trait;
+                    memcpy(birth_options.birth_dna_stats,dna.stats,sizeof(dna.stats));
+                    birth_options.birth_dna_class_available=birth_options.birth_dna_race_available=true;
+                    birth_options.birth_dna_trait_available=birth_options.birth_dna_body_available=true;
+                    birth_options.birth_dna_stats_available=birth_options.birth_dna_mode_available=true;
+                } else if (loaded!=SV_FILE_MISSING) fprintf(stderr,"SV DNA: birth data unavailable or invalid\n");
                 flow->attempt.session_error = sv_birth_begin(flow->attempt.birth, flow->generation,
                     sv_contact_socket_setup(flow->attempt.connection), flow->attempt.pregame.server_flags,
                     flow->attempt.pregame.first_run, flow->attempt.pregame.dedicated_mode_flags,
-                    flow->options.birth_dna_available,
-                    flow->options.birth_dna_sex, flow->options.birth_dna_class_available,
-                    flow->options.birth_dna_class, flow->options.birth_dna_race_available,
-                    flow->options.birth_dna_race, flow->options.birth_dna_trait_available,
-                    flow->options.birth_dna_trait, flow->options.birth_dna_body_available,
-                    flow->options.birth_dna_body, flow->options.birth_dna_stats_available,
-                    flow->options.birth_dna_stats, flow->options.birth_dna_mode_available,
-                    flow->options.birth_dna_mode);
+                    birth_options.birth_dna_available,
+                    birth_options.birth_dna_sex, birth_options.birth_dna_class_available,
+                    birth_options.birth_dna_class, birth_options.birth_dna_race_available,
+                    birth_options.birth_dna_race, birth_options.birth_dna_trait_available,
+                    birth_options.birth_dna_trait, birth_options.birth_dna_body_available,
+                    birth_options.birth_dna_body, birth_options.birth_dna_stats_available,
+                    birth_options.birth_dna_stats, birth_options.birth_dna_mode_available,
+                    birth_options.birth_dna_mode);
                 if (flow->attempt.session_error != SV_OK) flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
                 else {
                     flow->input_epoch++;
@@ -531,6 +634,13 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             }
             sv_birth_close(flow->attempt.birth, flow->generation);
         }
+        if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.pregame.authenticated && !flow->attempt.history) {
+            flow->attempt.history=sv_history_create();
+            SvFileResult loaded=flow->attempt.history?sv_history_begin(flow->attempt.history,
+                flow->options.root,flow->account):SV_FILE_IO;
+            if (loaded!=SV_FILE_OK && loaded!=SV_FILE_MISSING)
+                fprintf(stderr,"SV history: account history unavailable or invalid\n");
+        }
         if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.pregame.authenticated && !flow->attempt.save_started) {
             char key[SV_VAULT_KEY_CAPACITY];
             flow->attempt.save_started = true;
@@ -615,6 +725,14 @@ void sv_login_flow_end_attempt(SvLoginFlow *flow)
             flow->options.outcome->birth_closed = birth_snapshot.closed;
         }
     }
+    if (flow->attempt.history) {
+        if (sv_history_save(flow->attempt.history)!=SV_FILE_OK)
+            fprintf(stderr,"SV history: could not save account history\n");
+        sv_history_destroy(flow->attempt.history); flow->attempt.history=NULL;
+    }
+    const SvLoginCharacter *last=sv_login_selected_character(flow->attempt.login);
+    if (last && flow->attempt.pregame.phase==SV_PREGAME_LIVE_HANDOFF)
+        SDL_strlcpy(flow->previous_character,last->name,sizeof(flow->previous_character));
     sv_contact_socket_stop(flow->attempt.connection);
     flow->attempt.connection = NULL;
 
@@ -624,6 +742,16 @@ void sv_login_flow_end_attempt(SvLoginFlow *flow)
     flow->attempt.birth = NULL;
     SDL_free(flow->attempt.wire.remaining);
     flow->attempt.wire.remaining = NULL;
+    /* No game-effect consumer is active at the current live placeholder. Close
+     * this generation explicitly, so its retained bytes cannot enter a retry. */
+    if (flow->attempt.preferences) {
+        size_t pending = sv_preferences_effect_count(flow->attempt.preferences);
+        if (pending)
+            fprintf(stderr, "SV character preferences generation=%llu: cancelling %zu retained effects at attempt close\n",
+                (unsigned long long)flow->generation, pending);
+        sv_preferences_destroy(flow->attempt.preferences);
+        flow->attempt.preferences = NULL;
+    }
 }
 
 SvLoginFlow *sv_login_flow_create(SvEndpointOptions options)
@@ -632,8 +760,11 @@ SvLoginFlow *sv_login_flow_create(SvEndpointOptions options)
     if (flow) {
         flow->options = options;
         flow->interactive_credentials = !options.account || !options.password;
-        if (!flow->interactive_credentials) {
+        if (options.account) {
             SDL_strlcpy(flow->account, options.account, sizeof(flow->account));
+            SDL_strlcpy(flow->initial_account, options.account, sizeof(flow->initial_account));
+        }
+        if (!flow->interactive_credentials) {
             SDL_strlcpy(flow->password, options.password, sizeof(flow->password));
         }
         flow->options.account = flow->account;
@@ -645,7 +776,7 @@ SvLoginFlow *sv_login_flow_create(SvEndpointOptions options)
 void sv_login_flow_destroy(SvLoginFlow *flow)
 {
     if (!flow) return;
-    if (flow->attempt.connection || flow->attempt.birth) sv_login_flow_end_attempt(flow);
+    if (flow->attempt.connection || flow->attempt.birth || flow->attempt.preferences) sv_login_flow_end_attempt(flow);
     volatile char *password = flow->password;
     for (size_t i = 0; i < sizeof(flow->password); ++i) password[i] = 0;
     SDL_free(flow);
@@ -802,10 +933,12 @@ static SvLoginFlowStep return_to_servers(SvLoginFlow *flow)
 }
 SvLoginFlowStep sv_login_flow_selected(SvLoginFlow *flow)
 {
+    if (flow->options.protocol_override)
+        flow->endpoint.protocol = flow->options.protocol_override;
     memset(&flow->recovery, 0, sizeof(flow->recovery));
     flow->generation = flow->prior_generation = 0;
     if (flow->interactive_credentials) {
-        memset(flow->account, 0, sizeof(flow->account));
+        SDL_strlcpy(flow->account, flow->initial_account, sizeof(flow->account));
         memset(flow->password, 0, sizeof(flow->password));
         return SV_LOGIN_FLOW_CREDENTIALS;
     }
