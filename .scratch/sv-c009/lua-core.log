@@ -1,0 +1,4 @@
+bundled closure: scripts=41 schools=25 spells=310 guide_skills=40
+runtime: real overlay expressions/native chunks, nested failures, reload and cleanup PASS
+completion: last END/replay/stale, INIT-disconnect sticky flags, failed close and warning order PASS
+PASS: production Lua startup/reload core

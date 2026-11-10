@@ -1,0 +1,26 @@
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-c009-native-zggz8_3y/user private=/tmp/sv-c009-native-zggz8_3y/user/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=4/0 sound=None (basic alert effects only) version=1.0 music=None version=1.0 sound_config=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/sound/sound.cfg.default music_config=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/music/music.cfg.default
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selection incomplete; no contact attempted
+SV fonts: text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf; map requested=16x24x.pcf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/16x24x.pcf; 
+SV map preferences: font-sv.prf missing; using server glyph identities (zero overrides)
+SV graphics requested=1/16x24sv effective=1/16x24sv generation=3627607064758148312
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:200: Converted baseline option alias in memory
+SV Lua early startup: status=0 scripts=5; server feature/open and live handoff pending C011
+SV initial audio: Audio initialized (rate=44100 speakers=2 tracks=32 buffer=1024)
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV startup preferences: cancelling 180 retained effects at application close

@@ -54,6 +54,7 @@ Application связывает устойчивые интерфейсы, без
 | `input/` | Router, контексты/макросы и отдельный адаптер SDL-ввода |
 | `ui/` | Общие layout/rendering utilities, шрифты, подготовка статуса и текста сообщений |
 | `credential/` | Самостоятельный credential vault |
+| `lua/` | SV-local startup Lua runtime, C-owned schools/spells и reload owner; существующий vendored Lua engine без legacy UI globals |
 | `settings/` | Собственные CFG/OPT data, startup overrides и initial audio adapter; явная передача settings/ресурсных результатов в login |
 | `login/` | Сценарий входа: `flow`, `native-run`, `options`, `pregame`, `login-view`, `chronicle` |
 | `login/servers/` | Выбор endpoint, metaserver |
@@ -112,6 +113,13 @@ creation. `view->setup` заимствован у попытки, поэтому
 
 Transport/wire protocol, generic text editing, font/render utilities и vault
 сохраняют самостоятельность; их не переносят в login ради физической близости.
+C009 добавляет application-owned Lua runtime в `login/native-run`: ранние локальные
+скрипты загружаются без вымышленных server flags. `lua/reload` принимает accepted
+INIT и END через явный production API, хранит process-sticky audio/Guide flags,
+проверяет session generation и отдаёт раздельные transfer/runtime результаты.
+C010 подключает actual transfer decoder, C011 — реальные features/open и readiness,
+C014 — actual handoff/teardown. Core evidence не принимает эти будущие flows.
+
 Текущий startup milestone по-прежнему заканчивается cleanup соединения и
 заглушкой live surface. Реальный однократный handoff socket, generation,
 version/setup, выбранного персонажа, decoded startup state, unread bytes и

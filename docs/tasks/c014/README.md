@@ -57,3 +57,26 @@ core callback сам по себе его не подтверждает. Canonic
 у C008. Core C008 принят; самостоятельная обязательная работа закреплена в
 [SV-C014-003](SV-C014-003-network-control-lifecycle.md). Она не блокирует и не
 переоткрывает C008 автоматически; backlink evidence служит трассировке.
+
+
+## Lifecycle Lua runtime C009
+
+| Задача | Результат |
+|---|---|
+| [SV-C014-004](SV-C014-004-lua-runtime-lifecycle.md) | Actual Lua owner adoption/handoff, close/relog generation и cleanup |
+
+[C009 и задачи 001–003 приняты пользователем](../../sv-stage-c009-acceptance.md)
+2026-11-10 в границах Linux core. Самостоятельная обязательная интеграция
+закреплена в [SV-C014-004](SV-C014-004-lua-runtime-lifecycle.md): actual live
+consumer принимает production Lua owner C009 и результаты preparation C011,
+отзывает session bindings при close/relog и отклоняет stale callbacks.
+Process-sticky audio/Guide flags сохраняются между sessions; shared script files
+не удаляются. Владение runtime и metadata не заменяется заимствованием из
+уничтоженного pregame caller.
+
+Минимальные actual lifecycle Linux checks и критерии готовности находятся в
+задаче. Прямой core test C009 не подтверждает этот consumer flow; непроверенные
+flows не получают PASS. Работа и необходимые исправления обязательны C014,
+не блокируют и не переоткрывают C009 автоматически. Canonical allocation,
+prerequisites/obligations и pending registry statuses сохранены; evidence backlink
+служит трассировке, не gate уже состоявшейся приёмки C009. Windows/MinGW/Wine deferred.

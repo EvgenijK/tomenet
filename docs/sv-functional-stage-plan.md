@@ -220,6 +220,27 @@ map ingress/submission, lifecycle/deferred callers и macro waits. Она не �
 и не переоткрывает C008 автоматически; непроверенные flows не получают PASS.
 Canonical allocation и pending runtime statuses сохранены.
 
+C009: [спецификация startup Lua reload](sv-stage-c009-spec.md),
+[задачи и ownership](tasks/c009/README.md),
+[source contract](tasks/c009/source-contract.md),
+[точный planning snapshot](tasks/c009/coverage.json). План подготовлен анализом
+трёх агентов 2026-11-10: один outcome и три obligations, задачи 001–003.
+Настоящий Lua runtime, overlay, reload lifecycle, Guide metadata и audio restart
+warning; wire/file publication остаётся C010, actual preparation — C011.
+Пользователь 2026-11-10 выбрал сохранение baseline: reload после последнего END
+выполняется и при ошибке сохранения, с отдельными transfer/reload results.
+Решение закреплено в source contract. Production core и задачи 001–003
+реализованы агентами и проверены на Linux 2026-11-10:
+[evidence](sv-c009-evidence.md). Build, одна focused ASan/UBSan проверка и bounded
+native early startup прошли. Actual C010/C011/C014 consumers остаются своим
+этапам. [C009 и задачи 001–003 приняты пользователем](sv-stage-c009-acceptance.md)
+в текущих границах Linux core 2026-11-10. Оставшиеся обязательные работы закреплены
+в [C010-001](tasks/c010/SV-C010-001-lua-reload-integration.md),
+[C011-003](tasks/c011/SV-C011-003-lua-startup-preparation.md) и
+[C014-004](tasks/c014/SV-C014-004-lua-runtime-lifecycle.md), не блокируют и не
+переоткрывают C009 автоматически. Pending flows не получают PASS;
+canonical runtime registration остаётся отдельным workflow.
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой

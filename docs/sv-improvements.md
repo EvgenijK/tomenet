@@ -1732,3 +1732,44 @@ SV-local реализации; исправление legacy в его scope н�
 **Необходимые проверки:** при отдельном исправлении — split packet внутри cloud
 loop не меняет state до completion, complete/chained packets сохраняют порядок,
 weather start/stop не повторяет одноразовые эффекты.
+
+
+## Legacy Lua: sticky признаки обновления Guide/audio
+
+**Проблема:** `updated_audio` и `updated_guide` устанавливаются при успешном INIT
+по substring имени и не сбрасываются. После первой такой передачи warning/
+metadata rebuild повторяются при последующих last END, даже без нового обновления.
+
+**Затронутый код:** `src/client/nclient.c:Receive_file`, static flags около
+строки 489, INIT около 518–524, END около 557–589.
+
+**Предложение:** отдельно решить, должны ли признаки принадлежать batch или
+процессу, и согласовать изменение behavior baseline. План C009 пока сохраняет
+фактический sticky lifetime; исправление не входит в текущую задачу.
+
+**Статус:** recorded, 2026-11-10; изменение поведения не согласовано и не реализовано.
+
+**Необходимые проверки:** два последовательных batches (первый Guide/audio,
+второй без них), failed INIT/END, reconnect; точное число warnings/rebuild и
+отсутствие незаявленной audio backend reinitialization. Только применимая платформа
+по текущему правилу; расширение набора согласовать.
+
+## Legacy Lua: done flags не отражают ошибку загрузки startup scripts
+
+**Проблема:** init_lua/open_lua игнорируют failure pern_dofile и ставят done flags.
+exec_lua/string_exec_lua возвращают 0/empty и при ошибках, поэтому такой результат
+нельзя надёжно отличить от корректных пустых данных.
+
+**Затронутый код:** `src/client/c-script.c:init_lua`, `open_lua`, `pern_dofile`,
+`exec_lua`, `string_exec_lua` (около строк 348–546).
+
+**Предложение:** отдельно в legacy ввести явный результат script loading и
+передавать его владельцу startup, сохранив видимую диагностику. C009 требует
+явный error contract только в SV; legacy refactor этим планом не разрешён.
+
+**Статус:** recorded, 2026-11-10; legacy не изменён.
+
+**Необходимые проверки:** missing/invalid script и корректный zero/empty getter,
+ошибка вложенного script, reopen после ошибки; отсутствие ложного startup success
+и сохранение допустимых пустых результатов. Набор для отдельного исправления
+согласовать по AGENTS.

@@ -48,10 +48,14 @@ SV_CLIENT_OBJECTS += input/keymap.o input/quantity.o
 SV_CLIENT_OBJECTS += ui/font-selection.o ui/resource-preparation.o ui/font-editor.o settings/config-save.o settings/map-font.o
 SV_CLIENT_OBJECTS += settings/graphics.o session/map.o ui/map-renderer.o session/map-effects.o protocol/rendering.o
 SV_CLIENT_OBJECTS += ui/native-controls.o
+SV_CLIENT_OBJECTS += lua/runtime.o lua/constants.o lua/reload.o
+# Existing Lua 4 engine, compiled into this SV build directory only.
+SV_LUA_NAMES := lapi lcode ldebug ldo lfunc lgc llex lmem lobject lparser lstate lstring ltable ltm lundump lvm lzio lauxlib lbaselib ldblib lstrlib
+SV_LUA_OBJECTS := $(addprefix $(SV_OUT)/lua-engine/,$(addsuffix .o,$(SV_LUA_NAMES)))
 SV_DIAGNOSTIC_OBJECTS := diagnostics/timing.o diagnostics/runtime.o diagnostics/launcher.o diagnostics/ui.o diagnostics/capture.o diagnostics/peer.o diagnostics/synthetic.o
 SV_SCENARIO_OBJECTS := scenarios/timing-scenario.o scenarios/geometry-scenario.o scenarios/lifecycle-scenario.o scenarios/request-scenario.o scenarios/message-scenario.o scenarios/hp-scenario.o scenarios/arch-scenario.o scenarios/native-frame.o
 SV_CORE_OBJECTS := common/sockbuf.o common/z-util.o common/z-form.o common/z-virt.o common/md5.o
-SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_DIAGNOSTIC_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS))
+SV_OBJECTS := $(addprefix $(SV_OUT)/,$(SV_CLIENT_OBJECTS) $(SV_DIAGNOSTIC_OBJECTS) $(SV_SCENARIO_OBJECTS) $(SV_CORE_OBJECTS)) $(SV_LUA_OBJECTS)
 
 .PHONY: tomenet-sv tomenet-sv.exe shell check-deps
 tomenet-sv:
@@ -80,6 +84,9 @@ $(SV_OUT)/scenarios/%.o: ../tests/sv/scenarios/%.c makefile.sv | check-deps
 $(SV_OUT)/common/%.o: common/%.c makefile.sv | check-deps
 	@mkdir -p $(dir $@)
 	$(SV_CC) $(filter-out -Werror,$(SV_CFLAGS)) $(SV_CORE_PLATFORM) -DCLIENT -D_DEFAULT_SOURCE -ffunction-sections -fdata-sections -MMD -MP -c $< -o $@
+$(SV_OUT)/lua-engine/%.o: server/lua/%.c makefile.sv | check-deps
+	@mkdir -p $(dir $@)
+	$(SV_CC) $(filter-out -Werror,$(SV_CFLAGS)) -Wno-deprecated-non-prototype -MMD -MP -c $< -o $@
 $(SV_OUT)/$(SV_NAME): $(SV_OBJECTS)
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
 	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=startup-only;terminal=absent' > $(SV_OUT)/build.txt

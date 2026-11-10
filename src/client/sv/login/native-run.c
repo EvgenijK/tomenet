@@ -19,6 +19,7 @@
 #include "protocol/login-identity.h"
 #include "settings/startup.h"
 #include "settings/audio.h"
+#include "lua/reload.h"
 #include "ui/font-editor.h"
 #include "settings/graphics.h"
 #include "session/map-effects.h"
@@ -29,6 +30,13 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
+
+static void lua_diagnostic(void *context, const SvLuaResult *result)
+{
+    (void)context;
+    fprintf(stderr,"SV Lua%s%s: %s\n",*result->path ? " " : "",
+        result->path,result->diagnostic);
+}
 
 /* FPS0 retains the baseline uncapped mode. This is pacing, not a network
  * budget: measured work is subtracted before yielding the remainder. */
@@ -605,6 +613,7 @@ int sv_endpoint_run(SvEndpointOptions options)
     SvGraphics *graphics=NULL;
     SvMapEffects *map_effects=NULL;
     SvSettingsAudio *audio = NULL;
+    SvLuaReload *lua = NULL;
     SvMetaserver *provider = NULL;
     SvChronicle *chronicle = NULL;
     SvChronicleSnapshot chronicle_view = {.failed_sources = 9, .completed_sources = 9};
@@ -766,6 +775,13 @@ int sv_endpoint_run(SvEndpointOptions options)
            config.schema_version, config.diagnostics, config.unsupported_records,
            config.overwrite_allowed, config.ui_scale_percent, config.layout, config.fps);
     printf("SV settings roots user=%s private=%s/sv library=%s\n", root, root, library);
+    lua=sv_lua_reload_create(root,library,lua_diagnostic,NULL);
+    if (!lua) { SDL_SetError("Cannot allocate application Lua runtime"); goto done; }
+    SvLuaResult lua_startup=sv_lua_reload_init(lua);
+    fprintf(stderr,"SV Lua early startup: status=%d scripts=%u; server feature/open and live handoff pending C011\n",
+        (int)lua_startup.status,lua_startup.scripts_loaded);
+    /* Keep the local startup failure visible. C011 will decide readiness with
+     * actual server features; pregame must not invent flags to run c-init.lua. */
     SvSettingsConfig audio_config = config;
     if (invocation.quiet) audio_config.sound = 0;
     audio = sv_settings_audio_start(&audio_config, root, library);
@@ -956,6 +972,7 @@ select_endpoint:
     result = 0;
 done:
     sv_settings_invocation_clear_password(&invocation);
+    sv_lua_reload_destroy(lua);
     sv_settings_audio_destroy(audio);
     sv_settings_config_dispose(&config);
     sv_chronicle_stop(chronicle);
