@@ -16,6 +16,7 @@
 #include "login/ui/endpoint-scene.h"
 #include "protocol/contact-socket.h"
 #include "protocol/login.h"
+#include "transfer/startup.h"
 #include "protocol/login-identity.h"
 #include "settings/startup.h"
 #include "settings/audio.h"
@@ -187,6 +188,57 @@ done:
     return outcome;
 }
 
+typedef struct {
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SvFont *font;
+    SvFontSelection *fonts;
+    SvSettingsAudio *audio;
+    SvGraphics *graphics;
+    bool owns;
+} SvPreparationNative;
+static void destroy_preparation_native(void *context)
+{
+    SvPreparationNative *native=context;
+    if(native->owns) {
+        sv_settings_audio_destroy(native->audio);
+        sv_graphics_destroy(native->graphics);
+        SDL_DestroyRenderer(native->renderer);SDL_DestroyWindow(native->window);
+        sv_font_selection_destroy(native->fonts);TTF_Quit();SDL_Quit();
+    }
+    SDL_free(native);
+}
+static bool draw_preparation(void *context,SvAppView view)
+{
+    SvPreparationNative *native=context;
+    const SvCharacterIdentity *identity=&view.identity;
+    char text[512];
+    SDL_snprintf(text,sizeof(text),"%s  race %d  class %d  trait %d  sex %d  mode %u  lives %d",
+        identity->available?identity->name:"Preparing session",identity->race,
+        identity->class_id,identity->trait,identity->sex,identity->mode,identity->lives);
+    return SDL_SetRenderDrawColor(native->renderer,12,15,24,255) &&
+        SDL_RenderClear(native->renderer) && sv_font_draw(native->font,native->renderer,
+        text,20,40,1.0f,(SDL_Color){235,235,235,255}) &&
+        (!view.paused || sv_font_draw(native->font,native->renderer,
+            "Paused - press a key to continue",20,80,1.0f,(SDL_Color){235,235,235,255}));
+}
+static bool bind_preparation_native(SvLoginFlow *flow,SDL_Window *window,
+                                     SDL_Renderer *renderer,SvFont *font)
+{
+    SvSessionPreparation *p=flow->preparation;
+    if(!p)return true;
+    if(p->native_owner)return p->native_bound;
+    SvPreparationNative *native=SDL_calloc(1,sizeof(*native));
+    if(!native)return false;
+    *native=(SvPreparationNative){.window=window,.renderer=renderer,.font=font};
+    p->native_owner=native;p->destroy_native=destroy_preparation_native;
+    SDL_strlcpy(p->resources.effective_text_font,sv_font_resource(font),
+        sizeof(p->resources.effective_text_font));
+    p->controls=(SvNativeControls){.renderer=renderer,.input=&p->native_input,
+        .context=native,.draw=draw_preparation,.retain_batch=true};
+    p->native_bound=sv_native_controls_bind(&p->controls,p->app)==SV_OK;
+    return p->native_bound;
+}
 static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                        SvEndpointInput *input, SvChronicle *chronicle,
                        SvChronicleSnapshot *chronicle_view, SvLoginFlow *flow,
@@ -209,11 +261,37 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
         Uint64 frame_start = SDL_GetTicks();
         (void)sv_chronicle_poll(chronicle, chronicle_view);
         sv_login_flow_poll(flow);
+        if(!bind_preparation_native(flow,window,renderer,font)) {
+            flow->attempt.result=1;
+            flow->attempt.session_error=SV_INVALID;
+            flow->attempt.state=SV_SOCKET_PROTOCOL_ERROR;
+            SDL_SetError("Cannot bind session preparation controls");
+            break;
+        }
         SvBirthSnapshot birth_snapshot;
         sv_birth_snapshot_prepare(&birth_snapshot, flow->attempt.birth);
         SvLoginFlowView flow_view;
         sv_login_flow_view(flow, &flow_view);
         scene.contact_status = flow_view.status;
+        scene.preparation_identity=flow->preparation && flow->preparation->view.identity_ready &&
+            flow_view.characters.live_handoff && !flow_view.failed;
+        char identity_status[512];
+        if(flow->preparation && flow->preparation->view.identity_ready) {
+            SvCharacterIdentity identity=flow->preparation->view.presentation.identity;
+            SDL_snprintf(identity_status,sizeof(identity_status),
+                "%s — race %d, class %d, trait %d, sex %d, mode %u, lives %d",
+                identity.name,identity.race,identity.class_id,identity.trait,
+                identity.sex,identity.mode,identity.lives);
+            if(scene.preparation_identity)scene.contact_status=identity_status;
+            if(!flow->preparation->identity_reported) {
+                printf("SV C011 prepared identity=%s race=%d class=%d trait=%d profile=%d runtime=%d\n",
+                    identity.name,identity.race,identity.class_id,identity.trait,
+                    flow->preparation->view.profile_ready,flow->preparation->view.runtime_ready);
+                fflush(stdout);flow->preparation->identity_reported=true;
+            }
+        }
+        if(!flow_view.failed && flow->preparation && sv_app_view(flow->preparation->app).paused)
+            scene.contact_status="Paused - press a key to continue";
         scene.temporary_surface_text = flow->attempt.temporary_surface_text;
         if (input_epoch != flow->input_epoch) {
             sv_pregame_input_boundary();
@@ -222,6 +300,17 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 if (!SDL_StartTextInput(window)) return 1;
             } else SDL_StopTextInput(window);
         }
+        /* Printable PAUSE acknowledgement arrives as TEXT_INPUT. Credential
+         * and name scenes have their own ownership; this temporary readiness
+         * ends immediately after the pause or attempt closes. */
+        bool pause_text=flow->preparation && sv_app_view(flow->preparation->app).paused;
+        if(pause_text && !SDL_TextInputActive(window)) {
+            if(!SDL_StartTextInput(window)) {
+                flow->attempt.result=1;flow->attempt.session_error=SV_INVALID;
+                flow->attempt.state=SV_SOCKET_PROTOCOL_ERROR;break;
+            }
+        } else if(!pause_text && !flow->attempt.login_input.ordinary_name_active && SDL_TextInputActive(window))
+            SDL_StopTextInput(window);
         scene.login_view = NULL;
         scene.birth_view = NULL;
         scene.birth_viewport = NULL;
@@ -236,7 +325,7 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
             login_view.first=character_viewport.first;
             login_view.focus=character_viewport.focus;
             scene.login_view = &login_view;
-            if (flow_view.has_birth) {
+            if (flow_view.has_birth && !scene.preparation_identity) {
                 birth_view = flow_view.birth;
                 scene.birth_view = &birth_view;
                 int output_width, output_height;
@@ -299,6 +388,17 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
                 sv_login_flow_command(flow, SV_LOGIN_FLOW_EXIT);
                 quit = true;
                 break;
+            }
+            if(flow->preparation) {
+                SvAppView prepared_view=sv_app_view(flow->preparation->app);
+                bool redraw=(event.type==SDL_EVENT_KEY_DOWN && event.key.key==SDLK_R &&
+                    (event.key.mod&SDL_KMOD_CTRL)) ||
+                    (event.type==SDL_EVENT_TEXT_INPUT && event.text.text &&
+                     event.text.text[0]==18 && !event.text.text[1]);
+                /* This preparation surface executes redraw and pause only.
+                 * General gameplay routing/adoption remains the live owner. */
+                if((prepared_view.paused || (redraw && scene.preparation_identity && flow->preparation->view.complete)) &&
+                   sv_native_input(&flow->preparation->native_input,flow->preparation->app,&event))continue;
             }
             /* Queue barriers retire keyboard/text at owner changes. Pointer
              * gestures retain their SDL scene-time guard. */
@@ -410,9 +510,18 @@ static int run_contact(SDL_Window *window, SDL_Renderer *renderer, SvFont *font,
            sv_login_state(flow->attempt.login)==SV_LOGIN_SELECTED)
             (void)sv_native_birth_tick(flow->attempt.birth,flow->generation,&birth_viewport,SDL_GetTicks());
         sv_login_flow_finish_tick(flow);
+        if(flow->preparation && flow->preparation->view.identity_ready) {
+            (void)sv_native_controls_step(&flow->preparation->controls,flow->preparation->app,16);
+            flow->preparation->view.presentation=sv_app_view(flow->preparation->app);
+        }
         if (flow->attempt.finished) break;
         if (flow->options.frames && ++frames >= flow->options.frames) break;
         limit_frame(frame_start, flow->options.fps);
+    }
+    if(flow->options.preparation && flow->preparation && flow->preparation->native_bound &&
+       flow->preparation->view.startup_complete && flow->attempt.result==0) {
+        SvSessionPreparation **output=flow->options.preparation;
+        *output=sv_login_flow_take_preparation(flow);
     }
     sv_login_flow_end_attempt(flow);
     SDL_StopTextInput(window);
@@ -475,6 +584,9 @@ static void publish_font_options(SvNativeFontOwner *owner)
     owner->flow->options.settings=sv_preferences_options(*owner->preferences);
     owner->flow->options.graphics_mode=sv_graphics_mode(*owner->graphics);
     owner->flow->options.graphics_tiles=sv_graphics_name(*owner->graphics);
+    owner->flow->options.graphics_owner=*owner->graphics;
+    owner->flow->options.effective_text_font=sv_font_resource(
+        sv_font_selection_font(owner->fonts,SV_FONT_TEXT));
     if(owner->effects) {
         owner->effect_options.graphics_mode=sv_graphics_mode(*owner->graphics);
         sv_map_effects_options(owner->effects,&owner->effect_options);
@@ -601,6 +713,7 @@ static bool prepare_editor_resources(void *opaque,const SvSettingsConfig *config
 int sv_endpoint_run(SvEndpointOptions options)
 {
     SvLoginFlow *flow = NULL;
+    if(options.preparation)*options.preparation=NULL;
     SvEndpoint *endpoint = NULL;
     const char *root = options.root;
     char *owned_root = NULL;
@@ -742,6 +855,9 @@ int sv_endpoint_run(SvEndpointOptions options)
     options.graphics_mode=sv_graphics_mode(graphics);
     options.graphics_tiles=sv_graphics_name(graphics);
     options.settings = sv_preferences_options(preferences);
+    options.client_config=&config;
+    options.effective_text_font=sv_font_resource(font);
+    options.graphics_owner=graphics;
     options.settings_wide = !strcmp(config.layout, "wide");
     options.fps = config.fps;
     flow = sv_login_flow_create(options);
@@ -778,7 +894,11 @@ int sv_endpoint_run(SvEndpointOptions options)
     lua=sv_lua_reload_create(root,library,lua_diagnostic,NULL);
     if (!lua) { SDL_SetError("Cannot allocate application Lua runtime"); goto done; }
     SvLuaResult lua_startup=sv_lua_reload_init(lua);
-    fprintf(stderr,"SV Lua early startup: status=%d scripts=%u; server feature/open and live handoff pending C011\n",
+    SvTransferStartupConfig transfer_config = {.library=library, .lua=lua,
+        .no_updates=invocation.no_lua_updates};
+    flow->options.transfer_factory = sv_transfer_startup_factory(&transfer_config);
+    flow->options.lua=lua;flow->options.lua_early_init=lua_startup;
+    fprintf(stderr,"SV Lua early startup: status=%d scripts=%u; session open awaits decoded server features\n",
         (int)lua_startup.status,lua_startup.scripts_loaded);
     /* Keep the local startup failure visible. C011 will decide readiness with
      * actual server features; pregame must not invent flags to run c-init.lua. */
@@ -846,8 +966,10 @@ int sv_endpoint_run(SvEndpointOptions options)
     printf("SV startup window fullscreen=%d ui_scale=%d ignore_dpi=%d renderer=%s\n",
            (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0,
            config.ui_scale_percent, invocation.ignore_scaling, SDL_GetRendererName(renderer));
-    if (invocation.no_lua_updates || invocation.chat_log_mode || invocation.quit_no_prompt)
-        fprintf(stderr, "SV invocation retains deferred transfer/export/quit requests; their late consumers are not active\n");
+    if (invocation.no_lua_updates)
+        fprintf(stderr, "SV startup: server file updates disabled (-u)\n");
+    if (invocation.chat_log_mode || invocation.quit_no_prompt)
+        fprintf(stderr, "SV invocation retains deferred export/quit requests; their late consumers are not active\n");
     int window_count = 0;
     SDL_Window **windows = SDL_GetWindows(&window_count);
     SDL_free(windows);
@@ -972,13 +1094,31 @@ select_endpoint:
     result = 0;
 done:
     sv_settings_invocation_clear_password(&invocation);
+    SvSessionPreparation *retained=options.preparation?*options.preparation:NULL;
+    if(retained) {
+        retained->owns_lua=true;lua=NULL;
+        SvPreparationNative *native=retained->native_owner;
+        if(native) {
+            native->owns=true;native->fonts=fonts;native->audio=audio;
+            native->graphics=graphics;retained->graphics=graphics;graphics=NULL;
+            sv_font_selection_prepare(fonts,NULL,NULL);
+            fonts=NULL;audio=NULL;window=NULL;renderer=NULL;
+        }
+        /* The retained transport no longer invokes the stack-backed factory. */
+        flow->options.transfer_factory.context=NULL;
+        flow->options.real_name=flow->options.character=NULL;
+        flow->options.startup_argv=NULL;flow->options.startup_argc=0;
+        flow->font_resource=NULL;flow->options.shell=(SvLoginShellOptions){0};
+    }
+    /* Attempt attachments borrow Lua; revoke them before application teardown. */
+    sv_login_flow_destroy(flow);
+    flow = NULL;
     sv_lua_reload_destroy(lua);
     sv_settings_audio_destroy(audio);
     sv_settings_config_dispose(&config);
     sv_chronicle_stop(chronicle);
     sv_metaserver_stop(provider);
     if (result) fprintf(stderr,"SV endpoint startup failed: %s\n",SDL_GetError());
-    sv_login_flow_destroy(flow);
     /* Pending startup intents never enter credential input. Their application
      * owner ends here; attempts own and cancel their separate character intents. */
     if (preferences && sv_preferences_effect_count(preferences))
@@ -993,8 +1133,7 @@ done:
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     sv_font_selection_destroy(fonts);
-    TTF_Quit();
-    SDL_Quit();
+    if(!retained){TTF_Quit();SDL_Quit();}
     SDL_free(owned_root);
     return result;
 }

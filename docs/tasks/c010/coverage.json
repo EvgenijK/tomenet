@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "stage": "C010",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-10",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 5,
+  "ownedCapabilityIds": [
+    "capability.transfer.check",
+    "capability.transfer.init",
+    "capability.transfer.data",
+    "capability.transfer.end",
+    "capability.transfer.upload"
+  ],
+  "ticketOwnership": {
+    "capability.transfer.check": "SV-C010-002",
+    "capability.transfer.init": "SV-C010-003",
+    "capability.transfer.data": "SV-C010-003",
+    "capability.transfer.end": "SV-C010-003",
+    "capability.transfer.upload": "SV-C010-004"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.transfer.check",
+      "acceptanceStage": "C010",
+      "prerequisites": [
+        "capability.files.resource-overlay",
+        "capability.files.transient-owner"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-receive-file-9b42f3",
+          "source.allocation-b.s870",
+          "source.allocation-b.s871"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve original server file CHECK validation, destination mapping and checksum reply; no new resource-only allow-list and no blanket rebasing onto S. Full outcome allocation: stage C010. Startup FILE_CHECK/checksum reply/version boundary является обязательной wire contract B"
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.transfer.check.result",
+          "description": "Preserve original server file CHECK validation, destination mapping and checksum reply; no new resource-only allow-list and no blanket rebasing onto S.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.check.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.check.wire",
+          "description": "Exercise each version/build branch of Receive_file (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.transfer.check.allocation-checks",
+          "description": "Preserve original server file CHECK validation, destination mapping and checksum reply; no new resource-only allow-list and no blanket rebasing onto S. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.allocation-b.s870",
+            "source.allocation-b.s871"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.transfer.init",
+      "acceptanceStage": "C010",
+      "prerequisites": [
+        "capability.files.resource-overlay",
+        "capability.files.transient-owner"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-receive-file-9b42f3",
+          "source.allocation-b.s870",
+          "source.allocation-b.s871"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve FILE_INIT IDs, destination validation and temporary ownership; missing/failed open reports baseline failure. Full outcome allocation: stage C010. Incoming FILE_INIT creates validated destination/id context before startup transfer data"
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.transfer.init.result",
+          "description": "Preserve FILE_INIT IDs, destination validation and temporary ownership; missing/failed open reports baseline failure.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.init.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.init.wire",
+          "description": "Exercise each version/build branch of Receive_file (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.transfer.init.allocation-checks",
+          "description": "Preserve FILE_INIT IDs, destination validation and temporary ownership; missing/failed open reports baseline failure. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.allocation-b.s870",
+            "source.allocation-b.s871"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.transfer.data",
+      "acceptanceStage": "C010",
+      "prerequisites": [
+        "capability.files.resource-overlay",
+        "capability.files.transient-owner"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-receive-file-9b42f3",
+          "source.allocation-b.s870",
+          "source.allocation-b.s871"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Receive FILE_DATA chunks in order with original length/ID/version rules; partial packets publish no partial application and disk failure is not success. Full outcome allocation: stage C010. Incoming FILE_DATA must honor order/length and partial rollback during live startup"
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.transfer.data.result",
+          "description": "Receive FILE_DATA chunks in order with original length/ID/version rules; partial packets publish no partial application and disk failure is not success.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.data.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.data.wire",
+          "description": "Exercise each version/build branch of Receive_file (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.transfer.data.allocation-checks",
+          "description": "Receive FILE_DATA chunks in order with original length/ID/version rules; partial packets publish no partial application and disk failure is not success. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.allocation-b.s870",
+            "source.allocation-b.s871"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.transfer.end",
+      "acceptanceStage": "C010",
+      "prerequisites": [
+        "capability.files.resource-overlay",
+        "capability.files.transient-owner",
+        "capability.lua.reload"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-receive-file-9b42f3",
+          "source.allocation-b.s870",
+          "source.allocation-b.s871"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Complete FILE_END and original publish/reload/ack behavior exactly once; failed transfer retains required error semantics and does not falsely reload. Full outcome allocation: stage C010. FILE_END publishes/ACKs/reloads exactly once in startup; no stale-session file effects"
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.transfer.end.result",
+          "description": "Complete FILE_END and original publish/reload/ack behavior exactly once; failed transfer retains required error semantics and does not falsely reload.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.end.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.end.wire",
+          "description": "Exercise each version/build branch of Receive_file (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.transfer.end.allocation-checks",
+          "description": "Complete FILE_END and original publish/reload/ack behavior exactly once; failed transfer retains required error semantics and does not falsely reload. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-file-9b42f3",
+            "source.allocation-b.s870",
+            "source.allocation-b.s871"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.transfer.upload",
+      "acceptanceStage": "C010",
+      "prerequisites": [
+        "capability.files.resource-overlay",
+        "capability.files.transient-owner"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-send-file-data-9b42f3",
+          "source.allocation-b.s870",
+          "source.allocation-b.s871",
+          "source.allocation-b.s873"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve requested/admin upload and ACK/ERR behavior with original destination/source mapping; canceled/stale transfer cannot mutate a new session. Full outcome allocation: stage C010. Full requested/admin upload sending utility не требуется обычному входящему startup update; ACK/ERR parser remains B framing, не accepts full sender flow"
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.transfer.upload.result",
+          "description": "Preserve requested/admin upload and ACK/ERR behavior with original destination/source mapping; canceled/stale transfer cannot mutate a new session.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-file-data-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.upload.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-file-data-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.transfer.upload.wire",
+          "description": "Exercise each version/build branch of Send_file_data (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-send-file-data-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.transfer.upload.allocation-checks",
+          "description": "Preserve requested/admin upload and ACK/ERR behavior with original destination/source mapping; canceled/stale transfer cannot mutate a new session. Wrong/zero ID, split/chained packet, disk failure and relog cleanup; source/destination mapping same baseline, no new allow-list. cmd_script_upload: filename cancel/30-byte prompt и server-version boundary chunksize256/1024; remote_update→checksum→sender DATA→ACK/ERR→teardown.",
+          "sources": [
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-file-data-9b42f3",
+            "source.allocation-b.s870",
+            "source.allocation-b.s871",
+            "source.allocation-b.s873"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ]
+}

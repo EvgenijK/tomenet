@@ -36,7 +36,10 @@ struct SvLogin {
     size_t count;
     size_t selected_slot;
     bool has_selected_slot, creating_character, reincarnation_requested;
-    bool play_stream_complete;
+    bool play_stream_complete, play_wire_configured;
+    SvStartupPrefixConfig play_wire;
+    bool flags_received;
+    SvLoginTransfer transfer;
     char reason[256];
     SvLoginPingTelemetry ping;
 };
@@ -112,6 +115,57 @@ static SvResult append_output(SvLogin *login, const void *bytes, size_t size)
     memcpy(login->output + login->output_size, bytes, size);
     login->output_size += size;
     return SV_OK;
+}
+static SvResult drain_transfer(SvLogin *login)
+{
+    if (!login->transfer.take_output) return SV_OK;
+    SvOutput output = login->transfer.take_output(login->transfer.context,
+        login->output + login->output_size, sizeof(login->output) - login->output_size);
+    if (output.result == SV_WAITING) return SV_OK;
+    if (output.result == SV_OUTPUT_TOO_SMALL) return SV_BACKPRESSURE;
+    if (output.result == SV_OK) login->output_size += output.size;
+    return output.result;
+}
+SvResult sv_login_attach_transfer(SvLogin *login, SvLoginTransfer transfer)
+{
+    if (!login || login->transfer.context || !transfer.context || !transfer.flags ||
+        !transfer.receive || !transfer.pump || !transfer.take_output ||
+        login->flags_received) return SV_INVALID;
+    login->transfer = transfer;
+    return SV_OK;
+}
+void sv_login_detach_transfer(SvLogin *login)
+{
+    if (login) login->transfer = (SvLoginTransfer){0};
+}
+SvTransferSummary sv_login_transfer_summary(const SvLogin *login)
+{
+    return login && login->transfer.summary ?
+        login->transfer.summary(login->transfer.context) : (SvTransferSummary){0};
+}
+SvLuaResult sv_login_lua_begin_result(const SvLogin *login)
+{
+    return login && login->transfer.begin_result ?
+        login->transfer.begin_result(login->transfer.context) :
+        (SvLuaResult){.status = SV_LUA_NOT_READY};
+}
+SvResult sv_login_upload(SvLogin *login, const char *filename)
+{
+    if (!login || !login->flags_received || !login->transfer.upload) return SV_INVALID;
+    return login->transfer.upload(login->transfer.context, filename);
+}
+SvResult sv_login_tick(SvLogin *login)
+{
+    if (!login) return SV_INVALID;
+    if (login->state == SV_LOGIN_REJECTED || login->state == SV_LOGIN_PEER_QUIT)
+        return SV_OK;
+    SvResult resumed = sv_login_receive(login, NULL, 0);
+    if (resumed != SV_OK) return resumed;
+    if (login->transfer.pump) {
+        SvResult pumped = login->transfer.pump(login->transfer.context);
+        if (pumped != SV_OK && pumped != SV_WAITING) return pumped;
+    }
+    return drain_transfer(login);
 }
 /* A split NUL-terminated wire field must not publish a partial row. */
 static int string(const unsigned char *bytes, size_t size, size_t *at,
@@ -333,7 +387,7 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
                               int16_t class_id, int16_t trait,
                               const int16_t stats[6], const char *font)
 {
-    if (!login || login->state != SV_LOGIN_SELECTED || !login->creating_character ||
+    if (!login || login->state != SV_LOGIN_SELECTED ||
         !stats || !font || strlen(font) > 1023 || race < 0 || class_id < 0 || trait < 0)
         return SV_INVALID;
     /* Baseline Net_start wire order and strict/inclusive version gates. */
@@ -370,6 +424,8 @@ SvResult sv_login_start_play(SvLogin *login, int16_t mode, int16_t race,
     at+=sv_visual_encode(&login->visuals,login->version,true,at);
     SvResult queued = append_output(login, packet, (size_t)(at - packet));
     if (queued == SV_OK) {
+        login->play_wire=sv_login_startup_prefix_config(login);
+        login->play_wire_configured=true;
         sv_report_copy(login->report.font, font);
         login->state = SV_LOGIN_WAIT_PLAY;
     }
@@ -390,11 +446,24 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
     if (size) memcpy(login->input + login->input_size, bytes, size);
     login->input_size += size;
     for (;;) {
+        SvResult drained = drain_transfer(login);
+        if (drained != SV_OK) return drained;
         /* END belongs to startup; the following bytes belong to the live
          * session, even when TCP coalesces both into the same read. Retain
          * them for its owner instead of parsing them as login packets. */
         if (login->play_stream_complete) return SV_OK;
         if (!login->input_size) return SV_OK;
+        if (login->input[0] == PKT_FILE) {
+            if (!login->flags_received || !login->transfer.receive) return SV_DECODE_ERROR;
+            size_t consumed = 0;
+            SvResult received = login->transfer.receive(login->transfer.context,
+                login->input, login->input_size, &consumed);
+            if (received == SV_WAITING) return SV_OK;
+            if (received != SV_OK) return received;
+            if (!consumed || consumed > login->input_size) return SV_DECODE_ERROR;
+            consume(login, consumed);
+            continue;
+        }
         /* The server terminates the successful play reply stream with END. */
         if (login->state == SV_LOGIN_PLAY_ACKNOWLEDGED &&
             login->input[0] == PKT_END) {
@@ -475,6 +544,11 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             if (login->input_size < 17) return SV_OK;
             for (int i = 0; i < 4; ++i) login->flags[i] = get32(login->input + 1 + 4 * i);
             consume(login, 17);
+            login->flags_received = true;
+            if (login->transfer.flags) {
+                SvResult flags = login->transfer.flags(login->transfer.context, login->flags);
+                if (flags != SV_OK) return flags;
+            }
             login->state = SV_LOGIN_WAIT_LIST;
         } else if (login->state == SV_LOGIN_WAIT_LIST) {
             if (login->input[0] != PKT_LOGIN) return SV_DECODE_ERROR;
@@ -540,4 +614,37 @@ SvResult sv_login_receive(SvLogin *login, const void *bytes, size_t size)
             return SV_DECODE_ERROR;
         }
     }
+}
+
+SvStartupPrefixConfig sv_login_startup_prefix_config(const SvLogin *login)
+{
+    SvStartupPrefixConfig config={0};
+    if(!login)return config;
+    if(login->play_wire_configured)return login->play_wire;
+    memcpy(config.version,login->version,sizeof(config.version));
+    config.graphics=(unsigned)login->report.graphics;
+    const int wide[6]={4,8,1,0,0,0}, expanded[6]={4,6,1,2,0,1};
+    const int feature_since[6]={4,9,1,2,0,3};
+    size_t counts[4]={127,sv_visual_atleast(login->version,feature_since)?512:256,
+        sv_visual_atleast(login->version,expanded)?1280:1024,
+        sv_visual_atleast(login->version,expanded)?1280:1152};
+    const SvVisualDefinition *tables[4]={login->visuals.unknown,login->visuals.features,
+        login->visuals.kinds,login->visuals.monsters};
+    uint32_t maximum=0;
+    bool wide_glyphs=sv_visual_atleast(login->version,wide);
+    for(unsigned table=0;table<4;++table)for(size_t i=0;i<counts[table];++i) {
+        uint32_t glyph=tables[table][i].character;
+        if(!wide_glyphs)glyph&=0xff;
+        if(glyph>maximum)maximum=glyph;
+    }
+    for(;maximum;maximum>>=8)++config.char_transfer_bytes;
+    return config;
+}
+
+size_t sv_login_output_capacity(const SvLogin *login)
+{ return login?sizeof(login->output)-login->output_size:0; }
+SvResult sv_login_queue_prepared_output(SvLogin *login,const void *bytes,size_t size)
+{
+    if(!login || !login->play_stream_complete || (size&&!bytes))return SV_INVALID;
+    return size?append_output(login,bytes,size):SV_OK;
 }

@@ -73,6 +73,11 @@ static SvResult handoff_contact_bytes(SvContactSocket *connection, SvSessionWire
 static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
                                 SvSessionWire *wire, SvResult *failure)
 {
+    SvResult progress = sv_login_tick(login);
+    if (progress != SV_OK && progress != SV_BACKPRESSURE) {
+        *failure = progress;
+        return SV_SOCKET_PROTOCOL_ERROR;
+    }
     if (wire->sent == wire->size &&
         SDL_GetTicks() - sv_contact_socket_last_sent(connection) >= 2000u) {
         SvResult keepalive = sv_login_keepalive(login);
@@ -96,6 +101,14 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
         if (sent.result == SV_OK) wire->sent += sent.size;
         else if (sent.result != SV_WAITING) return SV_SOCKET_CLOSED;
     }
+    /* Resume already owned input after output drain, without appending the same
+     * socket bytes again. Backpressure is progress waiting, not malformed input. */
+    progress = sv_login_tick(login);
+    if (progress == SV_BACKPRESSURE) return SV_SOCKET_READY;
+    if (progress != SV_OK) {
+        *failure = progress;
+        return SV_SOCKET_PROTOCOL_ERROR;
+    }
     unsigned char incoming[4096];
     for (int i = 0; i < 4; ++i) {
         if (sv_login_play_stream_complete(login)) break;
@@ -117,6 +130,7 @@ static SvSocketState pump_login(SvContactSocket *connection, SvLogin *login,
         if (received.result == SV_WAITING) break;
         if (received.result != SV_OK) return SV_SOCKET_CLOSED;
         *failure = sv_login_receive(login, incoming, received.size);
+        if (*failure == SV_BACKPRESSURE) { *failure = SV_OK; return SV_SOCKET_READY; }
         if (*failure != SV_OK)
             return SV_SOCKET_PROTOCOL_ERROR;
     }
@@ -335,6 +349,7 @@ bool sv_login_flow_begin(SvLoginFlow *flow, const char *profile_root,
     /* Every connection gets fresh attempt state, including after Back. */
     if (flow->attempt.connection || flow->attempt.birth || flow->attempt.preferences) return false;
     memset(&flow->attempt, 0, sizeof(flow->attempt));
+    flow->attempt.lua_begin_result.status = SV_LUA_NOT_READY;
     flow->profile_root = profile_root;
     flow->first_run = first_run;
     flow->font_resource = font_resource;
@@ -377,6 +392,16 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             flow->attempt.login = sv_login_create(sv_contact_socket_version(flow->attempt.connection), flow->attempt.iaddr);
             if (!flow->attempt.login) { flow->attempt.session_error = SV_NO_MEMORY; flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR; }
             else {
+                if (flow->options.transfer_factory.create) {
+                    if (!flow->options.transfer_factory.create(
+                            flow->options.transfer_factory.context, flow->generation,
+                            sv_login_version(flow->attempt.login), &flow->attempt.transfer) ||
+                        sv_login_attach_transfer(flow->attempt.login, flow->attempt.transfer) != SV_OK) {
+                        flow->attempt.session_error = SV_NO_MEMORY;
+                        flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
+                        return;
+                    }
+                }
                 if (flow->options.audio)
                     sv_login_set_audio(flow->attempt.login, flow->options.audio);
                 if (flow->options.map_font)
@@ -478,11 +503,35 @@ void sv_login_flow_poll(SvLoginFlow *flow)
                 /* Packet generation follows the character overlay, before birth
                  * or play setup. Retry gets a fresh copy of the global snapshot. */
                 flow->attempt.session_error = sv_login_set_options(flow->attempt.login, &current);
-                if (flow->attempt.session_error == SV_OK)
-                    flow->attempt.session_error = sv_login_send_options(flow->attempt.login);
+                /* The pre-PLAY server dispatcher accepts PLAY, not standalone
+                 * OPTIONS. Retain effective values for the options embedded in
+                 * that common serializer (baseline Net_start clears its queue). */
                 if (flow->attempt.session_error != SV_OK)
                     flow->attempt.state = SV_SOCKET_PROTOCOL_ERROR;
                 else flow->attempt.settings_applied = true;
+            }
+        }
+        if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login &&
+            flow->attempt.settings_applied && !flow->attempt.play_started &&
+            !sv_login_creating_character(flow->attempt.login) &&
+            sv_login_state(flow->attempt.login)==SV_LOGIN_SELECTED &&
+            sv_login_interaction_complete(&flow->attempt.login_input)) {
+            const SvLoginCharacter *selected=sv_login_selected_character(flow->attempt.login);
+            const int16_t stats[6]={0};
+            flow->attempt.session_error=sv_login_start_play(flow->attempt.login,
+                selected->mode,selected->race,selected->class_id,0,stats,
+                flow->options.map_font?flow->options.map_font->effective:"");
+            if(flow->attempt.session_error==SV_OK)flow->attempt.play_started=true;
+            else if(flow->attempt.session_error!=SV_BACKPRESSURE)flow->attempt.state=SV_SOCKET_PROTOCOL_ERROR;
+        }
+        if(flow->attempt.settings_applied && !flow->preparation && flow->attempt.login) {
+            flow->preparation=sv_preparation_create(flow);
+            if(!flow->preparation){flow->attempt.session_error=SV_NO_MEMORY;flow->attempt.state=SV_SOCKET_PROTOCOL_ERROR;}
+        }
+        if(flow->preparation && flow->attempt.state==SV_SOCKET_READY) {
+            SvResult prepared=sv_preparation_poll(flow->preparation);
+            if(prepared!=SV_OK && prepared!=SV_WAITING && prepared!=SV_BACKPRESSURE) {
+                flow->attempt.session_error=prepared;flow->attempt.state=prepared==SV_CLOSED?SV_SOCKET_CLOSED:SV_SOCKET_PROTOCOL_ERROR;
             }
         }
         if (flow->attempt.state == SV_SOCKET_READY && flow->attempt.login) {
@@ -629,7 +678,10 @@ void sv_login_flow_poll(SvLoginFlow *flow)
                                                            flow->attempt.failure_status,
                                                            sizeof(flow->attempt.failure_status));
         } else if (flow->attempt.play_started && flow->attempt.state == SV_SOCKET_CLOSED)
-            flow->attempt.status = "Error reading play reply";
+            flow->attempt.status = flow->preparation && flow->preparation->view.failure_reason[0]?
+                flow->preparation->view.failure_reason:"Error reading play reply";
+        else if(flow->preparation && flow->preparation->view.failure_reason[0])
+            flow->attempt.status=flow->preparation->view.failure_reason;
         else flow->attempt.status = flow->attempt.session_error != SV_OK ?
             (flow->attempt.play_started && flow->attempt.login && sv_login_reason(flow->attempt.login)[0] ?
              sv_login_reason(flow->attempt.login) : sv_result_text(flow->attempt.session_error)) : contact_status(flow->attempt.state, flow->attempt.rejection, &flow->endpoint, flow->attempt.connection_failure,
@@ -679,6 +731,15 @@ void sv_login_flow_poll(SvLoginFlow *flow)
             }
         }
 }
+static void close_transfer_attempt(SvLoginFlow *flow)
+{
+    if (!flow->attempt.transfer.context) return;
+    flow->attempt.transfer_result = sv_login_transfer_summary(flow->attempt.login);
+    flow->attempt.lua_begin_result = sv_login_lua_begin_result(flow->attempt.login);
+    sv_login_detach_transfer(flow->attempt.login);
+    if (flow->options.transfer_factory.destroy)
+        flow->options.transfer_factory.destroy(&flow->attempt.transfer);
+}
 void sv_login_flow_finish_tick(SvLoginFlow *flow)
 {
         if (flow->attempt.state == SV_SOCKET_READY) {
@@ -707,6 +768,7 @@ void sv_login_flow_finish_tick(SvLoginFlow *flow)
             if (!flow->attempt.reported_failure) fprintf(stderr, "SV contact failed: %s (status=%u)\n",
                                            flow->attempt.status, flow->attempt.rejection);
             flow->attempt.reported_failure = true;
+            close_transfer_attempt(flow);
             if (flow->attempt.connection) { sv_contact_socket_stop(flow->attempt.connection); flow->attempt.connection = NULL; }
             if (flow->options.retry_login_disabled && flow->attempt.character_name_rejected) flow->attempt.finished = true;
             if (flow->options.frames) flow->attempt.finished = true;
@@ -714,6 +776,8 @@ void sv_login_flow_finish_tick(SvLoginFlow *flow)
 }
 void sv_login_flow_end_attempt(SvLoginFlow *flow)
 {
+    if(flow->preparation && flow->preparation->moved)return;
+    if(flow->preparation) { SvSessionPreparation *p=flow->preparation;flow->preparation=NULL;p->owner=NULL;sv_session_preparation_destroy(p); }
     SvBirthSnapshot birth_snapshot;
     sv_birth_snapshot_prepare(&birth_snapshot, flow->attempt.birth);
     if (flow->attempt.save) {
@@ -723,9 +787,14 @@ void sv_login_flow_end_attempt(SvLoginFlow *flow)
     }
     if (flow->attempt.result == SV_CONTACT_SCENE_BACK)
         (void)sv_pregame_disconnect(&flow->attempt.pregame, flow->generation, "Returned to server selection.");
+    close_transfer_attempt(flow);
     publish_outcome(&flow->attempt.pregame, flow->options.outcome, flow->prior_generation,
                     flow->attempt.credential_save, &flow->attempt.name_evidence, &flow->recovery,
                     flow->attempt.birth_started ? &birth_snapshot : NULL, &flow->attempt.birth_placeholder);
+    if (flow->options.outcome) {
+        flow->options.outcome->transfers = flow->attempt.transfer_result;
+        flow->options.outcome->lua_begin = flow->attempt.lua_begin_result;
+    }
     if (flow->attempt.birth_started) {
         /* Preserve the last interaction owner in the outcome, but report the
          * generation's actual lifetime after endpoint teardown. */
@@ -767,6 +836,7 @@ void sv_login_flow_end_attempt(SvLoginFlow *flow)
 
 SvLoginFlow *sv_login_flow_create(SvEndpointOptions options)
 {
+    if (options.transfer_factory.create && !options.transfer_factory.destroy) return NULL;
     SvLoginFlow *flow = SDL_calloc(1, sizeof(*flow));
     if (flow) {
         flow->options = options;
@@ -787,6 +857,7 @@ SvLoginFlow *sv_login_flow_create(SvEndpointOptions options)
 void sv_login_flow_destroy(SvLoginFlow *flow)
 {
     if (!flow) return;
+    if(flow->preparation && flow->preparation->moved)return;
     if (flow->attempt.connection || flow->attempt.birth || flow->attempt.preferences) sv_login_flow_end_attempt(flow);
     volatile char *password = flow->password;
     for (size_t i = 0; i < sizeof(flow->password); ++i) password[i] = 0;
@@ -990,4 +1061,43 @@ void sv_login_flow_command(SvLoginFlow *flow, SvLoginFlowCommand command)
     case SV_LOGIN_FLOW_EDIT_NAME:
         sv_login_flow_birth_result(flow, SV_BIRTH_INPUT_BACK_TO_NAME); break;
     }
+}
+
+const SvSessionPreparation *sv_login_flow_preparation(const SvLoginFlow *flow)
+{ return flow?flow->preparation:NULL; }
+SvSessionPreparation *sv_login_flow_take_preparation(SvLoginFlow *flow)
+{
+    if(!flow || !flow->preparation || flow->preparation->moved ||
+       flow->attempt.state!=SV_SOCKET_READY || !flow->attempt.connection ||
+       !flow->preparation->view.startup_complete)return NULL;
+    SvSessionPreparation *p=flow->preparation;p->moved=true;
+    SvBirthSnapshot birth_snapshot;
+    sv_birth_snapshot_prepare(&birth_snapshot,flow->attempt.birth);
+    publish_outcome(&flow->attempt.pregame,flow->options.outcome,flow->prior_generation,
+        flow->attempt.credential_save,&flow->attempt.name_evidence,&flow->recovery,
+        flow->attempt.birth_started?&birth_snapshot:NULL,&flow->attempt.birth_placeholder);
+    if(flow->options.outcome) {
+        flow->options.outcome->transfers=sv_login_transfer_summary(flow->attempt.login);
+        flow->options.outcome->lua_begin=sv_login_lua_begin_result(flow->attempt.login);
+    }
+    /* No later authentication operation belongs to this prepared connection. */
+    memset(flow->password,0,sizeof(flow->password));
+    flow->options.password=NULL;flow->options.account=NULL;flow->options.invocation=NULL;
+    flow->options.preferences=p->application;
+    flow->options.settings=sv_preferences_options(p->application);
+    flow->options.audio=&p->view.audio;
+    flow->options.root=p->root;flow->options.library=p->library;flow->profile_root=p->root;
+    flow->options.map_font=&p->resources.map_font;
+    flow->options.graphics_tiles=p->resources.effective_tiles;
+    flow->options.graphics_owner=p->graphics;
+    flow->options.client_config=NULL;
+    flow->options.effective_text_font=p->resources.effective_text_font;
+    flow->options.server=flow->options.server_list=flow->options.metaserver=NULL;
+    flow->options.source_poll=NULL;flow->options.source_context=NULL;
+    flow->options.selected_endpoint=NULL;
+    flow->options.real_name=flow->options.character=NULL;
+    flow->options.startup_argv=NULL;flow->options.startup_argc=0;
+    flow->options.shell=(SvLoginShellOptions){0};flow->font_resource=NULL;
+    flow->options.outcome=NULL;flow->options.preparation=NULL;
+    return p;
 }

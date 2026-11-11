@@ -1,8 +1,10 @@
 # SV-C011-003 — Lua startup: реальные features и preparation/handoff
 
-Статус: planned, 2026-11-10.
-Labels: enhancement, ready-for-agent
-Owned IDs: 0 новых IDs; обязательная интеграция принятого C009.
+Статус: **accepted** — Linux preparation/core, 2026-11-11, по решению пользователя.
+Labels: enhancement
+Owned IDs: `capability.session.transfer-startup-files`,
+`capability.session.startup-file-failure` (6 obligations); новых IDs нет.
+Также обязательная интеграция принятого C009.
 Зависимости: production C009 runtime/reload, C010 transfer result contract,
 preparation/handoff C011-001/002; actual live adoption/teardown выполняет C014.
 
@@ -15,11 +17,17 @@ C009 и SV-C009-001–003 завершены и приняты пользова�
 [API runtime](../../../src/client/sv/lua/runtime.h) и
 [API completion](../../../src/client/sv/lua/reload.h).
 
-`login/native-run.c` уже владеет application `SvLuaReload` и вызывает
-`sv_lua_reload_init` для ранних xml/meta/audio/guide/activations. Реальные server
-features, session open/c-init и их handoff там пока отсутствуют. `login/flow.c`
-сохраняет server flags в outcome; источник и version/build branches сверить с
-`nclient.c` (flags перед `open_lua`) и `c-script.c:set_server_features`.
+После принятого C010 `transfer/startup.c` уже получает настоящие decoded flags,
+строит `SvLuaFeatures`, однократно вызывает begin; каждый END синхронно
+потребляет completion, summary сохраняет ранние failures. `flow.c` копирует begin
+и summary в outcome. Использовать `SvLoginTransfer`,
+`sv_login_lua_begin_result` и `sv_login_transfer_summary` без второго begin,
+reload или FILE decoder. Ранний init result пока локален native runner.
+
+Оставшийся gap: copied outcome не сохраняет runtime. `close_transfer_attempt`
+уничтожает attachment, а `transfer/startup.c` вызывает `sv_lua_reload_close`,
+очищая runtime/Guide. Preparation payload должен быть готов до этого teardown;
+successful preparation сохраняет передаваемый owner, cancel/failure закрывает его.
 
 Нормативны [CONTEXT](../../../CONTEXT.md), ADR
 [0002](../../adr/0002-main-thread-state-ownership.md),
@@ -35,14 +43,14 @@ features, session open/c-init и их handoff там пока отсутству
    признаки accepted INIT. Не создавать второй interpreter или parser. Ранний
    `init` не означает успешный session `open`; штатное пересоздание state внутри
    `sv_lua_reload_begin` допустимо и не сбрасывает application flags.
-2. Из реально полученных version-aware server flags собрать `SvLuaFeatures`
-   (`rpg/arcade/fun/party/test`, raw temporary mask) и вызвать production
+2. Принять результат существующего C010 пути: реальные version-aware flags →
+   `SvLuaFeatures` (`rpg/arcade/fun/party/test`, raw temporary mask) →
    `sv_lua_reload_begin(owner, generation, features)` в baseline startup порядке
-   до зависимых Lua consumers. Отсутствующие данные не подменять нулевыми
+   до зависимых Lua consumers. Не вызывать begin второй раз из preparation. Отсутствующие данные не подменять нулевыми
    fixture/default flags; legacy default применим только там, где его задаёт
    конкретная protocol/version branch. Сохранить provenance/version/generation.
 3. Подключить к preparation результаты [C010](../c010/README.md): каждый END
-   синхронно потребляется через `sv_lua_reload_take` до следующего END, включая
+   уже синхронно потребляется C010 через `sv_lua_reload_take` до следующего END, включая
    chained packets. C010 сохраняет результат каждого transfer и runtime/Guide
    failure в передаваемом startup aggregate; latest-result slot coordinator не
    является историей. Успех следующего END не стирает прежнюю ошибку.
@@ -91,3 +99,54 @@ conditions, prerequisites и pending registry statuses не менять. Eviden
 Только необходимый минимум Linux production checks по [AGENTS](../../../AGENTS.md);
 расширение согласовать заранее. Windows/MinGW/Wine deferred. Реализация и приёмка
 этой связки не заявлены; подготовка задачи не требует запуска runtime tests.
+
+## Актуализация readiness — 2026-11-11
+
+Пункты о flags/begin/END выше означают подключение уже работающего C010 пути
+к C011 decision/payload, а не повторную реализацию. Передавать early init result,
+version/feature provenance, begin, transfer summary, текущую пригодность runtime
+и применимую Guide validity. История ошибок и текущая readiness различаются:
+успешный последующий reload может восстановить runtime, сохранив initial failure;
+он не стирает file failure. Optional degradation не равно закрытию приложения,
+зависимый обязательный consumer не получает stale state как успешную подготовку.
+
+Проверить startup completion до readiness: PLAY_ACKNOWLEDGED недостаточно,
+нужен завершённый startup stream с END. `sv_login_start_play` сейчас допускает
+только creating-character branch. Реализовать actual existing-character
+preparation caller/PLAY branch; existing и committed birth должны использовать
+общий production serializer и достигать одной preparation boundary. Сохранить
+baseline порядок reports/options/PLAY и актуальные effective resources.
+Описания интерфейса без достижимого production caller недостаточно. Это не
+принимает `session.enter-game`: adoption и полноценный live loop остаются C014.
+
+Readiness должна явно учитывать: startup stream завершён; нет active transfers
+или незавершённой обязательной подготовки; текущий runtime пригоден для нужных
+зависимых consumers; обязательные output/ACK bytes отправлены либо удержаны
+явным owner с offset/order. Факт успешного queue не означает доставки peer.
+История failures передаётся отдельно; готовность транспорта к передаче owner
+не подменяет успешность обновления файлов или полной identity-dependent подготовки.
+
+Необходимые failure/readiness cases объединить с production check 001/006.
+Успешный C010 native flow подтверждает flags/begin/aggregate, но не lifetime
+нового C011 payload. Snapshot сохраняет все шесть canonical obligations.
+
+В уже предусмотренном combined failure case проверить initial open failure →
+исправленный файл/успешный reload: текущий runtime становится usable, initial
+failure остаётся видимой. Failed publication → successful reload сохраняет
+transfer ERR/failed-update result. Нельзя принимать по одному summary counter
+ни вечную неготовность восстановленного runtime, ни успех ошибочного обновления.
+
+## Comments
+
+2026-11-11 — реализация и проверка по запросу пользователя. Existing и committed-birth используют общий PLAY serializer. Preparation принимает actual C010 flags/results, раздельную readiness/history и удерживает Lua owner. Post-END FILE обслуживает тот же C010 registry; future async CHECK/INIT продолжаются public receive_file/pump. Нет придуманного CHECK completion timer. Failure/repair/cancel/retry проверены.
+
+[Финальное evidence, команды и ограничения](../../sv-c011-evidence.md).
+Пользовательская приёмка не заявлена; Windows проверки отложены.
+
+
+2026-11-11 — follow-up по запросу пользователя закрыть оставшиеся проверки самого C011. Дополнительный isolated actual-server startup подтвердил PLAY/reply/END, сохранение текущего runtime и complete payload. Необходимый preceding prefix удерживается без поздних consumers; FILE продолжает прежний C010 owner. Полный live lifecycle не переносился в C011.
+
+Результаты и границы — [обновлённое evidence](../../sv-c011-evidence.md). Работы следующих этапов не выполнялись.
+
+
+2026-11-11 — пользователь явно принял C011 и задачи 001–006 в проверенных границах Linux preparation/core. Задача завершена; [решение о приёмке](../../sv-stage-c011-acceptance.md). Исторические записи выше отражают состояние до приёмки; поздние obligations и canonical runtime statuses не повышаются автоматически.

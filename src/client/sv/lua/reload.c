@@ -154,6 +154,9 @@ bool sv_lua_reload_take(SvLuaReload *owner, SvLuaCompletion *result)
     return true;
 }
 
+bool sv_lua_reload_guide_required(const SvLuaReload *owner)
+{ return owner && owner->active && owner->updated_guide && owner->completion.reload_attempted; }
+
 bool sv_lua_reload_guide_valid(const SvLuaReload *owner)
 { return owner && owner->guide_valid; }
 

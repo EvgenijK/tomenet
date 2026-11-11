@@ -1085,14 +1085,17 @@ bool sv_endpoint_render(SDL_Renderer *renderer, SvFont *font,
         return b2_birth(renderer,endpoint,input,metrics);
     if(!input->temporary_surface_text && !input->contact_failed && input->login_view && (input->login_view->overview || input->login_view->ordinary_name_entry))
         return b2_characters(renderer,font,endpoint,input);
-    if(!input->temporary_surface_text && input->login_view && input->login_view->live_handoff) {
+    if(!input->temporary_surface_text && !input->contact_failed &&
+       (input->preparation_identity || (input->login_view && input->login_view->live_handoff))) {
         if(!sv_login_shell_render(renderer,endpoint,input))return false;
         int w,h;if(!SDL_GetCurrentRenderOutputSize(renderer,&w,&h))return false;
         float scale=sv_login_ui_scale(SDL_GetRenderWindow(renderer));if(scale<=0)scale=1;
         SvLoginLayout l=sv_login_layout(w/scale,h/scale,0,0);
         SvLoginRect card={l.panel.x+24,l.panel.y+24,l.panel.w-48,l.panel.h-48};
-        return b2_state_frame(renderer,l.panel,card,SV_STUB_LIVE_HANDOFF_TITLE,scale,false) &&
-            b2_wrap(renderer,SV_STUB_LIVE_HANDOFF_TEXT,(SvLoginRect){card.x+22,card.y+74,card.w-44,0},15,scale,b2_normal);
+        return b2_state_frame(renderer,l.panel,card,input->preparation_identity?
+                "Session preparation":SV_STUB_LIVE_HANDOFF_TITLE,scale,false) &&
+            b2_wrap(renderer,input->preparation_identity?input->contact_status:SV_STUB_LIVE_HANDOFF_TEXT,
+                (SvLoginRect){card.x+22,card.y+74,card.w-44,0},15,scale,b2_normal);
     }
     if (endpoint->phase == SV_ENDPOINT_LIST && !input->temporary_surface_text)
         return sv_login_shell_render(renderer, endpoint,input);

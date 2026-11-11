@@ -241,6 +241,28 @@ native early startup прошли. Actual C010/C011/C014 consumers остают�
 переоткрывают C009 автоматически. Pending flows не получают PASS;
 canonical runtime registration остаётся отдельным workflow.
 
+C010: [полный план и задачи](tasks/c010/README.md),
+[baseline и границы переноса](tasks/c010/source-contract.md).
+Пять transfer outcomes, включая upload core и интеграцию принятого Lua owner C009,
+реализованы в текущем Linux startup/core 2026-11-10. Production build и связанная
+core-проверка прошли: [evidence и disposition 20 obligations](sv-c010-evidence.md).
+Пользователь [принял C010 и задачи 001–006](sv-stage-c010-acceptance.md)
+2026-11-11 в проверенных границах Linux startup/core. Pending faults и
+C011/C014/C041 consumers не получают PASS; canonical allocation/statuses сохраняются.
+
+C011: [полный план и задачи 001–006](tasks/c011/README.md),
+[baseline/source contract](tasks/c011/source-contract.md),
+[planning snapshot пяти outcomes / 18 obligations](tasks/c011/coverage.json).
+Реализован и проверен Linux preparation/core 2026-11-11: profile/resources,
+controls/handoff contract, startup readiness/failure, accepted identity/prefix и
+redraw. [Evidence всех 18 obligations](sv-c011-evidence.md): 11 native core
+cases, production build и isolated actual-server startup/visual check прошли.
+Оставшиеся собственные проверки C011 закрыты, найденные дефекты исправлены.
+[C011 принят пользователем](sv-stage-c011-acceptance.md) 2026-11-11, включая задачи
+001–006 в проверенных границах preparation/core. Actual live adoption остаётся
+C014, canonical allocation и pending runtime statuses сохранены.
+
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой

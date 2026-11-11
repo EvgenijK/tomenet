@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/home/svechnik/Projects/tomenet_modern_client/src/tomenet.server",
+    "-z",
+    "-m/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/config/tomenet.cfg"
+  ],
+  "cwd": "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02",
+  "TOMENET_PATH": "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib",
+  "binarySha256": "7f3d1257cbee8acbf7f432eac01044afd301ab0554b645da288ff3cf88e080ba",
+  "networkNamespace": "net:[4026533977]",
+  "parentNetworkNamespace": "net:[4026531833]",
+  "originalSaveOrDataCopied": false,
+  "externalNetworkAvailable": false,
+  "listeningLoopback": true,
+  "exitBeforeStop": null,
+  "listeningSockets": "State  Recv-Q Send-Q Local Address:Port  Peer Address:Port\nLISTEN 0      5            0.0.0.0:23650      0.0.0.0:*\nLISTEN 0      5            0.0.0.0:23648      0.0.0.0:*\nLISTEN 0      5            0.0.0.0:23649      0.0.0.0:*\n",
+  "clientCommand": [
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-client",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/profile",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib"
+  ],
+  "clientExitCode": -6,
+  "exitCode": -15
+}

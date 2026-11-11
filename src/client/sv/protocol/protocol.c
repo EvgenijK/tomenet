@@ -15,6 +15,66 @@
 #include "protocol/key-request.h"
 #include "protocol/protocol.h"
 #include "protocol/resource-report.h"
+#include "protocol/character-identity.h"
+static int identity_compare(const int version[6], const int threshold[6])
+{
+    for (unsigned i = 0; i < 6; ++i)
+        if (version[i] != threshold[i]) return version[i] > threshold[i] ? 1 : -1;
+    return 0;
+}
+static uint16_t identity_get16(const unsigned char *p)
+{ return (uint16_t)((uint16_t)p[0] << 8 | p[1]); }
+SvResult sv_character_identity_decode(const int version[6], const void *bytes,
+    size_t available, SvCharacterIdentity *out, size_t *consumed)
+{
+    if (!consumed) return SV_INVALID;
+    *consumed = 0;
+    if (!version || !out || (available && !bytes)) return SV_INVALID;
+    if (!available) return SV_WAITING;
+    const unsigned char *p = bytes;
+    if (p[0] != PKT_CHAR_INFO) return SV_DECODE_ERROR;
+    const int modern_since[6] = {4,9,2,1,0,1}, lives_since[6] = {4,7,3,0,0,0};
+    const int name_after[6] = {4,5,2,0,0,0}, trait_after[6] = {4,4,5,10,0,0};
+    bool modern = identity_compare(version, modern_since) >= 0;
+    SvCharacterIdentity next = {.available = true, .lives = -1,
+        .trait_available = identity_compare(version, trait_after) > 0,
+        .lives_available = identity_compare(version, lives_since) >= 0,
+        .name_available = identity_compare(version, name_after) > 0};
+    size_t fixed = 1 + 2 * (next.trait_available ? 5u : 4u) +
+        (modern ? 2u : 0u) + (next.lives_available ? 2u : 0u);
+    if (available < fixed) return SV_WAITING;
+    size_t at = 1;
+    next.race = (int16_t)identity_get16(p + at); at += 2;
+    next.class_id = (int16_t)identity_get16(p + at); at += 2;
+    if (next.trait_available) { next.trait = (int16_t)identity_get16(p + at); at += 2; }
+    next.sex = (int16_t)identity_get16(p + at); at += 2;
+    next.wire_mode = identity_get16(p + at); at += 2;
+    if (modern) { next.wire_mode = next.wire_mode << 16 | identity_get16(p + at); at += 2; }
+    if (next.lives_available) { next.lives = (int16_t)identity_get16(p + at); at += 2; }
+    if (next.name_available) {
+        size_t count = available - at;
+        if (count > sizeof(next.name)) count = sizeof(next.name);
+        const unsigned char *end = memchr(p + at, 0, count);
+        if (!end) return count == sizeof(next.name) ? SV_DECODE_ERROR : SV_WAITING;
+        size_t length = (size_t)(end - (p + at));
+        memcpy(next.name, p + at, length);
+        at += length + 1;
+    }
+    uint32_t mode = next.wire_mode;
+    next.mode = modern ? mode : mode & 0xff;
+    next.admin_wiz = (mode & (modern ? MODE_ADMIN_WIZ : 0x0400)) != 0;
+    next.admin_dm = (mode & (modern ? MODE_ADMIN_DM : 0x0800)) != 0;
+    next.privileged = (mode & (modern ? MODE_VPRIVILEGED : 0x2000)) ? 2 :
+        (mode & (modern ? MODE_PRIVILEGED : 0x1000)) ? 1 : 0;
+    next.restricted = (mode & (modern ? MODE_VRESTRICTED : 0x8000)) ? 2 :
+        (mode & (modern ? MODE_RESTRICTED : 0x4000)) ? 1 : 0;
+    next.fruit_bat = (mode & MODE_FRUIT_BAT) != 0;
+    if (!sv_character_identity_validate(&next, NULL)) return SV_DECODE_ERROR;
+    *out = next;
+    *consumed = at;
+    return SV_OK;
+}
+
 static void queue_bytes(SvProtocol *protocol, const unsigned char *bytes, size_t size);
 struct SvProtocol {
     version_type version;
@@ -108,12 +168,42 @@ SvResult sv_protocol_receive(SvProtocol *p, const void *bytes, size_t size)
     p->input.len += size;
     return SV_OK;
 }
+bool sv_protocol_supports_packet(unsigned char type)
+{
+    switch (type) {
+    case PKT_VERSION: case PKT_HP: case PKT_MESSAGE: case PKT_REQUEST_KEY:
+    case PKT_REQUEST_ABORT: case PKT_KEEPALIVE: case PKT_END: case PKT_KEYPRESS:
+    case PKT_PAUSE: case PKT_FLUSH: case PKT_CONFIRM: case PKT_SFLAGS:
+    case PKT_PING: case PKT_CHAR_INFO: return true;
+    default: return false;
+    }
+}
+SvResult sv_protocol_redraw(SvProtocol *p)
+{
+    if (!p) return SV_INVALID;
+    if (sv_protocol_output_capacity(p) < 2) return SV_BACKPRESSURE;
+    const unsigned char bytes[2] = {PKT_REDRAW, 0};
+    queue_bytes(p, bytes, sizeof(bytes));
+    return SV_OK;
+}
 SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
 {
     sockbuf_t *in = &p->input;
     if (!in->len) return SV_WAITING;
     unsigned char type = (unsigned char)*in->ptr;
     switch (type) {
+    case PKT_CHAR_INFO: {
+        size_t consumed = 0;
+        SvCharacterIdentity identity;
+        SvResult result = sv_character_identity_decode(p->report_version, in->ptr,
+            (size_t)(in->len - (in->ptr - in->buf)), &identity, &consumed);
+        if (result != SV_OK) return result;
+        change->kind = SV_CHANGE_IDENTITY;
+        change->identity = identity;
+        p->previous_type = type;
+        Sockbuf_advance(in, (int)consumed);
+        return SV_OK;
+    }
     case PKT_VERSION: {
         unsigned char packet[1024];
         size_t size = sv_report_version(&p->report, p->report_version, p->ping_samples, packet);

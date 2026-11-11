@@ -36,6 +36,7 @@ const SvLuaCompletion *sv_lua_reload_completion(const SvLuaReload *);
 bool sv_lua_reload_take(SvLuaReload *, SvLuaCompletion *);
 /* Borrowed until mutation/close. NULL means absent or failed metadata rebuild. */
 bool sv_lua_reload_guide_valid(const SvLuaReload *);
+bool sv_lua_reload_guide_required(const SvLuaReload *);
 size_t sv_lua_reload_guide_count(const SvLuaReload *, SvLuaGuideKind);
 const char *sv_lua_reload_guide_entry(const SvLuaReload *, SvLuaGuideKind, size_t);
 const SvLuaRuntime *sv_lua_reload_runtime(const SvLuaReload *);

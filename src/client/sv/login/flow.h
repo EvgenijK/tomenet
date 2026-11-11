@@ -2,6 +2,7 @@
 #define SV_LOGIN_FLOW_H
 #include "login/options.h"
 #include "login/login-view.h"
+#include "login/preparation.h"
 typedef struct SvLoginFlow SvLoginFlow;
 /* All mutation is on the main thread. View borrows last until the next mutation. */
 typedef struct {
@@ -28,6 +29,9 @@ SvLoginFlowStep sv_login_flow_credentials_result(SvLoginFlow *flow, SvLoginCrede
 SvLoginFlowStep sv_login_flow_next(SvLoginFlow *flow);
 SvLoginFlow *sv_login_flow_create(SvEndpointOptions options);
 void sv_login_flow_destroy(SvLoginFlow *flow);
+const SvSessionPreparation *sv_login_flow_preparation(const SvLoginFlow *);
+/* Returns once after startup END; resources remain owned until destroy. */
+SvSessionPreparation *sv_login_flow_take_preparation(SvLoginFlow *);
 /* Begins a generation only after the previous attempt has been torn down.
  * The module's native adapter tears down after exit/error/retry. Only the flow's
  * recovery draft survives retry; views expire on poll, command, or teardown.

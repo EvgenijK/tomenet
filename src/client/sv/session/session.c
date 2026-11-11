@@ -22,6 +22,8 @@ struct SvSession {
     SvControlState controls;
     SvContactSetup *character_setup;
     SvPingTelemetry ping;
+    SvCharacterIdentity identity;
+    char identity_name[SV_CONTACT_NAME_CAPACITY];
 };
 SvSession *sv_session_create(void)
 {
@@ -49,6 +51,14 @@ const SvContactSetup *sv_session_character_setup(const SvSession *s)
 {
     return s ? s->character_setup : NULL;
 }
+SvResult sv_session_set_identity_name(SvSession *s, const char *name)
+{
+    if (!s || !name || strlen(name) >= sizeof(s->identity_name)) return SV_INVALID;
+    memcpy(s->identity_name, name, strlen(name) + 1);
+    return SV_OK;
+}
+SvCharacterIdentity sv_session_identity(const SvSession *s)
+{ return s ? s->identity : (SvCharacterIdentity){0}; }
 SvStatus sv_session_status(const SvSession *s)
 {
     SvStatus view = {s->player.mhp, s->player.chp, s->drain,
@@ -108,6 +118,18 @@ SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
     SvStatus status = sv_session_status(s);
     SvSessionChange applied = {.result = SV_OK, .status = {status, status}};
     switch (change->kind) {
+    case SV_CHANGE_IDENTITY: {
+        if (!sv_character_identity_validate(&change->identity, s->character_setup)) {
+            applied.result = SV_DECODE_ERROR;
+            break;
+        }
+        SvCharacterIdentity identity = change->identity;
+        identity.revision = s->identity.revision + 1;
+        if (!identity.name_available)
+            memcpy(identity.name, s->identity_name, sizeof(identity.name));
+        s->identity = identity;
+        break;
+    }
     case SV_CHANGE_HP: applied.status = apply_hp(s, change->hp); break;
     case SV_CHANGE_MESSAGE:
         applied.result = apply_message(s, &change->message);

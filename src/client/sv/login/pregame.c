@@ -150,7 +150,6 @@ SvResult sv_pregame_sync_login(SvPregame *pregame, uint64_t generation,
         return SV_OK;
     }
     if (state == SV_LOGIN_WAIT_PLAY) {
-        if (!sv_login_creating_character(login)) return SV_INVALID;
         bool changed = publish_overview(pregame, login, setup);
         transition(pregame, SV_PREGAME_PLAY_PENDING, changed);
         return SV_OK;

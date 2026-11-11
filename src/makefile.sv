@@ -49,6 +49,9 @@ SV_CLIENT_OBJECTS += ui/font-selection.o ui/resource-preparation.o ui/font-edito
 SV_CLIENT_OBJECTS += settings/graphics.o session/map.o ui/map-renderer.o session/map-effects.o protocol/rendering.o
 SV_CLIENT_OBJECTS += ui/native-controls.o
 SV_CLIENT_OBJECTS += lua/runtime.o lua/constants.o lua/reload.o
+SV_CLIENT_OBJECTS += transfer/transfer.o transfer/startup.o
+SV_CLIENT_OBJECTS += login/preparation.o settings/startup-ins.o
+SV_CLIENT_OBJECTS += protocol/startup-prefix.o
 # Existing Lua 4 engine, compiled into this SV build directory only.
 SV_LUA_NAMES := lapi lcode ldebug ldo lfunc lgc llex lmem lobject lparser lstate lstring ltable ltm lundump lvm lzio lauxlib lbaselib ldblib lstrlib
 SV_LUA_OBJECTS := $(addprefix $(SV_OUT)/lua-engine/,$(addsuffix .o,$(SV_LUA_NAMES)))
@@ -90,4 +93,14 @@ $(SV_OUT)/lua-engine/%.o: server/lua/%.c makefile.sv | check-deps
 $(SV_OUT)/$(SV_NAME): $(SV_OBJECTS)
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
 	@printf '%s\n' 'build=$(PLATFORM)-$(SV_KEY)' 'compiler=$(SV_CC)' '$(shell $(SV_CC) --version | head -1)' 'cflags=$(SV_CFLAGS)' 'ldflags=$(LDFLAGS)' 'libs=$(SV_LIBS)' 'dependencies=$(SV_DEPS)' 'core_platform=$(SV_CORE_PLATFORM)' 'features=synthetic-peer,hp,messages,text,endpoint-input,metaserver,physical-route;game-contact=credential-stdin,credential-ui;gameplay=off;audio=startup-only;terminal=absent' > $(SV_OUT)/build.txt
+# Focused native check reuses the actual production closure, with its own main.
+.PHONY: sv-first-session-check
+sv-first-session-check: $(SV_OUT)/checks/first-session
+	@echo "SV_FIRST_SESSION_CHECK=$(abspath $<)"
+$(SV_OUT)/checks/first-session.o: ../tests/sv/first-session.c makefile.sv | check-deps
+	@mkdir -p $(dir $@)
+	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -DSV_C011_TEST_WRAPPERS -Wno-deprecated-non-prototype -MMD -MP -c $< -o $@
+$(SV_OUT)/checks/first-session: $(SV_OUT)/checks/first-session.o $(filter-out $(SV_OUT)/main.o,$(SV_OBJECTS))
+	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections -Wl,--wrap=sv_endpoint_draw -Wl,--wrap=sv_native_controls_step -Wl,--wrap=sv_native_input -Wl,--wrap=SDL_RenderPresent $^ $(SV_LIBS) -o $@
+-include $(SV_OUT)/checks/first-session.d
 -include $(SV_OBJECTS:.o=.d)

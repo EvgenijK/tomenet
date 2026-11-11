@@ -85,6 +85,8 @@ static void release_session(SvApp *app)
     app->view.active = 0;
     app->view.messages = (SvMessages){0};
     app->view.ping = (SvPingTelemetry){0};
+    app->view.identity = (SvCharacterIdentity){0};
+    app->view.redraw_revision = 0;
     memset(app->view.server_flags, 0, sizeof(app->view.server_flags));
     app->view.paused = 0;
     app->pending_pauses = 0;
@@ -181,6 +183,34 @@ const SvContactSetup *sv_app_character_setup(const SvApp *app, uint64_t generati
     return app && app->view.active && app->view.generation == generation ?
         sv_session_character_setup(app->session) : NULL;
 }
+SvResult sv_app_set_identity_name(SvApp *app, uint64_t generation, const char *name)
+{
+    SvResult result = accepts(app, generation);
+    return result == SV_OK ? sv_session_set_identity_name(app->session, name) : result;
+}
+SvResult sv_app_execute_redraw(SvApp *app, uint64_t generation)
+{
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    if (!app->command_pending || app->command.command != 18) return SV_WAITING;
+    result = sv_protocol_redraw(app->protocol);
+    if (result != SV_OK) return result;
+    app->command_pending = false;
+    app->command = (SvCommand){0};
+    app->view.status = sv_session_status(app->session);
+    app->view.messages = sv_session_messages(app->session);
+    app->view.identity = sv_session_identity(app->session);
+    if (app->view.identity.available) app->view.identity.generation = generation;
+    ++app->view.redraw_revision;
+    publish(app, SV_PRESENT_REDRAW, now(app), app->view.redraw_revision, 0);
+    if (app->control_sink.submit) {
+        app->busy = 1;
+        bool submitted = app->control_sink.submit(app->control_sink.context, sv_app_view(app), false);
+        app->busy = 0;
+        if (!submitted) app->view.executor_failed = 1;
+    }
+    return SV_OK;
+}
 static SvResult accepts(const SvApp *app, uint64_t generation)
 {
     if (app->busy) return SV_BUSY;
@@ -208,6 +238,10 @@ SvResult sv_app_take_command(SvApp *app, uint64_t generation, SvCommand *command
     SvResult result = accepts(app, generation);
     if (result != SV_OK) return result;
     if (!command) return SV_INVALID;
+    if (app->command_pending && app->command.command == 18) {
+        result = sv_app_execute_redraw(app, generation);
+        return result == SV_OK ? SV_WAITING : result;
+    }
     if (!app->command_pending) return SV_WAITING;
     *command = app->command;
     app->command_pending = false;
@@ -434,6 +468,11 @@ static SvResult gameplay_key(SvApp *app, uint64_t generation, unsigned char key)
     if (local_command(app, command.command)) {
         app->command = command;
         app->command_pending = true;
+        if (command.command == 18) {
+            result = sv_app_execute_redraw(app, generation);
+            /* The physical occurrence is owned even when output is full. */
+            return result == SV_BACKPRESSURE ? SV_OK : result;
+        }
         return SV_OK;
     }
     result = sv_app_raw_key(app, generation, command.command);
@@ -509,6 +548,10 @@ SvStep sv_app_step(SvApp *app, size_t budget)
     SvStep step = {0, 0, SV_OK};
     if (app->busy) { step.result = SV_BUSY; return step; }
     if (!app->view.active) { step.result = SV_CLOSED; return step; }
+    if (app->command_pending && app->command.command == 18) {
+        step.result = sv_app_execute_redraw(app, app->view.generation);
+        if (step.result != SV_OK) return step;
+    }
     app->busy = 1;
     if (app->view.request.aborted) {
         step.result = refresh_request(app);
@@ -567,11 +610,14 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         app->view.status = change.status.after;
         app->view.messages = sv_session_messages(app->session);
         app->view.ping = sv_session_ping(app->session);
+        app->view.identity = sv_session_identity(app->session);
+        if (app->view.identity.available) app->view.identity.generation = app->view.generation;
         SvControlState controls = sv_session_controls(app->session);
         memcpy(app->view.server_flags, controls.server_flags, sizeof(controls.server_flags));
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);
         if (!sv_alerts_deliver(app->sink, effects)) app->view.executor_failed = 1;
         SvPresentationOrigin origin = decoded.kind == SV_CHANGE_HP ? SV_PRESENT_HP :
+            decoded.kind == SV_CHANGE_IDENTITY ? SV_PRESENT_IDENTITY :
             decoded.kind == SV_CHANGE_MESSAGE ? SV_PRESENT_MESSAGE :
             decoded.kind == SV_CHANGE_PING ? SV_PRESENT_PING :
             decoded.kind == SV_CHANGE_KEY_REQUEST || decoded.kind == SV_CHANGE_REQUEST_ABORT ?

@@ -27,6 +27,10 @@ SvResult sv_protocol_raw_key(SvProtocol *protocol, unsigned char key);
 SvResult sv_protocol_keepalive(SvProtocol *protocol);
 SvResult sv_protocol_set_ping_clock(SvProtocol *protocol, SvPingClock clock);
 SvResult sv_protocol_send_ping(SvProtocol *protocol);
+/* Bounded preparation ingress may retain an unsupported tail without invoking
+ * gameplay unknown-packet recovery. This reports actual decoder coverage. */
+bool sv_protocol_supports_packet(unsigned char type);
+SvResult sv_protocol_redraw(SvProtocol *protocol);
 /* Prepared effective audio snapshot; reporting copy only, not local names. */
 SvResult sv_protocol_set_reporting_audio(SvProtocol *protocol, const SvSettingsAudioSnapshot *audio);
 /* Resource owner calls only after confirmed effective map change. Currently

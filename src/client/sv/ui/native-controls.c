@@ -53,7 +53,8 @@ SvStep sv_native_controls_step(SvNativeControls *controls, SvApp *app, size_t bu
         total.result = one.result;
         if (one.result != SV_OK || !one.processed || SDL_GetTicksNS() < controls->due_ns) break;
     }
-    if (!controls->remaining || total.result == SV_WAITING ||
-        (!total.pending_bytes && total.result != SV_BACKPRESSURE)) controls->batch = false;
+    if (!controls->remaining || (!controls->retain_batch &&
+        (total.result == SV_WAITING ||
+         (!total.pending_bytes && total.result != SV_BACKPRESSURE)))) controls->batch = false;
     return total;
 }

@@ -15,6 +15,10 @@ typedef struct {
     SvStatus status;
     SvMessages messages;
     SvPingTelemetry ping;
+    SvCharacterIdentity identity;
+    /* Changes once per user redraw; renderers rebuild from this coherent view.
+     * Expose/resize does not advance it or send gameplay packets. */
+    uint64_t redraw_revision;
     SvKeyRequest request;
     SvInputContext context;
     uint32_t server_flags[4];
@@ -38,7 +42,7 @@ typedef struct {
 SvResult sv_app_set_control_sink(SvApp *app, SvControlSink sink);
 typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
                SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE, SV_PRESENT_PING,
-               SV_PRESENT_CONTROL } SvPresentationOrigin;
+               SV_PRESENT_CONTROL, SV_PRESENT_IDENTITY, SV_PRESENT_REDRAW } SvPresentationOrigin;
 typedef struct {
     SvPresentationOrigin origin;
     uint64_t generation, revision, started_ns, occurrence;
@@ -79,6 +83,10 @@ SvResult sv_app_set_character_setup(SvApp *app, uint64_t generation,
                                     const SvContactSetup *setup);
 /* Borrowed for this generation; the session owns the server-supplied data. */
 const SvContactSetup *sv_app_character_setup(const SvApp *app, uint64_t generation);
+SvResult sv_app_set_identity_name(SvApp *, uint64_t generation, const char *accepted_name);
+/* Retries only the owned Ctrl-R command. Queue backpressure retains it; an
+ * accepted request invalidates projections once and cannot be taken again. */
+SvResult sv_app_execute_redraw(SvApp *, uint64_t generation);
 SvResult sv_app_receive(SvApp *app, uint64_t generation, const void *bytes, size_t size);
 /* Completion from an external producer, delivered on the owner thread.
  * BACKPRESSURE/BUSY retain input for retry. All other outcomes consume and zero it.

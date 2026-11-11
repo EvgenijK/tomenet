@@ -1,0 +1,4 @@
+probe case0 columns17 result1 error=Parameter 'texture' is invalid
+probe case1 columns2 result1 error=Parameter 'texture' is invalid
+probe case2 columns47 result1 error=Parameter 'texture' is invalid
+probe exact-field columns55 result1 error=Parameter 'texture' is invalid

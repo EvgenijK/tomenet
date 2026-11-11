@@ -1773,3 +1773,116 @@ exec_lua/string_exec_lua возвращают 0/empty и при ошибках, 
 ошибка вложенного script, reopen после ошибки; отсутствие ложного startup success
 и сохранение допустимых пустых результатов. Набор для отдельного исправления
 согласовать по AGENTS.
+
+## Legacy transfer: границы DATA и восстановление после ошибки записи
+
+**Проблема:** DATA length копируется в фиксированный buffer 1024 без проверки;
+unknown ID возвращает управление до consumption payload. Ошибка дисковой записи
+возвращается как 0 из Receive_file после уже совершённых effects, как и ожидание
+продолжения пакета, но без ACK/ERR. Это затрудняет корректное framing/recovery.
+
+**Затронутый код:** `src/common/files.c:local_file_write`,
+`src/client/nclient.c:Receive_file`, `Receive_file_data`.
+
+**Предложение:** отдельной задачей исправить legacy length validation и разбор
+неизвестного ID, разделить incomplete/error result и согласовать wire recovery.
+В C010 небезопасные buffer accesses не копируются; legacy/common не меняются,
+новый ERR/retry protocol не вводится скрыто.
+
+**Статус:** recorded, 2026-11-10; legacy исправление и изменение wire recovery
+не реализованы, не включены в план C010.
+
+**Необходимые проверки:** при отдельном исправлении — граничные длины DATA,
+unknown/zero ID с payload и следующим пакетом, split/chained packets,
+write failure без повторной записи и ложного ACK. Расширение проверок согласовать.
+
+## Legacy transfer: освобождение record при rejected INIT
+
+**Проблема:** `local_file_init` выделяет и включает transfer record в `fdata`
+до проверки filename, затем при leading `/` или `..` возвращает отказ без
+`remove_ft`. Оставшийся record влияет и на `get_xfers_num`/last-END reload.
+
+**Затронутый код:** `src/common/files.c:getfile`, `local_file_init`, `get_xfers_num`.
+
+**Предложение:** отдельно перенести validation до allocation либо освобождать
+record на каждом отказе. В SV C010 обеспечить собственный корректный cleanup,
+не копируя утечку; legacy исправление не включать в перенос.
+
+**Статус:** recorded, 2026-11-10; legacy не изменён.
+
+**Необходимые проверки:** rejected filenames не меняют active-transfer count,
+handles/temp files; следующий valid transfer завершается и достигает last-END
+reload. Для отдельной задачи согласовать необходимый минимум проверок.
+
+## Native checks: ручные списки production sources в старых runners
+
+**Проблема:** `tests/sv_first_session_checks.py` содержит собственный SOURCES list,
+который не отражает новые зависимости native startup C006–C010. Независимые списки
+легко расходятся с production `makefile.sv`; успешная старая проверка не является
+доказательством актуального link closure.
+
+**Затронутый код:** `tests/sv_first_session_checks.py`, `src/makefile.sv`;
+другие native runners с ручными source lists требуют отдельной сверки.
+
+**Предложение:** по мере самостоятельной необходимости переводить выбранные
+native checks на production object closure с их существующим test main.
+Не создавать общий новый harness и не запускать широкую миграцию только ради
+устранения дублирования.
+
+**Статус:** recorded, 2026-11-10. Focused `--case c010-transfer` в SV-C010-006
+использует конкретный make target с production objects; старые modes в этой
+задаче не запускались и не получают PASS от нового case.
+
+**Необходимые проверки:** для каждого отдельно перенесённого runner — точный
+link closure/flags и только его согласованные production scenarios на Linux;
+сохранять различие ordinary и sanitizer objects. Расширение набора согласовать.
+
+
+## Legacy startup: момент отправки character options до PLAY
+
+**Проблема:** pre-initialization в `c-init.c` вызывает `Send_options`, который
+только добавляет bytes в `wbuf`. `Net_start` очищает эту очередь перед PLAY,
+но промежуточные birth/MOTD input loops могут вызвать `Net_flush`. Поэтому
+комментарий о ранней доставке options не задаёт однозначной wire-границы.
+Pre-play server dispatcher не обрабатывает standalone `PKT_OPTIONS`.
+В actual C011 проверке SV безусловная ранняя отправка блокировала PLAY;
+SV-local вызов убран, effective options остаются внутри PLAY.
+Наличие аналогичного пользовательского дефекта legacy отдельно не доказано.
+
+**Затронутый код:** `src/client/c-init.c` (pre-initialize/Send_options),
+`src/client/nclient.c:Send_options`, `Net_start`, `Net_flush`,
+`src/client/c-util.c` (input loops), `src/server/nserver.c:Receive_play`.
+
+**Предложение:** отдельно проследить legacy queue/flush в existing-character,
+interactive birth и MOTD paths; затем согласовать явный момент отправки,
+не меняя протокол и обязательный effective options snapshot в PLAY.
+
+**Статус:** recorded, 2026-11-11; legacy/common/server не изменены.
+Отдельное улучшение не включено в C011.
+
+**Необходимые проверки:** при отдельной работе — actual server capture
+первого pre-play packet и embedded PLAY options для быстрого входа, ожидания
+в birth/MOTD и keepalive; сравнение censor option при initial notes.
+Необходимый минимум проверок согласовать отдельно.
+
+
+## SV MOTD: устаревшая ошибка SDL после успешного draw
+
+**Проблема:** после передачи новой texture в MOTD cache локальный pointer
+обнуляется, затем передаётся в `SDL_DestroyTexture`. Успешный production draw
+оставляет `SDL_GetError() = Parameter 'texture' is invalid`. Это затрудняет
+диагностику последующего общего startup failure: сообщение само по себе не
+доказывает ошибку отрисовки. В C011 probe остановка была вызвана отсутствием
+MOTD acknowledgement и лимитом кадров; renderer regression не подтверждён.
+
+**Затронутый код:** `src/client/sv/login/ui/login-shell.c:sv_login_shell_motd`,
+`src/client/sv/login/native-run.c` (общий startup failure diagnostic).
+
+**Предложение:** отдельно убрать вызов destroy для NULL и сохранять диагностику
+реального отказа в месте возникновения, отличая её от завершения по frame limit.
+
+**Статус:** recorded, 2026-11-11; исправление не включено в C011.
+
+**Необходимые проверки:** успешный MOTD draw/cache reuse не создаёт эту ошибку;
+реальная ошибка и frame-limit exit различаются; минимальный production probe
+использует прежние ресурсы без новой visual matrix. Проверки согласовать отдельно.

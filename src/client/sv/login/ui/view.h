@@ -15,6 +15,7 @@ typedef struct {
     const SvCredentialPresentation *credentials;
     const char *private_password; /* Reveal only: never retained/cached. */
     bool contact_failed, retry_available;
+    bool preparation_identity; /* Accepted identity on the post-MOTD preparation surface. */
     size_t hover, hover_link;
     bool hover_enter, hover_manual, list_focus_manual;
     int manual_focus;

@@ -1,6 +1,6 @@
 # SV-C010-001 — подключение принятого Lua core C009 к FILE_INIT/END
 
-Статус: planned, 2026-11-10.
+Статус: accepted — Linux startup/core, 2026-11-11.
 Labels: enhancement, ready-for-agent
 Owned IDs: 0 новых IDs; integration obligation принятого C009 внутри C010.
 Зависимости реализации: production transfer decoder/publication C010,
@@ -32,8 +32,18 @@ allocation не нужны. CHECK/checksum version branches и upload остаю
 ## Production работа
 
 1. Использовать существующий application owner
-   [`SvLuaReload`](../../../src/client/sv/lua/reload.h), связанный C011 с реальными
-   server features через `sv_lua_reload_begin(owner, generation, features)`.
+   [`SvLuaReload`](../../../src/client/sv/lua/reload.h). В C010 минимальный
+   application/startup adapter передаёт существующий owner из `login/native-run.c`
+   в текущую login attempt через явный borrowed attachment. Вызвать
+   `sv_lua_reload_begin(owner, generation, features)` с реальными version-aware
+   `sv_login_flags`/`sv_login_version` до accepted INIT/END; fixture/default features
+   не заменяют decoded данные. Begin исполняется один раз на нужный generation,
+   не на каждый poll/redraw или backpressure retry. C011 позднее принимает полный
+   preparation/readiness/handoff flow и не является prerequisite этой связки.
+   Результат begin сохраняется отдельно от early init и последующих reload;
+   `-u` поступает из настоящего invocation C002, не из test-only настройки.
+   Attachment отзывается и generation закрывается до teardown attempt/owner;
+   owner переживает retry attempt, сохраняя process-sticky flags.
    Не создавать Lua runtime или reload implementation в decoder. Main thread
    последовательно доставляет полные occurrences; diagnostic callback не reenter.
 2. После успешного FILE_INIT/destination preparation немедленно вызвать
@@ -68,6 +78,12 @@ allocation не нужны. CHECK/checksum version branches и upload остаю
    если metadata rebuild не требовался либо runtime failure его предотвратил.
    Учитывать `reload_attempted`, actual runtime result и выполненный metadata шаг;
    отсутствие необязательной попытки само по себе не объявлять новой Lua failure.
+   Aggregate принадлежит actual startup/transfer owner C010, доступен будущему
+   C011 через явный copied result/interface, не renderer или test-only структуре.
+   Outcome inspection не потребляет completion повторно и не теряет ранний failure.
+   Новый generation начинает новый aggregate; close сохраняет copied итог для
+   получателя, освобождая session-owned данные, без переноса failures старой
+   attempt в новую. Sticky audio/Guide flags остаются у application Lua owner.
 7. Частичный packet не фиксирует accepted INIT/END, запись файлов или Lua effects.
    Полные occurrences сохраняют порядок. Stale/inactive generation проверяется
    до file effects и обращения к Lua owner; false от API не превращать в success.
@@ -99,3 +115,18 @@ paths, порядок effects, результаты и pending limits. Trace к 
 Canonical JSON/statuses не менять автоматически. Готовность этой задачи —
 production transfer caller использует принятый Lua owner и подтверждены указанные
 связки; полный этап C010 по этой одной задаче завершённым не считается.
+
+## Результат реализации — 2026-11-10
+
+Подключён production `transfer/startup` adapter к login attempt: decoded flags → begin, accepted INIT и каждый END → Lua owner, synchronous completion и copied aggregate. Borrowed owner закрывается до application teardown; C011/C014 consumers остаются своими этапами.
+
+[Evidence, команды и ограничения](../../sv-c010-evidence.md).
+Canonical statuses/ownership сохранены; pending flows не получают PASS.
+
+## Comments
+
+### 2026-11-11 — приёмка пользователя
+
+Пользователь подтвердил: «Этап принимаю». Задача принята в границах
+[решения о приёмке C010](../../sv-stage-c010-acceptance.md). История реализации,
+evidence и непроверенные условия сохраняются; canonical statuses не меняются.

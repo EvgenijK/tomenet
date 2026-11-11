@@ -1,0 +1,5 @@
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/profile private=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/lib/xtra/font/CascadiaMono-Regular.ttf

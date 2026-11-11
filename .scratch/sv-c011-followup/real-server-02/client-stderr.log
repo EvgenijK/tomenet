@@ -1,0 +1,20 @@
+SV fonts: text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/xtra/font/CascadiaMono-Regular.ttf; map requested=16x24x.pcf effective=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/xtra/font/16x24x.pcf; 
+SV map preferences: font-sv.prf missing; using server glyph identities (zero overrides)
+SV graphics requested=1/16x24sv effective=1/16x24sv generation=14620843888613688594
+SV preferences /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/lib/user/options.prf:200: Converted baseline option alias in memory
+SV Lua early startup: status=0 scripts=5; session open awaits decoded server features
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+capture /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server-02/captures/birth-sex.bmp 1024x768
+real-client: /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/birth-wrapper.inc:46: _Bool __wrap_sv_endpoint_draw(SDL_Renderer *, SvFont *, const SvEndpoint *, const SvEndpointView *, SvEndpointRenderMetrics *): Assertion `!birth->stats_point_buy' failed.

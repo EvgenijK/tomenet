@@ -1,0 +1,9 @@
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-c010-native-ayfevk8d/profile private=/tmp/sv-c010-native-ayfevk8d/profile/sv library=/tmp/sv-c010-native-ayfevk8d/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/tmp/sv-c010-native-ayfevk8d/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=33629
+SV contact ready host=127.0.0.1 port=33629 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-C010 native socket/FILE/Lua outcome passed

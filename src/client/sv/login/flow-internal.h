@@ -6,6 +6,7 @@
 #include "credential/vault.h"
 #include "files/history.h"
 #include "files/dna.h"
+#include "login/preparation-internal.h"
 typedef struct {
     unsigned char sending[32 * 1024];
     size_t size, sent;
@@ -51,6 +52,9 @@ typedef struct {
     bool finished;
     const char *temporary_surface_text;
     SvLogin *login;
+    SvLoginTransfer transfer;
+    SvTransferSummary transfer_result;
+    SvLuaResult lua_begin_result;
     SvLoginInteraction login_input;
     SvPregame pregame;
     SvBirth *birth;
@@ -80,6 +84,7 @@ struct SvLoginFlow {
     uint64_t generation, prior_generation, input_epoch;
     SvNameRecovery recovery;
     SvLoginAttempt attempt;
+    SvSessionPreparation *preparation;
 };
 enum { SV_CONTACT_SCENE_BACK = 3, SV_CONTACT_SCENE_EDIT_NAME = 4 };
 /* Private native adapters operate on the owned interactions synchronously. */

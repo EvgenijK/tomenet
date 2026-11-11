@@ -55,6 +55,7 @@ Application связывает устойчивые интерфейсы, без
 | `ui/` | Общие layout/rendering utilities, шрифты, подготовка статуса и текста сообщений |
 | `credential/` | Самостоятельный credential vault |
 | `lua/` | SV-local startup Lua runtime, C-owned schools/spells и reload owner; существующий vendored Lua engine без legacy UI globals |
+| `transfer/` | SV-local FILE receiver/sender, checksum и publication; startup adapter связывает registry с borrowed application Lua owner и login dispatch/tick |
 | `settings/` | Собственные CFG/OPT data, startup overrides и initial audio adapter; явная передача settings/ресурсных результатов в login |
 | `login/` | Сценарий входа: `flow`, `native-run`, `options`, `pregame`, `login-view`, `chronicle` |
 | `login/servers/` | Выбор endpoint, metaserver |
@@ -117,14 +118,40 @@ C009 добавляет application-owned Lua runtime в `login/native-run`: р�
 скрипты загружаются без вымышленных server flags. `lua/reload` принимает accepted
 INIT и END через явный production API, хранит process-sticky audio/Guide flags,
 проверяет session generation и отдаёт раздельные transfer/runtime результаты.
-C010 подключает actual transfer decoder, C011 — реальные features/open и readiness,
-C014 — actual handoff/teardown. Core evidence не принимает эти будущие flows.
+C010 подключает actual transfer decoder и реальные features/open; C011 использует
+их results для readiness. C014 принимает actual live adoption/teardown.
 
-Текущий startup milestone по-прежнему заканчивается cleanup соединения и
-заглушкой live surface. Реальный однократный handoff socket, generation,
-version/setup, выбранного персонажа, decoded startup state, unread bytes и
-pending sends требует отдельного runtime consumer. Эта реорганизация его не
-реализует и не меняет CLI/packaging C001.
+C011 добавляет `login/preparation.[ch]`: opaque owner удерживает flow с transport,
+unread/pending offsets, character preferences/history и подготовленный `SvApp`.
+Application preferences/effects копируются с identity исходных occurrences;
+native runner передаёт lifetime Lua, audio, fonts и prepared graphics при
+move-once take; full requested/effective refs и MapFont definitions сохранены
+в owned snapshot без повторного resource loading.
+Read-only view разделяет startup/identity/profile/runtime/Guide/transfer results;
+inspection не повторяет загрузку и не потребляет effects. Public transport drains
+сохраняют порядок wire tail → login output → app output. Actual C014 consumer
+принимает этот owner, а не создаёт второй decoder или копию connection state.
+
+Post-END preparation ingress использует настоящие поддержанные decoders и
+`protocol/startup-prefix.[ch]` для necessary social/skill/rendering/map, item,
+initial audio и unique-list framing до identity. Эти frames только сохраняются;
+item models, audio playback и unique-list consumers остаются поздним owners.
+Complete unapplied frames удерживаются FIFO с sequence/type; raw tail нельзя
+получить раньше deferred prefix, already-applied effects не replay. FILE после
+END обслуживает тот же C010 registry через public receive/pump/output contract.
+Неизвестный consumer baseline сохраняет точный tail с явным incomplete result;
+его нельзя пропускать сканированием bytes или выдавать unknown-packet recovery.
+Identity проходит version-aware decode → session model → native view;
+startup INS получает наиболее специфичный файл по accepted identity.
+Character options загружаются до PLAY и передаются внутри его snapshot;
+отдельный pre-PLAY OPTIONS не отправляется. Native controls удерживают один
+ограниченный ingress batch через decoder WAITING; реальный network WAITING,
+исчерпание бюджета и identity boundary завершают batch без сброса pacing deadline.
+До live adoption native preparation допускает необходимое подтверждение pause,
+готовый redraw и выход; пока PAUSE активен, assembly включает SDL text input
+для printable acknowledgement и показывает подсказку. Остальные gameplay
+executors остаются последующим этапам.
+Полный live loop и обработка всего серверного потока этим core не принимаются.
 
 ## Потоки данных
 

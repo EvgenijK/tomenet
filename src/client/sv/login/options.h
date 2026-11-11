@@ -9,6 +9,7 @@
 #include "settings/audio.h"
 #include "settings/startup.h"
 #include "settings/map-font.h"
+#include "settings/graphics.h"
 typedef struct {
     SvEndpointPhase phase;
     char host[SV_HOST_LIMIT + 1];
@@ -83,9 +84,25 @@ typedef struct {
     uint64_t birth_generation;
     char selected_character[SV_LOGIN_NAME_CAPACITY];
     char reason[256];
+    /* Copied startup results survive attempt teardown; not a readiness claim. */
+    SvTransferSummary transfers;
+    SvLuaResult lua_begin;
 } SvEndpointOutcome;
+#ifndef SV_SESSION_PREPARATION_DECLARED
+#define SV_SESSION_PREPARATION_DECLARED
+typedef struct SvSessionPreparation SvSessionPreparation;
+#endif
 typedef struct {
     const char *root, *library, *server, *server_list;
+    /* Optional move-once output. Caller destroys the retained preparation. */
+    SvSessionPreparation **preparation;
+    SvLuaReload *lua; /* Application lifetime until explicit native adoption. */
+    SvLuaResult lua_early_init;
+    /* Borrowed only through preparation: named refs are copied; native runner
+     * adopts the already-prepared graphics owner on a successful move. */
+    const SvSettingsConfig *client_config;
+    const char *effective_text_font;
+    SvGraphics *graphics_owner;
     /* Ordinary invocation data is reduced by the production settings owner. */
     int startup_argc;
     char *const *startup_argv;
@@ -98,6 +115,7 @@ typedef struct {
     const char *graphics_tiles; /* Borrowed effective name from prepared owner. */
     const SvSettingsAudioSnapshot *audio;
     const SvSettingsInvocation *invocation; /* secret cleared after credential handoff */
+    SvLoginTransferFactory transfer_factory;
     bool auto_reincarnation;
     int protocol_override;
     int width, height, frames, windowed, fps;
