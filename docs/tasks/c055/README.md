@@ -47,3 +47,12 @@ C004 принят и завершён решением пользователя 
 Только необходимый минимум Linux production core checks по [AGENTS](../../../AGENTS.md),
 расширение согласовать; Windows/MinGW/Wine deferred. Новые suites, full plans,
 harness и общие матрицы не вводятся. Реализация и PASS этой связки не заявлены.
+
+
+## Отложенная приёмка C012 — 2026-11-13
+
+Статус: deferred acceptance, не выполнена. Связки **C012-DA-10** из [реестра C012](../c012/deferred-acceptance.md).
+
+При live audio owner проверить source-defined idle auto-mute/unmute music/weather и сохранение пользовательского mute state. PKT_IDLE не означает gameplay Resting. Retained occurrence C012 сам по себе не подтверждает выполненную аудиореакцию.
+
+Это отложенная приёмка результата C012 при consumer этого этапа, не изменение canonical ownership/allocation/prerequisites и не полный план этапа. Evidence и необходимые исправления фиксировать здесь с обратной ссылкой в реестр. Техническая часть C012 не ждёт этой проверки; её собственные core/semantic обязательства сохраняются. Реализация/PASS этой связки не заявлены. Только scoped Linux проверки; расширение suite отдельно согласуется, Windows/MinGW/Wine deferred.

@@ -52,6 +52,8 @@ SV_CLIENT_OBJECTS += lua/runtime.o lua/constants.o lua/reload.o
 SV_CLIENT_OBJECTS += transfer/transfer.o transfer/startup.o
 SV_CLIENT_OBJECTS += login/preparation.o settings/startup-ins.o
 SV_CLIENT_OBJECTS += protocol/startup-prefix.o
+SV_CLIENT_OBJECTS += protocol/status-update.o
+SV_CLIENT_OBJECTS += ui/hud.o ui/hud-icons.o
 # Existing Lua 4 engine, compiled into this SV build directory only.
 SV_LUA_NAMES := lapi lcode ldebug ldo lfunc lgc llex lmem lobject lparser lstate lstring ltable ltm lundump lvm lzio lauxlib lbaselib ldblib lstrlib
 SV_LUA_OBJECTS := $(addprefix $(SV_OUT)/lua-engine/,$(addsuffix .o,$(SV_LUA_NAMES)))
@@ -103,4 +105,14 @@ $(SV_OUT)/checks/first-session.o: ../tests/sv/first-session.c makefile.sv | chec
 $(SV_OUT)/checks/first-session: $(SV_OUT)/checks/first-session.o $(filter-out $(SV_OUT)/main.o,$(SV_OBJECTS))
 	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections -Wl,--wrap=sv_endpoint_draw -Wl,--wrap=sv_native_controls_step -Wl,--wrap=sv_native_input -Wl,--wrap=SDL_RenderPresent $^ $(SV_LIBS) -o $@
 -include $(SV_OUT)/checks/first-session.d
+# C012 focused core check links the production app/model/decoder closure.
+.PHONY: sv-status-check
+sv-status-check: $(SV_OUT)/checks/status
+	@echo "SV_STATUS_CHECK=$(abspath $<)"
+$(SV_OUT)/checks/status.o: ../tests/sv/status.c makefile.sv | check-deps
+	@mkdir -p $(dir $@)
+	$(SV_CC) $(SV_CFLAGS) $(SV_CORE_PLATFORM) -Wno-deprecated-non-prototype -MMD -MP -c $< -o $@
+$(SV_OUT)/checks/status: $(SV_OUT)/checks/status.o $(filter-out $(SV_OUT)/main.o,$(SV_OBJECTS))
+	$(SV_CC) $(CFLAGS) $(LDFLAGS) $(SV_LINK) -Wl,--gc-sections $^ $(SV_LIBS) -o $@
+-include $(SV_OUT)/checks/status.d
 -include $(SV_OBJECTS:.o=.d)

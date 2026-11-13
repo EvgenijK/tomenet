@@ -13,6 +13,7 @@ typedef struct {
     uint64_t generation;
     uint64_t revision; /* Coherent presentation revision, including local outcomes. */
     SvStatus status;
+    SvHud hud;
     SvMessages messages;
     SvPingTelemetry ping;
     SvCharacterIdentity identity;
@@ -42,7 +43,7 @@ typedef struct {
 SvResult sv_app_set_control_sink(SvApp *app, SvControlSink sink);
 typedef enum { SV_PRESENT_HP, SV_PRESENT_MESSAGE, SV_PRESENT_REQUEST,
                SV_PRESENT_INPUT, SV_PRESENT_LIFECYCLE, SV_PRESENT_PING,
-               SV_PRESENT_CONTROL, SV_PRESENT_IDENTITY, SV_PRESENT_REDRAW } SvPresentationOrigin;
+               SV_PRESENT_CONTROL, SV_PRESENT_IDENTITY, SV_PRESENT_REDRAW, SV_PRESENT_HUD } SvPresentationOrigin;
 typedef struct {
     SvPresentationOrigin origin;
     uint64_t generation, revision, started_ns, occurrence;
@@ -74,6 +75,8 @@ SvApp *sv_app_create(SvAlertSink sink);
 SvResult sv_app_destroy(SvApp *app);
 SvResult sv_app_open(SvApp *app, const int version[6]);
 SvResult sv_app_close(SvApp *app);
+/* Taking acknowledges exactly one queued body/idle occurrence. */
+SvResult sv_app_take_status_effect(SvApp *, uint64_t generation, SvStatusEffect *);
 SvResult sv_app_close_reason(SvApp *app, SvResult reason);
 SvResult sv_app_set_alerts(SvApp *app, SvAlertOptions options, SvAttention attention);
 SvResult sv_app_set_flush_options(SvApp *app, SvFlushOptions options);

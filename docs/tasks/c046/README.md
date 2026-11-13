@@ -52,3 +52,12 @@ Evidence хранится у текущего этапа, обратная сс�
 трассировки и не gate его приёмки. Проверки — минимальный Linux core через
 production путь; расширение согласовать по [AGENTS](../../../AGENTS.md),
 Windows/MinGW/Wine deferred. Новые suites/harness/full plans не вводятся.
+
+
+## Отложенная приёмка C012 — 2026-11-13
+
+Статус: deferred acceptance, не выполнена. Связки **C012-DA-04** из [реестра C012](../c012/deferred-acceptance.md).
+
+При actual option consumer принять exp-bar/exp-need, linear-stats, sn-huge-bar и применимые numeric/bar forms. Четыре Sanity label modes word/star-bar/percent/exact задаёт сервер с Health-skill gates: их нельзя оформлять как новую клиентскую настройку либо раскрывать скрытую точность из числового payload.
+
+Это отложенная приёмка результата C012 при consumer этого этапа, не изменение canonical ownership/allocation/prerequisites и не полный план этапа. Evidence и необходимые исправления фиксировать здесь с обратной ссылкой в реестр. Техническая часть C012 не ждёт этой проверки; её собственные core/semantic обязательства сохраняются. Реализация/PASS этой связки не заявлены. Только scoped Linux проверки; расширение suite отдельно согласуется, Windows/MinGW/Wine deferred.

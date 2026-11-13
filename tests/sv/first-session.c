@@ -1121,6 +1121,8 @@ retry:
         } else { *at++=PKT_FLUSH;*at++=PKT_FLUSH; }
         *at++=PKT_MESSAGE;memcpy(at,"C011 before identity",21);at+=21;
         if(peer->mode==PEER_C011) {
+            /* C012 semantic status applies exactly once before retained prefix. */
+            *at++=PKT_INDICATORS;put32(&at,0x80000011u);
             startup_prefix(peer);
             memcpy(at,peer->deferred,peer->deferred_size);at+=peer->deferred_size;
             /* Split inside the final RLE run; CHAR_INFO follows only after
@@ -1401,7 +1403,7 @@ int main(int argc, char **argv)
             assert(sv_session_preparation_was_applied(prepared,4)); /* post-END FILE_END */
             assert(!sv_session_preparation_was_applied(prepared,0));
             assert(view.prefix_config.char_transfer_bytes==peer.glyph_width &&
-                view.prefix_config.graphics==peer.graphics && view.ingress_sequence==8+peer.deferred_count);
+                view.prefix_config.graphics==peer.graphics && view.ingress_sequence==9+peer.deferred_count);
             assert(sv_session_preparation_take_input(prepared,retained,sizeof(retained)).result==SV_BUSY);
             size_t offset=0;
             for(size_t i=0;i<peer.deferred_count;i++) {
@@ -1410,7 +1412,7 @@ int main(int argc, char **argv)
                 assert(probe.result==SV_OUTPUT_TOO_SMALL && probe.size==peer.deferred_sizes[i]);
                 SvOutput item=sv_session_preparation_take_deferred(prepared,&frame,retained,sizeof(retained));
                 assert(item.result==SV_OK && item.size==peer.deferred_sizes[i] && frame.size==item.size);
-                assert(frame.sequence==i+8 && frame.packet==peer.deferred[offset]);
+                assert(frame.sequence==i+9 && frame.packet==peer.deferred[offset]);
                 assert(!sv_session_preparation_was_applied(prepared,frame.sequence));
                 assert(!memcmp(retained,peer.deferred+offset,item.size));offset+=item.size;
             }
@@ -1418,7 +1420,12 @@ int main(int argc, char **argv)
             assert(sv_session_preparation_take_deferred(prepared,&frame,retained,sizeof(retained)).result==SV_WAITING);
             assert(!sv_session_preparation_view(prepared).deferred_frames &&
                 !sv_session_preparation_view(prepared).deferred_bytes);
-            assert(!sv_session_preparation_was_applied(prepared,8)); /* drained != applied */
+            assert(!sv_session_preparation_was_applied(prepared,9)); /* drained != applied */
+            assert(sv_session_preparation_was_applied(prepared,8)); /* semantic C012 occurrence */
+            SvAppView status=sv_app_view(sv_session_preparation_app(prepared));
+            assert(status.hud.indicators==0x80000011u && status.hud.revision==1);
+            /* Drawing/draining retained frames never replays applied status. */
+            assert(sv_session_preparation_view(prepared).presentation.hud.revision==1);
         }
         size_t stale_consumed=99;
         const unsigned char stale_file[]={PKT_FILE,PKT_FILE_END,0,92};

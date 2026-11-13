@@ -86,6 +86,7 @@ static void release_session(SvApp *app)
     app->view.messages = (SvMessages){0};
     app->view.ping = (SvPingTelemetry){0};
     app->view.identity = (SvCharacterIdentity){0};
+    app->view.hud = (SvHud){0};
     app->view.redraw_revision = 0;
     memset(app->view.server_flags, 0, sizeof(app->view.server_flags));
     app->view.paused = 0;
@@ -135,6 +136,7 @@ SvResult sv_app_open(SvApp *app, const int version[6])
     release_session(app);
     ++app->view.generation;
     app->view.status = (SvStatus){0};
+    app->view.hud = (SvHud){.generation = app->view.generation};
     app->view.executor_failed = 0;
     app->protocol = sv_protocol_create(version);
     app->session = sv_session_create();
@@ -608,6 +610,8 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         step.result = refresh_request(app);
         if (step.result != SV_OK) break;
         app->view.status = change.status.after;
+        app->view.hud = sv_session_hud(app->session);
+        app->view.hud.generation = app->view.generation;
         app->view.messages = sv_session_messages(app->session);
         app->view.ping = sv_session_ping(app->session);
         app->view.identity = sv_session_identity(app->session);
@@ -616,7 +620,8 @@ SvStep sv_app_step(SvApp *app, size_t budget)
         memcpy(app->view.server_flags, controls.server_flags, sizeof(controls.server_flags));
         SvAlertEffects effects = sv_alerts_evaluate(change.status, app->options, app->attention);
         if (!sv_alerts_deliver(app->sink, effects)) app->view.executor_failed = 1;
-        SvPresentationOrigin origin = decoded.kind == SV_CHANGE_HP ? SV_PRESENT_HP :
+        SvPresentationOrigin origin = decoded.kind == SV_CHANGE_HUD ? SV_PRESENT_HUD :
+            decoded.kind == SV_CHANGE_HP ? SV_PRESENT_HP :
             decoded.kind == SV_CHANGE_IDENTITY ? SV_PRESENT_IDENTITY :
             decoded.kind == SV_CHANGE_MESSAGE ? SV_PRESENT_MESSAGE :
             decoded.kind == SV_CHANGE_PING ? SV_PRESENT_PING :
@@ -694,4 +699,14 @@ SvResult sv_app_terminal_fallback(SvApp *app)
     }
     app->busy = busy;
     return SV_INVALID; /* No terminal adapter is linked or permitted. */
+}
+
+SvResult sv_app_take_status_effect(SvApp *app, uint64_t generation, SvStatusEffect *effect)
+{
+    if (!app || !effect) return SV_INVALID;
+    SvResult result = accepts(app, generation);
+    if (result != SV_OK) return result;
+    result = sv_session_take_status_effect(app->session, effect);
+    if (result == SV_OK) effect->generation = generation;
+    return result;
 }

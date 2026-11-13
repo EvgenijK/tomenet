@@ -33,3 +33,12 @@ UX prototype, а не наследуются автоматически от в�
 и девять obligations сохраняются в canonical allocation; evidence своего этапа
 можно связать с C004 для трассировки, это не gate уже состоявшейся приёмки.
 Windows/MinGW/Wine deferred; новые broad suites и full plans здесь не создаются.
+
+
+## Отложенная приёмка C012 — 2026-11-13
+
+Статус: deferred acceptance, не выполнена. Связки **C012-DA-03** из [реестра C012](../c012/deferred-acceptance.md).
+
+При продуктовом Settings consumer проверить wide/small, UI scale, выбранные ширины панелей и видимость блоков. Локальная читаемость/resize Character закреплена за C030; базовый live HUD smoke при C014 не ждёт C044.
+
+Это отложенная приёмка результата C012 при consumer этого этапа, не изменение canonical ownership/allocation/prerequisites и не полный план этапа. Evidence и необходимые исправления фиксировать здесь с обратной ссылкой в реестр. Техническая часть C012 не ждёт этой проверки; её собственные core/semantic обязательства сохраняются. Реализация/PASS этой связки не заявлены. Только scoped Linux проверки; расширение suite отдельно согласуется, Windows/MinGW/Wine deferred.

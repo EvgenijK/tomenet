@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-13",
+  "documentCount": 16,
+  "localLinksMissing": [],
+  "capabilityCount": 27,
+  "obligationCount": 81,
+  "exactIdMatch": true,
+  "fullPassClaims": 0,
+  "coreRun": ".scratch/sv-c012/final-core-2026-11-13/final-checks.json",
+  "canonicalHashes": {
+    "docs/tasks/c012/coverage.json": "a31239db5d642209fa83179c25a7aac0c16da084e1267841c7b8d592b8684d53",
+    "docs/capabilities/manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "docs/capabilities/stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "docs/capabilities/native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "docs/capabilities/reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "additionalVerifiedBackref": "docs/tasks/c023/README.md"
+}

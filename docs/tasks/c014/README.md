@@ -80,3 +80,12 @@ flows не получают PASS. Работа и необходимые исп�
 не блокируют и не переоткрывают C009 автоматически. Canonical allocation,
 prerequisites/obligations и pending registry statuses сохранены; evidence backlink
 служит трассировке, не gate уже состоявшейся приёмки C009. Windows/MinGW/Wine deferred.
+
+
+## Отложенная приёмка C012 — 2026-11-13
+
+Статус: deferred acceptance, не выполнена. Связки **C012-DA-01, C012-DA-06** из [реестра C012](../c012/deferred-acceptance.md).
+
+При actual live handoff выполнить отложенную пользовательскую приёмку HUD: stat colours, выбранная нагрузка, Sanity/XP и применимая temporal реакция/снятие critical tile; проверить базовую доступность в small. Отдельно согласовать существующее место self AFK/opaque extra/Probability Travel в живом игровом окне. Для этих placements нет доказанного другого позднего владельца: это явный follow-up при C014, без новых блоков Character и без переноса всего status scope C012.
+
+Это отложенная приёмка результата C012 при consumer этого этапа, не изменение canonical ownership/allocation/prerequisites и не полный план этапа. Evidence и необходимые исправления фиксировать здесь с обратной ссылкой в реестр. Техническая часть C012 не ждёт этой проверки; её собственные core/semantic обязательства сохраняются. Реализация/PASS этой связки не заявлены. Только scoped Linux проверки; расширение suite отдельно согласуется, Windows/MinGW/Wine deferred.

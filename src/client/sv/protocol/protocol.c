@@ -16,6 +16,7 @@
 #include "protocol/protocol.h"
 #include "protocol/resource-report.h"
 #include "protocol/character-identity.h"
+#include "protocol/status-update.h"
 static int identity_compare(const int version[6], const int threshold[6])
 {
     for (unsigned i = 0; i < 6; ++i)
@@ -170,6 +171,7 @@ SvResult sv_protocol_receive(SvProtocol *p, const void *bytes, size_t size)
 }
 bool sv_protocol_supports_packet(unsigned char type)
 {
+    if (sv_status_packet_supported(type)) return true;
     switch (type) {
     case PKT_VERSION: case PKT_HP: case PKT_MESSAGE: case PKT_REQUEST_KEY:
     case PKT_REQUEST_ABORT: case PKT_KEEPALIVE: case PKT_END: case PKT_KEYPRESS:
@@ -191,6 +193,18 @@ SvResult sv_protocol_next(SvProtocol *p, SvChange *change)
     sockbuf_t *in = &p->input;
     if (!in->len) return SV_WAITING;
     unsigned char type = (unsigned char)*in->ptr;
+    if (sv_status_packet_supported(type)) {
+        SvHudUpdate update;
+        size_t consumed = 0;
+        SvResult result = sv_status_decode(p->report_version, in->ptr,
+            (size_t)(in->len - (in->ptr - in->buf)), &update, &consumed);
+        if (result != SV_OK) return result;
+        change->kind = SV_CHANGE_HUD;
+        change->hud = update;
+        p->previous_type = type;
+        Sockbuf_advance(in, (int)consumed);
+        return SV_OK;
+    }
     switch (type) {
     case PKT_CHAR_INFO: {
         size_t consumed = 0;

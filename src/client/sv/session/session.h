@@ -4,6 +4,7 @@
 #include "result.h"
 #include "session/character-setup.h"
 #include "session/character-identity.h"
+#include "session/status-state.h"
 #define SV_MESSAGE_BYTES 256
 #define SV_MESSAGE_PENDING 64
 #define SV_MESSAGE_LINES 6
@@ -39,7 +40,7 @@ typedef struct { SvStatus before, after; } SvStatusChange;
 typedef enum { SV_CHANGE_HP, SV_CHANGE_MESSAGE, SV_CHANGE_KEY_REQUEST,
                SV_CHANGE_REQUEST_ABORT, SV_CHANGE_NOOP, SV_CHANGE_SERVER_FLAGS,
                SV_CHANGE_CONFIRM, SV_CHANGE_PAUSE, SV_CHANGE_FLUSH,
-               SV_CHANGE_PING, SV_CHANGE_IDENTITY } SvChangeKind;
+               SV_CHANGE_PING, SV_CHANGE_IDENTITY, SV_CHANGE_HUD } SvChangeKind;
 typedef struct { int32_t rtt_ms; unsigned char index; } SvPingUpdate;
 typedef struct {
     int samples[60], latest_ms, average_ms, average_count;
@@ -48,7 +49,7 @@ typedef struct {
     SvChangeKind kind;
     union { SvHpUpdate hp; SvMessage message; SvKeyRequest request;
             uint32_t server_flags[4]; unsigned char confirmed_command;
-            SvPingUpdate ping; SvCharacterIdentity identity; };
+            SvPingUpdate ping; SvCharacterIdentity identity; SvHudUpdate hud; };
 } SvChange;
 typedef struct { uint32_t server_flags[4]; } SvControlState;
 typedef struct {
@@ -63,6 +64,8 @@ void sv_session_destroy(SvSession *session);
 /* Each complete update advances its region revision, including repeated values. */
 SvSessionChange sv_session_apply(SvSession *session, const SvChange *change);
 SvStatus sv_session_status(const SvSession *session);
+SvHud sv_session_hud(const SvSession *session);
+SvResult sv_session_take_status_effect(SvSession *, SvStatusEffect *);
 /* Bounded mandatory delivery and a separate short live feed (not full recall).
  * Taking an event acknowledges its delivery; drawing the feed never takes events. */
 SvResult sv_session_take_message(SvSession *session, SvMessage *message);

@@ -2,8 +2,12 @@
 #define SV_UI_H
 #include "ui/font.h"
 #include "ui/status.h"
+#include "ui/hud.h"
 #include "ui/message-text.h"
 typedef struct {
+    bool hud_mode, icon_gallery;
+    SvHudPreferences hud_preferences;
+    SvHudPresentation hud;
     SDL_Window *window;
     SDL_Renderer *renderer;
     SvFont *font;

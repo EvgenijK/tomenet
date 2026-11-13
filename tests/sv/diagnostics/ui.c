@@ -2,7 +2,7 @@
 #include "ui/message-text.h"
 void sv_ui_rebuild(SvUi *ui)
 {
-    *ui = (SvUi){.window = ui->window, .renderer = ui->renderer,
+    *ui = (SvUi){.hud_mode=ui->hud_mode,.icon_gallery=ui->icon_gallery,.hud_preferences=ui->hud_preferences,.hud=ui->hud,.window = ui->window, .renderer = ui->renderer,
                  .font = ui->font, .font_revision = ui->font_revision,
                  .fixture_scale = ui->fixture_scale};
 }
@@ -69,8 +69,23 @@ static bool draw_messages(SvUi *ui, float scale)
     return true;
 }
 
+/* Bounded diagnostic contact sheet. Every glyph is drawn by the production
+ * icon API in physical pixels; no reference rasterizer or model is embedded. */
+static bool draw_icon_gallery(SvUi *ui)
+{
+    SDL_Renderer *r=ui->renderer;SDL_Color white={255,255,255,255};
+    if(!SDL_SetRenderDrawColor(r,0,0,0,255)||!SDL_RenderClear(r))return false;
+    if(!sv_font_draw(ui->font,r,"Production SVG raster: 15 / 18 / 20 physical pixels",24,12,1,white))return false;
+    for(int i=0;i<SV_HUD_ICON_COUNT;++i){int x=24+(i%8)*154,y=64+(i/8)*95;char label[24];SDL_snprintf(label,sizeof(label),"Icon %02d",i);
+        if(!sv_font_draw(ui->font,r,label,x,y-24,1,white))return false;
+        const int sizes[]={15,18,20};for(int n=0;n<3;++n)if(!sv_hud_icon_draw(r,(SvHudIcon)i,(SDL_FRect){x+n*44,y,sizes[n],sizes[n]},white))return false;
+    }
+    return true;
+}
 bool sv_ui_draw(SvUi *ui, SvAppView view)
 {
+    if(ui->icon_gallery)return draw_icon_gallery(ui);
+    if(ui->hud_mode)return sv_hud_draw(&ui->hud,ui->renderer,ui->font,view,ui->hud_preferences,sv_ui_scale(ui),ui->font_revision);
     SDL_Renderer *renderer = ui->renderer;
     SvFont *font = ui->font;
     int w, h;
@@ -142,7 +157,11 @@ bool sv_ui_draw(SvUi *ui, SvAppView view)
 
 bool sv_ui_submit(SvUi *ui, SvAppView view)
 {
-    return sv_ui_draw(ui, view) && SDL_RenderPresent(ui->renderer);
+    if(!sv_ui_draw(ui,view))return false;
+    const char *capture=ui->hud_mode?SDL_getenv("SV_STATUS_CAPTURE"):NULL;
+    if(capture&&*capture){SDL_Surface *surface=SDL_RenderReadPixels(ui->renderer,NULL);if(!surface)return false;
+        bool saved=SDL_SaveBMP(surface,capture);SDL_DestroySurface(surface);if(!saved)return false;}
+    return SDL_RenderPresent(ui->renderer);
 }
 
 bool sv_ui_start(SvUi *ui, SvAppView initial_view)

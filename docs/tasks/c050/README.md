@@ -45,3 +45,17 @@ C004 принят и завершён решением пользователя 
 Только необходимый минимум Linux production core checks по [AGENTS](../../../AGENTS.md),
 расширение согласовать; Windows/MinGW/Wine deferred. Новые suites, full plans,
 harness и общие матрицы не вводятся. Реализация и PASS этой связки не заявлены.
+
+
+## Отложенная приёмка C012 — 2026-11-13
+
+Статус: deferred acceptance, не выполнена. Связки **C012-DA-08** из [реестра C012](../c012/deferred-acceptance.md).
+
+При actual alert consumer проверить HP/mana/Sanity warnings, sanity damage и применимые offpanel/context gates, outputs и suppression. C012 сохраняет latest state и только явно поддержанные HP/body/idle occurrence flows; выполнение предупреждения здесь требует настоящего consumer, не PASS из хранения поля.
+
+Это отложенная приёмка результата C012 при consumer этого этапа, не изменение canonical ownership/allocation/prerequisites и не полный план этапа. Evidence и необходимые исправления фиксировать здесь с обратной ссылкой в реестр. Техническая часть C012 не ждёт этой проверки; её собственные core/semantic обязательства сохраняются. Реализация/PASS этой связки не заявлены. Только scoped Linux проверки; расширение suite отдельно согласуется, Windows/MinGW/Wine deferred.
+
+
+### Уточнение границы событий C012 — 2026-11-13
+
+[Финальный аудит C012](../c012/final-disposition.md) подтверждает immediate HP occurrences и отдельный retained FIFO только body/form/idle. Sanity damage и martyr хранятся как latest payload; C012 не сохраняет их полную историю для последующего replay. При actual alert/message consumer обрабатывать каждый применимый complete input до следующего decode либо добавить bounded retention у владельца реакции; проверить same-value occurrences, порядок/reset и отсутствие replay из draw. Это уточнение существующей отложенной связки DA-08/09, не новые canonical outcomes или обратный prerequisite закрытия технической части C012.

@@ -9,13 +9,17 @@
 #include "protocol/hp-update.h"
 #include "session/session.h"
 struct SvSession {
+    SvHud hud;
+    SvStatusEffect status_effects[SV_STATUS_EFFECT_CAPACITY];
+    size_t status_effect_head, status_effect_count;
+    uint64_t status_effect_sequence;
     SvKeyRequest request;
     uint64_t request_sequence;
     SvMessage pending[SV_MESSAGE_PENDING];
     size_t head, count;
     uint64_t sequence;
     SvMessages messages;
-    player_type player; /* Sole HP value storage. */
+    player_type player; /* Existing HP owner; hud.hp is its coherent read projection. */
     unsigned char drain;
     bool bar, boosted;
     uint64_t revision;
@@ -65,6 +69,88 @@ SvStatus sv_session_status(const SvSession *s)
                     s->bar, s->boosted, s->revision != 0, s->revision};
     return view;
 }
+SvHud sv_session_hud(const SvSession *s) { return s ? s->hud : (SvHud){0}; }
+SvResult sv_session_take_status_effect(SvSession *s, SvStatusEffect *out)
+{
+    if (!s || !out) return SV_INVALID;
+    if (!s->status_effect_count) return SV_WAITING;
+    *out = s->status_effects[s->status_effect_head];
+    memset(&s->status_effects[s->status_effect_head], 0, sizeof(*out));
+    s->status_effect_head = (s->status_effect_head + 1) % SV_STATUS_EFFECT_CAPACITY;
+    --s->status_effect_count;
+    return SV_OK;
+}
+static SvResult apply_hud(SvSession *s, const SvHudUpdate *update)
+{
+    if ((unsigned)update->field >= SV_HUD_FIELD_COUNT || update->field == SV_HUD_HP)
+        return SV_INVALID;
+    const SvHud *v = &update->values;
+    if ((update->field == SV_HUD_DEMOGRAPHICS &&
+         !memchr(v->demographics.body, 0, sizeof(v->demographics.body))) ||
+        (update->field == SV_HUD_SANITY &&
+         !memchr(v->sanity.label, 0, sizeof(v->sanity.label))) ||
+        (update->field == SV_HUD_BLOWS &&
+         !memchr(v->blows.label, 0, sizeof(v->blows.label))) ||
+        (update->field == SV_HUD_EXTRA &&
+         !memchr(v->extra, 0, sizeof(v->extra))) ||
+        (update->field == SV_HUD_DEPTH &&
+         (!memchr(v->depth.location, 0, sizeof(v->depth.location)) ||
+          !memchr(v->depth.location_secondary, 0, sizeof(v->depth.location_secondary)) ||
+          !memchr(v->depth.preposition, 0, sizeof(v->depth.preposition))))) return SV_INVALID;
+    bool body = update->field == SV_HUD_DEMOGRAPHICS &&
+        strcmp(s->hud.demographics.body, v->demographics.body) != 0;
+    bool idle = update->field == SV_HUD_IDLE;
+    if (s->hud.revision == UINT64_MAX ||
+        ((body || idle) && (s->status_effect_count == SV_STATUS_EFFECT_CAPACITY ||
+         s->status_effect_sequence == UINT64_MAX))) return SV_EVENT_OVERFLOW;
+    /* Validate the complete input before appending an occurrence or mutating state. */
+    if (update->field == SV_HUD_STATS &&
+        (update->stat_index < 0 || update->stat_index >= 6)) return SV_INVALID;
+    switch (update->field) {
+#define FIELD(id, member) case id: s->hud.member = v->member; break
+        FIELD(SV_HUD_MANA, mana);
+        FIELD(SV_HUD_STAMINA, stamina);
+        FIELD(SV_HUD_SANITY, sanity);
+        case SV_HUD_STATS: s->hud.stats[update->stat_index] = v->stats[update->stat_index]; break;
+        FIELD(SV_HUD_ARMOUR, armour);
+        FIELD(SV_HUD_DEMOGRAPHICS, demographics);
+        FIELD(SV_HUD_COMBAT, combat);
+        FIELD(SV_HUD_EXPERIENCE, experience);
+        FIELD(SV_HUD_CURRENCY, currency);
+        FIELD(SV_HUD_CONFUSION, confusion);
+        FIELD(SV_HUD_POISON, poison);
+        FIELD(SV_HUD_STUDY, study);
+        FIELD(SV_HUD_FOOD, food);
+        FIELD(SV_HUD_FEAR, fear);
+        case SV_HUD_SPEED: s->hud.speed = v->speed; s->hud.speed_boosted = v->speed_boosted; break;
+        FIELD(SV_HUD_CUT, cut);
+        FIELD(SV_HUD_BLIND, blind);
+        FIELD(SV_HUD_STUN, stun);
+        FIELD(SV_HUD_BLOWS, blows);
+        FIELD(SV_HUD_MONSTER, monster);
+        FIELD(SV_HUD_AFK, afk);
+        FIELD(SV_HUD_MARTYR, martyr);
+        FIELD(SV_HUD_IDLE, idle);
+        case SV_HUD_ENCUMBRANCE: memcpy(s->hud.encumbrance, v->encumbrance, sizeof(v->encumbrance)); break;
+        case SV_HUD_EXTRA: memcpy(s->hud.extra, v->extra, sizeof(v->extra)); break;
+        FIELD(SV_HUD_INDICATORS, indicators);
+        FIELD(SV_HUD_DEPTH, depth);
+#undef FIELD
+        default: return SV_INVALID;
+    }
+    s->hud.available |= UINT64_C(1) << update->field;
+    ++s->hud.revision;
+    if (body || idle) {
+        SvStatusEffect effect = {.sequence = ++s->status_effect_sequence,
+            .kind = body ? SV_STATUS_BODY_EFFECT : SV_STATUS_IDLE_EFFECT};
+        if (body) memcpy(effect.body, v->demographics.body, sizeof(effect.body));
+        else effect.idle = v->idle;
+        s->status_effects[(s->status_effect_head + s->status_effect_count) % SV_STATUS_EFFECT_CAPACITY] = effect;
+        ++s->status_effect_count;
+    }
+    return SV_OK;
+}
+
 static SvStatusChange apply_hp(SvSession *s, SvHpUpdate update)
 {
     SvStatusChange change;
@@ -74,6 +160,9 @@ static SvStatusChange apply_hp(SvSession *s, SvHpUpdate update)
     sv_apply_hp(&s->player, &hp);
     s->bar = hp.bar; s->boosted = hp.boosted; s->drain = hp.drain;
     ++s->revision;
+    s->hud.hp = (SvHudResource){hp.maximum, hp.current, hp.bar, hp.boosted, hp.drain};
+    s->hud.available |= UINT64_C(1) << SV_HUD_HP;
+    ++s->hud.revision;
     change.after = sv_session_status(s);
     return change;
 }
@@ -130,7 +219,12 @@ SvSessionChange sv_session_apply(SvSession *s, const SvChange *change)
         s->identity = identity;
         break;
     }
-    case SV_CHANGE_HP: applied.status = apply_hp(s, change->hp); break;
+    case SV_CHANGE_HUD: applied.result = apply_hud(s, &change->hud); break;
+    case SV_CHANGE_HP:
+        if (s->revision == UINT64_MAX || s->hud.revision == UINT64_MAX)
+            applied.result = SV_EVENT_OVERFLOW;
+        else applied.status = apply_hp(s, change->hp);
+        break;
     case SV_CHANGE_MESSAGE:
         applied.result = apply_message(s, &change->message);
         applied.message_occurrence = s->messages.count ? s->messages.revision : 0;

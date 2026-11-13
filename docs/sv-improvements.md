@@ -1886,3 +1886,41 @@ MOTD acknowledgement и лимитом кадров; renderer regression не п
 **Необходимые проверки:** успешный MOTD draw/cache reuse не создаёт эту ошибку;
 реальная ошибка и frame-limit exit различаются; минимальный production probe
 использует прежние ресурсы без новой visual matrix. Проверки согласовать отдельно.
+
+
+## C012 planning: устаревшая ссылка gameplay layout
+
+**Проблема:** item-policy ссылается на отсутствующий docs/layout-coverage.md; это затрудняет поиск актуального approved gameplay UX и может привести к использованию synthetic sv-shell как финального oracle.
+
+**Затронутый код/документы:** docs/capabilities/item-policy.md, docs/sv-shell.md, отсутствующий docs/layout-coverage.md.
+
+**Предложение:** отдельной документационной задачей восстановить индекс утверждённых layout решений и исправить ссылки без введения нового UX.
+
+**Статус:** recorded, 2026-11-11, анализ C012; исправление не входит в подготовку/реализацию C012.
+
+**Необходимые проверки:** сверить финальные решения layout с policy/HTML, проверить локальные ссылки; не объявлять synthetic shell approved UX.
+
+## C012 planning: отсутствующий old-version blows label в legacy
+
+**Проблема:** Receive_bpr_wraith_prob в старой ветке не заполняет bpr_str, но передаёт его в prt_bpr_wraith_prob; потенциальное чтение неинициализированной строки следует разобрать отдельно.
+
+**Затронутый код:** src/client/nclient.c:Receive_bpr_wraith_prob, src/client/c-xtra1.c:prt_bpr_wraith_prob.
+
+**Предложение:** проверить фактическое чтение label в legacy renderer и при необходимости инициализировать absent label. SV C012 задаёт собственный безопасный empty default, не исправляя legacy в этой задаче.
+
+**Статус:** recorded, 2026-11-11; legacy defect требует подтверждения, исправление вне C012.
+
+**Необходимые проверки:** old/new packet branches вокруг 4.9.1.0.0.1, consumer absent-label path и отсутствие изменения wire consumption.
+
+
+## C012 implementation: bounds check legacy stat index
+
+**Проблема:** Receive_stat использует полученный stat как индекс массивов без bounds check. При tmp!=0 и marker 0x10 legacy precedence оставляет индекс >=16; некорректный вход может вызвать OOB.
+
+**Затронутый код:** src/client/nclient.c:Receive_stat (около строки 2133).
+
+**Предложение:** отдельной задачей проверить индекс после baseline marker/temp interpretation перед доступом к массивам. SV C012 уже отклоняет такой вход с DECODE_ERROR, legacy в этой работе не меняется.
+
+**Статус:** recorded, 2026-11-11; legacy hardening вне C012, воспроизведение legacy OOB не выполнялось.
+
+**Необходимые проверки:** valid old/new stat layouts и marker/temp precedence, invalid index и combined marker+temp без изменения wire consumption и valid behavior.

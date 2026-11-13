@@ -263,6 +263,16 @@ cases, production build и isolated actual-server startup/visual check прош�
 C014, canonical allocation и pending runtime statuses сохранены.
 
 
+C012: [спецификация live HUD/status](sv-stage-c012-spec.md),
+[план и задачи 001–007](tasks/c012/README.md),
+[production/source contract](tasks/c012/source-contract.md) и
+[planning snapshot 27 outcomes / 81 obligations](tasks/c012/coverage.json).
+Реализован и проверен тремя агентами и оркестратором 2026-11-11 в границах
+Linux status core/native HUD; [evidence 81 obligations](sv-c012-evidence.md).
+Core задач 001–005 проверен. После замечания пользователя native UX 006 переработан; повторный structural/semantic review 007 и standalone Linux X11 проверки прошли. Иконки и оформление затем доведены по текущим HTML/CSS/SVG; независимый appearance review прошёл. Пользовательская приёмка pending.
+C013/C014/late recipients и canonical runtime statuses сохраняются.
+
+
 ## Текущая приёмка платформ
 
 Правило [Linux-only проверок](agents/platform-validation.md) применяется к каждой
@@ -318,3 +328,40 @@ prerequisite находится в том же или более раннем э
 
 `capability.map.*` означает overview/locate. Основная игровая карта —
 `capability.world.read-map`, поэтому она отдельно принята в C013.
+
+
+C012 appearance recheck2026-11-11: после сверки только с текущими HTML/CSS/JS/SVG общий appearance PASS отозван. Задачи006/007 повторно открыты: dynamic widths, condition colours, IDLE→Resting mapping и icon downscale/filter path. Core evidence сохраняется в прежних границах; подробности — в последних разделах C012 spec/tasks/evidence.
+
+
+C012 R1–R4 correction2026-11-11: задачи006/007 скорректированы до реализации, найденные width/state/palette/raster defects исправлены. Frozen source проверен existing Linux core runner, production icon gallery, matched offscreen scenarios и двумя текущими X11 native runs; independent review новых findings не оставил. Ранние X11 timeout attempts сохранены в evidence. Пользовательская приёмка и canonical statuses pending.
+
+
+C012 browser visual correction2026-11-12:006/007 скорректированы до реализации и проверены по реальным локальным HTML/SV normal+Character primary парам1932×1208. Исправлены card/Ping rhythm, оформление, Character widget/primary/backdrop/scroll/input; small label clipping найден и устранён. Frozen Linux build/core и четыре bounded runs PASS, независимый review применимой C012 части новых блокирующих findings не оставил. CascadiaMono UI согласован, deferred surfaces/demo data не имитируются; пользовательская приёмка/canonical runtime statuses pending. Снимки/команды/исключения — последний раздел `docs/sv-c012-evidence.md`.
+
+
+Final C012 widget-header correction2026-11-12: root обнаружил после первого review отдельное расхождение header правого widget; восстановлены две HTML секции `PROFILE / SKILLS` + `RESISTS`, primary сохраняет три. Новый frozen source повторно проверен build/core, четырьмя native кадрами и независимым visual review; прежний snapshot сохранён, приёмка пользователя pending.
+
+
+C012 Character reopened2026-11-12: пользователь принял общее окно, но не Character. Новые реальные HTML/SV tab-аудиты выявили инертные SKILLS / RESISTS / DUMP и незакрытые Profile findings; прежний общий Character appearance PASS отозван.006/007 переведены вCharacter correction open, [план](../.scratch/sv-c012/browser-visual/tabs-audit-2026-11-12/correction-plan.md) сохраняет27/81, Linux core evidence и отдельные C030 requirements. В этом проходе production не менялся; полный Character ещё не принят.
+
+
+## C012 Character — итог адресной корректировки 2026-11-12
+
+Freeze5 исправляет реальные вкладки, их композицию/геометрию, связанный виджет и оформление. [Текущее evidence](sv-c012-evidence.md) содержит парные снимки и результаты ввода. Пользователь отклонил дополнительный StatusDetails: он удалён, нового маршрута не добавлено. Unknown RESISTS/disabled DUMP одобрены. Wide visual/input review и Linux build/core прошли; пользовательская приёмка не заявлена. После удаления списка самостоятельный видимый вывод study/AFK/extra/martyr/audio-idle и ряда supplemental values остаётся открытым; backendPASS не закрывает эти UI gaps. Canonical allocation/статусы не изменены.
+
+
+## C012 — отложенная приёмка интерфейса, 2026-11-13
+
+По решению пользователя интерфейс в C012 больше не дорабатывается. [Реестр C012-DA-01–10](tasks/c012/deferred-acceptance.md) и обратные ссылки принимающих этапов закрепляют: live HUD/неразмещённые статусы при C014; Character/small/resize при C030; settings layout при C044, option forms при C046; Study совместно с C023 после semantic решения; bank при C027; warnings C050, messages C016, idle audio C055. Полные RESISTS C030 и export C029 остаются их собственными возможностями.
+
+Перенесены приёмки, не canonical ownership или вся реализация C012. Allocation27/81, prerequisites и runtime statuses сохранены; PASS не заявлен. C012 сохраняет финальный минимальный focused core check текущего implementation candidate, semantic Study/stat-index решения, сохранность/доставку данных и событий и disposition обязательств. Техническая часть не ждёт отложенной визуальной приёмки. Последние existing-slots freeze3 изменения уже внесены; окончательные core и affected visual проверки остановлены и не возобновляются этой правкой документов. Предыдущие C012 visual gates выше относятся к истории; новых блоков Character не добавлять.
+
+
+## C012: закрытие технической части — 2026-11-13
+
+Невизуальный остаток C012 закрыт: финальные existing Linux build/status core checks, documented Study/stat-index semantics, data/event boundary и [81 scoped dispositions](tasks/c012/final-disposition.md). Интерфейсные приёмки остаются в [DA-01–10](tasks/c012/deferred-acceptance.md) у согласованных consumers; ожидание этих проверок не блокирует техническое завершение C012. Full canonical runtime PASS/registration и пользовательская приёмка интерфейса не заявлены. Canonical IDs/allocation/prerequisites/statuses не менялись.
+
+
+## C012 принят — 2026-11-13
+
+Пользователь подтвердил этап в проверенных границах Linux status/core. [Решение о приёмке](sv-stage-c012-acceptance.md), [итог 27/81](tasks/c012/final-disposition.md). Задачи001–007 приняты; [отложенные приёмки C012-DA-01–10](tasks/c012/deferred-acceptance.md) остаются открытыми у принимающих этапов. Canonical allocation/runtime statuses не меняются.

@@ -11,6 +11,7 @@
 #include "diagnostics/capture.h"
 #include "diagnostics/runtime.h"
 #include "hp-scenario.h"
+#include "status-fixture.h"
 #include "message-scenario.h"
 #include "request-scenario.h"
 #include "lifecycle-scenario.h"
@@ -73,7 +74,7 @@ static void usage(void)
          "  [-fCFG] [-i] [-pPORT] [-FFPS] [-PLIBRARY] [-q] [-nREALNAME] [-NCHARACTER|-RCHARACTER] [-C] [-s] [-e]\n"
          "  [-lACCOUNT PASSWORD SERVER] [-a|-g|-G] [-w] [-u] [-v|-V|-x] [-X] [-t] [-T]\n"
          "  --synthetic --profile-root ABSOLUTE-NEW-DIRECTORY\n"
-         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
+         "  [--library PATH] [--fixture-window WIDTHxHEIGHT] [--frames N] [--review] [--status-check] [--status-small] [--status-character] [--status-matched-icons] [--status-html] [--status-sanity word|bar|percent|exact] [--status-icons] [--hp-check] [--arch-check] [--message-check] [--request-check] [--lifecycle-check] [--geometry-check] [--timing-check] [--timing-delay]\n"
          "Manual --review: F5 restarts synthetic session, F6 rebuilds surfaces, m expands to Y.\n"
          "Product defaults: desktop fullscreen, UI scale 100%, Cascadia Mono.\n"
          "TOMENET_PATH selects library resources, otherwise adjacent lib/.\n"
@@ -95,7 +96,8 @@ int sv_diagnostics_main(int argc, char **argv)
     bool lifecycle_check = false, geometry_check = false, timing_check = false, timing_delay = false;
     SvApp *app = NULL;
     bool synthetic = false, endpoint_mode = false, windowed = false, quit = false;
-    bool review = false;
+    bool review = false,status_check=false,status_small=false,status_character=false,status_matched=false,status_html=false,status_icons=false;
+    const char *status_sanity=NULL;
     int width = 1024, height = 768, frames = 0, submitted = 0, result = 1;
     unsigned port = 0;
     SDL_Window *window = NULL;
@@ -107,6 +109,13 @@ int sv_diagnostics_main(int argc, char **argv)
         if (!strcmp(argv[i], "--endpoint")) { endpoint_mode = true; continue; }
         if (!strcmp(argv[i], "--password-stdin")) { password_stdin = true; continue; }
         if (!strcmp(argv[i], "-m")) { skip_motd = true; continue; }
+        if (!strcmp(argv[i], "--status-check")) { status_check=true;continue; }
+        if (!strcmp(argv[i], "--status-small")) { status_small=true;continue; }
+        if (!strcmp(argv[i], "--status-character")) { status_character=true;continue; }
+        if (!strcmp(argv[i], "--status-matched-icons")) { status_matched=true;continue; }
+        if (!strcmp(argv[i], "--status-html")) { status_html=true;status_matched=true;continue; }
+        if (!strcmp(argv[i], "--status-sanity")) { if(++i>=argc)return 2;status_sanity=argv[i];if(strcmp(status_sanity,"word")&&strcmp(status_sanity,"bar")&&strcmp(status_sanity,"percent")&&strcmp(status_sanity,"exact"))return 2;continue; }
+        if (!strcmp(argv[i], "--status-icons")) { status_icons=true;continue; }
         if (!strcmp(argv[i], "--review")) { review = true; continue; }
         if (!strcmp(argv[i], "--arch-check")) { arch_check = true; continue; }
         if (!strcmp(argv[i], "--request-check")) { request_check = true; continue; }
@@ -149,7 +158,7 @@ int sv_diagnostics_main(int argc, char **argv)
         } else { usage(); return 2; }
     }
     if (endpoint_mode || !synthetic) {
-        if (synthetic || review || hp_check || arch_check || message_check || request_check ||
+        if (status_check||status_small||status_character||status_matched||status_html||status_sanity||status_icons||synthetic || review || hp_check || arch_check || message_check || request_check ||
             lifecycle_check || geometry_check || timing_check || timing_delay) return 2;
         if (account && !password_stdin) return 2;
         if (character && (!*character || strlen(character) >= 80)) return 2;
@@ -172,6 +181,7 @@ int sv_diagnostics_main(int argc, char **argv)
         return contact_result;
     }
     if (server || server_list || metaserver || port || account || password_stdin || real_name || character || skip_motd || legacy_settings) return 2;
+    if ((status_small||status_character||status_matched||status_html||status_sanity||status_icons)&&!status_check)return 2;
     if (timing_delay && !timing_check) return 2;
     if (!root) root = SDL_getenv("TOMENET_SDL3_USER_PATH");
     if (!root || !*root) { fprintf(stderr, "SV requires an isolated --profile-root; personal SDL3 profile is never opened by this scenario\n"); return 2; }
@@ -241,6 +251,30 @@ int sv_diagnostics_main(int argc, char **argv)
     if (arch_check) {
         if (!checked_scenario(app, &ui, SV_SCENARIO_ARCH)) goto done;
     } else if (!sv_synthetic_start(app)) goto done;
+    if(status_check){
+        SvSettingsConfig config;sv_settings_config_defaults(&config);
+        char config_path[4096];snprintf(config_path,sizeof(config_path),"%s/sv/tomenet.cfg",root);
+        SvSettingsConfigResult loaded=sv_settings_config_load(&config,config_path);
+        if(loaded!=SV_SETTINGS_CONFIG_OK&&loaded!=SV_SETTINGS_CONFIG_MISSING){sv_settings_config_dispose(&config);goto done;}
+        SvSettingsOptions options;sv_settings_options_defaults(&options);
+        if(!sv_settings_options_load(&options,root,library))fprintf(stderr,"SV status: preferences retained usable values with diagnostics\n");
+        if(status_small)snprintf(config.layout,sizeof(config.layout),"small");
+        ui.hud_preferences=sv_hud_preferences(&config,&options);sv_settings_config_dispose(&config);
+        if(sv_app_open(app,sv_status_fixture_version)!=SV_OK||sv_status_fixture_feed(app)!=SV_OK)goto done;
+        if(status_matched&&sv_status_fixture_matched_icons(app)!=SV_OK)goto done;
+        if(status_html&&sv_status_fixture_html(app)!=SV_OK)goto done;
+        if(status_sanity&&sv_status_fixture_sanity_mode(app,status_sanity)!=SV_OK)goto done;
+        ui.hud_mode=true;ui.icon_gallery=status_icons;
+        int hw,hh;if(!SDL_GetCurrentRenderOutputSize(renderer,&hw,&hh)||!sv_hud_prepare(&ui.hud,sv_app_view(app),ui.hud_preferences,hw,hh,sv_ui_scale(&ui),ui.font_revision))goto done;
+        ui.hud.character_open=status_character;
+        const char *scroll=SDL_getenv("SV_STATUS_SCROLL");if(scroll)ui.hud.scroll=SDL_atoi(scroll);
+        sv_ui_rebuild(&ui); /* Rebuild keeps user primary/scroll state; no model replay. */
+        printf("SV status native production path fields=27 layout=%s character=%d ui_scale=%d rebuild=preserved\n",ui.hud_preferences.small?"small":"wide",status_character,ui.hud_preferences.ui_scale_percent);
+        printf("SV status widths left=%d right=%d matched_icons=%d activity_available=%d idle=%d\n",ui.hud.left_width,ui.hud.right_width,status_matched,ui.hud.conditions[SV_HUD_CONDITION_ACTIVITY].available,sv_app_view(app).hud.idle);
+        if(status_html)printf("SV status HTML values matched through raw packets; tracked health quantized to 7/10; unavailable identity/skills retained\n");
+        if(status_sanity)printf("SV sanity diagnostic server label mode=%s; no game-side mode switch claimed\n",status_sanity);
+        if(status_icons)printf("SV icon gallery count=%d columns=8 cell=154x95 origin=24,64 offsets=0,44,88 sizes=15,18,20 physical=true\n",SV_HUD_ICON_COUNT);
+    }
     if (review && sv_app_bind_macro(app, 'm', 'Y', SV_MACRO_NORMAL) != SV_OK) goto done;
     if (!SDL_StartTextInput(window)) goto done;
     SvNativeInput input;
@@ -256,13 +290,20 @@ int sv_diagnostics_main(int argc, char **argv)
             if (review && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
                     (event.key.key == SDLK_F5 || event.key.key == SDLK_F6)) {
                 if (event.key.key == SDLK_F5) {
-                    if (!sv_synthetic_start(app)) goto done;
+                    if (status_check) {
+                        if(sv_app_open(app,sv_status_fixture_version)!=SV_OK||sv_status_fixture_feed(app)!=SV_OK)goto done;
+                        if(status_matched&&sv_status_fixture_matched_icons(app)!=SV_OK)goto done;
+                        if(status_html&&sv_status_fixture_html(app)!=SV_OK)goto done;
+        if(status_sanity&&sv_status_fixture_sanity_mode(app,status_sanity)!=SV_OK)goto done;
+                    }
+                    else if (!sv_synthetic_start(app)) goto done;
                     sv_native_input_begin(&input, app);
                     puts("SV review session restarted");
                 } else puts("SV review surfaces rebuilt");
                 sv_ui_rebuild(&ui);
                 continue;
             }
+            if(ui.hud_mode&&sv_hud_event(&ui.hud,sv_app_view(app),&event))continue;
             if (sv_ui_event(&ui, &event)) continue;
             if (sv_native_input(&input, app, &event)) continue;
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
